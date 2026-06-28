@@ -25,6 +25,10 @@ import {
   getUnitForType,
   validateMeasurementRange,
 } from "@/lib/validations/measurement";
+import {
+  isPlausibleEntryInstant,
+  ENTRY_INSTANT_CLOCK_SKEW_MS,
+} from "@/lib/validations/entry-instant";
 import { isTelegramCapturableType } from "@/lib/measurements/create-from-telegram";
 import {
   invalidateUserMeasurements,
@@ -53,6 +57,91 @@ function mcpExternalId(
 ): string {
   const digest = createHash("sha256").update(idempotencyKey).digest("hex");
   return `mcp:${prefix}:${digest}`;
+}
+
+/**
+ * The structured refusal a pre-write validation can raise. `error` is the
+ * stable machine code the write tool surfaces verbatim (`unsupported_type` /
+ * `out_of_range`); `reason` carries the human-readable detail. Mirrors the
+ * `{ status, reason }` the commit path already returns so a preview and a
+ * commit reach the SAME verdict for the SAME input.
+ */
+export type McpWriteCheck =
+  | { ok: true }
+  | { ok: false; error: "unsupported_type" | "out_of_range"; reason?: string };
+
+/**
+ * Bound a client-supplied `measuredAt` exactly like the manual measurement
+ * route (`validateEntryInstant`): reject a future instant beyond the 5-min
+ * clock-skew tolerance and anything before 1900. Returns the violation reason,
+ * or null when the instant is plausible (or omitted — the core defaults to now).
+ */
+function instantRefusalReason(measuredAt: Date | undefined): string | null {
+  if (measuredAt === undefined) return null;
+  if (isPlausibleEntryInstant(measuredAt)) return null;
+  if (measuredAt.getTime() > Date.now() + ENTRY_INSTANT_CLOCK_SKEW_MS) {
+    return "Timestamp must not be in the future";
+  }
+  return "Timestamp must not predate 1900";
+}
+
+/**
+ * Pure pre-write validation for a single-value measurement — the type
+ * allowlist, the plausibility range, and the instant bound. Shared by the
+ * commit core and the confirm-gate preview so a preview can never show a value
+ * the commit would refuse.
+ */
+export function checkMcpMeasurement(
+  type: MeasurementType,
+  value: number,
+  measuredAt: Date | undefined,
+): McpWriteCheck {
+  if (!isTelegramCapturableType(type)) {
+    return { ok: false, error: "unsupported_type" };
+  }
+  const rangeError = validateMeasurementRange(type, value);
+  if (rangeError !== null) {
+    return { ok: false, error: "out_of_range", reason: rangeError };
+  }
+  const instantReason = instantRefusalReason(measuredAt);
+  if (instantReason !== null) {
+    return { ok: false, error: "out_of_range", reason: instantReason };
+  }
+  return { ok: true };
+}
+
+/**
+ * Pure pre-write validation for a blood-pressure pair — both values'
+ * plausibility ranges, the systolic > diastolic guard, and the instant bound.
+ * Shared by the commit core and the confirm-gate preview.
+ */
+export function checkMcpBloodPressure(
+  systolic: number,
+  diastolic: number,
+  measuredAt: Date | undefined,
+): McpWriteCheck {
+  const sysError = validateMeasurementRange("BLOOD_PRESSURE_SYS", systolic);
+  const diaError = validateMeasurementRange("BLOOD_PRESSURE_DIA", diastolic);
+  if (sysError !== null || diaError !== null) {
+    return {
+      ok: false,
+      error: "out_of_range",
+      reason: sysError ?? diaError ?? "Value out of range",
+    };
+  }
+  // Plausibility: systolic is always the higher number.
+  if (systolic <= diastolic) {
+    return {
+      ok: false,
+      error: "out_of_range",
+      reason: "Systolic must be greater than diastolic",
+    };
+  }
+  const instantReason = instantRefusalReason(measuredAt);
+  if (instantReason !== null) {
+    return { ok: false, error: "out_of_range", reason: instantReason };
+  }
+  return { ok: true };
 }
 
 /** Normalized record echoed back to the assistant (preview + commit result). */
@@ -86,21 +175,21 @@ export async function logMcpMeasurement(input: {
   measuredAt?: Date;
   idempotencyKey: string;
 }): Promise<McpMeasurementResult> {
-  if (!isTelegramCapturableType(input.type)) {
+  // Same validation the confirm-gate preview runs (type allowlist, range, and
+  // the measuredAt instant bound) — preview and commit reach one verdict.
+  const check = checkMcpMeasurement(input.type, input.value, input.measuredAt);
+  if (!check.ok) {
     annotate({
       action: { name: "mcp.tool.write" },
-      meta: { tool: "log_measurement", status: "unsupported_type" },
+      meta: { tool: "log_measurement", status: check.error },
     });
-    return { status: "unsupported_type" };
-  }
-
-  const rangeError = validateMeasurementRange(input.type, input.value);
-  if (rangeError !== null) {
-    annotate({
-      action: { name: "mcp.tool.write" },
-      meta: { tool: "log_measurement", status: "out_of_range" },
-    });
-    return { status: "out_of_range", reason: rangeError };
+    if (check.error === "unsupported_type") {
+      return { status: "unsupported_type" };
+    }
+    return {
+      status: "out_of_range",
+      reason: check.reason ?? "Value out of range",
+    };
   }
 
   const unit = input.unit ?? getUnitForType(input.type);
@@ -217,34 +306,21 @@ export async function logMcpBloodPressure(input: {
   measuredAt?: Date;
   idempotencyKey: string;
 }): Promise<McpBloodPressureResult> {
-  const sysError = validateMeasurementRange(
-    "BLOOD_PRESSURE_SYS",
+  // Same validation the confirm-gate preview runs (both ranges, the systolic >
+  // diastolic guard, and the measuredAt instant bound) — one verdict for both.
+  const check = checkMcpBloodPressure(
     input.systolic,
-  );
-  const diaError = validateMeasurementRange(
-    "BLOOD_PRESSURE_DIA",
     input.diastolic,
+    input.measuredAt,
   );
-  if (sysError !== null || diaError !== null) {
+  if (!check.ok) {
     annotate({
       action: { name: "mcp.tool.write" },
       meta: { tool: "log_blood_pressure", status: "out_of_range" },
     });
     return {
       status: "out_of_range",
-      reason: sysError ?? diaError ?? "Value out of range",
-    };
-  }
-  // Plausibility: systolic is always the higher number. Reject a swapped /
-  // implausible pair rather than persist a clinically nonsensical reading.
-  if (input.systolic <= input.diastolic) {
-    annotate({
-      action: { name: "mcp.tool.write" },
-      meta: { tool: "log_blood_pressure", status: "out_of_range" },
-    });
-    return {
-      status: "out_of_range",
-      reason: "Systolic must be greater than diastolic",
+      reason: check.reason ?? "Value out of range",
     };
   }
 

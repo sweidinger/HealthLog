@@ -128,6 +128,42 @@ describe("logMcpMeasurement", () => {
     expect(measurement.create).not.toHaveBeenCalled();
   });
 
+  it("refuses a far-future (year 9999) measuredAt without writing", async () => {
+    const result = await logMcpMeasurement({
+      userId: "u-1",
+      type: "WEIGHT",
+      value: 80,
+      measuredAt: new Date("9999-01-01T00:00:00Z"),
+      idempotencyKey: "key-future",
+    });
+    expect(result.status).toBe("out_of_range");
+    expect(measurement.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses an ancient (year 1000) measuredAt without writing", async () => {
+    const result = await logMcpMeasurement({
+      userId: "u-1",
+      type: "WEIGHT",
+      value: 80,
+      measuredAt: new Date("1000-01-01T00:00:00Z"),
+      idempotencyKey: "key-ancient",
+    });
+    expect(result.status).toBe("out_of_range");
+    expect(measurement.create).not.toHaveBeenCalled();
+  });
+
+  it("accepts a now-ish measuredAt", async () => {
+    const result = await logMcpMeasurement({
+      userId: "u-1",
+      type: "WEIGHT",
+      value: 80,
+      measuredAt: new Date(),
+      idempotencyKey: "key-now",
+    });
+    expect(result.status).toBe("written");
+    expect(measurement.create).toHaveBeenCalledTimes(1);
+  });
+
   it("derives the same externalId for the same idempotencyKey", async () => {
     await logMcpMeasurement({
       userId: "u-1",
@@ -250,6 +286,44 @@ describe("logMcpBloodPressure", () => {
     });
     expect(result.status).toBe("out_of_range");
     expect(measurement.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a far-future (year 9999) measuredAt without writing", async () => {
+    const result = await logMcpBloodPressure({
+      userId: "u-1",
+      systolic: 120,
+      diastolic: 80,
+      measuredAt: new Date("9999-01-01T00:00:00Z"),
+      idempotencyKey: "bp-future",
+    });
+    expect(result.status).toBe("out_of_range");
+    expect(measurement.create).not.toHaveBeenCalled();
+    expect($transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses an ancient (year 1000) measuredAt without writing", async () => {
+    const result = await logMcpBloodPressure({
+      userId: "u-1",
+      systolic: 120,
+      diastolic: 80,
+      measuredAt: new Date("1000-01-01T00:00:00Z"),
+      idempotencyKey: "bp-ancient",
+    });
+    expect(result.status).toBe("out_of_range");
+    expect(measurement.create).not.toHaveBeenCalled();
+    expect($transaction).not.toHaveBeenCalled();
+  });
+
+  it("accepts a now-ish measuredAt", async () => {
+    const result = await logMcpBloodPressure({
+      userId: "u-1",
+      systolic: 120,
+      diastolic: 80,
+      measuredAt: new Date(),
+      idempotencyKey: "bp-now",
+    });
+    expect(result.status).toBe("written");
+    expect($transaction).toHaveBeenCalledTimes(1);
   });
 
   it("is idempotent — a replay with the same key writes nothing", async () => {
