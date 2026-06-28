@@ -3681,7 +3681,38 @@
     },
     "updatedTodayAt": "Heute aktualisiert, {time}",
     "updatedYesterday": "Gestern aktualisiert",
-    "updatedOn": "Aktualisiert am {date}"
+    "updatedOn": "Aktualisiert am {date}",
+    "healthStatus": {
+      "sectionTitle": "Was sich verändert hat",
+      "subtitle": "Werte, die von deinem üblichen Bereich abweichen.",
+      "deviationAbove": "{vital} liegt über deinem üblichen Bereich.",
+      "deviationBelow": "{vital} liegt unter deinem üblichen Bereich.",
+      "shiftUp": "{vital} hat sich gegenüber deiner jüngsten Norm nach oben verschoben.",
+      "shiftDown": "{vital} hat sich gegenüber deiner jüngsten Norm nach unten verschoben.",
+      "rangeContext": "Aktuell {value}, sonst {low}–{high}.",
+      "shiftContext": "Etwa {before} davor, {after} seitdem."
+    },
+    "breathingScreening": {
+      "sectionTitle": "Atmung im Schlaf",
+      "subtitle": "Ein Screening-Signal aus deinen Schlafdaten.",
+      "classificationElevated": "Dein Gerät hat erhöhte Atemstörungen gemeldet.",
+      "classificationNotElevated": "Die Einstufung deines Geräts ist nicht erhöht.",
+      "trendUp": "Höher als an deinen früheren Nächten.",
+      "trendDown": "Niedriger als an deinen früheren Nächten.",
+      "trendStable": "Stabil gegenüber deinen früheren Nächten.",
+      "nights": "{count} Nächte erfasst",
+      "indexLine": "jüngster Durchschnittsindex {value}",
+      "eventsFlagged": "{count} vom Gerät gemeldete Ereignisse",
+      "disclaimer": "Dies ist ein Screening-Signal, keine Diagnose — bitte mit einer Ärztin oder einem Arzt besprechen."
+    },
+    "labsChanges": {
+      "sectionTitle": "Seit deinem letzten Laborbefund",
+      "subtitle": "Wie deine neuesten Werte im Vergleich zum vorherigen Befund stehen.",
+      "statusInRange": "im Normbereich",
+      "statusBelow": "unter dem Bereich",
+      "statusAbove": "über dem Bereich",
+      "directionFlat": "keine Änderung"
+    }
   },
   "thresholds": {
     "defaultLabel": "Default",

@@ -1,0 +1,131 @@
+/**
+ * v1.25 — "what changed since your last panel" shaping.
+ *
+ * Groups the user's numeric lab results by panel DATE (the calendar day of
+ * `takenAt`, UTC), finds the two most-recent dates, and for every analyte that
+ * appears in BOTH the latest and the previous panel reports the signed delta,
+ * the direction, and where the latest value sits against its reference band
+ * (`classifyReferenceRange`). Qualitative (valueText-only) results carry no
+ * numeric value, so they are skipped — a delta is meaningless for them.
+ *
+ * Pure + Prisma-free so the present / absent states are unit-testable: it is
+ * absent when there are fewer than two panel dates or no analyte is shared.
+ * Neutral framing only — a delta is not a diagnosis.
+ */
+import {
+  classifyReferenceRange,
+  type ReferenceRangeStatus,
+} from "@/lib/labs/reference-range";
+
+/** A single numeric lab reading. */
+export interface LabChangeRow {
+  analyte: string;
+  unit: string;
+  value: number;
+  referenceLow: number | null;
+  referenceHigh: number | null;
+  takenAt: Date;
+}
+
+export interface LabChange {
+  analyte: string;
+  unit: string;
+  latest: number;
+  previous: number;
+  /** Signed latest − previous, rounded to 2dp. */
+  delta: number;
+  direction: "up" | "down" | "flat";
+  status: ReferenceRangeStatus;
+}
+
+export interface LabChangesSummary {
+  present: boolean;
+  /** YYYY-MM-DD of the most-recent panel, or null when absent. */
+  latestDate: string | null;
+  /** YYYY-MM-DD of the prior panel, or null when absent. */
+  previousDate: string | null;
+  changes: LabChange[];
+}
+
+const ABSENT: LabChangesSummary = {
+  present: false,
+  latestDate: null,
+  previousDate: null,
+  changes: [],
+};
+
+/** UTC calendar-day key (YYYY-MM-DD) for a sample instant. */
+function dayKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Normalised analyte name for cross-panel matching (free-text tolerant). */
+function analyteKey(analyte: string): string {
+  return analyte.trim().toLowerCase();
+}
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+/**
+ * Summarise the change between the two most-recent numeric lab panels. `rows`
+ * should already be the user's live (non-deleted) numeric results; this helper
+ * does the grouping + pairing.
+ */
+export function summariseLabChanges(
+  rows: readonly LabChangeRow[],
+): LabChangesSummary {
+  const numeric = rows.filter((r) => Number.isFinite(r.value));
+  if (numeric.length === 0) return ABSENT;
+
+  // Group by panel day, keeping the latest reading per analyte within a day.
+  const byDay = new Map<string, Map<string, LabChangeRow>>();
+  for (const row of numeric) {
+    const day = dayKey(row.takenAt);
+    let analytes = byDay.get(day);
+    if (!analytes) {
+      analytes = new Map();
+      byDay.set(day, analytes);
+    }
+    const key = analyteKey(row.analyte);
+    const existing = analytes.get(key);
+    if (!existing || row.takenAt.getTime() >= existing.takenAt.getTime()) {
+      analytes.set(key, row);
+    }
+  }
+
+  const days = [...byDay.keys()].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+  if (days.length < 2) return ABSENT;
+
+  const latestDate = days[0];
+  const previousDate = days[1];
+  const latest = byDay.get(latestDate)!;
+  const previous = byDay.get(previousDate)!;
+
+  const changes: LabChange[] = [];
+  for (const [key, latestRow] of latest) {
+    const previousRow = previous.get(key);
+    if (!previousRow) continue;
+    const delta = round2(latestRow.value - previousRow.value);
+    const direction: LabChange["direction"] =
+      delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+    changes.push({
+      analyte: latestRow.analyte,
+      unit: latestRow.unit,
+      latest: latestRow.value,
+      previous: previousRow.value,
+      delta,
+      direction,
+      status: classifyReferenceRange(
+        latestRow.value,
+        latestRow.referenceLow,
+        latestRow.referenceHigh,
+      ),
+    });
+  }
+
+  if (changes.length === 0) return ABSENT;
+
+  changes.sort((a, b) => a.analyte.localeCompare(b.analyte));
+
+  return { present: true, latestDate, previousDate, changes };
+}

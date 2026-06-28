@@ -39,6 +39,7 @@ import { healthRecordPaths } from "./health-record";
 import { illnessPaths } from "./illness";
 import { importPaths } from "./import";
 import { insightsPaths } from "./insights";
+import { insightsSignalPaths } from "./insights-signals";
 import { labsPaths } from "./labs";
 import { ocrPaths } from "./ocr";
 import { measurementPaths } from "./measurements";
@@ -72,6 +73,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...coachFeedbackPaths,
   ...adminDiagnosticPaths,
   ...insightsPaths,
+  ...insightsSignalPaths,
   ...moodPaths,
   ...settingsPaths,
   ...consentPaths,

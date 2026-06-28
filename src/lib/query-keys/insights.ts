@@ -137,4 +137,29 @@ export const insightsKeys = {
    */
   insightsCoachRead: (metric: string) =>
     ["insights", "coach-read", metric] as const,
+
+  /**
+   * v1.25 — baseline-drift read (`/api/insights/health-status`). Combines the
+   * personal-band deviations + the dated changepoint shifts into one awareness
+   * card. Pure compute over the rollup tier; the `["insights"]` prefix keeps it
+   * in the standard invalidation fan-out (a measurement write busts it).
+   */
+  insightsHealthStatus: () => ["insights", "health-status"] as const,
+
+  /**
+   * v1.25 — breathing-disturbance screening read
+   * (`/api/insights/breathing-screening`). Last ~30 nights of the per-night
+   * index + device-flagged events. The `["insights"]` prefix carries the
+   * invalidation fan-out from an Apple Health sleep batch write.
+   */
+  insightsBreathingScreening: () =>
+    ["insights", "breathing-screening"] as const,
+
+  /**
+   * v1.25 — "what changed since your last panel" read
+   * (`/api/insights/labs-changes`). The two most-recent numeric lab panels'
+   * shared-analyte deltas. The `["insights"]` prefix keeps it in the standard
+   * invalidation fan-out.
+   */
+  insightsLabsChanges: () => ["insights", "labs-changes"] as const,
 };

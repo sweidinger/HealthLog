@@ -6178,6 +6178,60 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/insights/health-status:
+    get:
+      tags:
+        - Insights
+      summary: Baseline-drift health status
+      description: Surfaces vitals drifting from the user's personal normal — out-of-band deviations from the
+        personal-baseline engine plus dated, sustained level shifts from the changepoint detector. Pure compute over the
+        rollup tier; awareness only, never a diagnosis. Requires the insights module. Cookie or Bearer auth.
+      responses:
+        "200":
+          description: The drift summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsHealthStatusEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/insights/breathing-screening:
+    get:
+      tags:
+        - Insights
+      summary: Sleep-breathing screening signal
+      description: Summarises the last ~30 nights of the per-night sleep-breathing-disturbance index plus device-flagged
+        events into a calm awareness read. A screening signal only — never a HealthLog diagnosis. Requires the insights
+        module. Cookie or Bearer auth.
+      responses:
+        "200":
+          description: The breathing-screening summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsBreathingScreeningEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/insights/labs-changes:
+    get:
+      tags:
+        - Insights
+      summary: What changed since your last lab panel
+      description: Pairs the two most-recent numeric lab panels and reports each shared analyte's signed delta plus its
+        reference-band standing. Absent when there are fewer than two panels or no analyte is shared. Neutral framing,
+        never a diagnosis. Cookie or Bearer auth.
+      responses:
+        "200":
+          description: The lab-change summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsLabsChangesEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/mood/tags:
     get:
       tags:
@@ -9245,6 +9299,9 @@ components:
                   - cycle-summary
                   - signals
                   - rhythm-events
+                  - health-status
+                  - breathing
+                  - labs-changes
               visible:
                 type: boolean
               order:
@@ -20663,6 +20720,244 @@ components:
         - windowDays
         - interpretation
       additionalProperties: false
+    InsightsHealthStatusEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsHealthStatus"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsHealthStatus:
+      type: object
+      properties:
+        present:
+          type: boolean
+          description: True when at least one deviation or shift is surfaced.
+        deviations:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                description: MeasurementType token.
+              value:
+                type: number
+                description: Today's value.
+              center:
+                type: number
+                description: Personal band center (median).
+              low:
+                type: number
+              high:
+                type: number
+              direction:
+                type: string
+                enum:
+                  - above
+                  - below
+            required:
+              - type
+              - value
+              - center
+              - low
+              - high
+              - direction
+            additionalProperties: false
+        shifts:
+          type: array
+          items:
+            type: object
+            properties:
+              metric:
+                type: string
+                description: MeasurementType token.
+              breakDate:
+                type: string
+                description: YYYY-MM-DD of the new level's first day.
+              beforeMean:
+                type: number
+              afterMean:
+                type: number
+              direction:
+                type: string
+                enum:
+                  - up
+                  - down
+            required:
+              - metric
+              - breakDate
+              - beforeMean
+              - afterMean
+              - direction
+            additionalProperties: false
+        generatedAt:
+          type: string
+          description: ISO-8601 instant the read was computed.
+      required:
+        - present
+        - deviations
+        - shifts
+        - generatedAt
+      additionalProperties: false
+      description: Vitals drifting from the user's personal normal — band deviations plus dated, sustained level shifts.
+        Awareness only, never a diagnosis.
+    InsightsBreathingScreeningEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsBreathingScreening"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsBreathingScreening:
+      type: object
+      properties:
+        present:
+          type: boolean
+        nights:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Nights with a per-night index reading.
+        recentMeanIndex:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: Mean of the index readings (lower-better); null when none.
+        trend:
+          anyOf:
+            - type: string
+              enum:
+                - up
+                - down
+                - stable
+            - type: "null"
+          description: Recent index vs the prior window; null when too few nights.
+        eventCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Device-flagged breathing-disturbance / apnea events.
+        classification:
+          anyOf:
+            - type: string
+              enum:
+                - not-elevated
+                - elevated
+            - type: "null"
+          description: The device's own classification; null when no data.
+        generatedAt:
+          type: string
+      required:
+        - present
+        - nights
+        - recentMeanIndex
+        - trend
+        - eventCount
+        - classification
+        - generatedAt
+      additionalProperties: false
+      description: Sleep-breathing-disturbance screening signal — a screening signal only, never a diagnosis.
+    InsightsLabsChangesEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsLabsChanges"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsLabsChanges:
+      type: object
+      properties:
+        present:
+          type: boolean
+        latestDate:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: YYYY-MM-DD of the most-recent panel.
+        previousDate:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: YYYY-MM-DD of the prior panel.
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              analyte:
+                type: string
+              unit:
+                type: string
+              latest:
+                type: number
+              previous:
+                type: number
+              delta:
+                type: number
+                description: Signed latest − previous.
+              direction:
+                type: string
+                enum:
+                  - up
+                  - down
+                  - flat
+              status:
+                type: string
+                enum:
+                  - in-range
+                  - below
+                  - above
+                  - unknown
+            required:
+              - analyte
+              - unit
+              - latest
+              - previous
+              - delta
+              - direction
+              - status
+            additionalProperties: false
+        generatedAt:
+          type: string
+      required:
+        - present
+        - latestDate
+        - previousDate
+        - changes
+        - generatedAt
+      additionalProperties: false
+      description: Per-analyte change between the two most-recent numeric lab panels. Neutral framing, never a diagnosis.
     MoodTagTreeEnvelope:
       type: object
       properties:
@@ -23201,6 +23496,9 @@ components:
                   - cycle-summary
                   - signals
                   - rhythm-events
+                  - health-status
+                  - breathing
+                  - labs-changes
               visible:
                 type: boolean
               order:

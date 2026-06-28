@@ -3681,7 +3681,38 @@
     },
     "updatedTodayAt": "Actualizado hoy, {time}",
     "updatedYesterday": "Actualizado ayer",
-    "updatedOn": "Actualizado el {date}"
+    "updatedOn": "Actualizado el {date}",
+    "healthStatus": {
+      "sectionTitle": "Qué ha cambiado",
+      "subtitle": "Señales que se desvían de tu rango habitual.",
+      "deviationAbove": "{vital} está por encima de tu rango habitual.",
+      "deviationBelow": "{vital} está por debajo de tu rango habitual.",
+      "shiftUp": "{vital} ha subido respecto a tu normal reciente.",
+      "shiftDown": "{vital} ha bajado respecto a tu normal reciente.",
+      "rangeContext": "Ahora {value}, normalmente {low}–{high}.",
+      "shiftContext": "Cerca de {before} antes, {after} desde entonces."
+    },
+    "breathingScreening": {
+      "sectionTitle": "Respiración durante el sueño",
+      "subtitle": "Una señal de cribado de tus datos de sueño.",
+      "classificationElevated": "Tu dispositivo detectó alteraciones respiratorias elevadas.",
+      "classificationNotElevated": "La clasificación de tu dispositivo no es elevada.",
+      "trendUp": "Con tendencia al alza respecto a noches anteriores.",
+      "trendDown": "Con tendencia a la baja respecto a noches anteriores.",
+      "trendStable": "Estable respecto a noches anteriores.",
+      "nights": "{count} noches registradas",
+      "indexLine": "índice medio reciente {value}",
+      "eventsFlagged": "{count} eventos detectados por tu dispositivo",
+      "disclaimer": "Es una señal de cribado, no un diagnóstico: consultalo con un profesional médico."
+    },
+    "labsChanges": {
+      "sectionTitle": "Desde tu último análisis",
+      "subtitle": "Cómo se comparan tus últimos resultados con el análisis anterior.",
+      "statusInRange": "dentro del rango",
+      "statusBelow": "por debajo del rango",
+      "statusAbove": "por encima del rango",
+      "directionFlat": "sin cambios"
+    }
   },
   "thresholds": {
     "defaultLabel": "Por defecto",

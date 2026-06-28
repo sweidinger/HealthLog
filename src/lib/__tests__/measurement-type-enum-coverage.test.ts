@@ -101,7 +101,7 @@ const EXPECTED_TYPES = [
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 66 canonical measurement types", () => {
+  it("exposes the 67 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );

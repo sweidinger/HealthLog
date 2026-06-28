@@ -3681,7 +3681,38 @@
     },
     "updatedTodayAt": "Updated today, {time}",
     "updatedYesterday": "Updated yesterday",
-    "updatedOn": "Updated on {date}"
+    "updatedOn": "Updated on {date}",
+    "healthStatus": {
+      "sectionTitle": "What's changed",
+      "subtitle": "Signals drifting from your usual range.",
+      "deviationAbove": "{vital} is above your typical range.",
+      "deviationBelow": "{vital} is below your typical range.",
+      "shiftUp": "{vital} has shifted up from your recent normal.",
+      "shiftDown": "{vital} has shifted down from your recent normal.",
+      "rangeContext": "Now {value}, usually {low}–{high}.",
+      "shiftContext": "Around {before} before, {after} since."
+    },
+    "breathingScreening": {
+      "sectionTitle": "Breathing during sleep",
+      "subtitle": "A screening signal from your sleep data.",
+      "classificationElevated": "Your device flagged elevated breathing disturbances.",
+      "classificationNotElevated": "Your device's classification is not elevated.",
+      "trendUp": "Trending higher than your earlier nights.",
+      "trendDown": "Trending lower than your earlier nights.",
+      "trendStable": "Holding steady against your earlier nights.",
+      "nights": "{count} nights tracked",
+      "indexLine": "recent average index {value}",
+      "eventsFlagged": "{count} events flagged by your device",
+      "disclaimer": "This is a screening signal, not a diagnosis — discuss with a clinician."
+    },
+    "labsChanges": {
+      "sectionTitle": "Since your last panel",
+      "subtitle": "How your latest results compare with the panel before.",
+      "statusInRange": "in range",
+      "statusBelow": "below range",
+      "statusAbove": "above range",
+      "directionFlat": "no change"
+    }
   },
   "thresholds": {
     "defaultLabel": "Default",

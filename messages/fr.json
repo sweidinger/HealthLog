@@ -3681,7 +3681,38 @@
     },
     "updatedTodayAt": "Mis à jour aujourd'hui, {time}",
     "updatedYesterday": "Mis à jour hier",
-    "updatedOn": "Mis à jour le {date}"
+    "updatedOn": "Mis à jour le {date}",
+    "healthStatus": {
+      "sectionTitle": "Ce qui a changé",
+      "subtitle": "Signaux s'écartant de votre plage habituelle.",
+      "deviationAbove": "{vital} est au-dessus de votre plage habituelle.",
+      "deviationBelow": "{vital} est en dessous de votre plage habituelle.",
+      "shiftUp": "{vital} a augmenté par rapport à votre normale récente.",
+      "shiftDown": "{vital} a diminué par rapport à votre normale récente.",
+      "rangeContext": "Actuellement {value}, habituellement {low}–{high}.",
+      "shiftContext": "Environ {before} avant, {after} depuis."
+    },
+    "breathingScreening": {
+      "sectionTitle": "Respiration pendant le sommeil",
+      "subtitle": "Un signal de dépistage issu de vos données de sommeil.",
+      "classificationElevated": "Votre appareil a signalé des perturbations respiratoires élevées.",
+      "classificationNotElevated": "La classification de votre appareil n'est pas élevée.",
+      "trendUp": "En hausse par rapport à vos nuits précédentes.",
+      "trendDown": "En baisse par rapport à vos nuits précédentes.",
+      "trendStable": "Stable par rapport à vos nuits précédentes.",
+      "nights": "{count} nuits suivies",
+      "indexLine": "indice moyen récent {value}",
+      "eventsFlagged": "{count} événements signalés par votre appareil",
+      "disclaimer": "Il s'agit d'un signal de dépistage, pas d'un diagnostic — parlez-en à un professionnel de santé."
+    },
+    "labsChanges": {
+      "sectionTitle": "Depuis votre dernier bilan",
+      "subtitle": "Comparaison de vos derniers résultats avec le bilan précédent.",
+      "statusInRange": "dans la plage",
+      "statusBelow": "sous la plage",
+      "statusAbove": "au-dessus de la plage",
+      "directionFlat": "aucun changement"
+    }
   },
   "thresholds": {
     "defaultLabel": "Par défaut",

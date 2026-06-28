@@ -3681,7 +3681,38 @@
     },
     "updatedTodayAt": "Zaktualizowano dzisiaj, {time}",
     "updatedYesterday": "Zaktualizowano wczoraj",
-    "updatedOn": "Zaktualizowano {date}"
+    "updatedOn": "Zaktualizowano {date}",
+    "healthStatus": {
+      "sectionTitle": "Co się zmieniło",
+      "subtitle": "Sygnały odbiegające od Twojego zwykłego zakresu.",
+      "deviationAbove": "{vital} jest powyżej Twojego zwykłego zakresu.",
+      "deviationBelow": "{vital} jest poniżej Twojego zwykłego zakresu.",
+      "shiftUp": "{vital} przesunął się w górę względem Twojej ostatniej normy.",
+      "shiftDown": "{vital} przesunął się w dół względem Twojej ostatniej normy.",
+      "rangeContext": "Teraz {value}, zwykle {low}–{high}.",
+      "shiftContext": "Około {before} wcześniej, {after} od tego czasu."
+    },
+    "breathingScreening": {
+      "sectionTitle": "Oddychanie podczas snu",
+      "subtitle": "Sygnał przesiewowy z Twoich danych o śnie.",
+      "classificationElevated": "Twoje urządzenie wykryło podwyższone zaburzenia oddychania.",
+      "classificationNotElevated": "Klasyfikacja Twojego urządzenia nie jest podwyższona.",
+      "trendUp": "Wzrost względem wcześniejszych nocy.",
+      "trendDown": "Spadek względem wcześniejszych nocy.",
+      "trendStable": "Stabilnie względem wcześniejszych nocy.",
+      "nights": "Śledzono {count} nocy",
+      "indexLine": "ostatni średni indeks {value}",
+      "eventsFlagged": "{count} zdarzeń oznaczonych przez urządzenie",
+      "disclaimer": "To sygnał przesiewowy, a nie diagnoza — skonsultuj się z lekarzem."
+    },
+    "labsChanges": {
+      "sectionTitle": "Od ostatnich badań",
+      "subtitle": "Jak najnowsze wyniki wypadają na tle poprzednich badań.",
+      "statusInRange": "w normie",
+      "statusBelow": "poniżej zakresu",
+      "statusAbove": "powyżej zakresu",
+      "directionFlat": "bez zmian"
+    }
   },
   "thresholds": {
     "defaultLabel": "Domyślne",
