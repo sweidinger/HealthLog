@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, Pencil, Plus } from "lucide-react";
@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiDelete, apiGet } from "@/lib/api/api-fetch";
+import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
@@ -65,6 +66,18 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   const { t } = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
+  // v1.24 — the per-marker description used to live on the labs overview rows.
+  // It belongs on the detail page beneath the heading (mirroring the metric
+  // pages' explainer caption). Resolve the catalog slug from the marker name
+  // exactly as the overview did, then fall back to the user's own `context`.
+  const slugByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const seed of BIOMARKER_CATALOG) {
+      const norm = t(`labs.catalog.${seed.slug}`).trim().toLowerCase();
+      if (norm) map.set(norm, seed.slug);
+    }
+    return map;
+  }, [t]);
   const [addOpen, setAddOpen] = useState(false);
   // Sticky-footer slot for the add-value sheet (the form portals here).
   const [addFooterEl, setAddFooterEl] = useState<HTMLDivElement | null>(null);
@@ -223,9 +236,19 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
         </div>
       ) : null}
 
-      {marker?.context ? (
-        <p className="text-muted-foreground text-sm">{marker.context}</p>
-      ) : null}
+      {(() => {
+        const slug = marker?.name
+          ? slugByName.get(marker.name.trim().toLowerCase())
+          : undefined;
+        const description = slug
+          ? t(`labs.catalog.desc.${slug}`)
+          : (marker?.context ?? null);
+        return description ? (
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {description}
+          </p>
+        ) : null;
+      })()}
 
       <Card>
         <CardContent className="pt-6">
