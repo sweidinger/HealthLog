@@ -42,6 +42,7 @@ tags:
   - name: MeasurementReminders
   - name: Labs
   - name: Illness
+  - name: Records
   - name: Admin
   - name: Meta
 paths:
@@ -7990,6 +7991,437 @@ paths:
               schema:
                 $ref: "#/components/schemas/IllnessInsightsEnvelope"
         "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/allergies:
+    get:
+      tags:
+        - Records
+      summary: List allergies (v1.25)
+      description: Returns the caller's live (non-deleted) allergy/intolerance records, newest-first. `includeInactive=false`
+        returns only ACTIVE records.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: includeInactive
+          schema:
+            anyOf:
+              - type: string
+                const: "true"
+              - type: string
+                const: "false"
+      responses:
+        "200":
+          description: The caller's allergy records.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListAllergiesEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Records
+      summary: Record an allergy (v1.25)
+      description: Creates one allergy/intolerance record for the caller. The free-text reaction + note are AES-256-GCM
+        encrypted before write. Audits as `allergy.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                substance:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                category:
+                  default: OTHER
+                  type: string
+                  enum:
+                    - FOOD
+                    - MEDICATION
+                    - ENVIRONMENT
+                    - BIOLOGIC
+                    - OTHER
+                type:
+                  default: ALLERGY
+                  type: string
+                  enum:
+                    - ALLERGY
+                    - INTOLERANCE
+                severity:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - MILD
+                        - MODERATE
+                        - SEVERE
+                    - type: "null"
+                status:
+                  default: ACTIVE
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+                    - RESOLVED
+                onsetAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+                reaction:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              required:
+                - substance
+      responses:
+        "201":
+          description: Allergy created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateAllergyEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/allergies/{id}:
+    get:
+      tags:
+        - Records
+      summary: Read a single allergy (v1.25)
+      description: Returns the record including its decrypted `reaction` + `note`. Owner-scoped; a cross-user or tombstoned id 404s.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The allergy record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAllergyEnvelope"
+        "401": *a1
+        "404": &a12
+          description: Allergy not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Records
+      summary: Edit an allergy (v1.25)
+      description: Partial edit; omitted fields are left untouched. Audits as `allergy.update`. Owner-scoped.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                substance:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                category:
+                  type: string
+                  enum:
+                    - FOOD
+                    - MEDICATION
+                    - ENVIRONMENT
+                    - BIOLOGIC
+                    - OTHER
+                type:
+                  type: string
+                  enum:
+                    - ALLERGY
+                    - INTOLERANCE
+                severity:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - MILD
+                        - MODERATE
+                        - SEVERE
+                    - type: "null"
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+                    - RESOLVED
+                onsetAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+                reaction:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              additionalProperties: false
+      responses:
+        "200":
+          description: Allergy updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateAllergyEnvelope"
+        "401": *a1
+        "404": *a12
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Records
+      summary: Soft-delete an allergy (v1.25)
+      description: "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }`
+        envelope. Audits as `allergy.delete`. Owner-scoped."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteAllergyEnvelope"
+        "401": *a1
+        "404": *a12
+        "422": *a3
+        "429": *a4
+  /api/family-history:
+    get:
+      tags:
+        - Records
+      summary: List family history (v1.25)
+      description: Returns the caller's live (non-deleted) family-history entries, newest-first.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: The caller's family-history entries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListFamilyHistoryEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Records
+      summary: Record a family-history entry (v1.25)
+      description: Creates one condition-by-relative record for the caller. The free-text note is AES-256-GCM encrypted before
+        write. Audits as `family-history.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                relationship:
+                  type: string
+                  enum:
+                    - MOTHER
+                    - FATHER
+                    - SISTER
+                    - BROTHER
+                    - DAUGHTER
+                    - SON
+                    - GRANDMOTHER_MATERNAL
+                    - GRANDFATHER_MATERNAL
+                    - GRANDMOTHER_PATERNAL
+                    - GRANDFATHER_PATERNAL
+                    - AUNT
+                    - UNCLE
+                    - COUSIN
+                    - HALF_SIBLING
+                    - OTHER
+                condition:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                ageAtOnset:
+                  anyOf:
+                    - type: integer
+                      minimum: 0
+                      maximum: 120
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              required:
+                - relationship
+                - condition
+      responses:
+        "201":
+          description: Entry created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateFamilyHistoryEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/family-history/{id}:
+    get:
+      tags:
+        - Records
+      summary: Read a single family-history entry (v1.25)
+      description: Returns the entry including its decrypted `note`. Owner-scoped; a cross-user or tombstoned id 404s.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The family-history entry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetFamilyHistoryEnvelope"
+        "401": *a1
+        "404": &a13
+          description: Family history entry not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Records
+      summary: Edit a family-history entry (v1.25)
+      description: Partial edit; omitted fields are left untouched. Audits as `family-history.update`. Owner-scoped.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                relationship:
+                  type: string
+                  enum:
+                    - MOTHER
+                    - FATHER
+                    - SISTER
+                    - BROTHER
+                    - DAUGHTER
+                    - SON
+                    - GRANDMOTHER_MATERNAL
+                    - GRANDFATHER_MATERNAL
+                    - GRANDMOTHER_PATERNAL
+                    - GRANDFATHER_PATERNAL
+                    - AUNT
+                    - UNCLE
+                    - COUSIN
+                    - HALF_SIBLING
+                    - OTHER
+                condition:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                ageAtOnset:
+                  anyOf:
+                    - type: integer
+                      minimum: 0
+                      maximum: 120
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              additionalProperties: false
+      responses:
+        "200":
+          description: Entry updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateFamilyHistoryEnvelope"
+        "401": *a1
+        "404": *a13
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Records
+      summary: Soft-delete a family-history entry (v1.25)
+      description: "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }`
+        envelope. Audits as `family-history.delete`. Owner-scoped."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteFamilyHistoryEnvelope"
+        "401": *a1
+        "404": *a13
         "422": *a3
         "429": *a4
   /api/onboarding/disclaimer:
@@ -23363,6 +23795,307 @@ components:
         (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally, a
         per-type breakdown, and the dominant driving vital (`gapDriverType`, null when no gap is surfaced).
         Retrospective only."
+    ListAllergiesEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Allergy"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    Allergy:
+      type: object
+      properties:
+        id:
+          type: string
+        substance:
+          type: string
+        category:
+          type: string
+          enum:
+            - FOOD
+            - MEDICATION
+            - ENVIRONMENT
+            - BIOLOGIC
+            - OTHER
+        type:
+          type: string
+          enum:
+            - ALLERGY
+            - INTOLERANCE
+        severity:
+          anyOf:
+            - type: string
+              enum:
+                - MILD
+                - MODERATE
+                - SEVERE
+            - type: "null"
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+            - RESOLVED
+        onsetAt:
+          anyOf:
+            - type: string
+            - type: "null"
+        reaction:
+          anyOf:
+            - type: string
+            - type: "null"
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - substance
+        - category
+        - type
+        - severity
+        - status
+        - onsetAt
+        - reaction
+        - note
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: A stored allergy/intolerance record. `reaction` + `note` are the decrypted free-text (or null on a
+        key-rotation gap — fail-soft, never 500). `severity`/`onsetAt` are null when not assessed/known.
+    CreateAllergyEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Allergy"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetAllergyEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Allergy"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateAllergyEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Allergy"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteAllergyEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/FamilyHistoryEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    FamilyHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        relationship:
+          type: string
+          enum:
+            - MOTHER
+            - FATHER
+            - SISTER
+            - BROTHER
+            - DAUGHTER
+            - SON
+            - GRANDMOTHER_MATERNAL
+            - GRANDFATHER_MATERNAL
+            - GRANDMOTHER_PATERNAL
+            - GRANDFATHER_PATERNAL
+            - AUNT
+            - UNCLE
+            - COUSIN
+            - HALF_SIBLING
+            - OTHER
+        condition:
+          type: string
+        ageAtOnset:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - relationship
+        - condition
+        - ageAtOnset
+        - note
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: "A stored family-history entry: one condition for one relative. `note` is the decrypted free-text (or null
+        on a key-rotation gap — fail-soft, never 500). `ageAtOnset` is null when unknown."
+    CreateFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/FamilyHistoryEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/FamilyHistoryEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/FamilyHistoryEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     DisclaimerAckEnvelope:
       type: object
       properties:
