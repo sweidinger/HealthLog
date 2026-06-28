@@ -51,6 +51,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+// Columns that open descending when first selected. The logged-at column
+// reads newest-first by default; every other column opens ascending.
+const MOOD_DESC_COLUMNS: ReadonlySet<string> = new Set(["moodLoggedAt"]);
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -128,8 +133,16 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   const [fromDay, setFromDayRaw] = useState<string>("");
   const [toDay, setToDayRaw] = useState<string>("");
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<string>("moodLoggedAt");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Shared column-sort state (moodLoggedAt opens descending).
+  const {
+    sortBy,
+    sortDir,
+    toggleSort: applySort,
+  } = useTableSort({
+    defaultColumn: "moodLoggedAt",
+    defaultDir: "desc",
+    descColumns: MOOD_DESC_COLUMNS,
+  });
 
   // v1.15.13 — page-scoped multi-select selection (current page ids only).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -201,13 +214,10 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     clearSelection();
   };
 
+  // Compose the page-reset + selection-clear side effects around the
+  // shared sort toggle.
   function toggleSort(column: string) {
-    if (sortBy === column) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortBy(column);
-      setSortDir(column === "moodLoggedAt" ? "desc" : "asc");
-    }
+    applySort(column);
     setPage(1);
     clearSelection();
   }
