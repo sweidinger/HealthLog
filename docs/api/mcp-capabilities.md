@@ -28,7 +28,10 @@ them up front):
 4. **Data and context only.** The server ships facts; it never returns a
    diagnosis, clinical verdict, risk score, or treatment change. The
    assistant narrates the facts and leaves clinical judgement to the
-   user's clinician.
+   user's clinician. This mirrors HealthLog's project-wide self-description
+   standard: the app is a personal health record-keeping and wellness tool,
+   not a medical device, and nothing it surfaces — here or in the UI —
+   diagnoses or treats.
 
 Discover before fetching: call `list_metrics` (or read the
 `healthlog://measurements/inventory` resource) first to see what exists,
@@ -94,6 +97,19 @@ web app so the assistant can cite it.
 Every read tool is annotated read-only / non-destructive / idempotent /
 closed-world — the read-only guarantee is structural (only read tools are
 registered for a read session), and the annotation merely advertises it.
+
+The v1.25 clinical-signal additions reach the assistant through these same
+tools rather than new tool names: respiratory rate, grip strength, the 0–10
+pain score, and waist / body measurements appear via `list_metrics` →
+`get_metric_series` / `get_metrics`, and the longevity lab markers via
+`get_labs`. A new signal is declared once in the in-app signal registry and
+shows up across the metric tools, correlations, and the FHIR map together,
+so the MCP surface never advertises a signal the record can't return. The
+opt-in mental-wellbeing instruments (PHQ-9, GAD-7), the structured records
+(allergies, family history), and the inbound-document store are deliberately
+**not** exposed over MCP: the instrument answers are kept out of the
+assistant by design, and the document pipeline extracts facts for the user
+to confirm in-app rather than streaming them to a model.
 
 ## Resources
 

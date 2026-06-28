@@ -16,6 +16,10 @@ already installed, longer if a TLS-fronted public hostname is in scope
   hold a 1.5 GB upload in `/tmp` while it parses.
 - **Outbound HTTPS** to `ghcr.io` (image pulls) plus whichever
   integration endpoints you plan to enable (Withings, OpenAI, etc.).
+  The opt-in environmental-context module additionally reaches
+  `api.open-meteo.com` for weather and daylight; it stays off until you
+  enable it and set a home location, and every outbound call goes
+  through the SSRF-guarded egress wrapper.
 - **Optional but recommended:** a reverse proxy that terminates TLS
   and forwards to `http://localhost:3000` (Caddy, Traefik, Nginx
   Proxy Manager, Coolify, or bare Nginx — see `reverse-proxy.md`).
