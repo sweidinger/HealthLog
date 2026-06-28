@@ -22,7 +22,7 @@
  * `https://claude.ai/api/mcp/auth_callback` hosted callback is matched as an
  * ordinary registered entry.
  */
-import { safeFetch } from "@/lib/safe-fetch";
+import { safeFetch, SafeFetchError } from "@/lib/safe-fetch";
 import { readBodyCapped } from "@/lib/http/read-capped";
 import { ARTIFACT_KINDS, signArtifact, verifyArtifact } from "./artifacts";
 
@@ -35,15 +35,81 @@ export interface ResolvedClient {
   source: "cimd" | "dcr";
 }
 
+/**
+ * Why a `client_id` failed to resolve.
+ *
+ *  - `unknown_client`   — not a CIMD URL / DCR id, or the document 404'd.
+ *  - `invalid_metadata` — fetched, but the document is malformed / oversized /
+ *                         fails a SEP-991 constraint.
+ *  - `ssrf_blocked`     — the SSRF floor refused the host (private / metadata
+ *                         range): a genuine policy block.
+ *  - `fetch_failed`     — the metadata host could not be reached (timeout,
+ *                         connect error, version skew). This is NOT an SSRF
+ *                         block; conflating the two is exactly what made the
+ *                         prod CIMD outage undiagnosable — every transport
+ *                         failure surfaced as `ssrf_blocked / invalid_client`.
+ *
+ * `detail` carries a short, non-secret diagnostic string (the
+ * `SafeFetchError.kind` + message + cause) for the `/authorize` annotation.
+ */
+export type ClientResolutionReason =
+  | "unknown_client"
+  | "invalid_metadata"
+  | "ssrf_blocked"
+  | "fetch_failed";
+
 export type ClientResolution =
   | { ok: true; client: ResolvedClient }
   | {
       ok: false;
-      reason: "unknown_client" | "invalid_metadata" | "ssrf_blocked";
+      reason: ClientResolutionReason;
+      detail?: string;
     };
 
 const MAX_REDIRECT_URIS = 12;
 const CIMD_MAX_BYTES = 16 * 1024;
+
+/**
+ * SEP-991 recommends caching a resolved CIMD document (≤24h). Re-resolving on
+ * every `/authorize` hit would re-pay the outbound fetch and widen the SSRF
+ * surface needlessly; a short cache keeps the consent flow snappy without
+ * letting a stale document linger. Only SUCCESSFUL resolutions are cached —
+ * failures must re-try so a transient outage self-heals.
+ */
+const CIMD_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CIMD_CACHE_MAX_ENTRIES = 256;
+const cimdCache = new Map<
+  string,
+  { client: ResolvedClient; expiresAt: number }
+>();
+
+function getCachedCimd(clientId: string): ResolvedClient | null {
+  const hit = cimdCache.get(clientId);
+  if (!hit) return null;
+  if (hit.expiresAt <= Date.now()) {
+    cimdCache.delete(clientId);
+    return null;
+  }
+  return hit.client;
+}
+
+function putCachedCimd(clientId: string, client: ResolvedClient): void {
+  // Cheap bound: a flood of distinct attacker URLs cannot grow the map without
+  // limit. When full, drop the oldest insertion (Map preserves insertion order).
+  if (cimdCache.size >= CIMD_CACHE_MAX_ENTRIES) {
+    const oldest = cimdCache.keys().next().value;
+    if (oldest !== undefined) cimdCache.delete(oldest);
+  }
+  cimdCache.set(clientId, {
+    client,
+    expiresAt: Date.now() + CIMD_CACHE_TTL_MS,
+  });
+}
+
+/** Test helper — clears the resolved-CIMD cache between cases. */
+export function _resetCimdCacheForTests(): void {
+  cimdCache.clear();
+}
 
 function asStringArray(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
@@ -142,6 +208,9 @@ function resolveDcrClient(clientId: string): ClientResolution {
 }
 
 async function resolveCimdClient(clientId: string): Promise<ClientResolution> {
+  const cached = getCachedCimd(clientId);
+  if (cached) return { ok: true, client: cached };
+
   let res: Response;
   try {
     // SSRF floor: the metadata host is fully user-controlled, so pin the
@@ -151,10 +220,38 @@ async function resolveCimdClient(clientId: string): Promise<ClientResolution> {
       { method: "GET", headers: { accept: "application/json" } },
       { requirePublicHost: true, timeoutMs: 8000 },
     );
-  } catch {
-    return { ok: false, reason: "ssrf_blocked" };
+  } catch (err) {
+    // Distinguish a genuine SSRF policy block from an unreachable host. The
+    // prod CIMD outage was a transport failure (no IPv6 route to claude.ai)
+    // mislabelled `ssrf_blocked`; carry the concrete kind + cause so the
+    // `/authorize` annotation records WHY, instead of a blanket label.
+    if (err instanceof SafeFetchError) {
+      const causeMsg =
+        err.cause instanceof Error
+          ? err.cause.message
+          : err.cause !== undefined
+            ? String(err.cause)
+            : undefined;
+      const detail = causeMsg ? `${err.kind}: ${causeMsg}` : err.kind;
+      return {
+        ok: false,
+        reason: err.kind === "private_host" ? "ssrf_blocked" : "fetch_failed",
+        detail,
+      };
+    }
+    return {
+      ok: false,
+      reason: "fetch_failed",
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
-  if (!res.ok) return { ok: false, reason: "unknown_client" };
+  if (!res.ok) {
+    return {
+      ok: false,
+      reason: "unknown_client",
+      detail: `http_${res.status}`,
+    };
+  }
 
   // M3 — enforce the byte cap WHILE reading: reject up front on an oversized
   // Content-Length and abort the stream the moment it overflows, so a hostile
@@ -181,17 +278,16 @@ async function resolveCimdClient(clientId: string): Promise<ClientResolution> {
     return { ok: false, reason: "invalid_metadata" };
   }
 
-  return {
-    ok: true,
-    client: {
-      clientId,
-      clientName:
-        typeof doc.client_name === "string" ? doc.client_name : "MCP client",
-      redirectUris,
-      isPublic: true,
-      source: "cimd",
-    },
+  const client: ResolvedClient = {
+    clientId,
+    clientName:
+      typeof doc.client_name === "string" ? doc.client_name : "MCP client",
+    redirectUris,
+    isPublic: true,
+    source: "cimd",
   };
+  putCachedCimd(clientId, client);
+  return { ok: true, client };
 }
 
 /**

@@ -1,3 +1,4 @@
+import { fetch as undiciFetch } from "undici";
 import { isPublicUrl } from "@/lib/validations/notifications";
 import { getPinnedPublicDispatcher } from "@/lib/safe-fetch-dispatcher";
 
@@ -119,19 +120,33 @@ export async function safeFetch(
   // When the caller asks for the public-host guard, also route through
   // the pinned-IP dispatcher so a DNS rebinding cannot flip the host
   // between the input-time `isPublicUrl` accept and the connect call.
-  // Node's `fetch` accepts an undici `dispatcher` on RequestInit; the
-  // DOM types don't reflect that, so we cast at the boundary.
   const dispatcher = opts.requirePublicHost
     ? getPinnedPublicDispatcher()
     : undefined;
+
   const finalInit = {
     ...init,
     redirect,
     signal,
-    ...(dispatcher ? { dispatcher } : {}),
   } as RequestInit;
 
   try {
+    if (dispatcher) {
+      // Drive the pinned dispatcher through undici's OWN `fetch`, not the
+      // global one. Node's built-in `fetch` is backed by an internal,
+      // version-pinned copy of undici; handing it an `Agent` built from
+      // the project's `undici@8` throws `UND_ERR_INVALID_ARG` on a
+      // dispatch-handler interface mismatch (Node 25 locally; the skew is
+      // by construction, not environment luck). Using undici's own fetch
+      // locks the dispatcher and the fetch engine to one undici version.
+      // The cast bridges undici's RequestInit (which carries `dispatcher`)
+      // and its Response back to the DOM types this module exposes.
+      const res = await undiciFetch(target, {
+        ...finalInit,
+        dispatcher,
+      } as Parameters<typeof undiciFetch>[1]);
+      return res as unknown as Response;
+    }
     return await fetch(target, finalInit);
   } catch (err) {
     // `AbortSignal.timeout` aborts with `TimeoutError` (`DOMException`

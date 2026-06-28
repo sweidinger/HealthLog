@@ -5,7 +5,7 @@ import { isPublicIp } from "@/lib/validations/notifications";
 /**
  * Custom `undici.Agent` that resolves the request hostname literally,
  * vets every returned address against `isPublicIp`, and pins the
- * connection to the first allowed address.
+ * connection to the vetted survivor set.
  *
  * This closes the DNS-rebinding gap that `isPublicUrl` cannot reach
  * (issue #217). The input-time check accepts a hostname that resolves
@@ -22,16 +22,23 @@ import { isPublicIp } from "@/lib/validations/notifications";
  *  2. Filter that list through `isPublicIp` — same allowlist
  *     `isPublicUrl` enforces, applied to a literal IP address rather
  *     than the input string.
- *  3. If at least one address passes, hand the single first survivor
- *     to undici. Undici then pins the TCP connect to that exact IP,
- *     side-stepping any further resolver hop.
+ *  3. Hand undici the FULL vetted survivor set, not just the first
+ *     address. The `Agent` runs with `autoSelectFamily`, so undici's
+ *     connector calls this lookup with `all: true` and then performs
+ *     RFC 8305 Happy Eyeballs across the survivors. Returning only the
+ *     first address — historically `allowed[0]` — defeated that: a host
+ *     whose first record is an unreachable IPv6 (common on a no-IPv6
+ *     container / LAN / Tailscale path, e.g. `claude.ai` from a v4-only
+ *     box) failed the connect instantly even though a working IPv4
+ *     record was right behind it. Every IP undici may dial was vetted in
+ *     THIS lookup, so DNS rebinding stays closed while v4/v6 fallback
+ *     works.
  *  4. If no address passes, fail closed with `dns.NOTFOUND` so the
  *     dispatch surfaces as a normal connect error rather than a silent
  *     bypass.
  *
  * Wired into `safeFetch` only when `opts.requirePublicHost` is true.
- * The five outbound paths that accept a user-supplied host all use
- * that flag.
+ * The outbound paths that accept a user-supplied host all use that flag.
  */
 function pinnedLookup(
   hostname: string,
@@ -67,12 +74,17 @@ function pinnedLookup(
       return;
     }
 
-    const picked = allowed[0];
     if (options.all) {
-      // Caller asked for the array shape — pass through the survivors.
+      // Caller asked for the array shape — pass through EVERY survivor so
+      // undici's Happy-Eyeballs loop can fall back across families. With
+      // `autoSelectFamily` enabled (below) the connector always takes
+      // this branch.
       callback(null, allowed);
       return;
     }
+    // Single-address contract (no `autoSelectFamily`, or a caller that
+    // explicitly asked for one address): hand back the first survivor.
+    const picked = allowed[0];
     callback(null, picked.address, picked.family);
   });
 }
@@ -90,6 +102,16 @@ export function getPinnedPublicDispatcher(): Agent {
   cached = new Agent({
     connect: {
       lookup: pinnedLookup,
+      // RFC 8305 Happy Eyeballs across the vetted survivor set. Without
+      // this undici pins the single first address and dies when that is
+      // an unreachable IPv6 record on a v4-only host. With it, undici
+      // calls `pinnedLookup` with `all: true` and races the vetted v4/v6
+      // candidates, taking the first that connects.
+      autoSelectFamily: true,
+      // How long to wait for one family before trying the next. 250 ms is
+      // the documented sane default — long enough not to thrash on a slow
+      // RTT, short enough that a black-holed family falls back quickly.
+      autoSelectFamilyAttemptTimeout: 250,
     },
   });
   return cached;

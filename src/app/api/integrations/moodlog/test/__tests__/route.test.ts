@@ -1,5 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// safeFetch's requirePublicHost path runs through undici's own `fetch`
+// (version-locked with its dispatcher). Delegate it to the global `fetch`
+// stub these tests install so the existing interception still applies.
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("undici")>();
+  return {
+    ...actual,
+    fetch: (input: unknown, init?: unknown) =>
+      (globalThis.fetch as unknown as (i: unknown, n?: unknown) => unknown)(
+        input,
+        init,
+      ),
+  };
+});
+
 vi.mock("@/lib/api-handler", () => ({
   apiHandler: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
   requireAuth: vi.fn(async () => ({
