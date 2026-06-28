@@ -127,15 +127,6 @@ const RhythmEventsCard = dynamic(
     })),
   { ssr: false },
 );
-// v1.25 — hydration daily-goal ring. Always present (a goal ring at 0 / goal is
-// still useful); it owns its own today-total query and the goal editor.
-const HydrationCard = dynamic(
-  () =>
-    import("@/components/insights/hydration-card").then((mod) => ({
-      default: mod.HydrationCard,
-    })),
-  { ssr: false },
-);
 // v1.25 — baseline-drift card. Un-mounts when nothing is drifting; owns its own
 // read-only `/api/insights/health-status` query.
 const HealthStatusCard = dynamic(
@@ -508,7 +499,6 @@ export default function InsightsPage() {
     ) : null,
     signals: <CoincidentDeviationCard enabled={isAuthenticated} />,
     "rhythm-events": <RhythmEventsCard enabled={isAuthenticated} />,
-    hydration: <HydrationCard enabled={isAuthenticated} />,
     "health-status": <HealthStatusCard enabled={isAuthenticated} />,
     breathing: <BreathingScreeningCard enabled={isAuthenticated} />,
     "labs-changes": <LabsChangesCard enabled={isAuthenticated} />,

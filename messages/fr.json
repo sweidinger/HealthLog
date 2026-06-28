@@ -574,8 +574,7 @@
     "bulkDeleteSuccess": "{count} mesures supprimées",
     "bulkDeleteError": "Erreur lors de la suppression des mesures sélectionnées",
     "bulkDeleteConfirmTitle": "Supprimer {count} mesures ?",
-    "bulkDeleteConfirmBody": "Les {count} mesures sélectionnées seront définitivement supprimées.",
-    "typeWaterIntake": "Apport en eau"
+    "bulkDeleteConfirmBody": "Les {count} mesures sélectionnées seront définitivement supprimées."
   },
   "mood": {
     "title": "Humeur",
@@ -7404,20 +7403,5 @@
       "glucoseHighDoctor": "Deux mesures récentes étaient à {value} mg/dL ou plus. Remesure, hydrate-toi et contacte ton médecin dès que possible si cela reste aussi élevé.",
       "glucoseHighEmergency": "Deux mesures récentes étaient à {value} mg/dL ou plus et tu as signalé des symptômes. En cas de vomissements, de respiration rapide ou de confusion, appelle les secours immédiatement."
     }
-  },
-  "hydration": {
-    "cardTitle": "Hydratation",
-    "editGoal": "Modifier l'objectif",
-    "goalLabel": "Objectif quotidien (ml)",
-    "metMessage": "Vous avez atteint l'objectif du jour.",
-    "remainingMessage": "Encore {amount} ml aujourd'hui.",
-    "add": "Ajouter",
-    "added": "{amount} ml ajoutés.",
-    "saveError": "Échec de l'enregistrement. Réessayez.",
-    "invalidAmount": "Saisissez une quantité entre 1 et 5000 ml.",
-    "invalidGoal": "Saisissez un objectif entre 250 et 8000 ml.",
-    "goalSaved": "Objectif mis à jour.",
-    "customPlaceholder": "Quantité",
-    "customLabel": "Quantité personnalisée (ml)"
   }
 }

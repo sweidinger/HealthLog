@@ -77,12 +77,6 @@ const MEASUREMENT_TYPES_WITHOUT_HK_COUNTERPART = new Set<MeasurementType>([
   // the Oura API (source = OURA), never from HealthKit: Apple ships no
   // resilience metric. No HK mapping by design.
   "RESILIENCE",
-  // v1.25 — water intake is logged in-app (the hydration goal ring writes
-  // WATER_INTAKE rows directly via POST /api/measurements). Apple's
-  // `HKQuantityTypeIdentifierDietaryWater` stays on the nutrition deferred
-  // hold (HK_QUANTITY_TYPE_DEFERRED), so the type carries no HK import mapping
-  // by design.
-  "WATER_INTAKE",
 ]);
 
 describe("APPLE_HEALTH_TYPE_MAP", () => {

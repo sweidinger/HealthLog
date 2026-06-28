@@ -105,8 +105,6 @@ const INTEGER_DISPLAY_TYPES: ReadonlySet<string> = new Set([
   // grain for these day-cumulative counts.
   "ACTIVE_ENERGY_BURNED",
   "TIME_IN_DAYLIGHT",
-  // ml of water — whole millilitres are the meaningful display grain.
-  "WATER_INTAKE",
 ]);
 
 /**

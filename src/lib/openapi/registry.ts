@@ -77,7 +77,6 @@ const openApiBase: Pick<
     { name: "Illness" },
     { name: "Admin" },
     { name: "Meta" },
-    { name: "Hydration" },
   ],
 };
 

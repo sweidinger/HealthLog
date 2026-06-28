@@ -113,7 +113,6 @@ export const INSIGHTS_SECTION_IDS = [
   "cycle-summary",
   "signals",
   "rhythm-events",
-  "hydration",
   "health-status",
   "breathing",
   "labs-changes",

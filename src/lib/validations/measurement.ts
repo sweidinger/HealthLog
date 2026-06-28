@@ -122,10 +122,6 @@ export const measurementTypeEnum = z.enum([
   // into the numeric value (limited=1 … exceptional=5), unit `level`. Ingests
   // server-side as `source = OURA`. See `RESILIENCE_LEVELS` in `src/lib/oura/client`.
   "RESILIENCE",
-  // ── v1.25 — hydration logging (additive) ──
-  // Manual water-intake counter in millilitres. Cumulative within a day like
-  // ACTIVITY_STEPS; distinct from TOTAL_BODY_WATER (a scale reading in kg).
-  "WATER_INTAKE",
 ]);
 
 /**
@@ -243,7 +239,6 @@ const unitMap: Record<string, string> = {
   HEART_RATE_VARIABILITY: "ms",
   RESTING_HEART_RATE: "bpm",
   ACTIVE_ENERGY_BURNED: "kcal",
-  WATER_INTAKE: "ml",
   FLIGHTS_CLIMBED: "flights",
   WALKING_RUNNING_DISTANCE: "m",
   VO2_MAX: "mL/(kg·min)",
@@ -399,9 +394,6 @@ export const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // Active energy kcal/sample — a daily-rollup sample tops out around
   // 6–8000 kcal even for ultra-endurance days.
   ACTIVE_ENERGY_BURNED: { min: 0, max: 10000 },
-  // Daily cumulative intake in ml; a single quick-add entry is small but the
-  // running daily total can reach several litres on an active day.
-  WATER_INTAKE: { min: 0, max: 20000 },
   // Flights — vertical-feet/3 ≈ flights; cap generous.
   FLIGHTS_CLIMBED: { min: 0, max: 1000 },
   // Walking/running distance per sample (metres). 200 km covers an

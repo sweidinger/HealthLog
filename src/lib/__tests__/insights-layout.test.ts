@@ -30,7 +30,6 @@ describe("insights-layout v2 — section id universe", () => {
       "cycle-summary",
       "signals",
       "rhythm-events",
-      "hydration",
       "health-status",
       "breathing",
       "labs-changes",

@@ -574,8 +574,7 @@
     "bulkDeleteSuccess": "{count} measurements deleted",
     "bulkDeleteError": "Error deleting the selected measurements",
     "bulkDeleteConfirmTitle": "Delete {count} measurements?",
-    "bulkDeleteConfirmBody": "The {count} selected measurements will be permanently deleted.",
-    "typeWaterIntake": "Water intake"
+    "bulkDeleteConfirmBody": "The {count} selected measurements will be permanently deleted."
   },
   "mood": {
     "title": "Mood",
@@ -7404,20 +7403,5 @@
       "glucoseHighDoctor": "Two recent readings were {value} mg/dL or higher. Re-check, hydrate, and contact your doctor as soon as possible if it stays this high.",
       "glucoseHighEmergency": "Two recent readings were {value} mg/dL or higher and you noted symptoms. If you have vomiting, fast breathing, or confusion, call emergency services now."
     }
-  },
-  "hydration": {
-    "cardTitle": "Hydration",
-    "editGoal": "Edit goal",
-    "goalLabel": "Daily goal (ml)",
-    "metMessage": "You've reached today's goal.",
-    "remainingMessage": "{amount} ml to go today.",
-    "add": "Add",
-    "added": "Added {amount} ml.",
-    "saveError": "Could not save. Please try again.",
-    "invalidAmount": "Enter an amount between 1 and 5000 ml.",
-    "invalidGoal": "Enter a goal between 250 and 8000 ml.",
-    "goalSaved": "Goal updated.",
-    "customPlaceholder": "Amount",
-    "customLabel": "Custom amount (ml)"
   }
 }

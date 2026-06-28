@@ -574,8 +574,7 @@
     "bulkDeleteSuccess": "Usunięto pomiary: {count}",
     "bulkDeleteError": "Błąd podczas usuwania wybranych pomiarów",
     "bulkDeleteConfirmTitle": "Usunąć pomiary ({count})?",
-    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte.",
-    "typeWaterIntake": "Spożycie wody"
+    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte."
   },
   "mood": {
     "title": "Nastrój",
@@ -7404,20 +7403,5 @@
       "glucoseHighDoctor": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej. Zmierz ponownie, nawodnij się i jak najszybciej skontaktuj się z lekarzem, jeśli pozostaje tak wysoki.",
       "glucoseHighEmergency": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej i zgłosiłeś objawy. W razie wymiotów, przyspieszonego oddechu lub dezorientacji natychmiast zadzwoń po pomoc."
     }
-  },
-  "hydration": {
-    "cardTitle": "Nawodnienie",
-    "editGoal": "Edytuj cel",
-    "goalLabel": "Cel dzienny (ml)",
-    "metMessage": "Osiągnięto dzisiejszy cel.",
-    "remainingMessage": "Jeszcze {amount} ml dzisiaj.",
-    "add": "Dodaj",
-    "added": "Dodano {amount} ml.",
-    "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
-    "invalidAmount": "Podaj ilość od 1 do 5000 ml.",
-    "invalidGoal": "Podaj cel od 250 do 8000 ml.",
-    "goalSaved": "Cel zaktualizowany.",
-    "customPlaceholder": "Ilość",
-    "customLabel": "Własna ilość (ml)"
   }
 }

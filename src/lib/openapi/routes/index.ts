@@ -36,7 +36,6 @@ import { biomarkerPaths } from "./biomarkers";
 import { devicePaths } from "./devices";
 import { exportPaths } from "./export";
 import { healthRecordPaths } from "./health-record";
-import { hydrationPaths } from "./hydration";
 import { illnessPaths } from "./illness";
 import { importPaths } from "./import";
 import { insightsPaths } from "./insights";
@@ -85,7 +84,6 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...biomarkerPaths,
   ...illnessPaths,
   ...onboardingPaths,
-  ...hydrationPaths,
 };
 
 export const openApiComponents: NonNullable<ZodOpenApiObject["components"]> = {
