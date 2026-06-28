@@ -62,33 +62,6 @@ async function fetchNarrative(
   return apiGet<NarrativeResponse>(`/api/insights/narrative?period=${period}`);
 }
 
-/**
- * v1.22 — the round ⓘ provenance glyph that hid the "how this was computed"
- * read behind a popover is removed; the maintainer wants the trailing info
- * affordance gone across the insights surface. The method line — and, when
- * present, the metrics it drew on — now reads inline as a muted caption at the
- * foot of the card, always visible rather than disclosure-only.
- */
-function ProvenanceDisclosure({
-  provenance,
-}: {
-  provenance: NarrativeProvenance;
-}) {
-  const { t } = useTranslations();
-  const metrics = provenance.metrics.slice(0, 8).join(", ");
-  return (
-    <p
-      data-slot="period-narrative-provenance"
-      className="text-muted-foreground text-xs leading-snug"
-    >
-      {t("insights.narrativeProvenanceMethod")}
-      {metrics
-        ? ` ${t("insights.narrativeProvenanceMetrics", { metrics })}`
-        : ""}
-    </p>
-  );
-}
-
 const SHELL =
   "bg-card border-border flex w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6";
 // The in-flight skeleton keeps a `min-h` floor so the initial paint reserves the
@@ -143,16 +116,15 @@ export function PeriodNarrativeCard({
     );
   }
 
-  // The route never errors the page; on a fetch error or a genuinely empty
-  // account (no narrative ever produced) the card un-mounts itself rather than
-  // showing an error or an empty husk on the overview.
-  if (query.isError || (!query.data?.narrative && !query.data?.revalidating)) {
+  // The route never errors the page; on a fetch error or whenever there is no
+  // real generated narrative yet (empty account, or a first warm still in
+  // flight) the card un-mounts itself rather than showing an error, a
+  // "preparing" husk, or the methodology framing. The query stays mounted and
+  // polls in the background, so the card appears the moment a narrative lands.
+  const narrative = query.data?.narrative ?? null;
+  if (query.isError || !narrative) {
     return null;
   }
-
-  const data = query.data;
-  const narrative = data?.narrative ?? null;
-  const preparing = !narrative && data?.revalidating === true;
 
   return (
     <section
@@ -194,50 +166,36 @@ export function PeriodNarrativeCard({
           })}
         </div>
 
-        {preparing ? (
-          <p className="text-muted-foreground text-sm">
-            {t("insights.narrativePreparing")}
-          </p>
-        ) : (
-          // v1.22 (W6) — real paragraphs via the shared ProseBlocks helper
-          // (still plain text children — NO markdown renderer, XSS posture).
-          <div className="text-foreground text-sm">
-            <ProseBlocks text={narrative?.text ?? ""} />
-          </div>
-        )}
+        {/* v1.22 (W6) — real paragraphs via the shared ProseBlocks helper
+            (still plain text children — NO markdown renderer, XSS posture). */}
+        <div className="text-foreground text-sm">
+          <ProseBlocks text={narrative.text} />
+        </div>
 
-        {narrative?.provenance ? (
-          <ProvenanceDisclosure provenance={narrative.provenance} />
-        ) : null}
-
-        {narrative ? (
-          <p className="text-muted-foreground text-right text-xs">
-            {data?.revalidating
-              ? t("insights.narrativeUpdating")
-              : formatUpdatedLabel(
-                  narrative.updatedAt,
-                  t,
-                  fmt.dateShort,
-                  fmt.time,
-                  user?.timezone,
-                )}
-          </p>
-        ) : null}
+        <p className="text-muted-foreground text-right text-xs">
+          {query.data?.revalidating
+            ? t("insights.narrativeUpdating")
+            : formatUpdatedLabel(
+                narrative.updatedAt,
+                t,
+                fmt.dateShort,
+                fmt.time,
+                user?.timezone,
+              )}
+        </p>
 
         {/* v1.21.0 (C4 H2) — hand the period summary to the Coach. It spans
             the whole picture for the window, so no scope: the default
             snapshot reads best. */}
-        {narrative ? (
-          <div className="flex justify-end">
-            <AskCoachAction
-              question={t(
-                period === "week"
-                  ? "insights.coach.seed.periodWeek"
-                  : "insights.coach.seed.periodMonth",
-              )}
-            />
-          </div>
-        ) : null}
+        <div className="flex justify-end">
+          <AskCoachAction
+            question={t(
+              period === "week"
+                ? "insights.coach.seed.periodWeek"
+                : "insights.coach.seed.periodMonth",
+            )}
+          />
+        </div>
       </div>
     </section>
   );
