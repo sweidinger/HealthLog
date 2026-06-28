@@ -185,6 +185,8 @@ export const SUB_PAGE_TABS: Record<
     labelKey: "insights.navRespiratoryRate",
     metric: "RESPIRATORY_RATE",
   },
+  // v1.25 — pain (0–10 NRS).
+  pain: { labelKey: "insights.navPainNrs", metric: "PAIN_NRS" },
   // ── body composition ──
   weight: { labelKey: "insights.navWeight", metric: "WEIGHT" },
   bmi: { labelKey: "insights.navBmi", metric: "BMI" },
@@ -206,6 +208,15 @@ export const SUB_PAGE_TABS: Record<
   "lean-body-mass": {
     labelKey: "insights.navLeanBodyMass",
     metric: "LEAN_BODY_MASS",
+  },
+  // v1.25 — waist circumference + waist-to-height ratio.
+  waist: {
+    labelKey: "insights.navWaistCircumference",
+    metric: "WAIST_CIRCUMFERENCE",
+  },
+  "waist-to-height": {
+    labelKey: "insights.navWaistToHeight",
+    metric: "WAIST_TO_HEIGHT",
   },
   // ── activity ──
   steps: {
@@ -269,6 +280,11 @@ export const SUB_PAGE_TABS: Record<
   "stair-descent-speed": {
     labelKey: "insights.navStairDescentSpeed",
     metric: "STAIR_DESCENT_SPEED",
+  },
+  // v1.25 — grip strength.
+  "grip-strength": {
+    labelKey: "insights.navGripStrength",
+    metric: "GRIP_STRENGTH",
   },
   // ── sleep ──
   sleep: { labelKey: "insights.navSleep", metric: "SLEEP_DURATION" },

@@ -95,6 +95,32 @@ const MEASUREMENT_TYPES = [
     unit: "°C",
     placeholder: "36.6",
   },
+  // v1.25 — physical / clinical signals. Manual web capture so a web-only
+  // self-hoster can log them (the iOS client + measurements API already do).
+  {
+    value: "WAIST_CIRCUMFERENCE",
+    labelKey: "measurements.typeWaistCircumference",
+    unit: "cm",
+    placeholder: "84",
+  },
+  {
+    value: "WAIST_TO_HEIGHT",
+    labelKey: "measurements.typeWaistToHeight",
+    unitKey: "measurements.unitRatio",
+    placeholder: "0.48",
+  },
+  {
+    value: "GRIP_STRENGTH",
+    labelKey: "measurements.typeGripStrength",
+    unit: "kg",
+    placeholder: "38",
+  },
+  {
+    value: "PAIN_NRS",
+    labelKey: "measurements.typePainNrs",
+    unitKey: "measurements.unitScore",
+    placeholder: "0",
+  },
 ] as const;
 
 // v1.4.34 IW-G — single source of truth for the `/measurements?add=<TYPE>`

@@ -53,6 +53,9 @@ const SUB_PAGE_METRIC = {
   "body-temperature": ["BODY_TEMPERATURE"],
   // v1.7.0 — respiratory rate joins the vitals cluster.
   "respiratory-rate": ["RESPIRATORY_RATE"],
+  // v1.25 — pain (0–10 NRS) joins the vitals cluster as a patient-reported
+  // signal with its own detail page + assessment.
+  pain: ["PAIN_NRS"],
   // ── body composition ──
   weight: ["WEIGHT"],
   // BMI is derived from WEIGHT + profile height (no separate series).
@@ -65,6 +68,9 @@ const SUB_PAGE_METRIC = {
   "muscle-mass": ["MUSCLE_MASS"],
   "visceral-fat": ["VISCERAL_FAT"],
   "lean-body-mass": ["LEAN_BODY_MASS"],
+  // v1.25 — waist circumference + waist-to-height ratio join the body cluster.
+  waist: ["WAIST_CIRCUMFERENCE"],
+  "waist-to-height": ["WAIST_TO_HEIGHT"],
   // ── activity ──
   // v1.12 — Steps gains a routed sub-page. Stored as `ACTIVITY_STEPS`;
   // the tile already surfaced on the dashboard but the metric was never
@@ -94,6 +100,9 @@ const SUB_PAGE_METRIC = {
   "six-minute-walk": ["SIX_MINUTE_WALK_DISTANCE"],
   "stair-ascent-speed": ["STAIR_ASCENT_SPEED"],
   "stair-descent-speed": ["STAIR_DESCENT_SPEED"],
+  // v1.25 — grip strength (EWGSOP2 strength-limb marker) joins the activity
+  // cluster as a manual / device physical-fitness signal.
+  "grip-strength": ["GRIP_STRENGTH"],
   // ── sleep ──
   sleep: ["SLEEP_DURATION"],
   // v1.10.0 — sleep breathing-disturbance index joins the sleep cluster.
@@ -204,6 +213,13 @@ export const SUB_PAGE_GROUP: Partial<Record<SubPageSlug, SubPageGroup>> = {
   "cardio-recovery": "cardiovascular",
   // metabolic cluster (overnight wrist reading)
   "wrist-temperature": "metabolic",
+  // ── v1.25 — physical / clinical signals ──
+  // Pain rides the vitals popover (patient-reported physiological signal);
+  // waist + WHtR sit with body composition; grip with activity / fitness.
+  pain: "vitals",
+  waist: "body",
+  "waist-to-height": "body",
+  "grip-strength": "activity",
 };
 
 /**

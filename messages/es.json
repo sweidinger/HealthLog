@@ -582,7 +582,9 @@
     "typeGripStrength": "Fuerza de agarre",
     "typePainNrs": "Dolor (0–10)",
     "typeWaistCircumference": "Perímetro de cintura",
-    "typeWaistToHeight": "Índice cintura-altura"
+    "typeWaistToHeight": "Índice cintura-altura",
+    "unitScore": "pts",
+    "unitRatio": "ratio"
   },
   "mood": {
     "title": "Estado de ánimo",
@@ -3705,6 +3707,54 @@
       "statusBelow": "por debajo del rango",
       "statusAbove": "por encima del rango",
       "directionFlat": "sin cambios"
+    },
+    "navGripStrength": "Fuerza de agarre",
+    "navPainNrs": "Dolor",
+    "navWaistCircumference": "Cintura",
+    "navWaistToHeight": "Cintura/altura",
+    "gripStrength": {
+      "title": "Fuerza de agarre",
+      "description": "Fuerza máxima de agarre de la mano: un indicador robusto de la fuerza de todo el cuerpo. Por debajo del umbral según el sexo (hombres 27 kg, mujeres 16 kg) indica probable sarcopenia; tu propia tendencia guía la lectura.",
+      "chartTitle": "Fuerza de agarre",
+      "emptyState": {
+        "title": "Aún no hay fuerza de agarre",
+        "description": "Registra una lectura con un dinamómetro de mano (anota el mejor de varios apretones) y la tendencia aparecerá aquí.",
+        "cta": "Registrar fuerza de agarre"
+      },
+      "coachPrefill": "Aún no he registrado la fuerza de agarre: ¿qué dice sobre mi salud muscular y cómo la mido y la mejoro?"
+    },
+    "pain": {
+      "title": "Dolor (0–10)",
+      "description": "Intensidad del dolor referida por el paciente en la escala numérica 0–10, donde 0 es sin dolor y 10 el peor imaginable. Un cambio sostenido de 2 puntos es la señal a vigilar.",
+      "chartTitle": "Dolor (0–10)",
+      "emptyState": {
+        "title": "Aún no hay puntuaciones de dolor",
+        "description": "Registra cómo sientes el dolor ahora mismo en la escala 0–10 y la tendencia aparecerá aquí.",
+        "cta": "Registrar una puntuación de dolor"
+      },
+      "coachPrefill": "Aún no he registrado puntuaciones de dolor: ¿cómo debo seguir el dolor en la escala 0–10 y qué cuenta como un cambio significativo?"
+    },
+    "waist": {
+      "title": "Perímetro de cintura",
+      "description": "Perímetro de la cintura en centímetros: un marcador de grasa central. El umbral de riesgo aumentado de la OMS depende del sexo (hombres 94 cm, mujeres 80 cm); tu propia tendencia guía la lectura.",
+      "chartTitle": "Perímetro de cintura",
+      "emptyState": {
+        "title": "Aún no hay medidas de cintura",
+        "description": "Mide tu cintura en el punto medio entre la costilla más baja y el hueso de la cadera, al final de una espiración normal, y regístrala aquí.",
+        "cta": "Registrar perímetro de cintura"
+      },
+      "coachPrefill": "Aún no he registrado medidas de cintura: ¿cómo mido la cintura correctamente y qué significa el número para mi salud?"
+    },
+    "waistToHeight": {
+      "title": "Índice cintura-altura",
+      "description": "Tu cintura dividida por tu altura: el número único más robusto entre poblaciones. Mantenerlo por debajo de 0,5 (cintura menor que la mitad de tu altura) es el objetivo sencillo.",
+      "chartTitle": "Índice cintura-altura",
+      "emptyState": {
+        "title": "Aún no hay índice cintura-altura",
+        "description": "Registra un índice cintura-altura y la tendencia aparecerá aquí. Regla práctica: mantén tu cintura por debajo de la mitad de tu altura.",
+        "cta": "Registrar índice cintura-altura"
+      },
+      "coachPrefill": "Aún no he registrado un índice cintura-altura: ¿por qué es un número útil y cómo lo mantengo por debajo de 0,5?"
     }
   },
   "thresholds": {

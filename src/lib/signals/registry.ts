@@ -1280,13 +1280,18 @@ export const SIGNALS: Record<string, SignalDefinition> = {
     direction: "higher-better",
     archetype: "activity-fitness",
     // Coarse population floor; the EWGSOP2 cut-off is sex-specific (men < 27,
-    // women < 16 kg) and applied at the display edge.
+    // women < 16 kg) and resolved at the display edge by the sex-aware band
+    // resolver (`norms.ts` GRIP_STRENGTH table) the detail-page assessment
+    // threads through `lookupNormalRange`.
     normalRange: { low: 16, high: 60 },
     surfaces: {
-      detailPage: false,
+      detailPage: true,
       correlationEligible: false,
+      // Off the Coach snapshot, but reachable over MCP: the `mcp` facet is
+      // independent of `coachSnapshot`. The MCP rich reads expose it through
+      // the rollup-backed baseline / compare / change-point reads.
       coachSnapshot: false,
-      mcp: false,
+      mcp: true,
     },
     fhir: {
       // TODO(NEEDS-VERIFY): no hand-grip-strength LOINC confirmed this pass —
@@ -1307,10 +1312,11 @@ export const SIGNALS: Record<string, SignalDefinition> = {
     archetype: "physiological-vital",
     normalRange: { low: 0, high: 3 },
     surfaces: {
-      detailPage: false,
+      detailPage: true,
       correlationEligible: false,
+      // Off the Coach snapshot, reachable over MCP (independent facets).
       coachSnapshot: false,
-      mcp: false,
+      mcp: true,
     },
     fhir: {
       loinc: "72514-3",
@@ -1328,14 +1334,16 @@ export const SIGNALS: Record<string, SignalDefinition> = {
     unit: "cm",
     direction: "lower-better",
     archetype: "body-composition",
-    // WHO European-origin increased-risk threshold (men > 94); ethnicity-aware
-    // bands are applied at the display edge.
+    // WHO European-origin increased-risk threshold (men > 94); the sex-aware
+    // resolver (`norms.ts` WAIST_CIRCUMFERENCE table: men 94 / women 80)
+    // sharpens it at the display edge via `lookupNormalRange`.
     normalRange: { low: 0, high: 94 },
     surfaces: {
-      detailPage: false,
+      detailPage: true,
       correlationEligible: false,
+      // Off the Coach snapshot, reachable over MCP (independent facets).
       coachSnapshot: false,
-      mcp: false,
+      mcp: true,
     },
     fhir: {
       loinc: "8280-0",
@@ -1352,13 +1360,16 @@ export const SIGNALS: Record<string, SignalDefinition> = {
     unit: "ratio",
     direction: "lower-better",
     archetype: "body-composition",
-    // NICE: keep waist under half your height — WHtR ≥ 0.5 flags increased risk.
-    normalRange: { low: 0, high: 0.5 },
+    // NICE: keep waist under half your height — WHtR ≥ 0.5 flags increased
+    // risk, so the last in-range value sits just below the 0.5 threshold
+    // (`high: 0.49`) and a 0.50 reading classifies as increased, not normal.
+    normalRange: { low: 0, high: 0.49 },
     surfaces: {
-      detailPage: false,
+      detailPage: true,
       correlationEligible: false,
+      // Off the Coach snapshot, reachable over MCP (independent facets).
       coachSnapshot: false,
-      mcp: false,
+      mcp: true,
     },
     fhir: {
       // TODO(NEEDS-VERIFY): WHtR LOINC not confirmed this pass — local text concept.

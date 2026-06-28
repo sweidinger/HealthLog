@@ -582,7 +582,9 @@
     "typeGripStrength": "Force de préhension",
     "typePainNrs": "Douleur (0–10)",
     "typeWaistCircumference": "Tour de taille",
-    "typeWaistToHeight": "Rapport taille-taille"
+    "typeWaistToHeight": "Rapport taille-taille",
+    "unitScore": "pts",
+    "unitRatio": "ratio"
   },
   "mood": {
     "title": "Humeur",
@@ -3705,6 +3707,54 @@
       "statusBelow": "sous la plage",
       "statusAbove": "au-dessus de la plage",
       "directionFlat": "aucun changement"
+    },
+    "navGripStrength": "Force de préhension",
+    "navPainNrs": "Douleur",
+    "navWaistCircumference": "Tour de taille",
+    "navWaistToHeight": "Taille/hauteur",
+    "gripStrength": {
+      "title": "Force de préhension",
+      "description": "Force maximale de préhension de la main : un indicateur robuste de la force corporelle globale. Sous le seuil selon le sexe (hommes 27 kg, femmes 16 kg), elle signale une sarcopénie probable ; votre propre tendance guide la lecture.",
+      "chartTitle": "Force de préhension",
+      "emptyState": {
+        "title": "Pas encore de force de préhension",
+        "description": "Enregistrez une mesure avec un dynamomètre à main (notez le meilleur de plusieurs serrages) et la tendance apparaîtra ici.",
+        "cta": "Enregistrer la force de préhension"
+      },
+      "coachPrefill": "Je n'ai pas encore enregistré de force de préhension — que dit-elle sur ma santé musculaire, et comment la mesurer et l'améliorer ?"
+    },
+    "pain": {
+      "title": "Douleur (0–10)",
+      "description": "Intensité de la douleur rapportée par le patient sur l'échelle numérique 0–10, où 0 signifie aucune douleur et 10 la pire imaginable. Une variation soutenue de 2 points est le signal à surveiller.",
+      "chartTitle": "Douleur (0–10)",
+      "emptyState": {
+        "title": "Pas encore de scores de douleur",
+        "description": "Enregistrez votre douleur actuelle sur l'échelle 0–10 et la tendance apparaîtra ici.",
+        "cta": "Enregistrer un score de douleur"
+      },
+      "coachPrefill": "Je n'ai pas encore enregistré de score de douleur — comment suivre la douleur sur l'échelle 0–10, et qu'est-ce qu'un changement significatif ?"
+    },
+    "waist": {
+      "title": "Tour de taille",
+      "description": "Tour de taille en centimètres : un marqueur de la graisse abdominale. Le seuil de risque accru de l'OMS dépend du sexe (hommes 94 cm, femmes 80 cm) ; votre propre tendance guide la lecture.",
+      "chartTitle": "Tour de taille",
+      "emptyState": {
+        "title": "Pas encore de mesures de tour de taille",
+        "description": "Mesurez votre tour de taille à mi-chemin entre la dernière côte et l'os de la hanche, en fin d'expiration normale, et enregistrez-le ici.",
+        "cta": "Enregistrer le tour de taille"
+      },
+      "coachPrefill": "Je n'ai pas encore enregistré de tour de taille — comment le mesurer correctement, et que signifie ce chiffre pour ma santé ?"
+    },
+    "waistToHeight": {
+      "title": "Rapport taille-hauteur",
+      "description": "Votre tour de taille divisé par votre taille : le nombre unique le plus robuste selon les populations. Le maintenir sous 0,5 (tour de taille inférieur à la moitié de votre taille) est l'objectif simple.",
+      "chartTitle": "Rapport taille-hauteur",
+      "emptyState": {
+        "title": "Pas encore de rapport taille-hauteur",
+        "description": "Enregistrez un rapport taille-hauteur et la tendance apparaîtra ici. Règle simple : gardez votre tour de taille sous la moitié de votre taille.",
+        "cta": "Enregistrer le rapport taille-hauteur"
+      },
+      "coachPrefill": "Je n'ai pas encore enregistré de rapport taille-hauteur — pourquoi est-ce un chiffre utile, et comment le maintenir sous 0,5 ?"
     }
   },
   "thresholds": {

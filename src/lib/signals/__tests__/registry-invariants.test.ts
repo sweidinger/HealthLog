@@ -48,12 +48,45 @@ describe("signal registry — structural sanity", () => {
     }
   });
 
-  it("mcp exposure follows Coach-snapshot inclusion", () => {
-    // The MCP get_metric_series enum is the Coach scope vocabulary, so a signal
-    // is MCP-readable iff it carries a Coach scope (and vice-versa).
+  it("every Coach-snapshot signal is also MCP-readable", () => {
+    // `mcp` and `coachSnapshot` are INDEPENDENT facets: a Coach-scoped signal
+    // is always reachable over MCP (the Coach `get_metric_series` path), but a
+    // signal can be MCP-readable WITHOUT a Coach scope (the v1.25 physical
+    // signals, exposed only through the rollup-backed rich reads). So the
+    // invariant is one-directional — coachSnapshot ⇒ mcp, never the reverse.
     for (const signal of allSignals()) {
-      const hasScope = signal.surfaces.coachSnapshot !== false;
-      expect(signal.surfaces.mcp).toBe(hasScope);
+      if (signal.surfaces.coachSnapshot !== false) {
+        expect(signal.surfaces.mcp).toBe(true);
+      }
+    }
+  });
+
+  it("the physical clinical signals are MCP-readable but off the Coach snapshot", () => {
+    for (const key of [
+      "GRIP_STRENGTH",
+      "PAIN_NRS",
+      "WAIST_CIRCUMFERENCE",
+      "WAIST_TO_HEIGHT",
+    ]) {
+      const signal = getSignal(key);
+      expect(signal, `${key} missing from registry`).not.toBeNull();
+      expect(signal!.surfaces.mcp).toBe(true);
+      expect(signal!.surfaces.coachSnapshot).toBe(false);
+    }
+  });
+
+  it("the mental-health screeners and environmental signals stay off MCP", () => {
+    for (const key of ["PHQ9_SCORE", "GAD7_SCORE"]) {
+      const signal = getSignal(key);
+      expect(signal, `${key} missing from registry`).not.toBeNull();
+      expect(signal!.surfaces.mcp).toBe(false);
+    }
+    for (const signal of allSignals()) {
+      if (signal.kind === "environment") {
+        expect(signal.surfaces.mcp, `${signal.key} must stay off MCP`).toBe(
+          false,
+        );
+      }
     }
   });
 

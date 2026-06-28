@@ -582,7 +582,9 @@
     "typeGripStrength": "Grip strength",
     "typePainNrs": "Pain (0–10)",
     "typeWaistCircumference": "Waist circumference",
-    "typeWaistToHeight": "Waist-to-height ratio"
+    "typeWaistToHeight": "Waist-to-height ratio",
+    "unitScore": "pts",
+    "unitRatio": "ratio"
   },
   "mood": {
     "title": "Mood",
@@ -3705,6 +3707,54 @@
       "statusBelow": "below range",
       "statusAbove": "above range",
       "directionFlat": "no change"
+    },
+    "navGripStrength": "Grip strength",
+    "navPainNrs": "Pain",
+    "navWaistCircumference": "Waist",
+    "navWaistToHeight": "Waist-to-height",
+    "gripStrength": {
+      "title": "Grip strength",
+      "description": "Maximal handgrip force — a robust proxy for whole-body strength. Below the sex-specific cut-off (men 27 kg, women 16 kg) flags probable sarcopenia; your own trend leads the read.",
+      "chartTitle": "Grip strength",
+      "emptyState": {
+        "title": "No grip strength yet",
+        "description": "Log a reading from a hand dynamometer — record the best of a few squeezes — and the trend will appear here.",
+        "cta": "Log grip strength"
+      },
+      "coachPrefill": "I haven't logged any grip strength yet — what does it tell me about my muscle health, and how do I measure and improve it?"
+    },
+    "pain": {
+      "title": "Pain (0–10)",
+      "description": "Patient-reported pain intensity on the 0–10 numeric rating scale, where 0 is no pain and 10 is the worst imaginable. A sustained 2-point change is the signal to watch.",
+      "chartTitle": "Pain (0–10)",
+      "emptyState": {
+        "title": "No pain scores yet",
+        "description": "Log how your pain feels right now on the 0–10 scale and the trend will appear here.",
+        "cta": "Log a pain score"
+      },
+      "coachPrefill": "I haven't logged any pain scores yet — how should I track pain on the 0–10 scale, and what counts as a meaningful change?"
+    },
+    "waist": {
+      "title": "Waist circumference",
+      "description": "Waist girth in centimetres — a marker of central fat. The WHO increased-risk threshold is sex-specific (men 94 cm, women 80 cm); your own trend leads the read.",
+      "chartTitle": "Waist circumference",
+      "emptyState": {
+        "title": "No waist measurements yet",
+        "description": "Measure your waist at the midpoint between the lowest rib and the hip bone, at the end of a normal breath, and log it here.",
+        "cta": "Log waist circumference"
+      },
+      "coachPrefill": "I haven't logged any waist measurements yet — how do I measure my waist correctly, and what does the number mean for my health?"
+    },
+    "waistToHeight": {
+      "title": "Waist-to-height ratio",
+      "description": "Your waist divided by your height — the ancestry-robust single number. Keeping it under 0.5 (waist below half your height) is the simple target.",
+      "chartTitle": "Waist-to-height ratio",
+      "emptyState": {
+        "title": "No waist-to-height ratio yet",
+        "description": "Log a waist-to-height ratio and the trend will appear here. The rule of thumb: keep your waist under half your height.",
+        "cta": "Log waist-to-height ratio"
+      },
+      "coachPrefill": "I haven't logged a waist-to-height ratio yet — why is it a useful number, and how do I keep it under 0.5?"
     }
   },
   "thresholds": {
