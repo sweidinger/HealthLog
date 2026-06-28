@@ -25,7 +25,7 @@ import {
   INBOUND_DOCUMENT_STATUSES,
 } from "@/lib/validations/inbound-documents";
 
-import { dataEnvelope, stdResponses } from "./shared";
+import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 
 const kindEnum = z.enum(INBOUND_DOCUMENT_KINDS);
 const statusEnum = z.enum(INBOUND_DOCUMENT_STATUSES);
@@ -238,7 +238,8 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                 .optional()
                 .meta({ description: "Optional category." }),
               documentDate: z.string().optional().meta({
-                description: "Optional user filing date (YYYY-MM-DD).",
+                description:
+                  "Optional user filing date (YYYY-MM-DD). Defaults to the upload day when omitted so the library sort/filter/display stay aligned.",
               }),
             }),
           },
@@ -352,7 +353,7 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Documents"],
       summary: "View / download the original document",
       description:
-        "Decrypts and serves the raw uploaded document (the bytes stored encrypted at rest under `InboundDocument.contentEncrypted`). Owner-scoped + gated on the opt-in `inboundDocuments` module. The response carries the stored `mimeType`: a PDF / image is served inline (`Content-Disposition: inline`) so the browser can render it; any other type downloads as an attachment. Fails closed (500) on a decrypt error — it never returns the ciphertext.",
+        "Decrypts and serves the raw uploaded document (the bytes stored encrypted at rest under `InboundDocument.contentEncrypted`). Owner-scoped + gated on the opt-in `inboundDocuments` module. Uploads are constrained at the store path to the inline-safe set (JPEG / PNG / WebP / PDF), so the document is always served `Content-Disposition: inline` for in-tab rendering; a non-ASCII filename is carried via RFC 5987 `filename*`. Fails closed (500) on a decrypt error — it never returns the ciphertext.",
       parameters: [
         {
           name: "id",
@@ -371,9 +372,6 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
             "image/*": {
               schema: { type: "string", format: "binary" },
-            },
-            "text/plain": {
-              schema: { type: "string" },
             },
           },
         },
@@ -420,6 +418,11 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               ),
             },
           },
+        },
+        "409": {
+          description:
+            "Re-extraction refused: at least one fact on this document is already APPROVED. `meta.errorCode` = `documents.inbound.alreadyPartlyConfirmed`. Re-extracting would sever committed-record provenance and duplicate committed records, so the user must finish reviewing or discard the document first.",
+          content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
       },

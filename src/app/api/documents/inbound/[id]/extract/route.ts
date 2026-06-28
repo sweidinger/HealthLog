@@ -81,9 +81,10 @@ type LoadedDocument = {
 
 /**
  * Replace the document's staged facts and flip it to EXTRACTED in one
- * transaction. Re-extraction is allowed (a STORED / FAILED / EXTRACTED row),
- * so any prior PENDING staging is cleared first; facts already APPROVED into
- * the structured stores are independent rows and are not touched here.
+ * transaction. Re-extraction is allowed only when NO fact is APPROVED yet (the
+ * POST handler refuses it otherwise), so clearing every prior staged fact here
+ * can never drop an approved row or sever a committed-record provenance link —
+ * the only facts present are PENDING / REJECTED leftovers from an earlier run.
  */
 async function stageExtraction(
   documentId: string,
@@ -147,6 +148,29 @@ export const POST = apiHandler(
       return apiError("This document has already been confirmed.", 422, {
         errorCode: "documents.inbound.alreadyConfirmed",
       });
+    }
+
+    // Refuse re-extraction once ANY fact on this document is APPROVED. A
+    // partially-confirmed document (some facts approved, the rest still pending)
+    // stays at status EXTRACTED, so the CONFIRMED gate above does not catch it.
+    // Re-extracting would `deleteMany` the APPROVED rows — severing the
+    // committed-record provenance link — and re-stage the same facts as PENDING,
+    // letting the user approve them a second time and duplicate the committed
+    // lab / condition / medication. Block it: the user must finish reviewing or
+    // discard the document first.
+    const approvedCount = await prisma.extractedFact.count({
+      where: { documentId: document.id, userId: user.id, status: "APPROVED" },
+    });
+    if (approvedCount > 0) {
+      annotate({
+        action: { name: "documents.inbound.extractRefusedApproved" },
+        meta: { documentId: document.id, approvedCount },
+      });
+      return apiError(
+        "Some facts from this document are already confirmed. Finish reviewing or discard it before extracting again.",
+        409,
+        { errorCode: "documents.inbound.alreadyPartlyConfirmed" },
+      );
     }
 
     const contentType = request.headers.get("content-type") ?? "";

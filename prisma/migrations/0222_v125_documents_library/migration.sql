@@ -13,8 +13,8 @@
 --   * `document_date`  — user-set filing date (editable). Distinct from
 --                        `report_date`, which stays the model-transcribed
 --                        value.
---   * a `(user_id, document_date)` index for date-grouped browse + range
---     filter.
+--   * a `(user_id, deleted_at, document_date)` index for date-grouped browse +
+--     range filter (the list always filters `deleted_at IS NULL`).
 --   * `inbound_document_kind` gains LAB_RESULT / IMAGING / PRESCRIPTION /
 --     INSURANCE / VACCINATION (the existing 3 stay; OTHER stays the fallback).
 --   * `inbound_document_status` gains STORED, made the column DEFAULT (the
@@ -79,6 +79,8 @@ BEGIN
   END IF;
 END $$;
 
--- CreateIndex: date-grouped browse + document_date range filter.
-CREATE INDEX IF NOT EXISTS "inbound_documents_user_id_document_date_idx"
-  ON "inbound_documents"("user_id", "document_date");
+-- CreateIndex: date-grouped browse + document_date range filter. The list
+-- always filters `deleted_at IS NULL` and sorts by `document_date`, so
+-- deleted_at leads the sort column to keep the scan covered.
+CREATE INDEX IF NOT EXISTS "inbound_documents_user_id_deleted_at_document_date_idx"
+  ON "inbound_documents"("user_id", "deleted_at", "document_date");

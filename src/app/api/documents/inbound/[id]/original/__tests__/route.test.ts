@@ -34,6 +34,13 @@ vi.mock("@/lib/modules/gate", async (importOriginal) => ({
   resolveModuleMap: vi.fn().mockResolvedValue({}),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi
+    .fn()
+    .mockResolvedValue({ allowed: true, remaining: 239, resetAt: Date.now() }),
+  rateLimitHeaders: () => ({}),
+}));
+
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
@@ -118,20 +125,38 @@ describe("GET /api/documents/inbound/[id]/original", () => {
     expect(where.deletedAt).toBeNull();
   });
 
-  it("serves a non-inline type (text) as an attachment", async () => {
+  it("serves inline with a generated fallback name when filename is null", async () => {
     vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue({
       id: "doc-2",
       filename: null,
-      mimeType: "text/plain",
-      contentEncrypted: encryptDocumentToBytes(Buffer.from("plain text")),
+      mimeType: "image/png",
+      contentEncrypted: encryptDocumentToBytes(Buffer.from("png bytes")),
     } as never);
 
     const res = await callGet(makeReq("doc-2"), ctx("doc-2"));
     expect(res.status).toBe(200);
     const disposition = res.headers.get("Content-Disposition") ?? "";
-    expect(disposition).toContain("attachment");
+    // The stored set is inline-safe by construction → always inline.
+    expect(disposition).toContain("inline");
     // No filename → generated fallback keyed by id + extension.
-    expect(disposition).toContain("document-doc-2.txt");
+    expect(disposition).toContain("document-doc-2.png");
+  });
+
+  it("RFC 5987-encodes a non-ASCII filename and keeps an ASCII fallback", async () => {
+    vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue({
+      id: "doc-4",
+      filename: "Müller-Bericht.pdf",
+      mimeType: "application/pdf",
+      contentEncrypted: encryptDocumentToBytes(PDF_BYTES),
+    } as never);
+
+    const res = await callGet(makeReq("doc-4"), ctx("doc-4"));
+    expect(res.status).toBe(200);
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    // ASCII fallback: the non-ASCII byte is replaced so the bare `filename=`
+    // value is header-safe; the RFC 5987 form carries the percent-encoded UTF-8.
+    expect(disposition).toContain(`filename="M_ller-Bericht.pdf"`);
+    expect(disposition).toContain("filename*=UTF-8''M%C3%BCller-Bericht.pdf");
   });
 
   it("404s for another user's document (the userId narrows it out)", async () => {

@@ -15,6 +15,9 @@ vi.mock("@/lib/db", () => ({
       create: vi.fn(),
       findMany: vi.fn(),
     },
+    extractedFact: {
+      groupBy: vi.fn(),
+    },
   },
 }));
 
@@ -110,6 +113,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true } as never);
+  vi.mocked(prisma.extractedFact.groupBy).mockResolvedValue([] as never);
 });
 
 describe("POST /api/documents/inbound (store-only)", () => {
@@ -153,10 +157,17 @@ describe("POST /api/documents/inbound (store-only)", () => {
 });
 
 describe("GET /api/documents/inbound (list)", () => {
-  it("applies q + kind filters and returns a keyset page", async () => {
+  it("applies q + kind filters and returns a keyset page with grouped counts", async () => {
     vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([
-      { ...docRow({ id: "d1" }), _count: { facts: 0 }, facts: [] },
-      { ...docRow({ id: "d2" }), _count: { facts: 2 }, facts: [{ id: "f1" }] },
+      docRow({ id: "d1" }),
+      docRow({ id: "d2" }),
+    ] as never);
+    // factCount excludes REJECTED; pendingCount is the PENDING subset. The
+    // counts come from a single grouped query, not from materialised fact rows.
+    vi.mocked(prisma.extractedFact.groupBy).mockResolvedValue([
+      { documentId: "d2", status: "PENDING", _count: { _all: 1 } },
+      { documentId: "d2", status: "APPROVED", _count: { _all: 1 } },
+      { documentId: "d2", status: "REJECTED", _count: { _all: 3 } },
     ] as never);
 
     const res = await get(
@@ -169,6 +180,14 @@ describe("GET /api/documents/inbound (list)", () => {
     expect(body.data.documents).toHaveLength(2);
     expect(body.data.nextCursor).toBeNull();
 
+    // d1 has no facts; d2 has 1 pending + 1 approved + 3 rejected → factCount 2
+    // (rejected excluded), pendingCount 1.
+    const [d1, d2] = body.data.documents;
+    expect(d1.factCount).toBe(0);
+    expect(d1.pendingCount).toBe(0);
+    expect(d2.factCount).toBe(2);
+    expect(d2.pendingCount).toBe(1);
+
     const arg = vi.mocked(prisma.inboundDocument.findMany).mock.calls[0]![0]!;
     const where = arg.where!;
     expect(where.userId).toBe("user-1");
@@ -178,6 +197,8 @@ describe("GET /api/documents/inbound (list)", () => {
       { title: { contains: "panel", mode: "insensitive" } },
       { filename: { contains: "panel", mode: "insensitive" } },
     ]);
+    // No fact rows are materialised in the page query — counts come from groupBy.
+    expect(arg.include).toBeUndefined();
     // limit+1 fetched for the has-more probe.
     expect(arg.take).toBe(11);
   });

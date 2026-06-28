@@ -13,7 +13,7 @@ import { NextRequest } from "next/server";
 vi.mock("@/lib/db", () => ({
   prisma: {
     inboundDocument: { findFirst: vi.fn(), update: vi.fn() },
-    extractedFact: { deleteMany: vi.fn() },
+    extractedFact: { deleteMany: vi.fn(), count: vi.fn() },
     user: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   },
@@ -104,6 +104,7 @@ beforeEach(() => {
     mimeType: "image/png",
     status: "STORED",
   } as never);
+  vi.mocked(prisma.extractedFact.count).mockResolvedValue(0 as never);
 });
 
 describe("POST /api/documents/inbound/[id]/extract", () => {
@@ -121,6 +122,30 @@ describe("POST /api/documents/inbound/[id]/extract", () => {
     // The stored document is untouched — no staging transaction, no flip.
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(prisma.inboundDocument.update).not.toHaveBeenCalled();
+  });
+
+  it("409s and refuses re-extraction when any fact is already APPROVED", async () => {
+    // A partially-confirmed document stays at EXTRACTED, so the CONFIRMED gate
+    // does not catch it; the approved-fact guard must.
+    vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue({
+      id: "doc-1",
+      kind: "OTHER",
+      contentEncrypted: new Uint8Array([1, 2, 3]),
+      mimeType: "image/png",
+      status: "EXTRACTED",
+    } as never);
+    vi.mocked(prisma.extractedFact.count).mockResolvedValue(2 as never);
+
+    const res = await POST(visionReq("doc-1") as never, ctx("doc-1") as never);
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.meta?.errorCode).toBe(
+      "documents.inbound.alreadyPartlyConfirmed",
+    );
+
+    // No staging transaction, no fact deletion — committed provenance is safe.
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.extractedFact.deleteMany).not.toHaveBeenCalled();
   });
 
   it("404s for a document the caller does not own", async () => {
