@@ -19,6 +19,8 @@ vi.mock("@/lib/db", () => ({
     moodEntry: { findMany: vi.fn() },
     labResult: { findMany: vi.fn() },
     illnessEpisode: { findMany: vi.fn() },
+    allergy: { findMany: vi.fn() },
+    familyHistoryEntry: { findMany: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
   },
 }));
@@ -100,6 +102,8 @@ beforeEach(() => {
   vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.labResult.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.allergy.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.familyHistoryEntry.findMany).mockResolvedValue([] as never);
   // First findUnique = aggregator profile select; second = route KVNR select.
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     username: "sample",

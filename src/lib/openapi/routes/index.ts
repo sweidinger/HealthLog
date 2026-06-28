@@ -22,6 +22,7 @@
 import type { ZodOpenApiObject } from "zod-openapi";
 
 import { adminDiagnosticPaths, adminInvitePaths } from "./admin";
+import { allergyPaths } from "./allergies";
 import { authPaths } from "./auth";
 import {
   coachFeedbackPaths,
@@ -35,6 +36,7 @@ import { cyclePaths } from "./cycle";
 import { biomarkerPaths } from "./biomarkers";
 import { devicePaths } from "./devices";
 import { exportPaths } from "./export";
+import { familyHistoryPaths } from "./family-history";
 import { healthRecordPaths } from "./health-record";
 import { illnessPaths } from "./illness";
 import { importPaths } from "./import";
@@ -85,6 +87,8 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...biomarkerPaths,
   ...illnessPaths,
   ...mentalHealthPaths,
+  ...allergyPaths,
+  ...familyHistoryPaths,
   ...onboardingPaths,
 };
 

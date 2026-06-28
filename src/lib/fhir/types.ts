@@ -245,6 +245,50 @@ export interface FhirEncounter {
   reasonReference?: FhirReference[];
 }
 
+/**
+ * v1.25 (W-RECORDS) — R4 `AllergyIntolerance`. A self-recorded allergy /
+ * intolerance. `clinicalStatus`/`verificationStatus` carry "what the user
+ * asserts" (verification is always `unconfirmed` — patient-reported, not a
+ * clinician-confirmed diagnosis). The substance rides `code.text` (no
+ * machine-guessed SNOMED/RxNorm code); the broad category rides `category[]`.
+ */
+export interface FhirAllergyIntolerance {
+  resourceType: "AllergyIntolerance";
+  id: string;
+  clinicalStatus?: FhirCodeableConcept;
+  verificationStatus?: FhirCodeableConcept;
+  type?: "allergy" | "intolerance";
+  category?: ("food" | "medication" | "environment" | "biologic")[];
+  criticality?: "low" | "high" | "unable-to-assess";
+  code: FhirCodeableConcept;
+  patient: FhirReference;
+  onsetDateTime?: string;
+  reaction?: {
+    manifestation: FhirCodeableConcept[];
+    severity?: "mild" | "moderate" | "severe";
+  }[];
+  note?: FhirAnnotation[];
+}
+
+/**
+ * v1.25 (W-RECORDS) — R4 `FamilyMemberHistory`. One relative's condition as
+ * recorded by the user. `relationship` carries the SNOMED family-member
+ * concept; the condition rides `condition[].code.text` (no machine-guessed
+ * code). `status: "completed"` marks the record as captured. Patient-reported.
+ */
+export interface FhirFamilyMemberHistory {
+  resourceType: "FamilyMemberHistory";
+  id: string;
+  status: "partial" | "completed" | "entered-in-error" | "health-unknown";
+  patient: FhirReference;
+  relationship: FhirCodeableConcept;
+  condition?: {
+    code: FhirCodeableConcept;
+    onsetAge?: FhirQuantity;
+  }[];
+  note?: FhirAnnotation[];
+}
+
 export type FhirResource =
   | FhirComposition
   | FhirPatient
@@ -254,6 +298,8 @@ export type FhirResource =
   | FhirMedicationAdministration
   | FhirCondition
   | FhirEncounter
+  | FhirAllergyIntolerance
+  | FhirFamilyMemberHistory
   | FhirDiagnosticReport;
 
 export interface FhirBundleEntry {

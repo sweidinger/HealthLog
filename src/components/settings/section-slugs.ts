@@ -69,6 +69,10 @@ export const SETTINGS_SECTION_SLUGS = [
   "mood",
   "labs",
   "illness",
+  // v1.25 (W-RECORDS) — "Anamnese" (medical history): the structured-record
+  // home for allergies + family history. Always shown (not module-gated, like
+  // `vorsorge`); the records are foundational health-profile data.
+  "anamnesis",
   "vorsorge",
   "thresholds",
   "ai",

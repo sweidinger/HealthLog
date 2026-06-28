@@ -22,6 +22,7 @@ import {
   Blocks,
   Bot,
   CalendarCheck,
+  ClipboardList,
   Download,
   FileHeart,
   FlaskConical,
@@ -190,6 +191,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.illness.title",
     icon: Thermometer,
     moduleGate: "illness",
+  },
+  // v1.25 (W-RECORDS) — Anamnese (medical history): the structured-record home
+  // for allergies + family history. NOT module-gated (like Vorsorge) — these
+  // are foundational health-profile records, always available. Sits between
+  // the illness journal and the preventive-care reminders.
+  {
+    slug: "anamnesis",
+    titleKey: "settings.sections.anamnesis.title",
+    icon: ClipboardList,
   },
   // v1.18.7 — Vorsorge: the preventive-care reminders customise surface
   // (view, order, individual reminders). NOT module-gated — preventive-care

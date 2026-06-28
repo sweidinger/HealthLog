@@ -15,8 +15,10 @@
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
 import { adminKeys } from "./admin";
+import { allergyKeys } from "./allergies";
 import { authKeys } from "./auth";
 import { coachKeys } from "./coach";
+import { familyHistoryKeys } from "./family-history";
 import { cycleKeys } from "./cycle";
 import { dashboardKeys } from "./dashboard";
 import { illnessKeys } from "./illness";
@@ -48,6 +50,8 @@ export const queryKeys = {
   ...labKeys,
   ...illnessKeys,
   ...mentalHealthKeys,
+  ...allergyKeys,
+  ...familyHistoryKeys,
 };
 
 /**

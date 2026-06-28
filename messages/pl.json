@@ -4272,6 +4272,11 @@
       "mcp": {
         "title": "Łącznik MCP",
         "subtitle": "Połącz zewnętrznego asystenta z własnymi danymi zdrowotnymi."
+      },
+      "anamnesis": {
+        "title": "Wywiad medyczny",
+        "subtitle": "Zarządzaj swoimi alergiami i wywiadem rodzinnym.",
+        "description": "Ustrukturyzowane rekordy alergii i wywiadu rodzinnego."
       }
     },
     "profile": "Profil",
@@ -7551,6 +7556,114 @@
       },
       "crisisTextLine": {
         "name": "Crisis Text Line"
+      }
+    }
+  },
+  "records": {
+    "disclaimer": "To Twoje własne wpisy, a nie diagnoza lekarska. HealthLog nie diagnozuje, nie leczy i ich nie interpretuje.",
+    "allergies": {
+      "cardTitle": "Alergie i nietolerancje",
+      "cardDescription": "Substancje, na które reagujesz, wraz z reakcją i jej nasileniem.",
+      "description": "Zapisz alergię lub nietolerancję.",
+      "add": "Dodaj alergię",
+      "addFirst": "Dodaj swoją pierwszą alergię",
+      "addTitle": "Dodaj alergię",
+      "editTitle": "Edytuj alergię",
+      "formDescription": "Substancja jest przechowywana jako tekst; reakcja i notatka są szyfrowane.",
+      "emptyTitle": "Brak zapisanych alergii",
+      "emptyDescription": "Dodaj substancje, na które reagujesz, i ich reakcje.",
+      "loadError": "Nie udało się wczytać Twoich alergii.",
+      "deletedToast": "Alergia usunięta",
+      "deleteError": "Nie udało się usunąć alergii.",
+      "deleteConfirmTitle": "Usunąć tę alergię?",
+      "deleteConfirmDescription": "To usuwa wpis. Nie można tego cofnąć.",
+      "category": {
+        "FOOD": "Pokarm",
+        "MEDICATION": "Lek",
+        "ENVIRONMENT": "Środowisko",
+        "BIOLOGIC": "Biologiczny",
+        "OTHER": "Inne"
+      },
+      "type": {
+        "ALLERGY": "Alergia",
+        "INTOLERANCE": "Nietolerancja"
+      },
+      "severity": {
+        "NONE": "Nieoceniona",
+        "MILD": "Łagodna",
+        "MODERATE": "Umiarkowana",
+        "SEVERE": "Ciężka"
+      },
+      "status": {
+        "ACTIVE": "Aktywna",
+        "INACTIVE": "Nieaktywna",
+        "RESOLVED": "Ustąpiła"
+      },
+      "form": {
+        "substance": "Substancja",
+        "substancePlaceholder": "np. Penicylina, Orzeszki ziemne",
+        "category": "Kategoria",
+        "type": "Typ",
+        "severity": "Nasilenie",
+        "status": "Status",
+        "onset": "Pierwszy raz zauważono",
+        "reaction": "Reakcja",
+        "reactionPlaceholder": "np. pokrzywka, obrzęk, anafilaksja",
+        "note": "Notatka",
+        "notePlaceholder": "Cokolwiek innego, co warto zapamiętać",
+        "requiredError": "Podaj substancję.",
+        "savedToast": "Alergia zapisana",
+        "updatedToast": "Alergia zaktualizowana",
+        "saveError": "Nie udało się zapisać alergii."
+      }
+    },
+    "family": {
+      "cardTitle": "Wywiad rodzinny",
+      "cardDescription": "Choroby u Twoich krewnych, jeden wpis na chorobę.",
+      "description": "Zapisz chorobę u krewnego.",
+      "add": "Dodaj wpis",
+      "addFirst": "Dodaj swój pierwszy wpis",
+      "addTitle": "Dodaj wywiad rodzinny",
+      "editTitle": "Edytuj wywiad rodzinny",
+      "formDescription": "Pokrewieństwo i choroba są przechowywane jako tekst; notatka jest szyfrowana.",
+      "emptyTitle": "Brak wywiadu rodzinnego",
+      "emptyDescription": "Dodaj choroby występujące w Twojej rodzinie.",
+      "loadError": "Nie udało się wczytać Twojego wywiadu rodzinnego.",
+      "deletedToast": "Wpis usunięty",
+      "deleteError": "Nie udało się usunąć wpisu.",
+      "deleteConfirmTitle": "Usunąć ten wpis?",
+      "deleteConfirmDescription": "To usuwa wpis. Nie można tego cofnąć.",
+      "ageAtOnsetShort": "Wiek {age}",
+      "relationship": {
+        "MOTHER": "Matka",
+        "FATHER": "Ojciec",
+        "SISTER": "Siostra",
+        "BROTHER": "Brat",
+        "DAUGHTER": "Córka",
+        "SON": "Syn",
+        "GRANDMOTHER_MATERNAL": "Babcia (ze strony matki)",
+        "GRANDFATHER_MATERNAL": "Dziadek (ze strony matki)",
+        "GRANDMOTHER_PATERNAL": "Babcia (ze strony ojca)",
+        "GRANDFATHER_PATERNAL": "Dziadek (ze strony ojca)",
+        "AUNT": "Ciotka",
+        "UNCLE": "Wujek",
+        "COUSIN": "Kuzyn/kuzynka",
+        "HALF_SIBLING": "Przyrodnie rodzeństwo",
+        "OTHER": "Inny krewny"
+      },
+      "form": {
+        "relationship": "Krewny",
+        "condition": "Choroba",
+        "conditionPlaceholder": "np. Cukrzyca typu 2, Rak piersi",
+        "ageAtOnset": "Wiek zachorowania",
+        "ageAtOnsetPlaceholder": "np. 55",
+        "note": "Notatka",
+        "notePlaceholder": "Cokolwiek innego, co warto zapamiętać",
+        "requiredError": "Podaj chorobę.",
+        "ageError": "Podaj wiek od 0 do 120.",
+        "savedToast": "Wpis zapisany",
+        "updatedToast": "Wpis zaktualizowany",
+        "saveError": "Nie udało się zapisać wpisu."
       }
     }
   }
