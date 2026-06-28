@@ -19,6 +19,8 @@ vi.mock("@/lib/db", () => ({
       findFirst: vi.fn(async () => null),
     },
     labResult: { findMany: vi.fn(async () => []) },
+    // v1.25 — `search` probes the clinical-signal measurement types.
+    measurement: { groupBy: vi.fn(async () => []) },
     // v1.24 — operational reads (schedule / integration status / preventive care).
     user: { findUnique: vi.fn(async () => ({ timezone: "UTC" })) },
     medicationIntakeEvent: {
@@ -56,9 +58,18 @@ vi.mock("../rich-reads", () => ({
   detectChangepoints: vi.fn(async () => ({ present: true })),
   getLabHistory: vi.fn(async () => ({ present: true })),
   LAB_HISTORY_MAX_LIMIT: 50,
+  // v1.25 — the clinical-signal allowlist `search` / `fetch` consume.
+  MCP_CLINICAL_SIGNALS: [
+    {
+      key: "GRIP_STRENGTH",
+      measurementType: "GRIP_STRENGTH",
+      label: "Grip strength",
+    },
+  ],
 }));
 
 import { MCP_TOOLS, MCP_TOOL_NAMES } from "../tools";
+import { getMetricBaseline } from "../rich-reads";
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
 import { buildCoachDataInventory } from "@/lib/ai/coach/tools/inventory";
 import { prisma } from "@/lib/db";
@@ -565,5 +576,68 @@ describe("search — cursor pagination", () => {
     })) as { results: unknown[]; nextCursor?: string };
     expect(page2.results).toHaveLength(10);
     expect(page2.nextCursor).toBeUndefined();
+  });
+});
+
+describe("v1.25 clinical signals on the MCP surface", () => {
+  beforeEach(() => {
+    vi.mocked(buildCoachDataInventory).mockResolvedValue({
+      entries: [],
+      restMode: false,
+      cycleEnabled: false,
+      window: "last30days",
+      probeScope: { sources: [] },
+    } as never);
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.labResult.findMany).mockResolvedValue([] as never);
+  });
+
+  it("search surfaces a present clinical signal as metric:<KEY>", async () => {
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([
+      { type: "GRIP_STRENGTH" },
+    ] as never);
+    const result = (await tool("search").run(CTX, { query: "grip" })) as {
+      results: Array<{ id: string; title: string; url: string }>;
+    };
+    const hit = result.results.find((r) => r.id === "metric:GRIP_STRENGTH");
+    expect(hit).toBeDefined();
+    expect(hit?.title).toBe("Grip strength");
+    expect(hit?.url).toContain("/insights?metric=GRIP_STRENGTH");
+  });
+
+  it("search omits a clinical signal with no recorded data", async () => {
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
+    const result = (await tool("search").run(CTX, { query: "grip" })) as {
+      results: Array<{ id: string }>;
+    };
+    expect(result.results.some((r) => r.id.startsWith("metric:"))).toBe(false);
+  });
+
+  it("fetch hydrates a clinical signal via the baseline read (not the Coach path)", async () => {
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
+    vi.mocked(getMetricBaseline).mockResolvedValue({
+      present: true,
+      metric: "Grip strength",
+      unit: "kg",
+      latest: 34,
+      placement: "within",
+      baseline: { low: 30, high: 38, sampleDays: 21 },
+      referenceBand: { low: 16, high: 60 },
+    } as never);
+
+    const result = (await tool("fetch").run(CTX, {
+      id: "metric:GRIP_STRENGTH",
+    })) as Record<string, unknown>;
+
+    // Resolved through the rollup-backed baseline read, never the Coach executor.
+    expect(getMetricBaseline).toHaveBeenCalledWith("user-1", {
+      metric: "GRIP_STRENGTH",
+    });
+    expect(executeCoachTool).not.toHaveBeenCalled();
+    expect(result.title).toBe("Grip strength");
+    // Plain-text prose, grounded with the value + band; never a JSON blob.
+    expect(result.text as string).not.toContain("{");
+    expect(result.text as string).toContain("34");
+    expect(result.text as string).toContain("16–60");
   });
 });

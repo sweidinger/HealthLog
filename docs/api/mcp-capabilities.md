@@ -95,6 +95,33 @@ Every read tool is annotated read-only / non-destructive / idempotent /
 closed-world — the read-only guarantee is structural (only read tools are
 registered for a read session), and the annotation merely advertises it.
 
+### Clinical signals
+
+The v1.25 clinical-signals set — **grip strength**, **pain (0–10 NRS)**,
+**waist circumference**, and **waist-to-height ratio** — is reachable
+through the rollup-backed reads `get_metric_baseline`, `compare_metric`,
+and `detect_changepoints` (pass the signal name, e.g. `grip strength` or
+`waist-to-height ratio`), and through `search` → `fetch` (`search`
+surfaces a signal only when the user has recorded it; `fetch metric:<KEY>`
+hydrates it). Each carries its unit and population reference band from the
+single signal registry; absence is the usual `{ present: false }`. They
+sit off the Coach data inventory by design, so `list_metrics` /
+`get_metric_series` do not enumerate them — use the reads above.
+
+The **longevity lab panel** (ApoB, Lp(a), hs-CRP, HbA1c, fasting glucose,
+fasting insulin, eGFR, GGT, ferritin, omega-3 index) is reached like any
+other biomarker: `get_labs` (latest per analyte or, with `history:true`, a
+paginated trajectory), the `healthlog://lab/{analyte}` resource template,
+and `search` → `fetch` (`lab:<analyte>`). Reference bounds come from the
+curated biomarker catalogue.
+
+**Off the MCP surface by construction.** The PHQ-9 / GAD-7 mental-health
+screeners (item content and totals) are excluded from AI / MCP, and the
+environmental-context signals (`ENV_*`: temperature, sunshine, daylight,
+precipitation, barometric pressure) are off MCP in v1. None of them
+resolve through any read tool — they are not on the MCP exposure
+allowlist.
+
 ## Resources
 
 Read-only context the assistant can attach alongside tool results. Like

@@ -19,6 +19,8 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     medication: { findMany: vi.fn(), findFirst: vi.fn() },
     labResult: { findMany: vi.fn() },
+    // v1.25 — `search` probes the clinical-signal measurement types.
+    measurement: { groupBy: vi.fn(async () => []) },
   },
 }));
 
