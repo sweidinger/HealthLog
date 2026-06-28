@@ -36,6 +36,17 @@ export function encryptDocumentToBytes(bytes: Buffer): Uint8Array<ArrayBuffer> {
 }
 
 /**
+ * Decrypt a stored document's `Bytes` payload back to its raw bytes. The
+ * inverse of `encryptDocumentToBytes`: the column holds `encrypt()`-string
+ * UTF-8 bytes whose plaintext is the base64 of the original binary. Throws
+ * (fail-closed) on a bad/missing key id. Used by the optional extraction
+ * action to re-read an already-stored original.
+ */
+export function decryptDocumentFromBytes(buf: Uint8Array): Buffer {
+  return Buffer.from(decryptFromBytes(buf), "base64");
+}
+
+/**
  * Encrypt a staged fact's FHIR-staged payload into the `Bytes` column the
  * schema stores. The structured clinical values (diagnosis text, lab values,
  * medication names, stated codes) are PHI, so they ride the shared AES-256-GCM
@@ -74,6 +85,7 @@ export function serialiseDocument(
   return {
     id: doc.id,
     kind: doc.kind as InboundDocumentKindValue,
+    title: doc.title,
     filename: doc.filename,
     mimeType: doc.mimeType,
     byteSize: doc.byteSize,
@@ -81,6 +93,9 @@ export function serialiseDocument(
     providerType: doc.providerType,
     reportDate: doc.reportDate
       ? doc.reportDate.toISOString().slice(0, 10)
+      : null,
+    documentDate: doc.documentDate
+      ? doc.documentDate.toISOString().slice(0, 10)
       : null,
     errorReason: doc.errorReason,
     factCount: counts.factCount,

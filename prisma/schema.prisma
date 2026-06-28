@@ -5527,20 +5527,29 @@ model CyclePrediction {
 // ─────────────────────────────────────────────────────────────────────────
 
 /// What kind of clinical document was uploaded (free choice by the user;
-/// drives no interpretation — it is a label only).
+/// drives no interpretation — it is a label only). The richer set
+/// (lab/imaging/prescription/insurance/vaccination) makes the library
+/// browsable by category; the value still drives no interpretation.
 enum InboundDocumentKind {
   DOCTOR_REPORT
   DISCHARGE_LETTER
+  LAB_RESULT
+  IMAGING
+  PRESCRIPTION
+  INSURANCE
+  VACCINATION
   OTHER
 
   @@map("inbound_document_kind")
 }
 
-/// Lifecycle of an uploaded document. EXTRACTING while the provider runs,
-/// EXTRACTED once facts are staged for review, FAILED on a provider/parse
-/// miss, CONFIRMED once the user has acted on every fact, DISCARDED on a
-/// soft delete.
+/// Lifecycle of an uploaded document. STORED is the library default — the
+/// file is uploaded + encrypted at rest with no extraction run. EXTRACTING
+/// while the provider runs, EXTRACTED once facts are staged for review,
+/// FAILED on a provider/parse miss, CONFIRMED once the user has acted on
+/// every fact, DISCARDED on a soft delete.
 enum InboundDocumentStatus {
+  STORED
   EXTRACTING
   EXTRACTED
   FAILED
@@ -5575,6 +5584,11 @@ model InboundDocument {
   id     String @id @default(cuid())
   userId String @map("user_id")
   kind   InboundDocumentKind @default(OTHER)
+  /// User-given label. Plaintext (like `filename`) so the library list can
+  /// sort + search in SQL. The document BODY stays encrypted; only this
+  /// short, user-authored title is clear-text — it is what makes ILIKE
+  /// search and ORDER BY possible.
+  title  String?
   /// Original filename as uploaded (sanitised, optional).
   filename String?
   /// Magic-byte-sniffed MIME type the document was stored as.
@@ -5586,13 +5600,18 @@ model InboundDocument {
   /// shared with the note columns. The original is sensitive and never
   /// stored in the clear or logged.
   contentEncrypted Bytes @map("content_encrypted")
-  status InboundDocumentStatus @default(EXTRACTING)
+  status InboundDocumentStatus @default(STORED)
   /// Provider type that ran the extraction (e.g. "anthropic", "openai",
-  /// "local"). Diagnostic only.
+  /// "local"). Diagnostic only. Null on a store-only document.
   providerType String? @map("provider_type")
   /// The document's stated report/collection date (YYYY-MM-DD at UTC), as
-  /// transcribed — never inferred.
+  /// transcribed by the model — never inferred, never user-set.
   reportDate DateTime? @map("report_date")
+  /// User-set filing date (editable). Distinct from `reportDate`, which is
+  /// the model-transcribed value. The library shows `documentDate`,
+  /// defaulting to `reportDate` then `createdAt` when the user hasn't set
+  /// one.
+  documentDate DateTime? @map("document_date")
   /// Failure reason when status = FAILED (a short code, never the document).
   errorReason String? @map("error_reason")
 
@@ -5607,6 +5626,7 @@ model InboundDocument {
 
   @@index([userId, createdAt])
   @@index([userId, deletedAt])
+  @@index([userId, documentDate])
   @@map("inbound_documents")
 }
 

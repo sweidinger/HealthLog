@@ -8595,12 +8595,82 @@ paths:
     get:
       tags:
         - Documents
-      summary: List inbound clinical documents
-      description: The caller's uploaded doctor reports / discharge letters (newest first, live only). Owner-scoped; gated on
-        the opt-in `inboundDocuments` module.
+      summary: List stored documents
+      description: The caller's stored documents with title/filename search, category filter, a `documentDate` range, sort,
+        and keyset pagination. Owner-scoped; gated on the opt-in `inboundDocuments` module.
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          description: Case-insensitive search over title + filename.
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - DOCTOR_REPORT
+              - DISCHARGE_LETTER
+              - LAB_RESULT
+              - IMAGING
+              - PRESCRIPTION
+              - INSURANCE
+              - VACCINATION
+              - OTHER
+          description: Category filter.
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Inclusive lower bound on documentDate (YYYY-MM-DD).
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Inclusive upper bound on documentDate (YYYY-MM-DD).
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - documentDate
+              - createdAt
+              - title
+            default: documentDate
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyset cursor (the `nextCursor` from a prior page).
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
       responses:
         "200":
-          description: The document list.
+          description: A page of documents.
           content:
             application/json:
               schema:
@@ -8611,14 +8681,12 @@ paths:
     post:
       tags:
         - Documents
-      summary: Upload + extract a clinical document
-      description: 'Ingests a doctor report / discharge letter through the dedicated OCR/vision provider, stores the raw
-        document ENCRYPTED at rest, and stages the extracted STRUCTURED FACTS for review. Two modes by content-type.
-        VISION (`multipart/form-data`): a `file` (JPEG/PNG/WebP, or PDF on an Anthropic vision provider; ≤ 12 MiB) plus
-        an optional `kind`. TEXT (`application/json`, opt-in local OCR): `{ mode: "text", text, kind? }` — only the
-        extracted text reaches the server. Both modes are AI-consent / rate / budget gated. Extraction reproduces what
-        the document states (stated codes/status only) — it never interprets. Nothing reaches the structured stores
-        here; the confirm route is the only write path.'
+      summary: Store a document (no extraction)
+      description: "STORE-ONLY upload. Stores the raw document ENCRYPTED at rest with `status: STORED` and runs NO extraction
+        — provider-free, no AI consent / budget / egress. A file is always filable, even with no document-scan provider
+        configured. `multipart/form-data`: a `file` (JPEG/PNG/WebP/PDF, validated by magic-byte MIME sniff, ≤ 12 MiB)
+        plus optional `title`, `kind`, and `documentDate` (YYYY-MM-DD) form fields. AI extraction is a separate opt-in
+        action — see `POST /api/documents/inbound/{id}/extract`."
       requestBody:
         required: true
         content:
@@ -8629,22 +8697,30 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: The clinical-document image or PDF. Validated by magic-byte MIME sniff, not the wire Content-Type.
+                  description: The document image or PDF. Validated by magic-byte MIME sniff, not the wire Content-Type.
+                title:
+                  description: Optional user label.
+                  type: string
                 kind:
-                  description: Optional document-type label.
+                  description: Optional category.
                   type: string
                   enum:
                     - DOCTOR_REPORT
                     - DISCHARGE_LETTER
+                    - LAB_RESULT
+                    - IMAGING
+                    - PRESCRIPTION
+                    - INSURANCE
+                    - VACCINATION
                     - OTHER
+                documentDate:
+                  description: Optional user filing date (YYYY-MM-DD).
+                  type: string
               required:
                 - file
-          application/json:
-            schema:
-              $ref: "#/components/schemas/InboundTextUploadRequest"
       responses:
         "201":
-          description: The created document + staging summary.
+          description: The stored document.
           content:
             application/json:
               schema:
@@ -8674,10 +8750,60 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+    patch:
+      tags:
+        - Documents
+      summary: Edit a document's metadata
+      description: Rename / recategorise / set the user filing date on a stored document. Owner-scoped; no mass assignment.
+        Returns the updated document + its staged facts.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  anyOf:
+                    - type: string
+                      maxLength: 200
+                    - type: "null"
+                kind:
+                  type: string
+                  enum:
+                    - DOCTOR_REPORT
+                    - DISCHARGE_LETTER
+                    - LAB_RESULT
+                    - IMAGING
+                    - PRESCRIPTION
+                    - INSURANCE
+                    - VACCINATION
+                    - OTHER
+                documentDate:
+                  anyOf:
+                    - type: string
+                      pattern: ^\d{4}-\d{2}-\d{2}$
+                    - type: "null"
+      responses:
+        "200":
+          description: The updated document.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundDocumentUpdateEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
     delete:
       tags:
         - Documents
-      summary: Discard an inbound document
+      summary: Discard a document
       description: Soft-deletes the document + its staging. Facts already approved into the structured stores are independent
         rows and are NOT affected.
       parameters:
@@ -8693,6 +8819,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InboundDiscardEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}/extract:
+    post:
+      tags:
+        - Documents
+      summary: Extract facts from a stored document
+      description: "Optional AI enhancement on an already-stored document. Runs the dedicated OCR/vision provider over the
+        stored original and stages STRUCTURED FACTS for review. AI-consent / rate / budget gated. With no provider
+        configured this returns 422 (`documents.inbound.providerUnsupported`) — the stored document is untouched, only
+        the enhancement fails. Two modes by content-type: VISION (empty body) decrypts and scans the stored original
+        (PDF needs an Anthropic vision provider); TEXT (`application/json`, opt-in local OCR) `{ mode: \"text\", text }`
+        structures browser-OCR'd text. Extraction reproduces what the document states — it never interprets. Nothing
+        reaches the structured stores here; the confirm route is the only write path."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InboundTextExtractRequest"
+      responses:
+        "200":
+          description: The document with its newly staged facts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundExtractEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -10629,7 +10789,7 @@ components:
       required:
         - mode
         - text
-    InboundTextUploadRequest:
+    InboundTextExtractRequest:
       type: object
       properties:
         mode:
@@ -10642,6 +10802,11 @@ components:
           enum:
             - DOCTOR_REPORT
             - DISCHARGE_LETTER
+            - LAB_RESULT
+            - IMAGING
+            - PRESCRIPTION
+            - INSURANCE
+            - VACCINATION
             - OTHER
       required:
         - mode
@@ -24907,9 +25072,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/InboundDocument"
+        nextCursor:
+          anyOf:
+            - type: string
+            - type: "null"
       required:
         - documents
+        - nextCursor
       additionalProperties: false
+      description: A page of documents plus an opaque `nextCursor` (the id to pass back as `cursor` for the next page; null
+        when the list is exhausted).
     InboundDocument:
       type: object
       properties:
@@ -24920,7 +25092,16 @@ components:
           enum:
             - DOCTOR_REPORT
             - DISCHARGE_LETTER
+            - LAB_RESULT
+            - IMAGING
+            - PRESCRIPTION
+            - INSURANCE
+            - VACCINATION
             - OTHER
+        title:
+          anyOf:
+            - type: string
+            - type: "null"
         filename:
           anyOf:
             - type: string
@@ -24932,6 +25113,7 @@ components:
         status:
           type: string
           enum:
+            - STORED
             - EXTRACTING
             - EXTRACTED
             - FAILED
@@ -24942,6 +25124,10 @@ components:
             - type: string
             - type: "null"
         reportDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        documentDate:
           anyOf:
             - type: string
             - type: "null"
@@ -24960,20 +25146,24 @@ components:
       required:
         - id
         - kind
+        - title
         - filename
         - mimeType
         - byteSize
         - status
         - providerType
         - reportDate
+        - documentDate
         - errorReason
         - factCount
         - pendingCount
         - createdAt
         - updatedAt
       additionalProperties: false
-      description: An uploaded clinical document. The raw bytes are stored encrypted at rest and never returned; this is the
-        metadata + staging summary.
+      description: A stored document. The raw bytes are stored encrypted at rest and never returned; this is the metadata +
+        staging summary. `status` is STORED for a freshly uploaded file (no extraction run). `title` is the user label
+        (plaintext); `documentDate` is the user filing date; `reportDate` is the model-transcribed date (null until
+        extraction runs).
     InboundDocumentEnvelope:
       type: object
       properties:
@@ -25018,7 +25208,16 @@ components:
           enum:
             - DOCTOR_REPORT
             - DISCHARGE_LETTER
+            - LAB_RESULT
+            - IMAGING
+            - PRESCRIPTION
+            - INSURANCE
+            - VACCINATION
             - OTHER
+        title:
+          anyOf:
+            - type: string
+            - type: "null"
         filename:
           anyOf:
             - type: string
@@ -25030,6 +25229,7 @@ components:
         status:
           type: string
           enum:
+            - STORED
             - EXTRACTING
             - EXTRACTED
             - FAILED
@@ -25040,6 +25240,10 @@ components:
             - type: string
             - type: "null"
         reportDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        documentDate:
           anyOf:
             - type: string
             - type: "null"
@@ -25062,12 +25266,14 @@ components:
       required:
         - id
         - kind
+        - title
         - filename
         - mimeType
         - byteSize
         - status
         - providerType
         - reportDate
+        - documentDate
         - errorReason
         - factCount
         - pendingCount
@@ -25140,6 +25346,23 @@ components:
         with per-field provenance + a confidence gate. STATED status only — codes (SNOMED/ICD-10/LOINC/RxNorm/ATC) are
         present only when the document wrote them; no range-flag, no inferred links. `needsReview` is true when the fact
         scored below the confidence floor (it cannot be approved until edited).
+    InboundDocumentUpdateEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundDocumentDetail"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     InboundDiscardEnvelope:
       type: object
       properties:
@@ -25154,6 +25377,23 @@ components:
             - id
             - discarded
           additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundExtractEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundDocumentDetail"
         error:
           type: "null"
         meta:

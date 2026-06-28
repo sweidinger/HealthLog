@@ -49,9 +49,26 @@ export type InboundFactType = (typeof INBOUND_FACT_TYPES)[number];
 export const INBOUND_DOCUMENT_KINDS = [
   "DOCTOR_REPORT",
   "DISCHARGE_LETTER",
+  "LAB_RESULT",
+  "IMAGING",
+  "PRESCRIPTION",
+  "INSURANCE",
+  "VACCINATION",
   "OTHER",
 ] as const;
 export type InboundDocumentKindValue = (typeof INBOUND_DOCUMENT_KINDS)[number];
+
+/** The document lifecycle states. STORED is the library default. */
+export const INBOUND_DOCUMENT_STATUSES = [
+  "STORED",
+  "EXTRACTING",
+  "EXTRACTED",
+  "FAILED",
+  "CONFIRMED",
+  "DISCARDED",
+] as const;
+export type InboundDocumentStatusValue =
+  (typeof INBOUND_DOCUMENT_STATUSES)[number];
 
 /**
  * The coding systems a fact's STATED code may belong to. The provider emits a
@@ -183,12 +200,17 @@ export interface ExtractedFactDto {
 export interface InboundDocumentDto {
   id: string;
   kind: InboundDocumentKindValue;
+  /** User-given title (plaintext), or null when never set. */
+  title: string | null;
   filename: string | null;
   mimeType: string;
   byteSize: number;
-  status: "EXTRACTING" | "EXTRACTED" | "FAILED" | "CONFIRMED" | "DISCARDED";
+  status: InboundDocumentStatusValue;
   providerType: string | null;
+  /** Model-transcribed report/collection date (YYYY-MM-DD), or null. */
   reportDate: string | null;
+  /** User-set filing date (YYYY-MM-DD), or null. */
+  documentDate: string | null;
   errorReason: string | null;
   factCount: number;
   pendingCount: number;
@@ -309,3 +331,88 @@ export const inboundTextExtractSchema = z.object({
 });
 
 export type InboundTextExtractInput = z.infer<typeof inboundTextExtractSchema>;
+
+// ─── Library: store / edit / list ──────────────────────────────────────────
+
+/** A bare YYYY-MM-DD date string (no time component). */
+const isoDateString = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/u, "Expected a YYYY-MM-DD date");
+
+export const DOCUMENT_TITLE_MAX = 200;
+
+/**
+ * The store-only upload metadata (the multipart form fields beside the file).
+ * Every field is optional — a bare file upload is valid and lands as a STORED
+ * document with no title / category / filing date. No `userId` field; it is
+ * always narrowed from the session.
+ */
+export const documentCreateSchema = z.object({
+  title: z.string().trim().min(1).max(DOCUMENT_TITLE_MAX).optional(),
+  kind: z.enum(INBOUND_DOCUMENT_KINDS).optional(),
+  documentDate: isoDateString.optional(),
+});
+
+export type DocumentCreateInput = z.infer<typeof documentCreateSchema>;
+
+/**
+ * Metadata edit (rename / recategorise / set the filing date). At least one
+ * field must be present. `title` accepts null to clear it; `documentDate`
+ * accepts null to clear it. No `userId` field — narrowed from the session and
+ * fed to the Prisma `where` alongside the row id.
+ */
+export const documentUpdateSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .max(DOCUMENT_TITLE_MAX)
+      .nullable()
+      .optional()
+      .transform((v) => (v === "" ? null : v)),
+    kind: z.enum(INBOUND_DOCUMENT_KINDS).optional(),
+    documentDate: isoDateString.nullable().optional(),
+  })
+  .refine(
+    (d) =>
+      d.title !== undefined ||
+      d.kind !== undefined ||
+      d.documentDate !== undefined,
+    { message: "Provide at least one field to update" },
+  );
+
+export type DocumentUpdateInput = z.infer<typeof documentUpdateSchema>;
+
+/** Library list sort columns + page size. */
+export const DOCUMENT_LIST_SORTS = [
+  "documentDate",
+  "createdAt",
+  "title",
+] as const;
+export type DocumentListSort = (typeof DOCUMENT_LIST_SORTS)[number];
+
+export const DOCUMENT_LIST_MAX_LIMIT = 100;
+export const DOCUMENT_LIST_DEFAULT_LIMIT = 50;
+
+/**
+ * The library list query: title/filename search, category filter, a
+ * `documentDate` range, sort + keyset pagination. Parsed off `searchParams`;
+ * `safeParse` returns 422 on a bad value.
+ */
+export const documentListQuerySchema = z.object({
+  q: z.string().trim().max(100).optional(),
+  kind: z.enum(INBOUND_DOCUMENT_KINDS).optional(),
+  from: isoDateString.optional(),
+  to: isoDateString.optional(),
+  sort: z.enum(DOCUMENT_LIST_SORTS).default("documentDate"),
+  order: z.enum(["asc", "desc"]).default("desc"),
+  cursor: z.string().trim().min(1).max(40).optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(DOCUMENT_LIST_MAX_LIMIT)
+    .default(DOCUMENT_LIST_DEFAULT_LIMIT),
+});
+
+export type DocumentListQuery = z.infer<typeof documentListQuerySchema>;
