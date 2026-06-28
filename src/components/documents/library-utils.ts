@@ -91,7 +91,7 @@ export function isProviderUnsupportedError(error: unknown): boolean {
 export function isAlreadyConfirmedError(error: unknown): boolean {
   return (
     error instanceof ApiError &&
-    error.meta?.errorCode === "documents.inbound.alreadyConfirmed"
+    error.meta?.errorCode === "documents.inbound.alreadyPartlyConfirmed"
   );
 }
 

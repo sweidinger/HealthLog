@@ -128,7 +128,7 @@ describe("isProviderUnsupportedError", () => {
 describe("isAlreadyConfirmedError", () => {
   it("matches the extract 422 already-confirmed signal", () => {
     const err = new ApiError("already confirmed", 422, {
-      errorCode: "documents.inbound.alreadyConfirmed",
+      errorCode: "documents.inbound.alreadyPartlyConfirmed",
     });
     expect(isAlreadyConfirmedError(err)).toBe(true);
   });
