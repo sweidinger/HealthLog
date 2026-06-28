@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pencil, Plus, ScanLine, Wrench } from "lucide-react";
 
-import { MedicalDisclaimer } from "@/components/common/medical-disclaimer";
 import { LabForm } from "@/components/labs/lab-form";
 import { LabList } from "@/components/labs/lab-list";
 import { OcrReviewDialog } from "@/components/labs/ocr-review-dialog";
@@ -174,11 +173,6 @@ export default function LabsPage() {
       ) : null}
 
       <LabList onAddFirst={() => setDialogOpen(true)} />
-
-      {/* v1.25 — calm, context-specific framing for lab values: your own
-          records, ranges vary by lab and person, only a clinician interprets
-          them. One footer line, not a per-row banner. */}
-      <MedicalDisclaimer variant="labs" className="px-1 pt-2" />
     </div>
   );
 }

@@ -7869,9 +7869,6 @@
   "selfDescription": {
     "intendedPurpose": "HealthLog to osobiste narzędzie do rejestrowania zdrowia i dbania o dobre samopoczucie. Pomaga zapisywać, wizualizować i eksportować własne dane zdrowotne. Nie diagnozuje, nie leczy ani nie zapobiega żadnej chorobie i nie jest wyrobem medycznym.",
     "coach": "Coach korzysta z Twoich własnych zapisanych danych. Nie jest lekarzem i nie udziela porad medycznych — po diagnozę lub leczenie zwróć się do pracownika ochrony zdrowia.",
-    "insights": "To opisowe wzorce wyliczone z Twoich własnych zapisanych danych, a nie ocena kliniczna ani diagnoza.",
-    "labs": "To Twoje własne zapisy, a nie diagnoza medyczna. Zakresy referencyjne różnią się w zależności od laboratorium i osoby — tylko Twój lekarz może je dla Ciebie zinterpretować.",
-    "medications": "To rejestruje leki, które zapisujesz, oraz Twoje stosowanie się do zaleceń. Nie ocenia dawkowania ani interakcji i nie jest poradą medyczną — potwierdź to u farmaceuty lub lekarza.",
     "emergency": "Jeśli to może być nagły przypadek, zadzwoń teraz pod lokalny numer alarmowy lub skontaktuj się z lekarzem. HealthLog nie pomoże w nagłym przypadku.",
     "dataPosture": "HealthLog jest hostowany samodzielnie: Twoje dane zdrowotne pozostają na Twojej instancji, zaszyfrowane w spoczynku. Funkcje AI korzystają z dostarczonego przez Ciebie klucza dostawcy lub modelu lokalnego, więc nic nie opuszcza Twojej instancji poza skonfigurowanym dostawcą i nie ma analityki firm trzecich na Twoich danych zdrowotnych."
   }
