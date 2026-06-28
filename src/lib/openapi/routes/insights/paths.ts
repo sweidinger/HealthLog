@@ -9,6 +9,8 @@ import {
   insightsComprehensiveResponse,
   metricStatusQuery,
   metricStatusResponse,
+  biomarkerAssessmentQuery,
+  biomarkerAssessmentResponse,
   derivedMetricQuery,
   derivedMetricResponse,
   derivedBatchQuery,
@@ -292,6 +294,31 @@ export const insightsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 metricStatusResponse,
                 "MetricStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/biomarker-assessment": {
+    get: {
+      tags: ["Insights"],
+      summary: "Per-biomarker assessment",
+      description:
+        "Data-driven plain-language assessment for one user-scoped lab biomarker, reading its `LabResult` history. Identical envelope to the metric-status card so the `InsightStatusCard` consumes it unchanged. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate); the assessment regenerates only when a new reading lands. A marker with no numeric readings returns `insufficient` without an LLM call. Auth via cookie or Bearer.",
+      requestParams: {
+        query: biomarkerAssessmentQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                biomarkerAssessmentResponse,
+                "BiomarkerAssessmentResponseEnvelope",
               ),
             },
           },

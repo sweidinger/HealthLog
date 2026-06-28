@@ -14,7 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { useInsightBiomarkerAssessment } from "@/hooks/use-insight-status";
+import { useMounted } from "@/hooks/use-mounted";
 import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
+import { summarize, type DataSummary } from "@/lib/analytics/trends";
 import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabValue } from "@/lib/labs/format-value";
@@ -117,7 +122,7 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
       ),
   });
 
-  const readings: LabResultDto[] = list?.results ?? [];
+  const readings: LabResultDto[] = useMemo(() => list?.results ?? [], [list]);
   // The reading feed caps at 500 server-side; surface a hint when truncated.
   const total = list?.meta?.total ?? 0;
   const truncated = total > readings.length;
@@ -128,6 +133,32 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime(),
         )[0]
       : null;
+
+  // v1.24 — the numbers-first stat strip + the AI assessment card mirror the
+  // metric sub-pages. The strip reads a client-side `DataSummary` over the
+  // numeric readings; the assessment card consumes the read-only biomarker
+  // route (stale-while-revalidate, regenerated only on a new reading). The
+  // strip + card both self-gate on data, so a qualitative-only or brand-new
+  // marker paints neither.
+  const numericReadings = useMemo(
+    () => readings.filter((r) => r.value !== null),
+    [readings],
+  );
+  const summary = useMemo<DataSummary | null>(
+    () =>
+      numericReadings.length > 0
+        ? summarize(
+            numericReadings.map((r) => ({
+              date: new Date(r.takenAt),
+              value: r.value as number,
+            })),
+          )
+        : null,
+    [numericReadings],
+  );
+  const mounted = useMounted();
+  const { data: assessment, isLoading: assessmentLoading } =
+    useInsightBiomarkerAssessment(biomarkerId, numericReadings.length > 0);
 
   function afterAdd() {
     setAddOpen(false);
@@ -295,6 +326,16 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
         ) : null;
       })()}
 
+      {/* Numbers-first stat strip — Min / Max / Median / Mean over the
+          numeric readings, mirroring the metric sub-pages. Self-gating:
+          renders nothing for a qualitative-only or empty marker. */}
+      <MetricStatStrip
+        summary={summary}
+        unit={marker?.unit ?? latest?.unit ?? ""}
+        seriesLabel={marker?.name}
+        icon={FlaskConical}
+      />
+
       <Card>
         <CardContent className="pt-6">
           {isLoading ? (
@@ -338,6 +379,28 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             </CardContent>
           </Card>
         </div>
+      ) : null}
+
+      {/* AI assessment — the spine's closing block, mirroring the metric
+          sub-pages (intro → stat strip → chart → history → assessment). The
+          card self-suppresses when the operator disabled status cards, and
+          the hook is gated on the marker having numeric readings. */}
+      {numericReadings.length > 0 ? (
+        <InsightStatusCard
+          title={t("insights.assessmentTitle")}
+          icon={<FlaskConical className="h-5 w-5" />}
+          text={assessment?.text ?? null}
+          hasProvider={assessment?.hasProvider ?? false}
+          updatedAt={assessment?.updatedAt ?? null}
+          coachQuestion={
+            marker?.name
+              ? t("insights.coach.assessmentPrompt", { metric: marker.name })
+              : undefined
+          }
+          coachAutoSend
+          loading={!mounted || assessmentLoading}
+          preparing={assessment?.preparing ?? false}
+        />
       ) : null}
 
       <ResponsiveSheet

@@ -473,6 +473,70 @@ export const insightStatusResponse = z
       "Specialised per-metric assessment envelope (blood-pressure, pulse, weight, bmi, mood). Identical shape to the generic metric-status card so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
   });
 
+// Per-biomarker assessment. The marker is identified by a user-scoped id
+// (the generic metric-status route fixes its metric by a closed registry
+// enum; biomarkers are user-defined, so the id is a free-form string).
+export const biomarkerAssessmentQuery = z
+  .object({
+    biomarkerId: z
+      .string()
+      .min(1)
+      .max(64)
+      .describe(
+        "User-scoped biomarker id to assess. A cross-user or unknown id returns an `insufficient` envelope, not a 404 (existence sealed).",
+      ),
+    locale: z
+      .enum(["de", "en"])
+      .optional()
+      .describe("Optional UI-locale override; defaults to the session locale."),
+  })
+  .meta({ id: "BiomarkerAssessmentQuery" });
+
+export const biomarkerAssessmentResponse = z
+  .object({
+    hasProvider: z
+      .boolean()
+      .describe(
+        "False when the user has no usable AI provider — `text` then carries the generic no-key guidance.",
+      ),
+    text: z
+      .string()
+      .nullable()
+      .describe(
+        "The assessment narrative (plain text, rendered as React text children). Null while a first generation is preparing, or when the marker has no numeric readings.",
+      ),
+    cached: z
+      .boolean()
+      .describe("True when `text` is served from cache (incl. last-good)."),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("When the served assessment was generated; null when none."),
+    preparing: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when a first assessment is being generated out of band and no prior text exists yet — the client polls until it lands.",
+      ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The client keeps polling on `preparing || revalidating` (bounded) so the open card upgrades to the warmed assessment without a remount.",
+      ),
+    insufficient: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when the marker has no numeric readings; no assessment is generated (no LLM call). The card is not rendered.",
+      ),
+  })
+  .meta({
+    id: "BiomarkerAssessmentResponse",
+    description:
+      "Per-biomarker assessment envelope. Identical shape to the generic metric-status card so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile; the assessment regenerates only when a new reading lands.",
+  });
+
 // The medication-compliance route carries a richer envelope than the
 // other six: a `summary` narrative plus a per-medication `text` array,
 // instead of a single `text` field.

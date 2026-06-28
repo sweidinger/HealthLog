@@ -6052,6 +6052,47 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/insights/biomarker-assessment:
+    get:
+      tags:
+        - Insights
+      summary: Per-biomarker assessment
+      description: "Data-driven plain-language assessment for one user-scoped lab biomarker, reading its `LabResult` history.
+        Identical envelope to the metric-status card so the `InsightStatusCard` consumes it unchanged. Read-only: a
+        cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate); the
+        assessment regenerates only when a new reading lands. A marker with no numeric readings returns `insufficient`
+        without an LLM call. Auth via cookie or Bearer."
+      parameters:
+        - in: query
+          name: biomarkerId
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+            description: User-scoped biomarker id to assess. A cross-user or unknown id returns an `insufficient` envelope, not a
+              404 (existence sealed).
+          required: true
+          description: User-scoped biomarker id to assess. A cross-user or unknown id returns an `insufficient` envelope, not a
+            404 (existence sealed).
+        - in: query
+          name: locale
+          schema:
+            description: Optional UI-locale override; defaults to the session locale.
+            type: string
+            enum:
+              - de
+              - en
+          description: Optional UI-locale override; defaults to the session locale.
+      responses:
+        "200":
+          description: Assessment envelope (fresh, cached, or preparing).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BiomarkerAssessmentResponseEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/insights/derived:
     get:
       tags:
@@ -20229,6 +20270,67 @@ components:
       description: "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the
         `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation
         out of band and serves the last-good text meanwhile."
+    BiomarkerAssessmentResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/BiomarkerAssessmentResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    BiomarkerAssessmentResponse:
+      type: object
+      properties:
+        hasProvider:
+          type: boolean
+          description: False when the user has no usable AI provider — `text` then carries the generic no-key guidance.
+        text:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: The assessment narrative (plain text, rendered as React text children). Null while a first generation is
+            preparing, or when the marker has no numeric readings.
+        cached:
+          type: boolean
+          description: True when `text` is served from cache (incl. last-good).
+        updatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+          description: When the served assessment was generated; null when none.
+        preparing:
+          description: True when a first assessment is being generated out of band and no prior text exists yet — the client polls
+            until it lands.
+          type: boolean
+        revalidating:
+          description: True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in
+            flight. The client keeps polling on `preparing || revalidating` (bounded) so the open card upgrades to the
+            warmed assessment without a remount.
+          type: boolean
+        insufficient:
+          description: True when the marker has no numeric readings; no assessment is generated (no LLM call). The card is not
+            rendered.
+          type: boolean
+      required:
+        - hasProvider
+        - text
+        - cached
+        - updatedAt
+      additionalProperties: false
+      description: "Per-biomarker assessment envelope. Identical shape to the generic metric-status card so the
+        `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation
+        out of band and serves the last-good text meanwhile; the assessment regenerates only when a new reading lands."
     DerivedMetricResponseEnvelope:
       type: object
       properties:
