@@ -448,6 +448,17 @@ async function main() {
     ),
   );
 
+  // ───── v1.25 mental-health screener item answers (Bytes column) ─────
+  // The PHQ-9 / GAD-7 encrypted per-item blob. Always present (NOT NULL), so
+  // every row rotates.
+  results.push(
+    await rotateBytesColumn(
+      "MentalHealthAssessment",
+      "responsesEncrypted",
+      prisma.mentalHealthAssessment,
+    ),
+  );
+
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
   let totalErrors = 0;

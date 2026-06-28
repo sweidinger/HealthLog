@@ -26,6 +26,7 @@ import { labKeys } from "./labs";
 import { measurementKeys } from "./measurements";
 import { measurementReminderKeys } from "./measurement-reminders";
 import { medicationKeys } from "./medications";
+import { mentalHealthKeys } from "./mental-health";
 import { moodKeys } from "./mood";
 import { settingsKeys } from "./settings";
 import { workoutKeys } from "./workouts";
@@ -46,6 +47,7 @@ export const queryKeys = {
   ...measurementReminderKeys,
   ...labKeys,
   ...illnessKeys,
+  ...mentalHealthKeys,
 };
 
 /**

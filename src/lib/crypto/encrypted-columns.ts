@@ -156,6 +156,16 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "MedicationSideEffect", field: "notesEncrypted", kind: "bytes" },
   { model: "MedicationDoseChange", field: "noteEncrypted", kind: "bytes" },
   { model: "MedicationInventoryItem", field: "notesEncrypted", kind: "bytes" },
+
+  // ───── v1.25 mental-health screener item answers (Bytes column) ─────
+  // The PHQ-9 / GAD-7 per-item responses (incl. the safety-critical item 9)
+  // ride a single AES-256-GCM blob. The most sensitive payload in the wave;
+  // never indexed, never logged, never in wide-event meta.
+  {
+    model: "MentalHealthAssessment",
+    field: "responsesEncrypted",
+    kind: "bytes",
+  },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */
