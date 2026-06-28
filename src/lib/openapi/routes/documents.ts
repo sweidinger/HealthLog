@@ -238,6 +238,40 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       },
     },
   },
+  "/api/documents/inbound/{id}/original": {
+    get: {
+      tags: ["Documents"],
+      summary: "View / download the original document",
+      description:
+        "Decrypts and serves the raw uploaded document (the bytes stored encrypted at rest under `InboundDocument.contentEncrypted`). Owner-scoped + gated on the opt-in `inboundDocuments` module. The response carries the stored `mimeType`: a PDF / image is served inline (`Content-Disposition: inline`) so the browser can render it; any other type downloads as an attachment. Fails closed (500) on a decrypt error — it never returns the ciphertext.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+        },
+      ],
+      responses: {
+        "200": {
+          description:
+            "The decrypted original document bytes with the stored MIME type.",
+          content: {
+            "application/pdf": {
+              schema: { type: "string", format: "binary" },
+            },
+            "image/*": {
+              schema: { type: "string", format: "binary" },
+            },
+            "text/plain": {
+              schema: { type: "string" },
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/documents/inbound/{id}/facts/{factId}": {
     patch: {
       tags: ["Documents"],

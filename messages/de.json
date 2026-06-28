@@ -7819,6 +7819,7 @@
     "review": {
       "title": "Erkannte Angaben prüfen",
       "discard": "Verwerfen",
+      "viewOriginal": "Original ansehen",
       "confirm": "Bestätigte Angaben speichern",
       "confirming": "Wird gespeichert …",
       "needsReview": "Prüfung nötig",

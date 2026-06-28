@@ -7819,6 +7819,7 @@
     "review": {
       "title": "Przejrzyj wyodrębnione dane",
       "discard": "Odrzuć",
+      "viewOriginal": "Zobacz oryginał",
       "confirm": "Zapisz zatwierdzone dane",
       "confirming": "Zapisywanie…",
       "needsReview": "Wymaga przeglądu",

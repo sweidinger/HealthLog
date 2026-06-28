@@ -7819,6 +7819,7 @@
     "review": {
       "title": "Review extracted facts",
       "discard": "Discard",
+      "viewOriginal": "View original",
       "confirm": "Save approved facts",
       "confirming": "Saving…",
       "needsReview": "Needs review",

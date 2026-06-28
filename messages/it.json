@@ -7819,6 +7819,7 @@
     "review": {
       "title": "Rivedi i dati estratti",
       "discard": "Scarta",
+      "viewOriginal": "Vedi originale",
       "confirm": "Salva i dati approvati",
       "confirming": "Salvataggio…",
       "needsReview": "Da rivedere",
