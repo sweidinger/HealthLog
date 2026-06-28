@@ -312,14 +312,16 @@ describe("mapSleep", () => {
     );
   });
 
-  it("falls back to a midnight-UTC anchor when the window is missing", () => {
+  it("falls back to a noon-UTC anchor when the window is missing", () => {
     const mapped = mapSleep({
       date: "2026-06-10",
       light_sleep: 3600,
       sleep_score: 80,
     });
     const core = mapped.find((m) => m.sleepStage === "CORE")!;
-    expect(core.measuredAt.toISOString()).toBe("2026-06-10T00:00:00.000Z");
+    // Noon, not midnight: keeps the date-only row on the same calendar day for
+    // every zone when the read path re-buckets via userDayKey.
+    expect(core.measuredAt.toISOString()).toBe("2026-06-10T12:00:00.000Z");
     expect(core.reconstructed).toBeUndefined();
     // No IN_BED envelope without a window.
     expect(mapped.find((m) => m.sleepStage === "IN_BED")).toBeUndefined();

@@ -50,6 +50,7 @@ import {
   buildComplianceMedicationContext,
   calculateCompliance,
   lastNonSkippedTakenAt,
+  SCHEDULE_COMPLIANCE_SELECT,
 } from "./compliance";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import {
@@ -345,29 +346,26 @@ export async function computeUserHealthScoreFastPath(
         startsOn: true,
         endsOn: true,
         oneShot: true,
-        schedules: {
+        // v1.25 M-MED3 — route through the SHARED compliance select like every
+        // other caller, so the Health-Score pillar honours the same per-dose
+        // on-time windows + cadence fields the dashboard / detail surfaces use.
+        schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
+        // v1.25 M-MED3 — archived schedule eras so a past day scores against
+        // the schedule that was live THEN, not the current one (every other
+        // compliance caller already threads these). The builder copies them
+        // through into the context.
+        scheduleRevisions: {
+          orderBy: { validFrom: "asc" },
           select: {
-            windowStart: true,
-            windowEnd: true,
-            // v1.5.0 — cadence-aware compliance reads daysOfWeek so a
-            // weekly med (Mondays only) doesn't get a 30-day denominator
-            // that depresses the score by ~85 percentage points. Closes #214.
-            daysOfWeek: true,
-            // v1.7.0 SB-SCHED-2 — widen the select so the engine reads
-            // RRULE / rolling / PRN / cyclic, not just the legacy
-            // daysOfWeek string.
-            rrule: true,
-            rollingIntervalDays: true,
-            timesOfDay: true,
-            reminderGraceMinutes: true,
-            scheduleType: true,
-            cyclicOnWeeks: true,
-            cyclicOffWeeks: true,
-            // v1.15.18 — per-dose window so the score's compliance honours the
-            // same on-time band the detail % + history use.
-            doseWindows: true,
+            id: true,
+            validFrom: true,
+            validUntil: true,
+            payload: true,
+            supersededByRevisionId: true,
           },
         },
+        // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+        pauseEras: { select: { pausedAt: true, resumedAt: true } },
       },
     }),
   ]);
@@ -428,6 +426,16 @@ export async function computeUserHealthScoreFastPath(
         takenAt: e.takenAt ? new Date(e.takenAt.getTime() + 7 * DAY_MS) : null,
         skipped: e.skipped,
       }));
+      // v1.25 M-MED3 — `med` (and so its scheduleRevisions + pauseEras) is
+      // passed UNshifted while the intake events shift +7d (the pre-existing
+      // approximation that lets the pinned `now` anchor still capture the prior
+      // logical 30 days). The revisions / pause eras are absolute historical
+      // records; no canonical previous-window caller shifts them, so they stay
+      // as-is here for consistency with the rest of the engine. Trade-off: in
+      // the trailing-30-day DELTA the era / pause segmentation can be up to 7
+      // days out of phase with the shifted slots. The primary (current-window)
+      // score — `medicationCompliance30` above — is exact; only the secondary
+      // trend delta carries this best-effort approximation.
       const medicationContext = buildComplianceMedicationContext(
         med,
         lastNonSkippedTakenAt(shifted),

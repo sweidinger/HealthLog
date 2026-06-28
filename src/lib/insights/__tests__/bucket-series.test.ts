@@ -137,6 +137,69 @@ describe("dayOffsetToBerlinDayKey() across DST boundaries", () => {
   });
 });
 
+describe("bucketSeries() honours the per-user timezone (M-TZ3)", () => {
+  // A reading at 23:30 in America/Los_Angeles (PDT, UTC-7) on 2026-05-09 is
+  // already 08:30 on 2026-05-10 in Europe/Berlin (CEST, UTC+2). The same
+  // raw instant therefore lands on a different calendar day — and a
+  // different `dayOffset` — depending on which timezone the buckets key in.
+  const reading = new Date("2026-05-10T06:30:00.000Z"); // LA 05-09 23:30
+  const now = new Date("2026-05-10T20:00:00.000Z"); // LA 05-10 13:00
+
+  it("buckets a near-midnight reading on the user's LOCAL day for LA", () => {
+    const { daily } = bucketSeries([{ measuredAt: reading, value: 42 }], {
+      now,
+      tz: "America/Los_Angeles",
+    });
+    // LA: now is 05-10, reading is 05-09 → one local day ago.
+    expect(daily).toHaveLength(1);
+    expect(daily[0].dayOffset).toBe(1);
+  });
+
+  it("gives a DIFFERENT dayOffset for the same reading under Berlin", () => {
+    const { daily } = bucketSeries([{ measuredAt: reading, value: 42 }], {
+      now,
+      tz: "Europe/Berlin",
+    });
+    // Berlin: both now and reading fall on 05-10 → same local day (offset 0).
+    expect(daily).toHaveLength(1);
+    expect(daily[0].dayOffset).toBe(0);
+  });
+
+  it("leaves a Berlin user's bucketing identical to the default", () => {
+    const records = pointsAtOffsets(now, [0, 1, 5], 100).concat([
+      { measuredAt: reading, value: 42 },
+    ]);
+    const def = bucketSeries(records, { now });
+    const berlin = bucketSeries(records, { now, tz: "Europe/Berlin" });
+    expect(berlin).toEqual(def);
+  });
+
+  it("dayOffsetToBerlinDayKey resolves the offset in the passed timezone", () => {
+    // `now` is 05-09 in LA but 05-10 in Berlin.
+    expect(dayOffsetToBerlinDayKey(reading, 0, "America/Los_Angeles")).toBe(
+      "2026-05-09",
+    );
+    // Default (no tz) and explicit Berlin agree.
+    expect(dayOffsetToBerlinDayKey(reading, 0)).toBe("2026-05-10");
+    expect(dayOffsetToBerlinDayKey(reading, 0, "Europe/Berlin")).toBe(
+      "2026-05-10",
+    );
+  });
+
+  it("applyPayloadBudget threads the timezone through to the buckets", () => {
+    const la = applyPayloadBudget([{ measuredAt: reading, value: 42 }], {
+      now,
+      tz: "America/Los_Angeles",
+    });
+    const berlin = applyPayloadBudget([{ measuredAt: reading, value: 42 }], {
+      now,
+      tz: "Europe/Berlin",
+    });
+    expect(la.daily[0].dayOffset).toBe(1);
+    expect(berlin.daily[0].dayOffset).toBe(0);
+  });
+});
+
 describe("applyPayloadBudget()", () => {
   const now = new Date("2026-05-09T12:00:00Z");
 

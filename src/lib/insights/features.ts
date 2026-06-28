@@ -1623,6 +1623,8 @@ export async function extractFeatures(
       schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
       // v1.16.3 — archived schedule eras for era-aware compliance.
       scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+      pauseEras: { select: { pausedAt: true, resumedAt: true } },
     },
   });
 

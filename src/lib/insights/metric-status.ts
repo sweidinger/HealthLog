@@ -236,11 +236,14 @@ export async function generateMetricStatus(args: {
   // to SLEEP_DURATION only so no other metric's status path changes.
   const isSleep = meta.measurementType === "SLEEP_DURATION";
 
+  // v1.2.5 (M-TZ3) — resolve the user's timezone up front so the day
+  // bucketing below keys on the user's own calendar regardless of branch.
+  const userTz = await resolveUserTimezone(args.userId);
+
   const points: Array<{ measuredAt: Date; value: number }> = [];
   let measurements: Array<{ measuredAt: Date }> = [];
   if (isSleep) {
-    const [tz, priorityJson, sleepRows] = await Promise.all([
-      resolveUserTimezone(args.userId),
+    const [priorityJson, sleepRows] = await Promise.all([
       loadUserSourcePriority(args.userId),
       prisma.measurement.findMany({
         where: {
@@ -263,7 +266,7 @@ export async function generateMetricStatus(args: {
     ]);
     const nights = reconstructSleepNights(
       sleepRows as SleepStageRow[],
-      tz,
+      userTz,
       priorityJson,
     ).filter((n) => n.asleepMinutes > 0);
     for (const n of nights) {
@@ -288,7 +291,7 @@ export async function generateMetricStatus(args: {
     }
     measurements = rows.map((m) => ({ measuredAt: m.measuredAt }));
   }
-  const series = applyPayloadBudget(points, { now });
+  const series = applyPayloadBudget(points, { now, tz: userTz });
   // SLEEP_DURATION must never go through `buildGradedSeriesWithRollups`: that
   // path reads RAW per-stage rows (and the stage-summed `measurement_rollups`
   // tier) and folds IN_BED + AWAKE + bare ASLEEP + CORE/DEEP/REM into one

@@ -77,8 +77,8 @@ describe("computeCorrelationHypothesesFastPath", () => {
     expect(CORRELATION_WINDOW_DAYS).toBe(28);
   });
 
-  describe("rollup-fast-path — SYS / PULSE / WEIGHT covered", () => {
-    it("reads per-day means from measurement_rollups, never from measurements", async () => {
+  describe("rollup-fast-path — SYS / WEIGHT covered", () => {
+    it("reads SYS + WEIGHT per-day means from measurement_rollups (PULSE no longer)", async () => {
       const coverage = new Map<string, boolean>([
         ["BLOOD_PRESSURE_SYS", true],
         ["PULSE", true],
@@ -88,7 +88,6 @@ describe("computeCorrelationHypothesesFastPath", () => {
       PROBE.mockResolvedValue(coverage);
 
       ROLLUP_FIND_MANY.mockResolvedValueOnce([]) // SYS buckets
-        .mockResolvedValueOnce([]) // PULSE buckets
         .mockResolvedValueOnce([]); // WEIGHT buckets
 
       const result = await computeCorrelationHypothesesFastPath({
@@ -101,9 +100,14 @@ describe("computeCorrelationHypothesesFastPath", () => {
       expect(result.path).toBe("rollup");
       expect(result.windowDays).toBe(28);
       expect(result.degraded).toBe(false);
-      // No raw measurement reads when on rollup-fast-path.
-      expect(MEASUREMENT_FIND_MANY).not.toHaveBeenCalled();
-      expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(3);
+      // v1.2.5 (M-CS2) — SYS + WEIGHT ride the rollup tier; PULSE no
+      // longer does. The mood × resting-pulse hypothesis instead reads the
+      // RESTING_HEART_RATE rows (and, only when absent, RAW PULSE for the
+      // low-percentile proxy) from `measurements`, so the rollup count
+      // drops to 2 and the resting reads land on `measurements`.
+      expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(2);
+      // RESTING read returns [] (default mock) → RAW PULSE proxy read too.
+      expect(MEASUREMENT_FIND_MANY).toHaveBeenCalledTimes(2);
       // Mood + intake reads always live.
       expect(MOOD_FIND_MANY).toHaveBeenCalledTimes(1);
       expect(INTAKE_FIND_MANY).toHaveBeenCalledTimes(1);
@@ -145,9 +149,7 @@ describe("computeCorrelationHypothesesFastPath", () => {
       FULLY_COVERED.mockReturnValue(false);
       PROBE.mockResolvedValue(coverage);
 
-      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]) // SYS rows
-        .mockResolvedValueOnce([]) // PULSE rows
-        .mockResolvedValueOnce([]); // WEIGHT rows
+      MEASUREMENT_FIND_MANY.mockResolvedValue([]); // SYS / WEIGHT / RESTING / PULSE
 
       const result = await computeCorrelationHypothesesFastPath({
         userId: "user-partial",
@@ -157,7 +159,9 @@ describe("computeCorrelationHypothesesFastPath", () => {
       });
 
       expect(result.path).toBe("live");
-      expect(MEASUREMENT_FIND_MANY).toHaveBeenCalledTimes(3);
+      // SYS + WEIGHT (live series) + RESTING + RAW-PULSE proxy (resting
+      // series, since RESTING returns [] under the default mock) = 4 reads.
+      expect(MEASUREMENT_FIND_MANY).toHaveBeenCalledTimes(4);
       expect(ROLLUP_FIND_MANY).not.toHaveBeenCalled();
     });
 
@@ -219,8 +223,9 @@ describe("computeCorrelationHypothesesFastPath", () => {
       });
 
       expect(result.path).toBe("rollup");
-      expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(3);
-      expect(MEASUREMENT_FIND_MANY).not.toHaveBeenCalled();
+      expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(2);
+      // Resting-pulse reads (RESTING + RAW-PULSE proxy) land on measurements.
+      expect(MEASUREMENT_FIND_MANY).toHaveBeenCalledTimes(2);
 
       const calls = ANNOTATE.mock.calls.map((c) => c[0]);
       const corrCall = calls.find((c) => c?.meta?.correlations !== undefined);
@@ -248,7 +253,7 @@ describe("computeCorrelationHypothesesFastPath", () => {
       });
 
       expect(result.path).toBe("live");
-      expect(MEASUREMENT_FIND_MANY).toHaveBeenCalledTimes(3);
+      expect(MEASUREMENT_FIND_MANY).toHaveBeenCalledTimes(4);
       expect(ROLLUP_FIND_MANY).not.toHaveBeenCalled();
 
       const calls = ANNOTATE.mock.calls.map((c) => c[0]);
@@ -278,6 +283,60 @@ describe("computeCorrelationHypothesesFastPath", () => {
 
       expect(result.path).toBe("live");
       expect(ROLLUP_FIND_MANY).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("mood × resting pulse uses the RESTING series, not the raw PULSE mean (M-CS2)", () => {
+    it("scores the low-percentile resting proxy, so workout HR can't inflate the pair", async () => {
+      // One day with a handful of resting-low readings buried under a dense
+      // workout burst. The OLD code paired mood against the day's raw PULSE
+      // MEAN (~120 bpm — workout-inflated). The fix routes through
+      // `resolveRestingPulseSeries`, whose proxy is the day's 20th-percentile
+      // (the resting floor), so the paired value sits in the ~50s, not ~120.
+      const day = new Date("2026-05-16T10:00:00.000Z"); // Berlin 12:00 → 05-16
+      const pulseValues = [55, 57, 59, 150, 151, 152, 153, 154, 155, 156];
+      const rawMean =
+        pulseValues.reduce((s, v) => s + v, 0) / pulseValues.length; // ~124.2
+
+      const coverage = new Map<string, boolean>([
+        ["BLOOD_PRESSURE_SYS", false], // force the live path
+      ]);
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+
+      MEASUREMENT_FIND_MANY.mockImplementation(
+        async (args: {
+          where?: { type?: string };
+        }): Promise<Array<{ id: string; measuredAt: Date; value: number }>> => {
+          const type = args?.where?.type;
+          if (type === "PULSE") {
+            // No RESTING_HEART_RATE rows exist, so the proxy reads RAW PULSE.
+            return pulseValues.map((value, i) => ({
+              id: `pulse-${i}`,
+              measuredAt: day,
+              value,
+            }));
+          }
+          // SYS / WEIGHT / RESTING_HEART_RATE → empty.
+          return [];
+        },
+      );
+      MOOD_FIND_MANY.mockResolvedValue([{ score: 4, moodLoggedAt: day }]);
+
+      const result = await computeCorrelationHypothesesFastPath({
+        userId: "user-resting",
+        userTz: "Europe/Berlin",
+        now: new Date("2026-05-17T12:00:00.000Z"),
+        coverage,
+      });
+
+      // n = 1 day → below the n>=20 surfacing gate, but the points preview
+      // still carries the paired resting value the runner computed.
+      expect(result.moodPulse.points).toHaveLength(1);
+      const y = result.moodPulse.points[0].y;
+      // The paired pulse is the resting floor (~50s), NOT the raw day-mean.
+      expect(y).toBeLessThan(70);
+      expect(y).toBeLessThan(rawMean - 40);
     });
   });
 });

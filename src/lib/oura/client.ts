@@ -14,6 +14,7 @@
  * `start_date` / `end_date` (YYYY-MM-DD) and page via `next_token`.
  */
 import { getEvent } from "@/lib/logging/context";
+import { canonicalDailyTimestamp } from "@/lib/measurements/consolidation-tz";
 import { safeFetch } from "@/lib/safe-fetch";
 import { OuraApiError, classifyOuraResponse } from "./response-classifier";
 
@@ -455,10 +456,16 @@ export interface MappedMeasurement {
 }
 
 function dayAnchor(day: string, bedtimeEnd?: string): Date | null {
-  // Prefer the precise wake instant when present; else anchor the day at UTC
-  // midnight. The recovery resolver reads the local day key off this stamp.
-  const candidate = bedtimeEnd ?? `${day}T00:00:00.000Z`;
-  const d = new Date(candidate);
+  // Prefer the precise wake instant when present; else anchor the date-only
+  // day at noon (canonicalDailyTimestamp), NOT UTC midnight — a midnight
+  // anchor double-shifts the calendar day for west-of-UTC users when the
+  // recovery resolver re-buckets via userDayKey(). Noon sits a full 12 h
+  // inside the day, so it round-trips to the same day for every zone ±12 h.
+  if (bedtimeEnd) {
+    const d = new Date(bedtimeEnd);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = canonicalDailyTimestamp(day);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 

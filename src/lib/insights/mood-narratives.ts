@@ -115,8 +115,12 @@ function mean(values: number[]): number | null {
 }
 
 /** Weekday (0 = Monday … 6 = Sunday) for a daily-bucket offset. */
-function weekdayOfOffset(now: Date, dayOffset: number): number {
-  const dayKey = dayOffsetToBerlinDayKey(now, dayOffset);
+function weekdayOfOffset(
+  now: Date,
+  dayOffset: number,
+  tz: string = DEFAULT_TIMEZONE,
+): number {
+  const dayKey = dayOffsetToBerlinDayKey(now, dayOffset, tz);
   const d = new Date(dayKey + "T00:00:00Z");
   return (d.getUTCDay() + 6) % 7;
 }
@@ -221,7 +225,11 @@ function weekendNarrative(input: MoodNarrativeInput): MoodNarrative | null {
   const weekend: number[] = [];
   const weekday: number[] = [];
   for (const bucket of input.daily) {
-    const wd = weekdayOfOffset(input.now, bucket.dayOffset);
+    const wd = weekdayOfOffset(
+      input.now,
+      bucket.dayOffset,
+      input.tz ?? DEFAULT_TIMEZONE,
+    );
     if (wd >= 5) weekend.push(bucket.value);
     else weekday.push(bucket.value);
   }

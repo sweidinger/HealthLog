@@ -42,7 +42,11 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import {
+  resolveUserTimezone,
+  toBerlinDayKey,
+  userDayKey,
+} from "@/lib/tz/resolver";
 
 // Derived from canonical enum so a new measurement type is auto-included
 // in the AI general-status fetch (V3 audit: enum drift cousins).
@@ -185,6 +189,11 @@ export async function prepareGeneralStatusForUser(
 
   const now = new Date();
 
+  // v1.2.5 (M-TZ3) — resolve the user's timezone so every day-bucketing
+  // pass below keys on the user's own calendar (a near-midnight reading
+  // lands on the user's day for non-Berlin self-hosters).
+  const userTz = await resolveUserTimezone(userId);
+
   // `dailyByType` keeps the `applyPayloadBudget` daily buckets for the
   // downstream BP in-target pairing; the prompt embeds the compact
   // graded series instead of the full daily array. Skip types with no
@@ -204,7 +213,7 @@ export async function prepareGeneralStatusForUser(
         }));
       if (records.length === 0) return [];
 
-      const series = applyPayloadBudget(records, { now });
+      const series = applyPayloadBudget(records, { now, tz: userTz });
       dailyByType.set(type, series);
       const graded = buildGradedSeriesFromPoints(records, now);
 
@@ -246,7 +255,7 @@ export async function prepareGeneralStatusForUser(
     { total: number; taken: number; skipped: number }
   >();
   for (const event of intakeEvents) {
-    const dayKey = toBerlinDayKey(event.scheduledFor);
+    const dayKey = userDayKey(event.scheduledFor, userTz);
     const bucket = adherenceByDay.get(dayKey) ?? {
       total: 0,
       taken: 0,
@@ -264,14 +273,21 @@ export async function prepareGeneralStatusForUser(
   // Adherence series — bucket the per-day rate so the model gets the
   // canonical 360+24 view. We collapse one rate per day first, then feed
   // it into applyPayloadBudget over a synthesised `{measuredAt, value}`
-  // record list.
+  // record list. The day keys are user-local (userDayKey above); anchor
+  // the synthesised instant at noon UTC so the downstream tz-aware
+  // re-bucket re-derives the same user-local calendar day across every
+  // realistic self-hoster offset rather than slipping a day at the
+  // midnight edge.
   const adherenceRecords = Array.from(adherenceByDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([day, value]) => ({
-      measuredAt: new Date(`${day}T00:00:00.000Z`),
+      measuredAt: new Date(`${day}T12:00:00.000Z`),
       value: value.total > 0 ? round((value.taken / value.total) * 100, 1) : 0,
     }));
-  const adherenceSeries = applyPayloadBudget(adherenceRecords, { now });
+  const adherenceSeries = applyPayloadBudget(adherenceRecords, {
+    now,
+    tz: userTz,
+  });
   const adherenceGraded = buildGradedSeriesFromPoints(adherenceRecords, now);
 
   // Fetch mood context (optional — for enrichment only). v1.4.28
@@ -289,7 +305,7 @@ export async function prepareGeneralStatusForUser(
     measuredAt: entry.moodLoggedAt,
     value: entry.score,
   }));
-  const moodSeries = applyPayloadBudget(moodRecords, { now });
+  const moodSeries = applyPayloadBudget(moodRecords, { now, tz: userTz });
   const moodGraded = buildGradedSeriesFromPoints(moodRecords, now);
   const moodSummary = summarizeSeries(
     moodSeries.daily.map((bucket) => ({ value: bucket.value })),

@@ -408,8 +408,14 @@ export interface IllnessRedFlag {
 const SPO2_RED_FLAG = SPO2_RED_FLAG_PCT;
 /** Body temperature at/above this (°C) for ≥ RED_FLAG_RUN_DAYS escalates. */
 const FEVER_RED_FLAG = FEVER_RED_FLAG_C;
-/** Consecutive days an adverse clinical threshold must hold to escalate. */
-const RED_FLAG_RUN_DAYS = 3;
+/**
+ * Consecutive days an adverse clinical threshold must hold to escalate.
+ * Exported so the on-write safety seam (`safety-floor-check.ts`) escalates a
+ * sustained fever / low-SpO2 run on ingest using the SAME run length as this
+ * retrospective detector — the two paths can never disagree on what "sustained"
+ * means.
+ */
+export const RED_FLAG_RUN_DAYS = 3;
 
 /* ── pure helpers ─────────────────────────────────────────────────────── */
 

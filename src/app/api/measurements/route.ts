@@ -802,6 +802,7 @@ async function postMeasurement(request: NextRequest) {
       symptomsPresent: parsed.data.measurements.some(
         (m) => m.symptomsPresent === true,
       ),
+      timezone: user.timezone ?? undefined,
     }).catch(() => {});
 
     // v1.5.0 — refresh the persistent rollup table for every distinct
@@ -948,6 +949,7 @@ async function postMeasurement(request: NextRequest) {
       },
     ],
     symptomsPresent,
+    timezone: user.timezone ?? undefined,
   }).catch(() => {});
 
   // v1.5.0 — refresh the persistent rollup row for the affected

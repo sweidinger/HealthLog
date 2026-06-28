@@ -212,6 +212,8 @@ export async function prepareMedicationComplianceStatusForUser(
       schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
       // v1.16.3 — archived schedule eras for era-aware compliance.
       scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+      pauseEras: { select: { pausedAt: true, resumedAt: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -304,7 +306,10 @@ export async function prepareMedicationComplianceStatusForUser(
 
     // `applyPayloadBudget` gives the latest-day focus; the compact
     // graded series is what reaches the prompt.
-    const dailyBudgeted = applyPayloadBudget(perDayRecords, { now });
+    const dailyBudgeted = applyPayloadBudget(perDayRecords, {
+      now,
+      tz: userTz,
+    });
     const dailySeries = buildGradedSeriesFromPoints(perDayRecords, now);
     const latestDay = dailyBudgeted.daily[0] ?? null;
 

@@ -16,7 +16,7 @@ import { getRelevantCorrelationsForMetric } from "@/lib/insights/metric-correlat
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import {
-  pearsonCorrelation,
+  significantPearsonCorrelation,
   type PairedPoint,
 } from "@/lib/analytics/correlations";
 import {
@@ -25,7 +25,6 @@ import {
   lastNonSkippedTakenAt,
   SCHEDULE_COMPLIANCE_SELECT,
 } from "@/lib/analytics/compliance";
-import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { getMedicationCategories } from "@/lib/medication-category";
 import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import { getNoKeyBloodPressureStatusText } from "@/lib/insights/no-key-fallbacks";
@@ -63,7 +62,12 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import {
+  resolveUserTimezone,
+  toBerlinDayKey,
+  userDayKey,
+} from "@/lib/tz/resolver";
+import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 
 /**
  * Cap on the embedded correlation / paired-daily arrays. The Pearson
@@ -83,6 +87,7 @@ function pairDailyBuckets(
   seriesA: DailyBucket[],
   seriesB: DailyBucket[],
   now: Date,
+  tz: string = DEFAULT_TIMEZONE,
 ): Array<PairedPoint & { dayKey: string }> {
   const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
 
@@ -90,7 +95,7 @@ function pairDailyBuckets(
     .map((entry) => {
       const b = mapB.get(entry.dayOffset);
       if (b == null) return null;
-      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset);
+      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset, tz);
       // UTC midnight of the Berlin day — formatting this Date with
       // `toBerlinDayKey()` is guaranteed DST-safe because the y-m-d
       // fields below are the Berlin calendar day fields by construction.
@@ -243,6 +248,12 @@ export async function prepareBloodPressureStatusForUser(
 
   const now = new Date();
 
+  // v1.7.0 SB-SCHED-2 / v1.2.5 (M-TZ3) — resolve the user timezone once,
+  // up front, so BOTH the BP-status compliance gate AND every day-bucketing
+  // pass below (applyPayloadBudget, pairDailyBuckets, the continuity series)
+  // key on the user's own calendar day, not Berlin's.
+  const userTz = await resolveUserTimezone(userId);
+
   const weightSeries = applyPayloadBudget(
     measurements
       .filter((measurement) => measurement.type === "WEIGHT")
@@ -250,7 +261,7 @@ export async function prepareBloodPressureStatusForUser(
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-    { now },
+    { now, tz: userTz },
   );
 
   const sysSeries = applyPayloadBudget(
@@ -260,7 +271,7 @@ export async function prepareBloodPressureStatusForUser(
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-    { now },
+    { now, tz: userTz },
   );
 
   const diaSeries = applyPayloadBudget(
@@ -270,7 +281,7 @@ export async function prepareBloodPressureStatusForUser(
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-    { now },
+    { now, tz: userTz },
   );
 
   const bpTargets = getBpTargets(user?.dateOfBirth ?? null);
@@ -278,6 +289,7 @@ export async function prepareBloodPressureStatusForUser(
     sysSeries.daily,
     diaSeries.daily,
     now,
+    userTz,
   ).map((entry) => ({
     day: entry.dayKey,
     sys: entry.a,
@@ -305,8 +317,11 @@ export async function prepareBloodPressureStatusForUser(
     weightSeries.daily,
     sysSeries.daily,
     now,
+    userTz,
   );
-  const weightVsSystolicCorrelation = pearsonCorrelation(weightVsSystolicPairs);
+  const weightVsSystolicCorrelation = significantPearsonCorrelation(
+    weightVsSystolicPairs,
+  );
 
   const activeMedications = await prisma.medication.findMany({
     // v1.16.11 — as-needed (PRN) medications never feed the BP-status
@@ -318,6 +333,8 @@ export async function prepareBloodPressureStatusForUser(
       schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
       // v1.16.3 — archived schedule eras for era-aware compliance.
       scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+      pauseEras: { select: { pausedAt: true, resumedAt: true } },
     },
   });
 
@@ -356,10 +373,6 @@ export async function prepareBloodPressureStatusForUser(
             skipped: true,
           },
         });
-
-  // v1.7.0 SB-SCHED-2 — resolve the user timezone once so the BP-status
-  // compliance gate routes its denominator through the canonical engine.
-  const userTz = await resolveUserTimezone(userId);
 
   const medicationCompliance = bpMedications.map((medication) => {
     const eventsForMedication = bpMedicationEvents
@@ -406,13 +419,15 @@ export async function prepareBloodPressureStatusForUser(
   const takenByDay = new Map<string, number>();
   for (const event of bpMedicationEvents) {
     if (event.skipped || !event.takenAt) continue;
-    const dayKey = toBerlinDayKey(event.scheduledFor);
+    // Key on the user's own calendar day so the continuity tally aligns
+    // with the user-tz day keys the systolic series is bucketed under.
+    const dayKey = userDayKey(event.scheduledFor, userTz);
     takenByDay.set(dayKey, (takenByDay.get(dayKey) ?? 0) + 1);
   }
 
   const continuityVsSystolicSeries = sysSeries.daily.map((point) => {
     // DST-safe: dayOffsetToBerlinDayKey computes calendar days, not 24h ticks.
-    const dayKey = dayOffsetToBerlinDayKey(now, point.dayOffset);
+    const dayKey = dayOffsetToBerlinDayKey(now, point.dayOffset, userTz);
     const taken = takenByDay.get(dayKey) ?? 0;
     const continuityPct =
       expectedBpIntakesPerDay > 0
@@ -443,7 +458,7 @@ export async function prepareBloodPressureStatusForUser(
       measuredAt: entry.moodLoggedAt,
       value: entry.score,
     })),
-    { now },
+    { now, tz: userTz },
   );
   const moodSummary = summarizeSeries(
     moodSeries.daily.map((bucket) => ({ value: bucket.value })),
@@ -456,7 +471,7 @@ export async function prepareBloodPressureStatusForUser(
   const gradedFromDaily = (buckets: DailyBucket[]) =>
     buildGradedSeriesFromPoints(
       buckets.map((b) => ({
-        measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
+        measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset, userTz)),
         value: b.value,
       })),
       now,
@@ -483,7 +498,7 @@ export async function prepareBloodPressureStatusForUser(
       };
     })
     .filter((entry): entry is PairedPoint => entry !== null);
-  const continuityVsSystolicCorrelation = pearsonCorrelation(
+  const continuityVsSystolicCorrelation = significantPearsonCorrelation(
     continuityVsSystolicPairs,
   );
 
@@ -600,8 +615,9 @@ export async function prepareBloodPressureStatusForUser(
                 moodSeries.daily,
                 sysSeries.daily,
                 now,
+                userTz,
               );
-              return pearsonCorrelation(moodVsSysPairs);
+              return significantPearsonCorrelation(moodVsSysPairs);
             })(),
           }
         : null,

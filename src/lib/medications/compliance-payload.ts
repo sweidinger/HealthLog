@@ -51,6 +51,10 @@ export interface ComplianceMedicationInput {
   scheduleRevisions?: Parameters<
     typeof buildComplianceMedicationContext
   >[0]["scheduleRevisions"];
+  /** v1.25 H-MED1 — pause eras so paused days drop out of the denominator. */
+  pauseEras?: Parameters<
+    typeof buildComplianceMedicationContext
+  >[0]["pauseEras"];
 }
 
 /**

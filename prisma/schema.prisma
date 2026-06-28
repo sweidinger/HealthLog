@@ -583,6 +583,7 @@ model User {
   measurements                Measurement[]
   medications                 Medication[]
   intakeEvents                MedicationIntakeEvent[]
+  medicationPauseEras         MedicationPauseEra[]
   apiTokens                   ApiToken[]
   // v1.24 — MCP remote OAuth 2.1 connections (1:N). Each row is a granted
   // authorization for an MCP client, audience-bound to health:read/health:write.
@@ -1947,6 +1948,14 @@ model Medication {
   /// ranges into eras so past days read against the schedule that was
   /// live THEN, not the current one.
   scheduleRevisions MedicationScheduleRevision[]
+  /// v1.25 — durable pause intervals. A pause stamps an open era
+  /// (`resumedAt = null`); resume closes the latest open era. The
+  /// compliance engine drops expected slots whose anchor falls inside a
+  /// pause interval so a resumed medication never counts the paused days
+  /// as missed. The `pausedAt` column on this model stays the live
+  /// single-pause marker the reminder/today surfaces read; the era table
+  /// is the additive durable record the rate paths need.
+  pauseEras         MedicationPauseEra[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2095,6 +2104,35 @@ model MedicationScheduleRevision {
 
   @@index([medicationId, validFrom])
   @@map("medication_schedule_revisions")
+}
+
+/// v1.25 — durable medication pause intervals. The `Medication.pausedAt`
+/// column is a single live marker that resume clears, so the paused window
+/// is irrecoverable once the medication resumes. This table records each
+/// pause as its own row: a pause stamps an open era (`resumedAt = null`),
+/// resume closes the latest open era (`resumedAt = now`). The compliance
+/// engine reads the eras and drops expected dose slots whose anchor falls
+/// inside any `[pausedAt, resumedAt ?? now)` interval so a resumed
+/// medication never counts the paused days as missed.
+model MedicationPauseEra {
+  id           String    @id @default(cuid())
+  medicationId String    @map("medication_id")
+  userId       String    @map("user_id")
+  /// Inclusive start of the pause interval (the instant the medication
+  /// was paused).
+  pausedAt     DateTime  @map("paused_at") @db.Timestamptz(6)
+  /// Exclusive end of the pause interval (the instant the medication was
+  /// resumed). NULL = still paused; readers treat an open era as running
+  /// to `now`.
+  resumedAt    DateTime? @map("resumed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([medicationId])
+  @@index([userId])
+  @@map("medication_pause_eras")
 }
 
 enum IntakeSource {
@@ -2553,21 +2591,21 @@ model TelegramPromptContext {
 // ─── API Tokens (for external ingest) ──────────────────────
 
 model ApiToken {
-  id          String    @id @default(cuid())
-  userId      String    @map("user_id")
-  name        String
-  tokenHash   String    @unique @map("token_hash") // SHA-256 of the token
-  permissions String[]  @default(["medication:ingest"])
-  lastUsedAt  DateTime? @map("last_used_at")
-  expiresAt   DateTime? @map("expires_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  revoked     Boolean   @default(false)
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  name            String
+  tokenHash       String    @unique @map("token_hash") // SHA-256 of the token
+  permissions     String[]  @default(["medication:ingest"])
+  lastUsedAt      DateTime? @map("last_used_at")
+  expiresAt       DateTime? @map("expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  revoked         Boolean   @default(false)
   // The MCP OAuth connection this access token belongs to, when it was minted
   // through the `/api/mcp/oauth` bridge. Null for manually-minted tokens and
   // native-client tokens. Lets a connection revoke kill every access row it
   // ever issued (H2), and lets the connector token list exclude the transient
   // 60-minute access rows so it does not flood (M2).
-  mcpConnectionId String? @map("mcp_connection_id")
+  mcpConnectionId String?   @map("mcp_connection_id")
 
   user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   mcpConnection McpOAuthConnection? @relation(fields: [mcpConnectionId], references: [id], onDelete: SetNull)
