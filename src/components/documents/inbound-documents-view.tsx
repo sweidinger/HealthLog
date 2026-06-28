@@ -67,7 +67,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiDelete, apiFetch, apiPatch, apiPost } from "@/lib/api/api-fetch";
-import { useTranslations } from "@/lib/i18n/context";
+import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, queryKeys } from "@/lib/query-keys";
 import type { DocumentListParams } from "@/lib/query-keys/documents";
 import {
@@ -84,10 +84,12 @@ import {
 } from "@/lib/validations/inbound-documents";
 import {
   buildDocumentListSearch,
+  classifyUploadError,
   formatDateGroupLabel,
   groupDocumentsByDate,
   isAlreadyConfirmedError,
   isProviderUnsupportedError,
+  MAX_UPLOAD_BYTES,
 } from "./library-utils";
 
 type ListResponse = {
@@ -97,7 +99,8 @@ type ListResponse = {
 type Decision = "approve" | "reject";
 
 export function InboundDocumentsView() {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
+  const format = useFormatters();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -155,6 +158,17 @@ export function InboundDocumentsView() {
     filters.q || filters.kind || filters.from || filters.to,
   );
 
+  // Reset search + every filter to the default view. Used by the no-results
+  // "Clear filters" affordance and after an upload (so the just-stored document
+  // is in the list the detail panel opens against).
+  const clearFilters = () => {
+    setQ("");
+    setDebouncedQ("");
+    setKindFilter("");
+    setFromDate("");
+    setToDate("");
+  };
+
   const upload = useMutation({
     mutationFn: async (file: File) => {
       const fd = new FormData();
@@ -170,6 +184,14 @@ export function InboundDocumentsView() {
     },
     onSuccess: (doc) => {
       toast.success(t("documents.toast.uploaded"));
+      // Drop any active filter / search / sort so the just-stored document is
+      // in the list — otherwise selecting it opens a detail panel for a row the
+      // current filter excludes, and the user lands on a dead end. A fresh
+      // upload files under today, so the default documentDate-desc view shows it
+      // at the top.
+      clearFilters();
+      setSort("documentDate");
+      setOrder("desc");
       void invalidateKeys(queryClient, [queryKeys.documents()]);
       setSelectedId(doc.id);
       setUploadTitle("");
@@ -177,7 +199,24 @@ export function InboundDocumentsView() {
       setHasFile(false);
       if (fileRef.current) fileRef.current.value = "";
     },
-    onError: () => toast.error(t("documents.toast.uploadFailed")),
+    onError: (error) => {
+      switch (classifyUploadError(error)) {
+        case "tooLarge":
+          toast.error(t("documents.toast.uploadTooLarge"));
+          break;
+        case "fileType":
+          toast.error(t("documents.toast.uploadFileType"));
+          break;
+        case "rateLimited":
+          toast.error(t("documents.toast.uploadRateLimited"));
+          break;
+        case "invalidMetadata":
+          toast.error(t("documents.toast.uploadInvalidMetadata"));
+          break;
+        default:
+          toast.error(t("documents.toast.uploadFailed"));
+      }
+    },
   });
 
   return (
@@ -201,6 +240,27 @@ export function InboundDocumentsView() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* The one required field goes first and full-width, with the
+                accepted formats + size ceiling beside it (so the limit is known
+                before an upload fails). */}
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor="doc-file">
+                {t("documents.upload.fileLabel")}
+              </Label>
+              <Input
+                id="doc-file"
+                ref={fileRef}
+                type="file"
+                required
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                aria-describedby="doc-file-hint"
+                disabled={upload.isPending}
+                onChange={(e) => setHasFile(Boolean(e.target.files?.length))}
+              />
+              <p id="doc-file-hint" className="text-muted-foreground text-xs">
+                {t("documents.upload.accepts")}
+              </p>
+            </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="doc-title">
                 {t("documents.upload.titleLabel")}
@@ -244,25 +304,19 @@ export function InboundDocumentsView() {
                 disabled={upload.isPending}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="doc-file">
-                {t("documents.upload.fileLabel")}
-              </Label>
-              <Input
-                id="doc-file"
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                disabled={upload.isPending}
-                onChange={(e) => setHasFile(Boolean(e.target.files?.length))}
-              />
-            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => {
                 const file = fileRef.current?.files?.[0];
-                if (file) upload.mutate(file);
+                if (!file) return;
+                // Reject an oversized file before it is sent, so the user gets
+                // the size message immediately instead of after a full upload.
+                if (file.size > MAX_UPLOAD_BYTES) {
+                  toast.error(t("documents.toast.uploadTooLarge"));
+                  return;
+                }
+                upload.mutate(file);
               }}
               disabled={upload.isPending || !hasFile}
             >
@@ -289,10 +343,10 @@ export function InboundDocumentsView() {
 
       {/* Toolbar — search / category filter / sort. */}
       <div
-        className="flex flex-col gap-2 sm:flex-row sm:items-end"
+        className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-end"
         data-slot="documents-toolbar"
       >
-        <div className="flex flex-1 flex-col gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <Label htmlFor="doc-search">
             {t("documents.toolbar.searchLabel")}
           </Label>
@@ -394,11 +448,23 @@ export function InboundDocumentsView() {
             ))}
           </div>
         ) : documents.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {isFiltered
-              ? t("documents.list.noResults")
-              : t("documents.list.empty")}
-          </p>
+          isFiltered ? (
+            <div
+              className="flex flex-col items-start gap-2"
+              data-slot="documents-no-results"
+            >
+              <p className="text-muted-foreground text-sm">
+                {t("documents.list.noResults")}
+              </p>
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                {t("documents.list.clearFilters")}
+              </Button>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t("documents.list.empty")}
+            </p>
+          )
         ) : (
           <>
             {groups.map((group) => (
@@ -407,7 +473,7 @@ export function InboundDocumentsView() {
                   className="text-muted-foreground text-xs font-medium tracking-wide uppercase"
                   data-slot="documents-date-group"
                 >
-                  {formatDateGroupLabel(group.key, locale)}
+                  {formatDateGroupLabel(group.key, format.date)}
                 </h2>
                 {group.documents.map((doc) => {
                   const expanded = selectedId === doc.id;
@@ -518,6 +584,7 @@ export function DocumentDetail({
   regionId?: string;
 }) {
   const { t } = useTranslations();
+  const format = useFormatters();
   const queryClient = useQueryClient();
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [editOpen, setEditOpen] = useState(false);
@@ -593,6 +660,10 @@ export function DocumentDetail({
 
   const doc = detail.data;
   const pending = doc.facts.filter((f) => f.status === "PENDING");
+  // Facts already approved from this document and pushed to the structured
+  // stores — surfaced read-only below so the document ↔ committed-record link
+  // stays visible after review (instead of the panel going blank).
+  const approved = doc.facts.filter((f) => f.status === "APPROVED");
   const decidedCount = Object.keys(decisions).length;
   // Mirror the backend's hard guard: extraction is gone once the document is
   // confirmed OR any fact on it has already been approved (re-extracting would
@@ -732,13 +803,36 @@ export function DocumentDetail({
                 : t("documents.review.confirm")}
             </Button>
           </>
-        ) : (
+        ) : approved.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             {doc.factCount > 0
               ? t("documents.empty.noFacts")
               : t("documents.detail.notExtracted")}
           </p>
-        )}
+        ) : null}
+
+        {approved.length > 0 ? (
+          <div className="flex flex-col gap-2" data-slot="documents-committed">
+            <Separator />
+            <p className="text-muted-foreground text-sm">
+              {t("documents.committed.title")}
+            </p>
+            <ul className="flex flex-col gap-1">
+              {approved.map((fact) => {
+                const when = factDate(fact);
+                return (
+                  <li
+                    key={fact.id}
+                    className="text-muted-foreground truncate text-sm"
+                  >
+                    {factSummary(fact)}
+                    {when ? ` · ${format.date(`${when}T12:00:00.000Z`)}` : ""}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
       </CardContent>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -890,6 +984,7 @@ function FactCard({
   onDecision: (d: Decision | null) => void;
 }) {
   const { t } = useTranslations();
+  const format = useFormatters();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
 
@@ -912,7 +1007,7 @@ function FactCard({
     <div className="rounded-md border p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">
               {t(`documents.factType.${fact.factType}`)}
             </Badge>
@@ -927,14 +1022,27 @@ function FactCard({
                 {t("documents.review.needsReview")}
               </Badge>
             ) : null}
-            <span className="text-muted-foreground text-xs">
-              {Math.round(fact.confidence * 100)}%
+            <span
+              className="text-muted-foreground text-xs"
+              title={t("documents.review.confidenceLabel")}
+            >
+              <span className="sr-only">
+                {t("documents.review.confidenceLabel")}:{" "}
+              </span>
+              {format.percent(fact.confidence)}
             </span>
           </div>
           <p className="mt-1 truncate text-sm font-medium">{summary}</p>
           {fact.provenance.sourceText ? (
             <p className="text-muted-foreground mt-1 line-clamp-2 text-xs italic">
               “{fact.provenance.sourceText}”
+            </p>
+          ) : null}
+          {fact.needsReview ? (
+            // Ties the disabled Approve button to the "Needs review" badge: a
+            // low-confidence fact must be edited before it can be approved.
+            <p className="text-muted-foreground mt-1 text-xs">
+              {t("documents.review.needsReviewHint")}
             </p>
           ) : null}
         </div>
@@ -944,6 +1052,11 @@ function FactCard({
             size="sm"
             className="min-h-11 sm:min-h-9"
             disabled={fact.needsReview}
+            title={
+              fact.needsReview
+                ? t("documents.review.needsReviewHint")
+                : undefined
+            }
             onClick={() =>
               onDecision(decision === "approve" ? null : "approve")
             }
@@ -1147,4 +1260,15 @@ function factSummary(fact: ExtractedFactDto): string {
   }
   const d = fact.data as ConditionFactData;
   return d.label;
+}
+
+/** The effective / onset date a staged fact carries, if any (YYYY-MM-DD). */
+function factDate(fact: ExtractedFactDto): string | null {
+  if (fact.factType === "CONDITION") {
+    return (fact.data as ConditionFactData).onsetDate;
+  }
+  if (fact.factType === "OBSERVATION") {
+    return (fact.data as ObservationFactData).effectiveDate;
+  }
+  return (fact.data as MedicationStatementFactData).effectiveDate;
 }

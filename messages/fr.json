@@ -7838,11 +7838,12 @@
       "kindLabel": "Catégorie",
       "button": "Téléverser",
       "uploading": "Téléversement…",
-      "fileLabel": "Fichier",
+      "fileLabel": "Fichier (requis)",
       "titleLabel": "Titre (facultatif)",
       "titlePlaceholder": "p. ex. Compte rendu de cardiologie",
       "dateLabel": "Date du document (facultatif)",
-      "fileRequired": "Choisissez un fichier à téléverser."
+      "fileRequired": "Choisissez un fichier à téléverser.",
+      "accepts": "JPEG, PNG, WebP ou PDF · jusqu'à 12 Mo"
     },
     "kind": {
       "DOCTOR_REPORT": "Compte rendu médical",
@@ -7860,7 +7861,8 @@
       "loadMore": "Charger plus",
       "loadingMore": "Chargement…",
       "pending": "{count} à vérifier",
-      "facts": "{count} éléments"
+      "facts": "{count} éléments",
+      "clearFilters": "Effacer les filtres"
     },
     "status": {
       "EXTRACTING": "Lecture",
@@ -7879,7 +7881,9 @@
       "reject": "Rejeter",
       "edit": "Modifier",
       "cancel": "Annuler",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "needsReviewHint": "Modifie cette donnée pour pouvoir la valider.",
+      "confidenceLabel": "Confiance d'extraction"
     },
     "empty": {
       "noFacts": "Plus rien à vérifier."
@@ -7897,8 +7901,8 @@
       "dose": "Dose"
     },
     "toast": {
-      "uploaded": "Document lu. Vérifiez les données ci-dessous.",
-      "uploadFailed": "Lecture du document impossible.",
+      "uploaded": "Document enregistré.",
+      "uploadFailed": "Impossible d'enregistrer le document.",
       "confirmed": "Données approuvées enregistrées.",
       "confirmFailed": "Impossible d'enregistrer vos décisions.",
       "saved": "Donnée mise à jour.",
@@ -7907,7 +7911,11 @@
       "extractFailed": "Impossible d'extraire les éléments.",
       "updated": "Document mis à jour.",
       "updateFailed": "Impossible de mettre à jour le document.",
-      "discardFailed": "Impossible de supprimer le document."
+      "discardFailed": "Impossible de supprimer le document.",
+      "uploadTooLarge": "Le fichier est trop volumineux (max. 12 Mo).",
+      "uploadFileType": "Importe un fichier JPEG, PNG, WebP ou PDF.",
+      "uploadRateLimited": "Trop d'envois. Réessaie plus tard.",
+      "uploadInvalidMetadata": "Vérifie le titre, la catégorie ou la date, puis réessaie."
     },
     "toolbar": {
       "searchLabel": "Rechercher",
@@ -7951,6 +7959,9 @@
     "note": {
       "providerUnsupported": "Configurez un fournisseur d'analyse de documents dans les paramètres d'IA pour extraire les éléments automatiquement.",
       "alreadyConfirmed": "Ce document a déjà été vérifié ; il ne peut pas être extrait à nouveau."
+    },
+    "committed": {
+      "title": "Validé depuis ce document"
     }
   },
   "selfDescription": {

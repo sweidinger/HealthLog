@@ -7838,11 +7838,12 @@
       "kindLabel": "Kategoria",
       "button": "Prześlij",
       "uploading": "Przesyłanie…",
-      "fileLabel": "Plik",
+      "fileLabel": "Plik (wymagany)",
       "titleLabel": "Tytuł (opcjonalnie)",
       "titlePlaceholder": "np. Raport kardiologiczny",
       "dateLabel": "Data dokumentu (opcjonalnie)",
-      "fileRequired": "Wybierz plik do przesłania."
+      "fileRequired": "Wybierz plik do przesłania.",
+      "accepts": "JPEG, PNG, WebP lub PDF · do 12 MB"
     },
     "kind": {
       "DOCTOR_REPORT": "Raport lekarski",
@@ -7860,7 +7861,8 @@
       "loadMore": "Załaduj więcej",
       "loadingMore": "Ładowanie…",
       "pending": "{count} do przeglądu",
-      "facts": "{count} faktów"
+      "facts": "{count} faktów",
+      "clearFilters": "Wyczyść filtry"
     },
     "status": {
       "EXTRACTING": "Odczyt",
@@ -7879,7 +7881,9 @@
       "reject": "Odrzuć",
       "edit": "Edytuj",
       "cancel": "Anuluj",
-      "save": "Zapisz"
+      "save": "Zapisz",
+      "needsReviewHint": "Edytuj tę pozycję, aby ją zatwierdzić.",
+      "confidenceLabel": "Pewność rozpoznania"
     },
     "empty": {
       "noFacts": "Nic więcej do przejrzenia."
@@ -7897,8 +7901,8 @@
       "dose": "Dawka"
     },
     "toast": {
-      "uploaded": "Dokument odczytany. Sprawdź dane poniżej.",
-      "uploadFailed": "Nie udało się odczytać dokumentu.",
+      "uploaded": "Dokument zapisany.",
+      "uploadFailed": "Nie udało się zapisać dokumentu.",
       "confirmed": "Zatwierdzone dane zapisane.",
       "confirmFailed": "Nie udało się zapisać Twoich decyzji.",
       "saved": "Dane zaktualizowane.",
@@ -7907,7 +7911,11 @@
       "extractFailed": "Nie udało się wyodrębnić faktów.",
       "updated": "Dokument zaktualizowany.",
       "updateFailed": "Nie udało się zaktualizować dokumentu.",
-      "discardFailed": "Nie udało się odrzucić dokumentu."
+      "discardFailed": "Nie udało się odrzucić dokumentu.",
+      "uploadTooLarge": "Plik jest za duży (maks. 12 MB).",
+      "uploadFileType": "Prześlij plik JPEG, PNG, WebP lub PDF.",
+      "uploadRateLimited": "Zbyt wiele przesłań. Spróbuj ponownie później.",
+      "uploadInvalidMetadata": "Sprawdź tytuł, kategorię lub datę i spróbuj ponownie."
     },
     "toolbar": {
       "searchLabel": "Szukaj",
@@ -7951,6 +7959,9 @@
     "note": {
       "providerUnsupported": "Skonfiguruj dostawcę skanowania dokumentów w ustawieniach AI, aby automatycznie wyodrębniać fakty.",
       "alreadyConfirmed": "Ten dokument został już sprawdzony, więc nie można go ponownie wyodrębnić."
+    },
+    "committed": {
+      "title": "Zatwierdzone z tego dokumentu"
     }
   },
   "selfDescription": {
