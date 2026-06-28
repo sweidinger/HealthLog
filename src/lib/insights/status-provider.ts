@@ -13,6 +13,8 @@ import { annotate } from "@/lib/logging/context";
 import { AI_BUDGETS, REFERENCE_AI_SEED } from "@/lib/ai/ai-budgets";
 import { singleUserTurn } from "@/lib/ai/types";
 import { STATUS_PROVIDER_TIMEOUT_MS, withTimeout } from "./with-timeout";
+import { prisma } from "@/lib/db";
+import { resolveEffectiveTimeoutMs } from "@/lib/ai/effective-timeout";
 
 /**
  * Shared provider plumbing for the seven `*-status.ts` generators.
@@ -134,8 +136,9 @@ export async function statusConsentBlocksGeneration(
 }
 
 /**
- * Run a status generation across the user's provider chain, bounded by
- * `STATUS_PROVIDER_TIMEOUT_MS`. The result discriminates between
+ * Run a status generation across the user's provider chain, bounded by the
+ * per-user response-timeout setting (falling back to `STATUS_PROVIDER_TIMEOUT_MS`
+ * when unset). The result discriminates between
  * no-provider / timeout / provider-error / success so the caller can
  * decide what to persist — only `ok` is ever cached as the day's
  * assessment.
@@ -168,6 +171,24 @@ export async function runStatusCompletion(
     return { kind: "none" };
   }
 
+  // Honour the per-user response-timeout setting the operator dials in for a
+  // slow self-hosted / local backend (Settings → AI). This is the single
+  // chokepoint every status / reference surface funnels through — per-metric
+  // cards, the batched assessment, the derived assessments, and the period
+  // narratives — so resolving it here threads the setting onto all of them at
+  // once. A positive stored value wins (seconds → ms); unset falls back to the
+  // status-path budget. Applied to BOTH the upstream call's own `timeoutMs`
+  // and the outer `withTimeout` cap so a raised value is not silently clipped
+  // by the 60 s wall-clock that previously bounded the path.
+  const settingsRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { aiResponseTimeoutSeconds: true },
+  });
+  const effectiveTimeoutMs = resolveEffectiveTimeoutMs(
+    settingsRow?.aiResponseTimeoutSeconds,
+    STATUS_PROVIDER_TIMEOUT_MS,
+  );
+
   const raced = await withTimeout(
     () =>
       runRawCompletionWithFallback({
@@ -184,9 +205,10 @@ export async function runStatusCompletion(
           // Status cards are JSON by default; the narrative opts out via
           // `"text"`.
           responseFormat: args.responseFormat === "text" ? undefined : "json",
+          timeoutMs: effectiveTimeoutMs,
         }),
       }),
-    STATUS_PROVIDER_TIMEOUT_MS,
+    effectiveTimeoutMs,
     null,
   );
 

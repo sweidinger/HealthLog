@@ -61,6 +61,11 @@ import {
   type InsightResult,
 } from "@/lib/ai/types";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
+import { resolveEffectiveTimeoutMs } from "@/lib/ai/effective-timeout";
+import {
+  recordBriefingFailure,
+  readBriefingFailure,
+} from "@/lib/insights/briefing-failure-marker";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
 import {
   AllProvidersFailedError,
@@ -307,6 +312,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // connect-an-AI-provider hint instead of implying the read is live.
   const hasProvider = await hasUsableStatusProvider(userId);
 
+  // v1.25 — surface whether the most recent generation attempt failed (a
+  // marker newer than the last successful generation). The briefing keeps its
+  // last good text on failure, so this is the only honest signal that a shown
+  // briefing is held rather than freshly refreshed — and, when there is no
+  // last good text, that the empty state should read "couldn't generate" with
+  // a retry rather than the generic "no briefing yet".
+  const generationFailed =
+    (await readBriefingFailure({ userId, since: cachedAt })) !== null;
+
   // Read-only: never block on the provider. Warm out of band only when the
   // cached briefing is stale / missing AND a provider is configured (a
   // provider-less account costs one cheap chain-resolve and shows the
@@ -351,6 +365,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
         // the served briefing can never refresh, so the UI pairs its age
         // with a connect-provider affordance.
         hasProvider,
+        // v1.25 — true when the last generation attempt failed (held text).
+        generationFailed,
       });
     } catch {
       // Invalid cache row — fall through to the empty payload below. The
@@ -370,6 +386,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
     revalidating,
     // v1.18.9 (#4) — see the cached branch above.
     hasProvider,
+    // v1.25 — no last-good text AND the last attempt failed: the UI shows a
+    // "couldn't generate" empty state with a retry instead of the generic one.
+    generationFailed,
   });
 });
 
@@ -403,8 +422,16 @@ export const POST = apiHandler((request: NextRequest) =>
         heightCm: true,
         // v1.22 (W6) — first name for the sparse, hash-gated briefing opener.
         displayName: true,
+        // v1.25 — per-user response-timeout (seconds), threaded onto the
+        // generation calls so a slow self-hosted backend honours the setting.
+        aiResponseTimeoutSeconds: true,
       },
     });
+
+    const effectiveTimeoutMs = resolveEffectiveTimeoutMs(
+      dbUser?.aiResponseTimeoutSeconds,
+      AI_BUDGETS.comprehensive.timeoutMs,
+    );
 
     const locale = await resolveServerLocale({
       request,
@@ -717,7 +744,8 @@ export const POST = apiHandler((request: NextRequest) =>
           // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
           // generation is not aborted at the client's 60 s default on large
           // accounts (which returned an empty briefing + trend narrative).
-          timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
+          // v1.25 — honours the per-user response-timeout setting.
+          timeoutMs: effectiveTimeoutMs,
           // The reply is parsed with `JSON.parse` below, so opt the OpenAI /
           // Codex chains into their strict JSON mode (gated on this flag).
           responseFormat: "json",
@@ -727,6 +755,18 @@ export const POST = apiHandler((request: NextRequest) =>
       workingProviderType = fallback.workingProvider.providerType;
       fallbackHopCount = fallback.fallbackHops.length;
     } catch (e) {
+      // v1.25 — record a dated failure marker (no cache row is written on this
+      // path, so the last good briefing stays intact). The read path pairs the
+      // preserved text with a discreet "couldn't refresh" hint, or shows a
+      // retry empty state when there is no last good text.
+      void recordBriefingFailure({
+        userId,
+        reason:
+          e instanceof AllProvidersFailedError
+            ? "all-providers-failed"
+            : "provider-error",
+        locale,
+      });
       if (e instanceof AllProvidersFailedError) {
         annotate({
           meta: {
@@ -826,6 +866,7 @@ export const POST = apiHandler((request: NextRequest) =>
       // breaks `await res.json()` on the client side. 422 stays passthrough
       // so the React Query mutation can read the JSON body and surface a
       // readable message. Same fix pattern as v1.4.5 ai/test.
+      void recordBriefingFailure({ userId, reason: "invalid-json", locale });
       return apiError("AI response was not valid JSON", 422);
     }
 
@@ -856,7 +897,8 @@ export const POST = apiHandler((request: NextRequest) =>
               temperature: 0.3,
               maxTokens: 1500,
               // v1.21.5 — wider upstream budget; see the first generation call.
-              timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
+              // v1.25 — honours the per-user response-timeout setting.
+              timeoutMs: effectiveTimeoutMs,
               // Parsed with `JSON.parse` below — opt OpenAI / Codex into JSON mode.
               responseFormat: "json",
             }),
