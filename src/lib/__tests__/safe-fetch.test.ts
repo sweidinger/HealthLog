@@ -102,18 +102,22 @@ describe("safeFetch", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("passes a public host through with requirePublicHost", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response("ok", { status: 200 }));
-
-    const res = await safeFetch(
-      "https://example.com/api",
-      {},
-      { requirePublicHost: true },
-    );
-
-    expect(res.status).toBe(200);
-    expect(fetchSpy).toHaveBeenCalledOnce();
-  });
+  it("does NOT use global fetch on the pinned (requirePublicHost) path", async () => {
+    // The pinned path must go through undici's own `fetch` so the dispatcher
+    // and the fetch engine share one undici version (the version-skew fix).
+    // Global `fetch` must therefore be bypassed entirely. The end-to-end 200
+    // against a real server is asserted in `safe-fetch-pinned.test.ts`.
+    await expect(
+      safeFetch(
+        // 192.0.2.0/24 is TEST-NET-1 (public-classified, unroutable) so the
+        // connect fails fast without touching global fetch.
+        "https://192.0.2.1/api",
+        { signal: AbortSignal.timeout(300) },
+        { requirePublicHost: true },
+      ),
+    ).rejects.toBeInstanceOf(SafeFetchError);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  }, 20_000);
 
   it("wraps a native network error as kind: 'network'", async () => {
     fetchSpy.mockRejectedValueOnce(new TypeError("network down"));
