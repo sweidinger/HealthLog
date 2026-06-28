@@ -63,6 +63,10 @@ const SECTION_TITLE_KEYS: Record<InsightsSectionId, string> = {
   "cycle-summary": "cycle.insightsSummary.title",
   signals: "insights.derived.coincident.cardTitle",
   "rhythm-events": "insights.rhythmEvents.sectionTitle",
+  hydration: "hydration.cardTitle",
+  "health-status": "insights.healthStatus.sectionTitle",
+  breathing: "insights.breathingScreening.sectionTitle",
+  "labs-changes": "insights.labsChanges.sectionTitle",
 };
 
 interface InsightsEditModeProps {

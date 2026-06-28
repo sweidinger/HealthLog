@@ -20,7 +20,7 @@ import {
 } from "@/lib/insights-layout";
 
 describe("insights-layout v2 — section id universe", () => {
-  it("carries exactly the eight default sections in render order", () => {
+  it("carries exactly the default sections in render order", () => {
     expect([...INSIGHTS_SECTION_IDS]).toEqual([
       "wellness-scores",
       "daily-briefing",
@@ -30,6 +30,10 @@ describe("insights-layout v2 — section id universe", () => {
       "cycle-summary",
       "signals",
       "rhythm-events",
+      "hydration",
+      "health-status",
+      "breathing",
+      "labs-changes",
     ]);
   });
 

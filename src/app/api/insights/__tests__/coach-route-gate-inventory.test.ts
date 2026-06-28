@@ -92,6 +92,14 @@ const NOT_COACH_OWNED_ROUTES: ReadonlyArray<string> = [
   // wedge the user's ability to reorder the insights tile strip.
   "src/app/api/insights/layout/route.ts",
   "src/app/api/insights/targets/route.ts",
+  // v1.25 — read-only awareness cards for the overview. Each is pure compute
+  // over the rollup / lab tier (baseline-drift, sleep-breathing screening,
+  // last-panel lab deltas) and carries no assistant prose; they gate on the
+  // `insights` module, not on the Coach surface. Disabling Coach must not
+  // wedge these factual reads.
+  "src/app/api/insights/health-status/route.ts",
+  "src/app/api/insights/breathing-screening/route.ts",
+  "src/app/api/insights/labs-changes/route.ts",
 ];
 
 const COACH_GATE_NEEDLE = 'requireAssistantSurface("coach")';

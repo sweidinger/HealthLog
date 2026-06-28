@@ -574,7 +574,8 @@
     "bulkDeleteSuccess": "{count} misurazioni eliminate",
     "bulkDeleteError": "Errore durante l'eliminazione delle misurazioni selezionate",
     "bulkDeleteConfirmTitle": "Eliminare {count} misurazioni?",
-    "bulkDeleteConfirmBody": "Le {count} misurazioni selezionate verranno eliminate definitivamente."
+    "bulkDeleteConfirmBody": "Le {count} misurazioni selezionate verranno eliminate definitivamente.",
+    "typeWaterIntake": "Assunzione di acqua"
   },
   "mood": {
     "title": "Umore",
@@ -3666,7 +3667,38 @@
     },
     "updatedTodayAt": "Aggiornato oggi, {time}",
     "updatedYesterday": "Aggiornato ieri",
-    "updatedOn": "Aggiornato il {date}"
+    "updatedOn": "Aggiornato il {date}",
+    "healthStatus": {
+      "sectionTitle": "Cosa è cambiato",
+      "subtitle": "Segnali che si discostano dal tuo intervallo abituale.",
+      "deviationAbove": "{vital} è sopra il tuo intervallo abituale.",
+      "deviationBelow": "{vital} è sotto il tuo intervallo abituale.",
+      "shiftUp": "{vital} si è spostato verso l'alto rispetto alla tua norma recente.",
+      "shiftDown": "{vital} si è spostato verso il basso rispetto alla tua norma recente.",
+      "rangeContext": "Ora {value}, di solito {low}–{high}.",
+      "shiftContext": "Circa {before} prima, {after} da allora."
+    },
+    "breathingScreening": {
+      "sectionTitle": "Respirazione durante il sonno",
+      "subtitle": "Un segnale di screening dai tuoi dati del sonno.",
+      "classificationElevated": "Il tuo dispositivo ha segnalato disturbi respiratori elevati.",
+      "classificationNotElevated": "La classificazione del tuo dispositivo non è elevata.",
+      "trendUp": "In aumento rispetto alle notti precedenti.",
+      "trendDown": "In calo rispetto alle notti precedenti.",
+      "trendStable": "Stabile rispetto alle notti precedenti.",
+      "nights": "{count} notti registrate",
+      "indexLine": "indice medio recente {value}",
+      "eventsFlagged": "{count} eventi segnalati dal tuo dispositivo",
+      "disclaimer": "È un segnale di screening, non una diagnosi: parlane con un medico."
+    },
+    "labsChanges": {
+      "sectionTitle": "Dal tuo ultimo pannello",
+      "subtitle": "Come i tuoi ultimi risultati si confrontano con il pannello precedente.",
+      "statusInRange": "nell'intervallo",
+      "statusBelow": "sotto l'intervallo",
+      "statusAbove": "sopra l'intervallo",
+      "directionFlat": "nessuna variazione"
+    }
   },
   "thresholds": {
     "defaultLabel": "Predefinito",
@@ -7372,5 +7404,20 @@
       "glucoseHighDoctor": "Due misurazioni recenti erano di {value} mg/dL o superiori. Rimisura, idratati e contatta il medico al più presto se resta così alta.",
       "glucoseHighEmergency": "Due misurazioni recenti erano di {value} mg/dL o superiori e hai segnalato sintomi. In caso di vomito, respiro affannoso o confusione, chiama subito i soccorsi."
     }
+  },
+  "hydration": {
+    "cardTitle": "Idratazione",
+    "editGoal": "Modifica obiettivo",
+    "goalLabel": "Obiettivo giornaliero (ml)",
+    "metMessage": "Hai raggiunto l'obiettivo di oggi.",
+    "remainingMessage": "Ancora {amount} ml oggi.",
+    "add": "Aggiungi",
+    "added": "Aggiunti {amount} ml.",
+    "saveError": "Salvataggio non riuscito. Riprova.",
+    "invalidAmount": "Inserisci una quantità tra 1 e 5000 ml.",
+    "invalidGoal": "Inserisci un obiettivo tra 250 e 8000 ml.",
+    "goalSaved": "Obiettivo aggiornato.",
+    "customPlaceholder": "Quantità",
+    "customLabel": "Quantità personalizzata (ml)"
   }
 }

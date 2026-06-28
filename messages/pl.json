@@ -574,7 +574,8 @@
     "bulkDeleteSuccess": "Usunięto pomiary: {count}",
     "bulkDeleteError": "Błąd podczas usuwania wybranych pomiarów",
     "bulkDeleteConfirmTitle": "Usunąć pomiary ({count})?",
-    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte."
+    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte.",
+    "typeWaterIntake": "Spożycie wody"
   },
   "mood": {
     "title": "Nastrój",
@@ -3666,7 +3667,38 @@
     },
     "updatedTodayAt": "Zaktualizowano dzisiaj, {time}",
     "updatedYesterday": "Zaktualizowano wczoraj",
-    "updatedOn": "Zaktualizowano {date}"
+    "updatedOn": "Zaktualizowano {date}",
+    "healthStatus": {
+      "sectionTitle": "Co się zmieniło",
+      "subtitle": "Sygnały odbiegające od Twojego zwykłego zakresu.",
+      "deviationAbove": "{vital} jest powyżej Twojego zwykłego zakresu.",
+      "deviationBelow": "{vital} jest poniżej Twojego zwykłego zakresu.",
+      "shiftUp": "{vital} przesunął się w górę względem Twojej ostatniej normy.",
+      "shiftDown": "{vital} przesunął się w dół względem Twojej ostatniej normy.",
+      "rangeContext": "Teraz {value}, zwykle {low}–{high}.",
+      "shiftContext": "Około {before} wcześniej, {after} od tego czasu."
+    },
+    "breathingScreening": {
+      "sectionTitle": "Oddychanie podczas snu",
+      "subtitle": "Sygnał przesiewowy z Twoich danych o śnie.",
+      "classificationElevated": "Twoje urządzenie wykryło podwyższone zaburzenia oddychania.",
+      "classificationNotElevated": "Klasyfikacja Twojego urządzenia nie jest podwyższona.",
+      "trendUp": "Wzrost względem wcześniejszych nocy.",
+      "trendDown": "Spadek względem wcześniejszych nocy.",
+      "trendStable": "Stabilnie względem wcześniejszych nocy.",
+      "nights": "Śledzono {count} nocy",
+      "indexLine": "ostatni średni indeks {value}",
+      "eventsFlagged": "{count} zdarzeń oznaczonych przez urządzenie",
+      "disclaimer": "To sygnał przesiewowy, a nie diagnoza — skonsultuj się z lekarzem."
+    },
+    "labsChanges": {
+      "sectionTitle": "Od ostatnich badań",
+      "subtitle": "Jak najnowsze wyniki wypadają na tle poprzednich badań.",
+      "statusInRange": "w normie",
+      "statusBelow": "poniżej zakresu",
+      "statusAbove": "powyżej zakresu",
+      "directionFlat": "bez zmian"
+    }
   },
   "thresholds": {
     "defaultLabel": "Domyślne",
@@ -7372,5 +7404,20 @@
       "glucoseHighDoctor": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej. Zmierz ponownie, nawodnij się i jak najszybciej skontaktuj się z lekarzem, jeśli pozostaje tak wysoki.",
       "glucoseHighEmergency": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej i zgłosiłeś objawy. W razie wymiotów, przyspieszonego oddechu lub dezorientacji natychmiast zadzwoń po pomoc."
     }
+  },
+  "hydration": {
+    "cardTitle": "Nawodnienie",
+    "editGoal": "Edytuj cel",
+    "goalLabel": "Cel dzienny (ml)",
+    "metMessage": "Osiągnięto dzisiejszy cel.",
+    "remainingMessage": "Jeszcze {amount} ml dzisiaj.",
+    "add": "Dodaj",
+    "added": "Dodano {amount} ml.",
+    "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
+    "invalidAmount": "Podaj ilość od 1 do 5000 ml.",
+    "invalidGoal": "Podaj cel od 250 do 8000 ml.",
+    "goalSaved": "Cel zaktualizowany.",
+    "customPlaceholder": "Ilość",
+    "customLabel": "Własna ilość (ml)"
   }
 }

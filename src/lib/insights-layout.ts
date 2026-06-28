@@ -113,6 +113,10 @@ export const INSIGHTS_SECTION_IDS = [
   "cycle-summary",
   "signals",
   "rhythm-events",
+  "hydration",
+  "health-status",
+  "breathing",
+  "labs-changes",
 ] as const;
 
 export type InsightsSectionId = (typeof INSIGHTS_SECTION_IDS)[number];

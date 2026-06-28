@@ -127,6 +127,42 @@ const RhythmEventsCard = dynamic(
     })),
   { ssr: false },
 );
+// v1.25 — hydration daily-goal ring. Always present (a goal ring at 0 / goal is
+// still useful); it owns its own today-total query and the goal editor.
+const HydrationCard = dynamic(
+  () =>
+    import("@/components/insights/hydration-card").then((mod) => ({
+      default: mod.HydrationCard,
+    })),
+  { ssr: false },
+);
+// v1.25 — baseline-drift card. Un-mounts when nothing is drifting; owns its own
+// read-only `/api/insights/health-status` query.
+const HealthStatusCard = dynamic(
+  () =>
+    import("@/components/insights/health-status-card").then((mod) => ({
+      default: mod.HealthStatusCard,
+    })),
+  { ssr: false },
+);
+// v1.25 — sleep-breathing screening card. Un-mounts on no data; screening
+// signal only, never a diagnosis.
+const BreathingScreeningCard = dynamic(
+  () =>
+    import("@/components/insights/breathing-screening-card").then((mod) => ({
+      default: mod.BreathingScreeningCard,
+    })),
+  { ssr: false },
+);
+// v1.25 — "what changed since your last lab panel" card. Un-mounts with fewer
+// than two panels or no shared analyte.
+const LabsChangesCard = dynamic(
+  () =>
+    import("@/components/insights/labs-changes-card").then((mod) => ({
+      default: mod.LabsChangesCard,
+    })),
+  { ssr: false },
+);
 // v1.10.3 — "Today's signal" headline card. Promotes COINCIDENT_DEVIATION from
 // a buried below-the-fold tile to the top-of-overview daily read (the
 // always-present Apple/WHOOP/Oura pattern). Deferred behind `next/dynamic`; it
@@ -472,6 +508,10 @@ export default function InsightsPage() {
     ) : null,
     signals: <CoincidentDeviationCard enabled={isAuthenticated} />,
     "rhythm-events": <RhythmEventsCard enabled={isAuthenticated} />,
+    hydration: <HydrationCard enabled={isAuthenticated} />,
+    "health-status": <HealthStatusCard enabled={isAuthenticated} />,
+    breathing: <BreathingScreeningCard enabled={isAuthenticated} />,
+    "labs-changes": <LabsChangesCard enabled={isAuthenticated} />,
   };
 
   const orderedSectionIds = orderedVisibleSectionIds(layout);
