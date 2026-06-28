@@ -4066,7 +4066,6 @@
         "description": "Tous les rappels au même endroit — quoi et quand. Les canaux de diffusion se trouvent dans Intégrations.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook et e-mail se configurent désormais dans",
         "channelsHintLink": "Intégrations → Canaux",
-        "inboxLink": "Ouvrir la boîte de réception",
         "subtitle": "Choisissez les rappels que vous recevez."
       },
       "layout": {
@@ -7869,7 +7868,8 @@
       "loadingMore": "Chargement…",
       "pending": "{count} à vérifier",
       "facts": "{count} éléments",
-      "clearFilters": "Effacer les filtres"
+      "clearFilters": "Effacer les filtres",
+      "loadError": "Impossible de charger vos documents."
     },
     "status": {
       "EXTRACTING": "Lecture",
@@ -7890,7 +7890,12 @@
       "cancel": "Annuler",
       "save": "Enregistrer",
       "needsReviewHint": "Modifie cette donnée pour pouvoir la valider.",
-      "confidenceLabel": "Confiance d'extraction"
+      "confidenceLabel": "Confiance d'extraction",
+      "commitError": {
+        "unitMismatch": "l'unité ne correspond pas à celle enregistrée",
+        "unitRequired": "une valeur numérique nécessite une unité",
+        "generic": "il n'a pas pu être enregistré"
+      }
     },
     "empty": {
       "noFacts": "Plus rien à vérifier."
@@ -7911,11 +7916,13 @@
       "uploaded": "Document enregistré.",
       "uploadFailed": "Impossible d'enregistrer le document.",
       "confirmed": "Données approuvées enregistrées.",
+      "confirmedPartial": "Enregistré, mais {count} n'ont pas pu être enregistrés — {reason}.",
       "confirmFailed": "Impossible d'enregistrer vos décisions.",
       "saved": "Donnée mise à jour.",
       "discarded": "Document écarté.",
       "extracted": "Éléments extraits. Vérifiez-les ci-dessous.",
       "extractFailed": "Impossible d'extraire les éléments.",
+      "localOcrDisabled": "Activez l'OCR local dans les paramètres pour lire ce document sur l'appareil.",
       "updated": "Document mis à jour.",
       "updateFailed": "Impossible de mettre à jour le document.",
       "discardFailed": "Impossible de supprimer le document.",

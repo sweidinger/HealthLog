@@ -34,6 +34,7 @@ import {
   Info,
   Loader2,
   Pencil,
+  RefreshCw,
   Search,
   Sparkles,
   Upload,
@@ -85,9 +86,11 @@ import {
 import {
   buildDocumentListSearch,
   classifyUploadError,
+  confirmFailureReasonKey,
   formatDateGroupLabel,
   groupDocumentsByDate,
   isAlreadyConfirmedError,
+  isLocalOcrDisabledError,
   isProviderUnsupportedError,
   MAX_UPLOAD_BYTES,
 } from "./library-utils";
@@ -95,6 +98,14 @@ import {
 type ListResponse = {
   documents: InboundDocumentDto[];
   nextCursor: string | null;
+};
+/** Shape the confirm route returns (HTTP 200) — `failed[]` carries per-fact
+ *  commit misses the client must surface, not silently swallow. */
+type ConfirmResponse = {
+  approved: { factId: string; recordType: string; recordId: string }[];
+  rejected: string[];
+  needsReview: string[];
+  failed: { factId: string; reason: string }[];
 };
 type Decision = "approve" | "reject";
 
@@ -184,13 +195,15 @@ export function InboundDocumentsView() {
     },
     onSuccess: (doc) => {
       toast.success(t("documents.toast.uploaded"));
-      // Drop any active filter / search / sort so the just-stored document is
-      // in the list — otherwise selecting it opens a detail panel for a row the
-      // current filter excludes, and the user lands on a dead end. A fresh
-      // upload files under today, so the default documentDate-desc view shows it
-      // at the top.
+      // Drop any active filter / search so the just-stored document is in the
+      // list — otherwise selecting it opens a detail panel for a row the current
+      // filter excludes, and the user lands on a dead end. Sort by date-added
+      // (createdAt) desc, NOT documentDate: a user-set past documentDate would
+      // otherwise file the fresh upload deep in the list, off page 1, where the
+      // detail panel never renders. The newest upload always has the newest
+      // createdAt, so this guarantees it lands first and its panel opens.
       clearFilters();
-      setSort("documentDate");
+      setSort("createdAt");
       setOrder("desc");
       void invalidateKeys(queryClient, [queryKeys.documents()]);
       setSelectedId(doc.id);
@@ -447,6 +460,27 @@ export function InboundDocumentsView() {
               <Skeleton key={i} className="h-12 w-full rounded-md" />
             ))}
           </div>
+        ) : list.isError ? (
+          // A failed list load is its own state with a retry — never the
+          // "no documents yet" empty state, which would falsely imply the
+          // library is empty.
+          <div
+            role="alert"
+            data-slot="documents-list-error"
+            className="text-muted-foreground flex flex-col items-start gap-3 py-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span>{t("documents.list.loadError")}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void list.refetch()}
+              className="gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              <span>{t("common.retry")}</span>
+            </Button>
+          </div>
         ) : documents.length === 0 ? (
           isFiltered ? (
             <div
@@ -610,22 +644,44 @@ export function DocumentDetail({
       // A missing provider — or a document already confirmed elsewhere — is not
       // an error the user acts on here. Surface the calm inline note (rendered
       // below) instead of an alarming toast.
-      if (!isProviderUnsupportedError(err) && !isAlreadyConfirmedError(err)) {
-        toast.error(t("documents.toast.extractFailed"));
+      if (isProviderUnsupportedError(err) || isAlreadyConfirmedError(err)) {
+        return;
       }
+      // Local OCR switched off in settings: name the cause rather than the
+      // generic "couldn't extract".
+      if (isLocalOcrDisabledError(err)) {
+        toast.error(t("documents.toast.localOcrDisabled"));
+        return;
+      }
+      toast.error(t("documents.toast.extractFailed"));
     },
   });
 
   const confirm = useMutation({
-    mutationFn: () =>
-      apiPost(`/api/documents/inbound/${documentId}/confirm`, {
+    mutationFn: (): Promise<ConfirmResponse> =>
+      apiPost<ConfirmResponse>(`/api/documents/inbound/${documentId}/confirm`, {
         decisions: Object.entries(decisions).map(([factId, action]) => ({
           factId,
           action,
         })),
       }),
-    onSuccess: () => {
-      toast.success(t("documents.toast.confirmed"));
+    onSuccess: (data) => {
+      // The route returns HTTP 200 even when it rejects a fact into `failed[]`
+      // (e.g. a stated unit that disagrees with the saved marker). A green
+      // "saved" toast would lie — the fact stays PENDING. Surface the count +
+      // reason so the user knows to reconcile it, and only show the plain
+      // success when nothing failed.
+      const failed = data.failed ?? [];
+      if (failed.length > 0) {
+        toast.warning(
+          t("documents.toast.confirmedPartial", {
+            count: failed.length,
+            reason: t(confirmFailureReasonKey(failed)),
+          }),
+        );
+      } else {
+        toast.success(t("documents.toast.confirmed"));
+      }
       setDecisions({});
       void invalidateKeys(queryClient, [queryKeys.documents()]);
     },

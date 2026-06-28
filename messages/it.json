@@ -4066,7 +4066,6 @@
         "description": "Tutti i promemoria in un unico posto — cosa e quando. I canali di recapito si trovano in Integrazioni.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook ed e-mail ora si configurano in",
         "channelsHintLink": "Integrazioni → Canali",
-        "inboxLink": "Apri la posta in arrivo",
         "subtitle": "Scegli quali promemoria ricevere."
       },
       "layout": {
@@ -7869,7 +7868,8 @@
       "loadingMore": "Caricamento…",
       "pending": "{count} da rivedere",
       "facts": "{count} dati",
-      "clearFilters": "Cancella i filtri"
+      "clearFilters": "Cancella i filtri",
+      "loadError": "Impossibile caricare i tuoi documenti."
     },
     "status": {
       "EXTRACTING": "Lettura",
@@ -7890,7 +7890,12 @@
       "cancel": "Annulla",
       "save": "Salva",
       "needsReviewHint": "Modifica questo dato per poterlo approvare.",
-      "confidenceLabel": "Affidabilità dell'estrazione"
+      "confidenceLabel": "Affidabilità dell'estrazione",
+      "commitError": {
+        "unitMismatch": "l'unità non corrisponde a quella salvata",
+        "unitRequired": "un valore numerico richiede un'unità",
+        "generic": "non è stato possibile salvarlo"
+      }
     },
     "empty": {
       "noFacts": "Niente altro da rivedere."
@@ -7911,11 +7916,13 @@
       "uploaded": "Documento salvato.",
       "uploadFailed": "Impossibile salvare il documento.",
       "confirmed": "Dati approvati salvati.",
+      "confirmedPartial": "Salvato, ma {count} non è stato possibile salvare: {reason}.",
       "confirmFailed": "Impossibile salvare le tue scelte.",
       "saved": "Dato aggiornato.",
       "discarded": "Documento scartato.",
       "extracted": "Dati estratti. Rivedili qui sotto.",
       "extractFailed": "Impossibile estrarre i dati.",
+      "localOcrDisabled": "Attiva l'OCR locale nelle impostazioni per leggere questo documento sul dispositivo.",
       "updated": "Documento aggiornato.",
       "updateFailed": "Impossibile aggiornare il documento.",
       "discardFailed": "Impossibile eliminare il documento.",

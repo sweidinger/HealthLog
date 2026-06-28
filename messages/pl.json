@@ -4066,7 +4066,6 @@
         "description": "Wszystkie przypomnienia w jednym miejscu — co i kiedy. Kanały dostarczania znajdują się w Integracjach.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook i e-mail konfigurujesz teraz w",
         "channelsHintLink": "Integracje → Kanały",
-        "inboxLink": "Otwórz skrzynkę odbiorczą",
         "subtitle": "Wybierz, które przypomnienia otrzymujesz."
       },
       "layout": {
@@ -7869,7 +7868,8 @@
       "loadingMore": "Ładowanie…",
       "pending": "{count} do przeglądu",
       "facts": "{count} faktów",
-      "clearFilters": "Wyczyść filtry"
+      "clearFilters": "Wyczyść filtry",
+      "loadError": "Nie udało się wczytać Twoich dokumentów."
     },
     "status": {
       "EXTRACTING": "Odczyt",
@@ -7890,7 +7890,12 @@
       "cancel": "Anuluj",
       "save": "Zapisz",
       "needsReviewHint": "Edytuj tę pozycję, aby ją zatwierdzić.",
-      "confidenceLabel": "Pewność rozpoznania"
+      "confidenceLabel": "Pewność rozpoznania",
+      "commitError": {
+        "unitMismatch": "jednostka nie zgadza się z zapisaną",
+        "unitRequired": "wartość liczbowa wymaga jednostki",
+        "generic": "nie udało się zapisać"
+      }
     },
     "empty": {
       "noFacts": "Nic więcej do przejrzenia."
@@ -7911,11 +7916,13 @@
       "uploaded": "Dokument zapisany.",
       "uploadFailed": "Nie udało się zapisać dokumentu.",
       "confirmed": "Zatwierdzone dane zapisane.",
+      "confirmedPartial": "Zapisano, ale {count} nie udało się zapisać — {reason}.",
       "confirmFailed": "Nie udało się zapisać Twoich decyzji.",
       "saved": "Dane zaktualizowane.",
       "discarded": "Dokument odrzucony.",
       "extracted": "Fakty wyodrębnione. Przejrzyj je poniżej.",
       "extractFailed": "Nie udało się wyodrębnić faktów.",
+      "localOcrDisabled": "Włącz lokalne OCR w ustawieniach, aby odczytać ten dokument na urządzeniu.",
       "updated": "Dokument zaktualizowany.",
       "updateFailed": "Nie udało się zaktualizować dokumentu.",
       "discardFailed": "Nie udało się odrzucić dokumentu.",

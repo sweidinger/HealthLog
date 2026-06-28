@@ -4066,7 +4066,6 @@
         "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird. Die Zustellkanäle liegen unter Integrationen.",
         "channelsHint": "Telegram, ntfy, Web-Push, Webhook und E-Mail richtest du jetzt unter",
         "channelsHintLink": "Integrationen → Kanäle",
-        "inboxLink": "Posteingang öffnen",
         "subtitle": "Wähle, welche Erinnerungen du erhältst."
       },
       "layout": {
@@ -7361,7 +7360,7 @@
     },
     "inboundDocuments": {
       "label": "Dokumente",
-      "description": "Speichere deine medizinischen Dokumente; optional ihre Fakten extrahieren und prüfen, bevor sie gespeichert werden. Standardmäßig aus."
+      "description": "Speichere deine medizinischen Dokumente; optional ihre Angaben auslesen und prüfen, bevor sie gespeichert werden. Standardmäßig aus."
     },
     "mentalHealth": {
       "label": "Seelisches Wohlbefinden",
@@ -7869,7 +7868,8 @@
       "loadingMore": "Wird geladen…",
       "pending": "{count} zu prüfen",
       "facts": "{count} Angaben",
-      "clearFilters": "Filter zurücksetzen"
+      "clearFilters": "Filter zurücksetzen",
+      "loadError": "Deine Dokumente konnten nicht geladen werden."
     },
     "status": {
       "EXTRACTING": "Wird gelesen",
@@ -7890,7 +7890,12 @@
       "cancel": "Abbrechen",
       "save": "Speichern",
       "needsReviewHint": "Bearbeite diese Angabe, um sie zu übernehmen.",
-      "confidenceLabel": "Erkennungssicherheit"
+      "confidenceLabel": "Erkennungssicherheit",
+      "commitError": {
+        "unitMismatch": "die Einheit stimmt nicht mit der gespeicherten überein",
+        "unitRequired": "ein Zahlenwert braucht eine Einheit",
+        "generic": "es konnte nicht gespeichert werden"
+      }
     },
     "empty": {
       "noFacts": "Nichts mehr zu prüfen."
@@ -7911,11 +7916,13 @@
       "uploaded": "Dokument gespeichert.",
       "uploadFailed": "Dokument konnte nicht gespeichert werden.",
       "confirmed": "Bestätigte Angaben gespeichert.",
+      "confirmedPartial": "Gespeichert, aber {count} konnten nicht gespeichert werden — {reason}.",
       "confirmFailed": "Deine Entscheidungen konnten nicht gespeichert werden.",
       "saved": "Angabe aktualisiert.",
       "discarded": "Dokument verworfen.",
       "extracted": "Angaben ausgelesen. Prüfe sie unten.",
       "extractFailed": "Angaben konnten nicht ausgelesen werden.",
+      "localOcrDisabled": "Aktiviere lokale OCR in den Einstellungen, um dieses Dokument auf dem Gerät zu lesen.",
       "updated": "Dokument aktualisiert.",
       "updateFailed": "Dokument konnte nicht aktualisiert werden.",
       "discardFailed": "Dokument konnte nicht verworfen werden.",
@@ -7949,7 +7956,7 @@
       "notExtracted": "Noch keine Angaben ausgelesen. Nutze „Angaben auslesen“, um dieses Dokument zu lesen.",
       "viewOriginalNewTab": "(öffnet in einem neuen Tab)",
       "discardConfirmTitle": "Dieses Dokument verwerfen?",
-      "discardConfirmBody": "Das löscht das Dokument, die Originaldatei und alle vorbereiteten Fakten dauerhaft. Das lässt sich nicht rückgängig machen.",
+      "discardConfirmBody": "Das löscht das Dokument, die Originaldatei und alle vorbereiteten Angaben dauerhaft. Das lässt sich nicht rückgängig machen.",
       "discardConfirmAction": "Verwerfen",
       "discardCancel": "Abbrechen"
     },
@@ -7964,7 +7971,7 @@
       "cancel": "Abbrechen"
     },
     "note": {
-      "providerUnsupported": "Richte in den KI-Einstellungen einen Anbieter für Dokumentenscans ein, um Fakten automatisch zu extrahieren.",
+      "providerUnsupported": "Richte in den KI-Einstellungen einen Anbieter für Dokumentenscans ein, um Angaben automatisch auszulesen.",
       "alreadyConfirmed": "Dieses Dokument wurde bereits geprüft und kann nicht erneut ausgelesen werden."
     },
     "committed": {

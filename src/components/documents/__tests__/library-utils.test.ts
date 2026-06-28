@@ -2,15 +2,34 @@ import { describe, it, expect } from "vitest";
 
 import { ApiError } from "@/lib/api/api-fetch";
 import type { InboundDocumentDto } from "@/lib/validations/inbound-documents";
+import enMessages from "../../../../messages/en.json";
 import {
   buildDocumentListSearch,
   classifyUploadError,
+  commitFailureReasonKey,
+  confirmFailureReasonKey,
   documentDateKey,
   formatDateGroupLabel,
   groupDocumentsByDate,
   isAlreadyConfirmedError,
+  isLocalOcrDisabledError,
   isProviderUnsupportedError,
 } from "../library-utils";
+
+/** Resolve a dotted i18n key against a bundle (the dynamic reason keys aren't
+ *  literal `t()` call sites, so the call-site coverage guard can't see them —
+ *  assert here that each one actually resolves to a string). */
+function resolveKey(bundle: unknown, key: string): unknown {
+  return key
+    .split(".")
+    .reduce<unknown>(
+      (acc, part) =>
+        acc && typeof acc === "object"
+          ? (acc as Record<string, unknown>)[part]
+          : undefined,
+      bundle,
+    );
+}
 
 function doc(
   id: string,
@@ -179,6 +198,67 @@ describe("classifyUploadError", () => {
     expect(classifyUploadError(new ApiError("boom", 500))).toBe("generic");
     expect(classifyUploadError(new Error("network"))).toBe("generic");
     expect(classifyUploadError(null)).toBe("generic");
+  });
+});
+
+describe("isLocalOcrDisabledError", () => {
+  it("matches the extract 422 local-OCR-disabled signal", () => {
+    const err = new ApiError("local ocr off", 422, {
+      errorCode: "documents.inbound.localOcrDisabled",
+    });
+    expect(isLocalOcrDisabledError(err)).toBe(true);
+  });
+
+  it("rejects other API errors and non-errors", () => {
+    expect(
+      isLocalOcrDisabledError(
+        new ApiError("no provider", 422, {
+          errorCode: "documents.inbound.providerUnsupported",
+        }),
+      ),
+    ).toBe(false);
+    expect(isLocalOcrDisabledError(new Error("boom"))).toBe(false);
+    expect(isLocalOcrDisabledError(null)).toBe(false);
+  });
+});
+
+describe("commitFailureReasonKey", () => {
+  it("maps each commit-failure code to a reason key that resolves", () => {
+    const cases: Record<string, string> = {
+      "observation.unitMismatch": "documents.review.commitError.unitMismatch",
+      "observation.unitRequired": "documents.review.commitError.unitRequired",
+      "something.unknown": "documents.review.commitError.generic",
+    };
+    for (const [code, key] of Object.entries(cases)) {
+      expect(commitFailureReasonKey(code)).toBe(key);
+      // Every reason the toast can surface resolves to a real string.
+      expect(typeof resolveKey(enMessages, key)).toBe("string");
+    }
+  });
+});
+
+describe("confirmFailureReasonKey", () => {
+  it("surfaces the shared reason when every failed fact agrees", () => {
+    const key = confirmFailureReasonKey([
+      { reason: "observation.unitMismatch" },
+      { reason: "observation.unitMismatch" },
+    ]);
+    expect(key).toBe("documents.review.commitError.unitMismatch");
+    expect(typeof resolveKey(enMessages, key)).toBe("string");
+  });
+
+  it("falls back to the generic reason when failures disagree", () => {
+    const key = confirmFailureReasonKey([
+      { reason: "observation.unitMismatch" },
+      { reason: "observation.unitRequired" },
+    ]);
+    expect(key).toBe("documents.review.commitError.generic");
+  });
+
+  it("uses the single failure's reason for a one-item batch", () => {
+    expect(
+      confirmFailureReasonKey([{ reason: "observation.unitRequired" }]),
+    ).toBe("documents.review.commitError.unitRequired");
   });
 });
 
