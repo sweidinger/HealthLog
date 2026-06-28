@@ -2697,7 +2697,8 @@
         "caption": "Deficit cumulato nelle ultime {nights} notti",
         "clearValue": "In pari",
         "clearCaption": "Nessun deficit accumulato nelle ultime {nights} notti",
-        "learning": "Stiamo ancora misurando il tuo sonno — {counted} notti finora, ne mancano {remaining} per un bilancio affidabile."
+        "learning": "Stiamo ancora misurando il tuo sonno — {counted} notti finora, ne mancano {remaining} per un bilancio affidabile.",
+        "computedInfo": "Questa è la stima propria di HealthLog: un bilancio mobile tra fabbisogno e sonno delle ultime notti, che il sonno di recupero riduce. Può differire dal dato di debito di sonno nativo di un dispositivo indossabile, che usa un proprio modello di fabbisogno."
       },
       "average": {
         "title": "Media per notte",
@@ -4049,7 +4050,8 @@
           "skinTemperature": "Temperatura cutanea",
           "respiratoryRate": "Frequenza respiratoria",
           "recovery": "Recupero",
-          "stress": "Stress"
+          "stress": "Stress",
+          "sleepDebt": "Debito di sonno"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
@@ -6118,7 +6120,10 @@
       "statusOff": "Disattivato",
       "enabledToast": "Avvisi proattivi del Coach attivati.",
       "disabledToast": "Avvisi proattivi del Coach disattivati.",
-      "saveError": "Impossibile salvare. Riprova più tardi."
+      "saveError": "Impossibile salvare. Riprova più tardi.",
+      "suggestionsLabel": "Suggerimenti di esempio",
+      "suggestionsDesc": "Mostra di tanto in tanto una domanda di esempio pronta all'uso nella schermata del Coach.",
+      "suggestionsAria": "Attiva o disattiva i suggerimenti di esempio del Coach"
     },
     "lowStock": {
       "title": "Avviso scorte basse",

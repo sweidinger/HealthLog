@@ -2697,7 +2697,8 @@
         "caption": "Déficit cumulé sur les {nights} dernières nuits",
         "clearValue": "À jour",
         "clearCaption": "Aucun déficit cumulé sur les {nights} dernières nuits",
-        "learning": "Votre sommeil est encore en cours d'analyse — {counted} nuits jusqu'ici, encore {remaining} pour un bilan fiable."
+        "learning": "Votre sommeil est encore en cours d'analyse — {counted} nuits jusqu'ici, encore {remaining} pour un bilan fiable.",
+        "computedInfo": "Il s'agit de l'estimation propre à HealthLog : un solde glissant entre le besoin et le sommeil des dernières nuits, que le sommeil de récupération réduit. Elle peut différer de la dette de sommeil native d'un wearable, qui utilise son propre modèle de besoin."
       },
       "average": {
         "title": "Moyenne par nuit",
@@ -4049,7 +4050,8 @@
           "skinTemperature": "Température cutanée",
           "respiratoryRate": "Fréquence respiratoire",
           "recovery": "Récupération",
-          "stress": "Stress"
+          "stress": "Stress",
+          "sleepDebt": "Dette de sommeil"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
@@ -6118,7 +6120,10 @@
       "statusOff": "Désactivé",
       "enabledToast": "Rappels proactifs du Coach activés.",
       "disabledToast": "Rappels proactifs du Coach désactivés.",
-      "saveError": "Impossible d'enregistrer. Veuillez réessayer plus tard."
+      "saveError": "Impossible d'enregistrer. Veuillez réessayer plus tard.",
+      "suggestionsLabel": "Suggestions d'exemples",
+      "suggestionsDesc": "Affiche de temps en temps une question d'exemple prête à l'emploi sur l'écran du Coach.",
+      "suggestionsAria": "Activer ou désactiver les suggestions d'exemples du Coach"
     },
     "lowStock": {
       "title": "Alerte de stock faible",

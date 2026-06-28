@@ -91,28 +91,31 @@ export function ScopeHintBadge({
       </span>
 
       {/* The tappable seed question — the data-aware opener. A real button so
-          keyboard + screen-reader users get the same affordance. The opener
-          fills the column (= the composer's max-width) so it reads as one line
-          with the field below; the seeded variant adds a dismiss control at the
-          trailing edge, mirroring the composer's send affordance. */}
-      <div className="flex w-full items-center gap-1.5">
+          keyboard + screen-reader users get the same affordance. v1.25.0 — the
+          opener sizes to its TEXT (intrinsic width, centred) instead of being
+          stretched to the full composer width, which left a large empty tail
+          that read as broken. It is guaranteed single-line: the question
+          truncates with an ellipsis on a narrow phone rather than wrapping or
+          forcing a horizontal scroll. The seeded variant keeps the dismiss
+          control at the trailing edge. */}
+      <div className="flex w-full items-center justify-center gap-1.5">
         <button
           type="button"
           data-slot="coach-scope-hint-seed"
           onClick={() => onSeed(question)}
           className={cn(
             "group border-border/70 bg-background hover:bg-muted/50 text-foreground",
-            "flex min-w-0 flex-1 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-left",
+            "inline-flex max-w-full min-w-0 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-left",
             "transition-colors",
             "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
           )}
         >
-          <span className="min-w-0 flex-1 text-sm leading-snug">
+          <span className="min-w-0 truncate text-sm leading-snug">
             {question}
           </span>
           <span
             aria-hidden="true"
-            className="text-muted-foreground group-hover:text-foreground text-xs whitespace-nowrap"
+            className="text-muted-foreground group-hover:text-foreground shrink-0 text-xs whitespace-nowrap"
           >
             {t("insights.coach.scope.tap")}
           </span>

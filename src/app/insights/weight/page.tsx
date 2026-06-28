@@ -18,7 +18,6 @@ import { MetricCorrelationCard } from "@/components/insights/metric-correlation-
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
-import { TrajectoryForecastCard } from "@/components/insights/derived/trajectory-forecast-card";
 import { buildWeightBandsFromHeight } from "@/lib/analytics/value-bands";
 
 /**
@@ -114,14 +113,6 @@ export default function InsightsGewichtPage() {
       />
 
       <MetricTargetSummary slug="weight" />
-
-      <TrajectoryForecastCard
-        type="WEIGHT"
-        unit="kg"
-        color="#bd93f9"
-        enabled={!isEmpty}
-        compact
-      />
 
       {/* v1.12.0 — Weight owns the weight × weekday correlation (relocated
           off the overview onto its metric page). */}

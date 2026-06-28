@@ -89,6 +89,8 @@ const METRIC_LABEL_KEYS: Record<SourcePriorityMetricKey, string> = {
   recovery: "settings.sections.sources.metrics.recovery",
   // v1.18.10 I-5 — native-vs-derived stress ladder.
   stress: "settings.sections.sources.metrics.stress",
+  // v1.25.0 — native-vs-computed sleep-debt ladder.
+  sleepDebt: "settings.sections.sources.metrics.sleepDebt",
 };
 
 const SOURCE_LABEL_KEYS: Record<string, string> = {

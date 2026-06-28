@@ -2697,7 +2697,8 @@
         "caption": "Cumulative shortfall over the last {nights} nights",
         "clearValue": "All caught up",
         "clearCaption": "No accumulated shortfall over the last {nights} nights",
-        "learning": "Still learning your sleep — {counted} nights so far, {remaining} more to read a reliable balance."
+        "learning": "Still learning your sleep — {counted} nights so far, {remaining} more to read a reliable balance.",
+        "computedInfo": "This is HealthLog's own estimate: a rolling balance of need minus sleep over recent nights, with catch-up sleep paying it down. It can differ from a wearable's native sleep-debt figure, which uses its own need model."
       },
       "average": {
         "title": "Average per night",
@@ -4049,7 +4050,8 @@
           "skinTemperature": "Skin temperature",
           "respiratoryRate": "Respiratory rate",
           "recovery": "Recovery",
-          "stress": "Stress"
+          "stress": "Stress",
+          "sleepDebt": "Sleep debt"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
@@ -6118,7 +6120,10 @@
       "frequencyAria": "Select nudge frequency",
       "enabledToast": "Proactive Coach nudges enabled.",
       "disabledToast": "Proactive Coach nudges disabled.",
-      "saveError": "Could not save. Please try again later."
+      "saveError": "Could not save. Please try again later.",
+      "suggestionsLabel": "Example suggestions",
+      "suggestionsDesc": "Show the occasional ready-made example question on the Coach screen.",
+      "suggestionsAria": "Toggle example Coach suggestions"
     },
     "lowStock": {
       "title": "Low-stock alert",

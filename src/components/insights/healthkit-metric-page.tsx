@@ -19,8 +19,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { MetricStatusCard } from "@/components/insights/metric-status-card";
-import { TrajectoryForecastCard } from "@/components/insights/derived/trajectory-forecast-card";
-import { isTrajectoryType } from "@/lib/insights/derived/registry";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { CoachReadStrip } from "@/components/insights/derived/coach-read-strip";
@@ -151,17 +149,6 @@ export interface HealthKitMetricPageProps {
    */
   statusMetric?: MetricStatusMetricId;
   /**
-   * v1.11.0 (Epic B, Pillar 3) — when `true`, mounts the short-horizon
-   * `<TrajectoryForecastCard>` beneath the chart for this metric (the page's
-   * `measurementType`). Opt-in: a page sets it only for a slow daily
-   * physiological series where a conservative 7–14-day OLS projection reads
-   * honestly. The card is only rendered on the data-bearing branch and only
-   * when the type is a supported trajectory metric; the engine still gates
-   * on R² / history / staleness, so a flat or noisy series shows the calm
-   * "no trend to project yet" state rather than a line.
-   */
-  forecast?: boolean;
-  /**
    * v1.16.16 — decimal precision for the stat-strip values. Defaults to the
    * strip's own default (1). Blood glucose passes 0 for mg/dL (integer
    * readings) and 1 for mmol/L so the numbers and the unit agree.
@@ -203,7 +190,6 @@ export function HealthKitMetricPage({
   targetSummarySlug,
   statusMetric,
   statIcon,
-  forecast = false,
   statFractionDigits,
   statMedianLabel,
   afterChart,
@@ -397,16 +383,6 @@ export function HealthKitMetricPage({
       {/* v1.17.0 — page-specific extra block (blood glucose: the clinical
           panel). Mounted on the data-bearing branch only. */}
       {afterChart}
-      {forecast && isTrajectoryType(measurementType) ? (
-        <TrajectoryForecastCard
-          type={measurementType}
-          unit={yAxisUnit ?? unit}
-          valueScale={valueScale}
-          color={color}
-          enabled={!isEmpty}
-          compact
-        />
-      ) : null}
       {/* v1.12.0 — Einschätzung is the last block on the canonical
           metric-detail spine. */}
       {statusMetric ? (

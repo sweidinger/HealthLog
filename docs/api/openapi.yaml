@@ -4096,6 +4096,24 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                sleepDebt:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                      - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
+                      - TELEGRAM
+                      - MCP
                 metricPriority:
                   type: object
                   properties:
@@ -4406,6 +4424,24 @@ paths:
                           - TELEGRAM
                           - MCP
                     stress:
+                      maxItems: 8
+                      type: array
+                      items:
+                        type: string
+                        enum:
+                          - MANUAL
+                          - WITHINGS
+                          - IMPORT
+                          - APPLE_HEALTH
+                          - COMPUTED
+                          - WHOOP
+                          - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
+                          - TELEGRAM
+                          - MCP
+                    sleepDebt:
                       maxItems: 8
                       type: array
                       items:
@@ -9412,6 +9448,8 @@ components:
               enum:
                 - weekly
                 - biweekly
+            ambientSuggestions:
+              type: boolean
         measurementReminder:
           type: object
           properties:
@@ -13773,6 +13811,24 @@ components:
               minimum: 0
               maximum: 9007199254740991
               description: Nights still needed before the debt is asserted (0 when ready).
+            source:
+              type: string
+              enum:
+                - MANUAL
+                - WITHINGS
+                - IMPORT
+                - APPLE_HEALTH
+                - COMPUTED
+                - WHOOP
+                - FITBIT
+                - NIGHTSCOUT
+                - POLAR
+                - OURA
+                - TELEGRAM
+                - MCP
+              description: v1.25.0 — the active source the debt is resolved FROM, picked off the user's `sleepDebt` source ladder.
+                `COMPUTED` is HealthLog's own rolling-balance estimate (the only producer today); a provider value would
+                be a device-native debt. Clients explain the figure when it is `COMPUTED`.
           required:
             - state
             - debtMinutes
@@ -13780,6 +13836,7 @@ components:
             - nightsCounted
             - windowNights
             - nightsUntilReady
+            - source
           additionalProperties: false
         chronotype:
           type: object
@@ -16655,6 +16712,24 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+            sleepDebt:
+              maxItems: 8
+              type: array
+              items:
+                type: string
+                enum:
+                  - MANUAL
+                  - WITHINGS
+                  - IMPORT
+                  - APPLE_HEALTH
+                  - COMPUTED
+                  - WHOOP
+                  - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
+                  - TELEGRAM
+                  - MCP
             metricPriority:
               type: object
               properties:
@@ -16965,6 +17040,24 @@ components:
                       - TELEGRAM
                       - MCP
                 stress:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                      - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
+                      - TELEGRAM
+                      - MCP
+                sleepDebt:
                   maxItems: 8
                   type: array
                   items:
@@ -17355,6 +17448,24 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+            sleepDebt:
+              maxItems: 8
+              type: array
+              items:
+                type: string
+                enum:
+                  - MANUAL
+                  - WITHINGS
+                  - IMPORT
+                  - APPLE_HEALTH
+                  - COMPUTED
+                  - WHOOP
+                  - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
+                  - TELEGRAM
+                  - MCP
             metricPriority:
               type: object
               properties:
@@ -17665,6 +17776,24 @@ components:
                       - TELEGRAM
                       - MCP
                 stress:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                      - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
+                      - TELEGRAM
+                      - MCP
+                sleepDebt:
                   maxItems: 8
                   type: array
                   items:
