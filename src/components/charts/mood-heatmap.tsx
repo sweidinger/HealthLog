@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { moodLabelKeyForScore } from "@/lib/mood/labels";
 
 /**
@@ -55,17 +55,17 @@ function getColor(score: number | null): string {
   return "var(--dracula-green)";
 }
 
-function formatDateDE(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00Z");
-  return `${d.getUTCDate()}.${d.getUTCMonth() + 1}.${d.getUTCFullYear()}`;
-}
-
 export function MoodHeatmap({
   cells: cellData,
   days = 90,
   stretch = false,
 }: MoodHeatmapProps) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
+  // Day keys are UTC-anchored "YYYY-MM-DD"; format at noon UTC so the
+  // locale-aware renderer never lands a day off in either direction.
+  const formatDay = (dateKey: string) =>
+    fmt.date(new Date(`${dateKey}T12:00:00Z`));
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [tooltip, setTooltip] = useState<{
@@ -185,6 +185,16 @@ export function MoodHeatmap({
     return { cells: cellList, weeks: col + 1, monthMarkers: markers };
   }, [cellData, days, t]);
 
+  const loggedDays = cells.filter((cell) => cell.cell !== null).length;
+  const summaryLabel =
+    cells.length === 0 || loggedDays === 0
+      ? t("charts.a11y.moodHeatmapEmpty")
+      : t("charts.a11y.moodHeatmap", {
+          start: formatDay(cells[0].dateKey),
+          end: formatDay(cells[cells.length - 1].dateKey),
+          days: loggedDays,
+        });
+
   const labelWidth = stretch ? 0 : 76;
   const headerHeight = 18;
   const cellSize =
@@ -214,6 +224,8 @@ export function MoodHeatmap({
         <svg
           width={svgWidth}
           height={svgHeight}
+          role="img"
+          aria-label={summaryLabel}
           // v1.15.3 — `max-w-full` (not `w-full`) so a short window keeps its
           // natural, square, left-aligned grid rather than CSS-stretching a few
           // capped columns into wide rectangles. Mirrors `compliance-heatmap`.
@@ -254,13 +266,13 @@ export function MoodHeatmap({
           {cells.map((cell) => {
             const buildText = (): string => {
               if (!cell.cell) {
-                return `${formatDateDE(cell.dateKey)}: ${t("insights.mood.heatmapNoEntry")}`;
+                return `${formatDay(cell.dateKey)}: ${t("insights.mood.heatmapNoEntry")}`;
               }
               const labelKey = moodLabelKeyForScore(
                 Math.round(cell.cell.score),
               );
               const moodLabel = labelKey ? t(labelKey) : "";
-              return `${formatDateDE(cell.dateKey)}: ${cell.cell.score.toFixed(1)}${moodLabel ? ` · ${moodLabel}` : ""}`;
+              return `${formatDay(cell.dateKey)}: ${cell.cell.score.toFixed(1)}${moodLabel ? ` · ${moodLabel}` : ""}`;
             };
             return (
               <rect
@@ -306,7 +318,15 @@ export function MoodHeatmap({
       {tooltip && (
         <div
           className="bg-popover text-popover-foreground border-border pointer-events-none fixed z-50 rounded-md border px-2 py-1 text-xs shadow-md"
-          style={{ left: tooltip.x + 10, top: tooltip.y - 30 }}
+          // Clamp the left edge so a tap near the right border doesn't push
+          // the pinned label off-screen on a narrow viewport.
+          style={{
+            left:
+              typeof window !== "undefined"
+                ? Math.min(tooltip.x + 10, window.innerWidth - 180 - 8)
+                : tooltip.x + 10,
+            top: tooltip.y - 30,
+          }}
         >
           {tooltip.text}
         </div>

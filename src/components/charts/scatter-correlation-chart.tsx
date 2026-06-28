@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useTranslations } from "@/lib/i18n/context";
 
 /**
  * Self-contained correlation scatter chart used by /insights.
@@ -82,6 +83,22 @@ export function ScatterCorrelationChart<T extends Record<string, number>>({
   tooltipFormatter,
   height = 250,
 }: ScatterCorrelationChartProps<T>) {
+  const { t } = useTranslations();
+  // Accessibility — a concise spoken summary so a screen reader announces
+  // what the scatter relates and how many points it plots rather than an
+  // unlabelled graphic.
+  const count = data?.length ?? 0;
+  const summary =
+    count === 0
+      ? t("charts.a11y.scatterNoData", {
+          xLabel: xAxis.name,
+          yLabel: yAxis.name,
+        })
+      : t("charts.a11y.scatterSummary", {
+          count,
+          xLabel: xAxis.name,
+          yLabel: yAxis.name,
+        });
   // v1.4.27 MB7 / CF-37 — drop the fixed pixel height in favour of a
   // responsive aspect-ratio on mobile so the chart never compresses
   // below readable axes. The `aspect-square` ratio at `<sm` keeps the
@@ -100,6 +117,8 @@ export function ScatterCorrelationChart<T extends Record<string, number>>({
       className="aspect-square min-h-[180px] touch-pan-y sm:aspect-[3/2] sm:h-auto"
       style={{ height: undefined }}
       data-explicit-height={height}
+      role="img"
+      aria-label={summary}
     >
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 10, right: 20, bottom: 36, left: 12 }}>

@@ -180,7 +180,7 @@ export function ResponsiveSheet({
           {footer ? (
             <SheetFooter
               data-slot="responsive-sheet-footer"
-              className="border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 mt-0 flex-row justify-end gap-2 border-t p-4 backdrop-blur"
+              className="border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 mt-0 flex-row justify-end gap-2 border-t p-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] backdrop-blur"
             >
               {footer}
             </SheetFooter>

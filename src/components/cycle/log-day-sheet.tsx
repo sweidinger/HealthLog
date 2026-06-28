@@ -423,7 +423,7 @@ function Chip({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "focus-visible:ring-ring/50 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none",
+        "focus-visible:ring-ring/50 inline-flex min-h-11 items-center rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none sm:min-h-8",
         active
           ? "border-primary bg-primary/10 text-primary"
           : "border-border text-foreground hover:bg-accent",
@@ -1225,7 +1225,7 @@ function SymptomChip({
             onClick={handleRemove}
             disabled={deleteCustom.isPending}
             aria-label={t("cycle.symptom.custom.remove", { label })}
-            className="border-border bg-background text-muted-foreground hover:text-destructive hover:border-destructive focus-visible:ring-ring/50 -ml-1.5 grid size-4 shrink-0 place-items-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border bg-background text-muted-foreground hover:text-destructive hover:border-destructive focus-visible:ring-ring/50 relative -ml-1.5 grid size-4 shrink-0 place-items-center rounded-full border transition-colors before:absolute before:-inset-2 before:content-[''] focus-visible:ring-2 focus-visible:outline-none"
           >
             <X className="size-2.5" aria-hidden="true" />
           </button>
@@ -1245,7 +1245,7 @@ function SymptomChip({
               aria-label={t("cycle.sheet.severityLevel", { level: lvl })}
               onClick={() => onSeverity(symptomKey, lvl)}
               className={cn(
-                "focus-visible:ring-ring/50 size-6 rounded-full border text-xs tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none",
+                "focus-visible:ring-ring/50 grid size-11 place-items-center rounded-full border text-xs tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none sm:size-8",
                 severity === lvl
                   ? "border-primary bg-primary/15 text-primary font-semibold"
                   : "border-border text-muted-foreground hover:bg-accent",

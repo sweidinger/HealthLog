@@ -307,6 +307,52 @@ function TargetEditSheetBody({
 
   const canSave = !isDerivedMetric && primaryValid && secondaryValid && !busy;
 
+  // Per-field validity so the inputs can carry `aria-invalid` and the
+  // disabled Save button gets a spoken explanation instead of greying out
+  // silently. The order check (min < max) flags both ends of the pair.
+  const primaryOrderInvalid =
+    Number.isFinite(minNum) && Number.isFinite(maxNum) && minNum >= maxNum;
+  const primaryMinInvalid =
+    primaryBounds != null &&
+    (!Number.isFinite(minNum) ||
+      minNum < primaryBounds.min ||
+      minNum > primaryBounds.max ||
+      primaryOrderInvalid);
+  const primaryMaxInvalid =
+    primaryBounds != null &&
+    (!Number.isFinite(maxNum) ||
+      maxNum < primaryBounds.min ||
+      maxNum > primaryBounds.max ||
+      primaryOrderInvalid);
+
+  const secondaryOrderInvalid =
+    isBp &&
+    Number.isFinite(diaMinNum) &&
+    Number.isFinite(diaMaxNum) &&
+    diaMinNum >= diaMaxNum;
+  const secondaryMinInvalid =
+    isBp &&
+    secondaryBounds != null &&
+    (!Number.isFinite(diaMinNum) ||
+      diaMinNum < secondaryBounds.min ||
+      diaMinNum > secondaryBounds.max ||
+      secondaryOrderInvalid);
+  const secondaryMaxInvalid =
+    isBp &&
+    secondaryBounds != null &&
+    (!Number.isFinite(diaMaxNum) ||
+      diaMaxNum < secondaryBounds.min ||
+      diaMaxNum > secondaryBounds.max ||
+      secondaryOrderInvalid);
+
+  let validationMessage: string | null = null;
+  if (!isDerivedMetric && primaryBounds && (!primaryValid || !secondaryValid)) {
+    validationMessage =
+      primaryOrderInvalid || secondaryOrderInvalid
+        ? t("targets.edit.validationOrder")
+        : t("targets.edit.validationBounds");
+  }
+
   const handleSave = () => {
     if (!canSave) return;
     if (isBp) {
@@ -426,6 +472,7 @@ function TargetEditSheetBody({
                   value={displayMin}
                   onChange={(e) => setMinStr(e.target.value)}
                   disabled={busy}
+                  aria-invalid={primaryMinInvalid}
                   data-slot="target-edit-min-input"
                 />
               </div>
@@ -444,6 +491,7 @@ function TargetEditSheetBody({
                   value={displayMax}
                   onChange={(e) => setMaxStr(e.target.value)}
                   disabled={busy}
+                  aria-invalid={primaryMaxInvalid}
                   data-slot="target-edit-max-input"
                 />
               </div>
@@ -467,6 +515,7 @@ function TargetEditSheetBody({
                     value={displayDiaMin}
                     onChange={(e) => setDiaMinStr(e.target.value)}
                     disabled={busy}
+                    aria-invalid={secondaryMinInvalid}
                     data-slot="target-edit-dia-min-input"
                   />
                 </div>
@@ -483,6 +532,7 @@ function TargetEditSheetBody({
                     value={displayDiaMax}
                     onChange={(e) => setDiaMaxStr(e.target.value)}
                     disabled={busy}
+                    aria-invalid={secondaryMaxInvalid}
                     data-slot="target-edit-dia-max-input"
                   />
                 </div>
@@ -496,6 +546,16 @@ function TargetEditSheetBody({
                 unit: primaryBounds.unit,
               })}
             </p>
+
+            {validationMessage && (
+              <p
+                role="alert"
+                data-slot="target-edit-validation"
+                className="text-destructive text-xs"
+              >
+                {validationMessage}
+              </p>
+            )}
           </div>
         )}
       </form>

@@ -165,7 +165,7 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
 
   if (isError) {
     return (
-      <p className="text-destructive py-8 text-center text-sm">
+      <p role="alert" className="text-destructive py-8 text-center text-sm">
         {t("labs.loadError")}
       </p>
     );

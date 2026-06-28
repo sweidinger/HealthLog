@@ -43,6 +43,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  RefreshCw,
   Smile,
   Trash2,
   ChevronLeft,
@@ -219,7 +220,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   const toParam = toDay || undefined;
   const sourceParam = sourceFilter === "ALL" ? undefined : sourceFilter;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.moodEntriesList({
       mood: moodFilter === "ALL" ? undefined : moodFilter,
       source: sourceParam,
@@ -491,6 +492,24 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+          </div>
+        ) : isError ? (
+          <div
+            role="alert"
+            data-slot="mood-list-error"
+            className="text-muted-foreground flex flex-col items-start gap-3 py-8 text-sm sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span>{t("mood.loadError")}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void refetch()}
+              className="gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t("common.retry")}</span>
+            </Button>
           </div>
         ) : !data?.entries?.length ? (
           // v1.4.15 phase-C5: replace bare-text empty rectangle with

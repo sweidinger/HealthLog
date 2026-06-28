@@ -35,7 +35,8 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "learnMore": "Learn more",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "moreInfo": "More information"
   },
   "doctorReport": {
     "title": "Health Report",
@@ -750,7 +751,8 @@
     "sectionFactors": "Factors",
     "sectionNoteDetails": "Note & details",
     "quickTagsHelp": "Your frequent tags — one tap",
-    "quickTagsExpand": "More"
+    "quickTagsExpand": "More",
+    "loadError": "Could not load your mood entries."
   },
   "medications": {
     "title": "Medications",
@@ -1852,7 +1854,20 @@
       "sat": "Saturday",
       "sun": "Sunday"
     },
-    "rangeBand": "Range"
+    "rangeBand": "Range",
+    "a11y": {
+      "summary": "{metric} chart. Range {min} to {max}, latest {latest}, trend {trend}.",
+      "noData": "{metric} chart. No data available.",
+      "trendUp": "rising",
+      "trendDown": "falling",
+      "trendFlat": "steady",
+      "scatterSummary": "Correlation chart, {count} points plotting {xLabel} against {yLabel}.",
+      "scatterNoData": "Correlation chart of {xLabel} against {yLabel}. No data available.",
+      "moodHeatmap": "Mood heatmap from {start} to {end}, {days} days logged.",
+      "moodHeatmapEmpty": "Mood heatmap, no days logged yet.",
+      "complianceHeatmap": "Medication compliance heatmap from {start} to {end}, {days} active days.",
+      "complianceHeatmapEmpty": "Medication compliance heatmap, no active days yet."
+    }
   },
   "chart": {
     "overlay": {
@@ -6173,7 +6188,9 @@
       "resetToDefault": "Reset to default",
       "saveSuccess": "Target range updated",
       "saveError": "Could not save the target range",
-      "resetSuccess": "Target range reset to default"
+      "resetSuccess": "Target range reset to default",
+      "validationOrder": "The minimum must be lower than the maximum.",
+      "validationBounds": "Enter values within the allowed range shown below."
     },
     "currentValue": "Current: {value} {unit}",
     "targetRangeValue": "Target: {min}–{max} {unit}",
@@ -6831,7 +6848,8 @@
       "empty": "No upcoming checkup reminders.",
       "openLink": "Open checkups"
     },
-    "showMeasurements": "Show measurements"
+    "showMeasurements": "Show measurements",
+    "loadError": "Could not load your reminders."
   },
   "moduleList": {
     "viewToggleLabel": "View",
@@ -7312,7 +7330,8 @@
       "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
       "PULSE": "Pulse",
       "WEIGHT": "Weight"
-    }
+    },
+    "listLoadError": "Could not load your episodes."
   },
   "coach": {
     "reminderSuggestion": {
@@ -7371,6 +7390,13 @@
       "glucoseHighTitle": "Very high blood sugar",
       "glucoseHighDoctor": "Two recent readings were {value} mg/dL or higher. Re-check, hydrate, and contact your doctor as soon as possible if it stays this high.",
       "glucoseHighEmergency": "Two recent readings were {value} mg/dL or higher and you noted symptoms. If you have vomiting, fast breathing, or confusion, call emergency services now."
+    }
+  },
+  "version": {
+    "updateAvailable": {
+      "title": "A new version is available",
+      "reload": "Reload",
+      "dismiss": "Dismiss"
     }
   }
 }

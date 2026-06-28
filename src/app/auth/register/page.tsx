@@ -194,7 +194,13 @@ export default function RegisterPage() {
 
           <p className="text-muted-foreground text-center text-xs">
             {t("auth.hasAccount")}{" "}
-            <Link href="/auth/login" className="text-primary hover:underline">
+            <Link
+              href="/auth/login"
+              // axe-core `link-in-text-block` requires a visible distinction
+              // beyond colour alone (WCAG 1.4.1). The underline stays on
+              // always, matching the login page's register link.
+              className="text-primary underline"
+            >
               {t("auth.login")}
             </Link>
           </p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 
 interface DailyData {
   expected: number;
@@ -72,22 +72,17 @@ function getColor(data: DailyData): string {
   return "var(--dracula-red)";
 }
 
-function formatDateDE(dateStr: string): string {
-  // v1.4.27 B7 / BL-P4-2 — parse the day-key against UTC so the
-  // formatted tooltip label matches the dateKey computation below
-  // (which uses `toISOString().slice(0, 10)`). Without the UTC
-  // anchor an SSR server in a non-Berlin timezone could format the
-  // tick a day off the dateKey it sits under.
-  const d = new Date(dateStr + "T00:00:00Z");
-  return `${d.getUTCDate()}.${d.getUTCMonth() + 1}.${d.getUTCFullYear()}`;
-}
-
 export function ComplianceHeatmap({
   dailyCompliance,
   days = 90,
   stretch = false,
 }: ComplianceHeatmapProps) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
+  // Day keys are UTC-anchored "YYYY-MM-DD"; format at noon UTC so the
+  // locale-aware renderer never lands a day off in either direction.
+  const formatDay = (dateKey: string) =>
+    fmt.date(new Date(`${dateKey}T12:00:00Z`));
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [tooltip, setTooltip] = useState<{
@@ -230,6 +225,16 @@ export function ComplianceHeatmap({
     return { cells: cellList, weeks: col + 1, monthMarkers: markers };
   }, [dailyCompliance, days, t]);
 
+  const activeDays = cells.filter((cell) => cell.data.expected > 0).length;
+  const summaryLabel =
+    cells.length === 0 || activeDays === 0
+      ? t("charts.a11y.complianceHeatmapEmpty")
+      : t("charts.a11y.complianceHeatmap", {
+          start: formatDay(cells[0].dateKey),
+          end: formatDay(cells[cells.length - 1].dateKey),
+          days: activeDays,
+        });
+
   const labelWidth = stretch ? 0 : 76;
   const headerHeight = 18;
   // v1.4.27 MB7 / CF-10 — clamp the stretch-branch adaptive cell to the
@@ -268,6 +273,8 @@ export function ComplianceHeatmap({
         <svg
           width={svgWidth}
           height={svgHeight}
+          role="img"
+          aria-label={summaryLabel}
           // v1.15.3 — `max-w-full` (not `w-full`) so a short window keeps its
           // natural, square, left-aligned grid (the capped cells already size
           // off `containerWidth`, so a full window still fills the row) rather
@@ -330,7 +337,7 @@ export function ComplianceHeatmap({
               const timingInfo = hasTimingData
                 ? ` | ${cell.data.onTime ?? 0} ${t("charts.heatmapOnTime")}, ${cell.data.late ?? 0} ${t("charts.heatmapLate")}, ${cell.data.veryLate ?? 0} ${t("charts.heatmapVeryLate")}`
                 : "";
-              return `${formatDateDE(cell.dateKey)}: ${cell.data.taken}/${cell.data.expected} (${rate}%)${timingInfo}`;
+              return `${formatDay(cell.dateKey)}: ${cell.data.taken}/${cell.data.expected} (${rate}%)${timingInfo}`;
             };
             return (
               <rect
@@ -376,7 +383,15 @@ export function ComplianceHeatmap({
       {tooltip && (
         <div
           className="bg-popover text-popover-foreground border-border pointer-events-none fixed z-50 rounded-md border px-2 py-1 text-xs shadow-md"
-          style={{ left: tooltip.x + 10, top: tooltip.y - 30 }}
+          // Clamp the left edge so a tap near the right border doesn't push
+          // the pinned label off-screen on a narrow viewport.
+          style={{
+            left:
+              typeof window !== "undefined"
+                ? Math.min(tooltip.x + 10, window.innerWidth - 180 - 8)
+                : tooltip.x + 10,
+            top: tooltip.y - 30,
+          }}
         >
           {tooltip.text}
         </div>
