@@ -3,16 +3,18 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FlaskConical, Pencil, Plus } from "lucide-react";
+import { FlaskConical, Pencil, Plus, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiDelete, apiGet } from "@/lib/api/api-fetch";
+import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
 import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabValue } from "@/lib/labs/format-value";
@@ -83,6 +85,12 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   const [addFooterEl, setAddFooterEl] = useState<HTMLDivElement | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(null);
+  // v1.24 — focused "adjust target range" sheet. Edits only the reference
+  // bounds (the full marker editor lives behind the pencil); seeded from the
+  // marker each time it opens.
+  const [rangeOpen, setRangeOpen] = useState(false);
+  const [lowerInput, setLowerInput] = useState("");
+  const [upperInput, setUpperInput] = useState("");
 
   const { data: marker, isError: markerError } = useQuery({
     queryKey: queryKeys.biomarkerDetail(biomarkerId),
@@ -151,6 +159,33 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     onError: () => toast.error(t("labs.biomarker.deleteError")),
   });
 
+  function openRange() {
+    setLowerInput(marker?.lowerBound != null ? String(marker.lowerBound) : "");
+    setUpperInput(marker?.upperBound != null ? String(marker.upperBound) : "");
+    setRangeOpen(true);
+  }
+
+  const saveRange = useMutation({
+    mutationFn: () => {
+      const lower = lowerInput.trim() === "" ? null : Number(lowerInput);
+      const upper = upperInput.trim() === "" ? null : Number(upperInput);
+      return apiPut(`/api/biomarkers/${biomarkerId}`, {
+        lowerBound: lower,
+        upperBound: upper,
+      });
+    },
+    onSuccess: () => {
+      toast.success(t("labs.biomarker.targetRange.savedToast"));
+      setRangeOpen(false);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.biomarkerDetail(biomarkerId),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.biomarkers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
+    },
+    onError: () => toast.error(t("labs.biomarker.targetRange.saveError")),
+  });
+
   if (markerError || listError) {
     return (
       <p className="text-destructive py-8 text-center text-sm">
@@ -202,6 +237,16 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
             iconClassName="h-4 w-4"
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+            onClick={openRange}
+            disabled={!marker}
+            aria-label={t("labs.biomarker.targetRange.title")}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
           <Button
             onClick={() => setAddOpen(true)}
             // v1.18.10 (W10) — on the narrowest phones the h1 + Edit + Delete +
@@ -331,6 +376,62 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             onSuccess={afterEditMarker}
             onCancel={() => setEditOpen(false)}
           />
+        ) : null}
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        open={rangeOpen}
+        onOpenChange={setRangeOpen}
+        title={t("labs.biomarker.targetRange.title")}
+        description={t("labs.biomarker.targetRange.description")}
+        footer={
+          <div className="flex w-full justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setRangeOpen(false)}
+              disabled={saveRange.isPending}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={() => saveRange.mutate()}
+              disabled={saveRange.isPending}
+            >
+              {t("labs.biomarker.targetRange.save")}
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="biomarker-lower-bound">
+              {t("labs.biomarker.form.lowerBound")}
+            </Label>
+            <Input
+              id="biomarker-lower-bound"
+              type="number"
+              inputMode="decimal"
+              value={lowerInput}
+              onChange={(e) => setLowerInput(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="biomarker-upper-bound">
+              {t("labs.biomarker.form.upperBound")}
+            </Label>
+            <Input
+              id="biomarker-upper-bound"
+              type="number"
+              inputMode="decimal"
+              value={upperInput}
+              onChange={(e) => setUpperInput(e.target.value)}
+            />
+          </div>
+        </div>
+        {marker?.unit ? (
+          <p className="text-muted-foreground mt-2 text-xs">
+            {t("labs.biomarker.form.rangeHint")}
+          </p>
         ) : null}
       </ResponsiveSheet>
     </div>

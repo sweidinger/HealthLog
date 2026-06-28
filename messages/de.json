@@ -6979,7 +6979,14 @@
       "unhiddenToast": "Biomarker wiederhergestellt",
       "hideError": "Biomarker konnte nicht aktualisiert werden",
       "allHidden": "Alle Biomarker sind ausgeblendet.",
-      "hiddenSection": "Ausgeblendet"
+      "hiddenSection": "Ausgeblendet",
+      "targetRange": {
+        "title": "Zielbereich anpassen",
+        "description": "Lege die untere und obere Referenz für diesen Marker fest. Lass ein Feld leer für eine offene Grenze.",
+        "save": "Bereich speichern",
+        "savedToast": "Zielbereich aktualisiert",
+        "saveError": "Zielbereich konnte nicht aktualisiert werden"
+      }
     },
     "catalog": {
       "total-cholesterol": "Gesamtcholesterin",

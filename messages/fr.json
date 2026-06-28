@@ -6979,7 +6979,14 @@
       "unhiddenToast": "Biomarqueur restauré",
       "hideError": "Impossible de mettre à jour le biomarqueur",
       "allHidden": "Tous les biomarqueurs sont masqués.",
-      "hiddenSection": "Masqués"
+      "hiddenSection": "Masqués",
+      "targetRange": {
+        "title": "Ajuster la plage cible",
+        "description": "Définis la référence basse et haute de ce marqueur. Laisse un champ vide pour une limite ouverte.",
+        "save": "Enregistrer la plage",
+        "savedToast": "Plage cible mise à jour",
+        "saveError": "Impossible de mettre à jour la plage cible"
+      }
     },
     "catalog": {
       "total-cholesterol": "Cholestérol total",

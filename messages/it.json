@@ -6979,7 +6979,14 @@
       "unhiddenToast": "Biomarcatore ripristinato",
       "hideError": "Impossibile aggiornare il biomarcatore",
       "allHidden": "Tutti i biomarcatori sono nascosti.",
-      "hiddenSection": "Nascosti"
+      "hiddenSection": "Nascosti",
+      "targetRange": {
+        "title": "Regola l'intervallo obiettivo",
+        "description": "Imposta il riferimento minimo e massimo per questo marcatore. Lascia un campo vuoto per un limite aperto.",
+        "save": "Salva intervallo",
+        "savedToast": "Intervallo obiettivo aggiornato",
+        "saveError": "Impossibile aggiornare l'intervallo obiettivo"
+      }
     },
     "catalog": {
       "total-cholesterol": "Colesterolo totale",

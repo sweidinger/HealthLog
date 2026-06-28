@@ -6979,7 +6979,14 @@
       "unhiddenToast": "Biomarker przywrócony",
       "hideError": "Nie udało się zaktualizować biomarkera",
       "allHidden": "Wszystkie biomarkery są ukryte.",
-      "hiddenSection": "Ukryte"
+      "hiddenSection": "Ukryte",
+      "targetRange": {
+        "title": "Dostosuj zakres docelowy",
+        "description": "Ustaw dolną i górną wartość referencyjną dla tego markera. Pozostaw pole puste, aby granica była otwarta.",
+        "save": "Zapisz zakres",
+        "savedToast": "Zaktualizowano zakres docelowy",
+        "saveError": "Nie udało się zaktualizować zakresu docelowego"
+      }
     },
     "catalog": {
       "total-cholesterol": "Cholesterol całkowity",
