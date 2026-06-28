@@ -4231,6 +4231,10 @@
         "title": "Dane i prywatność",
         "subtitle": "Twoje dane, retencja, szyfrowanie i bezpieczeństwo konta w jednym miejscu.",
         "description": "Eksport, usuwanie, retencja, stan szyfrowania, sesje i aktywność zabezpieczeń."
+      },
+      "mcp": {
+        "title": "Łącznik MCP",
+        "subtitle": "Połącz zewnętrznego asystenta z własnymi danymi zdrowotnymi."
       }
     },
     "profile": "Profil",
@@ -5148,6 +5152,29 @@
         "openAi": "Tryb prywatności AI",
         "openResearch": "Tryb badawczy"
       }
+    },
+    "mcp": {
+      "enableTitle": "Zdalny punkt końcowy MCP",
+      "enableDescription": "Zezwól asystentowi obsługującemu MCP (Claude.ai, ChatGPT) na odczyt danych zdrowotnych za pomocą ograniczonego tokenu. Domyślnie wyłączone.",
+      "enabled": "Włączony",
+      "disabled": "Wyłączony",
+      "enableToggleLabel": "Włącz punkt końcowy MCP",
+      "endpointLabel": "Adres URL łącznika",
+      "connectDescription": "Wklej ten adres URL w konfiguracji własnego łącznika asystenta, a następnie autoryzuj za pomocą poniższego tokenu lub zaloguj się po wyświetleniu monitu.",
+      "tokensTitle": "Tokeny łącznika",
+      "tokensDescription": "Wygeneruj token tylko do odczytu, aby połączyć asystenta. Token jest wyświetlany tylko raz.",
+      "scopeNote": "Tokeny są ograniczone do health:read — dostęp tylko do odczytu własnych danych. Nigdy nie mogą uzyskać dostępu do funkcji administracyjnych.",
+      "writeScopeToggleLabel": "Zezwól na zapis (health:write)",
+      "writeScopeNote": "Dodaje zakres health:write, aby asystent mógł zapisywać nowe pomiary i wpisy nastroju na Twoim koncie. Każdy zapis jest najpierw potwierdzany. Token nadal nie może usuwać ani edytować istniejących wpisów, zmieniać leków ani uzyskiwać dostępu do funkcji REST lub administracyjnych. Pozostaw wyłączone, aby uzyskać dostęp tylko do odczytu.",
+      "connectionsTitle": "Połączeni asystenci",
+      "connectionsDescription": "Asystenci autoryzowani podczas logowania. Cofnięcie połączenia natychmiast kończy dostęp, w tym możliwość odnawiania.",
+      "noConnections": "Brak połączonych asystentów.",
+      "connectionConnected": "Połączono",
+      "connectionLastUsed": "Ostatnio użyto",
+      "connectionNeverUsed": "Nigdy nie użyto",
+      "connectionRevoke": "Rozłącz",
+      "connectionRevokeDescription": "To natychmiast kończy dostęp asystenta i uniemożliwia odnawianie. Ponowne połączenie będzie wymagać nowej autoryzacji.",
+      "connectionRevokeFailed": "Nie udało się rozłączyć asystenta."
     }
   },
   "admin": {
@@ -7119,6 +7146,10 @@
     "illness": {
       "label": "Dziennik chorób",
       "description": "Zapisuj epizody chorób i dolegliwości z dziennym przebiegiem objawów."
+    },
+    "mcp": {
+      "label": "Dostęp asystenta zewnętrznego (MCP)",
+      "description": "Pozwól asystentowi obsługującemu MCP czytać Twoje dane zdrowotne za pomocą tokena o ograniczonym zakresie. Domyślnie wyłączone."
     }
   },
   "illness": {

@@ -4231,6 +4231,10 @@
         "title": "Data & Privacy",
         "subtitle": "Your data, retention, encryption, and account security in one place.",
         "description": "Export, deletion, retention, encryption status, sessions, and security activity."
+      },
+      "mcp": {
+        "title": "MCP Connector",
+        "subtitle": "Connect an external assistant to your own health data."
       }
     },
     "profile": "Profile",
@@ -5148,6 +5152,29 @@
         "openAi": "AI privacy mode",
         "openResearch": "Research mode"
       }
+    },
+    "mcp": {
+      "enableTitle": "Remote MCP endpoint",
+      "enableDescription": "Let an MCP-capable assistant (Claude.ai, ChatGPT) read your health data over a scoped token. Off by default.",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "enableToggleLabel": "Enable the MCP endpoint",
+      "endpointLabel": "Connector URL",
+      "connectDescription": "Paste this URL into your assistant's custom-connector setup, then authorize with the token below or sign in when prompted.",
+      "tokensTitle": "Connector tokens",
+      "tokensDescription": "Mint a read-only token to connect an assistant. The token is shown once.",
+      "scopeNote": "Tokens are scoped to health:read — read-only access to your own records. They can never reach admin functions.",
+      "writeScopeToggleLabel": "Allow logging (health:write)",
+      "writeScopeNote": "Adds the health:write scope so the assistant can log new measurements and mood entries to your account. Every write is confirmed first. The token still can't delete or edit existing entries, change medications, or reach REST or admin functions. Leave off for read-only access.",
+      "connectionsTitle": "Connected assistants",
+      "connectionsDescription": "Assistants you authorized through the sign-in flow. Revoking a connection ends its access immediately, including its ability to refresh.",
+      "noConnections": "No connected assistants.",
+      "connectionConnected": "Connected",
+      "connectionLastUsed": "Last used",
+      "connectionNeverUsed": "Never used",
+      "connectionRevoke": "Disconnect",
+      "connectionRevokeDescription": "This ends the assistant's access immediately and stops it from renewing. It will need to be re-authorized to reconnect.",
+      "connectionRevokeFailed": "Could not disconnect the assistant."
     }
   },
   "admin": {
@@ -7119,6 +7146,10 @@
     "illness": {
       "label": "Illness journal",
       "description": "Track illness and condition episodes with a daily symptom timeline."
+    },
+    "mcp": {
+      "label": "External assistant access (MCP)",
+      "description": "Let an MCP-capable assistant read your health data over a scoped token. Off by default."
     }
   },
   "illness": {

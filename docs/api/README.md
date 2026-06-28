@@ -4,6 +4,16 @@
 Next.js API. It is the source of truth for the native iOS client's
 DTO codegen.
 
+The MCP server is documented separately — it is a distinct contract over
+JSON-RPC, not part of the REST OpenAPI spec:
+
+- [`mcp-capabilities.md`](./mcp-capabilities.md) — the tool, resource, and
+  prompt catalogue, the grounding contract, and the write model.
+- [`mcp-skills.md`](./mcp-skills.md) — building a connector or skill on
+  top of it.
+- [`../self-hosting/mcp.md`](../self-hosting/mcp.md) — enabling and
+  connecting the surface (operator guide).
+
 ## Preview locally
 
 Open an interactive Redoc preview in your browser:

@@ -1,16 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import type { User } from "@/generated/prisma/client";
+import { prisma } from "@/lib/db";
 import { WideEventBuilder } from "./logging/event-builder";
 import { eventStorage, getEvent } from "./logging/context";
 import { emitIfSampled } from "./logging/transports";
 import { redactOptional, redactSecrets } from "./logging/redact";
 import { getSession } from "./auth/session";
-import { hashToken } from "./auth/hmac";
-import { prisma } from "./db";
 import { auditLog } from "./auth/audit";
+import { resolveBearerToken, BearerAuthError } from "./auth/bearer";
 import { AssistantDisabledError } from "./feature-flags";
 import { ConsentRequiredError } from "./ai/consent-guard";
+import { SCOPE_HEALTH_READ, SCOPE_HEALTH_WRITE } from "./mcp/oauth/config";
+
+/**
+ * HTTP methods a read-only credential may use on the REST surface. A request
+ * with any other method (POST / PUT / PATCH / DELETE) is a write.
+ *
+ * The MCP-audience guard below assumes these methods are side-effect-free:
+ * an MCP-bound token is admitted on them. A future side-effecting GET (or HEAD)
+ * would silently widen that token's reach over REST — do NOT add one without
+ * revisiting the MCP audience binding here.
+ */
+const READ_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * Whether a token is MCP-audience-bound (H1). The MCP OAuth bridge and the
+ * connector settings card mint tokens whose ONLY grants are `health:read` —
+ * and, when the user consents to logging, `health:read health:write`. Either
+ * shape is bound to the MCP surface: the `/mcp` resolver accepts it and so do
+ * safe (read) REST methods, but it must NEVER reach a REST write/delete. The
+ * `health:write` grant admits writes ONLY in-process over `/mcp` (the confirmed
+ * write tools), never over REST — so a write-scoped MCP token is exactly as
+ * audience-bound on this edge as a read-only one. A token carrying any broader
+ * or legacy grant (`*`, `medication:ingest`, …) is NOT MCP-audience-bound and
+ * keeps its existing reach.
+ */
+export function isMcpAudienceToken(permissions: readonly string[]): boolean {
+  if (permissions.length === 0) return false;
+  return permissions.every(
+    (p) => p === SCOPE_HEALTH_READ || p === SCOPE_HEALTH_WRITE,
+  );
+}
 
 /**
  * Custom error class for HTTP errors with status codes.
@@ -306,110 +337,78 @@ export async function requireAuth(
 
 /**
  * Authenticate a raw Bearer token against `ApiToken`.
- * Annotates the Wide Event with `auth_method: "api_key"` and writes audit-log
- * entries for both success and failure.
+ *
+ * The validation itself lives in the transport-agnostic `resolveBearerToken`
+ * (`./auth/bearer`) — the single source of truth shared with the MCP wire. This
+ * wrapper adds the HTTP-edge concerns: the `auth.bearer.*` audit trail for both
+ * outcomes and the Wide-Event `auth_method: "bearer"` annotation, then maps the
+ * result onto the `AuthContext` contract (`session.id` carries the token id).
+ *
+ * Authorisation contract (unchanged): a route that declares no
+ * `requiredPermission` accepts any valid token; one that declares a scope
+ * accepts wildcard (`["*"]`) tokens and narrow-scope tokens that list it.
  */
 async function authenticateBearer(
   rawToken: string,
   requiredPermission: string | undefined,
 ): Promise<AuthContext> {
-  const tokenHashValue = hashToken(rawToken);
-
-  const apiToken = await prisma.apiToken.findUnique({
-    where: { tokenHash: tokenHashValue },
-    select: {
-      id: true,
-      userId: true,
-      permissions: true,
-      revoked: true,
-      expiresAt: true,
-    },
-  });
-
-  if (!apiToken) {
-    auditLog("auth.bearer.failure", {
-      details: { reason: "unknown_token" },
-    }).catch(() => {});
-    throw new HttpError(401, "Invalid token");
+  let resolution;
+  try {
+    resolution = await resolveBearerToken(rawToken, requiredPermission);
+  } catch (err) {
+    if (err instanceof BearerAuthError) {
+      auditLog("auth.bearer.failure", {
+        userId: err.userId ?? null,
+        details: {
+          reason: err.reason,
+          ...(err.tokenId ? { tokenId: err.tokenId } : {}),
+          ...(err.reason === "insufficient_permissions"
+            ? { required: requiredPermission }
+            : {}),
+        },
+      }).catch(() => {});
+      const message =
+        err.statusCode === 403
+          ? "Insufficient permissions"
+          : err.reason === "expired"
+            ? "Token expired"
+            : "Invalid token";
+      throw new HttpError(err.statusCode, message);
+    }
+    throw err;
   }
 
-  if (apiToken.revoked) {
-    auditLog("auth.bearer.failure", {
-      userId: apiToken.userId,
-      details: { reason: "revoked", tokenId: apiToken.id },
-    }).catch(() => {});
-    throw new HttpError(401, "Invalid token");
+  const { user, tokenId, expiresAt, permissions } = resolution;
+
+  // H1 — audience binding at the resource server. An MCP-audience token
+  // (`health:read`, or `health:read health:write`) is bound to the `/mcp`
+  // surface; it may reach `/mcp` (a separate resolver that never runs this
+  // edge) and safe REST reads, but a write/delete over REST is outside its
+  // audience and is refused — INCLUDING a write-scoped token, whose writes are
+  // confined to the in-process `/mcp` tools and never granted over REST. Fail
+  // closed when the method is unknown
+  // (no event context) since every real REST request runs inside apiHandler,
+  // which always sets the method — an unknown method means we cannot prove a
+  // read, so we deny. This is RFC 8707 audience binding on the credential the
+  // client actually holds, not only during the OAuth exchange.
+  if (isMcpAudienceToken(permissions)) {
+    const method = (getEvent()?.getHttpMethod() ?? "").toUpperCase();
+    if (!READ_HTTP_METHODS.has(method)) {
+      auditLog("auth.bearer.failure", {
+        userId: user.id,
+        details: {
+          reason: "mcp_audience_write_blocked",
+          tokenId,
+          method: method || "unknown",
+        },
+      }).catch(() => {});
+      throw new HttpError(403, "Insufficient permissions");
+    }
   }
-
-  if (apiToken.expiresAt && apiToken.expiresAt <= new Date()) {
-    auditLog("auth.bearer.failure", {
-      userId: apiToken.userId,
-      details: { reason: "expired", tokenId: apiToken.id },
-    }).catch(() => {});
-    throw new HttpError(401, "Token expired");
-  }
-
-  // `["*"]` is the wildcard scope: granted to the iOS app on login so it
-  // can call any authenticated route. Narrow scopes (e.g.
-  // `["medication:ingest"]`) gate specific routes.
-  //
-  // Authorisation contract:
-  //   - Route declares no `requiredPermission`: any valid token passes
-  //     (both wildcard and narrow-scope). The route does not gate on
-  //     scope, so authentication alone is sufficient.
-  //   - Route declares a `requiredPermission`: wildcard tokens pass;
-  //     narrow-scope tokens must list the required permission.
-  //
-  // v1.4.25 W10 reconcile (code-review H2): the previous "no
-  // requiredPermission ⇒ wildcard only" rule misread the contract.
-  // Routes without a declared scope (`/api/measurements/by-external-ids`,
-  // `/api/personal-records`, `/api/medications/[id]/glp1`,
-  // `/api/dashboard/glp1`) 403'd every narrow-scope token even though
-  // those routes did not intend to restrict by scope at all. Allowing
-  // any authenticated token through when the route does not declare a
-  // scope unblocks the v1.5 iOS endpoints while keeping the scoped-
-  // route gating below intact.
-  const hasWildcardPermission = apiToken.permissions.includes("*");
-
-  if (
-    requiredPermission &&
-    !hasWildcardPermission &&
-    !apiToken.permissions.includes(requiredPermission)
-  ) {
-    auditLog("auth.bearer.failure", {
-      userId: apiToken.userId,
-      details: {
-        reason: "insufficient_permissions",
-        tokenId: apiToken.id,
-        required: requiredPermission,
-      },
-    }).catch(() => {});
-    throw new HttpError(403, "Insufficient permissions");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: apiToken.userId },
-  });
-
-  if (!user) {
-    auditLog("auth.bearer.failure", {
-      userId: apiToken.userId,
-      details: { reason: "user_missing", tokenId: apiToken.id },
-    }).catch(() => {});
-    throw new HttpError(401, "Invalid token");
-  }
-
-  // Fire-and-forget: refresh lastUsedAt without blocking the request.
-  prisma.apiToken
-    .update({
-      where: { id: apiToken.id },
-      data: { lastUsedAt: new Date() },
-    })
-    .catch(() => {});
 
   auditLog("auth.bearer.success", {
     userId: user.id,
-    details: { tokenId: apiToken.id },
+    details: { tokenId },
   }).catch(() => {});
 
   const evt = getEvent();
@@ -421,13 +420,8 @@ async function authenticateBearer(
     });
   }
 
-  // Use the token expiry as the session expiry; fall back to a 30-day window if
-  // the token has no fixed expiry so the contract `{ expiresAt: Date }` holds.
-  const expiresAt =
-    apiToken.expiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
   return {
-    session: { id: apiToken.id, expiresAt },
+    session: { id: tokenId, expiresAt },
     user,
   };
 }

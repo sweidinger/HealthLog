@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [1.24.0] — 2026-06-28 — Model Context Protocol server
+
+A connector release. HealthLog can expose your own health record to MCP-compatible assistants (Claude, ChatGPT, and others) over a standard, OAuth-secured Model Context Protocol server — off by default, behind a module switch and a connector token you mint yourself. Two additive migrations (`0206`, `0207`) apply automatically on start.
+
+### Added
+
+- An MCP server — remote over `/mcp` and a local stdio command — that serves your own records to a connected assistant: metric series, glucose, sleep, workouts, medication compliance and schedule, labs (latest and history), correlations, baselines, level-shift detection, recovery and illness, cycle, integration status, and the preventive-care due-list. Every value carries its unit and reference range, with honest "no data" instead of a fabricated zero.
+- A confirmed, scoped write surface: log a measurement, a blood-pressure pair, or a mood entry from an assistant — preview first, then confirm. Read-only by default; writing needs a token minted with the write scope.
+- Installable prompt "skills": doctor-visit summary, weekly review, medication check, recovery / glucose / sleep review, and a lab-trend brief.
+- Browseable resources and resource templates for metrics, labs, medications, and the doctor-visit report.
+- An OAuth 2.1 connector flow (PKCE, audience binding, dynamic and URL-based client registration) so Claude.ai and ChatGPT can connect; mint read-only or read-and-write connector tokens under Settings → MCP. Enable and connect guides live in `docs/`.
+
+### Security
+
+- Off by default — the module gate plus a configured `APP_URL` are required, or the surface returns 404. A connector token is audience-bound to the MCP surface: it can never write or delete over the REST API and can never reach the admin surface. Writes are append-only, idempotent, range- and timestamp-bounded, and audited.
+
 ## [1.23.0] — 2026-06-27 — Account security and data sovereignty
 
 A security release. It adds two-factor authentication, brings every sign-in and sensitive action under a stronger check, encrypts free-text health notes at rest, lets you download an encrypted copy of your record, and gathers export, deletion, and privacy controls into one place. Seven additive migrations (`0199`–`0205`) apply automatically on start; `0205` removes the retired bug-report tables.

@@ -4231,6 +4231,10 @@
         "title": "Données et confidentialité",
         "subtitle": "Vos données, leur conservation, le chiffrement et la sécurité du compte au même endroit.",
         "description": "Export, suppression, conservation, état du chiffrement, sessions et activité de sécurité."
+      },
+      "mcp": {
+        "title": "Connecteur MCP",
+        "subtitle": "Connectez un assistant externe à vos propres données de santé."
       }
     },
     "profile": "Profil",
@@ -5148,6 +5152,29 @@
         "openAi": "Mode confidentialité IA",
         "openResearch": "Mode recherche"
       }
+    },
+    "mcp": {
+      "enableTitle": "Point de terminaison MCP distant",
+      "enableDescription": "Autorisez un assistant compatible MCP (Claude.ai, ChatGPT) à lire vos données de santé via un jeton restreint. Désactivé par défaut.",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "enableToggleLabel": "Activer le point de terminaison MCP",
+      "endpointLabel": "URL du connecteur",
+      "connectDescription": "Collez cette URL dans la configuration du connecteur personnalisé de votre assistant, puis autorisez avec le jeton ci-dessous ou connectez-vous lorsque vous y êtes invité.",
+      "tokensTitle": "Jetons du connecteur",
+      "tokensDescription": "Générez un jeton en lecture seule pour connecter un assistant. Le jeton n'est affiché qu'une seule fois.",
+      "scopeNote": "Les jetons sont limités à health:read : accès en lecture seule à vos propres données. Ils ne peuvent jamais atteindre les fonctions d'administration.",
+      "writeScopeToggleLabel": "Autoriser l'enregistrement (health:write)",
+      "writeScopeNote": "Ajoute la portée health:write pour que l'assistant puisse enregistrer de nouvelles mesures et entrées d'humeur dans votre compte. Chaque écriture est d'abord confirmée. Le jeton ne peut toujours pas supprimer ni modifier des entrées existantes, changer les médicaments, ni atteindre les fonctions REST ou d'administration. Laissez désactivé pour un accès en lecture seule.",
+      "connectionsTitle": "Assistants connectés",
+      "connectionsDescription": "Assistants que vous avez autorisés via la connexion. Révoquer une connexion met fin à son accès immédiatement, y compris sa capacité à se renouveler.",
+      "noConnections": "Aucun assistant connecté.",
+      "connectionConnected": "Connecté",
+      "connectionLastUsed": "Dernière utilisation",
+      "connectionNeverUsed": "Jamais utilisé",
+      "connectionRevoke": "Déconnecter",
+      "connectionRevokeDescription": "Cela met fin immédiatement à l'accès de l'assistant et l'empêche de se renouveler. Une nouvelle autorisation sera nécessaire pour le reconnecter.",
+      "connectionRevokeFailed": "Impossible de déconnecter l'assistant."
     }
   },
   "admin": {
@@ -7119,6 +7146,10 @@
     "illness": {
       "label": "Journal de maladie",
       "description": "Suivez les épisodes de maladie et d'affections avec un historique quotidien des symptômes."
+    },
+    "mcp": {
+      "label": "Accès assistant externe (MCP)",
+      "description": "Autorise un assistant compatible MCP à lire vos données de santé via un jeton à portée limitée. Désactivé par défaut."
     }
   },
   "illness": {

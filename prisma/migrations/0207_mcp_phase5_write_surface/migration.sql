@@ -1,0 +1,14 @@
+-- MCP write provenance.
+--
+-- The remote MCP endpoint gains a confirmed write surface (logging a
+-- measurement / mood). Rows it writes carry their own `MeasurementSource`
+-- value so they are distinguishable from MANUAL / TELEGRAM provenance and
+-- get an isolated idempotency namespace `(userId, type, MCP, externalId)`.
+--
+-- Purely-additive enum extension; no row touched. `ADD VALUE IF NOT EXISTS`
+-- makes a rerun safe. The new value is NOT used elsewhere in this migration,
+-- so it is safe to extend the enum in the same step (Postgres only forbids
+-- USING a freshly-added value in the same transaction). Mirrors the 0189
+-- source-extension that added TELEGRAM. The enum is `@@map`-ed to the
+-- snake_case type name `measurement_source`.
+ALTER TYPE "measurement_source" ADD VALUE IF NOT EXISTS 'MCP';
