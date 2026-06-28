@@ -21,7 +21,11 @@ import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 import { environmentBackfillSchema } from "@/lib/validations/environment";
-import { ENVIRONMENT_MAX_BACKFILL_DAYS } from "@/lib/environment/service";
+import {
+  ENVIRONMENT_MAX_BACKFILL_DAYS,
+  defaultBackfillRange,
+  utcDayKey,
+} from "@/lib/environment/service";
 import { enqueueEnvironmentFetch } from "@/lib/jobs/environment-fetch";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -49,7 +53,33 @@ export const POST = apiHandler(async (request: NextRequest) => {
     });
   }
 
-  const { startDate, endDate } = parsed.data;
+  const profile = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { homeLat: true, homeSince: true },
+  });
+  if (profile?.homeLat == null) {
+    return apiError("Set a home location before backfilling.", 409, {
+      errorCode: "environment.no_home",
+    });
+  }
+
+  // Resolve the effective span. An omitted bound defaults to the conservative
+  // [homeSince .. today] range — never a fixed reach into the past onto the
+  // current home. Days before homeSince still resolve to SKIP in the worker, so
+  // even an explicit wider start cannot fabricate weather for the pre-home past.
+  const today = utcDayKey(new Date());
+  const fallback = defaultBackfillRange(profile.homeSince) ?? {
+    startDate: today,
+    endDate: today,
+  };
+  const startDate = parsed.data.startDate ?? fallback.startDate;
+  const endDate = parsed.data.endDate ?? fallback.endDate;
+  if (startDate > endDate) {
+    return apiError("startDate must be on or before endDate", 422, {
+      errorCode: "environment.invalid",
+    });
+  }
+
   const [sy, sm, sd] = startDate.split("-").map(Number);
   const [ey, em, ed] = endDate.split("-").map(Number);
   const spanDays =
@@ -62,16 +92,6 @@ export const POST = apiHandler(async (request: NextRequest) => {
       422,
       { errorCode: "environment.range_too_large" },
     );
-  }
-
-  const profile = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { homeLat: true },
-  });
-  if (profile?.homeLat == null) {
-    return apiError("Set a home location before backfilling.", 409, {
-      errorCode: "environment.no_home",
-    });
   }
 
   const enqueued = await enqueueEnvironmentFetch({

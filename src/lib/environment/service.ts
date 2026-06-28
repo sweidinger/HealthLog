@@ -6,11 +6,17 @@
  * call {@link fetchAndStoreEnvironment} so the precedence, the day-keying, and
  * the upsert live in exactly one place.
  *
- * Location precedence per day (first hit wins):
- *   1. a manual TRAVEL override whose [startDate, endDate] covers the day;
- *   2. the user's HOME location.
- * No home + no covering override ⇒ the day is skipped (the module degrades
- * silently, matching the rollup "coverage miss → absent" posture).
+ * Location precedence per day (first hit wins) — CONSERVATIVE:
+ *   1. an explicit dated LOCATION PERIOD (override) whose [startDate, endDate]
+ *      covers the day (a trip, OR a corrected stretch of history);
+ *   2. DEVICE — reserved slot for a future client-supplied coarse per-day
+ *      location (iOS v2); not produced server-side yet (see resolver comment);
+ *   3. the user's HOME location, but ONLY for days on/after `homeSince` (the
+ *      instant the home became effective).
+ * A day before `homeSince`, or with no home and no covering period, is SKIPPED.
+ * The resolver never attributes a past day to the *current* home — that would
+ * fabricate weather for anyone who has moved/travelled. The deep past is filled
+ * by adding explicit dated location periods.
  *
  * Coarse location only — the resolver never sees finer than the rounded city
  * coordinates stored on the user / override.
@@ -42,6 +48,8 @@ interface HomeLocation {
   lon: number;
   label: string;
   timezone: string;
+  /** YYYY-MM-DD the home became effective; null ⇒ home resolves no day. */
+  since: string | null;
 }
 
 interface TravelOverride {
@@ -72,23 +80,49 @@ export function enumerateDays(start: string, end: string): string[] {
 }
 
 /**
- * Resolve the location for one day: a covering travel override wins, else home,
- * else null. Pure — exported for unit tests.
+ * Resolve the location for one day (CONSERVATIVE, first hit wins). Pure —
+ * exported for unit tests.
  */
 export function resolveLocationForDay(
   day: string,
   home: HomeLocation | null,
   travels: readonly TravelOverride[],
 ): ResolvedLocation | null {
+  // 1. An explicit dated location period covering the day wins. This is also
+  //    the mechanism a user/operator uses to correct history: an explicit
+  //    period for a past range is honoured even before the home was effective.
   for (const t of travels) {
     if (day >= t.startDate && day <= t.endDate) {
       return { lat: t.lat, lon: t.lon, label: t.label, source: "TRAVEL" };
     }
   }
-  if (home) {
+  // 2. DEVICE — reserved priority forward path (iOS v2). A future client supplies
+  //    a coarse per-day device location that would rank HERE, between the explicit
+  //    period and the home fallback. Nothing produces it server-side yet, but the
+  //    resolver signature and the EnvironmentLocationSource enum already accept a
+  //    "DEVICE" source, so wiring it in later needs no rework of this precedence.
+  //
+  // 3. Home — ONLY on/after the day it became effective (`homeSince`). Never
+  //    fabricate past weather from the *current* home for days before it was set;
+  //    those days are skipped and left to an explicit period above.
+  if (home && home.since != null && day >= home.since) {
     return { lat: home.lat, lon: home.lon, label: home.label, source: "HOME" };
   }
   return null;
+}
+
+/**
+ * The conservative default backfill span for an account: from the day its home
+ * became effective (`homeSince`) through `today`. Days before `homeSince` are
+ * deliberately excluded — they belong to explicit location periods, not to the
+ * current home. Returns null when no home has been set.
+ */
+export function defaultBackfillRange(
+  homeSince: Date | null,
+  today: Date = new Date(),
+): { startDate: string; endDate: string } | null {
+  if (!homeSince) return null;
+  return { startDate: utcDayKey(homeSince), endDate: utcDayKey(today) };
 }
 
 /** A location-keyed group of days (one upstream fetch per group). */
@@ -125,6 +159,7 @@ export async function fetchAndStoreEnvironment(args: {
       homeLon: true,
       homeLabel: true,
       homeTimezone: true,
+      homeSince: true,
       timezone: true,
     },
   });
@@ -137,6 +172,8 @@ export async function fetchAndStoreEnvironment(args: {
           lon: user.homeLon,
           label: user.homeLabel ?? "Home",
           timezone: user.homeTimezone ?? user.timezone,
+          // Effective-from day-key; null ⇒ home resolves no day (conservative).
+          since: user.homeSince ? utcDayKey(user.homeSince) : null,
         }
       : null;
 
