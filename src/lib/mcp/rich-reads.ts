@@ -43,6 +43,7 @@ import {
   getMetricStatusMeta,
   METRIC_STATUS_IDS,
 } from "@/lib/insights/metric-status-registry";
+import { allSignals, getSignal } from "@/lib/signals/registry";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { resolveLabFields } from "@/lib/labs/serialise";
 import { sanitizeValueText } from "@/lib/ai/coach/labs-snapshot";
@@ -177,6 +178,113 @@ function fromRegistry(id: string): RichMetric | null {
   };
 }
 
+// ── v1.25 clinical signals (registry-grounded, MCP-owned exposure) ────
+//
+// The v1.25 clinical-signals wave added a set of physical / clinical
+// measurements to the signal registry. They sit OFF the Coach snapshot by
+// design (`coachSnapshot:false`), so the Coach-driven reads
+// (`get_metric_series`, the data inventory) never surface them — that path
+// would report no data for a signal it does not carry. The MCP layer exposes
+// them here through the rollup-backed rich reads — `compare_metric`,
+// `get_metric_baseline`, `detect_changepoints` — and through `search` /
+// `fetch`.
+//
+// The registry's own `surfaces.mcp` flag is the SINGLE source of truth for
+// MCP exposure: a signal surfaces here iff it is a measurement marked
+// `mcp:true` while staying off the Coach snapshot (`coachSnapshot:false`).
+// The `mcp` and `coachSnapshot` facets are independent — a signal can be
+// MCP-readable without being on the Coach surface. Deliberately ABSENT and
+// therefore unreachable over MCP: the PHQ-9 / GAD-7 mental-health screeners
+// and every environmental (`ENV_*`) signal — they carry `mcp:false` and never
+// reach AI / MCP by construction.
+
+/** Build a `RichMetric` from a registry signal key (measurement-kind only). */
+function richMetricFromSignal(key: string): RichMetric | null {
+  const sig = getSignal(key);
+  if (!sig || sig.kind !== "measurement") return null;
+  return {
+    measurementType: sig.source.measurementType,
+    label: sig.displayName,
+    unit: sig.unit,
+    band: sig.normalRange
+      ? { low: sig.normalRange.low, high: sig.normalRange.high }
+      : null,
+  };
+}
+
+/**
+ * The MCP-only clinical signals, derived from the registry: every measurement
+ * signal marked `mcp:true` that stays off the Coach snapshot. This is the one
+ * place the registry's `surfaces.mcp` flag is consumed for the rich reads —
+ * no duplicate allowlist to drift against.
+ */
+const CLINICAL_SIGNAL_BY_KEY = new Map<string, RichMetric>();
+for (const sig of allSignals()) {
+  if (
+    sig.kind !== "measurement" ||
+    sig.surfaces.mcp !== true ||
+    sig.surfaces.coachSnapshot !== false
+  ) {
+    continue;
+  }
+  const metric = richMetricFromSignal(sig.key);
+  if (metric) CLINICAL_SIGNAL_BY_KEY.set(sig.key, metric);
+}
+
+/**
+ * The clinical signals the MCP surface exposes, for the `search` discovery
+ * probe: the registry key (the `metric:` id `fetch` resolves), the backing
+ * `MeasurementType` (the presence probe), and the display label.
+ */
+export const MCP_CLINICAL_SIGNALS: ReadonlyArray<{
+  key: string;
+  measurementType: MeasurementType;
+  label: string;
+}> = [...CLINICAL_SIGNAL_BY_KEY.entries()].map(([key, m]) => ({
+  key,
+  measurementType: m.measurementType,
+  label: m.label,
+}));
+
+/** Friendly aliases (NL phrasings) → clinical signal key. */
+const CLINICAL_ALIASES: Record<string, string> = {
+  grip: "GRIP_STRENGTH",
+  grip_strength: "GRIP_STRENGTH",
+  hand_grip: "GRIP_STRENGTH",
+  hand_grip_strength: "GRIP_STRENGTH",
+  pain: "PAIN_NRS",
+  pain_nrs: "PAIN_NRS",
+  pain_score: "PAIN_NRS",
+  waist: "WAIST_CIRCUMFERENCE",
+  waist_circumference: "WAIST_CIRCUMFERENCE",
+  whtr: "WAIST_TO_HEIGHT",
+  waist_to_height: "WAIST_TO_HEIGHT",
+  waist_to_height_ratio: "WAIST_TO_HEIGHT",
+  waist_height_ratio: "WAIST_TO_HEIGHT",
+};
+
+/**
+ * Resolve a free-text name to a clinical signal the MCP layer exposes, or
+ * `null`. Closed by construction to the registry-derived `mcp:true` measurement
+ * set, so a screener key (PHQ9_SCORE / GAD7_SCORE) or an `ENV_*` key — all
+ * `mcp:false` — can never resolve here even though they exist in the registry.
+ */
+function resolveClinicalSignal(key: string): RichMetric | null {
+  const aliased = CLINICAL_ALIASES[key];
+  if (aliased) return CLINICAL_SIGNAL_BY_KEY.get(aliased) ?? null;
+  const upper = key.toUpperCase();
+  if (CLINICAL_SIGNAL_BY_KEY.has(upper)) {
+    return CLINICAL_SIGNAL_BY_KEY.get(upper) ?? null;
+  }
+  // Display-name match over the allowlist (e.g. "waist-to-height ratio").
+  for (const [, metric] of CLINICAL_SIGNAL_BY_KEY) {
+    if (metric.label.toLowerCase().replace(/[\s-]+/g, "_") === key) {
+      return metric;
+    }
+  }
+  return null;
+}
+
 /**
  * Resolve a free-text metric name to a single scalar series. Forgiving for an
  * NL assistant (alias, exact id, display-name match) but closed — an
@@ -191,6 +299,13 @@ export function resolveRichMetric(input: string): RichMetric | null {
 
   // 1. explicit supplement (weight / pulse / bmi).
   if (SUPPLEMENT[key]) return SUPPLEMENT[key];
+
+  // 1b. v1.25 clinical signals the MCP layer opts in (grip strength, pain NRS,
+  // waist circumference, waist-to-height). Registry-grounded; the allowlist is
+  // closed, so a mental-health screener or an environmental signal never
+  // resolves here.
+  const clinical = resolveClinicalSignal(key);
+  if (clinical) return clinical;
 
   // 2. friendly alias → registry id.
   const aliased = ALIASES[key];

@@ -69,12 +69,7 @@ const SLEEP_STAGE_NAME_TO_CODEPOINT: Record<string, number> = {
 
 /** Phase the worker is currently in. */
 export type ImportJobPhase =
-  | "queued"
-  | "unpacking"
-  | "parsing"
-  | "upserting"
-  | "done"
-  | "failed";
+  "queued" | "unpacking" | "parsing" | "upserting" | "done" | "failed";
 
 /**
  * Live snapshot the worker writes to `ImportJob.progress` every

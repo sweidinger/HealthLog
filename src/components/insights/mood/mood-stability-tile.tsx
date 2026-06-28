@@ -18,10 +18,7 @@ import { useTranslations } from "@/lib/i18n/context";
  */
 
 export type MoodStabilityBand =
-  | "verySteady"
-  | "steady"
-  | "variable"
-  | "veryVariable";
+  "verySteady" | "steady" | "variable" | "veryVariable";
 
 export interface MoodStabilityData {
   score: number;

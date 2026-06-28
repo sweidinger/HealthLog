@@ -19,18 +19,9 @@ import { queryKeys } from "@/lib/query-keys";
 // IntegrationStatusPill now owns state + last-sync presentation, and
 // the actionable error message is shown inline above the action row.
 export type IntegrationKey =
-  | "withings"
-  | "whoop"
-  | "fitbit"
-  | "moodlog"
-  | "polar"
-  | "oura";
+  "withings" | "whoop" | "fitbit" | "moodlog" | "polar" | "oura";
 export type IntegrationState =
-  | "connected"
-  | "error_transient"
-  | "error_reauth"
-  | "disconnected"
-  | "parked";
+  "connected" | "error_transient" | "error_reauth" | "disconnected" | "parked";
 
 export interface IntegrationStatusViewModel {
   integration: IntegrationKey;

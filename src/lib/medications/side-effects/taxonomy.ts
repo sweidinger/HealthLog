@@ -135,11 +135,7 @@ export type SideEffectSeverity = 1 | 2 | 3 | 4 | 5;
 
 /** Locale-agnostic semantic labels for the severity ladder. */
 export type SideEffectSeverityLabel =
-  | "mild"
-  | "moderate"
-  | "significant"
-  | "severe"
-  | "verySevere";
+  "mild" | "moderate" | "significant" | "severe" | "verySevere";
 
 /**
  * Maps a 1-5 severity integer to its locale-agnostic semantic label.

@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
+// The SUM drain now recomputes the affected DAY rollup bucket after each
+// per-day fold (so a drained day's stale double-counted sum self-heals).
+// Mock it: these are pure-logic tests over a Prisma mock with no DB, and
+// the real recompute issues raw SQL against the singleton client.
+vi.mock("@/lib/rollups/measurement-rollups", () => ({
+  recomputeBucketsForMeasurement: vi.fn().mockResolvedValue(undefined),
+}));
+import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
+
 import {
   bucketRowsByUserDay,
   canonicalDailyTimestamp,
@@ -443,6 +452,26 @@ describe("drainPerSampleCumulative — late-sync fold into existing total", () =
     expect(create).toHaveBeenCalledTimes(1);
     const createArg = create.mock.calls[0]?.[0] as { data: { value: number } };
     expect(createArg.data.value).toBe(500);
+  });
+
+  it("recomputes the DAY rollup bucket for the drained day so the stale sum self-heals", async () => {
+    vi.mocked(recomputeBucketsForMeasurement).mockClear();
+    const { prisma } = buildFoldMock(null);
+
+    await drainPerSampleCumulative(prisma, { log: () => {} });
+
+    // Without this the rollup tier keeps serving the pre-drain
+    // double-counted sumValue forever (it reads only deleted_at IS NULL).
+    expect(recomputeBucketsForMeasurement).toHaveBeenCalledTimes(1);
+    const [userId, type, canonicalTs] = vi.mocked(
+      recomputeBucketsForMeasurement,
+    ).mock.calls[0]!;
+    expect(userId).toBe("user-1");
+    expect(type).toBe("ACTIVITY_STEPS");
+    // Canonical local-noon of the Berlin day 2026-05-16 (CEST, UTC+2).
+    expect((canonicalTs as Date).toISOString()).toBe(
+      "2026-05-16T10:00:00.000Z",
+    );
   });
 });
 

@@ -337,8 +337,7 @@ async function getMedicationCompliance(
   const compliance = pickSection(snapshot.sections, "compliance");
   // GLP-1 context rides the `weeklyContext` block.
   const weeklyContext = pickSection(snapshot.sections, "weeklyContext") as
-    | { glp1?: unknown }
-    | undefined;
+    { glp1?: unknown } | undefined;
   const glp1 = weeklyContext?.glp1;
   if (compliance === undefined && glp1 === undefined) {
     return { present: false, reason: "no_data" };
@@ -377,8 +376,7 @@ async function getLabs(
     scopeFor([], fallbackWindow, fallbackWindow, sharedScope),
   );
   const labs = pickSection(snapshot.sections, "labs") as
-    | { recent?: Array<{ name?: string; analyte?: string }> }
-    | undefined;
+    { recent?: Array<{ name?: string; analyte?: string }> } | undefined;
   if (labs === undefined) return { present: false, reason: "no_data" };
 
   const analyte = parsed.data.analyte?.trim().toLowerCase();

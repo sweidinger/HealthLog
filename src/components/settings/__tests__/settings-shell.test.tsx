@@ -112,6 +112,11 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "mood",
       "labs",
       "illness",
+      // v1.25 (W-ENV) — Environment (home location, travel overrides, backfill),
+      // module-gated on the opt-in `environment` module.
+      "environment",
+      // v1.25 (W-RECORDS) — Anamnese (allergies + family history), always shown.
+      "anamnesis",
       "vorsorge",
       "thresholds",
       "ai",

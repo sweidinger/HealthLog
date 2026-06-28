@@ -7,7 +7,10 @@ import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
-import { scopeSourceFromMetricKey } from "@/components/insights/coach-metric-scope";
+import {
+  scopeSourceFromMetricKey,
+  scopeSourceMetricLabelKey,
+} from "@/components/insights/coach-metric-scope";
 
 interface MetricStatusCardProps {
   /** The registry metric id the generic assessment route keys on. */
@@ -46,12 +49,15 @@ export function MetricStatusCard({
   // carry a snapshot block. Unmapped metrics still get a metric-named
   // opener, just against the default snapshot.
   const coachSource = scopeSourceFromMetricKey(metric);
-  const coachQuestion = `Walk me through my ${metric
-    .toLowerCase()
-    .replace(
-      /_/g,
-      " ",
-    )} assessment — what does it mean and what should I do about it?`;
+  // Prefer the EXISTING localised measurement-name key for the auto-sent
+  // preset so the opener reads in the user's language; fall back to the
+  // humanised token only for metrics without a localised name.
+  const coachLabelKey = scopeSourceMetricLabelKey(coachSource);
+  const coachQuestion = t("insights.coach.assessmentPrompt", {
+    metric: coachLabelKey
+      ? t(coachLabelKey)
+      : metric.toLowerCase().replace(/_/g, " "),
+  });
 
   return (
     <InsightStatusCard
@@ -62,6 +68,7 @@ export function MetricStatusCard({
       updatedAt={status?.updatedAt ?? null}
       coachQuestion={coachQuestion}
       coachScope={coachSource ? { metric: coachSource } : undefined}
+      coachAutoSend
       // Same hydration gate as `<SlugInsightStatusCard>`: the hook is
       // `enabled: isAuthenticated && enabled`, and both inputs can settle
       // before a late-hydrating boundary replays its first render — the

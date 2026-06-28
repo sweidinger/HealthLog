@@ -467,74 +467,134 @@ export function BackupsSection() {
           />
         </div>
       ) : (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-muted-foreground border-b text-xs">
-                <th className="px-3 py-2 text-left font-medium">
-                  {t("admin.section.backups.colUser")}
-                </th>
-                <th className="px-3 py-2 text-left font-medium">
-                  {t("admin.section.backups.colType")}
-                </th>
-                <th className="px-3 py-2 text-right font-medium">
-                  {t("admin.section.backups.colSize")}
-                </th>
-                <th className="px-3 py-2 text-right font-medium">
-                  {t("admin.section.backups.colCreatedAt")}
-                </th>
-                <th className="px-3 py-2 text-right font-medium">
-                  {t("admin.section.backups.colActions")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {rows.map((row, i) => (
-                <tr key={row.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
-                  <td className="px-3 py-2 font-medium">{row.username}</td>
-                  <td className="px-3 py-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {formatBackupType(row.type, t)}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">
-                    {formatBytes(row.sizeBytes, fmt)}
-                  </td>
-                  <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
-                    {fmt.dateTime(row.createdAt)}
-                  </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={downloadingId === row.id}
-                        onClick={() => handleDownload(row)}
-                        aria-label={t("admin.section.backups.downloadAria", {
-                          username: row.username,
-                        })}
-                        className="min-h-11"
-                      >
-                        {downloadingId === row.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-                        ) : (
-                          <Download className="h-3.5 w-3.5" />
-                        )}
-                        {t("admin.section.backups.download")}
-                      </Button>
-                      <RestoreRowDialog
-                        row={row}
-                        pending={
-                          restore.isPending && restore.variables?.id === row.id
-                        }
-                        onConfirm={() => restore.mutate(row)}
-                      />
-                    </div>
-                  </td>
+        <div className="mt-4">
+          {/* Wide layout: the canonical table. Hidden below `md`, where the
+              five columns push Download / Restore off-screen behind a
+              horizontal scroll; the card list below takes over there. */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-muted-foreground border-b text-xs">
+                  <th className="px-3 py-2 text-left font-medium">
+                    {t("admin.section.backups.colUser")}
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium">
+                    {t("admin.section.backups.colType")}
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    {t("admin.section.backups.colSize")}
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    {t("admin.section.backups.colCreatedAt")}
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    {t("admin.section.backups.colActions")}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-border divide-y">
+                {rows.map((row, i) => (
+                  <tr key={row.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="px-3 py-2 font-medium">{row.username}</td>
+                    <td className="px-3 py-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {formatBackupType(row.type, t)}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">
+                      {formatBytes(row.sizeBytes, fmt)}
+                    </td>
+                    <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                      {fmt.dateTime(row.createdAt)}
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={downloadingId === row.id}
+                          onClick={() => handleDownload(row)}
+                          aria-label={t("admin.section.backups.downloadAria", {
+                            username: row.username,
+                          })}
+                          className="min-h-11"
+                        >
+                          {downloadingId === row.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                          ) : (
+                            <Download className="h-3.5 w-3.5" />
+                          )}
+                          {t("admin.section.backups.download")}
+                        </Button>
+                        <RestoreRowDialog
+                          row={row}
+                          pending={
+                            restore.isPending &&
+                            restore.variables?.id === row.id
+                          }
+                          onConfirm={() => restore.mutate(row)}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Narrow layout: each backup as a self-contained card with the
+              meta line + a flex-wrapping action row, so Download / Restore
+              stay reachable on a phone instead of scrolling off-screen. */}
+          <ul
+            className="space-y-2 md:hidden"
+            data-testid="admin-backups-mobile-list"
+          >
+            {rows.map((row) => (
+              <li
+                key={row.id}
+                className="bg-muted/30 border-border rounded-lg border p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-medium">{row.username}</span>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {formatBackupType(row.type, t)}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground text-[11px]">
+                  {t("admin.section.backups.colSize")}:{" "}
+                  {formatBytes(row.sizeBytes, fmt)} ·{" "}
+                  {fmt.dateTime(row.createdAt)}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={downloadingId === row.id}
+                    onClick={() => handleDownload(row)}
+                    aria-label={t("admin.section.backups.downloadAria", {
+                      username: row.username,
+                    })}
+                    className="min-h-11"
+                  >
+                    {downloadingId === row.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    {t("admin.section.backups.download")}
+                  </Button>
+                  <RestoreRowDialog
+                    row={row}
+                    pending={
+                      restore.isPending && restore.variables?.id === row.id
+                    }
+                    onConfirm={() => restore.mutate(row)}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+
           <p className="text-muted-foreground mt-2 text-xs">
             {t("admin.section.backups.retentionLabel", {
               days: data!.retentionDays,

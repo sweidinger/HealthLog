@@ -1046,8 +1046,7 @@ interface ChatBubbleProps {
    * bubble falls back to that so the card survives reload.
    */
   suggestedAction?:
-    | import("@/lib/ai/coach/suggest-action").CoachSuggestedAction
-    | null;
+    import("@/lib/ai/coach/suggest-action").CoachSuggestedAction | null;
   providerType?: string | null;
   inProgress?: boolean;
   errorCode?: string | null;

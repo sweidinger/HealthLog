@@ -53,10 +53,7 @@ const bodySchema = z.object({
 });
 
 export type CheckUserBranch =
-  | "not_found"
-  | "passkey_only"
-  | "email_fallback"
-  | "exists";
+  "not_found" | "passkey_only" | "email_fallback" | "exists";
 
 export const POST = apiHandler(async (request: NextRequest) => {
   // v1.4.43 W13 M-4 — tighter shared bucket on trust-chain misconfig.

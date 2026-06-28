@@ -102,6 +102,31 @@ const RESPIRATORY_RATE_NORMS: NormRow[] = [
 ];
 
 /**
+ * Grip-strength normal band (kg) by sex — the EWGSOP2 "probable sarcopenia"
+ * cut-off (Cruz-Jentoft et al., Age Ageing 2019): men < 27 kg, women < 16 kg.
+ * The band brackets the at-or-above-cut-off "normal" placement; `direction`
+ * is `higher-better`, so the read flags a value below the low bound. A single
+ * adult bracket per sex — the cut-off is sex-specific, not age-banded — so the
+ * resolver returns it whenever the profile sex is known, even with no age.
+ */
+const GRIP_STRENGTH_NORMS: NormRow[] = [
+  { minAge: 0, maxAge: 120, sex: "MALE", range: { low: 27, high: 60 } },
+  { minAge: 0, maxAge: 120, sex: "FEMALE", range: { low: 16, high: 60 } },
+];
+
+/**
+ * Waist-circumference normal band (cm) by sex — the WHO European-origin
+ * increased-risk threshold (WHO 2008/2011; NIH/NHLBI 1998): men > 94 cm,
+ * women > 80 cm. `direction` is `lower-better`, so the normal band runs from
+ * 0 up to the sex cut-off. Single adult bracket per sex (sex-specific, not
+ * age-banded). No ethnicity adjustment — HealthLog does not collect ancestry.
+ */
+const WAIST_CIRCUMFERENCE_NORMS: NormRow[] = [
+  { minAge: 0, maxAge: 120, sex: "MALE", range: { low: 0, high: 94 } },
+  { minAge: 0, maxAge: 120, sex: "FEMALE", range: { low: 0, high: 80 } },
+];
+
+/**
  * The norm tables, keyed by the assessment-registry metric id. A metric
  * absent from this map has no age/sex sharpening — the caller keeps the
  * flat registry anchor. Append a table here to lift another metric.
@@ -110,6 +135,9 @@ const NORM_TABLES: Partial<Record<MetricStatusMetricId, NormRow[]>> = {
   VO2_MAX: VO2_MAX_NORMS,
   RESTING_HEART_RATE: RESTING_HEART_RATE_NORMS,
   RESPIRATORY_RATE: RESPIRATORY_RATE_NORMS,
+  // v1.25 — sex-specific (age-independent) cut-offs.
+  GRIP_STRENGTH: GRIP_STRENGTH_NORMS,
+  WAIST_CIRCUMFERENCE: WAIST_CIRCUMFERENCE_NORMS,
 };
 
 /** The age a bracket row is anchored at for interpolation — its centre. */
@@ -161,17 +189,23 @@ export function lookupNormalRange(
   ageYears: number | null | undefined,
   sex: NormSex,
 ): NormRange | null {
-  if (ageYears == null || !Number.isFinite(ageYears) || ageYears < 0) {
-    return null;
-  }
   const table = NORM_TABLES[metricId];
   if (!table) return null;
 
   const rows = resolveSexRows(table, sex);
   if (!rows || rows.length === 0) return null;
 
-  // Single band — no neighbour to interpolate against.
+  // Single band — no neighbour to interpolate against. A sex-specific,
+  // age-independent cut-off (grip strength, waist circumference) resolves
+  // here without an age, so the sex-aware band still applies when the
+  // profile carries sex but no date of birth.
   if (rows.length === 1) return { ...rows[0].range };
+
+  // Multi-bracket tables are age-banded — without a usable age there is no
+  // honest placement, so the caller keeps the flat registry anchor.
+  if (ageYears == null || !Number.isFinite(ageYears) || ageYears < 0) {
+    return null;
+  }
 
   // Clamp below the youngest centre / above the oldest centre: hold the
   // nearest cited band flat rather than extrapolate past the table.

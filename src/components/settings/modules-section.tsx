@@ -28,9 +28,12 @@ import {
   Activity,
   Award,
   Blocks,
+  Brain,
   CalendarHeart,
   Droplet,
+  CloudSun,
   Dumbbell,
+  FileScan,
   FileText,
   MessageCircleHeart,
   Moon,
@@ -72,8 +75,14 @@ const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   // v1.18.1 (D3) — medications graduated from CORE to a toggleable module.
   medications: Pill,
   doctorReport: FileText,
+  // v1.25.0 — the environmental-context module (opt-in weather/daylight feed).
+  environment: CloudSun,
   // v1.22.0 — the remote MCP endpoint (opt-in connectivity module).
   mcp: Plug,
+  // v1.25.0 (W-DOCS-IN) — inbound clinical documents (opt-in).
+  inboundDocuments: FileScan,
+  // v1.25.0 — opt-in mental-health screeners (PHQ-9 / GAD-7).
+  mentalHealth: Brain,
 };
 
 export function ModulesSection() {

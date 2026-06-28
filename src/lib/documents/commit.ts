@@ -1,0 +1,166 @@
+/**
+ * v1.25 (W-DOCS-IN) — commit an APPROVED staged fact into a structured store.
+ *
+ * The only write path out of the staging area. Each approved fact is routed to
+ * its existing structured store through the same field-by-field create the
+ * manual / OCR paths use — no mass assignment, owner-scoped:
+ *   - OBSERVATION          → `LabResult` (resolve-or-mint the biomarker)
+ *   - CONDITION            → `IllnessEpisode` (condition journal)
+ *   - MEDICATION_STATEMENT → `Medication` (as-needed record, no reminders)
+ *
+ * The app reproduces what the document stated; it never interprets. A Condition
+ * is stored with `type = OTHER` (mapping a free-text diagnosis to a clinical
+ * category would BE interpretation) and the stated status/code is transcribed
+ * verbatim into the encrypted note. A MedicationStatement is recorded as an
+ * as-needed medication with notifications off — a record of what the patient
+ * takes, never a prescription action. An Observation never carries a
+ * range-flag; the reference bounds ride along only as the document stated them.
+ */
+import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
+import { prisma } from "@/lib/db";
+import { decryptFactData } from "@/lib/documents/store";
+import { resolveOrMintBiomarker } from "@/lib/labs/biomarker-store";
+import type { ExtractedFact } from "@/generated/prisma/client";
+import type {
+  ConditionFactData,
+  MedicationStatementFactData,
+  ObservationFactData,
+} from "@/lib/validations/inbound-documents";
+
+/** A per-fact commit failure the caller maps to a per-fact 422 entry. */
+export class FactCommitError extends Error {
+  code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "FactCommitError";
+    this.code = code;
+  }
+}
+
+export interface CommittedRecordRef {
+  recordType: "labResult" | "illnessEpisode" | "medication";
+  recordId: string;
+}
+
+/** Parse a stated YYYY-MM-DD into a UTC instant, or fall back to now. */
+function statedDateOrNow(date: string | null): Date {
+  if (date && /^\d{4}-\d{2}-\d{2}$/u.test(date)) {
+    return new Date(`${date}T00:00:00.000Z`);
+  }
+  return new Date();
+}
+
+async function commitObservation(
+  userId: string,
+  data: ObservationFactData,
+): Promise<CommittedRecordRef> {
+  const isQualitative = typeof data.value !== "number";
+  // A numeric reading needs a unit so the catalog has something to mint with —
+  // we never coerce or assume one (fail closed; the user adds it on the review
+  // screen).
+  if (!isQualitative && (!data.unit || !data.unit.trim())) {
+    throw new FactCommitError(
+      "observation.unitRequired",
+      "A numeric value needs a unit before it can be saved",
+    );
+  }
+  const biomarker = await resolveOrMintBiomarker(userId, {
+    analyte: data.label,
+    unit: isQualitative ? (data.unit ?? "") : (data.unit as string),
+    referenceLow: isQualitative ? null : data.referenceLow,
+    referenceHigh: isQualitative ? null : data.referenceHigh,
+    panel: null,
+  });
+  const created = await prisma.labResult.create({
+    data: {
+      userId,
+      biomarkerId: biomarker.id,
+      panel: biomarker.panel,
+      analyte: biomarker.name,
+      value: isQualitative ? null : (data.value as number),
+      valueText: isQualitative ? data.valueText : null,
+      unit: biomarker.unit,
+      referenceLow: biomarker.lowerBound,
+      referenceHigh: biomarker.upperBound,
+      takenAt: statedDateOrNow(data.effectiveDate),
+      source: "DOCUMENT",
+      noteEncrypted: null,
+    },
+  });
+  return { recordType: "labResult", recordId: created.id };
+}
+
+async function commitCondition(
+  userId: string,
+  data: ConditionFactData,
+): Promise<CommittedRecordRef> {
+  // Reproduce the stated status + code verbatim in the note — never interpret
+  // it into the `type` / `lifecycle` enums (that would assign meaning). The
+  // type stays OTHER so the diagnosis is recorded, not categorised.
+  const noteParts: string[] = [];
+  if (data.clinicalStatus) noteParts.push(`Status: ${data.clinicalStatus}`);
+  if (data.verificationStatus) {
+    noteParts.push(`Verification: ${data.verificationStatus}`);
+  }
+  if (data.code && data.codeSystem) {
+    noteParts.push(`Code: ${data.codeSystem} ${data.code}`);
+  }
+  const note = noteParts.length > 0 ? noteParts.join(" · ") : null;
+
+  const created = await prisma.illnessEpisode.create({
+    data: {
+      userId,
+      label: data.label,
+      type: "OTHER",
+      lifecycle: "ACUTE",
+      onsetAt: statedDateOrNow(data.onsetDate),
+      resolvedAt: null,
+      parentConditionId: null,
+      noteEncrypted: note ? encryptToBytes(note) : null,
+    },
+  });
+  return { recordType: "illnessEpisode", recordId: created.id };
+}
+
+async function commitMedication(
+  userId: string,
+  data: MedicationStatementFactData,
+): Promise<CommittedRecordRef> {
+  const created = await prisma.medication.create({
+    data: {
+      userId,
+      name: data.name,
+      // The document may not state a dose; record it as unspecified rather
+      // than invent a number. A blank dose is not allowed by the column.
+      dose: data.dose && data.dose.trim() ? data.dose.trim() : "unspecified",
+      // A MedicationStatement is a RECORD of what the patient takes, not a
+      // prescription action: as-needed (no schedule) with reminders off.
+      asNeeded: true,
+      notificationsEnabled: false,
+      ...(data.atcCode ? { atcCode: data.atcCode } : {}),
+      ...(data.rxNormCode ? { rxNormCode: data.rxNormCode } : {}),
+    },
+  });
+  return { recordType: "medication", recordId: created.id };
+}
+
+/**
+ * Commit one approved fact into its structured store. Throws `FactCommitError`
+ * on a per-fact validation miss (e.g. a numeric observation with no unit) so
+ * the confirm route can report it without failing the whole batch.
+ */
+export async function commitApprovedFact(
+  userId: string,
+  fact: ExtractedFact,
+): Promise<CommittedRecordRef> {
+  // Decrypt the staged payload at confirm time to write it into the normal
+  // structured store. Fail-closed: a bad key id throws and aborts the commit.
+  const data = decryptFactData(fact.dataEncrypted);
+  if (fact.factType === "OBSERVATION") {
+    return commitObservation(userId, data as ObservationFactData);
+  }
+  if (fact.factType === "CONDITION") {
+    return commitCondition(userId, data as ConditionFactData);
+  }
+  return commitMedication(userId, data as MedicationStatementFactData);
+}

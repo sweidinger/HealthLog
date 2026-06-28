@@ -28,6 +28,7 @@ import type {
   MeasurementType,
 } from "@/generated/prisma/client";
 import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
+import { readNote } from "@/lib/crypto/note-cipher";
 import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
 import { userDayKey } from "@/lib/tz/resolver";
 import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
@@ -47,6 +48,7 @@ import {
   tallyComplianceFromLedger,
   type ComplianceSchedule,
   type IntakeEvent,
+  type MedicationPauseEraLike,
 } from "@/lib/analytics/compliance";
 import type { ScheduleRevisionLike } from "@/lib/medications/scheduling/schedule-eras";
 
@@ -639,6 +641,8 @@ export interface DoctorReportComplianceMedication {
   createdAt: Date;
   schedules: ComplianceSchedule[];
   scheduleRevisions?: ScheduleRevisionLike[];
+  /** v1.25 H-MED1 — pause eras so paused days drop out of the denominator. */
+  pauseEras?: MedicationPauseEraLike[];
 }
 
 /** A window-bounded intake row keyed to its medication. */
@@ -797,6 +801,8 @@ export async function collectDoctorReportData(
               supersededByRevisionId: true,
             },
           },
+          // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+          pauseEras: { select: { pausedAt: true, resumedAt: true } },
           // v1.4.25 W4d — eager-load dose history + recent intake site
           // for any active medication. Generic meds carry empty arrays
           // so the legacy data path is byte-identical.
@@ -965,6 +971,7 @@ export async function collectDoctorReportData(
       createdAt: m.createdAt,
       schedules: m.schedules,
       scheduleRevisions: m.scheduleRevisions,
+      pauseEras: m.pauseEras,
     })),
     intakeEvents.map((e) => ({
       medicationId: e.medicationId,
@@ -1244,7 +1251,7 @@ export async function collectDoctorReportData(
             value: dc.doseValue,
             unit: dc.doseUnit,
             effectiveFrom: dc.effectiveFrom.toISOString(),
-            note: dc.note,
+            note: readNote(dc.noteEncrypted, dc.note),
           })),
           lastInjection:
             lastIntake && lastIntake.takenAt
@@ -1508,6 +1515,16 @@ const MEASUREMENT_TYPE_MODULE: Record<string, ModuleKey> = {
   RECOVERY_SCORE: "recovery",
   STRESS_SCORE: "recovery",
   BLOOD_GLUCOSE: "glucose",
+  // v1.25.0 — the PHQ-9 / GAD-7 screener TOTALS ride the doctor-report / FHIR
+  // export only when the opt-in mental-health module is on (default OFF →
+  // excluded by default, privacy-by-default). Item-level answers are never a
+  // Measurement, so they can never leak through this path regardless. The total
+  // is the intended clinical artefact (total + band per clinical-instruments.md
+  // §4); gating it on the module keeps the export consistent with how mood /
+  // sleep / glucose are gated and avoids exporting a screener the account never
+  // opted into.
+  PHQ9_SCORE: "mentalHealth",
+  GAD7_SCORE: "mentalHealth",
 };
 
 function filterMeasurementKeys<T>(

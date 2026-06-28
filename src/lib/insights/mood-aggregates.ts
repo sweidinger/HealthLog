@@ -26,13 +26,14 @@ import {
 } from "@/lib/insights/bucket-series";
 import { round, summarizeSeries } from "@/lib/insights/status-shared";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
+import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 import {
   computeMoodNarratives,
   type MoodNarrative,
 } from "@/lib/insights/mood-narratives";
 import { welchTTest } from "@/lib/insights/correlations";
 import { benjaminiHochberg as fdrAdjust } from "@/lib/insights/correlation-discovery";
-import { toBerlinYmd } from "@/lib/tz/resolver";
+import { resolveUserTimezone, toBerlinYmd } from "@/lib/tz/resolver";
 import { annotate } from "@/lib/logging/context";
 import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
 import { createCustomLabelResolver } from "@/lib/mood/custom-tags";
@@ -218,6 +219,7 @@ export function pairDailyBuckets(
   seriesA: DailyPoint[],
   seriesB: DailyPoint[],
   now: Date,
+  tz: string = DEFAULT_TIMEZONE,
 ): Array<PairedPoint & { dayKey: string }> {
   const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
 
@@ -225,7 +227,7 @@ export function pairDailyBuckets(
     .map((entry) => {
       const b = mapB.get(entry.dayOffset);
       if (b == null) return null;
-      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset);
+      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset, tz);
       const [y, m, d] = dayKey.split("-").map(Number);
       return {
         a: entry.value,
@@ -1512,10 +1514,11 @@ export interface WeekdayRow {
 export function computeWeekdayAverages(
   daily: DailyPoint[],
   now: Date,
+  tz: string = DEFAULT_TIMEZONE,
 ): WeekdayRow[] {
   const sums = new Map<number, { sum: number; count: number }>();
   for (const bucket of daily) {
-    const dayKey = dayOffsetToBerlinDayKey(now, bucket.dayOffset);
+    const dayKey = dayOffsetToBerlinDayKey(now, bucket.dayOffset, tz);
     const d = new Date(dayKey + "T00:00:00Z");
     const weekday = (d.getUTCDay() + 6) % 7; // Monday = 0
     const cur = sums.get(weekday) ?? { sum: 0, count: 0 };
@@ -1674,10 +1677,7 @@ export const STABILITY_MIN_DAYS = 7;
 export const STABILITY_SD_FULL_SCALE = 1.5;
 
 export type StabilityBand =
-  | "verySteady"
-  | "steady"
-  | "variable"
-  | "veryVariable";
+  "verySteady" | "steady" | "variable" | "veryVariable";
 
 export interface MoodStability {
   /** 0..100; higher = steadier (lower day-to-day variance). */
@@ -1822,8 +1822,9 @@ export function computeMoodMetricCorrelation(
   moodDaily: DailyPoint[],
   metricDaily: DailyPoint[],
   now: Date,
+  tz: string = DEFAULT_TIMEZONE,
 ): MoodMetricCorrelation {
-  const pairs = pairDailyBuckets(moodDaily, metricDaily, now);
+  const pairs = pairDailyBuckets(moodDaily, metricDaily, now, tz);
   const result = pearsonCorrelation(pairs);
   const points = pairs.map((p) => ({ x: p.a, y: p.b }));
   return { result, points, n: pairs.length };
@@ -1933,15 +1934,22 @@ export function computeMoodAggregates(args: {
    * the default ladders.
    */
   userPriorityJson?: unknown;
+  /**
+   * v1.2.5 (M-TZ3) — the user's IANA timezone. Threaded into every day
+   * bucketing pass so a near-midnight reading lands on the user's own
+   * calendar day. Defaults to Berlin for legacy / test callers.
+   */
+  tz?: string;
 }): MoodAggregates {
   const { entries, measurements, now } = args;
   const userPriorityJson = args.userPriorityJson ?? null;
+  const tz = args.tz ?? DEFAULT_TIMEZONE;
 
   const moodPoints = entries.map((entry) => ({
     measuredAt: entry.moodLoggedAt,
     value: entry.score,
   }));
-  const moodSeries = applyPayloadBudget(moodPoints, { now });
+  const moodSeries = applyPayloadBudget(moodPoints, { now, tz });
   const moodDaily = moodSeries.daily;
 
   const moodSummary = summarizeSeries(
@@ -1968,12 +1976,12 @@ export function computeMoodAggregates(args: {
       measurements
         .filter((m) => m.type === type)
         .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
-      { now },
+      { now, tz },
     ).daily;
 
   const windowDays = selectHeatmapWindow(totalSpanDays);
 
-  const weekday = computeWeekdayAverages(moodDaily, now);
+  const weekday = computeWeekdayAverages(moodDaily, now, tz);
   const timeOfDay = computeTimeOfDayAverages(entries);
   const stability = computeMoodStability(moodDaily);
   const tags = computeTagSummary(entries, now);
@@ -1984,7 +1992,7 @@ export function computeMoodAggregates(args: {
   const correlations = Object.fromEntries(
     Object.entries(CORRELATION_METRICS).map(([key, type]) => [
       key,
-      computeMoodMetricCorrelation(moodDaily, metricDaily(type), now),
+      computeMoodMetricCorrelation(moodDaily, metricDaily(type), now, tz),
     ]),
   ) as MoodAggregates["correlations"];
 
@@ -2042,6 +2050,7 @@ export function computeMoodAggregates(args: {
       inTargetPct,
       loggedDayKeys,
       now,
+      tz,
     }),
     correlations,
   };
@@ -2205,12 +2214,16 @@ export async function fetchMoodAggregates(
     });
   }
 
-  const userPriorityJson = await loadUserSourcePriority(userId);
+  const [userPriorityJson, tz] = await Promise.all([
+    loadUserSourcePriority(userId),
+    resolveUserTimezone(userId),
+  ]);
 
   return computeMoodAggregates({
     entries,
     measurements,
     now,
     userPriorityJson,
+    tz,
   });
 }

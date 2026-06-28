@@ -1,0 +1,152 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { Activity, ArrowDownRight, ArrowUpRight } from "lucide-react";
+
+import { useTranslations } from "@/lib/i18n/context";
+import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
+import { apiGet } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { SectionHeading } from "@/components/insights/section-heading";
+import { MEASUREMENT_TYPE_LABEL_KEYS } from "@/components/measurements/measurement-list-meta";
+import type {
+  HealthStatusDeviation,
+  HealthStatusShift,
+} from "@/lib/insights/health-status";
+
+/**
+ * v1.25 — baseline-drift card.
+ *
+ * A calm read of what is drifting from the user's own normal, drawn off the
+ * read-only `/api/insights/health-status` route (which folds the personal-band
+ * deviations from the coincident engine with the dated changepoint shifts). The
+ * card un-mounts entirely when nothing is drifting (`present === false`) rather
+ * than surfacing an empty header. Awareness framing only — at most a neutral
+ * tone, never a red alert, never a diagnosis.
+ */
+
+interface HealthStatusResponse {
+  present: boolean;
+  deviations: HealthStatusDeviation[];
+  shifts: HealthStatusShift[];
+  generatedAt: string;
+}
+
+interface HealthStatusCardProps {
+  enabled?: boolean;
+  className?: string;
+}
+
+export function HealthStatusCard({
+  enabled = true,
+  className,
+}: HealthStatusCardProps) {
+  const { t } = useTranslations();
+  const { isAuthenticated } = useAuth();
+
+  const { data } = useQuery({
+    queryKey: queryKeys.insightsHealthStatus(),
+    queryFn: () => apiGet<HealthStatusResponse>("/api/insights/health-status"),
+    enabled: enabled && isAuthenticated,
+    staleTime: 60_000,
+  });
+
+  if (!data || data.present === false) return null;
+
+  const vitalName = (type: string): string => {
+    const key = MEASUREMENT_TYPE_LABEL_KEYS[type];
+    return key ? t(key) : type;
+  };
+
+  return (
+    <section
+      data-slot="health-status-section"
+      aria-label={t("insights.healthStatus.sectionTitle")}
+      className={cn("space-y-3", className)}
+    >
+      <SectionHeading
+        icon={Activity}
+        title={t("insights.healthStatus.sectionTitle")}
+        subtitle={t("insights.healthStatus.subtitle")}
+      />
+      <div
+        data-slot="health-status-card"
+        className="bg-card flex w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6"
+      >
+        {data.deviations.map((d) => (
+          <div
+            key={`dev-${d.type}`}
+            className="flex items-start gap-2"
+            data-slot="health-status-deviation"
+          >
+            {d.direction === "above" ? (
+              <ArrowUpRight
+                className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+            ) : (
+              <ArrowDownRight
+                className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+            )}
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-foreground text-sm">
+                {t(
+                  d.direction === "above"
+                    ? "insights.healthStatus.deviationAbove"
+                    : "insights.healthStatus.deviationBelow",
+                  { vital: vitalName(d.type) },
+                )}
+              </p>
+              <p className="text-muted-foreground text-xs leading-snug">
+                {t("insights.healthStatus.rangeContext", {
+                  value: d.value,
+                  low: d.low,
+                  high: d.high,
+                })}
+              </p>
+            </div>
+          </div>
+        ))}
+
+        {data.shifts.map((s) => (
+          <div
+            key={`shift-${s.metric}`}
+            className="flex items-start gap-2"
+            data-slot="health-status-shift"
+          >
+            {s.direction === "up" ? (
+              <ArrowUpRight
+                className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+            ) : (
+              <ArrowDownRight
+                className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+            )}
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-foreground text-sm">
+                {t(
+                  s.direction === "up"
+                    ? "insights.healthStatus.shiftUp"
+                    : "insights.healthStatus.shiftDown",
+                  { vital: vitalName(s.metric) },
+                )}
+              </p>
+              <p className="text-muted-foreground text-xs leading-snug">
+                {t("insights.healthStatus.shiftContext", {
+                  before: s.beforeMean,
+                  after: s.afterMean,
+                })}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

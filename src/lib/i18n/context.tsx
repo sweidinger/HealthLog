@@ -89,6 +89,26 @@ function persistLocale(newLocale: Locale) {
   document.documentElement.lang = newLocale;
 }
 
+// v1.25.0 — mirror the active locale onto `User.locale` so server-side
+// background work (the proactive Coach nudge, the Telegram test message)
+// renders in the user's language. The cookie/localStorage choice is
+// invisible to a cron that has no request context; without this write the
+// column stays null and those messages fall back to English. Fire-and-forget
+// and idempotent on the server: a 401 on a public page, an offline blip or a
+// no-op equal value all fail silently and never block the UI flip.
+function persistLocaleToServer(newLocale: Locale) {
+  void fetch("/api/auth/me/locale", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ locale: newLocale }),
+    credentials: "same-origin",
+    keepalive: true,
+  }).catch(() => {
+    // Best-effort: the cookie remains the first-paint source of truth, and
+    // the next mount retries the backfill.
+  });
+}
+
 export function I18nProvider({
   children,
   initialLocale,
@@ -150,6 +170,14 @@ export function I18nProvider({
     return () => {
       cancelled = true;
     };
+  }, [locale]);
+
+  // v1.25.0 — keep `User.locale` in step with the committed UI locale. Runs on
+  // mount (backfilling the column for users who set their language before this
+  // landed) and on every switch, so the proactive Coach nudge and other
+  // cookie-blind background paths render in the language the user reads.
+  useEffect(() => {
+    persistLocaleToServer(locale);
   }, [locale]);
 
   const setLocale = useCallback((newLocale: Locale) => {

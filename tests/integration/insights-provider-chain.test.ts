@@ -46,6 +46,21 @@ vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
 
+// safeFetch's requirePublicHost path runs through undici's own `fetch`
+// (version-locked with its dispatcher) rather than the global. Delegate it to
+// the global `fetch` spy these tests install so the provider HTTP is mocked.
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("undici")>();
+  return {
+    ...actual,
+    fetch: (input: unknown, init?: unknown) =>
+      (globalThis.fetch as unknown as (i: unknown, n?: unknown) => unknown)(
+        input,
+        init,
+      ),
+  };
+});
+
 // Stub feature extraction + prompt-building so the test stays focused
 // on the chain semantics rather than the prompt's real content. Both
 // modules are re-exported from inside the route via @/lib/insights so

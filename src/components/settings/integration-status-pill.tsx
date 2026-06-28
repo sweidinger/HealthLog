@@ -45,11 +45,7 @@ import { cn } from "@/lib/utils";
  *   - disconnected   → user clicked Disconnect; "Not connected" copy.
  */
 export type IntegrationPillState =
-  | "connected"
-  | "warning"
-  | "error"
-  | "parked"
-  | "disconnected";
+  "connected" | "warning" | "error" | "parked" | "disconnected";
 
 interface IntegrationStatusPillProps {
   state: IntegrationPillState;

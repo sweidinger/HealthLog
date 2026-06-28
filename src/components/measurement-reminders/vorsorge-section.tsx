@@ -35,6 +35,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Plus,
+  RefreshCw,
   Wrench,
 } from "lucide-react";
 
@@ -219,7 +220,12 @@ export function VorsorgeSection({
   variant?: "settings" | "page";
 }) {
   const { t } = useTranslations();
-  const { data: reminders, isLoading } = useMeasurementReminders(enabled);
+  const {
+    data: reminders,
+    isLoading,
+    isError,
+    refetch,
+  } = useMeasurementReminders(enabled);
   const { create, update, remove, satisfy } = useMeasurementReminderMutations();
   // v1.18.6 (MOD-03) — page view (cards/list) + manual order persist
   // client-side; the settings page writes them, the page reads them.
@@ -662,7 +668,27 @@ export function VorsorgeSection({
         </div>
       )}
 
-      {!isLoading && (reminders?.length ?? 0) === 0 && (
+      {!isLoading && isError && (
+        <div
+          role="alert"
+          data-slot="vorsorge-error"
+          className="text-muted-foreground flex flex-col items-start gap-3 py-8 text-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{t("measurementReminders.loadError")}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void refetch()}
+            className="gap-1.5"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("common.retry")}</span>
+          </Button>
+        </div>
+      )}
+
+      {!isLoading && !isError && (reminders?.length ?? 0) === 0 && (
         <EmptyState
           icon={<Plus className="size-6" />}
           title={t("measurementReminders.empty.title")}

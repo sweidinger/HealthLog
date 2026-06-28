@@ -21,7 +21,7 @@ import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 createLabResultSchema.meta({
   id: "CreateLabResultRequest",
   description:
-    'Record a single biomarker reading (HbA1c, LDL, ferritin, TSH, …). A reading is EITHER numeric (`value` + `unit`, optional reference bounds) OR qualitative (`valueText`, e.g. "negativ" / "positiv") — exactly one, never both, never neither. `analyte` + `unit` are free-form (a lab prints its own naming); a qualitative reading needs no unit / bounds. When both numeric bounds are present `referenceLow` must not exceed `referenceHigh`. `takenAt` is a backdatable ISO instant (no future, ≤ 50 years past). The optional `note` is encrypted at rest.',
+    'Record a single biomarker reading (HbA1c, LDL, ferritin, TSH, …). A reading is EITHER numeric (`value` + `unit`, optional reference bounds) OR qualitative (`valueText`, e.g. "negativ" / "positiv") — exactly one, never both, never neither. `analyte` + `unit` are free-form (a lab prints its own naming); a qualitative reading needs no unit / bounds. When both numeric bounds are present `referenceLow` must not exceed `referenceHigh`. `takenAt` is a backdatable ISO instant (no future, ≤ 50 years past). The optional `note` is encrypted at rest. The optional `source` records provenance: `"OCR"` for an on-device-OCR capture (the raw image never reaches the server on this path), defaulting to `"MANUAL"` when omitted.',
 });
 
 updateLabResultSchema.meta({
@@ -119,7 +119,7 @@ export const labsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Labs"],
       summary: "Record a lab result",
       description:
-        "Creates a single lab result for the caller. `source` is hardcoded MANUAL on this path. The optional note is AES-256-GCM encrypted before write. Audits as `labResult.create`.",
+        'Creates a single lab result for the caller. The optional `source` marks provenance (`"MANUAL"` | `"OCR"`); it defaults to `"MANUAL"` when omitted, so the legacy hand-entry contract is unchanged. The on-device-OCR client posts `"OCR"` after the human confirms the parsed values — the raw image never touches the server on this path. The optional note is AES-256-GCM encrypted before write. Audits as `labResult.create`.',
       requestBody: {
         required: true,
         content: { "application/json": { schema: createLabResultSchema } },

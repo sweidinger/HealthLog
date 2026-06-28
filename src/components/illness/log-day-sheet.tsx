@@ -60,7 +60,7 @@ function Chip({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3 py-1.5 text-sm transition-colors",
+        "inline-flex min-h-11 items-center rounded-full border px-3 py-1.5 text-sm transition-colors sm:min-h-8",
         active
           ? "border-primary bg-primary/10 text-foreground"
           : "border-border text-muted-foreground hover:bg-muted",
@@ -95,7 +95,7 @@ function SymptomChip({
         aria-pressed={active}
         onClick={onToggle}
         className={cn(
-          "flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors",
+          "flex min-h-11 items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors sm:min-h-8",
           active
             ? "border-primary bg-primary/10 text-foreground"
             : "border-border text-muted-foreground hover:bg-muted",
@@ -117,7 +117,7 @@ function SymptomChip({
               aria-pressed={severity === value}
               onClick={() => onSeverity(value)}
               className={cn(
-                "h-6 w-6 rounded-md border text-xs",
+                "grid h-11 w-11 place-items-center rounded-md border text-xs sm:h-8 sm:w-8",
                 severity === value
                   ? "border-primary bg-primary/10 text-foreground"
                   : "border-border text-muted-foreground hover:bg-muted",

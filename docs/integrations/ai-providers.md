@@ -198,6 +198,30 @@ The Coach drawer surfaces a "Local" badge when generation resolves
 to the local provider, so users who pinned a local endpoint can see
 at a glance that their context stayed on the host.
 
+## What the Coach is — and isn't
+
+The Coach is an informational assistant that works from your own
+logged data. It is not a doctor, what it says is not medical advice,
+and it does not diagnose, prescribe, or change treatment — those
+boundaries are written into its system prompt as safety contracts, not
+left to chance. It describes patterns observationally ("your resting
+heart rate has been rising over 14 days"), never as a verdict about a
+named condition, and it defers diagnosis, dose, and drug-interaction
+questions to a healthcare professional. This is HealthLog's
+project-wide self-description standard: a personal health
+record-keeping and wellness tool, not a medical device. The same
+non-diagnostic framing governs the daily briefing, the insights, and
+every surface that turns your data into words.
+
+The Coach can also reach out proactively — a calm, once-a-day morning
+check-in when there is something genuine to surface (a recovery trend
+easing off, blood pressure running a touch high). The nudge is warm
+and localized, references the focus by category rather than quoting
+your own words back, and stays silent when there is nothing real to
+say or when you have engaged the Coach recently. It is an invitation,
+never a streak-guilt prompt, and it inherits the same non-diagnostic
+boundaries as the chat.
+
 ## Caching contract
 
 Two caches sit in front of every provider call so generation budgets

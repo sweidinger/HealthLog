@@ -77,6 +77,9 @@ export function getPRDirection(
     case "SIX_MINUTE_WALK_DISTANCE":
     case "STAIR_ASCENT_SPEED":
     case "STAIR_DESCENT_SPEED":
+    // v1.25 — grip strength is a clean strength-achievement axis (higher is the
+    // record), the strength limb of the EWGSOP2 sarcopenia algorithm.
+    case "GRIP_STRENGTH":
       return PersonalRecordDirection.MAX;
 
     // MIN direction — lower value is the record.
@@ -194,6 +197,17 @@ export function getPRDirection(
     // inputs — a derived composite with no clean goal axis, so it stays null
     // like the other device-derived scores.
     case "RESILIENCE":
+    // v1.25 — clinical-signals wave. The mental-health screener totals are
+    // deliberately NOT gamified (no streaks / "best score" framing around a
+    // depression / anxiety screen — research safety rule). Pain NRS is a
+    // symptom, not an achievement axis. Waist circumference + waist-to-height
+    // are goal-dependent like WEIGHT (a lower waist is a goal for some, not
+    // all). All defer to a null PR direction.
+    case "PHQ9_SCORE":
+    case "GAD7_SCORE":
+    case "PAIN_NRS":
+    case "WAIST_CIRCUMFERENCE":
+    case "WAIST_TO_HEIGHT":
       return null;
   }
 }

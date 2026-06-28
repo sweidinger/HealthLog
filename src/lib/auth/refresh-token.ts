@@ -83,10 +83,7 @@ export async function issueAccessAndRefresh(
 }
 
 export type RotationFailureReason =
-  | "not_found"
-  | "expired"
-  | "already_used"
-  | "revoked";
+  "not_found" | "expired" | "already_used" | "revoked";
 
 export type RotationResult =
   | { ok: true; bundle: IssuedRefreshBundle }

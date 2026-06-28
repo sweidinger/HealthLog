@@ -20,7 +20,7 @@ import {
 } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
-import { redactSensitiveFields } from "@/lib/observability/redact-payload";
+import { redactForExcerpt } from "@/lib/observability/redact-payload";
 import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
 import { VALUE_RANGES } from "@/lib/validations/measurement";
@@ -158,11 +158,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // do not currently accept any but the truncation keeps that
     // invariant cheap) cannot leak. Shared helper via v1.4.49 so the
     // widget + series routes can't drift on the diagnostic shape; the
-    // query map is routed through `redactSensitiveFields` first so any
+    // query map is routed through `redactForExcerpt` first so any
     // future credential-shaped query string (`token`, `apiKey`,
     // `csrfState`) redacts to `"[redacted]"` before the truncate.
     const payloadDiagnostic = buildPayloadDiagnostic(
-      redactSensitiveFields(rawQuery),
+      redactForExcerpt(rawQuery),
     );
     annotate({
       action: { name: "measurements.series.validation-failed" },

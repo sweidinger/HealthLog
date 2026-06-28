@@ -34,6 +34,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
+import { toAllergyDTO, toFamilyHistoryEntryDTO } from "@/lib/records/dto";
 import {
   collectDoctorReportData,
   normaliseDateRange,
@@ -112,14 +113,32 @@ export const POST = apiHandler(async (request: NextRequest) => {
     selection.germanAtc ??
     (GERMAN_ATC_DEFAULT_LOCALES as readonly string[]).includes(locale);
 
-  const [data, userTz, userRow] = await Promise.all([
-    collectDoctorReportData(user.id, range, { practiceName, sections }),
-    resolveUserTimezone(user.id),
-    prisma.user.findUnique({
-      where: { id: user.id },
-      select: { insuranceNumberEncrypted: true, insightsCachedText: true },
-    }),
-  ]);
+  const [data, userTz, userRow, allergyRows, familyHistoryRows] =
+    await Promise.all([
+      collectDoctorReportData(user.id, range, { practiceName, sections }),
+      resolveUserTimezone(user.id),
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { insuranceNumberEncrypted: true, insightsCachedText: true },
+      }),
+      // v1.25 (W-RECORDS) — structured records are always-available reference
+      // data (not time-windowed), so they ride alongside the report rather
+      // than through `collectDoctorReportData`. Owner-scoped, live rows only.
+      prisma.allergy.findMany({
+        where: { userId: user.id, deletedAt: null },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.familyHistoryEntry.findMany({
+        where: { userId: user.id, deletedAt: null },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+  // FHIR records folded into every bundle format (fhir + package).
+  const fhirRecords = {
+    allergies: allergyRows.map(toAllergyDTO),
+    familyHistory: familyHistoryRows.map(toFamilyHistoryEntryDTO),
+  };
 
   // Decrypt the KVNR fail-soft: a key-rotation gap on one row should
   // never 500 the export — the cover/identifier just omits the value.
@@ -163,6 +182,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       { insuranceNumber },
       undefined,
       { germanAtc },
+      fhirRecords,
     );
     const json = JSON.stringify(bundle);
     annotate({
@@ -205,9 +225,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   // format === "package": one zip holding the PDF + FHIR Bundle + a README.
-  const bundle = buildFhirDocumentBundle(data, { insuranceNumber }, undefined, {
-    germanAtc,
-  });
+  const bundle = buildFhirDocumentBundle(
+    data,
+    { insuranceNumber },
+    undefined,
+    { germanAtc },
+    fhirRecords,
+  );
   const readme = t("doctorReport.packageReadme");
   const zipped = zipSync(
     {

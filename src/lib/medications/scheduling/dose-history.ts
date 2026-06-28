@@ -67,12 +67,7 @@ export interface HistoryIntake {
 }
 
 export type DoseHistoryStatus =
-  | "taken_on_time"
-  | "taken_late"
-  | "skipped"
-  | "missed"
-  | "upcoming"
-  | "ad_hoc";
+  "taken_on_time" | "taken_late" | "skipped" | "missed" | "upcoming" | "ad_hoc";
 
 /**
  * v1.15.20 — the due-context an ad-hoc row carries: the nearest scheduled

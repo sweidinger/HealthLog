@@ -61,6 +61,33 @@ export const BIOMARKER_CATALOG: readonly BiomarkerSeed[] = [
     lowerBound: null,
     upperBound: 150,
   },
+  // v1.25 — longevity panel: atherogenic-particle burden + genetic + RBC EPA/DHA.
+  // ApoB is the primary atherogenic-burden number (ESC/EAS 2019); the upper
+  // bound is the population-desirable line, lower goals are care-context-specific.
+  {
+    slug: "apob",
+    panel: "lipids",
+    unit: "mg/dL",
+    lowerBound: null,
+    upperBound: 90,
+  },
+  // Lp(a) is largely genetically fixed (measure once, flag elevated); molar
+  // (nmol/L) reporting preferred — never interconvert mass↔molar by a factor.
+  {
+    slug: "lp-a",
+    panel: "lipids",
+    unit: "nmol/L",
+    lowerBound: null,
+    upperBound: 125,
+  },
+  // Omega-3 index (RBC EPA+DHA %): cardioprotective/optimal 8–12%.
+  {
+    slug: "omega-3-index",
+    panel: "lipids",
+    unit: "%",
+    lowerBound: 8,
+    upperBound: null,
+  },
   // Glucose metabolism
   {
     slug: "fasting-glucose",
@@ -75,6 +102,16 @@ export const BIOMARKER_CATALOG: readonly BiomarkerSeed[] = [
     unit: "%",
     lowerBound: null,
     upperBound: 5.7,
+  },
+  // v1.25 — longevity panel: fasting insulin (metabolically-optimal often
+  // cited < 8 µIU/mL; typical reference ~2.5–13). HOMA-IR is derived from
+  // fasting glucose × insulin (see `homa-ir.ts`), not a stored catalog marker.
+  {
+    slug: "fasting-insulin",
+    panel: "glucose",
+    unit: "µIU/mL",
+    lowerBound: 2.5,
+    upperBound: 13,
   },
   // Thyroid
   {

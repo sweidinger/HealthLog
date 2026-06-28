@@ -93,6 +93,8 @@ import {
 } from "@/lib/insights/metric-status-registry";
 import { annotate } from "@/lib/logging/context";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
+import { resolveEffectiveTimeoutMs } from "@/lib/ai/effective-timeout";
+import { recordBriefingFailure } from "@/lib/insights/briefing-failure-marker";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -200,6 +202,13 @@ async function rerollBriefingParagraph(args: {
    * care / workouts) the reroll may now cite.
    */
   features?: AggregatedFeatures | null;
+  /**
+   * The upstream provider timeout for this re-roll, resolved from the user's
+   * response-timeout setting (falling back to the comprehensive budget). The
+   * caller resolves it once and threads it in so the re-roll honours the same
+   * slow-backend allowance the main generation does.
+   */
+  effectiveTimeoutMs: number;
 }): Promise<{ text: string; providerType: string } | null> {
   let cached: Record<string, unknown>;
   try {
@@ -232,7 +241,8 @@ async function rerollBriefingParagraph(args: {
         maxTokens: AI_BUDGETS.comprehensive.maxTokens,
         // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
         // generation is not clipped at the client's 60 s default mid-stream.
-        timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
+        // v1.25 — honours the per-user response-timeout setting (see caller).
+        timeoutMs: args.effectiveTimeoutMs,
         responseFormat: "json",
       }),
     });
@@ -399,9 +409,10 @@ export async function buildComparisonSnapshotForUser(
           orderBy: { measuredAt: "asc" },
           select: { measuredAt: true, value: true },
         });
-        dataPoints = measurements.map(
-          (m): DataPoint => ({ date: m.measuredAt, value: m.value }),
-        );
+        dataPoints = measurements.map((m): DataPoint => ({
+          date: m.measuredAt,
+          value: m.value,
+        }));
       }
       const summary = summarize(dataPoints);
       const baselineAvg =
@@ -730,8 +741,21 @@ export async function generateComprehensiveInsight(
       gender: true,
       // v1.22 (W6) — first name for the sparse, hash-gated briefing opener.
       displayName: true,
+      // v1.25 — per-user response-timeout (seconds). Threaded onto every
+      // provider call below so a raised value for a slow self-hosted backend
+      // actually applies to the briefing, not just to Coach.
+      aiResponseTimeoutSeconds: true,
     },
   });
+
+  // Resolve the upstream provider timeout once from the user's setting,
+  // falling back to the comprehensive budget. Every generation call in this
+  // function (main, JSON retry, grounding retry, and the paragraph re-roll)
+  // uses it so the whole briefing path honours the operator's allowance.
+  const effectiveTimeoutMs = resolveEffectiveTimeoutMs(
+    dbUser?.aiResponseTimeoutSeconds,
+    AI_BUDGETS.comprehensive.timeoutMs,
+  );
 
   if (
     !force &&
@@ -930,6 +954,7 @@ export async function generateComprehensiveInsight(
         locale,
         signals: features.signalsOfDay ?? null,
         features,
+        effectiveTimeoutMs,
       });
       if (rerolled) {
         await prisma.user.update({
@@ -986,7 +1011,8 @@ export async function generateComprehensiveInsight(
         maxTokens: AI_BUDGETS.comprehensive.maxTokens,
         // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
         // generation is not clipped at the client's 60 s default mid-stream.
-        timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
+        // v1.25 — honours the per-user response-timeout setting.
+        timeoutMs: effectiveTimeoutMs,
         // v1.18.7 — structured surface: opt the non-OpenAI chains into their
         // strongest JSON mode (Ollama `format`, Anthropic `{` prefill) so a
         // first-pass JSON miss is rarer; stripJsonFences stays the net.
@@ -1019,6 +1045,11 @@ export async function generateComprehensiveInsight(
         provider_message: err.message?.slice(0, 240) ?? null,
       },
     });
+    // v1.25 — record a dated failure marker so the read path can surface a
+    // discreet "couldn't refresh" hint alongside the preserved last-good
+    // briefing. No cache row is written here, so `insightsCachedText` (the
+    // last good payload) stays intact and the surface never blanks.
+    void recordBriefingFailure({ userId, reason, locale });
     return { status: "failed", reason };
   }
 
@@ -1050,17 +1081,20 @@ export async function generateComprehensiveInsight(
           temperature: AI_BUDGETS.comprehensive.temperature,
           maxTokens: AI_BUDGETS.comprehensive.maxTokens,
           // v1.21.5 — wider upstream budget; see the first generation call.
-          timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
+          // v1.25 — honours the per-user response-timeout setting.
+          timeoutMs: effectiveTimeoutMs,
           responseFormat: "json",
         }),
       });
       result = retry.result;
       workingProviderType = retry.workingProvider.providerType;
     } catch {
+      void recordBriefingFailure({ userId, reason: "invalid-json", locale });
       return { status: "failed", reason: "invalid-json" };
     }
     insights = parseComprehensiveResult(result.content);
     if (insights === null) {
+      void recordBriefingFailure({ userId, reason: "invalid-json", locale });
       return { status: "failed", reason: "invalid-json" };
     }
   }
@@ -1092,7 +1126,8 @@ export async function generateComprehensiveInsight(
             temperature: AI_BUDGETS.comprehensive.temperature,
             maxTokens: AI_BUDGETS.comprehensive.maxTokens,
             // v1.21.5 — wider upstream budget; see the first generation call.
-            timeoutMs: AI_BUDGETS.comprehensive.timeoutMs,
+            // v1.25 — honours the per-user response-timeout setting.
+            timeoutMs: effectiveTimeoutMs,
             responseFormat: "json",
           }),
         });

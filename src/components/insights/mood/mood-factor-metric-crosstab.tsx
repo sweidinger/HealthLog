@@ -21,13 +21,7 @@ import type { MoodInfluenceConfidence } from "./mood-tag-influence";
  */
 
 export type MoodFactorCrosstabDisplay =
-  | "hours"
-  | "score"
-  | "steps"
-  | "bpm"
-  | "ms"
-  | "kg"
-  | "mmHg";
+  "hours" | "score" | "steps" | "bpm" | "ms" | "kg" | "mmHg";
 export type MoodFactorCrosstabMode = "sameDay" | "nextDay";
 
 export interface MoodFactorMetricCrosstabRow {

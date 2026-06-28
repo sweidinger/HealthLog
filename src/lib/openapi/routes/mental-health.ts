@@ -1,0 +1,133 @@
+/**
+ * OpenAPI route table for the opt-in mental-health screeners
+ * (`/api/mental-health/assessments`). PHQ-9 / GAD-7.
+ *
+ * Part of the OpenAPI route table; aggregated in `./index.ts`. The request body
+ * reuses the runtime Zod schema from `@/lib/validations/mental-health` so the
+ * wire contract stays single-source. The response deliberately excludes the
+ * raw item answers — only the server-authoritative total / band / safety flag
+ * are exposed. The iOS client mirrors this DTO and MUST surface its own
+ * crisis-resource card on a positive item-9 flag (never rely on server text
+ * alone).
+ */
+import type { ZodOpenApiObject } from "zod-openapi";
+import { z } from "zod/v4";
+
+import {
+  createAssessmentSchema,
+  listAssessmentsSchema,
+} from "@/lib/validations/mental-health";
+
+import { dataEnvelope, stdResponses } from "./shared";
+
+createAssessmentSchema.meta({
+  id: "CreateMentalHealthAssessmentRequest",
+  description:
+    "Record one completed PHQ-9 (9 items) / GAD-7 (7 items) administration. Each item answer is 0–3; the array length must match the instrument. The item answers are encrypted at rest and never returned. The server computes the total + severity band + item-9 safety flag. Opt-in, beside mood tracking — this is a screening surface, not a diagnosis.",
+});
+
+listAssessmentsSchema.meta({
+  id: "ListMentalHealthAssessmentsQuery",
+  description:
+    "Filter the caller's screener history by instrument; paginate with limit/offset.",
+});
+
+const assessmentRow = z
+  .object({
+    id: z.string(),
+    instrument: z.enum(["PHQ9", "GAD7"]),
+    locale: z.string(),
+    version: z.string(),
+    totalScore: z.number(),
+    severityBand: z.string(),
+    item9Flagged: z.boolean(),
+    crisisShownAt: z.string().nullable(),
+    takenAt: z.string(),
+    createdAt: z.string(),
+  })
+  .meta({
+    id: "MentalHealthAssessment",
+    description:
+      "One completed screener administration. `severityBand` is a descriptive label for the screen (never a diagnosis). `item9Flagged` is true when the PHQ-9 self-harm item was answered > 0 — the client MUST show crisis resources when it is. Raw per-item answers are intentionally absent.",
+  });
+
+const crisisResource = z
+  .object({
+    id: z.string(),
+    contacts: z.array(z.string()),
+  })
+  .meta({ id: "CrisisResource" });
+
+const crisisSet = z
+  .object({
+    emergencyNumber: z.string(),
+    resources: z.array(crisisResource),
+  })
+  .meta({
+    id: "CrisisResourceSet",
+    description:
+      "Locale-aware crisis-resource signposting, present only when item-9 is flagged. Names resolve via i18n on the client; contacts are literal.",
+  });
+
+const createResponse = z
+  .object({
+    assessment: assessmentRow,
+    actionThreshold: z.number(),
+    crisis: crisisSet.nullable(),
+  })
+  .meta({ id: "CreateMentalHealthAssessmentResponse" });
+
+const listResponse = z
+  .object({ assessments: z.array(assessmentRow) })
+  .meta({ id: "ListMentalHealthAssessmentsResponse" });
+
+export const mentalHealthPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/mental-health/assessments": {
+    get: {
+      tags: ["Mental health"],
+      summary: "List the caller's screener history",
+      description:
+        "Returns PHQ-9 / GAD-7 administrations (newest first). Totals + bands + flags only; raw item answers are never returned.",
+      requestParams: { query: listAssessmentsSchema },
+      responses: {
+        "200": {
+          description: "Screener history.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                listResponse,
+                "ListMentalHealthAssessmentsEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Mental health"],
+      summary: "Record a completed PHQ-9 / GAD-7 screener",
+      description:
+        "Stores one administration (item answers encrypted) and writes the derived total as a PHQ9_SCORE / GAD7_SCORE measurement. On a positive PHQ-9 item-9 the response carries the locale-aware crisis-resource set.",
+      requestBody: {
+        content: {
+          "application/json": { schema: createAssessmentSchema },
+        },
+      },
+      responses: {
+        "201": {
+          description: "Assessment recorded.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                createResponse,
+                "CreateMentalHealthAssessmentEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+};

@@ -125,8 +125,7 @@ export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
               labelStyle={{ color: "var(--dracula-fg)" }}
               formatter={(_value, _name, item) => {
                 const payload = item?.payload as
-                  | { avgScore: number | null; count: number }
-                  | undefined;
+                  { avgScore: number | null; count: number } | undefined;
                 if (!payload || payload.avgScore == null) {
                   return [t("insights.mood.weekdayNoData"), ""];
                 }

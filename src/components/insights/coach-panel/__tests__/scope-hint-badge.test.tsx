@@ -112,7 +112,7 @@ describe("<ScopeHintBadge>", () => {
     expect(html).not.toContain('data-slot="coach-scope-hint-dismiss"');
   });
 
-  it("lets the seeded opener fill its column (no max-w-md cap)", () => {
+  it("sizes the seeded opener to its text and keeps it single-line", () => {
     const html = render(
       <ScopeHintBadge
         variant="seeded"
@@ -122,8 +122,21 @@ describe("<ScopeHintBadge>", () => {
         onDismiss={() => {}}
       />,
     );
-    // The opener grows to the composer column width; the old narrow cap is gone.
+    const seedTag = html.match(
+      /<button[^>]*data-slot="coach-scope-hint-seed"[^>]*>/,
+    );
+    expect(seedTag).not.toBeNull();
+    // v1.25.0 — intrinsic width, not stretched to the composer column: the
+    // opener grows to its text and caps at the full width. The old narrow cap
+    // and the full-width stretch are both gone.
     expect(html).not.toContain("max-w-md");
+    // Intrinsic width capped at the column: `inline-flex` + `max-w-full`, not
+    // the old `flex-1` / `w-full` full-width stretch.
+    expect(seedTag?.[0]).toContain("inline-flex");
+    expect(seedTag?.[0]).toContain("max-w-full");
+    expect(seedTag?.[0]).not.toMatch(/\bflex-1\b/);
+    // The question span truncates with an ellipsis rather than wrapping.
+    expect(html).toContain("truncate");
   });
 });
 

@@ -13,6 +13,7 @@
 
 import { prisma } from "@/lib/db";
 import type { MedicationContainerType } from "@/generated/prisma/client";
+import { encryptNote } from "@/lib/crypto/note-cipher";
 import { computeExpiresAt } from "./state-machine";
 import {
   summariseSupply,
@@ -156,6 +157,8 @@ export function buildCreateInventoryInput(input: {
     printedExpiry: input.printedExpiry,
     purchasedAt: input.purchasedAt,
     expiresAt: computeExpiresAt(null, input.printedExpiry),
-    notes: input.notes,
+    // Encrypt the free-text note at rest; the plaintext column stays null.
+    notesEncrypted: encryptNote(input.notes),
+    notes: null,
   };
 }

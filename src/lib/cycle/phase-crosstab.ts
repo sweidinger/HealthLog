@@ -70,14 +70,7 @@ export const PHASE_ORDINAL: Record<CyclePhase, number> = {
 
 /** Display-unit hint the client formatter branches on. */
 export type PhaseCrosstabDisplay =
-  | "hours"
-  | "steps"
-  | "bpm"
-  | "ms"
-  | "kg"
-  | "celsius"
-  | "glucose"
-  | "mood";
+  "hours" | "steps" | "bpm" | "ms" | "kg" | "celsius" | "glucose" | "mood";
 
 /**
  * Synthetic non-MeasurementType channel key for the MOOD outcome. Mood lives in

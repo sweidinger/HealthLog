@@ -35,7 +35,8 @@
     "showPassword": "Pokaż hasło",
     "hidePassword": "Ukryj hasło",
     "learnMore": "Dowiedz się więcej",
-    "dismiss": "Odrzuć"
+    "dismiss": "Odrzuć",
+    "moreInfo": "Więcej informacji"
   },
   "doctorReport": {
     "title": "Raport zdrowotny",
@@ -238,7 +239,9 @@
     "cycle": "Cykl",
     "labs": "Wyniki badań",
     "vorsorge": "Badania",
-    "illness": "Choroba"
+    "illness": "Choroba",
+    "documents": "Dokumenty",
+    "mentalWellbeing": "Dobrostan psychiczny"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -574,7 +577,15 @@
     "bulkDeleteSuccess": "Usunięto pomiary: {count}",
     "bulkDeleteError": "Błąd podczas usuwania wybranych pomiarów",
     "bulkDeleteConfirmTitle": "Usunąć pomiary ({count})?",
-    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte."
+    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte.",
+    "typePhq9Score": "Wynik PHQ-9",
+    "typeGad7Score": "Wynik GAD-7",
+    "typeGripStrength": "Siła chwytu",
+    "typePainNrs": "Ból (0–10)",
+    "typeWaistCircumference": "Obwód talii",
+    "typeWaistToHeight": "Stosunek talii do wzrostu",
+    "unitScore": "pkt",
+    "unitRatio": "stosunek"
   },
   "mood": {
     "title": "Nastrój",
@@ -750,7 +761,8 @@
     "sectionFactors": "Czynniki",
     "sectionNoteDetails": "Notatka i szczegóły",
     "quickTagsHelp": "Twoje częste tagi — jedno dotknięcie",
-    "quickTagsExpand": "Więcej"
+    "quickTagsExpand": "Więcej",
+    "loadError": "Nie udało się załadować wpisów nastroju."
   },
   "medications": {
     "title": "Leki",
@@ -1852,7 +1864,20 @@
       "sat": "Sobota",
       "sun": "Niedziela"
     },
-    "rangeBand": "Zakres"
+    "rangeBand": "Zakres",
+    "a11y": {
+      "summary": "Wykres {metric}. Zakres od {min} do {max}, ostatnio {latest}, trend {trend}.",
+      "noData": "Wykres {metric}. Brak dostępnych danych.",
+      "trendUp": "rosnący",
+      "trendDown": "malejący",
+      "trendFlat": "stały",
+      "scatterSummary": "Wykres korelacji, {count} punktów porównujących {xLabel} z {yLabel}.",
+      "scatterNoData": "Wykres korelacji {xLabel} i {yLabel}. Brak dostępnych danych.",
+      "moodHeatmap": "Mapa cieplna nastroju od {start} do {end}, zarejestrowano {days} dni.",
+      "moodHeatmapEmpty": "Mapa cieplna nastroju, brak zarejestrowanych dni.",
+      "complianceHeatmap": "Mapa cieplna przyjmowania leków od {start} do {end}, {days} aktywnych dni.",
+      "complianceHeatmapEmpty": "Mapa cieplna przyjmowania leków, brak aktywnych dni."
+    }
   },
   "chart": {
     "overlay": {
@@ -2037,7 +2062,11 @@
       "noProviderTitle": "Brak połączonego dostawcy AI",
       "noProviderDescription": "Codzienny briefing podsumowuje Twoje pomiary prostym językiem. HealthLog potrzebuje do tego dostawcy AI — użyj własnego klucza (OpenAI, Anthropic) lub modelu lokalnego. Twoje dane pozostają u Ciebie.",
       "noProviderAction": "Otwórz ustawienia AI",
-      "staleNoProviderHint": "Tego briefingu nie można odświeżyć — nie połączono żadnego dostawcy AI."
+      "staleNoProviderHint": "Tego briefingu nie można odświeżyć — nie połączono żadnego dostawcy AI.",
+      "refreshFailedHint": "Nie udało się odświeżyć briefingu — pokazujemy poprzedni.",
+      "retryAction": "Spróbuj ponownie",
+      "failedTitle": "Nie udało się wygenerować briefingu",
+      "failedDescription": "Dostawca AI przekroczył limit czasu lub zwrócił błąd. Spróbuj ponownie albo zwiększ limit czasu odpowiedzi w ustawieniach AI dla wolnego modelu lokalnego."
     },
     "trendsRow": {
       "title": "Trendy",
@@ -2372,7 +2401,8 @@
         "correlationMoodPulse": "Czy istnieje rzeczywisty związek między moim nastrojem a tętnem? Pomóż mi odczytać tę korelację.",
         "correlationWeightWeekday": "Czy moja waga podlega cotygodniowemu wzorcowi? Co mówi mi ta korelacja według dnia tygodnia?",
         "recommendation": "Powiedz mi więcej o tej rekomendacji: \"{text}\" — dlaczego mnie dotyczy i co powinienem z nią zrobić?"
-      }
+      },
+      "assessmentPrompt": "Wyjaśnij mi moją ocenę {metric} — co oznacza i co powinienem z tym zrobić?"
     },
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",
@@ -2444,7 +2474,8 @@
       "emptyState": {
         "title": "Brak tętna spoczynkowego",
         "description": "Tętno spoczynkowe pojawi się, gdy Apple Watch lub zgodne urządzenie Withings spędzi spokojny dzień na nadgarstku."
-      }
+      },
+      "coachPrefill": "Nie zarejestrowałem jeszcze tętna spoczynkowego — dlaczego dzienna wartość spoczynkowa różni się od pojedynczego pomiaru tętna i jak ją poprawić?"
     },
     "oxygenSaturation": {
       "title": "Saturacja tlenu",
@@ -2670,7 +2701,8 @@
         "caption": "Skumulowany niedobór z ostatnich {nights} nocy",
         "clearValue": "Na bieżąco",
         "clearCaption": "Brak skumulowanego niedoboru w ostatnich {nights} nocach",
-        "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodny bilans."
+        "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodny bilans.",
+        "computedInfo": "To własne oszacowanie HealthLog: ruchomy bilans potrzeby snu minus sen z ostatnich nocy, który sen nadrabiający zmniejsza. Może różnić się od natywnego wskaźnika długu snu z urządzenia, które korzysta z własnego modelu zapotrzebowania."
       },
       "average": {
         "title": "Średnia na noc",
@@ -3585,28 +3617,7 @@
     },
     "sleepQuality": {
       "title": "Jakość snu",
-      "subtitle": "Nocne wyniki z Twojego urządzenia",
-      "assessment": {
-        "metric": {
-          "SLEEP_SCORE": "Twój ogólny wynik snu",
-          "SLEEP_EFFICIENCY": "efektywność snu",
-          "SLEEP_PERFORMANCE": "wydajność snu",
-          "SLEEP_CONSISTENCY": "regularność snu"
-        },
-        "grade": {
-          "excellent": "doskonała",
-          "good": "solidna",
-          "fair": "przeciętna",
-          "low": "raczej niska"
-        },
-        "clause": "W ciągu ostatnich 30 nocy {metric} jest {grade} i wynosi {value}.",
-        "closing": {
-          "excellent": "Trzymaj się rutyny, która Cię tu doprowadziła.",
-          "good": "Bardziej stałe pory zasypiania i wstawania to zwykle następny zysk.",
-          "fair": "Utrzymanie stałego okna snu zwykle podnosi ten wynik najbardziej.",
-          "low": "Regularne wyciszenie wieczorem i stała pora pobudki to pierwsze dźwignie."
-        }
-      }
+      "subtitle": "Nocne wyniki z Twojego urządzenia"
     },
     "recovery": {
       "title": "Regeneracja",
@@ -3666,7 +3677,86 @@
     },
     "updatedTodayAt": "Zaktualizowano dzisiaj, {time}",
     "updatedYesterday": "Zaktualizowano wczoraj",
-    "updatedOn": "Zaktualizowano {date}"
+    "updatedOn": "Zaktualizowano {date}",
+    "healthStatus": {
+      "sectionTitle": "Co się zmieniło",
+      "subtitle": "Sygnały odbiegające od Twojego zwykłego zakresu.",
+      "deviationAbove": "{vital} jest powyżej Twojego zwykłego zakresu.",
+      "deviationBelow": "{vital} jest poniżej Twojego zwykłego zakresu.",
+      "shiftUp": "{vital} przesunął się w górę względem Twojej ostatniej normy.",
+      "shiftDown": "{vital} przesunął się w dół względem Twojej ostatniej normy.",
+      "rangeContext": "Teraz {value}, zwykle {low}–{high}.",
+      "shiftContext": "Około {before} wcześniej, {after} od tego czasu."
+    },
+    "breathingScreening": {
+      "sectionTitle": "Oddychanie podczas snu",
+      "subtitle": "Sygnał przesiewowy z Twoich danych o śnie.",
+      "classificationElevated": "Twoje urządzenie wykryło podwyższone zaburzenia oddychania.",
+      "classificationNotElevated": "Klasyfikacja Twojego urządzenia nie jest podwyższona.",
+      "trendUp": "Wzrost względem wcześniejszych nocy.",
+      "trendDown": "Spadek względem wcześniejszych nocy.",
+      "trendStable": "Stabilnie względem wcześniejszych nocy.",
+      "nights": "Śledzono {count} nocy",
+      "indexLine": "ostatni średni indeks {value}",
+      "eventsFlagged": "{count} zdarzeń oznaczonych przez urządzenie",
+      "disclaimer": "To sygnał przesiewowy, a nie diagnoza — skonsultuj się z lekarzem."
+    },
+    "labsChanges": {
+      "sectionTitle": "Od ostatnich badań",
+      "subtitle": "Jak najnowsze wyniki wypadają na tle poprzednich badań.",
+      "statusInRange": "w normie",
+      "statusBelow": "poniżej zakresu",
+      "statusAbove": "powyżej zakresu",
+      "directionFlat": "bez zmian"
+    },
+    "navGripStrength": "Siła chwytu",
+    "navPainNrs": "Ból",
+    "navWaistCircumference": "Talia",
+    "navWaistToHeight": "Talia/wzrost",
+    "gripStrength": {
+      "title": "Siła chwytu",
+      "description": "Maksymalna siła chwytu dłoni — solidny wskaźnik ogólnej siły ciała. Poniżej progu zależnego od płci (mężczyźni 27 kg, kobiety 16 kg) sygnalizuje prawdopodobną sarkopenię; odczyt prowadzi Twój własny trend.",
+      "chartTitle": "Siła chwytu",
+      "emptyState": {
+        "title": "Brak pomiarów siły chwytu",
+        "description": "Zapisz pomiar z dynamometru ręcznego (zanotuj najlepszy z kilku ściśnięć), a trend pojawi się tutaj.",
+        "cta": "Zapisz siłę chwytu"
+      },
+      "coachPrefill": "Nie zapisałem jeszcze siły chwytu — co mówi o zdrowiu moich mięśni i jak ją zmierzyć oraz poprawić?"
+    },
+    "pain": {
+      "title": "Ból (0–10)",
+      "description": "Zgłaszana przez pacjenta intensywność bólu w skali numerycznej 0–10, gdzie 0 to brak bólu, a 10 najgorszy wyobrażalny. Utrzymująca się zmiana o 2 punkty to sygnał do obserwacji.",
+      "chartTitle": "Ból (0–10)",
+      "emptyState": {
+        "title": "Brak ocen bólu",
+        "description": "Zapisz, jak odczuwasz ból teraz, w skali 0–10, a trend pojawi się tutaj.",
+        "cta": "Zapisz ocenę bólu"
+      },
+      "coachPrefill": "Nie zapisałem jeszcze ocen bólu — jak śledzić ból w skali 0–10 i co liczy się jako istotna zmiana?"
+    },
+    "waist": {
+      "title": "Obwód talii",
+      "description": "Obwód talii w centymetrach — wskaźnik tłuszczu brzusznego. Próg zwiększonego ryzyka WHO zależy od płci (mężczyźni 94 cm, kobiety 80 cm); odczyt prowadzi Twój własny trend.",
+      "chartTitle": "Obwód talii",
+      "emptyState": {
+        "title": "Brak pomiarów talii",
+        "description": "Zmierz talię w połowie odległości między najniższym żebrem a kością biodrową, na końcu normalnego wydechu, i zapisz tutaj.",
+        "cta": "Zapisz obwód talii"
+      },
+      "coachPrefill": "Nie zapisałem jeszcze pomiarów talii — jak prawidłowo zmierzyć talię i co oznacza ta liczba dla mojego zdrowia?"
+    },
+    "waistToHeight": {
+      "title": "Stosunek talii do wzrostu",
+      "description": "Twoja talia podzielona przez wzrost — najbardziej uniwersalna pojedyncza liczba. Utrzymanie go poniżej 0,5 (talia mniejsza niż połowa wzrostu) to prosty cel.",
+      "chartTitle": "Stosunek talii do wzrostu",
+      "emptyState": {
+        "title": "Brak stosunku talii do wzrostu",
+        "description": "Zapisz stosunek talii do wzrostu, a trend pojawi się tutaj. Zasada: utrzymuj talię poniżej połowy wzrostu.",
+        "cta": "Zapisz stosunek talii do wzrostu"
+      },
+      "coachPrefill": "Nie zapisałem jeszcze stosunku talii do wzrostu — dlaczego to przydatna liczba i jak utrzymać ją poniżej 0,5?"
+    }
   },
   "thresholds": {
     "defaultLabel": "Domyślne",
@@ -4012,7 +4102,8 @@
           "skinTemperature": "Temperatura skóry",
           "respiratoryRate": "Częstość oddechów",
           "recovery": "Regeneracja",
-          "stress": "Stres"
+          "stress": "Stres",
+          "sleepDebt": "Dług snu"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
@@ -4235,6 +4326,50 @@
       "mcp": {
         "title": "Łącznik MCP",
         "subtitle": "Połącz zewnętrznego asystenta z własnymi danymi zdrowotnymi."
+      },
+      "anamnesis": {
+        "title": "Wywiad medyczny",
+        "subtitle": "Zarządzaj swoimi alergiami i wywiadem rodzinnym.",
+        "description": "Ustrukturyzowane rekordy alergii i wywiadu rodzinnego."
+      },
+      "environment": {
+        "title": "Środowisko",
+        "subtitle": "Kontekst pogody, światła dziennego i lokalizacji.",
+        "disabledHint": "Włącz moduł Środowisko, aby ustawić lokalizację domową i pobierać dzienną pogodę oraz długość dnia.",
+        "searchPlaceholder": "Szukaj miasta",
+        "search": "Szukaj",
+        "searchError": "Nie udało się wyszukać tego miejsca.",
+        "use": "Użyj",
+        "select": "Wybierz",
+        "saveError": "Nie udało się zapisać zmiany.",
+        "homeSaved": "Zapisano lokalizację domową.",
+        "travelAdded": "Dodano okres lokalizacji.",
+        "travelRemoved": "Usunięto okres lokalizacji.",
+        "backfillQueued": "Zaplanowano uzupełnianie.",
+        "backfillError": "Nie udało się rozpocząć uzupełniania.",
+        "startDate": "Data początkowa",
+        "endDate": "Data końcowa",
+        "storedDays": "Zapisano dni pogody: {count}.",
+        "home": {
+          "title": "Lokalizacja domowa",
+          "description": "Przybliżona lokalizacja na poziomie miasta – nigdy dokładny ślad. Pogoda i światło dzienne są pobierane dla tego miejsca w dni bez okresu lokalizacji, od dnia jego ustawienia.",
+          "current": "Obecnie: {label}",
+          "none": "Nie ustawiono jeszcze lokalizacji domowej.",
+          "since": "Pogoda zapisywana od {date}. Wcześniejsze dni pozostają puste, dopóki nie dodasz okresu lokalizacji."
+        },
+        "travel": {
+          "title": "Okresy lokalizacji",
+          "description": "Dodaj miejsce i zakres dat: podróż lub fragment wcześniejszej historii. Okres zastępuje Twój dom w dniach, które obejmuje, aby pogoda odpowiadała miejscu, w którym naprawdę byłeś. W ten sposób korygujesz przeszłość.",
+          "none": "Brak okresów lokalizacji.",
+          "add": "Dodaj {label}",
+          "remove": "Usuń okres lokalizacji"
+        },
+        "backfill": {
+          "title": "Uzupełnij minione dni",
+          "description": "Pobierz i zapisz pogodę dla minionego zakresu dat, aby starsze dni weszły do korelacji. Początek domyślnie przyjmuje datę obowiązywania Twojego domu; aby sięgnąć dalej wstecz, najpierw dodaj okres lokalizacji dla tego zakresu.",
+          "run": "Uzupełnij"
+        },
+        "noResults": "Nie znaleziono pasujących miejsc."
       }
     },
     "profile": "Profil",
@@ -6076,7 +6211,13 @@
       "statusOff": "Wyłączone",
       "enabledToast": "Proaktywne podpowiedzi Coacha włączone.",
       "disabledToast": "Proaktywne podpowiedzi Coacha wyłączone.",
-      "saveError": "Nie udało się zapisać. Spróbuj ponownie później."
+      "saveError": "Nie udało się zapisać. Spróbuj ponownie później.",
+      "suggestionsLabel": "Przykładowe sugestie",
+      "suggestionsDesc": "Czasami pokazuje gotowe przykładowe pytanie na ekranie Coacha.",
+      "suggestionsAria": "Przełącz przykładowe sugestie Coacha",
+      "aiComposedLabel": "Pozwól Coachowi sformułować przypomnienie",
+      "aiComposedDesc": "Gdy dostawca jest dostępny, proaktywne przypomnienie tworzy model zamiast stałego szablonu. Domyślnie wyłączone.",
+      "aiComposedAria": "Przełącz proaktywne przypomnienie tworzone przez SI"
     },
     "lowStock": {
       "title": "Alert niskiego zapasu",
@@ -6173,7 +6314,9 @@
       "resetToDefault": "Przywróć wartość domyślną",
       "saveSuccess": "Zakres docelowy zaktualizowany",
       "saveError": "Nie udało się zapisać zakresu docelowego",
-      "resetSuccess": "Zakres docelowy przywrócono do domyślnego"
+      "resetSuccess": "Zakres docelowy przywrócono do domyślnego",
+      "validationOrder": "Wartość minimalna musi być niższa niż maksymalna.",
+      "validationBounds": "Wprowadź wartości w dozwolonym zakresie podanym poniżej."
     },
     "currentValue": "Aktualnie: {value} {unit}",
     "targetRangeValue": "Zakres docelowy: {min}–{max} {unit}",
@@ -6305,21 +6448,18 @@
     "dailyBody": "Jak się dzisiaj czujesz?"
   },
   "coachNudges": {
-    "complianceTitle": "Twój Coach ma na ten temat przemyślenie",
-    "complianceBody": "W tym tygodniu Twoje dawki były przyjmowane nieregularnie. Porozmawiaj chwilę z Coachem — może plan da się uprościć.",
-    "bpTitle": "Podwyższone ciśnienie w tym tygodniu",
-    "bpBody": "Twoje średnie ciśnienie w tym tygodniu przekroczyło cel. Coach pomoże Ci umieścić wyniki w kontekście.",
-    "scoreTitle": "Twój wskaźnik regeneracji spada",
-    "scoreBody": "Twój wskaźnik regeneracji wyraźnie spadł w tym tygodniu. Coach pomoże Ci zawęzić możliwe przyczyny.",
-    "selfContextTitle": "Pomóż Coachowi lepiej Cię poznać",
-    "selfContextBody": "Twój opis o sobie jest niepełny lub dawno nie był aktualizowany. Dwie minuty w ustawieniach utrzymają kontekst Coacha w aktualnym stanie.",
-    "weightTitle": "Twoja waga oddala się od zakresu docelowego",
-    "weightBody": "Twoja tygodniowa średnia jeszcze bardziej oddaliła się od zakresu docelowego. Coach pomoże Ci spokojnie podsumować sytuację.",
-    "sleepDebtTitle": "Kilka krótkich nocy w tym tygodniu",
-    "sleepDebtBody": "Większość Twoich ostatnich nocy była poniżej celu snu. Coach pomoże Ci poszukać wzorców.",
-    "measurementGapTitle": "Twój dziennik ucichł",
-    "measurementGapBody": "Od tygodnia nie pojawiają się nowe wartości. Krótka rozmowa z Coachem pomoże wrócić do rutyny — albo wykryć zepsutą synchronizację.",
-    "focusSuffix": "Chciałeś/chciałaś zwracać uwagę na: {focus}.",
+    "greetingMorning": "Dzień dobry",
+    "greetingMorningNamed": "Dzień dobry, {name}",
+    "greetingHey": "Cześć",
+    "greetingHeyNamed": "Cześć, {name}",
+    "complianceBody": "W tym tygodniu Twoje przyjmowanie dawek trochę się rozjechało. Jeśli chcesz, zobaczmy razem, co by Ci to ułatwiło.",
+    "bpBody": "Twoje ciśnienie było w tym tygodniu nieco powyżej zwykłego zakresu. Kiedy zechcesz, chętnie przyjrzę się temu z Tobą.",
+    "scoreBody": "Twoja regeneracja od kilku dni nieco słabnie. Jeśli jesteś ciekaw przyczyny, jestem tu, żeby o tym porozmawiać.",
+    "selfContextBody": "Dawno nie aktualizowano Twojego opisu o sobie. Gdy znajdziesz chwilę, odświeżenie go pomaga mi lepiej Cię zrozumieć.",
+    "weightBody": "Twoja waga ostatnio nieco oddaliła się od zakresu docelowego. Jeśli chcesz, spokojnie podsumujemy to razem.",
+    "sleepDebtBody": "Kilka Twoich nocy było w tym tygodniu krótkich. Jeśli masz ochotę, poszukajmy razem wzorca.",
+    "measurementGapBody": "Twój dziennik milczy od około tygodnia. Kiedy Ci pasuje, krótka rozmowa pomoże wrócić do rutyny.",
+    "focusNote": "Wiąże się to też z tym, na co chciałeś/chciałaś zwracać uwagę.",
     "questionConditions": "Czy masz choroby przewlekłe, o których Coach powinien wiedzieć?",
     "questionFocus": "Czy jest coś konkretnego, na co Coach powinien zwracać uwagę?",
     "questionAllergies": "Czy masz alergie lub nietolerancje?",
@@ -6358,6 +6498,11 @@
       "label": "Hasło",
       "error": "To hasło jest nieprawidłowe.",
       "submit": "Odblokuj"
+    },
+    "loadError": {
+      "title": "Nie udało się załadować udostępnionego widoku",
+      "description": "Podczas otwierania udostępnionej dokumentacji zdrowotnej wystąpił błąd. Link mógł wygasnąć lub wystąpił chwilowy problem. Spróbuj ponownie albo poproś osobę, która go udostępniła, o nowy link.",
+      "retry": "Spróbuj ponownie"
     }
   },
   "cycle": {
@@ -6831,7 +6976,8 @@
       "empty": "Brak nadchodzących przypomnień o badaniach.",
       "openLink": "Otwórz badania"
     },
-    "showMeasurements": "Pokaż pomiary"
+    "showMeasurements": "Pokaż pomiary",
+    "loadError": "Nie udało się załadować przypomnień."
   },
   "moduleList": {
     "viewToggleLabel": "Widok",
@@ -6942,7 +7088,7 @@
       "deletedToast": "Biomarker usunięty",
       "deleteError": "Nie udało się usunąć biomarkera",
       "deleteConfirmTitle": "Usunąć biomarker?",
-      "deleteConfirmDescription": "Definicja zostanie usunięta. Istniejące pomiary pozostaną, ale bez powiązania.",
+      "deleteConfirmDescription": "Biomarker i wszystkie jego zapisane wartości zostaną trwale usunięte. Tej operacji nie można cofnąć.",
       "emptyTitle": "Brak biomarkerów",
       "emptyDescription": "Zdefiniuj markery, takie jak LDL lub HbA1c, aby zapisywać wartości.",
       "loadError": "Nie udało się wczytać biomarkerów",
@@ -6977,7 +7123,14 @@
       "unhiddenToast": "Biomarker przywrócony",
       "hideError": "Nie udało się zaktualizować biomarkera",
       "allHidden": "Wszystkie biomarkery są ukryte.",
-      "hiddenSection": "Ukryte"
+      "hiddenSection": "Ukryte",
+      "targetRange": {
+        "title": "Dostosuj zakres docelowy",
+        "description": "Ustaw dolną i górną wartość referencyjną dla tego markera. Pozostaw pole puste, aby granica była otwarta.",
+        "save": "Zapisz zakres",
+        "savedToast": "Zaktualizowano zakres docelowy",
+        "saveError": "Nie udało się zaktualizować zakresu docelowego"
+      }
     },
     "catalog": {
       "total-cholesterol": "Cholesterol całkowity",
@@ -7044,8 +7197,16 @@
         "hemoglobin": "Białko czerwonych krwinek transportujące tlen.",
         "hematocrit": "Udział czerwonych krwinek w objętości krwi.",
         "wbc": "Całkowita liczba białych krwinek, krążącej obrony układu odpornościowego.",
-        "platelets": "Fragmenty komórkowe, które zlepiają się, tworząc skrzepy krwi."
-      }
+        "platelets": "Fragmenty komórkowe, które zlepiają się, tworząc skrzepy krwi.",
+        "apob": "Bezpośrednio liczy cząstki aterogenne; często lepszy marker ryzyka niż LDL-C, gdy się różnią.",
+        "lp-a": "W dużej mierze dziedziczny, dożywotni czynnik ryzyka — zwykle mierzony raz. Podawaj w jednostkach molowych (nmol/L).",
+        "fasting-insulin": "Łączy się z glukozą na czczo do oszacowania insulinooporności (HOMA-IR).",
+        "omega-3-index": "Udział EPA+DHA w czerwonych krwinkach; 8–12% to powszechnie podawany zakres kardioprotekcyjny."
+      },
+      "apob": "Apolipoproteina B (ApoB)",
+      "lp-a": "Lipoproteina(a)",
+      "fasting-insulin": "Insulina na czczo",
+      "omega-3-index": "Indeks omega-3"
     },
     "noteLoadFailed": "Nie udało się wczytać notatki; pozostanie niezmieniona po zapisaniu.",
     "showingLatestOf": "Wyświetlanie najnowszych {shown} z {total} wyników",
@@ -7092,7 +7253,8 @@
       "fileType": "Prześlij plik JPEG, PNG, WebP lub PDF.",
       "extractFailed": "Nie udało się odczytać wyniku. Spróbuj wyraźniejszego zdjęcia.",
       "pdfNeedsAnthropic": "Skanowanie PDF wymaga dostawcy wizji Claude; prześlij zamiast tego zdjęcie."
-    }
+    },
+    "loadMoreReadings": "Wczytaj więcej pomiarów"
   },
   "modules": {
     "cycle": {
@@ -7150,6 +7312,18 @@
     "mcp": {
       "label": "Dostęp asystenta zewnętrznego (MCP)",
       "description": "Pozwól asystentowi obsługującemu MCP czytać Twoje dane zdrowotne za pomocą tokena o ograniczonym zakresie. Domyślnie wyłączone."
+    },
+    "environment": {
+      "label": "Środowisko",
+      "description": "Pobieraj dzienną pogodę i długość dnia dla swojej lokalizacji, aby powiązać je z nastrojem, snem i parametrami życiowymi. Domyślnie wyłączone."
+    },
+    "inboundDocuments": {
+      "label": "Dokumenty przychodzące",
+      "description": "Prześlij raport lekarski lub wypis; sprawdź wyodrębnione dane przed zapisaniem. Domyślnie wyłączone."
+    },
+    "mentalHealth": {
+      "label": "Dobrostan psychiczny",
+      "description": "Dobrowolne testy PHQ-9 i GAD-7 obok dziennika nastroju. Domyślnie wyłączone; odpowiedzi są szyfrowane i pozostają poza Coachem AI."
     }
   },
   "illness": {
@@ -7202,8 +7376,8 @@
       "note": "Notatka",
       "notePlaceholder": "Cokolwiek wartego zapamiętania (zaszyfrowane).",
       "saveError": "Nie udało się zapisać epizodu. Spróbuj ponownie.",
-      "parent": "Part of",
-      "parentNone": "Not linked"
+      "parent": "Część",
+      "parentNone": "Niepowiązane"
     },
     "sheet": {
       "title": "Zapisz {date}",
@@ -7284,35 +7458,36 @@
       "fever": "Temperatura: {value} °C",
       "empty": "Nie zapisano jeszcze żadnych dni."
     },
-    "loadError": "Could not load this episode.",
-    "backToList": "Back to journal",
+    "loadError": "Nie udało się wczytać tego epizodu.",
+    "backToList": "Powrót do dziennika",
     "detail": {
       "note": "Note"
     },
     "edit": {
-      "title": "Edit episode",
-      "description": "Update this episode's details."
+      "title": "Edytuj epizod",
+      "description": "Zaktualizuj szczegóły tego epizodu."
     },
     "menu": {
-      "label": "Episode actions"
+      "label": "Działania epizodu"
     },
     "deleteConfirm": {
-      "title": "Delete this episode?",
-      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+      "title": "Usunąć ten epizod?",
+      "body": "„{label}” oraz wszystkie powiązane wpisy dzienne zostaną usunięte. Tej operacji nie można cofnąć."
     },
     "vital": {
-      "RESTING_HEART_RATE": "Resting heart rate",
-      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RESTING_HEART_RATE": "Spoczynkowe tętno",
+      "HEART_RATE_VARIABILITY": "Zmienność rytmu serca",
       "RECOVERY_SCORE": "Recovery",
-      "OXYGEN_SATURATION": "Oxygen saturation",
-      "BODY_TEMPERATURE": "Body temperature",
-      "SKIN_TEMPERATURE": "Skin temperature",
-      "RESPIRATORY_RATE": "Respiratory rate",
-      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
-      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "OXYGEN_SATURATION": "Saturacja tlenem",
+      "BODY_TEMPERATURE": "Temperatura ciała",
+      "SKIN_TEMPERATURE": "Temperatura skóry",
+      "RESPIRATORY_RATE": "Częstość oddechów",
+      "BLOOD_PRESSURE_SYS": "Ciśnienie skurczowe",
+      "BLOOD_PRESSURE_DIA": "Ciśnienie rozkurczowe",
       "PULSE": "Pulse",
       "WEIGHT": "Weight"
-    }
+    },
+    "listLoadError": "Nie udało się załadować epizodów."
   },
   "coach": {
     "reminderSuggestion": {
@@ -7372,5 +7547,318 @@
       "glucoseHighDoctor": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej. Zmierz ponownie, nawodnij się i jak najszybciej skontaktuj się z lekarzem, jeśli pozostaje tak wysoki.",
       "glucoseHighEmergency": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej i zgłosiłeś objawy. W razie wymiotów, przyspieszonego oddechu lub dezorientacji natychmiast zadzwoń po pomoc."
     }
+  },
+  "version": {
+    "updateAvailable": {
+      "title": "Dostępna jest nowa wersja",
+      "reload": "Załaduj ponownie",
+      "dismiss": "Odrzuć"
+    }
+  },
+  "mentalHealth": {
+    "pageTitle": "Sprawdzenie dobrostanu psychicznego",
+    "pageDescription": "Dwa zwalidowane, dobrowolne testy — PHQ-9 (nastrój) i GAD-7 (lęk) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
+    "disclaimer": "To przesiewowa samoocena, a nie diagnoza. Wysoki lub niski wynik nie oznacza, że masz lub nie masz danego schorzenia. Tylko wykwalifikowany pracownik ochrony zdrowia może postawić diagnozę. W razie wątpliwości porozmawiaj z lekarzem.",
+    "optInNote": "Dobrowolne i prywatne: Twoje poszczególne odpowiedzi są szyfrowane, pozostają poza Coachem AI i eksportami i nigdy nie są udostępniane.",
+    "attributionLabel": "Źródło",
+    "choosePrompt": "Wybierz sprawdzenie",
+    "start": "Rozpocznij",
+    "back": "Wstecz",
+    "stem": "Jak często w ciągu ostatnich 2 tygodni dokuczały Ci następujące problemy?",
+    "submit": "Zobacz mój wynik",
+    "submitting": "Zapisywanie…",
+    "saved": "Zapisano",
+    "error": "Coś poszło nie tak. Spróbuj ponownie.",
+    "considerProfessional": "Twój wynik mieści się w zakresie, w którym rozmowa ze specjalistą może pomóc. To życzliwa sugestia, a nie diagnoza.",
+    "instrument": {
+      "phq9": "PHQ-9 — nastrój",
+      "gad7": "GAD-7 — lęk"
+    },
+    "instrumentSub": {
+      "phq9": "Przesiew depresji, 9 pytań",
+      "gad7": "Przesiew lęku, 7 pytań"
+    },
+    "options": {
+      "0": "Wcale",
+      "1": "Kilka dni",
+      "2": "Więcej niż połowę dni",
+      "3": "Niemal codziennie"
+    },
+    "functionalTitle": "Jeśli zaznaczyłeś(-aś) jakiekolwiek problemy, na ile utrudniły Ci one pracę, prowadzenie domu lub kontakty z innymi ludźmi?",
+    "functional": {
+      "0": "Wcale nie utrudniły",
+      "1": "Trochę utrudniły",
+      "2": "Bardzo utrudniły",
+      "3": "Skrajnie utrudniły"
+    },
+    "result": {
+      "title": "Twój wynik",
+      "totalLabel": "Wynik łączny",
+      "bandLabel": "Zakres dla tego przesiewu",
+      "takeAnother": "Wykonaj kolejne sprawdzenie"
+    },
+    "band": {
+      "PHQ9": {
+        "minimal": "Brak / minimalny",
+        "mild": "Łagodny",
+        "moderate": "Umiarkowany",
+        "modSevere": "Umiarkowanie ciężki",
+        "severe": "Ciężki"
+      },
+      "GAD7": {
+        "minimal": "Brak / minimalny",
+        "mild": "Łagodny",
+        "moderate": "Umiarkowany",
+        "severe": "Ciężki"
+      }
+    },
+    "history": {
+      "title": "Twoja historia",
+      "empty": "Brak sprawdzeń. Twój trend pojawi się tutaj po ukończeniu pierwszego."
+    },
+    "crisis": {
+      "title": "Nie musisz mierzyć się z tym sam(a)",
+      "intro": "Wskazałeś(-aś) myśli, że lepiej byłoby nie żyć lub zrobić sobie krzywdę. Wsparcie jest dostępne już teraz, a sięgnięcie po pomoc to oznaka siły.",
+      "ifDanger": "Jeśli grozi Ci bezpośrednie niebezpieczeństwo, zadzwoń teraz pod {emergency}.",
+      "resourcesTitle": "Osoby, które mogą pomóc"
+    },
+    "items": {
+      "phq9": {
+        "1": "Niewielkie zainteresowanie lub odczuwanie przyjemności z wykonywania czynności",
+        "2": "Uczucie przygnębienia, depresji lub beznadziejności",
+        "3": "Kłopoty z zaśnięciem lub utrzymaniem snu albo zbyt długi sen",
+        "4": "Uczucie zmęczenia lub brak energii",
+        "5": "Brak apetytu lub przejadanie się",
+        "6": "Złe myślenie o sobie — poczucie, że jest się nieudacznikiem lub że zawiodło się siebie albo rodzinę",
+        "7": "Trudności ze skupieniem się, na przykład podczas czytania gazety lub oglądania telewizji",
+        "8": "Poruszanie się lub mówienie tak wolno, że inni mogli to zauważyć? Albo przeciwnie — niepokój lub pobudzenie powodujące, że poruszasz się znacznie więcej niż zwykle",
+        "9": "Myśli, że lepiej byłoby umrzeć albo chęć zrobienia sobie w jakiś sposób krzywdy"
+      },
+      "gad7": {
+        "1": "Odczuwanie zdenerwowania, lęku lub napięcia",
+        "2": "Niemożność przerwania lub kontrolowania zamartwiania się",
+        "3": "Zbytnie zamartwianie się różnymi sprawami",
+        "4": "Trudności z odprężeniem się",
+        "5": "Niepokój tak duży, że trudno usiedzieć w miejscu",
+        "6": "Łatwe wpadanie w rozdrażnienie lub irytację",
+        "7": "Odczuwanie lęku, jakby miało się zdarzyć coś strasznego"
+      }
+    },
+    "crisisResource": {
+      "telefonSeelsorge": {
+        "name": "TelefonSeelsorge (całodobowo, bezpłatnie i poufnie)"
+      },
+      "nummerGegenKummer": {
+        "name": "Nummer gegen Kummer (dla młodych ludzi)"
+      },
+      "krisenchat": {
+        "name": "krisenchat (czat całodobowy, dla młodych ludzi)"
+      },
+      "findahelpline": {
+        "name": "Find a Helpline (światowy katalog)"
+      },
+      "euEmotionalSupport": {
+        "name": "Telefon wsparcia emocjonalnego"
+      },
+      "lifeline988": {
+        "name": "988 Suicide & Crisis Lifeline"
+      },
+      "crisisTextLine": {
+        "name": "Crisis Text Line"
+      }
+    }
+  },
+  "records": {
+    "disclaimer": "To Twoje własne wpisy, a nie diagnoza lekarska. HealthLog nie diagnozuje, nie leczy i ich nie interpretuje.",
+    "allergies": {
+      "cardTitle": "Alergie i nietolerancje",
+      "cardDescription": "Substancje, na które reagujesz, wraz z reakcją i jej nasileniem.",
+      "description": "Zapisz alergię lub nietolerancję.",
+      "add": "Dodaj alergię",
+      "addFirst": "Dodaj swoją pierwszą alergię",
+      "addTitle": "Dodaj alergię",
+      "editTitle": "Edytuj alergię",
+      "formDescription": "Substancja jest przechowywana jako tekst; reakcja i notatka są szyfrowane.",
+      "emptyTitle": "Brak zapisanych alergii",
+      "emptyDescription": "Dodaj substancje, na które reagujesz, i ich reakcje.",
+      "loadError": "Nie udało się wczytać Twoich alergii.",
+      "deletedToast": "Alergia usunięta",
+      "deleteError": "Nie udało się usunąć alergii.",
+      "deleteConfirmTitle": "Usunąć tę alergię?",
+      "deleteConfirmDescription": "To usuwa wpis. Nie można tego cofnąć.",
+      "category": {
+        "FOOD": "Pokarm",
+        "MEDICATION": "Lek",
+        "ENVIRONMENT": "Środowisko",
+        "BIOLOGIC": "Biologiczny",
+        "OTHER": "Inne"
+      },
+      "type": {
+        "ALLERGY": "Alergia",
+        "INTOLERANCE": "Nietolerancja"
+      },
+      "severity": {
+        "NONE": "Nieoceniona",
+        "MILD": "Łagodna",
+        "MODERATE": "Umiarkowana",
+        "SEVERE": "Ciężka"
+      },
+      "status": {
+        "ACTIVE": "Aktywna",
+        "INACTIVE": "Nieaktywna",
+        "RESOLVED": "Ustąpiła"
+      },
+      "form": {
+        "substance": "Substancja",
+        "substancePlaceholder": "np. Penicylina, Orzeszki ziemne",
+        "category": "Kategoria",
+        "type": "Typ",
+        "severity": "Nasilenie",
+        "status": "Status",
+        "onset": "Pierwszy raz zauważono",
+        "reaction": "Reakcja",
+        "reactionPlaceholder": "np. pokrzywka, obrzęk, anafilaksja",
+        "note": "Notatka",
+        "notePlaceholder": "Cokolwiek innego, co warto zapamiętać",
+        "requiredError": "Podaj substancję.",
+        "savedToast": "Alergia zapisana",
+        "updatedToast": "Alergia zaktualizowana",
+        "saveError": "Nie udało się zapisać alergii."
+      }
+    },
+    "family": {
+      "cardTitle": "Wywiad rodzinny",
+      "cardDescription": "Choroby u Twoich krewnych, jeden wpis na chorobę.",
+      "description": "Zapisz chorobę u krewnego.",
+      "add": "Dodaj wpis",
+      "addFirst": "Dodaj swój pierwszy wpis",
+      "addTitle": "Dodaj wywiad rodzinny",
+      "editTitle": "Edytuj wywiad rodzinny",
+      "formDescription": "Pokrewieństwo i choroba są przechowywane jako tekst; notatka jest szyfrowana.",
+      "emptyTitle": "Brak wywiadu rodzinnego",
+      "emptyDescription": "Dodaj choroby występujące w Twojej rodzinie.",
+      "loadError": "Nie udało się wczytać Twojego wywiadu rodzinnego.",
+      "deletedToast": "Wpis usunięty",
+      "deleteError": "Nie udało się usunąć wpisu.",
+      "deleteConfirmTitle": "Usunąć ten wpis?",
+      "deleteConfirmDescription": "To usuwa wpis. Nie można tego cofnąć.",
+      "ageAtOnsetShort": "Wiek {age}",
+      "relationship": {
+        "MOTHER": "Matka",
+        "FATHER": "Ojciec",
+        "SISTER": "Siostra",
+        "BROTHER": "Brat",
+        "DAUGHTER": "Córka",
+        "SON": "Syn",
+        "GRANDMOTHER_MATERNAL": "Babcia (ze strony matki)",
+        "GRANDFATHER_MATERNAL": "Dziadek (ze strony matki)",
+        "GRANDMOTHER_PATERNAL": "Babcia (ze strony ojca)",
+        "GRANDFATHER_PATERNAL": "Dziadek (ze strony ojca)",
+        "AUNT": "Ciotka",
+        "UNCLE": "Wujek",
+        "COUSIN": "Kuzyn/kuzynka",
+        "HALF_SIBLING": "Przyrodnie rodzeństwo",
+        "OTHER": "Inny krewny"
+      },
+      "form": {
+        "relationship": "Krewny",
+        "condition": "Choroba",
+        "conditionPlaceholder": "np. Cukrzyca typu 2, Rak piersi",
+        "ageAtOnset": "Wiek zachorowania",
+        "ageAtOnsetPlaceholder": "np. 55",
+        "note": "Notatka",
+        "notePlaceholder": "Cokolwiek innego, co warto zapamiętać",
+        "requiredError": "Podaj chorobę.",
+        "ageError": "Podaj wiek od 0 do 120.",
+        "savedToast": "Wpis zapisany",
+        "updatedToast": "Wpis zaktualizowany",
+        "saveError": "Nie udało się zapisać wpisu."
+      }
+    }
+  },
+  "environment": {
+    "fields": {
+      "tempMean": "Temperatura dzienna",
+      "tempMin": "Minimum nocne",
+      "sunshine": "Nasłonecznienie",
+      "daylight": "Światło dzienne",
+      "precip": "Opady",
+      "pressureMean": "Ciśnienie atmosferyczne",
+      "pressureDelta": "Wahanie ciśnienia"
+    }
+  },
+  "documents": {
+    "title": "Dokumenty przychodzące",
+    "subtitle": "Prześlij dokument kliniczny i sprawdź dane, które z niego odczytaliśmy.",
+    "disclaimer": {
+      "title": "Odczytujemy, nie interpretujemy",
+      "body": "Przepisujemy tylko to, co podaje dokument — wartości, kody i daty — i nigdy nie stawiamy diagnozy, nie interpretujemy ani niczego nie oznaczamy. Nic nie zostaje zapisane, dopóki tego nie sprawdzisz i nie zatwierdzisz. Tylko lekarz może zinterpretować te wyniki."
+    },
+    "upload": {
+      "label": "Prześlij dokument",
+      "kindLabel": "Typ dokumentu",
+      "button": "Prześlij",
+      "uploading": "Odczytywanie…",
+      "fileLabel": "Plik dokumentu"
+    },
+    "kind": {
+      "DOCTOR_REPORT": "Raport lekarski",
+      "DISCHARGE_LETTER": "Wypis",
+      "OTHER": "Inny"
+    },
+    "list": {
+      "empty": "Brak dokumentów."
+    },
+    "status": {
+      "EXTRACTING": "Odczytywanie",
+      "EXTRACTED": "Gotowe do przeglądu",
+      "FAILED": "Nie udało się odczytać",
+      "CONFIRMED": "Sprawdzone",
+      "DISCARDED": "Odrzucone"
+    },
+    "review": {
+      "title": "Przejrzyj wyodrębnione dane",
+      "discard": "Odrzuć",
+      "confirm": "Zapisz zatwierdzone dane",
+      "confirming": "Zapisywanie…",
+      "needsReview": "Wymaga przeglądu",
+      "approve": "Zatwierdź",
+      "reject": "Odrzuć",
+      "edit": "Edytuj",
+      "cancel": "Anuluj",
+      "save": "Zapisz"
+    },
+    "empty": {
+      "noFacts": "Nic więcej do przejrzenia."
+    },
+    "factType": {
+      "CONDITION": "Diagnoza",
+      "OBSERVATION": "Wartość",
+      "MEDICATION_STATEMENT": "Lek"
+    },
+    "fields": {
+      "label": "Nazwa",
+      "value": "Wartość",
+      "unit": "Jednostka",
+      "date": "Data",
+      "dose": "Dawka"
+    },
+    "toast": {
+      "uploaded": "Dokument odczytany. Sprawdź dane poniżej.",
+      "uploadFailed": "Nie udało się odczytać dokumentu.",
+      "confirmed": "Zatwierdzone dane zapisane.",
+      "confirmFailed": "Nie udało się zapisać Twoich decyzji.",
+      "saved": "Dane zaktualizowane.",
+      "discarded": "Dokument odrzucony."
+    }
+  },
+  "selfDescription": {
+    "intendedPurpose": "HealthLog to osobiste narzędzie do rejestrowania zdrowia i dbania o dobre samopoczucie. Pomaga zapisywać, wizualizować i eksportować własne dane zdrowotne. Nie diagnozuje, nie leczy ani nie zapobiega żadnej chorobie i nie jest wyrobem medycznym.",
+    "coach": "Coach korzysta z Twoich własnych zapisanych danych. Nie jest lekarzem i nie udziela porad medycznych — po diagnozę lub leczenie zwróć się do pracownika ochrony zdrowia.",
+    "insights": "To opisowe wzorce wyliczone z Twoich własnych zapisanych danych, a nie ocena kliniczna ani diagnoza.",
+    "labs": "To Twoje własne zapisy, a nie diagnoza medyczna. Zakresy referencyjne różnią się w zależności od laboratorium i osoby — tylko Twój lekarz może je dla Ciebie zinterpretować.",
+    "medications": "To rejestruje leki, które zapisujesz, oraz Twoje stosowanie się do zaleceń. Nie ocenia dawkowania ani interakcji i nie jest poradą medyczną — potwierdź to u farmaceuty lub lekarza.",
+    "emergency": "Jeśli to może być nagły przypadek, zadzwoń teraz pod lokalny numer alarmowy lub skontaktuj się z lekarzem. HealthLog nie pomoże w nagłym przypadku.",
+    "dataPosture": "HealthLog jest hostowany samodzielnie: Twoje dane zdrowotne pozostają na Twojej instancji, zaszyfrowane w spoczynku. Funkcje AI korzystają z dostarczonego przez Ciebie klucza dostawcy lub modelu lokalnego, więc nic nie opuszcza Twojej instancji poza skonfigurowanym dostawcą i nie ma analityki firm trzecich na Twoich danych zdrowotnych."
   }
 }

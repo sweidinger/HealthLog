@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.24.0
+  version: 1.25.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -42,6 +42,8 @@ tags:
   - name: MeasurementReminders
   - name: Labs
   - name: Illness
+  - name: Documents
+  - name: Records
   - name: Admin
   - name: Meta
 paths:
@@ -2087,6 +2089,12 @@ paths:
               - SLEEP_SCORE
               - BODY_TEMPERATURE_DEVIATION
               - RESILIENCE
+              - PHQ9_SCORE
+              - GAD7_SCORE
+              - GRIP_STRENGTH
+              - PAIN_NRS
+              - WAIST_CIRCUMFERENCE
+              - WAIST_TO_HEIGHT
         - in: query
           name: from
           schema:
@@ -2276,6 +2284,12 @@ paths:
                     - SLEEP_SCORE
                     - BODY_TEMPERATURE_DEVIATION
                     - RESILIENCE
+                    - PHQ9_SCORE
+                    - GAD7_SCORE
+                    - GRIP_STRENGTH
+                    - PAIN_NRS
+                    - WAIST_CIRCUMFERENCE
+                    - WAIST_TO_HEIGHT
                 value:
                   type: number
                 measuredAt:
@@ -2350,8 +2364,10 @@ paths:
       tags:
         - Measurements
       summary: Delete measurements by external ID (iOS deletion-sync)
-      description: Removes the user's measurement rows whose externalId is in the request list. Rows owned by another user are
-        silently skipped (cross-user 404 guard). Up to 500 externalIds per call.
+      description: "Removes the user's HealthKit-ingested measurement rows (source `APPLE_HEALTH`) whose externalId is in the
+        request list. Only app-minted rows are eligible: an externalId that maps to an integration- or manually-sourced
+        row (a colliding externalUUID) is a no-op, never a delete. Rows owned by another user are silently skipped
+        (cross-user 404 guard). Up to 500 externalIds per call."
       requestBody:
         required: true
         content:
@@ -4084,6 +4100,24 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                sleepDebt:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                      - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
+                      - TELEGRAM
+                      - MCP
                 metricPriority:
                   type: object
                   properties:
@@ -4394,6 +4428,24 @@ paths:
                           - TELEGRAM
                           - MCP
                     stress:
+                      maxItems: 8
+                      type: array
+                      items:
+                        type: string
+                        enum:
+                          - MANUAL
+                          - WITHINGS
+                          - IMPORT
+                          - APPLE_HEALTH
+                          - COMPUTED
+                          - WHOOP
+                          - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
+                          - TELEGRAM
+                          - MCP
+                    sleepDebt:
                       maxItems: 8
                       type: array
                       items:
@@ -5770,6 +5822,12 @@ paths:
               - SLEEP_SCORE
               - BODY_TEMPERATURE_DEVIATION
               - RESILIENCE
+              - PHQ9_SCORE
+              - GAD7_SCORE
+              - GRIP_STRENGTH
+              - PAIN_NRS
+              - WAIST_CIRCUMFERENCE
+              - WAIST_TO_HEIGHT
             description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
           required: true
           description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
@@ -6028,6 +6086,10 @@ paths:
               - AVERAGE_HEART_RATE
               - MAX_HEART_RATE
               - ENERGY_EXPENDITURE_KJ
+              - GRIP_STRENGTH
+              - PAIN_NRS
+              - WAIST_CIRCUMFERENCE
+              - WAIST_TO_HEIGHT
             description: "HealthKit metric id to assess (e.g. RESTING_HEART_RATE, SLEEP_DURATION). Closed enum: an unknown id 422s.
               The seven specialised metrics are served by their own routes and are not accepted here."
           required: true
@@ -6049,6 +6111,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MetricStatusResponseEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/insights/biomarker-assessment:
+    get:
+      tags:
+        - Insights
+      summary: Per-biomarker assessment
+      description: "Data-driven plain-language assessment for one user-scoped lab biomarker, reading its `LabResult` history.
+        Identical envelope to the metric-status card so the `InsightStatusCard` consumes it unchanged. Read-only: a
+        cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate); the
+        assessment regenerates only when a new reading lands. A marker with no numeric readings returns `insufficient`
+        without an LLM call. Auth via cookie or Bearer."
+      parameters:
+        - in: query
+          name: biomarkerId
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+            description: User-scoped biomarker id to assess. A cross-user or unknown id returns an `insufficient` envelope, not a
+              404 (existence sealed).
+          required: true
+          description: User-scoped biomarker id to assess. A cross-user or unknown id returns an `insufficient` envelope, not a
+            404 (existence sealed).
+        - in: query
+          name: locale
+          schema:
+            description: Optional UI-locale override; defaults to the session locale.
+            type: string
+            enum:
+              - de
+              - en
+          description: Optional UI-locale override; defaults to the session locale.
+      responses:
+        "200":
+          description: Assessment envelope (fresh, cached, or preparing).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BiomarkerAssessmentResponseEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -6175,6 +6278,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CorrelationDiscoveryResponseEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/insights/health-status:
+    get:
+      tags:
+        - Insights
+      summary: Baseline-drift health status
+      description: Surfaces vitals drifting from the user's personal normal — out-of-band deviations from the
+        personal-baseline engine plus dated, sustained level shifts from the changepoint detector. Pure compute over the
+        rollup tier; awareness only, never a diagnosis. Requires the insights module. Cookie or Bearer auth.
+      responses:
+        "200":
+          description: The drift summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsHealthStatusEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/insights/breathing-screening:
+    get:
+      tags:
+        - Insights
+      summary: Sleep-breathing screening signal
+      description: Summarises the last ~30 nights of the per-night sleep-breathing-disturbance index plus device-flagged
+        events into a calm awareness read. A screening signal only — never a HealthLog diagnosis. Requires the insights
+        module. Cookie or Bearer auth.
+      responses:
+        "200":
+          description: The breathing-screening summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsBreathingScreeningEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/insights/labs-changes:
+    get:
+      tags:
+        - Insights
+      summary: What changed since your last lab panel
+      description: Pairs the two most-recent numeric lab panels and reports each shared analyte's signed delta plus its
+        reference-band standing. Absent when there are fewer than two panels or no analyte is shared. Neutral framing,
+        never a diagnosis. Cookie or Bearer auth.
+      responses:
+        "200":
+          description: The lab-change summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsLabsChangesEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -6906,8 +7063,10 @@ paths:
       tags:
         - Labs
       summary: Record a lab result
-      description: Creates a single lab result for the caller. `source` is hardcoded MANUAL on this path. The optional note is
-        AES-256-GCM encrypted before write. Audits as `labResult.create`.
+      description: Creates a single lab result for the caller. The optional `source` marks provenance (`"MANUAL"` | `"OCR"`);
+        it defaults to `"MANUAL"` when omitted, so the legacy hand-entry contract is unchanged. The on-device-OCR client
+        posts `"OCR"` after the human confirms the parsed values — the raw image never touches the server on this path.
+        The optional note is AES-256-GCM encrypted before write. Audits as `labResult.create`.
       requestBody:
         required: true
         content:
@@ -6954,6 +7113,11 @@ paths:
                       maxLength: 2000
                     - type: string
                       const: ""
+                source:
+                  type: string
+                  enum:
+                    - MANUAL
+                    - OCR
               required:
                 - takenAt
       responses:
@@ -7894,6 +8058,861 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IllnessInsightsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/mental-health/assessments:
+    get:
+      tags:
+        - Mental health
+      summary: List the caller's screener history
+      description: Returns PHQ-9 / GAD-7 administrations (newest first). Totals + bands + flags only; raw item answers are
+        never returned.
+      parameters:
+        - in: query
+          name: instrument
+          schema:
+            type: string
+            enum:
+              - PHQ9
+              - GAD7
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 9007199254740991
+      responses:
+        "200":
+          description: Screener history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListMentalHealthAssessmentsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Mental health
+      summary: Record a completed PHQ-9 / GAD-7 screener
+      description: Stores one administration (item answers encrypted) and writes the derived total as a PHQ9_SCORE /
+        GAD7_SCORE measurement. On a positive PHQ-9 item-9 the response carries the locale-aware crisis-resource set.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instrument:
+                  type: string
+                  enum:
+                    - PHQ9
+                    - GAD7
+                items:
+                  minItems: 1
+                  maxItems: 12
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                    maximum: 3
+                functionalDifficulty:
+                  type: integer
+                  minimum: 0
+                  maximum: 3
+                takenAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                tz:
+                  type: string
+                  maxLength: 64
+                locale:
+                  type: string
+                  maxLength: 16
+                source:
+                  default: WEB
+                  type: string
+                  enum:
+                    - WEB
+                    - IOS
+                externalId:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+              required:
+                - instrument
+                - items
+      responses:
+        "201":
+          description: Assessment recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMentalHealthAssessmentEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/allergies:
+    get:
+      tags:
+        - Records
+      summary: List allergies (v1.25)
+      description: Returns the caller's live (non-deleted) allergy/intolerance records, newest-first. `includeInactive=false`
+        returns only ACTIVE records.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: includeInactive
+          schema:
+            anyOf:
+              - type: string
+                const: "true"
+              - type: string
+                const: "false"
+      responses:
+        "200":
+          description: The caller's allergy records.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListAllergiesEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Records
+      summary: Record an allergy (v1.25)
+      description: Creates one allergy/intolerance record for the caller. The free-text reaction + note are AES-256-GCM
+        encrypted before write. Audits as `allergy.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                substance:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                category:
+                  default: OTHER
+                  type: string
+                  enum:
+                    - FOOD
+                    - MEDICATION
+                    - ENVIRONMENT
+                    - BIOLOGIC
+                    - OTHER
+                type:
+                  default: ALLERGY
+                  type: string
+                  enum:
+                    - ALLERGY
+                    - INTOLERANCE
+                severity:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - MILD
+                        - MODERATE
+                        - SEVERE
+                    - type: "null"
+                status:
+                  default: ACTIVE
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+                    - RESOLVED
+                onsetAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+                reaction:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              required:
+                - substance
+      responses:
+        "201":
+          description: Allergy created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateAllergyEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/allergies/{id}:
+    get:
+      tags:
+        - Records
+      summary: Read a single allergy (v1.25)
+      description: Returns the record including its decrypted `reaction` + `note`. Owner-scoped; a cross-user or tombstoned id 404s.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The allergy record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAllergyEnvelope"
+        "401": *a1
+        "404": &a12
+          description: Allergy not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Records
+      summary: Edit an allergy (v1.25)
+      description: Partial edit; omitted fields are left untouched. Audits as `allergy.update`. Owner-scoped.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                substance:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                category:
+                  type: string
+                  enum:
+                    - FOOD
+                    - MEDICATION
+                    - ENVIRONMENT
+                    - BIOLOGIC
+                    - OTHER
+                type:
+                  type: string
+                  enum:
+                    - ALLERGY
+                    - INTOLERANCE
+                severity:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - MILD
+                        - MODERATE
+                        - SEVERE
+                    - type: "null"
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+                    - RESOLVED
+                onsetAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+                reaction:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              additionalProperties: false
+      responses:
+        "200":
+          description: Allergy updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateAllergyEnvelope"
+        "401": *a1
+        "404": *a12
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Records
+      summary: Soft-delete an allergy (v1.25)
+      description: "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }`
+        envelope. Audits as `allergy.delete`. Owner-scoped."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteAllergyEnvelope"
+        "401": *a1
+        "404": *a12
+        "422": *a3
+        "429": *a4
+  /api/family-history:
+    get:
+      tags:
+        - Records
+      summary: List family history (v1.25)
+      description: Returns the caller's live (non-deleted) family-history entries, newest-first.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: The caller's family-history entries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListFamilyHistoryEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Records
+      summary: Record a family-history entry (v1.25)
+      description: Creates one condition-by-relative record for the caller. The free-text note is AES-256-GCM encrypted before
+        write. Audits as `family-history.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                relationship:
+                  type: string
+                  enum:
+                    - MOTHER
+                    - FATHER
+                    - SISTER
+                    - BROTHER
+                    - DAUGHTER
+                    - SON
+                    - GRANDMOTHER_MATERNAL
+                    - GRANDFATHER_MATERNAL
+                    - GRANDMOTHER_PATERNAL
+                    - GRANDFATHER_PATERNAL
+                    - AUNT
+                    - UNCLE
+                    - COUSIN
+                    - HALF_SIBLING
+                    - OTHER
+                condition:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                ageAtOnset:
+                  anyOf:
+                    - type: integer
+                      minimum: 0
+                      maximum: 120
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              required:
+                - relationship
+                - condition
+      responses:
+        "201":
+          description: Entry created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateFamilyHistoryEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/family-history/{id}:
+    get:
+      tags:
+        - Records
+      summary: Read a single family-history entry (v1.25)
+      description: Returns the entry including its decrypted `note`. Owner-scoped; a cross-user or tombstoned id 404s.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The family-history entry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetFamilyHistoryEnvelope"
+        "401": *a1
+        "404": &a13
+          description: Family history entry not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Records
+      summary: Edit a family-history entry (v1.25)
+      description: Partial edit; omitted fields are left untouched. Audits as `family-history.update`. Owner-scoped.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                relationship:
+                  type: string
+                  enum:
+                    - MOTHER
+                    - FATHER
+                    - SISTER
+                    - BROTHER
+                    - DAUGHTER
+                    - SON
+                    - GRANDMOTHER_MATERNAL
+                    - GRANDFATHER_MATERNAL
+                    - GRANDMOTHER_PATERNAL
+                    - GRANDFATHER_PATERNAL
+                    - AUNT
+                    - UNCLE
+                    - COUSIN
+                    - HALF_SIBLING
+                    - OTHER
+                condition:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                ageAtOnset:
+                  anyOf:
+                    - type: integer
+                      minimum: 0
+                      maximum: 120
+                    - type: "null"
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+              additionalProperties: false
+      responses:
+        "200":
+          description: Entry updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateFamilyHistoryEnvelope"
+        "401": *a1
+        "404": *a13
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Records
+      summary: Soft-delete a family-history entry (v1.25)
+      description: "Stamps `deletedAt` (tombstone). Idempotent — a re-delete is a no-op. Returns the `{ deleted: true }`
+        envelope. Audits as `family-history.delete`. Owner-scoped."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteFamilyHistoryEnvelope"
+        "401": *a1
+        "404": *a13
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound:
+    get:
+      tags:
+        - Documents
+      summary: List inbound clinical documents
+      description: The caller's uploaded doctor reports / discharge letters (newest first, live only). Owner-scoped; gated on
+        the opt-in `inboundDocuments` module.
+      responses:
+        "200":
+          description: The document list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundDocumentListEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Documents
+      summary: Upload + extract a clinical document
+      description: 'Ingests a doctor report / discharge letter through the dedicated OCR/vision provider, stores the raw
+        document ENCRYPTED at rest, and stages the extracted STRUCTURED FACTS for review. Two modes by content-type.
+        VISION (`multipart/form-data`): a `file` (JPEG/PNG/WebP, or PDF on an Anthropic vision provider; ≤ 12 MiB) plus
+        an optional `kind`. TEXT (`application/json`, opt-in local OCR): `{ mode: "text", text, kind? }` — only the
+        extracted text reaches the server. Both modes are AI-consent / rate / budget gated. Extraction reproduces what
+        the document states (stated codes/status only) — it never interprets. Nothing reaches the structured stores
+        here; the confirm route is the only write path.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The clinical-document image or PDF. Validated by magic-byte MIME sniff, not the wire Content-Type.
+                kind:
+                  description: Optional document-type label.
+                  type: string
+                  enum:
+                    - DOCTOR_REPORT
+                    - DISCHARGE_LETTER
+                    - OTHER
+              required:
+                - file
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InboundTextUploadRequest"
+      responses:
+        "201":
+          description: The created document + staging summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundDocumentEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}:
+    get:
+      tags:
+        - Documents
+      summary: Get a document + its staged facts
+      description: The document plus every staged fact for the review screen. Owner-scoped.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundDocumentDetailEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Documents
+      summary: Discard an inbound document
+      description: Soft-deletes the document + its staging. Facts already approved into the structured stores are independent
+        rows and are NOT affected.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Discarded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundDiscardEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}/facts/{factId}:
+    patch:
+      tags:
+        - Documents
+      summary: Edit a staged fact before approval
+      description: Corrects OCR / units / dates / codes on a pending fact. Clears `needsReview` (the values become
+        user-asserted). The fact's resource type cannot change.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: factId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    factType:
+                      type: string
+                      const: CONDITION
+                    label:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    code:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    codeSystem:
+                      anyOf:
+                        - type: string
+                          enum:
+                            - SNOMED
+                            - ICD10
+                            - LOINC
+                            - RXNORM
+                            - ATC
+                        - type: "null"
+                    clinicalStatus:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    verificationStatus:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    onsetDate:
+                      anyOf:
+                        - type: string
+                          pattern: ^\d{4}-\d{2}-\d{2}$
+                        - type: "null"
+                  required:
+                    - factType
+                    - label
+                - type: object
+                  properties:
+                    factType:
+                      type: string
+                      const: OBSERVATION
+                    label:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    code:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    codeSystem:
+                      anyOf:
+                        - type: string
+                          enum:
+                            - SNOMED
+                            - ICD10
+                            - LOINC
+                            - RXNORM
+                            - ATC
+                        - type: "null"
+                    value:
+                      anyOf:
+                        - type: number
+                        - type: "null"
+                    valueText:
+                      anyOf:
+                        - type: string
+                          maxLength: 300
+                        - type: "null"
+                    unit:
+                      anyOf:
+                        - type: string
+                          maxLength: 80
+                        - type: "null"
+                    referenceLow:
+                      anyOf:
+                        - type: number
+                        - type: "null"
+                    referenceHigh:
+                      anyOf:
+                        - type: number
+                        - type: "null"
+                    effectiveDate:
+                      anyOf:
+                        - type: string
+                          pattern: ^\d{4}-\d{2}-\d{2}$
+                        - type: "null"
+                  required:
+                    - factType
+                    - label
+                - type: object
+                  properties:
+                    factType:
+                      type: string
+                      const: MEDICATION_STATEMENT
+                    name:
+                      type: string
+                      minLength: 1
+                      maxLength: 200
+                    dose:
+                      anyOf:
+                        - type: string
+                          maxLength: 120
+                        - type: "null"
+                    rxNormCode:
+                      anyOf:
+                        - type: string
+                          maxLength: 20
+                        - type: "null"
+                    atcCode:
+                      anyOf:
+                        - type: string
+                          maxLength: 16
+                        - type: "null"
+                    statusStated:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    effectiveDate:
+                      anyOf:
+                        - type: string
+                          pattern: ^\d{4}-\d{2}-\d{2}$
+                        - type: "null"
+                  required:
+                    - factType
+                    - name
+              type: object
+      responses:
+        "200":
+          description: The updated fact.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractedFactEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}/confirm:
+    post:
+      tags:
+        - Documents
+      summary: Confirm the review decisions
+      description: The ONLY write path out of staging. Commits the user's approvals into the structured stores (labs /
+        conditions / medications) and discards rejections. A low-confidence fact that was never edited cannot be
+        approved (fail-closed). Idempotent (Idempotency-Key). Audits as `documents.inbound.confirm`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decisions:
+                  minItems: 1
+                  maxItems: 120
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      factId:
+                        type: string
+                        minLength: 1
+                        maxLength: 40
+                      action:
+                        type: string
+                        enum:
+                          - approve
+                          - reject
+                    required:
+                      - factId
+                      - action
+              required:
+                - decisions
+      responses:
+        "200":
+          description: Per-decision outcome.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundConfirmEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -9067,7 +10086,13 @@ components:
           type: boolean
         doctorReport:
           type: boolean
+        environment:
+          type: boolean
         mcp:
+          type: boolean
+        inboundDocuments:
+          type: boolean
+        mentalHealth:
           type: boolean
       additionalProperties: false
       description: Partial module enable/disable update. Each key is an optional boolean; an omitted key is left untouched,
@@ -9210,6 +10235,10 @@ components:
               enum:
                 - weekly
                 - biweekly
+            ambientSuggestions:
+              type: boolean
+            nudgeAiComposed:
+              type: boolean
         measurementReminder:
           type: object
           properties:
@@ -9245,6 +10274,9 @@ components:
                   - cycle-summary
                   - signals
                   - rhythm-events
+                  - health-status
+                  - breathing
+                  - labs-changes
               visible:
                 type: boolean
               order:
@@ -9257,7 +10289,7 @@ components:
               - order
         tiles:
           minItems: 1
-          maxItems: 50
+          maxItems: 61
           type: array
           items:
             type: object
@@ -9271,6 +10303,7 @@ components:
                   - oxygen
                   - body-temperature
                   - respiratory-rate
+                  - pain
                   - weight
                   - bmi
                   - body-water
@@ -9280,6 +10313,8 @@ components:
                   - muscle-mass
                   - visceral-fat
                   - lean-body-mass
+                  - waist
+                  - waist-to-height
                   - steps
                   - active-energy
                   - workouts
@@ -9296,6 +10331,7 @@ components:
                   - six-minute-walk
                   - stair-ascent-speed
                   - stair-descent-speed
+                  - grip-strength
                   - sleep
                   - breathing-disturbances
                   - resting-pulse
@@ -9590,6 +10626,23 @@ components:
         text:
           type: string
           description: The in-browser-OCR'd lab-report text. The raw image never reaches the server in this mode.
+      required:
+        - mode
+        - text
+    InboundTextUploadRequest:
+      type: object
+      properties:
+        mode:
+          type: string
+          const: text
+        text:
+          type: string
+        kind:
+          type: string
+          enum:
+            - DOCTOR_REPORT
+            - DISCHARGE_LETTER
+            - OTHER
       required:
         - mode
         - text
@@ -12255,6 +13308,12 @@ components:
             - SLEEP_SCORE
             - BODY_TEMPERATURE_DEVIATION
             - RESILIENCE
+            - PHQ9_SCORE
+            - GAD7_SCORE
+            - GRIP_STRENGTH
+            - PAIN_NRS
+            - WAIST_CIRCUMFERENCE
+            - WAIST_TO_HEIGHT
         value:
           type: number
         unit:
@@ -12571,6 +13630,12 @@ components:
               - SLEEP_SCORE
               - BODY_TEMPERATURE_DEVIATION
               - RESILIENCE
+              - PHQ9_SCORE
+              - GAD7_SCORE
+              - GRIP_STRENGTH
+              - PAIN_NRS
+              - WAIST_CIRCUMFERENCE
+              - WAIST_TO_HEIGHT
           additionalProperties:
             type: array
             items:
@@ -12648,6 +13713,12 @@ components:
                     - SLEEP_SCORE
                     - BODY_TEMPERATURE_DEVIATION
                     - RESILIENCE
+                    - PHQ9_SCORE
+                    - GAD7_SCORE
+                    - GRIP_STRENGTH
+                    - PAIN_NRS
+                    - WAIST_CIRCUMFERENCE
+                    - WAIST_TO_HEIGHT
                 value:
                   type: number
                   description: Daily mean (spot metrics) or SUM (cumulative).
@@ -12746,6 +13817,12 @@ components:
             - SLEEP_SCORE
             - BODY_TEMPERATURE_DEVIATION
             - RESILIENCE
+            - PHQ9_SCORE
+            - GAD7_SCORE
+            - GRIP_STRENGTH
+            - PAIN_NRS
+            - WAIST_CIRCUMFERENCE
+            - WAIST_TO_HEIGHT
           description: Per-type daily series, keyed by MeasurementType.
       required:
         - series
@@ -12979,6 +14056,12 @@ components:
             - SLEEP_SCORE
             - BODY_TEMPERATURE_DEVIATION
             - RESILIENCE
+            - PHQ9_SCORE
+            - GAD7_SCORE
+            - GRIP_STRENGTH
+            - PAIN_NRS
+            - WAIST_CIRCUMFERENCE
+            - WAIST_TO_HEIGHT
         value:
           type: number
         unit:
@@ -13538,6 +14621,24 @@ components:
               minimum: 0
               maximum: 9007199254740991
               description: Nights still needed before the debt is asserted (0 when ready).
+            source:
+              type: string
+              enum:
+                - MANUAL
+                - WITHINGS
+                - IMPORT
+                - APPLE_HEALTH
+                - COMPUTED
+                - WHOOP
+                - FITBIT
+                - NIGHTSCOUT
+                - POLAR
+                - OURA
+                - TELEGRAM
+                - MCP
+              description: v1.25.0 — the active source the debt is resolved FROM, picked off the user's `sleepDebt` source ladder.
+                `COMPUTED` is HealthLog's own rolling-balance estimate (the only producer today); a provider value would
+                be a device-native debt. Clients explain the figure when it is `COMPUTED`.
           required:
             - state
             - debtMinutes
@@ -13545,6 +14646,7 @@ components:
             - nightsCounted
             - windowNights
             - nightsUntilReady
+            - source
           additionalProperties: false
         chronotype:
           type: object
@@ -16051,9 +17153,18 @@ components:
         doctorReport:
           type: boolean
           description: Whether the "doctorReport" module is enabled for this account.
+        environment:
+          type: boolean
+          description: Whether the "environment" module is enabled for this account.
         mcp:
           type: boolean
           description: Whether the "mcp" module is enabled for this account.
+        inboundDocuments:
+          type: boolean
+          description: Whether the "inboundDocuments" module is enabled for this account.
+        mentalHealth:
+          type: boolean
+          description: Whether the "mentalHealth" module is enabled for this account.
       required:
         - cycle
         - mood
@@ -16068,7 +17179,10 @@ components:
         - insights
         - medications
         - doctorReport
+        - environment
         - mcp
+        - inboundDocuments
+        - mentalHealth
       additionalProperties: false
       description: Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means
         the surface should disappear end-to-end (nav, dashboard, insights, …). `cycle` mirrors `cycleTrackingEnabled`;
@@ -16420,6 +17534,24 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+            sleepDebt:
+              maxItems: 8
+              type: array
+              items:
+                type: string
+                enum:
+                  - MANUAL
+                  - WITHINGS
+                  - IMPORT
+                  - APPLE_HEALTH
+                  - COMPUTED
+                  - WHOOP
+                  - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
+                  - TELEGRAM
+                  - MCP
             metricPriority:
               type: object
               properties:
@@ -16730,6 +17862,24 @@ components:
                       - TELEGRAM
                       - MCP
                 stress:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                      - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
+                      - TELEGRAM
+                      - MCP
+                sleepDebt:
                   maxItems: 8
                   type: array
                   items:
@@ -17120,6 +18270,24 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+            sleepDebt:
+              maxItems: 8
+              type: array
+              items:
+                type: string
+                enum:
+                  - MANUAL
+                  - WITHINGS
+                  - IMPORT
+                  - APPLE_HEALTH
+                  - COMPUTED
+                  - WHOOP
+                  - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
+                  - TELEGRAM
+                  - MCP
             metricPriority:
               type: object
               properties:
@@ -17430,6 +18598,24 @@ components:
                       - TELEGRAM
                       - MCP
                 stress:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                      - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
+                      - TELEGRAM
+                      - MCP
+                sleepDebt:
                   maxItems: 8
                   type: array
                   items:
@@ -20229,6 +21415,67 @@ components:
       description: "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the
         `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation
         out of band and serves the last-good text meanwhile."
+    BiomarkerAssessmentResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/BiomarkerAssessmentResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    BiomarkerAssessmentResponse:
+      type: object
+      properties:
+        hasProvider:
+          type: boolean
+          description: False when the user has no usable AI provider — `text` then carries the generic no-key guidance.
+        text:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: The assessment narrative (plain text, rendered as React text children). Null while a first generation is
+            preparing, or when the marker has no numeric readings.
+        cached:
+          type: boolean
+          description: True when `text` is served from cache (incl. last-good).
+        updatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+          description: When the served assessment was generated; null when none.
+        preparing:
+          description: True when a first assessment is being generated out of band and no prior text exists yet — the client polls
+            until it lands.
+          type: boolean
+        revalidating:
+          description: True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in
+            flight. The client keeps polling on `preparing || revalidating` (bounded) so the open card upgrades to the
+            warmed assessment without a remount.
+          type: boolean
+        insufficient:
+          description: True when the marker has no numeric readings; no assessment is generated (no LLM call). The card is not
+            rendered.
+          type: boolean
+      required:
+        - hasProvider
+        - text
+        - cached
+        - updatedAt
+      additionalProperties: false
+      description: "Per-biomarker assessment envelope. Identical shape to the generic metric-status card so the
+        `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation
+        out of band and serves the last-good text meanwhile; the assessment regenerates only when a new reading lands."
     DerivedMetricResponseEnvelope:
       type: object
       properties:
@@ -20663,6 +21910,244 @@ components:
         - windowDays
         - interpretation
       additionalProperties: false
+    InsightsHealthStatusEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsHealthStatus"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsHealthStatus:
+      type: object
+      properties:
+        present:
+          type: boolean
+          description: True when at least one deviation or shift is surfaced.
+        deviations:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                description: MeasurementType token.
+              value:
+                type: number
+                description: Today's value.
+              center:
+                type: number
+                description: Personal band center (median).
+              low:
+                type: number
+              high:
+                type: number
+              direction:
+                type: string
+                enum:
+                  - above
+                  - below
+            required:
+              - type
+              - value
+              - center
+              - low
+              - high
+              - direction
+            additionalProperties: false
+        shifts:
+          type: array
+          items:
+            type: object
+            properties:
+              metric:
+                type: string
+                description: MeasurementType token.
+              breakDate:
+                type: string
+                description: YYYY-MM-DD of the new level's first day.
+              beforeMean:
+                type: number
+              afterMean:
+                type: number
+              direction:
+                type: string
+                enum:
+                  - up
+                  - down
+            required:
+              - metric
+              - breakDate
+              - beforeMean
+              - afterMean
+              - direction
+            additionalProperties: false
+        generatedAt:
+          type: string
+          description: ISO-8601 instant the read was computed.
+      required:
+        - present
+        - deviations
+        - shifts
+        - generatedAt
+      additionalProperties: false
+      description: Vitals drifting from the user's personal normal — band deviations plus dated, sustained level shifts.
+        Awareness only, never a diagnosis.
+    InsightsBreathingScreeningEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsBreathingScreening"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsBreathingScreening:
+      type: object
+      properties:
+        present:
+          type: boolean
+        nights:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Nights with a per-night index reading.
+        recentMeanIndex:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: Mean of the index readings (lower-better); null when none.
+        trend:
+          anyOf:
+            - type: string
+              enum:
+                - up
+                - down
+                - stable
+            - type: "null"
+          description: Recent index vs the prior window; null when too few nights.
+        eventCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Device-flagged breathing-disturbance / apnea events.
+        classification:
+          anyOf:
+            - type: string
+              enum:
+                - not-elevated
+                - elevated
+            - type: "null"
+          description: The device's own classification; null when no data.
+        generatedAt:
+          type: string
+      required:
+        - present
+        - nights
+        - recentMeanIndex
+        - trend
+        - eventCount
+        - classification
+        - generatedAt
+      additionalProperties: false
+      description: Sleep-breathing-disturbance screening signal — a screening signal only, never a diagnosis.
+    InsightsLabsChangesEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsLabsChanges"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsLabsChanges:
+      type: object
+      properties:
+        present:
+          type: boolean
+        latestDate:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: YYYY-MM-DD of the most-recent panel.
+        previousDate:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: YYYY-MM-DD of the prior panel.
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              analyte:
+                type: string
+              unit:
+                type: string
+              latest:
+                type: number
+              previous:
+                type: number
+              delta:
+                type: number
+                description: Signed latest − previous.
+              direction:
+                type: string
+                enum:
+                  - up
+                  - down
+                  - flat
+              status:
+                type: string
+                enum:
+                  - in-range
+                  - below
+                  - above
+                  - unknown
+            required:
+              - analyte
+              - unit
+              - latest
+              - previous
+              - delta
+              - direction
+              - status
+            additionalProperties: false
+        generatedAt:
+          type: string
+      required:
+        - present
+        - latestDate
+        - previousDate
+        - changes
+        - generatedAt
+      additionalProperties: false
+      description: Per-analyte change between the two most-recent numeric lab panels. Neutral framing, never a diagnosis.
     MoodTagTreeEnvelope:
       type: object
       properties:
@@ -22966,6 +24451,804 @@ components:
         (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally, a
         per-type breakdown, and the dominant driving vital (`gapDriverType`, null when no gap is surfaced).
         Retrospective only."
+    ListMentalHealthAssessmentsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ListMentalHealthAssessmentsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListMentalHealthAssessmentsResponse:
+      type: object
+      properties:
+        assessments:
+          type: array
+          items:
+            $ref: "#/components/schemas/MentalHealthAssessment"
+      required:
+        - assessments
+      additionalProperties: false
+    MentalHealthAssessment:
+      type: object
+      properties:
+        id:
+          type: string
+        instrument:
+          type: string
+          enum:
+            - PHQ9
+            - GAD7
+        locale:
+          type: string
+        version:
+          type: string
+        totalScore:
+          type: number
+        severityBand:
+          type: string
+        item9Flagged:
+          type: boolean
+        crisisShownAt:
+          anyOf:
+            - type: string
+            - type: "null"
+        takenAt:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - instrument
+        - locale
+        - version
+        - totalScore
+        - severityBand
+        - item9Flagged
+        - crisisShownAt
+        - takenAt
+        - createdAt
+      additionalProperties: false
+      description: One completed screener administration. `severityBand` is a descriptive label for the screen (never a
+        diagnosis). `item9Flagged` is true when the PHQ-9 self-harm item was answered > 0 — the client MUST show crisis
+        resources when it is. Raw per-item answers are intentionally absent.
+    CreateMentalHealthAssessmentEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CreateMentalHealthAssessmentResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CreateMentalHealthAssessmentResponse:
+      type: object
+      properties:
+        assessment:
+          $ref: "#/components/schemas/MentalHealthAssessment"
+        actionThreshold:
+          type: number
+        crisis:
+          anyOf:
+            - $ref: "#/components/schemas/CrisisResourceSet"
+            - type: "null"
+      required:
+        - assessment
+        - actionThreshold
+        - crisis
+      additionalProperties: false
+    CrisisResourceSet:
+      type: object
+      properties:
+        emergencyNumber:
+          type: string
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrisisResource"
+      required:
+        - emergencyNumber
+        - resources
+      additionalProperties: false
+      description: Locale-aware crisis-resource signposting, present only when item-9 is flagged. Names resolve via i18n on
+        the client; contacts are literal.
+    CrisisResource:
+      type: object
+      properties:
+        id:
+          type: string
+        contacts:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - contacts
+      additionalProperties: false
+    ListAllergiesEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Allergy"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    Allergy:
+      type: object
+      properties:
+        id:
+          type: string
+        substance:
+          type: string
+        category:
+          type: string
+          enum:
+            - FOOD
+            - MEDICATION
+            - ENVIRONMENT
+            - BIOLOGIC
+            - OTHER
+        type:
+          type: string
+          enum:
+            - ALLERGY
+            - INTOLERANCE
+        severity:
+          anyOf:
+            - type: string
+              enum:
+                - MILD
+                - MODERATE
+                - SEVERE
+            - type: "null"
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+            - RESOLVED
+        onsetAt:
+          anyOf:
+            - type: string
+            - type: "null"
+        reaction:
+          anyOf:
+            - type: string
+            - type: "null"
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - substance
+        - category
+        - type
+        - severity
+        - status
+        - onsetAt
+        - reaction
+        - note
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: A stored allergy/intolerance record. `reaction` + `note` are the decrypted free-text (or null on a
+        key-rotation gap — fail-soft, never 500). `severity`/`onsetAt` are null when not assessed/known.
+    CreateAllergyEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Allergy"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetAllergyEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Allergy"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateAllergyEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Allergy"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteAllergyEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/FamilyHistoryEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    FamilyHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        relationship:
+          type: string
+          enum:
+            - MOTHER
+            - FATHER
+            - SISTER
+            - BROTHER
+            - DAUGHTER
+            - SON
+            - GRANDMOTHER_MATERNAL
+            - GRANDFATHER_MATERNAL
+            - GRANDMOTHER_PATERNAL
+            - GRANDFATHER_PATERNAL
+            - AUNT
+            - UNCLE
+            - COUSIN
+            - HALF_SIBLING
+            - OTHER
+        condition:
+          type: string
+        ageAtOnset:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - relationship
+        - condition
+        - ageAtOnset
+        - note
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: "A stored family-history entry: one condition for one relative. `note` is the decrypted free-text (or null
+        on a key-rotation gap — fail-soft, never 500). `ageAtOnset` is null when unknown."
+    CreateFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/FamilyHistoryEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/FamilyHistoryEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/FamilyHistoryEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteFamilyHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundDocumentListEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundDocumentList"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundDocumentList:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/InboundDocument"
+      required:
+        - documents
+      additionalProperties: false
+    InboundDocument:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - DOCTOR_REPORT
+            - DISCHARGE_LETTER
+            - OTHER
+        filename:
+          anyOf:
+            - type: string
+            - type: "null"
+        mimeType:
+          type: string
+        byteSize:
+          type: number
+        status:
+          type: string
+          enum:
+            - EXTRACTING
+            - EXTRACTED
+            - FAILED
+            - CONFIRMED
+            - DISCARDED
+        providerType:
+          anyOf:
+            - type: string
+            - type: "null"
+        reportDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        errorReason:
+          anyOf:
+            - type: string
+            - type: "null"
+        factCount:
+          type: number
+        pendingCount:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - kind
+        - filename
+        - mimeType
+        - byteSize
+        - status
+        - providerType
+        - reportDate
+        - errorReason
+        - factCount
+        - pendingCount
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: An uploaded clinical document. The raw bytes are stored encrypted at rest and never returned; this is the
+        metadata + staging summary.
+    InboundDocumentEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundDocument"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundDocumentDetailEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundDocumentDetail"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundDocumentDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - DOCTOR_REPORT
+            - DISCHARGE_LETTER
+            - OTHER
+        filename:
+          anyOf:
+            - type: string
+            - type: "null"
+        mimeType:
+          type: string
+        byteSize:
+          type: number
+        status:
+          type: string
+          enum:
+            - EXTRACTING
+            - EXTRACTED
+            - FAILED
+            - CONFIRMED
+            - DISCARDED
+        providerType:
+          anyOf:
+            - type: string
+            - type: "null"
+        reportDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        errorReason:
+          anyOf:
+            - type: string
+            - type: "null"
+        factCount:
+          type: number
+        pendingCount:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        facts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedFact"
+      required:
+        - id
+        - kind
+        - filename
+        - mimeType
+        - byteSize
+        - status
+        - providerType
+        - reportDate
+        - errorReason
+        - factCount
+        - pendingCount
+        - createdAt
+        - updatedAt
+        - facts
+      additionalProperties: false
+    ExtractedFact:
+      type: object
+      properties:
+        id:
+          type: string
+        factType:
+          type: string
+          enum:
+            - CONDITION
+            - OBSERVATION
+            - MEDICATION_STATEMENT
+        status:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - REJECTED
+        confidence:
+          type: number
+        needsReview:
+          type: boolean
+        data:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+        provenance:
+          type: object
+          properties:
+            sourceText:
+              type: string
+            page:
+              anyOf:
+                - type: number
+                - type: "null"
+            confidence:
+              type: number
+          required:
+            - sourceText
+            - page
+            - confidence
+          additionalProperties: false
+        committedRecordId:
+          anyOf:
+            - type: string
+            - type: "null"
+        committedRecordType:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - id
+        - factType
+        - status
+        - confidence
+        - needsReview
+        - data
+        - provenance
+        - committedRecordId
+        - committedRecordType
+      additionalProperties: false
+      description: One STATED fact transcribed from the document, FHIR-staged (Condition / Observation / MedicationStatement)
+        with per-field provenance + a confidence gate. STATED status only — codes (SNOMED/ICD-10/LOINC/RxNorm/ATC) are
+        present only when the document wrote them; no range-flag, no inferred links. `needsReview` is true when the fact
+        scored below the confidence floor (it cannot be approved until edited).
+    InboundDiscardEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            discarded:
+              type: boolean
+          required:
+            - id
+            - discarded
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ExtractedFactEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ExtractedFact"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundConfirmEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundConfirmResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundConfirmResponse:
+      type: object
+      properties:
+        approved:
+          type: array
+          items:
+            type: object
+            properties:
+              factId:
+                type: string
+              recordType:
+                type: string
+              recordId:
+                type: string
+            required:
+              - factId
+              - recordType
+              - recordId
+            additionalProperties: false
+        rejected:
+          type: array
+          items:
+            type: string
+        needsReview:
+          type: array
+          items:
+            type: string
+        failed:
+          type: array
+          items:
+            type: object
+            properties:
+              factId:
+                type: string
+              reason:
+                type: string
+            required:
+              - factId
+              - reason
+            additionalProperties: false
+      required:
+        - approved
+        - rejected
+        - needsReview
+        - failed
+      additionalProperties: false
+      description: "The outcome per decision: `approved` (committed, with the new record ref), `rejected` (discarded),
+        `needsReview` (refused — edit first, fail-closed), `failed` (a per-fact commit miss, e.g. a numeric observation
+        with no unit)."
     DisclaimerAckEnvelope:
       type: object
       properties:
@@ -23201,6 +25484,9 @@ components:
                   - cycle-summary
                   - signals
                   - rhythm-events
+                  - health-status
+                  - breathing
+                  - labs-changes
               visible:
                 type: boolean
               order:
@@ -23214,7 +25500,7 @@ components:
             additionalProperties: false
         tiles:
           minItems: 1
-          maxItems: 50
+          maxItems: 61
           type: array
           items:
             type: object
@@ -23228,6 +25514,7 @@ components:
                   - oxygen
                   - body-temperature
                   - respiratory-rate
+                  - pain
                   - weight
                   - bmi
                   - body-water
@@ -23237,6 +25524,8 @@ components:
                   - muscle-mass
                   - visceral-fat
                   - lean-body-mass
+                  - waist
+                  - waist-to-height
                   - steps
                   - active-energy
                   - workouts
@@ -23253,6 +25542,7 @@ components:
                   - six-minute-walk
                   - stair-ascent-speed
                   - stair-descent-speed
+                  - grip-strength
                   - sleep
                   - breathing-disturbances
                   - resting-pulse

@@ -138,6 +138,12 @@ export const SOURCE_PRIORITY_METRIC_KEYS = [
   // collapsing to the alphabetical rank-90 tiebreak. Single-producer today,
   // so the ladder is a no-op until the second producer lands.
   "stress",
+  // v1.25.0 — native-vs-computed SLEEP DEBT. HealthLog computes a COMPUTED
+  // rolling-balance debt off the canonical nights; a provider that ships a
+  // native sleep-debt balance (none today) is the deferred second source.
+  // Laddering it now keeps the picker deterministic — and the choice user-
+  // configurable, not WHOOP-hardcoded — the instant a native producer lands.
+  "sleepDebt",
 ] as const;
 
 export type SourcePriorityMetricKey =
@@ -309,6 +315,11 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // COMPUTED HRV-derived proxy; the proxy is the fallback for users without a
   // device-native stress signal. Single-producer today.
   stress: ["OURA", "COMPUTED"],
+  // v1.25.0 — native-vs-computed sleep debt. A device-native sleep-debt
+  // balance (none ships one today) would outrank HealthLog's COMPUTED
+  // rolling-balance debt; the COMPUTED engine is the fallback every user lands
+  // on now. Mirrors the recovery ladder's native-above-computed ordering.
+  sleepDebt: ["WHOOP", "OURA", "POLAR", "COMPUTED"],
 };
 
 /**
@@ -460,6 +471,32 @@ function buildResolved(
   Object.freeze(deviceTypePriority);
   Object.freeze(resolved);
   return resolved;
+}
+
+/**
+ * v1.25.0 — sources we can currently surface a SLEEP-DEBT figure from. Only
+ * the COMPUTED engine produces one today; a provider that ships a native
+ * sleep-debt balance is added here (and ingested) and then wins per the
+ * user's `sleepDebt` ladder with no change at the call site.
+ */
+export const SLEEP_DEBT_SUPPLIERS: ReadonlySet<
+  z.infer<typeof measurementSourceEnum>
+> = new Set(["COMPUTED"]);
+
+/**
+ * v1.25.0 — resolve the active sleep-debt source for a user: walk the
+ * `sleepDebt` ladder and return the highest-ranked source we can actually
+ * produce a debt for. Falls back to COMPUTED (always a supplier) when the
+ * ladder lists no available native source — which is every user today, so the
+ * UI knows to explain that the figure is our own computed estimate.
+ */
+export function resolveSleepDebtSource(
+  resolved: ResolvedSourcePriority,
+): z.infer<typeof measurementSourceEnum> {
+  for (const source of resolved.metricPriority.sleepDebt) {
+    if (SLEEP_DEBT_SUPPLIERS.has(source)) return source;
+  }
+  return "COMPUTED";
 }
 
 /**

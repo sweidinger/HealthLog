@@ -202,8 +202,7 @@ export async function requestDeviceCode(): Promise<DeviceCodeStart> {
 }
 
 export type DevicePollResult =
-  | { status: "pending" }
-  | { status: "connected"; creds: CodexCreds };
+  { status: "pending" } | { status: "connected"; creds: CodexCreds };
 
 /**
  * One poll attempt against the device-auth token endpoint. Returns

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { JSX } from "react";
 
 import { AccountSection } from "@/components/settings/account-section";
+import { AnamnesisSection } from "@/components/settings/anamnesis-section";
 import { SecuritySection } from "@/components/settings/security-section";
 import { AboutSection } from "@/components/settings/about-section";
 import { AdvancedSection } from "@/components/settings/advanced-section";
@@ -9,6 +10,7 @@ import { AiSection } from "@/components/settings/ai-section";
 import { ApiSection } from "@/components/settings/api-section";
 import { CoachSection } from "@/components/settings/coach-section";
 import { DashboardSection } from "@/components/settings/dashboard-section";
+import { EnvironmentSection } from "@/components/settings/environment-section";
 import { ExportSection } from "@/components/settings/export-section";
 import { GesundheitsakteSection } from "@/components/settings/gesundheitsakte-section";
 import { IllnessSection } from "@/components/settings/illness-section";
@@ -74,6 +76,8 @@ const SECTION_COMPONENTS: Record<
   mood: MoodSection,
   labs: LabsSection,
   illness: IllnessSection,
+  environment: EnvironmentSection,
+  anamnesis: AnamnesisSection,
   vorsorge: VorsorgeSection,
   thresholds: ThresholdsSection,
   api: ApiSection,

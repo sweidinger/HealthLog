@@ -82,7 +82,17 @@ export default async function ClinicianSharePage({
     if (!verifyUnlockValue(unlockValue, gate.tokenHash)) {
       const locale = await resolveLocale();
       const { t } = getServerTranslator(locale);
-      return <ShareUnlockGate t={(key, vars) => t(key, vars)} token={token} />;
+      // Resolve the gate copy on the server (it owns the locale) into a plain,
+      // serializable object. A `t` function cannot cross the RSC boundary into
+      // the client gate — passing one throws at render (issue #374).
+      const strings = {
+        title: t("clinicianView.unlock.title"),
+        description: t("clinicianView.unlock.description"),
+        label: t("clinicianView.unlock.label"),
+        error: t("clinicianView.unlock.error"),
+        submit: t("clinicianView.unlock.submit"),
+      };
+      return <ShareUnlockGate strings={strings} token={token} />;
     }
   }
 

@@ -48,6 +48,11 @@ vi.mock("@/lib/db", () => ({
       // generation. The test prisma mock has to surface the call so
       // the cache-invalidation test can assert against it.
       deleteMany: vi.fn(async () => ({ count: 0 })),
+      // v1.25 — the GET read path consults the briefing-failure marker
+      // (`readBriefingFailure`) and the failure paths append one
+      // (`recordBriefingFailure`). Default to no marker.
+      findFirst: vi.fn(async () => null),
+      create: vi.fn(async () => ({})),
     },
     // v1.12.1 — the server-managed consent gate reads the latest active
     // receipt before egress. These fixtures resolve to an admin-openai

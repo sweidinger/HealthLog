@@ -36,6 +36,7 @@ import {
 } from "@/lib/medications/side-effects/validators";
 import { categoryForEntry } from "@/lib/medications/side-effects/taxonomy";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { encryptNote, shapeSideEffectNotes } from "@/lib/crypto/note-cipher";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -85,7 +86,12 @@ export const GET = apiHandler(
       meta: { medication_id: id, total: items.length },
     });
 
-    return apiSuccess({ items, meta: { total: items.length } });
+    // Decrypt each note and strip the raw `notesEncrypted` ciphertext so it
+    // never leaves the server.
+    return apiSuccess({
+      items: items.map(shapeSideEffectNotes),
+      meta: { total: items.length },
+    });
   },
 );
 
@@ -139,7 +145,9 @@ export const POST = apiHandler(
         entry,
         severity,
         occurredAt: occurredAt ?? new Date(),
-        notes: notes ?? null,
+        // Encrypt the free-text note at rest; the plaintext column stays null.
+        notesEncrypted: encryptNote(notes),
+        notes: null,
       },
     });
 
@@ -163,6 +171,6 @@ export const POST = apiHandler(
       meta: { medication_id: id, entry, severity },
     });
 
-    return apiSuccess(created, 201);
+    return apiSuccess(shapeSideEffectNotes(created), 201);
   },
 );

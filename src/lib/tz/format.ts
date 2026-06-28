@@ -136,10 +136,7 @@ export function isNearUtc(tz: string, now: Date = new Date()): boolean {
 }
 
 export type FormatInUserTzShape =
-  | "iso-with-offset"
-  | "wall-clock"
-  | "datetime"
-  | "date";
+  "iso-with-offset" | "wall-clock" | "datetime" | "date";
 
 /**
  * Format an instant in the user's timezone.

@@ -17,7 +17,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
   COACH_NUDGE_COMPLIANCE_MIN_DOSES,
-  COACH_NUDGE_FOCUS_MAX_CHARS,
   COACH_NUDGE_SCORE_DROP,
   COACH_NUDGE_SLEEP_MIN_NIGHTS,
   COACH_NUDGE_TRIGGER_GROUPS,
@@ -30,6 +29,7 @@ import {
   evaluateSleepDebtTrigger,
   evaluateWeightTrigger,
   findTriggerForUser,
+  resolveGreetingName,
   runCoachNudgeTick,
 } from "../coach-nudge";
 import { getAssistantFlags } from "@/lib/feature-flags";
@@ -259,66 +259,142 @@ describe("findTriggerForUser RECOVERY_SCORE canonical resolution", () => {
 });
 
 describe("buildCoachNudgePayload", () => {
-  it("resolves the German payload", () => {
-    const { title, body } = buildCoachNudgePayload("bp", "de");
-    expect(title).toBe("Blutdruck im Wochenmittel erhöht");
+  const ALL_TRIGGERS = [
+    "compliance",
+    "bp",
+    "score",
+    "selfContext",
+    "weight",
+    "sleepDebt",
+    "measurementGap",
+  ] as const;
+
+  it("opens the title with a localized morning greeting and the name", () => {
+    const { title, body } = buildCoachNudgePayload("bp", "de", {
+      name: "Marc",
+      openerSeed: 0,
+    });
+    expect(title).toBe("Guten Morgen, Marc");
     expect(body.length).toBeGreaterThan(0);
   });
 
-  it("resolves the English payload", () => {
-    const { title } = buildCoachNudgePayload("compliance", "en");
-    expect(title).toBe("Your Coach has a thought on this");
+  it("rotates to the casual opener on an odd seed", () => {
+    const { title } = buildCoachNudgePayload("bp", "de", {
+      name: "Marc",
+      openerSeed: 1,
+    });
+    expect(title).toBe("Hey Marc");
+  });
+
+  it("drops the name from the greeting when none is given", () => {
+    expect(buildCoachNudgePayload("score", "en", { openerSeed: 0 }).title).toBe(
+      "Good morning",
+    );
+    expect(buildCoachNudgePayload("score", "en", { openerSeed: 1 }).title).toBe(
+      "Hey there",
+    );
   });
 
   it("falls back to the default locale for unknown locales", () => {
-    const fallback = buildCoachNudgePayload("score", null);
-    const unknown = buildCoachNudgePayload("score", "xx");
+    const fallback = buildCoachNudgePayload("score", null, {
+      name: "Sam",
+      openerSeed: 0,
+    });
+    const unknown = buildCoachNudgePayload("score", "xx", {
+      name: "Sam",
+      openerSeed: 0,
+    });
     expect(unknown).toEqual(fallback);
   });
 
-  it("produces a distinct payload per trigger", () => {
-    const titles = new Set(
-      (
-        [
-          "compliance",
-          "bp",
-          "score",
-          "selfContext",
-          "weight",
-          "sleepDebt",
-          "measurementGap",
-        ] as const
-      ).map((trigger) => buildCoachNudgePayload(trigger, "en").title),
+  it("produces a distinct body per trigger", () => {
+    const bodies = new Set(
+      ALL_TRIGGERS.map((trigger) => buildCoachNudgePayload(trigger, "en").body),
     );
-    expect(titles.size).toBe(7);
+    expect(bodies.size).toBe(7);
   });
 
-  it("appends the personal focus suffix when a Coach focus exists", () => {
-    const { body } = buildCoachNudgePayload("bp", "en", "morning readings");
-    expect(body).toContain("You wanted to keep an eye on: morning readings.");
+  it("references a Coach focus abstractly — never quoting raw text", () => {
+    const { body } = buildCoachNudgePayload("bp", "en", {
+      hasCoachFocus: true,
+    });
+    expect(body).toContain("you said you wanted to keep an eye on");
+    // No interpolation token survives; no raw user sentence is read back.
+    expect(body).not.toContain("{focus}");
+    expect(body).not.toContain("{");
   });
 
-  it("clamps an over-long focus before quoting it", () => {
-    const focus = "x".repeat(COACH_NUDGE_FOCUS_MAX_CHARS + 40);
-    const { body } = buildCoachNudgePayload("weight", "en", focus);
-    expect(body).toContain("…");
-    expect(body).not.toContain(focus);
-  });
-
-  it("skips the suffix for the self-context check-up nudge", () => {
-    const plain = buildCoachNudgePayload("selfContext", "en");
-    const withFocus = buildCoachNudgePayload(
-      "selfContext",
-      "en",
-      "morning readings",
-    );
+  it("skips the focus note for the self-context check-up", () => {
+    const plain = buildCoachNudgePayload("selfContext", "en", {
+      hasCoachFocus: false,
+    });
+    const withFocus = buildCoachNudgePayload("selfContext", "en", {
+      hasCoachFocus: true,
+    });
     expect(withFocus).toEqual(plain);
   });
 
-  it("skips the suffix for a null / blank focus", () => {
-    const plain = buildCoachNudgePayload("bp", "en");
-    expect(buildCoachNudgePayload("bp", "en", null)).toEqual(plain);
-    expect(buildCoachNudgePayload("bp", "en", "   ")).toEqual(plain);
+  it("omits the focus note when the user has no focus", () => {
+    const plain = buildCoachNudgePayload("bp", "en", { hasCoachFocus: false });
+    expect(buildCoachNudgePayload("bp", "en")).toEqual(plain);
+  });
+
+  it("never embeds health figures in the body", () => {
+    for (const trigger of ALL_TRIGGERS) {
+      const { body } = buildCoachNudgePayload(trigger, "en", {
+        hasCoachFocus: true,
+      });
+      expect(body).not.toMatch(/\d/);
+    }
+  });
+});
+
+describe("resolveGreetingName", () => {
+  it("prefers the display name's first token", () => {
+    expect(
+      resolveGreetingName({
+        displayName: "Marc B.",
+        fullName: "Marc Bombeck",
+        username: "marc",
+      }),
+    ).toBe("Marc");
+  });
+
+  it("falls back to the full name's given token", () => {
+    expect(
+      resolveGreetingName({
+        displayName: null,
+        fullName: "Alex Doe",
+        username: "alex",
+      }),
+    ).toBe("Alex");
+  });
+
+  it("uses a plain username but never an email-shaped login", () => {
+    expect(
+      resolveGreetingName({
+        displayName: null,
+        fullName: null,
+        username: "alex",
+      }),
+    ).toBe("alex");
+    expect(
+      resolveGreetingName({
+        displayName: null,
+        fullName: null,
+        username: "a@b.com",
+      }),
+    ).toBeNull();
+  });
+
+  it("returns null when nothing usable exists", () => {
+    expect(
+      resolveGreetingName({
+        displayName: "   ",
+        fullName: null,
+        username: null,
+      }),
+    ).toBeNull();
   });
 });
 
@@ -514,6 +590,7 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     intakeRows?: unknown[];
     recentNudge?: unknown;
     recentPersistedNudge?: unknown;
+    recentEngagement?: unknown;
     coachFocusEncrypted?: Uint8Array | null;
   }) {
     return {
@@ -542,7 +619,9 @@ describe("runCoachNudgeTick — gates and prefs", () => {
         findMany: vi.fn(async () => []),
         count: vi.fn(async () => 1),
       },
-      coachUsage: { findFirst: vi.fn(async () => null) },
+      coachUsage: {
+        findFirst: vi.fn(async () => overrides.recentEngagement ?? null),
+      },
       userHealthProfile: {
         findUnique: vi.fn(async () => ({
           coachFocusEncrypted: overrides.coachFocusEncrypted ?? null,
@@ -725,7 +804,7 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     expect(summary.dispatched).toBe(0);
   });
 
-  it("personalises the dispatched body with the decrypted Coach focus", async () => {
+  it("references the Coach focus abstractly — never quoting the raw text", async () => {
     const dispatch = vi.fn(async (input: unknown) => {
       void input;
       return { dispatched: true };
@@ -733,6 +812,8 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     const prisma = prismaMock({
       users: [userRow(null)],
       intakeRows: failingIntakes,
+      // Presence of the encrypted focus drives the abstract note; the bytes
+      // are never decrypted by the nudge path now.
       coachFocusEncrypted: new Uint8Array([1, 2, 3]),
     });
     const summary = await runCoachNudgeTick(
@@ -742,13 +823,16 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     );
     expect(summary.dispatched).toBe(1);
     const payload = dispatch.mock.calls[0]?.[0] as unknown as {
+      title: string;
       message: string;
       metadata: { trigger: string };
     };
     expect(payload.metadata.trigger).toBe("compliance");
-    expect(payload.message).toContain(
-      "You wanted to keep an eye on: morning blood pressure.",
-    );
+    // Title is a warm greeting; body carries the abstract focus note.
+    expect(payload.title.length).toBeGreaterThan(0);
+    expect(payload.message).toContain("you said you wanted to keep an eye on");
+    // The decrypted self-context sentence is NEVER read back verbatim.
+    expect(payload.message).not.toContain("morning blood pressure");
   });
 
   it("persists the nudge as a conversation before dispatching (CCH-02)", async () => {
@@ -790,7 +874,7 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     expect(persistArg.userId).toBe("user-1");
     // The persisted body is the same compliance nudge copy the
     // notification carries — it lands as the initial assistant message.
-    expect(persistArg.body).toContain("Your intakes were patchy this week");
+    expect(persistArg.body).toContain("Your medication routine slipped");
     expect(persistArg.title.length).toBeGreaterThan(0);
   });
 
@@ -812,5 +896,86 @@ describe("runCoachNudgeTick — gates and prefs", () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(summary.dispatched).toBe(1);
     expect(summary.persisted).toBe(0);
+  });
+
+  it("suppresses the nudge when the user engaged the Coach in the last ~24 h", async () => {
+    const dispatch = vi.fn();
+    const prisma = prismaMock({
+      users: [userRow(null)],
+      intakeRows: failingIntakes,
+      recentEngagement: { userId: "user-1" },
+    });
+    const summary = await runCoachNudgeTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch },
+    );
+    expect(summary.skippedRecentEngagement).toBe(1);
+    expect(dispatch).not.toHaveBeenCalled();
+    // The engagement gate sits ahead of the trigger search.
+    expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
+  });
+
+  it("composes the body through the model when AI enrichment is opted in", async () => {
+    const dispatch = vi.fn(async (input: unknown) => {
+      void input;
+      return { dispatched: true };
+    });
+    const composeAi = vi.fn(async () => ({
+      title: "Guten Morgen",
+      body: "AI-composed warm nudge body.",
+    }));
+    const prisma = prismaMock({
+      users: [userRow({ coach: { nudgeAiComposed: true } })],
+      intakeRows: failingIntakes,
+    });
+    const summary = await runCoachNudgeTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch: dispatch as never, composeAi: composeAi as never },
+    );
+    expect(summary.dispatched).toBe(1);
+    expect(composeAi).toHaveBeenCalledTimes(1);
+    const payload = dispatch.mock.calls[0]?.[0] as unknown as {
+      message: string;
+    };
+    expect(payload.message).toBe("AI-composed warm nudge body.");
+  });
+
+  it("falls back to the template when AI enrichment returns null", async () => {
+    const dispatch = vi.fn(async (input: unknown) => {
+      void input;
+      return { dispatched: true };
+    });
+    const composeAi = vi.fn(async () => null);
+    const prisma = prismaMock({
+      users: [userRow({ coach: { nudgeAiComposed: true } })],
+      intakeRows: failingIntakes,
+    });
+    const summary = await runCoachNudgeTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch: dispatch as never, composeAi: composeAi as never },
+    );
+    expect(summary.dispatched).toBe(1);
+    expect(composeAi).toHaveBeenCalledTimes(1);
+    const payload = dispatch.mock.calls[0]?.[0] as unknown as {
+      message: string;
+    };
+    expect(payload.message).toContain("Your medication routine slipped");
+  });
+
+  it("never calls the AI composer when enrichment is not opted in", async () => {
+    const dispatch = vi.fn(async () => ({ dispatched: true }));
+    const composeAi = vi.fn(async () => ({ title: "x", body: "y" }));
+    const prisma = prismaMock({
+      users: [userRow(null)],
+      intakeRows: failingIntakes,
+    });
+    await runCoachNudgeTick(prisma as unknown as PrismaClient, now, {
+      dispatch: dispatch as never,
+      composeAi: composeAi as never,
+    });
+    expect(composeAi).not.toHaveBeenCalled();
   });
 });

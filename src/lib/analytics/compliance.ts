@@ -77,11 +77,7 @@ export interface IntakeEvent {
 }
 
 export type IntakeTimingClass =
-  | "early"
-  | "on_time"
-  | "late"
-  | "very_late"
-  | "missed";
+  "early" | "on_time" | "late" | "very_late" | "missed";
 
 export interface ComplianceResult {
   totalExpected: number;
@@ -436,6 +432,24 @@ export interface ComplianceMedicationContext {
    * callers without revisions keep the live-only expansion.
    */
   scheduleRevisions?: ScheduleRevisionLike[];
+  /**
+   * v1.25 H-MED1 — durable pause intervals (`MedicationPauseEra`). When
+   * present, expected dose slots whose anchor falls inside any
+   * `[pausedAt, resumedAt ?? now)` interval are dropped from the ledger so a
+   * resumed medication never counts the paused days as missed. Optional:
+   * callers without eras keep counting every expected slot.
+   */
+  pauseEras?: MedicationPauseEraLike[];
+}
+
+/**
+ * v1.25 H-MED1 — the pause-interval projection the compliance engine reads.
+ * A Prisma `MedicationPauseEra` row (or a `{ pausedAt, resumedAt }` literal)
+ * drops in. An open era (`resumedAt === null`) runs to `now`.
+ */
+export interface MedicationPauseEraLike {
+  pausedAt: Date;
+  resumedAt: Date | null;
 }
 
 /**
@@ -452,6 +466,8 @@ export function buildComplianceMedicationContext(
     createdAt: Date;
     /** v1.16.3 — thread the archived eras when the bundle carries them. */
     scheduleRevisions?: ScheduleRevisionLike[];
+    /** v1.25 H-MED1 — thread the pause eras when the caller carries them. */
+    pauseEras?: MedicationPauseEraLike[];
   },
   lastIntakeAt: Date | null,
   timeZone: string,
@@ -464,6 +480,7 @@ export function buildComplianceMedicationContext(
     lastIntakeAt,
     timeZone,
     ...(med.scheduleRevisions && { scheduleRevisions: med.scheduleRevisions }),
+    ...(med.pauseEras && { pauseEras: med.pauseEras }),
   };
 }
 
@@ -1348,7 +1365,41 @@ export function buildComplianceLedgerRows(
       pinned: e.attributionSource === "USER_PIN",
     }));
 
-  return reconstructDoseHistory(bands, intakes, now);
+  const rows = reconstructDoseHistory(bands, intakes, now);
+
+  // v1.25 H-MED1 — drop expected dose slots whose anchor falls inside a
+  // pause interval. While a medication is paused no dose is expected, so a
+  // slot minted across the paused window must never count as "missed" (the
+  // denominator-inflating status). Only `slot` rows are dropped, and only
+  // those whose status feeds the tally (taken / missed) — skip / ad-hoc /
+  // upcoming rows are already excluded from the denominator, so dropping
+  // them here would be a redundant double-exclusion. An open era
+  // (`resumedAt === null`) runs to `now`.
+  const pauseEras = ctx.pauseEras;
+  if (pauseEras && pauseEras.length > 0) {
+    const isInPause = (at: Date): boolean => {
+      const t = at.getTime();
+      for (const era of pauseEras) {
+        const start = era.pausedAt.getTime();
+        const end = (era.resumedAt ?? now).getTime();
+        if (t >= start && t < end) return true;
+      }
+      return false;
+    };
+    return rows.filter((row) => {
+      if (row.kind !== "slot") return true;
+      if (
+        row.status !== "taken_on_time" &&
+        row.status !== "taken_late" &&
+        row.status !== "missed"
+      ) {
+        return true;
+      }
+      return !isInPause(row.at);
+    });
+  }
+
+  return rows;
 }
 
 /**

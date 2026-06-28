@@ -39,6 +39,7 @@
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 import { isP2002 as isUniqueConstraintViolation } from "@/lib/prisma-errors";
+import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 
 import { dailyStatsExternalId } from "./apple-health-mapping";
 import {
@@ -259,6 +260,16 @@ export async function consolidateLegacySteps(
           });
           removed = del.count;
         });
+
+        // Re-aggregate the affected (user, type, day) rollup bucket after the
+        // soft-delete commits. The legacy granular rows that just dropped out
+        // of the live read were being summed alongside any existing daily-stats
+        // total, so the DAY rollup bucket carried a double-counted total. The
+        // rollup tier reads only `deleted_at IS NULL`; without this recompute
+        // the stale bucket persists forever. Mirrors the mean drain's
+        // post-write recompute exactly.
+        await recomputeBucketsForMeasurement(userId, type, canonicalTimestamp);
+
         return { kind: "written", sourceRowsRemoved: removed };
       } catch (err) {
         // A pre-existing row can collide on the second unique index

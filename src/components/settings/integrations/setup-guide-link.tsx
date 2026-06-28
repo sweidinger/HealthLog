@@ -23,12 +23,7 @@ import { useTranslations } from "@/lib/i18n/context";
 export const INTEGRATION_DOCS_BASE = "https://docs.healthlog.dev/integrations";
 
 export type IntegrationDocsProvider =
-  | "whoop"
-  | "withings"
-  | "fitbit"
-  | "polar"
-  | "oura"
-  | "nightscout";
+  "whoop" | "withings" | "fitbit" | "polar" | "oura" | "nightscout";
 
 export function integrationDocsHref(provider: IntegrationDocsProvider): string {
   return `${INTEGRATION_DOCS_BASE}/${provider}`;

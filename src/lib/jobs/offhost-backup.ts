@@ -20,6 +20,10 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { getEvent } from "@/lib/logging/context";
+import {
+  collectPagedMeasurements,
+  MEASUREMENT_BACKUP_PAGE_SIZE,
+} from "@/lib/jobs/backup/measurement-page";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
@@ -226,7 +230,51 @@ export async function runOffhostBackup(
         // includes soft-deleted rows because this is the DR snapshot,
         // not a user-facing export — see
         // `/api/export/full-backup/route.ts` for the symmetric exclusion.
-        prisma.measurement.findMany({ where: { userId: user.id } }),
+        //
+        // Keyset-paged narrow read instead of one full-set findMany: a
+        // heavy multi-year tenant otherwise loads every measurement ORM
+        // row into a single array alongside the giant JSON.stringify
+        // below, the worker's dominant heap spike. The DR dump keeps the
+        // FULL row shape, so the select lists every scalar column (no
+        // relations) — identical bytes to the prior default findMany —
+        // while the page reader bounds peak heap to the page size. No
+        // `deletedAt` filter: the tombstoned rows stay in the snapshot.
+        collectPagedMeasurements({
+          fetchPage: (afterId, take) =>
+            prisma.measurement.findMany({
+              where: {
+                userId: user.id,
+                ...(afterId ? { id: { gt: afterId } } : {}),
+              },
+              select: {
+                id: true,
+                userId: true,
+                type: true,
+                value: true,
+                valueMin: true,
+                valueMax: true,
+                unit: true,
+                source: true,
+                measuredAt: true,
+                notes: true,
+                notesEncrypted: true,
+                externalId: true,
+                externalSourceVersion: true,
+                glucoseContext: true,
+                sleepStage: true,
+                rhythmClassification: true,
+                deviceType: true,
+                syncVersion: true,
+                deletedAt: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+              orderBy: { id: "asc" },
+              take,
+            }),
+          project: (row) => row,
+          pageSize: MEASUREMENT_BACKUP_PAGE_SIZE,
+        }),
         prisma.medication.findMany({
           where: { userId: user.id },
           include: { schedules: true },

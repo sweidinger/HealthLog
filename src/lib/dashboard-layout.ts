@@ -280,6 +280,12 @@ export const CHART_OVERLAY_KEYS = [
   "averageHeartRate",
   "maxHeartRate",
   "energyExpenditureKj",
+  // v1.25 — chart-overlay slots for the physical / clinical signal sub-pages.
+  // One per chart surface; camel-case keys mirror the existing convention.
+  "gripStrength",
+  "painNrs",
+  "waistCircumference",
+  "waistToHeight",
 ] as const;
 export type ChartOverlayKey = (typeof CHART_OVERLAY_KEYS)[number];
 

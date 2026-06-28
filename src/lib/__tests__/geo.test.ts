@@ -1,5 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+// safeFetch's requirePublicHost path runs through undici's own `fetch`
+// (version-locked with its dispatcher). Delegate it to the global `fetch`
+// stub these tests install so the existing interception still applies.
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("undici")>();
+  return {
+    ...actual,
+    fetch: (input: unknown, init?: unknown) =>
+      (globalThis.fetch as unknown as (i: unknown, n?: unknown) => unknown)(
+        input,
+        init,
+      ),
+  };
+});
+
 // v1.18.11 (W3): capture wide-event warnings so the non-ok-status path can
 // be asserted. `getEvent()` returns null outside a request context, so
 // without this mock the `getEvent()?.addWarning(...)` call is a silent

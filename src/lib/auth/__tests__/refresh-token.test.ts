@@ -88,9 +88,7 @@ vi.mock("@/lib/db", () => ({
           let count = 0;
           for (const row of dbState.apiTokens) {
             const tokenHashFilter = where.tokenHash as
-              | string
-              | { in: string[] }
-              | undefined;
+              string | { in: string[] } | undefined;
             const matches =
               !tokenHashFilter ||
               (typeof tokenHashFilter === "string"

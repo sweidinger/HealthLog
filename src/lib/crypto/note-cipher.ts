@@ -7,6 +7,13 @@
  * encrypt-on-write + prefer-ciphertext-fallback-plaintext contract stays
  * consistent.
  *
+ * v1.25 extends the same boundary to the three medication free-text columns —
+ * `MedicationSideEffect.notes` -> `notesEncrypted`,
+ * `MedicationDoseChange.note` -> `noteEncrypted`, and
+ * `MedicationInventoryItem.notes` -> `notesEncrypted` — the last plaintext PHI
+ * columns left after the v1.23 rollout. They reuse `encryptNote` / `readNote`
+ * unchanged and get their own row-shapers below.
+ *
  * Storage shape is the shared Bytes codec (`@/lib/ai/coach/bytes-codec`) used
  * by every other free-text encrypted-note column (IllnessDayLog, LabResult,
  * Coach memory) — the `encrypt()` ciphertext string stored UTF-8 as `bytea`.
@@ -68,6 +75,40 @@ export function shapeMeasurementNotes<
  * untouched.
  */
 export function shapeMoodNote<
+  T extends { note: string | null; noteEncrypted: Uint8Array | null },
+>(row: T): Omit<T, "noteEncrypted"> & { note: string | null } {
+  const { noteEncrypted, ...rest } = row;
+  return { ...rest, note: readNote(noteEncrypted, rest.note) };
+}
+
+/**
+ * v1.25 — shape a medication side-effect row for a response/export: surface
+ * the decrypted note on `notes` and strip the raw `notesEncrypted` ciphertext
+ * so it never leaves the server.
+ */
+export function shapeSideEffectNotes<
+  T extends { notes: string | null; notesEncrypted: Uint8Array | null },
+>(row: T): Omit<T, "notesEncrypted"> & { notes: string | null } {
+  const { notesEncrypted, ...rest } = row;
+  return { ...rest, notes: readNote(notesEncrypted, rest.notes) };
+}
+
+/**
+ * v1.25 — shape a medication inventory-item row for a response/export: surface
+ * the decrypted note on `notes` and strip the raw `notesEncrypted` ciphertext.
+ */
+export function shapeInventoryItemNotes<
+  T extends { notes: string | null; notesEncrypted: Uint8Array | null },
+>(row: T): Omit<T, "notesEncrypted"> & { notes: string | null } {
+  const { notesEncrypted, ...rest } = row;
+  return { ...rest, notes: readNote(notesEncrypted, rest.notes) };
+}
+
+/**
+ * v1.25 — shape a medication dose-change row for a response/export: surface the
+ * decrypted note on `note` and strip the raw `noteEncrypted` ciphertext.
+ */
+export function shapeDoseChangeNote<
   T extends { note: string | null; noteEncrypted: Uint8Array | null },
 >(row: T): Omit<T, "noteEncrypted"> & { note: string | null } {
   const { noteEncrypted, ...rest } = row;

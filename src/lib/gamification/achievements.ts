@@ -53,12 +53,7 @@ export type AchievementMetricKey =
  *     leaked to the DOM)
  */
 export type AchievementCategory =
-  | "medication"
-  | "vitals"
-  | "mood"
-  | "security"
-  | "engagement"
-  | "hidden";
+  "medication" | "vitals" | "mood" | "security" | "engagement" | "hidden";
 
 export interface AchievementDefinition {
   id: string;

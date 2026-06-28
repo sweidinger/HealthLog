@@ -38,11 +38,7 @@ import type {
  * in the pipeline once we observe the production sample volume.
  */
 export type AppleHealthAggregation =
-  | "sum"
-  | "mean"
-  | "latest"
-  | "max"
-  | "median";
+  "sum" | "mean" | "latest" | "max" | "median";
 
 export interface AppleHealthMapping {
   /** HealthKit identifier (e.g. `HKQuantityTypeIdentifierBodyMass`). */
@@ -218,6 +214,22 @@ export const APPLE_HEALTH_TYPE_MAP: Record<string, AppleHealthMapping> = {
     hkUnit: "degC",
     dbUnit: "celsius",
     convertToDbUnit: (v) => v,
+    aggregation: "latest",
+  },
+  // Waist circumference — HealthKit ships this as a length quantity in the SI
+  // base unit (metres), the same wire convention the other length identifiers
+  // follow (`DistanceWalkingRunning`, `WalkingStepLength`). It is the first
+  // length metric whose canonical DB unit (cm) differs from the metre wire
+  // unit, so it scales ×100 server-side — the length sibling of the percent
+  // metrics' ×100 path. WHO risk bands are evaluated in cm at display
+  // (men > 94 / women > 80; see `norms.ts`).
+  HKQuantityTypeIdentifierWaistCircumference: {
+    hkIdentifier: "HKQuantityTypeIdentifierWaistCircumference",
+    measurementType: "WAIST_CIRCUMFERENCE",
+    hkUnit: "m",
+    dbUnit: "cm",
+    // Apple ships length in metres; HealthLog stores waist in cm.
+    convertToDbUnit: (v) => v * 100,
     aggregation: "latest",
   },
 

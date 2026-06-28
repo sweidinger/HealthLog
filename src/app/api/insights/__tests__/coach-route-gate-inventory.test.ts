@@ -35,6 +35,9 @@ import { describe, expect, it } from "vitest";
 
 const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   // Non-Coach assistant surfaces — gated on a sibling sub-flag.
+  // Per-biomarker assessment. Gated on the same `insightStatus` sub-flag as
+  // the metric-status + specialised status routes (no Coach prose).
+  "src/app/api/insights/biomarker-assessment/route.ts",
   "src/app/api/insights/blood-pressure-status/route.ts",
   "src/app/api/insights/bmi-status/route.ts",
   "src/app/api/insights/cards/route.ts",
@@ -92,6 +95,14 @@ const NOT_COACH_OWNED_ROUTES: ReadonlyArray<string> = [
   // wedge the user's ability to reorder the insights tile strip.
   "src/app/api/insights/layout/route.ts",
   "src/app/api/insights/targets/route.ts",
+  // v1.25 — read-only awareness cards for the overview. Each is pure compute
+  // over the rollup / lab tier (baseline-drift, sleep-breathing screening,
+  // last-panel lab deltas) and carries no assistant prose; they gate on the
+  // `insights` module, not on the Coach surface. Disabling Coach must not
+  // wedge these factual reads.
+  "src/app/api/insights/health-status/route.ts",
+  "src/app/api/insights/breathing-screening/route.ts",
+  "src/app/api/insights/labs-changes/route.ts",
 ];
 
 const COACH_GATE_NEEDLE = 'requireAssistantSurface("coach")';

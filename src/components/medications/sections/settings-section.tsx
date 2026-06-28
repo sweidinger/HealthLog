@@ -107,9 +107,7 @@ export function GraceRow({
                 ...(s.scheduleType
                   ? {
                       scheduleType: s.scheduleType as
-                        | "SCHEDULED"
-                        | "PRN"
-                        | "CYCLIC",
+                        "SCHEDULED" | "PRN" | "CYCLIC",
                     }
                   : {}),
                 ...(typeof s.cyclicOnWeeks === "number"

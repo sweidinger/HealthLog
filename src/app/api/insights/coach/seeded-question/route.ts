@@ -26,6 +26,7 @@ import { requireAssistantSurface } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 import { loadBaselineProfile } from "@/lib/insights/derived";
 import { detectDerivedBriefingSignals } from "@/lib/insights/derived-briefing";
+import { resolveCoachAmbientSuggestionsEnabled } from "@/lib/validations/notification-prefs";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,23 @@ export const GET = apiHandler(async () => {
   const rl = await checkAnalyticsReadRateLimit(user.id);
   if (!rl.allowed) {
     return apiError("Too many analytics requests. Please retry later.", 429);
+  }
+
+  // Server-authoritative ambient-suggestions opt-out: when the user turns
+  // proactive suggestions off the hero must not seed an opener, so the route
+  // skips the detector work and returns the neutral `{ signal: null }` shape.
+  const prefsRow = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { notificationPrefs: true },
+  });
+  if (
+    !resolveCoachAmbientSuggestionsEnabled(prefsRow?.notificationPrefs ?? null)
+  ) {
+    annotate({
+      action: { name: "coach.seeded-question.resolve" },
+      meta: { has_signal: false, source_metric: "none", band: "none" },
+    });
+    return apiSuccess({ signal: null } satisfies CoachSeededQuestionDTO);
   }
 
   // Profile read once via the shared loader; passed into the detector,

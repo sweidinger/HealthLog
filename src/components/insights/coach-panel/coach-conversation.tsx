@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,6 +40,7 @@ import { MobileRailTray } from "./mobile-rail-tray";
 import { SelfContextAdoptOffer } from "./self-context-adopt-offer";
 import { SourcesRail } from "./sources-rail";
 import { useResettableValue } from "./use-resettable-value";
+import { useCoachAmbientSuggestionsEnabled } from "@/hooks/use-coach-ambient-suggestions";
 import {
   useCoachConversation,
   useCoachConversations,
@@ -118,6 +119,13 @@ export interface CoachConversationProps {
    */
   launchScope?: CoachLaunchScope | null;
   /**
+   * When true, the `prefill` is dispatched as the conversation's first turn
+   * automatically, exactly once on mount (ref-guarded). Used by the
+   * assessment hand-off so the answer lands without a manual send. The send
+   * only fires for a fresh conversation with a non-empty prefill.
+   */
+  autoSend?: boolean;
+  /**
    * Renders the conversation title. The surface passes the resolved
    * title string; the drawer wraps it in `<SheetTitle>`, the page in an
    * `<h1>`. Falls back to a plain element when omitted.
@@ -188,6 +196,7 @@ export interface CoachConversationProps {
 export function CoachConversation({
   prefill,
   launchScope,
+  autoSend,
   renderTitle,
   renderDescription,
   leadingHeaderActions,
@@ -340,6 +349,33 @@ export function CoachConversation({
     }
   }
 
+  // Auto-send the prefill as the conversation's first turn, exactly once.
+  // A card hand-off (e.g. the assessment "ask about this") opens the Coach
+  // with `autoSend` so the answer lands without a manual send. Ref-guarded so
+  // it fires a single time per mount; only for a fresh conversation with a
+  // non-empty prefill and no stream in flight.
+  const autoSentRef = useRef(false);
+  // Latest-handler ref so the auto-send effect never lists `handleSubmit` (it
+  // re-creates each render) and never calls it synchronously in the effect
+  // body — the dispatch is deferred to a microtask so the composer state it
+  // touches settles outside the effect.
+  const handleSubmitRef = useRef(handleSubmit);
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  });
+  useEffect(() => {
+    if (!autoSend) return;
+    if (autoSentRef.current) return;
+    if (currentConversationId !== null) return;
+    if (send.isStreaming) return;
+    const seed = (prefill ?? "").trim();
+    if (!seed) return;
+    autoSentRef.current = true;
+    queueMicrotask(() => {
+      void handleSubmitRef.current(seed);
+    });
+  }, [autoSend, prefill, currentConversationId, send.isStreaming]);
+
   // v1.22 — "Try again": regenerate an assistant reply by resubmitting the
   // user turn that produced it as a FRESH turn. The composer value is left
   // untouched (unlike `handleSubmit`, which clears it) so a half-typed
@@ -481,8 +517,15 @@ export function CoachConversation({
       return false;
     }
   });
+  // v1.25.0 — the per-user opt-out for proactive ambient suggestions gates the
+  // seeded opener (and skips its fetch when off). The A2 launch scope below is
+  // NOT ambient — it reflects how the chat was opened — so it stays unaffected.
+  const ambientSuggestionsEnabled = useCoachAmbientSuggestionsEnabled();
   const seededEnabled =
-    heroActive && a2Metric === null && !seededDismissedToday;
+    heroActive &&
+    a2Metric === null &&
+    !seededDismissedToday &&
+    ambientSuggestionsEnabled;
   const { data: seeded } = useQuery({
     queryKey: queryKeys.coachSeededQuestion(),
     queryFn: async () =>
@@ -539,7 +582,11 @@ export function CoachConversation({
         onSeed={seedComposer}
       />
     );
-  } else if (seeded?.signal && !seededDismissedToday) {
+  } else if (
+    seeded?.signal &&
+    !seededDismissedToday &&
+    ambientSuggestionsEnabled
+  ) {
     // A3 — the notable derived signal. The label + opener are keyed on the
     // signal's sourceMetric (`readiness` / `recovery`); an unknown sentinel
     // (future detector additions) skips the opener rather than guessing.

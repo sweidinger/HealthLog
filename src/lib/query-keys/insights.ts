@@ -44,6 +44,16 @@ export const insightsKeys = {
   insightsMetricStatus: (metric: string, locale: string) =>
     ["insights", "metric-status", metric, locale] as const,
   /**
+   * Per-biomarker assessment for the lab-marker detail page. One generic
+   * route (`/api/insights/biomarker-assessment?biomarkerId=…`) backs every
+   * marker, so the key is parameterised by the marker id alongside the
+   * locale. Same read-only + stale-while-revalidate contract as
+   * `insightsMetricStatus`; the `["insights"]` prefix keeps it in the
+   * standard invalidation fan-out.
+   */
+  insightsBiomarkerAssessment: (biomarkerId: string, locale: string) =>
+    ["insights", "biomarker-assessment", biomarkerId, locale] as const,
+  /**
    * v1.8.7.1 — mutationKey for the on-demand full-warm POST
    * (`/api/insights/pregenerate`). Lives in the factory so the bare-array
    * ESLint rule stays satisfied; the warm enqueues every assessment
@@ -137,4 +147,29 @@ export const insightsKeys = {
    */
   insightsCoachRead: (metric: string) =>
     ["insights", "coach-read", metric] as const,
+
+  /**
+   * v1.25 — baseline-drift read (`/api/insights/health-status`). Combines the
+   * personal-band deviations + the dated changepoint shifts into one awareness
+   * card. Pure compute over the rollup tier; the `["insights"]` prefix keeps it
+   * in the standard invalidation fan-out (a measurement write busts it).
+   */
+  insightsHealthStatus: () => ["insights", "health-status"] as const,
+
+  /**
+   * v1.25 — breathing-disturbance screening read
+   * (`/api/insights/breathing-screening`). Last ~30 nights of the per-night
+   * index + device-flagged events. The `["insights"]` prefix carries the
+   * invalidation fan-out from an Apple Health sleep batch write.
+   */
+  insightsBreathingScreening: () =>
+    ["insights", "breathing-screening"] as const,
+
+  /**
+   * v1.25 — "what changed since your last panel" read
+   * (`/api/insights/labs-changes`). The two most-recent numeric lab panels'
+   * shared-analyte deltas. The `["insights"]` prefix keeps it in the standard
+   * invalidation fan-out.
+   */
+  insightsLabsChanges: () => ["insights", "labs-changes"] as const,
 };

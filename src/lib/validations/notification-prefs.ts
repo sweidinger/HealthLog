@@ -125,6 +125,25 @@ const coachPrefsSchema = z
     nudgeRoutine: z.boolean(),
     /** v1.16.5 — frequency cap: one nudge per 7 or per 14 days. */
     nudgeFrequency: z.enum(["weekly", "biweekly"]),
+    /**
+     * v1.25.0 — opt-out for the proactive ambient SUGGESTIONS surfaced in the
+     * UI (the daily seeded example opener on the Coach hero + the "try asking"
+     * prompt chips). Default ON. Separate from `nudgesEnabled` (the push-nudge
+     * master switch) so a user can keep the nudges but silence the example
+     * prompts, or vice versa.
+     */
+    ambientSuggestions: z.boolean(),
+    /**
+     * v1.25.0 — opt-IN for AI-composed nudge copy. Default OFF: the proactive
+     * nudge ships a deterministic warm localized template, and that template is
+     * always the fail-closed fallback. When this is on AND a provider is
+     * healthy the 05:15 tick composes the nudge through the model instead —
+     * under a per-user budget gate, a tight per-call timeout and a per-tick
+     * ceiling, with any error/timeout/budget falling silently back to the
+     * template. Off by default so provider saturation is opt-in, never the
+     * baseline.
+     */
+    nudgeAiComposed: z.boolean(),
   })
   .partial();
 
@@ -200,6 +219,16 @@ export interface NotificationPrefs {
     nudgeRoutine: boolean;
     /** v1.16.5 — cap interval: "weekly" (7 d) or "biweekly" (14 d). */
     nudgeFrequency: "weekly" | "biweekly";
+    /**
+     * v1.25.0 — proactive ambient example suggestions in the UI (seeded
+     * opener + suggested-prompt chips). Default `true`.
+     */
+    ambientSuggestions: boolean;
+    /**
+     * v1.25.0 — opt-in for AI-composed nudge copy. Default `false`; the
+     * deterministic template stays the default + fail-closed fallback.
+     */
+    nudgeAiComposed: boolean;
   };
   measurementReminder: {
     /**
@@ -256,6 +285,8 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
     nudgeVitals: true,
     nudgeRoutine: true,
     nudgeFrequency: "weekly",
+    ambientSuggestions: true,
+    nudgeAiComposed: false,
   },
   measurementReminder: {
     clientManaged: false,
@@ -445,6 +476,21 @@ export interface CoachNudgePrefs {
   };
   /** 7 for "weekly", 14 for "biweekly". */
   minIntervalDays: number;
+  /**
+   * v1.25.0 — when true the nudge tick composes the copy through the model
+   * (under hard guards) instead of the deterministic template. Default false.
+   */
+  aiComposed: boolean;
+}
+
+/**
+ * v1.25.0 — the single source every proactive ambient SUGGESTION surface
+ * consults (the daily seeded example opener on the Coach hero + the
+ * suggested-prompt chips). Default `true`; a null / drifted row resolves to
+ * the documented default so the suggestions work out of the box.
+ */
+export function resolveCoachAmbientSuggestionsEnabled(raw: unknown): boolean {
+  return parseNotificationPrefs(raw).coach.ambientSuggestions;
 }
 
 export function resolveCoachNudgePrefs(raw: unknown): CoachNudgePrefs {
@@ -457,6 +503,7 @@ export function resolveCoachNudgePrefs(raw: unknown): CoachNudgePrefs {
       routine: coach.nudgeRoutine,
     },
     minIntervalDays: coach.nudgeFrequency === "biweekly" ? 14 : 7,
+    aiComposed: coach.nudgeAiComposed,
   };
 }
 

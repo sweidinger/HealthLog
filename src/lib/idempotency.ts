@@ -60,9 +60,7 @@ function getIdempotencyKey(request: Request | NextRequest): string | null {
  *   - `null`                — no live row; the caller may claim + run.
  */
 type CacheLookup =
-  | { kind: "replay"; response: NextResponse }
-  | { kind: "pending" }
-  | null;
+  { kind: "replay"; response: NextResponse } | { kind: "pending" } | null;
 
 /**
  * Look up the state of a (userId, key, method, path) tuple. Distinguishes

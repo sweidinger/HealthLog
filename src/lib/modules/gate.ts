@@ -240,8 +240,7 @@ export async function resolveModuleMap(
  * return verbatim — mirrors `CycleGateResult`.
  */
 export type ModuleGateResult =
-  | { enabled: true }
-  | { enabled: false; response: Response };
+  { enabled: true } | { enabled: false; response: Response };
 
 /**
  * Enforce the gate for a module-scoped route. Returns a 403

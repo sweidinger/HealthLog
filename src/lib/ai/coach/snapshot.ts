@@ -1160,6 +1160,8 @@ async function buildCoachSnapshotImpl(
               supersededByRevisionId: true,
             },
           },
+          // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+          pauseEras: { select: { pausedAt: true, resumedAt: true } },
           intakeEvents: {
             // Tombstoned intake rows must never reach the Coach snapshot.
             where: { deletedAt: null, scheduledFor: { gte: cutoff } },

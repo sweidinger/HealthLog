@@ -421,6 +421,88 @@ async function main() {
     ),
   );
 
+  // ───── v1.25 medication free-text notes (Bytes columns) ─────
+  // "notesEncrypted" (MedicationSideEffect + MedicationInventoryItem) +
+  // "noteEncrypted" (MedicationDoseChange). Same shared-codec shape as the
+  // other free-text note columns. NULL on rows whose note is still in the
+  // legacy plaintext column (pre-backfill) — `rotateBytesColumn` skips those.
+  results.push(
+    await rotateBytesColumn(
+      "MedicationSideEffect",
+      "notesEncrypted",
+      prisma.medicationSideEffect,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "MedicationDoseChange",
+      "noteEncrypted",
+      prisma.medicationDoseChange,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "MedicationInventoryItem",
+      "notesEncrypted",
+      prisma.medicationInventoryItem,
+    ),
+  );
+
+  // ───── v1.25 mental-health screener item answers (Bytes column) ─────
+  // The PHQ-9 / GAD-7 encrypted per-item blob. Always present (NOT NULL), so
+  // every row rotates.
+  results.push(
+    await rotateBytesColumn(
+      "MentalHealthAssessment",
+      "responsesEncrypted",
+      prisma.mentalHealthAssessment,
+    ),
+  );
+  // ───── v1.25 structured health records (Bytes columns) ─────
+  // Allergy free-text reaction + note; family-history note. Always encrypted
+  // on write (no legacy plaintext column), so every non-null row rotates.
+  results.push(
+    await rotateBytesColumn("Allergy", "reactionEncrypted", prisma.allergy),
+  );
+  results.push(
+    await rotateBytesColumn("Allergy", "notesEncrypted", prisma.allergy),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "FamilyHistoryEntry",
+      "notesEncrypted",
+      prisma.familyHistoryEntry,
+    ),
+  );
+
+  // ───── v1.25 (W-DOCS-IN) inbound clinical document (Bytes column) ─────
+  // The raw uploaded doctor report / discharge letter (base64-of-binary →
+  // AES-256-GCM string → UTF-8 bytes). Always encrypted on write (NOT NULL),
+  // so every row rotates.
+  results.push(
+    await rotateBytesColumn(
+      "InboundDocument",
+      "contentEncrypted",
+      prisma.inboundDocument,
+    ),
+  );
+  // The staged extracted-fact payloads: the FHIR-staged clinical values and the
+  // verbatim source-span provenance. Both NOT NULL, so every staged row rotates.
+  results.push(
+    await rotateBytesColumn(
+      "ExtractedFact",
+      "dataEncrypted",
+      prisma.extractedFact,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "ExtractedFact",
+      "provenanceEncrypted",
+      prisma.extractedFact,
+    ),
+  );
+
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
   let totalErrors = 0;

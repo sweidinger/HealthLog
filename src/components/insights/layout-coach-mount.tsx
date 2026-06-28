@@ -56,6 +56,9 @@ export function LayoutCoachMount() {
       // opened from a metric surface or insight card is pre-narrowed to
       // the relevant source(s).
       scope={launch.scope}
+      // Auto-send the prefill as the first turn when the launch requested it
+      // (assessment hand-off), so the answer lands without a manual send.
+      autoSend={launch.autoSend}
     />
   );
 }

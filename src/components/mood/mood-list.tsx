@@ -43,6 +43,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  RefreshCw,
   Smile,
   Trash2,
   ChevronLeft,
@@ -51,6 +52,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+// Columns that open descending when first selected. The logged-at column
+// reads newest-first by default; every other column opens ascending.
+const MOOD_DESC_COLUMNS: ReadonlySet<string> = new Set(["moodLoggedAt"]);
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -128,8 +134,16 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   const [fromDay, setFromDayRaw] = useState<string>("");
   const [toDay, setToDayRaw] = useState<string>("");
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<string>("moodLoggedAt");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Shared column-sort state (moodLoggedAt opens descending).
+  const {
+    sortBy,
+    sortDir,
+    toggleSort: applySort,
+  } = useTableSort({
+    defaultColumn: "moodLoggedAt",
+    defaultDir: "desc",
+    descColumns: MOOD_DESC_COLUMNS,
+  });
 
   // v1.15.13 — page-scoped multi-select selection (current page ids only).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -201,13 +215,10 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     clearSelection();
   };
 
+  // Compose the page-reset + selection-clear side effects around the
+  // shared sort toggle.
   function toggleSort(column: string) {
-    if (sortBy === column) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortBy(column);
-      setSortDir(column === "moodLoggedAt" ? "desc" : "asc");
-    }
+    applySort(column);
     setPage(1);
     clearSelection();
   }
@@ -219,7 +230,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   const toParam = toDay || undefined;
   const sourceParam = sourceFilter === "ALL" ? undefined : sourceFilter;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.moodEntriesList({
       mood: moodFilter === "ALL" ? undefined : moodFilter,
       source: sourceParam,
@@ -491,6 +502,24 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+          </div>
+        ) : isError ? (
+          <div
+            role="alert"
+            data-slot="mood-list-error"
+            className="text-muted-foreground flex flex-col items-start gap-3 py-8 text-sm sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span>{t("mood.loadError")}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void refetch()}
+              className="gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t("common.retry")}</span>
+            </Button>
           </div>
         ) : !data?.entries?.length ? (
           // v1.4.15 phase-C5: replace bare-text empty rectangle with

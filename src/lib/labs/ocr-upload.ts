@@ -18,10 +18,7 @@ export const OCR_MAX_BYTES = 12 * 1024 * 1024;
 
 /** The MIME types the extract route accepts (no HEIC in v1). */
 export type OcrUploadMime =
-  | "image/jpeg"
-  | "image/png"
-  | "image/webp"
-  | "application/pdf";
+  "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
 
 /** Thrown by `readBoundedBody` when the stream exceeds the byte cap. */
 export class BodyTooLargeError extends Error {

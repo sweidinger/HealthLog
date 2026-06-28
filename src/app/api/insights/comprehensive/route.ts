@@ -21,6 +21,7 @@ import {
   SCHEDULE_COMPLIANCE_SELECT,
 } from "@/lib/analytics/compliance";
 import { getMedicationCategories } from "@/lib/medication-category";
+import { resolveRestingPulseSeries } from "@/lib/analytics/resting-pulse";
 import { apiHandler, requireAuth, type AuthContext } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { requireAssistantSurface } from "@/lib/feature-flags";
@@ -263,8 +264,55 @@ export async function buildComprehensiveResponse(user: AuthedUser) {
     weight: p.b,
   }));
 
-  const pulseDaily = aggregate.dailyByType.PULSE ?? [];
-  const moodPulsePairs = pairMoodWithDaily(dailyMoodEntries, pulseDaily);
+  // v1.2.5 (M-CS2) — this correlation is labelled "Resting pulse (bpm)";
+  // score it against the RESTING series, not the raw PULSE day-mean. The
+  // aggregator's `dailyByType.PULSE` is a per-day AVG that folds in workout
+  // HR for Apple-Health users and inflates the "resting" figure. Prefer the
+  // clean RESTING_HEART_RATE rows; only pull RAW PULSE (for the
+  // low-percentile daily proxy) when the user has no resting rows — the
+  // proxy needs the per-day distribution, which the day-mean discards.
+  // Day keys follow this route's UTC-bucket convention (the per-user-tz
+  // bucketing is the documented v1.5 follow-up) so the resting series pairs
+  // against the same UTC day keys as the mood series.
+  const restingPulseRows = await prisma.measurement.findMany({
+    where: {
+      userId,
+      type: "RESTING_HEART_RATE",
+      deletedAt: null,
+      measuredAt: { gte: ninetyDaysAgo },
+    },
+    select: { measuredAt: true, value: true },
+  });
+  const rawPulseRowsForResting =
+    restingPulseRows.length === 0
+      ? await prisma.measurement.findMany({
+          where: {
+            userId,
+            type: "PULSE",
+            deletedAt: null,
+            measuredAt: { gte: ninetyDaysAgo },
+          },
+          select: { measuredAt: true, value: true },
+        })
+      : [];
+  const utcDayKey = (d: Date) => d.toISOString().slice(0, 10);
+  const { series: restingPulseSeries } = resolveRestingPulseSeries({
+    restingSamples: restingPulseRows,
+    pulseSamples: rawPulseRowsForResting,
+    dayKeyOf: utcDayKey,
+  });
+  const restingByDay = new Map<string, { sum: number; count: number }>();
+  for (const s of restingPulseSeries) {
+    const key = utcDayKey(s.measuredAt);
+    const cur = restingByDay.get(key) ?? { sum: 0, count: 0 };
+    cur.sum += s.value;
+    cur.count += 1;
+    restingByDay.set(key, cur);
+  }
+  const restingPulseDaily = Array.from(restingByDay.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, stats]) => ({ day, value: stats.sum / stats.count }));
+  const moodPulsePairs = pairMoodWithDaily(dailyMoodEntries, restingPulseDaily);
   const moodPulseCorrelation = pearsonCorrelation(moodPulsePairs);
   const moodPulseScatterData = moodPulsePairs.map((p) => ({
     mood: p.a,
@@ -283,6 +331,8 @@ export async function buildComprehensiveResponse(user: AuthedUser) {
       schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
       // v1.16.3 — archived schedule eras for era-aware compliance.
       scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+      pauseEras: { select: { pausedAt: true, resumedAt: true } },
     },
   });
   const categoryMap = await getMedicationCategories(

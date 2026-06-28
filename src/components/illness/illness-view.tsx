@@ -17,7 +17,13 @@
  */
 import { useId, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Plus, Stethoscope, Wrench } from "lucide-react";
+import {
+  ChevronDown,
+  Plus,
+  RefreshCw,
+  Stethoscope,
+  Wrench,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -308,7 +314,12 @@ function EpisodeGroup({
 
 export function IllnessView() {
   const { t } = useTranslations();
-  const { data: episodes, isLoading } = useIllnessEpisodes(true);
+  const {
+    data: episodes,
+    isLoading,
+    isError,
+    refetch,
+  } = useIllnessEpisodes(true);
   const resolve = useResolveEpisode();
   const { prefs } = useModuleListPrefs("illness");
 
@@ -417,6 +428,24 @@ export function IllnessView() {
         <div className={cn("grid gap-4 sm:grid-cols-2")}>
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-32 w-full" />
+        </div>
+      ) : isError ? (
+        <div
+          role="alert"
+          data-slot="illness-list-error"
+          className="text-muted-foreground flex flex-col items-start gap-3 py-8 text-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{t("illness.listLoadError")}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void refetch()}
+            className="gap-1.5"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("common.retry")}</span>
+          </Button>
         </div>
       ) : hasEpisodes ? (
         <>

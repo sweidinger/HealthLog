@@ -4,6 +4,7 @@
  */
 
 import type { DataPoint } from "./trends";
+import { pearson, MAX_P_VALUE } from "@/lib/insights/correlations";
 
 export interface PairedPoint {
   a: number;
@@ -103,4 +104,50 @@ export function pearsonCorrelation(
   else strength = "keine";
 
   return { r, strength, n };
+}
+
+/**
+ * v1.2.5 (M-CS3) — significance-gated Pearson for USER-FACING surfaces.
+ *
+ * The plain `pearsonCorrelation` above assigns a strength band from |r|
+ * alone with no significance test and a default floor of only 5 pairs —
+ * so a 5-point r ≈ 0.7 fluke surfaces as a "stark" correlation. Every
+ * surfaced insight-card / status-snapshot correlation must instead clear
+ * the same rigorous bar the `/insights` correlation engine enforces:
+ *
+ *   - n >= 20 paired points (the engine's `MIN_PAIRED_N`), AND
+ *   - a two-sided Student-t p-value < 0.05 (`MAX_P_VALUE`).
+ *
+ * Below either bar this returns `null` so the caller suppresses the
+ * correlation exactly as it already does for the < minPairs case — no
+ * call-site shape change. The returned `{ r, strength, n }` keeps the
+ * legacy shape (German strength band) so the snapshot byte-shape is
+ * unchanged on the happy path.
+ *
+ * This routes through the engine's `pearson` (exact regularised-
+ * incomplete-beta p-value) rather than re-deriving the t-test, so the
+ * surface decision shares ONE definition with the dedicated cards.
+ */
+export function significantPearsonCorrelation(
+  pairs: PairedPoint[],
+): CorrelationResult | null {
+  const result = pearson({
+    xs: pairs.map((p) => p.a),
+    ys: pairs.map((p) => p.b),
+  });
+  // `pearson` defaults `minPairs` to MIN_PAIRED_N (20); below it (or with
+  // zero variance) it reports `insufficient` and we suppress the card.
+  if (result.status !== "ok") return null;
+  // Significance gate — a non-significant coefficient never surfaces.
+  if (result.pValue >= MAX_P_VALUE) return null;
+
+  const r = Math.round(result.r * 1000) / 1000;
+  const absR = Math.abs(r);
+  let strength: CorrelationResult["strength"];
+  if (absR >= 0.7) strength = "stark";
+  else if (absR >= 0.4) strength = "moderat";
+  else if (absR >= 0.2) strength = "schwach";
+  else strength = "keine";
+
+  return { r, strength, n: result.n };
 }

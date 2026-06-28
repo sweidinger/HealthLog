@@ -35,6 +35,7 @@ import {
 } from "@/lib/medications/inventory/service";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { shapeInventoryItemNotes } from "@/lib/crypto/note-cipher";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -60,7 +61,11 @@ export const GET = apiHandler(
       }),
     ]);
 
-    const serialized = items.map(serializeInventoryItem);
+    // Decrypt each note and strip the raw `notesEncrypted` ciphertext before
+    // the decimal-unit serialisation runs.
+    const serialized = items.map((item) =>
+      serializeInventoryItem(shapeInventoryItemNotes(item)),
+    );
     // v1.19.0 (iOS#25) — the canonical supply summary is computed HERE,
     // server-side, through the one source of truth (`summariseSupply`).
     // The detail-page client renders these ready figures instead of
@@ -162,6 +167,9 @@ export const POST = apiHandler(
     // serve the pre-write stock for the rest of the stale window.
     invalidateUserMedications(user.id, { evict: true });
 
-    return apiSuccess(serializeInventoryItem(created), 201);
+    return apiSuccess(
+      serializeInventoryItem(shapeInventoryItemNotes(created)),
+      201,
+    );
   },
 );

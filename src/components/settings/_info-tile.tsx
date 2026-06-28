@@ -25,11 +25,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type SettingsInfoTileTone =
-  | "info"
-  | "warning"
-  | "success"
-  | "primary"
-  | "neutral";
+  "info" | "warning" | "success" | "primary" | "neutral";
 
 const TONE_SURFACE: Record<SettingsInfoTileTone, string> = {
   info: "border-info/40 bg-info/10",

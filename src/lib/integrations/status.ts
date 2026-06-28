@@ -108,11 +108,7 @@ export function toFailureKind(
  * trail.
  */
 export type IntegrationState =
-  | "connected"
-  | "error_transient"
-  | "error_reauth"
-  | "disconnected"
-  | "parked";
+  "connected" | "error_transient" | "error_reauth" | "disconnected" | "parked";
 
 /**
  * The ladder at which a streak of failures escalates from "user-visible

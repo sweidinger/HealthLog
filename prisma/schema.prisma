@@ -51,6 +51,25 @@ model User {
   gender      String?   @map("gender") // "MALE" | "FEMALE" | "OTHER" | null = keine Angabe
   timezone    String    @default("Europe/Berlin")
 
+  // v1.25 (W-ENV) — opt-in environmental-context module home location. A coarse,
+  // user-set city (rounded lat/lon, ~city granularity — never a GPS track) the
+  // nightly weather fetch resolves against when no travel override covers the
+  // day. City-level granularity is the privacy floor: the weather model only
+  // needs ~10–25 km. All nullable — an account without the module enabled (or
+  // without a home set) simply has no environment rows. `homeTimezone` anchors
+  // the day-key an observation is stored under (it can differ from the display
+  // `timezone` above for an account that tracks weather for another locale).
+  homeLat      Float?  @map("home_lat")
+  homeLon      Float?  @map("home_lon")
+  homeLabel    String? @map("home_label")
+  homeTimezone String? @map("home_timezone")
+  // v1.25 — effective-from instant for the home location. Stamped the moment a
+  // home is set/updated. Day resolution attributes a past day to home ONLY when
+  // the day is on/after this instant; earlier days are skipped (never fabricated
+  // from the current home). To fill the deep past the user adds an explicit
+  // dated location period instead. Backfill defaults its start to this instant.
+  homeSince    DateTime? @map("home_since")
+
   // Codex OAuth (ChatGPT subscription)
   codexAccessTokenEncrypted  String?   @map("codex_access_token_encrypted")
   codexRefreshTokenEncrypted String?   @map("codex_refresh_token_encrypted")
@@ -583,6 +602,7 @@ model User {
   measurements                Measurement[]
   medications                 Medication[]
   intakeEvents                MedicationIntakeEvent[]
+  medicationPauseEras         MedicationPauseEra[]
   apiTokens                   ApiToken[]
   // v1.24 — MCP remote OAuth 2.1 connections (1:N). Each row is a granted
   // authorization for an MCP client, audience-bound to health:read/health:write.
@@ -607,6 +627,7 @@ model User {
   fitbitConnection            FitbitConnection?
   fitbitOAuthStates           FitbitOAuthState[]
   moodEntries                 MoodEntry[]
+  mentalHealthAssessments     MentalHealthAssessment[]
   moodTagsCustom              MoodTag[]                    @relation("UserMoodTags")
   moodTagCategoriesCustom     MoodTagCategory[]            @relation("UserMoodTagCategories")
   moodTagsHidden              MoodTagHidden[]
@@ -719,6 +740,25 @@ model User {
   // per-day timeline mirroring the CycleDayLog shape.
   illnessEpisodes             IllnessEpisode[]
   illnessDayLogs              IllnessDayLog[]
+  // v1.25 (W-RECORDS) — structured health-record entries. Allergies map to
+  // FHIR AllergyIntolerance; family-history entries map to FHIR
+  // FamilyMemberHistory. Reference records (not time-series signals); the
+  // sensitive free-text fields are encrypted at rest.
+  allergies                   Allergy[]
+  familyHistory               FamilyHistoryEntry[]
+  // v1.25 (W-ENV) — opt-in environmental-context module. `EnvironmentContext`
+  // is the per-day weather/daylight observation keyed to the resolved location;
+  // `EnvironmentTravelLocation` holds the manual date-range travel overrides
+  // that win over the home location for the days they cover.
+  environmentContexts         EnvironmentContext[]
+  environmentTravelLocations  EnvironmentTravelLocation[]
+  // v1.25 (W-DOCS-IN) — inbound clinical documents (doctor reports /
+  // discharge letters) the user uploads. The raw document is encrypted at
+  // rest; extracted facts land in a review-then-confirm staging area
+  // (ExtractedFact) and only reach the structured stores on explicit
+  // approval. Opt-in module, off by default.
+  inboundDocuments            InboundDocument[]
+  extractedFacts              ExtractedFact[]
   // v1.19.0 — full Withings ECG waveform recordings (encrypted at rest).
   // The paired AFib verdict still lands as an IRREGULAR_RHYTHM_NOTIFICATION
   // Measurement EVENT row (v1.18.11); this holds the raw signal samples.
@@ -772,6 +812,107 @@ model User {
   inviteRedemptions InviteRedemption[] @relation("InviteRedemptions")
 
   @@map("users")
+}
+
+// ─── v1.25 (W-ENV) Environmental-context module ──────────────────────────────
+
+/// How the location for an environment observation was resolved. HOME = the
+/// user's configured home location; TRAVEL = an explicit dated location period
+/// (a past trip OR a corrected stretch of history) that overrides home for the
+/// days it covers; DEVICE = a future client-supplied coarse per-day location.
+/// DEVICE is the priority forward path for the iOS v2 client: the value exists
+/// so the resolver and the wire contract already accept it, but nothing writes
+/// it server-side yet.
+enum EnvironmentLocationSource {
+  HOME
+  TRAVEL
+  DEVICE
+}
+
+/// A per-day environmental observation (daily weather / daylight) for the
+/// location resolved for that day. Day-keyed exactly like the rollup tier:
+/// `date` is a YYYY-MM-DD string anchored to the location's IANA timezone, so a
+/// late-evening reading does not mis-bucket under UTC. One row per (user, day);
+/// a re-fetch upserts (the archive feed settles over a few days). All weather
+/// fields are nullable so a partial feed still stores what it has. The location
+/// stored here is coarse (city granularity) — never a GPS track.
+model EnvironmentContext {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// YYYY-MM-DD anchored to the resolved location's timezone.
+  date String
+
+  /// Coarse resolved location for the day (rounded lat/lon + label + the source
+  /// that won precedence).
+  lat           Float
+  lon           Float
+  locationLabel String                    @map("location_label")
+  source        EnvironmentLocationSource
+
+  /// Daily temperature (°C). Min doubles as the overnight-low proxy.
+  tempMin      Float? @map("temp_min")
+  tempMax      Float? @map("temp_max")
+  tempMean     Float? @map("temp_mean")
+  /// Daily apparent ("feels-like") mean (°C).
+  apparentMean Float? @map("apparent_mean")
+
+  /// Sunshine + daylight, stored in seconds (the feed's native unit).
+  sunshineSec Int? @map("sunshine_sec")
+  daylightSec Int? @map("daylight_sec")
+
+  /// Precipitation total (mm) over the local day.
+  precipSum Float? @map("precip_sum")
+
+  /// Pressure aggregated from the hourly feed: daily mean (hPa) + the intraday
+  /// delta (max−min, hPa) — the derived feature for the headache/symptom overlay.
+  pressureMean  Float? @map("pressure_mean")
+  pressureDelta Float? @map("pressure_delta")
+
+  /// Relative humidity mean (%) and cloud-cover mean (%) from the hourly feed.
+  humidityMean Float? @map("humidity_mean")
+  cloudMean    Float? @map("cloud_mean")
+
+  /// WMO weather code for the day (descriptive condition lookup).
+  weatherCode Int? @map("weather_code")
+
+  /// When the row was last fetched/refreshed from the upstream feed.
+  fetchedAt DateTime @default(now()) @map("fetched_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("environment_contexts")
+}
+
+/// An explicit dated LOCATION PERIOD: for any day in `[startDate, endDate]` the
+/// weather fetch resolves against this location instead of the home location.
+/// Declared, not inferred — it dominates the home fallback so a stretch spent
+/// elsewhere is not mis-attributed to the home city. Two uses share this one
+/// model: a discrete trip away from home, AND the mechanism to correct history
+/// (e.g. a whole-history home city for the years before the current home became
+/// effective). Coarse location only. (Stored under `source = TRAVEL`.)
+model EnvironmentTravelLocation {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Inclusive YYYY-MM-DD range (anchored to the user's home timezone for the
+  /// day-key the override matches against).
+  startDate String @map("start_date")
+  endDate   String @map("end_date")
+
+  lat   Float
+  lon   Float
+  label String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, startDate, endDate])
+  @@map("environment_travel_locations")
 }
 
 model Passkey {
@@ -1106,8 +1247,94 @@ enum MeasurementType {
   // The 5-level → ordinal mapping is the single source of truth in
   // `src/lib/oura/client.ts` (RESILIENCE_LEVELS). Stored as `source = OURA`.
   RESILIENCE // level (ordinal 1–5) — Oura `daily_resilience.level` (limited=1 … exceptional=5).
+  // ── v1.25 — clinical-signals wave (manual / instrument-derived) ──
+  // PHQ-9 / GAD-7 total scores. Server-derived from a completed
+  // `MentalHealthAssessment` (one measurement row per administration, value =
+  // total). Unit `score`. The raw item answers live encrypted on the
+  // assessment row, never here — these rows carry only the numeric trend so
+  // the existing chart / rollup infra reads them with no item exposure.
+  PHQ9_SCORE // score (0–27) — PHQ-9 depression screen total. Opt-in. See MentalHealthAssessment.
+  GAD7_SCORE // score (0–21) — GAD-7 anxiety screen total. Opt-in. See MentalHealthAssessment.
+  // Maximal isometric handgrip force (best of all trials, either hand). The
+  // EWGSOP2 sarcopenia floor is sex-specific (men < 27 kg, women < 16 kg); the
+  // band is applied at display time, the column stores the raw kg.
+  GRIP_STRENGTH // kg — hand-dynamometer maximal grip (EWGSOP2 sarcopenia limb).
+  // Patient-reported pain intensity on the 0–10 Numeric Rating Scale
+  // (0 = no pain, 10 = worst imaginable). LOINC 72514-3.
+  PAIN_NRS // score (0–10) — pain Numeric Rating Scale.
+  // Waist circumference in cm (WHO STEPS protocol) + the ancestry-robust
+  // waist-to-height ratio (WHtR; keep waist < half your height ⇒ < 0.5).
+  WAIST_CIRCUMFERENCE // cm — waist circumference (WHO bands; ethnicity-aware at display).
+  WAIST_TO_HEIGHT // ratio — waist-to-height ratio (WHtR ≥ 0.5 = increased risk).
 
   @@map("measurement_type")
+}
+
+/// v1.25 — validated mental-health self-assessment instruments: PHQ-9
+/// (depression) + GAD-7 (anxiety). The discriminator on
+/// `MentalHealthAssessment`; extensible (WHO-5 / PSS-10 are natural future
+/// siblings) without a schema change.
+enum AssessmentInstrument {
+  PHQ9
+  GAD7
+
+  @@map("assessment_instrument")
+}
+
+/// v1.25 — one completed administration of a validated mental-health screener
+/// (PHQ-9 / GAD-7). Opt-in, beside the existing `MoodEntry` (never replaces it).
+/// The per-item answers are the most sensitive payload, so they live in a
+/// single AES-256-GCM `Bytes` blob (`responsesEncrypted`) and are never indexed
+/// nor logged. The derived total / band / item-9 flag are denormalised
+/// (server-authoritative) for cheap history reads without decrypting. A
+/// matching `PHQ9_SCORE` / `GAD7_SCORE` Measurement row is written per
+/// administration (linked by `externalId = assessment:<id>`) so the score rides
+/// the existing chart / rollup infra — the trend, never the item content.
+model MentalHealthAssessment {
+  id                 String               @id @default(cuid())
+  userId             String               @map("user_id")
+  instrument         AssessmentInstrument
+  /// The validated translation actually presented (officially-validated wording
+  /// per locale, English fallback otherwise — recorded for the audit trail).
+  locale             String
+  /// Instrument variant identifier (e.g. "standard"); future-proofs revisions.
+  version            String               @default("standard")
+  /// Encrypted JSON blob: { items: number[], functionalDifficulty?: 0..3, schema: 1 }.
+  /// AES-256-GCM via the shared Bytes codec; registered in ENCRYPTED_COLUMNS +
+  /// the rotation script. The item-9 raw value lives ONLY here.
+  responsesEncrypted Bytes                @map("responses_encrypted")
+  /// Derived total (PHQ-9 0–27, GAD-7 0–21). Denormalised for fast reads.
+  totalScore         Int                  @map("total_score")
+  /// Derived severity band label (server-authoritative; descriptive, never a diagnosis).
+  severityBand       String               @map("severity_band")
+  /// PHQ-9 only: item 9 (self-harm ideation) answered > 0. A coarse boolean so
+  /// the history view can re-surface crisis resources without decrypting.
+  item9Flagged       Boolean              @default(false) @map("item9_flagged")
+  /// Audit stamp: the supportive crisis-resource signpost was shown to the user.
+  /// Never triggers any third-party alert — private, on-device-only signposting.
+  crisisShownAt      DateTime?            @map("crisis_shown_at")
+  /// Recall-window anchor (when the screener was taken).
+  takenAt            DateTime             @map("taken_at")
+  tz                 String?
+  source             String               @default("WEB")
+  externalId         String?              @map("external_id")
+  syncVersion        Int                  @default(0) @map("sync_version")
+  deletedAt          DateTime?            @map("deleted_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, externalId])
+  @@index([userId, instrument, takenAt])
+  @@index([userId, updatedAt, id])
+  // `mental_health_assessments_user_external_id_unique` is a partial UNIQUE
+  // index over `(user_id, external_id) WHERE external_id IS NOT NULL` — see
+  // migration 0221. It deduplicates an outbox replay across sources (a repeat
+  // client externalId returns the existing administration). Prisma can't express
+  // a partial index in the schema language, so it lives in raw SQL and is
+  // intentionally omitted here.
+  @@map("mental_health_assessments")
 }
 
 /// v1.10.0 — categorical events (WX-B)
@@ -1352,6 +1579,12 @@ model Measurement {
   // (Postgres semantics) so manual entries don't collide here.
   @@unique([userId, type, source, externalId])
   @@index([userId, type, measuredAt])
+  // v1.25 — type-less `(userId, measuredAt)` range scan. The bulk feature read
+  // (`extractFeatures`) and consolidation scans walk a user's measurements by
+  // time with no `type` predicate; `(userId, type, measuredAt)` can't serve
+  // that as a prefix, so without this index Postgres scans the user's whole set
+  // and sorts in memory. See migration 0210.
+  @@index([userId, measuredAt])
   // v1.15.13 — leads with `(userId, source)` so the management list's
   // source filter + recency sort is an index range scan instead of a
   // `userId` scan + in-memory sort. See migration 0136.
@@ -1947,6 +2180,14 @@ model Medication {
   /// ranges into eras so past days read against the schedule that was
   /// live THEN, not the current one.
   scheduleRevisions MedicationScheduleRevision[]
+  /// v1.25 — durable pause intervals. A pause stamps an open era
+  /// (`resumedAt = null`); resume closes the latest open era. The
+  /// compliance engine drops expected slots whose anchor falls inside a
+  /// pause interval so a resumed medication never counts the paused days
+  /// as missed. The `pausedAt` column on this model stays the live
+  /// single-pause marker the reminder/today surfaces read; the era table
+  /// is the additive durable record the rate paths need.
+  pauseEras         MedicationPauseEra[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2095,6 +2336,35 @@ model MedicationScheduleRevision {
 
   @@index([medicationId, validFrom])
   @@map("medication_schedule_revisions")
+}
+
+/// v1.25 — durable medication pause intervals. The `Medication.pausedAt`
+/// column is a single live marker that resume clears, so the paused window
+/// is irrecoverable once the medication resumes. This table records each
+/// pause as its own row: a pause stamps an open era (`resumedAt = null`),
+/// resume closes the latest open era (`resumedAt = now`). The compliance
+/// engine reads the eras and drops expected dose slots whose anchor falls
+/// inside any `[pausedAt, resumedAt ?? now)` interval so a resumed
+/// medication never counts the paused days as missed.
+model MedicationPauseEra {
+  id           String    @id @default(cuid())
+  medicationId String    @map("medication_id")
+  userId       String    @map("user_id")
+  /// Inclusive start of the pause interval (the instant the medication
+  /// was paused).
+  pausedAt     DateTime  @map("paused_at") @db.Timestamptz(6)
+  /// Exclusive end of the pause interval (the instant the medication was
+  /// resumed). NULL = still paused; readers treat an open era as running
+  /// to `now`.
+  resumedAt    DateTime? @map("resumed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([medicationId])
+  @@index([userId])
+  @@map("medication_pause_eras")
 }
 
 enum IntakeSource {
@@ -2266,6 +2536,10 @@ model MedicationDoseChange {
   /// User-entered titration note ("stepped up after 4 weeks on 5 mg,
   /// tolerated 7.5 mg with mild nausea day 2").
   note          String?
+  /// v1.25 — AES-256-GCM ciphertext for `note`. The plaintext column
+  /// stays for read-fallback until the backfill reports zero remaining
+  /// rows; the plaintext drop is DEFERRED to a later release.
+  noteEncrypted Bytes?   @map("note_encrypted")
   createdAt     DateTime @default(now()) @map("created_at")
 
   medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
@@ -2357,6 +2631,10 @@ model MedicationInventoryItem {
   purchasedAt    DateTime?                @map("purchased_at")
   /// Free-text note, application-layer max 200 chars.
   notes          String?
+  /// v1.25 — AES-256-GCM ciphertext for `notes`. The plaintext column
+  /// stays for read-fallback until the backfill reports zero remaining
+  /// rows; the plaintext drop is DEFERRED to a later release.
+  notesEncrypted Bytes?                   @map("notes_encrypted")
   createdAt      DateTime                 @default(now()) @map("created_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")
 
@@ -2398,22 +2676,26 @@ model MedicationInventoryItem {
 ///   - (userId, occurredAt DESC) — Coach snapshot aggregation read
 ///     path; correlation across medications is per-user, not per-drug.
 model MedicationSideEffect {
-  id           String                       @id @default(cuid())
-  userId       String                       @map("user_id")
-  medicationId String                       @map("medication_id")
-  occurredAt   DateTime                     @default(now()) @map("occurred_at")
-  category     MedicationSideEffectCategory
-  entry        MedicationSideEffectEntry
+  id             String                       @id @default(cuid())
+  userId         String                       @map("user_id")
+  medicationId   String                       @map("medication_id")
+  occurredAt     DateTime                     @default(now()) @map("occurred_at")
+  category       MedicationSideEffectCategory
+  entry          MedicationSideEffectEntry
   /// 1 = mild, 2 = moderate, 3 = significant, 4 = severe, 5 = very-severe.
   /// Constrained to [1, 5] at the application layer (Zod) and the DB
   /// (CHECK constraint via migration). Not an enum to keep cardinality
   /// trivially numeric for chart aggregation.
-  severity     Int
+  severity       Int
   /// Optional free-text note, hard-capped to 280 chars at the
   /// application layer. The DB column is unbounded TEXT for
   /// consistency with sibling "notes" columns on this schema.
-  notes        String?
-  createdAt    DateTime                     @default(now()) @map("created_at")
+  notes          String?
+  /// v1.25 — AES-256-GCM ciphertext for `notes`. The plaintext column
+  /// stays for read-fallback until the backfill reports zero remaining
+  /// rows; the plaintext drop is DEFERRED to a later release.
+  notesEncrypted Bytes?                       @map("notes_encrypted")
+  createdAt      DateTime                     @default(now()) @map("created_at")
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
@@ -2553,21 +2835,21 @@ model TelegramPromptContext {
 // ─── API Tokens (for external ingest) ──────────────────────
 
 model ApiToken {
-  id          String    @id @default(cuid())
-  userId      String    @map("user_id")
-  name        String
-  tokenHash   String    @unique @map("token_hash") // SHA-256 of the token
-  permissions String[]  @default(["medication:ingest"])
-  lastUsedAt  DateTime? @map("last_used_at")
-  expiresAt   DateTime? @map("expires_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  revoked     Boolean   @default(false)
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  name            String
+  tokenHash       String    @unique @map("token_hash") // SHA-256 of the token
+  permissions     String[]  @default(["medication:ingest"])
+  lastUsedAt      DateTime? @map("last_used_at")
+  expiresAt       DateTime? @map("expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  revoked         Boolean   @default(false)
   // The MCP OAuth connection this access token belongs to, when it was minted
   // through the `/api/mcp/oauth` bridge. Null for manually-minted tokens and
   // native-client tokens. Lets a connection revoke kill every access row it
   // ever issued (H2), and lets the connector token list exclude the transient
   // 60-minute access rows so it does not flood (M2).
-  mcpConnectionId String? @map("mcp_connection_id")
+  mcpConnectionId String?   @map("mcp_connection_id")
 
   user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   mcpConnection McpOAuthConnection? @relation(fields: [mcpConnectionId], references: [id], onDelete: SetNull)
@@ -5054,6 +5336,142 @@ model IllnessSymptomLink {
   @@map("illness_symptom_links")
 }
 
+// ─── Structured health records (v1.25 W-RECORDS) ──────────────────
+//
+// Allergies + family history kept as STRUCTURED records (not time-series
+// signals — they are NOT in the signal registry). Reference data the user
+// curates once and edits rarely, surfaced in the Settings "Anamnese"
+// (medical-history) section and exported to FHIR (AllergyIntolerance /
+// FamilyMemberHistory). Patient-reported throughout — never a clinical
+// diagnosis the app asserts. Sensitive free-text fields are AES-256-GCM
+// encrypted at rest (`*Encrypted` Bytes columns, the shared note codec);
+// the structured enum fields stay queryable plaintext. Soft-deleted.
+
+/// Broad allergen category for an Allergy (maps to FHIR
+/// AllergyIntolerance.category — food / medication / environment / biologic).
+enum AllergyCategory {
+  FOOD
+  MEDICATION
+  ENVIRONMENT
+  BIOLOGIC
+  OTHER
+
+  @@map("allergy_category")
+}
+
+/// Distinguishes an immune-mediated allergy from a non-immune intolerance
+/// (FHIR AllergyIntolerance.type allergy | intolerance).
+enum AllergyType {
+  ALLERGY
+  INTOLERANCE
+
+  @@map("allergy_type")
+}
+
+/// Worst-reaction severity (FHIR AllergyIntolerance.reaction.severity /
+/// criticality). NULL = not assessed.
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+
+  @@map("allergy_severity")
+}
+
+/// Clinical status of the record (FHIR AllergyIntolerance.clinicalStatus).
+enum AllergyStatus {
+  ACTIVE
+  INACTIVE
+  RESOLVED
+
+  @@map("allergy_status")
+}
+
+/// One self-recorded allergy/intolerance. `substance` is the queryable
+/// human label (the AllergyIntolerance `code.text` anchor — never a
+/// machine-guessed SNOMED/RxNorm code). The free-text reaction description
+/// and notes are encrypted at rest. Patient-reported; the export carries a
+/// "not a clinical diagnosis" guard rail.
+model Allergy {
+  id                String           @id @default(cuid())
+  userId            String           @map("user_id")
+  /// User-facing substance/allergen name, e.g. "Penicillin", "Peanuts".
+  /// Queryable plaintext label (the medication.name / illness.label
+  /// precedent); rides FHIR `code.text`.
+  substance         String
+  category          AllergyCategory  @default(OTHER)
+  type              AllergyType      @default(ALLERGY)
+  /// Worst observed reaction severity. NULL = not assessed.
+  severity          AllergySeverity?
+  status            AllergyStatus    @default(ACTIVE)
+  /// When the allergy was first noticed (UTC instant). NULL = unknown.
+  onsetAt           DateTime?        @map("onset_at")
+  /// AES-256-GCM ciphertext of the free-text reaction/manifestation
+  /// description (e.g. "anaphylaxis", "hives"). Bytes via the shared codec.
+  reactionEncrypted Bytes?           @map("reaction_encrypted")
+  /// AES-256-GCM ciphertext of an optional free-text note. Bytes column.
+  notesEncrypted    Bytes?           @map("notes_encrypted")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
+  deletedAt         DateTime?        @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deletedAt])
+  @@map("allergies")
+}
+
+/// Relationship of a family member to the user (maps to FHIR
+/// FamilyMemberHistory.relationship). Lateralised grandparents let the
+/// maternal/paternal line be recorded where the user knows it.
+enum FamilyRelationship {
+  MOTHER
+  FATHER
+  SISTER
+  BROTHER
+  DAUGHTER
+  SON
+  GRANDMOTHER_MATERNAL
+  GRANDFATHER_MATERNAL
+  GRANDMOTHER_PATERNAL
+  GRANDFATHER_PATERNAL
+  AUNT
+  UNCLE
+  COUSIN
+  HALF_SIBLING
+  OTHER
+
+  @@map("family_relationship")
+}
+
+/// One condition recorded for one relative (a FHIR FamilyMemberHistory with
+/// a single condition). `condition` is the queryable human label (the
+/// FamilyMemberHistory.condition `code.text` anchor — never a machine-guessed
+/// code); `ageAtOnset` is the relative's age when the condition began. The
+/// optional free-text note is encrypted at rest. Patient-reported.
+model FamilyHistoryEntry {
+  id             String             @id @default(cuid())
+  userId         String             @map("user_id")
+  relationship   FamilyRelationship
+  /// User-facing condition name, e.g. "Type 2 diabetes", "Breast cancer".
+  /// Queryable plaintext label; rides FHIR `condition.code.text`.
+  condition      String
+  /// The relative's age (years) when the condition began. NULL = unknown.
+  ageAtOnset     Int?               @map("age_at_onset")
+  /// AES-256-GCM ciphertext of an optional free-text note. Bytes column.
+  notesEncrypted Bytes?             @map("notes_encrypted")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
+  deletedAt      DateTime?          @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deletedAt])
+  @@map("family_history_entries")
+}
+
 /// One cached forecast per user, regenerated debounced /
 /// stale-while-revalidate (the InsightNarrative + v1.8.7 assessment
 /// cache pattern), NOT per-read. Derived — not soft-deleted.
@@ -5092,4 +5510,149 @@ model CyclePrediction {
 
   @@unique([userId])
   @@map("cycle_predictions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// v1.25 (W-DOCS-IN) — inbound clinical documents.
+//
+// A self-hoster uploads a doctor report / discharge letter they RECEIVED.
+// The raw document is stored encrypted at rest; the dedicated OCR/vision
+// provider (the v1.22 document-scan rails) transcribes STRUCTURED FACTS into
+// a review-then-confirm staging area. The app reproduces what the clinician
+// wrote — it never interprets, never range-flags, never diagnoses, never
+// links a condition to a medication. A fact only reaches the structured
+// stores (labs / conditions / medications) once the user explicitly approves
+// it; low-confidence facts fail closed (surfaced for manual review, never
+// auto-committed). Opt-in module, off by default.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// What kind of clinical document was uploaded (free choice by the user;
+/// drives no interpretation — it is a label only).
+enum InboundDocumentKind {
+  DOCTOR_REPORT
+  DISCHARGE_LETTER
+  OTHER
+
+  @@map("inbound_document_kind")
+}
+
+/// Lifecycle of an uploaded document. EXTRACTING while the provider runs,
+/// EXTRACTED once facts are staged for review, FAILED on a provider/parse
+/// miss, CONFIRMED once the user has acted on every fact, DISCARDED on a
+/// soft delete.
+enum InboundDocumentStatus {
+  EXTRACTING
+  EXTRACTED
+  FAILED
+  CONFIRMED
+  DISCARDED
+
+  @@map("inbound_document_status")
+}
+
+/// The FHIR resource an extracted fact maps to (STATED status only): a
+/// diagnosis → Condition, a measured value → Observation, a medication the
+/// patient is/was taking → MedicationStatement.
+enum ExtractedFactType {
+  CONDITION
+  OBSERVATION
+  MEDICATION_STATEMENT
+
+  @@map("extracted_fact_type")
+}
+
+/// Review state of a staged fact. PENDING until the user decides; APPROVED
+/// once committed to a structured store; REJECTED when the user discards it.
+enum ExtractedFactStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("extracted_fact_status")
+}
+
+model InboundDocument {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  kind   InboundDocumentKind @default(OTHER)
+  /// Original filename as uploaded (sanitised, optional).
+  filename String?
+  /// Magic-byte-sniffed MIME type the document was stored as.
+  mimeType String @map("mime_type")
+  /// Stored byte length of the original (pre-encryption) document.
+  byteSize Int    @map("byte_size")
+  /// AES-256-GCM ciphertext of the raw document bytes (base64 of the binary
+  /// → `encrypt()` string → UTF-8 BYTEA), the `*_encrypted` Bytes convention
+  /// shared with the note columns. The original is sensitive and never
+  /// stored in the clear or logged.
+  contentEncrypted Bytes @map("content_encrypted")
+  status InboundDocumentStatus @default(EXTRACTING)
+  /// Provider type that ran the extraction (e.g. "anthropic", "openai",
+  /// "local"). Diagnostic only.
+  providerType String? @map("provider_type")
+  /// The document's stated report/collection date (YYYY-MM-DD at UTC), as
+  /// transcribed — never inferred.
+  reportDate DateTime? @map("report_date")
+  /// Failure reason when status = FAILED (a short code, never the document).
+  errorReason String? @map("error_reason")
+
+  facts ExtractedFact[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = discarded.
+  deletedAt DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, deletedAt])
+  @@map("inbound_documents")
+}
+
+model ExtractedFact {
+  id         String @id @default(cuid())
+  documentId String @map("document_id")
+  userId     String @map("user_id")
+  factType   ExtractedFactType   @map("fact_type")
+  status     ExtractedFactStatus @default(PENDING)
+  /// Overall extraction confidence 0..1 (the lowest per-field score). The
+  /// review screen gates approval of a low-confidence fact behind a manual
+  /// edit (fail-closed).
+  confidence Float @default(0)
+  /// True when the fact scored below the confidence floor and must be
+  /// reviewed/edited before it can be approved. Cleared once the user edits
+  /// the fact (the values then become user-asserted).
+  needsReview Boolean @default(true) @map("needs_review")
+  /// The FHIR-staged fields, STATED status only, shaped per `factType`
+  /// (Condition / Observation / MedicationStatement). Codes (SNOMED / ICD-10
+  /// / LOINC / RxNorm / ATC) are present only when the document writes them.
+  /// Stored encrypted: the JSON payload (diagnosis text, lab values,
+  /// medication names, stated codes) is clinical PHI transcribed verbatim from
+  /// the source document, so it rides the AES-256-GCM `*_encrypted` BYTEA
+  /// convention shared with the note columns rather than as plaintext JSONB.
+  dataEncrypted Bytes @map("data_encrypted")
+  /// Per-field provenance: the verbatim source span the value came from, an
+  /// optional page index, and per-field confidence. Makes "extract what's
+  /// written" auditable against the original. The source span is a verbatim
+  /// excerpt of the clinical document (PHI), so it is stored encrypted with the
+  /// same codec as `dataEncrypted`.
+  provenanceEncrypted Bytes @map("provenance_encrypted")
+  /// The id of the structured-store row created when the fact was approved
+  /// (LabResult / IllnessEpisode / Medication), or NULL while PENDING /
+  /// REJECTED.
+  committedRecordId String? @map("committed_record_id")
+  /// The structured store the approved fact landed in ("labResult" /
+  /// "illnessEpisode" / "medication"), or NULL.
+  committedRecordType String? @map("committed_record_type")
+
+  document InboundDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([documentId])
+  @@index([userId])
+  @@map("extracted_facts")
 }

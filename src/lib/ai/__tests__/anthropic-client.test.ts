@@ -2,6 +2,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AnthropicClient } from "../anthropic-client";
 import { singleUserTurn } from "../types";
 
+// safeFetch's requirePublicHost path runs through undici's own `fetch`
+// (version-locked with its dispatcher). Delegate it to the global `fetch`
+// stub these tests install so the existing interception still applies.
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("undici")>();
+  return {
+    ...actual,
+    fetch: (input: unknown, init?: unknown) =>
+      (globalThis.fetch as unknown as (i: unknown, n?: unknown) => unknown)(
+        input,
+        init,
+      ),
+  };
+});
+
 describe("AnthropicClient", () => {
   beforeEach(() => {
     vi.restoreAllMocks();

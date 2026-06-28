@@ -149,6 +149,43 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   // IllnessDayLog / LabResult note columns above; Bytes via the shared codec.
   { model: "MoodEntry", field: "noteEncrypted", kind: "bytes" },
   { model: "Measurement", field: "notesEncrypted", kind: "bytes" },
+
+  // ───── v1.25 medication free-text notes (Bytes columns) ─────
+  // Side-effect log note, dose-change titration note, and inventory-item
+  // note — the last plaintext PHI columns left after the v1.23 rollout.
+  { model: "MedicationSideEffect", field: "notesEncrypted", kind: "bytes" },
+  { model: "MedicationDoseChange", field: "noteEncrypted", kind: "bytes" },
+  { model: "MedicationInventoryItem", field: "notesEncrypted", kind: "bytes" },
+
+  // ───── v1.25 mental-health screener item answers (Bytes column) ─────
+  // The PHQ-9 / GAD-7 per-item responses (incl. the safety-critical item 9)
+  // ride a single AES-256-GCM blob. The most sensitive payload in the wave;
+  // never indexed, never logged, never in wide-event meta.
+  {
+    model: "MentalHealthAssessment",
+    field: "responsesEncrypted",
+    kind: "bytes",
+  },
+  // ───── v1.25 structured health records (Bytes columns) ─────
+  // Allergy free-text reaction + note, and the family-history note. The
+  // structured enum/label columns stay queryable plaintext; only the
+  // sensitive free-text fields are encrypted.
+  { model: "Allergy", field: "reactionEncrypted", kind: "bytes" },
+  { model: "Allergy", field: "notesEncrypted", kind: "bytes" },
+  { model: "FamilyHistoryEntry", field: "notesEncrypted", kind: "bytes" },
+
+  // ───── v1.25 (W-DOCS-IN) inbound clinical document (Bytes column) ─────
+  // The raw uploaded doctor report / discharge letter, base64-of-binary →
+  // AES-256-GCM string → UTF-8 bytes. The most sensitive blob in the wave
+  // (a full clinical document); never logged, never in wide-event meta.
+  { model: "InboundDocument", field: "contentEncrypted", kind: "bytes" },
+  // The staged extracted-fact payloads: the FHIR-staged clinical values
+  // (diagnosis text / lab values / medication names / stated codes) and the
+  // verbatim source-span provenance. Both are PHI transcribed from the source
+  // document, so the staging rows carry the same at-rest guarantee as the
+  // document itself rather than persisting as plaintext JSONB.
+  { model: "ExtractedFact", field: "dataEncrypted", kind: "bytes" },
+  { model: "ExtractedFact", field: "provenanceEncrypted", kind: "bytes" },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */

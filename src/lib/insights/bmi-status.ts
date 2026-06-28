@@ -43,7 +43,7 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { DEFAULT_TIMEZONE, toBerlinDayKey } from "@/lib/tz/resolver";
 
 /**
  * Public entry — unchanged signature. Prepares the card (cache-read,
@@ -160,6 +160,7 @@ export async function prepareBmiStatusForUser(
     where: { id: userId },
     select: {
       heightCm: true,
+      timezone: true,
     },
   });
 
@@ -231,6 +232,9 @@ export async function prepareBmiStatusForUser(
     .then((rows) => rows.reverse());
 
   const now = new Date();
+  // v1.2.5 (M-TZ3) — bucket day windows on the user's own calendar so a
+  // near-midnight reading lands on the user's day for non-Berlin self-hosters.
+  const userTz = user.timezone ?? DEFAULT_TIMEZONE;
   const heightFactor = (user.heightCm / 100) ** 2;
 
   const bmiPoints = measurements.map((measurement) => ({
@@ -239,7 +243,7 @@ export async function prepareBmiStatusForUser(
   }));
   // `applyPayloadBudget` daily buckets drive the latest/previous focus;
   // the compact graded series is what reaches the prompt.
-  const weightSeries = applyPayloadBudget(bmiPoints, { now });
+  const weightSeries = applyPayloadBudget(bmiPoints, { now, tz: userTz });
   // BMI has no rollup tier of its own — it is weight ÷ height², a linear
   // transform by the per-user height factor. Read the WEIGHT tier (recent
   // / weekly from a bounded raw read, monthly / yearly from MONTH / YEAR)

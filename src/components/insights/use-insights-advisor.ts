@@ -71,6 +71,15 @@ export interface InsightAdvisorPayload {
    * predates the field — treated as "provider present" (no hint).
    */
   hasProvider?: boolean;
+  /**
+   * v1.25 — true when the most recent generation attempt failed (a failure
+   * marker newer than the last successful generation). The briefing keeps its
+   * last good text on failure, so this is the honest signal that a shown
+   * briefing is held, or — with no last good text — that the empty state
+   * should read "couldn't generate" with a retry rather than the generic one.
+   * Absent on a pre-field cached payload → treated as "not failed" (no hint).
+   */
+  generationFailed?: boolean;
 }
 
 /**
@@ -138,11 +147,7 @@ export function nextAdvisorPollInterval(
  * means only the transient 503 surface (provider chain unavailable).
  */
 export type AdvisorFetchOutcome =
-  | "fresh"
-  | "empty"
-  | "rate-limited"
-  | "timeout"
-  | "no-provider";
+  "fresh" | "empty" | "rate-limited" | "timeout" | "no-provider";
 
 interface AdvisorFetchResult {
   payload: InsightAdvisorPayload | null;
@@ -279,6 +284,13 @@ export interface UseInsightsAdvisorResult {
    * or an unsettled query.
    */
   hasProvider: boolean;
+  /**
+   * v1.25 — true when the GET reported the last generation attempt failed.
+   * Pairs a shown-but-held briefing with a discreet "couldn't refresh" hint,
+   * and swaps the generic empty state for a "couldn't generate — retry" one
+   * when there is no last good text. Defaults false (no hint) when absent.
+   */
+  generationFailed: boolean;
 }
 
 /**
@@ -364,5 +376,8 @@ export function useInsightsAdvisorQuery(
     // assume a provider is present so a transient unknown never flashes a
     // false "no provider" hint.
     hasProvider: query.data?.payload?.hasProvider ?? true,
+    // Absent (pre-field cached payload or unsettled query) → not failed, so a
+    // transient unknown never flashes a false "couldn't refresh" hint.
+    generationFailed: query.data?.payload?.generationFailed ?? false,
   };
 }

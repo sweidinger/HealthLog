@@ -22,6 +22,7 @@
 import type { ZodOpenApiObject } from "zod-openapi";
 
 import { adminDiagnosticPaths, adminInvitePaths } from "./admin";
+import { allergyPaths } from "./allergies";
 import { authPaths } from "./auth";
 import {
   coachFeedbackPaths,
@@ -33,16 +34,20 @@ import {
 import { consentPaths } from "./consent";
 import { cyclePaths } from "./cycle";
 import { biomarkerPaths } from "./biomarkers";
+import { inboundDocumentPaths } from "./documents";
 import { devicePaths } from "./devices";
 import { exportPaths } from "./export";
+import { familyHistoryPaths } from "./family-history";
 import { healthRecordPaths } from "./health-record";
 import { illnessPaths } from "./illness";
 import { importPaths } from "./import";
 import { insightsPaths } from "./insights";
+import { insightsSignalPaths } from "./insights-signals";
 import { labsPaths } from "./labs";
 import { ocrPaths } from "./ocr";
 import { measurementPaths } from "./measurements";
 import { measurementReminderPaths } from "./measurement-reminders";
+import { mentalHealthPaths } from "./mental-health";
 import { medicationPaths, medicationResource } from "./medications";
 import { metaPaths } from "./meta";
 import { moodPaths } from "./mood";
@@ -72,6 +77,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...coachFeedbackPaths,
   ...adminDiagnosticPaths,
   ...insightsPaths,
+  ...insightsSignalPaths,
   ...moodPaths,
   ...settingsPaths,
   ...consentPaths,
@@ -81,6 +87,10 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...ocrPaths,
   ...biomarkerPaths,
   ...illnessPaths,
+  ...mentalHealthPaths,
+  ...allergyPaths,
+  ...familyHistoryPaths,
+  ...inboundDocumentPaths,
   ...onboardingPaths,
 };
 

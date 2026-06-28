@@ -3,6 +3,7 @@
 import { Heart } from "lucide-react";
 
 import { HealthKitMetricPage } from "@/components/insights/healthkit-metric-page";
+import { useTranslations } from "@/lib/i18n/context";
 
 /**
  * v1.4.32 — `/insights/resting-pulse`.
@@ -14,6 +15,7 @@ import { HealthKitMetricPage } from "@/components/insights/healthkit-metric-page
  * trend that's not muddied by mid-walk readings.
  */
 export default function InsightsRestingHrPage() {
+  const { t } = useTranslations();
   return (
     <HealthKitMetricPage
       measurementType="RESTING_HEART_RATE"
@@ -27,7 +29,7 @@ export default function InsightsRestingHrPage() {
       yAxisUnit="bpm"
       emptyStateIcon={<Heart className="size-6" />}
       emptyStateCtaType={null}
-      coachPrefill="I haven't logged any resting heart rate yet — why is the daily resting value different from a spot pulse, and how do I improve it?"
+      coachPrefill={t("insights.restingHr.coachPrefill")}
     />
   );
 }

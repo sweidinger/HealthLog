@@ -98,10 +98,7 @@ export interface TableMedication {
 }
 
 export type MedicationTableSortColumn =
-  | "name"
-  | "nextDue"
-  | "compliance"
-  | "stock";
+  "name" | "nextDue" | "compliance" | "stock";
 
 export interface MedicationTableSort {
   column: MedicationTableSortColumn;

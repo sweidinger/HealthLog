@@ -52,6 +52,15 @@ const CHANNEL_LABEL_KEY: Record<string, string> = {
   HEART_RATE_VARIABILITY: "measurements.typeHeartRateVariability",
   RESTING_HEART_RATE: "measurements.typeRestingHeartRate",
   WEIGHT: "measurements.typeWeight",
+  // v1.25 (W-ENV) — environmental-exposure channels, so a "daylight → mood"
+  // relation reads with its descriptive label instead of the raw ENV_ key.
+  ENV_TEMP_MEAN: "environment.fields.tempMean",
+  ENV_TEMP_MIN: "environment.fields.tempMin",
+  ENV_SUNSHINE: "environment.fields.sunshine",
+  ENV_DAYLIGHT: "environment.fields.daylight",
+  ENV_PRECIP: "environment.fields.precip",
+  ENV_PRESSURE_MEAN: "environment.fields.pressureMean",
+  ENV_PRESSURE_DELTA: "environment.fields.pressureDelta",
 };
 
 /** Keep only the discovered pairs that involve the mood channel. */

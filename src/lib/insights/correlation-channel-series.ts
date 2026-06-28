@@ -24,11 +24,13 @@ import {
 import {
   MEDICATION_COMPLIANCE_CHANNEL_KEY,
   SYMPTOM_SEVERITY_CHANNEL_KEY,
+  type DailySeriesPoint,
   type LabDrawPoint,
   type NamedSeries,
 } from "@/lib/insights/correlation-discovery";
 import { resolveLabFields } from "@/lib/labs/serialise";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
+import { ENVIRONMENT_FIELDS } from "@/lib/environment/fields";
 import {
   buildComplianceDailySeries,
   buildSymptomSeverityDailySeries,
@@ -56,6 +58,8 @@ export async function fetchComplianceSeries(
     include: {
       schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
       scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+      pauseEras: { select: { pausedAt: true, resumedAt: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -178,6 +182,59 @@ export async function fetchSymptomSeries(
     windowStart: since,
     windowEnd: now,
     role: "outcome",
+  });
+}
+
+/**
+ * v1.25 (W-ENV) — build the user's environmental-exposure BEHAVIOUR channels.
+ *
+ * One {@link NamedSeries} per registered env field (temperature, daylight,
+ * sunshine, precipitation, pressure mean + intraday swing), read from the daily
+ * `EnvironmentContext` rows the nightly job stores. Each row's `date` is already
+ * a YYYY-MM-DD key, so points need no re-keying. Sunshine / daylight are stored
+ * in seconds and surfaced as hours (correlation r is scale-invariant; hours just
+ * keep the series readable). A field with no non-null values yields an empty
+ * series that degrades to absent — never a fabricated constant. The whole set is
+ * empty when the user has no environment rows (module off / no home set).
+ */
+export async function fetchEnvironmentSeries(
+  userId: string,
+  since: Date,
+): Promise<NamedSeries[]> {
+  const sinceKey = since.toISOString().slice(0, 10);
+  const rows = await prisma.environmentContext.findMany({
+    where: { userId, date: { gte: sinceKey } },
+    orderBy: { date: "asc" },
+    take: 1000,
+    select: {
+      date: true,
+      tempMean: true,
+      tempMin: true,
+      tempMax: true,
+      apparentMean: true,
+      sunshineSec: true,
+      daylightSec: true,
+      precipSum: true,
+      pressureMean: true,
+      pressureDelta: true,
+      humidityMean: true,
+      cloudMean: true,
+    },
+  });
+
+  return ENVIRONMENT_FIELDS.map((field) => {
+    const points: DailySeriesPoint[] = [];
+    for (const row of rows) {
+      const raw = row[field.column];
+      if (raw == null || !Number.isFinite(raw)) continue;
+      // Seconds → hours for the duration fields; pass through otherwise.
+      const value =
+        field.column === "sunshineSec" || field.column === "daylightSec"
+          ? raw / 3600
+          : raw;
+      points.push({ day: row.date, value });
+    }
+    return { key: field.key, role: "behaviour" as const, points };
   });
 }
 

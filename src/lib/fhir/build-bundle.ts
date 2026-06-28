@@ -24,6 +24,11 @@
  * user-supplied HTML (no markdown library, no `dangerouslySetInnerHTML`).
  */
 import type { DoctorReportData } from "@/lib/doctor-report-data";
+import type { AllergyDTO, FamilyHistoryEntryDTO } from "@/lib/records/dto";
+import {
+  allergyIntoleranceResources,
+  familyMemberHistoryResources,
+} from "@/lib/fhir/records";
 import { LOINC_SYSTEM } from "@/lib/fhir/loinc-map";
 import {
   type FhirBuildOptions,
@@ -67,6 +72,17 @@ function escapeXml(value: string): string {
 }
 
 /**
+ * v1.25 (W-RECORDS) — the structured records folded into the document bundle.
+ * Passed separately from `DoctorReportData` (they are always-available
+ * reference records, not part of the time-windowed report aggregation).
+ * Empty arrays emit nothing.
+ */
+export interface FhirRecordInputs {
+  allergies?: AllergyDTO[];
+  familyHistory?: FamilyHistoryEntryDTO[];
+}
+
+/**
  * Build a FHIR R4 document Bundle from the aggregated report data.
  *
  * `now` is injectable for deterministic tests.
@@ -76,6 +92,7 @@ export function buildFhirDocumentBundle(
   identity: FhirPatientIdentity,
   now: Date = new Date(),
   options: FhirBuildOptions = {},
+  records: FhirRecordInputs = {},
 ): FhirBundle {
   const patientRef: FhirReference = {
     reference: `Patient/${PATIENT_RESOURCE_ID}`,
@@ -86,6 +103,8 @@ export function buildFhirDocumentBundle(
   const medicationRefs: FhirReference[] = [];
   const administrationRefs: FhirReference[] = [];
   const conditionRefs: FhirReference[] = [];
+  const allergyRefs: FhirReference[] = [];
+  const familyHistoryRefs: FhirReference[] = [];
 
   // --- Patient -----------------------------------------------------------
   const patient = patientResource(data, identity);
@@ -138,6 +157,20 @@ export function buildFhirDocumentBundle(
   }
   for (const encounter of encounters) {
     entries.push({ fullUrl: `urn:uuid:${encounter.id}`, resource: encounter });
+  }
+
+  // --- AllergyIntolerance per recorded allergy (v1.25) -------------------
+  // Always-available structured records (not time-windowed). Patient-reported
+  // (verificationStatus unconfirmed); the substance rides `code.text`.
+  for (const allergy of allergyIntoleranceResources(records.allergies ?? [])) {
+    entries.push({ fullUrl: `urn:uuid:${allergy.id}`, resource: allergy });
+    allergyRefs.push({ reference: `AllergyIntolerance/${allergy.id}` });
+  }
+
+  // --- FamilyMemberHistory per recorded entry (v1.25) -------------------
+  for (const fmh of familyMemberHistoryResources(records.familyHistory ?? [])) {
+    entries.push({ fullUrl: `urn:uuid:${fmh.id}`, resource: fmh });
+    familyHistoryRefs.push({ reference: `FamilyMemberHistory/${fmh.id}` });
   }
 
   // --- Composition (leading "cover" resource) ----------------------------
@@ -223,6 +256,25 @@ export function buildFhirDocumentBundle(
             {
               title: "Conditions",
               entry: conditionRefs,
+            },
+          ]
+        : []),
+      // v1.25 — structured allergy records (AllergyIntolerance). Present only
+      // when the account recorded at least one allergy.
+      ...(allergyRefs.length > 0
+        ? [
+            {
+              title: "Allergies",
+              entry: allergyRefs,
+            },
+          ]
+        : []),
+      // v1.25 — structured family-history records (FamilyMemberHistory).
+      ...(familyHistoryRefs.length > 0
+        ? [
+            {
+              title: "Family history",
+              entry: familyHistoryRefs,
             },
           ]
         : []),

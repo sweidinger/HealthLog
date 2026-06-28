@@ -41,6 +41,8 @@ describe("reminder-worker — mean-consolidation wiring", () => {
   });
 
   it("fires the boot-discovery enqueue helper", () => {
-    expect(source).toMatch(/await enqueueBootTimeMeanConsolidation\(\)/);
+    // The boot wiring passes a stagger offset so the heavy backfills don't all
+    // drain in parallel onto one tenant; allow an optional argument here.
+    expect(source).toMatch(/await enqueueBootTimeMeanConsolidation\([^)]*\)/);
   });
 });

@@ -1,18 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FlaskConical, Pencil, Plus } from "lucide-react";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { FlaskConical, Pencil, Plus, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiDelete, apiGet } from "@/lib/api/api-fetch";
+import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { useInsightBiomarkerAssessment } from "@/hooks/use-insight-status";
+import { useMounted } from "@/hooks/use-mounted";
+import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
+import { summarize, type DataSummary } from "@/lib/analytics/trends";
+import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
@@ -55,6 +68,11 @@ function LabBiomarkerChart(
   );
 }
 
+// Page size for the offset-paginated reading feed. The server caps a single
+// read at 500 (`listLabResultsSchema`); this stays well under that and keeps
+// the first paint light, with "Load more" pulling subsequent pages.
+const READINGS_PAGE_SIZE = 200;
+
 /**
  * v1.18.1 — per-biomarker detail: heading + current-value badge, the proper
  * dashboard-style chart with the reference band, and the editable reading
@@ -65,41 +83,69 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   const { t } = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
+  // v1.24 — the per-marker description used to live on the labs overview rows.
+  // It belongs on the detail page beneath the heading (mirroring the metric
+  // pages' explainer caption). Resolve the catalog slug from the marker name
+  // exactly as the overview did, then fall back to the user's own `context`.
+  const slugByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const seed of BIOMARKER_CATALOG) {
+      const norm = t(`labs.catalog.${seed.slug}`).trim().toLowerCase();
+      if (norm) map.set(norm, seed.slug);
+    }
+    return map;
+  }, [t]);
   const [addOpen, setAddOpen] = useState(false);
   // Sticky-footer slot for the add-value sheet (the form portals here).
   const [addFooterEl, setAddFooterEl] = useState<HTMLDivElement | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(null);
+  // v1.24 — focused "adjust target range" sheet. Edits only the reference
+  // bounds (the full marker editor lives behind the pencil); seeded from the
+  // marker each time it opens.
+  const [rangeOpen, setRangeOpen] = useState(false);
+  const [lowerInput, setLowerInput] = useState("");
+  const [upperInput, setUpperInput] = useState("");
 
   const { data: marker, isError: markerError } = useQuery({
     queryKey: queryKeys.biomarkerDetail(biomarkerId),
     queryFn: () => apiGet<BiomarkerDto>(`/api/biomarkers/${biomarkerId}`),
   });
 
+  // v1.25 — offset-paginated reading feed. The page no longer fetches a single
+  // `limit=500` window (which silently truncated a marker once it crossed 500
+  // readings); it loads a page at a time and a "Load more" control reveals the
+  // rest. The chart + stat strip render the accumulated set, so loading more
+  // also extends the trend rather than re-fetching the whole history.
   const {
     data: list,
     isLoading,
     isError: listError,
-  } = useQuery({
-    queryKey: queryKeys.labResultsList({
-      biomarkerId,
-      analyte: undefined,
-      panel: undefined,
-      from: undefined,
-      to: undefined,
-      page: 0,
-      sortDir: "desc",
-    }),
-    queryFn: () =>
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.labResultsInfinite({ biomarkerId, sortDir: "desc" }),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
       apiGet<LabResultListResponse>(
-        `/api/labs?biomarkerId=${encodeURIComponent(biomarkerId)}&limit=500&sortDir=desc`,
+        `/api/labs?biomarkerId=${encodeURIComponent(
+          biomarkerId,
+        )}&limit=${READINGS_PAGE_SIZE}&offset=${pageParam}&sortDir=desc`,
       ),
+    getNextPageParam: (lastPage) => {
+      const next = lastPage.meta.offset + lastPage.meta.limit;
+      return next < lastPage.meta.total ? next : undefined;
+    },
   });
 
-  const readings: LabResultDto[] = list?.results ?? [];
-  // The reading feed caps at 500 server-side; surface a hint when truncated.
-  const total = list?.meta?.total ?? 0;
-  const truncated = total > readings.length;
+  const readings: LabResultDto[] = useMemo(
+    () => list?.pages.flatMap((p) => p.results) ?? [],
+    [list],
+  );
+  const total = list?.pages[0]?.meta.total ?? 0;
+  // More rows exist on the server than are currently loaded.
+  const truncated = hasNextPage ?? false;
   const latest =
     readings.length > 0
       ? [...readings].sort(
@@ -107,6 +153,32 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime(),
         )[0]
       : null;
+
+  // v1.24 — the numbers-first stat strip + the AI assessment card mirror the
+  // metric sub-pages. The strip reads a client-side `DataSummary` over the
+  // numeric readings; the assessment card consumes the read-only biomarker
+  // route (stale-while-revalidate, regenerated only on a new reading). The
+  // strip + card both self-gate on data, so a qualitative-only or brand-new
+  // marker paints neither.
+  const numericReadings = useMemo(
+    () => readings.filter((r) => r.value !== null),
+    [readings],
+  );
+  const summary = useMemo<DataSummary | null>(
+    () =>
+      numericReadings.length > 0
+        ? summarize(
+            numericReadings.map((r) => ({
+              date: new Date(r.takenAt),
+              value: r.value as number,
+            })),
+          )
+        : null,
+    [numericReadings],
+  );
+  const mounted = useMounted();
+  const { data: assessment, isLoading: assessmentLoading } =
+    useInsightBiomarkerAssessment(biomarkerId, numericReadings.length > 0);
 
   function afterAdd() {
     setAddOpen(false);
@@ -136,6 +208,33 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
       router.push("/labs");
     },
     onError: () => toast.error(t("labs.biomarker.deleteError")),
+  });
+
+  function openRange() {
+    setLowerInput(marker?.lowerBound != null ? String(marker.lowerBound) : "");
+    setUpperInput(marker?.upperBound != null ? String(marker.upperBound) : "");
+    setRangeOpen(true);
+  }
+
+  const saveRange = useMutation({
+    mutationFn: () => {
+      const lower = lowerInput.trim() === "" ? null : Number(lowerInput);
+      const upper = upperInput.trim() === "" ? null : Number(upperInput);
+      return apiPut(`/api/biomarkers/${biomarkerId}`, {
+        lowerBound: lower,
+        upperBound: upper,
+      });
+    },
+    onSuccess: () => {
+      toast.success(t("labs.biomarker.targetRange.savedToast"));
+      setRangeOpen(false);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.biomarkerDetail(biomarkerId),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.biomarkers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
+    },
+    onError: () => toast.error(t("labs.biomarker.targetRange.saveError")),
   });
 
   if (markerError || listError) {
@@ -190,6 +289,16 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             iconClassName="h-4 w-4"
           />
           <Button
+            variant="ghost"
+            size="icon"
+            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+            onClick={openRange}
+            disabled={!marker}
+            aria-label={t("labs.biomarker.targetRange.title")}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
+          <Button
             onClick={() => setAddOpen(true)}
             // v1.18.10 (W10) — on the narrowest phones the h1 + Edit + Delete +
             // text "Add" button crowd the row and truncate the title hard.
@@ -223,9 +332,29 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
         </div>
       ) : null}
 
-      {marker?.context ? (
-        <p className="text-muted-foreground text-sm">{marker.context}</p>
-      ) : null}
+      {(() => {
+        const slug = marker?.name
+          ? slugByName.get(marker.name.trim().toLowerCase())
+          : undefined;
+        const description = slug
+          ? t(`labs.catalog.desc.${slug}`)
+          : (marker?.context ?? null);
+        return description ? (
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {description}
+          </p>
+        ) : null;
+      })()}
+
+      {/* Numbers-first stat strip — Min / Max / Median / Mean over the
+          numeric readings, mirroring the metric sub-pages. Self-gating:
+          renders nothing for a qualitative-only or empty marker. */}
+      <MetricStatStrip
+        summary={summary}
+        unit={marker?.unit ?? latest?.unit ?? ""}
+        seriesLabel={marker?.name}
+        icon={FlaskConical}
+      />
 
       <Card>
         <CardContent className="pt-6">
@@ -269,7 +398,43 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
               <LabHistoryList readings={readings} />
             </CardContent>
           </Card>
+          {hasNextPage ? (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                className="min-h-11 sm:min-h-9"
+                disabled={isFetchingNextPage}
+                onClick={() => fetchNextPage()}
+              >
+                {isFetchingNextPage
+                  ? t("common.loading")
+                  : t("labs.loadMoreReadings")}
+              </Button>
+            </div>
+          ) : null}
         </div>
+      ) : null}
+
+      {/* AI assessment — the spine's closing block, mirroring the metric
+          sub-pages (intro → stat strip → chart → history → assessment). The
+          card self-suppresses when the operator disabled status cards, and
+          the hook is gated on the marker having numeric readings. */}
+      {numericReadings.length > 0 ? (
+        <InsightStatusCard
+          title={t("insights.assessmentTitle")}
+          icon={<FlaskConical className="h-5 w-5" />}
+          text={assessment?.text ?? null}
+          hasProvider={assessment?.hasProvider ?? false}
+          updatedAt={assessment?.updatedAt ?? null}
+          coachQuestion={
+            marker?.name
+              ? t("insights.coach.assessmentPrompt", { metric: marker.name })
+              : undefined
+          }
+          coachAutoSend
+          loading={!mounted || assessmentLoading}
+          preparing={assessment?.preparing ?? false}
+        />
       ) : null}
 
       <ResponsiveSheet
@@ -308,6 +473,62 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             onSuccess={afterEditMarker}
             onCancel={() => setEditOpen(false)}
           />
+        ) : null}
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        open={rangeOpen}
+        onOpenChange={setRangeOpen}
+        title={t("labs.biomarker.targetRange.title")}
+        description={t("labs.biomarker.targetRange.description")}
+        footer={
+          <div className="flex w-full justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setRangeOpen(false)}
+              disabled={saveRange.isPending}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={() => saveRange.mutate()}
+              disabled={saveRange.isPending}
+            >
+              {t("labs.biomarker.targetRange.save")}
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="biomarker-lower-bound">
+              {t("labs.biomarker.form.lowerBound")}
+            </Label>
+            <Input
+              id="biomarker-lower-bound"
+              type="number"
+              inputMode="decimal"
+              value={lowerInput}
+              onChange={(e) => setLowerInput(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="biomarker-upper-bound">
+              {t("labs.biomarker.form.upperBound")}
+            </Label>
+            <Input
+              id="biomarker-upper-bound"
+              type="number"
+              inputMode="decimal"
+              value={upperInput}
+              onChange={(e) => setUpperInput(e.target.value)}
+            />
+          </div>
+        </div>
+        {marker?.unit ? (
+          <p className="text-muted-foreground mt-2 text-xs">
+            {t("labs.biomarker.form.rangeHint")}
+          </p>
         ) : null}
       </ResponsiveSheet>
     </div>

@@ -73,13 +73,7 @@ const registrationResponseSchema = z
   .loose();
 
 type Transport =
-  | "ble"
-  | "cable"
-  | "hybrid"
-  | "internal"
-  | "nfc"
-  | "smart-card"
-  | "usb";
+  "ble" | "cable" | "hybrid" | "internal" | "nfc" | "smart-card" | "usb";
 
 // The relying-party config (`rpName` / `getRpId` / `getExpectedOrigin`) is
 // shared with the second-factor security-key path via `@/lib/auth/webauthn-rp`

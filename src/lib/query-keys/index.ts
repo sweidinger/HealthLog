@@ -15,10 +15,14 @@
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
 import { adminKeys } from "./admin";
+import { allergyKeys } from "./allergies";
 import { authKeys } from "./auth";
 import { coachKeys } from "./coach";
+import { familyHistoryKeys } from "./family-history";
 import { cycleKeys } from "./cycle";
 import { dashboardKeys } from "./dashboard";
+import { environmentKeys } from "./environment";
+import { documentKeys } from "./documents";
 import { illnessKeys } from "./illness";
 import { insightsKeys } from "./insights";
 import { integrationKeys } from "./integrations";
@@ -26,6 +30,7 @@ import { labKeys } from "./labs";
 import { measurementKeys } from "./measurements";
 import { measurementReminderKeys } from "./measurement-reminders";
 import { medicationKeys } from "./medications";
+import { mentalHealthKeys } from "./mental-health";
 import { moodKeys } from "./mood";
 import { settingsKeys } from "./settings";
 import { workoutKeys } from "./workouts";
@@ -46,6 +51,11 @@ export const queryKeys = {
   ...measurementReminderKeys,
   ...labKeys,
   ...illnessKeys,
+  ...mentalHealthKeys,
+  ...allergyKeys,
+  ...familyHistoryKeys,
+  ...environmentKeys,
+  ...documentKeys,
 };
 
 /**

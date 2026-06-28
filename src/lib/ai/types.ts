@@ -103,11 +103,7 @@ export type InsightResult = z.infer<typeof insightResultSchema>;
 // ─── Provider Types ────────────────────────────────────────
 
 export type ProviderType =
-  | "codex"
-  | "admin-key"
-  | "anthropic"
-  | "local"
-  | "none";
+  "codex" | "admin-key" | "anthropic" | "local" | "none";
 
 export interface AIProvider {
   type: ProviderType;
@@ -368,20 +364,16 @@ export function singleUserTurn(p: {
       ? p.user
       : [
           { type: "text", text: p.user },
-          ...images.map(
-            (img): AiImagePart => ({
-              type: "image",
-              mediaType: img.mediaType,
-              dataBase64: img.dataBase64,
-            }),
-          ),
-          ...documents.map(
-            (doc): AiDocPart => ({
-              type: "document",
-              mediaType: doc.mediaType,
-              dataBase64: doc.dataBase64,
-            }),
-          ),
+          ...images.map((img): AiImagePart => ({
+            type: "image",
+            mediaType: img.mediaType,
+            dataBase64: img.dataBase64,
+          })),
+          ...documents.map((doc): AiDocPart => ({
+            type: "document",
+            mediaType: doc.mediaType,
+            dataBase64: doc.dataBase64,
+          })),
         ];
   return {
     system: p.system,

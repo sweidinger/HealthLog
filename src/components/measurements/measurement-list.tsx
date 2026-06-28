@@ -52,6 +52,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { Fragment, useCallback, useId, useState } from "react";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { formatDateOrRelative, formatDateTime } from "@/lib/format";
@@ -104,6 +105,10 @@ import {
  * the client's filter-detection agree on the same five identifiers.
  */
 const CUMULATIVE_TYPES = new Set<string>(CUMULATIVE_DAY_SUM_TYPES);
+
+// Columns that open descending when first selected. The date column reads
+// newest-first by default; every other column opens ascending.
+const MEASUREMENT_DESC_COLUMNS: ReadonlySet<string> = new Set(["measuredAt"]);
 
 interface Measurement {
   id: string;
@@ -313,8 +318,16 @@ export function MeasurementList({
   const [valueMinInput, setValueMinInputRaw] = useState<string>("");
   const [valueMaxInput, setValueMaxInputRaw] = useState<string>("");
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<string>("measuredAt");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Shared column-sort state (measuredAt opens descending).
+  const {
+    sortBy,
+    sortDir,
+    toggleSort: applySort,
+  } = useTableSort({
+    defaultColumn: "measuredAt",
+    defaultDir: "desc",
+    descColumns: MEASUREMENT_DESC_COLUMNS,
+  });
 
   // v1.15.13 — page-scoped multi-select. Holds the ids selected on the
   // CURRENT page; cleared on any page / filter / sort change (per the
@@ -399,13 +412,11 @@ export function MeasurementList({
     clearSelection();
   };
 
+  // Compose the page-reset + selection-clear side effects around the
+  // shared sort toggle (the rows the selection referred to are about to
+  // re-order and the list snaps back to page 1).
   function toggleSort(column: string) {
-    if (sortBy === column) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortBy(column);
-      setSortDir(column === "measuredAt" ? "desc" : "asc");
-    }
+    applySort(column);
     setPage(1);
     clearSelection();
   }

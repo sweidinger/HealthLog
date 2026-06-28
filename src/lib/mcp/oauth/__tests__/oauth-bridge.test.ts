@@ -8,18 +8,31 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 process.env.API_TOKEN_HMAC_KEY = "x".repeat(48);
 process.env.APP_URL = "https://health.example";
 
+// Mirror the real SafeFetchError shape (message + kind + cause) so the
+// `instanceof` branch in `resolveCimdClient` exercises the kind→reason mapping.
+type SafeFetchErrorKind = "private_host" | "timeout" | "network";
 vi.mock("@/lib/safe-fetch", () => ({
   safeFetch: vi.fn(),
-  SafeFetchError: class SafeFetchError extends Error {},
+  SafeFetchError: class SafeFetchError extends Error {
+    readonly kind: SafeFetchErrorKind;
+    readonly cause?: unknown;
+    constructor(message: string, kind: SafeFetchErrorKind, cause?: unknown) {
+      super(message);
+      this.name = "SafeFetchError";
+      this.kind = kind;
+      if (cause !== undefined) this.cause = cause;
+    }
+  },
 }));
 
-import { safeFetch } from "@/lib/safe-fetch";
+import { safeFetch, SafeFetchError } from "@/lib/safe-fetch";
 import { signArtifact, verifyArtifact } from "../artifacts";
 import { s256Challenge, verifyPkceS256, isValidVerifier } from "../pkce";
 import {
   registerDcrClient,
   resolveClient,
   redirectUriAllowed,
+  _resetCimdCacheForTests,
 } from "../clients";
 import {
   protectedResourceMetadata,
@@ -105,7 +118,10 @@ describe("clients — DCR (stateless) round-trip", () => {
 });
 
 describe("clients — CIMD via safeFetch (SSRF-safe)", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    _resetCimdCacheForTests();
+  });
 
   it("fetches a CIMD document through safeFetch with requirePublicHost", async () => {
     const clientId = "https://app.example/mcp-client.json";
@@ -144,10 +160,61 @@ describe("clients — CIMD via safeFetch (SSRF-safe)", () => {
     expect(res).toEqual({ ok: false, reason: "invalid_metadata" });
   });
 
-  it("surfaces an SSRF block as ssrf_blocked", async () => {
-    vi.mocked(safeFetch).mockRejectedValue(new Error("private host"));
+  it("surfaces a private-host SSRF block as ssrf_blocked", async () => {
+    vi.mocked(safeFetch).mockRejectedValue(
+      new SafeFetchError("private host", "private_host"),
+    );
     const res = await resolveClient("https://169.254.169.254/meta.json");
-    expect(res).toEqual({ ok: false, reason: "ssrf_blocked" });
+    expect(res).toMatchObject({ ok: false, reason: "ssrf_blocked" });
+  });
+
+  it("surfaces an unreachable host as fetch_failed (not ssrf_blocked)", async () => {
+    // The prod CIMD outage: a transport failure (no IPv6 route) that was
+    // mislabelled `ssrf_blocked`. It must now resolve to `fetch_failed` and
+    // carry the concrete kind + cause for the `/authorize` annotation.
+    vi.mocked(safeFetch).mockRejectedValue(
+      new SafeFetchError(
+        "safeFetch network error: connect ENETUNREACH",
+        "network",
+        new Error("connect ENETUNREACH 2607:6bc0::1:443"),
+      ),
+    );
+    const res = await resolveClient("https://claude.ai/.well-known/mcp.json");
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.reason).toBe("fetch_failed");
+      expect(res.detail).toContain("network");
+      expect(res.detail).toContain("ENETUNREACH");
+    }
+  });
+
+  it("surfaces a timeout as fetch_failed", async () => {
+    vi.mocked(safeFetch).mockRejectedValue(
+      new SafeFetchError("safeFetch aborted (TimeoutError)", "timeout"),
+    );
+    const res = await resolveClient("https://slow.example/mcp.json");
+    expect(res).toMatchObject({ ok: false, reason: "fetch_failed" });
+  });
+
+  it("caches a resolved CIMD document and does not re-fetch within the TTL", async () => {
+    const clientId = "https://app.example/mcp-client.json";
+    vi.mocked(safeFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          client_id: clientId,
+          client_name: "Cached Client",
+          redirect_uris: ["https://app.example/cb"],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const first = await resolveClient(clientId);
+    const second = await resolveClient(clientId);
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    // Only the first call hits the network; the second is served from cache.
+    expect(vi.mocked(safeFetch)).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a CIMD doc with a non-https / non-loopback redirect (L2)", async () => {

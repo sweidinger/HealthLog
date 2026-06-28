@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import type { DataPoint } from "../trends";
-import { pairByTimestamp, pearsonCorrelation } from "../correlations";
+import {
+  pairByTimestamp,
+  pearsonCorrelation,
+  significantPearsonCorrelation,
+} from "../correlations";
+import type { PairedPoint } from "../correlations";
 
 function makePoints(values: number[], startDaysAgo = 30): DataPoint[] {
   const now = Date.now();
@@ -100,5 +105,44 @@ describe("pearsonCorrelation", () => {
     const result = pearsonCorrelation(pairs)!;
     expect(result.r).toBe(0);
     expect(result.strength).toBe("keine");
+  });
+});
+
+describe("significantPearsonCorrelation (M-CS3 — n>=20 AND p<0.05)", () => {
+  const mk = (a: number, b: number): PairedPoint => ({
+    a,
+    b,
+    date: new Date(),
+  });
+
+  it("suppresses a 5-pair r≈0.7 dataset (below the n>=20 floor)", () => {
+    // Five points with a strong-looking slope — exactly the small-n fluke the
+    // plain `pearsonCorrelation` would surface as a "stark" correlation.
+    const pairs = [mk(1, 1), mk(2, 2), mk(3, 2), mk(4, 4), mk(5, 3)];
+    // Sanity-check the legacy path WOULD have surfaced it (non-null, n=5).
+    const legacy = pearsonCorrelation(pairs);
+    expect(legacy).not.toBeNull();
+    expect(legacy!.n).toBe(5);
+    // The gated path refuses it — too few pairs.
+    expect(significantPearsonCorrelation(pairs)).toBeNull();
+  });
+
+  it("surfaces a >=20-pair significant dataset", () => {
+    // 20 points on a near-perfect line → high r, vanishingly small p.
+    const pairs = Array.from({ length: 20 }, (_, i) =>
+      mk(i, i * 2 + (i % 2 === 0 ? 0.3 : -0.3)),
+    );
+    const result = significantPearsonCorrelation(pairs);
+    expect(result).not.toBeNull();
+    expect(result!.n).toBe(20);
+    expect(result!.strength).toBe("stark");
+    expect(result!.r).toBeGreaterThan(0.9);
+  });
+
+  it("suppresses a 20-pair NON-significant (noisy) dataset", () => {
+    // 20 points with no real relationship → p well above 0.05.
+    const ys = [5, 2, 7, 1, 6, 3, 8, 2, 5, 4, 6, 1, 7, 3, 5, 2, 6, 4, 5, 3];
+    const pairs = ys.map((y, i) => mk(i, y));
+    expect(significantPearsonCorrelation(pairs)).toBeNull();
   });
 });

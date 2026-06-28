@@ -79,13 +79,7 @@ const authenticationResponseSchema = z
   .loose();
 
 type Transport =
-  | "ble"
-  | "cable"
-  | "hybrid"
-  | "internal"
-  | "nfc"
-  | "smart-card"
-  | "usb";
+  "ble" | "cable" | "hybrid" | "internal" | "nfc" | "smart-card" | "usb";
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 

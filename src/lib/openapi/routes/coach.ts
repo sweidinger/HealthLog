@@ -175,7 +175,9 @@ const insightsLayoutSchema = z
         }),
       )
       .min(1)
-      .max(50)
+      // Cap at the accepted-id universe so a PUT can cover every tile the
+      // layout knows about; grows automatically as new sub-page slugs land.
+      .max(ACCEPTED_INSIGHTS_TILE_IDS.length)
       .optional(),
   })
   .meta({

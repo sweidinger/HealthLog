@@ -241,3 +241,57 @@ export function useInsightMetricStatus(
       ),
   });
 }
+
+/**
+ * Per-biomarker assessment loader for the lab-marker detail page. Mirrors
+ * `useInsightMetricStatus` exactly — the same `InsightStatusData` envelope,
+ * the 8 s client ceiling, the no-retry policy, and the bounded `preparing`
+ * poll — but keyed by the marker id against
+ * `GET /api/insights/biomarker-assessment?biomarkerId=…`.
+ *
+ * Read-only + stale-while-revalidate: the route serves cached text and warms
+ * a regeneration out of band on a cache miss, exactly like every metric
+ * page. Generation never warms on mount beyond that shared seam; the worker
+ * cron + the read-only enqueue are the only producers.
+ *
+ * `enabled` lets the page suppress the fetch when the marker has no readings
+ * (the page renders its empty state instead of the card), so a brand-new
+ * marker never fires an assessment round-trip.
+ */
+export function useInsightBiomarkerAssessment(
+  biomarkerId: string,
+  enabled = true,
+) {
+  const { isAuthenticated } = useAuth();
+  const { locale } = useTranslations();
+
+  return useQuery({
+    queryKey: queryKeys.insightsBiomarkerAssessment(biomarkerId, locale),
+    queryFn: async (): Promise<InsightStatusData> => {
+      const controller = new AbortController();
+      const timeoutHandle = setTimeout(
+        () => controller.abort(),
+        STATUS_TIMEOUT_MS,
+      );
+      try {
+        return await apiGet<InsightStatusData>(
+          `/api/insights/biomarker-assessment?biomarkerId=${encodeURIComponent(
+            biomarkerId,
+          )}&locale=${locale}`,
+          { signal: controller.signal },
+        );
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
+    },
+    enabled: isAuthenticated && enabled && biomarkerId.length > 0,
+    staleTime: 60 * 1000,
+    retry: 0,
+    refetchInterval: (query) =>
+      nextStatusPollInterval(
+        query.state.data?.preparing,
+        query.state.dataUpdateCount,
+        query.state.data?.revalidating,
+      ),
+  });
+}

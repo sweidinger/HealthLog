@@ -75,6 +75,8 @@ const openApiBase: Pick<
     { name: "MeasurementReminders" },
     { name: "Labs" },
     { name: "Illness" },
+    { name: "Documents" },
+    { name: "Records" },
     { name: "Admin" },
     { name: "Meta" },
   ],

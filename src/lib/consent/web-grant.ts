@@ -29,8 +29,7 @@ import type { ConsentReceipt } from "@/lib/consent/receipts";
 
 /** Outcome of an idempotent web-grant call. */
 export type WebConsentGrantResult =
-  | { minted: true; receipt: ConsentReceipt }
-  | { minted: false };
+  { minted: true; receipt: ConsentReceipt } | { minted: false };
 
 /**
  * Ensure the web user has an active `ai_full` consent receipt, minting one

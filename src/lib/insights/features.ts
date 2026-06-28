@@ -29,6 +29,7 @@ import { getMedicationCategories } from "@/lib/medication-category";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { resolveLabFields } from "@/lib/labs/serialise";
 import { readRollupBuckets } from "@/lib/rollups/measurement-rollups";
+import { deriveBucketedTypes } from "@/lib/signals/adapters/correlation";
 import {
   ensureUserMoodRollupsFresh,
   readMoodDayRollups,
@@ -280,13 +281,7 @@ export interface AggregatedFeatures {
 export interface SignalOfDay {
   /** Briefing `sourceMetric` discriminator the UI pins an icon + route on. */
   metric:
-    | "bp"
-    | "weight"
-    | "pulse"
-    | "mood"
-    | "sleep"
-    | "resting_hr"
-    | "glucose";
+    "bp" | "weight" | "pulse" | "mood" | "sleep" | "resting_hr" | "glucose";
   /** Natural-language label (no enum leak into prose). */
   label: string;
   /** Unit string when the metric carries one. */
@@ -464,15 +459,11 @@ const BUCKET_WINDOWS: Array<{
  * block was suppressed. New `MeasurementType` enum values flow in by
  * adding one row; the rollup populator already covers every type.
  */
-const BUCKETED_TYPES: MeasurementType[] = [
-  "WEIGHT",
-  "BLOOD_PRESSURE_SYS",
-  "BLOOD_PRESSURE_DIA",
-  "PULSE",
-  "BODY_FAT",
-  "SLEEP_DURATION",
-  "ACTIVITY_STEPS",
-];
+// Derived from the signal registry: every signal flagged
+// `surfaces.correlationEligible` projects to its DB `MeasurementType`. The list
+// is a membership/iteration set (each type is read independently), so order is
+// not significant; the registry-invariant test pins the set byte-for-byte.
+const BUCKETED_TYPES: MeasurementType[] = deriveBucketedTypes();
 
 function stdDev(values: number[]): number | null {
   if (values.length < 2) return null;
@@ -753,6 +744,16 @@ const WORKOUT_WINDOW_DAYS = 90;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
+ * v1.25 — newest-first row cap on the bulk measurement read in
+ * `extractFeatures`. Mirrors the Coach snapshot's `SNAPSHOT_MEASUREMENT_ROW_CAP`
+ * (6000): the prompt / insights aggregates only ever fold this read into a
+ * bounded set of summaries, so a year of dense PULSE / glucose rows is wasted
+ * I/O on the shared pool for a heavy-data tenant. Full-history extremes come
+ * from `readAllTimeExtremes`, not this read, so the cap stays correct.
+ */
+const FEATURE_MEASUREMENT_ROW_CAP = 6000;
+
+/**
  * Strip control chars + collapse whitespace, then bound the length, before a
  * user-supplied label can reach the briefing prompt. Mirrors the labs /
  * illness snapshot label handling — a self-scoped prompt-injection surface.
@@ -1010,24 +1011,39 @@ export async function extractFeatures(
     typeof sinceDays === "number" && sinceDays > 0
       ? new Date(now - sinceDays * 24 * 60 * 60 * 1000)
       : null;
-  const measurements = await prisma.measurement.findMany({
-    where: sinceCutoff
-      ? { userId, measuredAt: { gte: sinceCutoff }, deletedAt: null }
-      : { userId, deletedAt: null },
-    orderBy: { measuredAt: "asc" },
-    // Project only the columns every downstream consumer reads (`byType`,
-    // `summarize`, BP pairing, and `reconstructSleepNights`'s `SleepStageRow`).
-    // The PULSE / glucose windows are 200k-row-class; pulling every column
-    // (notes, externalId, …) is pure wasted I/O on the shared Prisma pool.
-    select: {
-      type: true,
-      value: true,
-      measuredAt: true,
-      sleepStage: true,
-      source: true,
-      deviceType: true,
-    },
-  });
+  // v1.25 — newest-first cap on the bulk feature read, mirroring the Coach
+  // snapshot (`SNAPSHOT_MEASUREMENT_ROW_CAP`). Callers pass windows of 365-400
+  // days, and PULSE / glucose are 200k-row-class types, so an uncapped read
+  // pulled hundreds of thousands of rows per Coach turn and nightly briefing
+  // only to fold them into a handful of summaries. Read newest-first, cap, then
+  // reverse so every downstream consumer (`byType`, `summarize`, BP pairing,
+  // sleep reconstruction, oldest/newest span) still sees ascending order. The
+  // cap is safe even unbounded: the genuine all-time extremes are sourced
+  // separately via `readAllTimeExtremes` on the bounded branch, so capping only
+  // sheds the deepest rows of the bulk read and never relabels an extreme.
+  const measurements = await prisma.measurement
+    .findMany({
+      where: sinceCutoff
+        ? { userId, measuredAt: { gte: sinceCutoff }, deletedAt: null }
+        : { userId, deletedAt: null },
+      orderBy: { measuredAt: "desc" },
+      take: FEATURE_MEASUREMENT_ROW_CAP,
+      // Project only the columns every downstream consumer reads (`byType`,
+      // `summarize`, BP pairing, and `reconstructSleepNights`'s `SleepStageRow`).
+      // The PULSE / glucose windows are 200k-row-class; pulling every column
+      // (notes, externalId, …) is pure wasted I/O on the shared Prisma pool.
+      select: {
+        type: true,
+        value: true,
+        measuredAt: true,
+        sleepStage: true,
+        source: true,
+        deviceType: true,
+      },
+    })
+    // Restore ascending order so order-sensitive consumers (oldest/newest span,
+    // BP pairing, sleep reconstruction) see the same shape as before the cap.
+    .then((rows) => rows.reverse());
 
   // v1.18.11 P1 — when the bulk read is bounded to a recent window, the
   // windowed `summarize()` no longer covers the full history, so the `allTime*`
@@ -1623,6 +1639,8 @@ export async function extractFeatures(
       schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
       // v1.16.3 — archived schedule eras for era-aware compliance.
       scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+      pauseEras: { select: { pausedAt: true, resumedAt: true } },
     },
   });
 

@@ -57,6 +57,13 @@ import { DELETE } from "../[logId]/route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { readNote } from "@/lib/crypto/note-cipher";
+
+// The POST path encrypts the free-text note at rest; drive the legacy single
+// key so encryptNote has material to work with.
+vi.stubEnv("ENCRYPTION_KEYS", "");
+vi.stubEnv("ENCRYPTION_ACTIVE_KEY_ID", "");
+vi.stubEnv("ENCRYPTION_KEY", "a".repeat(64));
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -233,17 +240,33 @@ describe("POST /api/medications/[id]/side-effects", () => {
       { params: Promise.resolve({ id: "med-1" }) },
     );
     expect(res.status).toBe(201);
-    expect(prisma.medicationSideEffect.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        userId: "user-1",
-        medicationId: "med-1",
-        category: "GI",
-        entry: "NAUSEA",
-        severity: 2,
-        occurredAt: new Date(occurredAt),
-        notes: "after breakfast",
-      }),
+    const createArgs = vi.mocked(prisma.medicationSideEffect.create).mock
+      .calls[0][0] as {
+      data: {
+        userId: string;
+        medicationId: string;
+        category: string;
+        entry: string;
+        severity: number;
+        occurredAt: Date;
+        notes: string | null;
+        notesEncrypted: Uint8Array | null;
+      };
+    };
+    expect(createArgs.data).toMatchObject({
+      userId: "user-1",
+      medicationId: "med-1",
+      category: "GI",
+      entry: "NAUSEA",
+      severity: 2,
+      occurredAt: new Date(occurredAt),
+      // v1.25 — the plaintext column is nulled; the note lands encrypted.
+      notes: null,
     });
+    expect(createArgs.data.notesEncrypted).toBeInstanceOf(Uint8Array);
+    expect(readNote(createArgs.data.notesEncrypted, null)).toBe(
+      "after breakfast",
+    );
   });
 
   it("defaults occurredAt to now when omitted", async () => {

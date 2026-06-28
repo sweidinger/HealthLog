@@ -128,8 +128,7 @@ export function bucketRowsByDay(
 
 /** Outcome of writing a single per-day bucket. */
 export type DayWriteOutcome =
-  | { kind: "written"; sourceRowsRemoved: number }
-  | { kind: "skipped-conflict" };
+  { kind: "written"; sourceRowsRemoved: number } | { kind: "skipped-conflict" };
 
 /**
  * Context a per-day write strategy receives. The strategy owns its own
@@ -268,6 +267,74 @@ const DEFAULT_SCAN_SELECT: Prisma.MeasurementSelect = {
 };
 
 /**
+ * Page size for the keyset-paginated source-row scan. Heavy multi-year
+ * tenants previously materialised the entire per-(user, type) history in a
+ * single unbounded `findMany` result set — the dominant Prisma intermediate
+ * cost and the root of the consolidation boot-storm on large accounts.
+ * Scanning in bounded keyset pages caps the per-query result set while still
+ * accumulating the same full row set.
+ */
+const CONSOLIDATION_SCAN_PAGE_SIZE = 5000;
+
+/**
+ * Keyset-paginate the per-(user, type) source-row scan on `(measuredAt, id)`
+ * ascending, accumulating every page into one array. Output is identical to a
+ * single unbounded `findMany` — same `where`, same `select`, same ascending
+ * order — but the Prisma client never holds more than one page of rows at a
+ * time, so a multi-year tenant no longer materialises its whole history in one
+ * result set at worker boot.
+ *
+ * `(measuredAt, id)` is a stable keyset: `measuredAt` is the primary order and
+ * `id` breaks ties, so each page resumes exactly after the last row with no
+ * gaps or duplicates. The cursor clause is AND-combined with the caller's
+ * `baseWhere` so the scope / soft-delete / grace filters always still apply.
+ */
+export async function scanSourceRowsPaged(
+  prismaClient: PrismaClient,
+  baseWhere: Prisma.MeasurementWhereInput,
+  scanSelect: Prisma.MeasurementSelect,
+  pageSize: number = CONSOLIDATION_SCAN_PAGE_SIZE,
+): Promise<PerSampleRow[]> {
+  const accumulated: PerSampleRow[] = [];
+  let cursor: { measuredAt: Date; id: string } | null = null;
+
+  for (;;) {
+    const where: Prisma.MeasurementWhereInput = cursor
+      ? {
+          AND: [
+            baseWhere,
+            {
+              OR: [
+                { measuredAt: { gt: cursor.measuredAt } },
+                { measuredAt: cursor.measuredAt, id: { gt: cursor.id } },
+              ],
+            },
+          ],
+        }
+      : baseWhere;
+
+    const page = (await prismaClient.measurement.findMany({
+      where,
+      select: scanSelect,
+      orderBy: [{ measuredAt: "asc" }, { id: "asc" }],
+      take: pageSize,
+    })) as PerSampleRow[];
+
+    if (page.length === 0) break;
+
+    for (const row of page) accumulated.push(row);
+
+    // A short page is the last page — no further rows can satisfy the keyset.
+    if (page.length < pageSize) break;
+
+    const last = page[page.length - 1]!;
+    cursor = { measuredAt: last.measuredAt, id: last.id };
+  }
+
+  return accumulated;
+}
+
+/**
  * Drive one consolidation pass. Walks `users → types → days`, scans live
  * source rows inside the grace window, buckets them, reduces each day,
  * and delegates the per-day mint + delete to `writeDay`. Returns the
@@ -298,16 +365,20 @@ export async function runConsolidation<TType extends MeasurementType>(
       const hkIdentifier = params.hkIdentifierForType(type);
       if (!hkIdentifier) continue;
 
-      const sourceRows = (await prismaClient.measurement.findMany({
-        where: params.buildScanWhere({
+      // Keyset-paginate the scan instead of loading the whole per-(user, type)
+      // history in one result set; the accumulated array is byte-identical to a
+      // single unbounded `findMany`, but a multi-year tenant no longer spikes
+      // worker memory at boot. See `scanSourceRowsPaged`.
+      const sourceRows = await scanSourceRowsPaged(
+        prismaClient,
+        params.buildScanWhere({
           userId: user.id,
           type,
           cutoffAt,
           statsPrefix: params.statsPrefix,
         }),
-        select: scanSelect,
-        orderBy: { measuredAt: "asc" },
-      })) as PerSampleRow[];
+        scanSelect,
+      );
 
       if (sourceRows.length === 0) continue;
 

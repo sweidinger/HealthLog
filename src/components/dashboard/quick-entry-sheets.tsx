@@ -27,10 +27,7 @@ import { MedicationIntakeQuickAdd } from "@/components/dashboard/medication-inta
 import { useTranslations } from "@/lib/i18n/context";
 
 export type QuickEntryDialog =
-  | "measurement"
-  | "mood"
-  | "medicationIntake"
-  | null;
+  "measurement" | "mood" | "medicationIntake" | null;
 
 /**
  * v1.11.3 F3 — guard the quick-entry sheets against an accidental

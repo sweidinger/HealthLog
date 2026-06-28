@@ -212,8 +212,7 @@ export function pickCanonicalSourceRows<T extends SourcePickerRow>(
     >();
     for (const row of pickedRows) {
       const typeKey = (row.type ?? "__default__") as
-        | MeasurementType
-        | "__default__";
+        MeasurementType | "__default__";
       const set = presentByType.get(typeKey) ?? new Set<DeviceType>();
       set.add(normalizeDeviceType(row.deviceType));
       presentByType.set(typeKey, set);
@@ -248,8 +247,7 @@ export function pickCanonicalSourceRows<T extends SourcePickerRow>(
 
     for (const row of pickedRows) {
       const typeKey = (row.type ?? "__default__") as
-        | MeasurementType
-        | "__default__";
+        MeasurementType | "__default__";
       const winner = winningDeviceTypeByRowType.get(typeKey);
       if (winner === "__fallback__") {
         // Per-type fallback: keep every row of this type.
