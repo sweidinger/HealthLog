@@ -1,12 +1,16 @@
 /**
- * Unit tests for the version-poller reload decision.
+ * Unit tests for the version-poller decision.
  *
  * The guard is keyed on the TARGET (live) version: a repeat mismatch
- * against the SAME version is suppressed (no reload loop on a misset
- * server), but a SECOND deploy in one session moves the live version
- * past the recorded one and the heal flow re-arms. The pre-v1.16.8
- * guard disabled all polling after one attempt, which stranded stale
- * shells on multi-deploy days.
+ * against the SAME version is suppressed (no loop on a misset server),
+ * but a SECOND deploy in one session moves the live version past the
+ * recorded one and the flow re-arms.
+ *
+ * The runtime behaviour — a detected bump surfaces a Reload toast and
+ * never reloads the page on its own — lives in `version-poller.tsx`:
+ * the service-worker eviction + `location.reload()` run only from the
+ * toast action's `onClick`, so an in-progress form or chat draft is
+ * never destroyed unprompted.
  */
 
 import { describe, expect, it } from "vitest";

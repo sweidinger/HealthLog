@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 
 import { apiGet } from "@/lib/api/api-fetch";
+import { useTranslations } from "@/lib/i18n/context";
 
 /**
  * v1.4.38.4 — runtime self-heal for the stale-shell post-deploy
@@ -20,7 +22,10 @@ import { apiGet } from "@/lib/api/api-fetch";
  * `/api/version` and compares the live version string against
  * `NEXT_PUBLIC_APP_VERSION` (injected from `package.json` at build
  * time by `next.config.ts`). When the live version moves ahead of
- * the running shell:
+ * the running shell it surfaces a non-blocking toast with a Reload
+ * action. The eviction + reload only runs when the user clicks
+ * Reload — an in-progress form or chat draft is never destroyed by a
+ * silent mid-session reload. On that click:
  *
  *   1. Unregister every active service worker so the next page load
  *      doesn't reinstall the old SW.
@@ -30,15 +35,15 @@ import { apiGet } from "@/lib/api/api-fetch";
  *   3. `window.location.reload()` — fetches the fresh shell + new
  *      chunk graph.
  *
- * The reload guard is keyed on the TARGET version: `sessionStorage`
- * records which live version we last reloaded for, and only a repeat
- * mismatch against that SAME version is suppressed (a misset version —
- * server briefly serves a stale image mid-deploy — cannot loop).
- * Polling itself never stops, so on a multi-deploy day a SECOND
- * release moves the live version past the recorded one and the heal
- * flow re-arms. The pre-v1.16.8 guard disabled all polling for the
- * rest of the session after one attempt, which left a stale shell
- * with 404ing chunks stuck forever once the guard was spent.
+ * The toast is shown once per detected version (the poll keeps
+ * running, but a repeated mismatch against a version we already
+ * surfaced doesn't re-spam every 60 s). The reload guard is keyed on
+ * the TARGET version: `sessionStorage` records which live version we
+ * last reloaded for, and only a repeat mismatch against that SAME
+ * version is suppressed (a misset version — server briefly serves a
+ * stale image mid-deploy — cannot loop). On a multi-deploy day a
+ * SECOND release moves the live version past the recorded one and the
+ * flow re-arms.
  */
 
 const POLL_INTERVAL_MS = 60_000;
@@ -116,6 +121,11 @@ async function evictAndReload(targetVersion: string): Promise<void> {
 }
 
 export function VersionPoller(): null {
+  const { t } = useTranslations();
+  // Tracks the live version we've already surfaced a toast for, so a
+  // repeated mismatch on the recurring poll doesn't re-spam.
+  const notifiedForRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!SHELL_VERSION) return;
     if (typeof window === "undefined") return;
@@ -137,11 +147,27 @@ export function VersionPoller(): null {
         lastReloadedFor,
       );
       if (decision !== "reload") return;
-      await evictAndReload(live as string);
+
+      const target = live as string;
+      // One toast per detected version — don't re-open it every poll.
+      if (notifiedForRef.current === target) return;
+      notifiedForRef.current = target;
+
+      toast(t("version.updateAvailable.title"), {
+        duration: Infinity,
+        action: {
+          label: t("version.updateAvailable.reload"),
+          onClick: () => void evictAndReload(target),
+        },
+        cancel: {
+          label: t("version.updateAvailable.dismiss"),
+          onClick: () => {},
+        },
+      });
     }
 
     // First check 5 s after mount — gives the app a chance to settle
-    // before we touch caches. Then on the recurring interval.
+    // before we surface anything. Then on the recurring interval.
     const initial = window.setTimeout(() => void checkOnce(), 5_000);
     const interval = window.setInterval(
       () => void checkOnce(),
@@ -153,7 +179,7 @@ export function VersionPoller(): null {
       window.clearInterval(interval);
       controller.abort();
     };
-  }, []);
+  }, [t]);
 
   return null;
 }
