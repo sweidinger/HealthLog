@@ -179,6 +179,13 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   // AES-256-GCM string → UTF-8 bytes. The most sensitive blob in the wave
   // (a full clinical document); never logged, never in wide-event meta.
   { model: "InboundDocument", field: "contentEncrypted", kind: "bytes" },
+  // The staged extracted-fact payloads: the FHIR-staged clinical values
+  // (diagnosis text / lab values / medication names / stated codes) and the
+  // verbatim source-span provenance. Both are PHI transcribed from the source
+  // document, so the staging rows carry the same at-rest guarantee as the
+  // document itself rather than persisting as plaintext JSONB.
+  { model: "ExtractedFact", field: "dataEncrypted", kind: "bytes" },
+  { model: "ExtractedFact", field: "provenanceEncrypted", kind: "bytes" },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */

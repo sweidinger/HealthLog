@@ -17,8 +17,8 @@ import {
   returnAllZodIssues,
   safeJson,
 } from "@/lib/api-response";
-import { prisma, toJson } from "@/lib/db";
-import { serialiseFact } from "@/lib/documents/store";
+import { prisma } from "@/lib/db";
+import { encryptFactData, serialiseFact } from "@/lib/documents/store";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import {
@@ -113,7 +113,7 @@ export const PATCH = apiHandler(
     const updated = await prisma.extractedFact.update({
       where: { id: fact.id },
       data: {
-        dataJson: toJson(editToFactData(parsed.data)),
+        dataEncrypted: encryptFactData(editToFactData(parsed.data)),
         // The values are now user-asserted — the fail-closed gate is cleared.
         needsReview: false,
       },

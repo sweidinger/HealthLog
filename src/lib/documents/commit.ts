@@ -18,6 +18,7 @@
  */
 import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import { prisma } from "@/lib/db";
+import { decryptFactData } from "@/lib/documents/store";
 import { resolveOrMintBiomarker } from "@/lib/labs/biomarker-store";
 import type { ExtractedFact } from "@/generated/prisma/client";
 import type {
@@ -152,20 +153,14 @@ export async function commitApprovedFact(
   userId: string,
   fact: ExtractedFact,
 ): Promise<CommittedRecordRef> {
+  // Decrypt the staged payload at confirm time to write it into the normal
+  // structured store. Fail-closed: a bad key id throws and aborts the commit.
+  const data = decryptFactData(fact.dataEncrypted);
   if (fact.factType === "OBSERVATION") {
-    return commitObservation(
-      userId,
-      fact.dataJson as unknown as ObservationFactData,
-    );
+    return commitObservation(userId, data as ObservationFactData);
   }
   if (fact.factType === "CONDITION") {
-    return commitCondition(
-      userId,
-      fact.dataJson as unknown as ConditionFactData,
-    );
+    return commitCondition(userId, data as ConditionFactData);
   }
-  return commitMedication(
-    userId,
-    fact.dataJson as unknown as MedicationStatementFactData,
-  );
+  return commitMedication(userId, data as MedicationStatementFactData);
 }

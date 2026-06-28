@@ -40,7 +40,7 @@ import {
   resolveDailyCap,
 } from "@/lib/ai/coach/budget";
 import { auditLog } from "@/lib/auth/audit";
-import { prisma, toJson } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import {
   InboundExtractError,
   runInboundExtraction,
@@ -48,6 +48,8 @@ import {
 } from "@/lib/documents/extract";
 import {
   encryptDocumentToBytes,
+  encryptFactData,
+  encryptFactProvenance,
   serialiseDocument,
 } from "@/lib/documents/store";
 import {
@@ -108,8 +110,8 @@ async function persistExtraction(args: {
           status: "PENDING" as const,
           confidence: f.confidence,
           needsReview: f.needsReview,
-          dataJson: toJson(f.data),
-          provenanceJson: toJson(f.provenance),
+          dataEncrypted: encryptFactData(f.data),
+          provenanceEncrypted: encryptFactProvenance(f.provenance),
         })),
       },
     },

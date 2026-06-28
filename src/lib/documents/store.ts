@@ -8,6 +8,7 @@
  */
 import { Buffer } from "node:buffer";
 
+import { decryptFromBytes, encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import { decrypt, encrypt } from "@/lib/crypto";
 import type {
   ExtractedFact,
@@ -38,6 +39,37 @@ export function encryptDocumentToBytes(bytes: Buffer): Uint8Array<ArrayBuffer> {
 export function decryptDocumentFromBytes(buf: Uint8Array): Buffer {
   const base64 = decrypt(Buffer.from(buf).toString("utf8"));
   return Buffer.from(base64, "base64");
+}
+
+/**
+ * Encrypt a staged fact's FHIR-staged payload into the `Bytes` column the
+ * schema stores. The structured clinical values (diagnosis text, lab values,
+ * medication names, stated codes) are PHI, so they ride the shared AES-256-GCM
+ * note codec (JSON → `encrypt()` string → UTF-8 bytes) rather than plaintext
+ * JSONB.
+ */
+export function encryptFactData(data: FactData): Uint8Array<ArrayBuffer> {
+  return encryptToBytes(JSON.stringify(data));
+}
+
+/** Decrypt a staged fact's payload back to its DTO shape. Throws on bad key. */
+export function decryptFactData(buf: Uint8Array): FactData {
+  return JSON.parse(decryptFromBytes(buf)) as FactData;
+}
+
+/**
+ * Encrypt a staged fact's provenance. The verbatim source span is a clinical
+ * document excerpt (PHI); encrypted with the same codec as the fact data.
+ */
+export function encryptFactProvenance(
+  provenance: FactProvenance,
+): Uint8Array<ArrayBuffer> {
+  return encryptToBytes(JSON.stringify(provenance));
+}
+
+/** Decrypt a staged fact's provenance back to its DTO shape. */
+export function decryptFactProvenance(buf: Uint8Array): FactProvenance {
+  return JSON.parse(decryptFromBytes(buf)) as FactProvenance;
 }
 
 /** Map a persisted document row (+ counts) to the list/detail DTO. */
@@ -72,8 +104,8 @@ export function serialiseFact(fact: ExtractedFact): ExtractedFactDto {
     status: fact.status as ExtractedFactStatus,
     confidence: fact.confidence,
     needsReview: fact.needsReview,
-    data: fact.dataJson as unknown as FactData,
-    provenance: fact.provenanceJson as unknown as FactProvenance,
+    data: decryptFactData(fact.dataEncrypted),
+    provenance: decryptFactProvenance(fact.provenanceEncrypted),
     committedRecordId: fact.committedRecordId,
     committedRecordType: fact.committedRecordType,
   };

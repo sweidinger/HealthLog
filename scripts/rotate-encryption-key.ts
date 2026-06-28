@@ -486,6 +486,22 @@ async function main() {
       prisma.inboundDocument,
     ),
   );
+  // The staged extracted-fact payloads: the FHIR-staged clinical values and the
+  // verbatim source-span provenance. Both NOT NULL, so every staged row rotates.
+  results.push(
+    await rotateBytesColumn(
+      "ExtractedFact",
+      "dataEncrypted",
+      prisma.extractedFact,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "ExtractedFact",
+      "provenanceEncrypted",
+      prisma.extractedFact,
+    ),
+  );
 
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
