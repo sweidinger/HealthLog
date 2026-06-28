@@ -1,27 +1,34 @@
 /**
- * OpenAPI route table for inbound clinical documents (`/api/documents/inbound/*`).
+ * OpenAPI route table for the documents library (`/api/documents/inbound/*`).
  *
  * Part of the OpenAPI route table; aggregated in `./index.ts`. The confirm +
- * edit request bodies reuse the runtime schemas from
+ * edit + list request bodies reuse the runtime schemas from
  * `@/lib/validations/inbound-documents` so the wire contract stays
- * single-source. The upload is a `multipart/form-data` binary body (or a JSON
- * text-mode body); the response shapes are declared here.
+ * single-source.
  *
- * Safety contract surfaced in the descriptions: extraction reproduces what the
- * document states (stated codes/status only) into a staging area — it never
- * interprets or diagnoses. Nothing reaches the structured stores until the
- * confirm route commits the user's approvals; a low-confidence fact fails
- * closed.
+ * The v1.25.x library inverts the original OCR-inbox: upload is STORE-ONLY and
+ * provider-free (a file is always filable, encrypted at rest); AI extraction is
+ * a separate, opt-in action on an already-stored document. Extraction
+ * reproduces what the document states (stated codes/status only) into a staging
+ * area — it never interprets or diagnoses. Nothing reaches the structured
+ * stores until the confirm route commits the user's approvals; a low-confidence
+ * fact fails closed.
  */
 import type { ZodOpenApiObject } from "zod-openapi";
 import { z } from "zod/v4";
 
 import {
+  documentUpdateSchema,
   inboundConfirmSchema,
   inboundFactEditSchema,
+  INBOUND_DOCUMENT_KINDS,
+  INBOUND_DOCUMENT_STATUSES,
 } from "@/lib/validations/inbound-documents";
 
 import { dataEnvelope, stdResponses } from "./shared";
+
+const kindEnum = z.enum(INBOUND_DOCUMENT_KINDS);
+const statusEnum = z.enum(INBOUND_DOCUMENT_STATUSES);
 
 inboundConfirmSchema.meta({
   id: "InboundConfirmRequest",
@@ -33,6 +40,12 @@ inboundFactEditSchema.meta({
   id: "InboundFactEditRequest",
   description:
     "A correction to a staged fact before approval (fixes OCR / units / dates / codes). Discriminated by `factType` so the edit cannot change the fact's resource type. A successful edit clears `needsReview` — the values become user-asserted.",
+});
+
+documentUpdateSchema.meta({
+  id: "DocumentUpdateRequest",
+  description:
+    "Metadata edit for a stored document: `title` (user label; null clears it), `kind` (category), `documentDate` (user filing date, YYYY-MM-DD; null clears it). At least one field required. No `userId` field — narrowed from the session and fed to the Prisma `where` with the row id.",
 });
 
 const factProvenance = z.object({
@@ -62,19 +75,15 @@ const extractedFact = z
 const inboundDocument = z
   .object({
     id: z.string(),
-    kind: z.enum(["DOCTOR_REPORT", "DISCHARGE_LETTER", "OTHER"]),
+    kind: kindEnum,
+    title: z.string().nullable(),
     filename: z.string().nullable(),
     mimeType: z.string(),
     byteSize: z.number(),
-    status: z.enum([
-      "EXTRACTING",
-      "EXTRACTED",
-      "FAILED",
-      "CONFIRMED",
-      "DISCARDED",
-    ]),
+    status: statusEnum,
     providerType: z.string().nullable(),
     reportDate: z.string().nullable(),
+    documentDate: z.string().nullable(),
     errorReason: z.string().nullable(),
     factCount: z.number(),
     pendingCount: z.number(),
@@ -84,7 +93,7 @@ const inboundDocument = z
   .meta({
     id: "InboundDocument",
     description:
-      "An uploaded clinical document. The raw bytes are stored encrypted at rest and never returned; this is the metadata + staging summary.",
+      "A stored document. The raw bytes are stored encrypted at rest and never returned; this is the metadata + staging summary. `status` is STORED for a freshly uploaded file (no extraction run). `title` is the user label (plaintext); `documentDate` is the user filing date; `reportDate` is the model-transcribed date (null until extraction runs).",
   });
 
 const inboundDocumentDetail = inboundDocument
@@ -92,8 +101,15 @@ const inboundDocumentDetail = inboundDocument
   .meta({ id: "InboundDocumentDetail" });
 
 const listResponse = z
-  .object({ documents: z.array(inboundDocument) })
-  .meta({ id: "InboundDocumentList" });
+  .object({
+    documents: z.array(inboundDocument),
+    nextCursor: z.string().nullable(),
+  })
+  .meta({
+    id: "InboundDocumentList",
+    description:
+      "A page of documents plus an opaque `nextCursor` (the id to pass back as `cursor` for the next page; null when the list is exhausted).",
+  });
 
 const confirmResponse = z
   .object({
@@ -114,16 +130,82 @@ const confirmResponse = z
       "The outcome per decision: `approved` (committed, with the new record ref), `rejected` (discarded), `needsReview` (refused — edit first, fail-closed), `failed` (a per-fact commit miss, e.g. a numeric observation with no unit).",
   });
 
+const kindValues = [...INBOUND_DOCUMENT_KINDS];
+
 export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/documents/inbound": {
     get: {
       tags: ["Documents"],
-      summary: "List inbound clinical documents",
+      summary: "List stored documents",
       description:
-        "The caller's uploaded doctor reports / discharge letters (newest first, live only). Owner-scoped; gated on the opt-in `inboundDocuments` module.",
+        "The caller's stored documents with title/filename search, category filter, a `documentDate` range, sort, and keyset pagination. Owner-scoped; gated on the opt-in `inboundDocuments` module.",
+      parameters: [
+        {
+          name: "q",
+          in: "query",
+          required: false,
+          schema: { type: "string", maxLength: 100 },
+          description: "Case-insensitive search over title + filename.",
+        },
+        {
+          name: "kind",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: kindValues },
+          description: "Category filter.",
+        },
+        {
+          name: "from",
+          in: "query",
+          required: false,
+          schema: { type: "string", format: "date" },
+          description: "Inclusive lower bound on documentDate (YYYY-MM-DD).",
+        },
+        {
+          name: "to",
+          in: "query",
+          required: false,
+          schema: { type: "string", format: "date" },
+          description: "Inclusive upper bound on documentDate (YYYY-MM-DD).",
+        },
+        {
+          name: "sort",
+          in: "query",
+          required: false,
+          schema: {
+            type: "string",
+            enum: ["documentDate", "createdAt", "title"],
+            default: "documentDate",
+          },
+        },
+        {
+          name: "order",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["asc", "desc"], default: "desc" },
+        },
+        {
+          name: "cursor",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+          description: "Keyset cursor (the `nextCursor` from a prior page).",
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: {
+            type: "integer",
+            minimum: 1,
+            maximum: 100,
+            default: 50,
+          },
+        },
+      ],
       responses: {
         "200": {
-          description: "The document list.",
+          description: "A page of documents.",
           content: {
             "application/json": {
               schema: dataEnvelope(listResponse, "InboundDocumentListEnvelope"),
@@ -135,9 +217,9 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
     },
     post: {
       tags: ["Documents"],
-      summary: "Upload + extract a clinical document",
+      summary: "Store a document (no extraction)",
       description:
-        'Ingests a doctor report / discharge letter through the dedicated OCR/vision provider, stores the raw document ENCRYPTED at rest, and stages the extracted STRUCTURED FACTS for review. Two modes by content-type. VISION (`multipart/form-data`): a `file` (JPEG/PNG/WebP, or PDF on an Anthropic vision provider; ≤ 12 MiB) plus an optional `kind`. TEXT (`application/json`, opt-in local OCR): `{ mode: "text", text, kind? }` — only the extracted text reaches the server. Both modes are AI-consent / rate / budget gated. Extraction reproduces what the document states (stated codes/status only) — it never interprets. Nothing reaches the structured stores here; the confirm route is the only write path.',
+        "STORE-ONLY upload. Stores the raw document ENCRYPTED at rest with `status: STORED` and runs NO extraction — provider-free, no AI consent / budget / egress. A file is always filable, even with no document-scan provider configured. `multipart/form-data`: a `file` (JPEG/PNG/WebP/PDF, validated by magic-byte MIME sniff, ≤ 12 MiB) plus optional `title`, `kind`, and `documentDate` (YYYY-MM-DD) form fields. AI extraction is a separate opt-in action — see `POST /api/documents/inbound/{id}/extract`.",
       requestBody: {
         required: true,
         content: {
@@ -146,30 +228,25 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               file: z.string().meta({
                 format: "binary",
                 description:
-                  "The clinical-document image or PDF. Validated by magic-byte MIME sniff, not the wire Content-Type.",
+                  "The document image or PDF. Validated by magic-byte MIME sniff, not the wire Content-Type.",
               }),
-              kind: z
-                .enum(["DOCTOR_REPORT", "DISCHARGE_LETTER", "OTHER"])
+              title: z
+                .string()
                 .optional()
-                .meta({ description: "Optional document-type label." }),
+                .meta({ description: "Optional user label." }),
+              kind: kindEnum
+                .optional()
+                .meta({ description: "Optional category." }),
+              documentDate: z.string().optional().meta({
+                description: "Optional user filing date (YYYY-MM-DD).",
+              }),
             }),
-          },
-          "application/json": {
-            schema: z
-              .object({
-                mode: z.literal("text"),
-                text: z.string(),
-                kind: z
-                  .enum(["DOCTOR_REPORT", "DISCHARGE_LETTER", "OTHER"])
-                  .optional(),
-              })
-              .meta({ id: "InboundTextUploadRequest" }),
           },
         },
       },
       responses: {
         "201": {
-          description: "The created document + staging summary.",
+          description: "The stored document.",
           content: {
             "application/json": {
               schema: dataEnvelope(inboundDocument, "InboundDocumentEnvelope"),
@@ -209,9 +286,41 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         ...stdResponses,
       },
     },
+    patch: {
+      tags: ["Documents"],
+      summary: "Edit a document's metadata",
+      description:
+        "Rename / recategorise / set the user filing date on a stored document. Owner-scoped; no mass assignment. Returns the updated document + its staged facts.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: documentUpdateSchema } },
+      },
+      responses: {
+        "200": {
+          description: "The updated document.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                inboundDocumentDetail,
+                "InboundDocumentUpdateEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
     delete: {
       tags: ["Documents"],
-      summary: "Discard an inbound document",
+      summary: "Discard a document",
       description:
         "Soft-deletes the document + its staging. Facts already approved into the structured stores are independent rows and are NOT affected.",
       parameters: [
@@ -265,6 +374,50 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
             "text/plain": {
               schema: { type: "string" },
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/documents/inbound/{id}/extract": {
+    post: {
+      tags: ["Documents"],
+      summary: "Extract facts from a stored document",
+      description:
+        'Optional AI enhancement on an already-stored document. Runs the dedicated OCR/vision provider over the stored original and stages STRUCTURED FACTS for review. AI-consent / rate / budget gated. With no provider configured this returns 422 (`documents.inbound.providerUnsupported`) — the stored document is untouched, only the enhancement fails. Two modes by content-type: VISION (empty body) decrypts and scans the stored original (PDF needs an Anthropic vision provider); TEXT (`application/json`, opt-in local OCR) `{ mode: "text", text }` structures browser-OCR\'d text. Extraction reproduces what the document states — it never interprets. Nothing reaches the structured stores here; the confirm route is the only write path.',
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+        },
+      ],
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: z
+              .object({
+                mode: z.literal("text"),
+                text: z.string(),
+                kind: kindEnum.optional(),
+              })
+              .meta({ id: "InboundTextExtractRequest" }),
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The document with its newly staged facts.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                inboundDocumentDetail,
+                "InboundExtractEnvelope",
+              ),
             },
           },
         },
