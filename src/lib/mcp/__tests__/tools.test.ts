@@ -19,7 +19,32 @@ vi.mock("@/lib/db", () => ({
       findFirst: vi.fn(async () => null),
     },
     labResult: { findMany: vi.fn(async () => []) },
+    // v1.24 — operational reads (schedule / integration status / preventive care).
+    user: { findUnique: vi.fn(async () => ({ timezone: "UTC" })) },
+    medicationIntakeEvent: {
+      groupBy: vi.fn(async () => []),
+      findMany: vi.fn(async () => []),
+    },
+    medicationScheduleRevision: { groupBy: vi.fn(async () => []) },
+    integrationStatus: { findMany: vi.fn(async () => []) },
+    measurementReminder: { findMany: vi.fn(async () => []) },
   },
+}));
+// v1.24 — the operational reads delegate to existing server-authoritative
+// engines; stub them so the registry-wide loops never reach a real engine.
+vi.mock("@/lib/medications/scheduling/next-due", () => ({
+  computeDisplayDue: vi.fn(() => null),
+  OVERDUE_LOOKBACK_MS: 1000,
+  toResolvedSlotMark: vi.fn((e) => ({
+    at: e.scheduledFor,
+    slotAnchored: true,
+  })),
+}));
+vi.mock("@/lib/integrations/status", () => ({
+  getIntegrationStatus: vi.fn(),
+}));
+vi.mock("@/lib/measurement-reminders/dto", () => ({
+  toMeasurementReminderDto: vi.fn((r) => r),
 }));
 // Phase 4 — the deep-value reads delegate to the rich-reads engines; stub them
 // so the registry-wide loops (surface / annotation / no-verdict) never reach a
@@ -37,6 +62,9 @@ import { MCP_TOOLS, MCP_TOOL_NAMES } from "../tools";
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
 import { buildCoachDataInventory } from "@/lib/ai/coach/tools/inventory";
 import { prisma } from "@/lib/db";
+import { computeDisplayDue } from "@/lib/medications/scheduling/next-due";
+import { getIntegrationStatus } from "@/lib/integrations/status";
+import { toMeasurementReminderDto } from "@/lib/measurement-reminders/dto";
 import type { McpAuthContext } from "../auth";
 
 const CTX: McpAuthContext = {
@@ -83,6 +111,10 @@ describe("MCP tool registry — surface", () => {
         "get_cycle",
         // v1.24 — multi-metric fan-out.
         "get_metrics",
+        // v1.24 — operational reads.
+        "get_medication_schedule",
+        "get_integration_status",
+        "get_preventive_care",
       ].sort(),
     );
   });
@@ -358,6 +390,150 @@ describe("get_metrics — multi-metric fan-out + pagination", () => {
       if (!cursor) break;
     }
     expect(seen.size).toBe(24); // MAX_METRICS_PER_CALL
+  });
+});
+
+describe("get_medication_schedule", () => {
+  it("returns per-medication next-due + overdue, scoped to the session user", async () => {
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      {
+        id: "m-1",
+        name: "Ramipril",
+        dose: "5 mg",
+        startsOn: null,
+        endsOn: null,
+        oneShot: false,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        asNeeded: false,
+        schedules: [],
+      },
+    ] as never);
+    vi.mocked(computeDisplayDue).mockReturnValue({
+      at: new Date("2026-06-28T08:00:00Z"),
+      overdue: true,
+    });
+
+    const result = (await tool("get_medication_schedule").run(CTX, {})) as {
+      present: boolean;
+      medications: Array<{
+        name: string;
+        nextDueAt: string | null;
+        overdue: boolean;
+        asNeeded: boolean;
+      }>;
+    };
+
+    expect(prisma.medication.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: "user-1", active: true } }),
+    );
+    expect(result.present).toBe(true);
+    expect(result.medications).toHaveLength(1);
+    expect(result.medications[0]).toMatchObject({
+      name: "Ramipril",
+      overdue: true,
+      asNeeded: false,
+    });
+    expect(result.medications[0].nextDueAt).toBe("2026-06-28T08:00:00.000Z");
+  });
+
+  it("returns { present: false } when no medications are tracked", async () => {
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
+    const result = (await tool("get_medication_schedule").run(CTX, {})) as {
+      present: boolean;
+    };
+    expect(result.present).toBe(false);
+  });
+});
+
+describe("get_integration_status", () => {
+  it("reports per-provider sync health and carries no secrets", async () => {
+    vi.mocked(prisma.integrationStatus.findMany).mockResolvedValue([
+      { integration: "withings" },
+    ] as never);
+    vi.mocked(getIntegrationStatus).mockResolvedValue({
+      integration: "withings",
+      state: "error_reauth",
+      lastSuccessAt: "2026-06-01T00:00:00.000Z",
+      lastAttemptAt: "2026-06-27T00:00:00.000Z",
+      lastError: "token revoked",
+      consecutiveFailuresByKind: null,
+    });
+
+    const result = (await tool("get_integration_status").run(CTX, {})) as {
+      present: boolean;
+      providers: Array<Record<string, unknown>>;
+    };
+    expect(result.present).toBe(true);
+    expect(result.providers).toHaveLength(1);
+    const p = result.providers[0];
+    expect(p).toMatchObject({
+      provider: "withings",
+      state: "error_reauth",
+      connected: true,
+      reauthRequired: true,
+    });
+    // No secret / token / raw-error fields leak to the assistant.
+    expect(p).not.toHaveProperty("lastError");
+    expect(JSON.stringify(p)).not.toContain("token revoked");
+  });
+
+  it("returns { present: false } when nothing has ever synced", async () => {
+    vi.mocked(prisma.integrationStatus.findMany).mockResolvedValue([] as never);
+    const result = (await tool("get_integration_status").run(CTX, {})) as {
+      present: boolean;
+    };
+    expect(result.present).toBe(false);
+  });
+});
+
+describe("get_preventive_care", () => {
+  it("surfaces the configured reminder due-list with overdue flags", async () => {
+    vi.mocked(prisma.measurementReminder.findMany).mockResolvedValue([
+      { id: "r-1" },
+    ] as never);
+    vi.mocked(toMeasurementReminderDto).mockReturnValue({
+      id: "r-1",
+      label: "Blood pressure check",
+      measurementType: "BLOOD_PRESSURE_SYS",
+      intervalDays: 30,
+      rrule: null,
+      anchorDate: null,
+      endsOn: null,
+      origin: "VORSORGE",
+      notifyHour: 9,
+      location: null,
+      nextDueAt: "2000-01-01T00:00:00.000Z",
+      lastSatisfiedAt: null,
+      enabled: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const result = (await tool("get_preventive_care").run(CTX, {})) as {
+      present: boolean;
+      checkups: Array<Record<string, unknown>>;
+    };
+    expect(prisma.measurementReminder.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", deletedAt: null, enabled: true },
+      }),
+    );
+    expect(result.present).toBe(true);
+    expect(result.checkups[0]).toMatchObject({
+      label: "Blood pressure check",
+      measurementType: "BLOOD_PRESSURE_SYS",
+      overdue: true, // a year-2000 due date is in the past
+    });
+  });
+
+  it("returns { present: false } when no reminders are configured", async () => {
+    vi.mocked(prisma.measurementReminder.findMany).mockResolvedValue(
+      [] as never,
+    );
+    const result = (await tool("get_preventive_care").run(CTX, {})) as {
+      present: boolean;
+    };
+    expect(result.present).toBe(false);
   });
 });
 

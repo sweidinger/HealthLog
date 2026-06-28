@@ -84,9 +84,14 @@ describe("search", () => {
       // ChatGPT only cites when `url` is a non-empty absolute URL.
       expect(r.url.startsWith("https://health.example/")).toBe(true);
     }
-    // The internal id stays separate from the citation url.
+    // The internal id stays separate from the citation url; each result
+    // deep-links to its own item where an id exists (mirrors `fetch`).
     const med = result.results.find((r) => r.id === "med:med-1");
-    expect(med?.url).toBe("https://health.example/medications");
+    expect(med?.url).toBe("https://health.example/medications/med-1");
+    const metric = result.results.find((r) => r.id === "metric:weight");
+    expect(metric?.url).toBe("https://health.example/insights?metric=weight");
+    const lab = result.results.find((r) => r.id === "lab:LDL");
+    expect(lab?.url).toBe("https://health.example/labs?analyte=LDL");
   });
 
   it("filters by query (case-insensitive substring)", async () => {

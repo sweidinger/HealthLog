@@ -89,6 +89,10 @@ const READ_TOOLS = [
   "get_cycle",
   // v1.24 — multi-metric fan-out.
   "get_metrics",
+  // v1.24 — operational reads.
+  "get_medication_schedule",
+  "get_integration_status",
+  "get_preventive_care",
 ].sort();
 
 /** A valid, narrow-scope (`health:read`) token resolution. */

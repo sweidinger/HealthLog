@@ -38,6 +38,17 @@ import {
   type DateRange,
 } from "@/lib/mcp/rich-reads";
 import { encodeOffsetCursor, decodeOffsetCursor } from "@/lib/mcp/pagination";
+import {
+  computeDisplayDue,
+  OVERDUE_LOOKBACK_MS,
+  toResolvedSlotMark,
+  type ResolvedSlotMark,
+} from "@/lib/medications/scheduling/next-due";
+import {
+  getIntegrationStatus,
+  type IntegrationKey,
+} from "@/lib/integrations/status";
+import { toMeasurementReminderDto } from "@/lib/measurement-reminders/dto";
 import type { McpAuthContext } from "./auth";
 
 /**
@@ -232,12 +243,16 @@ function searchAndFetchTools(): McpToolDefinition[] {
           if (!entry.present) continue;
           const hay = `${entry.domain} ${entry.metric ?? ""}`.toLowerCase();
           if (query && !hay.includes(query)) continue;
+          // Per-item deep-link where a metric id exists (mirrors `fetch`),
+          // else the generic insights landing for a whole-domain row.
           results.push({
             id: entry.metric
               ? `metric:${entry.metric}`
               : `domain:${entry.domain}`,
             title: entry.domain,
-            url: `${origin}/insights`,
+            url: entry.metric
+              ? `${origin}/insights?metric=${encodeURIComponent(entry.metric)}`
+              : `${origin}/insights`,
           });
         }
 
@@ -245,14 +260,15 @@ function searchAndFetchTools(): McpToolDefinition[] {
           where: { userId: ctx.userId },
           select: { id: true, name: true, dose: true },
           orderBy: { createdAt: "desc" },
-          take: 200,
+          take: SEARCH_RESULT_SCAN_CAP,
         });
         for (const med of meds) {
           if (query && !med.name.toLowerCase().includes(query)) continue;
           results.push({
             id: `med:${med.id}`,
             title: med.dose ? `${med.name} ${med.dose}` : med.name,
-            url: `${origin}/medications`,
+            // Per-item deep-link to the medication detail page (mirrors `fetch`).
+            url: `${origin}/medications/${encodeURIComponent(med.id)}`,
           });
         }
 
@@ -260,14 +276,15 @@ function searchAndFetchTools(): McpToolDefinition[] {
           where: { userId: ctx.userId, deletedAt: null },
           select: { analyte: true },
           distinct: ["analyte"],
-          take: 200,
+          take: SEARCH_RESULT_SCAN_CAP,
         });
         for (const lab of labs) {
           if (query && !lab.analyte.toLowerCase().includes(query)) continue;
           results.push({
             id: `lab:${lab.analyte}`,
             title: lab.analyte,
-            url: `${origin}/labs`,
+            // Per-item deep-link to the labs surface filtered to this analyte.
+            url: `${origin}/labs?analyte=${encodeURIComponent(lab.analyte)}`,
           });
         }
 
@@ -441,6 +458,14 @@ const MAX_METRICS_PER_CALL = 24;
 const METRICS_PAGE_SIZE = 8;
 /** Results per `search` page. */
 const SEARCH_PAGE_SIZE = 50;
+/**
+ * Per-source scan ceiling the `search` assembler reads before paging. Raised
+ * from the prior 200 (which made any item past the 200th unreachable, even
+ * through the cursor) to a generous documented cap so the opaque offset cursor
+ * pages the FULL assembled set. A user with more medications or distinct lab
+ * analytes than this ceiling is well outside any realistic personal record.
+ */
+const SEARCH_RESULT_SCAN_CAP = 2000;
 
 const getCorrelationOutput: z.ZodRawShape = {
   present: z.boolean(),
@@ -583,6 +608,56 @@ const detectChangepointsOutput: z.ZodRawShape = {
         beforeMean: z.number(),
         afterMean: z.number(),
         delta: z.number(),
+      }),
+    )
+    .optional(),
+};
+
+/** Output schema for `get_medication_schedule` — per-medication next-due. */
+const getMedicationScheduleOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  medications: z
+    .array(
+      z.object({
+        name: z.string(),
+        dose: z.string().nullable(),
+        nextDueAt: z.string().nullable(),
+        overdue: z.boolean(),
+        asNeeded: z.boolean(),
+      }),
+    )
+    .optional(),
+};
+
+/** Output schema for `get_integration_status` — per-provider sync health. */
+const getIntegrationStatusOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  providers: z
+    .array(
+      z.object({
+        provider: z.string(),
+        state: z.string(),
+        connected: z.boolean(),
+        reauthRequired: z.boolean(),
+        lastSuccessAt: z.string().nullable(),
+        lastAttemptAt: z.string().nullable(),
+      }),
+    )
+    .optional(),
+};
+
+/** Output schema for `get_preventive_care` — the Vorsorge due-list. */
+const getPreventiveCareOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  checkups: z
+    .array(
+      z.object({
+        label: z.string(),
+        measurementType: z.string().nullable(),
+        nextDueAt: z.string().nullable(),
+        overdue: z.boolean(),
+        location: z.string().nullable(),
+        lastSatisfiedAt: z.string().nullable(),
       }),
     )
     .optional(),
@@ -933,6 +1008,227 @@ export const MCP_TOOLS: McpToolDefinition[] = [
           ? { nextCursor: encodeOffsetCursor(offset + METRICS_PAGE_SIZE) }
           : {}),
       };
+    },
+  },
+  // ── Operational reads (not Coach snapshot domains) ──────────────────
+  // These answer "what should I do / why is my data stale" rather than "what
+  // are my figures". They are NOT in the Coach data inventory (which enumerates
+  // metric domains); each is a thin façade over an existing server-authoritative
+  // engine — the medication recurrence engine, the integration-status ledger,
+  // and the persisted Vorsorge reminder due dates — and never recomputes.
+  {
+    name: "get_medication_schedule",
+    title: "Get the medication schedule",
+    description:
+      "Fetch when the user's active medications are next due, and which are overdue right now. Reuses the same server-authoritative recurrence engine the medication cards render (open overdue slots win over future ones). Returns one row per active medication: name, dose, next-due instant, an overdue flag, and an as-needed (PRN) flag. As-needed medications have no scheduled due time (nextDueAt: null). Returns { present: false } when no medications are tracked.",
+    inputShape: {},
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getMedicationScheduleOutput,
+    async run(ctx) {
+      const now = new Date();
+      const [user, medications] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: ctx.userId },
+          select: { timezone: true },
+        }),
+        prisma.medication.findMany({
+          where: { userId: ctx.userId, active: true },
+          include: { schedules: true },
+          orderBy: { createdAt: "desc" },
+        }),
+      ]);
+
+      if (medications.length === 0) {
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "get_medication_schedule", present: false },
+        });
+        return { present: false };
+      }
+
+      const userTz = user?.timezone || "Europe/Berlin";
+
+      // Same feeder reads + horizon the medications list route / dashboard
+      // builder use, so the open-overdue detection matches the in-app cards.
+      const resolvedWindowStart = new Date(now.getTime() - OVERDUE_LOOKBACK_MS);
+      const resolvedWindowEnd = new Date(
+        now.getTime() + 2 * 24 * 60 * 60 * 1000,
+      );
+      const [latestIntakes, resolvedEvents, eraFloors] = await Promise.all([
+        prisma.medicationIntakeEvent.groupBy({
+          by: ["medicationId"],
+          where: {
+            userId: ctx.userId,
+            deletedAt: null,
+            skipped: false,
+            takenAt: { not: null },
+          },
+          _max: { takenAt: true },
+        }),
+        prisma.medicationIntakeEvent.findMany({
+          where: {
+            userId: ctx.userId,
+            deletedAt: null,
+            scheduledFor: { gte: resolvedWindowStart, lte: resolvedWindowEnd },
+            OR: [
+              { takenAt: { not: null } },
+              { skipped: true },
+              { autoMissed: true },
+            ],
+          },
+          select: { medicationId: true, scheduledFor: true, takenAt: true },
+        }),
+        prisma.medicationScheduleRevision.groupBy({
+          by: ["medicationId"],
+          where: {
+            medication: { userId: ctx.userId },
+            supersededByRevisionId: null,
+          },
+          _max: { validUntil: true },
+        }),
+      ]);
+
+      const lastTakenAtByMedId = new Map<string, Date | null>(
+        latestIntakes.map((e) => [e.medicationId, e._max.takenAt]),
+      );
+      const resolvedSlotsByMedId = new Map<string, ResolvedSlotMark[]>();
+      for (const e of resolvedEvents) {
+        const mark = toResolvedSlotMark(e);
+        const list = resolvedSlotsByMedId.get(e.medicationId);
+        if (list) list.push(mark);
+        else resolvedSlotsByMedId.set(e.medicationId, [mark]);
+      }
+      const eraStartByMedId = new Map<string, Date>();
+      for (const f of eraFloors) {
+        if (f._max.validUntil)
+          eraStartByMedId.set(f.medicationId, f._max.validUntil);
+      }
+
+      const rows = medications.map((m) => {
+        const display = computeDisplayDue({
+          medication: {
+            id: m.id,
+            startsOn: m.startsOn,
+            endsOn: m.endsOn,
+            oneShot: m.oneShot,
+            createdAt: m.createdAt,
+          },
+          schedules: m.schedules,
+          now,
+          userTz,
+          lastIntakeAt: lastTakenAtByMedId.get(m.id) ?? null,
+          resolvedSlots: resolvedSlotsByMedId.get(m.id) ?? [],
+          eraStart: eraStartByMedId.get(m.id) ?? null,
+        });
+        return {
+          name: m.name,
+          dose: m.dose,
+          nextDueAt: display ? display.at.toISOString() : null,
+          overdue: display ? display.overdue : false,
+          asNeeded: m.asNeeded,
+        };
+      });
+
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: { tool: "get_medication_schedule", present: true },
+      });
+      return { present: true, medications: rows };
+    },
+  },
+  {
+    name: "get_integration_status",
+    title: "Get device & service sync status",
+    description:
+      "Fetch the sync health of the user's connected devices and services (Withings, WHOOP, Fitbit, Nightscout, Polar, Oura, moodLog) — which are connected, when each last synced, and whether one needs reconnecting or is failing. Answers 'why is my data stale?'. Reuses the integration-status ledger; carries no secrets or tokens. Returns { present: false } when no integration has ever attempted a sync.",
+    inputShape: {},
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getIntegrationStatusOutput,
+    async run(ctx) {
+      // Only providers with a status row have actually attempted a sync — a
+      // synthetic "never attempted" provider must NOT be reported as connected.
+      const rows = await prisma.integrationStatus.findMany({
+        where: { userId: ctx.userId },
+        select: { integration: true },
+      });
+      if (rows.length === 0) {
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "get_integration_status", present: false },
+        });
+        return { present: false };
+      }
+
+      const providers = await Promise.all(
+        rows.map(async (r) => {
+          const s = await getIntegrationStatus(
+            ctx.userId,
+            r.integration as IntegrationKey,
+          );
+          return {
+            provider: s.integration,
+            state: s.state,
+            connected: s.state !== "disconnected",
+            reauthRequired: s.state === "error_reauth" || s.state === "parked",
+            lastSuccessAt: s.lastSuccessAt,
+            lastAttemptAt: s.lastAttemptAt,
+          };
+        }),
+      );
+
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: { tool: "get_integration_status", present: true },
+      });
+      return { present: true, providers };
+    },
+  },
+  {
+    name: "get_preventive_care",
+    title: "Get preventive-care due-list",
+    description:
+      "Fetch the user's own configured preventive-care (Vorsorge) reminders — upcoming and overdue checkups with their next-due dates. Surfaces only the reminders the user has already set up (it never invents screening recommendations). Each item carries its label, optional measurement type, next-due instant, an overdue flag, and last-completed date. Returns { present: false } when no reminders are configured.",
+    inputShape: {},
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getPreventiveCareOutput,
+    async run(ctx) {
+      const reminders = await prisma.measurementReminder.findMany({
+        where: { userId: ctx.userId, deletedAt: null, enabled: true },
+        // Most-urgent first; a null next-due (uncomputable) sinks to the end.
+        orderBy: [
+          { nextDueAt: { sort: "asc", nulls: "last" } },
+          { createdAt: "asc" },
+        ],
+      });
+      if (reminders.length === 0) {
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "get_preventive_care", present: false },
+        });
+        return { present: false };
+      }
+
+      const nowMs = Date.now();
+      const checkups = reminders.map((r) => {
+        const dto = toMeasurementReminderDto(r);
+        return {
+          label: dto.label,
+          measurementType: dto.measurementType,
+          nextDueAt: dto.nextDueAt,
+          overdue:
+            dto.nextDueAt !== null
+              ? new Date(dto.nextDueAt).getTime() < nowMs
+              : false,
+          location: dto.location,
+          lastSatisfiedAt: dto.lastSatisfiedAt,
+        };
+      });
+
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: { tool: "get_preventive_care", present: true },
+      });
+      return { present: true, checkups };
     },
   },
   ...searchAndFetchTools(),

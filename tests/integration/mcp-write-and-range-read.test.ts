@@ -18,8 +18,27 @@ process.env.ENCRYPTION_KEY ??=
 
 import { logMcpBloodPressure, logMcpMeasurement } from "@/lib/mcp/writes";
 import { compareMetric } from "@/lib/mcp/rich-reads";
+import { MCP_TOOLS } from "@/lib/mcp/tools";
+import type { McpAuthContext } from "@/lib/mcp/auth";
 
 import { getPrismaClient, truncateAllTables } from "./setup";
+
+function readCtx(userId: string): McpAuthContext {
+  return {
+    userId,
+    tokenId: "token-int",
+    scopes: ["health:read"],
+    binding: `${userId}:token-int`,
+    canRead: true,
+    canWrite: false,
+  };
+}
+
+function readTool(name: string) {
+  const def = MCP_TOOLS.find((t) => t.name === name);
+  if (!def) throw new Error(`tool ${name} not registered`);
+  return def;
+}
 
 beforeEach(async () => {
   await truncateAllTables(getPrismaClient());
@@ -104,6 +123,101 @@ describe("logMcpBloodPressure — real DB", () => {
     expect(await prisma.measurement.count({ where: { userId: user.id } })).toBe(
       0,
     );
+  });
+});
+
+describe("measuredAt instant bound — real DB", () => {
+  it("refuses a far-future / ancient measuredAt and persists nothing (measurement + BP)", async () => {
+    const prisma = getPrismaClient();
+    const user = await makeUser("instant");
+
+    const future = await logMcpMeasurement({
+      userId: user.id,
+      type: "WEIGHT",
+      value: 80,
+      measuredAt: new Date("9999-01-01T00:00:00Z"),
+      idempotencyKey: "instant-future",
+    });
+    expect(future.status).toBe("out_of_range");
+
+    const ancient = await logMcpMeasurement({
+      userId: user.id,
+      type: "WEIGHT",
+      value: 80,
+      measuredAt: new Date("1000-01-01T00:00:00Z"),
+      idempotencyKey: "instant-ancient",
+    });
+    expect(ancient.status).toBe("out_of_range");
+
+    const bpFuture = await logMcpBloodPressure({
+      userId: user.id,
+      systolic: 120,
+      diastolic: 80,
+      measuredAt: new Date("9999-01-01T00:00:00Z"),
+      idempotencyKey: "instant-bp-future",
+    });
+    expect(bpFuture.status).toBe("out_of_range");
+
+    expect(await prisma.measurement.count({ where: { userId: user.id } })).toBe(
+      0,
+    );
+  });
+
+  it("accepts a now-ish measuredAt", async () => {
+    const prisma = getPrismaClient();
+    const user = await makeUser("instant-ok");
+
+    const result = await logMcpMeasurement({
+      userId: user.id,
+      type: "WEIGHT",
+      value: 80,
+      measuredAt: new Date(),
+      idempotencyKey: "instant-now",
+    });
+    expect(result.status).toBe("written");
+    expect(await prisma.measurement.count({ where: { userId: user.id } })).toBe(
+      1,
+    );
+  });
+});
+
+describe("get_preventive_care — real DB", () => {
+  it("surfaces the user's configured reminders with overdue flags, {present:false} when none", async () => {
+    const prisma = getPrismaClient();
+    const user = await makeUser("vorsorge");
+
+    const empty = (await readTool("get_preventive_care").run(
+      readCtx(user.id),
+      {},
+    )) as { present: boolean };
+    expect(empty.present).toBe(false);
+
+    await prisma.measurementReminder.create({
+      data: {
+        userId: user.id,
+        label: "Blood pressure check",
+        measurementType: "BLOOD_PRESSURE_SYS",
+        intervalDays: 30,
+        notifyHour: 9,
+        enabled: true,
+        // A past due date so the read flags it overdue.
+        nextDueAt: new Date("2000-01-01T00:00:00Z"),
+      },
+    });
+
+    const result = (await readTool("get_preventive_care").run(
+      readCtx(user.id),
+      {},
+    )) as {
+      present: boolean;
+      checkups: Array<{ label: string; overdue: boolean }>;
+    };
+    expect(result.present).toBe(true);
+    expect(result.checkups).toHaveLength(1);
+    expect(result.checkups[0]).toMatchObject({
+      label: "Blood pressure check",
+      overdue: true,
+    });
   });
 });
 

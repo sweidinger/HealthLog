@@ -80,6 +80,9 @@ server-authoritative path; no new analytics is computed at the wire.
 | `compare_metric`            | One metric vs another over the same horizon, **or** one metric across two horizons (fixed windows or `{from,to}` ranges), with per-side stats + a delta.         |
 | `get_metric_baseline`       | Where the latest reading sits against the user's own usual range (median ± robust deviation), plus the strongest lagged driver. Needs ≥ 7 days of history.       |
 | `detect_changepoints`       | Points where a metric's level shifted over a window or `{from,to}` range — date, direction, before/after means. High firing bar.                                 |
+| `get_medication_schedule`   | When each active medication is next due and which are overdue right now — name, dose, next-due, overdue flag, as-needed flag. Reuses the recurrence engine.      |
+| `get_integration_status`    | Sync health of connected devices/services — connected, last sync, reauth-required/failing — to answer "why is my data stale?". No secrets or tokens.             |
+| `get_preventive_care`       | The user's own configured preventive-care (Vorsorge) reminders — upcoming/overdue checkups with next-due dates. Surfaces configured reminders, invents nothing.  |
 | `search`                    | Free-text search over the user's record (metric domains, medications, lab analytes). Returns `{ results: [{ id, title, url }], nextCursor? }`.                   |
 | `fetch`                     | Hydrate one record by the id `search` returned (`metric:weight`, `med:<id>`, `lab:LDL`). Returns `{ id, title, text, url, metadata }` with a citation deep-link. |
 
@@ -175,7 +178,12 @@ explicit **confirm-flag preview→commit** handshake instead:
   the exact normalized record it _would_ write, plus
   `requiresConfirmation:true` and an instruction to confirm the value
   with the user and re-call with `confirm:true` and the **same**
-  `idempotencyKey`.
+  `idempotencyKey`. The preview runs the **same** type / range / instant
+  validation the commit runs: if the value would be refused, the preview
+  carries `wouldFail:true` with the `error` + `reason` the commit would
+  return — so a preview and its commit never disagree. The `measuredAt`
+  instant is bounded exactly like the manual route (no future beyond a
+  5-minute skew, nothing before 1900).
 - **`confirm:true`** → the write executes. The idempotency derived from
   `idempotencyKey` makes a retried call a safe no-op
   (`alreadyLogged:true`) rather than a duplicate.
