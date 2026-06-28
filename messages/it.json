@@ -4052,12 +4052,12 @@
     },
     "sections": {
       "account": {
-        "title": "Account",
+        "title": "Profilo e preferenze",
         "description": "Profilo, password, passkey e il tour di benvenuto.",
         "subtitle": "Il tuo profilo, la tua identità e i dati di accesso."
       },
       "integrations": {
-        "title": "Integrazioni",
+        "title": "Connessioni",
         "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto.",
         "subtitle": "Collega e gestisci le tue fonti di dati e i dispositivi."
       },
@@ -4349,9 +4349,9 @@
         "subtitle": "Autenticazione a due fattori, codici di recupero e passkey."
       },
       "privacy": {
-        "title": "Dati e privacy",
-        "subtitle": "I tuoi dati, la conservazione, la cifratura e la sicurezza dell'account in un unico posto.",
-        "description": "Esportazione, eliminazione, conservazione, stato della cifratura, sessioni e attività di sicurezza."
+        "title": "Privacy e conservazione",
+        "subtitle": "I tuoi dati, la conservazione e la cifratura in un unico posto.",
+        "description": "Esportazione, eliminazione, conservazione e stato della cifratura."
       },
       "mcp": {
         "title": "Connettore MCP",
@@ -5318,6 +5318,11 @@
         "description": "Controlla quanti dei tuoi dati vengono condivisi con le funzioni di IA e la ricerca facoltativa.",
         "openAi": "Modalità privacy IA",
         "openResearch": "Modalità ricerca"
+      },
+      "signIn": {
+        "title": "Accesso e dispositivi",
+        "description": "Le sessioni attive, i dispositivi attendibili e l'attività di accesso si trovano ora nelle impostazioni di sicurezza del tuo account.",
+        "openSecurity": "Gestisci accesso e sicurezza"
       }
     },
     "mcp": {

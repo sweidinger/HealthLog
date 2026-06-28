@@ -4052,12 +4052,12 @@
     },
     "sections": {
       "account": {
-        "title": "Account",
+        "title": "Profile & preferences",
         "description": "Profile, password, passkeys, and your onboarding tour.",
         "subtitle": "Your profile, identity, and sign-in details."
       },
       "integrations": {
-        "title": "Integrations",
+        "title": "Connections",
         "description": "Connected services, delivery channels, and source priority in one place.",
         "subtitle": "Connect and manage your data sources and devices."
       },
@@ -4349,9 +4349,9 @@
         "subtitle": "Two-factor authentication, recovery codes, and passkeys."
       },
       "privacy": {
-        "title": "Data & Privacy",
-        "subtitle": "Your data, retention, encryption, and account security in one place.",
-        "description": "Export, deletion, retention, encryption status, sessions, and security activity."
+        "title": "Privacy & retention",
+        "subtitle": "Your data, retention, and encryption in one place.",
+        "description": "Export, deletion, retention, and encryption status."
       },
       "mcp": {
         "title": "MCP Connector",
@@ -5318,6 +5318,11 @@
         "description": "Control how much your data is shared with AI features and opt-in research.",
         "openAi": "AI privacy mode",
         "openResearch": "Research mode"
+      },
+      "signIn": {
+        "title": "Sign-in & devices",
+        "description": "Active sessions, trusted devices, and login activity now live in your account security settings.",
+        "openSecurity": "Manage sign-in & security"
       }
     },
     "mcp": {

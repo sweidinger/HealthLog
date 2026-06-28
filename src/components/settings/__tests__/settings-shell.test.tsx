@@ -348,6 +348,18 @@ describe("<SettingsShell>", () => {
     expect(html).not.toContain("settings.shell.");
   });
 
+  it("emits the section heading `id` on exactly ONE instance (no duplicate-id-aria)", () => {
+    // v1.25.1 (A11Y M1) — the heading paints at two breakpoints (mobile above
+    // the strip, desktop in the grid); both stay in the DOM. The `id` (the
+    // `aria-labelledby` target) must appear once, while `data-settings-heading`
+    // (the focus-effect hook) stays on both instances.
+    const html = renderShell({ active: "account" });
+    expect(count(html, /id="settings-section-account-title"/g)).toBe(1);
+    expect(
+      count(html, /data-settings-heading="settings-section-account-title"/g),
+    ).toBe(2);
+  });
+
   it("mobile group strip uses `no-scrollbar` so the swipe area doesn't paint a horizontal scrollbar", () => {
     const html = renderShell({ active: "account" });
     const nav = html.match(/<nav\b[^>]*md:hidden[^>]*>/);

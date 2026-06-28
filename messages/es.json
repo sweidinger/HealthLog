@@ -4052,12 +4052,12 @@
     },
     "sections": {
       "account": {
-        "title": "Cuenta",
+        "title": "Perfil y preferencias",
         "description": "Perfil, contraseña, claves de acceso y tu recorrido de incorporación.",
         "subtitle": "Tu perfil, identidad y datos de acceso."
       },
       "integrations": {
-        "title": "Integraciones",
+        "title": "Conexiones",
         "description": "Servicios conectados, canales de entrega y prioridad de fuentes en un solo lugar.",
         "subtitle": "Conecta y gestiona tus fuentes de datos y dispositivos."
       },
@@ -4349,16 +4349,16 @@
         "subtitle": "Autenticación de dos factores, códigos de recuperación y claves de acceso."
       },
       "privacy": {
-        "title": "Datos y privacidad",
-        "subtitle": "Tus datos, su retención, el cifrado y la seguridad de la cuenta en un solo lugar.",
-        "description": "Exportación, eliminación, retención, estado de cifrado, sesiones y actividad de seguridad."
+        "title": "Privacidad y retención",
+        "subtitle": "Tus datos, su retención y el cifrado en un solo lugar.",
+        "description": "Exportación, eliminación, retención y estado de cifrado."
       },
       "mcp": {
         "title": "Conector MCP",
         "subtitle": "Conecta un asistente externo a tus propios datos de salud."
       },
       "anamnesis": {
-        "title": "Historial médico",
+        "title": "Antecedentes médicos",
         "subtitle": "Gestiona tus alergias y tus antecedentes familiares.",
         "description": "Registros estructurados de alergias y antecedentes familiares."
       },
@@ -5318,6 +5318,11 @@
         "description": "Controla cuántos de tus datos se comparten con las funciones de IA y la investigación opcional.",
         "openAi": "Modo de privacidad de IA",
         "openResearch": "Modo investigación"
+      },
+      "signIn": {
+        "title": "Inicio de sesión y dispositivos",
+        "description": "Las sesiones activas, los dispositivos de confianza y la actividad de inicio de sesión ahora están en la configuración de seguridad de tu cuenta.",
+        "openSecurity": "Gestionar inicio de sesión y seguridad"
       }
     },
     "mcp": {
