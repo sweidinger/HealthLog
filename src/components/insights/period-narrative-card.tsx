@@ -9,6 +9,7 @@ import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { AskCoachAction } from "@/components/insights/ask-coach-action";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
@@ -108,9 +109,9 @@ export function PeriodNarrativeCard({
           aria-hidden="true"
           className={SKELETON_SHELL}
         >
-          <div className="bg-muted/40 h-4 w-full rounded" />
-          <div className="bg-muted/40 h-4 w-5/6 rounded" />
-          <div className="bg-muted/40 h-4 w-2/3 rounded" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-2/3" />
         </div>
       </section>
     );

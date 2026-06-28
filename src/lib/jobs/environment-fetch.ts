@@ -20,7 +20,12 @@
 import { prisma } from "@/lib/db";
 import type { PgBoss } from "pg-boss";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
-import { isModuleEnabled } from "@/lib/modules/gate";
+import {
+  getOperatorModuleAvailability,
+  isModuleEnabled,
+  normalisePrefs,
+  resolveModuleEnabled,
+} from "@/lib/modules/gate";
 import {
   ENVIRONMENT_LOOKBACK_DAYS,
   ENVIRONMENT_MAX_BACKFILL_DAYS,
@@ -96,17 +101,35 @@ export async function enqueueEnvironmentFetchDiscovery(
   boss: PgBoss,
 ): Promise<{ enqueued: number; skipped: number }> {
   // Candidate set: a home location is required for any non-override day, so an
-  // account without one cannot produce a row. The per-candidate module check
-  // then enforces the opt-in flag + operator availability.
-  const candidates = await prisma.user.findMany({
-    where: { homeLat: { not: null }, homeLon: { not: null } },
-    select: { id: true },
-  });
+  // account without one cannot produce a row. The opt-in flag + operator
+  // availability are then resolved in-memory from the candidates' preference
+  // blobs — one operator-availability read + one `findMany`, instead of an
+  // `isModuleEnabled` round-trip per candidate (N serial reads on a large
+  // instance). `environment` is opt-in and non-delegated, so the resolver only
+  // consults the per-user preference map + the operator availability.
+  const [candidates, operatorAvailability] = await Promise.all([
+    prisma.user.findMany({
+      where: { homeLat: { not: null }, homeLon: { not: null } },
+      select: { id: true, modulePreferencesJson: true },
+    }),
+    getOperatorModuleAvailability(),
+  ]);
 
   let enqueued = 0;
   let skipped = 0;
-  for (const { id } of candidates) {
-    if (!(await isModuleEnabled(id, "environment"))) {
+  for (const { id, modulePreferencesJson } of candidates) {
+    const isEnabled = resolveModuleEnabled(
+      "environment",
+      {
+        gender: null,
+        disableCoach: false,
+        modulePreferences: normalisePrefs(modulePreferencesJson),
+        cycleTrackingEnabled: null,
+      },
+      false,
+      operatorAvailability,
+    );
+    if (!isEnabled) {
       skipped += 1;
       continue;
     }

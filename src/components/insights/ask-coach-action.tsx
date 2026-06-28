@@ -146,7 +146,11 @@ export function AskCoachIconButton({
             aria-label={accessibleLabel}
             onClick={() => launch.askCoach(question, scope, autoSend)}
             className={cn(
-              "text-muted-foreground hover:text-foreground size-8",
+              // Keep the quiet 32px visual on pointer surfaces, but grow the
+              // tap target to the WCAG 2.5.5 44px floor on touch (the ghost has
+              // no fill, so the larger hit box is invisible). Matches the
+              // header-action convention on the biomarker detail page.
+              "text-muted-foreground hover:text-foreground min-h-11 min-w-11 sm:size-8",
               className,
             )}
           >

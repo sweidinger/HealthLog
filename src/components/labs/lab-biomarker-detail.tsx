@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { FlaskConical, Pencil, Plus, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,6 +68,11 @@ function LabBiomarkerChart(
   );
 }
 
+// Page size for the offset-paginated reading feed. The server caps a single
+// read at 500 (`listLabResultsSchema`); this stays well under that and keeps
+// the first paint light, with "Load more" pulling subsequent pages.
+const READINGS_PAGE_SIZE = 200;
+
 /**
  * v1.18.1 — per-biomarker detail: heading + current-value badge, the proper
  * dashboard-style chart with the reference band, and the editable reading
@@ -102,30 +112,40 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     queryFn: () => apiGet<BiomarkerDto>(`/api/biomarkers/${biomarkerId}`),
   });
 
+  // v1.25 — offset-paginated reading feed. The page no longer fetches a single
+  // `limit=500` window (which silently truncated a marker once it crossed 500
+  // readings); it loads a page at a time and a "Load more" control reveals the
+  // rest. The chart + stat strip render the accumulated set, so loading more
+  // also extends the trend rather than re-fetching the whole history.
   const {
     data: list,
     isLoading,
     isError: listError,
-  } = useQuery({
-    queryKey: queryKeys.labResultsList({
-      biomarkerId,
-      analyte: undefined,
-      panel: undefined,
-      from: undefined,
-      to: undefined,
-      page: 0,
-      sortDir: "desc",
-    }),
-    queryFn: () =>
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.labResultsInfinite({ biomarkerId, sortDir: "desc" }),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
       apiGet<LabResultListResponse>(
-        `/api/labs?biomarkerId=${encodeURIComponent(biomarkerId)}&limit=500&sortDir=desc`,
+        `/api/labs?biomarkerId=${encodeURIComponent(
+          biomarkerId,
+        )}&limit=${READINGS_PAGE_SIZE}&offset=${pageParam}&sortDir=desc`,
       ),
+    getNextPageParam: (lastPage) => {
+      const next = lastPage.meta.offset + lastPage.meta.limit;
+      return next < lastPage.meta.total ? next : undefined;
+    },
   });
 
-  const readings: LabResultDto[] = useMemo(() => list?.results ?? [], [list]);
-  // The reading feed caps at 500 server-side; surface a hint when truncated.
-  const total = list?.meta?.total ?? 0;
-  const truncated = total > readings.length;
+  const readings: LabResultDto[] = useMemo(
+    () => list?.pages.flatMap((p) => p.results) ?? [],
+    [list],
+  );
+  const total = list?.pages[0]?.meta.total ?? 0;
+  // More rows exist on the server than are currently loaded.
+  const truncated = hasNextPage ?? false;
   const latest =
     readings.length > 0
       ? [...readings].sort(
@@ -378,6 +398,20 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
               <LabHistoryList readings={readings} />
             </CardContent>
           </Card>
+          {hasNextPage ? (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                className="min-h-11 sm:min-h-9"
+                disabled={isFetchingNextPage}
+                onClick={() => fetchNextPage()}
+              >
+                {isFetchingNextPage
+                  ? t("common.loading")
+                  : t("labs.loadMoreReadings")}
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

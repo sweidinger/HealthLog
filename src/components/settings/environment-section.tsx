@@ -88,8 +88,12 @@ export function EnvironmentSection() {
   // ── geocoding search (shared by home + travel pickers) ──────────────────
   const [homeQuery, setHomeQuery] = useState("");
   const [homeResults, setHomeResults] = useState<GeocodeResult[]>([]);
+  // Tracks whether a geocode has completed for the current query so a
+  // zero-result search can surface a "no matches" line instead of silence.
+  const [homeSearched, setHomeSearched] = useState(false);
   const [travelQuery, setTravelQuery] = useState("");
   const [travelResults, setTravelResults] = useState<GeocodeResult[]>([]);
+  const [travelSearched, setTravelSearched] = useState(false);
   const [travelLoc, setTravelLoc] = useState<GeocodeResult | null>(null);
   const [travelStart, setTravelStart] = useState(todayKey());
   const [travelEnd, setTravelEnd] = useState(todayKey());
@@ -104,14 +108,20 @@ export function EnvironmentSection() {
   const searchHome = useMutation({
     mutationKey: queryKeys.environmentGeocode("home"),
     mutationFn: () => geocode(homeQuery),
-    onSuccess: (data) => setHomeResults(data.results),
+    onSuccess: (data) => {
+      setHomeResults(data.results);
+      setHomeSearched(true);
+    },
     onError: () => toast.error(t("settings.sections.environment.searchError")),
   });
 
   const searchTravel = useMutation({
     mutationKey: queryKeys.environmentGeocode("travel"),
     mutationFn: () => geocode(travelQuery),
-    onSuccess: (data) => setTravelResults(data.results),
+    onSuccess: (data) => {
+      setTravelResults(data.results);
+      setTravelSearched(true);
+    },
     onError: () => toast.error(t("settings.sections.environment.searchError")),
   });
 
@@ -127,6 +137,7 @@ export function EnvironmentSection() {
     onSuccess: () => {
       setHomeResults([]);
       setHomeQuery("");
+      setHomeSearched(false);
       invalidate();
       toast.success(t("settings.sections.environment.homeSaved"));
     },
@@ -147,6 +158,7 @@ export function EnvironmentSection() {
       setTravelLoc(null);
       setTravelResults([]);
       setTravelQuery("");
+      setTravelSearched(false);
       invalidate();
       toast.success(t("settings.sections.environment.travelAdded"));
     },
@@ -234,22 +246,39 @@ export function EnvironmentSection() {
               {t("settings.sections.environment.home.none")}
             </p>
           )}
-          <div className="flex gap-2">
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (homeQuery.trim().length > 0 && !searchHome.isPending) {
+                searchHome.mutate();
+              }
+            }}
+          >
             <Input
               value={homeQuery}
-              onChange={(e) => setHomeQuery(e.target.value)}
+              onChange={(e) => {
+                setHomeQuery(e.target.value);
+                setHomeSearched(false);
+              }}
               placeholder={t("settings.sections.environment.searchPlaceholder")}
               aria-label={t("settings.sections.environment.searchPlaceholder")}
             />
             <Button
-              type="button"
+              type="submit"
               variant="secondary"
               disabled={homeQuery.trim().length === 0 || searchHome.isPending}
-              onClick={() => searchHome.mutate()}
             >
               {t("settings.sections.environment.search")}
             </Button>
-          </div>
+          </form>
+          {homeSearched &&
+            !searchHome.isPending &&
+            homeResults.length === 0 && (
+              <p className="text-muted-foreground text-sm">
+                {t("settings.sections.environment.noResults")}
+              </p>
+            )}
           {homeResults.length > 0 && (
             <ul className="divide-border divide-y rounded-md border">
               {homeResults.map((r) => (
@@ -261,6 +290,7 @@ export function EnvironmentSection() {
                   <Button
                     type="button"
                     size="sm"
+                    className="min-h-11 sm:min-h-9"
                     disabled={setHome.isPending}
                     onClick={() => setHome.mutate(r)}
                   >
@@ -296,8 +326,9 @@ export function EnvironmentSection() {
                   </span>
                   <Button
                     type="button"
-                    size="sm"
+                    size="icon"
                     variant="ghost"
+                    className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
                     aria-label={t(
                       "settings.sections.environment.travel.remove",
                     )}
@@ -315,24 +346,41 @@ export function EnvironmentSection() {
             </p>
           )}
 
-          <div className="flex gap-2">
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (travelQuery.trim().length > 0 && !searchTravel.isPending) {
+                searchTravel.mutate();
+              }
+            }}
+          >
             <Input
               value={travelQuery}
-              onChange={(e) => setTravelQuery(e.target.value)}
+              onChange={(e) => {
+                setTravelQuery(e.target.value);
+                setTravelSearched(false);
+              }}
               placeholder={t("settings.sections.environment.searchPlaceholder")}
               aria-label={t("settings.sections.environment.searchPlaceholder")}
             />
             <Button
-              type="button"
+              type="submit"
               variant="secondary"
               disabled={
                 travelQuery.trim().length === 0 || searchTravel.isPending
               }
-              onClick={() => searchTravel.mutate()}
             >
               {t("settings.sections.environment.search")}
             </Button>
-          </div>
+          </form>
+          {travelSearched &&
+            !searchTravel.isPending &&
+            travelResults.length === 0 && (
+              <p className="text-muted-foreground text-sm">
+                {t("settings.sections.environment.noResults")}
+              </p>
+            )}
           {travelResults.length > 0 && (
             <ul className="divide-border divide-y rounded-md border">
               {travelResults.map((r) => (
@@ -344,6 +392,7 @@ export function EnvironmentSection() {
                   <Button
                     type="button"
                     size="sm"
+                    className="min-h-11 sm:min-h-9"
                     variant={
                       travelLoc?.label === r.label ? "default" : "secondary"
                     }

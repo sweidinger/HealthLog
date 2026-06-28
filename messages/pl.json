@@ -4368,7 +4368,8 @@
           "title": "Uzupełnij minione dni",
           "description": "Pobierz i zapisz pogodę dla minionego zakresu dat, aby starsze dni weszły do korelacji. Początek domyślnie przyjmuje datę obowiązywania Twojego domu; aby sięgnąć dalej wstecz, najpierw dodaj okres lokalizacji dla tego zakresu.",
           "run": "Uzupełnij"
-        }
+        },
+        "noResults": "Nie znaleziono pasujących miejsc."
       }
     },
     "profile": "Profil",
@@ -7252,7 +7253,8 @@
       "fileType": "Prześlij plik JPEG, PNG, WebP lub PDF.",
       "extractFailed": "Nie udało się odczytać wyniku. Spróbuj wyraźniejszego zdjęcia.",
       "pdfNeedsAnthropic": "Skanowanie PDF wymaga dostawcy wizji Claude; prześlij zamiast tego zdjęcie."
-    }
+    },
+    "loadMoreReadings": "Wczytaj więcej pomiarów"
   },
   "modules": {
     "cycle": {
@@ -7374,8 +7376,8 @@
       "note": "Notatka",
       "notePlaceholder": "Cokolwiek wartego zapamiętania (zaszyfrowane).",
       "saveError": "Nie udało się zapisać epizodu. Spróbuj ponownie.",
-      "parent": "Part of",
-      "parentNone": "Not linked"
+      "parent": "Część",
+      "parentNone": "Niepowiązane"
     },
     "sheet": {
       "title": "Zapisz {date}",
@@ -7456,32 +7458,32 @@
       "fever": "Temperatura: {value} °C",
       "empty": "Nie zapisano jeszcze żadnych dni."
     },
-    "loadError": "Could not load this episode.",
-    "backToList": "Back to journal",
+    "loadError": "Nie udało się wczytać tego epizodu.",
+    "backToList": "Powrót do dziennika",
     "detail": {
       "note": "Note"
     },
     "edit": {
-      "title": "Edit episode",
-      "description": "Update this episode's details."
+      "title": "Edytuj epizod",
+      "description": "Zaktualizuj szczegóły tego epizodu."
     },
     "menu": {
-      "label": "Episode actions"
+      "label": "Działania epizodu"
     },
     "deleteConfirm": {
-      "title": "Delete this episode?",
-      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+      "title": "Usunąć ten epizod?",
+      "body": "„{label}” oraz wszystkie powiązane wpisy dzienne zostaną usunięte. Tej operacji nie można cofnąć."
     },
     "vital": {
-      "RESTING_HEART_RATE": "Resting heart rate",
-      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RESTING_HEART_RATE": "Spoczynkowe tętno",
+      "HEART_RATE_VARIABILITY": "Zmienność rytmu serca",
       "RECOVERY_SCORE": "Recovery",
-      "OXYGEN_SATURATION": "Oxygen saturation",
-      "BODY_TEMPERATURE": "Body temperature",
-      "SKIN_TEMPERATURE": "Skin temperature",
-      "RESPIRATORY_RATE": "Respiratory rate",
-      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
-      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "OXYGEN_SATURATION": "Saturacja tlenem",
+      "BODY_TEMPERATURE": "Temperatura ciała",
+      "SKIN_TEMPERATURE": "Temperatura skóry",
+      "RESPIRATORY_RATE": "Częstość oddechów",
+      "BLOOD_PRESSURE_SYS": "Ciśnienie skurczowe",
+      "BLOOD_PRESSURE_DIA": "Ciśnienie rozkurczowe",
       "PULSE": "Pulse",
       "WEIGHT": "Weight"
     },
@@ -7796,7 +7798,8 @@
       "label": "Prześlij dokument",
       "kindLabel": "Typ dokumentu",
       "button": "Prześlij",
-      "uploading": "Odczytywanie…"
+      "uploading": "Odczytywanie…",
+      "fileLabel": "Plik dokumentu"
     },
     "kind": {
       "DOCTOR_REPORT": "Raport lekarski",

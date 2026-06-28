@@ -70,6 +70,13 @@ export function SleepDebtCard({ debt }: { debt: SleepDebtDto }) {
           <CardTitle className="text-base font-semibold">
             {t("insights.sleep.debt.title")}
           </CardTitle>
+          {/* v1.25.0 — the resolved full-debt card is the common case and the
+              place the figure most needs context: explain the COMPUTED engine
+              and that it differs from a wearable's native number here too, not
+              only in the still-learning `partial` state above. */}
+          {debt.source === "COMPUTED" ? (
+            <InfoHint label={t("insights.sleep.debt.computedInfo")} />
+          ) : null}
         </div>
       </CardHeader>
       <CardContent>

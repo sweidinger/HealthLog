@@ -4368,7 +4368,8 @@
           "title": "Rellenar días pasados",
           "description": "Obtén y guarda el tiempo de un rango de fechas pasado para que los días antiguos entren en las correlaciones. El inicio toma por defecto la fecha de vigencia de tu hogar; para llegar más atrás, añade primero un periodo de ubicación para ese rango.",
           "run": "Rellenar"
-        }
+        },
+        "noResults": "No se encontraron lugares coincidentes."
       }
     },
     "profile": "Perfil",
@@ -7252,7 +7253,8 @@
       "fileType": "Sube un JPEG, PNG, WebP o PDF.",
       "extractFailed": "No se pudo leer el informe. Prueba con una foto más nítida.",
       "pdfNeedsAnthropic": "El escaneo de PDF necesita un proveedor de visión de Claude; sube una foto en su lugar."
-    }
+    },
+    "loadMoreReadings": "Cargar más mediciones"
   },
   "modules": {
     "cycle": {
@@ -7374,8 +7376,8 @@
       "note": "Nota",
       "notePlaceholder": "Algo que valga la pena recordar (cifrado).",
       "saveError": "No se pudo guardar el episodio. Inténtalo de nuevo.",
-      "parent": "Part of",
-      "parentNone": "Not linked"
+      "parent": "Parte de",
+      "parentNone": "Sin vincular"
     },
     "sheet": {
       "title": "Registrar {date}",
@@ -7456,32 +7458,32 @@
       "fever": "Temperatura: {value} °C",
       "empty": "Todavía no hay días registrados."
     },
-    "loadError": "Could not load this episode.",
-    "backToList": "Back to journal",
+    "loadError": "No se pudo cargar este episodio.",
+    "backToList": "Volver al diario",
     "detail": {
       "note": "Note"
     },
     "edit": {
-      "title": "Edit episode",
-      "description": "Update this episode's details."
+      "title": "Editar episodio",
+      "description": "Actualiza los detalles de este episodio."
     },
     "menu": {
-      "label": "Episode actions"
+      "label": "Acciones del episodio"
     },
     "deleteConfirm": {
-      "title": "Delete this episode?",
-      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+      "title": "¿Eliminar este episodio?",
+      "body": "«{label}» y todos sus registros diarios se eliminarán. Esta acción no se puede deshacer."
     },
     "vital": {
-      "RESTING_HEART_RATE": "Resting heart rate",
-      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RESTING_HEART_RATE": "Frecuencia cardíaca en reposo",
+      "HEART_RATE_VARIABILITY": "Variabilidad de la frecuencia cardíaca",
       "RECOVERY_SCORE": "Recovery",
-      "OXYGEN_SATURATION": "Oxygen saturation",
-      "BODY_TEMPERATURE": "Body temperature",
-      "SKIN_TEMPERATURE": "Skin temperature",
-      "RESPIRATORY_RATE": "Respiratory rate",
-      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
-      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "OXYGEN_SATURATION": "Saturación de oxígeno",
+      "BODY_TEMPERATURE": "Temperatura corporal",
+      "SKIN_TEMPERATURE": "Temperatura de la piel",
+      "RESPIRATORY_RATE": "Frecuencia respiratoria",
+      "BLOOD_PRESSURE_SYS": "Presión arterial sistólica",
+      "BLOOD_PRESSURE_DIA": "Presión arterial diastólica",
       "PULSE": "Pulse",
       "WEIGHT": "Weight"
     },
@@ -7796,7 +7798,8 @@
       "label": "Subir un documento",
       "kindLabel": "Tipo de documento",
       "button": "Subir",
-      "uploading": "Leyendo…"
+      "uploading": "Leyendo…",
+      "fileLabel": "Archivo del documento"
     },
     "kind": {
       "DOCTOR_REPORT": "Informe médico",

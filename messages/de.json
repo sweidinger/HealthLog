@@ -4368,7 +4368,8 @@
           "title": "Vergangene Tage nacherfassen",
           "description": "Rufe Wetter für einen vergangenen Zeitraum ab und speichere es, damit ältere Tage in die Korrelationen einfließen. Der Start steht standardmäßig auf dem Gültigkeitsdatum deines Wohnorts; um weiter zurückzureichen, füge zuerst einen Ortszeitraum für diesen Bereich hinzu.",
           "run": "Nacherfassen"
-        }
+        },
+        "noResults": "Keine passenden Orte gefunden."
       }
     },
     "profile": "Profil",
@@ -7252,7 +7253,8 @@
       "fileType": "Lade ein JPEG, PNG, WebP oder PDF hoch.",
       "extractFailed": "Der Befund konnte nicht gelesen werden. Versuche ein schärferes Foto.",
       "pdfNeedsAnthropic": "PDF-Scannen benötigt einen Claude-Bildanbieter; lade stattdessen ein Foto hoch."
-    }
+    },
+    "loadMoreReadings": "Weitere Werte laden"
   },
   "modules": {
     "cycle": {
@@ -7374,8 +7376,8 @@
       "note": "Notiz",
       "notePlaceholder": "Was erwähnenswert ist (verschlüsselt).",
       "saveError": "Die Episode konnte nicht gespeichert werden. Bitte erneut versuchen.",
-      "parent": "Part of",
-      "parentNone": "Not linked"
+      "parent": "Teil von",
+      "parentNone": "Nicht verknüpft"
     },
     "sheet": {
       "title": "{date} erfassen",
@@ -7456,32 +7458,32 @@
       "fever": "Temperatur: {value} °C",
       "empty": "Noch keine Tage erfasst."
     },
-    "loadError": "Could not load this episode.",
-    "backToList": "Back to journal",
+    "loadError": "Diese Episode konnte nicht geladen werden.",
+    "backToList": "Zurück zum Journal",
     "detail": {
       "note": "Note"
     },
     "edit": {
-      "title": "Edit episode",
-      "description": "Update this episode's details."
+      "title": "Episode bearbeiten",
+      "description": "Aktualisiere die Details dieser Episode."
     },
     "menu": {
-      "label": "Episode actions"
+      "label": "Episodenaktionen"
     },
     "deleteConfirm": {
-      "title": "Delete this episode?",
-      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+      "title": "Diese Episode löschen?",
+      "body": "„{label}“ und alle zugehörigen Tageseinträge werden entfernt. Dies kann nicht rückgängig gemacht werden."
     },
     "vital": {
-      "RESTING_HEART_RATE": "Resting heart rate",
-      "HEART_RATE_VARIABILITY": "Heart-rate variability",
+      "RESTING_HEART_RATE": "Ruheherzfrequenz",
+      "HEART_RATE_VARIABILITY": "Herzfrequenzvariabilität",
       "RECOVERY_SCORE": "Recovery",
-      "OXYGEN_SATURATION": "Oxygen saturation",
-      "BODY_TEMPERATURE": "Body temperature",
-      "SKIN_TEMPERATURE": "Skin temperature",
-      "RESPIRATORY_RATE": "Respiratory rate",
-      "BLOOD_PRESSURE_SYS": "Systolic blood pressure",
-      "BLOOD_PRESSURE_DIA": "Diastolic blood pressure",
+      "OXYGEN_SATURATION": "Sauerstoffsättigung",
+      "BODY_TEMPERATURE": "Körpertemperatur",
+      "SKIN_TEMPERATURE": "Hauttemperatur",
+      "RESPIRATORY_RATE": "Atemfrequenz",
+      "BLOOD_PRESSURE_SYS": "Systolischer Blutdruck",
+      "BLOOD_PRESSURE_DIA": "Diastolischer Blutdruck",
       "PULSE": "Pulse",
       "WEIGHT": "Weight"
     },
@@ -7796,7 +7798,8 @@
       "label": "Dokument hochladen",
       "kindLabel": "Dokumenttyp",
       "button": "Hochladen",
-      "uploading": "Wird gelesen …"
+      "uploading": "Wird gelesen …",
+      "fileLabel": "Dokumentdatei"
     },
     "kind": {
       "DOCTOR_REPORT": "Arztbericht",
