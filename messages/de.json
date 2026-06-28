@@ -6944,7 +6944,7 @@
       "deletedToast": "Biomarker gelöscht",
       "deleteError": "Biomarker konnte nicht gelöscht werden",
       "deleteConfirmTitle": "Biomarker löschen?",
-      "deleteConfirmDescription": "Die Definition wird entfernt. Bestehende Werte bleiben erhalten, aber ohne Verknüpfung.",
+      "deleteConfirmDescription": "Der Biomarker und alle erfassten Werte werden dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
       "emptyTitle": "Noch keine Biomarker",
       "emptyDescription": "Lege Marker wie LDL oder HbA1c an, um Werte zu erfassen.",
       "loadError": "Biomarker konnten nicht geladen werden",

@@ -6944,7 +6944,7 @@
       "deletedToast": "Biomarqueur supprimé",
       "deleteError": "Impossible de supprimer le biomarqueur",
       "deleteConfirmTitle": "Supprimer le biomarqueur ?",
-      "deleteConfirmDescription": "La définition est supprimée. Les mesures existantes sont conservées mais dissociées.",
+      "deleteConfirmDescription": "Le biomarqueur et toutes ses valeurs enregistrées sont définitivement supprimés. Cette action est irréversible.",
       "emptyTitle": "Aucun biomarqueur pour l'instant",
       "emptyDescription": "Définissez des marqueurs comme LDL ou HbA1c pour enregistrer des valeurs.",
       "loadError": "Impossible de charger les biomarqueurs",
