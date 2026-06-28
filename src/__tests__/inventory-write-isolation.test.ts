@@ -28,7 +28,10 @@ const SKIP_DIRS = new Set(["__tests__", "node_modules", ".next", "generated"]);
  * Files allowed to write `medicationInventoryItem` rows:
  *   - the consumption module (intake-driven consume / restore);
  *   - the inventory persistence helpers (expire cron `updateMany`);
- *   - the two inventory CRUD routes (register / mutate / delete).
+ *   - the two inventory CRUD routes (register / mutate / delete);
+ *   - the v1.25 note-encryption backfill, whose update only rewrites the
+ *     `notes` / `notesEncrypted` columns (never units / state) and so cannot
+ *     touch the consumption stamp this guard protects.
  */
 const ALLOWED_WRITERS = new Set(
   [
@@ -36,6 +39,7 @@ const ALLOWED_WRITERS = new Set(
     "src/lib/medications/inventory/service.ts",
     "src/app/api/medications/[id]/inventory/route.ts",
     "src/app/api/medications/[id]/inventory/[itemId]/route.ts",
+    "src/lib/jobs/med-notes-encryption-backfill.ts",
   ].map((p) => p.split("/").join(sep)),
 );
 

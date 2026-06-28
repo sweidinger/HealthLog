@@ -2310,6 +2310,10 @@ model MedicationDoseChange {
   /// User-entered titration note ("stepped up after 4 weeks on 5 mg,
   /// tolerated 7.5 mg with mild nausea day 2").
   note          String?
+  /// v1.25 — AES-256-GCM ciphertext for `note`. The plaintext column
+  /// stays for read-fallback until the backfill reports zero remaining
+  /// rows; the plaintext drop is DEFERRED to a later release.
+  noteEncrypted Bytes?   @map("note_encrypted")
   createdAt     DateTime @default(now()) @map("created_at")
 
   medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
@@ -2401,6 +2405,10 @@ model MedicationInventoryItem {
   purchasedAt    DateTime?                @map("purchased_at")
   /// Free-text note, application-layer max 200 chars.
   notes          String?
+  /// v1.25 — AES-256-GCM ciphertext for `notes`. The plaintext column
+  /// stays for read-fallback until the backfill reports zero remaining
+  /// rows; the plaintext drop is DEFERRED to a later release.
+  notesEncrypted Bytes?                   @map("notes_encrypted")
   createdAt      DateTime                 @default(now()) @map("created_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")
 
@@ -2457,6 +2465,10 @@ model MedicationSideEffect {
   /// application layer. The DB column is unbounded TEXT for
   /// consistency with sibling "notes" columns on this schema.
   notes        String?
+  /// v1.25 — AES-256-GCM ciphertext for `notes`. The plaintext column
+  /// stays for read-fallback until the backfill reports zero remaining
+  /// rows; the plaintext drop is DEFERRED to a later release.
+  notesEncrypted Bytes?                     @map("notes_encrypted")
   createdAt    DateTime                     @default(now()) @map("created_at")
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)

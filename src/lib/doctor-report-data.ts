@@ -28,6 +28,7 @@ import type {
   MeasurementType,
 } from "@/generated/prisma/client";
 import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
+import { readNote } from "@/lib/crypto/note-cipher";
 import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
 import { userDayKey } from "@/lib/tz/resolver";
 import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
@@ -1250,7 +1251,7 @@ export async function collectDoctorReportData(
             value: dc.doseValue,
             unit: dc.doseUnit,
             effectiveFrom: dc.effectiveFrom.toISOString(),
-            note: dc.note,
+            note: readNote(dc.noteEncrypted, dc.note),
           })),
           lastInjection:
             lastIntake && lastIntake.takenAt

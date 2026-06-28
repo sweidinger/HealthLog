@@ -39,6 +39,11 @@ import {
   resolveReorderLeadDays,
 } from "@/lib/validations/notification-prefs";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import {
+  encryptNote,
+  readNote,
+  shapeDoseChangeNote,
+} from "@/lib/crypto/note-cipher";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -193,7 +198,7 @@ export const GET = apiHandler(
         effectiveFrom: dc.effectiveFrom.toISOString(),
         doseValue: dc.doseValue,
         doseUnit: dc.doseUnit,
-        note: dc.note,
+        note: readNote(dc.noteEncrypted, dc.note),
       })),
       recentIntakes: medication.intakeEvents.map((iv) => ({
         takenAt: iv.takenAt ? iv.takenAt.toISOString() : null,
@@ -261,7 +266,9 @@ export const POST = apiHandler(
           effectiveFrom,
           doseValue,
           doseUnit,
-          note: note ?? null,
+          // Encrypt the titration note at rest; the plaintext column stays null.
+          noteEncrypted: encryptNote(note),
+          note: null,
         },
       });
 
@@ -291,7 +298,7 @@ export const POST = apiHandler(
       // buckets so the card reflects the new runway on the next read.
       invalidateUserMedications(user.id, { evict: true });
 
-      return apiSuccess({ doseChange: created }, 201);
+      return apiSuccess({ doseChange: shapeDoseChangeNote(created) }, 201);
     }
 
     // The schema's XOR refinement guarantees `inventory` is present

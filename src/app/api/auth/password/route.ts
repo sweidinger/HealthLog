@@ -15,7 +15,11 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { apiHandler, requireAuth } from "@/lib/api-handler";
+import {
+  apiHandler,
+  requireFreshMfaIfEnrolled,
+  MFA_STEP_UP_MAX_AGE_SECONDS,
+} from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { destroyAllSessions, createSession } from "@/lib/auth/session";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
@@ -23,7 +27,12 @@ import { checkPasswordBreach } from "@/lib/auth/hibp";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 
 export const POST = apiHandler(async (request: NextRequest) => {
-  const { user } = await requireAuth();
+  // v1.25 — for an account with a second factor active a password change
+  // requires a fresh step-up (within MFA_STEP_UP_MAX_AGE_SECONDS) in addition
+  // to the current-password re-proof below, so a hijacked live session cannot
+  // rotate the credential. Accounts without MFA keep the current-password-only
+  // contract. Mirrors the step-up on MFA-disable + recovery-code regen.
+  const { user } = await requireFreshMfaIfEnrolled(MFA_STEP_UP_MAX_AGE_SECONDS);
 
   const rl = await checkRateLimit(
     `auth:password:${user.id}`,
