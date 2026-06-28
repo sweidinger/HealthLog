@@ -21,6 +21,7 @@
  *     treated as success.
  */
 import { getEvent } from "@/lib/logging/context";
+import { canonicalDailyTimestamp } from "@/lib/measurements/consolidation-tz";
 import { safeFetch } from "@/lib/safe-fetch";
 import { reconstructContiguousSleepTimeline } from "@/lib/sleep/reconstruct-timeline";
 import { PolarApiError, classifyPolarResponse } from "./response-classifier";
@@ -387,13 +388,13 @@ function rechargeStatusToScore(status: number): number {
  * Map one Polar Nightly Recharge record. The recovery band → `RECOVERY_SCORE`
  * (source POLAR, distinct from the COMPUTED proxy); HRV → `HRV_RMSSD`; the
  * nightly average HR → `RESTING_HEART_RATE`; breathing rate → `RESPIRATORY_RATE`.
- * `measuredAt` is the record's date at local midnight UTC anchor (the wake
+ * `measuredAt` is the record's date anchored at noon (the wake
  * morning the night belongs to).
  */
 export function mapNightlyRecharge(
   r: PolarNightlyRecharge,
 ): MappedMeasurement[] {
-  const measuredAt = new Date(`${r.date}T00:00:00.000Z`);
+  const measuredAt = canonicalDailyTimestamp(r.date);
   if (Number.isNaN(measuredAt.getTime())) return [];
   const out: MappedMeasurement[] = [];
 
@@ -537,10 +538,10 @@ export function mapSleep(s: PolarSleep): MappedMeasurement[] {
     return out;
   }
 
-  // Fallback: no usable window. Anchor at midnight UTC of the wake date and emit
+  // Fallback: no usable window. Anchor at noon of the wake date and emit
   // untimed stage rows (the pre-v1.17.1 shape) so a record missing the window
   // fields still contributes a night total.
-  const measuredAt = new Date(`${s.date}T00:00:00.000Z`);
+  const measuredAt = canonicalDailyTimestamp(s.date);
   if (Number.isNaN(measuredAt.getTime())) return [];
   for (const [sec, stage, fieldTag] of stages) {
     if (typeof sec === "number" && sec >= 0) {
@@ -572,7 +573,7 @@ export function mapSleep(s: PolarSleep): MappedMeasurement[] {
  * total `calories`, which includes BMR — matching the Fitbit active-only
  * convention). */
 export function mapActivity(a: PolarActivity): MappedMeasurement[] {
-  const measuredAt = new Date(`${a.date}T00:00:00.000Z`);
+  const measuredAt = canonicalDailyTimestamp(a.date);
   if (Number.isNaN(measuredAt.getTime())) return [];
   const out: MappedMeasurement[] = [];
   const steps = a["active-steps"];
@@ -615,7 +616,7 @@ export function mapActivity(a: PolarActivity): MappedMeasurement[] {
  * (Polar's device-native cardiovascular-strain figure). `0` is a valid load, so
  * guard on `number` only. */
 export function mapCardioLoad(c: PolarCardioLoad): MappedMeasurement[] {
-  const measuredAt = new Date(`${c.date}T00:00:00.000Z`);
+  const measuredAt = canonicalDailyTimestamp(c.date);
   if (Number.isNaN(measuredAt.getTime())) return [];
   if (typeof c.cardio_load !== "number" || c.cardio_load < 0) return [];
   return [
@@ -632,7 +633,7 @@ export function mapCardioLoad(c: PolarCardioLoad): MappedMeasurement[] {
 /** Map one Polar SpO2 test result: `blood_oxygen_percentage` →
  * `OXYGEN_SATURATION` (percent, 0..100). */
 export function mapSpo2(r: PolarSpo2): MappedMeasurement[] {
-  const measuredAt = new Date(`${r.date}T00:00:00.000Z`);
+  const measuredAt = canonicalDailyTimestamp(r.date);
   if (Number.isNaN(measuredAt.getTime())) return [];
   const pct = r.blood_oxygen_percentage;
   if (typeof pct !== "number" || pct <= 0 || pct > 100) return [];

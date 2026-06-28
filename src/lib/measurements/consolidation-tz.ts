@@ -88,18 +88,32 @@ function tzOffsetMinutesAt(instant: Date, tz: string): number {
 }
 
 /**
- * Compute the canonical timestamp for a calendar-day key in the user's
- * timezone. Returns the JS-Date instant at the user's local 12:00 noon
- * — matches the Withings activity sync convention (one daily row per
- * type, anchored to midday so the row sorts cleanly between same-day
- * spot samples). The string returned by `toISOString()` is UTC.
+ * Compute the canonical timestamp for a calendar-day key. With a `tz`,
+ * returns the JS-Date instant at the user's local 12:00 noon; without
+ * one, returns 12:00 UTC of the day. Either anchor sits a full 12 h
+ * inside its calendar day, so it round-trips back to the same day
+ * through `userDayKey()` for every zone within ±12 h — which is the
+ * whole point of anchoring date-only daily records at noon rather than
+ * midnight (a UTC-midnight anchor double-shifts the day for west-of-UTC
+ * users on read). Matches the Withings activity sync convention (one
+ * daily row per type, anchored to midday so the row sorts cleanly
+ * between same-day spot samples). The string returned by
+ * `toISOString()` is UTC.
+ *
+ * The optional-`tz` shape is what the wearable daily mappers (Oura,
+ * Polar, Fitbit) anchor on — they do not have the user's timezone in
+ * scope at map time, so they take the noon-UTC fallback, which is
+ * correct for every zone within ±12 h.
  */
-export function canonicalDailyTimestamp(dateKey: string, tz: string): Date {
+export function canonicalDailyTimestamp(dateKey: string, tz?: string): Date {
+  const utcNoon = new Date(`${dateKey}T12:00:00.000Z`);
+  // No timezone in scope: 12:00 UTC is a safe day-stable anchor for
+  // every zone within ±12 h.
+  if (!tz) return utcNoon;
   // Compute the UTC offset for noon-local of the given day. We don't
   // have a lightweight TZ-math library on the server, so the trick is:
   // build "12:00 UTC of the day", read what wall-clock that shows in
   // the target zone, then shift by the resulting offset.
-  const utcNoon = new Date(`${dateKey}T12:00:00.000Z`);
   const offsetMinutes = tzOffsetMinutesAt(utcNoon, tz);
   // utcNoon represents 12:00 UTC. The user's local clock reads
   // 12:00 + offsetMinutes at that instant. To anchor at local 12:00,

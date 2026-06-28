@@ -473,10 +473,12 @@ describe("mapResilience", () => {
     }
   });
 
-  it("anchors the row at the day's UTC midnight", () => {
+  it("anchors the date-only row at noon UTC so it round-trips the day", () => {
+    // Noon, not midnight: a UTC-midnight anchor double-shifts the calendar
+    // day for west-of-UTC users when the read path re-buckets via userDayKey.
     const mapped = mapResilience({ day: "2026-06-10", level: "adequate" });
     expect(mapped[0]?.measuredAt.toISOString()).toBe(
-      "2026-06-10T00:00:00.000Z",
+      "2026-06-10T12:00:00.000Z",
     );
   });
 });
