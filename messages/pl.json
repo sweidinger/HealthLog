@@ -239,7 +239,8 @@
     "cycle": "Cykl",
     "labs": "Wyniki badań",
     "vorsorge": "Badania",
-    "illness": "Choroba"
+    "illness": "Choroba",
+    "documents": "Dokumenty"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -7220,6 +7221,10 @@
     "mcp": {
       "label": "Dostęp asystenta zewnętrznego (MCP)",
       "description": "Pozwól asystentowi obsługującemu MCP czytać Twoje dane zdrowotne za pomocą tokena o ograniczonym zakresie. Domyślnie wyłączone."
+    },
+    "inboundDocuments": {
+      "label": "Dokumenty przychodzące",
+      "description": "Prześlij raport lekarski lub wypis; sprawdź wyodrębnione dane przed zapisaniem. Domyślnie wyłączone."
     }
   },
   "illness": {
@@ -7670,6 +7675,70 @@
         "updatedToast": "Wpis zaktualizowany",
         "saveError": "Nie udało się zapisać wpisu."
       }
+    }
+  },
+  "documents": {
+    "title": "Dokumenty przychodzące",
+    "subtitle": "Prześlij dokument kliniczny i sprawdź dane, które z niego odczytaliśmy.",
+    "disclaimer": {
+      "title": "Odczytujemy, nie interpretujemy",
+      "body": "Przepisujemy tylko to, co podaje dokument — wartości, kody i daty — i nigdy nie stawiamy diagnozy, nie interpretujemy ani niczego nie oznaczamy. Nic nie zostaje zapisane, dopóki tego nie sprawdzisz i nie zatwierdzisz. Tylko lekarz może zinterpretować te wyniki."
+    },
+    "upload": {
+      "label": "Prześlij dokument",
+      "kindLabel": "Typ dokumentu",
+      "button": "Prześlij",
+      "uploading": "Odczytywanie…"
+    },
+    "kind": {
+      "DOCTOR_REPORT": "Raport lekarski",
+      "DISCHARGE_LETTER": "Wypis",
+      "OTHER": "Inny"
+    },
+    "list": {
+      "empty": "Brak dokumentów."
+    },
+    "status": {
+      "EXTRACTING": "Odczytywanie",
+      "EXTRACTED": "Gotowe do przeglądu",
+      "FAILED": "Nie udało się odczytać",
+      "CONFIRMED": "Sprawdzone",
+      "DISCARDED": "Odrzucone"
+    },
+    "review": {
+      "title": "Przejrzyj wyodrębnione dane",
+      "discard": "Odrzuć",
+      "confirm": "Zapisz zatwierdzone dane",
+      "confirming": "Zapisywanie…",
+      "needsReview": "Wymaga przeglądu",
+      "approve": "Zatwierdź",
+      "reject": "Odrzuć",
+      "edit": "Edytuj",
+      "cancel": "Anuluj",
+      "save": "Zapisz"
+    },
+    "empty": {
+      "noFacts": "Nic więcej do przejrzenia."
+    },
+    "factType": {
+      "CONDITION": "Diagnoza",
+      "OBSERVATION": "Wartość",
+      "MEDICATION_STATEMENT": "Lek"
+    },
+    "fields": {
+      "label": "Nazwa",
+      "value": "Wartość",
+      "unit": "Jednostka",
+      "date": "Data",
+      "dose": "Dawka"
+    },
+    "toast": {
+      "uploaded": "Dokument odczytany. Sprawdź dane poniżej.",
+      "uploadFailed": "Nie udało się odczytać dokumentu.",
+      "confirmed": "Zatwierdzone dane zapisane.",
+      "confirmFailed": "Nie udało się zapisać Twoich decyzji.",
+      "saved": "Dane zaktualizowane.",
+      "discarded": "Dokument odrzucony."
     }
   }
 }

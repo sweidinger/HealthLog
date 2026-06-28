@@ -239,7 +239,8 @@
     "cycle": "Ciclo",
     "labs": "Análisis",
     "vorsorge": "Revisiones",
-    "illness": "Enfermedad"
+    "illness": "Enfermedad",
+    "documents": "Documentos"
   },
   "auth": {
     "login": "Iniciar sesión",
@@ -7220,6 +7221,10 @@
     "mcp": {
       "label": "Acceso de asistente externo (MCP)",
       "description": "Permite que un asistente compatible con MCP lea tus datos de salud mediante un token con alcance limitado. Desactivado de forma predeterminada."
+    },
+    "inboundDocuments": {
+      "label": "Documentos entrantes",
+      "description": "Sube un informe médico o un alta; revisa los datos extraídos antes de guardarlos. Desactivado de forma predeterminada."
     }
   },
   "illness": {
@@ -7670,6 +7675,70 @@
         "updatedToast": "Entrada actualizada",
         "saveError": "No se ha podido guardar la entrada."
       }
+    }
+  },
+  "documents": {
+    "title": "Documentos entrantes",
+    "subtitle": "Sube un documento clínico y revisa los datos que hemos leído.",
+    "disclaimer": {
+      "title": "Leemos, no interpretamos",
+      "body": "Solo transcribimos lo que indica tu documento — valores, códigos y fechas — y nunca diagnosticamos, interpretamos ni marcamos nada. No se guarda nada hasta que lo revises y lo apruebes. Solo tu profesional sanitario puede interpretar estos resultados."
+    },
+    "upload": {
+      "label": "Subir un documento",
+      "kindLabel": "Tipo de documento",
+      "button": "Subir",
+      "uploading": "Leyendo…"
+    },
+    "kind": {
+      "DOCTOR_REPORT": "Informe médico",
+      "DISCHARGE_LETTER": "Alta hospitalaria",
+      "OTHER": "Otro"
+    },
+    "list": {
+      "empty": "Aún no hay documentos."
+    },
+    "status": {
+      "EXTRACTING": "Leyendo",
+      "EXTRACTED": "Listo para revisar",
+      "FAILED": "No se pudo leer",
+      "CONFIRMED": "Revisado",
+      "DISCARDED": "Descartado"
+    },
+    "review": {
+      "title": "Revisar datos extraídos",
+      "discard": "Descartar",
+      "confirm": "Guardar datos aprobados",
+      "confirming": "Guardando…",
+      "needsReview": "Requiere revisión",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "edit": "Editar",
+      "cancel": "Cancelar",
+      "save": "Guardar"
+    },
+    "empty": {
+      "noFacts": "Nada más que revisar."
+    },
+    "factType": {
+      "CONDITION": "Diagnóstico",
+      "OBSERVATION": "Valor",
+      "MEDICATION_STATEMENT": "Medicación"
+    },
+    "fields": {
+      "label": "Nombre",
+      "value": "Valor",
+      "unit": "Unidad",
+      "date": "Fecha",
+      "dose": "Dosis"
+    },
+    "toast": {
+      "uploaded": "Documento leído. Revisa los datos a continuación.",
+      "uploadFailed": "No se pudo leer el documento.",
+      "confirmed": "Datos aprobados guardados.",
+      "confirmFailed": "No se pudieron guardar tus decisiones.",
+      "saved": "Dato actualizado.",
+      "discarded": "Documento descartado."
     }
   }
 }

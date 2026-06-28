@@ -239,7 +239,8 @@
     "cycle": "Cycle",
     "labs": "Analyses",
     "vorsorge": "Examens",
-    "illness": "Maladie"
+    "illness": "Maladie",
+    "documents": "Documents"
   },
   "auth": {
     "login": "Se connecter",
@@ -7220,6 +7221,10 @@
     "mcp": {
       "label": "Accès assistant externe (MCP)",
       "description": "Autorise un assistant compatible MCP à lire vos données de santé via un jeton à portée limitée. Désactivé par défaut."
+    },
+    "inboundDocuments": {
+      "label": "Documents entrants",
+      "description": "Importez un compte rendu médical ou une lettre de sortie ; vérifiez les données extraites avant de les enregistrer. Désactivé par défaut."
     }
   },
   "illness": {
@@ -7670,6 +7675,70 @@
         "updatedToast": "Entrée mise à jour",
         "saveError": "Impossible d'enregistrer l'entrée."
       }
+    }
+  },
+  "documents": {
+    "title": "Documents entrants",
+    "subtitle": "Importez un document clinique et vérifiez les données que nous y avons lues.",
+    "disclaimer": {
+      "title": "Nous lisons, nous n'interprétons pas",
+      "body": "Nous transcrivons uniquement ce qu'indique votre document — valeurs, codes et dates — et nous ne posons aucun diagnostic, n'interprétons et ne signalons rien. Rien n'est enregistré tant que vous ne l'avez pas vérifié et approuvé. Seul votre professionnel de santé peut interpréter ces résultats."
+    },
+    "upload": {
+      "label": "Importer un document",
+      "kindLabel": "Type de document",
+      "button": "Importer",
+      "uploading": "Lecture…"
+    },
+    "kind": {
+      "DOCTOR_REPORT": "Compte rendu médical",
+      "DISCHARGE_LETTER": "Lettre de sortie",
+      "OTHER": "Autre"
+    },
+    "list": {
+      "empty": "Aucun document pour l'instant."
+    },
+    "status": {
+      "EXTRACTING": "Lecture",
+      "EXTRACTED": "Prêt à vérifier",
+      "FAILED": "Lecture impossible",
+      "CONFIRMED": "Vérifié",
+      "DISCARDED": "Écarté"
+    },
+    "review": {
+      "title": "Vérifier les données extraites",
+      "discard": "Écarter",
+      "confirm": "Enregistrer les données approuvées",
+      "confirming": "Enregistrement…",
+      "needsReview": "À vérifier",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "edit": "Modifier",
+      "cancel": "Annuler",
+      "save": "Enregistrer"
+    },
+    "empty": {
+      "noFacts": "Plus rien à vérifier."
+    },
+    "factType": {
+      "CONDITION": "Diagnostic",
+      "OBSERVATION": "Valeur",
+      "MEDICATION_STATEMENT": "Médicament"
+    },
+    "fields": {
+      "label": "Nom",
+      "value": "Valeur",
+      "unit": "Unité",
+      "date": "Date",
+      "dose": "Dose"
+    },
+    "toast": {
+      "uploaded": "Document lu. Vérifiez les données ci-dessous.",
+      "uploadFailed": "Lecture du document impossible.",
+      "confirmed": "Données approuvées enregistrées.",
+      "confirmFailed": "Impossible d'enregistrer vos décisions.",
+      "saved": "Donnée mise à jour.",
+      "discarded": "Document écarté."
     }
   }
 }
