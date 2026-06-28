@@ -4018,7 +4018,19 @@
       "disableError": "Forschungsmodus konnte nicht deaktiviert werden. Bitte erneut versuchen."
     },
     "shell": {
-      "sectionsNav": "Einstellungs-Bereiche"
+      "sectionsNav": "Einstellungs-Bereiche",
+      "subSectionsNav": "Einstellungs-Unterbereiche"
+    },
+    "groups": {
+      "account": { "title": "Konto" },
+      "tracking": { "title": "Tracking" },
+      "display": { "title": "Darstellung" },
+      "integrations": { "title": "Integrationen" },
+      "notifications": { "title": "Benachrichtigungen" },
+      "ai": { "title": "KI & Coach" },
+      "access": { "title": "API & Zugriff" },
+      "data": { "title": "Daten & Datenschutz" },
+      "about": { "title": "Über" }
     },
     "sections": {
       "account": {
@@ -4040,7 +4052,7 @@
         "subtitle": "Wähle, welche Erinnerungen du erhältst."
       },
       "layout": {
-        "title": "Dashboard",
+        "title": "Darstellung",
         "description": "Lege fest, wie Dashboard und Insights aufgebaut und angeordnet sind.",
         "backToHub": "Zurück zu Layout & Personalisierung",
         "dashboard": {

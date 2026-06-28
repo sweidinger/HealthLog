@@ -4018,7 +4018,19 @@
       "disableError": "Impossible de désactiver le mode Recherche. Veuillez réessayer."
     },
     "shell": {
-      "sectionsNav": "Sections des réglages"
+      "sectionsNav": "Sections des réglages",
+      "subSectionsNav": "Sous-sections des réglages"
+    },
+    "groups": {
+      "account": { "title": "Compte" },
+      "tracking": { "title": "Suivi" },
+      "display": { "title": "Affichage" },
+      "integrations": { "title": "Intégrations" },
+      "notifications": { "title": "Notifications" },
+      "ai": { "title": "IA et coach" },
+      "access": { "title": "API et accès" },
+      "data": { "title": "Données et confidentialité" },
+      "about": { "title": "À propos" }
     },
     "sections": {
       "account": {
@@ -4040,7 +4052,7 @@
         "subtitle": "Choisissez les rappels que vous recevez."
       },
       "layout": {
-        "title": "Tableau de bord",
+        "title": "Affichage",
         "description": "Organisez la disposition du tableau de bord et des analyses.",
         "backToHub": "Retour à Disposition et personnalisation",
         "dashboard": {

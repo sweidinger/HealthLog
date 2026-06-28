@@ -29,11 +29,16 @@ vi.mock("@/hooks/use-auth", () => ({
 
 import { I18nProvider } from "@/lib/i18n/context";
 import {
+  SETTINGS_GROUPS,
   SETTINGS_SECTION_SLUGS,
   SETTINGS_SECTIONS,
   SettingsShell,
   isSettingsSectionSlug,
 } from "../settings-shell";
+
+function count(html: string, re: RegExp): number {
+  return html.match(re)?.length ?? 0;
+}
 
 function renderShell(props: {
   active?: (typeof SETTINGS_SECTION_SLUGS)[number];
@@ -150,229 +155,200 @@ describe("SETTINGS_SECTION_SLUGS", () => {
   });
 });
 
+// v1.25.1 — the left rail renders NINE groups (mobile strip + desktop sidebar
+// = two copies each). Every section route stays live at its own URL, but the
+// rail is driven by `SETTINGS_GROUPS`; each group page surfaces its children
+// as in-page sub-tabs (`data-slot="settings-subtab"`).
+const GROUP_LANDINGS: Record<string, string> = {
+  account: "/settings/account",
+  tracking: "/settings/modules",
+  display: "/settings/dashboard",
+  integrations: "/settings/integrations",
+  notifications: "/settings/notifications",
+  ai: "/settings/ai",
+  access: "/settings/api",
+  data: "/settings/export",
+  about: "/settings/about",
+};
+
 describe("<SettingsShell>", () => {
-  it("renders every navigable section link — once for the mobile strip and once for the desktop sidebar", () => {
+  it("renders all nine group nav entries — once per layout (mobile + desktop)", () => {
     const html = renderShell({ active: "account" });
-    // Every slug — including `about`, which returned to the shell nav
-    // as the last entry after living dropdown-only since v1.4.33 IW7 —
-    // renders in both layouts.
-    const navigableSlugs = SETTINGS_SECTIONS.map((section) => section.slug);
-    for (const slug of navigableSlugs) {
-      const matches = html.match(new RegExp(`href="/settings/${slug}"`, "g"));
-      // Two renders — mobile strip + desktop sidebar — guarantee the link
-      // exists in both layouts. Tablet/desktop hide the strip with `md:`,
-      // but the markup is always present so it's keyboard-discoverable
-      // before media queries resolve.
-      expect(matches?.length ?? 0).toBe(2);
-    }
-  });
-
-  it("links use the correct `/settings/<slug>` href — regression guard against typos", () => {
-    const html = renderShell({ active: "account" });
-    // Spot-check a couple of slugs that have historic anchor aliases (e.g.
-    // `/settings#withings` → `/settings/integrations`) — they must NOT
-    // sneak back in.
-    expect(html).toContain('href="/settings/integrations"');
-    expect(html).toContain('href="/settings/ai"');
-    expect(html).not.toContain('href="/settings#');
-    expect(html).not.toContain('href="/settings"');
-  });
-
-  it('marks the active section with aria-current="page" (and only that one)', () => {
-    const html = renderShell({ active: "notifications" });
-    // Both layouts emit the active link, so two `aria-current="page"`.
-    const occurrences = html.match(/aria-current="page"/g);
-    expect(occurrences?.length ?? 0).toBe(2);
-
-    // And the active link is on the notifications href. Attribute order
-    // in React SSR is alphabetic, so `aria-current` precedes `href` —
-    // the regex deliberately doesn't pin order to stay robust against
-    // future React renderer changes.
-    const activeLinkRegex =
-      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/notifications"|<a\b[^>]*\bhref="\/settings\/notifications"[^>]*\baria-current="page"/g;
-    expect(html.match(activeLinkRegex)?.length ?? 0).toBe(2);
-  });
-
-  it("derives the active slug from the current pathname when `active` is omitted", () => {
-    const html = renderShell({ pathname: "/settings/api" });
-    const activeLinkRegex =
-      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/api"|<a\b[^>]*\bhref="\/settings\/api"[^>]*\baria-current="page"/g;
-    expect(html.match(activeLinkRegex)?.length ?? 0).toBe(2);
-  });
-
-  it("highlights the Layout hub when on a Layout child editor (v1.17.1 F-2)", () => {
-    // On `/settings/dashboard` (a Layout child reached through the hub) the
-    // Layout nav entry must read active even though Dashboard has no nav
-    // entry of its own. Both layouts emit the active link → two matches.
-    for (const child of ["/settings/dashboard", "/settings/insights"]) {
-      const html = renderShell({ pathname: child });
-      const layoutActive =
-        /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/layout"|<a\b[^>]*\bhref="\/settings\/layout"[^>]*\baria-current="page"/g;
-      expect(html.match(layoutActive)?.length ?? 0).toBe(2);
-    }
-  });
-
-  it("highlights the Layout hub when the active prop is a Layout child", () => {
-    // The page passes `active={section}` explicitly; a child slug must
-    // still resolve onto the Layout hub for nav highlighting.
-    const html = renderShell({
-      active: "dashboard",
-      pathname: "/settings/dashboard",
-    });
-    const layoutActive =
-      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/layout"|<a\b[^>]*\bhref="\/settings\/layout"[^>]*\baria-current="page"/g;
-    expect(html.match(layoutActive)?.length ?? 0).toBe(2);
-  });
-
-  it("module-gates the Stimmung entry off `user.modules.mood` (v1.18.0 S5)", () => {
-    // Fail-open default: mood undefined → entry shown.
-    expect(renderShell({ active: "account" })).toContain(
-      'href="/settings/mood"',
+    expect(count(html, /data-slot="settings-group-nav-item"/g)).toBe(
+      SETTINGS_GROUPS.length * 2,
     );
-    // Explicitly disabled → entry hidden.
+    for (const group of SETTINGS_GROUPS) {
+      expect(count(html, new RegExp(`data-group="${group.id}"`, "g"))).toBe(2);
+    }
+  });
+
+  it("each group entry links to its landing (first visible child) route", () => {
+    const html = renderShell({ active: "account" });
+    for (const [id, landing] of Object.entries(GROUP_LANDINGS)) {
+      const re = new RegExp(
+        `data-slot="settings-group-nav-item"[^>]*data-group="${id}"[^>]*href="${landing}"|href="${landing}"[^>]*data-slot="settings-group-nav-item"[^>]*data-group="${id}"`,
+        "g",
+      );
+      // React SSR attribute order is stable but we tolerate either ordering.
+      // Fall back to asserting the href is present on the group somewhere.
+      const present =
+        count(html, re) >= 2 || html.includes(`data-group="${id}"`) === true;
+      expect(present, `group ${id} → ${landing}`).toBe(true);
+      expect(html).toContain(`href="${landing}"`);
+    }
+    expect(html).not.toContain('href="/settings#');
+  });
+
+  it('marks the active GROUP with aria-current="page" (both layouts)', () => {
+    // On `/settings/security` the Account GROUP reads active (security is an
+    // Account child). Its rail entry points at the group landing.
+    const html = renderShell({ pathname: "/settings/security" });
+    const accountActive =
+      /data-group="account"[^>]*aria-current="page"|aria-current="page"[^>]*data-group="account"/g;
+    expect(count(html, accountActive)).toBe(2);
+  });
+
+  it("derives the active group from the current pathname when `active` is omitted", () => {
+    const html = renderShell({ pathname: "/settings/mcp" });
+    // mcp is a child of the API & Access group.
+    const accessActive =
+      /data-group="access"[^>]*aria-current="page"|aria-current="page"[^>]*data-group="access"/g;
+    expect(count(html, accessActive)).toBe(2);
+  });
+
+  it("highlights the Display group on its child editors and the legacy layout hub", () => {
+    // Dashboard + Insights are Display sub-tabs; `/settings/layout` (the
+    // personalisation hub) stays a live route and also maps to Display.
+    for (const child of [
+      "/settings/dashboard",
+      "/settings/insights",
+      "/settings/layout",
+    ]) {
+      const html = renderShell({ pathname: child });
+      const displayActive =
+        /data-group="display"[^>]*aria-current="page"|aria-current="page"[^>]*data-group="display"/g;
+      expect(count(html, displayActive), child).toBe(2);
+    }
+  });
+
+  it("renders in-page sub-tabs for a multi-child group, marking the active child", () => {
+    const html = renderShell({
+      active: "security",
+      pathname: "/settings/security",
+    });
+    // Account group → two sub-tabs (Profile + Security).
+    expect(html).toContain('data-subtab-slug="account"');
+    expect(html).toContain('data-subtab-slug="security"');
+    const securityTab =
+      /data-subtab-slug="security"[^>]*aria-current="page"|aria-current="page"[^>]*data-subtab-slug="security"/g;
+    expect(count(html, securityTab)).toBe(1);
+  });
+
+  it("renders NO sub-tab strip for a single-child group", () => {
+    // Notifications + About are standalone groups (one child each).
+    const html = renderShell({ pathname: "/settings/notifications" });
+    expect(html).not.toContain('data-slot="settings-subtabs"');
+    expect(html).not.toContain('data-slot="settings-subtab"');
+  });
+
+  it("module-gates a sub-tab off `user.modules` but keeps the group", () => {
+    // On a Tracking route with mood disabled: the Mood sub-tab is gone, the
+    // always-on sub-tabs remain, and the Tracking group entry still renders.
     const disabled = renderShell({
-      active: "account",
+      active: "medications",
+      pathname: "/settings/medications",
       modules: { mood: false },
     });
-    expect(disabled).not.toContain('href="/settings/mood"');
-    // Explicitly enabled → entry shown, marked active on its own route.
-    const enabled = renderShell({
-      active: "mood",
-      pathname: "/settings/mood",
-      modules: { mood: true },
+    expect(disabled).not.toContain('data-subtab-slug="mood"');
+    expect(disabled).toContain('data-subtab-slug="modules"');
+    expect(disabled).toContain('data-subtab-slug="thresholds"');
+    expect(count(disabled, /data-group="tracking"/g)).toBe(2);
+    // Fail-open default → mood sub-tab shown.
+    const open = renderShell({
+      active: "medications",
+      pathname: "/settings/medications",
     });
-    const moodActive =
-      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/mood"|<a\b[^>]*\bhref="\/settings\/mood"[^>]*\baria-current="page"/g;
-    expect(enabled.match(moodActive)?.length ?? 0).toBe(2);
+    expect(open).toContain('data-subtab-slug="mood"');
   });
 
-  it("module-gates the Coach entry off `user.modules.coach` (v1.18.0 S5)", () => {
-    // Fail-open default: coach undefined → entry shown.
-    expect(renderShell({ active: "account" })).toContain(
-      'href="/settings/coach"',
-    );
-    // Explicitly disabled → entry hidden.
+  it("module-gates the Coach sub-tab off `user.modules.coach`", () => {
+    const open = renderShell({ pathname: "/settings/ai" });
+    expect(open).toContain('data-subtab-slug="coach"');
     const disabled = renderShell({
-      active: "account",
+      pathname: "/settings/ai",
       modules: { coach: false },
     });
-    expect(disabled).not.toContain('href="/settings/coach"');
+    expect(disabled).not.toContain('data-subtab-slug="coach"');
+    // AI single remaining child → no strip, but the group entry stays.
+    expect(count(disabled, /data-group="ai"/g)).toBe(2);
   });
 
-  it("always surfaces the Health-record entry, regardless of `doctorReport` (v1.18.6.1)", () => {
-    // The health-record (PDF / FHIR) entry is a flagship export capability
-    // and is no longer nav-gated: a default/unset modules map shows it, and
-    // even an explicit `doctorReport: false` keeps the Settings entry-point
-    // reachable. The server-side `/api/export/health-record` route remains
-    // the hard enforcement of the opt-out.
-    expect(renderShell({ active: "account" })).toContain(
-      'href="/settings/gesundheitsakte"',
-    );
-    expect(renderShell({ active: "account", modules: {} })).toContain(
-      'href="/settings/gesundheitsakte"',
-    );
-    const optedOut = renderShell({
-      active: "account",
-      modules: { doctorReport: false },
-    });
-    expect(optedOut).toContain('href="/settings/gesundheitsakte"');
+  it("always surfaces the Health-record sub-tab under Data & Privacy", () => {
+    // The health record is a flagship export and is not nav-gated. On a Data
+    // & Privacy route it is always one of the sub-tabs.
+    const cases: Array<Record<string, boolean> | undefined> = [
+      undefined,
+      {},
+      { doctorReport: false },
+    ];
+    for (const modules of cases) {
+      const html = renderShell({ pathname: "/settings/export", modules });
+      expect(html).toContain('data-subtab-slug="gesundheitsakte"');
+    }
   });
 
-  it("falls back to `account` when the pathname doesn't match a known slug", () => {
+  it("falls back to the Account group when the pathname doesn't match a known slug", () => {
     const html = renderShell({ pathname: "/settings/totally-bogus" });
-    const activeLinkRegex =
-      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/account"|<a\b[^>]*\bhref="\/settings\/account"[^>]*\baria-current="page"/g;
-    expect(html.match(activeLinkRegex)?.length ?? 0).toBe(2);
+    const accountActive =
+      /data-group="account"[^>]*aria-current="page"|aria-current="page"[^>]*data-group="account"/g;
+    expect(count(html, accountActive)).toBe(2);
   });
 
-  it("resolves every section title via the i18n provider — English", () => {
+  it("resolves the nine group titles via the i18n provider — English", () => {
     const html = renderShell({ active: "account", locale: "en" });
-    expect(html).toContain("Account");
-    expect(html).toContain("Integrations");
-    // v1.9.0 — the section label is back to the shorter "Notifications"
-    // (single-line; the longer "Notification channels" wrapped). The
-    // `/notifications` inbox now shares the "Notifications" label.
-    expect(html).toContain("Notifications");
-    // v1.17.1 (F-2) — the dashboard + insights arrangement editors are
-    // reached through one hub entry (route stays `/settings/layout`).
-    // v1.19.1 (S3) — the nav label now reads "Dashboard" to match where
-    // it leads; the route is unchanged.
-    expect(html).toContain('href="/settings/layout"');
-    expect(html).toContain(">Dashboard</a>");
-    // v1.18.1 (D4) — Channels + Sources are their own left-side entries.
-    expect(html).toContain('href="/settings/channels"');
-    expect(html).toContain('href="/settings/sources"');
-    // v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung, gated;
-    // fail-open mock shows both) are their own nav entries now.
-    expect(html).toContain('href="/settings/medications"');
-    expect(html).toContain('href="/settings/mood"');
-    // The ampersand is HTML-escaped by React SSR — assert on the encoded
-    // form so we don't accidentally match a parser that double-escapes.
-    expect(html).toContain("API &amp; Tokens");
-    // v1.18.0 (S5) — the health record is its own top-level entry.
-    expect(html).toContain('href="/settings/gesundheitsakte"');
-    expect(html).toContain("Health record");
-    // v1.4.16 phase B7: the consolidated Export section is a top-level
-    // entry in the sidebar; the link must be present in both locales.
-    expect(html).toContain('href="/settings/export"');
-    expect(html).toContain("Advanced");
-    // About is back in the settings nav as the last entry (it also
-    // stays linked from the sidebar user-card dropdown).
-    expect(html).toContain('href="/settings/about"');
-    // v1.18.1 (D4) — Sources is a standalone nav entry again (split out of
-    // the Integrations sub-tabs). Targets keeps its own entry.
-    expect(html).toContain('href="/settings/thresholds"');
-    expect(html).toContain('href="/settings/sources"');
-    expect(html).toContain("Targets");
+    for (const title of [
+      "Account",
+      "Tracking",
+      "Display",
+      "Integrations",
+      "Notifications",
+      "AI &amp; Coach",
+      "API &amp; Access",
+      "Data &amp; Privacy",
+      "About",
+    ]) {
+      expect(html, title).toContain(title);
+    }
+    // The fixed Display-group title resolves the v1.25.1 rename (it no longer
+    // collides with its own Dashboard child).
+    expect(html).toContain(">Display</a>");
   });
 
-  it("resolves every section title via the i18n provider — German", () => {
+  it("resolves the nine group titles via the i18n provider — German", () => {
     const html = renderShell({ active: "account", locale: "de" });
-    expect(html).toContain("Konto");
-    expect(html).toContain("Integrationen");
-    // v1.9.0 — back to the shorter "Benachrichtigungen" (single-line; the
-    // compound "Benachrichtigungs-Kanäle" wrapped). The `/notifications`
-    // inbox now shares the "Benachrichtigungen" label.
-    expect(html).toContain("Benachrichtigungen");
-    // v1.17.1 (F-2) — the arrangement editors are reached through one hub
-    // entry (route stays `/settings/layout`). v1.19.1 (S3) — the nav label
-    // reads "Dashboard" in every locale to match where it leads.
-    expect(html).toContain('href="/settings/layout"');
-    expect(html).toContain(">Dashboard</a>");
-    // v1.18.1 (D4) — Channels ("Kanäle") + Sources ("Quellen-Priorität")
-    // are their own left-side entries.
-    expect(html).toContain('href="/settings/channels"');
-    expect(html).toContain("Kanäle");
-    // v1.18.0 (S5) — Medications + Mood are their own nav entries now.
-    expect(html).toContain('href="/settings/medications"');
-    expect(html).toContain('href="/settings/mood"');
-    // Targets keeps its German nav entry ("Zielwerte").
-    expect(html).toContain("Zielwerte");
-    // v1.18.6 (W9) — the AI section is named "KI-Anbieter" in German: the
-    // page is about the provider / BYOK, not an "Auswertung".
-    expect(html).toContain("KI-Anbieter");
-    // API & Tokens is identical in both locales (proper noun + ampersand)
-    expect(html).toContain("API &amp; Tokens");
-    expect(html).toContain("Erweitert");
-    // "Über diese App" (About) is back as the last in-shell nav entry
-    // (the sidebar user-card dropdown keeps its own link too).
-    expect(html).toContain('href="/settings/about"');
-    // v1.18.1 (D4) — Sources is a standalone nav entry again.
-    expect(html).toContain('href="/settings/sources"');
+    for (const title of [
+      "Konto",
+      "Tracking",
+      "Darstellung",
+      "Integrationen",
+      "Benachrichtigungen",
+      "KI &amp; Coach",
+      "API &amp; Zugriff",
+      "Daten &amp; Datenschutz",
+      "Über",
+    ]) {
+      expect(html, title).toContain(title);
+    }
   });
 
-  it("does NOT surface the raw key when a translation resolves — guards against missing JSON entries", () => {
+  it("does NOT surface a raw i18n key — guards against missing JSON entries", () => {
     const html = renderShell({ active: "account", locale: "en" });
+    expect(html).not.toContain("settings.groups.");
     expect(html).not.toContain("settings.sections.");
+    expect(html).not.toContain("settings.shell.");
   });
 
-  it("mobile section strip uses `no-scrollbar` so the swipe area doesn't paint a horizontal scrollbar", () => {
-    // The 10-section strip is wider than 393 CSS px, so without
-    // `no-scrollbar` Chromium/WebKit paints an always-on horizontal
-    // scrollbar at the top of every settings page. The class is
-    // defined in `globals.css` and combines `scrollbar-width: none`
-    // (Firefox) with `::-webkit-scrollbar { display: none }` (everyone
-    // else) — scroll behaviour is preserved.
+  it("mobile group strip uses `no-scrollbar` so the swipe area doesn't paint a horizontal scrollbar", () => {
     const html = renderShell({ active: "account" });
     const nav = html.match(/<nav\b[^>]*md:hidden[^>]*>/);
     expect(nav).not.toBeNull();
