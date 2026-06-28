@@ -156,6 +156,14 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "MedicationSideEffect", field: "notesEncrypted", kind: "bytes" },
   { model: "MedicationDoseChange", field: "noteEncrypted", kind: "bytes" },
   { model: "MedicationInventoryItem", field: "notesEncrypted", kind: "bytes" },
+
+  // ───── v1.25 structured health records (Bytes columns) ─────
+  // Allergy free-text reaction + note, and the family-history note. The
+  // structured enum/label columns stay queryable plaintext; only the
+  // sensitive free-text fields are encrypted.
+  { model: "Allergy", field: "reactionEncrypted", kind: "bytes" },
+  { model: "Allergy", field: "notesEncrypted", kind: "bytes" },
+  { model: "FamilyHistoryEntry", field: "notesEncrypted", kind: "bytes" },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */

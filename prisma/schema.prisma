@@ -720,6 +720,12 @@ model User {
   // per-day timeline mirroring the CycleDayLog shape.
   illnessEpisodes             IllnessEpisode[]
   illnessDayLogs              IllnessDayLog[]
+  // v1.25 (W-RECORDS) — structured health-record entries. Allergies map to
+  // FHIR AllergyIntolerance; family-history entries map to FHIR
+  // FamilyMemberHistory. Reference records (not time-series signals); the
+  // sensitive free-text fields are encrypted at rest.
+  allergies                   Allergy[]
+  familyHistory               FamilyHistoryEntry[]
   // v1.19.0 — full Withings ECG waveform recordings (encrypted at rest).
   // The paired AFib verdict still lands as an IRREGULAR_RHYTHM_NOTIFICATION
   // Measurement EVENT row (v1.18.11); this holds the raw signal samples.
@@ -5108,6 +5114,142 @@ model IllnessSymptomLink {
   @@id([dayLogId, symptomId])
   @@index([symptomId])
   @@map("illness_symptom_links")
+}
+
+// ─── Structured health records (v1.25 W-RECORDS) ──────────────────
+//
+// Allergies + family history kept as STRUCTURED records (not time-series
+// signals — they are NOT in the signal registry). Reference data the user
+// curates once and edits rarely, surfaced in the Settings "Anamnese"
+// (medical-history) section and exported to FHIR (AllergyIntolerance /
+// FamilyMemberHistory). Patient-reported throughout — never a clinical
+// diagnosis the app asserts. Sensitive free-text fields are AES-256-GCM
+// encrypted at rest (`*Encrypted` Bytes columns, the shared note codec);
+// the structured enum fields stay queryable plaintext. Soft-deleted.
+
+/// Broad allergen category for an Allergy (maps to FHIR
+/// AllergyIntolerance.category — food / medication / environment / biologic).
+enum AllergyCategory {
+  FOOD
+  MEDICATION
+  ENVIRONMENT
+  BIOLOGIC
+  OTHER
+
+  @@map("allergy_category")
+}
+
+/// Distinguishes an immune-mediated allergy from a non-immune intolerance
+/// (FHIR AllergyIntolerance.type allergy | intolerance).
+enum AllergyType {
+  ALLERGY
+  INTOLERANCE
+
+  @@map("allergy_type")
+}
+
+/// Worst-reaction severity (FHIR AllergyIntolerance.reaction.severity /
+/// criticality). NULL = not assessed.
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+
+  @@map("allergy_severity")
+}
+
+/// Clinical status of the record (FHIR AllergyIntolerance.clinicalStatus).
+enum AllergyStatus {
+  ACTIVE
+  INACTIVE
+  RESOLVED
+
+  @@map("allergy_status")
+}
+
+/// One self-recorded allergy/intolerance. `substance` is the queryable
+/// human label (the AllergyIntolerance `code.text` anchor — never a
+/// machine-guessed SNOMED/RxNorm code). The free-text reaction description
+/// and notes are encrypted at rest. Patient-reported; the export carries a
+/// "not a clinical diagnosis" guard rail.
+model Allergy {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  /// User-facing substance/allergen name, e.g. "Penicillin", "Peanuts".
+  /// Queryable plaintext label (the medication.name / illness.label
+  /// precedent); rides FHIR `code.text`.
+  substance String
+  category  AllergyCategory  @default(OTHER)
+  type      AllergyType      @default(ALLERGY)
+  /// Worst observed reaction severity. NULL = not assessed.
+  severity  AllergySeverity?
+  status    AllergyStatus    @default(ACTIVE)
+  /// When the allergy was first noticed (UTC instant). NULL = unknown.
+  onsetAt   DateTime?        @map("onset_at")
+  /// AES-256-GCM ciphertext of the free-text reaction/manifestation
+  /// description (e.g. "anaphylaxis", "hives"). Bytes via the shared codec.
+  reactionEncrypted Bytes?   @map("reaction_encrypted")
+  /// AES-256-GCM ciphertext of an optional free-text note. Bytes column.
+  notesEncrypted    Bytes?   @map("notes_encrypted")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
+  deletedAt DateTime?        @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deletedAt])
+  @@map("allergies")
+}
+
+/// Relationship of a family member to the user (maps to FHIR
+/// FamilyMemberHistory.relationship). Lateralised grandparents let the
+/// maternal/paternal line be recorded where the user knows it.
+enum FamilyRelationship {
+  MOTHER
+  FATHER
+  SISTER
+  BROTHER
+  DAUGHTER
+  SON
+  GRANDMOTHER_MATERNAL
+  GRANDFATHER_MATERNAL
+  GRANDMOTHER_PATERNAL
+  GRANDFATHER_PATERNAL
+  AUNT
+  UNCLE
+  COUSIN
+  HALF_SIBLING
+  OTHER
+
+  @@map("family_relationship")
+}
+
+/// One condition recorded for one relative (a FHIR FamilyMemberHistory with
+/// a single condition). `condition` is the queryable human label (the
+/// FamilyMemberHistory.condition `code.text` anchor — never a machine-guessed
+/// code); `ageAtOnset` is the relative's age when the condition began. The
+/// optional free-text note is encrypted at rest. Patient-reported.
+model FamilyHistoryEntry {
+  id           String             @id @default(cuid())
+  userId       String             @map("user_id")
+  relationship FamilyRelationship
+  /// User-facing condition name, e.g. "Type 2 diabetes", "Breast cancer".
+  /// Queryable plaintext label; rides FHIR `condition.code.text`.
+  condition    String
+  /// The relative's age (years) when the condition began. NULL = unknown.
+  ageAtOnset   Int?               @map("age_at_onset")
+  /// AES-256-GCM ciphertext of an optional free-text note. Bytes column.
+  notesEncrypted Bytes?           @map("notes_encrypted")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
+  deletedAt    DateTime?          @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deletedAt])
+  @@map("family_history_entries")
 }
 
 /// One cached forecast per user, regenerated debounced /

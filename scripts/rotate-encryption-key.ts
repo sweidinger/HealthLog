@@ -448,6 +448,23 @@ async function main() {
     ),
   );
 
+  // ───── v1.25 structured health records (Bytes columns) ─────
+  // Allergy free-text reaction + note; family-history note. Always encrypted
+  // on write (no legacy plaintext column), so every non-null row rotates.
+  results.push(
+    await rotateBytesColumn("Allergy", "reactionEncrypted", prisma.allergy),
+  );
+  results.push(
+    await rotateBytesColumn("Allergy", "notesEncrypted", prisma.allergy),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "FamilyHistoryEntry",
+      "notesEncrypted",
+      prisma.familyHistoryEntry,
+    ),
+  );
+
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
   let totalErrors = 0;
