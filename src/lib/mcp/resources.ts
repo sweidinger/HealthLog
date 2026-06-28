@@ -33,11 +33,8 @@ import {
   BIOMARKER_CATALOG,
   BIOMARKER_PANELS,
 } from "@/lib/labs/biomarker-catalog";
-import {
-  collectDoctorReportData,
-  type DoctorReportData,
-} from "@/lib/doctor-report-data";
-import { getMetricStatusMeta } from "@/lib/insights/metric-status-registry";
+import { collectDoctorReportData } from "@/lib/doctor-report-data";
+import { summariseForVisit } from "./doctor-visit-summary";
 import type { McpAuthContext } from "./auth";
 
 export interface McpResourceDefinition {
@@ -269,97 +266,8 @@ export const MCP_RESOURCES: McpResourceDefinition[] = [
 ];
 
 // ── Doctor-visit summariser ──────────────────────────────────────────
-// Reshapes the server-authoritative doctor-report payload into a compact,
-// grounded summary — latest + aggregate per metric, latest reading per analyte.
-// Never the full per-reading history (R-DEL-2); never a verdict. Every numeric
-// value is one the server already computed; every band is server-side.
-
-const FALLBACK_UNITS: Record<string, string> = {
-  WEIGHT: "kg",
-  BLOOD_PRESSURE_SYS: "mmHg",
-  BLOOD_PRESSURE_DIA: "mmHg",
-  PULSE: "bpm",
-  BODY_MASS_INDEX: "kg/m²",
-  SLEEP_DURATION: "min",
-};
-
-function unitAndBandFor(type: string): {
-  unit: string;
-  referenceBand: { low: number; high: number } | null;
-} {
-  const meta = getMetricStatusMeta(type);
-  if (meta) {
-    return {
-      unit: meta.unit,
-      referenceBand: meta.normalRange
-        ? { low: meta.normalRange.low, high: meta.normalRange.high }
-        : null,
-    };
-  }
-  return { unit: FALLBACK_UNITS[type] ?? "", referenceBand: null };
-}
-
-const round = (n: number): number => Math.round(n * 100) / 100;
-
-function summariseForVisit(data: DoctorReportData): Record<string, unknown> {
-  const vitals = Object.entries(data.stats).map(([type, s]) => {
-    const { unit, referenceBand } = unitAndBandFor(type);
-    return {
-      metric: type,
-      unit,
-      referenceBand,
-      latest: round(s.latest),
-      avg: round(s.avg),
-      min: round(s.min),
-      max: round(s.max),
-      readings: s.count,
-    };
-  });
-
-  const compliance = Object.entries(data.compliance).map(([name, c]) => ({
-    medication: name,
-    takenDoses: c.taken,
-    expectedDoses: c.total,
-    missedDoses: c.missed,
-    adherencePct:
-      c.total > 0 ? Math.min(100, Math.round((c.taken / c.total) * 100)) : null,
-  }));
-
-  const medications = data.medications
-    .slice(0, 40)
-    .map((m) => ({ name: m.name, dose: m.dose }));
-
-  const labs = (data.labResults ?? []).slice(0, 50).map((l) => ({
-    analyte: l.analyte,
-    panel: l.panel,
-    value: l.value,
-    valueText: l.valueText,
-    unit: l.unit,
-    referenceLow: l.referenceLow,
-    referenceHigh: l.referenceHigh,
-    takenAt: l.takenAt,
-    readings: l.count,
-  }));
-
-  return {
-    present: true,
-    period: {
-      days: data.period.days,
-      start: data.period.start,
-      end: data.period.end,
-    },
-    patient: {
-      dateOfBirth: data.patient.dateOfBirth,
-      sex: data.patient.gender,
-      heightCm: data.patient.heightCm,
-    },
-    bmi: data.bmi,
-    vitals,
-    medications,
-    compliance,
-    ...(labs.length > 0 ? { labs } : {}),
-  };
-}
+// The reducer is shared with the `doctor_visit_summary` prompt
+// (`doctor-visit-summary.ts`) so both surfaces ground identically.
 
 async function readDoctorVisit(
   ctx: McpAuthContext,

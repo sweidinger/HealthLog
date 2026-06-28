@@ -7,9 +7,13 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
+vi.mock("@/lib/doctor-report-data", () => ({
+  collectDoctorReportData: vi.fn(),
+}));
 
 import { MCP_RESOURCES, MCP_RESOURCE_URIS } from "../resources";
 import { prisma } from "@/lib/db";
+import { collectDoctorReportData } from "@/lib/doctor-report-data";
 import type { McpAuthContext } from "../auth";
 
 const CTX: McpAuthContext = {
@@ -132,5 +136,86 @@ describe("healthlog://medications", () => {
     };
     expect(result.present).toBe(false);
     expect(result.count).toBe(0);
+  });
+});
+
+describe("healthlog://report/doctor-visit", () => {
+  // The resource now reuses the SHARED summariser (doctor-visit-summary.ts), so
+  // it grounds the identical rich superset the doctor_visit_summary prompt does
+  // — mood, glucose panel, wellness composites, and illness episodes no longer
+  // drop out of the resource.
+  it("grounds the rich superset like the prompt when the data is present", async () => {
+    vi.mocked(collectDoctorReportData).mockResolvedValue({
+      period: {
+        days: 90,
+        since: "2026-03-29T00:00:00.000Z",
+        start: "2026-03-29T00:00:00.000Z",
+        end: "2026-06-27T00:00:00.000Z",
+      },
+      patient: {
+        username: "tester",
+        fullName: "A Person",
+        dateOfBirth: "1990-01-01",
+        gender: "female",
+        heightCm: 170,
+      },
+      stats: { WEIGHT: { avg: 80, min: 79, max: 82, count: 30, latest: 80 } },
+      glucoseClinical: { stillLearning: false, timeInRange: 70 },
+      bmi: 24,
+      compliance: { Ramipril: { total: 90, taken: 86, skipped: 0, missed: 4 } },
+      medications: [{ name: "Ramipril", dose: "5 mg", schedules: [] }],
+      mood: { avg: 3.5, min: 2, max: 5, count: 12 },
+      wellnessScores: [{ type: "RECOVERY", latest: 70, avg: 65 }],
+      illnessEpisodes: [
+        {
+          label: "Cold",
+          type: "ILLNESS",
+          lifecycle: "resolved",
+          onsetAt: "2026-05-01",
+          resolvedAt: "2026-05-08",
+        },
+      ],
+    } as never);
+
+    const result = (await resource("healthlog://report/doctor-visit").read(
+      CTX,
+    )) as Record<string, unknown>;
+
+    expect(collectDoctorReportData).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ days: 90 }),
+    );
+    expect(result.present).toBe(true);
+    expect(result).toHaveProperty("vitals");
+    expect(result).toHaveProperty("mood");
+    expect(result).toHaveProperty("glucosePanel");
+    expect(result).toHaveProperty("wellnessScores");
+    expect(result).toHaveProperty("illnessEpisodes");
+    // Patient name never leaks.
+    const patient = result.patient as Record<string, unknown>;
+    expect(patient).not.toHaveProperty("fullName");
+    expect(patient).not.toHaveProperty("username");
+  });
+
+  it("omits absent sections honestly (no zero-fill)", async () => {
+    vi.mocked(collectDoctorReportData).mockResolvedValue({
+      period: { days: 90, since: "", start: "", end: "" },
+      patient: { dateOfBirth: "1990-01-01", gender: "female", heightCm: 170 },
+      stats: {},
+      glucoseClinical: { stillLearning: true },
+      bmi: null,
+      compliance: {},
+      medications: [],
+      mood: null,
+    } as never);
+
+    const result = (await resource("healthlog://report/doctor-visit").read(
+      CTX,
+    )) as Record<string, unknown>;
+    expect(result.present).toBe(true);
+    expect(result).not.toHaveProperty("mood");
+    expect(result).not.toHaveProperty("glucosePanel");
+    expect(result).not.toHaveProperty("wellnessScores");
+    expect(result).not.toHaveProperty("illnessEpisodes");
   });
 });
