@@ -38,8 +38,6 @@ import { FEVER_BAND_C } from "@/lib/clinical-floors";
  * measurement-keyed `BUCKETED_TYPES`. It registers here so the env signals get
  * a stable key + display metadata in the one cross-surface table.
  */
-export type SignalKind = "measurement" | "biomarker" | "score" | "environment";
-
 /** Reuse the assessment registry's direction vocabulary verbatim. */
 export type SignalDirection = MetricDirection;
 
@@ -1294,7 +1292,7 @@ export const SIGNALS: Record<string, SignalDefinition> = {
       mcp: true,
     },
     fhir: {
-      // TODO(NEEDS-VERIFY): no hand-grip-strength LOINC confirmed this pass —
+      // NEEDS-VERIFY: no hand-grip-strength LOINC confirmed this pass —
       // emits a local text concept until a stable LOINC is checked on loinc.org.
       loinc: null,
       display: "Hand grip strength",
@@ -1372,7 +1370,7 @@ export const SIGNALS: Record<string, SignalDefinition> = {
       mcp: true,
     },
     fhir: {
-      // TODO(NEEDS-VERIFY): WHtR LOINC not confirmed this pass — local text concept.
+      // NEEDS-VERIFY: WHtR LOINC not confirmed this pass — local text concept.
       loinc: null,
       display: "Waist to height ratio",
       unit: "1",

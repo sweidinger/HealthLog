@@ -8,7 +8,12 @@ import { NextRequest } from "next/server";
  * `{ signal: null }` and the hero keeps its neutral greeting — never a
  * fabricated opener.
  */
-vi.mock("@/lib/db", () => ({ prisma: {} }));
+const findUniqueMock = vi.fn().mockResolvedValue({ notificationPrefs: null });
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    user: { findUnique: (...args: unknown[]) => findUniqueMock(...args) },
+  },
+}));
 
 vi.mock("@/lib/modules/gate", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/modules/gate")>()),
@@ -75,6 +80,7 @@ const SESSION_OK = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  findUniqueMock.mockResolvedValue({ notificationPrefs: null });
 });
 
 describe("GET /api/insights/coach/seeded-question", () => {
@@ -123,5 +129,21 @@ describe("GET /api/insights/coach/seeded-question", () => {
     };
     expect(body.error).toBeNull();
     expect(body.data?.signal).toBeNull();
+  });
+
+  it("returns { signal: null } and skips the detector when ambient suggestions are off", async () => {
+    findUniqueMock.mockResolvedValue({
+      notificationPrefs: { coach: { ambientSuggestions: false } },
+    });
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { signal: unknown } | null;
+      error: string | null;
+    };
+    expect(body.error).toBeNull();
+    expect(body.data?.signal).toBeNull();
+    // The opt-out short-circuits before the compute tier.
+    expect(detectDerivedBriefingSignals).not.toHaveBeenCalled();
   });
 });

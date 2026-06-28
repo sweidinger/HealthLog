@@ -59,8 +59,12 @@ export function JsonImportCard() {
     a.download = "healthlog-import-example.json";
     document.body.appendChild(a);
     a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    // Defer cleanup a tick: revoking the blob URL in the same synchronous
+    // frame as click() races the browser's download start and can cancel it.
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 0);
   }
 
   async function handleImport() {

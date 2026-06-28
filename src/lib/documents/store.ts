@@ -9,7 +9,7 @@
 import { Buffer } from "node:buffer";
 
 import { decryptFromBytes, encryptToBytes } from "@/lib/ai/coach/bytes-codec";
-import { decrypt, encrypt } from "@/lib/crypto";
+import { encrypt } from "@/lib/crypto";
 import type {
   ExtractedFact,
   ExtractedFactStatus,
@@ -33,12 +33,6 @@ export function encryptDocumentToBytes(bytes: Buffer): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(new ArrayBuffer(encoded.byteLength));
   out.set(encoded);
   return out;
-}
-
-/** Decrypt a stored document back to its raw bytes. Throws on a bad key id. */
-export function decryptDocumentFromBytes(buf: Uint8Array): Buffer {
-  const base64 = decrypt(Buffer.from(buf).toString("utf8"));
-  return Buffer.from(base64, "base64");
 }
 
 /**
