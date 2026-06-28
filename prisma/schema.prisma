@@ -5621,11 +5621,17 @@ model ExtractedFact {
   /// The FHIR-staged fields, STATED status only, shaped per `factType`
   /// (Condition / Observation / MedicationStatement). Codes (SNOMED / ICD-10
   /// / LOINC / RxNorm / ATC) are present only when the document writes them.
-  dataJson Json @map("data_json")
+  /// Stored encrypted: the JSON payload (diagnosis text, lab values,
+  /// medication names, stated codes) is clinical PHI transcribed verbatim from
+  /// the source document, so it rides the AES-256-GCM `*_encrypted` BYTEA
+  /// convention shared with the note columns rather than as plaintext JSONB.
+  dataEncrypted Bytes @map("data_encrypted")
   /// Per-field provenance: the verbatim source span the value came from, an
   /// optional page index, and per-field confidence. Makes "extract what's
-  /// written" auditable against the original.
-  provenanceJson Json @map("provenance_json")
+  /// written" auditable against the original. The source span is a verbatim
+  /// excerpt of the clinical document (PHI), so it is stored encrypted with the
+  /// same codec as `dataEncrypted`.
+  provenanceEncrypted Bytes @map("provenance_encrypted")
   /// The id of the structured-store row created when the fact was approved
   /// (LabResult / IllnessEpisode / Medication), or NULL while PENDING /
   /// REJECTED.
