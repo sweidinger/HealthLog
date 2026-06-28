@@ -4292,8 +4292,8 @@
         "select": "Auswählen",
         "saveError": "Änderung konnte nicht gespeichert werden.",
         "homeSaved": "Heimatort gespeichert.",
-        "travelAdded": "Reise-Ausnahme hinzugefügt.",
-        "travelRemoved": "Reise-Ausnahme entfernt.",
+        "travelAdded": "Ortszeitraum hinzugefügt.",
+        "travelRemoved": "Ortszeitraum entfernt.",
         "backfillQueued": "Nacherfassung eingeplant.",
         "backfillError": "Nacherfassung konnte nicht gestartet werden.",
         "startDate": "Startdatum",
@@ -4301,20 +4301,21 @@
         "storedDays": "{count} Tage Wetter gespeichert.",
         "home": {
           "title": "Heimatort",
-          "description": "Ein grober Ort auf Stadtebene – niemals ein genauer Standortverlauf. Wetter und Tageslicht werden für diesen Ort an allen Tagen ohne Reise-Ausnahme abgerufen.",
+          "description": "Ein grober Standort auf Stadtebene – niemals eine genaue Spur. Wetter und Tageslicht werden für diesen Ort an Tagen ohne Ortszeitraum abgerufen, ab dem Tag der Festlegung.",
           "current": "Aktuell: {label}",
-          "none": "Noch kein Heimatort festgelegt."
+          "none": "Noch kein Heimatort festgelegt.",
+          "since": "Wetter wird ab {date} erfasst. Frühere Tage bleiben leer, bis du einen Ortszeitraum hinzufügst."
         },
         "travel": {
-          "title": "Reise-Ausnahmen",
-          "description": "Für einen Zeitraum, den du woanders verbracht hast, den Ort festlegen, damit das Wetter zu deinem tatsächlichen Aufenthalt passt.",
-          "none": "Keine Reise-Ausnahmen.",
+          "title": "Ortszeiträume",
+          "description": "Füge einen Ort und einen Zeitraum hinzu – eine Reise oder einen früheren Abschnitt deiner Verlaufsdaten. Der Zeitraum überschreibt für seine Tage deinen Wohnort, damit das Wetter zu deinem tatsächlichen Aufenthalt passt. So korrigierst du die Vergangenheit.",
+          "none": "Noch keine Ortszeiträume.",
           "add": "{label} hinzufügen",
-          "remove": "Reise-Ausnahme entfernen"
+          "remove": "Ortszeitraum entfernen"
         },
         "backfill": {
           "title": "Vergangene Tage nacherfassen",
-          "description": "Wetter für einen vergangenen Zeitraum abrufen und speichern, damit ältere Tage in die Korrelationen einfließen.",
+          "description": "Rufe Wetter für einen vergangenen Zeitraum ab und speichere es, damit ältere Tage in die Korrelationen einfließen. Der Start steht standardmäßig auf dem Gültigkeitsdatum deines Wohnorts; um weiter zurückzureichen, füge zuerst einen Ortszeitraum für diesen Bereich hinzu.",
           "run": "Nacherfassen"
         }
       }

@@ -4292,8 +4292,8 @@
         "select": "Seleccionar",
         "saveError": "No se pudo guardar el cambio.",
         "homeSaved": "Ubicación principal guardada.",
-        "travelAdded": "Excepción de viaje añadida.",
-        "travelRemoved": "Excepción de viaje eliminada.",
+        "travelAdded": "Periodo de ubicación añadido.",
+        "travelRemoved": "Periodo de ubicación eliminado.",
         "backfillQueued": "Relleno programado.",
         "backfillError": "No se pudo iniciar el relleno.",
         "startDate": "Fecha de inicio",
@@ -4301,20 +4301,21 @@
         "storedDays": "{count} días de tiempo almacenados.",
         "home": {
           "title": "Ubicación principal",
-          "description": "Una ubicación aproximada a nivel de ciudad, nunca un rastro preciso. El tiempo y las horas de luz se obtienen para este lugar los días sin excepción de viaje.",
+          "description": "Una ubicación aproximada a nivel de ciudad, nunca un rastro preciso. El tiempo y la luz diurna se obtienen para este lugar en los días sin un periodo de ubicación, desde la fecha en que lo configuras.",
           "current": "Actual: {label}",
-          "none": "Aún no hay ubicación principal."
+          "none": "Aún no hay ubicación principal.",
+          "since": "Tiempo registrado desde {date}. Los días anteriores quedan vacíos hasta que añadas un periodo de ubicación."
         },
         "travel": {
-          "title": "Excepciones de viaje",
-          "description": "Para un rango de fechas que pasaste en otro sitio, define la ubicación para que el tiempo coincida con dónde estuviste realmente.",
-          "none": "Sin excepciones de viaje.",
+          "title": "Periodos de ubicación",
+          "description": "Añade un lugar y un rango de fechas: un viaje o un tramo de tu historial anterior. El periodo anula tu hogar en los días que cubre, para que el tiempo coincida con donde estuviste realmente. Así corriges el pasado.",
+          "none": "Aún no hay periodos de ubicación.",
           "add": "Añadir {label}",
-          "remove": "Eliminar excepción de viaje"
+          "remove": "Eliminar periodo de ubicación"
         },
         "backfill": {
           "title": "Rellenar días pasados",
-          "description": "Obtén y guarda el tiempo de un rango de fechas pasado para que los días anteriores entren en las correlaciones.",
+          "description": "Obtén y guarda el tiempo de un rango de fechas pasado para que los días antiguos entren en las correlaciones. El inicio toma por defecto la fecha de vigencia de tu hogar; para llegar más atrás, añade primero un periodo de ubicación para ese rango.",
           "run": "Rellenar"
         }
       }

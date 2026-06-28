@@ -4292,8 +4292,8 @@
         "select": "Wybierz",
         "saveError": "Nie udało się zapisać zmiany.",
         "homeSaved": "Zapisano lokalizację domową.",
-        "travelAdded": "Dodano wyjątek podróży.",
-        "travelRemoved": "Usunięto wyjątek podróży.",
+        "travelAdded": "Dodano okres lokalizacji.",
+        "travelRemoved": "Usunięto okres lokalizacji.",
         "backfillQueued": "Zaplanowano uzupełnianie.",
         "backfillError": "Nie udało się rozpocząć uzupełniania.",
         "startDate": "Data początkowa",
@@ -4301,20 +4301,21 @@
         "storedDays": "Zapisano dni pogody: {count}.",
         "home": {
           "title": "Lokalizacja domowa",
-          "description": "Przybliżona lokalizacja na poziomie miasta — nigdy dokładny ślad. Pogoda i długość dnia są pobierane dla tego miejsca w dni bez wyjątku podróży.",
+          "description": "Przybliżona lokalizacja na poziomie miasta – nigdy dokładny ślad. Pogoda i światło dzienne są pobierane dla tego miejsca w dni bez okresu lokalizacji, od dnia jego ustawienia.",
           "current": "Obecnie: {label}",
-          "none": "Nie ustawiono jeszcze lokalizacji domowej."
+          "none": "Nie ustawiono jeszcze lokalizacji domowej.",
+          "since": "Pogoda zapisywana od {date}. Wcześniejsze dni pozostają puste, dopóki nie dodasz okresu lokalizacji."
         },
         "travel": {
-          "title": "Wyjątki podróży",
-          "description": "Dla zakresu dat spędzonego gdzie indziej ustaw lokalizację, aby pogoda odpowiadała temu, gdzie naprawdę byłeś.",
-          "none": "Brak wyjątków podróży.",
+          "title": "Okresy lokalizacji",
+          "description": "Dodaj miejsce i zakres dat: podróż lub fragment wcześniejszej historii. Okres zastępuje Twój dom w dniach, które obejmuje, aby pogoda odpowiadała miejscu, w którym naprawdę byłeś. W ten sposób korygujesz przeszłość.",
+          "none": "Brak okresów lokalizacji.",
           "add": "Dodaj {label}",
-          "remove": "Usuń wyjątek podróży"
+          "remove": "Usuń okres lokalizacji"
         },
         "backfill": {
           "title": "Uzupełnij minione dni",
-          "description": "Pobierz i zapisz pogodę dla minionego zakresu dat, aby starsze dni weszły do korelacji.",
+          "description": "Pobierz i zapisz pogodę dla minionego zakresu dat, aby starsze dni weszły do korelacji. Początek domyślnie przyjmuje datę obowiązywania Twojego domu; aby sięgnąć dalej wstecz, najpierw dodaj okres lokalizacji dla tego zakresu.",
           "run": "Uzupełnij"
         }
       }
