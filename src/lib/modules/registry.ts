@@ -136,6 +136,14 @@ export const MODULE_KEYS = [
   // `optIn` marker on its registry entry inverts the per-user default;
   // everything else reuses the existing module machinery unchanged.
   "inboundDocuments",
+  // v1.25.0 — opt-in mental-health screeners (PHQ-9 / GAD-7), beside mood
+  // tracking. OPT-IN (off by default): a depression / anxiety self-assessment
+  // is at least as sensitive as mood, so it ships dark and the user turns it on
+  // deliberately. The `optIn` marker inverts the per-user default; with it off
+  // the `/insights/mental-wellbeing` surface is hidden from nav and the
+  // assessment routes refuse server-side. Item answers are always encrypted and
+  // always excluded from the AI Coach / MCP regardless of this toggle.
+  "mentalHealth",
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -296,6 +304,18 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       category: "tracking",
       // Off by default: ingesting a clinical document egresses it to the
       // configured OCR/vision provider, so the user turns it on deliberately.
+      optIn: true,
+    },
+    mentalHealth: {
+      key: "mentalHealth",
+      labelKey: "modules.mentalHealth.label",
+      descriptionKey: "modules.mentalHealth.description",
+      category: "tracking",
+      // Off by default: a depression / anxiety screener is highly sensitive, so
+      // the surface ships dark and the user opts in deliberately. Turning it on
+      // reveals the `/insights/mental-wellbeing` check-in and lets the screener
+      // total ride the doctor-report export; item answers stay encrypted and
+      // off the AI Coach / MCP regardless.
       optIn: true,
     },
   });

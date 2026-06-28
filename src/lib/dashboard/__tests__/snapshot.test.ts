@@ -86,6 +86,7 @@ function moduleMap(
     environment: true,
     mcp: true,
     inboundDocuments: true,
+    mentalHealth: true,
   };
   return { ...base, ...overrides };
 }
