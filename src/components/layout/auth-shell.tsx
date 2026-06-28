@@ -1,15 +1,15 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AchievementUnlockNotifier } from "@/components/gamification/achievement-unlock-notifier";
 import { MaintainershipBanner } from "@/components/i18n/maintainership-banner";
 import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
 import { LayoutCoachMount } from "@/components/insights/layout-coach-mount";
 import { TourLauncher } from "@/components/onboarding/tour-launcher";
-import { useAuth } from "@/hooks/use-auth";
-import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
+import { clearCachesForSessionEnd, useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { CoachLaunchProvider } from "@/lib/insights/coach-launch-context";
 import { BottomNav } from "./bottom-nav";
@@ -52,6 +52,7 @@ export function AuthShell({
   const { t } = useTranslations();
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const isPublicPage = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   // v1.4.26 — `/privacy` is a long-form legal page that brings its own
@@ -91,18 +92,54 @@ export function AuthShell({
     };
   }, [isBodyScrolled]);
 
+  // v1.25.1 — the authenticated shell keeps `<main id="main-content">`
+  // mounted across every route change, so its scroll offset survives
+  // navigation: scroll down in one section (e.g. Settings → Sources
+  // Priority), hop to another, and the new view opens already scrolled.
+  // Reset the scroll container to the top on every forward navigation.
+  // A back/forward navigation skips the reset so the browser's own scroll
+  // restoration stands: `popstate` arms a one-shot skip for the single
+  // pathname change it triggers, and a macrotask clears the flag so it can
+  // never get stuck on a later forward navigation.
+  const skipNextScrollReset = useRef(false);
+  useEffect(() => {
+    const armSkip = () => {
+      skipNextScrollReset.current = true;
+      setTimeout(() => {
+        skipNextScrollReset.current = false;
+      }, 0);
+    };
+    window.addEventListener("popstate", armSkip);
+    return () => window.removeEventListener("popstate", armSkip);
+  }, []);
+
+  useEffect(() => {
+    if (skipNextScrollReset.current) {
+      skipNextScrollReset.current = false;
+      return;
+    }
+    const main = document.getElementById("main-content");
+    if (main) {
+      main.scrollTop = 0;
+    }
+    // Fallback for the body-scrolled shells (login / onboarding / standalone
+    // legal pages) where the document, not `<main>`, owns the scroll.
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isPublicPage) {
       // Session END (expired / invalidated cookie → `/api/auth/me` 401). Wipe
-      // every client-side cache that can hold the previous account's health
-      // data before bouncing to login, so it never leaks to the next account
-      // on a shared device. Logout does the same from `useLogout`; this covers
-      // the expiry path that logout never runs through. Best-effort; the
-      // redirect proceeds regardless.
-      void clearOfflineCachesForSessionEnd();
+      // the in-memory query cache (the cross-user guard — the QueryClient
+      // outlives the navigation on this SPA and the health-data families are
+      // not user-scoped) plus the persisted IndexedDB + SW caches, so nothing
+      // leaks to the next account on a shared browser. Logout does the same
+      // from `useLogout`; this covers the expiry path logout never runs
+      // through. Best-effort; the redirect proceeds regardless.
+      clearCachesForSessionEnd(queryClient);
       router.replace("/auth/login");
     }
-  }, [isLoading, isAuthenticated, isPublicPage, router]);
+  }, [isLoading, isAuthenticated, isPublicPage, router, queryClient]);
 
   // Redirect non-admins away from /admin
   useEffect(() => {

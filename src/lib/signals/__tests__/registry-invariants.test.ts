@@ -25,6 +25,7 @@ import {
 import { deriveMetricStatusRegistry } from "@/lib/signals/adapters/metric-status";
 import { deriveMeasurementLoinc } from "@/lib/signals/adapters/fhir";
 import { deriveBucketedTypes } from "@/lib/signals/adapters/correlation";
+import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 
 import expectedMeasurementLoinc from "./fixtures/expected-measurement-loinc.json";
 import expectedBucketedTypes from "./fixtures/expected-bucketed-types.json";
@@ -44,6 +45,22 @@ describe("signal registry — structural sanity", () => {
         expect(signal.source.environmentChannelKey.length).toBeGreaterThan(0);
       } else {
         expect(signal.source.measurementType.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("every biomarker signal's source key resolves to a real catalog slug", () => {
+    // The declared registry↔labs bridge: a `kind: "biomarker"` signal's
+    // `source.biomarkerKey` must name an actual `BIOMARKER_CATALOG` slug. The
+    // length-only check above would let a typo (`"lpa"` vs `"lp-a"`) ride
+    // through; this catches biomarker-slug drift the moment it lands.
+    const catalogSlugs = new Set(BIOMARKER_CATALOG.map((b) => b.slug));
+    for (const signal of allSignals()) {
+      if (signal.kind === "biomarker") {
+        expect(
+          catalogSlugs.has(signal.source.biomarkerKey),
+          `biomarker signal "${signal.key}" → unknown catalog slug "${signal.source.biomarkerKey}"`,
+        ).toBe(true);
       }
     }
   });

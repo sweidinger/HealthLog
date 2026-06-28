@@ -4018,16 +4018,46 @@
       "disableError": "No se pudo desactivar el modo Investigación. Inténtalo de nuevo."
     },
     "shell": {
-      "sectionsNav": "Secciones de ajustes"
+      "sectionsNav": "Secciones de ajustes",
+      "subSectionsNav": "Subsecciones de ajustes"
+    },
+    "groups": {
+      "account": {
+        "title": "Cuenta"
+      },
+      "tracking": {
+        "title": "Seguimiento"
+      },
+      "display": {
+        "title": "Visualización"
+      },
+      "integrations": {
+        "title": "Integraciones"
+      },
+      "notifications": {
+        "title": "Notificaciones"
+      },
+      "ai": {
+        "title": "IA y Coach"
+      },
+      "access": {
+        "title": "API y acceso"
+      },
+      "data": {
+        "title": "Datos y privacidad"
+      },
+      "about": {
+        "title": "Acerca de"
+      }
     },
     "sections": {
       "account": {
-        "title": "Cuenta",
+        "title": "Perfil y preferencias",
         "description": "Perfil, contraseña, claves de acceso y tu recorrido de incorporación.",
         "subtitle": "Tu perfil, identidad y datos de acceso."
       },
       "integrations": {
-        "title": "Integraciones",
+        "title": "Conexiones",
         "description": "Servicios conectados, canales de entrega y prioridad de fuentes en un solo lugar.",
         "subtitle": "Conecta y gestiona tus fuentes de datos y dispositivos."
       },
@@ -4036,11 +4066,10 @@
         "description": "Todos los recordatorios en un solo lugar: qué se recuerda y cuándo. Los canales de entrega están en Integraciones.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook y correo se configuran ahora en",
         "channelsHintLink": "Integraciones → Canales",
-        "inboxLink": "Abrir la bandeja de entrada",
         "subtitle": "Elige qué recordatorios recibes."
       },
       "layout": {
-        "title": "Panel",
+        "title": "Visualización",
         "description": "Organiza cómo están dispuestos el panel y los análisis.",
         "backToHub": "Volver a Diseño y personalización",
         "dashboard": {
@@ -4319,16 +4348,16 @@
         "subtitle": "Autenticación de dos factores, códigos de recuperación y claves de acceso."
       },
       "privacy": {
-        "title": "Datos y privacidad",
-        "subtitle": "Tus datos, su retención, el cifrado y la seguridad de la cuenta en un solo lugar.",
-        "description": "Exportación, eliminación, retención, estado de cifrado, sesiones y actividad de seguridad."
+        "title": "Privacidad y retención",
+        "subtitle": "Tus datos, su retención y el cifrado en un solo lugar.",
+        "description": "Exportación, eliminación, retención y estado de cifrado."
       },
       "mcp": {
         "title": "Conector MCP",
         "subtitle": "Conecta un asistente externo a tus propios datos de salud."
       },
       "anamnesis": {
-        "title": "Historial médico",
+        "title": "Antecedentes médicos",
         "subtitle": "Gestiona tus alergias y tus antecedentes familiares.",
         "description": "Registros estructurados de alergias y antecedentes familiares."
       },
@@ -4665,7 +4694,9 @@
         "focusPlaceholder": "P. ej. vigila mi tensión arterial, motívame a moverme más…",
         "completeness": "{answered} de {total} respondidas",
         "questionsTitle": "El Coach tiene preguntas",
-        "questionsOpenCoach": "Responderlas en el Coach"
+        "questionsOpenCoach": "Responderlas en el Coach",
+        "recordsLink": "Las alergias, los antecedentes familiares y tus enfermedades preexistentes forman parte de tu historia clínica.",
+        "recordsLinkCta": "Abrir historia clínica"
       },
       "responseTimeoutHeading": "Tiempo de espera de la respuesta",
       "responseTimeoutBody": "Cuánto esperar a que responda la IA antes de cancelar. Aumenta el valor para un modelo local o autoalojado que necesita tiempo para cargarse en la primera solicitud.",
@@ -5286,6 +5317,11 @@
         "description": "Controla cuántos de tus datos se comparten con las funciones de IA y la investigación opcional.",
         "openAi": "Modo de privacidad de IA",
         "openResearch": "Modo investigación"
+      },
+      "signIn": {
+        "title": "Inicio de sesión y dispositivos",
+        "description": "Las sesiones activas, los dispositivos de confianza y la actividad de inicio de sesión ahora están en la configuración de seguridad de tu cuenta.",
+        "openSecurity": "Gestionar inicio de sesión y seguridad"
       }
     },
     "mcp": {
@@ -7061,9 +7097,14 @@
     "restoredToast": "Medición restaurada",
     "restoreError": "No se pudo restaurar la medición",
     "detail": {
-      "history": "Historial",
       "emptyTitle": "Aún no hay mediciones",
-      "emptyDescription": "Añade un valor para seguir este biomarcador con el tiempo."
+      "emptyDescription": "Añade un valor para seguir este biomarcador con el tiempo.",
+      "title": "Biomarcador",
+      "genericDescription": "Un biomarcador de laboratorio que sigues. Añade lecturas para ver su evolución frente al rango de referencia.",
+      "valuesTitle": "{marker} — todas las lecturas",
+      "valuesDescription": "Cada lectura de este biomarcador. Edita o elimina una entrada directamente.",
+      "backToMarker": "Volver a {marker}",
+      "latestResult": "Último resultado"
     },
     "chart": {
       "empty": "Sin mediciones en este periodo.",
@@ -7172,36 +7213,36 @@
         "bloodCount": "Hemograma"
       },
       "desc": {
-        "total-cholesterol": "Cantidad total de colesterol transportado en la sangre, suma de las fracciones LDL, HDL y otras lipoproteínas.",
-        "ldl": "Colesterol transportado por lipoproteínas de baja densidad, la fracción que se deposita en las paredes arteriales.",
-        "hdl": "Colesterol transportado por lipoproteínas de alta densidad, que lo devuelven al hígado.",
-        "triglycerides": "La principal grasa que circula en la sangre, procedente de la dieta y producida por el hígado.",
-        "fasting-glucose": "Azúcar en sangre medido en ayunas, refleja la regulación basal de la glucosa.",
-        "hba1c": "Proporción de hemoglobina unida a glucosa, refleja el azúcar en sangre de los últimos dos o tres meses.",
-        "tsh": "Hormona hipofisaria que regula la tiroides; la prueba principal de la función tiroidea.",
-        "ft3": "La forma libre y activa de la triyodotironina, la hormona tiroidea más potente.",
-        "ft4": "La forma libre de la tiroxina, la principal hormona que la tiroides libera a la sangre.",
-        "ferritin": "La principal proteína de almacenamiento de hierro del cuerpo, refleja las reservas de hierro.",
-        "transferrin-saturation": "Proporción de la proteína transportadora transferrina que lleva hierro en ese momento.",
-        "vitamin-d": "25-hidroxivitamina D circulante, el marcador estándar del estado de vitamina D.",
-        "vitamin-b12": "Vitamina esencial para la formación de glóbulos rojos y la función nerviosa.",
-        "folate": "Vitamina B necesaria para la formación de glóbulos rojos y la síntesis de ADN.",
-        "hs-crp": "Una proteína hepática que aumenta con la inflamación, medida con alta sensibilidad.",
-        "creatinine": "Producto de desecho muscular eliminado por los riñones, usado para evaluar la función renal.",
-        "egfr": "Tasa estimada de filtración de los riñones, calculada a partir de la creatinina.",
-        "alt": "Enzima hepática liberada a la sangre cuando se dañan las células del hígado.",
-        "ast": "Enzima del hígado y el músculo que aumenta cuando esos tejidos se lesionan.",
-        "ggt": "Enzima del hígado y las vías biliares que aumenta con la obstrucción biliar o el alcohol.",
-        "sodium": "Principal electrolito que regula el equilibrio de líquidos y el volumen sanguíneo.",
-        "potassium": "Electrolito esencial para la transmisión nerviosa y la función del músculo cardíaco.",
-        "hemoglobin": "La proteína de los glóbulos rojos que transporta el oxígeno.",
-        "hematocrit": "La fracción del volumen sanguíneo formada por glóbulos rojos.",
-        "wbc": "Recuento total de glóbulos blancos, la defensa circulante del sistema inmunitario.",
-        "platelets": "Fragmentos celulares que se agregan para formar coágulos sanguíneos.",
-        "apob": "Cuenta directamente las partículas aterogénicas; a menudo mejor marcador de riesgo que el LDL-C cuando discrepan.",
-        "lp-a": "Factor de riesgo en gran parte hereditario y de por vida — suele medirse una vez. Informa en unidades molares (nmol/L).",
-        "fasting-insulin": "Se combina con la glucosa en ayunas para estimar la resistencia a la insulina (HOMA-IR).",
-        "omega-3-index": "Proporción de EPA+DHA en glóbulos rojos; 8–12 % es el rango cardioprotector citado habitualmente."
+        "total-cholesterol": "El colesterol total es la suma del colesterol transportado por todas las partículas de lipoproteínas de la sangre, incluidas las fracciones LDL, HDL y remanentes. El colesterol es en sí mismo un componente esencial de las membranas celulares, las hormonas y los ácidos biliares. Como cifra única resulta una medida aproximada, porque tanto una proporción alta de HDL como una alta de LDL elevan el total, por lo que suele leerse junto con las fracciones individuales. Se registra sobre todo dentro de la evaluación del riesgo cardiovascular a largo plazo.",
+        "ldl": "El colesterol LDL es el colesterol transportado por las partículas de lipoproteína de baja densidad, la fracción que lleva el colesterol a los tejidos pero que también puede depositarlo en las paredes arteriales. A lo largo de los años, ese depósito contribuye a la placa aterosclerótica, por lo que el LDL es uno de los marcadores lipídicos más vigilados. Una menor exposición a largo plazo suele asociarse a un menor riesgo cardiovascular. Se interpreta por categoría de riesgo y no frente a un único valor normal fijo.",
+        "hdl": "El colesterol HDL es el colesterol transportado por las partículas de lipoproteína de alta densidad, que recogen el colesterol sobrante de los tejidos y lo devuelven al hígado para reciclarlo o eliminarlo. Por esa función de transporte se le suele llamar la fracción protectora. Los niveles muy bajos tienden a acompañar a un mayor riesgo cardiovascular, aunque elevarlo de forma artificial no ha reducido el riesgo de manera fiable, por lo que se lee como marcador y no como objetivo. Suele interpretarse junto con el LDL y los triglicéridos.",
+        "triglycerides": "Los triglicéridos son la principal forma de grasa que circula por la sangre, aportada tanto por la dieta como producida por el hígado, y constituyen una reserva clave de energía. Los niveles suben después de comer, por lo que la muestra suele tomarse en ayunas para que sea comparable. Unos triglicéridos altos de forma persistente se asocian a riesgo metabólico y cardiovascular y a menudo acompañan a la resistencia a la insulina y a un HDL bajo. Se leen como un componente del cuadro lipídico global.",
+        "fasting-glucose": "La glucosa en ayunas es la concentración de azúcar en la sangre medida tras un ayuno nocturno, y refleja cómo mantiene el cuerpo su nivel basal de azúcar sin comida reciente. La glucosa es el combustible inmediato principal del organismo, y la insulina la mantiene normalmente dentro de un rango estrecho. Una medición en ayunas elimina el efecto de las comidas recientes, lo que la convierte en un cribado estándar del funcionamiento de la regulación de la glucosa. Es uno de los marcadores con los que se evalúa la salud metabólica a lo largo del tiempo.",
+        "hba1c": "La HbA1c es la proporción de hemoglobina de los glóbulos rojos que se ha unido a la glucosa, y se acumula en proporción a la exposición media al azúcar en sangre. Como los glóbulos rojos viven unos tres meses, refleja la glucosa media de los dos o tres meses anteriores y no un instante concreto. Esto la convierte en una visión estable e independiente de las comidas del control de la glucosa. Su fiabilidad puede verse afectada por trastornos que alteran la vida de los glóbulos rojos.",
+        "tsh": "La TSH (hormona estimulante del tiroides) la libera la hipófisis para indicar al tiroides que produzca sus hormonas, y se ajusta al alza o a la baja para mantenerlas en equilibrio. Gracias a ese circuito de retroalimentación, la TSH es el cribado de primera línea más sensible de la función tiroidea: suele moverse antes de que las propias hormonas tiroideas se desvíen. Un valor elevado o reducido apunta a un tiroides hipo o hiperactivo y normalmente lleva a medir directamente las hormonas tiroideas. El embarazo y la edad desplazan el rango esperado.",
+        "ft3": "El T3 libre (triyodotironina) es la forma no unida y biológicamente activa de la hormona tiroidea más potente, la fracción disponible para actuar sobre los tejidos. La mayor parte del T3 circulante está unida a proteínas transportadoras e inactiva, de modo que la porción libre refleja la disponibilidad real de la hormona. Se mide para caracterizar la función tiroidea, sobre todo junto con la TSH y el T4 libre cuando los resultados no están claros. Los niveles dependen mucho del método de análisis y se leen en su contexto clínico.",
+        "ft4": "El T4 libre (tiroxina) es la forma no unida de la principal hormona que el tiroides libera a la sangre, y actúa como reserva que los tejidos convierten en el T3 más activo según lo necesiten. La fracción libre refleja lo que realmente está disponible para el cuerpo, con independencia del nivel de proteínas transportadoras. Suele medirse junto con la TSH para distinguir los problemas del tiroides de los de la señalización hipofisaria. El embarazo y ciertos medicamentos pueden desplazarlo.",
+        "ferritin": "La ferritina es la principal proteína de almacenamiento de hierro del cuerpo, y su nivel en sangre refleja a grandes rasgos las reservas totales de hierro. Un valor bajo apunta a unas reservas agotadas, mientras que uno alto puede reflejar una sobrecarga de hierro, o simplemente una inflamación, ya que la ferritina también sube como reactante de fase aguda. Por eso suele interpretarse junto con otros marcadores de hierro y signos de inflamación. Es una de las medidas centrales para evaluar el estado del hierro.",
+        "transferrin-saturation": "La saturación de transferrina es el porcentaje de transferrina —la proteína que transporta el hierro por la sangre— que está cargado de hierro en ese momento. Relaciona la cantidad de hierro en tránsito con la capacidad de transporte del cuerpo, ofreciendo una instantánea de la disponibilidad de hierro que complementa la visión de las reservas que da la ferritina. Una saturación baja sugiere que el hierro escasea, mientras que un valor alto puede indicar sobrecarga. Se lee junto con la ferritina y el perfil completo del hierro.",
+        "vitamin-d": "La vitamina D se mide como 25-hidroxivitamina D, la forma de almacenamiento circulante y el marcador estándar del estado global de vitamina D. El cuerpo la fabrica en la piel expuesta a la luz solar y absorbe una parte de los alimentos, y contribuye al equilibrio del calcio, la salud ósea y la función inmunitaria. Los niveles varían con la estación, la latitud, el tono de piel y la suplementación. Se registra para valorar a lo largo del tiempo si las reservas son adecuadas.",
+        "vitamin-b12": "La vitamina B12 (cobalamina) es una vitamina esencial que se obtiene sobre todo de alimentos de origen animal y se almacena en gran parte en el hígado. Es necesaria para la formación de glóbulos rojos, la síntesis de ADN y la salud del sistema nervioso. Una carencia prolongada —por baja ingesta o absorción deficiente— puede provocar anemia y síntomas neurológicos. Se mide para evaluar el estado nutricional, en especial cuando la ingesta o la absorción pueden estar limitadas.",
+        "folate": "El folato (vitamina B9) es una vitamina del grupo B presente en las verduras de hoja verde, las legumbres y los alimentos enriquecidos, central para la formación de glóbulos rojos y la síntesis de ADN. Trabaja en estrecha relación con la vitamina B12, y una carencia de cualquiera de las dos puede producir un tipo de anemia similar. Un folato adecuado es especialmente importante en torno al inicio del embarazo para el desarrollo sano del feto. Se mide para evaluar el estado nutricional y la causa de ciertas anemias.",
+        "hs-crp": "La PCR de alta sensibilidad mide la proteína C reactiva, un marcador que el hígado libera en respuesta a la inflamación, con una técnica afinada para detectar las bajas concentraciones relevantes para el riesgo cardiovascular. A diferencia de la PCR estándar usada para infecciones agudas, la versión de alta sensibilidad capta la inflamación sutil y crónica vinculada a la enfermedad vascular. Como cualquier infección o lesión reciente puede elevarla, se interpreta lejos de una enfermedad aguda y a menudo se confirma con una muestra repetida. Se lee como un factor más del riesgo cardiovascular global.",
+        "creatinine": "La creatinina es un producto de desecho del metabolismo muscular normal que los riñones filtran de la sangre a un ritmo bastante constante. Como la producción es relativamente estable, su nivel en sangre sirve de medida práctica de la eficacia con que los riñones eliminan los desechos. Los valores también dependen de la masa muscular, la hidratación y la dieta, por lo que suelen interpretarse junto con la tasa de filtración estimada. Es un marcador central de la función renal.",
+        "egfr": "La eGFR (tasa de filtración glomerular estimada) calcula cuánta sangre filtran los riñones cada minuto, a partir de la creatinina junto con la edad y el sexo. Traduce un valor bruto de creatinina en una medida de la función renal más fácil de interpretar. Un descenso de la eGFR con el tiempo es la principal forma de clasificar y seguir los cambios renales crónicos. Al ser una estimación, se lee como una tendencia y no como una cifra exacta única.",
+        "alt": "La ALT (alanina aminotransferasa) es una enzima concentrada en las células del hígado, que se libera a la sangre cuando esas células están estresadas o dañadas. Por ser relativamente específica del hígado, es uno de los principales marcadores para detectar lesión o inflamación hepática. Sus valores pueden subir con el hígado graso, la hepatitis viral, el alcohol o ciertos medicamentos. Suele leerse junto con la AST y el resto de los marcadores del perfil hepático.",
+        "ast": "La AST (aspartato aminotransferasa) es una enzima presente en el hígado, pero también en el músculo, el corazón y los glóbulos rojos, que se libera cuando cualquiera de esos tejidos sufre daño. Por ser menos específica del hígado que la ALT, ambas se interpretan juntas, y su cociente puede orientar sobre el origen y la naturaleza del problema. El ejercicio intenso o una lesión muscular pueden elevarla al margen del hígado. Es una de las enzimas estándar del perfil hepático.",
+        "ggt": "La GGT (gamma-glutamil transferasa) es una enzima del hígado y las vías biliares que sube en especial cuando se obstruye el flujo de la bilis o ante el consumo de alcohol. A menudo se usa para aclarar por qué está elevado otro marcador hepático, por ejemplo, para distinguir un origen hepático o biliar. Es sensible pero poco específica, por lo que se lee en el contexto del resto del perfil hepático. Es uno de los varios marcadores que se usan para valorar la salud hepática y biliar.",
+        "sodium": "El sodio es el principal electrolito del líquido que rodea las células del cuerpo y el motor fundamental del equilibrio de líquidos y del volumen sanguíneo. El organismo lo regula de forma estricta mediante la sed, las hormonas y los riñones, de modo que su nivel en sangre refleja más el equilibrio entre el agua y la sal que la ingesta por sí sola. Los valores anómalos suelen indicar una alteración del equilibrio de agua y no del propio sodio. Es una parte central del panel metabólico básico y de electrolitos.",
+        "potassium": "El potasio es el principal electrolito del interior de las células del cuerpo y es esencial para la transmisión nerviosa y el ritmo estable del músculo cardíaco. Su nivel en sangre se mantiene en un rango estrecho gracias a los riñones y a las señales hormonales, porque tanto los valores altos como los bajos pueden alterar la actividad eléctrica del corazón. Los niveles pueden verse afectados por la función renal, la hidratación y varios medicamentos habituales. Es una medida central del panel de electrolitos.",
+        "hemoglobin": "La hemoglobina es la proteína con hierro de los glóbulos rojos que fija el oxígeno en los pulmones y lo transporta a los tejidos. Su concentración es la principal medida de la capacidad de transporte de oxígeno de la sangre y el marcador central para detectar la anemia. Los valores bajos pueden reflejar pérdida de sangre, déficit de hierro o de vitaminas, o una producción reducida, mientras que los altos pueden seguir a la deshidratación o a condiciones de poco oxígeno. Es una piedra angular del hemograma completo.",
+        "hematocrit": "El hematocrito es la proporción del volumen de sangre formada por glóbulos rojos, expresada como porcentaje. Se mueve en estrecha relación con la hemoglobina y ofrece una visión complementaria de la masa de glóbulos rojos y de la capacidad de transporte de oxígeno de la sangre. La hidratación influye en él, ya que los cambios del volumen de plasma desplazan la proporción aunque el número de glóbulos rojos se mantenga estable. Se lee junto con la hemoglobina y el resto del hemograma.",
+        "wbc": "El recuento de leucocitos es el número total de células inmunitarias que circulan por la sangre, la defensa móvil del cuerpo frente a las infecciones. Sube en respuesta a infección, inflamación o estrés y puede bajar cuando la médula ósea está suprimida o en algunas enfermedades inmunitarias. Como reúne varios tipos de células distintas, un cambio notable suele completarse con una fórmula que lo desglosa. Es un componente central del hemograma completo.",
+        "platelets": "Las plaquetas son pequeños fragmentos celulares de la sangre que se agregan y forman el tapón inicial que detiene el sangrado de un vaso dañado. Su recuento refleja el equilibrio entre la producción en la médula ósea y el consumo o la destrucción. Un recuento bajo puede aumentar la tendencia al sangrado, mientras que uno alto puede seguir a una inflamación u otros estímulos. Forman parte del hemograma completo y son una medida básica de la capacidad de coagulación.",
+        "apob": "La apolipoproteína B es la proteína estructural que lleva cada una de las partículas de lipoproteína aterogénicas, de modo que medirla cuenta directamente esas partículas en lugar del colesterol que transportan. Como hay una molécula de ApoB en cada partícula de LDL, VLDL y afines, puede captar un riesgo cardiovascular que un valor de colesterol LDL pasa por alto, sobre todo cuando el número de partículas y su contenido de colesterol divergen. Por eso se usa cada vez más para afinar la evaluación del riesgo basada en los lípidos. Se interpreta junto con el perfil lipídico habitual.",
+        "lp-a": "La lipoproteína(a) es una partícula similar al LDL con una proteína adicional unida, cuyo nivel viene determinado en gran medida por la genética y se mantiene bastante estable a lo largo de la vida. Una Lp(a) elevada es un factor de riesgo independiente y hereditario de enfermedad cardiovascular y de estrechamiento de la válvula aórtica. Como cambia poco, suele medirse una sola vez para establecer el riesgo vital de una persona, en lugar de seguirla de forma repetida. Se expresa en unidades molares y se lee como parte del riesgo cardiovascular global.",
+        "fasting-insulin": "La insulina en ayunas es el nivel de insulina —la hormona que traslada la glucosa de la sangre a las células— medido tras un ayuno nocturno. Junto con la glucosa en ayunas, ayuda a estimar la resistencia a la insulina, el estado en el que el cuerpo necesita más insulina para mantener la glucosa dentro de su rango. Una insulina en ayunas alta con una glucosa normal puede ser un signo temprano de que esa compensación está en marcha. Se lee como parte de un cuadro de salud metabólica y no de forma aislada.",
+        "omega-3-index": "El índice omega-3 es la proporción de EPA y DHA —los dos ácidos grasos omega-3 marinos de cadena larga— entre los ácidos grasos de las membranas de los glóbulos rojos. Como los glóbulos rojos se renuevan despacio, refleja la ingesta de omega-3 a largo plazo y no una comida reciente. Un índice más alto se ha asociado en estudios observacionales a un menor riesgo cardiovascular. Se sigue como un marcador estable del estado de omega-3 que responde a la dieta a lo largo de meses."
       },
       "apob": "Apolipoproteína B (ApoB)",
       "lp-a": "Lipoproteína(a)",
@@ -7318,8 +7359,8 @@
       "description": "Incorpora el tiempo y las horas de luz diarias de tu ubicación para correlacionarlos con el ánimo, el sueño y las constantes. Desactivado por defecto."
     },
     "inboundDocuments": {
-      "label": "Documentos entrantes",
-      "description": "Sube un informe médico o un alta; revisa los datos extraídos antes de guardarlos. Desactivado de forma predeterminada."
+      "label": "Documentos",
+      "description": "Guarda tus documentos clínicos; opcionalmente extrae y revisa sus datos antes de guardarlos. Desactivado por defecto."
     },
     "mentalHealth": {
       "label": "Bienestar mental",
@@ -7558,8 +7599,7 @@
   "mentalHealth": {
     "pageTitle": "Revisión de bienestar mental",
     "pageDescription": "Dos autoevaluaciones validadas y opcionales — PHQ-9 (estado de ánimo) y GAD-7 (preocupación) — junto a tu registro de ánimo. Lo valioso es la tendencia en el tiempo, no un único número.",
-    "disclaimer": "Esto es una autoevaluación de cribado, no un diagnóstico. Una puntuación alta o baja no significa que tengas o no una afección. Solo un profesional de salud cualificado puede diagnosticar. Si tienes dudas, habla con tu médico.",
-    "optInNote": "Opcional y privado: tus respuestas individuales están cifradas, se mantienen fuera del Coach de IA y de las exportaciones, y nunca se comparten.",
+    "infoTooltip": "Esto es una autoevaluación de cribado, no un diagnóstico.",
     "attributionLabel": "Fuente",
     "choosePrompt": "Elige una revisión",
     "start": "Empezar",
@@ -7774,6 +7814,15 @@
         "updatedToast": "Entrada actualizada",
         "saveError": "No se ha podido guardar la entrada."
       }
+    },
+    "conditions": {
+      "cardTitle": "Enfermedades preexistentes",
+      "cardDescription": "Enfermedades crónicas y aquello que el Coach debe vigilar, desde tu contexto personal.",
+      "conditionsLabel": "Enfermedades crónicas",
+      "focusLabel": "Qué vigila el Coach",
+      "empty": "Aún no hay nada anotado.",
+      "editCta": "Editar en el contexto personal",
+      "loadError": "No se pudieron cargar tus enfermedades."
     }
   },
   "environment": {
@@ -7788,37 +7837,50 @@
     }
   },
   "documents": {
-    "title": "Documentos entrantes",
-    "subtitle": "Sube un documento clínico y revisa los datos que hemos leído.",
-    "disclaimer": {
-      "title": "Leemos, no interpretamos",
-      "body": "Solo transcribimos lo que indica tu documento — valores, códigos y fechas — y nunca diagnosticamos, interpretamos ni marcamos nada. No se guarda nada hasta que lo revises y lo apruebes. Solo tu profesional sanitario puede interpretar estos resultados."
-    },
+    "title": "Documentos",
+    "subtitle": "Guarda tus documentos clínicos y revisa lo que dicen.",
     "upload": {
-      "label": "Subir un documento",
-      "kindLabel": "Tipo de documento",
+      "label": "Añadir un documento",
+      "kindLabel": "Categoría",
       "button": "Subir",
-      "uploading": "Leyendo…",
-      "fileLabel": "Archivo del documento"
+      "uploading": "Subiendo…",
+      "fileLabel": "Archivo (obligatorio)",
+      "titleLabel": "Título (opcional)",
+      "titlePlaceholder": "p. ej. Informe de cardiología",
+      "dateLabel": "Fecha del documento (opcional)",
+      "fileRequired": "Elige un archivo para subir.",
+      "accepts": "JPEG, PNG, WebP o PDF · hasta 12 MB"
     },
     "kind": {
       "DOCTOR_REPORT": "Informe médico",
-      "DISCHARGE_LETTER": "Alta hospitalaria",
-      "OTHER": "Otro"
+      "DISCHARGE_LETTER": "Informe de alta",
+      "OTHER": "Otro",
+      "LAB_RESULT": "Resultado de laboratorio",
+      "IMAGING": "Imagen",
+      "PRESCRIPTION": "Receta",
+      "INSURANCE": "Seguro",
+      "VACCINATION": "Vacunación"
     },
     "list": {
-      "empty": "Aún no hay documentos."
+      "empty": "Aún no hay documentos.",
+      "noResults": "Ningún documento coincide con tus filtros.",
+      "loadMore": "Cargar más",
+      "loadingMore": "Cargando…",
+      "pending": "{count} por revisar",
+      "facts": "{count} datos",
+      "clearFilters": "Borrar filtros",
+      "loadError": "No se pudieron cargar tus documentos."
     },
     "status": {
       "EXTRACTING": "Leyendo",
       "EXTRACTED": "Listo para revisar",
       "FAILED": "No se pudo leer",
       "CONFIRMED": "Revisado",
-      "DISCARDED": "Descartado"
+      "DISCARDED": "Descartado",
+      "STORED": "Guardado"
     },
     "review": {
       "title": "Revisar datos extraídos",
-      "discard": "Descartar",
       "confirm": "Guardar datos aprobados",
       "confirming": "Guardando…",
       "needsReview": "Requiere revisión",
@@ -7826,7 +7888,14 @@
       "reject": "Rechazar",
       "edit": "Editar",
       "cancel": "Cancelar",
-      "save": "Guardar"
+      "save": "Guardar",
+      "needsReviewHint": "Edita este dato para poder aprobarlo.",
+      "confidenceLabel": "Confianza de la extracción",
+      "commitError": {
+        "unitMismatch": "la unidad no coincide con la guardada",
+        "unitRequired": "un valor numérico necesita una unidad",
+        "generic": "no se pudo guardar"
+      }
     },
     "empty": {
       "noFacts": "Nada más que revisar."
@@ -7844,21 +7913,72 @@
       "dose": "Dosis"
     },
     "toast": {
-      "uploaded": "Documento leído. Revisa los datos a continuación.",
-      "uploadFailed": "No se pudo leer el documento.",
+      "uploaded": "Documento guardado.",
+      "uploadFailed": "No se pudo guardar el documento.",
       "confirmed": "Datos aprobados guardados.",
+      "confirmedPartial": "Guardado, pero {count} no se pudieron guardar: {reason}.",
       "confirmFailed": "No se pudieron guardar tus decisiones.",
       "saved": "Dato actualizado.",
-      "discarded": "Documento descartado."
+      "discarded": "Documento descartado.",
+      "extracted": "Datos extraídos. Revísalos abajo.",
+      "extractFailed": "No se pudieron extraer los datos.",
+      "localOcrDisabled": "Activa el OCR local en los ajustes para leer este documento en el dispositivo.",
+      "updated": "Documento actualizado.",
+      "updateFailed": "No se pudo actualizar el documento.",
+      "discardFailed": "No se pudo descartar el documento.",
+      "uploadTooLarge": "El archivo es demasiado grande (máx. 12 MB).",
+      "uploadFileType": "Sube un archivo JPEG, PNG, WebP o PDF.",
+      "uploadRateLimited": "Demasiadas subidas. Inténtalo de nuevo más tarde.",
+      "uploadInvalidMetadata": "Revisa el título, la categoría o la fecha e inténtalo de nuevo."
+    },
+    "toolbar": {
+      "searchLabel": "Buscar",
+      "searchPlaceholder": "Título o nombre de archivo",
+      "kindFilterLabel": "Categoría",
+      "allKinds": "Todas las categorías",
+      "sortLabel": "Ordenar por",
+      "sort": {
+        "documentDate": "Fecha del documento",
+        "createdAt": "Fecha de adición",
+        "title": "Título"
+      },
+      "orderAsc": "Ascendente",
+      "orderDesc": "Descendente",
+      "fromLabel": "Desde",
+      "toLabel": "Hasta"
+    },
+    "detail": {
+      "viewOriginal": "Ver original",
+      "edit": "Editar",
+      "extract": "Extraer datos",
+      "extracting": "Extrayendo…",
+      "discard": "Descartar",
+      "notExtracted": "Aún no se han extraído datos. Usa Extraer datos para leer este documento.",
+      "viewOriginalNewTab": "(se abre en una pestaña nueva)",
+      "discardConfirmTitle": "¿Descartar este documento?",
+      "discardConfirmBody": "Esto elimina de forma permanente el documento, su archivo original y los datos preparados. No se puede deshacer.",
+      "discardConfirmAction": "Descartar",
+      "discardCancel": "Cancelar"
+    },
+    "edit": {
+      "title": "Editar documento",
+      "subtitle": "Renombra, recategoriza o fija la fecha del documento.",
+      "titleLabel": "Título",
+      "kindLabel": "Categoría",
+      "dateLabel": "Fecha del documento",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "cancel": "Cancelar"
+    },
+    "note": {
+      "providerUnsupported": "Configura un proveedor de escaneo de documentos en los ajustes de IA para extraer datos automáticamente.",
+      "alreadyConfirmed": "Este documento ya se ha revisado, por lo que no se puede volver a extraer."
+    },
+    "committed": {
+      "title": "Aprobado de este documento"
     }
   },
   "selfDescription": {
-    "intendedPurpose": "HealthLog es una herramienta personal de registro de salud y bienestar. Te ayuda a registrar, visualizar y exportar tus propios datos de salud. No diagnostica, trata, cura ni previene ninguna enfermedad, y no es un producto sanitario.",
-    "coach": "El Coach trabaja con tus propios datos registrados. No es un médico y no da consejo médico: para un diagnóstico o tratamiento, consulta a un profesional sanitario.",
-    "insights": "Son patrones descriptivos calculados a partir de tus propios datos registrados, no una evaluación clínica ni un diagnóstico.",
-    "labs": "Son tus propios registros, no un diagnóstico médico. Los rangos de referencia varían según el laboratorio y la persona: solo tu médico puede interpretarlos por ti.",
-    "medications": "Esto registra los medicamentos que anotas y tu propia adherencia. No evalúa dosis ni interacciones y no es consejo médico: confírmalo con tu farmacéutico o médico.",
-    "emergency": "Si esto pudiera ser una emergencia, llama ahora a tu número de emergencias local o a un profesional sanitario. HealthLog no puede ayudar en una emergencia.",
     "dataPosture": "HealthLog es autoalojado: tus datos de salud permanecen en tu propia instancia, cifrados en reposo. Las funciones de IA usan una clave de proveedor que tú aportas o un modelo local, así que nada sale de tu instancia más allá del proveedor que configures, y no hay analítica de terceros sobre tus datos de salud."
   }
 }

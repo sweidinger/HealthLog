@@ -1,6 +1,11 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
@@ -231,6 +236,30 @@ export function useAuth() {
   };
 }
 
+/**
+ * Wipe every client-side cache at a session END so no session ever inherits
+ * another account's data on a shared browser.
+ *
+ * Primary cross-user guard: `queryClient.clear()` drops the entire IN-MEMORY
+ * query cache. On a long-lived SPA the root QueryClient instance outlives every
+ * client-side navigation, and the health-data families
+ * (`["measurements"]`, `["dashboard","snapshot"]`, `["labs", …]`, `["mood", …]`,
+ * `["insights", …]`) are NOT user-scoped — so without this wipe the next account
+ * that logs in on the same browser reads the previous account's cached entries
+ * before any refetch lands. `clear()` also drops `["auth","me"]`, superseding the
+ * former explicit `setQueryData(null)` + `invalidateQueries(["auth"])`.
+ *
+ * Then `clearOfflineCachesForSessionEnd()` wipes the persisted layers — the
+ * IndexedDB query snapshot, the SW offline read-data cache (`healthlog-data-*`),
+ * and the SW page cache (`healthlog-pages-*`, cached navigation HTML). The static
+ * cache (hashed chunks, icons) carries no PII and stays intact to avoid a
+ * needless re-download. Best-effort; never blocks the redirect.
+ */
+export function clearCachesForSessionEnd(queryClient: QueryClient): void {
+  queryClient.clear();
+  void clearOfflineCachesForSessionEnd();
+}
+
 export function useLogout() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -241,16 +270,7 @@ export function useLogout() {
       await apiFetchRaw("/api/auth/logout", { method: "POST" });
     },
     onSuccess: () => {
-      queryClient.setQueryData(queryKeys.authMe(), null);
-      queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
-      // Defense-in-depth at the session boundary: wipe every client-side cache
-      // that can hold this account's health data — the IndexedDB query
-      // snapshot, the SW offline read-data cache (`healthlog-data-*`), and the
-      // SW page cache (`healthlog-pages-*`, cached navigation HTML) — so
-      // nothing survives a logout on a shared device. The static cache (hashed
-      // chunks, icons) carries no PII and is left intact to avoid a needless
-      // re-download. Best-effort; never blocks the redirect.
-      void clearOfflineCachesForSessionEnd();
+      clearCachesForSessionEnd(queryClient);
       router.push("/auth/login");
     },
     // v1.16.4 — a network-failed logout used to do nothing at all (the

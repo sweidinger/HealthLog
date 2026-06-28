@@ -8,7 +8,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { MentalWellbeing } from "@/components/mental-health/mental-wellbeing";
 
 /**
- * v1.25.0 — `/insights/mental-wellbeing`.
+ * `/mental-wellbeing` — standalone module page (moved off `/insights/*` in
+ * v1.25.1 so it no longer borrows the Insights tab strip / layout shell).
  *
  * Opt-in PHQ-9 / GAD-7 screener surface, beside mood tracking. The screen owns
  * its own questionnaire + result + crisis-resource flow; it deliberately does

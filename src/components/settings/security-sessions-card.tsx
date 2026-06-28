@@ -9,16 +9,16 @@
  * session (and native device logins) while keeping the current one. All reads
  * + writes route through the centralised query-key factory.
  */
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, MonitorSmartphone } from "lucide-react";
+import { ChevronDown, Loader2, MonitorSmartphone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SettingsCard } from "@/components/settings/settings-card";
-import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet, apiDelete } from "@/lib/api/api-fetch";
+import { cn } from "@/lib/utils";
 
 interface SessionRow {
   id: string;
@@ -38,6 +38,11 @@ export function SecuritySessionsCard({
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<string | null>(null);
+  // Collapsed by default — the list opens only when the user asks for it, so
+  // the security surface stays calm and skimmable on first paint. UI-only
+  // state; nothing is persisted across reloads.
+  const [open, setOpen] = useState(false);
+  const regionId = useId();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.sessions(),
@@ -79,12 +84,32 @@ export function SecuritySessionsCard({
 
   return (
     <SettingsCard data-slot="settings-security-sessions-card">
-      <SettingsCardHeader
-        icon={MonitorSmartphone}
-        title={t("settings.security.sessionsTitle")}
-        className="mb-4"
-      />
-      <div className="space-y-4 pl-7">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={regionId}
+        data-slot="settings-security-sessions-toggle"
+        className="hover:bg-muted/40 focus-visible:ring-ring/50 -m-2 mb-2 flex w-full items-start gap-2 rounded-md p-2 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      >
+        <MonitorSmartphone
+          className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0"
+          aria-hidden="true"
+        />
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">
+            {t("settings.security.sessionsTitle")}
+          </h2>
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              "text-muted-foreground h-4 w-4 shrink-0 transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        </div>
+      </button>
+      <div id={regionId} hidden={!open} className="space-y-4 pl-7">
         <p className="text-muted-foreground text-xs">
           {t("settings.security.sessionsDescription")}
         </p>

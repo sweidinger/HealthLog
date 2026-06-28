@@ -27,6 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # Map the opt-in secret to a job-level env so the live-judge steps can gate
+    # on it. The `secrets` context is NOT available in `if:` expressions — using
+    # it there is a workflow-file validation error that surfaces as a 0-second
+    # startup failure on every push. `env` is allowed in `if:`, so gate on that.
+    env:
+      COACH_EVAL_API_KEY: ${{ secrets.COACH_EVAL_API_KEY }}
+
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -51,14 +58,12 @@ jobs:
       # non-blocking either way. With the secret absent the script no-ops with a
       # clear line and exits 0.
       - name: Live judge (opt-in, non-blocking)
-        if: ${{ secrets.COACH_EVAL_API_KEY != '' }}
+        if: ${{ env.COACH_EVAL_API_KEY != '' }}
         continue-on-error: true
-        env:
-          COACH_EVAL_API_KEY: ${{ secrets.COACH_EVAL_API_KEY }}
         run: pnpm dlx tsx scripts/run-coach-eval.ts
 
       # When the secret is absent, surface a clear no-op line so the run log
       # explains why the live judge did not execute.
       - name: Live judge skipped (no secret)
-        if: ${{ secrets.COACH_EVAL_API_KEY == '' }}
+        if: ${{ env.COACH_EVAL_API_KEY == '' }}
         run: echo "COACH_EVAL_API_KEY not set — live Coach judge skipped (deterministic floor still gated above)."

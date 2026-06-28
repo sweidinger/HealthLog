@@ -1,39 +1,81 @@
 "use client";
 
 /**
- * v1.25.0 (W-DOCS-IN) — inbound clinical documents review-then-confirm UI.
+ * v1.25 — Documents library.
  *
- * Upload a doctor report / discharge letter, then review the STRUCTURED FACTS
- * the OCR/vision provider transcribed before any of them reaches the
- * structured stores. The screen reproduces what the document stated — it never
- * interprets. A low-confidence fact fails closed: it cannot be approved until
- * the user edits it. The non-diagnostic disclaimer is shown prominently.
+ * A self-hoster files any clinical document (doctor report, discharge letter,
+ * lab result, imaging, prescription, …). Upload is STORE-ONLY and always works,
+ * even with no AI provider configured — a file is filed with optional title /
+ * category / filing date. The library groups documents by date, with search, a
+ * category filter, sort, and keyset pagination.
+ *
+ * Each document opens a detail panel: view / download the original, edit its
+ * metadata, optionally run AI extraction (the explicit, separate enhancement),
+ * then review-then-confirm the STRUCTURED FACTS the provider transcribed before
+ * any reaches the structured stores. The screen reproduces what the document
+ * stated — it never interprets. A low-confidence fact fails closed: it cannot
+ * be approved until the user edits it. Absent a provider, extraction surfaces a
+ * calm inline note (configure one) — never a hard error; the stored document is
+ * untouched.
  */
-import { useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Fragment, useEffect, useRef, useState } from "react";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, FileScan, Loader2, Upload } from "lucide-react";
+import {
+  ArrowDownAZ,
+  ArrowUpAZ,
+  ExternalLink,
+  FileScan,
+  Info,
+  Loader2,
+  Pencil,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Upload,
+} from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiDelete, apiFetch, apiPatch, apiPost } from "@/lib/api/api-fetch";
-import { useTranslations } from "@/lib/i18n/context";
+import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, queryKeys } from "@/lib/query-keys";
+import type { DocumentListParams } from "@/lib/query-keys/documents";
 import {
+  DOCUMENT_LIST_SORTS,
   INBOUND_DOCUMENT_KINDS,
   type ConditionFactData,
+  type DocumentListSort,
   type ExtractedFactDto,
   type InboundDocumentDetailDto,
   type InboundDocumentDto,
@@ -41,28 +83,110 @@ import {
   type MedicationStatementFactData,
   type ObservationFactData,
 } from "@/lib/validations/inbound-documents";
+import {
+  buildDocumentListSearch,
+  classifyUploadError,
+  confirmFailureReasonKey,
+  formatDateGroupLabel,
+  groupDocumentsByDate,
+  isAlreadyConfirmedError,
+  isLocalOcrDisabledError,
+  isProviderUnsupportedError,
+  MAX_UPLOAD_BYTES,
+} from "./library-utils";
 
-type ListResponse = { documents: InboundDocumentDto[] };
+type ListResponse = {
+  documents: InboundDocumentDto[];
+  nextCursor: string | null;
+};
+/** Shape the confirm route returns (HTTP 200) — `failed[]` carries per-fact
+ *  commit misses the client must surface, not silently swallow. */
+type ConfirmResponse = {
+  approved: { factId: string; recordType: string; recordId: string }[];
+  rejected: string[];
+  needsReview: string[];
+  failed: { factId: string; reason: string }[];
+};
 type Decision = "approve" | "reject";
 
 export function InboundDocumentsView() {
   const { t } = useTranslations();
+  const format = useFormatters();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [kind, setKind] = useState<InboundDocumentKindValue>("DOCTOR_REPORT");
+
+  // Upload form metadata (filed with the document immediately).
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadKind, setUploadKind] =
+    useState<InboundDocumentKindValue>("DOCTOR_REPORT");
+  const [uploadDate, setUploadDate] = useState("");
+  // Tracks whether a file is staged in the (uncontrolled) file input so the
+  // upload button can stay disabled until there's something to upload.
+  const [hasFile, setHasFile] = useState(false);
+
+  // Library toolbar state.
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [kindFilter, setKindFilter] = useState<"" | InboundDocumentKindValue>(
+    "",
+  );
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [sort, setSort] = useState<DocumentListSort>("documentDate");
+  const [order, setOrder] = useState<"asc" | "desc">("desc");
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const list = useQuery({
-    queryKey: queryKeys.inboundDocuments(),
-    queryFn: () =>
-      apiFetch<ListResponse>("/api/documents/inbound", { method: "GET" }),
+  // Debounce the search box so a query fires per pause, not per keystroke.
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedQ(q), 300);
+    return () => clearTimeout(handle);
+  }, [q]);
+
+  const filters: DocumentListParams = {
+    q: debouncedQ.trim() || undefined,
+    kind: kindFilter || undefined,
+    from: fromDate || undefined,
+    to: toDate || undefined,
+    sort,
+    order,
+  };
+
+  const list = useInfiniteQuery({
+    queryKey: queryKeys.inboundDocumentList(filters),
+    queryFn: ({ pageParam }) =>
+      apiFetch<ListResponse>(
+        `/api/documents/inbound?${buildDocumentListSearch(filters, pageParam)}`,
+        { method: "GET" },
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
+
+  const documents = list.data?.pages.flatMap((p) => p.documents) ?? [];
+  const groups = groupDocumentsByDate(documents);
+  const isFiltered = Boolean(
+    filters.q || filters.kind || filters.from || filters.to,
+  );
+
+  // Reset search + every filter to the default view. Used by the no-results
+  // "Clear filters" affordance and after an upload (so the just-stored document
+  // is in the list the detail panel opens against).
+  const clearFilters = () => {
+    setQ("");
+    setDebouncedQ("");
+    setKindFilter("");
+    setFromDate("");
+    setToDate("");
+  };
 
   const upload = useMutation({
     mutationFn: async (file: File) => {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("kind", kind);
+      fd.append("kind", uploadKind);
+      if (uploadTitle.trim()) fd.append("title", uploadTitle.trim());
+      if (uploadDate) fd.append("documentDate", uploadDate);
       return apiFetch<InboundDocumentDto>("/api/documents/inbound", {
         method: "POST",
         body: fd,
@@ -71,11 +195,41 @@ export function InboundDocumentsView() {
     },
     onSuccess: (doc) => {
       toast.success(t("documents.toast.uploaded"));
+      // Drop any active filter / search so the just-stored document is in the
+      // list — otherwise selecting it opens a detail panel for a row the current
+      // filter excludes, and the user lands on a dead end. Sort by date-added
+      // (createdAt) desc, NOT documentDate: a user-set past documentDate would
+      // otherwise file the fresh upload deep in the list, off page 1, where the
+      // detail panel never renders. The newest upload always has the newest
+      // createdAt, so this guarantees it lands first and its panel opens.
+      clearFilters();
+      setSort("createdAt");
+      setOrder("desc");
       void invalidateKeys(queryClient, [queryKeys.documents()]);
       setSelectedId(doc.id);
+      setUploadTitle("");
+      setUploadDate("");
+      setHasFile(false);
       if (fileRef.current) fileRef.current.value = "";
     },
-    onError: () => toast.error(t("documents.toast.uploadFailed")),
+    onError: (error) => {
+      switch (classifyUploadError(error)) {
+        case "tooLarge":
+          toast.error(t("documents.toast.uploadTooLarge"));
+          break;
+        case "fileType":
+          toast.error(t("documents.toast.uploadFileType"));
+          break;
+        case "rateLimited":
+          toast.error(t("documents.toast.uploadRateLimited"));
+          break;
+        case "invalidMetadata":
+          toast.error(t("documents.toast.uploadInvalidMetadata"));
+          break;
+        default:
+          toast.error(t("documents.toast.uploadFailed"));
+      }
+    },
   });
 
   return (
@@ -90,139 +244,384 @@ export function InboundDocumentsView() {
         </div>
       </header>
 
-      {/* Non-diagnostic disclaimer — most prominent, always visible. */}
-      <Card className="border-amber-300 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30">
-        <CardHeader className="flex-row items-start gap-3 space-y-0">
-          <AlertTriangle
-            className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
-            aria-hidden
-          />
-          <div>
-            <CardTitle className="text-base">
-              {t("documents.disclaimer.title")}
-            </CardTitle>
-            <CardDescription className="text-amber-900/80 dark:text-amber-200/80">
-              {t("documents.disclaimer.body")}
-            </CardDescription>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Upload */}
+      {/* Upload — store-only, always available. */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
             {t("documents.upload.label")}
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="doc-kind">{t("documents.upload.kindLabel")}</Label>
-            <NativeSelect
-              id="doc-kind"
-              value={kind}
-              onChange={(e) =>
-                setKind(e.target.value as InboundDocumentKindValue)
-              }
-            >
-              {INBOUND_DOCUMENT_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {t(`documents.kind.${k}`)}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-          <Input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,application/pdf"
-            className="max-w-xs"
-            aria-label={t("documents.upload.fileLabel")}
-            disabled={upload.isPending}
-          />
-          <Button
-            onClick={() => {
-              const file = fileRef.current?.files?.[0];
-              if (file) upload.mutate(file);
-            }}
-            disabled={upload.isPending}
-          >
-            {upload.isPending ? (
-              <Loader2
-                className="h-4 w-4 animate-spin motion-reduce:animate-none"
-                aria-hidden
+        <CardContent className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* The one required field goes first and full-width, with the
+                accepted formats + size ceiling beside it (so the limit is known
+                before an upload fails). */}
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor="doc-file">
+                {t("documents.upload.fileLabel")}
+              </Label>
+              <Input
+                id="doc-file"
+                ref={fileRef}
+                type="file"
+                required
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                aria-describedby="doc-file-hint"
+                disabled={upload.isPending}
+                onChange={(e) => setHasFile(Boolean(e.target.files?.length))}
               />
-            ) : (
-              <Upload className="h-4 w-4" aria-hidden />
-            )}
-            {upload.isPending
-              ? t("documents.upload.uploading")
-              : t("documents.upload.button")}
-          </Button>
+              <p id="doc-file-hint" className="text-muted-foreground text-xs">
+                {t("documents.upload.accepts")}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="doc-title">
+                {t("documents.upload.titleLabel")}
+              </Label>
+              <Input
+                id="doc-title"
+                value={uploadTitle}
+                onChange={(e) => setUploadTitle(e.target.value)}
+                placeholder={t("documents.upload.titlePlaceholder")}
+                disabled={upload.isPending}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="doc-kind">
+                {t("documents.upload.kindLabel")}
+              </Label>
+              <NativeSelect
+                id="doc-kind"
+                value={uploadKind}
+                onChange={(e) =>
+                  setUploadKind(e.target.value as InboundDocumentKindValue)
+                }
+                disabled={upload.isPending}
+              >
+                {INBOUND_DOCUMENT_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {t(`documents.kind.${k}`)}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="doc-date">
+                {t("documents.upload.dateLabel")}
+              </Label>
+              <Input
+                id="doc-date"
+                type="date"
+                value={uploadDate}
+                onChange={(e) => setUploadDate(e.target.value)}
+                disabled={upload.isPending}
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => {
+                const file = fileRef.current?.files?.[0];
+                if (!file) return;
+                // Reject an oversized file before it is sent, so the user gets
+                // the size message immediately instead of after a full upload.
+                if (file.size > MAX_UPLOAD_BYTES) {
+                  toast.error(t("documents.toast.uploadTooLarge"));
+                  return;
+                }
+                upload.mutate(file);
+              }}
+              disabled={upload.isPending || !hasFile}
+            >
+              {upload.isPending ? (
+                <Loader2
+                  className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                  aria-hidden
+                />
+              ) : (
+                <Upload className="h-4 w-4" aria-hidden />
+              )}
+              {upload.isPending
+                ? t("documents.upload.uploading")
+                : t("documents.upload.button")}
+            </Button>
+            {!hasFile && !upload.isPending ? (
+              <p className="text-muted-foreground text-sm">
+                {t("documents.upload.fileRequired")}
+              </p>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Document list */}
-      <section className="flex flex-col gap-2">
+      {/* Toolbar — search / category filter / sort. */}
+      <div
+        className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-end"
+        data-slot="documents-toolbar"
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <Label htmlFor="doc-search">
+            {t("documents.toolbar.searchLabel")}
+          </Label>
+          <div className="relative">
+            <Search
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+              aria-hidden
+            />
+            <Input
+              id="doc-search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("documents.toolbar.searchPlaceholder")}
+              className="pl-8"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="doc-kind-filter">
+            {t("documents.toolbar.kindFilterLabel")}
+          </Label>
+          <NativeSelect
+            id="doc-kind-filter"
+            value={kindFilter}
+            onChange={(e) =>
+              setKindFilter(e.target.value as "" | InboundDocumentKindValue)
+            }
+          >
+            <option value="">{t("documents.toolbar.allKinds")}</option>
+            {INBOUND_DOCUMENT_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {t(`documents.kind.${k}`)}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="doc-from">{t("documents.toolbar.fromLabel")}</Label>
+          <Input
+            id="doc-from"
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(e) => setFromDate(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="doc-to">{t("documents.toolbar.toLabel")}</Label>
+          <Input
+            id="doc-to"
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(e) => setToDate(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="doc-sort">{t("documents.toolbar.sortLabel")}</Label>
+          <div className="flex items-center gap-1">
+            <NativeSelect
+              id="doc-sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as DocumentListSort)}
+            >
+              {DOCUMENT_LIST_SORTS.map((s) => (
+                <option key={s} value={s}>
+                  {t(`documents.toolbar.sort.${s}`)}
+                </option>
+              ))}
+            </NativeSelect>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t(
+                order === "asc"
+                  ? "documents.toolbar.orderAsc"
+                  : "documents.toolbar.orderDesc",
+              )}
+              onClick={() => setOrder((o) => (o === "asc" ? "desc" : "asc"))}
+            >
+              {order === "asc" ? (
+                <ArrowUpAZ className="h-4 w-4" aria-hidden />
+              ) : (
+                <ArrowDownAZ className="h-4 w-4" aria-hidden />
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Library list — grouped by date, keyset-paginated. */}
+      <section className="flex flex-col gap-4" data-slot="documents-library">
         {list.isLoading ? (
           // Skeleton rows (not a centered spinner) so the resolved list lands
           // in place without a layout jump — the app's loading convention.
-          <>
+          <div className="flex flex-col gap-2" data-slot="documents-loading">
             {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className="h-10 w-full rounded-md" />
+              <Skeleton key={i} className="h-12 w-full rounded-md" />
             ))}
-          </>
-        ) : !list.data || list.data.documents.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("documents.list.empty")}
-          </p>
-        ) : (
-          list.data.documents.map((doc) => (
-            <button
-              key={doc.id}
+          </div>
+        ) : list.isError ? (
+          // A failed list load is its own state with a retry — never the
+          // "no documents yet" empty state, which would falsely imply the
+          // library is empty.
+          <div
+            role="alert"
+            data-slot="documents-list-error"
+            className="text-muted-foreground flex flex-col items-start gap-3 py-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span>{t("documents.list.loadError")}</span>
+            <Button
               type="button"
-              aria-expanded={selectedId === doc.id}
-              onClick={() =>
-                setSelectedId(selectedId === doc.id ? null : doc.id)
-              }
-              className="hover:bg-accent flex min-h-11 items-center justify-between rounded-md border px-3 py-2 text-left text-sm"
+              size="sm"
+              variant="outline"
+              onClick={() => void list.refetch()}
+              className="gap-1.5"
             >
-              <span className="truncate">
-                {doc.filename ?? t(`documents.kind.${doc.kind}`)}
-              </span>
-              <span className="flex items-center gap-2">
-                <Badge variant="secondary">
-                  {t(`documents.status.${doc.status}`)}
-                </Badge>
-                {doc.pendingCount > 0 ? (
-                  <Badge variant="outline">{doc.pendingCount}</Badge>
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              <span>{t("common.retry")}</span>
+            </Button>
+          </div>
+        ) : documents.length === 0 ? (
+          isFiltered ? (
+            <div
+              className="flex flex-col items-start gap-2"
+              data-slot="documents-no-results"
+            >
+              <p className="text-muted-foreground text-sm">
+                {t("documents.list.noResults")}
+              </p>
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                {t("documents.list.clearFilters")}
+              </Button>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t("documents.list.empty")}
+            </p>
+          )
+        ) : (
+          <>
+            {groups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-2">
+                <h2
+                  className="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+                  data-slot="documents-date-group"
+                >
+                  {formatDateGroupLabel(group.key, format.date)}
+                </h2>
+                {group.documents.map((doc) => {
+                  const expanded = selectedId === doc.id;
+                  // Shared id ties the row's aria-controls to the detail
+                  // region so screen readers know the row owns the panel; the
+                  // panel renders directly after its row for correct order.
+                  const detailId = `documents-detail-${doc.id}`;
+                  return (
+                    <Fragment key={doc.id}>
+                      <DocumentRow
+                        doc={doc}
+                        expanded={expanded}
+                        regionId={detailId}
+                        onToggle={() => setSelectedId(expanded ? null : doc.id)}
+                      />
+                      {expanded ? (
+                        <DocumentDetail
+                          regionId={detailId}
+                          documentId={doc.id}
+                          onClosed={() => setSelectedId(null)}
+                        />
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </div>
+            ))}
+
+            {list.hasNextPage ? (
+              <Button
+                variant="outline"
+                onClick={() => void list.fetchNextPage()}
+                disabled={list.isFetchingNextPage}
+              >
+                {list.isFetchingNextPage ? (
+                  <Loader2
+                    className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                    aria-hidden
+                  />
                 ) : null}
-              </span>
-            </button>
-          ))
+                {list.isFetchingNextPage
+                  ? t("documents.list.loadingMore")
+                  : t("documents.list.loadMore")}
+              </Button>
+            ) : null}
+          </>
         )}
       </section>
-
-      {selectedId ? (
-        <DocumentReview
-          documentId={selectedId}
-          onClosed={() => setSelectedId(null)}
-        />
-      ) : null}
     </div>
   );
 }
 
-function DocumentReview({
+/** A single library row — title (or filename), kind + status badges, counts. */
+function DocumentRow({
+  doc,
+  expanded,
+  regionId,
+  onToggle,
+}: {
+  doc: InboundDocumentDto;
+  expanded: boolean;
+  regionId: string;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslations();
+  const display = doc.title ?? doc.filename ?? t(`documents.kind.${doc.kind}`);
+
+  return (
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-controls={regionId}
+      onClick={onToggle}
+      data-slot="documents-row"
+      className="hover:bg-accent flex min-h-12 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm"
+    >
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate font-medium">{display}</span>
+        <span className="flex items-center gap-1.5">
+          <Badge variant="outline" className="text-xs">
+            {t(`documents.kind.${doc.kind}`)}
+          </Badge>
+          <Badge variant="secondary" className="text-xs">
+            {t(`documents.status.${doc.status}`)}
+          </Badge>
+        </span>
+      </span>
+      {doc.pendingCount > 0 ? (
+        <Badge variant="outline" className="shrink-0">
+          {t("documents.list.pending", { count: doc.pendingCount })}
+        </Badge>
+      ) : doc.factCount > 0 ? (
+        <Badge variant="secondary" className="shrink-0">
+          {t("documents.list.facts", { count: doc.factCount })}
+        </Badge>
+      ) : null}
+    </button>
+  );
+}
+
+export function DocumentDetail({
   documentId,
   onClosed,
+  regionId,
 }: {
   documentId: string;
   onClosed: () => void;
+  regionId?: string;
 }) {
   const { t } = useTranslations();
+  const format = useFormatters();
   const queryClient = useQueryClient();
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
+  const [editOpen, setEditOpen] = useState(false);
 
   const detail = useQuery({
     queryKey: queryKeys.inboundDocument(documentId),
@@ -233,16 +632,56 @@ function DocumentReview({
       ),
   });
 
-  const confirm = useMutation({
+  const extract = useMutation({
+    // Empty body → vision mode over the stored original.
     mutationFn: () =>
-      apiPost(`/api/documents/inbound/${documentId}/confirm`, {
+      apiPost(`/api/documents/inbound/${documentId}/extract`, undefined),
+    onSuccess: () => {
+      toast.success(t("documents.toast.extracted"));
+      void invalidateKeys(queryClient, [queryKeys.documents()]);
+    },
+    onError: (err) => {
+      // A missing provider — or a document already confirmed elsewhere — is not
+      // an error the user acts on here. Surface the calm inline note (rendered
+      // below) instead of an alarming toast.
+      if (isProviderUnsupportedError(err) || isAlreadyConfirmedError(err)) {
+        return;
+      }
+      // Local OCR switched off in settings: name the cause rather than the
+      // generic "couldn't extract".
+      if (isLocalOcrDisabledError(err)) {
+        toast.error(t("documents.toast.localOcrDisabled"));
+        return;
+      }
+      toast.error(t("documents.toast.extractFailed"));
+    },
+  });
+
+  const confirm = useMutation({
+    mutationFn: (): Promise<ConfirmResponse> =>
+      apiPost<ConfirmResponse>(`/api/documents/inbound/${documentId}/confirm`, {
         decisions: Object.entries(decisions).map(([factId, action]) => ({
           factId,
           action,
         })),
       }),
-    onSuccess: () => {
-      toast.success(t("documents.toast.confirmed"));
+    onSuccess: (data) => {
+      // The route returns HTTP 200 even when it rejects a fact into `failed[]`
+      // (e.g. a stated unit that disagrees with the saved marker). A green
+      // "saved" toast would lie — the fact stays PENDING. Surface the count +
+      // reason so the user knows to reconcile it, and only show the plain
+      // success when nothing failed.
+      const failed = data.failed ?? [];
+      if (failed.length > 0) {
+        toast.warning(
+          t("documents.toast.confirmedPartial", {
+            count: failed.length,
+            reason: t(confirmFailureReasonKey(failed)),
+          }),
+        );
+      } else {
+        toast.success(t("documents.toast.confirmed"));
+      }
       setDecisions({});
       void invalidateKeys(queryClient, [queryKeys.documents()]);
     },
@@ -256,6 +695,7 @@ function DocumentReview({
       void invalidateKeys(queryClient, [queryKeys.documents()]);
       onClosed();
     },
+    onError: () => toast.error(t("documents.toast.discardFailed")),
   });
 
   if (detail.isLoading) {
@@ -274,50 +714,141 @@ function DocumentReview({
   }
   if (!detail.data) return null;
 
-  const pending = detail.data.facts.filter((f) => f.status === "PENDING");
+  const doc = detail.data;
+  const pending = doc.facts.filter((f) => f.status === "PENDING");
+  // Facts already approved from this document and pushed to the structured
+  // stores — surfaced read-only below so the document ↔ committed-record link
+  // stays visible after review (instead of the panel going blank).
+  const approved = doc.facts.filter((f) => f.status === "APPROVED");
   const decidedCount = Object.keys(decisions).length;
+  // Mirror the backend's hard guard: extraction is gone once the document is
+  // confirmed OR any fact on it has already been approved (re-extracting would
+  // clash with facts already committed to the structured stores).
+  const hasApprovedFact = doc.facts.some((f) => f.status === "APPROVED");
+  const canExtract = doc.status !== "CONFIRMED" && !hasApprovedFact;
+  const showProviderNote = isProviderUnsupportedError(extract.error);
+  const showAlreadyConfirmedNote = isAlreadyConfirmedError(extract.error);
+  const detailTitle =
+    doc.title ?? doc.filename ?? t(`documents.kind.${doc.kind}`);
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base">
-          {t("documents.review.title")}
-        </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => discard.mutate()}
-          disabled={discard.isPending}
-        >
-          {t("documents.review.discard")}
-        </Button>
+    <Card id={regionId} data-slot="documents-detail">
+      <CardHeader className="flex-col items-start gap-2 space-y-0">
+        <CardTitle className="text-base">{detailTitle}</CardTitle>
+        <div className="flex flex-wrap items-center gap-1">
+          <Button asChild variant="ghost" size="sm">
+            {/* Same-origin, cookie-authenticated: a new tab carries the
+                session; a PDF / image renders inline, other types download. */}
+            <a
+              href={`/api/documents/inbound/${documentId}/original`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="h-4 w-4" aria-hidden />
+              {t("documents.detail.viewOriginal")}
+              <span className="sr-only">
+                {" "}
+                {t("documents.detail.viewOriginalNewTab")}
+              </span>
+            </a>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditOpen(true)}
+            data-slot="documents-edit-trigger"
+          >
+            <Pencil className="h-4 w-4" aria-hidden />
+            {t("documents.detail.edit")}
+          </Button>
+          {canExtract ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => extract.mutate()}
+              disabled={extract.isPending}
+              data-slot="documents-extract"
+            >
+              {extract.isPending ? (
+                <Loader2
+                  className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                  aria-hidden
+                />
+              ) : (
+                <Sparkles className="h-4 w-4" aria-hidden />
+              )}
+              {extract.isPending
+                ? t("documents.detail.extracting")
+                : t("documents.detail.extract")}
+            </Button>
+          ) : null}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={discard.isPending}
+                data-slot="documents-discard-trigger"
+              >
+                {discard.isPending ? (
+                  <Loader2
+                    className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                    aria-hidden
+                  />
+                ) : null}
+                {t("documents.detail.discard")}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("documents.detail.discardConfirmTitle")}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("documents.detail.discardConfirmBody")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>
+                  {t("documents.detail.discardCancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={discard.isPending}
+                  aria-busy={discard.isPending || undefined}
+                  onClick={() => discard.mutate()}
+                >
+                  {t("documents.detail.discardConfirmAction")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {pending.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("documents.empty.noFacts")}
-          </p>
-        ) : (
-          pending.map((fact) => (
-            <FactCard
-              key={fact.id}
-              documentId={documentId}
-              fact={fact}
-              decision={decisions[fact.id]}
-              onDecision={(d) =>
-                setDecisions((prev) => {
-                  const next = { ...prev };
-                  if (d === null) delete next[fact.id];
-                  else next[fact.id] = d;
-                  return next;
-                })
-              }
-            />
-          ))
-        )}
+        {showProviderNote ? <ProviderUnsupportedNote /> : null}
+        {showAlreadyConfirmedNote ? <AlreadyConfirmedNote /> : null}
 
         {pending.length > 0 ? (
           <>
+            <p className="text-muted-foreground text-sm">
+              {t("documents.review.title")}
+            </p>
+            {pending.map((fact) => (
+              <FactCard
+                key={fact.id}
+                documentId={documentId}
+                fact={fact}
+                decision={decisions[fact.id]}
+                onDecision={(d) =>
+                  setDecisions((prev) => {
+                    const next = { ...prev };
+                    if (d === null) delete next[fact.id];
+                    else next[fact.id] = d;
+                    return next;
+                  })
+                }
+              />
+            ))}
             <Separator />
             <Button
               onClick={() => confirm.mutate()}
@@ -328,9 +859,172 @@ function DocumentReview({
                 : t("documents.review.confirm")}
             </Button>
           </>
+        ) : approved.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            {doc.factCount > 0
+              ? t("documents.empty.noFacts")
+              : t("documents.detail.notExtracted")}
+          </p>
+        ) : null}
+
+        {approved.length > 0 ? (
+          <div className="flex flex-col gap-2" data-slot="documents-committed">
+            <Separator />
+            <p className="text-muted-foreground text-sm">
+              {t("documents.committed.title")}
+            </p>
+            <ul className="flex flex-col gap-1">
+              {approved.map((fact) => {
+                const when = factDate(fact);
+                return (
+                  <li
+                    key={fact.id}
+                    className="text-muted-foreground truncate text-sm"
+                  >
+                    {factSummary(fact)}
+                    {when ? ` · ${format.date(`${when}T12:00:00.000Z`)}` : ""}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         ) : null}
       </CardContent>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("documents.edit.title")}</DialogTitle>
+            <DialogDescription>
+              {t("documents.edit.subtitle")}
+            </DialogDescription>
+          </DialogHeader>
+          <DocumentMetaEditForm
+            doc={doc}
+            onSaved={() => setEditOpen(false)}
+            onCancel={() => setEditOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </Card>
+  );
+}
+
+/**
+ * A calm inline note. Carries `role="status"` + `aria-live="polite"` so that
+ * keyboard / screen-reader users hear it when it appears — these notes stand in
+ * for a toast that the mutation deliberately suppresses.
+ */
+function InlineNote({ slot, children }: { slot: string; children: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-start gap-2 rounded-md border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200"
+      data-slot={slot}
+    >
+      <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+      <p>{children}</p>
+    </div>
+  );
+}
+
+/** The calm inline note shown when extraction needs a provider that's absent. */
+export function ProviderUnsupportedNote() {
+  const { t } = useTranslations();
+  return (
+    <InlineNote slot="documents-provider-note">
+      {t("documents.note.providerUnsupported")}
+    </InlineNote>
+  );
+}
+
+/** Calm inline note when extraction is refused — the document is confirmed. */
+export function AlreadyConfirmedNote() {
+  const { t } = useTranslations();
+  return (
+    <InlineNote slot="documents-already-confirmed-note">
+      {t("documents.note.alreadyConfirmed")}
+    </InlineNote>
+  );
+}
+
+/** Metadata edit (rename / recategorise / set the filing date). PATCHes. */
+export function DocumentMetaEditForm({
+  doc,
+  onSaved,
+  onCancel,
+}: {
+  doc: InboundDocumentDto;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslations();
+  const queryClient = useQueryClient();
+  const [title, setTitle] = useState(doc.title ?? "");
+  const [kind, setKind] = useState<InboundDocumentKindValue>(doc.kind);
+  const [date, setDate] = useState(doc.documentDate ?? "");
+
+  const save = useMutation({
+    mutationFn: () =>
+      apiPatch(`/api/documents/inbound/${doc.id}`, {
+        title: title.trim() === "" ? null : title.trim(),
+        kind,
+        documentDate: date === "" ? null : date,
+      }),
+    onSuccess: () => {
+      toast.success(t("documents.toast.updated"));
+      void invalidateKeys(queryClient, [queryKeys.documents()]);
+      onSaved();
+    },
+    onError: () => toast.error(t("documents.toast.updateFailed")),
+  });
+
+  return (
+    <div className="flex flex-col gap-3" data-slot="documents-edit-form">
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="edit-doc-title">{t("documents.edit.titleLabel")}</Label>
+        <Input
+          id="edit-doc-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={t("documents.upload.titlePlaceholder")}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="edit-doc-kind">{t("documents.edit.kindLabel")}</Label>
+        <NativeSelect
+          id="edit-doc-kind"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as InboundDocumentKindValue)}
+        >
+          {INBOUND_DOCUMENT_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {t(`documents.kind.${k}`)}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="edit-doc-date">{t("documents.edit.dateLabel")}</Label>
+        <Input
+          id="edit-doc-date"
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
+      </div>
+      <DialogFooter>
+        <Button variant="ghost" onClick={onCancel} disabled={save.isPending}>
+          {t("documents.edit.cancel")}
+        </Button>
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending
+            ? t("documents.edit.saving")
+            : t("documents.edit.save")}
+        </Button>
+      </DialogFooter>
+    </div>
   );
 }
 
@@ -346,6 +1040,7 @@ function FactCard({
   onDecision: (d: Decision | null) => void;
 }) {
   const { t } = useTranslations();
+  const format = useFormatters();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
 
@@ -368,28 +1063,42 @@ function FactCard({
     <div className="rounded-md border p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">
               {t(`documents.factType.${fact.factType}`)}
             </Badge>
             {fact.needsReview ? (
-              // Calm warning (amber), not an alarming destructive red — a
-              // low-confidence fact is a "please check", not an error.
+              // A calm, neutral "please check" — not an alarming red, and not
+              // amber (the app is moving away from amber warning tints). A
+              // low-confidence fact is a gentle nudge to review, not an error.
               <Badge
                 variant="outline"
-                className="border-amber-400 text-amber-700 dark:border-amber-900/60 dark:text-amber-400"
+                className="border-foreground/25 text-muted-foreground"
               >
                 {t("documents.review.needsReview")}
               </Badge>
             ) : null}
-            <span className="text-muted-foreground text-xs">
-              {Math.round(fact.confidence * 100)}%
+            <span
+              className="text-muted-foreground text-xs"
+              title={t("documents.review.confidenceLabel")}
+            >
+              <span className="sr-only">
+                {t("documents.review.confidenceLabel")}:{" "}
+              </span>
+              {format.percent(fact.confidence)}
             </span>
           </div>
           <p className="mt-1 truncate text-sm font-medium">{summary}</p>
           {fact.provenance.sourceText ? (
             <p className="text-muted-foreground mt-1 line-clamp-2 text-xs italic">
               “{fact.provenance.sourceText}”
+            </p>
+          ) : null}
+          {fact.needsReview ? (
+            // Ties the disabled Approve button to the "Needs review" badge: a
+            // low-confidence fact must be edited before it can be approved.
+            <p className="text-muted-foreground mt-1 text-xs">
+              {t("documents.review.needsReviewHint")}
             </p>
           ) : null}
         </div>
@@ -399,6 +1108,11 @@ function FactCard({
             size="sm"
             className="min-h-11 sm:min-h-9"
             disabled={fact.needsReview}
+            title={
+              fact.needsReview
+                ? t("documents.review.needsReviewHint")
+                : undefined
+            }
             onClick={() =>
               onDecision(decision === "approve" ? null : "approve")
             }
@@ -453,6 +1167,7 @@ function FactEditForm({
     const d = fact.data as ConditionFactData;
     return (
       <EditFields
+        idPrefix={fact.id}
         pending={pending}
         fields={[
           { key: "label", label: t("documents.fields.label"), value: d.label },
@@ -472,6 +1187,7 @@ function FactEditForm({
     const d = fact.data as ObservationFactData;
     return (
       <EditFields
+        idPrefix={fact.id}
         pending={pending}
         fields={[
           { key: "label", label: t("documents.fields.label"), value: d.label },
@@ -505,6 +1221,7 @@ function FactEditForm({
   const d = fact.data as MedicationStatementFactData;
   return (
     <EditFields
+      idPrefix={fact.id}
       pending={pending}
       fields={[
         { key: "name", label: t("documents.fields.label"), value: d.name },
@@ -524,11 +1241,15 @@ function FactEditForm({
 }
 
 function EditFields({
+  idPrefix,
   fields,
   dateValue,
   pending,
   onSubmit,
 }: {
+  // Per-fact id namespace so simultaneously-open editors never share DOM ids
+  // (which would break every label's htmlFor → focus association).
+  idPrefix: string;
   fields: { key: string; label: string; value: string }[];
   dateValue: string | null;
   pending: boolean;
@@ -544,11 +1265,11 @@ function EditFields({
     <div className="mt-2 flex flex-col gap-2 border-t pt-2">
       {fields.map((f) => (
         <div key={f.key} className="flex flex-col gap-1">
-          <Label htmlFor={`edit-${f.key}`} className="text-xs">
+          <Label htmlFor={`edit-${idPrefix}-${f.key}`} className="text-xs">
             {f.label}
           </Label>
           <Input
-            id={`edit-${f.key}`}
+            id={`edit-${idPrefix}-${f.key}`}
             value={vals[f.key] ?? ""}
             onChange={(e) =>
               setVals((p) => ({ ...p, [f.key]: e.target.value }))
@@ -557,11 +1278,11 @@ function EditFields({
         </div>
       ))}
       <div className="flex flex-col gap-1">
-        <Label htmlFor="edit-date" className="text-xs">
+        <Label htmlFor={`edit-${idPrefix}-date`} className="text-xs">
           {t("documents.fields.date")}
         </Label>
         <Input
-          id="edit-date"
+          id={`edit-${idPrefix}-date`}
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
@@ -595,4 +1316,15 @@ function factSummary(fact: ExtractedFactDto): string {
   }
   const d = fact.data as ConditionFactData;
   return d.label;
+}
+
+/** The effective / onset date a staged fact carries, if any (YYYY-MM-DD). */
+function factDate(fact: ExtractedFactDto): string | null {
+  if (fact.factType === "CONDITION") {
+    return (fact.data as ConditionFactData).onsetDate;
+  }
+  if (fact.factType === "OBSERVATION") {
+    return (fact.data as ObservationFactData).effectiveDate;
+  }
+  return (fact.data as MedicationStatementFactData).effectiveDate;
 }

@@ -108,16 +108,26 @@ describe("<HeroStrip>", () => {
     // v1.22 — the hero freshness line now uses `formatUpdatedLabel` for parity
     // with the briefing + per-metric cards: a same-day timestamp reads
     // "Updated today, HH:MM" rather than the old relative "Generated … ago".
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
-    const html = render(
-      <HeroStrip
-        briefing={null}
-        updatedAt={fiveMinutesAgo}
-        now={morningLocal}
-      />,
-    );
-    expect(html).toMatch(/data-slot="insights-hero-strip-generated"/);
-    expect(html).toContain("Updated today");
+    // `formatUpdatedLabel` derives "today" from the real clock, so freeze it to a
+    // fixed instant and base `updatedAt` on the same instant — otherwise a run
+    // that straddles local midnight reads the five-minutes-ago stamp as
+    // "yesterday".
+    vi.useFakeTimers();
+    vi.setSystemTime(morningLocal);
+    try {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+      const html = render(
+        <HeroStrip
+          briefing={null}
+          updatedAt={fiveMinutesAgo}
+          now={morningLocal}
+        />,
+      );
+      expect(html).toMatch(/data-slot="insights-hero-strip-generated"/);
+      expect(html).toContain("Updated today");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does NOT render the generated caption when updatedAt is missing", () => {

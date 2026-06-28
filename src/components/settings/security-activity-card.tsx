@@ -8,14 +8,15 @@
  * shared `GET /api/auth/me/security-activity` endpoint. Each row shows a
  * readable action label, the resolved location, the masked IP, and the time.
  */
+import { useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { ChevronDown, Loader2, ShieldCheck } from "lucide-react";
 
 import { SettingsCard } from "@/components/settings/settings-card";
-import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
+import { cn } from "@/lib/utils";
 
 interface ActivityRow {
   action: string;
@@ -53,6 +54,10 @@ export function SecurityActivityCard({
   isAuthenticated: boolean;
 }) {
   const { t } = useTranslations();
+  // Collapsed by default — the feed opens only on demand, keeping the security
+  // surface skimmable. UI-only state; nothing is persisted across reloads.
+  const [open, setOpen] = useState(false);
+  const regionId = useId();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.securityActivity(),
@@ -65,12 +70,32 @@ export function SecurityActivityCard({
 
   return (
     <SettingsCard data-slot="settings-security-activity-card">
-      <SettingsCardHeader
-        icon={ShieldCheck}
-        title={t("settings.security.activityTitle")}
-        className="mb-4"
-      />
-      <div className="space-y-4 pl-7">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={regionId}
+        data-slot="settings-security-activity-toggle"
+        className="hover:bg-muted/40 focus-visible:ring-ring/50 -m-2 mb-2 flex w-full items-start gap-2 rounded-md p-2 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      >
+        <ShieldCheck
+          className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0"
+          aria-hidden="true"
+        />
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">
+            {t("settings.security.activityTitle")}
+          </h2>
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              "text-muted-foreground h-4 w-4 shrink-0 transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        </div>
+      </button>
+      <div id={regionId} hidden={!open} className="space-y-4 pl-7">
         <p className="text-muted-foreground text-xs">
           {t("settings.security.activityDescription")}
         </p>

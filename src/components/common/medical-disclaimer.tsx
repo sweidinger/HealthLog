@@ -15,35 +15,15 @@ import { useTranslations } from "@/lib/i18n/context";
  * The copy lives under the `selfDescription` i18n namespace so every locale
  * carries the same set; pick the note that fits the surface:
  *
- * - `intendedPurpose` — the canonical "what this is / is not, not a medical
- *   device" line. Reuse verbatim; do not paraphrase per surface.
- * - `coach` — the Coach standing line (works from your data, not a doctor).
- * - `insights` — descriptive-patterns framing for insights + the briefing.
- * - `labs` — your own records, ranges vary, only a clinician interprets.
- * - `medications` — tracks what you log, not dosing/interaction advice.
- * - `emergency` — the red-flag interstitial note (contact emergency services).
  * - `dataPosture` — self-hosted, data stays on your instance, BYOK / local AI.
  *
  * The acknowledged onboarding disclaimer (`onboarding.disclaimer.*`) and the
  * legal medical-device boundary on the public privacy page remain the standing
- * floor; these notes are the gentle, in-context layer above it.
+ * floor; this note is the gentle, in-context layer above it.
  */
-export type DisclaimerVariant =
-  | "intendedPurpose"
-  | "coach"
-  | "insights"
-  | "labs"
-  | "medications"
-  | "emergency"
-  | "dataPosture";
+export type DisclaimerVariant = "dataPosture";
 
 const VARIANT_KEY: Record<DisclaimerVariant, string> = {
-  intendedPurpose: "selfDescription.intendedPurpose",
-  coach: "selfDescription.coach",
-  insights: "selfDescription.insights",
-  labs: "selfDescription.labs",
-  medications: "selfDescription.medications",
-  emergency: "selfDescription.emergency",
   dataPosture: "selfDescription.dataPosture",
 };
 
