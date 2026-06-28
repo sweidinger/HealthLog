@@ -6358,6 +6358,11 @@
       "label": "Phrase secrète",
       "error": "Cette phrase secrète est incorrecte.",
       "submit": "Déverrouiller"
+    },
+    "loadError": {
+      "title": "Impossible de charger cette vue partagée",
+      "description": "Une erreur s'est produite lors de l'ouverture de ce dossier de santé partagé. Le lien a peut-être expiré, ou un problème temporaire est survenu. Réessayez ou demandez un nouveau lien à la personne qui l'a partagé.",
+      "retry": "Réessayer"
     }
   },
   "cycle": {

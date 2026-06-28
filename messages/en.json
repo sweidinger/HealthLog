@@ -6358,6 +6358,11 @@
       "label": "Passphrase",
       "error": "That passphrase is not correct.",
       "submit": "Unlock"
+    },
+    "loadError": {
+      "title": "This shared view could not be loaded",
+      "description": "Something went wrong while opening this shared health record. The link may have expired, or there was a temporary problem. Try again, or ask the person who shared it for a new link.",
+      "retry": "Try again"
     }
   },
   "cycle": {
