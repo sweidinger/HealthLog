@@ -4022,15 +4022,33 @@
       "subSectionsNav": "Podsekcje ustawień"
     },
     "groups": {
-      "account": { "title": "Konto" },
-      "tracking": { "title": "Śledzenie" },
-      "display": { "title": "Wyświetlanie" },
-      "integrations": { "title": "Integracje" },
-      "notifications": { "title": "Powiadomienia" },
-      "ai": { "title": "AI i Coach" },
-      "access": { "title": "API i dostęp" },
-      "data": { "title": "Dane i prywatność" },
-      "about": { "title": "O aplikacji" }
+      "account": {
+        "title": "Konto"
+      },
+      "tracking": {
+        "title": "Śledzenie"
+      },
+      "display": {
+        "title": "Wyświetlanie"
+      },
+      "integrations": {
+        "title": "Integracje"
+      },
+      "notifications": {
+        "title": "Powiadomienia"
+      },
+      "ai": {
+        "title": "AI i Coach"
+      },
+      "access": {
+        "title": "API i dostęp"
+      },
+      "data": {
+        "title": "Dane i prywatność"
+      },
+      "about": {
+        "title": "O aplikacji"
+      }
     },
     "sections": {
       "account": {
@@ -7335,8 +7353,8 @@
       "description": "Pobieraj dzienną pogodę i długość dnia dla swojej lokalizacji, aby powiązać je z nastrojem, snem i parametrami życiowymi. Domyślnie wyłączone."
     },
     "inboundDocuments": {
-      "label": "Dokumenty przychodzące",
-      "description": "Prześlij raport lekarski lub wypis; sprawdź wyodrębnione dane przed zapisaniem. Domyślnie wyłączone."
+      "label": "Dokumenty",
+      "description": "Przechowuj swoje dokumenty medyczne; opcjonalnie wyodrębniaj i przeglądaj ich fakty przed zapisaniem. Domyślnie wyłączone."
     },
     "mentalHealth": {
       "label": "Dobrostan psychiczny",
@@ -7813,34 +7831,46 @@
     }
   },
   "documents": {
-    "title": "Dokumenty przychodzące",
-    "subtitle": "Prześlij dokument kliniczny i sprawdź wyodrębnione dane.",
+    "title": "Dokumenty",
+    "subtitle": "Przechowuj swoje dokumenty medyczne i sprawdzaj, co zawierają.",
     "upload": {
-      "label": "Prześlij dokument",
-      "kindLabel": "Typ dokumentu",
+      "label": "Dodaj dokument",
+      "kindLabel": "Kategoria",
       "button": "Prześlij",
-      "uploading": "Odczytywanie…",
-      "fileLabel": "Plik dokumentu"
+      "uploading": "Przesyłanie…",
+      "fileLabel": "Plik",
+      "titleLabel": "Tytuł (opcjonalnie)",
+      "titlePlaceholder": "np. Raport kardiologiczny",
+      "dateLabel": "Data dokumentu (opcjonalnie)"
     },
     "kind": {
       "DOCTOR_REPORT": "Raport lekarski",
-      "DISCHARGE_LETTER": "Wypis",
-      "OTHER": "Inny"
+      "DISCHARGE_LETTER": "Wypis ze szpitala",
+      "OTHER": "Inne",
+      "LAB_RESULT": "Wynik laboratoryjny",
+      "IMAGING": "Obrazowanie",
+      "PRESCRIPTION": "Recepta",
+      "INSURANCE": "Ubezpieczenie",
+      "VACCINATION": "Szczepienie"
     },
     "list": {
-      "empty": "Brak dokumentów."
+      "empty": "Brak dokumentów.",
+      "noResults": "Żaden dokument nie pasuje do filtrów.",
+      "loadMore": "Załaduj więcej",
+      "loadingMore": "Ładowanie…",
+      "pending": "{count} do przeglądu",
+      "facts": "{count} faktów"
     },
     "status": {
-      "EXTRACTING": "Odczytywanie",
-      "EXTRACTED": "Gotowe do przeglądu",
+      "EXTRACTING": "Odczyt",
+      "EXTRACTED": "Gotowy do przeglądu",
       "FAILED": "Nie udało się odczytać",
-      "CONFIRMED": "Sprawdzone",
-      "DISCARDED": "Odrzucone"
+      "CONFIRMED": "Przejrzany",
+      "DISCARDED": "Odrzucony",
+      "STORED": "Zapisany"
     },
     "review": {
       "title": "Przejrzyj wyodrębnione dane",
-      "discard": "Odrzuć",
-      "viewOriginal": "Zobacz oryginał",
       "confirm": "Zapisz zatwierdzone dane",
       "confirming": "Zapisywanie…",
       "needsReview": "Wymaga przeglądu",
@@ -7871,7 +7901,46 @@
       "confirmed": "Zatwierdzone dane zapisane.",
       "confirmFailed": "Nie udało się zapisać Twoich decyzji.",
       "saved": "Dane zaktualizowane.",
-      "discarded": "Dokument odrzucony."
+      "discarded": "Dokument odrzucony.",
+      "extracted": "Fakty wyodrębnione. Przejrzyj je poniżej.",
+      "extractFailed": "Nie udało się wyodrębnić faktów.",
+      "updated": "Dokument zaktualizowany.",
+      "updateFailed": "Nie udało się zaktualizować dokumentu."
+    },
+    "toolbar": {
+      "searchLabel": "Szukaj",
+      "searchPlaceholder": "Tytuł lub nazwa pliku",
+      "kindFilterLabel": "Kategoria",
+      "allKinds": "Wszystkie kategorie",
+      "sortLabel": "Sortuj według",
+      "sort": {
+        "documentDate": "Data dokumentu",
+        "createdAt": "Data dodania",
+        "title": "Tytuł"
+      },
+      "orderAsc": "Rosnąco",
+      "orderDesc": "Malejąco"
+    },
+    "detail": {
+      "viewOriginal": "Zobacz oryginał",
+      "edit": "Edytuj",
+      "extract": "Wyodrębnij fakty",
+      "extracting": "Wyodrębnianie…",
+      "discard": "Odrzuć",
+      "notExtracted": "Nie wyodrębniono jeszcze faktów. Użyj Wyodrębnij fakty, aby odczytać ten dokument."
+    },
+    "edit": {
+      "title": "Edytuj dokument",
+      "subtitle": "Zmień nazwę, kategorię lub ustaw datę dokumentu.",
+      "titleLabel": "Tytuł",
+      "kindLabel": "Kategoria",
+      "dateLabel": "Data dokumentu",
+      "save": "Zapisz",
+      "saving": "Zapisywanie…",
+      "cancel": "Anuluj"
+    },
+    "note": {
+      "providerUnsupported": "Skonfiguruj dostawcę skanowania dokumentów w ustawieniach AI, aby automatycznie wyodrębniać fakty."
     }
   },
   "selfDescription": {

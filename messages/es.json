@@ -4022,15 +4022,33 @@
       "subSectionsNav": "Subsecciones de ajustes"
     },
     "groups": {
-      "account": { "title": "Cuenta" },
-      "tracking": { "title": "Seguimiento" },
-      "display": { "title": "Visualización" },
-      "integrations": { "title": "Integraciones" },
-      "notifications": { "title": "Notificaciones" },
-      "ai": { "title": "IA y Coach" },
-      "access": { "title": "API y acceso" },
-      "data": { "title": "Datos y privacidad" },
-      "about": { "title": "Acerca de" }
+      "account": {
+        "title": "Cuenta"
+      },
+      "tracking": {
+        "title": "Seguimiento"
+      },
+      "display": {
+        "title": "Visualización"
+      },
+      "integrations": {
+        "title": "Integraciones"
+      },
+      "notifications": {
+        "title": "Notificaciones"
+      },
+      "ai": {
+        "title": "IA y Coach"
+      },
+      "access": {
+        "title": "API y acceso"
+      },
+      "data": {
+        "title": "Datos y privacidad"
+      },
+      "about": {
+        "title": "Acerca de"
+      }
     },
     "sections": {
       "account": {
@@ -7335,8 +7353,8 @@
       "description": "Incorpora el tiempo y las horas de luz diarias de tu ubicación para correlacionarlos con el ánimo, el sueño y las constantes. Desactivado por defecto."
     },
     "inboundDocuments": {
-      "label": "Documentos entrantes",
-      "description": "Sube un informe médico o un alta; revisa los datos extraídos antes de guardarlos. Desactivado de forma predeterminada."
+      "label": "Documentos",
+      "description": "Guarda tus documentos clínicos; opcionalmente extrae y revisa sus datos antes de guardarlos. Desactivado por defecto."
     },
     "mentalHealth": {
       "label": "Bienestar mental",
@@ -7813,34 +7831,46 @@
     }
   },
   "documents": {
-    "title": "Documentos entrantes",
-    "subtitle": "Sube un documento clínico y revisa los datos extraídos.",
+    "title": "Documentos",
+    "subtitle": "Guarda tus documentos clínicos y revisa lo que dicen.",
     "upload": {
-      "label": "Subir un documento",
-      "kindLabel": "Tipo de documento",
+      "label": "Añadir un documento",
+      "kindLabel": "Categoría",
       "button": "Subir",
-      "uploading": "Leyendo…",
-      "fileLabel": "Archivo del documento"
+      "uploading": "Subiendo…",
+      "fileLabel": "Archivo",
+      "titleLabel": "Título (opcional)",
+      "titlePlaceholder": "p. ej. Informe de cardiología",
+      "dateLabel": "Fecha del documento (opcional)"
     },
     "kind": {
       "DOCTOR_REPORT": "Informe médico",
-      "DISCHARGE_LETTER": "Alta hospitalaria",
-      "OTHER": "Otro"
+      "DISCHARGE_LETTER": "Informe de alta",
+      "OTHER": "Otro",
+      "LAB_RESULT": "Resultado de laboratorio",
+      "IMAGING": "Imagen",
+      "PRESCRIPTION": "Receta",
+      "INSURANCE": "Seguro",
+      "VACCINATION": "Vacunación"
     },
     "list": {
-      "empty": "Aún no hay documentos."
+      "empty": "Aún no hay documentos.",
+      "noResults": "Ningún documento coincide con tus filtros.",
+      "loadMore": "Cargar más",
+      "loadingMore": "Cargando…",
+      "pending": "{count} por revisar",
+      "facts": "{count} datos"
     },
     "status": {
       "EXTRACTING": "Leyendo",
       "EXTRACTED": "Listo para revisar",
       "FAILED": "No se pudo leer",
       "CONFIRMED": "Revisado",
-      "DISCARDED": "Descartado"
+      "DISCARDED": "Descartado",
+      "STORED": "Guardado"
     },
     "review": {
       "title": "Revisar datos extraídos",
-      "discard": "Descartar",
-      "viewOriginal": "Ver original",
       "confirm": "Guardar datos aprobados",
       "confirming": "Guardando…",
       "needsReview": "Requiere revisión",
@@ -7871,7 +7901,46 @@
       "confirmed": "Datos aprobados guardados.",
       "confirmFailed": "No se pudieron guardar tus decisiones.",
       "saved": "Dato actualizado.",
-      "discarded": "Documento descartado."
+      "discarded": "Documento descartado.",
+      "extracted": "Datos extraídos. Revísalos abajo.",
+      "extractFailed": "No se pudieron extraer los datos.",
+      "updated": "Documento actualizado.",
+      "updateFailed": "No se pudo actualizar el documento."
+    },
+    "toolbar": {
+      "searchLabel": "Buscar",
+      "searchPlaceholder": "Título o nombre de archivo",
+      "kindFilterLabel": "Categoría",
+      "allKinds": "Todas las categorías",
+      "sortLabel": "Ordenar por",
+      "sort": {
+        "documentDate": "Fecha del documento",
+        "createdAt": "Fecha de adición",
+        "title": "Título"
+      },
+      "orderAsc": "Ascendente",
+      "orderDesc": "Descendente"
+    },
+    "detail": {
+      "viewOriginal": "Ver original",
+      "edit": "Editar",
+      "extract": "Extraer datos",
+      "extracting": "Extrayendo…",
+      "discard": "Descartar",
+      "notExtracted": "Aún no se han extraído datos. Usa Extraer datos para leer este documento."
+    },
+    "edit": {
+      "title": "Editar documento",
+      "subtitle": "Renombra, recategoriza o fija la fecha del documento.",
+      "titleLabel": "Título",
+      "kindLabel": "Categoría",
+      "dateLabel": "Fecha del documento",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "cancel": "Cancelar"
+    },
+    "note": {
+      "providerUnsupported": "Configura un proveedor de escaneo de documentos en los ajustes de IA para extraer datos automáticamente."
     }
   },
   "selfDescription": {

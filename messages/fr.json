@@ -4022,15 +4022,33 @@
       "subSectionsNav": "Sous-sections des réglages"
     },
     "groups": {
-      "account": { "title": "Compte" },
-      "tracking": { "title": "Suivi" },
-      "display": { "title": "Affichage" },
-      "integrations": { "title": "Intégrations" },
-      "notifications": { "title": "Notifications" },
-      "ai": { "title": "IA et coach" },
-      "access": { "title": "API et accès" },
-      "data": { "title": "Données et confidentialité" },
-      "about": { "title": "À propos" }
+      "account": {
+        "title": "Compte"
+      },
+      "tracking": {
+        "title": "Suivi"
+      },
+      "display": {
+        "title": "Affichage"
+      },
+      "integrations": {
+        "title": "Intégrations"
+      },
+      "notifications": {
+        "title": "Notifications"
+      },
+      "ai": {
+        "title": "IA et coach"
+      },
+      "access": {
+        "title": "API et accès"
+      },
+      "data": {
+        "title": "Données et confidentialité"
+      },
+      "about": {
+        "title": "À propos"
+      }
     },
     "sections": {
       "account": {
@@ -7335,8 +7353,8 @@
       "description": "Intégrez la météo et la durée du jour quotidiennes de votre lieu pour les corréler à l'humeur, au sommeil et aux constantes. Désactivé par défaut."
     },
     "inboundDocuments": {
-      "label": "Documents entrants",
-      "description": "Importez un compte rendu médical ou une lettre de sortie ; vérifiez les données extraites avant de les enregistrer. Désactivé par défaut."
+      "label": "Documents",
+      "description": "Conservez vos documents médicaux ; extrayez et vérifiez éventuellement leurs éléments avant l'enregistrement. Désactivé par défaut."
     },
     "mentalHealth": {
       "label": "Bien-être mental",
@@ -7813,34 +7831,46 @@
     }
   },
   "documents": {
-    "title": "Documents entrants",
-    "subtitle": "Importez un document clinique et vérifiez les données extraites.",
+    "title": "Documents",
+    "subtitle": "Conservez vos documents médicaux et vérifiez ce qu'ils contiennent.",
     "upload": {
-      "label": "Importer un document",
-      "kindLabel": "Type de document",
-      "button": "Importer",
-      "uploading": "Lecture…",
-      "fileLabel": "Fichier du document"
+      "label": "Ajouter un document",
+      "kindLabel": "Catégorie",
+      "button": "Téléverser",
+      "uploading": "Téléversement…",
+      "fileLabel": "Fichier",
+      "titleLabel": "Titre (facultatif)",
+      "titlePlaceholder": "p. ex. Compte rendu de cardiologie",
+      "dateLabel": "Date du document (facultatif)"
     },
     "kind": {
       "DOCTOR_REPORT": "Compte rendu médical",
       "DISCHARGE_LETTER": "Lettre de sortie",
-      "OTHER": "Autre"
+      "OTHER": "Autre",
+      "LAB_RESULT": "Résultat de laboratoire",
+      "IMAGING": "Imagerie",
+      "PRESCRIPTION": "Ordonnance",
+      "INSURANCE": "Assurance",
+      "VACCINATION": "Vaccination"
     },
     "list": {
-      "empty": "Aucun document pour l'instant."
+      "empty": "Aucun document pour l'instant.",
+      "noResults": "Aucun document ne correspond à vos filtres.",
+      "loadMore": "Charger plus",
+      "loadingMore": "Chargement…",
+      "pending": "{count} à vérifier",
+      "facts": "{count} éléments"
     },
     "status": {
       "EXTRACTING": "Lecture",
       "EXTRACTED": "Prêt à vérifier",
       "FAILED": "Lecture impossible",
       "CONFIRMED": "Vérifié",
-      "DISCARDED": "Écarté"
+      "DISCARDED": "Écarté",
+      "STORED": "Conservé"
     },
     "review": {
       "title": "Vérifier les données extraites",
-      "discard": "Écarter",
-      "viewOriginal": "Voir l'original",
       "confirm": "Enregistrer les données approuvées",
       "confirming": "Enregistrement…",
       "needsReview": "À vérifier",
@@ -7871,7 +7901,46 @@
       "confirmed": "Données approuvées enregistrées.",
       "confirmFailed": "Impossible d'enregistrer vos décisions.",
       "saved": "Donnée mise à jour.",
-      "discarded": "Document écarté."
+      "discarded": "Document écarté.",
+      "extracted": "Éléments extraits. Vérifiez-les ci-dessous.",
+      "extractFailed": "Impossible d'extraire les éléments.",
+      "updated": "Document mis à jour.",
+      "updateFailed": "Impossible de mettre à jour le document."
+    },
+    "toolbar": {
+      "searchLabel": "Rechercher",
+      "searchPlaceholder": "Titre ou nom de fichier",
+      "kindFilterLabel": "Catégorie",
+      "allKinds": "Toutes les catégories",
+      "sortLabel": "Trier par",
+      "sort": {
+        "documentDate": "Date du document",
+        "createdAt": "Date d'ajout",
+        "title": "Titre"
+      },
+      "orderAsc": "Croissant",
+      "orderDesc": "Décroissant"
+    },
+    "detail": {
+      "viewOriginal": "Voir l'original",
+      "edit": "Modifier",
+      "extract": "Extraire les éléments",
+      "extracting": "Extraction…",
+      "discard": "Écarter",
+      "notExtracted": "Aucun élément extrait pour l'instant. Utilisez Extraire les éléments pour lire ce document."
+    },
+    "edit": {
+      "title": "Modifier le document",
+      "subtitle": "Renommez, recatégorisez ou définissez la date du document.",
+      "titleLabel": "Titre",
+      "kindLabel": "Catégorie",
+      "dateLabel": "Date du document",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "cancel": "Annuler"
+    },
+    "note": {
+      "providerUnsupported": "Configurez un fournisseur d'analyse de documents dans les paramètres d'IA pour extraire les éléments automatiquement."
     }
   },
   "selfDescription": {

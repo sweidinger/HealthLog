@@ -4022,15 +4022,33 @@
       "subSectionsNav": "Settings sub-sections"
     },
     "groups": {
-      "account": { "title": "Account" },
-      "tracking": { "title": "Tracking" },
-      "display": { "title": "Display" },
-      "integrations": { "title": "Integrations" },
-      "notifications": { "title": "Notifications" },
-      "ai": { "title": "AI & Coach" },
-      "access": { "title": "API & Access" },
-      "data": { "title": "Data & Privacy" },
-      "about": { "title": "About" }
+      "account": {
+        "title": "Account"
+      },
+      "tracking": {
+        "title": "Tracking"
+      },
+      "display": {
+        "title": "Display"
+      },
+      "integrations": {
+        "title": "Integrations"
+      },
+      "notifications": {
+        "title": "Notifications"
+      },
+      "ai": {
+        "title": "AI & Coach"
+      },
+      "access": {
+        "title": "API & Access"
+      },
+      "data": {
+        "title": "Data & Privacy"
+      },
+      "about": {
+        "title": "About"
+      }
     },
     "sections": {
       "account": {
@@ -7335,8 +7353,8 @@
       "description": "Pull in daily weather and daylight for your location to correlate with mood, sleep, and vitals. Off by default."
     },
     "inboundDocuments": {
-      "label": "Inbound documents",
-      "description": "Upload a doctor report or discharge letter; review the extracted facts before they're saved. Off by default."
+      "label": "Documents",
+      "description": "Store your clinical documents; optionally extract and review their facts before they're saved. Off by default."
     },
     "mentalHealth": {
       "label": "Mental wellbeing",
@@ -7813,34 +7831,46 @@
     }
   },
   "documents": {
-    "title": "Inbound documents",
-    "subtitle": "Upload a clinical document and review the extracted details.",
+    "title": "Documents",
+    "subtitle": "Store your clinical documents and review what they say.",
     "upload": {
-      "label": "Upload a document",
-      "kindLabel": "Document type",
+      "label": "Add a document",
+      "kindLabel": "Category",
       "button": "Upload",
-      "uploading": "Reading…",
-      "fileLabel": "Document file"
+      "uploading": "Uploading…",
+      "fileLabel": "File",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "e.g. Cardiology report",
+      "dateLabel": "Document date (optional)"
     },
     "kind": {
       "DOCTOR_REPORT": "Doctor report",
       "DISCHARGE_LETTER": "Discharge letter",
-      "OTHER": "Other"
+      "OTHER": "Other",
+      "LAB_RESULT": "Lab result",
+      "IMAGING": "Imaging",
+      "PRESCRIPTION": "Prescription",
+      "INSURANCE": "Insurance",
+      "VACCINATION": "Vaccination"
     },
     "list": {
-      "empty": "No documents yet."
+      "empty": "No documents yet.",
+      "noResults": "No documents match your filters.",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "pending": "{count} to review",
+      "facts": "{count} facts"
     },
     "status": {
       "EXTRACTING": "Reading",
       "EXTRACTED": "Ready to review",
       "FAILED": "Couldn't read",
       "CONFIRMED": "Reviewed",
-      "DISCARDED": "Discarded"
+      "DISCARDED": "Discarded",
+      "STORED": "Stored"
     },
     "review": {
       "title": "Review extracted facts",
-      "discard": "Discard",
-      "viewOriginal": "View original",
       "confirm": "Save approved facts",
       "confirming": "Saving…",
       "needsReview": "Needs review",
@@ -7871,7 +7901,46 @@
       "confirmed": "Approved facts saved.",
       "confirmFailed": "Couldn't save your decisions.",
       "saved": "Fact updated.",
-      "discarded": "Document discarded."
+      "discarded": "Document discarded.",
+      "extracted": "Facts extracted. Review them below.",
+      "extractFailed": "Couldn't extract facts.",
+      "updated": "Document updated.",
+      "updateFailed": "Couldn't update the document."
+    },
+    "toolbar": {
+      "searchLabel": "Search",
+      "searchPlaceholder": "Title or filename",
+      "kindFilterLabel": "Category",
+      "allKinds": "All categories",
+      "sortLabel": "Sort by",
+      "sort": {
+        "documentDate": "Document date",
+        "createdAt": "Date added",
+        "title": "Title"
+      },
+      "orderAsc": "Ascending",
+      "orderDesc": "Descending"
+    },
+    "detail": {
+      "viewOriginal": "View original",
+      "edit": "Edit",
+      "extract": "Extract facts",
+      "extracting": "Extracting…",
+      "discard": "Discard",
+      "notExtracted": "No facts extracted yet. Use Extract facts to read this document."
+    },
+    "edit": {
+      "title": "Edit document",
+      "subtitle": "Rename, recategorise, or set the document date.",
+      "titleLabel": "Title",
+      "kindLabel": "Category",
+      "dateLabel": "Document date",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel"
+    },
+    "note": {
+      "providerUnsupported": "Configure a document-scan provider in AI settings to extract facts automatically."
     }
   },
   "selfDescription": {

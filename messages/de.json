@@ -4022,15 +4022,33 @@
       "subSectionsNav": "Einstellungs-Unterbereiche"
     },
     "groups": {
-      "account": { "title": "Konto" },
-      "tracking": { "title": "Tracking" },
-      "display": { "title": "Darstellung" },
-      "integrations": { "title": "Integrationen" },
-      "notifications": { "title": "Benachrichtigungen" },
-      "ai": { "title": "KI & Coach" },
-      "access": { "title": "API & Zugriff" },
-      "data": { "title": "Daten & Datenschutz" },
-      "about": { "title": "Über" }
+      "account": {
+        "title": "Konto"
+      },
+      "tracking": {
+        "title": "Tracking"
+      },
+      "display": {
+        "title": "Darstellung"
+      },
+      "integrations": {
+        "title": "Integrationen"
+      },
+      "notifications": {
+        "title": "Benachrichtigungen"
+      },
+      "ai": {
+        "title": "KI & Coach"
+      },
+      "access": {
+        "title": "API & Zugriff"
+      },
+      "data": {
+        "title": "Daten & Datenschutz"
+      },
+      "about": {
+        "title": "Über"
+      }
     },
     "sections": {
       "account": {
@@ -7335,8 +7353,8 @@
       "description": "Tägliches Wetter und Tageslicht für deinen Ort einbeziehen, um Zusammenhänge mit Stimmung, Schlaf und Vitalwerten zu erkennen. Standardmäßig aus."
     },
     "inboundDocuments": {
-      "label": "Eingehende Dokumente",
-      "description": "Lade einen Arztbericht oder Entlassbrief hoch; prüfe die erkannten Angaben, bevor sie gespeichert werden. Standardmäßig aus."
+      "label": "Dokumente",
+      "description": "Speichere deine medizinischen Dokumente; optional ihre Fakten extrahieren und prüfen, bevor sie gespeichert werden. Standardmäßig aus."
     },
     "mentalHealth": {
       "label": "Seelisches Wohlbefinden",
@@ -7813,34 +7831,46 @@
     }
   },
   "documents": {
-    "title": "Eingehende Dokumente",
-    "subtitle": "Lade ein klinisches Dokument hoch und prüfe die ausgelesenen Angaben.",
+    "title": "Dokumente",
+    "subtitle": "Speichere deine medizinischen Dokumente und prüfe, was darin steht.",
     "upload": {
-      "label": "Dokument hochladen",
-      "kindLabel": "Dokumenttyp",
+      "label": "Dokument hinzufügen",
+      "kindLabel": "Kategorie",
       "button": "Hochladen",
-      "uploading": "Wird gelesen …",
-      "fileLabel": "Dokumentdatei"
+      "uploading": "Wird hochgeladen…",
+      "fileLabel": "Datei",
+      "titleLabel": "Titel (optional)",
+      "titlePlaceholder": "z. B. Kardiologie-Bericht",
+      "dateLabel": "Dokumentdatum (optional)"
     },
     "kind": {
       "DOCTOR_REPORT": "Arztbericht",
-      "DISCHARGE_LETTER": "Entlassbrief",
-      "OTHER": "Sonstiges"
+      "DISCHARGE_LETTER": "Entlassungsbrief",
+      "OTHER": "Sonstiges",
+      "LAB_RESULT": "Laborbefund",
+      "IMAGING": "Bildgebung",
+      "PRESCRIPTION": "Rezept",
+      "INSURANCE": "Versicherung",
+      "VACCINATION": "Impfung"
     },
     "list": {
-      "empty": "Noch keine Dokumente."
+      "empty": "Noch keine Dokumente.",
+      "noResults": "Keine Dokumente passen zu deinen Filtern.",
+      "loadMore": "Mehr laden",
+      "loadingMore": "Wird geladen…",
+      "pending": "{count} zu prüfen",
+      "facts": "{count} Fakten"
     },
     "status": {
       "EXTRACTING": "Wird gelesen",
       "EXTRACTED": "Bereit zur Prüfung",
       "FAILED": "Konnte nicht gelesen werden",
       "CONFIRMED": "Geprüft",
-      "DISCARDED": "Verworfen"
+      "DISCARDED": "Verworfen",
+      "STORED": "Gespeichert"
     },
     "review": {
       "title": "Erkannte Angaben prüfen",
-      "discard": "Verwerfen",
-      "viewOriginal": "Original ansehen",
       "confirm": "Bestätigte Angaben speichern",
       "confirming": "Wird gespeichert …",
       "needsReview": "Prüfung nötig",
@@ -7871,7 +7901,46 @@
       "confirmed": "Bestätigte Angaben gespeichert.",
       "confirmFailed": "Deine Entscheidungen konnten nicht gespeichert werden.",
       "saved": "Angabe aktualisiert.",
-      "discarded": "Dokument verworfen."
+      "discarded": "Dokument verworfen.",
+      "extracted": "Fakten extrahiert. Prüfe sie unten.",
+      "extractFailed": "Fakten konnten nicht extrahiert werden.",
+      "updated": "Dokument aktualisiert.",
+      "updateFailed": "Dokument konnte nicht aktualisiert werden."
+    },
+    "toolbar": {
+      "searchLabel": "Suche",
+      "searchPlaceholder": "Titel oder Dateiname",
+      "kindFilterLabel": "Kategorie",
+      "allKinds": "Alle Kategorien",
+      "sortLabel": "Sortieren nach",
+      "sort": {
+        "documentDate": "Dokumentdatum",
+        "createdAt": "Hinzugefügt am",
+        "title": "Titel"
+      },
+      "orderAsc": "Aufsteigend",
+      "orderDesc": "Absteigend"
+    },
+    "detail": {
+      "viewOriginal": "Original ansehen",
+      "edit": "Bearbeiten",
+      "extract": "Fakten extrahieren",
+      "extracting": "Wird extrahiert…",
+      "discard": "Verwerfen",
+      "notExtracted": "Noch keine Fakten extrahiert. Nutze „Fakten extrahieren“, um dieses Dokument zu lesen."
+    },
+    "edit": {
+      "title": "Dokument bearbeiten",
+      "subtitle": "Umbenennen, neu kategorisieren oder das Dokumentdatum setzen.",
+      "titleLabel": "Titel",
+      "kindLabel": "Kategorie",
+      "dateLabel": "Dokumentdatum",
+      "save": "Speichern",
+      "saving": "Wird gespeichert…",
+      "cancel": "Abbrechen"
+    },
+    "note": {
+      "providerUnsupported": "Richte in den KI-Einstellungen einen Anbieter für Dokumentenscans ein, um Fakten automatisch zu extrahieren."
     }
   },
   "selfDescription": {
