@@ -727,6 +727,13 @@ model User {
   // sensitive free-text fields are encrypted at rest.
   allergies                   Allergy[]
   familyHistory               FamilyHistoryEntry[]
+  // v1.25 (W-DOCS-IN) — inbound clinical documents (doctor reports /
+  // discharge letters) the user uploads. The raw document is encrypted at
+  // rest; extracted facts land in a review-then-confirm staging area
+  // (ExtractedFact) and only reach the structured stores on explicit
+  // approval. Opt-in module, off by default.
+  inboundDocuments            InboundDocument[]
+  extractedFacts              ExtractedFact[]
   // v1.19.0 — full Withings ECG waveform recordings (encrypted at rest).
   // The paired AFib verdict still lands as an IRREGULAR_RHYTHM_NOTIFICATION
   // Measurement EVENT row (v1.18.11); this holds the raw signal samples.
@@ -5371,4 +5378,143 @@ model CyclePrediction {
 
   @@unique([userId])
   @@map("cycle_predictions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// v1.25 (W-DOCS-IN) — inbound clinical documents.
+//
+// A self-hoster uploads a doctor report / discharge letter they RECEIVED.
+// The raw document is stored encrypted at rest; the dedicated OCR/vision
+// provider (the v1.22 document-scan rails) transcribes STRUCTURED FACTS into
+// a review-then-confirm staging area. The app reproduces what the clinician
+// wrote — it never interprets, never range-flags, never diagnoses, never
+// links a condition to a medication. A fact only reaches the structured
+// stores (labs / conditions / medications) once the user explicitly approves
+// it; low-confidence facts fail closed (surfaced for manual review, never
+// auto-committed). Opt-in module, off by default.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// What kind of clinical document was uploaded (free choice by the user;
+/// drives no interpretation — it is a label only).
+enum InboundDocumentKind {
+  DOCTOR_REPORT
+  DISCHARGE_LETTER
+  OTHER
+
+  @@map("inbound_document_kind")
+}
+
+/// Lifecycle of an uploaded document. EXTRACTING while the provider runs,
+/// EXTRACTED once facts are staged for review, FAILED on a provider/parse
+/// miss, CONFIRMED once the user has acted on every fact, DISCARDED on a
+/// soft delete.
+enum InboundDocumentStatus {
+  EXTRACTING
+  EXTRACTED
+  FAILED
+  CONFIRMED
+  DISCARDED
+
+  @@map("inbound_document_status")
+}
+
+/// The FHIR resource an extracted fact maps to (STATED status only): a
+/// diagnosis → Condition, a measured value → Observation, a medication the
+/// patient is/was taking → MedicationStatement.
+enum ExtractedFactType {
+  CONDITION
+  OBSERVATION
+  MEDICATION_STATEMENT
+
+  @@map("extracted_fact_type")
+}
+
+/// Review state of a staged fact. PENDING until the user decides; APPROVED
+/// once committed to a structured store; REJECTED when the user discards it.
+enum ExtractedFactStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("extracted_fact_status")
+}
+
+model InboundDocument {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  kind   InboundDocumentKind @default(OTHER)
+  /// Original filename as uploaded (sanitised, optional).
+  filename String?
+  /// Magic-byte-sniffed MIME type the document was stored as.
+  mimeType String @map("mime_type")
+  /// Stored byte length of the original (pre-encryption) document.
+  byteSize Int    @map("byte_size")
+  /// AES-256-GCM ciphertext of the raw document bytes (base64 of the binary
+  /// → `encrypt()` string → UTF-8 BYTEA), the `*_encrypted` Bytes convention
+  /// shared with the note columns. The original is sensitive and never
+  /// stored in the clear or logged.
+  contentEncrypted Bytes @map("content_encrypted")
+  status InboundDocumentStatus @default(EXTRACTING)
+  /// Provider type that ran the extraction (e.g. "anthropic", "openai",
+  /// "local"). Diagnostic only.
+  providerType String? @map("provider_type")
+  /// The document's stated report/collection date (YYYY-MM-DD at UTC), as
+  /// transcribed — never inferred.
+  reportDate DateTime? @map("report_date")
+  /// Failure reason when status = FAILED (a short code, never the document).
+  errorReason String? @map("error_reason")
+
+  facts ExtractedFact[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = discarded.
+  deletedAt DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, deletedAt])
+  @@map("inbound_documents")
+}
+
+model ExtractedFact {
+  id         String @id @default(cuid())
+  documentId String @map("document_id")
+  userId     String @map("user_id")
+  factType   ExtractedFactType   @map("fact_type")
+  status     ExtractedFactStatus @default(PENDING)
+  /// Overall extraction confidence 0..1 (the lowest per-field score). The
+  /// review screen gates approval of a low-confidence fact behind a manual
+  /// edit (fail-closed).
+  confidence Float @default(0)
+  /// True when the fact scored below the confidence floor and must be
+  /// reviewed/edited before it can be approved. Cleared once the user edits
+  /// the fact (the values then become user-asserted).
+  needsReview Boolean @default(true) @map("needs_review")
+  /// The FHIR-staged fields, STATED status only, shaped per `factType`
+  /// (Condition / Observation / MedicationStatement). Codes (SNOMED / ICD-10
+  /// / LOINC / RxNorm / ATC) are present only when the document writes them.
+  dataJson Json @map("data_json")
+  /// Per-field provenance: the verbatim source span the value came from, an
+  /// optional page index, and per-field confidence. Makes "extract what's
+  /// written" auditable against the original.
+  provenanceJson Json @map("provenance_json")
+  /// The id of the structured-store row created when the fact was approved
+  /// (LabResult / IllnessEpisode / Medication), or NULL while PENDING /
+  /// REJECTED.
+  committedRecordId String? @map("committed_record_id")
+  /// The structured store the approved fact landed in ("labResult" /
+  /// "illnessEpisode" / "medication"), or NULL.
+  committedRecordType String? @map("committed_record_type")
+
+  document InboundDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([documentId])
+  @@index([userId])
+  @@map("extracted_facts")
 }

@@ -475,6 +475,18 @@ async function main() {
     ),
   );
 
+  // ───── v1.25 (W-DOCS-IN) inbound clinical document (Bytes column) ─────
+  // The raw uploaded doctor report / discharge letter (base64-of-binary →
+  // AES-256-GCM string → UTF-8 bytes). Always encrypted on write (NOT NULL),
+  // so every row rotates.
+  results.push(
+    await rotateBytesColumn(
+      "InboundDocument",
+      "contentEncrypted",
+      prisma.inboundDocument,
+    ),
+  );
+
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
   let totalErrors = 0;
