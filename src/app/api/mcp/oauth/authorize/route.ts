@@ -118,16 +118,42 @@ interface ValidatedRequest {
   resource: string;
 }
 
+/**
+ * The gate a request failed, pinned to a stable enum so the
+ * `mcp.oauth.authorize.invalid` annotation stays dashboard-friendly. The
+ * swallowed-reason gap (a bare `invalid` event) is exactly why the prod CIMD
+ * failure was undiagnosable.
+ */
+type ValidateFailure =
+  | "invalid_params"
+  | "client_unresolved"
+  | "redirect_mismatch"
+  | "bad_response_type"
+  | "pkce_required"
+  | "audience_mismatch";
+
+type ValidateMeta = {
+  reason: ValidateFailure;
+  /** For `client_unresolved`: the `resolveClient` reason. */
+  clientReason?: string;
+  /** For `client_unresolved`: a short, non-secret transport diagnostic. */
+  detail?: string;
+};
+
 /** Shared validation for GET + POST. Returns a ready error Response on failure. */
 async function validate(
   params: Record<string, string | undefined>,
   requestUrl: string,
-): Promise<{ ok: true; v: ValidatedRequest } | { ok: false; res: Response }> {
+): Promise<
+  | { ok: true; v: ValidatedRequest }
+  | { ok: false; res: Response; meta: ValidateMeta }
+> {
   const parsed = z.object(baseParams).safeParse(params);
   if (!parsed.success) {
     return {
       ok: false,
       res: badRequest("invalid_request", "Missing or malformed parameters"),
+      meta: { reason: "invalid_params" },
     };
   }
   const p = parsed.data;
@@ -139,6 +165,11 @@ async function validate(
     return {
       ok: false,
       res: badRequest("invalid_client", "Unknown or unresolvable client"),
+      meta: {
+        reason: "client_unresolved",
+        clientReason: resolved.reason,
+        ...(resolved.detail ? { detail: resolved.detail } : {}),
+      },
     };
   }
 
@@ -150,6 +181,7 @@ async function validate(
         "invalid_request",
         "redirect_uri does not match the registered client",
       ),
+      meta: { reason: "redirect_mismatch" },
     };
   }
 
@@ -161,6 +193,7 @@ async function validate(
         "unsupported_response_type",
         "Only response_type=code is supported",
       ),
+      meta: { reason: "bad_response_type" },
     };
   }
 
@@ -175,6 +208,7 @@ async function validate(
         "invalid_request",
         "PKCE with code_challenge_method=S256 is required",
       ),
+      meta: { reason: "pkce_required" },
     };
   }
 
@@ -186,6 +220,7 @@ async function validate(
         "invalid_target",
         "resource must equal this server's MCP endpoint",
       ),
+      meta: { reason: "audience_mismatch" },
     };
   }
 
@@ -280,7 +315,10 @@ export async function GET(request: NextRequest): Promise<Response> {
     const params = Object.fromEntries(url.searchParams.entries());
     const result = await validate(params, request.url);
     if (!result.ok) {
-      annotate({ action: { name: "mcp.oauth.authorize.invalid" } });
+      annotate({
+        action: { name: "mcp.oauth.authorize.invalid" },
+        meta: result.meta,
+      });
       return result.res;
     }
     const { v } = result;
@@ -409,7 +447,10 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const result = await validate(params, request.url);
     if (!result.ok) {
-      annotate({ action: { name: "mcp.oauth.authorize.invalid" } });
+      annotate({
+        action: { name: "mcp.oauth.authorize.invalid" },
+        meta: result.meta,
+      });
       return result.res;
     }
     const { v } = result;
