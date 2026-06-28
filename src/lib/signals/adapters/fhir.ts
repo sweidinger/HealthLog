@@ -13,7 +13,9 @@ import { allSignals } from "@/lib/signals/registry";
 export function deriveMeasurementLoinc(): Record<string, LoincMapping> {
   const entries: Array<[string, LoincMapping]> = [];
   for (const signal of allSignals()) {
-    if (signal.kind === "biomarker") continue;
+    // Only `MeasurementType`-backed signals key `MEASUREMENT_LOINC`. biomarker
+    // (labs) + environment (W-ENV) signals are never Measurement rows.
+    if (signal.kind === "biomarker" || signal.kind === "environment") continue;
     if (!signal.fhir) continue;
     entries.push([
       signal.source.measurementType,

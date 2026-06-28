@@ -40,6 +40,8 @@ describe("signal registry — structural sanity", () => {
     for (const signal of allSignals()) {
       if (signal.kind === "biomarker") {
         expect(signal.source.biomarkerKey.length).toBeGreaterThan(0);
+      } else if (signal.kind === "environment") {
+        expect(signal.source.environmentChannelKey.length).toBeGreaterThan(0);
       } else {
         expect(signal.source.measurementType.length).toBeGreaterThan(0);
       }
@@ -57,7 +59,7 @@ describe("signal registry — structural sanity", () => {
 
   it("signalForMeasurementType round-trips every measurement/score signal", () => {
     for (const signal of allSignals()) {
-      if (signal.kind === "biomarker") continue;
+      if (signal.kind !== "measurement" && signal.kind !== "score") continue;
       expect(signalForMeasurementType(signal.source.measurementType)).toBe(
         signal,
       );

@@ -15,7 +15,7 @@ import { getSignal } from "@/lib/signals/registry";
 /** Build the `MetricStatusMeta` for one registered metric-status id. */
 function metaFor(id: MetricStatusMetricId): MetricStatusMeta {
   const signal = getSignal(id);
-  if (!signal || signal.kind === "biomarker") {
+  if (!signal || signal.kind === "biomarker" || signal.kind === "environment") {
     throw new Error(`signal registry: no measurement signal for "${id}"`);
   }
   // Build field-by-field, omitting the optional keys when absent so the

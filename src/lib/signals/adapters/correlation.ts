@@ -13,7 +13,10 @@ import { allSignals } from "@/lib/signals/registry";
 export function deriveBucketedTypes(): MeasurementType[] {
   const types: MeasurementType[] = [];
   for (const signal of allSignals()) {
-    if (signal.kind === "biomarker") continue;
+    // biomarker (labs path) + environment (W-ENV exposure channels) are not
+    // `MeasurementType`-backed — env feeds the engine through its own series
+    // builder, not the measurement-keyed bucketed types.
+    if (signal.kind === "biomarker" || signal.kind === "environment") continue;
     if (!signal.surfaces.correlationEligible) continue;
     types.push(signal.source.measurementType);
   }
