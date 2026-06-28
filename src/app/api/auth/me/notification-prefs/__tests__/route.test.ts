@@ -103,6 +103,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -139,6 +140,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -177,6 +179,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -226,6 +229,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -251,6 +255,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             nudgeRoutine: true,
             nudgeFrequency: "weekly",
             ambientSuggestions: true,
+            nudgeAiComposed: false,
           },
           measurementReminder: {
             clientManaged: false,
@@ -280,6 +285,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
               nudgeRoutine: true,
               nudgeFrequency: "weekly",
               ambientSuggestions: true,
+              nudgeAiComposed: false,
             },
             measurementReminder: {
               clientManaged: false,
@@ -301,6 +307,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
               nudgeRoutine: true,
               nudgeFrequency: "weekly",
               ambientSuggestions: true,
+              nudgeAiComposed: false,
             },
             measurementReminder: {
               clientManaged: false,
@@ -375,6 +382,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             nudgeRoutine: true,
             nudgeFrequency: "weekly",
             ambientSuggestions: true,
+            nudgeAiComposed: false,
           },
           measurementReminder: {
             clientManaged: false,
@@ -414,6 +422,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
         nudgeRoutine: true,
         nudgeFrequency: "weekly",
         ambientSuggestions: true,
+        nudgeAiComposed: false,
       },
       measurementReminder: {
         clientManaged: false,
@@ -439,6 +448,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             nudgeRoutine: true,
             nudgeFrequency: "weekly",
             ambientSuggestions: true,
+            nudgeAiComposed: false,
           },
           measurementReminder: {
             clientManaged: false,
@@ -483,6 +493,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             nudgeRoutine: true,
             nudgeFrequency: "weekly",
             ambientSuggestions: true,
+            nudgeAiComposed: false,
           },
           measurementReminder: {
             clientManaged: false,

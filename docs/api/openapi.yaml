@@ -9891,6 +9891,8 @@ components:
                 - biweekly
             ambientSuggestions:
               type: boolean
+            nudgeAiComposed:
+              type: boolean
         measurementReminder:
           type: object
           properties:

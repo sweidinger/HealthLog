@@ -98,6 +98,16 @@ export const AI_BUDGETS = {
   coach: { temperature: 0.4, maxTokens: 600 },
 
   /**
+   * v1.25.0 — proactive Coach nudge enrichment (opt-in). One short, warm,
+   * localized body of 1-2 sentences — no figures, no greeting (the app adds
+   * the name-led greeting deterministically). 160 tokens comfortably covers
+   * it; the tight `timeoutMs` keeps the sequential 05:15 tick from stalling
+   * on a slow provider (any timeout falls back to the template). Temperature
+   * a touch higher for warmth without drift.
+   */
+  coachNudge: { temperature: 0.6, maxTokens: 160, timeoutMs: 9000 },
+
+  /**
    * Coach rolling-conversation summary worker — a compact summary of the
    * elided older turns. 200 tokens.
    */

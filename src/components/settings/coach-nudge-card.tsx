@@ -34,6 +34,7 @@ interface CoachPrefsShape {
   nudgeRoutine: boolean;
   nudgeFrequency: "weekly" | "biweekly";
   ambientSuggestions: boolean;
+  nudgeAiComposed: boolean;
 }
 
 interface NotificationPrefsShape {
@@ -47,6 +48,7 @@ const COACH_PREF_DEFAULTS: CoachPrefsShape = {
   nudgeRoutine: true,
   nudgeFrequency: "weekly",
   ambientSuggestions: true,
+  nudgeAiComposed: false,
 };
 
 const GROUP_FIELDS = [
@@ -253,6 +255,28 @@ export function CoachNudgeCard({
                 {t("notifications.coachNudge.frequencyBiweekly")}
               </option>
             </NativeSelect>
+          </div>
+          {/* v1.25.0 — opt-in for AI-composed nudge copy. Off by default: the
+              deterministic warm template is the baseline and the fail-closed
+              fallback; this only lets the model phrase the nudge when a
+              provider is healthy. */}
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm">
+                {t("notifications.coachNudge.aiComposedLabel")}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {t("notifications.coachNudge.aiComposedDesc")}
+              </p>
+            </div>
+            <Switch
+              checked={resolved.nudgeAiComposed}
+              onCheckedChange={(next) =>
+                patchCoach({ nudgeAiComposed: next }, null)
+              }
+              disabled={!isAuthenticated || saving}
+              aria-label={t("notifications.coachNudge.aiComposedAria")}
+            />
           </div>
         </div>
       )}

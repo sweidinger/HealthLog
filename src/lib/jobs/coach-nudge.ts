@@ -57,11 +57,24 @@
  *   medication → compliance; vitals → bp / score / weight / sleepDebt;
  *   routine → measurementGap / selfContext.
  *
- * Personalisation (v1.16.5): when the user wrote a Coach focus in the
- * self-context questionnaire, the nudge body appends a deterministic
- * reference to it ("you wanted to keep an eye on …"). The focus is
- * decrypted only AFTER a trigger fired and a nudge is actually about
- * to dispatch — fail-closed, a decrypt error just drops the suffix.
+ * Copy (v1.25.0): a warm, localized, deterministic TEMPLATE. The title
+ * carries a greeting with the user's name ("Guten Morgen, …" / "Hey …",
+ * rotating; the 05:15 cron makes a morning frame safe); the body carries
+ * one calm observation and a gentle invite, never an imperative. When the
+ * user set a Coach focus the body adds a NON-QUOTING acknowledgment — the
+ * raw self-context sentence is never read back, only its presence
+ * referenced. Nothing is decrypted here; the focus is a presence flag.
+ *
+ * AI enrichment (v1.25.0, opt-in, default OFF): when the user opted in AND
+ * a provider is healthy, the body is composed through the model instead of
+ * the template — under a per-user budget gate, a tight per-call timeout and
+ * a per-tick ceiling. ANY error/timeout/budget falls silently back to the
+ * deterministic template, which is always the safe default.
+ *
+ * Anti-nag (NORTH-STAR): the rolling frequency cap already prevents two
+ * nudges in a window (so never two days running), nothing-to-say is silence
+ * by construction (no trigger → no nudge), and a user who engaged the Coach
+ * in the last ~24 h is skipped.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 import { getAssistantFlags } from "@/lib/feature-flags";
@@ -72,11 +85,16 @@ import {
 } from "@/lib/analytics/effective-range";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
 import { resolveCoachNudgePrefs } from "@/lib/validations/notification-prefs";
-import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { recordProactiveNudge } from "@/lib/ai/coach/persistence";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
+import {
+  composeNudgeWithAI,
+  createNudgeAiTickBudget,
+  type ComposeNudgeWithAI,
+  type NudgeAiTickBudget,
+} from "@/lib/jobs/coach-nudge-ai";
 import { getEvent } from "@/lib/logging/context";
 import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
 import { resolveRestMode } from "@/lib/illness/rest-mode";
@@ -137,8 +155,12 @@ export const COACH_NUDGE_GAP_MIN_ACTIVE_DAYS = 10;
 export const COACH_NUDGE_GAP_SILENT_DAYS = 7;
 /** Gap trigger: activity lookback BEFORE the silent window (days). */
 export const COACH_NUDGE_GAP_LOOKBACK_DAYS = 21;
-/** Personalisation: max focus characters quoted in the nudge body. */
-export const COACH_NUDGE_FOCUS_MAX_CHARS = 80;
+/**
+ * Anti-nag suppression: skip the nudge when the user already talked to the
+ * Coach within this window. A proactive outreach to someone who just engaged
+ * is noise, not care.
+ */
+export const COACH_NUDGE_RECENT_ENGAGEMENT_HOURS = 24;
 
 export type CoachNudgeTrigger =
   | "compliance"
@@ -178,6 +200,12 @@ export interface CoachNudgeSummary {
   skippedOptedOut: number;
   skippedNoProvider: number;
   skippedRecentNudge: number;
+  /**
+   * v1.25.0 — anti-nag: the user talked to the Coach within the last ~24 h,
+   * so the proactive nudge is suppressed (engaging someone who just engaged
+   * is noise, not care).
+   */
+  skippedRecentEngagement: number;
   skippedNoTrigger: number;
   skippedNoChannel: number;
   /**
@@ -368,76 +396,103 @@ export function evaluateMeasurementGapTrigger(
   );
 }
 
+/** The per-trigger observation key. The title is a greeting (see below). */
+const NUDGE_BODY_KEY: Record<CoachNudgeTrigger, string> = {
+  compliance: "coachNudges.complianceBody",
+  bp: "coachNudges.bpBody",
+  score: "coachNudges.scoreBody",
+  selfContext: "coachNudges.selfContextBody",
+  weight: "coachNudges.weightBody",
+  sleepDebt: "coachNudges.sleepDebtBody",
+  measurementGap: "coachNudges.measurementGapBody",
+};
+
+/** Two rotating morning-safe openers; index picked from `openerSeed`. */
+const GREETING_KEYS = [
+  {
+    named: "coachNudges.greetingMorningNamed",
+    plain: "coachNudges.greetingMorning",
+  },
+  { named: "coachNudges.greetingHeyNamed", plain: "coachNudges.greetingHey" },
+] as const;
+
+export interface NudgePayloadOptions {
+  /**
+   * Display name for the greeting. Null / empty → a name-less greeting
+   * ("Guten Morgen") rather than an awkward "Guten Morgen, ".
+   */
+  name?: string | null;
+  /**
+   * Whether the user set a Coach focus. Drives a NON-QUOTING acknowledgment
+   * line — the raw focus sentence is never read back, only its presence
+   * referenced. Ignored for the self-context check-up (it asks the user to
+   * refresh that very focus).
+   */
+  hasCoachFocus?: boolean;
+  /**
+   * Deterministic rotation seed for the greeting opener (e.g. the day of the
+   * month) so the opener varies day to day but stays stable within a tick.
+   */
+  openerSeed?: number;
+}
+
 /**
- * Build the localised push payload for a trigger. Bodies stay
- * deliberately vague on numbers — a lock screen is not the place for
- * health figures; the Coach conversation carries the detail.
+ * v1.25.0 — derive a warm greeting name from the user's profile. Prefers the
+ * explicit display name, then the given (first) token of the full name; falls
+ * back to a sanitised username only when it is not an email-shaped login.
+ * Returns null when nothing safe is available, so the greeting drops the name
+ * rather than addressing the user by an email or an empty string.
+ */
+export function resolveGreetingName(user: {
+  displayName?: string | null;
+  fullName?: string | null;
+  username?: string | null;
+}): string | null {
+  const firstToken = (raw: string | null | undefined): string | null => {
+    const trimmed = (raw ?? "").trim();
+    if (!trimmed) return null;
+    const token = trimmed.split(/\s+/)[0];
+    return token && token.length > 0 ? token.slice(0, 40) : null;
+  };
+  const fromDisplay = firstToken(user.displayName);
+  if (fromDisplay) return fromDisplay;
+  const fromFull = firstToken(user.fullName);
+  if (fromFull) return fromFull;
+  const username = (user.username ?? "").trim();
+  if (username && !username.includes("@") && !/\s/.test(username)) {
+    return username.slice(0, 40);
+  }
+  return null;
+}
+
+/**
+ * Build the localised push payload for a trigger.
  *
- * v1.16.5 — `coachFocus` (the user's own "watch this" line from the
- * self-context questionnaire, already decrypted by the caller) appends
- * a deterministic personal suffix to the body. The focus is the user's
- * own words about what to pay attention to — not a reading, not a
- * figure — so quoting it on the lock screen stays within the
- * no-health-figures rule. Clamped to `COACH_NUDGE_FOCUS_MAX_CHARS`.
- * The self-context check-up nudge skips the suffix: quoting the focus
- * while asking the user to refresh it would contradict itself.
+ * v1.25.0 — the TITLE is a warm greeting (with the user's name when known,
+ * rotating openers; 05:15 makes a morning frame safe). The BODY is one calm
+ * observation plus a gentle invite, deliberately vague on numbers — a lock
+ * screen is not the place for health figures; the Coach conversation carries
+ * the detail. When the user set a Coach focus the body adds a non-quoting
+ * acknowledgment (the raw focus sentence is never read back). The
+ * self-context check-up skips that acknowledgment: it is itself the prompt to
+ * refresh the focus.
  */
 export function buildCoachNudgePayload(
   trigger: CoachNudgeTrigger,
   locale: string | null | undefined,
-  coachFocus?: string | null,
+  options: NudgePayloadOptions = {},
 ): { title: string; body: string } {
   const t = getServerTranslator(resolveLocale(locale)).t;
-  const base = ((): { title: string; body: string } => {
-    switch (trigger) {
-      case "compliance":
-        return {
-          title: t("coachNudges.complianceTitle"),
-          body: t("coachNudges.complianceBody"),
-        };
-      case "bp":
-        return {
-          title: t("coachNudges.bpTitle"),
-          body: t("coachNudges.bpBody"),
-        };
-      case "score":
-        return {
-          title: t("coachNudges.scoreTitle"),
-          body: t("coachNudges.scoreBody"),
-        };
-      case "selfContext":
-        return {
-          title: t("coachNudges.selfContextTitle"),
-          body: t("coachNudges.selfContextBody"),
-        };
-      case "weight":
-        return {
-          title: t("coachNudges.weightTitle"),
-          body: t("coachNudges.weightBody"),
-        };
-      case "sleepDebt":
-        return {
-          title: t("coachNudges.sleepDebtTitle"),
-          body: t("coachNudges.sleepDebtBody"),
-        };
-      case "measurementGap":
-        return {
-          title: t("coachNudges.measurementGapTitle"),
-          body: t("coachNudges.measurementGapBody"),
-        };
-    }
-  })();
+  const name = options.name?.trim() || null;
+  const opener =
+    GREETING_KEYS[(options.openerSeed ?? 0) % GREETING_KEYS.length];
+  const title = name ? t(opener.named, { name }) : t(opener.plain);
 
-  const focus = coachFocus?.trim();
-  if (!focus || trigger === "selfContext") return base;
-  const clamped =
-    focus.length > COACH_NUDGE_FOCUS_MAX_CHARS
-      ? `${focus.slice(0, COACH_NUDGE_FOCUS_MAX_CHARS - 1).trimEnd()}…`
-      : focus;
-  return {
-    title: base.title,
-    body: `${base.body} ${t("coachNudges.focusSuffix", { focus: clamped })}`,
-  };
+  let body = t(NUDGE_BODY_KEY[trigger]);
+  if (options.hasCoachFocus && trigger !== "selfContext") {
+    body = `${body} ${t("coachNudges.focusNote")}`;
+  }
+  return { title, body };
 }
 
 /**
@@ -704,10 +759,20 @@ export async function runCoachNudgeTick(
   options: {
     dispatch?: typeof dispatchNotification;
     recordNudge?: typeof recordProactiveNudge;
+    /**
+     * v1.25.0 — injectable AI composer (tests stub it). Defaults to the real
+     * `composeNudgeWithAI`; the shared per-tick budget is created once below.
+     */
+    composeAi?: ComposeNudgeWithAI;
   } = {},
 ): Promise<CoachNudgeSummary> {
   const dispatchImpl = options.dispatch ?? dispatchNotification;
   const recordNudgeImpl = options.recordNudge ?? recordProactiveNudge;
+  const composeAiImpl = options.composeAi ?? composeNudgeWithAI;
+  // v1.25.0 — one budget for the whole sequential tick: a cap on AI
+  // compositions and a wall-clock ceiling so a slow provider can't stall the
+  // 05:15 pass across the user base. Exhaustion → template for the rest.
+  const aiTickBudget: NudgeAiTickBudget = createNudgeAiTickBudget();
 
   const summary: CoachNudgeSummary = {
     candidatesScanned: 0,
@@ -716,6 +781,7 @@ export async function runCoachNudgeTick(
     skippedOptedOut: 0,
     skippedNoProvider: 0,
     skippedRecentNudge: 0,
+    skippedRecentEngagement: 0,
     skippedNoTrigger: 0,
     skippedNoChannel: 0,
     skippedDuringIllness: 0,
@@ -733,6 +799,9 @@ export async function runCoachNudgeTick(
     select: {
       id: true,
       locale: true,
+      displayName: true,
+      fullName: true,
+      username: true,
       notificationPrefs: true,
       heightCm: true,
       dateOfBirth: true,
@@ -821,7 +890,24 @@ export async function runCoachNudgeTick(
         continue;
       }
 
-      // Gate 6 — Rest Mode pause (v1.18.1 P4). A user with an active
+      // Gate 6 — anti-nag engagement suppression (v1.25.0). A user who
+      // talked to the Coach within the last ~24 h does not need to be poked
+      // toward it; the proactive outreach is for someone who has drifted, not
+      // someone already in the conversation. Cheaper than the trigger search,
+      // so it sits ahead of it.
+      const engagementCutoff = new Date(
+        now.getTime() - COACH_NUDGE_RECENT_ENGAGEMENT_HOURS * 60 * 60 * 1000,
+      );
+      const recentEngagement = await prisma.coachUsage.findFirst({
+        where: { userId: user.id, updatedAt: { gte: engagementCutoff } },
+        select: { userId: true },
+      });
+      if (recentEngagement) {
+        summary.skippedRecentEngagement += 1;
+        continue;
+      }
+
+      // Gate 7 — Rest Mode pause (v1.18.1 P4). A user with an active
       // illness/condition episode should not be told to measure more often;
       // the cadence-nudge pauses for the duration of the episode. Module-gated
       // (a non-illness account is never in Rest Mode) and only reached past
@@ -844,30 +930,55 @@ export async function runCoachNudgeTick(
         continue;
       }
 
-      // Personalisation — decrypt the user's Coach focus only now that
-      // a nudge is actually about to dispatch. Fail-closed: a missing
-      // row or an undecryptable payload just drops the suffix.
-      let coachFocus: string | null = null;
+      // Personalisation — the user's Coach focus is referenced ONLY by
+      // PRESENCE now (v1.25.0): a non-quoting acknowledgment, never the raw
+      // decrypted sentence read back. So a cheap presence read replaces the
+      // former decrypt; nothing sensitive is decrypted during the nudge.
+      let hasCoachFocus = false;
       if (trigger !== "selfContext") {
-        try {
-          const profileRow = await prisma.userHealthProfile.findUnique({
-            where: { userId: user.id },
-            select: { coachFocusEncrypted: true },
-          });
-          if (profileRow?.coachFocusEncrypted) {
-            coachFocus =
-              decryptFromBytes(profileRow.coachFocusEncrypted).trim() || null;
-          }
-        } catch {
-          coachFocus = null;
-        }
+        const profileRow = await prisma.userHealthProfile.findUnique({
+          where: { userId: user.id },
+          select: { coachFocusEncrypted: true },
+        });
+        hasCoachFocus = profileRow?.coachFocusEncrypted != null;
       }
 
-      const { title, body } = buildCoachNudgePayload(
-        trigger,
-        user.locale,
-        coachFocus,
-      );
+      const locale = resolveLocale(user.locale);
+      const name = resolveGreetingName(user);
+      // Rotate the opener day to day, stable within a tick.
+      const openerSeed = now.getUTCDate();
+
+      // The deterministic template is the DEFAULT and the fail-closed
+      // fallback. It is built unconditionally so the AI path always has a
+      // ready-made replacement to fall back to on any error/timeout/budget.
+      const template = buildCoachNudgePayload(trigger, locale, {
+        name,
+        hasCoachFocus,
+        openerSeed,
+      });
+
+      let title = template.title;
+      let body = template.body;
+
+      // AI enrichment (opt-in, default OFF). Composes the body through the
+      // model under hard guards; ANY failure returns null and we keep the
+      // template. The greeting title stays deterministic so the warm,
+      // name-led opener is guaranteed regardless of the model's output.
+      if (nudgePrefs.aiComposed) {
+        const composed = await composeAiImpl({
+          userId: user.id,
+          trigger,
+          locale,
+          name,
+          hasCoachFocus,
+          template,
+          tickBudget: aiTickBudget,
+        });
+        if (composed) {
+          title = composed.title;
+          body = composed.body;
+        }
+      }
 
       // v1.18.6 (CCH-02) — persist the nudge as a real conversation
       // BEFORE dispatching the notification. The proactive nudge used to
