@@ -13,7 +13,7 @@
  * positive PHQ-9 item-9 the server returns a calm, locale-aware crisis-resource
  * set which is rendered immediately below the result.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -62,6 +62,16 @@ export function MentalWellbeing() {
   const [items, setItems] = useState<number[]>([]);
   const [functional, setFunctional] = useState<number | null>(null);
   const [result, setResult] = useState<CreateResponse | null>(null);
+
+  // a11y: on submit the form (incl. the submit button) unmounts and `phase`
+  // flips to "result". Move focus to the result heading so keyboard / screen-
+  // reader users are not dropped to `<body>` and land on the new content.
+  const resultHeadingRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (phase === "result") {
+      resultHeadingRef.current?.focus();
+    }
+  }, [phase]);
 
   const lower = (id: InstrumentId) => (id === "PHQ9" ? "phq9" : "gad7");
 
@@ -191,6 +201,9 @@ export function MentalWellbeing() {
                       key={v}
                       type="button"
                       size="sm"
+                      // 44px touch-target floor (WCAG 2.5.5) — these are the
+                      // questionnaire option controls a full PHQ-9 taps 36 times.
+                      className="min-h-11"
                       variant={items[i] === v ? "default" : "outline"}
                       aria-pressed={items[i] === v}
                       onClick={() =>
@@ -221,6 +234,8 @@ export function MentalWellbeing() {
                   key={v}
                   type="button"
                   size="sm"
+                  // 44px touch-target floor (WCAG 2.5.5), matching the scale.
+                  className="min-h-11"
                   variant={functional === v ? "default" : "outline"}
                   aria-pressed={functional === v}
                   onClick={() => setFunctional(v)}
@@ -251,7 +266,13 @@ export function MentalWellbeing() {
           </p>
           <Card>
             <CardHeader>
-              <CardTitle>{t("mentalHealth.result.title")}</CardTitle>
+              <CardTitle
+                ref={resultHeadingRef}
+                tabIndex={-1}
+                className="scroll-mt-4 outline-none"
+              >
+                {t("mentalHealth.result.title")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm">
               <div className="flex items-baseline justify-between">
@@ -281,7 +302,11 @@ export function MentalWellbeing() {
           </Card>
 
           {result.crisis && (
-            <Card className="border-amber-400/50">
+            <Card
+              className="border-amber-400/50"
+              role="alert"
+              aria-live="assertive"
+            >
               <CardHeader>
                 <CardTitle className="text-base">
                   {t("mentalHealth.crisis.title")}
