@@ -115,8 +115,8 @@ describe("PATCH /api/documents/inbound/[id]", () => {
     expect(res.status).toBe(404);
     expect(prisma.inboundDocument.update).not.toHaveBeenCalled();
 
-    const where = vi.mocked(prisma.inboundDocument.findFirst).mock.calls[0][0]
-      .where;
+    const where = vi.mocked(prisma.inboundDocument.findFirst).mock.calls[0]![0]!
+      .where!;
     expect(where.userId).toBe("user-1");
     expect(where.deletedAt).toBeNull();
   });

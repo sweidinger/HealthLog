@@ -130,7 +130,7 @@ describe("POST /api/documents/inbound (store-only)", () => {
     expect(body.data.title).toBe("Blood panel");
 
     // The row is created with status STORED, no provider, userId from session.
-    const arg = vi.mocked(prisma.inboundDocument.create).mock.calls[0][0];
+    const arg = vi.mocked(prisma.inboundDocument.create).mock.calls[0]![0]!;
     expect(arg.data.status).toBe("STORED");
     expect(arg.data.userId).toBe("user-1");
     expect(arg.data.kind).toBe("LAB_RESULT");
@@ -169,11 +169,12 @@ describe("GET /api/documents/inbound (list)", () => {
     expect(body.data.documents).toHaveLength(2);
     expect(body.data.nextCursor).toBeNull();
 
-    const arg = vi.mocked(prisma.inboundDocument.findMany).mock.calls[0][0];
-    expect(arg.where.userId).toBe("user-1");
-    expect(arg.where.deletedAt).toBeNull();
-    expect(arg.where.kind).toBe("LAB_RESULT");
-    expect(arg.where.OR).toEqual([
+    const arg = vi.mocked(prisma.inboundDocument.findMany).mock.calls[0]![0]!;
+    const where = arg.where!;
+    expect(where.userId).toBe("user-1");
+    expect(where.deletedAt).toBeNull();
+    expect(where.kind).toBe("LAB_RESULT");
+    expect(where.OR).toEqual([
       { title: { contains: "panel", mode: "insensitive" } },
       { filename: { contains: "panel", mode: "insensitive" } },
     ]);
