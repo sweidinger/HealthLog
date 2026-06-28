@@ -72,6 +72,15 @@ function isGate(out: unknown): boolean {
   );
 }
 
+/**
+ * Returns the props the page handed to the gate element. A client component
+ * boundary can only carry serializable props — issue #374 was a `t` FUNCTION
+ * crossing it, which throws at render.
+ */
+function gateProps(out: unknown): Record<string, unknown> {
+  return (out as { props: Record<string, unknown> }).props;
+}
+
 function resolvedContext() {
   return {
     shareLinkId: "link-1",
@@ -126,6 +135,23 @@ describe("clinician share page", () => {
     expect(isGate(out)).toBe(true);
     expect(resolve).not.toHaveBeenCalled();
     expect(loadData).not.toHaveBeenCalled();
+
+    // Issue #374 contract: every prop crossing the server→client boundary must
+    // be serializable. NO prop value may be a function (a `t` function here
+    // throws "Server Components render error"), and the copy must arrive as a
+    // pre-resolved plain object.
+    const props = gateProps(out);
+    for (const value of Object.values(props)) {
+      expect(typeof value).not.toBe("function");
+    }
+    expect(typeof props.token).toBe("string");
+    const strings = props.strings as Record<string, unknown>;
+    expect(strings).toBeTypeOf("object");
+    expect(strings).not.toBeNull();
+    expect(Object.values(strings).length).toBeGreaterThan(0);
+    for (const value of Object.values(strings)) {
+      expect(typeof value).toBe("string");
+    }
   });
 
   it("renders a protected link WITH a valid unlock cookie", async () => {
