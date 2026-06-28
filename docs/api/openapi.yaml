@@ -10082,6 +10082,8 @@ components:
           type: boolean
         inboundDocuments:
           type: boolean
+        mentalHealth:
+          type: boolean
       additionalProperties: false
       description: Partial module enable/disable update. Each key is an optional boolean; an omitted key is left untouched,
         `false` disables the module, `true` (re-)enables it. Only the toggleable "secondary domains" are accepted — a
@@ -17150,6 +17152,9 @@ components:
         inboundDocuments:
           type: boolean
           description: Whether the "inboundDocuments" module is enabled for this account.
+        mentalHealth:
+          type: boolean
+          description: Whether the "mentalHealth" module is enabled for this account.
       required:
         - cycle
         - mood
@@ -17167,6 +17172,7 @@ components:
         - environment
         - mcp
         - inboundDocuments
+        - mentalHealth
       additionalProperties: false
       description: Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means
         the surface should disappear end-to-end (nav, dashboard, insights, …). `cycle` mirrors `cycleTrackingEnabled`;
