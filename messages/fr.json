@@ -4052,12 +4052,12 @@
     },
     "sections": {
       "account": {
-        "title": "Compte",
+        "title": "Profil et préférences",
         "description": "Profil, mot de passe, clés d’accès et votre visite guidée.",
         "subtitle": "Votre profil, votre identité et vos identifiants."
       },
       "integrations": {
-        "title": "Intégrations",
+        "title": "Connexions",
         "description": "Services connectés, canaux de diffusion et priorité des sources au même endroit.",
         "subtitle": "Connectez et gérez vos sources de données et appareils."
       },
@@ -4349,9 +4349,9 @@
         "subtitle": "Authentification à deux facteurs, codes de récupération et clés d'accès."
       },
       "privacy": {
-        "title": "Données et confidentialité",
-        "subtitle": "Vos données, leur conservation, le chiffrement et la sécurité du compte au même endroit.",
-        "description": "Export, suppression, conservation, état du chiffrement, sessions et activité de sécurité."
+        "title": "Confidentialité et conservation",
+        "subtitle": "Vos données, leur conservation et le chiffrement au même endroit.",
+        "description": "Export, suppression, conservation et état du chiffrement."
       },
       "mcp": {
         "title": "Connecteur MCP",
@@ -5318,6 +5318,11 @@
         "description": "Contrôlez la quantité de données partagées avec les fonctions d'IA et la recherche optionnelle.",
         "openAi": "Mode confidentialité IA",
         "openResearch": "Mode recherche"
+      },
+      "signIn": {
+        "title": "Connexion et appareils",
+        "description": "Les sessions actives, les appareils de confiance et l'activité de connexion se trouvent désormais dans les paramètres de sécurité de votre compte.",
+        "openSecurity": "Gérer la connexion et la sécurité"
       }
     },
     "mcp": {

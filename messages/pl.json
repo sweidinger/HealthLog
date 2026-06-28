@@ -4052,12 +4052,12 @@
     },
     "sections": {
       "account": {
-        "title": "Konto",
+        "title": "Profil i preferencje",
         "description": "Profil, hasło, klucze dostępu i przewodnik wprowadzający.",
         "subtitle": "Twój profil, tożsamość i dane logowania."
       },
       "integrations": {
-        "title": "Integracje",
+        "title": "Połączenia",
         "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
         "subtitle": "Połącz i zarządzaj źródłami danych oraz urządzeniami."
       },
@@ -4349,9 +4349,9 @@
         "subtitle": "Uwierzytelnianie dwuskładnikowe, kody odzyskiwania i klucze dostępu."
       },
       "privacy": {
-        "title": "Dane i prywatność",
-        "subtitle": "Twoje dane, retencja, szyfrowanie i bezpieczeństwo konta w jednym miejscu.",
-        "description": "Eksport, usuwanie, retencja, stan szyfrowania, sesje i aktywność zabezpieczeń."
+        "title": "Prywatność i przechowywanie",
+        "subtitle": "Twoje dane, retencja i szyfrowanie w jednym miejscu.",
+        "description": "Eksport, usuwanie, retencja i stan szyfrowania."
       },
       "mcp": {
         "title": "Łącznik MCP",
@@ -5318,6 +5318,11 @@
         "description": "Kontroluj, ile Twoich danych jest udostępnianych funkcjom AI i opcjonalnym badaniom.",
         "openAi": "Tryb prywatności AI",
         "openResearch": "Tryb badawczy"
+      },
+      "signIn": {
+        "title": "Logowanie i urządzenia",
+        "description": "Aktywne sesje, zaufane urządzenia i aktywność logowania znajdują się teraz w ustawieniach zabezpieczeń konta.",
+        "openSecurity": "Zarządzaj logowaniem i zabezpieczeniami"
       }
     },
     "mcp": {

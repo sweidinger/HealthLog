@@ -126,12 +126,16 @@ function renderFramed(
 }
 
 describe("settings sections — SSR smoke", () => {
-  it("<AccountSection> renders the Account heading and Profile card", () => {
+  it("<AccountSection> renders the Profile heading and Profile card", () => {
     const html = renderFramed("account", <AccountSection />);
-    // Section title resolves via the frame + i18n provider.
-    expect(html).toContain("Account");
+    // v1.25.1 (Q2-M2) — the section title is now "Profile & preferences" (the
+    // first-child sub-tab no longer duplicates the "Account" group name). It
+    // resolves via the frame + i18n provider.
+    expect(html).toContain("Profile &amp; preferences");
     // Profile card heading is also painted.
     expect(html).toContain("Profile");
+    // v1.25.1 (Q2-M3) — account deletion moved here from Advanced.
+    expect(html).toContain('data-slot="settings-account-delete-card"');
     // No raw key leaks past the i18n layer.
     expect(html).not.toContain("settings.sections.");
   });
@@ -184,7 +188,9 @@ describe("settings sections — SSR smoke", () => {
 
   it("<IntegrationsSection> renders Withings card title", () => {
     const html = renderFramed("integrations", <IntegrationsSection />);
-    expect(html).toContain("Integrations");
+    // v1.25.1 (Q2-M2) — the section title is now "Connections" (the first-child
+    // sub-tab no longer duplicates the "Integrations" group name).
+    expect(html).toContain("Connections");
     expect(html).toContain("Withings");
   });
 

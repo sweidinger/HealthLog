@@ -366,6 +366,11 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
     id: "integrations",
     titleKey: "settings.groups.integrations.title",
     icon: Link2,
+    // `channels` (delivery channels) stays under Integrations by deliberate
+    // choice (Q2-M1): a channel is a delivery PROVIDER, which the standing
+    // "providers → Integrations" principle places here, not under Notifications
+    // (which owns reminder TYPES). Reconsidered and kept as status quo in
+    // v1.25.1 — do not move it to the Notifications group.
     children: ["integrations", "channels", "sources"],
   },
   {
@@ -567,6 +572,25 @@ export function SettingsShell({
     strip.scrollTo({ left: target, behavior: "auto" });
   }, [activeSlug]);
 
+  // v1.25.1 (Q3-M3) — the in-page SUB-TAB strip needs the same
+  // scroll-active-into-view treatment as the group strip above. The Tracking
+  // group renders up to nine sub-tabs in an `overflow-x-auto` strip; deep-linking
+  // (or navigating) to a late tab — thresholds / environment / anamnesis — left
+  // the active `[aria-current="page"]` chip off-screen to the right, reading as
+  // "nothing selected" on a narrow viewport. Pin it to the strip's left edge,
+  // clamped to the scroll range, with the same instant (non-animated) jump.
+  const subTabStripRef = React.useRef<HTMLElement | null>(null);
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const strip = subTabStripRef.current;
+    if (!strip) return;
+    const active = strip.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!active) return;
+    const maxScroll = strip.scrollWidth - strip.clientWidth;
+    const target = Math.max(0, Math.min(active.offsetLeft, maxScroll));
+    strip.scrollTo({ left: target, behavior: "auto" });
+  }, [activeSlug]);
+
   // v1.18.6.1 — resolve the heading once. Pages pass an explicit `heading`
   // (the canonical path); the slug fallback keeps the shell renderable on
   // its own (and in tests that mount it without a heading) by deriving the
@@ -618,36 +642,51 @@ export function SettingsShell({
     }
   }, [activeSlug, headingId]);
 
-  const headingBlock = resolvedHeading ? (
-    <div className="space-y-6">
-      {resolvedHeading.topSlot ? <div>{resolvedHeading.topSlot}</div> : null}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h1
-            id={resolvedHeading.headingId}
-            data-settings-heading={resolvedHeading.headingId}
-            // v1.25.1 (A11Y-L6) — programmatically focusable so an in-shell
-            // section switch can move focus here (see the `activeSlug` effect).
-            // `tabIndex={-1}` keeps it out of the sequential tab order but lets
-            // `.focus()` land, so keyboard / screen-reader users are placed in
-            // the new section's content instead of being left on the nav link.
-            tabIndex={-1}
-            className="text-2xl font-bold tracking-tight outline-none"
-          >
-            {resolvedHeading.title}
-          </h1>
-          {resolvedHeading.subtitle ? (
-            <p className="text-muted-foreground text-sm">
-              {resolvedHeading.subtitle}
-            </p>
+  // v1.25.1 (A11Y M1) — the heading node is painted at two breakpoints (mobile
+  // above the strip, desktop inside the grid). Both stay in the DOM (CSS
+  // `display:none`, not unmounted), so emitting the `id` on both produced a real
+  // `duplicate-id-aria` violation (the id is the `aria-labelledby` target of the
+  // section body, and any `getElementById` consumer would resolve the hidden
+  // instance). The `id` now lands on ONE instance only (`withId`). The focus
+  // effect targets `data-settings-heading` (kept on both) and picks the visible
+  // one, and `aria-labelledby` still resolves because referenced-element text
+  // counts even when the element is `display:none`.
+  const makeHeadingBlock = (withId: boolean) =>
+    resolvedHeading ? (
+      <div className="space-y-6">
+        {resolvedHeading.topSlot ? <div>{resolvedHeading.topSlot}</div> : null}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h1
+              {...(withId ? { id: resolvedHeading.headingId } : {})}
+              data-settings-heading={resolvedHeading.headingId}
+              // v1.25.1 (A11Y-L6) — programmatically focusable so an in-shell
+              // section switch can move focus here (see the `activeSlug` effect).
+              // `tabIndex={-1}` keeps it out of the sequential tab order but lets
+              // `.focus()` land, so keyboard / screen-reader users are placed in
+              // the new section's content instead of being left on the nav link.
+              tabIndex={-1}
+              className="text-2xl font-bold tracking-tight outline-none"
+            >
+              {resolvedHeading.title}
+            </h1>
+            {resolvedHeading.subtitle ? (
+              <p className="text-muted-foreground text-sm">
+                {resolvedHeading.subtitle}
+              </p>
+            ) : null}
+          </div>
+          {resolvedHeading.headingAccessory ? (
+            <div className="shrink-0">{resolvedHeading.headingAccessory}</div>
           ) : null}
         </div>
-        {resolvedHeading.headingAccessory ? (
-          <div className="shrink-0">{resolvedHeading.headingAccessory}</div>
-        ) : null}
       </div>
-    </div>
-  ) : null;
+    ) : null;
+
+  // The desktop instance carries the canonical `id`; the mobile instance is
+  // id-less (it keeps `data-settings-heading` for the focus effect).
+  const mobileHeadingBlock = makeHeadingBlock(false);
+  const desktopHeadingBlock = makeHeadingBlock(true);
 
   // v1.4.25 W8 — AuthShell wraps the page in `px-4 py-6 md:px-6`
   // already, so this inner shell only carries the wider max-width.
@@ -659,8 +698,8 @@ export function SettingsShell({
       {/* v1.18.6.1 — on mobile the heading sits above the chip strip; on
           desktop it is rendered inside the grid (row 1 / content column) so
           it does not paint twice. */}
-      {headingBlock ? (
-        <div className="mb-4 md:hidden">{headingBlock}</div>
+      {mobileHeadingBlock ? (
+        <div className="mb-4 md:hidden">{mobileHeadingBlock}</div>
       ) : null}
 
       {/* Mobile section strip — horizontal scroll, hidden on md+.
@@ -722,9 +761,9 @@ export function SettingsShell({
           the `space-y-6` the heading-to-first-card gap used to carry. */}
       <div className="grid gap-6 md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]">
         {/* Heading — desktop only here (mobile renders it above the strip). */}
-        {headingBlock ? (
+        {desktopHeadingBlock ? (
           <div className="hidden md:col-start-2 md:row-start-1 md:block">
-            {headingBlock}
+            {desktopHeadingBlock}
           </div>
         ) : null}
 
@@ -791,11 +830,13 @@ export function SettingsShell({
           {/* v1.25.1 — in-page sub-tabs for the active group. Painted only
               when the group has 2+ visible children (single-child groups —
               Notifications, About — render no strip). Horizontal scroll keeps
-              the 8-tab Tracking group from overflowing a narrow viewport. A
+              the nine-tab Tracking group from overflowing a narrow viewport,
+              and the `subTabStripRef` effect scrolls the active tab into view. A
               segmented control (shadcn-style) on every breakpoint. Each tab is
               a real route Link so deep links + the back/forward stack work. */}
           {subTabs.length > 1 ? (
             <nav
+              ref={subTabStripRef}
               aria-label={t("settings.shell.subSectionsNav")}
               data-slot="settings-subtabs"
               className="no-scrollbar bg-muted/50 -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-lg p-1"

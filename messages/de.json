@@ -4052,12 +4052,12 @@
     },
     "sections": {
       "account": {
-        "title": "Konto",
+        "title": "Profil & Einstellungen",
         "description": "Profil, Passwort, Passkeys und deine Onboarding-Tour.",
         "subtitle": "Dein Profil, deine Identität und deine Anmeldedaten."
       },
       "integrations": {
-        "title": "Integrationen",
+        "title": "Verbindungen",
         "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort.",
         "subtitle": "Datenquellen und Geräte verbinden und verwalten."
       },
@@ -4349,9 +4349,9 @@
         "subtitle": "Zwei-Faktor-Authentifizierung, Wiederherstellungscodes und Passkeys."
       },
       "privacy": {
-        "title": "Daten & Datenschutz",
-        "subtitle": "Deine Daten, Aufbewahrung, Verschlüsselung und Kontosicherheit an einem Ort.",
-        "description": "Export, Löschung, Aufbewahrung, Verschlüsselungsstatus, Sitzungen und Sicherheitsaktivität."
+        "title": "Datenschutz & Aufbewahrung",
+        "subtitle": "Deine Daten, Aufbewahrung und Verschlüsselung an einem Ort.",
+        "description": "Export, Löschung, Aufbewahrung und Verschlüsselungsstatus."
       },
       "mcp": {
         "title": "MCP-Connector",
@@ -5318,6 +5318,11 @@
         "description": "Steuere, wie viele deiner Daten an KI-Funktionen und die freiwillige Forschung weitergegeben werden.",
         "openAi": "KI-Datenschutzmodus",
         "openResearch": "Forschungsmodus"
+      },
+      "signIn": {
+        "title": "Anmeldung & Geräte",
+        "description": "Aktive Sitzungen, vertraute Geräte und Anmeldeaktivität findest du jetzt in den Sicherheitseinstellungen deines Kontos.",
+        "openSecurity": "Anmeldung & Sicherheit verwalten"
       }
     },
     "mcp": {
