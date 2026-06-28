@@ -240,7 +240,8 @@
     "labs": "Wyniki badań",
     "vorsorge": "Badania",
     "illness": "Choroba",
-    "documents": "Dokumenty"
+    "documents": "Dokumenty",
+    "mentalWellbeing": "Dobrostan psychiczny"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -7267,6 +7268,10 @@
     "inboundDocuments": {
       "label": "Dokumenty przychodzące",
       "description": "Prześlij raport lekarski lub wypis; sprawdź wyodrębnione dane przed zapisaniem. Domyślnie wyłączone."
+    },
+    "mentalHealth": {
+      "label": "Dobrostan psychiczny",
+      "description": "Dobrowolne testy PHQ-9 i GAD-7 obok dziennika nastroju. Domyślnie wyłączone; odpowiedzi są szyfrowane i pozostają poza Coachem AI."
     }
   },
   "illness": {
@@ -7567,41 +7572,41 @@
     },
     "items": {
       "phq9": {
-        "1": "Little interest or pleasure in doing things",
-        "2": "Feeling down, depressed, or hopeless",
-        "3": "Trouble falling or staying asleep, or sleeping too much",
-        "4": "Feeling tired or having little energy",
-        "5": "Poor appetite or overeating",
-        "6": "Feeling bad about yourself — or that you are a failure or have let yourself or your family down",
-        "7": "Trouble concentrating on things, such as reading the newspaper or watching television",
-        "8": "Moving or speaking so slowly that other people could have noticed. Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
-        "9": "Thoughts that you would be better off dead, or of hurting yourself in some way"
+        "1": "Niewielkie zainteresowanie lub odczuwanie przyjemności z wykonywania czynności",
+        "2": "Uczucie przygnębienia, depresji lub beznadziejności",
+        "3": "Kłopoty z zaśnięciem lub utrzymaniem snu albo zbyt długi sen",
+        "4": "Uczucie zmęczenia lub brak energii",
+        "5": "Brak apetytu lub przejadanie się",
+        "6": "Złe myślenie o sobie — poczucie, że jest się nieudacznikiem lub że zawiodło się siebie albo rodzinę",
+        "7": "Trudności ze skupieniem się, na przykład podczas czytania gazety lub oglądania telewizji",
+        "8": "Poruszanie się lub mówienie tak wolno, że inni mogli to zauważyć? Albo przeciwnie — niepokój lub pobudzenie powodujące, że poruszasz się znacznie więcej niż zwykle",
+        "9": "Myśli, że lepiej byłoby umrzeć albo chęć zrobienia sobie w jakiś sposób krzywdy"
       },
       "gad7": {
-        "1": "Feeling nervous, anxious, or on edge",
-        "2": "Not being able to stop or control worrying",
-        "3": "Worrying too much about different things",
-        "4": "Trouble relaxing",
-        "5": "Being so restless that it is hard to sit still",
-        "6": "Becoming easily annoyed or irritable",
-        "7": "Feeling afraid as if something awful might happen"
+        "1": "Odczuwanie zdenerwowania, lęku lub napięcia",
+        "2": "Niemożność przerwania lub kontrolowania zamartwiania się",
+        "3": "Zbytnie zamartwianie się różnymi sprawami",
+        "4": "Trudności z odprężeniem się",
+        "5": "Niepokój tak duży, że trudno usiedzieć w miejscu",
+        "6": "Łatwe wpadanie w rozdrażnienie lub irytację",
+        "7": "Odczuwanie lęku, jakby miało się zdarzyć coś strasznego"
       }
     },
     "crisisResource": {
       "telefonSeelsorge": {
-        "name": "TelefonSeelsorge (24/7, free, confidential)"
+        "name": "TelefonSeelsorge (całodobowo, bezpłatnie i poufnie)"
       },
       "nummerGegenKummer": {
-        "name": "Nummer gegen Kummer (for young people)"
+        "name": "Nummer gegen Kummer (dla młodych ludzi)"
       },
       "krisenchat": {
-        "name": "krisenchat (24/7 chat, young people)"
+        "name": "krisenchat (czat całodobowy, dla młodych ludzi)"
       },
       "findahelpline": {
-        "name": "Find a helpline (worldwide directory)"
+        "name": "Find a Helpline (światowy katalog)"
       },
       "euEmotionalSupport": {
-        "name": "Emotional-support helpline"
+        "name": "Telefon wsparcia emocjonalnego"
       },
       "lifeline988": {
         "name": "988 Suicide & Crisis Lifeline"
