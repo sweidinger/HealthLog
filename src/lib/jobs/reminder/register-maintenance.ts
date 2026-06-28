@@ -63,6 +63,13 @@ import {
   type NoteEncryptionBackfillPayload,
 } from "@/lib/jobs/note-encryption-backfill";
 import {
+  MED_NOTES_ENCRYPTION_BACKFILL_QUEUE,
+  MED_NOTES_ENCRYPTION_BACKFILL_CONCURRENCY,
+  runMedNotesEncryptionBackfillForUser,
+  enqueueBootTimeMedNotesEncryptionBackfill,
+  type MedNotesEncryptionBackfillPayload,
+} from "@/lib/jobs/med-notes-encryption-backfill";
+import {
   ENCRYPTION_KEY_ROTATE_QUEUE,
   ENCRYPTION_KEY_ROTATE_CONCURRENCY,
   handleEncryptionKeyRotate,
@@ -198,6 +205,15 @@ const NOTE_ENCRYPTION_BACKFILL_CRON = "55 3 * * *";
 const MCP_TOKEN_CLEANUP_QUEUE = "mcp-token-cleanup";
 
 const MCP_TOKEN_CLEANUP_CRON = "0 4 * * *";
+// v1.25 — converging backfill that migrates the three medication free-text
+// note columns (side-effect note, dose-change note, inventory-item note) from
+// plaintext to AES-256-GCM at rest. Boot discovery enqueues one per-user job;
+// a daily 04:05 Europe/Berlin discovery tick (empty payload) re-fans for any
+// rows that landed between worker reboots. Idempotent + fail-closed per row.
+// Slots after the MCP-token prune (04:00) so the two don't pile up on the same
+// boss poll.
+
+const MED_NOTES_ENCRYPTION_BACKFILL_CRON = "5 4 * * *";
 
 const allQueues = [
   DATA_BACKUP_QUEUE,
@@ -253,6 +269,11 @@ const allQueues = [
   // entry the daily schedule silently no-ops and the api_tokens table grows
   // unbounded with dead 60-minute connector rows.
   MCP_TOKEN_CLEANUP_QUEUE,
+  // v1.25 — medication free-text note encryption backfill. Boot discovery + a
+  // daily discovery cron enqueue one per-user job per account still holding a
+  // plaintext medication note; without this entry pg-boss never provisions the
+  // queue and both the boot enqueue and the cron silently no-op.
+  MED_NOTES_ENCRYPTION_BACKFILL_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -310,6 +331,11 @@ const schedules: ScheduleEntry[] = [
   [NOTE_ENCRYPTION_BACKFILL_QUEUE, NOTE_ENCRYPTION_BACKFILL_CRON],
   // v1.24 — daily 04:00 Europe/Berlin prune for dead MCP connector tokens.
   [MCP_TOKEN_CLEANUP_QUEUE, MCP_TOKEN_CLEANUP_CRON],
+  // v1.25 — daily 04:05 Europe/Berlin medication-note encryption backfill
+  // discovery. The empty cron payload (no `userId`) is the handler's signal to
+  // fan out one per-user job per account still holding a plaintext medication
+  // note.
+  [MED_NOTES_ENCRYPTION_BACKFILL_QUEUE, MED_NOTES_ENCRYPTION_BACKFILL_CRON],
 ];
 
 /**
@@ -531,6 +557,50 @@ export async function registerMaintenanceQueues(
     handleEncryptionKeyRotate,
   );
 
+  // v1.25 — medication-note encryption backfill worker. The boot enqueue
+  // helper (and the daily 04:05 discovery tick) send one job per user still
+  // holding a plaintext medication note; this handler migrates that user's
+  // rows across all three tables to the encrypted columns. An empty-userId
+  // payload is the daily discovery tick and re-fans the per-user jobs
+  // (singletonKey-coalesced, identical to the boot pass). Serial concurrency
+  // so the migration never crowds the request pool.
+  await boss.work<Partial<MedNotesEncryptionBackfillPayload>>(
+    MED_NOTES_ENCRYPTION_BACKFILL_QUEUE,
+    { localConcurrency: MED_NOTES_ENCRYPTION_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        if (!userId) {
+          const result = await enqueueBootTimeMedNotesEncryptionBackfill();
+          workerLog(
+            "info",
+            `[med-notes-encryption-backfill] daily discovery enqueued=${result.enqueued} skipped=${result.skipped}${result.error ? ` error=${result.error}` : ""}`,
+          );
+          continue;
+        }
+        try {
+          const {
+            sideEffectsMigrated,
+            doseChangesMigrated,
+            inventoryItemsMigrated,
+          } = await runMedNotesEncryptionBackfillForUser(userId);
+          workerLog(
+            "info",
+            `[med-notes-encryption-backfill] user=${userId} sideEffects=${sideEffectsMigrated} doseChanges=${doseChangesMigrated} inventoryItems=${inventoryItemsMigrated}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[med-notes-encryption-backfill] user=${userId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
   return allQueues;
 }
 
@@ -583,6 +653,33 @@ export async function enqueueMaintenanceBootDiscovery(): Promise<void> {
     workerLog(
       "error",
       "[note-encryption-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.25 — medication free-text note encryption backfill. Finds every user
+  // still holding a plaintext side-effect / dose-change / inventory-item note
+  // (no ciphertext yet) and enqueues one migration job per account. Idempotent
+  // across reboots: a migrated row nulls its plaintext column and drops off the
+  // discovery predicate.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeMedNotesEncryptionBackfill();
+    if (error) {
+      workerLog(
+        "error",
+        `[med-notes-encryption-backfill] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[med-notes-encryption-backfill] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[med-notes-encryption-backfill] boot discovery threw an unexpected error",
       err,
     );
   }

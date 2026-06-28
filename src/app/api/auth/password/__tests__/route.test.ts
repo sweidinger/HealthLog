@@ -4,6 +4,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+// v1.25 — password change requires a fresh MFA step-up for enrolled accounts.
+// Spread the real module so `apiHandler` keeps working; override the step-up
+// guard so each test drives the enrolled / fresh-factor outcome directly.
+vi.mock("@/lib/api-handler", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/api-handler")>(
+      "@/lib/api-handler",
+    );
+  return {
+    ...actual,
+    requireFreshMfaIfEnrolled: vi.fn(),
+  };
+});
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { update: vi.fn() },
@@ -36,6 +50,11 @@ vi.mock("@/lib/i18n/server-locale", () => ({
   resolveServerLocale: vi.fn().mockResolvedValue("en"),
 }));
 
+// Fail-open breach check: a null result (corpus unreachable) never blocks.
+vi.mock("@/lib/auth/hibp", () => ({
+  checkPasswordBreach: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
@@ -50,8 +69,14 @@ vi.mock("next/headers", () => ({
 }));
 
 import { POST } from "../route";
+import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { verifyPassword, checkPasswordStrength } from "@/lib/auth/password";
+import {
+  requireFreshMfaIfEnrolled,
+  StepUpRequiredError,
+} from "@/lib/api-handler";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -78,6 +103,44 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
+  // Default: account clears the step-up (no MFA enrolled, or a fresh factor).
+  vi.mocked(requireFreshMfaIfEnrolled).mockResolvedValue(SESSION_OK as never);
+});
+
+describe("POST /api/auth/password — MFA step-up (v1.25)", () => {
+  it("blocks an MFA-enrolled account without a fresh second factor", async () => {
+    vi.mocked(requireFreshMfaIfEnrolled).mockRejectedValue(
+      new StepUpRequiredError(),
+    );
+    const res = await POST(
+      postReq({
+        currentPassword: "old-pass-123",
+        newPassword: "New-Pass-456!",
+      }),
+    );
+    expect(res.status).toBe(401);
+    // The credential is never rotated when the step-up fails.
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("proceeds when the step-up is satisfied (fresh factor / no MFA)", async () => {
+    // vi.resetAllMocks() wiped the factory defaults; restore the success path.
+    vi.mocked(verifyPassword).mockResolvedValue(true);
+    vi.mocked(checkPasswordStrength).mockReturnValue({
+      isAcceptable: true,
+      feedback: [],
+    } as never);
+    const res = await POST(
+      postReq({
+        currentPassword: "old-pass-123",
+        newPassword: "New-Pass-456!",
+        confirmPassword: "New-Pass-456!",
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(requireFreshMfaIfEnrolled).toHaveBeenCalledWith(expect.any(Number));
+    expect(prisma.user.update).toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/auth/password — 422 multi-issue (v1.4.43 W6)", () => {

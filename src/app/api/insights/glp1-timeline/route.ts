@@ -12,6 +12,7 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";
+import { readNote } from "@/lib/crypto/note-cipher";
 import { NextRequest } from "next/server";
 
 const DEFAULT_LIMIT = 60;
@@ -131,7 +132,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         doseValue: dc.doseValue,
         doseUnit: dc.doseUnit,
         doseDelta: delta,
-        note: dc.note,
+        note: readNote(dc.noteEncrypted, dc.note),
       });
     }
     for (const intake of med.intakeEvents) {

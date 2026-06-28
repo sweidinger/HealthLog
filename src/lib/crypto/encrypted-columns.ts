@@ -149,6 +149,13 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   // IllnessDayLog / LabResult note columns above; Bytes via the shared codec.
   { model: "MoodEntry", field: "noteEncrypted", kind: "bytes" },
   { model: "Measurement", field: "notesEncrypted", kind: "bytes" },
+
+  // ───── v1.25 medication free-text notes (Bytes columns) ─────
+  // Side-effect log note, dose-change titration note, and inventory-item
+  // note — the last plaintext PHI columns left after the v1.23 rollout.
+  { model: "MedicationSideEffect", field: "notesEncrypted", kind: "bytes" },
+  { model: "MedicationDoseChange", field: "noteEncrypted", kind: "bytes" },
+  { model: "MedicationInventoryItem", field: "notesEncrypted", kind: "bytes" },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */

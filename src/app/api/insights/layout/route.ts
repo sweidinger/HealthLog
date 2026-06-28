@@ -35,7 +35,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod/v4";
 import { invalidateUserInsightsLayout } from "@/lib/cache/invalidate";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
-import { redactSensitiveFields } from "@/lib/observability/redact-payload";
+import { redactForExcerpt } from "@/lib/observability/redact-payload";
 import { shouldEmitAuditRow } from "@/lib/audit-dedup";
 import type { NextRequest } from "next/server";
 
@@ -129,9 +129,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     // round-trip; the wide-event line carries the redacted payload
     // shape for operator debugging without leaking the raw body.
     const issues = sanitiseZodIssues(parsed.error.issues);
-    const payloadDiagnostic = buildPayloadDiagnostic(
-      redactSensitiveFields(body),
-    );
+    const payloadDiagnostic = buildPayloadDiagnostic(redactForExcerpt(body));
     annotate({
       action: { name: "insights.layout.validation-failed" },
       meta: {

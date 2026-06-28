@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   redactSensitiveFields,
+  redactForExcerpt,
   SENSITIVE_KEY_PATTERNS,
 } from "../redact-payload";
+import { buildPayloadDiagnostic } from "@/lib/api-response";
 
 // v1.4.49 — pinned redactor for the wide-event `received_shape_excerpt`
 // surface introduced in v1.4.48 H-iOS-1 / H-iOS-2. The helper must
@@ -176,5 +178,61 @@ describe("redactSensitiveFields", () => {
       liveActivityPushToken: "[redacted]",
       webhookUrl: "https://example.com/hook",
     });
+  });
+});
+
+describe("redactForExcerpt (v1.25 — note/notes excerpt-only redaction)", () => {
+  it("redacts a free-text `notes` value the generic denylist deliberately keeps", () => {
+    const body = {
+      entry: "NAUSEA",
+      severity: 3,
+      notes: "felt dizzy after the 7.5 mg step-up — Nürnberg",
+    };
+    // The generic denylist leaves note/notes verbatim (too generic to add).
+    expect(redactSensitiveFields(body)).toEqual(body);
+    // The excerpt path redacts the value so it cannot reach a wide event.
+    expect(redactForExcerpt(body)).toEqual({
+      entry: "NAUSEA",
+      severity: 3,
+      notes: "[redacted]",
+    });
+  });
+
+  it("redacts a singular `note` key and recurses into nested objects + arrays", () => {
+    const body = {
+      doseChange: { doseValue: 7.5, note: "titration note" },
+      logs: [
+        { id: "1", note: "a" },
+        { id: "2", note: "b" },
+      ],
+    };
+    expect(redactForExcerpt(body)).toEqual({
+      doseChange: { doseValue: 7.5, note: "[redacted]" },
+      logs: [
+        { id: "1", note: "[redacted]" },
+        { id: "2", note: "[redacted]" },
+      ],
+    });
+  });
+
+  it("does not over-redact note-adjacent keys (noteId / footnotes stay)", () => {
+    const body = { noteId: "abc", footnotes: "kept", noteCount: 3 };
+    expect(redactForExcerpt(body)).toEqual(body);
+  });
+
+  it("still redacts the global sensitive keys on the excerpt path", () => {
+    const body = { note: "secret", token: "abc", keep: 1 };
+    expect(redactForExcerpt(body)).toEqual({
+      note: "[redacted]",
+      token: "[redacted]",
+      keep: 1,
+    });
+  });
+
+  it("keeps a free-text note value out of the wide-event excerpt end to end", () => {
+    const body = { notes: "a very private free-text health note value" };
+    const diag = buildPayloadDiagnostic(redactForExcerpt(body));
+    expect(diag.received_shape_excerpt).not.toContain("private free-text");
+    expect(diag.received_shape_excerpt).toContain("[redacted]");
   });
 });

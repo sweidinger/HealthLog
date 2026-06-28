@@ -421,6 +421,33 @@ async function main() {
     ),
   );
 
+  // ───── v1.25 medication free-text notes (Bytes columns) ─────
+  // "notesEncrypted" (MedicationSideEffect + MedicationInventoryItem) +
+  // "noteEncrypted" (MedicationDoseChange). Same shared-codec shape as the
+  // other free-text note columns. NULL on rows whose note is still in the
+  // legacy plaintext column (pre-backfill) — `rotateBytesColumn` skips those.
+  results.push(
+    await rotateBytesColumn(
+      "MedicationSideEffect",
+      "notesEncrypted",
+      prisma.medicationSideEffect,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "MedicationDoseChange",
+      "noteEncrypted",
+      prisma.medicationDoseChange,
+    ),
+  );
+  results.push(
+    await rotateBytesColumn(
+      "MedicationInventoryItem",
+      "notesEncrypted",
+      prisma.medicationInventoryItem,
+    ),
+  );
+
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
   let totalErrors = 0;

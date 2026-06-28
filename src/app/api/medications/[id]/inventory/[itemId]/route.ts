@@ -37,6 +37,7 @@ import {
 } from "@/lib/medications/inventory/state-machine";
 import { serializeInventoryItem } from "@/lib/medications/inventory/service";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { encryptNote, shapeInventoryItemNotes } from "@/lib/crypto/note-cipher";
 
 type RouteParams = { params: Promise<{ id: string; itemId: string }> };
 
@@ -142,6 +143,14 @@ export const PATCH = apiHandler(
       Date.now(),
     );
 
+    // Only touch the note columns when the caller supplied a value; an absent
+    // `notes` leaves the existing ciphertext untouched. When present, encrypt
+    // at rest and null the plaintext column.
+    const notesData =
+      notes === undefined
+        ? {}
+        : { notesEncrypted: encryptNote(notes), notes: null };
+
     const updated = await prisma.medicationInventoryItem.update({
       where: { id: itemId },
       data: {
@@ -150,7 +159,7 @@ export const PATCH = apiHandler(
         unitsRemaining: nextUnitsRemaining,
         printedExpiry: nextPrintedExpiry,
         expiresAt: nextExpiresAt,
-        notes: notes === undefined ? existing.notes : notes,
+        ...notesData,
       },
     });
 
@@ -180,7 +189,7 @@ export const PATCH = apiHandler(
     // read instead of after the `cachedSwr` stale window.
     invalidateUserMedications(user.id, { evict: true });
 
-    return apiSuccess(serializeInventoryItem(updated));
+    return apiSuccess(serializeInventoryItem(shapeInventoryItemNotes(updated)));
   },
 );
 

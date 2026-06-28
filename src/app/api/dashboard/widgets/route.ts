@@ -29,7 +29,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod/v4";
 import { invalidateUserDashboardWidgets } from "@/lib/cache/invalidate";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
-import { redactSensitiveFields } from "@/lib/observability/redact-payload";
+import { redactForExcerpt } from "@/lib/observability/redact-payload";
 import type { NextRequest } from "next/server";
 
 // Single source of truth — every widget id the layout accepts. The
@@ -211,13 +211,11 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     // the full body — so PII / token-like fields cannot leak. The
     // diagnostic shape is built by the shared `buildPayloadDiagnostic`
     // helper (v1.4.49) so the widget + series routes can't drift; the
-    // body is routed through `redactSensitiveFields` first so any
+    // body is routed through `redactForExcerpt` first so any
     // future field matching the denylist (password / token / secret /
     // apiKey / authorization / csrfState / nonce) lands as the literal
     // `"[redacted]"` instead of its raw value.
-    const payloadDiagnostic = buildPayloadDiagnostic(
-      redactSensitiveFields(body),
-    );
+    const payloadDiagnostic = buildPayloadDiagnostic(redactForExcerpt(body));
     annotate({
       action: { name: "dashboard.widgets.validation-failed" },
       meta: {

@@ -20,6 +20,7 @@
  */
 import { prisma } from "@/lib/db";
 import { sanitizeForPrompt } from "@/lib/insights/sanitize";
+import { readNote } from "@/lib/crypto/note-cipher";
 
 /**
  * Recommended generic name for the canonical GLP-1 drug brand. The Coach
@@ -325,12 +326,16 @@ export async function buildGlp1SnapshotBlock(
     const genericSafe = sanitizeForPrompt(generic, 80);
     const latestChange = med.doseChanges[med.doseChanges.length - 1] ?? null;
 
-    const doseHistory: DoseHistoryEntry[] = med.doseChanges.map((dc) => ({
-      value: dc.doseValue,
-      unit: sanitizeForPrompt(dc.doseUnit, 20),
-      effectiveFrom: isoDate(dc.effectiveFrom),
-      note: dc.note === null ? null : sanitizeForPrompt(dc.note, 200),
-    }));
+    const doseHistory: DoseHistoryEntry[] = med.doseChanges.map((dc) => {
+      const decryptedNote = readNote(dc.noteEncrypted, dc.note);
+      return {
+        value: dc.doseValue,
+        unit: sanitizeForPrompt(dc.doseUnit, 20),
+        effectiveFrom: isoDate(dc.effectiveFrom),
+        note:
+          decryptedNote === null ? null : sanitizeForPrompt(decryptedNote, 200),
+      };
+    });
 
     const currentDose: CurrentDose | null = latestChange
       ? {

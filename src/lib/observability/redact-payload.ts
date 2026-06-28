@@ -98,6 +98,18 @@ export const SENSITIVE_KEY_PATTERNS: readonly RegExp[] = [
   /verifier/i,
 ];
 
+/**
+ * v1.25 — keys whose VALUE must be kept out of a wide-event excerpt but which
+ * are too generic to live on the global `SENSITIVE_KEY_PATTERNS` denylist:
+ * redacting every `note` / `notes` everywhere `redactSensitiveFields` runs
+ * would over-redact unrelated observability. These apply ONLY on the
+ * excerpt path via {@link redactForExcerpt}, where a verbatim free-text health
+ * note (now encrypted at rest) must never land in `received_shape_excerpt`.
+ * Anchored so only the exact `note` / `notes` keys match — not, say, `noteId`
+ * or `footnotes`.
+ */
+export const EXCERPT_ONLY_KEY_PATTERNS: readonly RegExp[] = [/^notes?$/i];
+
 const REDACTED = "[redacted]";
 
 function keyIsSensitive(key: string): boolean {
@@ -107,20 +119,28 @@ function keyIsSensitive(key: string): boolean {
   return false;
 }
 
+function keyIsExcerptSensitive(key: string): boolean {
+  for (const re of EXCERPT_ONLY_KEY_PATTERNS) {
+    if (re.test(key)) return true;
+  }
+  return false;
+}
+
 /**
- * Returns a deep clone of `body` with any key matching the sensitive
- * denylist replaced by the literal `"[redacted]"`. Arrays + plain
- * objects are recursed into; scalars, `null`, `undefined`, `Date` and
- * other non-plain objects pass through unchanged.
- *
- * The clone is intentionally shallow on non-plain-object boundaries so
- * the helper stays cheap on the hot 422 path; the only goal is to keep
- * the credentialed key's value out of the eventual JSON excerpt.
+ * Deep clone of `body` with any key matching `isSensitive` replaced by the
+ * literal `"[redacted]"`. Arrays + plain objects are recursed into; scalars,
+ * `null`, `undefined`, `Date` and other non-plain objects pass through
+ * unchanged. The clone is intentionally shallow on non-plain-object boundaries
+ * so the helper stays cheap on the hot 422 path; the only goal is to keep the
+ * matched key's value out of the eventual JSON excerpt.
  */
-export function redactSensitiveFields(body: unknown): unknown {
+function redactWith(
+  body: unknown,
+  isSensitive: (key: string) => boolean,
+): unknown {
   if (body === null || body === undefined) return body;
   if (Array.isArray(body)) {
-    return body.map((entry) => redactSensitiveFields(entry));
+    return body.map((entry) => redactWith(entry, isSensitive));
   }
   if (typeof body !== "object") return body;
   // Skip non-plain objects (Date, Map, Set, Buffer, ...) — they'll
@@ -131,11 +151,32 @@ export function redactSensitiveFields(body: unknown): unknown {
 
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
-    if (keyIsSensitive(key)) {
+    if (isSensitive(key)) {
       out[key] = REDACTED;
       continue;
     }
-    out[key] = redactSensitiveFields(value);
+    out[key] = redactWith(value, isSensitive);
   }
   return out;
+}
+
+/**
+ * Returns a deep clone of `body` with any key matching the sensitive
+ * denylist replaced by the literal `"[redacted]"`.
+ */
+export function redactSensitiveFields(body: unknown): unknown {
+  return redactWith(body, keyIsSensitive);
+}
+
+/**
+ * v1.25 — excerpt-path redactor. Applies the global sensitive denylist PLUS
+ * the excerpt-only `note` / `notes` keys, so a free-text health-note value can
+ * never reach the `received_shape_excerpt` verbatim. Use this — not
+ * `redactSensitiveFields` — for anything that feeds `buildPayloadDiagnostic`.
+ */
+export function redactForExcerpt(body: unknown): unknown {
+  return redactWith(
+    body,
+    (key) => keyIsSensitive(key) || keyIsExcerptSensitive(key),
+  );
 }

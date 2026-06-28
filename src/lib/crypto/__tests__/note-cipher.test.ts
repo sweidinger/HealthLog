@@ -4,6 +4,9 @@ import {
   readNote,
   shapeMeasurementNotes,
   shapeMoodNote,
+  shapeSideEffectNotes,
+  shapeInventoryItemNotes,
+  shapeDoseChangeNote,
 } from "../note-cipher";
 
 // A 32-byte key as 64 hex chars (the legacy single-key path).
@@ -100,5 +103,67 @@ describe("shapeMeasurementNotes / shapeMoodNote", () => {
       notesEncrypted: null,
     });
     expect(shaped.notes).toBe("legacy plaintext");
+  });
+});
+
+describe("v1.25 medication note shapers", () => {
+  it("shapeSideEffectNotes decrypts onto `notes` and strips the ciphertext", () => {
+    const notesEncrypted = encryptNote("nausea on day 2");
+    const row = {
+      id: "se1",
+      entry: "NAUSEA",
+      severity: 3,
+      notes: null,
+      notesEncrypted,
+    };
+    const shaped = shapeSideEffectNotes(row);
+    expect(shaped.notes).toBe("nausea on day 2");
+    expect("notesEncrypted" in shaped).toBe(false);
+    expect(shaped.entry).toBe("NAUSEA");
+    expect(shaped.severity).toBe(3);
+  });
+
+  it("shapeInventoryItemNotes decrypts onto `notes` and strips the ciphertext", () => {
+    const notesEncrypted = encryptNote("opened pen #2");
+    const row = { id: "i1", state: "IN_USE", notes: null, notesEncrypted };
+    const shaped = shapeInventoryItemNotes(row);
+    expect(shaped.notes).toBe("opened pen #2");
+    expect("notesEncrypted" in shaped).toBe(false);
+    expect(shaped.state).toBe("IN_USE");
+  });
+
+  it("shapeDoseChangeNote decrypts onto `note` and strips the ciphertext", () => {
+    const noteEncrypted = encryptNote("stepped up to 7.5 mg");
+    const row = { id: "dc1", doseValue: 7.5, note: null, noteEncrypted };
+    const shaped = shapeDoseChangeNote(row);
+    expect(shaped.note).toBe("stepped up to 7.5 mg");
+    expect("noteEncrypted" in shaped).toBe(false);
+    expect(shaped.doseValue).toBe(7.5);
+  });
+
+  it("falls back to the legacy plaintext for not-yet-backfilled rows", () => {
+    expect(
+      shapeSideEffectNotes({ id: "se2", notes: "legacy", notesEncrypted: null })
+        .notes,
+    ).toBe("legacy");
+    expect(
+      shapeInventoryItemNotes({
+        id: "i2",
+        notes: "legacy",
+        notesEncrypted: null,
+      }).notes,
+    ).toBe("legacy");
+    expect(
+      shapeDoseChangeNote({ id: "dc2", note: "legacy", noteEncrypted: null })
+        .note,
+    ).toBe("legacy");
+  });
+
+  it("is fail-closed: a side-effect ciphertext under a rotated key throws", () => {
+    const notesEncrypted = encryptNote("secret note");
+    vi.stubEnv("ENCRYPTION_KEY", KEY_B);
+    expect(() =>
+      shapeSideEffectNotes({ id: "se3", notes: null, notesEncrypted }),
+    ).toThrow();
   });
 });
