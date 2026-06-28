@@ -7061,9 +7061,12 @@
     "restoredToast": "Pomiar przywrócony",
     "restoreError": "Nie udało się przywrócić pomiaru",
     "detail": {
-      "history": "Historia",
       "emptyTitle": "Brak pomiarów",
-      "emptyDescription": "Dodaj wartość, aby śledzić ten biomarker w czasie."
+      "emptyDescription": "Dodaj wartość, aby śledzić ten biomarker w czasie.",
+      "valuesTitle": "{marker} — wszystkie odczyty",
+      "valuesDescription": "Każdy odczyt tego biomarkera. Edytuj lub usuń wpis bezpośrednio.",
+      "backToMarker": "Powrót do {marker}",
+      "latestResult": "Ostatni wynik"
     },
     "chart": {
       "empty": "Brak pomiarów w tym okresie.",
