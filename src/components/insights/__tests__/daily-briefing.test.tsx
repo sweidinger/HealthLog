@@ -238,4 +238,55 @@ describe("<DailyBriefing>", () => {
     expect(html).toContain('data-slot="daily-briefing-findings"');
     expect(html).not.toContain('data-slot="daily-briefing-no-provider"');
   });
+
+  // v1.25 — generation-failed affordances. The briefing keeps its last good
+  // text; the card adds an honest "couldn't refresh" footer hint on a held
+  // briefing and a "couldn't generate — retry" empty state when there is none.
+  it("renders the refresh-failed footer hint on a held briefing", () => {
+    const html = render(
+      <DailyBriefing
+        briefing={baseBriefing}
+        onRegenerate={() => {}}
+        generationFailed
+      />,
+    );
+    expect(html).toContain('data-slot="daily-briefing-refresh-failed"');
+    // The rendered apostrophe is HTML-escaped; match the unambiguous tail.
+    expect(html).toContain("refresh the briefing");
+    expect(html).toContain('data-slot="daily-briefing-refresh-failed-retry"');
+  });
+
+  it("does NOT render the refresh-failed hint when generation did not fail", () => {
+    const html = render(
+      <DailyBriefing briefing={baseBriefing} onRegenerate={() => {}} />,
+    );
+    expect(html).not.toContain('data-slot="daily-briefing-refresh-failed"');
+  });
+
+  it("suppresses the refresh-failed hint when no provider is connected", () => {
+    const html = render(
+      <DailyBriefing
+        briefing={baseBriefing}
+        onRegenerate={() => {}}
+        generationFailed
+        noProviderStale
+      />,
+    );
+    expect(html).not.toContain('data-slot="daily-briefing-refresh-failed"');
+    expect(html).toContain('data-slot="daily-briefing-stale-no-provider"');
+  });
+
+  it("renders the 'couldn't generate' empty state with a retry CTA when failed and empty", () => {
+    const html = render(
+      <DailyBriefing
+        briefing={null}
+        onRegenerate={() => {}}
+        generationFailed
+      />,
+    );
+    // The rendered apostrophe is HTML-escaped; match the unambiguous tail.
+    expect(html).toContain("generate the briefing");
+    expect(html).toMatch(/data-slot="daily-briefing-empty-cta"/);
+    expect(html).toContain("Retry");
+  });
 });
