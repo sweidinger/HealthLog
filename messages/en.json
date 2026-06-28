@@ -7100,6 +7100,8 @@
     "detail": {
       "emptyTitle": "No readings yet",
       "emptyDescription": "Add a value to start tracking this biomarker over time.",
+      "title": "Biomarker",
+      "genericDescription": "A lab biomarker you track. Add readings to follow how it trends against its reference range.",
       "valuesTitle": "{marker} — all readings",
       "valuesDescription": "Every reading for this biomarker. Edit or remove an entry directly.",
       "backToMarker": "Back to {marker}",
@@ -7195,8 +7197,8 @@
       "ggt": "GGT",
       "sodium": "Sodium",
       "potassium": "Potassium",
-      "hemoglobin": "Hemoglobin",
-      "hematocrit": "Hematocrit",
+      "hemoglobin": "Haemoglobin",
+      "hematocrit": "Haematocrit",
       "wbc": "White blood cells",
       "platelets": "Platelets",
       "panel": {
@@ -7970,9 +7972,6 @@
     }
   },
   "selfDescription": {
-    "intendedPurpose": "HealthLog is a personal health record-keeping and wellness tool. It helps you log, visualise, and export your own health data. It does not diagnose, treat, cure, or prevent any disease, and it is not a medical device.",
-    "coach": "The Coach works from your own logged data. It isn't a doctor and doesn't give medical advice — for diagnosis or treatment, talk to a healthcare professional.",
-    "emergency": "If this might be an emergency, contact your local emergency number or a clinician now. HealthLog can't help in an emergency.",
     "dataPosture": "HealthLog is self-hosted: your health data stays on your own instance, encrypted at rest. AI features use a provider key you bring or a local model, so nothing leaves your instance beyond the provider you configure, and there is no third-party analytics on your health data."
   }
 }

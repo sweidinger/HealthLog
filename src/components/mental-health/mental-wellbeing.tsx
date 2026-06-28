@@ -301,7 +301,10 @@ export function MentalWellbeing() {
 
           {result.crisis && (
             <Card
-              className="border-amber-400/50"
+              // v1.25.1 — calm destructive-subtle border instead of the amber
+              // tint v1.25 retired; the role/aria-live carry the urgency, the
+              // tone stays consistent with the rest of the app.
+              className="border-destructive/40"
               role="alert"
               aria-live="assertive"
             >

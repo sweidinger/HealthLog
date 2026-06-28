@@ -7100,6 +7100,8 @@
     "detail": {
       "emptyTitle": "Ancora nessuna misurazione",
       "emptyDescription": "Aggiungi un valore per seguire questo biomarcatore nel tempo.",
+      "title": "Biomarcatore",
+      "genericDescription": "Un biomarcatore di laboratorio che monitori. Aggiungi misurazioni per seguirne l'andamento rispetto all'intervallo di riferimento.",
       "valuesTitle": "{marker} — tutte le letture",
       "valuesDescription": "Ogni lettura di questo biomarcatore. Modifica o rimuovi una voce direttamente.",
       "backToMarker": "Torna a {marker}",
@@ -7970,9 +7972,6 @@
     }
   },
   "selfDescription": {
-    "intendedPurpose": "HealthLog è uno strumento personale per la registrazione della salute e il benessere. Ti aiuta a registrare, visualizzare ed esportare i tuoi dati di salute. Non diagnostica, cura, guarisce né previene alcuna malattia e non è un dispositivo medico.",
-    "coach": "Il Coach lavora sui tuoi dati registrati. Non è un medico e non fornisce consigli medici: per una diagnosi o una terapia rivolgiti a un professionista sanitario.",
-    "emergency": "Se potrebbe trattarsi di un'emergenza, contatta subito il numero di emergenza locale o un medico. HealthLog non può aiutare in caso di emergenza.",
     "dataPosture": "HealthLog è self-hosted: i tuoi dati di salute restano sulla tua istanza, cifrati a riposo. Le funzioni di IA usano una chiave del provider che fornisci tu o un modello locale, quindi nulla lascia la tua istanza oltre il provider che configuri, e non c'è alcuna analisi di terze parti sui tuoi dati di salute."
   }
 }

@@ -7100,6 +7100,8 @@
     "detail": {
       "emptyTitle": "Aucune mesure pour l'instant",
       "emptyDescription": "Ajoutez une valeur pour suivre ce biomarqueur dans le temps.",
+      "title": "Biomarqueur",
+      "genericDescription": "Un biomarqueur biologique que vous suivez. Ajoutez des mesures pour observer son évolution par rapport à la plage de référence.",
       "valuesTitle": "{marker} — toutes les valeurs",
       "valuesDescription": "Chaque mesure de ce biomarqueur. Modifiez ou supprimez une entrée directement.",
       "backToMarker": "Retour à {marker}",
@@ -7970,9 +7972,6 @@
     }
   },
   "selfDescription": {
-    "intendedPurpose": "HealthLog est un outil personnel de suivi de santé et de bien-être. Il vous aide à enregistrer, visualiser et exporter vos propres données de santé. Il ne diagnostique, ne traite, ne guérit ni ne prévient aucune maladie, et n'est pas un dispositif médical.",
-    "coach": "Le Coach s'appuie sur vos propres données enregistrées. Ce n'est pas un médecin et il ne donne pas de conseil médical : pour un diagnostic ou un traitement, consultez un professionnel de santé.",
-    "emergency": "Si cela pourrait être une urgence, contactez maintenant votre numéro d'urgence local ou un professionnel de santé. HealthLog ne peut pas aider en cas d'urgence.",
     "dataPosture": "HealthLog est auto-hébergé : vos données de santé restent sur votre propre instance, chiffrées au repos. Les fonctions d'IA utilisent une clé de fournisseur que vous apportez ou un modèle local, donc rien ne quitte votre instance au-delà du fournisseur que vous configurez, et il n'y a aucune analyse tierce de vos données de santé."
   }
 }

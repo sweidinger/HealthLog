@@ -703,6 +703,7 @@ export function MedicationDetailTabs({
             label={t("medications.detail.erweitert.group.externalApi")}
             dataSlot="api-group-external-api"
             collapsible
+            defaultOpen={false}
           >
             <div className="py-3">
               <ApiTokensRow
@@ -727,6 +728,7 @@ export function MedicationDetailTabs({
             label={t("medications.detail.erweitert.group.lifecycle")}
             dataSlot="erweitert-group-lifecycle"
             collapsible
+            defaultOpen={false}
           >
             <div className="py-3">
               <LifecycleManageBody

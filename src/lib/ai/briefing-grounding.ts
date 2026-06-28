@@ -153,6 +153,29 @@ function authoritativeValues(
         push(w.latest.daysAgo);
       }
     }
+    // v1.25.1 — clinical-depth aggregate blocks (grip / waist / pain) wired
+    // into the briefing. Admit their pre-computed figures so the prose may cite
+    // them, same posture as the glucose / labs / workout blocks above.
+    const grip = features.gripStrength;
+    if (grip) {
+      push(grip.latest);
+      push(grip.avg30);
+      push(grip.slope30);
+    }
+    const waist = features.waist;
+    if (waist) {
+      push(waist.latest);
+      push(waist.avg30);
+      push(waist.slope30);
+      push(waist.whtrLatest);
+    }
+    const pain = features.pain;
+    if (pain) {
+      push(pain.latest);
+      push(pain.avg7);
+      push(pain.avg30);
+      push(pain.slope30);
+    }
   }
 
   return values;
