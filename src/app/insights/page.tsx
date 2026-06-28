@@ -447,6 +447,12 @@ export default function InsightsPage() {
         // briefing is actually rendered (the empty-state path owns the
         // `noProvider` branch above).
         noProviderStale={briefingPayload !== null && !advisor.hasProvider}
+        // v1.25 — the last generation attempt failed. On a held briefing this
+        // adds a discreet "couldn't refresh — retry" footer hint; on an empty
+        // card it swaps the generic empty state for an honest "couldn't
+        // generate" one. Suppressed when no provider is configured (that hint
+        // owns the surface and a retry would be futile).
+        generationFailed={advisor.generationFailed && advisor.hasProvider}
         // v1.21.2 (A4) — server-resolved recall + forward-look off the dashboard
         // snapshot. Both strings are already localised; null leaves the card's
         // memory block unrendered.

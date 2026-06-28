@@ -2037,7 +2037,11 @@
       "noProviderTitle": "Brak połączonego dostawcy AI",
       "noProviderDescription": "Codzienny briefing podsumowuje Twoje pomiary prostym językiem. HealthLog potrzebuje do tego dostawcy AI — użyj własnego klucza (OpenAI, Anthropic) lub modelu lokalnego. Twoje dane pozostają u Ciebie.",
       "noProviderAction": "Otwórz ustawienia AI",
-      "staleNoProviderHint": "Tego briefingu nie można odświeżyć — nie połączono żadnego dostawcy AI."
+      "staleNoProviderHint": "Tego briefingu nie można odświeżyć — nie połączono żadnego dostawcy AI.",
+      "refreshFailedHint": "Nie udało się odświeżyć briefingu — pokazujemy poprzedni.",
+      "retryAction": "Spróbuj ponownie",
+      "failedTitle": "Nie udało się wygenerować briefingu",
+      "failedDescription": "Dostawca AI przekroczył limit czasu lub zwrócił błąd. Spróbuj ponownie albo zwiększ limit czasu odpowiedzi w ustawieniach AI dla wolnego modelu lokalnego."
     },
     "trendsRow": {
       "title": "Trendy",

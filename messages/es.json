@@ -2037,7 +2037,11 @@
       "noProviderTitle": "Ningún proveedor de IA conectado",
       "noProviderDescription": "El briefing diario resume tus lecturas en lenguaje claro. HealthLog necesita un proveedor de IA para ello: usa tu propia clave (OpenAI, Anthropic) o un modelo local. Tus datos siguen siendo tuyos.",
       "noProviderAction": "Abrir ajustes de IA",
-      "staleNoProviderHint": "Este briefing no puede actualizarse: no hay ningún proveedor de IA conectado."
+      "staleNoProviderHint": "Este briefing no puede actualizarse: no hay ningún proveedor de IA conectado.",
+      "refreshFailedHint": "No se pudo actualizar el briefing: se muestra el anterior.",
+      "retryAction": "Reintentar",
+      "failedTitle": "No se pudo generar el briefing",
+      "failedDescription": "El proveedor de IA agotó el tiempo de espera o devolvió un error. Inténtalo de nuevo o aumenta el tiempo de espera de respuesta en los ajustes de IA para un modelo local lento."
     },
     "trendsRow": {
       "title": "Tendencias",

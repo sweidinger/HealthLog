@@ -120,6 +120,14 @@ interface DailyBriefingProps {
    */
   noProviderStale?: boolean;
   /**
+   * v1.25 — the most recent generation attempt failed (provider timeout /
+   * error). The briefing keeps its last good text, so this never blanks a
+   * shown card; it only adds an honest "couldn't refresh" hint to the footer
+   * of a held briefing, and — when there is no briefing to show — swaps the
+   * generic empty state for a "couldn't generate" one whose CTA retries.
+   */
+  generationFailed?: boolean;
+  /**
    * Optional slot for a meta control mounted in the card header — the
    * comparison toggle migrates here from the hero in commit 5.
    */
@@ -349,6 +357,7 @@ export function DailyBriefing({
   regenerating = false,
   noProvider = false,
   noProviderStale = false,
+  generationFailed = false,
   metaSlot,
   memory = null,
 }: DailyBriefingProps) {
@@ -468,7 +477,7 @@ export function DailyBriefing({
                   </div>
                 </div>
               )}
-              {(updatedAt || noProviderStale) && (
+              {(updatedAt || noProviderStale || generationFailed) && (
                 <div className="border-border/60 space-y-1.5 border-t pt-3">
                   {updatedAt && (
                     <p
@@ -503,6 +512,32 @@ export function DailyBriefing({
                       >
                         {t("insights.dailyBriefing.noProviderAction")}
                       </Link>
+                    </p>
+                  )}
+                  {/* v1.25 — the held briefing is shown, but the last refresh
+                      attempt failed (provider timeout / error). State it plainly
+                      and offer a retry so the staleness reads as held, not
+                      current. Suppressed when no provider is configured (that
+                      hint owns the footer) — a retry would be futile there. */}
+                  {generationFailed && !noProviderStale && (
+                    <p
+                      data-slot="daily-briefing-refresh-failed"
+                      className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-right text-xs"
+                    >
+                      <span>
+                        {t("insights.dailyBriefing.refreshFailedHint")}
+                      </span>
+                      {onRegenerate && (
+                        <button
+                          type="button"
+                          onClick={onRegenerate}
+                          disabled={regenerating}
+                          data-slot="daily-briefing-refresh-failed-retry"
+                          className="text-foreground/80 hover:text-foreground underline underline-offset-2 disabled:opacity-60"
+                        >
+                          {t("insights.dailyBriefing.retryAction")}
+                        </button>
+                      )}
                     </p>
                   )}
                 </div>
@@ -542,8 +577,20 @@ export function DailyBriefing({
               data-slot="daily-briefing-empty"
               variant="plain"
               icon={<FileText className="size-5" />}
-              title={t("insights.dailyBriefing.emptyTitle")}
-              description={t("insights.dailyBriefing.emptyDescription")}
+              // v1.25 — when the last attempt FAILED and there is no last good
+              // text to fall back on, say so honestly ("couldn't generate")
+              // rather than the generic "no briefing yet". The CTA below is the
+              // same explicit regenerate — it retries the failed generation.
+              title={
+                generationFailed
+                  ? t("insights.dailyBriefing.failedTitle")
+                  : t("insights.dailyBriefing.emptyTitle")
+              }
+              description={
+                generationFailed
+                  ? t("insights.dailyBriefing.failedDescription")
+                  : t("insights.dailyBriefing.emptyDescription")
+              }
               action={
                 onRegenerate ? (
                   // v1.4.28 BK-M2 — switch the empty-state CTA from
@@ -564,7 +611,9 @@ export function DailyBriefing({
                     <span>
                       {regenerating
                         ? t("insights.heroRegenerating")
-                        : t("insights.dailyBriefing.emptyAction")}
+                        : generationFailed
+                          ? t("insights.dailyBriefing.retryAction")
+                          : t("insights.dailyBriefing.emptyAction")}
                     </span>
                   </Button>
                 ) : null

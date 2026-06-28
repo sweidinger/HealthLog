@@ -2037,7 +2037,11 @@
       "noProviderTitle": "Kein KI-Anbieter verbunden",
       "noProviderDescription": "Das Tagesbriefing fasst deine Werte in Klartext zusammen. Dafür braucht HealthLog einen KI-Anbieter — nutze deinen eigenen Schlüssel (OpenAI, Anthropic) oder ein lokales Modell. Deine Daten bleiben dabei bei dir.",
       "noProviderAction": "Zu den KI-Einstellungen",
-      "staleNoProviderHint": "Dieses Briefing kann nicht aktualisiert werden — es ist kein KI-Anbieter verbunden."
+      "staleNoProviderHint": "Dieses Briefing kann nicht aktualisiert werden — es ist kein KI-Anbieter verbunden.",
+      "refreshFailedHint": "Briefing konnte nicht aktualisiert werden — es wird das letzte angezeigt.",
+      "retryAction": "Erneut versuchen",
+      "failedTitle": "Briefing konnte nicht erstellt werden",
+      "failedDescription": "Der KI-Anbieter hat das Zeitlimit überschritten oder einen Fehler zurückgegeben. Versuche es erneut oder erhöhe in den KI-Einstellungen das Antwort-Zeitlimit für ein langsames lokales Modell."
     },
     "trendsRow": {
       "title": "Trends",
