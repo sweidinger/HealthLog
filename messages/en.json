@@ -4066,7 +4066,6 @@
         "description": "Every reminder in one place — what gets reminded and when. The delivery channels live under Integrations.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook, and Email are now set up under",
         "channelsHintLink": "Integrations → Channels",
-        "inboxLink": "Open the inbox",
         "subtitle": "Choose which reminders you receive."
       },
       "layout": {
@@ -7869,7 +7868,8 @@
       "loadingMore": "Loading…",
       "pending": "{count} to review",
       "facts": "{count} facts",
-      "clearFilters": "Clear filters"
+      "clearFilters": "Clear filters",
+      "loadError": "Couldn't load your documents."
     },
     "status": {
       "EXTRACTING": "Reading",
@@ -7890,7 +7890,12 @@
       "cancel": "Cancel",
       "save": "Save",
       "needsReviewHint": "Edit this fact to approve it.",
-      "confidenceLabel": "Extraction confidence"
+      "confidenceLabel": "Extraction confidence",
+      "commitError": {
+        "unitMismatch": "the unit doesn't match the saved one",
+        "unitRequired": "a numeric value needs a unit",
+        "generic": "it couldn't be saved"
+      }
     },
     "empty": {
       "noFacts": "Nothing left to review."
@@ -7911,11 +7916,13 @@
       "uploaded": "Document stored.",
       "uploadFailed": "Couldn't store the document.",
       "confirmed": "Approved facts saved.",
+      "confirmedPartial": "Saved, but {count} couldn't be saved — {reason}.",
       "confirmFailed": "Couldn't save your decisions.",
       "saved": "Fact updated.",
       "discarded": "Document discarded.",
       "extracted": "Facts extracted. Review them below.",
       "extractFailed": "Couldn't extract facts.",
+      "localOcrDisabled": "Enable local OCR in settings to read this document on-device.",
       "updated": "Document updated.",
       "updateFailed": "Couldn't update the document.",
       "discardFailed": "Couldn't discard the document.",

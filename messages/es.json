@@ -4066,7 +4066,6 @@
         "description": "Todos los recordatorios en un solo lugar: qué se recuerda y cuándo. Los canales de entrega están en Integraciones.",
         "channelsHint": "Telegram, ntfy, Web Push, Webhook y correo se configuran ahora en",
         "channelsHintLink": "Integraciones → Canales",
-        "inboxLink": "Abrir la bandeja de entrada",
         "subtitle": "Elige qué recordatorios recibes."
       },
       "layout": {
@@ -7869,7 +7868,8 @@
       "loadingMore": "Cargando…",
       "pending": "{count} por revisar",
       "facts": "{count} datos",
-      "clearFilters": "Borrar filtros"
+      "clearFilters": "Borrar filtros",
+      "loadError": "No se pudieron cargar tus documentos."
     },
     "status": {
       "EXTRACTING": "Leyendo",
@@ -7890,7 +7890,12 @@
       "cancel": "Cancelar",
       "save": "Guardar",
       "needsReviewHint": "Edita este dato para poder aprobarlo.",
-      "confidenceLabel": "Confianza de la extracción"
+      "confidenceLabel": "Confianza de la extracción",
+      "commitError": {
+        "unitMismatch": "la unidad no coincide con la guardada",
+        "unitRequired": "un valor numérico necesita una unidad",
+        "generic": "no se pudo guardar"
+      }
     },
     "empty": {
       "noFacts": "Nada más que revisar."
@@ -7911,11 +7916,13 @@
       "uploaded": "Documento guardado.",
       "uploadFailed": "No se pudo guardar el documento.",
       "confirmed": "Datos aprobados guardados.",
+      "confirmedPartial": "Guardado, pero {count} no se pudieron guardar: {reason}.",
       "confirmFailed": "No se pudieron guardar tus decisiones.",
       "saved": "Dato actualizado.",
       "discarded": "Documento descartado.",
       "extracted": "Datos extraídos. Revísalos abajo.",
       "extractFailed": "No se pudieron extraer los datos.",
+      "localOcrDisabled": "Activa el OCR local en los ajustes para leer este documento en el dispositivo.",
       "updated": "Documento actualizado.",
       "updateFailed": "No se pudo actualizar el documento.",
       "discardFailed": "No se pudo descartar el documento.",

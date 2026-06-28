@@ -102,6 +102,49 @@ export function isAlreadyConfirmedError(error: unknown): boolean {
 }
 
 /**
+ * True when an extract failure is the route's "local OCR not enabled" signal
+ * (`documents.inbound.localOcrDisabled`, 422). The TEXT extract path refuses
+ * when in-browser OCR is switched off in settings; surface a clear message that
+ * names the setting rather than the generic "couldn't extract" toast.
+ */
+export function isLocalOcrDisabledError(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.meta?.errorCode === "documents.inbound.localOcrDisabled"
+  );
+}
+
+/**
+ * Map a per-fact commit-failure code to the i18n key for its plain-language
+ * reason. The confirm route returns HTTP 200 even when it rejects a fact into
+ * its `failed[]` array (e.g. a stated unit that disagrees with the saved
+ * marker), so the client must surface why — otherwise the fact silently stays
+ * PENDING with the user told nothing.
+ */
+export function commitFailureReasonKey(code: string): string {
+  switch (code) {
+    case "observation.unitMismatch":
+      return "documents.review.commitError.unitMismatch";
+    case "observation.unitRequired":
+      return "documents.review.commitError.unitRequired";
+    default:
+      return "documents.review.commitError.generic";
+  }
+}
+
+/**
+ * Pick the single reason key that best describes a batch of failed facts: the
+ * shared reason when every failure agrees, else a generic fallback. Used to
+ * build the partial-failure toast after a confirm that rejected one or more
+ * facts server-side.
+ */
+export function confirmFailureReasonKey(failed: { reason: string }[]): string {
+  const codes = new Set(failed.map((f) => f.reason));
+  if (codes.size === 1) return commitFailureReasonKey([...codes][0]);
+  return "documents.review.commitError.generic";
+}
+
+/**
  * Client-side upload ceiling. Mirrors the server's `OCR_MAX_BYTES` (12 MB) so an
  * oversized file is rejected before it is sent, instead of after a full upload
  * round-trips and returns 413.
