@@ -52,6 +52,9 @@ interface EnvironmentOverview {
     lon: number;
     label: string | null;
     timezone: string;
+    /** ISO instant the home became effective (drives the conservative backfill
+     * default + the "tracked since" label). */
+    since: string | null;
   } | null;
   travel: TravelDTO[];
   context: {
@@ -162,9 +165,9 @@ export function EnvironmentSection() {
 
   const backfill = useMutation({
     mutationKey: queryKeys.environment(),
-    mutationFn: () =>
+    mutationFn: (startDate: string) =>
       apiPost("/api/environment/backfill", {
-        startDate: backfillStart,
+        startDate,
         endDate: backfillEnd,
       }),
     onSuccess: () => {
@@ -192,6 +195,11 @@ export function EnvironmentSection() {
 
   const data = overview.data;
   const home = data?.home ?? null;
+  // Conservative default: backfill starts at the home's effective-from date. The
+  // user can still type an earlier start, but pre-home days resolve to SKIP on
+  // the server — to fill the deep past they add an explicit location period.
+  const effectiveBackfillStart =
+    backfillStart || home?.since?.slice(0, 10) || "";
 
   return (
     <div className="space-y-6">
@@ -207,11 +215,20 @@ export function EnvironmentSection() {
         </p>
         <div className="space-y-3 pl-7">
           {home ? (
-            <p className="text-sm" data-slot="environment-home-current">
-              {t("settings.sections.environment.home.current", {
-                label: home.label ?? `${home.lat}, ${home.lon}`,
-              })}
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm" data-slot="environment-home-current">
+                {t("settings.sections.environment.home.current", {
+                  label: home.label ?? `${home.lat}, ${home.lon}`,
+                })}
+              </p>
+              {home.since && (
+                <p className="text-muted-foreground text-xs">
+                  {t("settings.sections.environment.home.since", {
+                    date: home.since.slice(0, 10),
+                  })}
+                </p>
+              )}
+            </div>
           ) : (
             <p className="text-muted-foreground text-sm">
               {t("settings.sections.environment.home.none")}
@@ -394,7 +411,7 @@ export function EnvironmentSection() {
             <Input
               id="env-backfill-start"
               type="date"
-              value={backfillStart}
+              value={effectiveBackfillStart}
               onChange={(e) => setBackfillStart(e.target.value)}
             />
           </div>
@@ -413,11 +430,11 @@ export function EnvironmentSection() {
             type="button"
             disabled={
               !home ||
-              backfillStart.length === 0 ||
-              backfillStart > backfillEnd ||
+              effectiveBackfillStart.length === 0 ||
+              effectiveBackfillStart > backfillEnd ||
               backfill.isPending
             }
-            onClick={() => backfill.mutate()}
+            onClick={() => backfill.mutate(effectiveBackfillStart)}
           >
             {t("settings.sections.environment.backfill.run")}
           </Button>

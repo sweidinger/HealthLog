@@ -29,6 +29,7 @@ export const GET = apiHandler(async () => {
         homeLon: true,
         homeLabel: true,
         homeTimezone: true,
+        homeSince: true,
         timezone: true,
       },
     }),
@@ -59,6 +60,9 @@ export const GET = apiHandler(async () => {
           lon: profile.homeLon,
           label: profile.homeLabel,
           timezone: profile.homeTimezone ?? profile.timezone,
+          // Effective-from instant: the settings surface uses it to label the
+          // home and to prefill the backfill start (conservative default range).
+          since: profile.homeSince?.toISOString() ?? null,
         }
       : null;
 

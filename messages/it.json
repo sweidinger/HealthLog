@@ -4292,8 +4292,8 @@
         "select": "Seleziona",
         "saveError": "Impossibile salvare la modifica.",
         "homeSaved": "Posizione principale salvata.",
-        "travelAdded": "Eccezione di viaggio aggiunta.",
-        "travelRemoved": "Eccezione di viaggio rimossa.",
+        "travelAdded": "Periodo di posizione aggiunto.",
+        "travelRemoved": "Periodo di posizione rimosso.",
         "backfillQueued": "Recupero pianificato.",
         "backfillError": "Impossibile avviare il recupero.",
         "startDate": "Data di inizio",
@@ -4301,20 +4301,21 @@
         "storedDays": "{count} giorni di meteo salvati.",
         "home": {
           "title": "Posizione principale",
-          "description": "Una posizione approssimativa a livello di città, mai un tracciamento preciso. Il meteo e le ore di luce vengono recuperati per questo luogo nei giorni senza eccezioni di viaggio.",
+          "description": "Una posizione approssimativa a livello di città, mai un tracciato preciso. Meteo e luce diurna vengono recuperati per questo luogo nei giorni senza un periodo di posizione, a partire dalla data in cui lo imposti.",
           "current": "Attuale: {label}",
-          "none": "Nessuna posizione principale impostata."
+          "none": "Nessuna posizione principale impostata.",
+          "since": "Meteo registrato dal {date}. I giorni precedenti restano vuoti finché non aggiungi un periodo di posizione."
         },
         "travel": {
-          "title": "Eccezioni di viaggio",
-          "description": "Per un intervallo di date trascorso altrove, imposta la posizione in modo che il meteo corrisponda a dove eri davvero.",
-          "none": "Nessuna eccezione di viaggio.",
+          "title": "Periodi di posizione",
+          "description": "Aggiungi un luogo e un intervallo di date: un viaggio o un tratto della tua cronologia passata. Il periodo prevale sulla tua residenza nei giorni che copre, così il meteo corrisponde a dove ti trovavi davvero. È così che correggi il passato.",
+          "none": "Nessun periodo di posizione.",
           "add": "Aggiungi {label}",
-          "remove": "Rimuovi eccezione di viaggio"
+          "remove": "Rimuovi periodo di posizione"
         },
         "backfill": {
           "title": "Recupera i giorni passati",
-          "description": "Recupera e salva il meteo di un intervallo di date passato così i giorni più vecchi entrano nelle correlazioni.",
+          "description": "Recupera e salva il meteo di un intervallo di date passato così i giorni più vecchi entrano nelle correlazioni. L'inizio è impostato in modo predefinito sulla data di validità della tua residenza; per andare più indietro, aggiungi prima un periodo di posizione per quell'intervallo.",
           "run": "Recupera"
         }
       }

@@ -41,11 +41,16 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   }
 
   const { lat, lon, label, timezone } = parsed.data;
+  // Stamp the effective-from instant: from now on this home resolves days; days
+  // before it stay un-attributed (filled via explicit location periods). Every
+  // set/update re-stamps — the home is "effective from the moment it is set".
+  const homeSince = new Date();
   const home = {
     homeLat: roundCoarse(lat),
     homeLon: roundCoarse(lon),
     homeLabel: label,
     homeTimezone: timezone,
+    homeSince,
   };
 
   await prisma.user.update({ where: { id: user.id }, data: home });
@@ -62,6 +67,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
       lon: home.homeLon,
       label: home.homeLabel,
       timezone: home.homeTimezone,
+      since: homeSince.toISOString(),
     },
   });
 });

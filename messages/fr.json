@@ -4292,8 +4292,8 @@
         "select": "Sélectionner",
         "saveError": "Impossible d'enregistrer la modification.",
         "homeSaved": "Lieu de référence enregistré.",
-        "travelAdded": "Exception de voyage ajoutée.",
-        "travelRemoved": "Exception de voyage supprimée.",
+        "travelAdded": "Période de localisation ajoutée.",
+        "travelRemoved": "Période de localisation supprimée.",
         "backfillQueued": "Récupération planifiée.",
         "backfillError": "Impossible de lancer la récupération.",
         "startDate": "Date de début",
@@ -4301,20 +4301,21 @@
         "storedDays": "{count} jours de météo enregistrés.",
         "home": {
           "title": "Lieu de référence",
-          "description": "Un lieu approximatif à l'échelle de la ville, jamais un suivi précis. La météo et la durée du jour sont récupérées pour ce lieu les jours sans exception de voyage.",
+          "description": "Une localisation approximative à l'échelle de la ville, jamais un tracé précis. La météo et la lumière du jour sont récupérées pour ce lieu les jours sans période de localisation, à partir de la date où vous le définissez.",
           "current": "Actuel : {label}",
-          "none": "Aucun lieu de référence défini."
+          "none": "Aucun lieu de référence défini.",
+          "since": "Météo enregistrée à partir du {date}. Les jours antérieurs restent vides jusqu'à ce que vous ajoutiez une période de localisation."
         },
         "travel": {
-          "title": "Exceptions de voyage",
-          "description": "Pour une période passée ailleurs, définissez le lieu afin que la météo corresponde à l'endroit où vous étiez réellement.",
-          "none": "Aucune exception de voyage.",
+          "title": "Périodes de localisation",
+          "description": "Ajoutez un lieu et une plage de dates : un voyage ou une portion de votre historique passé. La période remplace votre domicile pour les jours qu'elle couvre, afin que la météo corresponde à l'endroit où vous étiez réellement. C'est ainsi que vous corrigez le passé.",
+          "none": "Aucune période de localisation pour l'instant.",
           "add": "Ajouter {label}",
-          "remove": "Supprimer l'exception de voyage"
+          "remove": "Supprimer la période de localisation"
         },
         "backfill": {
           "title": "Récupérer les jours passés",
-          "description": "Récupérez et enregistrez la météo d'une période passée pour que les jours plus anciens entrent dans les corrélations.",
+          "description": "Récupérez et enregistrez la météo d'une plage de dates passée pour que les jours anciens rejoignent les corrélations. Le début reprend par défaut la date d'effet de votre domicile ; pour remonter plus loin, ajoutez d'abord une période de localisation pour cette plage.",
           "run": "Récupérer"
         }
       }

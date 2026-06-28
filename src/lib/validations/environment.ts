@@ -48,14 +48,19 @@ export const travelLocationSchema = z
 
 export type TravelLocationInput = z.infer<typeof travelLocationSchema>;
 
-/** A backfill request: fetch + store the environment rows over a date range. */
+/**
+ * A backfill request: fetch + store the environment rows over a date range.
+ * Both bounds are optional — an omitted span defaults to the conservative
+ * `[homeSince .. today]` range on the server (never a fixed reach into the past
+ * onto the current home).
+ */
 export const environmentBackfillSchema = z
   .object({
-    startDate: dayStringSchema,
-    endDate: dayStringSchema,
+    startDate: dayStringSchema.optional(),
+    endDate: dayStringSchema.optional(),
   })
   .strict()
-  .refine((v) => v.startDate <= v.endDate, {
+  .refine((v) => !v.startDate || !v.endDate || v.startDate <= v.endDate, {
     message: "startDate must be on or before endDate",
     path: ["endDate"],
   });

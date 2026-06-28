@@ -4292,8 +4292,8 @@
         "select": "Select",
         "saveError": "Could not save your change.",
         "homeSaved": "Home location saved.",
-        "travelAdded": "Travel override added.",
-        "travelRemoved": "Travel override removed.",
+        "travelAdded": "Location period added.",
+        "travelRemoved": "Location period removed.",
         "backfillQueued": "Backfill queued.",
         "backfillError": "Could not start the backfill.",
         "startDate": "Start date",
@@ -4301,20 +4301,21 @@
         "storedDays": "{count} days of weather stored.",
         "home": {
           "title": "Home location",
-          "description": "A coarse, city-level location — never a precise track. Weather and daylight are fetched for this place on days no travel override applies.",
+          "description": "A coarse, city-level location — never a precise track. Weather and daylight are fetched for this place on days no location period applies, from the date you set it onward.",
           "current": "Current: {label}",
-          "none": "No home location set yet."
+          "none": "No home location set yet.",
+          "since": "Weather tracked from {date} onward. Earlier days stay empty until you add a location period."
         },
         "travel": {
-          "title": "Travel overrides",
-          "description": "For a date range you spent elsewhere, set the location so the weather matches where you actually were.",
-          "none": "No travel overrides.",
+          "title": "Location periods",
+          "description": "Add a place and a date range — a trip, or a stretch of earlier history. The period overrides your home for the days it covers, so weather matches where you actually were. This is how you correct the past.",
+          "none": "No location periods yet.",
           "add": "Add {label}",
-          "remove": "Remove travel override"
+          "remove": "Remove location period"
         },
         "backfill": {
           "title": "Backfill past days",
-          "description": "Fetch and store weather for a past date range so older days can join the correlations.",
+          "description": "Fetch and store weather for a past date range so older days join the correlations. The start defaults to your home's effective date; to reach further back, add a location period for that range first.",
           "run": "Backfill"
         }
       }

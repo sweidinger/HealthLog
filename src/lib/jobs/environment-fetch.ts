@@ -5,11 +5,12 @@
  * location set, fetch the daily weather/daylight for the recent uncovered days
  * and upsert into `EnvironmentContext`. A daily discovery tick (empty payload)
  * fans out one per-user job; the per-user job resolves each day's location
- * (travel override → home) and fetches a lookback window so the archive feed's
- * settling lag (a few days) is absorbed and any day missed across worker
- * reboots is re-attempted. The same handler also serves the on-demand backfill
- * (an explicit `{ userId, startDate, endDate }` payload from the settings
- * surface).
+ * conservatively (explicit location period → home only on/after its effective
+ * date → else SKIP — never the current home for a pre-home past day) and fetches
+ * a lookback window so the archive feed's settling lag (a few days) is absorbed
+ * and any day missed across worker reboots is re-attempted. The same handler
+ * also serves the on-demand backfill (an explicit `{ userId, startDate, endDate }`
+ * payload from the settings surface).
  *
  * Opt-in + privacy: the discovery filter requires both the module flag and a
  * home location, so a disabled account never triggers an outbound fetch. Egress
