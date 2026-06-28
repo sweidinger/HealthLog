@@ -115,6 +115,12 @@ export const MODULE_KEYS = [
   // re-enabling finds the rows intact.
   "medications",
   "doctorReport",
+  // v1.25.0 (W-ENV) — environmental-context module. Like `mcp`, it is OPT-IN
+  // (off by default): it performs an outbound weather fetch tied to where the
+  // user physically is (a coarse home / travel location), so opt-in is the
+  // right privacy default. With it off no job runs, no row is written, and no
+  // egress happens. The `optIn` marker inverts the per-user default.
+  "environment",
   // v1.22.0 — the remote Model Context Protocol endpoint (`/mcp`). Unlike
   // every other module this is OPT-IN (off by default): it exposes a new
   // external-assistant attack surface, so it ships dark and the operator /
@@ -255,6 +261,17 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       labelKey: "modules.doctorReport.label",
       descriptionKey: "modules.doctorReport.description",
       category: "export",
+    },
+    environment: {
+      key: "environment",
+      labelKey: "modules.environment.label",
+      descriptionKey: "modules.environment.description",
+      category: "device",
+      // Off by default: performs an outbound weather fetch tied to a coarse
+      // location, so it ships dark and the user turns it on deliberately. The
+      // home location + travel overrides + backfill live on the dedicated
+      // Environment settings surface (rendered when the module is on).
+      optIn: true,
     },
     mcp: {
       key: "mcp",

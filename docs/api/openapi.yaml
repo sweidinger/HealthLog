@@ -9737,6 +9737,8 @@ components:
           type: boolean
         doctorReport:
           type: boolean
+        environment:
+          type: boolean
         mcp:
           type: boolean
       additionalProperties: false
@@ -16775,6 +16777,9 @@ components:
         doctorReport:
           type: boolean
           description: Whether the "doctorReport" module is enabled for this account.
+        environment:
+          type: boolean
+          description: Whether the "environment" module is enabled for this account.
         mcp:
           type: boolean
           description: Whether the "mcp" module is enabled for this account.
@@ -16792,6 +16797,7 @@ components:
         - insights
         - medications
         - doctorReport
+        - environment
         - mcp
       additionalProperties: false
       description: Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means

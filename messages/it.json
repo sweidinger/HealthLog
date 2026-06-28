@@ -4279,6 +4279,43 @@
         "title": "Anamnesi",
         "subtitle": "Gestisci le tue allergie e la tua anamnesi familiare.",
         "description": "Record strutturati di allergie e anamnesi familiare."
+      },
+      "environment": {
+        "title": "Ambiente",
+        "subtitle": "Contesto meteo, luce del giorno e posizione.",
+        "disabledHint": "Attiva il modulo Ambiente per impostare una posizione principale e integrare il meteo e le ore di luce giornaliere.",
+        "searchPlaceholder": "Cerca una città",
+        "search": "Cerca",
+        "searchError": "Impossibile cercare quel luogo.",
+        "use": "Usa",
+        "select": "Seleziona",
+        "saveError": "Impossibile salvare la modifica.",
+        "homeSaved": "Posizione principale salvata.",
+        "travelAdded": "Eccezione di viaggio aggiunta.",
+        "travelRemoved": "Eccezione di viaggio rimossa.",
+        "backfillQueued": "Recupero pianificato.",
+        "backfillError": "Impossibile avviare il recupero.",
+        "startDate": "Data di inizio",
+        "endDate": "Data di fine",
+        "storedDays": "{count} giorni di meteo salvati.",
+        "home": {
+          "title": "Posizione principale",
+          "description": "Una posizione approssimativa a livello di città, mai un tracciamento preciso. Il meteo e le ore di luce vengono recuperati per questo luogo nei giorni senza eccezioni di viaggio.",
+          "current": "Attuale: {label}",
+          "none": "Nessuna posizione principale impostata."
+        },
+        "travel": {
+          "title": "Eccezioni di viaggio",
+          "description": "Per un intervallo di date trascorso altrove, imposta la posizione in modo che il meteo corrisponda a dove eri davvero.",
+          "none": "Nessuna eccezione di viaggio.",
+          "add": "Aggiungi {label}",
+          "remove": "Rimuovi eccezione di viaggio"
+        },
+        "backfill": {
+          "title": "Recupera i giorni passati",
+          "description": "Recupera e salva il meteo di un intervallo di date passato così i giorni più vecchi entrano nelle correlazioni.",
+          "run": "Recupera"
+        }
       }
     },
     "profile": "Profilo",
@@ -7220,6 +7257,10 @@
     "mcp": {
       "label": "Accesso assistente esterno (MCP)",
       "description": "Consente a un assistente compatibile con MCP di leggere i tuoi dati sanitari tramite un token con ambito limitato. Disattivato per impostazione predefinita."
+    },
+    "environment": {
+      "label": "Ambiente",
+      "description": "Integra il meteo e le ore di luce giornaliere della tua posizione per correlarli con umore, sonno e parametri vitali. Disattivato di default."
     }
   },
   "illness": {
@@ -7670,6 +7711,17 @@
         "updatedToast": "Voce aggiornata",
         "saveError": "Impossibile salvare la voce."
       }
+    }
+  },
+  "environment": {
+    "fields": {
+      "tempMean": "Temperatura giornaliera",
+      "tempMin": "Minima notturna",
+      "sunshine": "Sole",
+      "daylight": "Ore di luce",
+      "precip": "Precipitazioni",
+      "pressureMean": "Pressione atmosferica",
+      "pressureDelta": "Variazione di pressione"
     }
   }
 }

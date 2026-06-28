@@ -69,6 +69,10 @@ export const SETTINGS_SECTION_SLUGS = [
   "mood",
   "labs",
   "illness",
+  // v1.25 (W-ENV) — "Umwelt" (environmental context): home location, travel
+  // overrides, and the weather/daylight backfill. Module-gated on the opt-in
+  // `environment` module (the nav entry only shows when it is on).
+  "environment",
   // v1.25 (W-RECORDS) — "Anamnese" (medical history): the structured-record
   // home for allergies + family history. Always shown (not module-gated, like
   // `vorsorge`); the records are foundational health-profile data.
