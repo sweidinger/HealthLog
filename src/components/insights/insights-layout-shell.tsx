@@ -8,6 +8,7 @@ import { useMounted } from "@/hooks/use-mounted";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useWorkouts } from "@/hooks/use-workouts";
 import { InsightsTabStrip } from "@/components/insights/insights-tab-strip";
+import { MedicalDisclaimer } from "@/components/common/medical-disclaimer";
 import {
   nextAdvisorPollInterval,
   useInsightsAdvisorQuery,
@@ -159,11 +160,14 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
         modules={user?.modules}
       />
       {children}
-      {/* v1.18.6 (DISC-01) — the page-level generic medical disclaimer is
-          removed. The "HealthLog is a private tracking tool, not a clinical
-          assessment or diagnosis" acknowledgment now lives once at the start
-          of onboarding, and the legal text stays reachable on the public
-          privacy page. */}
+      {/* v1.18.6 (DISC-01) — the page-level generic medical disclaimer was
+          removed; the standing acknowledgment lives once at the start of
+          onboarding and the legal text on the public privacy page.
+          v1.25 — one calm, context-specific framing line for the whole
+          Insights surface (the briefing, trends and correlations included):
+          these are descriptive patterns from the user's own data, not a
+          clinical assessment. Layered, not a wall of warnings. */}
+      <MedicalDisclaimer variant="insights" className="px-1" />
     </div>
   );
 }

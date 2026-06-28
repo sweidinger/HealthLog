@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { MedicalDisclaimer } from "@/components/common/medical-disclaimer";
 import { MedicationWizardDialog } from "@/components/medications/wizard/medication-wizard-dialog";
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
@@ -523,6 +524,12 @@ export default function MedicationsPage() {
           )}
         </div>
       )}
+
+      {/* v1.25 — calm framing for the medications surface: this tracks what
+          you log and your own adherence, it doesn't assess dosing or
+          interactions and isn't medical advice. One footer line, neutral —
+          the med cards themselves stay un-tinted. */}
+      <MedicalDisclaimer variant="medications" className="px-1 pt-2" />
 
       {/* v1.5.5 — the per-card kebab triggers used to open inline
           IntakeImportDialog / ApiEndpointDialog mounts here, but both

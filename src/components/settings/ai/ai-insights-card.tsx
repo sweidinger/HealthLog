@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { MedicalDisclaimer } from "@/components/common/medical-disclaimer";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { SettingsCard } from "@/components/settings/settings-card";
@@ -201,6 +202,11 @@ export function AiInsightsCard({
             })
           }
         />
+
+        {/* v1.25 — the data-posture statement lives where the provider key is
+            configured: self-hosted, data stays on this instance, BYOK / local
+            model, no third-party analytics. One calm line, not a banner. */}
+        <MedicalDisclaimer variant="dataPosture" />
       </div>
     </SettingsCard>
   );

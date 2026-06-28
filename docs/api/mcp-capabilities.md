@@ -28,7 +28,10 @@ them up front):
 4. **Data and context only.** The server ships facts; it never returns a
    diagnosis, clinical verdict, risk score, or treatment change. The
    assistant narrates the facts and leaves clinical judgement to the
-   user's clinician.
+   user's clinician. This mirrors HealthLog's project-wide self-description
+   standard: the app is a personal health record-keeping and wellness tool,
+   not a medical device, and nothing it surfaces — here or in the UI —
+   diagnoses or treats.
 
 Discover before fetching: call `list_metrics` (or read the
 `healthlog://measurements/inventory` resource) first to see what exists,
@@ -106,7 +109,10 @@ surfaces a signal only when the user has recorded it; `fetch metric:<KEY>`
 hydrates it). Each carries its unit and population reference band from the
 single signal registry; absence is the usual `{ present: false }`. They
 sit off the Coach data inventory by design, so `list_metrics` /
-`get_metric_series` do not enumerate them — use the reads above.
+`get_metric_series` do not enumerate them — use the reads above. A new
+signal is declared once in the in-app signal registry and shows up across
+the metric tools, correlations, and the FHIR map together, so the MCP
+surface never advertises a signal the record can't return.
 
 The **longevity lab panel** (ApoB, Lp(a), hs-CRP, HbA1c, fasting glucose,
 fasting insulin, eGFR, GGT, ferritin, omega-3 index) is reached like any
@@ -118,9 +124,17 @@ curated biomarker catalogue.
 **Off the MCP surface by construction.** The PHQ-9 / GAD-7 mental-health
 screeners (item content and totals) are excluded from AI / MCP, and the
 environmental-context signals (`ENV_*`: temperature, sunshine, daylight,
-precipitation, barometric pressure) are off MCP in v1. None of them
-resolve through any read tool — they are not on the MCP exposure
+precipitation, barometric pressure) are off MCP in v1. The structured
+records (allergies, family history) and the inbound-document store are
+deliberately not exposed either: the document pipeline extracts facts for
+the user to confirm in-app rather than streaming them to a model. None of
+them resolve through any read tool — they are not on the MCP exposure
 allowlist.
+
+This mirrors HealthLog's project-wide self-description standard: the MCP
+surface ships data and context, never a diagnosis, clinical verdict, or
+treatment change — the assistant narrates the facts and leaves clinical
+judgement to the user's clinician.
 
 ## Resources
 

@@ -2,6 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 
+import { MedicalDisclaimer } from "@/components/common/medical-disclaimer";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -121,6 +122,15 @@ export function CoachHero({ composer, scopeHint }: CoachHeroProps) {
             {scopeHint}
           </div>
         ) : null}
+
+        {/* v1.25 — the Coach standing self-description: works from your own
+            data, not a doctor, not medical advice. Sits once on the calm
+            new-chat surface so it frames the conversation without nagging
+            every reply. */}
+        <MedicalDisclaimer
+          variant="coach"
+          className="max-w-md text-center text-pretty"
+        />
       </div>
     </div>
   );
