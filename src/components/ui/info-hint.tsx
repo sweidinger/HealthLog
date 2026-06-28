@@ -36,7 +36,11 @@ export function InfoHint({
             data-slot="info-hint"
             aria-label={t("common.moreInfo")}
             className={cn(
-              "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -m-1 inline-flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-full p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none",
+              // A 44px (WCAG 2.5.5) tap target whose visible footprint stays at
+              // the 24px the icon needs: the 44px box is offset by an equal
+              // negative margin (`p-2.5` + `-m-2.5`), so surrounding inline
+              // layout is unchanged while the touchable area meets the floor.
+              "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -m-2.5 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full p-2.5 transition-colors focus-visible:ring-2 focus-visible:outline-none",
               className,
             )}
           >
