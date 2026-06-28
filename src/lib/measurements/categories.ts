@@ -204,6 +204,18 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   // The resilience level is a derived recovery composite (ordinal-encoded
   // band) → scores cluster alongside RECOVERY_SCORE / ANS_CHARGE.
   ["RESILIENCE", "scores"],
+
+  // ── v1.25 — clinical-signals wave ──
+  // PHQ-9 / GAD-7 totals are composite screener indices → scores cluster.
+  ["PHQ9_SCORE", "scores"],
+  ["GAD7_SCORE", "scores"],
+  // Grip strength is a strength/fitness reading → activity cluster.
+  ["GRIP_STRENGTH", "activity"],
+  // Pain NRS is a patient-reported clinical point-in-time signal → vitals.
+  ["PAIN_NRS", "vitals"],
+  // Waist circumference + waist-to-height are anthropometric → body cluster.
+  ["WAIST_CIRCUMFERENCE", "body"],
+  ["WAIST_TO_HEIGHT", "body"],
 ]);
 
 /**

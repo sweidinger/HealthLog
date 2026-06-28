@@ -575,7 +575,13 @@
     "bulkDeleteSuccess": "Usunięto pomiary: {count}",
     "bulkDeleteError": "Błąd podczas usuwania wybranych pomiarów",
     "bulkDeleteConfirmTitle": "Usunąć pomiary ({count})?",
-    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte."
+    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte.",
+    "typePhq9Score": "Wynik PHQ-9",
+    "typeGad7Score": "Wynik GAD-7",
+    "typeGripStrength": "Siła chwytu",
+    "typePainNrs": "Ból (0–10)",
+    "typeWaistCircumference": "Obwód talii",
+    "typeWaistToHeight": "Stosunek talii do wzrostu"
   },
   "mood": {
     "title": "Nastrój",
@@ -7090,8 +7096,16 @@
         "hemoglobin": "Białko czerwonych krwinek transportujące tlen.",
         "hematocrit": "Udział czerwonych krwinek w objętości krwi.",
         "wbc": "Całkowita liczba białych krwinek, krążącej obrony układu odpornościowego.",
-        "platelets": "Fragmenty komórkowe, które zlepiają się, tworząc skrzepy krwi."
-      }
+        "platelets": "Fragmenty komórkowe, które zlepiają się, tworząc skrzepy krwi.",
+        "apob": "Bezpośrednio liczy cząstki aterogenne; często lepszy marker ryzyka niż LDL-C, gdy się różnią.",
+        "lp-a": "W dużej mierze dziedziczny, dożywotni czynnik ryzyka — zwykle mierzony raz. Podawaj w jednostkach molowych (nmol/L).",
+        "fasting-insulin": "Łączy się z glukozą na czczo do oszacowania insulinooporności (HOMA-IR).",
+        "omega-3-index": "Udział EPA+DHA w czerwonych krwinkach; 8–12% to powszechnie podawany zakres kardioprotekcyjny."
+      },
+      "apob": "Apolipoproteina B (ApoB)",
+      "lp-a": "Lipoproteina(a)",
+      "fasting-insulin": "Insulina na czczo",
+      "omega-3-index": "Indeks omega-3"
     },
     "noteLoadFailed": "Nie udało się wczytać notatki; pozostanie niezmieniona po zapisaniu.",
     "showingLatestOf": "Wyświetlanie najnowszych {shown} z {total} wyników",
@@ -7425,6 +7439,119 @@
       "title": "Dostępna jest nowa wersja",
       "reload": "Załaduj ponownie",
       "dismiss": "Odrzuć"
+    }
+  },
+  "mentalHealth": {
+    "pageTitle": "Sprawdzenie dobrostanu psychicznego",
+    "pageDescription": "Dwa zwalidowane, dobrowolne testy — PHQ-9 (nastrój) i GAD-7 (lęk) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
+    "disclaimer": "To przesiewowa samoocena, a nie diagnoza. Wysoki lub niski wynik nie oznacza, że masz lub nie masz danego schorzenia. Tylko wykwalifikowany pracownik ochrony zdrowia może postawić diagnozę. W razie wątpliwości porozmawiaj z lekarzem.",
+    "optInNote": "Dobrowolne i prywatne: Twoje poszczególne odpowiedzi są szyfrowane, pozostają poza Coachem AI i eksportami i nigdy nie są udostępniane.",
+    "attributionLabel": "Źródło",
+    "choosePrompt": "Wybierz sprawdzenie",
+    "start": "Rozpocznij",
+    "back": "Wstecz",
+    "stem": "Jak często w ciągu ostatnich 2 tygodni dokuczały Ci następujące problemy?",
+    "submit": "Zobacz mój wynik",
+    "submitting": "Zapisywanie…",
+    "saved": "Zapisano",
+    "error": "Coś poszło nie tak. Spróbuj ponownie.",
+    "considerProfessional": "Twój wynik mieści się w zakresie, w którym rozmowa ze specjalistą może pomóc. To życzliwa sugestia, a nie diagnoza.",
+    "instrument": {
+      "phq9": "PHQ-9 — nastrój",
+      "gad7": "GAD-7 — lęk"
+    },
+    "instrumentSub": {
+      "phq9": "Przesiew depresji, 9 pytań",
+      "gad7": "Przesiew lęku, 7 pytań"
+    },
+    "options": {
+      "0": "Wcale",
+      "1": "Kilka dni",
+      "2": "Więcej niż połowę dni",
+      "3": "Niemal codziennie"
+    },
+    "functionalTitle": "Jeśli zaznaczyłeś(-aś) jakiekolwiek problemy, na ile utrudniły Ci one pracę, prowadzenie domu lub kontakty z innymi ludźmi?",
+    "functional": {
+      "0": "Wcale nie utrudniły",
+      "1": "Trochę utrudniły",
+      "2": "Bardzo utrudniły",
+      "3": "Skrajnie utrudniły"
+    },
+    "result": {
+      "title": "Twój wynik",
+      "totalLabel": "Wynik łączny",
+      "bandLabel": "Zakres dla tego przesiewu",
+      "takeAnother": "Wykonaj kolejne sprawdzenie"
+    },
+    "band": {
+      "PHQ9": {
+        "minimal": "Brak / minimalny",
+        "mild": "Łagodny",
+        "moderate": "Umiarkowany",
+        "modSevere": "Umiarkowanie ciężki",
+        "severe": "Ciężki"
+      },
+      "GAD7": {
+        "minimal": "Brak / minimalny",
+        "mild": "Łagodny",
+        "moderate": "Umiarkowany",
+        "severe": "Ciężki"
+      }
+    },
+    "history": {
+      "title": "Twoja historia",
+      "empty": "Brak sprawdzeń. Twój trend pojawi się tutaj po ukończeniu pierwszego."
+    },
+    "crisis": {
+      "title": "Nie musisz mierzyć się z tym sam(a)",
+      "intro": "Wskazałeś(-aś) myśli, że lepiej byłoby nie żyć lub zrobić sobie krzywdę. Wsparcie jest dostępne już teraz, a sięgnięcie po pomoc to oznaka siły.",
+      "ifDanger": "Jeśli grozi Ci bezpośrednie niebezpieczeństwo, zadzwoń teraz pod {emergency}.",
+      "resourcesTitle": "Osoby, które mogą pomóc"
+    },
+    "items": {
+      "phq9": {
+        "1": "Little interest or pleasure in doing things",
+        "2": "Feeling down, depressed, or hopeless",
+        "3": "Trouble falling or staying asleep, or sleeping too much",
+        "4": "Feeling tired or having little energy",
+        "5": "Poor appetite or overeating",
+        "6": "Feeling bad about yourself — or that you are a failure or have let yourself or your family down",
+        "7": "Trouble concentrating on things, such as reading the newspaper or watching television",
+        "8": "Moving or speaking so slowly that other people could have noticed. Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
+        "9": "Thoughts that you would be better off dead, or of hurting yourself in some way"
+      },
+      "gad7": {
+        "1": "Feeling nervous, anxious, or on edge",
+        "2": "Not being able to stop or control worrying",
+        "3": "Worrying too much about different things",
+        "4": "Trouble relaxing",
+        "5": "Being so restless that it is hard to sit still",
+        "6": "Becoming easily annoyed or irritable",
+        "7": "Feeling afraid as if something awful might happen"
+      }
+    },
+    "crisisResource": {
+      "telefonSeelsorge": {
+        "name": "TelefonSeelsorge (24/7, free, confidential)"
+      },
+      "nummerGegenKummer": {
+        "name": "Nummer gegen Kummer (for young people)"
+      },
+      "krisenchat": {
+        "name": "krisenchat (24/7 chat, young people)"
+      },
+      "findahelpline": {
+        "name": "Find a helpline (worldwide directory)"
+      },
+      "euEmotionalSupport": {
+        "name": "Emotional-support helpline"
+      },
+      "lifeline988": {
+        "name": "988 Suicide & Crisis Lifeline"
+      },
+      "crisisTextLine": {
+        "name": "Crisis Text Line"
+      }
     }
   }
 }

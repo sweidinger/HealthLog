@@ -98,10 +98,17 @@ const EXPECTED_TYPES = [
   "BODY_TEMPERATURE_DEVIATION",
   // ── v1.19.0 — Oura resilience (ordinal-encoded level) ──
   "RESILIENCE",
+  // ── v1.25 — clinical-signals wave ──
+  "PHQ9_SCORE",
+  "GAD7_SCORE",
+  "GRIP_STRENGTH",
+  "PAIN_NRS",
+  "WAIST_CIRCUMFERENCE",
+  "WAIST_TO_HEIGHT",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 67 canonical measurement types", () => {
+  it("exposes the 73 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -244,6 +251,19 @@ describe("measurementTypeEnum coverage", () => {
     // Insights / measurement-list surfaces and never belongs in the clinical
     // vitals PDF. See doctor-report-pdf-core.ts for the matching rationale.
     "RESILIENCE",
+    // v1.25 — clinical-signals wave. The mental-health screener totals are
+    // opt-in, derived, and deliberately excluded from any export/share/AI
+    // surface by default (item answers are encrypted). The physical clinical
+    // signals (grip strength, pain NRS, waist circumference + WHtR) surface on
+    // their own measurement/insights surfaces; they join the doctor PDF once a
+    // clinical layout + reference ranges land alongside the other v1.5+
+    // additions. See doctor-report-pdf-core.ts for the matching rationale.
+    "PHQ9_SCORE",
+    "GAD7_SCORE",
+    "GRIP_STRENGTH",
+    "PAIN_NRS",
+    "WAIST_CIRCUMFERENCE",
+    "WAIST_TO_HEIGHT",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

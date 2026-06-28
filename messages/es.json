@@ -575,7 +575,13 @@
     "bulkDeleteSuccess": "{count} mediciones eliminadas",
     "bulkDeleteError": "Error al eliminar las mediciones seleccionadas",
     "bulkDeleteConfirmTitle": "¿Eliminar {count} mediciones?",
-    "bulkDeleteConfirmBody": "Las {count} mediciones seleccionadas se eliminarán de forma permanente."
+    "bulkDeleteConfirmBody": "Las {count} mediciones seleccionadas se eliminarán de forma permanente.",
+    "typePhq9Score": "Puntuación PHQ-9",
+    "typeGad7Score": "Puntuación GAD-7",
+    "typeGripStrength": "Fuerza de agarre",
+    "typePainNrs": "Dolor (0–10)",
+    "typeWaistCircumference": "Perímetro de cintura",
+    "typeWaistToHeight": "Índice cintura-altura"
   },
   "mood": {
     "title": "Estado de ánimo",
@@ -7090,8 +7096,16 @@
         "hemoglobin": "La proteína de los glóbulos rojos que transporta el oxígeno.",
         "hematocrit": "La fracción del volumen sanguíneo formada por glóbulos rojos.",
         "wbc": "Recuento total de glóbulos blancos, la defensa circulante del sistema inmunitario.",
-        "platelets": "Fragmentos celulares que se agregan para formar coágulos sanguíneos."
-      }
+        "platelets": "Fragmentos celulares que se agregan para formar coágulos sanguíneos.",
+        "apob": "Cuenta directamente las partículas aterogénicas; a menudo mejor marcador de riesgo que el LDL-C cuando discrepan.",
+        "lp-a": "Factor de riesgo en gran parte hereditario y de por vida — suele medirse una vez. Informa en unidades molares (nmol/L).",
+        "fasting-insulin": "Se combina con la glucosa en ayunas para estimar la resistencia a la insulina (HOMA-IR).",
+        "omega-3-index": "Proporción de EPA+DHA en glóbulos rojos; 8–12 % es el rango cardioprotector citado habitualmente."
+      },
+      "apob": "Apolipoproteína B (ApoB)",
+      "lp-a": "Lipoproteína(a)",
+      "fasting-insulin": "Insulina en ayunas",
+      "omega-3-index": "Índice omega-3"
     },
     "noteLoadFailed": "No se pudo cargar la nota; se mantendrá sin cambios al guardar.",
     "showingLatestOf": "Mostrando los {shown} resultados más recientes de {total}",
@@ -7425,6 +7439,119 @@
       "title": "Hay una nueva versión disponible",
       "reload": "Recargar",
       "dismiss": "Descartar"
+    }
+  },
+  "mentalHealth": {
+    "pageTitle": "Revisión de bienestar mental",
+    "pageDescription": "Dos autoevaluaciones validadas y opcionales — PHQ-9 (estado de ánimo) y GAD-7 (preocupación) — junto a tu registro de ánimo. Lo valioso es la tendencia en el tiempo, no un único número.",
+    "disclaimer": "Esto es una autoevaluación de cribado, no un diagnóstico. Una puntuación alta o baja no significa que tengas o no una afección. Solo un profesional de salud cualificado puede diagnosticar. Si tienes dudas, habla con tu médico.",
+    "optInNote": "Opcional y privado: tus respuestas individuales están cifradas, se mantienen fuera del Coach de IA y de las exportaciones, y nunca se comparten.",
+    "attributionLabel": "Fuente",
+    "choosePrompt": "Elige una revisión",
+    "start": "Empezar",
+    "back": "Atrás",
+    "stem": "Durante las últimas 2 semanas, ¿con qué frecuencia te han molestado los siguientes problemas?",
+    "submit": "Ver mi resultado",
+    "submitting": "Guardando…",
+    "saved": "Guardado",
+    "error": "Algo salió mal. Inténtalo de nuevo.",
+    "considerProfessional": "Tu puntuación está en un rango en el que hablar con un profesional de salud puede ayudar. Es una sugerencia amable, no un diagnóstico.",
+    "instrument": {
+      "phq9": "PHQ-9 — ánimo",
+      "gad7": "GAD-7 — preocupación"
+    },
+    "instrumentSub": {
+      "phq9": "Cribado de depresión, 9 preguntas",
+      "gad7": "Cribado de ansiedad, 7 preguntas"
+    },
+    "options": {
+      "0": "Nunca",
+      "1": "Varios días",
+      "2": "Más de la mitad de los días",
+      "3": "Casi todos los días"
+    },
+    "functionalTitle": "Si marcaste algún problema, ¿cuánta dificultad te han causado para trabajar, ocuparte de la casa o relacionarte con otras personas?",
+    "functional": {
+      "0": "Ninguna dificultad",
+      "1": "Algo de dificultad",
+      "2": "Mucha dificultad",
+      "3": "Dificultad extrema"
+    },
+    "result": {
+      "title": "Tu resultado",
+      "totalLabel": "Puntuación total",
+      "bandLabel": "Rango para este cribado",
+      "takeAnother": "Hacer otra revisión"
+    },
+    "band": {
+      "PHQ9": {
+        "minimal": "Ninguna / mínima",
+        "mild": "Leve",
+        "moderate": "Moderada",
+        "modSevere": "Moderadamente grave",
+        "severe": "Grave"
+      },
+      "GAD7": {
+        "minimal": "Ninguna / mínima",
+        "mild": "Leve",
+        "moderate": "Moderada",
+        "severe": "Grave"
+      }
+    },
+    "history": {
+      "title": "Tu historial",
+      "empty": "Aún no hay revisiones. Tu tendencia aparecerá aquí cuando completes una."
+    },
+    "crisis": {
+      "title": "No tienes que afrontar esto a solas",
+      "intro": "Indicaste pensamientos de estar mejor muerto o de hacerte daño. Hay apoyo disponible ahora mismo, y pedir ayuda es una señal de fortaleza.",
+      "ifDanger": "Si estás en peligro inmediato, llama ahora al {emergency}.",
+      "resourcesTitle": "Personas que pueden ayudar"
+    },
+    "items": {
+      "phq9": {
+        "1": "Little interest or pleasure in doing things",
+        "2": "Feeling down, depressed, or hopeless",
+        "3": "Trouble falling or staying asleep, or sleeping too much",
+        "4": "Feeling tired or having little energy",
+        "5": "Poor appetite or overeating",
+        "6": "Feeling bad about yourself — or that you are a failure or have let yourself or your family down",
+        "7": "Trouble concentrating on things, such as reading the newspaper or watching television",
+        "8": "Moving or speaking so slowly that other people could have noticed. Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
+        "9": "Thoughts that you would be better off dead, or of hurting yourself in some way"
+      },
+      "gad7": {
+        "1": "Feeling nervous, anxious, or on edge",
+        "2": "Not being able to stop or control worrying",
+        "3": "Worrying too much about different things",
+        "4": "Trouble relaxing",
+        "5": "Being so restless that it is hard to sit still",
+        "6": "Becoming easily annoyed or irritable",
+        "7": "Feeling afraid as if something awful might happen"
+      }
+    },
+    "crisisResource": {
+      "telefonSeelsorge": {
+        "name": "TelefonSeelsorge (24/7, free, confidential)"
+      },
+      "nummerGegenKummer": {
+        "name": "Nummer gegen Kummer (for young people)"
+      },
+      "krisenchat": {
+        "name": "krisenchat (24/7 chat, young people)"
+      },
+      "findahelpline": {
+        "name": "Find a helpline (worldwide directory)"
+      },
+      "euEmotionalSupport": {
+        "name": "Emotional-support helpline"
+      },
+      "lifeline988": {
+        "name": "988 Suicide & Crisis Lifeline"
+      },
+      "crisisTextLine": {
+        "name": "Crisis Text Line"
+      }
     }
   }
 }

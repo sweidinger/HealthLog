@@ -122,6 +122,13 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   BODY_TEMPERATURE_DEVIATION: "measurements.typeBodyTemperatureDeviation",
   // ── v1.19.0 — Oura resilience ──
   RESILIENCE: "measurements.typeResilience",
+  // ── v1.25 — clinical-signals wave ──
+  PHQ9_SCORE: "measurements.typePhq9Score",
+  GAD7_SCORE: "measurements.typeGad7Score",
+  GRIP_STRENGTH: "measurements.typeGripStrength",
+  PAIN_NRS: "measurements.typePainNrs",
+  WAIST_CIRCUMFERENCE: "measurements.typeWaistCircumference",
+  WAIST_TO_HEIGHT: "measurements.typeWaistToHeight",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -245,6 +252,15 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   // Gauge reads as the composite "index / level" dial, matching the other
   // recovery / score composites (RECOVERY_SCORE, DAY_STRAIN).
   RESILIENCE: Gauge,
+  // ── v1.25 — clinical-signals wave ──
+  // Gauge reads as the screener-score dial; Dumbbell carries grip strength;
+  // Activity the pain trace; Scale the anthropometric waist pair.
+  PHQ9_SCORE: Gauge,
+  GAD7_SCORE: Gauge,
+  GRIP_STRENGTH: Dumbbell,
+  PAIN_NRS: Activity,
+  WAIST_CIRCUMFERENCE: Scale,
+  WAIST_TO_HEIGHT: Scale,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -359,4 +375,13 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   // chart-1 (Dracula purple) marks the derived recovery / score composites as
   // their own visual group, matching RECOVERY_SCORE / DAY_STRAIN.
   RESILIENCE: "bg-chart-1/20 text-chart-1",
+  // ── v1.25 — clinical-signals wave ──
+  // chart-1 (composite/score family) for the screener totals + grip strength;
+  // chart-3 (cardio/alert family) for pain; chart-4 (body family) for waist.
+  PHQ9_SCORE: "bg-chart-1/20 text-chart-1",
+  GAD7_SCORE: "bg-chart-1/20 text-chart-1",
+  GRIP_STRENGTH: "bg-chart-1/20 text-chart-1",
+  PAIN_NRS: "bg-chart-3/20 text-chart-3",
+  WAIST_CIRCUMFERENCE: "bg-chart-4/20 text-chart-4",
+  WAIST_TO_HEIGHT: "bg-chart-4/20 text-chart-4",
 };

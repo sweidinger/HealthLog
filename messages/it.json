@@ -575,7 +575,13 @@
     "bulkDeleteSuccess": "{count} misurazioni eliminate",
     "bulkDeleteError": "Errore durante l'eliminazione delle misurazioni selezionate",
     "bulkDeleteConfirmTitle": "Eliminare {count} misurazioni?",
-    "bulkDeleteConfirmBody": "Le {count} misurazioni selezionate verranno eliminate definitivamente."
+    "bulkDeleteConfirmBody": "Le {count} misurazioni selezionate verranno eliminate definitivamente.",
+    "typePhq9Score": "Punteggio PHQ-9",
+    "typeGad7Score": "Punteggio GAD-7",
+    "typeGripStrength": "Forza di presa",
+    "typePainNrs": "Dolore (0–10)",
+    "typeWaistCircumference": "Circonferenza vita",
+    "typeWaistToHeight": "Rapporto vita-altezza"
   },
   "mood": {
     "title": "Umore",
@@ -7090,8 +7096,16 @@
         "hemoglobin": "La proteina dei globuli rossi che trasporta l'ossigeno.",
         "hematocrit": "La frazione del volume sanguigno costituita da globuli rossi.",
         "wbc": "Conteggio totale dei globuli bianchi, la difesa circolante del sistema immunitario.",
-        "platelets": "Frammenti cellulari che si aggregano per formare coaguli di sangue."
-      }
+        "platelets": "Frammenti cellulari che si aggregano per formare coaguli di sangue.",
+        "apob": "Conta direttamente le particelle aterogene; spesso un marcatore di rischio migliore del LDL-C quando i due discordano.",
+        "lp-a": "Fattore di rischio in gran parte ereditario e permanente — di solito misurato una volta. Riportare in unità molari (nmol/L).",
+        "fasting-insulin": "Si abbina alla glicemia a digiuno per stimare la resistenza insulinica (HOMA-IR).",
+        "omega-3-index": "Quota di EPA+DHA nei globuli rossi; 8–12% è l'intervallo cardioprotettivo comunemente citato."
+      },
+      "apob": "Apolipoproteina B (ApoB)",
+      "lp-a": "Lipoproteina(a)",
+      "fasting-insulin": "Insulina a digiuno",
+      "omega-3-index": "Indice omega-3"
     },
     "noteLoadFailed": "Impossibile caricare la nota; resterà invariata al salvataggio.",
     "showingLatestOf": "Visualizzazione degli ultimi {shown} risultati su {total}",
@@ -7425,6 +7439,119 @@
       "title": "È disponibile una nuova versione",
       "reload": "Ricarica",
       "dismiss": "Ignora"
+    }
+  },
+  "mentalHealth": {
+    "pageTitle": "Check-in sul benessere mentale",
+    "pageDescription": "Due autovalutazioni validate e facoltative — PHQ-9 (umore) e GAD-7 (preoccupazione) — accanto al tuo diario dell'umore. Ciò che conta è l'andamento nel tempo, non un singolo numero.",
+    "disclaimer": "Questa è un'autovalutazione di screening, non una diagnosi. Un punteggio alto o basso non significa che tu abbia o non abbia un disturbo. Solo un professionista sanitario qualificato può fare una diagnosi. In caso di dubbi, parlane con il tuo medico.",
+    "optInNote": "Facoltativo e privato: le tue risposte individuali sono cifrate, tenute fuori dal Coach IA e dalle esportazioni, e non vengono mai condivise.",
+    "attributionLabel": "Fonte",
+    "choosePrompt": "Scegli un check-in",
+    "start": "Inizia",
+    "back": "Indietro",
+    "stem": "Nelle ultime 2 settimane, con quale frequenza ti hanno disturbato i seguenti problemi?",
+    "submit": "Vedi il mio risultato",
+    "submitting": "Salvataggio…",
+    "saved": "Salvato",
+    "error": "Qualcosa è andato storto. Riprova.",
+    "considerProfessional": "Il tuo punteggio è in un intervallo in cui parlare con un professionista sanitario può aiutare. È un suggerimento gentile, non una diagnosi.",
+    "instrument": {
+      "phq9": "PHQ-9 — umore",
+      "gad7": "GAD-7 — preoccupazione"
+    },
+    "instrumentSub": {
+      "phq9": "Screening della depressione, 9 domande",
+      "gad7": "Screening dell'ansia, 7 domande"
+    },
+    "options": {
+      "0": "Per niente",
+      "1": "Alcuni giorni",
+      "2": "Più della metà dei giorni",
+      "3": "Quasi ogni giorno"
+    },
+    "functionalTitle": "Se hai indicato dei problemi, quanto ti hanno reso difficile lavorare, occuparti della casa o andare d'accordo con gli altri?",
+    "functional": {
+      "0": "Per niente difficile",
+      "1": "Un po' difficile",
+      "2": "Molto difficile",
+      "3": "Estremamente difficile"
+    },
+    "result": {
+      "title": "Il tuo risultato",
+      "totalLabel": "Punteggio totale",
+      "bandLabel": "Intervallo per questo screening",
+      "takeAnother": "Fai un altro check-in"
+    },
+    "band": {
+      "PHQ9": {
+        "minimal": "Nessuna / minima",
+        "mild": "Lieve",
+        "moderate": "Moderata",
+        "modSevere": "Moderatamente grave",
+        "severe": "Grave"
+      },
+      "GAD7": {
+        "minimal": "Nessuna / minima",
+        "mild": "Lieve",
+        "moderate": "Moderata",
+        "severe": "Grave"
+      }
+    },
+    "history": {
+      "title": "La tua cronologia",
+      "empty": "Ancora nessun check-in. Il tuo andamento apparirà qui dopo che ne avrai completato uno."
+    },
+    "crisis": {
+      "title": "Non devi affrontare tutto questo da solo/a",
+      "intro": "Hai indicato pensieri che sarebbe meglio essere morto/a o di farti del male. Un supporto è disponibile proprio ora, e chiedere aiuto è un segno di forza.",
+      "ifDanger": "Se sei in pericolo immediato, chiama subito il {emergency}.",
+      "resourcesTitle": "Persone che possono aiutare"
+    },
+    "items": {
+      "phq9": {
+        "1": "Little interest or pleasure in doing things",
+        "2": "Feeling down, depressed, or hopeless",
+        "3": "Trouble falling or staying asleep, or sleeping too much",
+        "4": "Feeling tired or having little energy",
+        "5": "Poor appetite or overeating",
+        "6": "Feeling bad about yourself — or that you are a failure or have let yourself or your family down",
+        "7": "Trouble concentrating on things, such as reading the newspaper or watching television",
+        "8": "Moving or speaking so slowly that other people could have noticed. Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
+        "9": "Thoughts that you would be better off dead, or of hurting yourself in some way"
+      },
+      "gad7": {
+        "1": "Feeling nervous, anxious, or on edge",
+        "2": "Not being able to stop or control worrying",
+        "3": "Worrying too much about different things",
+        "4": "Trouble relaxing",
+        "5": "Being so restless that it is hard to sit still",
+        "6": "Becoming easily annoyed or irritable",
+        "7": "Feeling afraid as if something awful might happen"
+      }
+    },
+    "crisisResource": {
+      "telefonSeelsorge": {
+        "name": "TelefonSeelsorge (24/7, free, confidential)"
+      },
+      "nummerGegenKummer": {
+        "name": "Nummer gegen Kummer (for young people)"
+      },
+      "krisenchat": {
+        "name": "krisenchat (24/7 chat, young people)"
+      },
+      "findahelpline": {
+        "name": "Find a helpline (worldwide directory)"
+      },
+      "euEmotionalSupport": {
+        "name": "Emotional-support helpline"
+      },
+      "lifeline988": {
+        "name": "988 Suicide & Crisis Lifeline"
+      },
+      "crisisTextLine": {
+        "name": "Crisis Text Line"
+      }
     }
   }
 }

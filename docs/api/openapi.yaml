@@ -2087,6 +2087,12 @@ paths:
               - SLEEP_SCORE
               - BODY_TEMPERATURE_DEVIATION
               - RESILIENCE
+              - PHQ9_SCORE
+              - GAD7_SCORE
+              - GRIP_STRENGTH
+              - PAIN_NRS
+              - WAIST_CIRCUMFERENCE
+              - WAIST_TO_HEIGHT
         - in: query
           name: from
           schema:
@@ -2276,6 +2282,12 @@ paths:
                     - SLEEP_SCORE
                     - BODY_TEMPERATURE_DEVIATION
                     - RESILIENCE
+                    - PHQ9_SCORE
+                    - GAD7_SCORE
+                    - GRIP_STRENGTH
+                    - PAIN_NRS
+                    - WAIST_CIRCUMFERENCE
+                    - WAIST_TO_HEIGHT
                 value:
                   type: number
                 measuredAt:
@@ -5770,6 +5782,12 @@ paths:
               - SLEEP_SCORE
               - BODY_TEMPERATURE_DEVIATION
               - RESILIENCE
+              - PHQ9_SCORE
+              - GAD7_SCORE
+              - GRIP_STRENGTH
+              - PAIN_NRS
+              - WAIST_CIRCUMFERENCE
+              - WAIST_TO_HEIGHT
             description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
           required: true
           description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
@@ -7989,6 +8007,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IllnessInsightsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/mental-health/assessments:
+    get:
+      tags:
+        - Mental health
+      summary: List the caller's screener history
+      description: Returns PHQ-9 / GAD-7 administrations (newest first). Totals + bands + flags only; raw item answers are
+        never returned.
+      parameters:
+        - in: query
+          name: instrument
+          schema:
+            type: string
+            enum:
+              - PHQ9
+              - GAD7
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 9007199254740991
+      responses:
+        "200":
+          description: Screener history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListMentalHealthAssessmentsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Mental health
+      summary: Record a completed PHQ-9 / GAD-7 screener
+      description: Stores one administration (item answers encrypted) and writes the derived total as a PHQ9_SCORE /
+        GAD7_SCORE measurement. On a positive PHQ-9 item-9 the response carries the locale-aware crisis-resource set.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instrument:
+                  type: string
+                  enum:
+                    - PHQ9
+                    - GAD7
+                items:
+                  minItems: 1
+                  maxItems: 12
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                    maximum: 3
+                functionalDifficulty:
+                  type: integer
+                  minimum: 0
+                  maximum: 3
+                takenAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                tz:
+                  type: string
+                  maxLength: 64
+                locale:
+                  type: string
+                  maxLength: 16
+              required:
+                - instrument
+                - items
+      responses:
+        "201":
+          description: Assessment recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMentalHealthAssessmentEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -12353,6 +12460,12 @@ components:
             - SLEEP_SCORE
             - BODY_TEMPERATURE_DEVIATION
             - RESILIENCE
+            - PHQ9_SCORE
+            - GAD7_SCORE
+            - GRIP_STRENGTH
+            - PAIN_NRS
+            - WAIST_CIRCUMFERENCE
+            - WAIST_TO_HEIGHT
         value:
           type: number
         unit:
@@ -12669,6 +12782,12 @@ components:
               - SLEEP_SCORE
               - BODY_TEMPERATURE_DEVIATION
               - RESILIENCE
+              - PHQ9_SCORE
+              - GAD7_SCORE
+              - GRIP_STRENGTH
+              - PAIN_NRS
+              - WAIST_CIRCUMFERENCE
+              - WAIST_TO_HEIGHT
           additionalProperties:
             type: array
             items:
@@ -12746,6 +12865,12 @@ components:
                     - SLEEP_SCORE
                     - BODY_TEMPERATURE_DEVIATION
                     - RESILIENCE
+                    - PHQ9_SCORE
+                    - GAD7_SCORE
+                    - GRIP_STRENGTH
+                    - PAIN_NRS
+                    - WAIST_CIRCUMFERENCE
+                    - WAIST_TO_HEIGHT
                 value:
                   type: number
                   description: Daily mean (spot metrics) or SUM (cumulative).
@@ -12844,6 +12969,12 @@ components:
             - SLEEP_SCORE
             - BODY_TEMPERATURE_DEVIATION
             - RESILIENCE
+            - PHQ9_SCORE
+            - GAD7_SCORE
+            - GRIP_STRENGTH
+            - PAIN_NRS
+            - WAIST_CIRCUMFERENCE
+            - WAIST_TO_HEIGHT
           description: Per-type daily series, keyed by MeasurementType.
       required:
         - series
@@ -13077,6 +13208,12 @@ components:
             - SLEEP_SCORE
             - BODY_TEMPERATURE_DEVIATION
             - RESILIENCE
+            - PHQ9_SCORE
+            - GAD7_SCORE
+            - GRIP_STRENGTH
+            - PAIN_NRS
+            - WAIST_CIRCUMFERENCE
+            - WAIST_TO_HEIGHT
         value:
           type: number
         unit:
@@ -23363,6 +23500,137 @@ components:
         (median) recovery gap (null below the min-sample floor — withholds a thin claim), a recurrence-by-month tally, a
         per-type breakdown, and the dominant driving vital (`gapDriverType`, null when no gap is surfaced).
         Retrospective only."
+    ListMentalHealthAssessmentsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ListMentalHealthAssessmentsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListMentalHealthAssessmentsResponse:
+      type: object
+      properties:
+        assessments:
+          type: array
+          items:
+            $ref: "#/components/schemas/MentalHealthAssessment"
+      required:
+        - assessments
+      additionalProperties: false
+    MentalHealthAssessment:
+      type: object
+      properties:
+        id:
+          type: string
+        instrument:
+          type: string
+          enum:
+            - PHQ9
+            - GAD7
+        locale:
+          type: string
+        version:
+          type: string
+        totalScore:
+          type: number
+        severityBand:
+          type: string
+        item9Flagged:
+          type: boolean
+        crisisShownAt:
+          anyOf:
+            - type: string
+            - type: "null"
+        takenAt:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - instrument
+        - locale
+        - version
+        - totalScore
+        - severityBand
+        - item9Flagged
+        - crisisShownAt
+        - takenAt
+        - createdAt
+      additionalProperties: false
+      description: One completed screener administration. `severityBand` is a descriptive label for the screen (never a
+        diagnosis). `item9Flagged` is true when the PHQ-9 self-harm item was answered > 0 — the client MUST show crisis
+        resources when it is. Raw per-item answers are intentionally absent.
+    CreateMentalHealthAssessmentEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CreateMentalHealthAssessmentResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CreateMentalHealthAssessmentResponse:
+      type: object
+      properties:
+        assessment:
+          $ref: "#/components/schemas/MentalHealthAssessment"
+        actionThreshold:
+          type: number
+        crisis:
+          anyOf:
+            - $ref: "#/components/schemas/CrisisResourceSet"
+            - type: "null"
+      required:
+        - assessment
+        - actionThreshold
+        - crisis
+      additionalProperties: false
+    CrisisResourceSet:
+      type: object
+      properties:
+        emergencyNumber:
+          type: string
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrisisResource"
+      required:
+        - emergencyNumber
+        - resources
+      additionalProperties: false
+      description: Locale-aware crisis-resource signposting, present only when item-9 is flagged. Names resolve via i18n on
+        the client; contacts are literal.
+    CrisisResource:
+      type: object
+      properties:
+        id:
+          type: string
+        contacts:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - contacts
+      additionalProperties: false
     DisclaimerAckEnvelope:
       type: object
       properties:

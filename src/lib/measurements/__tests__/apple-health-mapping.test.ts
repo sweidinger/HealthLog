@@ -77,6 +77,17 @@ const MEASUREMENT_TYPES_WITHOUT_HK_COUNTERPART = new Set<MeasurementType>([
   // the Oura API (source = OURA), never from HealthKit: Apple ships no
   // resilience metric. No HK mapping by design.
   "RESILIENCE",
+  // v1.25 — clinical-signals wave. The mental-health screener totals are
+  // derived from an in-app questionnaire, and grip strength / pain NRS / waist
+  // circumference + waist-to-height are manual / instrument readings — none
+  // ships a first-class HealthKit quantity we ingest, so they have no HK
+  // mapping by design.
+  "PHQ9_SCORE",
+  "GAD7_SCORE",
+  "GRIP_STRENGTH",
+  "PAIN_NRS",
+  "WAIST_CIRCUMFERENCE",
+  "WAIST_TO_HEIGHT",
 ]);
 
 describe("APPLE_HEALTH_TYPE_MAP", () => {

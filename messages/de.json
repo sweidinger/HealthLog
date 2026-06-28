@@ -575,7 +575,13 @@
     "bulkDeleteSuccess": "{count} Messungen gelöscht",
     "bulkDeleteError": "Fehler beim Löschen der ausgewählten Messungen",
     "bulkDeleteConfirmTitle": "{count} Messungen löschen?",
-    "bulkDeleteConfirmBody": "Die {count} ausgewählten Messungen werden endgültig gelöscht."
+    "bulkDeleteConfirmBody": "Die {count} ausgewählten Messungen werden endgültig gelöscht.",
+    "typePhq9Score": "PHQ-9-Wert",
+    "typeGad7Score": "GAD-7-Wert",
+    "typeGripStrength": "Griffstärke",
+    "typePainNrs": "Schmerz (0–10)",
+    "typeWaistCircumference": "Taillenumfang",
+    "typeWaistToHeight": "Taille-Größe-Verhältnis"
   },
   "mood": {
     "title": "Stimmung",
@@ -7090,8 +7096,16 @@
         "hemoglobin": "Das sauerstofftransportierende Protein in den roten Blutkörperchen.",
         "hematocrit": "Der Anteil der roten Blutkörperchen am Blutvolumen.",
         "wbc": "Gesamtzahl der weißen Blutkörperchen, der zirkulierenden Abwehr des Immunsystems.",
-        "platelets": "Zellfragmente, die sich zusammenlagern und die Blutgerinnung bewirken."
-      }
+        "platelets": "Zellfragmente, die sich zusammenlagern und die Blutgerinnung bewirken.",
+        "apob": "Zählt atherogene Partikel direkt; oft ein besserer Risikomarker als LDL-C, wenn beide auseinandergehen.",
+        "lp-a": "Ein weitgehend vererbter, lebenslanger Risikofaktor — meist einmal gemessen. In molaren Einheiten (nmol/L) angeben.",
+        "fasting-insulin": "Ergänzt den Nüchtern-Blutzucker zur Abschätzung der Insulinresistenz (HOMA-IR).",
+        "omega-3-index": "Anteil von EPA+DHA in den roten Blutkörperchen; 8–12 % gelten als kardioprotektiver Bereich."
+      },
+      "apob": "Apolipoprotein B (ApoB)",
+      "lp-a": "Lipoprotein(a)",
+      "fasting-insulin": "Nüchtern-Insulin",
+      "omega-3-index": "Omega-3-Index"
     },
     "noteLoadFailed": "Notiz konnte nicht geladen werden; sie bleibt beim Speichern unverändert.",
     "showingLatestOf": "Die neuesten {shown} von {total} Messwerten werden angezeigt",
@@ -7425,6 +7439,119 @@
       "title": "Eine neue Version ist verfügbar",
       "reload": "Neu laden",
       "dismiss": "Schließen"
+    }
+  },
+  "mentalHealth": {
+    "pageTitle": "Check-in zum seelischen Wohlbefinden",
+    "pageDescription": "Zwei validierte, freiwillige Selbsttests — PHQ-9 (Stimmung) und GAD-7 (Sorgen) — ergänzend zu deinem Stimmungstagebuch. Aussagekräftig ist der Verlauf über die Zeit, nicht ein einzelner Wert.",
+    "disclaimer": "Dies ist ein Screening-Selbsttest, keine Diagnose. Ein hoher oder niedriger Wert bedeutet nicht, dass eine Erkrankung vorliegt oder nicht. Nur eine qualifizierte Fachperson kann eine Diagnose stellen. Bei Sorgen sprich bitte mit deiner Ärztin oder deinem Arzt.",
+    "optInNote": "Freiwillig und privat: Deine einzelnen Antworten sind verschlüsselt, bleiben aus dem KI-Coach und aus Exporten heraus und werden nie geteilt.",
+    "attributionLabel": "Quelle",
+    "choosePrompt": "Check-in auswählen",
+    "start": "Starten",
+    "back": "Zurück",
+    "stem": "Wie oft fühltest du dich im Verlauf der letzten 2 Wochen durch die folgenden Beschwerden beeinträchtigt?",
+    "submit": "Ergebnis ansehen",
+    "submitting": "Wird gespeichert…",
+    "saved": "Gespeichert",
+    "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+    "considerProfessional": "Dein Wert liegt in einem Bereich, in dem ein Gespräch mit einer Fachperson helfen kann. Das ist ein behutsamer Hinweis, keine Diagnose.",
+    "instrument": {
+      "phq9": "PHQ-9 — Stimmung",
+      "gad7": "GAD-7 — Sorgen"
+    },
+    "instrumentSub": {
+      "phq9": "Depressions-Screening, 9 Fragen",
+      "gad7": "Angst-Screening, 7 Fragen"
+    },
+    "options": {
+      "0": "Überhaupt nicht",
+      "1": "An einzelnen Tagen",
+      "2": "An mehr als der Hälfte der Tage",
+      "3": "Beinahe jeden Tag"
+    },
+    "functionalTitle": "Wenn du eine oder mehrere Beschwerden angegeben hast: Wie sehr haben diese deine Arbeit, deinen Haushalt oder den Umgang mit anderen Menschen erschwert?",
+    "functional": {
+      "0": "Überhaupt nicht erschwert",
+      "1": "Etwas erschwert",
+      "2": "Sehr erschwert",
+      "3": "Extrem erschwert"
+    },
+    "result": {
+      "title": "Dein Ergebnis",
+      "totalLabel": "Gesamtwert",
+      "bandLabel": "Bereich für dieses Screening",
+      "takeAnother": "Weiteren Check-in machen"
+    },
+    "band": {
+      "PHQ9": {
+        "minimal": "Keine / minimal",
+        "mild": "Leicht",
+        "moderate": "Mittelgradig",
+        "modSevere": "Mittelschwer",
+        "severe": "Schwer"
+      },
+      "GAD7": {
+        "minimal": "Keine / minimal",
+        "mild": "Leicht",
+        "moderate": "Mittelgradig",
+        "severe": "Schwer"
+      }
+    },
+    "history": {
+      "title": "Dein Verlauf",
+      "empty": "Noch keine Check-ins. Dein Verlauf erscheint hier, sobald du einen abgeschlossen hast."
+    },
+    "crisis": {
+      "title": "Du musst das nicht allein durchstehen",
+      "intro": "Du hast Gedanken angegeben, lieber tot zu sein oder dir etwas anzutun. Es gibt jetzt sofort Unterstützung — sich zu melden ist ein Zeichen von Stärke.",
+      "ifDanger": "Wenn du in unmittelbarer Gefahr bist, ruf jetzt {emergency} an.",
+      "resourcesTitle": "Menschen, die helfen können"
+    },
+    "items": {
+      "phq9": {
+        "1": "Wenig Interesse oder Freude an Ihren Tätigkeiten",
+        "2": "Niedergeschlagenheit, Schwermut oder Hoffnungslosigkeit",
+        "3": "Schwierigkeiten, ein- oder durchzuschlafen, oder vermehrter Schlaf",
+        "4": "Müdigkeit oder Gefühl, keine Energie zu haben",
+        "5": "Verminderter Appetit oder übermäßiges Bedürfnis zu essen",
+        "6": "Schlechte Meinung von sich selbst; Gefühl, ein Versager zu sein oder die Familie enttäuscht zu haben",
+        "7": "Schwierigkeiten, sich auf etwas zu konzentrieren, z. B. beim Zeitunglesen oder Fernsehen",
+        "8": "Waren Ihre Bewegungen oder Ihre Sprache so verlangsamt, dass es auch anderen auffallen würde? Oder waren Sie im Gegenteil „zappelig“ oder ruhelos und hatten einen stärkeren Bewegungsdrang als sonst?",
+        "9": "Gedanken, dass Sie lieber tot wären oder sich Leid zufügen möchten"
+      },
+      "gad7": {
+        "1": "Nervosität, Ängstlichkeit oder Anspannung",
+        "2": "Nicht in der Lage sein, Sorgen zu stoppen oder zu kontrollieren",
+        "3": "Übermäßige Sorgen bezüglich verschiedener Angelegenheiten",
+        "4": "Schwierigkeiten zu entspannen",
+        "5": "Rastlosigkeit, sodass Stillsitzen schwerfällt",
+        "6": "Schnelle Verärgerung oder Gereiztheit",
+        "7": "Gefühl der Angst, als würde etwas Schlimmes passieren"
+      }
+    },
+    "crisisResource": {
+      "telefonSeelsorge": {
+        "name": "TelefonSeelsorge (rund um die Uhr, kostenlos, vertraulich)"
+      },
+      "nummerGegenKummer": {
+        "name": "Nummer gegen Kummer (für junge Menschen)"
+      },
+      "krisenchat": {
+        "name": "krisenchat (24/7-Chat, junge Menschen)"
+      },
+      "findahelpline": {
+        "name": "Find a Helpline (weltweites Verzeichnis)"
+      },
+      "euEmotionalSupport": {
+        "name": "Telefonseelsorge-Hotline"
+      },
+      "lifeline988": {
+        "name": "988 Suicide & Crisis Lifeline"
+      },
+      "crisisTextLine": {
+        "name": "Crisis Text Line"
+      }
     }
   }
 }
