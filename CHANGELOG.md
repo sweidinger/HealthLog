@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+## [1.25.1] — 2026-06-29 — Documents library, tidier settings
+
+A patch release that turns the document inbox into a real library, reorganises the settings, closes a cross-account data-isolation gap on shared browsers, and carries a broad quality pass across the new surfaces. One additive migration (`0222`) applies automatically on start.
+
+### Added
+
+- A documents library: file any clinical document — a report, discharge letter, lab result, imaging, prescription, and more — without needing an AI provider. Give it a title, a category, and a date, then search, filter, sort, and browse it grouped by date. AI fact-extraction is now a separate, optional step you run on a document you have already filed, and you can view or download the original at any time.
+- Richer reference descriptions for every biomarker — a few plain sentences on what each marker measures and what it relates to, in all six languages.
+
+### Changed
+
+- Settings are reorganised into nine clear groups — Account, Tracking, Display, Integrations, Notifications, AI & Coach, API & Access, Data & Privacy, and About — with in-page tabs. Far fewer entries down the left, and every page keeps its own address. Sign-in security — two-factor, passkeys, active sessions, and trusted devices — now lives together under Account.
+- "Inbound documents" is now simply "Documents".
+- Several repeated medical disclaimers were removed in favour of one clear, non-diagnostic statement, and the mental-wellbeing check-in now stands on its own page.
+- The daily briefing can draw on grip strength, waist, and pain alongside your other signals, and the grip-strength and waist reference bands are age- and sex-aware.
+
+### Fixed
+
+- Signing out and back in as a different account on a shared browser no longer shows the previous account's data: the in-memory cache is now cleared at every sign-in and sign-out, alongside the offline caches.
+- A once-weekly medication no longer triggers a false "low adherence" alert — the alert now uses the same cadence-aware calculation as the rest of the app.
+- A lab value read from a filed document is no longer saved under the wrong unit: a unit mismatch is refused and reported rather than silently mis-recorded.
+- Moving between insight pages now starts at the top; scroll resets on navigation throughout the app.
+- A broad pass of accessibility, mobile-layout, date-format, and wording refinements across documents, settings, and the biomarker pages.
+
+### Security
+
+- Cross-account data isolation on a shared browser: no cached reading from one account can survive into another's session.
+
 ## [1.25.0] — 2026-06-28 — Clinical depth
 
 A milestone release. It broadens tracking into clinical territory — validated mental-wellbeing self-assessments, grip strength, a pain score, waist measurements, a longevity lab panel, and respiratory rate as a first-class vital — adds structured allergy and family-history records, an optional weather-and-daylight context module, and the ability to file a doctor's letter and pull its facts into your record after you review them. It also makes the Coach's check-ins warmer, restores assistant-connector sign-in, and carries a broad correctness, performance, security, and accessibility pass. Additive migrations (`0208`–`0220`) apply automatically on start.
