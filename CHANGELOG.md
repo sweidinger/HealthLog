@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+## [1.25.0] — 2026-06-28 — Clinical depth
+
+A milestone release. It broadens tracking into clinical territory — validated mental-wellbeing self-assessments, grip strength, a pain score, waist measurements, a longevity lab panel, and respiratory rate as a first-class vital — adds structured allergy and family-history records, an optional weather-and-daylight context module, and the ability to file a doctor's letter and pull its facts into your record after you review them. It also makes the Coach's check-ins warmer, restores assistant-connector sign-in, and carries a broad correctness, performance, security, and accessibility pass. Additive migrations (`0208`–`0220`) apply automatically on start.
+
+### Added
+
+- Mental-wellbeing self-assessments (PHQ-9 and GAD-7) — opt-in, alongside your mood tracking and never a diagnosis. Item answers are encrypted; a non-zero self-harm response surfaces calm, locale-aware crisis-support contacts. Enable the Mental wellbeing module to use it.
+- New signals you can log and chart like any other, each with its own detail page, reference range, and trend: grip strength, a 0–10 pain score, waist circumference and waist-to-height ratio, and respiratory rate.
+- A longevity lab panel in the biomarker catalogue — ApoB, Lp(a), hs-CRP, HbA1c, fasting glucose and insulin, eGFR, GGT, ferritin, and the omega-3 index — with reference ranges.
+- Structured medical-history records: allergies and family history, encrypted at rest, gathered under a new Medical history section and included in the health-record export. Immunizations are not part of this release.
+- An optional environmental-context module: daily weather, daylight, and temperature for your location, correlated against mood, sleep, and vitals — off by default, with a home location, dated location periods, and backfill.
+- Inbound documents: file a doctor's report or discharge letter and review the facts it contains before they enter your record. The app transcribes what is written and never interprets it; off by default.
+- Biomarker detail pages now match the metric pages — description, summary, chart, trend, and a one-tap question to the Coach.
+
+### Changed
+
+- The Coach's proactive check-in is warmer and in your language: it greets you by name, keeps to one calm thought, never quotes your own words back, and never arrives two days running. A setting turns the daily suggestions off; another lets the Coach compose the check-in itself.
+- Sleep debt now follows a configurable source order — a wearable's own figure or the computed one — and explains what the computed number means.
+- One consistent assessment card, with a one-tap Coach question, across every insight page.
+- Sortable history tables and real pagination where long lists used to truncate.
+- A clear, non-diagnostic description of what HealthLog and the Coach are — and are not — and an explicit statement of where your data stays.
+
+### Fixed
+
+- Assistant connectors (such as Claude Code) can sign in again over the Model Context Protocol — an outbound-connection fix that also hardens every outbound request aimed at a host you configure.
+- The daily briefing, health score, and weekly review keep their last good text instead of going blank when a model is slow.
+- The clinician-share page renders again for newly created share links.
+- Wearable daily figures, paused-medication adherence, and several long-window calculations are corrected.
+
+### Security
+
+- Free-text on the new records and on filed documents is encrypted at rest, and key rotation covers it.
+- Mental-wellbeing answers stay out of the assistant connector, the Coach, and exports by default; their scores export only once you enable the module.
+- A fresh second-factor check is required when changing the password.
+
 ## [1.24.0] — 2026-06-28 — Model Context Protocol server
 
 A connector release. HealthLog can expose your own health record to MCP-compatible assistants (Claude, ChatGPT, and others) over a standard, OAuth-secured Model Context Protocol server — off by default, behind a module switch and a connector token you mint yourself. Two additive migrations (`0206`, `0207`) apply automatically on start.
