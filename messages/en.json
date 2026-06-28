@@ -7838,11 +7838,12 @@
       "kindLabel": "Category",
       "button": "Upload",
       "uploading": "Uploading…",
-      "fileLabel": "File",
+      "fileLabel": "File (required)",
       "titleLabel": "Title (optional)",
       "titlePlaceholder": "e.g. Cardiology report",
       "dateLabel": "Document date (optional)",
-      "fileRequired": "Choose a file to upload."
+      "fileRequired": "Choose a file to upload.",
+      "accepts": "JPEG, PNG, WebP or PDF · up to 12 MB"
     },
     "kind": {
       "DOCTOR_REPORT": "Doctor report",
@@ -7860,7 +7861,8 @@
       "loadMore": "Load more",
       "loadingMore": "Loading…",
       "pending": "{count} to review",
-      "facts": "{count} facts"
+      "facts": "{count} facts",
+      "clearFilters": "Clear filters"
     },
     "status": {
       "EXTRACTING": "Reading",
@@ -7879,7 +7881,9 @@
       "reject": "Reject",
       "edit": "Edit",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "needsReviewHint": "Edit this fact to approve it.",
+      "confidenceLabel": "Extraction confidence"
     },
     "empty": {
       "noFacts": "Nothing left to review."
@@ -7897,8 +7901,8 @@
       "dose": "Dose"
     },
     "toast": {
-      "uploaded": "Document read. Review the facts below.",
-      "uploadFailed": "Couldn't read the document.",
+      "uploaded": "Document stored.",
+      "uploadFailed": "Couldn't store the document.",
       "confirmed": "Approved facts saved.",
       "confirmFailed": "Couldn't save your decisions.",
       "saved": "Fact updated.",
@@ -7907,7 +7911,11 @@
       "extractFailed": "Couldn't extract facts.",
       "updated": "Document updated.",
       "updateFailed": "Couldn't update the document.",
-      "discardFailed": "Couldn't discard the document."
+      "discardFailed": "Couldn't discard the document.",
+      "uploadTooLarge": "File is too large (max 12 MB).",
+      "uploadFileType": "Upload a JPEG, PNG, WebP, or PDF.",
+      "uploadRateLimited": "Too many uploads. Try again later.",
+      "uploadInvalidMetadata": "Check the title, category, or date and try again."
     },
     "toolbar": {
       "searchLabel": "Search",
@@ -7951,6 +7959,9 @@
     "note": {
       "providerUnsupported": "Configure a document-scan provider in AI settings to extract facts automatically.",
       "alreadyConfirmed": "This document has already been reviewed, so it can't be extracted again."
+    },
+    "committed": {
+      "title": "Approved from this document"
     }
   },
   "selfDescription": {

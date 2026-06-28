@@ -128,6 +128,8 @@ describe("<InboundDocumentsView> library", () => {
     expect(html).toContain("Load more");
     // A11Y-M2: the row's aria-controls points at the detail region id.
     expect(html).toContain('aria-controls="documents-detail-d1"');
+    // QoL: accepted formats + size ceiling are shown by the file field.
+    expect(html).toContain("JPEG, PNG, WebP or PDF · up to 12 MB");
   });
 
   it("disables the upload button and shows a hint until a file is chosen", () => {
@@ -285,6 +287,41 @@ describe("<DocumentDetail>", () => {
       },
     );
     expect(html).toContain("Imaging");
+  });
+
+  it("shows the committed facts summary once approved, not the empty note", () => {
+    const approved: ExtractedFactDto = { ...fact("f1"), status: "APPROVED" };
+    const html = render(
+      <DocumentDetail documentId="d1" onClosed={() => {}} />,
+      (qc) => {
+        qc.setQueryData(
+          queryKeys.inboundDocument("d1"),
+          detail({ status: "CONFIRMED", factCount: 1, facts: [approved] }),
+        );
+      },
+    );
+    // M6: provenance stays visible — the approved facts are listed read-only…
+    expect(html).toContain('data-slot="documents-committed"');
+    expect(html).toContain("Approved from this document");
+    expect(html).toContain("LDL Cholesterol");
+    // …instead of stranding the user on "Nothing left to review."
+    expect(html).not.toContain("Nothing left to review.");
+  });
+
+  it("explains why a low-confidence fact can't be approved yet", () => {
+    const lowConf: ExtractedFactDto = { ...fact("f1"), needsReview: true };
+    const html = render(
+      <DocumentDetail documentId="d1" onClosed={() => {}} />,
+      (qc) => {
+        qc.setQueryData(
+          queryKeys.inboundDocument("d1"),
+          detail({ facts: [lowConf] }),
+        );
+      },
+    );
+    // M7: the disabled Approve is tied to a plain-language reason.
+    expect(html).toContain("Edit this fact to approve it.");
+    expect(html).toContain("Needs review");
   });
 
   it("offers a confirm step before discarding", () => {

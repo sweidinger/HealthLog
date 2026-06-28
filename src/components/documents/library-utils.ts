@@ -83,27 +83,72 @@ export function isProviderUnsupportedError(error: unknown): boolean {
 }
 
 /**
- * True when an error is the extract route's 422 "this document has already been
- * confirmed" signal. Re-extraction is refused server-side once any fact has
- * been committed; the UI surfaces this as a calm inline note rather than a hard
- * error toast, and hides the Extract control to match.
+ * True when an error is the extract route's "already confirmed" signal. Two
+ * shapes reach here:
+ *   - 409 `alreadyPartlyConfirmed` — some facts approved, the rest still pending;
+ *   - 422 `alreadyConfirmed` — the whole document is CONFIRMED (a cross-tab race
+ *     can fire Extract against a document a second tab just finished confirming).
+ * Re-extraction is refused server-side in both cases; the UI surfaces a calm
+ * inline note rather than a hard error toast, and hides the Extract control to
+ * match.
  */
 export function isAlreadyConfirmedError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  const code = error.meta?.errorCode;
   return (
-    error instanceof ApiError &&
-    error.meta?.errorCode === "documents.inbound.alreadyPartlyConfirmed"
+    code === "documents.inbound.alreadyPartlyConfirmed" ||
+    code === "documents.inbound.alreadyConfirmed"
   );
 }
 
-/** Format a YYYY-MM-DD group key into a locale-aware medium date label. */
-export function formatDateGroupLabel(key: string, locale: string): string {
-  const date = new Date(`${key}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return key;
-  try {
-    return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
-      date,
-    );
-  } catch {
-    return key;
+/**
+ * Client-side upload ceiling. Mirrors the server's `OCR_MAX_BYTES` (12 MB) so an
+ * oversized file is rejected before it is sent, instead of after a full upload
+ * round-trips and returns 413.
+ */
+export const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+
+/**
+ * The class of an upload (`POST /api/documents/inbound`) failure. The route
+ * reports precise, actionable codes the generic toast would throw away; this
+ * maps them to a stable kind so the view can show the right message and keep
+ * every `t()` key a literal call site.
+ */
+export type UploadErrorKind =
+  "tooLarge" | "fileType" | "rateLimited" | "invalidMetadata" | "generic";
+
+/** Classify an upload failure by the route's `errorCode`, then HTTP status. */
+export function classifyUploadError(error: unknown): UploadErrorKind {
+  if (!(error instanceof ApiError)) return "generic";
+  switch (error.meta?.errorCode) {
+    case "documents.inbound.fileTooLarge":
+      return "tooLarge";
+    case "documents.inbound.fileType":
+      return "fileType";
+    case "documents.inbound.rateLimited":
+      return "rateLimited";
+    case "documents.inbound.invalidMetadata":
+      return "invalidMetadata";
   }
+  // A reverse proxy can strip the JSON body (and its `meta`) on some statuses;
+  // fall back to the HTTP code so size / type / rate-limit still classify.
+  if (error.status === 413) return "tooLarge";
+  if (error.status === 415) return "fileType";
+  if (error.status === 429) return "rateLimited";
+  return "generic";
+}
+
+/**
+ * Format a YYYY-MM-DD group key into a date label via the app's own date
+ * formatter (`useFormatters().date`), so the group headers follow the user's
+ * date-format preference (numeric) like the rest of the app instead of a textual
+ * `dateStyle: "medium"` month. The key is handed over as a noon-UTC instant so
+ * the calendar day never shifts under the display timezone.
+ */
+export function formatDateGroupLabel(
+  key: string,
+  formatDate: (value: string) => string,
+): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return key;
+  return formatDate(`${key}T12:00:00.000Z`);
 }

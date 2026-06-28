@@ -7838,11 +7838,12 @@
       "kindLabel": "Categoria",
       "button": "Carica",
       "uploading": "Caricamento…",
-      "fileLabel": "File",
+      "fileLabel": "File (obbligatorio)",
       "titleLabel": "Titolo (facoltativo)",
       "titlePlaceholder": "es. Referto di cardiologia",
       "dateLabel": "Data del documento (facoltativa)",
-      "fileRequired": "Scegli un file da caricare."
+      "fileRequired": "Scegli un file da caricare.",
+      "accepts": "JPEG, PNG, WebP o PDF · fino a 12 MB"
     },
     "kind": {
       "DOCTOR_REPORT": "Referto medico",
@@ -7860,7 +7861,8 @@
       "loadMore": "Carica altri",
       "loadingMore": "Caricamento…",
       "pending": "{count} da rivedere",
-      "facts": "{count} dati"
+      "facts": "{count} dati",
+      "clearFilters": "Cancella i filtri"
     },
     "status": {
       "EXTRACTING": "Lettura",
@@ -7879,7 +7881,9 @@
       "reject": "Rifiuta",
       "edit": "Modifica",
       "cancel": "Annulla",
-      "save": "Salva"
+      "save": "Salva",
+      "needsReviewHint": "Modifica questo dato per poterlo approvare.",
+      "confidenceLabel": "Affidabilità dell'estrazione"
     },
     "empty": {
       "noFacts": "Niente altro da rivedere."
@@ -7897,8 +7901,8 @@
       "dose": "Dose"
     },
     "toast": {
-      "uploaded": "Documento letto. Rivedi i dati qui sotto.",
-      "uploadFailed": "Impossibile leggere il documento.",
+      "uploaded": "Documento salvato.",
+      "uploadFailed": "Impossibile salvare il documento.",
       "confirmed": "Dati approvati salvati.",
       "confirmFailed": "Impossibile salvare le tue scelte.",
       "saved": "Dato aggiornato.",
@@ -7907,7 +7911,11 @@
       "extractFailed": "Impossibile estrarre i dati.",
       "updated": "Documento aggiornato.",
       "updateFailed": "Impossibile aggiornare il documento.",
-      "discardFailed": "Impossibile eliminare il documento."
+      "discardFailed": "Impossibile eliminare il documento.",
+      "uploadTooLarge": "Il file è troppo grande (max 12 MB).",
+      "uploadFileType": "Carica un file JPEG, PNG, WebP o PDF.",
+      "uploadRateLimited": "Troppi caricamenti. Riprova più tardi.",
+      "uploadInvalidMetadata": "Controlla titolo, categoria o data e riprova."
     },
     "toolbar": {
       "searchLabel": "Cerca",
@@ -7951,6 +7959,9 @@
     "note": {
       "providerUnsupported": "Configura un provider di scansione documenti nelle impostazioni IA per estrarre i dati automaticamente.",
       "alreadyConfirmed": "Questo documento è già stato esaminato, quindi non può essere estratto di nuovo."
+    },
+    "committed": {
+      "title": "Approvato da questo documento"
     }
   },
   "selfDescription": {

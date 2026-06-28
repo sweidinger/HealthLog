@@ -7838,11 +7838,12 @@
       "kindLabel": "Kategorie",
       "button": "Hochladen",
       "uploading": "Wird hochgeladen…",
-      "fileLabel": "Datei",
+      "fileLabel": "Datei (erforderlich)",
       "titleLabel": "Titel (optional)",
       "titlePlaceholder": "z. B. Kardiologie-Bericht",
       "dateLabel": "Dokumentdatum (optional)",
-      "fileRequired": "Wähle eine Datei zum Hochladen."
+      "fileRequired": "Wähle eine Datei zum Hochladen.",
+      "accepts": "JPEG, PNG, WebP oder PDF · bis 12 MB"
     },
     "kind": {
       "DOCTOR_REPORT": "Arztbericht",
@@ -7860,7 +7861,8 @@
       "loadMore": "Mehr laden",
       "loadingMore": "Wird geladen…",
       "pending": "{count} zu prüfen",
-      "facts": "{count} Fakten"
+      "facts": "{count} Angaben",
+      "clearFilters": "Filter zurücksetzen"
     },
     "status": {
       "EXTRACTING": "Wird gelesen",
@@ -7879,7 +7881,9 @@
       "reject": "Ablehnen",
       "edit": "Bearbeiten",
       "cancel": "Abbrechen",
-      "save": "Speichern"
+      "save": "Speichern",
+      "needsReviewHint": "Bearbeite diese Angabe, um sie zu übernehmen.",
+      "confidenceLabel": "Erkennungssicherheit"
     },
     "empty": {
       "noFacts": "Nichts mehr zu prüfen."
@@ -7897,17 +7901,21 @@
       "dose": "Dosis"
     },
     "toast": {
-      "uploaded": "Dokument gelesen. Prüfe die Angaben unten.",
-      "uploadFailed": "Dokument konnte nicht gelesen werden.",
+      "uploaded": "Dokument gespeichert.",
+      "uploadFailed": "Dokument konnte nicht gespeichert werden.",
       "confirmed": "Bestätigte Angaben gespeichert.",
       "confirmFailed": "Deine Entscheidungen konnten nicht gespeichert werden.",
       "saved": "Angabe aktualisiert.",
       "discarded": "Dokument verworfen.",
-      "extracted": "Fakten extrahiert. Prüfe sie unten.",
-      "extractFailed": "Fakten konnten nicht extrahiert werden.",
+      "extracted": "Angaben ausgelesen. Prüfe sie unten.",
+      "extractFailed": "Angaben konnten nicht ausgelesen werden.",
       "updated": "Dokument aktualisiert.",
       "updateFailed": "Dokument konnte nicht aktualisiert werden.",
-      "discardFailed": "Dokument konnte nicht verworfen werden."
+      "discardFailed": "Dokument konnte nicht verworfen werden.",
+      "uploadTooLarge": "Datei ist zu groß (max. 12 MB).",
+      "uploadFileType": "Lade eine JPEG-, PNG-, WebP- oder PDF-Datei hoch.",
+      "uploadRateLimited": "Zu viele Uploads. Versuch es später erneut.",
+      "uploadInvalidMetadata": "Prüfe Titel, Kategorie oder Datum und versuch es erneut."
     },
     "toolbar": {
       "searchLabel": "Suche",
@@ -7928,10 +7936,10 @@
     "detail": {
       "viewOriginal": "Original ansehen",
       "edit": "Bearbeiten",
-      "extract": "Fakten extrahieren",
-      "extracting": "Wird extrahiert…",
+      "extract": "Angaben auslesen",
+      "extracting": "Wird ausgelesen…",
       "discard": "Verwerfen",
-      "notExtracted": "Noch keine Fakten extrahiert. Nutze „Fakten extrahieren“, um dieses Dokument zu lesen.",
+      "notExtracted": "Noch keine Angaben ausgelesen. Nutze „Angaben auslesen“, um dieses Dokument zu lesen.",
       "viewOriginalNewTab": "(öffnet in einem neuen Tab)",
       "discardConfirmTitle": "Dieses Dokument verwerfen?",
       "discardConfirmBody": "Das löscht das Dokument, die Originaldatei und alle vorbereiteten Fakten dauerhaft. Das lässt sich nicht rückgängig machen.",
@@ -7951,6 +7959,9 @@
     "note": {
       "providerUnsupported": "Richte in den KI-Einstellungen einen Anbieter für Dokumentenscans ein, um Fakten automatisch zu extrahieren.",
       "alreadyConfirmed": "Dieses Dokument wurde bereits geprüft und kann nicht erneut ausgelesen werden."
+    },
+    "committed": {
+      "title": "Aus diesem Dokument übernommen"
     }
   },
   "selfDescription": {
