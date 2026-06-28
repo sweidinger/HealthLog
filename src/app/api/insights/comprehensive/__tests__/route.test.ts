@@ -128,6 +128,11 @@ beforeEach(() => {
     dateOfBirth: new Date("1985-01-01"),
   });
   (prisma.moodEntry.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  // The resting-pulse pairing (M-CS2) reads RESTING_HEART_RATE rows (and the
+  // raw-PULSE proxy only when none exist) straight from the measurement table.
+  (prisma.measurement.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(
+    [],
+  );
   (
     prisma.moodEntryRollup.findMany as ReturnType<typeof vi.fn>
   ).mockResolvedValue([]);

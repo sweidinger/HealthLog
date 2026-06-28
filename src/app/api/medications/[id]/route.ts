@@ -679,6 +679,29 @@ export const PUT = apiHandler(
     }
     if (!medication) throw lastUpdateErr;
 
+    // v1.25 H-MED1 — durable pause intervals. The `pausedAt` column is a
+    // single live marker that resume clears, so the paused window is
+    // irrecoverable once resumed and every paused day's slot collapses to
+    // "missed" in the compliance denominator. Mirror the live transition
+    // onto an additive era record the rate paths read: a pause opens an era
+    // (resumedAt null), a resume closes the latest open era. `userId` comes
+    // from the authenticated session; the data object is built field-by-field.
+    if (active === false && existing.active) {
+      await prisma.medicationPauseEra.create({
+        data: {
+          medicationId: id,
+          userId: user.id,
+          pausedAt: new Date(),
+          resumedAt: null,
+        },
+      });
+    } else if (active === true && !existing.active) {
+      await prisma.medicationPauseEra.updateMany({
+        where: { medicationId: id, userId: user.id, resumedAt: null },
+        data: { resumedAt: new Date() },
+      });
+    }
+
     // Apply the v1.5.5 primary-schedule grace bridge after the
     // medication update so a failure here doesn't roll the medication
     // edit back. Re-read the row so the response shape carries the

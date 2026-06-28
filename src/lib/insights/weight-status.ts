@@ -4,7 +4,7 @@ import {
   getWeightUserPrompt,
 } from "@/lib/ai/prompts/weight";
 import {
-  pearsonCorrelation,
+  significantPearsonCorrelation,
   type PairedPoint,
 } from "@/lib/analytics/correlations";
 import { getNoKeyWeightStatusText } from "@/lib/insights/no-key-fallbacks";
@@ -54,7 +54,8 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { resolveUserTimezone, toBerlinDayKey } from "@/lib/tz/resolver";
+import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 
 /**
  * Cap on the embedded correlation pair arrays. The Pearson coefficient
@@ -74,6 +75,7 @@ function pairDailyBuckets(
   seriesA: DailyBucket[],
   seriesB: DailyBucket[],
   now: Date,
+  tz: string = DEFAULT_TIMEZONE,
 ): Array<PairedPoint & { dayKey: string }> {
   const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
 
@@ -81,7 +83,7 @@ function pairDailyBuckets(
     .map((entry) => {
       const b = mapB.get(entry.dayOffset);
       if (b == null) return null;
-      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset);
+      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset, tz);
       const [y, m, d] = dayKey.split("-").map(Number);
       return {
         a: entry.value,
@@ -279,6 +281,10 @@ export async function prepareWeightStatusForUser(
 
   const now = new Date();
 
+  // v1.2.5 (M-TZ3) — resolve the user's timezone so every day-bucketing
+  // pass below keys on the user's own calendar day.
+  const userTz = await resolveUserTimezone(userId);
+
   const weightSeries = applyPayloadBudget(
     measurements
       .filter((measurement) => measurement.type === "WEIGHT")
@@ -286,7 +292,7 @@ export async function prepareWeightStatusForUser(
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-    { now },
+    { now, tz: userTz },
   );
 
   const sysSeries = applyPayloadBudget(
@@ -296,7 +302,7 @@ export async function prepareWeightStatusForUser(
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-    { now },
+    { now, tz: userTz },
   );
 
   const diaSeries = applyPayloadBudget(
@@ -306,7 +312,7 @@ export async function prepareWeightStatusForUser(
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-    { now },
+    { now, tz: userTz },
   );
 
   // Fetch mood context (optional — for enrichment only). v1.4.28
@@ -325,7 +331,7 @@ export async function prepareWeightStatusForUser(
       measuredAt: entry.moodLoggedAt,
       value: entry.score,
     })),
-    { now },
+    { now, tz: userTz },
   );
   const moodSummary = summarizeSeries(
     moodSeries.daily.map((bucket) => ({ value: bucket.value })),
@@ -348,7 +354,7 @@ export async function prepareWeightStatusForUser(
   ]);
   const moodGraded = buildGradedSeriesFromPoints(
     moodSeries.daily.map((b) => ({
-      measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
+      measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset, userTz)),
       value: b.value,
     })),
     now,
@@ -358,13 +364,17 @@ export async function prepareWeightStatusForUser(
     weightSeries.daily,
     sysSeries.daily,
     now,
+    userTz,
   );
-  const weightVsSystolicCorrelation = pearsonCorrelation(weightVsSystolicPairs);
+  const weightVsSystolicCorrelation = significantPearsonCorrelation(
+    weightVsSystolicPairs,
+  );
 
   const pairedSystolicDiastolic = pairDailyBuckets(
     sysSeries.daily,
     diaSeries.daily,
     now,
+    userTz,
   ).map((entry) => ({
     day: entry.dayKey,
     sys: entry.a,
@@ -376,7 +386,7 @@ export async function prepareWeightStatusForUser(
   // pairDailyBuckets — derive dayOffset from the offsets in sysSeries.
   const sysOffsetByDay = new Map(
     sysSeries.daily.map((bucket) => {
-      const dayKey = dayOffsetToBerlinDayKey(now, bucket.dayOffset);
+      const dayKey = dayOffsetToBerlinDayKey(now, bucket.dayOffset, userTz);
       return [dayKey, bucket.dayOffset];
     }),
   );
@@ -392,14 +402,16 @@ export async function prepareWeightStatusForUser(
     weightSeries.daily,
     bpMeanDaily,
     now,
+    userTz,
   );
-  const weightVsMeanBpCorrelation = pearsonCorrelation(weightVsMeanBpPairs);
+  const weightVsMeanBpCorrelation =
+    significantPearsonCorrelation(weightVsMeanBpPairs);
 
   // daily[0] = newest bucket (lowest dayOffset).
   const latestWeight = weightSeries.daily[0] ?? null;
   const previousWeight = weightSeries.daily[1] ?? null;
   const latestWeightDay = latestWeight
-    ? dayOffsetToBerlinDayKey(now, latestWeight.dayOffset)
+    ? dayOffsetToBerlinDayKey(now, latestWeight.dayOffset, userTz)
     : null;
   const sameDayBp = latestWeightDay
     ? (pairedSystolicDiastolic.find((entry) => entry.day === latestWeightDay) ??
@@ -513,8 +525,9 @@ export async function prepareWeightStatusForUser(
                 moodSeries.daily,
                 weightSeries.daily,
                 now,
+                userTz,
               );
-              return pearsonCorrelation(moodVsWeightPairs);
+              return significantPearsonCorrelation(moodVsWeightPairs);
             })(),
           }
         : null,

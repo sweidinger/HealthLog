@@ -23,14 +23,17 @@
  *      The meta-dict annotate carries `window_days: 28` as a sentinel
  *      so the UI / docs can quote the truthful window.
  *
- *   2. **Probe-gated SYS / PULSE / WEIGHT** — when DAY-bucket coverage
- *      exists for all three types the runner hydrates the per-day-mean
- *      maps from `measurement_rollups`. Each rollup row already
+ *   2. **Probe-gated SYS / WEIGHT** — when DAY-bucket coverage exists
+ *      for both types the runner hydrates the per-day-mean / per-day
+ *      weight maps from `measurement_rollups`. Each rollup row already
  *      carries the day's `mean` value computed by Postgres' `AVG`, so
  *      the pairing logic is byte-for-byte identical to the live path's
- *      "average the day's raw values" step.
+ *      "average the day's raw values" step. PULSE is intentionally NOT
+ *      hydrated from the rollup tier — the mood × resting-pulse
+ *      hypothesis scores the RESTING series (RESTING_HEART_RATE rows,
+ *      else a low-percentile RAW-PULSE proxy), never the day-mean.
  *
- *   3. **Mood + medication intake** — no rollup equivalent today; both
+ *   3. **Mood + medication intake + resting pulse** — no rollup equivalent today; both
  *      reads stay live regardless of coverage. The mood read is small
  *      (per-day entries, bounded by the 28-day window) and the
  *      medication intake read scales with active medications × 28 days
@@ -57,6 +60,7 @@ import {
   correlateWeightWeekday,
   type CorrelationResult,
 } from "@/lib/insights/correlations";
+import { resolveRestingPulseSeries } from "@/lib/analytics/resting-pulse";
 import { isNearUtc, userDayKey } from "@/lib/tz/resolver";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 
@@ -141,19 +145,24 @@ export async function computeCorrelationHypothesesFastPath(
   // local-day buckets and this guard can come back down.
   const userNearUtc = isNearUtc(userTz, now);
 
-  // v1.4.38.8 — gate only on the three types this helper actually
-  // reads (SYS / PULSE / WEIGHT). The prior `isFullyCovered &&` AND
-  // poisoned the correlations fast-path with any unrelated brand-new
-  // type the user had logged, even when SYS + PULSE + WEIGHT were
-  // fully covered. Per-type coverage is the correct gate.
+  // v1.4.38.8 — gate only on the types this helper reads from the rollup
+  // tier (SYS / WEIGHT). The prior `isFullyCovered &&` AND poisoned the
+  // correlations fast-path with any unrelated brand-new type the user had
+  // logged, even when those were fully covered. Per-type coverage is the
+  // correct gate.
+  //
+  // v1.2.5 (M-CS2) — PULSE is no longer hydrated from the rollup tier:
+  // the mood × "resting pulse" hypothesis now scores the RESTING series
+  // (RESTING_HEART_RATE rows, else a low-percentile PULSE proxy from RAW
+  // samples), not the day-mean PULSE the rollup carries. A day-mean folds
+  // in workout HR and inflates the "resting" figure for Apple-Health
+  // users, so the rollup pulse-mean is structurally the wrong input here.
   const measurementsOnRollups =
     userNearUtc &&
     coverage.get("BLOOD_PRESSURE_SYS") === true &&
-    coverage.get("PULSE") === true &&
     coverage.get("WEIGHT") === true;
 
   let dailySysMean: Map<string, number>;
-  let dailyPulseMean: Map<string, number>;
   let weightRows: ChunkedRow[];
 
   if (measurementsOnRollups) {
@@ -173,7 +182,7 @@ export async function computeCorrelationHypothesesFastPath(
     // v1.11.2 — load the source-priority blob once and thread it into every
     // reader so the per-type fan-out doesn't re-query the user 3×.
     const priority = await loadUserSourcePriority(userId);
-    const [sysBuckets, pulseBuckets, weightBuckets] = await Promise.all([
+    const [sysBuckets, weightBuckets] = await Promise.all([
       readRollupBuckets(
         userId,
         "BLOOD_PRESSURE_SYS",
@@ -182,16 +191,11 @@ export async function computeCorrelationHypothesesFastPath(
         now,
         priority,
       ),
-      readRollupBuckets(userId, "PULSE", "DAY", since, now, priority),
       readRollupBuckets(userId, "WEIGHT", "DAY", since, now, priority),
     ]);
     dailySysMean = new Map();
     for (const b of sysBuckets) {
       dailySysMean.set(userDayKey(b.bucketStart, userTz), b.mean);
-    }
-    dailyPulseMean = new Map();
-    for (const b of pulseBuckets) {
-      dailyPulseMean.set(userDayKey(b.bucketStart, userTz), b.mean);
     }
     // The weekday hypothesis needs the per-event weight series for
     // ANOVA — the runner expects one row per measurement so the group
@@ -207,9 +211,8 @@ export async function computeCorrelationHypothesesFastPath(
     }));
   } else {
     // Live fallback — chunked reads against the measurements table.
-    const [sysRows, pulseRows, weightRowsLive] = await Promise.all([
+    const [sysRows, weightRowsLive] = await Promise.all([
       fetchSeriesChunked(userId, "BLOOD_PRESSURE_SYS", since),
-      fetchSeriesChunked(userId, "PULSE", since),
       fetchSeriesChunked(userId, "WEIGHT", since),
     ]);
     dailySysMean = new Map();
@@ -224,19 +227,37 @@ export async function computeCorrelationHypothesesFastPath(
       const sum = list.reduce((s, v) => s + v, 0);
       dailySysMean.set(key, sum / list.length);
     }
-    dailyPulseMean = new Map();
-    const pulseBuckets = new Map<string, number[]>();
-    for (const r of pulseRows) {
-      const key = userDayKey(r.measuredAt, userTz);
-      const list = pulseBuckets.get(key) ?? [];
-      list.push(r.value);
-      pulseBuckets.set(key, list);
-    }
-    for (const [key, list] of pulseBuckets.entries()) {
-      const sum = list.reduce((s, v) => s + v, 0);
-      dailyPulseMean.set(key, sum / list.length);
-    }
     weightRows = weightRowsLive;
+  }
+
+  // v1.2.5 (M-CS2) — resolve the RESTING-pulse series the mood × pulse
+  // hypothesis scores against. Prefer the clean RESTING_HEART_RATE rows;
+  // only when the user has none do we pull RAW PULSE samples for the
+  // low-percentile daily proxy (the proxy needs the per-day distribution,
+  // not the day-mean — a day-mean folds in workout HR). Both reads are
+  // raw because the proxy floor is a percentile, not an AVG. Keying the
+  // proxy on `userDayKey(d, userTz)` aligns its buckets with the mood /
+  // intake day keys used below.
+  const restingSamples = await fetchSeriesChunked(
+    userId,
+    "RESTING_HEART_RATE",
+    since,
+  );
+  const pulseSamplesForResting =
+    restingSamples.length === 0
+      ? await fetchSeriesChunked(userId, "PULSE", since)
+      : [];
+  const { series: restingPulseSeries } = resolveRestingPulseSeries({
+    restingSamples,
+    pulseSamples: pulseSamplesForResting,
+    dayKeyOf: (d) => userDayKey(d, userTz),
+  });
+  // One resting figure per user-local day. RESTING_HEART_RATE can carry
+  // more than one row/day (rare); last-write-wins is fine for a single
+  // daily resting figure, and the proxy already emits one row per day.
+  const dailyRestingPulse = new Map<string, number>();
+  for (const s of restingPulseSeries) {
+    dailyRestingPulse.set(userDayKey(s.measuredAt, userTz), s.value);
   }
 
   // Mood + intake — always live. Both reads are small (28-day window,
@@ -298,13 +319,13 @@ export async function computeCorrelationHypothesesFastPath(
     restingPulse: number;
   }> = [];
   for (const [key, moodScores] of dailyMood.entries()) {
-    const meanPulse = dailyPulseMean.get(key);
-    if (meanPulse === undefined) continue;
+    const restingPulse = dailyRestingPulse.get(key);
+    if (restingPulse === undefined) continue;
     const meanMood = moodScores.reduce((s, v) => s + v, 0) / moodScores.length;
     moodPulsePairs.push({
       date: dateFromDayKey(key),
       mood: meanMood,
-      restingPulse: meanPulse,
+      restingPulse,
     });
   }
   const moodPulse = correlateMoodPulse({ daily: moodPulsePairs });
@@ -349,7 +370,7 @@ export async function computeCorrelationHypothesesFastPath(
 
 async function fetchSeriesChunked(
   userId: string,
-  type: "BLOOD_PRESSURE_SYS" | "PULSE" | "WEIGHT",
+  type: "BLOOD_PRESSURE_SYS" | "PULSE" | "WEIGHT" | "RESTING_HEART_RATE",
   since: Date,
 ): Promise<ChunkedRow[]> {
   const out: ChunkedRow[] = [];

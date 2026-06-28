@@ -47,6 +47,7 @@ import {
   tallyComplianceFromLedger,
   type ComplianceSchedule,
   type IntakeEvent,
+  type MedicationPauseEraLike,
 } from "@/lib/analytics/compliance";
 import type { ScheduleRevisionLike } from "@/lib/medications/scheduling/schedule-eras";
 
@@ -639,6 +640,8 @@ export interface DoctorReportComplianceMedication {
   createdAt: Date;
   schedules: ComplianceSchedule[];
   scheduleRevisions?: ScheduleRevisionLike[];
+  /** v1.25 H-MED1 — pause eras so paused days drop out of the denominator. */
+  pauseEras?: MedicationPauseEraLike[];
 }
 
 /** A window-bounded intake row keyed to its medication. */
@@ -797,6 +800,8 @@ export async function collectDoctorReportData(
               supersededByRevisionId: true,
             },
           },
+          // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+          pauseEras: { select: { pausedAt: true, resumedAt: true } },
           // v1.4.25 W4d — eager-load dose history + recent intake site
           // for any active medication. Generic meds carry empty arrays
           // so the legacy data path is byte-identical.
@@ -965,6 +970,7 @@ export async function collectDoctorReportData(
       createdAt: m.createdAt,
       schedules: m.schedules,
       scheduleRevisions: m.scheduleRevisions,
+      pauseEras: m.pauseEras,
     })),
     intakeEvents.map((e) => ({
       medicationId: e.medicationId,

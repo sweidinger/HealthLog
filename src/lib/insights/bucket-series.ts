@@ -16,12 +16,12 @@
  * does not produce 360 zero-rows of noise.
  */
 
-import { toBerlinYmd as toBerlinYmdStrings } from "@/lib/tz/resolver";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export interface DailyBucket {
-  /** 0 = today (Berlin), 359 = 359 days ago. */
+  /** 0 = today (user-local), 359 = 359 days ago. */
   dayOffset: number;
   value: number;
   n: number;
@@ -51,26 +51,27 @@ export interface BucketOptions {
   monthlyMonths?: number;
   /** Reference "now". Default new Date(). */
   now?: Date;
+  /**
+   * IANA timezone the day buckets are keyed in. Defaults to
+   * `DEFAULT_TIMEZONE` (Europe/Berlin) so legacy / test callers keep their
+   * behaviour, but every per-user surface MUST pass the resolved
+   * `User.timezone` so a near-midnight reading lands on the user's own
+   * calendar day (and the "today / N-days-ago" framing is offset-correct
+   * for non-Berlin self-hosters). Pre-v1.4.40 these helpers hard-pinned
+   * Berlin; this threads the user TZ the display surfaces already use.
+   */
+  tz?: string;
 }
 
-interface BerlinYmd {
-  year: number;
-  month: number;
-  day: number;
-}
-
-function toBerlinYmd(date: Date): BerlinYmd {
-  const parts = toBerlinYmdStrings(date);
-  return {
-    year: Number(parts.year),
-    month: Number(parts.month),
-    day: Number(parts.day),
-  };
-}
-
-/** UTC midnight of the Berlin calendar day containing `date`. */
-function utcMidnightOfBerlinDay(date: Date): number {
-  const { year, month, day } = toBerlinYmd(date);
+/**
+ * UTC midnight of the user-local calendar day containing `date`.
+ *
+ * Anchors on the `YYYY-MM-DD` day key in `tz` (DST-immune via Intl) and
+ * re-projects it to a UTC midnight so all downstream calendar arithmetic
+ * runs in a space where every day is exactly 86_400_000 ms wide.
+ */
+function utcMidnightOfUserDay(date: Date, tz: string): number {
+  const [year, month, day] = userDayKey(date, tz).split("-").map(Number);
   return Date.UTC(year, month - 1, day);
 }
 
@@ -91,11 +92,18 @@ function utcMidnightOfBerlinDay(date: Date): number {
  * Exported so the cross-metric `pairDailyBuckets` helpers in
  * `blood-pressure-status.ts`, `weight-status.ts`, `mood-status.ts`,
  * etc. all use the same source of truth.
+ *
+ * `tz` defaults to Berlin only so legacy callers keep working; per-user
+ * surfaces pass the resolved `User.timezone`.
  */
-export function dayOffsetToBerlinDayKey(now: Date, dayOffset: number): string {
-  const todayMidnight = utcMidnightOfBerlinDay(now);
-  // Subtraction in UTC-anchored Berlin-day space: every day is 24h wide
-  // because both endpoints are UTC midnights of consecutive Berlin
+export function dayOffsetToBerlinDayKey(
+  now: Date,
+  dayOffset: number,
+  tz: string = DEFAULT_TIMEZONE,
+): string {
+  const todayMidnight = utcMidnightOfUserDay(now, tz);
+  // Subtraction in UTC-anchored user-day space: every day is 24h wide
+  // because both endpoints are UTC midnights of consecutive user-local
   // calendar days, regardless of how long the wall-clock day actually was.
   const targetUtc = new Date(todayMidnight - dayOffset * MS_PER_DAY);
   // Read the Y-M-D off the UTC fields directly — we anchored at UTC
@@ -111,11 +119,15 @@ function round(value: number): number {
 }
 
 /**
- * Day offset between two Berlin-day timestamps, in whole days.
+ * Day offset between two user-local-day timestamps, in whole days.
  * Always non-negative when `today >= record`.
  */
-function dayOffsetBerlin(record: Date, todayMidnight: number): number {
-  const recordMidnight = utcMidnightOfBerlinDay(record);
+function dayOffsetUser(
+  record: Date,
+  todayMidnight: number,
+  tz: string,
+): number {
+  const recordMidnight = utcMidnightOfUserDay(record, tz);
   return Math.round((todayMidnight - recordMidnight) / MS_PER_DAY);
 }
 
@@ -126,8 +138,9 @@ export function bucketSeries(
   const dailyDays = options.dailyDays ?? 360;
   const monthlyMonths = options.monthlyMonths ?? 24;
   const monthSize = 30;
+  const tz = options.tz ?? DEFAULT_TIMEZONE;
 
-  const todayMidnight = utcMidnightOfBerlinDay(options.now ?? new Date());
+  const todayMidnight = utcMidnightOfUserDay(options.now ?? new Date(), tz);
 
   const daily = new Map<number, { sum: number; n: number }>();
   const monthly = new Map<number, { sum: number; n: number }>();
@@ -139,7 +152,7 @@ export function bucketSeries(
   const monthlyMaxOffset = monthOffsetBase + monthlyMonths - 1;
 
   for (const record of records) {
-    const offset = dayOffsetBerlin(record.measuredAt, todayMidnight);
+    const offset = dayOffsetUser(record.measuredAt, todayMidnight, tz);
     if (offset < 0) continue; // future timestamp — ignore
 
     if (offset < dailyDays) {

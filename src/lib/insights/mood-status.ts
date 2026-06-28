@@ -10,7 +10,7 @@ import {
   computeSteadyRun,
   pickVarietyLead,
 } from "@/lib/insights/assessment-context";
-import { pearsonCorrelation } from "@/lib/analytics/correlations";
+import { significantPearsonCorrelation } from "@/lib/analytics/correlations";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
   type TagInfluenceRow,
@@ -62,7 +62,7 @@ import {
 import { annotate } from "@/lib/logging/context";
 import { createCustomLabelResolver } from "@/lib/mood/custom-tags";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { resolveUserTimezone, toBerlinDayKey } from "@/lib/tz/resolver";
 
 /**
  * Drop the ranking-only `pooledSd` before a tag-influence row enters the
@@ -289,13 +289,17 @@ export async function prepareMoodStatusForUser(
 
   const now = new Date();
 
+  // v1.2.5 (M-TZ3) — resolve the user's timezone so every day-bucketing
+  // pass below keys on the user's own calendar day.
+  const userTz = await resolveUserTimezone(userId);
+
   const moodPoints = entries.map((entry) => ({
     measuredAt: entry.moodLoggedAt,
     value: entry.score,
   }));
   // `applyPayloadBudget` daily buckets drive the in-target %, latest,
   // and correlations; the compact graded series reaches the prompt.
-  const moodSeries = applyPayloadBudget(moodPoints, { now });
+  const moodSeries = applyPayloadBudget(moodPoints, { now, tz: userTz });
   const moodGraded = buildGradedSeriesFromPoints(moodPoints, now);
   const moodSummary = summarizeSeries(
     moodSeries.daily.map((bucket) => ({ value: bucket.value })),
@@ -384,21 +388,21 @@ export async function prepareMoodStatusForUser(
     measurements
       .filter((m) => m.type === "WEIGHT")
       .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
-    { now },
+    { now, tz: userTz },
   );
 
   const sysSeries = applyPayloadBudget(
     measurements
       .filter((m) => m.type === "BLOOD_PRESSURE_SYS")
       .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
-    { now },
+    { now, tz: userTz },
   );
 
   const pulseSeries = applyPayloadBudget(
     measurements
       .filter((m) => m.type === "PULSE")
       .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
-    { now },
+    { now, tz: userTz },
   );
 
   // Correlations between mood and other metrics — pair on dayOffset so
@@ -407,22 +411,27 @@ export async function prepareMoodStatusForUser(
     moodSeries.daily,
     weightSeries.daily,
     now,
+    userTz,
   );
-  const moodVsWeightCorrelation = pearsonCorrelation(moodVsWeightPairs);
+  const moodVsWeightCorrelation =
+    significantPearsonCorrelation(moodVsWeightPairs);
 
   const moodVsSysPairs = pairDailyBuckets(
     moodSeries.daily,
     sysSeries.daily,
     now,
+    userTz,
   );
-  const moodVsSysCorrelation = pearsonCorrelation(moodVsSysPairs);
+  const moodVsSysCorrelation = significantPearsonCorrelation(moodVsSysPairs);
 
   const moodVsPulsePairs = pairDailyBuckets(
     moodSeries.daily,
     pulseSeries.daily,
     now,
+    userTz,
   );
-  const moodVsPulseCorrelation = pearsonCorrelation(moodVsPulsePairs);
+  const moodVsPulseCorrelation =
+    significantPearsonCorrelation(moodVsPulsePairs);
 
   // Extract tag frequencies from recent entries — keep the v1.4.5
   // ~90-day window so the model still gets a recency-weighted view of
@@ -438,7 +447,7 @@ export async function prepareMoodStatusForUser(
   // board's metric factors are limited to those three channels (sleep /
   // steps are absent here by design — the model sees only what it fetched).
   const tagInfluence = computeTagInfluence(entries, now);
-  const emptyCorrelation = computeMoodMetricCorrelation([], [], now);
+  const emptyCorrelation = computeMoodMetricCorrelation([], [], now, userTz);
   const betterDays = computeBetterDays(tagInfluence, {
     sleep: emptyCorrelation,
     steps: emptyCorrelation,
@@ -446,16 +455,19 @@ export async function prepareMoodStatusForUser(
       moodSeries.daily,
       pulseSeries.daily,
       now,
+      userTz,
     ),
     weight: computeMoodMetricCorrelation(
       moodSeries.daily,
       weightSeries.daily,
       now,
+      userTz,
     ),
     bloodPressureSystolic: computeMoodMetricCorrelation(
       moodSeries.daily,
       sysSeries.daily,
       now,
+      userTz,
     ),
   });
 
@@ -488,13 +500,14 @@ export async function prepareMoodStatusForUser(
 
   const narratives = computeMoodNarratives({
     daily: moodSeries.daily,
-    weekday: computeWeekdayAverages(moodSeries.daily, now),
+    weekday: computeWeekdayAverages(moodSeries.daily, now, userTz),
     timeOfDay,
     tags: tagSummary,
     structuredTags: structuredTagSummary,
     inTargetPct: inTargetPctLast30DailyPoints,
     loggedDayKeys: Array.from(new Set(entries.map((entry) => entry.date))),
     now,
+    tz: userTz,
   });
 
   // v1.18.10 (HIGH-4) — hand the model the finished recent-vs-baseline
