@@ -1386,6 +1386,51 @@ export function HealthChart({
 
   const formatTooltipValue = (value: number) => fmt.number(value, 1);
 
+  // Accessibility — a concise spoken summary of the primary series so a screen
+  // reader announces the shape of the chart (range, latest value, direction)
+  // instead of an unlabelled graphic. Mirrors the visible-range stats the
+  // chart already holds; falls back to the raw min/max when the stat strip
+  // is suppressed (mini mode).
+  const primaryType = types[0];
+  const chartAriaLabel = useMemo(() => {
+    const metric = getTypeLabel(primaryType, valueMode, t);
+    const source = chartDataWithCompare ?? chartData;
+    const values = (source ?? [])
+      .map((point) => point[primaryType])
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (values.length === 0) {
+      return t("charts.a11y.noData", { metric });
+    }
+    const stats = visibleStatsByType?.[primaryType];
+    const minVal = stats?.min ?? Math.min(...values);
+    const maxVal = stats?.max ?? Math.max(...values);
+    const latestVal = values[values.length - 1];
+    const firstVal = values[0];
+    const epsilon = Math.max(Math.abs(maxVal - minVal) * 0.02, 0.01);
+    const delta = latestVal - firstVal;
+    const trend =
+      delta > epsilon
+        ? t("charts.a11y.trendUp")
+        : delta < -epsilon
+          ? t("charts.a11y.trendDown")
+          : t("charts.a11y.trendFlat");
+    return t("charts.a11y.summary", {
+      metric,
+      min: fmt.number(minVal, 1),
+      max: fmt.number(maxVal, 1),
+      latest: fmt.number(latestVal, 1),
+      trend,
+    });
+  }, [
+    primaryType,
+    valueMode,
+    t,
+    chartDataWithCompare,
+    chartData,
+    visibleStatsByType,
+    fmt,
+  ]);
+
   const trendInfo = useMemo(() => {
     if (!showTrend || !chartData?.length) return [];
 
@@ -1734,7 +1779,11 @@ export function HealthChart({
             </div>
           ) : null}
 
-          <div className="relative z-10 h-full touch-pan-y">
+          <div
+            className="relative z-10 h-full touch-pan-y"
+            role="img"
+            aria-label={chartAriaLabel}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartDataWithCompare ?? chartData}

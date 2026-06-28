@@ -338,6 +338,47 @@ export function MedicationComplianceChart({
   const yAxisFormatter = (value: number) => `${fmt.integer(value)} %`;
   const animationsEnabled = !prefersReducedMotion();
 
+  // Accessibility — a concise spoken summary of the compliance series so a
+  // screen reader announces the adherence range, the latest day and the
+  // direction rather than an unlabelled graphic. Reuses the same 7-day trend
+  // the chip surfaces; falls back to a first-vs-last comparison when the
+  // window is too short for the trend helper.
+  const complianceAriaLabel = ((): string => {
+    const metric = displayTitle;
+    const rates = chartData
+      .map((p) => p.rate)
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (rates.length === 0) {
+      return t("charts.a11y.noData", { metric });
+    }
+    const pct = (v: number) => `${fmt.integer(v)} %`;
+    const minVal = Math.min(...rates);
+    const maxVal = Math.max(...rates);
+    const latestVal = rates[rates.length - 1];
+    let trendWord: string;
+    if (trend && trend.direction !== "stable") {
+      trendWord =
+        trend.direction === "up"
+          ? t("charts.a11y.trendUp")
+          : t("charts.a11y.trendDown");
+    } else {
+      const delta = latestVal - rates[0];
+      trendWord =
+        delta > 1
+          ? t("charts.a11y.trendUp")
+          : delta < -1
+            ? t("charts.a11y.trendDown")
+            : t("charts.a11y.trendFlat");
+    }
+    return t("charts.a11y.summary", {
+      metric,
+      min: pct(minVal),
+      max: pct(maxVal),
+      latest: pct(latestVal),
+      trend: trendWord,
+    });
+  })();
+
   // Empty-state guard: if the user has zero scheduled doses across the
   // whole window we render the title + a "no data" hint, mirroring how
   // the other charts handle the empty case (HealthChart returns null
@@ -475,7 +516,11 @@ export function MedicationComplianceChart({
           />
         )
       ) : (
-        <div className="h-[var(--chart-height,240px)] touch-pan-y md:h-[var(--chart-height-md,280px)]">
+        <div
+          className="h-[var(--chart-height,240px)] touch-pan-y md:h-[var(--chart-height-md,280px)]"
+          role="img"
+          aria-label={complianceAriaLabel}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}

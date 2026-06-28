@@ -616,6 +616,39 @@ export function MoodChart({
   // below the "Stimmung" heading. Aligning the STRUCTURE — not just
   // the padding values — makes the three trend cards share one title
   // baseline and one height. Full (non-mini) mode keeps the Card path.
+  // Accessibility — a concise spoken summary of the visible mood line so a
+  // screen reader announces the score range, the latest value and the
+  // direction rather than an unlabelled graphic.
+  const moodAriaLabel = (() => {
+    const metric = displayTitle;
+    const scores = (chartData ?? [])
+      .map((d) => d.score)
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (scores.length === 0) {
+      return t("charts.a11y.noData", { metric });
+    }
+    const fmtScore = (v: number) => String(Math.round(v * 10) / 10);
+    const minVal = Math.min(...scores);
+    const maxVal = Math.max(...scores);
+    const latestVal = scores[scores.length - 1];
+    const firstVal = scores[0];
+    const epsilon = 0.1;
+    const delta = latestVal - firstVal;
+    const trend =
+      delta > epsilon
+        ? t("charts.a11y.trendUp")
+        : delta < -epsilon
+          ? t("charts.a11y.trendDown")
+          : t("charts.a11y.trendFlat");
+    return t("charts.a11y.summary", {
+      metric,
+      min: fmtScore(minVal),
+      max: fmtScore(maxVal),
+      latest: fmtScore(latestVal),
+      trend,
+    });
+  })();
+
   const chartBody = isLoading ? (
     // v1.16.0 — height-matched skeleton band instead of the former
     // `h-48` spinner box: the loading state occupies the same box the
@@ -680,6 +713,8 @@ export function MoodChart({
           ? "h-[var(--chart-height,140px)]"
           : "h-[var(--chart-height,200px)] md:h-[var(--chart-height-md,220px)]"
       } touch-pan-y`}
+      role="img"
+      aria-label={moodAriaLabel}
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
