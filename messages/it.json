@@ -4018,7 +4018,19 @@
       "disableError": "Impossibile disattivare la modalità Ricerca. Riprova."
     },
     "shell": {
-      "sectionsNav": "Sezioni delle impostazioni"
+      "sectionsNav": "Sezioni delle impostazioni",
+      "subSectionsNav": "Sottosezioni delle impostazioni"
+    },
+    "groups": {
+      "account": { "title": "Account" },
+      "tracking": { "title": "Monitoraggio" },
+      "display": { "title": "Visualizzazione" },
+      "integrations": { "title": "Integrazioni" },
+      "notifications": { "title": "Notifiche" },
+      "ai": { "title": "IA e coach" },
+      "access": { "title": "API e accesso" },
+      "data": { "title": "Dati e privacy" },
+      "about": { "title": "Informazioni" }
     },
     "sections": {
       "account": {
@@ -4040,7 +4052,7 @@
         "subtitle": "Scegli quali promemoria ricevere."
       },
       "layout": {
-        "title": "Cruscotto",
+        "title": "Visualizzazione",
         "description": "Organizza la disposizione del cruscotto e degli approfondimenti.",
         "backToHub": "Torna a Layout e personalizzazione",
         "dashboard": {

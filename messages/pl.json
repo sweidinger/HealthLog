@@ -4018,7 +4018,19 @@
       "disableError": "Nie udało się wyłączyć trybu Badawczego. Spróbuj ponownie."
     },
     "shell": {
-      "sectionsNav": "Sekcje ustawień"
+      "sectionsNav": "Sekcje ustawień",
+      "subSectionsNav": "Podsekcje ustawień"
+    },
+    "groups": {
+      "account": { "title": "Konto" },
+      "tracking": { "title": "Śledzenie" },
+      "display": { "title": "Wyświetlanie" },
+      "integrations": { "title": "Integracje" },
+      "notifications": { "title": "Powiadomienia" },
+      "ai": { "title": "AI i Coach" },
+      "access": { "title": "API i dostęp" },
+      "data": { "title": "Dane i prywatność" },
+      "about": { "title": "O aplikacji" }
     },
     "sections": {
       "account": {
@@ -4040,7 +4052,7 @@
         "subtitle": "Wybierz, które przypomnienia otrzymujesz."
       },
       "layout": {
-        "title": "Pulpit",
+        "title": "Wyświetlanie",
         "description": "Ustal, jak rozłożone są pulpit i analizy.",
         "backToHub": "Powrót do Układ i personalizacja",
         "dashboard": {

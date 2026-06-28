@@ -56,7 +56,6 @@ import {
   isSettingsSectionSlug,
   type SettingsSectionSlug,
 } from "./section-slugs";
-import { SettingsHubBackLink } from "./settings-hub-back-link";
 
 // Re-export so existing call-sites importing from this module keep working.
 // New server-side call-sites (e.g. `generateStaticParams()`) should import
@@ -289,6 +288,137 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   },
 ] as const;
 
+/**
+ * v1.25.1 — Settings information-architecture consolidation.
+ *
+ * The left rail used to render one entry per section (26 visible). It now
+ * renders NINE top-level GROUPS. Every section route stays live at its own
+ * URL — `generateStaticParams()` still emits every slug, deep links and the
+ * per-page settings cogs still resolve — but the sidebar is driven by this
+ * group model and each group page surfaces its children as in-page sub-tabs.
+ *
+ * The mechanism generalises the old `LAYOUT_CHILD_SLUGS` + `navHighlightSlug`
+ * trick (a live route, hidden from the rail, highlighting a parent): every
+ * child slug now maps to its group for rail highlighting, and the group page
+ * paints a sub-tab strip across its visible children.
+ *
+ * Two levels everywhere — the rail is one level, the sub-tabs are the second,
+ * no child of a child.
+ */
+export type SettingsGroupId =
+  | "account"
+  | "tracking"
+  | "display"
+  | "integrations"
+  | "notifications"
+  | "ai"
+  | "access"
+  | "data"
+  | "about";
+
+export interface SettingsGroup {
+  id: SettingsGroupId;
+  /** i18n key under `settings.groups.<id>.title`. */
+  titleKey: string;
+  icon: LucideIcon;
+  /**
+   * Ordered child section slugs. Rendered as in-page sub-tabs (filtered by
+   * module gate) when more than one is visible. The first VISIBLE child is
+   * the group's landing route — the rail entry links there so a click never
+   * lands on a module-gated-off page.
+   */
+  children: readonly SettingsSectionSlug[];
+}
+
+export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
+  {
+    id: "account",
+    titleKey: "settings.groups.account.title",
+    icon: User,
+    children: ["account", "security"],
+  },
+  {
+    id: "tracking",
+    titleKey: "settings.groups.tracking.title",
+    icon: ClipboardList,
+    children: [
+      "modules",
+      "medications",
+      "mood",
+      "labs",
+      "illness",
+      "vorsorge",
+      "anamnesis",
+      "environment",
+      "thresholds",
+    ],
+  },
+  {
+    id: "display",
+    titleKey: "settings.groups.display.title",
+    icon: LayoutDashboard,
+    // `layout` (the personalisation hub) stays a live route and highlights
+    // this group, but it is not a sub-tab — Dashboard + Insights are the
+    // tabs. See `SLUG_TO_GROUP` below for the `layout` alias.
+    children: ["dashboard", "insights"],
+  },
+  {
+    id: "integrations",
+    titleKey: "settings.groups.integrations.title",
+    icon: Link2,
+    children: ["integrations", "channels", "sources"],
+  },
+  {
+    id: "notifications",
+    titleKey: "settings.groups.notifications.title",
+    icon: Bell,
+    children: ["notifications"],
+  },
+  {
+    id: "ai",
+    titleKey: "settings.groups.ai.title",
+    icon: Sparkles,
+    children: ["ai", "coach"],
+  },
+  {
+    id: "access",
+    titleKey: "settings.groups.access.title",
+    icon: KeyRound,
+    children: ["api", "mcp"],
+  },
+  {
+    id: "data",
+    titleKey: "settings.groups.data.title",
+    icon: Lock,
+    children: ["export", "gesundheitsakte", "sharing", "privacy", "advanced"],
+  },
+  {
+    id: "about",
+    titleKey: "settings.groups.about.title",
+    icon: Info,
+    children: ["about"],
+  },
+] as const;
+
+/**
+ * Reverse index: every section slug → its owning group id. Built from
+ * `SETTINGS_GROUPS.children`, plus the `layout` alias (the personalisation
+ * hub route lives under Display but is not one of its sub-tabs).
+ */
+const SLUG_TO_GROUP: Record<string, SettingsGroupId> = (() => {
+  const map: Record<string, SettingsGroupId> = {};
+  for (const group of SETTINGS_GROUPS) {
+    for (const child of group.children) map[child] = group.id;
+  }
+  map["layout"] = "display";
+  return map;
+})();
+
+/** Per-slug metadata lookup (icon / titleKey / moduleGate) for sub-tabs. */
+const SECTION_BY_SLUG: ReadonlyMap<string, SettingsSection> = new Map(
+  SETTINGS_SECTIONS.map((section) => [section.slug, section]),
+);
+
 export interface SettingsShellProps {
   /**
    * Optional override for the active section. When omitted the shell reads
@@ -321,36 +451,38 @@ export interface SettingsShellProps {
   children: React.ReactNode;
 }
 
-// v1.17.1 (F-2) — the personalization editors live under the Layout
-// hub. They keep their own routes but are NOT standalone nav entries, so
-// when the user is on one of them the Layout nav entry is the one that
-// reads active.
-//
-// v1.18.0 (S5) — `mood` (Stimmung) and `medications` (Medikamente)
-// graduated to their own nav entries, so they are no longer Layout-hub
-// children for highlighting purposes.
-const LAYOUT_CHILD_SLUGS: ReadonlySet<string> = new Set([
-  "dashboard",
-  "insights",
-]);
-
-/** Map a Layout child editor onto the Layout hub for nav highlighting. */
-function navHighlightSlug(slug: SettingsSectionSlug): SettingsSectionSlug {
-  return LAYOUT_CHILD_SLUGS.has(slug) ? "layout" : slug;
-}
-
+/**
+ * Resolve the active section slug from the route (or an explicit override the
+ * page passes). Unlike the pre-v1.25.1 shell this no longer remaps a child
+ * onto a parent — the real slug is kept so the heading + active sub-tab are
+ * correct. Group highlighting is derived separately via `SLUG_TO_GROUP`.
+ */
 function deriveActiveSlug(
   pathname: string | null,
   override?: SettingsSectionSlug,
 ): SettingsSectionSlug {
-  if (override) return navHighlightSlug(override);
+  if (override) return override;
   if (!pathname) return "account";
   // Match `/settings/<slug>` and ignore any trailing segments (none today,
   // but cheap insurance for future nested routes).
   const match = pathname.match(/^\/settings\/([^/]+)/);
   const candidate = match?.[1] ?? "";
-  if (LAYOUT_CHILD_SLUGS.has(candidate)) return "layout";
   return isSettingsSectionSlug(candidate) ? candidate : "account";
+}
+
+/** Map any section slug onto its owning group (defaults to Account). */
+function deriveActiveGroup(slug: SettingsSectionSlug): SettingsGroupId {
+  return SLUG_TO_GROUP[slug] ?? "account";
+}
+
+/** Is a slug visible given the user's module map? Fails OPEN. */
+function isSlugVisible(
+  slug: SettingsSectionSlug,
+  modules: Record<string, boolean> | undefined,
+): boolean {
+  const section = SECTION_BY_SLUG.get(slug);
+  if (!section?.moduleGate) return true;
+  return modules?.[section.moduleGate] !== false;
 }
 
 export function SettingsShell({
@@ -370,12 +502,36 @@ export function SettingsShell({
   // reads as enabled so an entry never silently disappears. Entries with
   // no `moduleGate` (global / CORE) are always shown.
   const modules = user?.modules;
-  const visibleSections = SETTINGS_SECTIONS.filter(
-    (section) => !section.moduleGate || modules?.[section.moduleGate] !== false,
+  const activeGroupId = deriveActiveGroup(activeSlug);
+
+  // v1.25.1 — the rail renders one entry per GROUP. Each group surfaces its
+  // first VISIBLE child as the landing route, so a tap never lands on a
+  // module-gated-off page. A group shows when it has at least one visible
+  // child; every group carries an always-on child, so all nine always render
+  // (the proposal's "no group fully disappears" guarantee).
+  const groupNav = SETTINGS_GROUPS.map((group) => {
+    const visibleChildren = group.children.filter((slug) =>
+      isSlugVisible(slug, modules),
+    );
+    return { group, visibleChildren, landingSlug: visibleChildren[0] };
+  }).filter(
+    (
+      entry,
+    ): entry is {
+      group: SettingsGroup;
+      visibleChildren: SettingsSectionSlug[];
+      landingSlug: SettingsSectionSlug;
+    } => entry.landingSlug !== undefined,
   );
-  const activeSection = visibleSections.find(
-    (section) => section.slug === activeSlug,
+
+  // Sub-tabs for the active group — painted only when it has 2+ visible
+  // children. `layout` (the Display hub) is not one of Display's tabs, so on
+  // that route no tab reads active and the hub body renders below the strip.
+  const activeGroupEntry = groupNav.find(
+    (entry) => entry.group.id === activeGroupId,
   );
+  const subTabs: SettingsSectionSlug[] =
+    activeGroupEntry?.visibleChildren ?? [];
 
   // v1.4.33 IW4 — keep the active chip in view inside the horizontal
   // mobile strip. On a 393 CSS px viewport the strip is wider than the
@@ -419,17 +575,12 @@ export function SettingsShell({
   // below.
   const resolvedHeading =
     heading ??
-    (activeSection
+    (isSettingsSectionSlug(activeSlug)
       ? {
-          title: t(activeSection.titleKey),
-          subtitle: t(`settings.sections.${activeSection.slug}.subtitle`),
-          headingId: `settings-section-${activeSection.slug}-title`,
-          topSlot: LAYOUT_CHILD_SLUGS.has(activeSection.slug) ? (
-            <SettingsHubBackLink
-              href="/settings/layout"
-              labelKey="settings.sections.layout.backToHub"
-            />
-          ) : undefined,
+          title: t(`settings.sections.${activeSlug}.title`),
+          subtitle: t(`settings.sections.${activeSlug}.subtitle`),
+          headingId: `settings-section-${activeSlug}-title`,
+          topSlot: undefined,
           headingAccessory: undefined,
         }
       : null);
@@ -492,13 +643,15 @@ export function SettingsShell({
         className="no-scrollbar relative -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
-          {visibleSections.map((section) => {
-            const isActive = section.slug === activeSlug;
-            const Icon = section.icon;
+          {groupNav.map(({ group, landingSlug }) => {
+            const isActive = group.id === activeGroupId;
+            const Icon = group.icon;
             return (
-              <li key={section.slug} className="snap-start">
+              <li key={group.id} className="snap-start">
                 <Link
-                  href={`/settings/${section.slug}`}
+                  href={`/settings/${landingSlug}`}
+                  data-slot="settings-group-nav-item"
+                  data-group={group.id}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
                     // v1.4.25 W8 — chip strip is the primary mobile-settings
@@ -511,7 +664,7 @@ export function SettingsShell({
                   )}
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
-                  {t(section.titleKey)}
+                  {t(group.titleKey)}
                 </Link>
               </li>
             );
@@ -552,13 +705,15 @@ export function SettingsShell({
           className="no-scrollbar hidden max-h-[calc(100dvh-5.5rem)] overflow-y-auto md:sticky md:top-6 md:col-start-1 md:row-start-2 md:block md:self-start"
         >
           <ul className="space-y-1">
-            {visibleSections.map((section) => {
-              const isActive = section.slug === activeSlug;
-              const Icon = section.icon;
+            {groupNav.map(({ group, landingSlug }) => {
+              const isActive = group.id === activeGroupId;
+              const Icon = group.icon;
               return (
-                <li key={section.slug}>
+                <li key={group.id}>
                   <Link
-                    href={`/settings/${section.slug}`}
+                    href={`/settings/${landingSlug}`}
+                    data-slot="settings-group-nav-item"
+                    data-group={group.id}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
@@ -568,7 +723,7 @@ export function SettingsShell({
                     )}
                   >
                     <Icon className="h-4 w-4" aria-hidden="true" />
-                    {t(section.titleKey)}
+                    {t(group.titleKey)}
                   </Link>
                 </li>
               );
@@ -593,6 +748,40 @@ export function SettingsShell({
             already provides the page's single `<main>` landmark and a
             nested second one is an a11y violation. */}
         <div className="min-h-[calc(100dvh-12rem)] min-w-0 pb-24 md:col-start-2 md:row-start-2 md:pb-0">
+          {/* v1.25.1 — in-page sub-tabs for the active group. Painted only
+              when the group has 2+ visible children (single-child groups —
+              Notifications, About — render no strip). Horizontal scroll keeps
+              the 8-tab Tracking group from overflowing a narrow viewport. A
+              segmented control (shadcn-style) on every breakpoint. Each tab is
+              a real route Link so deep links + the back/forward stack work. */}
+          {subTabs.length > 1 ? (
+            <nav
+              aria-label={t("settings.shell.subSectionsNav")}
+              data-slot="settings-subtabs"
+              className="no-scrollbar bg-muted/50 -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-lg p-1"
+            >
+              {subTabs.map((slug) => {
+                const isActive = slug === activeSlug;
+                return (
+                  <Link
+                    key={slug}
+                    href={`/settings/${slug}`}
+                    data-slot="settings-subtab"
+                    data-subtab-slug={slug}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex min-h-9 items-center rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+                      isActive
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t(`settings.sections.${slug}.title`)}
+                  </Link>
+                );
+              })}
+            </nav>
+          ) : null}
           {children}
         </div>
       </div>
