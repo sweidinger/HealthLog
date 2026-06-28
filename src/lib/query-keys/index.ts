@@ -19,6 +19,7 @@ import { authKeys } from "./auth";
 import { coachKeys } from "./coach";
 import { cycleKeys } from "./cycle";
 import { dashboardKeys } from "./dashboard";
+import { hydrationKeys } from "./hydration";
 import { illnessKeys } from "./illness";
 import { insightsKeys } from "./insights";
 import { integrationKeys } from "./integrations";
@@ -46,6 +47,7 @@ export const queryKeys = {
   ...measurementReminderKeys,
   ...labKeys,
   ...illnessKeys,
+  ...hydrationKeys,
 };
 
 /**
@@ -86,6 +88,8 @@ export const measurementDependentKeys = [
   ["sleep-night"] as const,
   // v1.17.0 — refresh the sleep-debt + chronotype read when sleep rows change.
   ["sleep-rhythm"] as const,
+  // v1.25 — refresh the hydration goal ring when a WATER_INTAKE row is added.
+  queryKeys.hydration(),
 ];
 
 /**

@@ -98,10 +98,12 @@ const EXPECTED_TYPES = [
   "BODY_TEMPERATURE_DEVIATION",
   // ── v1.19.0 — Oura resilience (ordinal-encoded level) ──
   "RESILIENCE",
+  // ── v1.25 — in-app water-intake logging (hydration goal ring) ──
+  "WATER_INTAKE",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 66 canonical measurement types", () => {
+  it("exposes the 67 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -244,6 +246,11 @@ describe("measurementTypeEnum coverage", () => {
     // Insights / measurement-list surfaces and never belongs in the clinical
     // vitals PDF. See doctor-report-pdf-core.ts for the matching rationale.
     "RESILIENCE",
+    // v1.25 — water intake is an in-app lifestyle log (the hydration goal
+    // ring), not a measured clinical vital; it surfaces on the Insights
+    // overview and never belongs in the clinical vitals PDF. See
+    // doctor-report-pdf-core.ts for the matching exclusion rationale.
+    "WATER_INTAKE",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

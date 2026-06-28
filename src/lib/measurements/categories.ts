@@ -89,6 +89,8 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   // ── Activity (cumulative + fitness + mobility) ──
   ["ACTIVITY_STEPS", "activity"],
   ["ACTIVE_ENERGY_BURNED", "activity"],
+  // v1.25 — hydration intake; cumulative daily counter, groups with activity.
+  ["WATER_INTAKE", "activity"],
   ["FLIGHTS_CLIMBED", "activity"],
   ["WALKING_RUNNING_DISTANCE", "activity"],
   ["VO2_MAX", "activity"],

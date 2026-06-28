@@ -706,6 +706,11 @@ export const CUMULATIVE_HK_TYPES: ReadonlySet<MeasurementType> =
     // daily total is the meaningful reduction (SUM), matching the other
     // cumulative HK counts.
     "FALL_COUNT",
+    // v1.25 — manual hydration intake. Not a HealthKit type, but its daily
+    // reduction is a SUM (running total of the day's entries), so it rides the
+    // same cumulative daily-sum path as the counts above rather than averaging
+    // individual sips.
+    "WATER_INTAKE",
   ]);
 
 /**

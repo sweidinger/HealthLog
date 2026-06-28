@@ -233,6 +233,10 @@ model User {
   // MDY pins month-day-year, YMD pins ISO yyyy-MM-dd. Display-time only —
   // canonical storage stays UTC instants.
   dateFormat               DateFormatPreference @default(AUTO) @map("date_format")
+  // v1.25 — daily water-intake goal in millilitres for the hydration ring.
+  // Null = the in-code default (DEFAULT_HYDRATION_GOAL_ML, 2000 ml). Surfaced
+  // and edited inline on the hydration card; canonical storage stays ml.
+  hydrationGoalMl          Int?                 @map("hydration_goal_ml")
   // AI provider selection for insights. Null = OPENAI fallback.
   aiProvider               String?              @map("ai_provider") // "OPENAI" | "ANTHROPIC" | "LOCAL" | "CHATGPT_OAUTH"
   aiModel                  String?              @map("ai_model")
@@ -1106,6 +1110,14 @@ enum MeasurementType {
   // The 5-level → ordinal mapping is the single source of truth in
   // `src/lib/oura/client.ts` (RESILIENCE_LEVELS). Stored as `source = OURA`.
   RESILIENCE // level (ordinal 1–5) — Oura `daily_resilience.level` (limited=1 … exceptional=5).
+
+  // ── v1.25 — hydration logging (additive) ──
+  // Manual water-intake counter in millilitres (ml). Cumulative within a day
+  // like ACTIVITY_STEPS / ACTIVE_ENERGY_BURNED — each entry adds to the day's
+  // running total; the daily total is summed for the goal ring. DISTINCT from
+  // TOTAL_BODY_WATER (a scale body-composition reading in kg). Manual entry
+  // only today (no device source maps to it), unit "ml", higher = more intake.
+  WATER_INTAKE // ml — manual hydration intake counter; daily total vs a user goal.
 
   @@map("measurement_type")
 }

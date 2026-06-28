@@ -194,6 +194,11 @@ export function getPRDirection(
     // inputs — a derived composite with no clean goal axis, so it stays null
     // like the other device-derived scores.
     case "RESILIENCE":
+    // v1.25 — water intake is a cumulative daily counter surfaced as a
+    // goal ring + logging streak, not a single-reading achievement. A
+    // "biggest sip" record would be meaningless and the daily-total record
+    // is better served by the streak rail, so it stays null.
+    case "WATER_INTAKE":
       return null;
   }
 }

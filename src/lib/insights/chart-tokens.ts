@@ -38,6 +38,9 @@ export const ALLOWED_CHART_TOKENS = [
   // components ship in v1.5 alongside the iOS app surface.
   "metric:HEART_RATE_VARIABILITY",
   "metric:RESTING_HEART_RATE",
+  // v1.25 — daily water intake (cumulative ml), charted alongside the
+  // hydration goal ring on the overview.
+  "metric:WATER_INTAKE",
   "metric:ACTIVE_ENERGY_BURNED",
   "metric:FLIGHTS_CLIMBED",
   "metric:WALKING_RUNNING_DISTANCE",

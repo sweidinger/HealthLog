@@ -35,6 +35,7 @@ import {
   Sun,
   PersonStanding,
   Waves,
+  GlassWater,
   type LucideIcon,
 } from "lucide-react";
 
@@ -54,6 +55,7 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   HEART_RATE_VARIABILITY: "measurements.typeHeartRateVariability",
   RESTING_HEART_RATE: "measurements.typeRestingHeartRate",
   ACTIVE_ENERGY_BURNED: "measurements.typeActiveEnergyBurned",
+  WATER_INTAKE: "measurements.typeWaterIntake",
   FLIGHTS_CLIMBED: "measurements.typeFlightsClimbed",
   WALKING_RUNNING_DISTANCE: "measurements.typeWalkingRunningDistance",
   VO2_MAX: "measurements.typeVo2Max",
@@ -140,6 +142,7 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   HEART_RATE_VARIABILITY: HeartPulse,
   RESTING_HEART_RATE: Heart,
   ACTIVE_ENERGY_BURNED: Flame,
+  WATER_INTAKE: GlassWater,
   FLIGHTS_CLIMBED: TrendingUp,
   WALKING_RUNNING_DISTANCE: Footprints,
   VO2_MAX: Gauge,
@@ -263,6 +266,7 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   HEART_RATE_VARIABILITY: "bg-chart-5/20 text-chart-5",
   RESTING_HEART_RATE: "bg-chart-3/20 text-chart-3",
   ACTIVE_ENERGY_BURNED: "bg-chart-4/20 text-chart-4",
+  WATER_INTAKE: "bg-chart-2/20 text-chart-2",
   FLIGHTS_CLIMBED: "bg-chart-2/20 text-chart-2",
   WALKING_RUNNING_DISTANCE: "bg-chart-2/20 text-chart-2",
   VO2_MAX: "bg-chart-1/20 text-chart-1",
