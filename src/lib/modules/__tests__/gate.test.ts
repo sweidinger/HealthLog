@@ -352,12 +352,46 @@ describe("resolveModuleEnabled — mcp module (opt-in, default-OFF)", () => {
 });
 
 describe("registry — opt-in marker", () => {
-  it("marks only the mcp module opt-in (every other module is default-on)", () => {
-    expect(isOptInModule("mcp")).toBe(true);
+  // The opt-in modules ship dark because they open an egress/attack surface:
+  // `mcp` (remote external-assistant endpoint) and `inboundDocuments`
+  // (sends an uploaded clinical document to the OCR/vision provider). Every
+  // other module is the default-on disabled-allowlist.
+  const OPT_IN_KEYS = new Set(["mcp", "inboundDocuments"]);
+
+  it("marks only the egress-surface modules opt-in (every other is default-on)", () => {
     for (const key of MODULE_KEYS) {
-      if (key === "mcp") continue;
-      expect(isOptInModule(key)).toBe(false);
+      expect(isOptInModule(key)).toBe(OPT_IN_KEYS.has(key));
     }
+  });
+});
+
+describe("resolveModuleEnabled — inboundDocuments module (opt-in, default-OFF)", () => {
+  it("is OFF when no preference is recorded", () => {
+    expect(
+      resolveModuleEnabled("inboundDocuments", inputs(), false, ALL_AVAILABLE),
+    ).toBe(false);
+  });
+
+  it("turns ON only on an explicit true (opt-in)", () => {
+    expect(
+      resolveModuleEnabled(
+        "inboundDocuments",
+        inputs({ modulePreferences: { inboundDocuments: true } }),
+        false,
+        ALL_AVAILABLE,
+      ),
+    ).toBe(true);
+  });
+
+  it("operator-off short-circuits even when the user opted in", () => {
+    expect(
+      resolveModuleEnabled(
+        "inboundDocuments",
+        inputs({ modulePreferences: { inboundDocuments: true } }),
+        false,
+        operator({ inboundDocuments: false }),
+      ),
+    ).toBe(false);
   });
 });
 

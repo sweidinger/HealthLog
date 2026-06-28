@@ -123,6 +123,13 @@ export const MODULE_KEYS = [
   // (operator-availability layer, PATCH plumbing, the Modules hub toggle)
   // reuses the existing module machinery unchanged.
   "mcp",
+  // v1.25.0 (W-DOCS-IN) — inbound clinical documents (`/documents/inbound`).
+  // Like `mcp` this is OPT-IN (off by default): ingesting a doctor report /
+  // discharge letter sends the document to the configured OCR/vision provider,
+  // so the surface ships dark and the user turns it on deliberately. The
+  // `optIn` marker on its registry entry inverts the per-user default;
+  // everything else reuses the existing module machinery unchanged.
+  "inboundDocuments",
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -263,6 +270,15 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       category: "integration",
       // Off by default: exposes a remote external-assistant surface, so it
       // must be turned on deliberately (ADR-007 / REQ-OPS-1).
+      optIn: true,
+    },
+    inboundDocuments: {
+      key: "inboundDocuments",
+      labelKey: "modules.inboundDocuments.label",
+      descriptionKey: "modules.inboundDocuments.description",
+      category: "tracking",
+      // Off by default: ingesting a clinical document egresses it to the
+      // configured OCR/vision provider, so the user turns it on deliberately.
       optIn: true,
     },
   });

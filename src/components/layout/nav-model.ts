@@ -2,6 +2,7 @@ import {
   Activity,
   Bell,
   Droplets,
+  FileScan,
   FlaskConical,
   Home,
   Lightbulb,
@@ -137,6 +138,17 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
   // surfaces as an Insights tab-strip pill (`/insights/workouts` gated on
   // a workout row, `/insights/recovery` always present), so neither is a
   // top-level `NAV_DESTINATIONS` entry any more.
+  // v1.25.0 (W-DOCS-IN) — inbound clinical documents sit in the clinical
+  // spine after Illness. Born-gated: `requiresModule: "inboundDocuments"`
+  // reads the opt-in key from the resolved module map, so the entry is absent
+  // until the account turns the module on from the Modules hub.
+  {
+    href: "/documents",
+    tKey: "nav.documents",
+    icon: FileScan,
+    tourId: "nav-documents",
+    requiresModule: "inboundDocuments",
+  },
   {
     href: "/insights",
     tKey: "nav.insights",

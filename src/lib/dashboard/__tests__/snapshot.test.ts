@@ -84,6 +84,7 @@ function moduleMap(
     medications: true,
     doctorReport: true,
     mcp: true,
+    inboundDocuments: true,
   };
   return { ...base, ...overrides };
 }

@@ -31,6 +31,7 @@ import {
   CalendarHeart,
   Droplet,
   Dumbbell,
+  FileScan,
   FileText,
   MessageCircleHeart,
   Moon,
@@ -74,6 +75,8 @@ const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   doctorReport: FileText,
   // v1.22.0 — the remote MCP endpoint (opt-in connectivity module).
   mcp: Plug,
+  // v1.25.0 (W-DOCS-IN) — inbound clinical documents (opt-in).
+  inboundDocuments: FileScan,
 };
 
 export function ModulesSection() {

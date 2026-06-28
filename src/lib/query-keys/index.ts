@@ -21,6 +21,7 @@ import { coachKeys } from "./coach";
 import { familyHistoryKeys } from "./family-history";
 import { cycleKeys } from "./cycle";
 import { dashboardKeys } from "./dashboard";
+import { documentKeys } from "./documents";
 import { illnessKeys } from "./illness";
 import { insightsKeys } from "./insights";
 import { integrationKeys } from "./integrations";
@@ -52,6 +53,7 @@ export const queryKeys = {
   ...mentalHealthKeys,
   ...allergyKeys,
   ...familyHistoryKeys,
+  ...documentKeys,
 };
 
 /**
