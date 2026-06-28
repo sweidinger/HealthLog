@@ -31,6 +31,20 @@
  *     "ATS Statement: Guidelines for the Six-Minute Walk Test",
  *     Am J Respir Crit Care Med 166(1):111–117. Surfaced as a
  *     percent-of-predicted re-frame, never a HealthLog-derived equation.
+ *   - Grip strength by age × sex — Dodds et al. 2014, "Grip Strength
+ *     across the Life Course: Normative Data from Twelve British Studies",
+ *     PLOS ONE 9(12):e113637 (n≈49,964). The age×sex band low is the 10th
+ *     centile, FLOORED at the EWGSOP2 "probable sarcopenia" cut-off
+ *     (Cruz-Jentoft et al., Age Ageing 2019: men < 27 kg, women < 16 kg) so
+ *     the clinical floor is never crossed; the band high is the 50th-centile
+ *     (median) for the age×sex cell.
+ *   - Waist circumference by age × sex — WHO increased-risk thresholds
+ *     (WHO 2008/2011; men > 94 cm, women > 80 cm) as the adult floor, raised
+ *     for older adults: the WHO cut-points derive from cohorts aged 20–74,
+ *     and evidence in the elderly supports cut-points set at higher waist
+ *     values (toward the WHO substantially-increased-risk line, men > 102 cm /
+ *     women > 88 cm). No ethnicity adjustment — HealthLog does not collect
+ *     ancestry.
  *
  * Client-safe — pure data + a pure lookup, no server imports.
  */
@@ -54,6 +68,15 @@ interface NormRow {
   /** Sex this row applies to; `null` = applies to either. */
   sex: "MALE" | "FEMALE" | null;
   range: NormRange;
+  /**
+   * Age-INDEPENDENT clinical cut-off band (the EWGSOP2 grip floor / the WHO
+   * waist threshold). It is excluded from the age-interpolation set and used
+   * only as the no-age fallback for a sex-specific table — so a profile with
+   * a known sex but no date of birth still gets the sex cut-off rather than
+   * the coarse sex-flat registry anchor. The age-stratified rows already bake
+   * this floor into their bounds, so it never widens the band for a known age.
+   */
+  ageIndependent?: boolean;
 }
 
 /**
@@ -102,28 +125,85 @@ const RESPIRATORY_RATE_NORMS: NormRow[] = [
 ];
 
 /**
- * Grip-strength normal band (kg) by sex — the EWGSOP2 "probable sarcopenia"
- * cut-off (Cruz-Jentoft et al., Age Ageing 2019): men < 27 kg, women < 16 kg.
- * The band brackets the at-or-above-cut-off "normal" placement; `direction`
- * is `higher-better`, so the read flags a value below the low bound. A single
- * adult bracket per sex — the cut-off is sex-specific, not age-banded — so the
- * resolver returns it whenever the profile sex is known, even with no age.
+ * Grip-strength bands (kg) by age × sex — Dodds et al. 2014 (PLOS ONE
+ * 9(12):e113637). `direction` is `higher-better`, so the read flags a value
+ * below the low bound. Per age×sex cell: low = the Dodds 10th centile floored
+ * at the EWGSOP2 "probable sarcopenia" cut-off (men 27 kg, women 16 kg;
+ * Cruz-Jentoft et al., Age Ageing 2019) so the clinical floor is never
+ * crossed; high = the Dodds 50th-centile (median). Strength peaks in the 30s
+ * and declines from midlife, so the bands step down with age — a 70-year-old
+ * is no longer measured against a 30-year-old's typical grip. The trailing
+ * `ageIndependent` row is the EWGSOP2 sex cut-off used when the profile has a
+ * sex but no date of birth (preserves the pre-v1.25.1 no-age behaviour).
  */
 const GRIP_STRENGTH_NORMS: NormRow[] = [
-  { minAge: 0, maxAge: 120, sex: "MALE", range: { low: 27, high: 60 } },
-  { minAge: 0, maxAge: 120, sex: "FEMALE", range: { low: 16, high: 60 } },
+  { minAge: 20, maxAge: 29, sex: "MALE", range: { low: 30, high: 40 } },
+  { minAge: 30, maxAge: 39, sex: "MALE", range: { low: 38, high: 51 } },
+  { minAge: 40, maxAge: 49, sex: "MALE", range: { low: 38, high: 50 } },
+  { minAge: 50, maxAge: 59, sex: "MALE", range: { low: 35, high: 48 } },
+  { minAge: 60, maxAge: 69, sex: "MALE", range: { low: 33, high: 45 } },
+  { minAge: 70, maxAge: 79, sex: "MALE", range: { low: 29, high: 39 } },
+  { minAge: 80, maxAge: 120, sex: "MALE", range: { low: 27, high: 32 } },
+  { minAge: 20, maxAge: 29, sex: "FEMALE", range: { low: 21, high: 28 } },
+  { minAge: 30, maxAge: 39, sex: "FEMALE", range: { low: 24, high: 31 } },
+  { minAge: 40, maxAge: 49, sex: "FEMALE", range: { low: 23, high: 31 } },
+  { minAge: 50, maxAge: 59, sex: "FEMALE", range: { low: 21, high: 29 } },
+  { minAge: 60, maxAge: 69, sex: "FEMALE", range: { low: 18, high: 27 } },
+  { minAge: 70, maxAge: 79, sex: "FEMALE", range: { low: 16, high: 24 } },
+  { minAge: 80, maxAge: 120, sex: "FEMALE", range: { low: 16, high: 19 } },
+  // EWGSOP2 sex cut-off — no-age fallback only (not age-interpolated).
+  {
+    minAge: 18,
+    maxAge: 120,
+    sex: "MALE",
+    range: { low: 27, high: 60 },
+    ageIndependent: true,
+  },
+  {
+    minAge: 18,
+    maxAge: 120,
+    sex: "FEMALE",
+    range: { low: 16, high: 60 },
+    ageIndependent: true,
+  },
 ];
 
 /**
- * Waist-circumference normal band (cm) by sex — the WHO European-origin
- * increased-risk threshold (WHO 2008/2011; NIH/NHLBI 1998): men > 94 cm,
- * women > 80 cm. `direction` is `lower-better`, so the normal band runs from
- * 0 up to the sex cut-off. Single adult bracket per sex (sex-specific, not
- * age-banded). No ethnicity adjustment — HealthLog does not collect ancestry.
+ * Waist-circumference bands (cm) by age × sex — `direction` is `lower-better`,
+ * so the normal band runs from 0 up to the sex cut-off (the `high`). The WHO
+ * increased-risk threshold (WHO 2008/2011; NIH/NHLBI 1998: men > 94 cm,
+ * women > 80 cm) is the adult floor and is held flat through midlife. The WHO
+ * cut-points derive from cohorts aged 20–74; evidence in the elderly supports
+ * higher cut-points, so the threshold rises with age toward the WHO
+ * substantially-increased-risk line (men > 102 cm, women > 88 cm). The floor
+ * is never lowered — the standard threshold is the minimum. The trailing
+ * `ageIndependent` row is the standard WHO threshold used when the profile has
+ * a sex but no date of birth. No ethnicity adjustment.
  */
 const WAIST_CIRCUMFERENCE_NORMS: NormRow[] = [
-  { minAge: 0, maxAge: 120, sex: "MALE", range: { low: 0, high: 94 } },
-  { minAge: 0, maxAge: 120, sex: "FEMALE", range: { low: 0, high: 80 } },
+  { minAge: 18, maxAge: 49, sex: "MALE", range: { low: 0, high: 94 } },
+  { minAge: 50, maxAge: 64, sex: "MALE", range: { low: 0, high: 94 } },
+  { minAge: 65, maxAge: 79, sex: "MALE", range: { low: 0, high: 98 } },
+  { minAge: 80, maxAge: 120, sex: "MALE", range: { low: 0, high: 102 } },
+  { minAge: 18, maxAge: 49, sex: "FEMALE", range: { low: 0, high: 80 } },
+  { minAge: 50, maxAge: 64, sex: "FEMALE", range: { low: 0, high: 80 } },
+  { minAge: 65, maxAge: 79, sex: "FEMALE", range: { low: 0, high: 84 } },
+  { minAge: 80, maxAge: 120, sex: "FEMALE", range: { low: 0, high: 88 } },
+  // Standard WHO threshold — no-age fallback only (not age-interpolated).
+  {
+    minAge: 18,
+    maxAge: 120,
+    sex: "MALE",
+    range: { low: 0, high: 94 },
+    ageIndependent: true,
+  },
+  {
+    minAge: 18,
+    maxAge: 120,
+    sex: "FEMALE",
+    range: { low: 0, high: 80 },
+    ageIndependent: true,
+  },
 ];
 
 /**
@@ -135,7 +215,8 @@ const NORM_TABLES: Partial<Record<MetricStatusMetricId, NormRow[]>> = {
   VO2_MAX: VO2_MAX_NORMS,
   RESTING_HEART_RATE: RESTING_HEART_RATE_NORMS,
   RESPIRATORY_RATE: RESPIRATORY_RATE_NORMS,
-  // v1.25 — sex-specific (age-independent) cut-offs.
+  // v1.25.1 — age × sex bands, with a sex-specific clinical cut-off as the
+  // floor + the no-age fallback.
   GRIP_STRENGTH: GRIP_STRENGTH_NORMS,
   WAIST_CIRCUMFERENCE: WAIST_CIRCUMFERENCE_NORMS,
 };
@@ -174,6 +255,13 @@ function resolveSexRows(rows: NormRow[], sex: NormSex): NormRow[] | null {
  * sex; when the profile sex is absent it falls back to the sex-agnostic
  * rows; a sex-specific-only table with no profile sex yields no honest band.
  *
+ * Clinical-floor fallback: a table may carry an `ageIndependent` cut-off row
+ * per sex (the EWGSOP2 grip floor / the WHO waist threshold). It is excluded
+ * from age interpolation and returned only when no usable age is present, so a
+ * grip / waist read still classifies against the sex cut-off for a profile
+ * with a known sex but no date of birth. A table with no such row (VO₂max, …)
+ * returns `null` without an age, keeping the flat registry anchor.
+ *
  * Age handling: the bracket tables are coarse (decade / paediatric bands),
  * so a fractional age that lands near a bracket edge would otherwise read a
  * hard step at the boundary (e.g. 39.9 → 30s band, 40.0 → 40s band). Instead
@@ -195,30 +283,38 @@ export function lookupNormalRange(
   const rows = resolveSexRows(table, sex);
   if (!rows || rows.length === 0) return null;
 
-  // Single band — no neighbour to interpolate against. A sex-specific,
-  // age-independent cut-off (grip strength, waist circumference) resolves
-  // here without an age, so the sex-aware band still applies when the
-  // profile carries sex but no date of birth.
-  if (rows.length === 1) return { ...rows[0].range };
+  // Split the age-independent clinical cut-off (the EWGSOP2 grip floor / the
+  // WHO waist threshold) from the age-stratified bands. The cut-off is never
+  // interpolated — it is the no-age fallback for a sex-specific table.
+  const ageRows = rows.filter((row) => !row.ageIndependent);
+  const floorBand = rows.find((row) => row.ageIndependent)?.range ?? null;
 
-  // Multi-bracket tables are age-banded — without a usable age there is no
-  // honest placement, so the caller keeps the flat registry anchor.
+  // No usable age. A sex-specific clinical cut-off still applies (grip / waist
+  // are flagged against the sex threshold even with no date of birth); a
+  // purely age-banded metric (VO₂max, …) has no honest placement, so the
+  // caller keeps the flat registry anchor.
   if (ageYears == null || !Number.isFinite(ageYears) || ageYears < 0) {
-    return null;
+    return floorBand ? { ...floorBand } : null;
   }
+
+  // No age-stratified rows (a cut-off-only table) — return the cut-off band.
+  if (ageRows.length === 0) return floorBand ? { ...floorBand } : null;
+
+  // Single band — no neighbour to interpolate against.
+  if (ageRows.length === 1) return { ...ageRows[0].range };
 
   // Clamp below the youngest centre / above the oldest centre: hold the
   // nearest cited band flat rather than extrapolate past the table.
-  const first = rows[0];
-  const last = rows[rows.length - 1];
+  const first = ageRows[0];
+  const last = ageRows[ageRows.length - 1];
   if (ageYears <= bracketCentre(first)) return { ...first.range };
   if (ageYears >= bracketCentre(last)) return { ...last.range };
 
   // Find the two adjacent brackets whose centres bracket the age, then blend
   // their ranges by the fractional position between the centres.
-  for (let i = 0; i < rows.length - 1; i++) {
-    const lo = rows[i];
-    const hi = rows[i + 1];
+  for (let i = 0; i < ageRows.length - 1; i++) {
+    const lo = ageRows[i];
+    const hi = ageRows[i + 1];
     const loCentre = bracketCentre(lo);
     const hiCentre = bracketCentre(hi);
     if (ageYears >= loCentre && ageYears <= hiCentre) {

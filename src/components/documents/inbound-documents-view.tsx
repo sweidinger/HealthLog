@@ -12,7 +12,13 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, FileScan, Loader2, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  ExternalLink,
+  FileScan,
+  Loader2,
+  Upload,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -283,14 +289,29 @@ function DocumentReview({
         <CardTitle className="text-base">
           {t("documents.review.title")}
         </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => discard.mutate()}
-          disabled={discard.isPending}
-        >
-          {t("documents.review.discard")}
-        </Button>
+        <div className="flex items-center gap-1">
+          {/* View the original uploaded document. The route is same-origin and
+              cookie-authenticated, so a new tab carries the session; a PDF /
+              image renders inline, other types download. */}
+          <Button asChild variant="ghost" size="sm">
+            <a
+              href={`/api/documents/inbound/${documentId}/original`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="h-4 w-4" aria-hidden />
+              {t("documents.review.viewOriginal")}
+            </a>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => discard.mutate()}
+            disabled={discard.isPending}
+          >
+            {t("documents.review.discard")}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {pending.length === 0 ? (

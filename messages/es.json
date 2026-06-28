@@ -7830,6 +7830,7 @@
     "review": {
       "title": "Revisar datos extraídos",
       "discard": "Descartar",
+      "viewOriginal": "Ver original",
       "confirm": "Guardar datos aprobados",
       "confirming": "Guardando…",
       "needsReview": "Requiere revisión",

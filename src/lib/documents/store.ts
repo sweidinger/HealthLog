@@ -9,7 +9,7 @@
 import { Buffer } from "node:buffer";
 
 import { decryptFromBytes, encryptToBytes } from "@/lib/ai/coach/bytes-codec";
-import { encrypt } from "@/lib/crypto";
+import { decrypt, encrypt } from "@/lib/crypto";
 import type {
   ExtractedFact,
   ExtractedFactStatus,
@@ -33,6 +33,17 @@ export function encryptDocumentToBytes(bytes: Buffer): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(new ArrayBuffer(encoded.byteLength));
   out.set(encoded);
   return out;
+}
+
+/**
+ * Decrypt a stored document back to its raw bytes. Throws on a bad / missing
+ * key id (fail-closed) — the caller must treat a throw as "cannot serve" and
+ * never fall back to returning the ciphertext. The original document is PHI;
+ * the only path that reads it is the owner-scoped download route.
+ */
+export function decryptDocumentFromBytes(buf: Uint8Array): Buffer {
+  const base64 = decrypt(Buffer.from(buf).toString("utf8"));
+  return Buffer.from(base64, "base64");
 }
 
 /**
