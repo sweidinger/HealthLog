@@ -352,10 +352,15 @@ describe("resolveModuleEnabled — mcp module (opt-in, default-OFF)", () => {
 });
 
 describe("registry — opt-in marker", () => {
-  it("marks only the mcp module opt-in (every other module is default-on)", () => {
+  it("marks the mcp + environment modules opt-in (every other module is default-on)", () => {
     expect(isOptInModule("mcp")).toBe(true);
+    // v1.25 (W-ENV) — the environmental-context module is opt-in too: it
+    // performs an outbound weather fetch tied to a coarse location, so it ships
+    // dark like the remote MCP endpoint.
+    expect(isOptInModule("environment")).toBe(true);
+    const optIn = new Set(["mcp", "environment"]);
     for (const key of MODULE_KEYS) {
-      if (key === "mcp") continue;
+      if (optIn.has(key)) continue;
       expect(isOptInModule(key)).toBe(false);
     }
   });

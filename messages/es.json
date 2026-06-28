@@ -4279,6 +4279,43 @@
         "title": "Historial médico",
         "subtitle": "Gestiona tus alergias y tus antecedentes familiares.",
         "description": "Registros estructurados de alergias y antecedentes familiares."
+      },
+      "environment": {
+        "title": "Entorno",
+        "subtitle": "Contexto de tiempo, luz diurna y ubicación.",
+        "disabledHint": "Activa el módulo Entorno para definir una ubicación principal e incorporar el tiempo y las horas de luz diarias.",
+        "searchPlaceholder": "Buscar una ciudad",
+        "search": "Buscar",
+        "searchError": "No se pudo buscar ese lugar.",
+        "use": "Usar",
+        "select": "Seleccionar",
+        "saveError": "No se pudo guardar el cambio.",
+        "homeSaved": "Ubicación principal guardada.",
+        "travelAdded": "Excepción de viaje añadida.",
+        "travelRemoved": "Excepción de viaje eliminada.",
+        "backfillQueued": "Relleno programado.",
+        "backfillError": "No se pudo iniciar el relleno.",
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de fin",
+        "storedDays": "{count} días de tiempo almacenados.",
+        "home": {
+          "title": "Ubicación principal",
+          "description": "Una ubicación aproximada a nivel de ciudad, nunca un rastro preciso. El tiempo y las horas de luz se obtienen para este lugar los días sin excepción de viaje.",
+          "current": "Actual: {label}",
+          "none": "Aún no hay ubicación principal."
+        },
+        "travel": {
+          "title": "Excepciones de viaje",
+          "description": "Para un rango de fechas que pasaste en otro sitio, define la ubicación para que el tiempo coincida con dónde estuviste realmente.",
+          "none": "Sin excepciones de viaje.",
+          "add": "Añadir {label}",
+          "remove": "Eliminar excepción de viaje"
+        },
+        "backfill": {
+          "title": "Rellenar días pasados",
+          "description": "Obtén y guarda el tiempo de un rango de fechas pasado para que los días anteriores entren en las correlaciones.",
+          "run": "Rellenar"
+        }
       }
     },
     "profile": "Perfil",
@@ -7220,6 +7257,10 @@
     "mcp": {
       "label": "Acceso de asistente externo (MCP)",
       "description": "Permite que un asistente compatible con MCP lea tus datos de salud mediante un token con alcance limitado. Desactivado de forma predeterminada."
+    },
+    "environment": {
+      "label": "Entorno",
+      "description": "Incorpora el tiempo y las horas de luz diarias de tu ubicación para correlacionarlos con el ánimo, el sueño y las constantes. Desactivado por defecto."
     }
   },
   "illness": {
@@ -7670,6 +7711,17 @@
         "updatedToast": "Entrada actualizada",
         "saveError": "No se ha podido guardar la entrada."
       }
+    }
+  },
+  "environment": {
+    "fields": {
+      "tempMean": "Temperatura diaria",
+      "tempMin": "Mínima nocturna",
+      "sunshine": "Sol",
+      "daylight": "Luz diurna",
+      "precip": "Precipitación",
+      "pressureMean": "Presión atmosférica",
+      "pressureDelta": "Variación de presión"
     }
   }
 }

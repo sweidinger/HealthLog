@@ -30,8 +30,15 @@ import type {
 import type { FhirObservationCategory } from "@/lib/fhir/loinc-map";
 import { FEVER_BAND_C } from "@/lib/clinical-floors";
 
-/** Discriminator: a device/manual reading, a lab biomarker, or a computed score. */
-export type SignalKind = "measurement" | "biomarker" | "score";
+/**
+ * Discriminator: a device/manual reading, a lab biomarker, a computed score, or
+ * an environmental exposure. `environment` (v1.25 W-ENV) is NOT backed by a
+ * `MeasurementType` — its daily value lives in `EnvironmentContext` and feeds
+ * the correlation engine through the env channel series builder, not the
+ * measurement-keyed `BUCKETED_TYPES`. It registers here so the env signals get
+ * a stable key + display metadata in the one cross-surface table.
+ */
+export type SignalKind = "measurement" | "biomarker" | "score" | "environment";
 
 /** Reuse the assessment registry's direction vocabulary verbatim. */
 export type SignalDirection = MetricDirection;
@@ -115,6 +122,17 @@ export interface BiomarkerSignalSource {
 }
 
 /**
+ * How an `environment` signal is sourced (v1.25 W-ENV). The value is a daily
+ * `EnvironmentContext` column, surfaced to the correlation engine under
+ * `environmentChannelKey` (the `ENV_*` channel key from
+ * `@/lib/environment/fields`). No `MeasurementType` — env data is never a
+ * Measurement row.
+ */
+export interface EnvironmentSignalSource {
+  environmentChannelKey: string;
+}
+
+/**
  * The canonical cross-surface signal definition, discriminated on `kind`.
  * `measurement` and `score` both resolve to a `MeasurementType`; `biomarker`
  * resolves to a labs-catalog key.
@@ -122,7 +140,8 @@ export interface BiomarkerSignalSource {
 export type SignalDefinition =
   | (SignalCommon & { kind: "measurement"; source: MeasurementSignalSource })
   | (SignalCommon & { kind: "score"; source: MeasurementSignalSource })
-  | (SignalCommon & { kind: "biomarker"; source: BiomarkerSignalSource });
+  | (SignalCommon & { kind: "biomarker"; source: BiomarkerSignalSource })
+  | (SignalCommon & { kind: "environment"; source: EnvironmentSignalSource });
 
 /** Convenience: build a Coach-snapshot facet from a scope token. */
 function coachScope(scope: string): { scope: string } {
@@ -1500,6 +1519,128 @@ export const SIGNALS: Record<string, SignalDefinition> = {
     surfaces: {
       detailPage: false,
       correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  // ── v1.25 (W-ENV) environmental-context module — exposure signals ─────────
+  // Daily weather/daylight, fetched server-side from Open-Meteo for the user's
+  // coarse home (or a travel override) and stored in `EnvironmentContext`. NOT
+  // `MeasurementType`-backed: `correlationEligible:true` declares intent, but
+  // the wiring runs through the env channel series builder, not the
+  // measurement-keyed `BUCKETED_TYPES` (the correlation adapter skips
+  // `kind:"environment"`). Off the Coach snapshot + MCP surfaces in v1
+  // (`coachSnapshot:false ⇒ mcp:false`); no FHIR facet (env observations are
+  // not Measurement rows, so they never enter `MEASUREMENT_LOINC`). Direction is
+  // `target-band` — a neutral exposure, not a "better/worse" vital.
+  ENV_TEMP_MEAN: {
+    key: "ENV_TEMP_MEAN",
+    kind: "environment",
+    source: { environmentChannelKey: "ENV_TEMP_MEAN" },
+    i18nPrefix: "environment.fields.tempMean",
+    displayName: "Daily temperature",
+    unit: "°C",
+    direction: "target-band",
+    archetype: "environmental-exposure",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: true,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  ENV_TEMP_MIN: {
+    key: "ENV_TEMP_MIN",
+    kind: "environment",
+    source: { environmentChannelKey: "ENV_TEMP_MIN" },
+    i18nPrefix: "environment.fields.tempMin",
+    displayName: "Overnight low temperature",
+    unit: "°C",
+    direction: "target-band",
+    archetype: "environmental-exposure",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: true,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  ENV_SUNSHINE: {
+    key: "ENV_SUNSHINE",
+    kind: "environment",
+    source: { environmentChannelKey: "ENV_SUNSHINE" },
+    i18nPrefix: "environment.fields.sunshine",
+    displayName: "Sunshine duration",
+    unit: "h",
+    direction: "target-band",
+    archetype: "environmental-exposure",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: true,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  ENV_DAYLIGHT: {
+    key: "ENV_DAYLIGHT",
+    kind: "environment",
+    source: { environmentChannelKey: "ENV_DAYLIGHT" },
+    i18nPrefix: "environment.fields.daylight",
+    displayName: "Daylight length",
+    unit: "h",
+    direction: "target-band",
+    archetype: "environmental-exposure",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: true,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  ENV_PRECIP: {
+    key: "ENV_PRECIP",
+    kind: "environment",
+    source: { environmentChannelKey: "ENV_PRECIP" },
+    i18nPrefix: "environment.fields.precip",
+    displayName: "Precipitation",
+    unit: "mm",
+    direction: "target-band",
+    archetype: "environmental-exposure",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: true,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  ENV_PRESSURE_MEAN: {
+    key: "ENV_PRESSURE_MEAN",
+    kind: "environment",
+    source: { environmentChannelKey: "ENV_PRESSURE_MEAN" },
+    i18nPrefix: "environment.fields.pressureMean",
+    displayName: "Barometric pressure",
+    unit: "hPa",
+    direction: "target-band",
+    archetype: "environmental-exposure",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: true,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  ENV_PRESSURE_DELTA: {
+    key: "ENV_PRESSURE_DELTA",
+    kind: "environment",
+    source: { environmentChannelKey: "ENV_PRESSURE_DELTA" },
+    i18nPrefix: "environment.fields.pressureDelta",
+    displayName: "Pressure swing",
+    unit: "hPa",
+    direction: "target-band",
+    archetype: "environmental-exposure",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: true,
       coachSnapshot: false,
       mcp: false,
     },

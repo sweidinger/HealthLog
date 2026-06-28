@@ -51,6 +51,19 @@ model User {
   gender      String?   @map("gender") // "MALE" | "FEMALE" | "OTHER" | null = keine Angabe
   timezone    String    @default("Europe/Berlin")
 
+  // v1.25 (W-ENV) — opt-in environmental-context module home location. A coarse,
+  // user-set city (rounded lat/lon, ~city granularity — never a GPS track) the
+  // nightly weather fetch resolves against when no travel override covers the
+  // day. City-level granularity is the privacy floor: the weather model only
+  // needs ~10–25 km. All nullable — an account without the module enabled (or
+  // without a home set) simply has no environment rows. `homeTimezone` anchors
+  // the day-key an observation is stored under (it can differ from the display
+  // `timezone` above for an account that tracks weather for another locale).
+  homeLat      Float?  @map("home_lat")
+  homeLon      Float?  @map("home_lon")
+  homeLabel    String? @map("home_label")
+  homeTimezone String? @map("home_timezone")
+
   // Codex OAuth (ChatGPT subscription)
   codexAccessTokenEncrypted  String?   @map("codex_access_token_encrypted")
   codexRefreshTokenEncrypted String?   @map("codex_refresh_token_encrypted")
@@ -727,6 +740,12 @@ model User {
   // sensitive free-text fields are encrypted at rest.
   allergies                   Allergy[]
   familyHistory               FamilyHistoryEntry[]
+  // v1.25 (W-ENV) — opt-in environmental-context module. `EnvironmentContext`
+  // is the per-day weather/daylight observation keyed to the resolved location;
+  // `EnvironmentTravelLocation` holds the manual date-range travel overrides
+  // that win over the home location for the days they cover.
+  environmentContexts         EnvironmentContext[]
+  environmentTravelLocations  EnvironmentTravelLocation[]
   // v1.19.0 — full Withings ECG waveform recordings (encrypted at rest).
   // The paired AFib verdict still lands as an IRREGULAR_RHYTHM_NOTIFICATION
   // Measurement EVENT row (v1.18.11); this holds the raw signal samples.
@@ -780,6 +799,99 @@ model User {
   inviteRedemptions InviteRedemption[] @relation("InviteRedemptions")
 
   @@map("users")
+}
+
+// ─── v1.25 (W-ENV) Environmental-context module ──────────────────────────────
+
+/// How the location for an environment observation was resolved. HOME = the
+/// user's configured home location; TRAVEL = a manual date-range override.
+/// (iOS coarse device location is a v2 follow-up and not represented here.)
+enum EnvironmentLocationSource {
+  HOME
+  TRAVEL
+}
+
+/// A per-day environmental observation (daily weather / daylight) for the
+/// location resolved for that day. Day-keyed exactly like the rollup tier:
+/// `date` is a YYYY-MM-DD string anchored to the location's IANA timezone, so a
+/// late-evening reading does not mis-bucket under UTC. One row per (user, day);
+/// a re-fetch upserts (the archive feed settles over a few days). All weather
+/// fields are nullable so a partial feed still stores what it has. The location
+/// stored here is coarse (city granularity) — never a GPS track.
+model EnvironmentContext {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// YYYY-MM-DD anchored to the resolved location's timezone.
+  date String
+
+  /// Coarse resolved location for the day (rounded lat/lon + label + the source
+  /// that won precedence).
+  lat           Float
+  lon           Float
+  locationLabel String                    @map("location_label")
+  source        EnvironmentLocationSource
+
+  /// Daily temperature (°C). Min doubles as the overnight-low proxy.
+  tempMin      Float? @map("temp_min")
+  tempMax      Float? @map("temp_max")
+  tempMean     Float? @map("temp_mean")
+  /// Daily apparent ("feels-like") mean (°C).
+  apparentMean Float? @map("apparent_mean")
+
+  /// Sunshine + daylight, stored in seconds (the feed's native unit).
+  sunshineSec Int? @map("sunshine_sec")
+  daylightSec Int? @map("daylight_sec")
+
+  /// Precipitation total (mm) over the local day.
+  precipSum Float? @map("precip_sum")
+
+  /// Pressure aggregated from the hourly feed: daily mean (hPa) + the intraday
+  /// delta (max−min, hPa) — the derived feature for the headache/symptom overlay.
+  pressureMean  Float? @map("pressure_mean")
+  pressureDelta Float? @map("pressure_delta")
+
+  /// Relative humidity mean (%) and cloud-cover mean (%) from the hourly feed.
+  humidityMean Float? @map("humidity_mean")
+  cloudMean    Float? @map("cloud_mean")
+
+  /// WMO weather code for the day (descriptive condition lookup).
+  weatherCode Int? @map("weather_code")
+
+  /// When the row was last fetched/refreshed from the upstream feed.
+  fetchedAt DateTime @default(now()) @map("fetched_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("environment_contexts")
+}
+
+/// A manual travel override: for any day in `[startDate, endDate]` the weather
+/// fetch resolves against this location instead of the home location. Declared,
+/// not inferred — a stated trip dominates the home fallback so a winter week in
+/// a sunny locale is not mis-attributed to the home city. Coarse location only.
+model EnvironmentTravelLocation {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Inclusive YYYY-MM-DD range (anchored to the user's home timezone for the
+  /// day-key the override matches against).
+  startDate String @map("start_date")
+  endDate   String @map("end_date")
+
+  lat   Float
+  lon   Float
+  label String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, startDate, endDate])
+  @@map("environment_travel_locations")
 }
 
 model Passkey {
@@ -1158,37 +1270,37 @@ enum AssessmentInstrument {
 /// administration (linked by `externalId = assessment:<id>`) so the score rides
 /// the existing chart / rollup infra — the trend, never the item content.
 model MentalHealthAssessment {
-  id           String               @id @default(cuid())
-  userId       String               @map("user_id")
-  instrument   AssessmentInstrument
+  id                 String               @id @default(cuid())
+  userId             String               @map("user_id")
+  instrument         AssessmentInstrument
   /// The validated translation actually presented (officially-validated wording
   /// per locale, English fallback otherwise — recorded for the audit trail).
-  locale       String
+  locale             String
   /// Instrument variant identifier (e.g. "standard"); future-proofs revisions.
-  version      String               @default("standard")
+  version            String               @default("standard")
   /// Encrypted JSON blob: { items: number[], functionalDifficulty?: 0..3, schema: 1 }.
   /// AES-256-GCM via the shared Bytes codec; registered in ENCRYPTED_COLUMNS +
   /// the rotation script. The item-9 raw value lives ONLY here.
-  responsesEncrypted Bytes          @map("responses_encrypted")
+  responsesEncrypted Bytes                @map("responses_encrypted")
   /// Derived total (PHQ-9 0–27, GAD-7 0–21). Denormalised for fast reads.
-  totalScore   Int                  @map("total_score")
+  totalScore         Int                  @map("total_score")
   /// Derived severity band label (server-authoritative; descriptive, never a diagnosis).
-  severityBand String               @map("severity_band")
+  severityBand       String               @map("severity_band")
   /// PHQ-9 only: item 9 (self-harm ideation) answered > 0. A coarse boolean so
   /// the history view can re-surface crisis resources without decrypting.
-  item9Flagged Boolean              @default(false) @map("item9_flagged")
+  item9Flagged       Boolean              @default(false) @map("item9_flagged")
   /// Audit stamp: the supportive crisis-resource signpost was shown to the user.
   /// Never triggers any third-party alert — private, on-device-only signposting.
-  crisisShownAt DateTime?           @map("crisis_shown_at")
+  crisisShownAt      DateTime?            @map("crisis_shown_at")
   /// Recall-window anchor (when the screener was taken).
-  takenAt      DateTime             @map("taken_at")
-  tz           String?
-  source       String               @default("WEB")
-  externalId   String?              @map("external_id")
-  syncVersion  Int                  @default(0) @map("sync_version")
-  deletedAt    DateTime?            @map("deleted_at")
-  createdAt    DateTime             @default(now()) @map("created_at")
-  updatedAt    DateTime             @updatedAt @map("updated_at")
+  takenAt            DateTime             @map("taken_at")
+  tz                 String?
+  source             String               @default("WEB")
+  externalId         String?              @map("external_id")
+  syncVersion        Int                  @default(0) @map("sync_version")
+  deletedAt          DateTime?            @map("deleted_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2537,26 +2649,26 @@ model MedicationInventoryItem {
 ///   - (userId, occurredAt DESC) — Coach snapshot aggregation read
 ///     path; correlation across medications is per-user, not per-drug.
 model MedicationSideEffect {
-  id           String                       @id @default(cuid())
-  userId       String                       @map("user_id")
-  medicationId String                       @map("medication_id")
-  occurredAt   DateTime                     @default(now()) @map("occurred_at")
-  category     MedicationSideEffectCategory
-  entry        MedicationSideEffectEntry
+  id             String                       @id @default(cuid())
+  userId         String                       @map("user_id")
+  medicationId   String                       @map("medication_id")
+  occurredAt     DateTime                     @default(now()) @map("occurred_at")
+  category       MedicationSideEffectCategory
+  entry          MedicationSideEffectEntry
   /// 1 = mild, 2 = moderate, 3 = significant, 4 = severe, 5 = very-severe.
   /// Constrained to [1, 5] at the application layer (Zod) and the DB
   /// (CHECK constraint via migration). Not an enum to keep cardinality
   /// trivially numeric for chart aggregation.
-  severity     Int
+  severity       Int
   /// Optional free-text note, hard-capped to 280 chars at the
   /// application layer. The DB column is unbounded TEXT for
   /// consistency with sibling "notes" columns on this schema.
-  notes        String?
+  notes          String?
   /// v1.25 — AES-256-GCM ciphertext for `notes`. The plaintext column
   /// stays for read-fallback until the backfill reports zero remaining
   /// rows; the plaintext drop is DEFERRED to a later release.
-  notesEncrypted Bytes?                     @map("notes_encrypted")
-  createdAt    DateTime                     @default(now()) @map("created_at")
+  notesEncrypted Bytes?                       @map("notes_encrypted")
+  createdAt      DateTime                     @default(now()) @map("created_at")
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
@@ -5254,28 +5366,28 @@ enum AllergyStatus {
 /// and notes are encrypted at rest. Patient-reported; the export carries a
 /// "not a clinical diagnosis" guard rail.
 model Allergy {
-  id        String           @id @default(cuid())
-  userId    String           @map("user_id")
+  id                String           @id @default(cuid())
+  userId            String           @map("user_id")
   /// User-facing substance/allergen name, e.g. "Penicillin", "Peanuts".
   /// Queryable plaintext label (the medication.name / illness.label
   /// precedent); rides FHIR `code.text`.
-  substance String
-  category  AllergyCategory  @default(OTHER)
-  type      AllergyType      @default(ALLERGY)
+  substance         String
+  category          AllergyCategory  @default(OTHER)
+  type              AllergyType      @default(ALLERGY)
   /// Worst observed reaction severity. NULL = not assessed.
-  severity  AllergySeverity?
-  status    AllergyStatus    @default(ACTIVE)
+  severity          AllergySeverity?
+  status            AllergyStatus    @default(ACTIVE)
   /// When the allergy was first noticed (UTC instant). NULL = unknown.
-  onsetAt   DateTime?        @map("onset_at")
+  onsetAt           DateTime?        @map("onset_at")
   /// AES-256-GCM ciphertext of the free-text reaction/manifestation
   /// description (e.g. "anaphylaxis", "hives"). Bytes via the shared codec.
-  reactionEncrypted Bytes?   @map("reaction_encrypted")
+  reactionEncrypted Bytes?           @map("reaction_encrypted")
   /// AES-256-GCM ciphertext of an optional free-text note. Bytes column.
-  notesEncrypted    Bytes?   @map("notes_encrypted")
-  createdAt DateTime         @default(now()) @map("created_at")
-  updatedAt DateTime         @updatedAt @map("updated_at")
+  notesEncrypted    Bytes?           @map("notes_encrypted")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
   /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
-  deletedAt DateTime?        @map("deleted_at")
+  deletedAt         DateTime?        @map("deleted_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -5312,20 +5424,20 @@ enum FamilyRelationship {
 /// code); `ageAtOnset` is the relative's age when the condition began. The
 /// optional free-text note is encrypted at rest. Patient-reported.
 model FamilyHistoryEntry {
-  id           String             @id @default(cuid())
-  userId       String             @map("user_id")
-  relationship FamilyRelationship
+  id             String             @id @default(cuid())
+  userId         String             @map("user_id")
+  relationship   FamilyRelationship
   /// User-facing condition name, e.g. "Type 2 diabetes", "Breast cancer".
   /// Queryable plaintext label; rides FHIR `condition.code.text`.
-  condition    String
+  condition      String
   /// The relative's age (years) when the condition began. NULL = unknown.
-  ageAtOnset   Int?               @map("age_at_onset")
+  ageAtOnset     Int?               @map("age_at_onset")
   /// AES-256-GCM ciphertext of an optional free-text note. Bytes column.
-  notesEncrypted Bytes?           @map("notes_encrypted")
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
+  notesEncrypted Bytes?             @map("notes_encrypted")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
   /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
-  deletedAt    DateTime?          @map("deleted_at")
+  deletedAt      DateTime?          @map("deleted_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

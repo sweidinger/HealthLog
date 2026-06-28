@@ -4279,6 +4279,43 @@
         "title": "Medical history",
         "subtitle": "Manage your allergies and family history.",
         "description": "Structured allergies and family history records."
+      },
+      "environment": {
+        "title": "Environment",
+        "subtitle": "Weather, daylight, and location context.",
+        "disabledHint": "Turn on the Environment module to set a home location and pull in daily weather and daylight.",
+        "searchPlaceholder": "Search for a city",
+        "search": "Search",
+        "searchError": "Could not search for that place.",
+        "use": "Use",
+        "select": "Select",
+        "saveError": "Could not save your change.",
+        "homeSaved": "Home location saved.",
+        "travelAdded": "Travel override added.",
+        "travelRemoved": "Travel override removed.",
+        "backfillQueued": "Backfill queued.",
+        "backfillError": "Could not start the backfill.",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "storedDays": "{count} days of weather stored.",
+        "home": {
+          "title": "Home location",
+          "description": "A coarse, city-level location — never a precise track. Weather and daylight are fetched for this place on days no travel override applies.",
+          "current": "Current: {label}",
+          "none": "No home location set yet."
+        },
+        "travel": {
+          "title": "Travel overrides",
+          "description": "For a date range you spent elsewhere, set the location so the weather matches where you actually were.",
+          "none": "No travel overrides.",
+          "add": "Add {label}",
+          "remove": "Remove travel override"
+        },
+        "backfill": {
+          "title": "Backfill past days",
+          "description": "Fetch and store weather for a past date range so older days can join the correlations.",
+          "run": "Backfill"
+        }
       }
     },
     "profile": "Profile",
@@ -7220,6 +7257,10 @@
     "mcp": {
       "label": "External assistant access (MCP)",
       "description": "Let an MCP-capable assistant read your health data over a scoped token. Off by default."
+    },
+    "environment": {
+      "label": "Environment",
+      "description": "Pull in daily weather and daylight for your location to correlate with mood, sleep, and vitals. Off by default."
     }
   },
   "illness": {
@@ -7670,6 +7711,17 @@
         "updatedToast": "Entry updated",
         "saveError": "Couldn't save the entry."
       }
+    }
+  },
+  "environment": {
+    "fields": {
+      "tempMean": "Daily temperature",
+      "tempMin": "Overnight low",
+      "sunshine": "Sunshine",
+      "daylight": "Daylight",
+      "precip": "Precipitation",
+      "pressureMean": "Barometric pressure",
+      "pressureDelta": "Pressure swing"
     }
   }
 }

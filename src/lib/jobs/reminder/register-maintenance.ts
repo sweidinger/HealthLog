@@ -75,6 +75,13 @@ import {
   handleEncryptionKeyRotate,
   type EncryptionKeyRotatePayload,
 } from "@/lib/jobs/encryption-key-rotate";
+import {
+  ENVIRONMENT_FETCH_QUEUE,
+  ENVIRONMENT_FETCH_CRON,
+  ENVIRONMENT_FETCH_CONCURRENCY,
+  handleEnvironmentFetch,
+  type EnvironmentFetchPayload,
+} from "@/lib/jobs/environment-fetch";
 import { recordError } from "@/lib/jobs/worker-status";
 import { workerLog, BOOT_BACKFILL_STAGGER_SECONDS } from "./shared";
 import { createAndSchedule, type ScheduleEntry } from "./registrar-shared";
@@ -216,6 +223,12 @@ const MCP_TOKEN_CLEANUP_CRON = "0 4 * * *";
 const MED_NOTES_ENCRYPTION_BACKFILL_CRON = "5 4 * * *";
 
 const allQueues = [
+  // v1.25 (W-ENV) — nightly environmental-context fetch. A daily discovery tick
+  // fans out one per-user job per opted-in account with a home location; the
+  // queue also serves the on-demand backfill from the Environment settings
+  // surface. Without this entry pg-boss never provisions it and both the cron
+  // and the backfill button silently no-op.
+  ENVIRONMENT_FETCH_QUEUE,
   DATA_BACKUP_QUEUE,
   RATE_LIMIT_CLEANUP_QUEUE,
   IDEMPOTENCY_CLEANUP_QUEUE,
@@ -277,6 +290,9 @@ const allQueues = [
 ];
 
 const schedules: ScheduleEntry[] = [
+  // v1.25 (W-ENV) — daily 02:10 Europe/Berlin discovery tick (empty payload)
+  // that fans out one per-user environment fetch per opted-in account.
+  [ENVIRONMENT_FETCH_QUEUE, ENVIRONMENT_FETCH_CRON],
   [DATA_BACKUP_QUEUE, DATA_BACKUP_CRON],
   [RATE_LIMIT_CLEANUP_QUEUE, RATE_LIMIT_CLEANUP_CRON],
   [IDEMPOTENCY_CLEANUP_QUEUE, IDEMPOTENCY_CLEANUP_CRON],
@@ -597,6 +613,20 @@ export async function registerMaintenanceQueues(
           );
           throw err;
         }
+      }
+    },
+  );
+
+  // v1.25 (W-ENV) — nightly environment fetch. The daily discovery tick (empty
+  // payload) fans out one per-user job per opted-in account; the queue also
+  // serves the on-demand backfill payloads from the settings surface. Serial
+  // concurrency so the staggered outbound fetches never crowd the request pool.
+  await boss.work<EnvironmentFetchPayload>(
+    ENVIRONMENT_FETCH_QUEUE,
+    { localConcurrency: ENVIRONMENT_FETCH_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        await handleEnvironmentFetch(boss, job.data);
       }
     },
   );

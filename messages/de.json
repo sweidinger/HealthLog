@@ -4279,6 +4279,43 @@
         "title": "Anamnese",
         "subtitle": "Verwalte deine Allergien und deine Familienanamnese.",
         "description": "Strukturierte Datensätze zu Allergien und Familienanamnese."
+      },
+      "environment": {
+        "title": "Umwelt",
+        "subtitle": "Wetter, Tageslicht und Standort-Kontext.",
+        "disabledHint": "Aktiviere das Umwelt-Modul, um einen Heimatort festzulegen und tägliches Wetter und Tageslicht abzurufen.",
+        "searchPlaceholder": "Stadt suchen",
+        "search": "Suchen",
+        "searchError": "Ort konnte nicht gesucht werden.",
+        "use": "Verwenden",
+        "select": "Auswählen",
+        "saveError": "Änderung konnte nicht gespeichert werden.",
+        "homeSaved": "Heimatort gespeichert.",
+        "travelAdded": "Reise-Ausnahme hinzugefügt.",
+        "travelRemoved": "Reise-Ausnahme entfernt.",
+        "backfillQueued": "Nacherfassung eingeplant.",
+        "backfillError": "Nacherfassung konnte nicht gestartet werden.",
+        "startDate": "Startdatum",
+        "endDate": "Enddatum",
+        "storedDays": "{count} Tage Wetter gespeichert.",
+        "home": {
+          "title": "Heimatort",
+          "description": "Ein grober Ort auf Stadtebene – niemals ein genauer Standortverlauf. Wetter und Tageslicht werden für diesen Ort an allen Tagen ohne Reise-Ausnahme abgerufen.",
+          "current": "Aktuell: {label}",
+          "none": "Noch kein Heimatort festgelegt."
+        },
+        "travel": {
+          "title": "Reise-Ausnahmen",
+          "description": "Für einen Zeitraum, den du woanders verbracht hast, den Ort festlegen, damit das Wetter zu deinem tatsächlichen Aufenthalt passt.",
+          "none": "Keine Reise-Ausnahmen.",
+          "add": "{label} hinzufügen",
+          "remove": "Reise-Ausnahme entfernen"
+        },
+        "backfill": {
+          "title": "Vergangene Tage nacherfassen",
+          "description": "Wetter für einen vergangenen Zeitraum abrufen und speichern, damit ältere Tage in die Korrelationen einfließen.",
+          "run": "Nacherfassen"
+        }
       }
     },
     "profile": "Profil",
@@ -7220,6 +7257,10 @@
     "mcp": {
       "label": "Externer Assistentenzugriff (MCP)",
       "description": "Einem MCP-fähigen Assistenten Lesezugriff auf deine Gesundheitsdaten über ein begrenztes Token erlauben. Standardmäßig aus."
+    },
+    "environment": {
+      "label": "Umwelt",
+      "description": "Tägliches Wetter und Tageslicht für deinen Ort einbeziehen, um Zusammenhänge mit Stimmung, Schlaf und Vitalwerten zu erkennen. Standardmäßig aus."
     }
   },
   "illness": {
@@ -7670,6 +7711,17 @@
         "updatedToast": "Eintrag aktualisiert",
         "saveError": "Der Eintrag konnte nicht gespeichert werden."
       }
+    }
+  },
+  "environment": {
+    "fields": {
+      "tempMean": "Tagestemperatur",
+      "tempMin": "Nachttiefstwert",
+      "sunshine": "Sonnenschein",
+      "daylight": "Tageslicht",
+      "precip": "Niederschlag",
+      "pressureMean": "Luftdruck",
+      "pressureDelta": "Druckschwankung"
     }
   }
 }

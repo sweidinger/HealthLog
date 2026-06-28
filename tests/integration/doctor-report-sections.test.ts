@@ -317,6 +317,7 @@ describe("doctor-report — module enable/disable gating", () => {
     insights: true,
     medications: true,
     doctorReport: true,
+    environment: true,
     mcp: true,
   } as const;
 

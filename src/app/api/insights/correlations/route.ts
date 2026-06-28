@@ -39,6 +39,7 @@ import {
 } from "@/lib/insights/correlation-discovery";
 import {
   fetchComplianceSeries,
+  fetchEnvironmentSeries,
   fetchLabDraws,
   fetchSymptomSeries,
 } from "@/lib/insights/correlation-channel-series";
@@ -152,11 +153,16 @@ export const GET = apiHandler(async () => {
   // their own sources. Each degrades to an empty series when the user has no
   // data, so the discovery loop drops the channel (it cannot clear n ≥ 20).
   // v1.22 — lab draws (for the labs ↔ outcome pass) fetch alongside.
-  const [complianceSeries, symptomSeries, labDraws] = await Promise.all([
-    fetchComplianceSeries(user.id, tz, since),
-    fetchSymptomSeries(user.id, tz, since),
-    fetchLabDraws(user.id, tz, since),
-  ]);
+  const [complianceSeries, symptomSeries, labDraws, environmentSeries] =
+    await Promise.all([
+      fetchComplianceSeries(user.id, tz, since),
+      fetchSymptomSeries(user.id, tz, since),
+      fetchLabDraws(user.id, tz, since),
+      // v1.25 (W-ENV) — environmental-exposure behaviour channels (weather /
+      // daylight). Empty when the module is off / no home set, so the channels
+      // degrade to absent. The module gate is implicit: no rows ⇒ no channels.
+      fetchEnvironmentSeries(user.id, since),
+    ]);
 
   const points = (key: string): DailySeriesPoint[] =>
     key === "MOOD"
@@ -179,6 +185,12 @@ export const GET = apiHandler(async () => {
     } else {
       series.push({ key, role: "outcome", points: points(key) });
     }
+  }
+  // v1.25 (W-ENV) — fold the environmental-exposure behaviour channels in. They
+  // pair (lag D → D+1) against every outcome above; the n ≥ 20 / FDR / effect-
+  // size gates apply unchanged, so a thin weather series degrades to absent.
+  for (const envSeries of environmentSeries) {
+    series.push(envSeries);
   }
 
   const result = discoverCorrelations(series);
@@ -213,6 +225,13 @@ export const GET = apiHandler(async () => {
       emerging_window_days: emerging.windowDays,
       lab_draws: labDraws.length,
       lab_correlations: labCorrelations.discovered.length,
+      // v1.25 (W-ENV) — env channel reach (sum of stored daily points across
+      // the exposure channels) so a dashboard can see whether weather was
+      // available for the scan.
+      environment_days: environmentSeries.reduce(
+        (sum, s) => sum + s.points.length,
+        0,
+      ),
     },
   });
 

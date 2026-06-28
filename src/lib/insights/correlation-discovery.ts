@@ -39,6 +39,10 @@
  * link. The series builders live in `correlation-series-builders.ts`.
  */
 import { pearson, MIN_PAIRED_N } from "@/lib/insights/correlations";
+import {
+  getEnvironmentField,
+  isEnvironmentChannelKey,
+} from "@/lib/environment/fields";
 
 /** Default Benjamini-Hochberg target false-discovery rate. */
 export const FDR_Q = 0.1;
@@ -102,6 +106,12 @@ export function metricFamily(key: string): string {
   // tautology as MOOD→MOOD and is excluded too.
   if (key.startsWith(FACTOR_CHANNEL_PREFIX) || key === "MOOD") return "MOOD";
   if (key.startsWith("BLOOD_PRESSURE")) return "BLOOD_PRESSURE";
+  // v1.25 (W-ENV) — every environmental-exposure channel (ENV_TEMP_MEAN,
+  // ENV_DAYLIGHT, …) shares ONE family so the same-family guard never
+  // lag-correlates two same-day weather fields against each other (a
+  // near-tautology). They stay free to pair cross-domain against mood / sleep /
+  // vitals — the whole point of the module.
+  if (key.startsWith("ENV_")) return "ENVIRONMENT";
   // v1.21.0 (FDREXTEND) — medication compliance and symptom severity each form
   // their OWN single-channel family, so the loop's same-family guard collapses
   // only the self-lag (compliance→compliance, symptom→symptom). The returned
@@ -311,6 +321,11 @@ function interpret(
 function humanise(key: string): string {
   if (key.startsWith("FACTOR:")) {
     return `rated ${key.slice("FACTOR:".length).replace(/[_-]/g, " ").toLowerCase()}`;
+  }
+  // v1.25 (W-ENV) — env channels read with their descriptive label ("daily
+  // temperature", "daylight") rather than the raw "env temp mean" key.
+  if (isEnvironmentChannelKey(key)) {
+    return getEnvironmentField(key)?.narrationLabel ?? key.toLowerCase();
   }
   return key.replace(/_/g, " ").toLowerCase();
 }

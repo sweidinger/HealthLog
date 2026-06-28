@@ -4279,6 +4279,43 @@
         "title": "Antécédents médicaux",
         "subtitle": "Gérez vos allergies et vos antécédents familiaux.",
         "description": "Dossiers structurés des allergies et des antécédents familiaux."
+      },
+      "environment": {
+        "title": "Environnement",
+        "subtitle": "Contexte météo, lumière du jour et lieu.",
+        "disabledHint": "Activez le module Environnement pour définir un lieu de référence et intégrer la météo et la durée du jour quotidiennes.",
+        "searchPlaceholder": "Rechercher une ville",
+        "search": "Rechercher",
+        "searchError": "Impossible de rechercher ce lieu.",
+        "use": "Utiliser",
+        "select": "Sélectionner",
+        "saveError": "Impossible d'enregistrer la modification.",
+        "homeSaved": "Lieu de référence enregistré.",
+        "travelAdded": "Exception de voyage ajoutée.",
+        "travelRemoved": "Exception de voyage supprimée.",
+        "backfillQueued": "Récupération planifiée.",
+        "backfillError": "Impossible de lancer la récupération.",
+        "startDate": "Date de début",
+        "endDate": "Date de fin",
+        "storedDays": "{count} jours de météo enregistrés.",
+        "home": {
+          "title": "Lieu de référence",
+          "description": "Un lieu approximatif à l'échelle de la ville, jamais un suivi précis. La météo et la durée du jour sont récupérées pour ce lieu les jours sans exception de voyage.",
+          "current": "Actuel : {label}",
+          "none": "Aucun lieu de référence défini."
+        },
+        "travel": {
+          "title": "Exceptions de voyage",
+          "description": "Pour une période passée ailleurs, définissez le lieu afin que la météo corresponde à l'endroit où vous étiez réellement.",
+          "none": "Aucune exception de voyage.",
+          "add": "Ajouter {label}",
+          "remove": "Supprimer l'exception de voyage"
+        },
+        "backfill": {
+          "title": "Récupérer les jours passés",
+          "description": "Récupérez et enregistrez la météo d'une période passée pour que les jours plus anciens entrent dans les corrélations.",
+          "run": "Récupérer"
+        }
       }
     },
     "profile": "Profil",
@@ -7220,6 +7257,10 @@
     "mcp": {
       "label": "Accès assistant externe (MCP)",
       "description": "Autorise un assistant compatible MCP à lire vos données de santé via un jeton à portée limitée. Désactivé par défaut."
+    },
+    "environment": {
+      "label": "Environnement",
+      "description": "Intégrez la météo et la durée du jour quotidiennes de votre lieu pour les corréler à l'humeur, au sommeil et aux constantes. Désactivé par défaut."
     }
   },
   "illness": {
@@ -7670,6 +7711,17 @@
         "updatedToast": "Entrée mise à jour",
         "saveError": "Impossible d'enregistrer l'entrée."
       }
+    }
+  },
+  "environment": {
+    "fields": {
+      "tempMean": "Température quotidienne",
+      "tempMin": "Minimale nocturne",
+      "sunshine": "Ensoleillement",
+      "daylight": "Durée du jour",
+      "precip": "Précipitations",
+      "pressureMean": "Pression atmosphérique",
+      "pressureDelta": "Variation de pression"
     }
   }
 }

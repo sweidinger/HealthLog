@@ -4279,6 +4279,43 @@
         "title": "Wywiad medyczny",
         "subtitle": "Zarządzaj swoimi alergiami i wywiadem rodzinnym.",
         "description": "Ustrukturyzowane rekordy alergii i wywiadu rodzinnego."
+      },
+      "environment": {
+        "title": "Środowisko",
+        "subtitle": "Kontekst pogody, światła dziennego i lokalizacji.",
+        "disabledHint": "Włącz moduł Środowisko, aby ustawić lokalizację domową i pobierać dzienną pogodę oraz długość dnia.",
+        "searchPlaceholder": "Szukaj miasta",
+        "search": "Szukaj",
+        "searchError": "Nie udało się wyszukać tego miejsca.",
+        "use": "Użyj",
+        "select": "Wybierz",
+        "saveError": "Nie udało się zapisać zmiany.",
+        "homeSaved": "Zapisano lokalizację domową.",
+        "travelAdded": "Dodano wyjątek podróży.",
+        "travelRemoved": "Usunięto wyjątek podróży.",
+        "backfillQueued": "Zaplanowano uzupełnianie.",
+        "backfillError": "Nie udało się rozpocząć uzupełniania.",
+        "startDate": "Data początkowa",
+        "endDate": "Data końcowa",
+        "storedDays": "Zapisano dni pogody: {count}.",
+        "home": {
+          "title": "Lokalizacja domowa",
+          "description": "Przybliżona lokalizacja na poziomie miasta — nigdy dokładny ślad. Pogoda i długość dnia są pobierane dla tego miejsca w dni bez wyjątku podróży.",
+          "current": "Obecnie: {label}",
+          "none": "Nie ustawiono jeszcze lokalizacji domowej."
+        },
+        "travel": {
+          "title": "Wyjątki podróży",
+          "description": "Dla zakresu dat spędzonego gdzie indziej ustaw lokalizację, aby pogoda odpowiadała temu, gdzie naprawdę byłeś.",
+          "none": "Brak wyjątków podróży.",
+          "add": "Dodaj {label}",
+          "remove": "Usuń wyjątek podróży"
+        },
+        "backfill": {
+          "title": "Uzupełnij minione dni",
+          "description": "Pobierz i zapisz pogodę dla minionego zakresu dat, aby starsze dni weszły do korelacji.",
+          "run": "Uzupełnij"
+        }
       }
     },
     "profile": "Profil",
@@ -7220,6 +7257,10 @@
     "mcp": {
       "label": "Dostęp asystenta zewnętrznego (MCP)",
       "description": "Pozwól asystentowi obsługującemu MCP czytać Twoje dane zdrowotne za pomocą tokena o ograniczonym zakresie. Domyślnie wyłączone."
+    },
+    "environment": {
+      "label": "Środowisko",
+      "description": "Pobieraj dzienną pogodę i długość dnia dla swojej lokalizacji, aby powiązać je z nastrojem, snem i parametrami życiowymi. Domyślnie wyłączone."
     }
   },
   "illness": {
@@ -7670,6 +7711,17 @@
         "updatedToast": "Wpis zaktualizowany",
         "saveError": "Nie udało się zapisać wpisu."
       }
+    }
+  },
+  "environment": {
+    "fields": {
+      "tempMean": "Temperatura dzienna",
+      "tempMin": "Minimum nocne",
+      "sunshine": "Nasłonecznienie",
+      "daylight": "Światło dzienne",
+      "precip": "Opady",
+      "pressureMean": "Ciśnienie atmosferyczne",
+      "pressureDelta": "Wahanie ciśnienia"
     }
   }
 }
