@@ -7056,8 +7056,10 @@ paths:
       tags:
         - Labs
       summary: Record a lab result
-      description: Creates a single lab result for the caller. `source` is hardcoded MANUAL on this path. The optional note is
-        AES-256-GCM encrypted before write. Audits as `labResult.create`.
+      description: Creates a single lab result for the caller. The optional `source` marks provenance (`"MANUAL"` | `"OCR"`);
+        it defaults to `"MANUAL"` when omitted, so the legacy hand-entry contract is unchanged. The on-device-OCR client
+        posts `"OCR"` after the human confirms the parsed values — the raw image never touches the server on this path.
+        The optional note is AES-256-GCM encrypted before write. Audits as `labResult.create`.
       requestBody:
         required: true
         content:
@@ -7104,6 +7106,11 @@ paths:
                       maxLength: 2000
                     - type: string
                       const: ""
+                source:
+                  type: string
+                  enum:
+                    - MANUAL
+                    - OCR
               required:
                 - takenAt
       responses:

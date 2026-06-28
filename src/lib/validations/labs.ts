@@ -79,6 +79,16 @@ const biomarkerId = z.string().trim().min(1).max(64).optional();
  */
 const valueText = requiredText(120).optional();
 
+/**
+ * v1.25 (iOS #36) — optional provenance marker. The on-device-OCR ingestion
+ * path posts `source: "OCR"` so a reading captured from a phone-camera lab
+ * photo records its provenance; the raw image never touches the server on this
+ * path. Omitting the field reads as `"MANUAL"`, preserving the legacy
+ * hand-entry contract exactly. Mirrors the `source: "OCR"` the server-side
+ * `/api/labs/ocr/commit` path already stamps.
+ */
+const source = z.enum(["MANUAL", "OCR"]).optional();
+
 export const createLabResultSchema = z
   .object({
     biomarkerId,
@@ -93,6 +103,7 @@ export const createLabResultSchema = z
     referenceHigh,
     takenAt: takenAtField,
     note: optionalNote,
+    source,
   })
   // Either a catalog link OR a free-text analyte must be present.
   .refine((d) => d.biomarkerId !== undefined || d.analyte !== undefined, {
