@@ -89,6 +89,89 @@ describe("lookupNormalRange — the age/sex reference-range enabler", () => {
   });
 });
 
+describe("grip strength — age × sex bands (Dodds 2014 / EWGSOP2 floor)", () => {
+  it("steps the band down with age (younger reads against a higher norm)", () => {
+    // Male 30s centre 34.5 → {38,51}; male 70s centre 74.5 → {29,39}.
+    const young = lookupNormalRange("GRIP_STRENGTH", 34.5, "MALE")!;
+    const old = lookupNormalRange("GRIP_STRENGTH", 74.5, "MALE")!;
+    expect(young).toEqual({ low: 38, high: 51 });
+    expect(old).toEqual({ low: 29, high: 39 });
+    expect(young.low).toBeGreaterThan(old.low);
+    expect(young.high).toBeGreaterThan(old.high);
+  });
+
+  it("classifies by sex within the same age (male band sits above female)", () => {
+    const male = lookupNormalRange("GRIP_STRENGTH", 44.5, "MALE")!;
+    const female = lookupNormalRange("GRIP_STRENGTH", 44.5, "FEMALE")!;
+    expect(male.low).toBeGreaterThan(female.low);
+    expect(male.high).toBeGreaterThan(female.high);
+  });
+
+  it("never drops the low below the EWGSOP2 cut-off at the oldest band", () => {
+    // 80+ centre 100: male low floored at 27, female low floored at 16.
+    expect(lookupNormalRange("GRIP_STRENGTH", 100, "MALE")!.low).toBe(27);
+    expect(lookupNormalRange("GRIP_STRENGTH", 100, "FEMALE")!.low).toBe(16);
+    // Even past the oldest centre the clamp holds the floor.
+    expect(lookupNormalRange("GRIP_STRENGTH", 110, "MALE")!.low).toBe(27);
+  });
+
+  it("falls back to the sex cut-off band when age is absent", () => {
+    expect(lookupNormalRange("GRIP_STRENGTH", null, "MALE")).toEqual({
+      low: 27,
+      high: 60,
+    });
+    expect(lookupNormalRange("GRIP_STRENGTH", undefined, "FEMALE")).toEqual({
+      low: 16,
+      high: 60,
+    });
+  });
+
+  it("returns null when sex is absent (no honest sex-specific band)", () => {
+    expect(lookupNormalRange("GRIP_STRENGTH", 40, null)).toBeNull();
+    expect(lookupNormalRange("GRIP_STRENGTH", null, null)).toBeNull();
+  });
+});
+
+describe("waist circumference — age × sex bands (WHO, raised for elderly)", () => {
+  it("holds the WHO threshold through midlife, raising it for older adults", () => {
+    // Male 18-49 centre 33.5 → {0,94}; 80+ centre 100 → {0,102}.
+    const adult = lookupNormalRange("WAIST_CIRCUMFERENCE", 33.5, "MALE")!;
+    const elderly = lookupNormalRange("WAIST_CIRCUMFERENCE", 100, "MALE")!;
+    expect(adult).toEqual({ low: 0, high: 94 });
+    expect(elderly).toEqual({ low: 0, high: 102 });
+    expect(elderly.high).toBeGreaterThan(adult.high);
+  });
+
+  it("classifies by sex (the female threshold sits below the male)", () => {
+    const male = lookupNormalRange("WAIST_CIRCUMFERENCE", 100, "MALE")!;
+    const female = lookupNormalRange("WAIST_CIRCUMFERENCE", 100, "FEMALE")!;
+    expect(female.high).toBeLessThan(male.high);
+    expect(female).toEqual({ low: 0, high: 88 });
+  });
+
+  it("never lowers the threshold below the standard WHO floor", () => {
+    for (const age of [18, 25, 40, 55, 65, 75, 90]) {
+      expect(
+        lookupNormalRange("WAIST_CIRCUMFERENCE", age, "MALE")!.high,
+      ).toBeGreaterThanOrEqual(94);
+      expect(
+        lookupNormalRange("WAIST_CIRCUMFERENCE", age, "FEMALE")!.high,
+      ).toBeGreaterThanOrEqual(80);
+    }
+  });
+
+  it("falls back to the standard WHO threshold when age is absent", () => {
+    expect(lookupNormalRange("WAIST_CIRCUMFERENCE", null, "MALE")).toEqual({
+      low: 0,
+      high: 94,
+    });
+    expect(lookupNormalRange("WAIST_CIRCUMFERENCE", null, "FEMALE")).toEqual({
+      low: 0,
+      high: 80,
+    });
+  });
+});
+
 describe("hasSharpenedNorm", () => {
   it("mirrors lookupNormalRange truthiness", () => {
     expect(hasSharpenedNorm("VO2_MAX", 35, "MALE")).toBe(true);
