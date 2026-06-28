@@ -23,7 +23,14 @@ export const UCUM_SYSTEM = "http://unitsofmeasure.org";
 export const HEALTHKIT_CODESYSTEM =
   "https://healthlog.dev/fhir/CodeSystem/healthkit";
 
-export type FhirObservationCategory = "vital-signs" | "laboratory" | "activity";
+export type FhirObservationCategory =
+  | "vital-signs"
+  | "laboratory"
+  | "activity"
+  // v1.25 — patient-reported screener / questionnaire observations (PHQ-9 /
+  // GAD-7 totals, pain NRS). The builder already emits a `survey` category for
+  // the descriptive wellness composites; `categoryConcept` takes any string.
+  | "survey";
 
 export interface LoincMapping {
   /** LOINC code, or null when no stable LOINC applies (local text fallback). */

@@ -139,6 +139,36 @@ const LAB_LOINC_BY_KEY: Record<string, LabLoincMapping> = {
     display: "Hemoglobin [Mass/volume] in Blood",
     ucum: "g/dL",
   },
+  // ── v1.25 — longevity lab panel additions (loinc.org confirmed this pass) ──
+  apob: {
+    loinc: "1884-6",
+    display: "Apolipoprotein B [Mass/volume] in Serum or Plasma",
+    ucum: "mg/dL",
+  },
+  lpa: {
+    loinc: "43583-4",
+    display: "Lipoprotein a [Moles/volume] in Serum or Plasma",
+    ucum: "nmol/L",
+  },
+  hscrp: {
+    loinc: "30522-7",
+    display:
+      "C reactive protein [Mass/volume] in Serum or Plasma by High sensitivity method",
+    ucum: "mg/L",
+  },
+  ggt: {
+    loinc: "2324-2",
+    display:
+      "Gamma glutamyl transferase [Enzymatic activity/volume] in Serum or Plasma",
+    ucum: "U/L",
+  },
+  fastinginsulin: {
+    loinc: "27873-9",
+    display: "Insulin [Units/volume] in Serum or Plasma --fasting",
+    ucum: "u[IU]/mL",
+  },
+  // NOTE(NEEDS-VERIFY): the RBC omega-3 index has no confirmed LOINC this pass
+  // — it intentionally falls back to a local text-only concept on export.
 };
 
 /**
@@ -206,6 +236,20 @@ const LAB_ALIASES: Record<string, string> = {
   hb: "hemoglobin",
   hgb: "hemoglobin",
   hamoglobin: "hemoglobin",
+  // ── v1.25 — longevity lab panel aliases ──
+  apolipoproteinb: "apob",
+  apolipoprotein: "apob",
+  lipoproteina: "lpa",
+  lpkleina: "lpa",
+  hscrp: "hscrp",
+  highsensitivitycrp: "hscrp",
+  hochsensitivescrp: "hscrp",
+  gammagt: "ggt",
+  gammaglutamyltransferase: "ggt",
+  ggtp: "ggt",
+  fastinginsulin: "fastinginsulin",
+  insulinfasting: "fastinginsulin",
+  nuchterninsulin: "fastinginsulin",
 };
 
 /**

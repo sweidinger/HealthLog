@@ -122,6 +122,19 @@ export const measurementTypeEnum = z.enum([
   // into the numeric value (limited=1 … exceptional=5), unit `level`. Ingests
   // server-side as `source = OURA`. See `RESILIENCE_LEVELS` in `src/lib/oura/client`.
   "RESILIENCE",
+  // ── v1.25 — clinical-signals wave ──
+  // PHQ-9 / GAD-7 derived total scores (one row per completed administration;
+  // value = total). The raw item answers never ride a Measurement row — they
+  // stay in the encrypted MentalHealthAssessment blob.
+  "PHQ9_SCORE",
+  "GAD7_SCORE",
+  // Grip strength (kg), pain Numeric Rating Scale (0–10), waist circumference
+  // (cm) + waist-to-height ratio. First-class numeric clinical signals; bands
+  // applied at the display edge from the signal registry.
+  "GRIP_STRENGTH",
+  "PAIN_NRS",
+  "WAIST_CIRCUMFERENCE",
+  "WAIST_TO_HEIGHT",
 ]);
 
 /**
@@ -357,6 +370,13 @@ const unitMap: Record<string, string> = {
   // Ordinal level scale (1=limited … 5=exceptional) — the categorical band
   // encoded into the numeric value. See RESILIENCE_LEVELS in src/lib/oura/client.
   RESILIENCE: "level",
+  // ── v1.25 — clinical-signals wave ──
+  PHQ9_SCORE: "score",
+  GAD7_SCORE: "score",
+  GRIP_STRENGTH: "kg",
+  PAIN_NRS: "score",
+  WAIST_CIRCUMFERENCE: "cm",
+  WAIST_TO_HEIGHT: "ratio",
 };
 
 export function getUnitForType(type: string): string {
@@ -551,6 +571,20 @@ export const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // Ordinal level scale: 1 (limited) … 5 (exceptional). The closed encoding
   // never falls outside this band.
   RESILIENCE: { min: 1, max: 5 },
+  // ── v1.25 — clinical-signals wave ──
+  // PHQ-9 total 0–27, GAD-7 total 0–21 — server-derived from the screener.
+  PHQ9_SCORE: { min: 0, max: 27 },
+  GAD7_SCORE: { min: 0, max: 21 },
+  // Grip strength kg — a child can read in the single digits, an elite athlete
+  // tops ~90 kg; 120 is a generous ceiling that still rejects sensor noise.
+  GRIP_STRENGTH: { min: 0, max: 120 },
+  // Pain NRS — the validated 0–10 scale; the closed band pins the integer.
+  PAIN_NRS: { min: 0, max: 10 },
+  // Waist circumference cm — paediatric lows ~30, severe obesity ~250.
+  WAIST_CIRCUMFERENCE: { min: 30, max: 250 },
+  // Waist-to-height ratio — dimensionless; healthy ~0.4–0.5, the band is
+  // generous either side to admit any plausible body habitus.
+  WAIST_TO_HEIGHT: { min: 0.2, max: 1.5 },
 };
 
 export function validateMeasurementRange(

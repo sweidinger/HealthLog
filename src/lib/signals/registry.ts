@@ -1199,6 +1199,310 @@ export const SIGNALS: Record<string, SignalDefinition> = {
       mcp: true,
     },
   },
+  // ── v1.25 clinical-signals wave — validated mental-health screeners ──────
+  // PHQ-9 / GAD-7 totals. Opt-in, beside mood tracking. Deliberately kept OFF
+  // the Coach snapshot + MCP surfaces (`coachSnapshot:false` ⇒ `mcp:false`):
+  // mental-health item content is excluded from AI by construction, and the
+  // score trend stays a quiet local signal. FHIR rides the `survey` category
+  // with the instrument total-score LOINC.
+  PHQ9_SCORE: {
+    key: "PHQ9_SCORE",
+    kind: "score",
+    source: { measurementType: "PHQ9_SCORE" },
+    displayName: "PHQ-9 depression screen (total)",
+    unit: "score",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+    normalRange: { low: 0, high: 4 },
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+    fhir: {
+      loinc: "44261-6",
+      display: "Patient Health Questionnaire 9 item (PHQ-9) total score [Reported]",
+      unit: "{score}",
+      category: "survey",
+    },
+  },
+  GAD7_SCORE: {
+    key: "GAD7_SCORE",
+    kind: "score",
+    source: { measurementType: "GAD7_SCORE" },
+    displayName: "GAD-7 anxiety screen (total)",
+    unit: "score",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+    normalRange: { low: 0, high: 4 },
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+    fhir: {
+      loinc: "70274-6",
+      display:
+        "Generalized anxiety disorder 7 item (GAD-7) total score [Reported.PHQ]",
+      unit: "{score}",
+      category: "survey",
+    },
+  },
+  // ── v1.25 clinical-signals wave — physical / clinical measurements ──────
+  GRIP_STRENGTH: {
+    key: "GRIP_STRENGTH",
+    kind: "measurement",
+    source: { measurementType: "GRIP_STRENGTH" },
+    displayName: "Grip strength",
+    unit: "kg",
+    direction: "higher-better",
+    archetype: "activity-fitness",
+    // Coarse population floor; the EWGSOP2 cut-off is sex-specific (men < 27,
+    // women < 16 kg) and applied at the display edge.
+    normalRange: { low: 16, high: 60 },
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+    fhir: {
+      // TODO(NEEDS-VERIFY): no hand-grip-strength LOINC confirmed this pass —
+      // emits a local text concept until a stable LOINC is checked on loinc.org.
+      loinc: null,
+      display: "Hand grip strength",
+      unit: "kg",
+      category: "vital-signs",
+    },
+  },
+  PAIN_NRS: {
+    key: "PAIN_NRS",
+    kind: "measurement",
+    source: { measurementType: "PAIN_NRS" },
+    displayName: "Pain (0–10 NRS)",
+    unit: "score",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+    normalRange: { low: 0, high: 3 },
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+    fhir: {
+      loinc: "72514-3",
+      display: "Pain severity - 0-10 verbal numeric rating [Score] - Reported",
+      unit: "{score}",
+      category: "survey",
+    },
+  },
+  WAIST_CIRCUMFERENCE: {
+    key: "WAIST_CIRCUMFERENCE",
+    kind: "measurement",
+    source: { measurementType: "WAIST_CIRCUMFERENCE" },
+    sourcePriorityKey: "waist",
+    displayName: "Waist circumference",
+    unit: "cm",
+    direction: "lower-better",
+    archetype: "body-composition",
+    // WHO European-origin increased-risk threshold (men > 94); ethnicity-aware
+    // bands are applied at the display edge.
+    normalRange: { low: 0, high: 94 },
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+    fhir: {
+      loinc: "8280-0",
+      display: "Waist circumference at umbilicus by Tape measure",
+      unit: "cm",
+      category: "vital-signs",
+    },
+  },
+  WAIST_TO_HEIGHT: {
+    key: "WAIST_TO_HEIGHT",
+    kind: "measurement",
+    source: { measurementType: "WAIST_TO_HEIGHT" },
+    displayName: "Waist-to-height ratio",
+    unit: "ratio",
+    direction: "lower-better",
+    archetype: "body-composition",
+    // NICE: keep waist under half your height — WHtR ≥ 0.5 flags increased risk.
+    normalRange: { low: 0, high: 0.5 },
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+    fhir: {
+      // TODO(NEEDS-VERIFY): WHtR LOINC not confirmed this pass — local text concept.
+      loinc: null,
+      display: "Waist to height ratio",
+      unit: "1",
+      category: "vital-signs",
+    },
+  },
+  // ── v1.25 clinical-signals wave — longevity lab panel (kind:"biomarker") ─
+  // Registered through the registry to prove the labs path under one definition
+  // shape. The lab FHIR/UCUM coding lives in `fhir/lab-loinc.ts`; the
+  // biomarker-detail rail renders these via the labs catalog. Off Coach/MCP
+  // here (the labs surface has its own `get_labs` MCP tool).
+  APOB: {
+    key: "APOB",
+    kind: "biomarker",
+    source: { biomarkerKey: "apob" },
+    displayName: "Apolipoprotein B",
+    unit: "mg/dL",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  LPA: {
+    key: "LPA",
+    kind: "biomarker",
+    source: { biomarkerKey: "lp-a" },
+    displayName: "Lipoprotein(a)",
+    unit: "nmol/L",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  HS_CRP: {
+    key: "HS_CRP",
+    kind: "biomarker",
+    source: { biomarkerKey: "hs-crp" },
+    displayName: "hs-CRP",
+    unit: "mg/L",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  HBA1C: {
+    key: "HBA1C",
+    kind: "biomarker",
+    source: { biomarkerKey: "hba1c" },
+    displayName: "HbA1c",
+    unit: "%",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  FASTING_GLUCOSE: {
+    key: "FASTING_GLUCOSE",
+    kind: "biomarker",
+    source: { biomarkerKey: "fasting-glucose" },
+    displayName: "Fasting glucose",
+    unit: "mg/dL",
+    direction: "target-band",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  FASTING_INSULIN: {
+    key: "FASTING_INSULIN",
+    kind: "biomarker",
+    source: { biomarkerKey: "fasting-insulin" },
+    displayName: "Fasting insulin",
+    unit: "µIU/mL",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  EGFR: {
+    key: "EGFR",
+    kind: "biomarker",
+    source: { biomarkerKey: "egfr" },
+    displayName: "eGFR (CKD-EPI 2021)",
+    unit: "mL/min/1.73m²",
+    direction: "higher-better",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  GGT: {
+    key: "GGT",
+    kind: "biomarker",
+    source: { biomarkerKey: "ggt" },
+    displayName: "GGT",
+    unit: "U/L",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  FERRITIN: {
+    key: "FERRITIN",
+    kind: "biomarker",
+    source: { biomarkerKey: "ferritin" },
+    displayName: "Ferritin",
+    unit: "ng/mL",
+    direction: "target-band",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  OMEGA3_INDEX: {
+    key: "OMEGA3_INDEX",
+    kind: "biomarker",
+    source: { biomarkerKey: "omega-3-index" },
+    displayName: "Omega-3 index",
+    unit: "%",
+    direction: "higher-better",
+    archetype: "physiological-vital",
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
 };
 
 /** Type guard: narrow an arbitrary string to a registered signal key. */
