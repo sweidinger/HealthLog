@@ -46,6 +46,25 @@ export function estimateDailyDoseCount(schedules: RunwaySchedule[]): number {
       perDay += times / 365;
       continue;
     }
+    // FREQ=WEEKLY;BYDAY=…;INTERVAL=… is the modern weekly encoding (the
+    // create path stores the cadence on the rrule and leaves daysOfWeek
+    // empty). Honour the BYDAY pick count and the week INTERVAL: a
+    // once-weekly injection is one dose per 7 days, a bi-weekly one per
+    // 14. Without this branch a weekly rrule fell through to the legacy
+    // daysOfWeek fallback below with daysPerWeek=7, over-estimating the
+    // rate ~7× (≈14× bi-weekly) and firing low-stock alerts far too early.
+    if (/FREQ=WEEKLY/.test(rrule)) {
+      const byday = /BYDAY=([^;]+)/.exec(rrule);
+      const bydayCount =
+        byday && byday[1].length > 0 ? byday[1].split(",").length : 1;
+      const intervalMatch = /INTERVAL=(\d+)/.exec(rrule);
+      const interval =
+        intervalMatch && Number(intervalMatch[1]) >= 1
+          ? Number(intervalMatch[1])
+          : 1;
+      perDay += (times * bydayCount) / (7 * interval);
+      continue;
+    }
     const { daysOfWeek, intervalWeeks } = parseScheduleRecurrence(s.daysOfWeek);
     const daysPerWeek = daysOfWeek.length > 0 ? daysOfWeek.length : 7;
     const weeks = intervalWeeks >= 1 ? intervalWeeks : 1;

@@ -68,6 +68,43 @@ describe("estimateDailyDoseCount", () => {
     ).toBeCloseTo(1 / 30);
   });
 
+  it("treats a once-weekly RRULE as one dose per 7 days", () => {
+    // FREQ=WEEKLY;BYDAY=MO is the modern once-weekly injection encoding;
+    // it must NOT fall through to the daysPerWeek=7 legacy branch.
+    expect(
+      estimateDailyDoseCount([
+        schedule({ timesOfDay: ["08:00"], rrule: "FREQ=WEEKLY;BYDAY=MO" }),
+      ]),
+    ).toBeCloseTo(1 / 7);
+  });
+
+  it("halves a bi-weekly RRULE via INTERVAL=2 (one dose per 14 days)", () => {
+    expect(
+      estimateDailyDoseCount([
+        schedule({
+          timesOfDay: ["08:00"],
+          rrule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+        }),
+      ]),
+    ).toBeCloseTo(1 / 14);
+  });
+
+  it("counts each BYDAY pick on a weekly RRULE (Mon+Thu → 2 per 7 days)", () => {
+    expect(
+      estimateDailyDoseCount([
+        schedule({ timesOfDay: ["08:00"], rrule: "FREQ=WEEKLY;BYDAY=MO,TH" }),
+      ]),
+    ).toBeCloseTo(2 / 7);
+  });
+
+  it("defaults a weekly RRULE with no BYDAY to one pick per week", () => {
+    expect(
+      estimateDailyDoseCount([
+        schedule({ timesOfDay: ["08:00"], rrule: "FREQ=WEEKLY" }),
+      ]),
+    ).toBeCloseTo(1 / 7);
+  });
+
   it("sums across multiple schedules", () => {
     expect(
       estimateDailyDoseCount([
