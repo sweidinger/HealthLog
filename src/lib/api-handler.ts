@@ -16,6 +16,11 @@ import { SCOPE_HEALTH_READ, SCOPE_HEALTH_WRITE } from "./mcp/oauth/config";
 /**
  * HTTP methods a read-only credential may use on the REST surface. A request
  * with any other method (POST / PUT / PATCH / DELETE) is a write.
+ *
+ * The MCP-audience guard below assumes these methods are side-effect-free:
+ * an MCP-bound token is admitted on them. A future side-effecting GET (or HEAD)
+ * would silently widen that token's reach over REST — do NOT add one without
+ * revisiting the MCP audience binding here.
  */
 const READ_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 

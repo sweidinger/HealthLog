@@ -35,7 +35,13 @@ import type { MeasurementType } from "@/generated/prisma/client";
 import { annotate } from "@/lib/logging/context";
 import { checkMcpWriteRateLimit } from "@/lib/rate-limit";
 import type { McpToolDefinition } from "./tools";
-import { logMcpMeasurement, logMcpMood, logMcpBloodPressure } from "./writes";
+import {
+  logMcpMeasurement,
+  logMcpMood,
+  logMcpBloodPressure,
+  checkMcpMeasurement,
+  checkMcpBloodPressure,
+} from "./writes";
 
 /**
  * Write-tool annotations (MCP 2025-11-25). NOT read-only and NOT destructive
@@ -66,6 +72,10 @@ const writeOutput: z.ZodRawShape = {
   instruction: z.string().optional(),
   preview: z.unknown().optional(),
   record: z.unknown().optional(),
+  // Set on a preview that would be REFUSED on commit (type / range / instant),
+  // with `error` + `reason` carrying the same verdict the commit would return —
+  // so a preview and its commit never disagree.
+  wouldFail: z.boolean().optional(),
 };
 
 /** Shared confirm-gate inputs every write tool carries. */
@@ -156,6 +166,9 @@ export const MCP_WRITE_TOOLS: McpToolDefinition[] = [
       }
 
       if (!confirm) {
+        // Run the SAME validation the commit core runs so the preview cannot
+        // show a value that would then be refused on commit.
+        const check = checkMcpMeasurement(type, value, measuredAt);
         annotate({
           action: { name: "mcp.tool.write" },
           meta: { tool: "log_measurement", status: "preview" },
@@ -171,6 +184,9 @@ export const MCP_WRITE_TOOLS: McpToolDefinition[] = [
             source: "MCP",
           },
           instruction: CONFIRM_INSTRUCTION,
+          ...(check.ok
+            ? {}
+            : { wouldFail: true, error: check.error, reason: check.reason }),
         };
       }
 
@@ -310,6 +326,8 @@ export const MCP_WRITE_TOOLS: McpToolDefinition[] = [
       }
 
       if (!confirm) {
+        // Same validation the commit core runs — preview == commit verdict.
+        const check = checkMcpBloodPressure(systolic, diastolic, measuredAt);
         annotate({
           action: { name: "mcp.tool.write" },
           meta: { tool: "log_blood_pressure", status: "preview" },
@@ -325,6 +343,9 @@ export const MCP_WRITE_TOOLS: McpToolDefinition[] = [
             source: "MCP",
           },
           instruction: CONFIRM_INSTRUCTION,
+          ...(check.ok
+            ? {}
+            : { wouldFail: true, error: check.error, reason: check.reason }),
         };
       }
 
