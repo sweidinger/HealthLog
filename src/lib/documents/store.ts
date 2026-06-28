@@ -129,8 +129,11 @@ export function serialiseDocumentDetail(
   facts: ExtractedFact[],
 ): InboundDocumentDetailDto {
   const pendingCount = facts.filter((f) => f.status === "PENDING").length;
+  // `factCount` excludes REJECTED facts (a rejected fact is discarded, not part
+  // of the document's tally) so the badge matches the list query.
+  const factCount = facts.filter((f) => f.status !== "REJECTED").length;
   return {
-    ...serialiseDocument(doc, { factCount: facts.length, pendingCount }),
+    ...serialiseDocument(doc, { factCount, pendingCount }),
     facts: facts.map(serialiseFact),
   };
 }

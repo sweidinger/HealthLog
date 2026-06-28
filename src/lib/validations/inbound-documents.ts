@@ -212,7 +212,9 @@ export interface InboundDocumentDto {
   /** User-set filing date (YYYY-MM-DD), or null. */
   documentDate: string | null;
   errorReason: string | null;
+  /** Count of the document's non-REJECTED staged facts. */
   factCount: number;
+  /** Count of staged facts still PENDING review. */
   pendingCount: number;
   createdAt: string;
   updatedAt: string;

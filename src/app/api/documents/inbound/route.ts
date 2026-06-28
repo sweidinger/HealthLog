@@ -136,10 +136,24 @@ export const POST = apiHandler(async (request: Request) => {
   // No mass assignment — every column is set field-by-field; `userId` comes
   // from the session, never the body. `status` is STORED (the library default);
   // no provider / consent / budget call runs here.
+  //
+  // `documentDate` is the effective filing date the library sorts, groups, and
+  // range-filters on. When the user does not supply one at upload, default it to
+  // the upload day (now) — the same effective date the UI shows — so the column
+  // is never NULL on a stored row. This keeps display == sort == filter: an
+  // undated upload no longer sinks below older dated rows under `nulls: "last"`,
+  // and a "this month" range filter sees it. (At store time `reportDate` is
+  // still null; it only exists after an extraction, so the default resolves to
+  // the upload day.) The date stays user-editable via PATCH, which still allows
+  // clearing it back to NULL.
   const document = await prisma.inboundDocument.create({
     data: {
       userId: user.id,
       kind: parsed.data.kind ?? "OTHER",
+      // Stored plaintext on purpose (mirrors `filename`) so the list can
+      // ILIKE-search + ORDER BY it. It MAY hold PHI the user types; that is the
+      // accepted tradeoff for server-side search/sort — the document body stays
+      // encrypted.
       title: parsed.data.title ?? null,
       filename: typeof file.name === "string" ? file.name.slice(0, 255) : null,
       mimeType: mime,
@@ -148,7 +162,7 @@ export const POST = apiHandler(async (request: Request) => {
       status: "STORED",
       documentDate: parsed.data.documentDate
         ? isoDateToUtc(parsed.data.documentDate)
-        : null,
+        : new Date(),
     },
   });
 
@@ -223,10 +237,6 @@ export const GET = apiHandler(async (request: Request) => {
   const rows = await prisma.inboundDocument.findMany({
     where,
     orderBy,
-    include: {
-      _count: { select: { facts: true } },
-      facts: { where: { status: "PENDING" }, select: { id: true } },
-    },
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
@@ -235,6 +245,32 @@ export const GET = apiHandler(async (request: Request) => {
   const page = hasMore ? rows.slice(0, limit) : rows;
   const nextCursor = hasMore ? (page[page.length - 1]?.id ?? null) : null;
 
+  // Fact tallies for the whole page in ONE grouped count — no per-document
+  // fan-out and no materialising fact-id rows. `factCount` counts every
+  // non-REJECTED fact (a rejected fact is discarded, not part of the document's
+  // tally), `pendingCount` the PENDING subset still awaiting review.
+  const factCounts = new Map<
+    string,
+    { factCount: number; pendingCount: number }
+  >();
+  if (page.length > 0) {
+    const groups = await prisma.extractedFact.groupBy({
+      by: ["documentId", "status"],
+      where: { userId: user.id, documentId: { in: page.map((d) => d.id) } },
+      _count: { _all: true },
+    });
+    for (const g of groups) {
+      const entry = factCounts.get(g.documentId) ?? {
+        factCount: 0,
+        pendingCount: 0,
+      };
+      const n = g._count._all;
+      if (g.status !== "REJECTED") entry.factCount += n;
+      if (g.status === "PENDING") entry.pendingCount += n;
+      factCounts.set(g.documentId, entry);
+    }
+  }
+
   annotate({
     action: { name: "documents.inbound.list" },
     meta: { count: page.length, sort, order, filtered: Boolean(q || kind) },
@@ -242,10 +278,10 @@ export const GET = apiHandler(async (request: Request) => {
 
   return apiSuccess({
     documents: page.map((doc) =>
-      serialiseDocument(doc, {
-        factCount: doc._count.facts,
-        pendingCount: doc.facts.length,
-      }),
+      serialiseDocument(
+        doc,
+        factCounts.get(doc.id) ?? { factCount: 0, pendingCount: 0 },
+      ),
     ),
     nextCursor,
   });

@@ -7,10 +7,10 @@
  * extracted facts came from. Owner-scoped + module-gated; the bytes are PHI:
  * never logged, never served cross-user, fail-closed on a decrypt error.
  *
- * The response carries the stored `mimeType`. A PDF / image is served inline
- * (`Content-Disposition: inline`) so the browser can render it in a tab; any
- * other type (e.g. the text-mode upload) is sent as an attachment. The
- * filename is sanitised before it reaches the header.
+ * The response carries the stored `mimeType`. Uploads are constrained at the
+ * store path to the inline-safe set (JPEG / PNG / WebP / PDF, magic-byte
+ * sniffed), so the document is always served `Content-Disposition: inline` for
+ * in-tab rendering. The filename is sanitised before it reaches the header.
  */
 import { NextResponse } from "next/server";
 
@@ -20,18 +20,19 @@ import { prisma } from "@/lib/db";
 import { decryptDocumentFromBytes } from "@/lib/documents/store";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export const dynamic = "force-dynamic";
 
-/** MIME types we render inline; everything else downloads as an attachment. */
-const INLINE_MIME_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+/**
+ * Decrypting + serving an original is CPU work on PHI. A generous per-user
+ * ceiling is a backstop against self-DoS only (the route is owner-scoped, so
+ * there is no cross-user abuse vector).
+ */
+const ORIGINAL_READ_LIMIT_PER_HOUR = 240;
+const ORIGINAL_READ_WINDOW_MS = 60 * 60 * 1000;
 
 /** Extension fallback when the stored filename is absent / unusable. */
 const MIME_EXTENSION: Record<string, string> = {
@@ -39,11 +40,22 @@ const MIME_EXTENSION: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
-  "text/plain": "txt",
 };
 
 /**
- * Build a header-safe ASCII filename. Strips control characters (incl. CR/LF,
+ * Percent-encode a UTF-8 string for an RFC 5987 `filename*` parameter. Builds
+ * on `encodeURIComponent` and additionally escapes the characters it leaves but
+ * RFC 5987's `attr-char` set forbids (`' ( ) *`).
+ */
+function encodeRfc5987(value: string): string {
+  return encodeURIComponent(value).replace(
+    /['()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
+/**
+ * Build a header-safe filename. Strips control characters (incl. CR/LF,
  * the header-injection vector), quotes, and path separators (path traversal),
  * caps the length, and falls back to a generated name keyed by the document
  * id + MIME type when nothing usable remains.
@@ -70,6 +82,21 @@ export const GET = apiHandler(
 
     const gate = await requireModuleEnabled(user.id, "inboundDocuments");
     if (!gate.enabled) return gate.response;
+
+    const rl = await checkRateLimit(
+      `documents-original:${user.id}`,
+      ORIGINAL_READ_LIMIT_PER_HOUR,
+      ORIGINAL_READ_WINDOW_MS,
+    );
+    if (!rl.allowed) {
+      const response = apiError("Too many requests. Try again later.", 429, {
+        errorCode: "documents.inbound.rateLimited",
+      });
+      for (const [k, v] of Object.entries(rateLimitHeaders(rl))) {
+        response.headers.set(k, v);
+      }
+      return response;
+    }
 
     const { id } = await params;
     const document = await prisma.inboundDocument.findFirst({
@@ -105,12 +132,16 @@ export const GET = apiHandler(
       });
     }
 
-    const inline = INLINE_MIME_TYPES.has(document.mimeType);
     const downloadName = safeDownloadName(
       document.filename,
       document.id,
       document.mimeType,
     );
+    // ASCII fallback for the bare `filename=` (replace any non-ASCII byte) plus
+    // an RFC 5987 `filename*` that carries the real UTF-8 name to compliant
+    // clients. The stored set is inline-safe by construction, so always inline.
+    const asciiName = downloadName.replace(/[^ -~]/g, "_");
+    const disposition = `inline; filename="${asciiName}"; filename*=UTF-8''${encodeRfc5987(downloadName)}`;
 
     annotate({
       action: { name: "documents.inbound.original.get" },
@@ -118,7 +149,7 @@ export const GET = apiHandler(
         documentId: document.id,
         mimeType: document.mimeType,
         bytes: bytes.byteLength,
-        disposition: inline ? "inline" : "attachment",
+        disposition: "inline",
       },
     });
 
@@ -127,7 +158,7 @@ export const GET = apiHandler(
       headers: {
         "Content-Type": document.mimeType,
         "Content-Length": String(bytes.byteLength),
-        "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${downloadName}"`,
+        "Content-Disposition": disposition,
         // Private PHI — never cache in a shared / disk cache.
         "Cache-Control": "private, no-store",
       },

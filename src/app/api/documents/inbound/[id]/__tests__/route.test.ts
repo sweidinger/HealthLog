@@ -34,6 +34,13 @@ vi.mock("@/lib/modules/gate", () => ({
   requireModuleEnabled: vi.fn().mockResolvedValue({ enabled: true }),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi
+    .fn()
+    .mockResolvedValue({ allowed: true, remaining: 239, resetAt: Date.now() }),
+  rateLimitHeaders: () => ({}),
+}));
+
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
