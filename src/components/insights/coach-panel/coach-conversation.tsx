@@ -354,6 +354,14 @@ export function CoachConversation({
   // it fires a single time per mount; only for a fresh conversation with a
   // non-empty prefill and no stream in flight.
   const autoSentRef = useRef(false);
+  // Latest-handler ref so the auto-send effect never lists `handleSubmit` (it
+  // re-creates each render) and never calls it synchronously in the effect
+  // body — the dispatch is deferred to a microtask so the composer state it
+  // touches settles outside the effect.
+  const handleSubmitRef = useRef(handleSubmit);
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  });
   useEffect(() => {
     if (!autoSend) return;
     if (autoSentRef.current) return;
@@ -362,16 +370,10 @@ export function CoachConversation({
     const seed = (prefill ?? "").trim();
     if (!seed) return;
     autoSentRef.current = true;
-    void handleSubmit(seed);
-    // `handleSubmit` is re-created each render but the ref guard ensures a
-    // single dispatch; the remaining deps gate the one allowed fire.
-  }, [
-    autoSend,
-    prefill,
-    currentConversationId,
-    send.isStreaming,
-    handleSubmit,
-  ]);
+    queueMicrotask(() => {
+      void handleSubmitRef.current(seed);
+    });
+  }, [autoSend, prefill, currentConversationId, send.isStreaming]);
 
   // v1.22 — "Try again": regenerate an assistant reply by resubmitting the
   // user turn that produced it as a FRESH turn. The composer value is left
