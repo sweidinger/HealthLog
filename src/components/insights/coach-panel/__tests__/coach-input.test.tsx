@@ -24,21 +24,16 @@ describe("<CoachInput>", () => {
     expect(html).not.toContain("Coach replies are generated");
   });
 
-  it("renders the mic disabled with an unsupported tooltip in SSR markup", () => {
-    // v1.18.10 (W4) — the mic always renders so the affordance stays
-    // discoverable. SSR (and any browser without the Web Speech API) shows
-    // it DISABLED with an explanatory tooltip rather than vanishing or
-    // sitting as a dead control. A post-hydration effect re-enables it once
-    // `SpeechRecognition` is confirmed present.
+  it("hides the mic in SSR markup (dictation is client-and-secure-context only)", () => {
+    // v1.25.0 — the mic only mounts once the client confirms the Web Speech
+    // API exists AND the page runs in a secure context. SSR (and any
+    // unsupported / non-secure environment) renders NO mic at all, so the
+    // composer never ships an advertised-but-erroring control. The earlier
+    // "render it disabled" affordance is gone.
     const html = render(
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
     );
-    const micTag = html.match(/<button[^>]*data-slot="coach-input-mic"[^>]*>/);
-    expect(micTag).not.toBeNull();
-    expect(micTag?.[0]).toMatch(/\sdisabled(=""|\s|>)/);
-    expect(micTag?.[0]).toContain('data-unsupported="true"');
-    // Tooltip explains why it is inert, sourced from i18n.
-    expect(html).toContain("Voice input is not supported in this browser");
+    expect(html).not.toContain('data-slot="coach-input-mic"');
   });
 
   it("renders the localised placeholder without the retired shortcut hint", () => {
@@ -232,8 +227,9 @@ describe("<CoachInput>", () => {
     expect(html).not.toContain('data-slot="coach-input-hub"');
     expect(html).not.toContain('data-slot="coach-input-actions"');
     expect(html).not.toContain('data-slot="coach-input-settings"');
-    // Mic + send still render in the single-row layout.
-    expect(html).toContain('data-slot="coach-input-mic"');
+    // Send renders in the single-row layout. The mic is client-and-secure-
+    // context only, so it never appears in SSR markup.
+    expect(html).not.toContain('data-slot="coach-input-mic"');
     expect(html).toContain('data-slot="coach-input-send"');
   });
 
@@ -256,8 +252,9 @@ describe("<CoachInput>", () => {
     expect(html).toContain('data-slot="coach-input-actions"');
     // The settings gear is gone from the composer entirely.
     expect(html).not.toContain('data-slot="coach-input-settings"');
-    // Mic + send remain present on the same row.
-    expect(html).toContain('data-slot="coach-input-mic"');
+    // Send remains in the trailing cluster. The mic is client-and-secure-
+    // context only, so it never appears in SSR markup.
+    expect(html).not.toContain('data-slot="coach-input-mic"');
     expect(html).toContain('data-slot="coach-input-send"');
     // The leading `+` precedes the textarea; the textarea precedes the send.
     const plusIdx = html.indexOf('data-slot="coach-input-actions"');

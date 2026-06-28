@@ -55,10 +55,13 @@ import { useTranslations } from "@/lib/i18n/context";
  * transcripts append into the controlled `value`; the button toggles
  * listening on/off and is fully keyboard- and screen-reader-accessible.
  *
- * v1.18.10 (W4): the mic always renders so the affordance is discoverable.
- * On a browser without the Web Speech API (or during SSR) it renders
- * DISABLED with an explanatory tooltip rather than vanishing or sitting as
- * a dead control that silently does nothing on tap.
+ * v1.25.0: the mic only renders when dictation is genuinely usable —
+ * the Web Speech API exists AND the page runs in a secure context (the
+ * recogniser refuses to start over plain HTTP). On SSR, an unsupported
+ * browser (Firefox), a non-secure self-host, or after the user denies the
+ * mic permission, the control HIDES rather than sitting as an
+ * advertised-but-erroring affordance. A real failure mid-use surfaces a
+ * single quiet toast and then retires the button for the session.
  *
  * v1.18.11 (W11): the composer is the conversation's control hub on the
  * full-page Coach surface — ChatGPT-style. When `showHub` is set it grows a
@@ -193,14 +196,33 @@ function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
 // mic at SSR) and the client snapshot reflects whether the constructor
 // exists. The store never changes after hydration, so the subscribe
 // callback is a no-op.
+//
+// v1.25.0 — the snapshot also requires a SECURE CONTEXT. `SpeechRecognition`
+// throws / fires a `not-allowed` error the instant it starts over plain HTTP,
+// so a LAN / Tailscale self-host on `http://` would otherwise advertise a mic
+// that can never work. Gating support on `window.isSecureContext` hides it
+// there cleanly instead.
 const noopSubscribe = () => () => {};
 function useVoiceSupported(): boolean {
   return useSyncExternalStore(
     noopSubscribe,
-    () => getSpeechRecognitionCtor() !== null,
+    () => getSpeechRecognitionCtor() !== null && window.isSecureContext,
     () => false,
   );
 }
+
+// v1.25.0 — map the app locale onto a BCP-47 tag with a region the
+// recogniser accepts. The bare language subtag works in most engines, but
+// the regioned form ("de-DE", "es-ES", …) yields materially better accuracy
+// on Chromium / Safari. Unknown locales fall back to the bare subtag.
+const SPEECH_RECOGNITION_LANG: Record<string, string> = {
+  en: "en-US",
+  de: "de-DE",
+  es: "es-ES",
+  fr: "fr-FR",
+  it: "it-IT",
+  pl: "pl-PL",
+};
 
 export function CoachInput({
   value,
@@ -274,6 +296,12 @@ export function CoachInput({
   // always read the freshest composer state without re-subscribing.
   const voiceSupported = useVoiceSupported();
   const [listening, setListening] = useState(false);
+  // v1.25.0 — once the user denies the mic permission (or the engine reports
+  // it cannot serve), retire the control for the session rather than leaving a
+  // button that errors on every tap. Combined with `voiceSupported` this is
+  // the single gate the mic renders behind.
+  const [voiceBlocked, setVoiceBlocked] = useState(false);
+  const voiceAvailable = voiceSupported && !voiceBlocked;
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const onChangeRef = useRef(onChange);
   const valueRef = useRef(value);
@@ -299,7 +327,7 @@ export function CoachInput({
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) return;
     const recognition = new Ctor();
-    recognition.lang = locale === "en" ? "en-US" : locale;
+    recognition.lang = SPEECH_RECOGNITION_LANG[locale] ?? locale;
     recognition.continuous = true;
     recognition.interimResults = true;
     // Anchor every transcript onto the text present when dictation
@@ -321,15 +349,17 @@ export function CoachInput({
     };
     recognition.onerror = (event) => {
       setListening(false);
-      // v1.18.10 (W4) — surface a quiet toast on a real failure so a tap
-      // that "does nothing" (denied mic permission, an insecure-context
-      // self-host, or no network for the recogniser) gives feedback rather
-      // than silently resetting. `aborted` / `no-speech` are the benign
-      // codes that fire on a normal stop or a quiet pause — stay silent.
+      // `aborted` / `no-speech` are the benign codes that fire on a normal
+      // stop or a quiet pause — stay silent.
       const code = event?.error;
-      if (code && code !== "aborted" && code !== "no-speech") {
-        toast.error(t("insights.coach.dictateError"));
+      if (!code || code === "aborted" || code === "no-speech") return;
+      // v1.25.0 — a permission refusal (or an engine that reports it cannot
+      // serve) is terminal: surface one quiet toast and HIDE the mic for the
+      // session so the user is not left tapping a control that always errors.
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setVoiceBlocked(true);
       }
+      toast.error(t("insights.coach.dictateError"));
     };
     recognition.onend = () => {
       setListening(false);
@@ -346,18 +376,16 @@ export function CoachInput({
   }, [locale, t]);
 
   const toggleDictation = useCallback(() => {
-    if (!voiceSupported) return;
+    if (!voiceAvailable) return;
     if (listening) stopDictation();
     else startDictation();
-  }, [voiceSupported, listening, startDictation, stopDictation]);
+  }, [voiceAvailable, listening, startDictation, stopDictation]);
 
-  // The mic label tracks three states: unsupported (disabled + tooltip
-  // explaining why), listening (tap to stop), and idle (tap to dictate).
-  const micLabel = !voiceSupported
-    ? t("insights.coach.voiceUnsupported")
-    : listening
-      ? t("insights.coach.dictateStop")
-      : t("insights.coach.dictate");
+  // The mic only renders when dictation is available, so the label tracks the
+  // two live states: listening (tap to stop) and idle (tap to dictate).
+  const micLabel = listening
+    ? t("insights.coach.dictateStop")
+    : t("insights.coach.dictate");
 
   const canSubmit = !disabled && value.trim().length > 0;
 
@@ -381,19 +409,20 @@ export function CoachInput({
 
   // v1.18.11 — the dictation mic. Lifted to a const so it can sit in the
   // single-row composer (drawer) OR in the hub action row (page) without
-  // duplicating the wiring.
-  const micButton = (
+  // duplicating the wiring. v1.25.0 — `null` when dictation is unavailable
+  // (no API, non-secure context, or a denied permission) so the surface hides
+  // the control rather than advertising a button that errors on tap.
+  const micButton = voiceAvailable ? (
     <Button
       type="button"
       size="icon"
       variant="ghost"
       onClick={toggleDictation}
-      disabled={disabled || !voiceSupported}
+      disabled={disabled}
       data-slot="coach-input-mic"
       data-listening={listening ? "true" : undefined}
-      data-unsupported={!voiceSupported ? "true" : undefined}
       aria-label={micLabel}
-      aria-pressed={voiceSupported ? listening : undefined}
+      aria-pressed={listening}
       title={micLabel}
       className={cn(
         "size-11 shrink-0 rounded-xl transition-colors sm:size-9",
@@ -410,7 +439,7 @@ export function CoachInput({
         aria-hidden="true"
       />
     </Button>
-  );
+  ) : null;
 
   // v1.18.11 — the send / stop control. Same const-lift rationale as the
   // mic: one definition, two mount points.
