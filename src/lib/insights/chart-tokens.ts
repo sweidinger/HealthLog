@@ -127,6 +127,16 @@ export const ALLOWED_CHART_TOKENS = [
   // v1.19.0 — Oura resilience. A continuous daily ordinal series (1–5), so it
   // carries a `metric:<TYPE>` token and renders through the generic chart.
   "metric:RESILIENCE",
+  // v1.25.0 — clinical signals. Mental-health screener totals (PHQ-9 0–27,
+  // GAD-7 0–21) and the physical clinical measures are continuous numeric
+  // series, so each carries a `metric:<TYPE>` token and renders through the
+  // generic chart.
+  "metric:PHQ9_SCORE",
+  "metric:GAD7_SCORE",
+  "metric:GRIP_STRENGTH",
+  "metric:PAIN_NRS",
+  "metric:WAIST_CIRCUMFERENCE",
+  "metric:WAIST_TO_HEIGHT",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
