@@ -3,6 +3,7 @@ import { apiHandler, requireAdmin } from "@/lib/api-handler";
 import { apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { redactSecrets } from "@/lib/logging/redact";
+import { getAuditLogRetentionDays } from "@/lib/jobs/audit-log-cleanup";
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
 
@@ -39,7 +40,9 @@ export const dynamic = "force-dynamic";
  *   - actor    — substring match against `userId` OR `user.username`
  *   - action   — exact match (e.g. `auth.login.failed`)
  *   - target   — substring match against the JSON-encoded `details` field
- *   - since    — ISO-8601 lower bound on `createdAt`
+ *   - since    — ISO-8601 lower bound on `createdAt`. Absent, the scan
+ *                floors at the audit-log retention horizon so an
+ *                open-ended sweep can't seqscan the table unbounded.
  *   - until    — ISO-8601 upper bound on `createdAt`
  *   - filter   — legacy shortcut: `auth` restricts to `auth.*` actions
  *
@@ -117,15 +120,25 @@ export const GET = apiHandler(async (request: NextRequest) => {
     ands.push({ details: { contains: parsed.target } });
   }
 
-  if (parsed.since || parsed.until) {
-    const range: { gte?: Date; lte?: Date } = {};
-    if (parsed.since) range.gte = new Date(parsed.since);
-    if (parsed.until) range.lte = new Date(parsed.until);
-    ands.push({ createdAt: range });
-  }
+  // Bound the lower edge of the scan. `actor`/`target` are substring
+  // matches (seqscans) and the exact `count` below runs a second pass over
+  // the same predicate, so an open-ended history sweep on this admin-only,
+  // low-frequency surface would scan the table twice with no floor. The
+  // cleanup job already prunes rows past the retention horizon, so aligning
+  // the default floor to that same horizon bounds both passes without ever
+  // hiding a row the deployment still keeps. An explicit `since` overrides.
+  const lowerBound = parsed.since
+    ? new Date(parsed.since)
+    : new Date(Date.now() - getAuditLogRetentionDays() * 86_400_000);
+  const createdAt: { gte: Date; lte?: Date } = { gte: lowerBound };
+  if (parsed.until) createdAt.lte = new Date(parsed.until);
 
-  const where: Record<string, unknown> | undefined =
-    ands.length === 0 ? undefined : ands.length === 1 ? ands[0] : { AND: ands };
+  // Keep `createdAt` a top-level sibling of the optional filter clause so a
+  // single substring/exact filter stays flat (no `AND` wrapper); the
+  // collapse below only folds the independent filter `ands` entries.
+  const filterWhere: Record<string, unknown> =
+    ands.length === 0 ? {} : ands.length === 1 ? ands[0] : { AND: ands };
+  const where: Record<string, unknown> = { ...filterWhere, createdAt };
 
   const [entries, total] = await Promise.all([
     prisma.auditLog.findMany({

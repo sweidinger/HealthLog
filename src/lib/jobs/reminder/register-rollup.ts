@@ -76,7 +76,11 @@ import {
   type DenseIntradayRetentionPayload,
 } from "@/lib/jobs/dense-intraday-retention";
 import { runDenseIntradayRetention } from "@/lib/measurements/dense-intraday-retention";
-import { getWorkerPrisma, workerLog } from "./shared";
+import {
+  getWorkerPrisma,
+  workerLog,
+  BOOT_BACKFILL_STAGGER_SECONDS,
+} from "./shared";
 import { createAndSchedule, type ScheduleEntry } from "./registrar-shared";
 // v1.4.37 W7c — nightly drain of per-sample APPLE_HEALTH cumulative rows.
 // Collapses each user × cumulative-type × calendar-day bucket into one
@@ -445,6 +449,15 @@ export async function registerRollupQueues(
  * Fire-and-forget boot discovery for the self-converging rollup / consolidation
  * backfills. Each pass is idempotent across reboots and never fails worker boot
  * on a miss (errors come back through the helper's result value).
+ *
+ * Each backfill is `localConcurrency: 1` on its own, but every one of them used
+ * to drain from the first pg-boss poll at boot — on a heavy tenant that meant
+ * several full-history loads contending for the connection pool at once (a boot
+ * storm / crash-loop risk). Each type now gets an increasing
+ * `BOOT_BACKFILL_STAGGER_SECONDS` multiple as a `startAfter` delay so their
+ * loads spread across a window instead of all landing on the same poll. Dense
+ * intra-day retention keeps its own larger boot defer (the established P2028
+ * pool-exhaustion fix) and stays the furthest-out stage.
  */
 export async function enqueueRollupBootDiscovery(): Promise<void> {
   // v1.4.35.1 — measurement-rollup backfill. Finds every user with
@@ -452,7 +465,10 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
   // The discovery query only matches accounts with zero rollup rows, so once
   // a fold completes the user drops off the list.
   try {
-    const { enqueued, skipped, error } = await enqueueBootTimeRollupBackfill();
+    // Stage 0 — first off the line; no stagger delay.
+    const { enqueued, skipped, error } = await enqueueBootTimeRollupBackfill(
+      BOOT_BACKFILL_STAGGER_SECONDS * 0,
+    );
     if (error) {
       workerLog(
         "error",
@@ -483,8 +499,10 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
   // account. Consolidated legacy rows are soft-deleted, so the
   // `deleted_at IS NULL` discovery predicate drops them.
   try {
-    const { enqueued, skipped, error } =
-      await enqueueBootTimeStepConsolidation();
+    // Stage 1.
+    const { enqueued, skipped, error } = await enqueueBootTimeStepConsolidation(
+      BOOT_BACKFILL_STAGGER_SECONDS * 1,
+    );
     if (error) {
       workerLog(
         "error",
@@ -508,8 +526,10 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
   // per-sample high-frequency mean-type rows and enqueues one job per account.
   // Consolidated rows are soft-deleted, so the discovery predicate drops them.
   try {
-    const { enqueued, skipped, error } =
-      await enqueueBootTimeMeanConsolidation();
+    // Stage 2.
+    const { enqueued, skipped, error } = await enqueueBootTimeMeanConsolidation(
+      BOOT_BACKFILL_STAGGER_SECONDS * 2,
+    );
     if (error) {
       workerLog(
         "error",
@@ -534,6 +554,9 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
   // and enqueues one job per account. Folded rows are soft-deleted, so the
   // discovery predicate drops them.
   try {
+    // Furthest-out stage — the helper self-defers past the boot window via its
+    // own larger constant (the P2028 pool-exhaustion fix), so no stagger
+    // argument is threaded here.
     const { enqueued, skipped, error } =
       await enqueueBootTimeDenseIntradayRetention();
     if (error) {
@@ -560,8 +583,11 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
   // rollup coverage. Idempotent across reboots and singleton-keyed inside
   // pg-boss so a fast restart while a backfill is queued doesn't double up.
   try {
+    // Stage 3.
     const { enqueued, skipped, error } =
-      await enqueueBootTimeMoodRollupBackfill();
+      await enqueueBootTimeMoodRollupBackfill(
+        BOOT_BACKFILL_STAGGER_SECONDS * 3,
+      );
     if (error) {
       workerLog(
         "error",
@@ -585,8 +611,11 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
   // pattern: one job per user with intake events but no rollup coverage.
   // Idempotent across reboots and singleton-keyed inside pg-boss.
   try {
+    // Stage 4.
     const { enqueued, skipped, error } =
-      await enqueueBootTimeMedicationComplianceBackfill();
+      await enqueueBootTimeMedicationComplianceBackfill(
+        BOOT_BACKFILL_STAGGER_SECONDS * 4,
+      );
     if (error) {
       workerLog(
         "error",

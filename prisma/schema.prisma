@@ -1352,6 +1352,12 @@ model Measurement {
   // (Postgres semantics) so manual entries don't collide here.
   @@unique([userId, type, source, externalId])
   @@index([userId, type, measuredAt])
+  // v1.25 — type-less `(userId, measuredAt)` range scan. The bulk feature read
+  // (`extractFeatures`) and consolidation scans walk a user's measurements by
+  // time with no `type` predicate; `(userId, type, measuredAt)` can't serve
+  // that as a prefix, so without this index Postgres scans the user's whole set
+  // and sorts in memory. See migration 0210.
+  @@index([userId, measuredAt])
   // v1.15.13 — leads with `(userId, source)` so the management list's
   // source filter + recency sort is an index range scan instead of a
   // `userId` scan + in-memory sort. See migration 0136.

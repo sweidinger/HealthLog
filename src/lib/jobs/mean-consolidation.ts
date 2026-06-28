@@ -82,7 +82,13 @@ export async function runMeanConsolidationForUser(
  * Best-effort: errors are returned through the result value so the
  * worker boot never fails because of a consolidation miss.
  */
-export async function enqueueBootTimeMeanConsolidation(): Promise<{
+export async function enqueueBootTimeMeanConsolidation(
+  // Optional boot-storm stagger. When > 0 the per-user sends carry a
+  // `startAfter` delay (seconds) so this consolidation does not drain in
+  // parallel with the other boot backfills onto one heavy tenant. Default 0
+  // keeps immediate semantics for any non-boot caller.
+  startAfterSeconds: number = 0,
+): Promise<{
   enqueued: number;
   skipped: number;
   error: string | null;
@@ -127,6 +133,7 @@ export async function enqueueBootTimeMeanConsolidation(): Promise<{
         retryDelay: 60,
         retryBackoff: true,
         singletonKey: `mean-consolidation|${userId}`,
+        ...(startAfterSeconds > 0 ? { startAfter: startAfterSeconds } : {}),
       });
       if (jobId) {
         enqueued += 1;

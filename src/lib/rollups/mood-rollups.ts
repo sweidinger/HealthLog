@@ -451,7 +451,13 @@ async function ensureUserMoodRollupsFreshImpl(
  * Best-effort: errors are swallowed and reported through the return
  * value so the worker boot never fails because of a backfill miss.
  */
-export async function enqueueBootTimeMoodRollupBackfill(): Promise<{
+export async function enqueueBootTimeMoodRollupBackfill(
+  // Optional boot-storm stagger. When > 0 the per-user sends carry a
+  // `startAfter` delay (seconds) so this full-history fold does not drain in
+  // parallel with the other boot backfills onto one heavy tenant. Default 0
+  // keeps immediate semantics for any non-boot caller.
+  startAfterSeconds: number = 0,
+): Promise<{
   enqueued: number;
   skipped: number;
   error: string | null;
@@ -500,6 +506,7 @@ export async function enqueueBootTimeMoodRollupBackfill(): Promise<{
         // Coalesce: if a backfill for this user is already queued and
         // we restart, pg-boss returns null instead of duplicating.
         singletonKey: `mood-boot-backfill|${id}`,
+        ...(startAfterSeconds > 0 ? { startAfter: startAfterSeconds } : {}),
       });
       if (jobId) {
         enqueued += 1;

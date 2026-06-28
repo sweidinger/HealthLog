@@ -19,6 +19,17 @@ export function parseTimeToMinutes(value: string): number {
 
 export const DATABASE_URL = process.env.DATABASE_URL!;
 
+// Boot-backfill stagger step (seconds). The self-converging full-history
+// backfills are each `localConcurrency: 1` in isolation, but all of them used
+// to drain from the very first pg-boss poll at worker boot — on a heavy tenant
+// that meant ~half a dozen full-history loads contending for the same
+// connection pool at once (a boot storm / crash-loop risk). The boot-discovery
+// wrappers hand each backfill type an increasing multiple of this step as a
+// `startAfter` delay so their loads start at staggered times instead of all on
+// the first poll. Non-boot callers (cron) pass no offset and keep their
+// immediate semantics.
+export const BOOT_BACKFILL_STAGGER_SECONDS = 30;
+
 // Reuse a single PrismaClient across all job handlers to avoid connection pool exhaustion
 
 let workerPrisma: PrismaClient | null = null;

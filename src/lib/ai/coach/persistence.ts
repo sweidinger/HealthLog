@@ -253,11 +253,21 @@ export async function recordProactiveNudge(
   });
 }
 
+// Very long threads previously decrypted every message on each open; the
+// newest messages up to this cap cover the rendered window without the
+// unbounded per-open AES-decrypt cost. The response shape is unchanged —
+// the messages array still arrives oldest->newest (see the reverse below).
+const CONVERSATION_MESSAGE_DETAIL_CAP = 200;
+
 /**
- * Fetch one conversation + every message, decrypting each body on
+ * Fetch one conversation + its messages, decrypting each body on
  * read. Returns null when the conversation does not exist OR when the
  * supplied `userId` does not own it — callers should map both cases to
  * a 404 to avoid an existence-leak side channel.
+ *
+ * Only the newest `CONVERSATION_MESSAGE_DETAIL_CAP` messages are loaded
+ * and decrypted; the result stays ascending so the response envelope is
+ * byte-for-byte the same shape callers already consume.
  */
 export async function fetchConversationWithMessages(
   userId: string,
@@ -267,13 +277,18 @@ export async function fetchConversationWithMessages(
     where: { id: conversationId, userId },
     include: {
       messages: {
-        orderBy: { createdAt: "asc" },
+        // Fetch the newest N first, then restore ascending order in code
+        // so the unbounded per-open decrypt cost is capped without
+        // changing the oldest->newest contract the client renders.
+        orderBy: { createdAt: "desc" },
+        take: CONVERSATION_MESSAGE_DETAIL_CAP,
       },
     },
   });
   if (!row) return null;
 
-  const messages: CoachMessageDTO[] = row.messages.map((m) => ({
+  const orderedMessages = [...row.messages].reverse();
+  const messages: CoachMessageDTO[] = orderedMessages.map((m) => ({
     id: m.id,
     role: m.role as CoachMessageRole,
     content: decryptFromBytes(m.encryptedContent),

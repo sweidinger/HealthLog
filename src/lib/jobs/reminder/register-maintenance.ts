@@ -69,7 +69,7 @@ import {
   type EncryptionKeyRotatePayload,
 } from "@/lib/jobs/encryption-key-rotate";
 import { recordError } from "@/lib/jobs/worker-status";
-import { workerLog } from "./shared";
+import { workerLog, BOOT_BACKFILL_STAGGER_SECONDS } from "./shared";
 import { createAndSchedule, type ScheduleEntry } from "./registrar-shared";
 import {
   DataBackupPayload,
@@ -566,8 +566,15 @@ export async function enqueueMaintenanceBootDiscovery(): Promise<void> {
   // migration job per account. Idempotent across reboots: a migrated row nulls
   // its plaintext column and drops off the discovery predicate.
   try {
+    // Stage 5 — last of the staggered boot backfills. The heavy full-history
+    // loads each `localConcurrency: 1` used to drain in parallel onto one heavy
+    // tenant at boot; threading an increasing `startAfter` delay spreads them
+    // across a window. The daily cron tick (above) passes no offset and stays
+    // immediate.
     const { enqueued, skipped, error } =
-      await enqueueBootTimeNoteEncryptionBackfill();
+      await enqueueBootTimeNoteEncryptionBackfill(
+        BOOT_BACKFILL_STAGGER_SECONDS * 5,
+      );
     if (error) {
       workerLog(
         "error",

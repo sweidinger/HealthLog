@@ -541,7 +541,13 @@ export async function enqueueUserMedicationComplianceBackfill(
  * row inside the trailing window the discovery query drops them.
  * pg-boss `singletonKey` coalesces duplicate sends.
  */
-export async function enqueueBootTimeMedicationComplianceBackfill(): Promise<{
+export async function enqueueBootTimeMedicationComplianceBackfill(
+  // Optional boot-storm stagger. When > 0 the per-user sends carry a
+  // `startAfter` delay (seconds) so this full-history fold does not drain in
+  // parallel with the other boot backfills onto one heavy tenant. Default 0
+  // keeps immediate semantics for any non-boot caller.
+  startAfterSeconds: number = 0,
+): Promise<{
   enqueued: number;
   skipped: number;
   error: string | null;
@@ -587,6 +593,7 @@ export async function enqueueBootTimeMedicationComplianceBackfill(): Promise<{
           retryDelay: 60,
           retryBackoff: true,
           singletonKey: `medication-compliance-boot-backfill|${id}`,
+          ...(startAfterSeconds > 0 ? { startAfter: startAfterSeconds } : {}),
         },
       );
       if (jobId) {
