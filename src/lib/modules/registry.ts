@@ -140,7 +140,7 @@ export const MODULE_KEYS = [
   // tracking. OPT-IN (off by default): a depression / anxiety self-assessment
   // is at least as sensitive as mood, so it ships dark and the user turns it on
   // deliberately. The `optIn` marker inverts the per-user default; with it off
-  // the `/insights/mental-wellbeing` surface is hidden from nav and the
+  // the `/mental-wellbeing` surface is hidden from nav and the
   // assessment routes refuse server-side. Item answers are always encrypted and
   // always excluded from the AI Coach / MCP regardless of this toggle.
   "mentalHealth",
@@ -313,7 +313,7 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       category: "tracking",
       // Off by default: a depression / anxiety screener is highly sensitive, so
       // the surface ships dark and the user opts in deliberately. Turning it on
-      // reveals the `/insights/mental-wellbeing` check-in and lets the screener
+      // reveals the `/mental-wellbeing` check-in and lets the screener
       // total ride the doctor-report export; item answers stay encrypted and
       // off the AI Coach / MCP regardless.
       optIn: true,

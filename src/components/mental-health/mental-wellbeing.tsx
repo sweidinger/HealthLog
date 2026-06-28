@@ -21,6 +21,7 @@ import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoHint } from "@/components/ui/info-hint";
 import {
   INSTRUMENTS,
   PHQ_GAD_ATTRIBUTION,
@@ -122,19 +123,16 @@ export function MentalWellbeing() {
   );
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">
-          {t("mentalHealth.pageTitle")}
-        </h1>
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-2xl font-semibold">
+            {t("mentalHealth.pageTitle")}
+          </h1>
+          <InfoHint label={t("mentalHealth.infoTooltip")} />
+        </div>
         <p className="text-muted-foreground text-sm">
           {t("mentalHealth.pageDescription")}
-        </p>
-        <p className="text-muted-foreground border-border/60 bg-muted/40 rounded-md border p-3 text-xs">
-          {t("mentalHealth.disclaimer")}
-        </p>
-        <p className="text-muted-foreground text-xs">
-          {t("mentalHealth.optInNote")}
         </p>
       </header>
 

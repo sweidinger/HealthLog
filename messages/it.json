@@ -7558,8 +7558,7 @@
   "mentalHealth": {
     "pageTitle": "Check-in sul benessere mentale",
     "pageDescription": "Due autovalutazioni validate e facoltative — PHQ-9 (umore) e GAD-7 (preoccupazione) — accanto al tuo diario dell'umore. Ciò che conta è l'andamento nel tempo, non un singolo numero.",
-    "disclaimer": "Questa è un'autovalutazione di screening, non una diagnosi. Un punteggio alto o basso non significa che tu abbia o non abbia un disturbo. Solo un professionista sanitario qualificato può fare una diagnosi. In caso di dubbi, parlane con il tuo medico.",
-    "optInNote": "Facoltativo e privato: le tue risposte individuali sono cifrate, tenute fuori dal Coach IA e dalle esportazioni, e non vengono mai condivise.",
+    "infoTooltip": "Questo è un autotest di screening, non una diagnosi.",
     "attributionLabel": "Fonte",
     "choosePrompt": "Scegli un check-in",
     "start": "Inizia",

@@ -7558,8 +7558,7 @@
   "mentalHealth": {
     "pageTitle": "Revisión de bienestar mental",
     "pageDescription": "Dos autoevaluaciones validadas y opcionales — PHQ-9 (estado de ánimo) y GAD-7 (preocupación) — junto a tu registro de ánimo. Lo valioso es la tendencia en el tiempo, no un único número.",
-    "disclaimer": "Esto es una autoevaluación de cribado, no un diagnóstico. Una puntuación alta o baja no significa que tengas o no una afección. Solo un profesional de salud cualificado puede diagnosticar. Si tienes dudas, habla con tu médico.",
-    "optInNote": "Opcional y privado: tus respuestas individuales están cifradas, se mantienen fuera del Coach de IA y de las exportaciones, y nunca se comparten.",
+    "infoTooltip": "Esto es una autoevaluación de cribado, no un diagnóstico.",
     "attributionLabel": "Fuente",
     "choosePrompt": "Elige una revisión",
     "start": "Empezar",

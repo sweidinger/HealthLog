@@ -7558,8 +7558,7 @@
   "mentalHealth": {
     "pageTitle": "Mental wellbeing check-in",
     "pageDescription": "Two validated, opt-in self-assessments — PHQ-9 (mood) and GAD-7 (worry) — that sit beside your mood tracking. The value is the trend over time, not any single number.",
-    "disclaimer": "This is a screening self-assessment, not a diagnosis. A high or low score does not mean you do or do not have a condition. Only a qualified health professional can diagnose. If you have concerns, please talk to your doctor.",
-    "optInNote": "Opt-in and private: your individual answers are encrypted, kept out of the AI Coach and exports, and never shared.",
+    "infoTooltip": "This is a screening self-test, not a diagnosis.",
     "attributionLabel": "Attribution",
     "choosePrompt": "Choose a check-in",
     "start": "Start",
