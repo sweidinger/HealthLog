@@ -2387,7 +2387,8 @@
         "correlationMoodPulse": "Y a-t-il un lien réel entre mon humeur et mon pouls ? Aide-moi à interpréter cette corrélation.",
         "correlationWeightWeekday": "Mon poids suit-il un schéma hebdomadaire ? Que m'indique cette corrélation selon le jour de la semaine ?",
         "recommendation": "Parle-moi davantage de cette recommandation : \"{text}\" — pourquoi s'applique-t-elle à moi, et que devrais-je faire ?"
-      }
+      },
+      "assessmentPrompt": "Explique-moi mon évaluation de {metric} : qu'est-ce que cela signifie et que dois-je faire ?"
     },
     "relativeJustNow": "à l’instant",
     "relativeMinutesAgoOne": "il y a {count} minute",
@@ -2459,7 +2460,8 @@
       "emptyState": {
         "title": "Aucune FC au repos",
         "description": "La FC au repos arrive dès que l'Apple Watch ou un appareil Withings compatible a porté une journée calme."
-      }
+      },
+      "coachPrefill": "Je n'ai pas encore enregistré de fréquence cardiaque au repos — pourquoi la valeur quotidienne au repos diffère-t-elle d'un pouls ponctuel, et comment l'améliorer ?"
     },
     "oxygenSaturation": {
       "title": "Saturation en oxygène",
@@ -6991,7 +6993,7 @@
       "deletedToast": "Biomarqueur supprimé",
       "deleteError": "Impossible de supprimer le biomarqueur",
       "deleteConfirmTitle": "Supprimer le biomarqueur ?",
-      "deleteConfirmDescription": "La définition est supprimée. Les mesures existantes sont conservées mais dissociées.",
+      "deleteConfirmDescription": "Le biomarqueur et toutes ses valeurs enregistrées sont définitivement supprimés. Cette action est irréversible.",
       "emptyTitle": "Aucun biomarqueur pour l'instant",
       "emptyDescription": "Définissez des marqueurs comme LDL ou HbA1c pour enregistrer des valeurs.",
       "loadError": "Impossible de charger les biomarqueurs",
@@ -7026,7 +7028,14 @@
       "unhiddenToast": "Biomarqueur restauré",
       "hideError": "Impossible de mettre à jour le biomarqueur",
       "allHidden": "Tous les biomarqueurs sont masqués.",
-      "hiddenSection": "Masqués"
+      "hiddenSection": "Masqués",
+      "targetRange": {
+        "title": "Ajuster la plage cible",
+        "description": "Définis la référence basse et haute de ce marqueur. Laisse un champ vide pour une limite ouverte.",
+        "save": "Enregistrer la plage",
+        "savedToast": "Plage cible mise à jour",
+        "saveError": "Impossible de mettre à jour la plage cible"
+      }
     },
     "catalog": {
       "total-cholesterol": "Cholestérol total",

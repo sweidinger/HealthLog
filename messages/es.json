@@ -2387,7 +2387,8 @@
         "correlationMoodPulse": "¿Existe una relación real entre mi estado de ánimo y mi pulso? Ayúdame a interpretar esta correlación.",
         "correlationWeightWeekday": "¿Mi peso sigue un patrón semanal? ¿Qué me dice esta correlación por día de la semana?",
         "recommendation": "Cuéntame más sobre esta recomendación: \"{text}\" — ¿por qué se aplica a mí y qué debería hacer al respecto?"
-      }
+      },
+      "assessmentPrompt": "Explícame mi evaluación de {metric}: ¿qué significa y qué debería hacer al respecto?"
     },
     "relativeJustNow": "ahora mismo",
     "relativeMinutesAgoOne": "hace {count} minuto",
@@ -2459,7 +2460,8 @@
       "emptyState": {
         "title": "Aún no hay FC en reposo",
         "description": "La FC en reposo aparece cuando Apple Watch o un Withings compatible ha llevado puesto un día tranquilo."
-      }
+      },
+      "coachPrefill": "Aún no he registrado ninguna frecuencia cardíaca en reposo: ¿por qué el valor diario en reposo difiere de un pulso puntual y cómo puedo mejorarlo?"
     },
     "oxygenSaturation": {
       "title": "Saturación de oxígeno",
@@ -6991,7 +6993,7 @@
       "deletedToast": "Biomarcador eliminado",
       "deleteError": "No se pudo eliminar el biomarcador",
       "deleteConfirmTitle": "¿Eliminar biomarcador?",
-      "deleteConfirmDescription": "Se elimina la definición. Las mediciones existentes se conservan pero se desvinculan.",
+      "deleteConfirmDescription": "El biomarcador y todos sus valores registrados se eliminan de forma permanente. Esta acción no se puede deshacer.",
       "emptyTitle": "Aún no hay biomarcadores",
       "emptyDescription": "Define marcadores como LDL o HbA1c para registrar valores.",
       "loadError": "No se pudieron cargar los biomarcadores",
@@ -7026,7 +7028,14 @@
       "unhiddenToast": "Biomarcador restaurado",
       "hideError": "No se pudo actualizar el biomarcador",
       "allHidden": "Todos los biomarcadores están ocultos.",
-      "hiddenSection": "Ocultos"
+      "hiddenSection": "Ocultos",
+      "targetRange": {
+        "title": "Ajustar el rango objetivo",
+        "description": "Define la referencia mínima y máxima de este marcador. Deja un campo vacío para un límite abierto.",
+        "save": "Guardar rango",
+        "savedToast": "Rango objetivo actualizado",
+        "saveError": "No se pudo actualizar el rango objetivo"
+      }
     },
     "catalog": {
       "total-cholesterol": "Colesterol total",

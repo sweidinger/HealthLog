@@ -44,6 +44,12 @@ export interface AskCoachActionProps {
    * briefing), which read better against the default all-source snapshot.
    */
   scope?: CoachLaunchScope;
+  /**
+   * Auto-send the seeded question as the conversation's first turn instead
+   * of only seeding the composer. The assessment hand-off sets this so the
+   * Coach answers immediately; defaults to false (seed-only).
+   */
+  autoSend?: boolean;
   /** Optional visible-label override; defaults to the shared CTA copy. */
   label?: string;
   /** className passthrough for per-card alignment. */
@@ -53,6 +59,7 @@ export interface AskCoachActionProps {
 export function AskCoachAction({
   question,
   scope,
+  autoSend,
   label,
   className,
 }: AskCoachActionProps) {
@@ -76,7 +83,7 @@ export function AskCoachAction({
       variant="ghost"
       size="sm"
       data-slot="ask-coach-action"
-      onClick={() => launch.askCoach(question, scope)}
+      onClick={() => launch.askCoach(question, scope, autoSend)}
       className={cn(
         // Discreet: muted text, hover lifts to foreground, no fill. Tight
         // height so it sits as a quiet footer link, not a primary CTA.

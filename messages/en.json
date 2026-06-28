@@ -2387,7 +2387,8 @@
         "correlationMoodPulse": "Is there a real link between my mood and my pulse? Help me read this correlation.",
         "correlationWeightWeekday": "Does my weight follow a weekly pattern? What does this day-of-week correlation tell me?",
         "recommendation": "Tell me more about this recommendation: \"{text}\" — why does it apply to me, and what should I do about it?"
-      }
+      },
+      "assessmentPrompt": "Walk me through my {metric} assessment — what does it mean and what should I do about it?"
     },
     "relativeJustNow": "just now",
     "relativeMinutesAgoOne": "{count} minute ago",
@@ -2459,7 +2460,8 @@
       "emptyState": {
         "title": "No resting heart rate yet",
         "description": "Resting heart rate arrives once Apple Watch or a compatible Withings device has worn through one quiet day."
-      }
+      },
+      "coachPrefill": "I haven't logged any resting heart rate yet — why is the daily resting value different from a spot pulse, and how do I improve it?"
     },
     "oxygenSaturation": {
       "title": "Oxygen saturation",
@@ -6991,7 +6993,7 @@
       "deletedToast": "Biomarker deleted",
       "deleteError": "Could not delete the biomarker",
       "deleteConfirmTitle": "Delete biomarker?",
-      "deleteConfirmDescription": "The definition is removed. Existing readings are kept but unlinked.",
+      "deleteConfirmDescription": "The biomarker and all of its recorded values are permanently deleted. This cannot be undone.",
       "emptyTitle": "No biomarkers yet",
       "emptyDescription": "Define markers like LDL or HbA1c to record values against them.",
       "loadError": "Could not load biomarkers",
@@ -7026,7 +7028,14 @@
       "unhiddenToast": "Biomarker restored",
       "hideError": "Could not update the biomarker",
       "allHidden": "Every biomarker is hidden.",
-      "hiddenSection": "Hidden"
+      "hiddenSection": "Hidden",
+      "targetRange": {
+        "title": "Adjust target range",
+        "description": "Set the reference low and high for this marker. Leave a field empty for an open-ended bound.",
+        "save": "Save range",
+        "savedToast": "Target range updated",
+        "saveError": "Could not update the target range"
+      }
     },
     "catalog": {
       "total-cholesterol": "Total cholesterol",

@@ -1,17 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
-import { DeleteButton } from "@/components/data-list";
+import { DeleteButton, SortableHead } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { DateTimeField } from "@/components/ui/date-time-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useTableSort } from "@/hooks/use-table-sort";
 import {
   ApiError,
   apiDelete,
@@ -29,6 +38,19 @@ import { ReferenceRangeBadge } from "./reference-range-badge";
 import type { LabResultDetailDto, LabResultDto } from "./types";
 
 const NOTE_MAX_LENGTH = 2000;
+
+// The sample-date column opens descending (newest first); every other column
+// opens ascending.
+const LAB_DESC_COLUMNS = new Set(["takenAt"]);
+
+// Stable ordering for the reference-range column so a sort produces a
+// predictable below → in-range → above → unknown progression.
+const RANGE_RANK: Record<string, number> = {
+  below: 0,
+  "in-range": 1,
+  above: 2,
+  unknown: 3,
+};
 
 function toDateTimeLocal(iso: string): string {
   const d = new Date(iso);
@@ -54,6 +76,13 @@ function parseDecimal(raw: string): number | null {
 export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+
+  // Client-side column sort over the in-memory reading feed.
+  const { sortBy, sortDir, toggleSort } = useTableSort({
+    defaultColumn: "takenAt",
+    defaultDir: "desc",
+    descColumns: LAB_DESC_COLUMNS,
+  });
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -200,54 +229,124 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
     });
   }
 
-  const ordered = [...readings].sort(
-    (a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime(),
-  );
+  const ordered = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...readings].sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case "value": {
+          // Numeric rows compare by value; qualitative rows (value null) sort
+          // after the numeric ones and tie-break on their text.
+          if (a.value !== null && b.value !== null) {
+            cmp = a.value - b.value;
+          } else if (a.value === null && b.value === null) {
+            cmp = (a.valueText ?? "").localeCompare(b.valueText ?? "");
+          } else {
+            cmp = a.value === null ? 1 : -1;
+          }
+          break;
+        }
+        case "range":
+          cmp =
+            (RANGE_RANK[a.rangeStatus] ?? 99) -
+            (RANGE_RANK[b.rangeStatus] ?? 99);
+          break;
+        case "note":
+          cmp = Number(a.hasNote) - Number(b.hasNote);
+          break;
+        case "takenAt":
+        default:
+          cmp = new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime();
+          break;
+      }
+      // Stable secondary ordering by sample date keeps ties deterministic.
+      if (cmp === 0) {
+        cmp = new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime();
+      }
+      return cmp * dir;
+    });
+  }, [readings, sortBy, sortDir]);
 
   return (
     <>
-      <ul className="divide-border divide-y">
-        {ordered.map((r) => (
-          <li
-            key={r.id}
-            className="flex items-center justify-between gap-3 py-3"
-          >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-foreground font-semibold tabular-nums">
-                  {formatLabReading(r)}
-                </span>
-                <ReferenceRangeBadge status={r.rangeStatus} />
-              </div>
-              <p className="text-muted-foreground text-xs">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <SortableHead
+              column="value"
+              label={t("labs.form.value")}
+              currentSort={sortBy}
+              currentDir={sortDir}
+              onSort={toggleSort}
+            />
+            <SortableHead
+              column="takenAt"
+              label={t("labs.form.takenAt")}
+              currentSort={sortBy}
+              currentDir={sortDir}
+              onSort={toggleSort}
+            />
+            <SortableHead
+              column="range"
+              label={t("labs.referenceLabel")}
+              currentSort={sortBy}
+              currentDir={sortDir}
+              onSort={toggleSort}
+            />
+            <SortableHead
+              column="note"
+              label={t("labs.hasNote")}
+              currentSort={sortBy}
+              currentDir={sortDir}
+              onSort={toggleSort}
+            />
+            <TableHead className="w-20 pr-4 text-right">
+              <span className="sr-only">{t("labs.editReading")}</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {ordered.map((r) => (
+            <TableRow key={r.id}>
+              <TableCell className="font-semibold tabular-nums">
+                {formatLabReading(r)}
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                 {formatDateShort(r.takenAt, true)}
-                {r.hasNote ? ` · ${t("labs.hasNote")}` : ""}
-              </p>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                // v1.18.10 (W10) — 44px touch target on mobile (WCAG 2.5.5),
-                // compact 36px on desktop. The primary edit control for a row.
-                className="size-11 sm:size-9"
-                onClick={() => void openEdit(r)}
-                aria-label={t("labs.editReading")}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <DeleteButton
-                onConfirm={() => deleteMutation.mutate(r.id)}
-                title={t("labs.deleteConfirmTitle")}
-                description={t("labs.deleteConfirmDescription")}
-                confirmLabel={t("labs.deleteReading")}
-                className="size-11 sm:size-9"
-                iconClassName="h-4 w-4"
-              />
-            </div>
-          </li>
-        ))}
-      </ul>
+              </TableCell>
+              <TableCell>
+                <ReferenceRangeBadge status={r.rangeStatus} />
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {r.hasNote ? t("labs.hasNote") : ""}
+              </TableCell>
+              <TableCell className="pr-4 text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    // v1.18.10 (W10) — 44px touch target on mobile (WCAG
+                    // 2.5.5), compact 36px on desktop.
+                    className="size-11 sm:size-9"
+                    onClick={() => void openEdit(r)}
+                    aria-label={t("labs.editReading")}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <DeleteButton
+                    onConfirm={() => deleteMutation.mutate(r.id)}
+                    title={t("labs.deleteConfirmTitle")}
+                    description={t("labs.deleteConfirmDescription")}
+                    confirmLabel={t("labs.deleteReading")}
+                    className="size-11 sm:size-9"
+                    iconClassName="h-4 w-4"
+                  />
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
       <ResponsiveSheet
         open={editingId !== null}

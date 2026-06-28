@@ -2387,7 +2387,8 @@
         "correlationMoodPulse": "Gibt es einen echten Zusammenhang zwischen meiner Stimmung und meinem Puls? Hilf mir, diesen Zusammenhang zu lesen.",
         "correlationWeightWeekday": "Folgt mein Gewicht einem Wochenmuster? Was sagt mir dieser Wochentags-Zusammenhang?",
         "recommendation": "Erzähl mir mehr zu dieser Empfehlung: \"{text}\" — warum trifft sie auf mich zu, und was sollte ich tun?"
-      }
+      },
+      "assessmentPrompt": "Erkläre mir meine {metric}-Einschätzung — was bedeutet sie und was sollte ich tun?"
     },
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",
@@ -2459,7 +2460,8 @@
       "emptyState": {
         "title": "Noch kein Ruhepuls",
         "description": "Der Ruhepuls erscheint, sobald die Apple Watch oder ein kompatibles Withings-Gerät einen ruhigen Tag durchgetragen hat."
-      }
+      },
+      "coachPrefill": "Ich habe noch keinen Ruhepuls erfasst — warum unterscheidet sich der tägliche Ruhewert von einem punktuellen Puls, und wie verbessere ich ihn?"
     },
     "oxygenSaturation": {
       "title": "Sauerstoffsättigung",
@@ -6991,7 +6993,7 @@
       "deletedToast": "Biomarker gelöscht",
       "deleteError": "Biomarker konnte nicht gelöscht werden",
       "deleteConfirmTitle": "Biomarker löschen?",
-      "deleteConfirmDescription": "Die Definition wird entfernt. Bestehende Werte bleiben erhalten, aber ohne Verknüpfung.",
+      "deleteConfirmDescription": "Der Biomarker und alle erfassten Werte werden dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
       "emptyTitle": "Noch keine Biomarker",
       "emptyDescription": "Lege Marker wie LDL oder HbA1c an, um Werte zu erfassen.",
       "loadError": "Biomarker konnten nicht geladen werden",
@@ -7026,7 +7028,14 @@
       "unhiddenToast": "Biomarker wiederhergestellt",
       "hideError": "Biomarker konnte nicht aktualisiert werden",
       "allHidden": "Alle Biomarker sind ausgeblendet.",
-      "hiddenSection": "Ausgeblendet"
+      "hiddenSection": "Ausgeblendet",
+      "targetRange": {
+        "title": "Zielbereich anpassen",
+        "description": "Lege die untere und obere Referenz für diesen Marker fest. Lass ein Feld leer für eine offene Grenze.",
+        "save": "Bereich speichern",
+        "savedToast": "Zielbereich aktualisiert",
+        "saveError": "Zielbereich konnte nicht aktualisiert werden"
+      }
     },
     "catalog": {
       "total-cholesterol": "Gesamtcholesterin",

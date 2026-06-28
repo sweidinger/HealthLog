@@ -35,6 +35,7 @@ import { generateBmiStatusForUser } from "@/lib/insights/bmi-status";
 import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
 import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
 import { generateMetricStatus } from "@/lib/insights/metric-status";
+import { generateBiomarkerStatus } from "@/lib/insights/biomarker-status";
 import { isMetricStatusId } from "@/lib/insights/metric-status-registry";
 import { prisma } from "@/lib/db";
 import {
@@ -108,6 +109,27 @@ export async function runInsightStatusGenerate(
     }
     await generateMetricStatus({
       metric: metricId,
+      userId: payload.userId,
+      locale: payload.locale,
+      force: true,
+    });
+    return;
+  }
+
+  // A `biomarker:<id>` scope routes to the per-biomarker generator, which
+  // reads `LabResult` rows for the marker. Its own empty-data + input-hash
+  // gates keep a job for an unchanged marker cheap (no LLM call).
+  if (payload.metric.startsWith("biomarker:")) {
+    const biomarkerId = payload.metric.slice("biomarker:".length);
+    if (!biomarkerId) {
+      annotate({
+        action: { name: "insights.status.generate.unknown_metric" },
+        meta: { metric: payload.metric },
+      });
+      return;
+    }
+    await generateBiomarkerStatus({
+      biomarkerId,
       userId: payload.userId,
       locale: payload.locale,
       force: true,

@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/api-fetch";
-import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 import { formatDate } from "@/lib/format";
 import { formatReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabReading, formatLabValue } from "@/lib/labs/format-value";
@@ -81,23 +80,8 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   // v1.22 — a short, factual line under each marker heading describing what the
   // biomarker measures, sourced from the catalog via i18n. Free-text markers
   // (no catalog match) carry no subtitle rather than a fabricated one.
-  // v1.22.1 — build the localized name→slug map once per locale instead of
-  // re-scanning all catalog seeds (calling `t()` each) per group every render.
-  const slugByName = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const seed of BIOMARKER_CATALOG) {
-      const norm = t(`labs.catalog.${seed.slug}`).trim().toLowerCase();
-      if (norm) map.set(norm, seed.slug);
-    }
-    return map;
-  }, [t]);
-  const describeMarker = (analyte: string): string | null => {
-    const norm = analyte.trim().toLowerCase();
-    if (!norm) return null;
-    const slug = slugByName.get(norm);
-    return slug ? t(`labs.catalog.desc.${slug}`) : null;
-  };
-
+  // v1.24 — the per-marker description moved to the biomarker detail page
+  // (beneath the heading); the overview rows no longer carry it.
   const listKey = queryKeys.labResultsList({
     biomarkerId: undefined,
     analyte: undefined,
@@ -204,7 +188,6 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
         <Card>
           <CardContent className="divide-border divide-y p-0">
             {groups.map((group) => {
-              const description = describeMarker(group.analyte);
               const inner = (
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
@@ -216,11 +199,6 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                       compact
                     />
                   </div>
-                  {description ? (
-                    <p className="text-muted-foreground text-xs">
-                      {description}
-                    </p>
-                  ) : null}
                   <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                     <span className="text-foreground font-semibold tabular-nums">
                       {formatLabReading(group.latest)}
@@ -278,7 +256,6 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
         </li>
       ) : null}
       {groups.map((group) => {
-        const description = describeMarker(group.analyte);
         return (
           <li key={group.key} className="contents">
             <Card className="h-full gap-3">
@@ -298,11 +275,6 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                 linkLabel={group.analyte}
               />
               <CardContent>
-                {description ? (
-                  <p className="text-muted-foreground mb-2 text-xs">
-                    {description}
-                  </p>
-                ) : null}
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
                     <span className="text-foreground font-semibold tabular-nums">

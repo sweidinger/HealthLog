@@ -67,7 +67,16 @@ export type InsightStatusScope =
    * always fills the field synchronously — this queue only warms the AI prose
    * that overrides it on the next read.
    */
-  | `derived-score:${string}`;
+  | `derived-score:${string}`
+  /**
+   * Per-biomarker assessment scopes ride the same on-demand queue. Their
+   * scope id is `biomarker:<id>`; the worker routes the prefix to the
+   * biomarker generator, which reads `LabResult` rows for the marker and
+   * applies its own empty-data + input-hash gates, so a job enqueued for a
+   * marker with no new reading costs only a cheap fingerprint, not an LLM
+   * call.
+   */
+  | `biomarker:${string}`;
 
 export interface InsightStatusGeneratePayload {
   userId: string;

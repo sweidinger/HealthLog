@@ -69,6 +69,11 @@ interface InsightStatusCardProps {
    */
   coachQuestion?: string;
   coachScope?: CoachLaunchScope;
+  /**
+   * Auto-send the seeded opener as the first turn (assessment hand-off)
+   * instead of only seeding the composer. Defaults to false.
+   */
+  coachAutoSend?: boolean;
 }
 
 // ─── Main Component ───────────────────────────────────────
@@ -83,6 +88,7 @@ export function InsightStatusCard({
   preparing = false,
   coachQuestion,
   coachScope,
+  coachAutoSend,
 }: InsightStatusCardProps) {
   const { t } = useTranslations();
   const flags = useFeatureFlags();
@@ -248,7 +254,11 @@ export function InsightStatusCard({
             caller supplied an opener. */}
         {coachQuestion ? (
           <div className="flex justify-end">
-            <AskCoachAction question={coachQuestion} scope={coachScope} />
+            <AskCoachAction
+              question={coachQuestion}
+              scope={coachScope}
+              autoSend={coachAutoSend}
+            />
           </div>
         ) : null}
       </CardContent>

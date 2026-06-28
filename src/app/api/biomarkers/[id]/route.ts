@@ -24,10 +24,10 @@ import { effectiveBound, isInvertedRange } from "@/lib/validations/labs";
  *
  * PUT applies a partial edit (`data` built field-by-field; an explicit `null`
  * clears `context` / `panel` / a bound, an omitted key leaves it untouched).
- * DELETE hard-deletes the catalog definition — the `onDelete: SetNull` FK on
- * `LabResult.biomarkerId` unlinks every reading without losing it (the row
- * keeps its legacy `analyte` / `unit` historical fields). Cross-user rows
- * surface as 404 (existence sealed).
+ * DELETE hard-deletes the catalog definition together with every reading it
+ * owns, in one userId-narrowed transaction — removing a biomarker is a
+ * deliberate "drop this and its values" action. Cross-user rows surface as
+ * 404 (existence sealed).
  */
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -187,10 +187,17 @@ export const DELETE = apiHandler(
       return apiError("Biomarker not found", 404);
     }
 
-    // Hard delete — the `onDelete: SetNull` FK unlinks every reading rather
-    // than cascading it away. The readings keep their legacy `analyte` /
-    // `unit` so the history survives the catalog edit.
-    await prisma.biomarker.delete({ where: { id } });
+    // Hard delete the marker AND its readings in one transaction. Deleting a
+    // biomarker is a deliberate "remove this and its history" action, so the
+    // readings go with it rather than lingering as orphaned, unlinked rows.
+    // Both legs are userId-narrowed so a cross-user id can never reach another
+    // account's data.
+    await prisma.$transaction([
+      prisma.labResult.deleteMany({
+        where: { userId: user.id, biomarkerId: id },
+      }),
+      prisma.biomarker.delete({ where: { id } }),
+    ]);
 
     await auditLog("biomarker.delete", {
       userId: user.id,

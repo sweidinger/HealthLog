@@ -46,12 +46,9 @@ export function MetricStatusCard({
   // carry a snapshot block. Unmapped metrics still get a metric-named
   // opener, just against the default snapshot.
   const coachSource = scopeSourceFromMetricKey(metric);
-  const coachQuestion = `Walk me through my ${metric
-    .toLowerCase()
-    .replace(
-      /_/g,
-      " ",
-    )} assessment — what does it mean and what should I do about it?`;
+  const coachQuestion = t("insights.coach.assessmentPrompt", {
+    metric: metric.toLowerCase().replace(/_/g, " "),
+  });
 
   return (
     <InsightStatusCard
@@ -62,6 +59,7 @@ export function MetricStatusCard({
       updatedAt={status?.updatedAt ?? null}
       coachQuestion={coachQuestion}
       coachScope={coachSource ? { metric: coachSource } : undefined}
+      coachAutoSend
       // Same hydration gate as `<SlugInsightStatusCard>`: the hook is
       // `enabled: isAuthenticated && enabled`, and both inputs can settle
       // before a late-hydrating boundary replays its first render — the

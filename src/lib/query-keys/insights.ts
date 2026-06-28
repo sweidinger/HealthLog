@@ -44,6 +44,16 @@ export const insightsKeys = {
   insightsMetricStatus: (metric: string, locale: string) =>
     ["insights", "metric-status", metric, locale] as const,
   /**
+   * Per-biomarker assessment for the lab-marker detail page. One generic
+   * route (`/api/insights/biomarker-assessment?biomarkerId=…`) backs every
+   * marker, so the key is parameterised by the marker id alongside the
+   * locale. Same read-only + stale-while-revalidate contract as
+   * `insightsMetricStatus`; the `["insights"]` prefix keeps it in the
+   * standard invalidation fan-out.
+   */
+  insightsBiomarkerAssessment: (biomarkerId: string, locale: string) =>
+    ["insights", "biomarker-assessment", biomarkerId, locale] as const,
+  /**
    * v1.8.7.1 — mutationKey for the on-demand full-warm POST
    * (`/api/insights/pregenerate`). Lives in the factory so the bare-array
    * ESLint rule stays satisfied; the warm enqueues every assessment
