@@ -87,17 +87,14 @@ function renderWithCache() {
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(queryKeys.biomarkerDetail(BIOMARKER_ID), MARKER);
+  // The reading feed is an offset-paginated `useInfiniteQuery` (v1.25) — seed
+  // the accumulated-pages cache shape under its key.
   queryClient.setQueryData(
-    queryKeys.labResultsList({
+    queryKeys.labResultsInfinite({
       biomarkerId: BIOMARKER_ID,
-      analyte: undefined,
-      panel: undefined,
-      from: undefined,
-      to: undefined,
-      page: 0,
       sortDir: "desc",
     }),
-    LIST,
+    { pages: [LIST], pageParams: [0] },
   );
   queryClient.setQueryData(
     queryKeys.insightsBiomarkerAssessment(BIOMARKER_ID, "en"),

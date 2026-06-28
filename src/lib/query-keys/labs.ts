@@ -29,6 +29,20 @@ export const labKeys = {
       params.sortDir,
     ] as const,
 
+  // v1.25 — paginated (offset) reading feed for the biomarker detail page.
+  // Distinct from `labResultsList` (single-page key) so the infinite-query
+  // accumulation never collides with a single-page read. Shares the
+  // `["lab-results", …]` prefix so a result mutation's `labResults()`
+  // invalidation evicts it too.
+  labResultsInfinite: (params: { biomarkerId: string; sortDir: string }) =>
+    [
+      "lab-results",
+      "list",
+      "infinite",
+      params.biomarkerId,
+      params.sortDir,
+    ] as const,
+
   // v1.18.1 — user-scoped Biomarker catalog. The list feeds the picker and
   // the manager; both invalidate `biomarkers()` after a mutation.
   biomarkers: () => ["biomarkers"] as const,
