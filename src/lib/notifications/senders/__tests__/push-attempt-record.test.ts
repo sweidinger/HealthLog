@@ -16,6 +16,21 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// safeFetch's requirePublicHost path runs through undici's own `fetch`
+// (version-locked with its dispatcher). Delegate it to the global `fetch`
+// stub these tests install so the existing interception still applies.
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("undici")>();
+  return {
+    ...actual,
+    fetch: (input: unknown, init?: unknown) =>
+      (globalThis.fetch as unknown as (i: unknown, n?: unknown) => unknown)(
+        input,
+        init,
+      ),
+  };
+});
+
 // vi.mock factories run before module top-level executes, so anything
 // referenced inside a factory must be created via vi.hoisted to share
 // the same hoisted scope.
