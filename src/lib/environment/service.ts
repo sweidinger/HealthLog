@@ -230,25 +230,31 @@ export async function fetchAndStoreEnvironment(args: {
     }
     fetches += 1;
 
-    const obsByDate = new Map(observations.map((o) => [o.date, o]));
     const wanted = new Set(groupDays);
-    for (const obs of observations) {
-      if (!wanted.has(obs.date)) continue;
-      await upsertObservation(userId, loc, obs);
-      stored += 1;
+    // Batch the group's day upserts into a single transaction round-trip
+    // rather than awaiting one upsert per day in series (a 730-day backfill
+    // would otherwise issue 730 sequential statements). One transaction per
+    // location group keeps the per-backfill DB chatter bounded while
+    // preserving the idempotent upsert semantics.
+    const ops = observations
+      .filter((obs) => wanted.has(obs.date))
+      .map((obs) => buildUpsert(userId, loc, obs));
+    if (ops.length > 0) {
+      await prisma.$transaction(ops);
+      stored += ops.length;
     }
     // Days the feed did not return (e.g. beyond the settling lag) stay absent.
-    void obsByDate;
   }
 
   return { stored, skipped, fetches };
 }
 
-async function upsertObservation(
+/** Build the idempotent per-day upsert operation (un-awaited, for a batch). */
+function buildUpsert(
   userId: string,
   loc: ResolvedLocation,
   obs: DailyEnvironmentObservation,
-): Promise<void> {
+) {
   const data = {
     lat: loc.lat,
     lon: loc.lon,
@@ -268,7 +274,7 @@ async function upsertObservation(
     weatherCode: obs.weatherCode,
     fetchedAt: new Date(),
   };
-  await prisma.environmentContext.upsert({
+  return prisma.environmentContext.upsert({
     where: { userId_date: { userId, date: obs.date } },
     create: { userId, date: obs.date, ...data },
     update: data,
