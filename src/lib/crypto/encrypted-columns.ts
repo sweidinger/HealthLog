@@ -173,6 +173,12 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "Allergy", field: "reactionEncrypted", kind: "bytes" },
   { model: "Allergy", field: "notesEncrypted", kind: "bytes" },
   { model: "FamilyHistoryEntry", field: "notesEncrypted", kind: "bytes" },
+
+  // ───── v1.25 (W-DOCS-IN) inbound clinical document (Bytes column) ─────
+  // The raw uploaded doctor report / discharge letter, base64-of-binary →
+  // AES-256-GCM string → UTF-8 bytes. The most sensitive blob in the wave
+  // (a full clinical document); never logged, never in wide-event meta.
+  { model: "InboundDocument", field: "contentEncrypted", kind: "bytes" },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */

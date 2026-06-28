@@ -85,6 +85,7 @@ function moduleMap(
     doctorReport: true,
     environment: true,
     mcp: true,
+    inboundDocuments: true,
   };
   return { ...base, ...overrides };
 }

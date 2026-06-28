@@ -239,7 +239,8 @@
     "cycle": "Cycle",
     "labs": "Labs",
     "vorsorge": "Checkups",
-    "illness": "Illness"
+    "illness": "Illness",
+    "documents": "Documents"
   },
   "auth": {
     "login": "Sign in",
@@ -7261,6 +7262,10 @@
     "environment": {
       "label": "Environment",
       "description": "Pull in daily weather and daylight for your location to correlate with mood, sleep, and vitals. Off by default."
+    },
+    "inboundDocuments": {
+      "label": "Inbound documents",
+      "description": "Upload a doctor report or discharge letter; review the extracted facts before they're saved. Off by default."
     }
   },
   "illness": {
@@ -7722,6 +7727,70 @@
       "precip": "Precipitation",
       "pressureMean": "Barometric pressure",
       "pressureDelta": "Pressure swing"
+    }
+  },
+  "documents": {
+    "title": "Inbound documents",
+    "subtitle": "Upload a clinical document and review the facts we read from it.",
+    "disclaimer": {
+      "title": "We read, we don't interpret",
+      "body": "We only transcribe what your document states — values, codes, and dates — and never diagnose, interpret, or flag anything. Nothing is saved until you review and approve it. Only your clinician can interpret these results."
+    },
+    "upload": {
+      "label": "Upload a document",
+      "kindLabel": "Document type",
+      "button": "Upload",
+      "uploading": "Reading…"
+    },
+    "kind": {
+      "DOCTOR_REPORT": "Doctor report",
+      "DISCHARGE_LETTER": "Discharge letter",
+      "OTHER": "Other"
+    },
+    "list": {
+      "empty": "No documents yet."
+    },
+    "status": {
+      "EXTRACTING": "Reading",
+      "EXTRACTED": "Ready to review",
+      "FAILED": "Couldn't read",
+      "CONFIRMED": "Reviewed",
+      "DISCARDED": "Discarded"
+    },
+    "review": {
+      "title": "Review extracted facts",
+      "discard": "Discard",
+      "confirm": "Save approved facts",
+      "confirming": "Saving…",
+      "needsReview": "Needs review",
+      "approve": "Approve",
+      "reject": "Reject",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "empty": {
+      "noFacts": "Nothing left to review."
+    },
+    "factType": {
+      "CONDITION": "Diagnosis",
+      "OBSERVATION": "Value",
+      "MEDICATION_STATEMENT": "Medication"
+    },
+    "fields": {
+      "label": "Name",
+      "value": "Value",
+      "unit": "Unit",
+      "date": "Date",
+      "dose": "Dose"
+    },
+    "toast": {
+      "uploaded": "Document read. Review the facts below.",
+      "uploadFailed": "Couldn't read the document.",
+      "confirmed": "Approved facts saved.",
+      "confirmFailed": "Couldn't save your decisions.",
+      "saved": "Fact updated.",
+      "discarded": "Document discarded."
     }
   }
 }

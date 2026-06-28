@@ -239,7 +239,8 @@
     "cycle": "Zyklus",
     "labs": "Laborwerte",
     "vorsorge": "Vorsorge",
-    "illness": "Krankheit"
+    "illness": "Krankheit",
+    "documents": "Dokumente"
   },
   "auth": {
     "login": "Anmelden",
@@ -7261,6 +7262,10 @@
     "environment": {
       "label": "Umwelt",
       "description": "Tägliches Wetter und Tageslicht für deinen Ort einbeziehen, um Zusammenhänge mit Stimmung, Schlaf und Vitalwerten zu erkennen. Standardmäßig aus."
+    },
+    "inboundDocuments": {
+      "label": "Eingehende Dokumente",
+      "description": "Lade einen Arztbericht oder Entlassbrief hoch; prüfe die erkannten Angaben, bevor sie gespeichert werden. Standardmäßig aus."
     }
   },
   "illness": {
@@ -7722,6 +7727,70 @@
       "precip": "Niederschlag",
       "pressureMean": "Luftdruck",
       "pressureDelta": "Druckschwankung"
+    }
+  },
+  "documents": {
+    "title": "Eingehende Dokumente",
+    "subtitle": "Lade ein klinisches Dokument hoch und prüfe die Angaben, die wir daraus gelesen haben.",
+    "disclaimer": {
+      "title": "Wir lesen, wir deuten nicht",
+      "body": "Wir übernehmen nur das, was dein Dokument angibt — Werte, Codes und Daten — und stellen keine Diagnose, deuten nichts und bewerten nichts. Nichts wird gespeichert, bevor du es geprüft und bestätigt hast. Nur deine Ärztin oder dein Arzt kann diese Ergebnisse beurteilen."
+    },
+    "upload": {
+      "label": "Dokument hochladen",
+      "kindLabel": "Dokumenttyp",
+      "button": "Hochladen",
+      "uploading": "Wird gelesen …"
+    },
+    "kind": {
+      "DOCTOR_REPORT": "Arztbericht",
+      "DISCHARGE_LETTER": "Entlassbrief",
+      "OTHER": "Sonstiges"
+    },
+    "list": {
+      "empty": "Noch keine Dokumente."
+    },
+    "status": {
+      "EXTRACTING": "Wird gelesen",
+      "EXTRACTED": "Bereit zur Prüfung",
+      "FAILED": "Konnte nicht gelesen werden",
+      "CONFIRMED": "Geprüft",
+      "DISCARDED": "Verworfen"
+    },
+    "review": {
+      "title": "Erkannte Angaben prüfen",
+      "discard": "Verwerfen",
+      "confirm": "Bestätigte Angaben speichern",
+      "confirming": "Wird gespeichert …",
+      "needsReview": "Prüfung nötig",
+      "approve": "Übernehmen",
+      "reject": "Ablehnen",
+      "edit": "Bearbeiten",
+      "cancel": "Abbrechen",
+      "save": "Speichern"
+    },
+    "empty": {
+      "noFacts": "Nichts mehr zu prüfen."
+    },
+    "factType": {
+      "CONDITION": "Diagnose",
+      "OBSERVATION": "Wert",
+      "MEDICATION_STATEMENT": "Medikament"
+    },
+    "fields": {
+      "label": "Name",
+      "value": "Wert",
+      "unit": "Einheit",
+      "date": "Datum",
+      "dose": "Dosis"
+    },
+    "toast": {
+      "uploaded": "Dokument gelesen. Prüfe die Angaben unten.",
+      "uploadFailed": "Dokument konnte nicht gelesen werden.",
+      "confirmed": "Bestätigte Angaben gespeichert.",
+      "confirmFailed": "Deine Entscheidungen konnten nicht gespeichert werden.",
+      "saved": "Angabe aktualisiert.",
+      "discarded": "Dokument verworfen."
     }
   }
 }

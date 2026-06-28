@@ -22,6 +22,7 @@ import { familyHistoryKeys } from "./family-history";
 import { cycleKeys } from "./cycle";
 import { dashboardKeys } from "./dashboard";
 import { environmentKeys } from "./environment";
+import { documentKeys } from "./documents";
 import { illnessKeys } from "./illness";
 import { insightsKeys } from "./insights";
 import { integrationKeys } from "./integrations";
@@ -54,6 +55,7 @@ export const queryKeys = {
   ...allergyKeys,
   ...familyHistoryKeys,
   ...environmentKeys,
+  ...documentKeys,
 };
 
 /**

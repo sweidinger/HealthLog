@@ -239,7 +239,8 @@
     "cycle": "Ciclo",
     "labs": "Esami",
     "vorsorge": "Controlli",
-    "illness": "Malattia"
+    "illness": "Malattia",
+    "documents": "Documenti"
   },
   "auth": {
     "login": "Accedi",
@@ -7261,6 +7262,10 @@
     "environment": {
       "label": "Ambiente",
       "description": "Integra il meteo e le ore di luce giornaliere della tua posizione per correlarli con umore, sonno e parametri vitali. Disattivato di default."
+    },
+    "inboundDocuments": {
+      "label": "Documenti in entrata",
+      "description": "Carica un referto medico o una lettera di dimissione; rivedi i dati estratti prima di salvarli. Disattivato per impostazione predefinita."
     }
   },
   "illness": {
@@ -7722,6 +7727,70 @@
       "precip": "Precipitazioni",
       "pressureMean": "Pressione atmosferica",
       "pressureDelta": "Variazione di pressione"
+    }
+  },
+  "documents": {
+    "title": "Documenti in entrata",
+    "subtitle": "Carica un documento clinico e rivedi i dati che abbiamo letto.",
+    "disclaimer": {
+      "title": "Leggiamo, non interpretiamo",
+      "body": "Trascriviamo solo ciò che il documento indica — valori, codici e date — e non formuliamo diagnosi, non interpretiamo e non segnaliamo nulla. Niente viene salvato finché non lo verifichi e lo approvi. Solo il tuo medico può interpretare questi risultati."
+    },
+    "upload": {
+      "label": "Carica un documento",
+      "kindLabel": "Tipo di documento",
+      "button": "Carica",
+      "uploading": "Lettura…"
+    },
+    "kind": {
+      "DOCTOR_REPORT": "Referto medico",
+      "DISCHARGE_LETTER": "Lettera di dimissione",
+      "OTHER": "Altro"
+    },
+    "list": {
+      "empty": "Ancora nessun documento."
+    },
+    "status": {
+      "EXTRACTING": "Lettura",
+      "EXTRACTED": "Pronto per la revisione",
+      "FAILED": "Impossibile leggere",
+      "CONFIRMED": "Rivisto",
+      "DISCARDED": "Scartato"
+    },
+    "review": {
+      "title": "Rivedi i dati estratti",
+      "discard": "Scarta",
+      "confirm": "Salva i dati approvati",
+      "confirming": "Salvataggio…",
+      "needsReview": "Da rivedere",
+      "approve": "Approva",
+      "reject": "Rifiuta",
+      "edit": "Modifica",
+      "cancel": "Annulla",
+      "save": "Salva"
+    },
+    "empty": {
+      "noFacts": "Niente altro da rivedere."
+    },
+    "factType": {
+      "CONDITION": "Diagnosi",
+      "OBSERVATION": "Valore",
+      "MEDICATION_STATEMENT": "Farmaco"
+    },
+    "fields": {
+      "label": "Nome",
+      "value": "Valore",
+      "unit": "Unità",
+      "date": "Data",
+      "dose": "Dose"
+    },
+    "toast": {
+      "uploaded": "Documento letto. Rivedi i dati qui sotto.",
+      "uploadFailed": "Impossibile leggere il documento.",
+      "confirmed": "Dati approvati salvati.",
+      "confirmFailed": "Impossibile salvare le tue scelte.",
+      "saved": "Dato aggiornato.",
+      "discarded": "Documento scartato."
     }
   }
 }

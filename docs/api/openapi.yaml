@@ -42,6 +42,7 @@ tags:
   - name: MeasurementReminders
   - name: Labs
   - name: Illness
+  - name: Documents
   - name: Records
   - name: Admin
   - name: Meta
@@ -8576,6 +8577,331 @@ paths:
         "404": *a13
         "422": *a3
         "429": *a4
+  /api/documents/inbound:
+    get:
+      tags:
+        - Documents
+      summary: List inbound clinical documents
+      description: The caller's uploaded doctor reports / discharge letters (newest first, live only). Owner-scoped; gated on
+        the opt-in `inboundDocuments` module.
+      responses:
+        "200":
+          description: The document list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundDocumentListEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Documents
+      summary: Upload + extract a clinical document
+      description: 'Ingests a doctor report / discharge letter through the dedicated OCR/vision provider, stores the raw
+        document ENCRYPTED at rest, and stages the extracted STRUCTURED FACTS for review. Two modes by content-type.
+        VISION (`multipart/form-data`): a `file` (JPEG/PNG/WebP, or PDF on an Anthropic vision provider; ≤ 12 MiB) plus
+        an optional `kind`. TEXT (`application/json`, opt-in local OCR): `{ mode: "text", text, kind? }` — only the
+        extracted text reaches the server. Both modes are AI-consent / rate / budget gated. Extraction reproduces what
+        the document states (stated codes/status only) — it never interprets. Nothing reaches the structured stores
+        here; the confirm route is the only write path.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The clinical-document image or PDF. Validated by magic-byte MIME sniff, not the wire Content-Type.
+                kind:
+                  description: Optional document-type label.
+                  type: string
+                  enum:
+                    - DOCTOR_REPORT
+                    - DISCHARGE_LETTER
+                    - OTHER
+              required:
+                - file
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InboundTextUploadRequest"
+      responses:
+        "201":
+          description: The created document + staging summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundDocumentEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}:
+    get:
+      tags:
+        - Documents
+      summary: Get a document + its staged facts
+      description: The document plus every staged fact for the review screen. Owner-scoped.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundDocumentDetailEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Documents
+      summary: Discard an inbound document
+      description: Soft-deletes the document + its staging. Facts already approved into the structured stores are independent
+        rows and are NOT affected.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Discarded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundDiscardEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}/facts/{factId}:
+    patch:
+      tags:
+        - Documents
+      summary: Edit a staged fact before approval
+      description: Corrects OCR / units / dates / codes on a pending fact. Clears `needsReview` (the values become
+        user-asserted). The fact's resource type cannot change.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: factId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    factType:
+                      type: string
+                      const: CONDITION
+                    label:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    code:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    codeSystem:
+                      anyOf:
+                        - type: string
+                          enum:
+                            - SNOMED
+                            - ICD10
+                            - LOINC
+                            - RXNORM
+                            - ATC
+                        - type: "null"
+                    clinicalStatus:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    verificationStatus:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    onsetDate:
+                      anyOf:
+                        - type: string
+                          pattern: ^\d{4}-\d{2}-\d{2}$
+                        - type: "null"
+                  required:
+                    - factType
+                    - label
+                - type: object
+                  properties:
+                    factType:
+                      type: string
+                      const: OBSERVATION
+                    label:
+                      type: string
+                      minLength: 1
+                      maxLength: 300
+                    code:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    codeSystem:
+                      anyOf:
+                        - type: string
+                          enum:
+                            - SNOMED
+                            - ICD10
+                            - LOINC
+                            - RXNORM
+                            - ATC
+                        - type: "null"
+                    value:
+                      anyOf:
+                        - type: number
+                        - type: "null"
+                    valueText:
+                      anyOf:
+                        - type: string
+                          maxLength: 300
+                        - type: "null"
+                    unit:
+                      anyOf:
+                        - type: string
+                          maxLength: 80
+                        - type: "null"
+                    referenceLow:
+                      anyOf:
+                        - type: number
+                        - type: "null"
+                    referenceHigh:
+                      anyOf:
+                        - type: number
+                        - type: "null"
+                    effectiveDate:
+                      anyOf:
+                        - type: string
+                          pattern: ^\d{4}-\d{2}-\d{2}$
+                        - type: "null"
+                  required:
+                    - factType
+                    - label
+                - type: object
+                  properties:
+                    factType:
+                      type: string
+                      const: MEDICATION_STATEMENT
+                    name:
+                      type: string
+                      minLength: 1
+                      maxLength: 200
+                    dose:
+                      anyOf:
+                        - type: string
+                          maxLength: 120
+                        - type: "null"
+                    rxNormCode:
+                      anyOf:
+                        - type: string
+                          maxLength: 20
+                        - type: "null"
+                    atcCode:
+                      anyOf:
+                        - type: string
+                          maxLength: 16
+                        - type: "null"
+                    statusStated:
+                      anyOf:
+                        - type: string
+                          maxLength: 64
+                        - type: "null"
+                    effectiveDate:
+                      anyOf:
+                        - type: string
+                          pattern: ^\d{4}-\d{2}-\d{2}$
+                        - type: "null"
+                  required:
+                    - factType
+                    - name
+              type: object
+      responses:
+        "200":
+          description: The updated fact.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractedFactEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}/confirm:
+    post:
+      tags:
+        - Documents
+      summary: Confirm the review decisions
+      description: The ONLY write path out of staging. Commits the user's approvals into the structured stores (labs /
+        conditions / medications) and discards rejections. A low-confidence fact that was never edited cannot be
+        approved (fail-closed). Idempotent (Idempotency-Key). Audits as `documents.inbound.confirm`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decisions:
+                  minItems: 1
+                  maxItems: 120
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      factId:
+                        type: string
+                        minLength: 1
+                        maxLength: 40
+                      action:
+                        type: string
+                        enum:
+                          - approve
+                          - reject
+                    required:
+                      - factId
+                      - action
+              required:
+                - decisions
+      responses:
+        "200":
+          description: Per-decision outcome.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundConfirmEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/onboarding/disclaimer:
     post:
       tags:
@@ -9750,6 +10076,8 @@ components:
           type: boolean
         mcp:
           type: boolean
+        inboundDocuments:
+          type: boolean
       additionalProperties: false
       description: Partial module enable/disable update. Each key is an optional boolean; an omitted key is left untouched,
         `false` disables the module, `true` (re-)enables it. Only the toggleable "secondary domains" are accepted — a
@@ -10278,6 +10606,23 @@ components:
         text:
           type: string
           description: The in-browser-OCR'd lab-report text. The raw image never reaches the server in this mode.
+      required:
+        - mode
+        - text
+    InboundTextUploadRequest:
+      type: object
+      properties:
+        mode:
+          type: string
+          const: text
+        text:
+          type: string
+        kind:
+          type: string
+          enum:
+            - DOCTOR_REPORT
+            - DISCHARGE_LETTER
+            - OTHER
       required:
         - mode
         - text
@@ -16794,6 +17139,9 @@ components:
         mcp:
           type: boolean
           description: Whether the "mcp" module is enabled for this account.
+        inboundDocuments:
+          type: boolean
+          description: Whether the "inboundDocuments" module is enabled for this account.
       required:
         - cycle
         - mood
@@ -16810,6 +17158,7 @@ components:
         - doctorReport
         - environment
         - mcp
+        - inboundDocuments
       additionalProperties: false
       description: Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means
         the surface should disappear end-to-end (nav, dashboard, insights, …). `cycle` mirrors `cycleTrackingEnabled`;
@@ -24510,6 +24859,372 @@ components:
         - data
         - error
       additionalProperties: false
+    InboundDocumentListEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundDocumentList"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundDocumentList:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/InboundDocument"
+      required:
+        - documents
+      additionalProperties: false
+    InboundDocument:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - DOCTOR_REPORT
+            - DISCHARGE_LETTER
+            - OTHER
+        filename:
+          anyOf:
+            - type: string
+            - type: "null"
+        mimeType:
+          type: string
+        byteSize:
+          type: number
+        status:
+          type: string
+          enum:
+            - EXTRACTING
+            - EXTRACTED
+            - FAILED
+            - CONFIRMED
+            - DISCARDED
+        providerType:
+          anyOf:
+            - type: string
+            - type: "null"
+        reportDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        errorReason:
+          anyOf:
+            - type: string
+            - type: "null"
+        factCount:
+          type: number
+        pendingCount:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - kind
+        - filename
+        - mimeType
+        - byteSize
+        - status
+        - providerType
+        - reportDate
+        - errorReason
+        - factCount
+        - pendingCount
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: An uploaded clinical document. The raw bytes are stored encrypted at rest and never returned; this is the
+        metadata + staging summary.
+    InboundDocumentEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundDocument"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundDocumentDetailEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundDocumentDetail"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundDocumentDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - DOCTOR_REPORT
+            - DISCHARGE_LETTER
+            - OTHER
+        filename:
+          anyOf:
+            - type: string
+            - type: "null"
+        mimeType:
+          type: string
+        byteSize:
+          type: number
+        status:
+          type: string
+          enum:
+            - EXTRACTING
+            - EXTRACTED
+            - FAILED
+            - CONFIRMED
+            - DISCARDED
+        providerType:
+          anyOf:
+            - type: string
+            - type: "null"
+        reportDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        errorReason:
+          anyOf:
+            - type: string
+            - type: "null"
+        factCount:
+          type: number
+        pendingCount:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        facts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedFact"
+      required:
+        - id
+        - kind
+        - filename
+        - mimeType
+        - byteSize
+        - status
+        - providerType
+        - reportDate
+        - errorReason
+        - factCount
+        - pendingCount
+        - createdAt
+        - updatedAt
+        - facts
+      additionalProperties: false
+    ExtractedFact:
+      type: object
+      properties:
+        id:
+          type: string
+        factType:
+          type: string
+          enum:
+            - CONDITION
+            - OBSERVATION
+            - MEDICATION_STATEMENT
+        status:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - REJECTED
+        confidence:
+          type: number
+        needsReview:
+          type: boolean
+        data:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+        provenance:
+          type: object
+          properties:
+            sourceText:
+              type: string
+            page:
+              anyOf:
+                - type: number
+                - type: "null"
+            confidence:
+              type: number
+          required:
+            - sourceText
+            - page
+            - confidence
+          additionalProperties: false
+        committedRecordId:
+          anyOf:
+            - type: string
+            - type: "null"
+        committedRecordType:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - id
+        - factType
+        - status
+        - confidence
+        - needsReview
+        - data
+        - provenance
+        - committedRecordId
+        - committedRecordType
+      additionalProperties: false
+      description: One STATED fact transcribed from the document, FHIR-staged (Condition / Observation / MedicationStatement)
+        with per-field provenance + a confidence gate. STATED status only — codes (SNOMED/ICD-10/LOINC/RxNorm/ATC) are
+        present only when the document wrote them; no range-flag, no inferred links. `needsReview` is true when the fact
+        scored below the confidence floor (it cannot be approved until edited).
+    InboundDiscardEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            discarded:
+              type: boolean
+          required:
+            - id
+            - discarded
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ExtractedFactEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ExtractedFact"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundConfirmEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundConfirmResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InboundConfirmResponse:
+      type: object
+      properties:
+        approved:
+          type: array
+          items:
+            type: object
+            properties:
+              factId:
+                type: string
+              recordType:
+                type: string
+              recordId:
+                type: string
+            required:
+              - factId
+              - recordType
+              - recordId
+            additionalProperties: false
+        rejected:
+          type: array
+          items:
+            type: string
+        needsReview:
+          type: array
+          items:
+            type: string
+        failed:
+          type: array
+          items:
+            type: object
+            properties:
+              factId:
+                type: string
+              reason:
+                type: string
+            required:
+              - factId
+              - reason
+            additionalProperties: false
+      required:
+        - approved
+        - rejected
+        - needsReview
+        - failed
+      additionalProperties: false
+      description: "The outcome per decision: `approved` (committed, with the new record ref), `rejected` (discarded),
+        `needsReview` (refused — edit first, fail-closed), `failed` (a per-fact commit miss, e.g. a numeric observation
+        with no unit)."
     DisclaimerAckEnvelope:
       type: object
       properties:
