@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AchievementUnlockNotifier } from "@/components/gamification/achievement-unlock-notifier";
 import { MaintainershipBanner } from "@/components/i18n/maintainership-banner";
 import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
@@ -90,6 +90,41 @@ export function AuthShell({
       root.removeAttribute("data-scroll");
     };
   }, [isBodyScrolled]);
+
+  // v1.25.1 — the authenticated shell keeps `<main id="main-content">`
+  // mounted across every route change, so its scroll offset survives
+  // navigation: scroll down in one section (e.g. Settings → Sources
+  // Priority), hop to another, and the new view opens already scrolled.
+  // Reset the scroll container to the top on every forward navigation.
+  // A back/forward navigation skips the reset so the browser's own scroll
+  // restoration stands: `popstate` arms a one-shot skip for the single
+  // pathname change it triggers, and a macrotask clears the flag so it can
+  // never get stuck on a later forward navigation.
+  const skipNextScrollReset = useRef(false);
+  useEffect(() => {
+    const armSkip = () => {
+      skipNextScrollReset.current = true;
+      setTimeout(() => {
+        skipNextScrollReset.current = false;
+      }, 0);
+    };
+    window.addEventListener("popstate", armSkip);
+    return () => window.removeEventListener("popstate", armSkip);
+  }, []);
+
+  useEffect(() => {
+    if (skipNextScrollReset.current) {
+      skipNextScrollReset.current = false;
+      return;
+    }
+    const main = document.getElementById("main-content");
+    if (main) {
+      main.scrollTop = 0;
+    }
+    // Fallback for the body-scrolled shells (login / onboarding / standalone
+    // legal pages) where the document, not `<main>`, owns the scroll.
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isPublicPage) {
