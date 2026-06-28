@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiDelete, apiFetch, apiPatch, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, queryKeys } from "@/lib/query-keys";
@@ -136,6 +137,7 @@ export function InboundDocumentsView() {
             type="file"
             accept="image/jpeg,image/png,image/webp,application/pdf"
             className="max-w-xs"
+            aria-label={t("documents.upload.fileLabel")}
             disabled={upload.isPending}
           />
           <Button
@@ -163,12 +165,13 @@ export function InboundDocumentsView() {
       {/* Document list */}
       <section className="flex flex-col gap-2">
         {list.isLoading ? (
-          <div className="flex h-24 items-center justify-center">
-            <Loader2
-              className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none"
-              aria-hidden
-            />
-          </div>
+          // Skeleton rows (not a centered spinner) so the resolved list lands
+          // in place without a layout jump — the app's loading convention.
+          <>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-10 w-full rounded-md" />
+            ))}
+          </>
         ) : !list.data || list.data.documents.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             {t("documents.list.empty")}
@@ -178,10 +181,11 @@ export function InboundDocumentsView() {
             <button
               key={doc.id}
               type="button"
+              aria-expanded={selectedId === doc.id}
               onClick={() =>
                 setSelectedId(selectedId === doc.id ? null : doc.id)
               }
-              className="hover:bg-accent flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm"
+              className="hover:bg-accent flex min-h-11 items-center justify-between rounded-md border px-3 py-2 text-left text-sm"
             >
               <span className="truncate">
                 {doc.filename ?? t(`documents.kind.${doc.kind}`)}
@@ -256,12 +260,16 @@ function DocumentReview({
 
   if (detail.isLoading) {
     return (
-      <div className="flex h-24 items-center justify-center">
-        <Loader2
-          className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none"
-          aria-hidden
-        />
-      </div>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-8 w-20" />
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <Skeleton className="h-20 w-full rounded-md" />
+          <Skeleton className="h-20 w-full rounded-md" />
+        </CardContent>
+      </Card>
     );
   }
   if (!detail.data) return null;
@@ -365,7 +373,12 @@ function FactCard({
               {t(`documents.factType.${fact.factType}`)}
             </Badge>
             {fact.needsReview ? (
-              <Badge variant="destructive">
+              // Calm warning (amber), not an alarming destructive red — a
+              // low-confidence fact is a "please check", not an error.
+              <Badge
+                variant="outline"
+                className="border-amber-400 text-amber-700 dark:border-amber-900/60 dark:text-amber-400"
+              >
                 {t("documents.review.needsReview")}
               </Badge>
             ) : null}
@@ -384,6 +397,7 @@ function FactCard({
           <Button
             variant={decision === "approve" ? "default" : "outline"}
             size="sm"
+            className="min-h-11 sm:min-h-9"
             disabled={fact.needsReview}
             onClick={() =>
               onDecision(decision === "approve" ? null : "approve")
@@ -394,6 +408,7 @@ function FactCard({
           <Button
             variant={decision === "reject" ? "destructive" : "outline"}
             size="sm"
+            className="min-h-11 sm:min-h-9"
             onClick={() => onDecision(decision === "reject" ? null : "reject")}
           >
             {t("documents.review.reject")}
@@ -402,7 +417,12 @@ function FactCard({
       </div>
 
       <div className="mt-2">
-        <Button variant="ghost" size="xs" onClick={() => setEditing((v) => !v)}>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="min-h-11 sm:min-h-8"
+          onClick={() => setEditing((v) => !v)}
+        >
           {editing ? t("documents.review.cancel") : t("documents.review.edit")}
         </Button>
       </div>
@@ -549,6 +569,7 @@ function EditFields({
       </div>
       <Button
         size="sm"
+        className="min-h-11 sm:min-h-9"
         disabled={pending}
         onClick={() => onSubmit(vals, date.trim() === "" ? null : date)}
       >
