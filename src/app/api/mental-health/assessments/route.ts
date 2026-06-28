@@ -40,7 +40,10 @@ import {
   type InstrumentId,
 } from "@/lib/mental-health/instruments";
 import { crisisResourcesForLocale } from "@/lib/mental-health/crisis-resources";
-import type { MeasurementType, MeasurementSource } from "@/generated/prisma/client";
+import type {
+  MeasurementType,
+  MeasurementSource,
+} from "@/generated/prisma/client";
 
 function shapeRow(row: {
   id: string;
@@ -81,7 +84,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
   }
   const { instrument, limit, offset } = parsed.data;
   const rows = await prisma.mentalHealthAssessment.findMany({
-    where: { userId: user.id, deletedAt: null, ...(instrument ? { instrument } : {}) },
+    where: {
+      userId: user.id,
+      deletedAt: null,
+      ...(instrument ? { instrument } : {}),
+    },
     orderBy: { takenAt: "desc" },
     take: limit ?? 100,
     skip: offset ?? 0,

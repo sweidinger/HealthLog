@@ -5,7 +5,10 @@
  * it is narrowed from the session in the handler (CLAUDE.md convention).
  */
 import { z } from "zod/v4";
-import { INSTRUMENTS, type InstrumentId } from "@/lib/mental-health/instruments";
+import {
+  INSTRUMENTS,
+  type InstrumentId,
+} from "@/lib/mental-health/instruments";
 
 export const assessmentInstrumentEnum = z.enum(["PHQ9", "GAD7"]);
 

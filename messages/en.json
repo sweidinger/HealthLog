@@ -575,7 +575,13 @@
     "bulkDeleteSuccess": "{count} measurements deleted",
     "bulkDeleteError": "Error deleting the selected measurements",
     "bulkDeleteConfirmTitle": "Delete {count} measurements?",
-    "bulkDeleteConfirmBody": "The {count} selected measurements will be permanently deleted."
+    "bulkDeleteConfirmBody": "The {count} selected measurements will be permanently deleted.",
+    "typePhq9Score": "PHQ-9 score",
+    "typeGad7Score": "GAD-7 score",
+    "typeGripStrength": "Grip strength",
+    "typePainNrs": "Pain (0–10)",
+    "typeWaistCircumference": "Waist circumference",
+    "typeWaistToHeight": "Waist-to-height ratio"
   },
   "mood": {
     "title": "Mood",
@@ -7090,8 +7096,16 @@
         "hemoglobin": "The oxygen-carrying protein in red blood cells.",
         "hematocrit": "The fraction of blood volume made up of red blood cells.",
         "wbc": "Total count of white blood cells, the immune system's circulating defence.",
-        "platelets": "Cell fragments that clump together to form blood clots."
-      }
+        "platelets": "Cell fragments that clump together to form blood clots.",
+        "apob": "Counts atherogenic particles directly; often a better risk marker than LDL-C when the two disagree.",
+        "lp-a": "A largely inherited, lifelong risk factor — usually measured once. Report molar units (nmol/L).",
+        "fasting-insulin": "Pairs with fasting glucose to estimate insulin resistance (HOMA-IR).",
+        "omega-3-index": "Red-blood-cell EPA+DHA share; 8–12% is the commonly cited cardioprotective range."
+      },
+      "apob": "Apolipoprotein B (ApoB)",
+      "lp-a": "Lipoprotein(a)",
+      "fasting-insulin": "Fasting insulin",
+      "omega-3-index": "Omega-3 index"
     },
     "noteLoadFailed": "Note could not be loaded; it will be kept unchanged when you save.",
     "showingLatestOf": "Showing the latest {shown} of {total} readings",
@@ -7425,6 +7439,119 @@
       "title": "A new version is available",
       "reload": "Reload",
       "dismiss": "Dismiss"
+    }
+  },
+  "mentalHealth": {
+    "pageTitle": "Mental wellbeing check-in",
+    "pageDescription": "Two validated, opt-in self-assessments — PHQ-9 (mood) and GAD-7 (worry) — that sit beside your mood tracking. The value is the trend over time, not any single number.",
+    "disclaimer": "This is a screening self-assessment, not a diagnosis. A high or low score does not mean you do or do not have a condition. Only a qualified health professional can diagnose. If you have concerns, please talk to your doctor.",
+    "optInNote": "Opt-in and private: your individual answers are encrypted, kept out of the AI Coach and exports, and never shared.",
+    "attributionLabel": "Attribution",
+    "choosePrompt": "Choose a check-in",
+    "start": "Start",
+    "back": "Back",
+    "stem": "Over the last 2 weeks, how often have you been bothered by the following problems?",
+    "submit": "See my result",
+    "submitting": "Saving…",
+    "saved": "Saved",
+    "error": "Something went wrong. Please try again.",
+    "considerProfessional": "Your score is in a range where talking to a health professional may help. This is a gentle suggestion, not a diagnosis.",
+    "instrument": {
+      "phq9": "PHQ-9 — mood",
+      "gad7": "GAD-7 — worry"
+    },
+    "instrumentSub": {
+      "phq9": "Depression screen, 9 questions",
+      "gad7": "Anxiety screen, 7 questions"
+    },
+    "options": {
+      "0": "Not at all",
+      "1": "Several days",
+      "2": "More than half the days",
+      "3": "Nearly every day"
+    },
+    "functionalTitle": "If you checked off any problems, how difficult have these made it to do your work, take care of things at home, or get along with other people?",
+    "functional": {
+      "0": "Not difficult at all",
+      "1": "Somewhat difficult",
+      "2": "Very difficult",
+      "3": "Extremely difficult"
+    },
+    "result": {
+      "title": "Your result",
+      "totalLabel": "Total score",
+      "bandLabel": "Range for this screen",
+      "takeAnother": "Take another check-in"
+    },
+    "band": {
+      "PHQ9": {
+        "minimal": "None / minimal",
+        "mild": "Mild",
+        "moderate": "Moderate",
+        "modSevere": "Moderately severe",
+        "severe": "Severe"
+      },
+      "GAD7": {
+        "minimal": "None / minimal",
+        "mild": "Mild",
+        "moderate": "Moderate",
+        "severe": "Severe"
+      }
+    },
+    "history": {
+      "title": "Your history",
+      "empty": "No check-ins yet. Your trend will appear here once you complete one."
+    },
+    "crisis": {
+      "title": "You don't have to face this alone",
+      "intro": "You indicated thoughts of being better off dead or of hurting yourself. Support is available right now, and reaching out is a sign of strength.",
+      "ifDanger": "If you are in immediate danger, call {emergency} now.",
+      "resourcesTitle": "People who can help"
+    },
+    "items": {
+      "phq9": {
+        "1": "Little interest or pleasure in doing things",
+        "2": "Feeling down, depressed, or hopeless",
+        "3": "Trouble falling or staying asleep, or sleeping too much",
+        "4": "Feeling tired or having little energy",
+        "5": "Poor appetite or overeating",
+        "6": "Feeling bad about yourself — or that you are a failure or have let yourself or your family down",
+        "7": "Trouble concentrating on things, such as reading the newspaper or watching television",
+        "8": "Moving or speaking so slowly that other people could have noticed. Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
+        "9": "Thoughts that you would be better off dead, or of hurting yourself in some way"
+      },
+      "gad7": {
+        "1": "Feeling nervous, anxious, or on edge",
+        "2": "Not being able to stop or control worrying",
+        "3": "Worrying too much about different things",
+        "4": "Trouble relaxing",
+        "5": "Being so restless that it is hard to sit still",
+        "6": "Becoming easily annoyed or irritable",
+        "7": "Feeling afraid as if something awful might happen"
+      }
+    },
+    "crisisResource": {
+      "telefonSeelsorge": {
+        "name": "TelefonSeelsorge (24/7, free, confidential)"
+      },
+      "nummerGegenKummer": {
+        "name": "Nummer gegen Kummer (for young people)"
+      },
+      "krisenchat": {
+        "name": "krisenchat (24/7 chat, young people)"
+      },
+      "findahelpline": {
+        "name": "Find a helpline (worldwide directory)"
+      },
+      "euEmotionalSupport": {
+        "name": "Emotional-support helpline"
+      },
+      "lifeline988": {
+        "name": "988 Suicide & Crisis Lifeline"
+      },
+      "crisisTextLine": {
+        "name": "Crisis Text Line"
+      }
     }
   }
 }

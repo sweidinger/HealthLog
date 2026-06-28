@@ -1222,7 +1222,8 @@ export const SIGNALS: Record<string, SignalDefinition> = {
     },
     fhir: {
       loinc: "44261-6",
-      display: "Patient Health Questionnaire 9 item (PHQ-9) total score [Reported]",
+      display:
+        "Patient Health Questionnaire 9 item (PHQ-9) total score [Reported]",
       unit: "{score}",
       category: "survey",
     },

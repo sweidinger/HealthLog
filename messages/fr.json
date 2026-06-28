@@ -575,7 +575,13 @@
     "bulkDeleteSuccess": "{count} mesures supprimées",
     "bulkDeleteError": "Erreur lors de la suppression des mesures sélectionnées",
     "bulkDeleteConfirmTitle": "Supprimer {count} mesures ?",
-    "bulkDeleteConfirmBody": "Les {count} mesures sélectionnées seront définitivement supprimées."
+    "bulkDeleteConfirmBody": "Les {count} mesures sélectionnées seront définitivement supprimées.",
+    "typePhq9Score": "Score PHQ-9",
+    "typeGad7Score": "Score GAD-7",
+    "typeGripStrength": "Force de préhension",
+    "typePainNrs": "Douleur (0–10)",
+    "typeWaistCircumference": "Tour de taille",
+    "typeWaistToHeight": "Rapport taille-taille"
   },
   "mood": {
     "title": "Humeur",
@@ -7090,8 +7096,16 @@
         "hemoglobin": "La protéine des globules rouges qui transporte l'oxygène.",
         "hematocrit": "La fraction du volume sanguin constituée de globules rouges.",
         "wbc": "Nombre total de globules blancs, la défense circulante du système immunitaire.",
-        "platelets": "Fragments cellulaires qui s'agrègent pour former des caillots sanguins."
-      }
+        "platelets": "Fragments cellulaires qui s'agrègent pour former des caillots sanguins.",
+        "apob": "Compte directement les particules athérogènes ; souvent un meilleur marqueur de risque que le LDL-C en cas de discordance.",
+        "lp-a": "Facteur de risque en grande partie héréditaire et permanent — mesuré une seule fois en général. À exprimer en unités molaires (nmol/L).",
+        "fasting-insulin": "Se combine à la glycémie à jeun pour estimer la résistance à l'insuline (HOMA-IR).",
+        "omega-3-index": "Part d'EPA+DHA dans les globules rouges ; 8–12 % est la plage cardioprotectrice habituellement citée."
+      },
+      "apob": "Apolipoprotéine B (ApoB)",
+      "lp-a": "Lipoprotéine(a)",
+      "fasting-insulin": "Insuline à jeun",
+      "omega-3-index": "Indice oméga-3"
     },
     "noteLoadFailed": "La note n’a pas pu être chargée ; elle restera inchangée à l’enregistrement.",
     "showingLatestOf": "Affichage des {shown} derniers résultats sur {total}",
@@ -7425,6 +7439,119 @@
       "title": "Une nouvelle version est disponible",
       "reload": "Recharger",
       "dismiss": "Ignorer"
+    }
+  },
+  "mentalHealth": {
+    "pageTitle": "Point sur le bien-être mental",
+    "pageDescription": "Deux auto-évaluations validées et facultatives — PHQ-9 (humeur) et GAD-7 (inquiétude) — en complément de ton suivi de l'humeur. Ce qui compte, c'est la tendance dans le temps, pas un chiffre isolé.",
+    "disclaimer": "Il s'agit d'une auto-évaluation de dépistage, pas d'un diagnostic. Un score élevé ou bas ne signifie pas que tu as ou n'as pas un trouble. Seul un professionnel de santé qualifié peut poser un diagnostic. En cas de doute, parles-en à ton médecin.",
+    "optInNote": "Facultatif et privé : tes réponses individuelles sont chiffrées, tenues à l'écart du Coach IA et des exports, et ne sont jamais partagées.",
+    "attributionLabel": "Source",
+    "choosePrompt": "Choisis un bilan",
+    "start": "Commencer",
+    "back": "Retour",
+    "stem": "Au cours des 2 dernières semaines, à quelle fréquence as-tu été gêné(e) par les problèmes suivants ?",
+    "submit": "Voir mon résultat",
+    "submitting": "Enregistrement…",
+    "saved": "Enregistré",
+    "error": "Une erreur est survenue. Réessaie.",
+    "considerProfessional": "Ton score se situe dans une plage où parler à un professionnel de santé peut aider. C'est une suggestion bienveillante, pas un diagnostic.",
+    "instrument": {
+      "phq9": "PHQ-9 — humeur",
+      "gad7": "GAD-7 — inquiétude"
+    },
+    "instrumentSub": {
+      "phq9": "Dépistage de la dépression, 9 questions",
+      "gad7": "Dépistage de l'anxiété, 7 questions"
+    },
+    "options": {
+      "0": "Jamais",
+      "1": "Plusieurs jours",
+      "2": "Plus de la moitié des jours",
+      "3": "Presque tous les jours"
+    },
+    "functionalTitle": "Si tu as coché des problèmes, à quel point t'ont-ils gêné(e) dans ton travail, à la maison ou dans tes relations avec les autres ?",
+    "functional": {
+      "0": "Pas du tout gênant",
+      "1": "Un peu gênant",
+      "2": "Très gênant",
+      "3": "Extrêmement gênant"
+    },
+    "result": {
+      "title": "Ton résultat",
+      "totalLabel": "Score total",
+      "bandLabel": "Plage pour ce dépistage",
+      "takeAnother": "Faire un autre bilan"
+    },
+    "band": {
+      "PHQ9": {
+        "minimal": "Aucune / minimale",
+        "mild": "Légère",
+        "moderate": "Modérée",
+        "modSevere": "Modérément sévère",
+        "severe": "Sévère"
+      },
+      "GAD7": {
+        "minimal": "Aucune / minimale",
+        "mild": "Légère",
+        "moderate": "Modérée",
+        "severe": "Sévère"
+      }
+    },
+    "history": {
+      "title": "Ton historique",
+      "empty": "Aucun bilan pour le moment. Ta tendance apparaîtra ici dès que tu en auras terminé un."
+    },
+    "crisis": {
+      "title": "Tu n'as pas à affronter cela seul(e)",
+      "intro": "Tu as indiqué des pensées qu'il vaudrait mieux être mort(e) ou de te faire du mal. De l'aide est disponible dès maintenant, et demander de l'aide est un signe de force.",
+      "ifDanger": "Si tu es en danger immédiat, appelle le {emergency} maintenant.",
+      "resourcesTitle": "Des personnes qui peuvent aider"
+    },
+    "items": {
+      "phq9": {
+        "1": "Little interest or pleasure in doing things",
+        "2": "Feeling down, depressed, or hopeless",
+        "3": "Trouble falling or staying asleep, or sleeping too much",
+        "4": "Feeling tired or having little energy",
+        "5": "Poor appetite or overeating",
+        "6": "Feeling bad about yourself — or that you are a failure or have let yourself or your family down",
+        "7": "Trouble concentrating on things, such as reading the newspaper or watching television",
+        "8": "Moving or speaking so slowly that other people could have noticed. Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
+        "9": "Thoughts that you would be better off dead, or of hurting yourself in some way"
+      },
+      "gad7": {
+        "1": "Feeling nervous, anxious, or on edge",
+        "2": "Not being able to stop or control worrying",
+        "3": "Worrying too much about different things",
+        "4": "Trouble relaxing",
+        "5": "Being so restless that it is hard to sit still",
+        "6": "Becoming easily annoyed or irritable",
+        "7": "Feeling afraid as if something awful might happen"
+      }
+    },
+    "crisisResource": {
+      "telefonSeelsorge": {
+        "name": "TelefonSeelsorge (24/7, free, confidential)"
+      },
+      "nummerGegenKummer": {
+        "name": "Nummer gegen Kummer (for young people)"
+      },
+      "krisenchat": {
+        "name": "krisenchat (24/7 chat, young people)"
+      },
+      "findahelpline": {
+        "name": "Find a helpline (worldwide directory)"
+      },
+      "euEmotionalSupport": {
+        "name": "Emotional-support helpline"
+      },
+      "lifeline988": {
+        "name": "988 Suicide & Crisis Lifeline"
+      },
+      "crisisTextLine": {
+        "name": "Crisis Text Line"
+      }
     }
   }
 }
