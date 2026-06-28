@@ -4665,7 +4665,9 @@
         "focusPlaceholder": "Z. B. behalte meinen Blutdruck im Blick, motiviere mich zu mehr Bewegung …",
         "completeness": "{answered} von {total} beantwortet",
         "questionsTitle": "Der Coach hat Rückfragen",
-        "questionsOpenCoach": "Im Coach beantworten"
+        "questionsOpenCoach": "Im Coach beantworten",
+        "recordsLink": "Allergien, Familienanamnese und deine Vorerkrankungen gehören zu deiner Anamnese.",
+        "recordsLinkCta": "Anamnese öffnen"
       },
       "responseTimeoutHeading": "Antwort-Timeout",
       "responseTimeoutBody": "Wie lange auf die Antwort der KI gewartet wird, bevor abgebrochen wird. Erhöhe den Wert für ein lokales oder selbst gehostetes Modell, das beim ersten Aufruf Zeit zum Laden braucht.",
@@ -7774,6 +7776,15 @@
         "updatedToast": "Eintrag aktualisiert",
         "saveError": "Der Eintrag konnte nicht gespeichert werden."
       }
+    },
+    "conditions": {
+      "cardTitle": "Vorerkrankungen",
+      "cardDescription": "Chronische Erkrankungen und worauf der Coach achten soll — aus deinem persönlichen Kontext.",
+      "conditionsLabel": "Chronische Erkrankungen",
+      "focusLabel": "Worauf der Coach achtet",
+      "empty": "Noch nichts hinterlegt.",
+      "editCta": "Im persönlichen Kontext bearbeiten",
+      "loadError": "Vorerkrankungen konnten nicht geladen werden."
     }
   },
   "environment": {

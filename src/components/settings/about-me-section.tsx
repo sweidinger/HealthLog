@@ -350,6 +350,19 @@ export function AboutMeSection({
       <p className="text-muted-foreground border-border border-t pt-3 pl-7 text-xs">
         {t("settings.ai.aboutMe.hint")} {t("settings.ai.aboutMe.profileHint")}
       </p>
+
+      {/* v1.25.1 — cross-link to the Anamnese (medical-history) home. The
+          chronic conditions noted above plus allergies + family history read as
+          one coherent medical history there. */}
+      <p className="text-muted-foreground pl-7 text-xs">
+        {t("settings.ai.aboutMe.recordsLink")}{" "}
+        <Link
+          href="/settings/anamnesis"
+          className="text-dracula-purple underline-offset-4 hover:underline"
+        >
+          {t("settings.ai.aboutMe.recordsLinkCta")}
+        </Link>
+      </p>
     </SettingsCard>
   );
 }

@@ -4665,7 +4665,9 @@
         "focusPlaceholder": "Es. tieni d'occhio la mia pressione, motivami a muovermi di più…",
         "completeness": "{answered} su {total} compilati",
         "questionsTitle": "Il Coach ha alcune domande",
-        "questionsOpenCoach": "Rispondi nel Coach"
+        "questionsOpenCoach": "Rispondi nel Coach",
+        "recordsLink": "Allergie, anamnesi familiare e le tue patologie preesistenti fanno parte della tua anamnesi.",
+        "recordsLinkCta": "Apri anamnesi"
       },
       "responseTimeoutHeading": "Timeout della risposta",
       "responseTimeoutBody": "Quanto attendere la risposta dell'IA prima di annullare. Aumentalo per un modello locale o self-hosted che ha bisogno di tempo per caricarsi alla prima richiesta.",
@@ -7774,6 +7776,15 @@
         "updatedToast": "Voce aggiornata",
         "saveError": "Impossibile salvare la voce."
       }
+    },
+    "conditions": {
+      "cardTitle": "Patologie preesistenti",
+      "cardDescription": "Patologie croniche e ciò che il Coach deve tenere d'occhio, dal tuo contesto personale.",
+      "conditionsLabel": "Patologie croniche",
+      "focusLabel": "Cosa tiene d'occhio il Coach",
+      "empty": "Ancora nessuna annotazione.",
+      "editCta": "Modifica nel contesto personale",
+      "loadError": "Impossibile caricare le tue patologie."
     }
   },
   "environment": {

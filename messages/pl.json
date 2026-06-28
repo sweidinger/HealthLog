@@ -4665,7 +4665,9 @@
         "focusPlaceholder": "Np. pilnuj mojego ciśnienia, motywuj mnie do ruchu…",
         "completeness": "Wypełnione: {answered} z {total}",
         "questionsTitle": "Coach ma pytania",
-        "questionsOpenCoach": "Odpowiedz w Coachu"
+        "questionsOpenCoach": "Odpowiedz w Coachu",
+        "recordsLink": "Alergie, wywiad rodzinny i Twoje choroby przewlekłe są częścią Twojego wywiadu medycznego.",
+        "recordsLinkCta": "Otwórz wywiad medyczny"
       },
       "responseTimeoutHeading": "Limit czasu odpowiedzi",
       "responseTimeoutBody": "Jak długo czekać na odpowiedź AI, zanim nastąpi przerwanie. Zwiększ wartość dla lokalnego lub samodzielnie hostowanego modelu, który potrzebuje czasu na załadowanie przy pierwszym żądaniu.",
@@ -7774,6 +7776,15 @@
         "updatedToast": "Wpis zaktualizowany",
         "saveError": "Nie udało się zapisać wpisu."
       }
+    },
+    "conditions": {
+      "cardTitle": "Choroby przewlekłe",
+      "cardDescription": "Choroby przewlekłe i to, na co Coach ma zwracać uwagę — z Twojego kontekstu osobistego.",
+      "conditionsLabel": "Choroby przewlekłe",
+      "focusLabel": "Na co zwraca uwagę Coach",
+      "empty": "Nic jeszcze nie zapisano.",
+      "editCta": "Edytuj w kontekście osobistym",
+      "loadError": "Nie udało się wczytać Twoich chorób."
     }
   },
   "environment": {
