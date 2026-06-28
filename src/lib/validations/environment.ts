@@ -9,6 +9,8 @@
  */
 import { z } from "zod/v4";
 
+import { isValidTimezone } from "@/lib/tz/format";
+
 /** Strict YYYY-MM-DD calendar day. */
 export const dayStringSchema = z
   .string()
@@ -24,8 +26,17 @@ export const homeLocationSchema = z
     lat: latSchema,
     lon: lonSchema,
     label: labelSchema,
-    /** IANA timezone (anchors the stored day-key). */
-    timezone: z.string().trim().min(1).max(64),
+    /**
+     * IANA timezone (anchors the stored day-key). Validated against the
+     * runtime IANA set, not accepted as a free string — a bogus zone would
+     * silently mis-key every stored environment day for the account.
+     */
+    timezone: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .refine(isValidTimezone, "Invalid IANA timezone"),
   })
   .strict();
 
