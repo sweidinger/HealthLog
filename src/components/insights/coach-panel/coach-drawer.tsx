@@ -54,6 +54,11 @@ export interface CoachDrawerProps {
    * source(s) + window. Null → the route's default all-source snapshot.
    */
   scope?: CoachLaunchScope | null;
+  /**
+   * When true, the conversation auto-sends `prefill` as its first turn
+   * exactly once on open. Used by the assessment hand-off.
+   */
+  autoSend?: boolean;
 }
 
 export function CoachDrawer({
@@ -61,6 +66,7 @@ export function CoachDrawer({
   onOpenChange,
   prefill,
   scope,
+  autoSend,
 }: CoachDrawerProps) {
   const { t } = useTranslations();
   const router = useRouter();
@@ -139,6 +145,7 @@ export function CoachDrawer({
           surface="drawer"
           prefill={prefill}
           launchScope={scope}
+          autoSend={autoSend}
           autoFocusComposer
           registerReset={registerReset}
           // v1.16.1 — the "Conversations" affordance hands off to a

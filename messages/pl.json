@@ -2372,7 +2372,8 @@
         "correlationMoodPulse": "Czy istnieje rzeczywisty związek między moim nastrojem a tętnem? Pomóż mi odczytać tę korelację.",
         "correlationWeightWeekday": "Czy moja waga podlega cotygodniowemu wzorcowi? Co mówi mi ta korelacja według dnia tygodnia?",
         "recommendation": "Powiedz mi więcej o tej rekomendacji: \"{text}\" — dlaczego mnie dotyczy i co powinienem z nią zrobić?"
-      }
+      },
+      "assessmentPrompt": "Wyjaśnij mi moją ocenę {metric} — co oznacza i co powinienem z tym zrobić?"
     },
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",
@@ -2444,7 +2445,8 @@
       "emptyState": {
         "title": "Brak tętna spoczynkowego",
         "description": "Tętno spoczynkowe pojawi się, gdy Apple Watch lub zgodne urządzenie Withings spędzi spokojny dzień na nadgarstku."
-      }
+      },
+      "coachPrefill": "Nie zarejestrowałem jeszcze tętna spoczynkowego — dlaczego dzienna wartość spoczynkowa różni się od pojedynczego pomiaru tętna i jak ją poprawić?"
     },
     "oxygenSaturation": {
       "title": "Saturacja tlenu",

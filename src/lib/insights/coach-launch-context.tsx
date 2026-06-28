@@ -68,14 +68,28 @@ interface CoachLaunchValue {
   /** Current prefill string (or null when the next open should start blank). */
   prefill: string | null;
   /**
+   * When true, the opened conversation auto-sends the prefill as its first
+   * turn (exactly once), so a card's "ask about this" hand-off lands the
+   * answer directly instead of only seeding the composer. Cleared on close.
+   */
+  autoSend: boolean;
+  /**
    * Scope the next/open conversation is narrowed to (or null for the
    * default all-source snapshot). Set by `askCoach(prefill, scope)`, or
    * inherited from the page's ambient scope when the FAB opens without an
    * explicit one. `<LayoutCoachMount>` forwards it to the drawer.
    */
   scope: CoachLaunchScope | null;
-  /** Open the drawer with an optional prefill + scope hint. */
-  askCoach: (prefill?: string | null, scope?: CoachLaunchScope) => void;
+  /**
+   * Open the drawer with an optional prefill + scope hint. When `autoSend`
+   * is true the prefill is dispatched as the conversation's first turn
+   * automatically (used by the assessment hand-off).
+   */
+  askCoach: (
+    prefill?: string | null,
+    scope?: CoachLaunchScope,
+    autoSend?: boolean,
+  ) => void;
   /**
    * v1.21.0 (C4 H1) — register the metric surface the user is currently
    * looking at so the global FAB (which calls `askCoach()` with no args)
@@ -110,6 +124,8 @@ export interface CoachLaunchProviderProps {
 export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
   const [open, setOpen] = useState<boolean>(false);
   const [prefill, setPrefill] = useState<string | null>(null);
+  // Whether the next open auto-sends its prefill as the first turn.
+  const [autoSend, setAutoSend] = useState<boolean>(false);
   // Scope the open conversation is narrowed to. `null` → default snapshot.
   const [scope, setScope] = useState<CoachLaunchScope | null>(null);
   // Ambient scope + seed opener of the metric surface currently on screen.
@@ -121,7 +137,11 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
   const ambientPrefillRef = useRef<string | null>(null);
 
   const askCoach = useCallback(
-    (nextPrefill?: string | null, nextScope?: CoachLaunchScope) => {
+    (
+      nextPrefill?: string | null,
+      nextScope?: CoachLaunchScope,
+      nextAutoSend?: boolean,
+    ) => {
       // v1.21.0 (C4 H1/H4) — scope is live. An explicit scope (insight
       // card, metric-card affordance) wins; otherwise inherit the metric
       // page's ambient scope so the FAB opens contextual to where the user
@@ -135,6 +155,9 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
           (usingAmbientScope ? ambientPrefillRef.current : null) ??
           null,
       );
+      // Auto-send only applies when an explicit prefill is given (a card
+      // hand-off), never for an ambient/blank open.
+      setAutoSend(Boolean(nextAutoSend) && Boolean(nextPrefill));
       setOpen(true);
     },
     [],
@@ -160,9 +183,11 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
   const handleSetOpen = useCallback((next: boolean) => {
     setOpen(next);
     if (!next) {
-      // Drop the prefill + scope on close so the next open starts clean.
+      // Drop the prefill + scope + auto-send on close so the next open
+      // starts clean.
       setPrefill(null);
       setScope(null);
+      setAutoSend(false);
     }
   }, []);
 
@@ -170,12 +195,13 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
     () => ({
       open,
       prefill,
+      autoSend,
       scope,
       askCoach,
       registerScope,
       setOpen: handleSetOpen,
     }),
-    [open, prefill, scope, askCoach, registerScope, handleSetOpen],
+    [open, prefill, autoSend, scope, askCoach, registerScope, handleSetOpen],
   );
 
   return (

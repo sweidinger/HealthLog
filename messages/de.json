@@ -2372,7 +2372,8 @@
         "correlationMoodPulse": "Gibt es einen echten Zusammenhang zwischen meiner Stimmung und meinem Puls? Hilf mir, diesen Zusammenhang zu lesen.",
         "correlationWeightWeekday": "Folgt mein Gewicht einem Wochenmuster? Was sagt mir dieser Wochentags-Zusammenhang?",
         "recommendation": "Erzähl mir mehr zu dieser Empfehlung: \"{text}\" — warum trifft sie auf mich zu, und was sollte ich tun?"
-      }
+      },
+      "assessmentPrompt": "Erkläre mir meine {metric}-Einschätzung — was bedeutet sie und was sollte ich tun?"
     },
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",
@@ -2444,7 +2445,8 @@
       "emptyState": {
         "title": "Noch kein Ruhepuls",
         "description": "Der Ruhepuls erscheint, sobald die Apple Watch oder ein kompatibles Withings-Gerät einen ruhigen Tag durchgetragen hat."
-      }
+      },
+      "coachPrefill": "Ich habe noch keinen Ruhepuls erfasst — warum unterscheidet sich der tägliche Ruhewert von einem punktuellen Puls, und wie verbessere ich ihn?"
     },
     "oxygenSaturation": {
       "title": "Sauerstoffsättigung",

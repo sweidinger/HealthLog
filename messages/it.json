@@ -2372,7 +2372,8 @@
         "correlationMoodPulse": "C'è un legame reale tra il mio umore e il mio battito? Aiutami a interpretare questa correlazione.",
         "correlationWeightWeekday": "Il mio peso segue uno schema settimanale? Cosa mi dice questa correlazione per giorno della settimana?",
         "recommendation": "Dimmi di più su questa raccomandazione: \"{text}\" — perché si applica a me e cosa dovrei fare?"
-      }
+      },
+      "assessmentPrompt": "Spiegami la mia valutazione di {metric}: cosa significa e cosa dovrei fare?"
     },
     "relativeJustNow": "proprio ora",
     "relativeMinutesAgoOne": "{count} minuto fa",
@@ -2444,7 +2445,8 @@
       "emptyState": {
         "title": "Ancora nessuna FC a riposo",
         "description": "La FC a riposo arriva quando Apple Watch o un Withings compatibile ha indossato una giornata tranquilla."
-      }
+      },
+      "coachPrefill": "Non ho ancora registrato alcuna frequenza cardiaca a riposo: perché il valore giornaliero a riposo è diverso da un battito occasionale e come posso migliorarlo?"
     },
     "oxygenSaturation": {
       "title": "Saturazione di ossigeno",
