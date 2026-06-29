@@ -134,15 +134,52 @@ const nextConfig: NextConfig = {
         destination: "/settings/notifications",
         permanent: true,
       },
-      // v1.25.3 — the standalone delivery-channels page folded into
-      // Notifications as an in-page group. The channels content now lives
-      // under the `#channels` anchor on the Notifications surface, so the old
-      // URL 301-redirects there (mirroring the `/settings/reminders` precedent
-      // above). The per-channel anchors (`#telegram`, `#ntfy`, …) inside the
-      // panel keep resolving.
+      // v1.25.7 — delivery channels live under Settings → Integrationen (they
+      // are delivery providers, the same family as the connected services).
+      // The channels content sits under the `#channels` anchor there, so the
+      // old URL 301-redirects to it. The per-channel anchors (`#telegram`,
+      // `#ntfy`, …) inside the panel keep resolving.
       {
         source: "/settings/channels",
-        destination: "/settings/notifications#channels",
+        destination: "/settings/integrations#channels",
+        permanent: true,
+      },
+      // v1.25.7 — the per-module view/sort/order surfaces (Medikamente,
+      // Stimmung, Labor, Krankheit, Vorsorge) folded into "Darstellung"
+      // (`/settings/layout`) as inline anchored sections. Their standalone
+      // routes 301-redirect to the matching anchor so bookmarks, the PWA's
+      // cached navigation, and the per-module page-header cogs keep resolving.
+      {
+        source: "/settings/medications",
+        destination: "/settings/layout#medications",
+        permanent: true,
+      },
+      {
+        source: "/settings/mood",
+        destination: "/settings/layout#mood",
+        permanent: true,
+      },
+      {
+        source: "/settings/labs",
+        destination: "/settings/layout#labs",
+        permanent: true,
+      },
+      {
+        source: "/settings/illness",
+        destination: "/settings/layout#illness",
+        permanent: true,
+      },
+      {
+        source: "/settings/vorsorge",
+        destination: "/settings/layout#vorsorge",
+        permanent: true,
+      },
+      // v1.25.7 — clinician share links fold into the Gesundheitsakte section
+      // as a labelled "Sharing" group; the old standalone route 301-redirects
+      // to the anchor there.
+      {
+        source: "/settings/sharing",
+        destination: "/settings/gesundheitsakte#sharing",
         permanent: true,
       },
       // v1.22.0 — the preventive-care surface moved from the German slug

@@ -1,22 +1,57 @@
 /**
- * v1.17.1 (F-2) — the "Appearance" hub (slug stays `layout`).
+ * v1.25.7 — the "Appearance" home (slug stays `layout`).
  *
- * The hub is the single front door for every view/arrangement surface. It must
- * link to each with consistent framing so "how my app looks" reads as one home
- * rather than scattered settings sections.
- *
- * v1.25.3 — the hub widened from 2 links (dashboard + insights) to 6: it now
- * also deep-links to the view/sort/order cards of medications, labs, the
- * illness journal, and checkups. Those cards stay on their own module pages;
- * the hub only indexes them via anchor deep-links.
+ * The hub stopped being a link list: it now composes the dashboard, insights,
+ * and every tracking module's settings inline as stacked, anchored sections.
+ * Each module section keeps its module-gate (fail-open `!== false`), so a
+ * disabled module's section does not render. These tests pin the composition
+ * contract — anchors, headings, and gating — and mock the child section
+ * components (each has its own dedicated test) so the render stays a pure
+ * composition smoke.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+
+// Mutable modules ref so each render can pick a different gate map.
+const authRef: { modules?: Record<string, boolean> } = {};
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { id: "u1", username: "t", role: "USER", modules: authRef.modules },
+    isAuthenticated: true,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
+
+// Each composed surface has its own test; stub them at the import boundary so
+// this test exercises only the LayoutSection composition (anchors + gating).
+vi.mock("@/components/settings/dashboard-section", () => ({
+  DashboardSection: () => <div data-testid="body-dashboard" />,
+}));
+vi.mock("@/components/settings/insights-section", () => ({
+  InsightsSection: () => <div data-testid="body-insights" />,
+}));
+vi.mock("@/components/settings/medications-section", () => ({
+  MedicationsSection: () => <div data-testid="body-medications" />,
+}));
+vi.mock("@/components/settings/mood-section", () => ({
+  MoodSection: () => <div data-testid="body-mood" />,
+}));
+vi.mock("@/components/settings/labs-section", () => ({
+  LabsSection: () => <div data-testid="body-labs" />,
+}));
+vi.mock("@/components/settings/illness-section", () => ({
+  IllnessSection: () => <div data-testid="body-illness" />,
+}));
+vi.mock("@/components/settings/vorsorge-section", () => ({
+  VorsorgeSection: () => <div data-testid="body-vorsorge" />,
+}));
 
 import { I18nProvider } from "@/lib/i18n/context";
 import { LayoutSection } from "../layout-section";
 
-function render(locale: "en" | "de" = "en") {
+function render(modules?: Record<string, boolean>, locale: "en" | "de" = "en") {
+  authRef.modules = modules;
   return renderToStaticMarkup(
     <I18nProvider initialLocale={locale}>
       <LayoutSection />
@@ -25,32 +60,57 @@ function render(locale: "en" | "de" = "en") {
 }
 
 describe("<LayoutSection>", () => {
-  it("links to every view surface it indexes (anchor deep-links)", () => {
-    const html = render();
-    for (const href of [
-      "/settings/dashboard",
-      "/settings/insights",
-      "/settings/medications#medications-view",
-      "/settings/labs#labs-view",
-      "/settings/illness#illness-view",
-      "/settings/vorsorge#vorsorge-view",
+  it("stacks every surface inline with a stable anchor id (fail-open default)", () => {
+    const html = render(undefined);
+    for (const id of [
+      "dashboard",
+      "insights",
+      "medications",
+      "mood",
+      "labs",
+      "illness",
+      "vorsorge",
     ]) {
-      expect(html).toContain(`href="${href}"`);
+      expect(html).toContain(`id="${id}"`);
+      expect(html).toContain(`data-testid="body-${id}"`);
     }
+    // It is no longer a link hub — no `/settings/*` cards.
+    expect(html).not.toContain('href="/settings/');
   });
 
-  it("renders one card per indexed surface (6 links)", () => {
+  it("hides a module's section when that module is disabled", () => {
+    const html = render({ medications: false, labs: false });
+    expect(html).not.toContain('data-testid="body-medications"');
+    expect(html).not.toContain('id="medications"');
+    expect(html).not.toContain('data-testid="body-labs"');
+    expect(html).not.toContain('id="labs"');
+    // Other modules unaffected; Vorsorge is never gated.
+    expect(html).toContain('data-testid="body-mood"');
+    expect(html).toContain('data-testid="body-vorsorge"');
+  });
+
+  it("always renders dashboard, insights, and vorsorge (no module gate)", () => {
+    const html = render({
+      medications: false,
+      mood: false,
+      labs: false,
+      illness: false,
+    });
+    expect(html).toContain('data-testid="body-dashboard"');
+    expect(html).toContain('data-testid="body-insights"');
+    expect(html).toContain('data-testid="body-vorsorge"');
+    expect(html).not.toContain('data-testid="body-mood"');
+  });
+
+  it("resolves its section headings via i18n (no raw keys leak)", () => {
     const html = render();
-    // Pin the link count: every hub card is an `<a href="/settings/…">`.
-    const links = html.match(/href="\/settings\//g) ?? [];
-    expect(links.length).toBe(6);
-    expect(html).toContain("Dashboard");
-    expect(html).toContain("Insights");
+    expect(html).toContain("Medications");
+    expect(html).toContain("Labs");
+    expect(html).not.toContain("settings.sections.layout.");
   });
 
-  it("resolves its copy in German too", () => {
-    const html = render("de");
-    // The hub body is the link list; the German module labels resolve.
+  it("resolves the headings in German too", () => {
+    const html = render(undefined, "de");
     expect(html).toContain("Medikamente");
     expect(html).toContain("Labor");
     expect(html).not.toContain("settings.sections.layout.");

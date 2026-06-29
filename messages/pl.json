@@ -4038,16 +4038,16 @@
       "integrations": {
         "title": "Integracje",
         "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
-        "subtitle": "Połącz i zarządzaj źródłami danych oraz urządzeniami."
+        "subtitle": "Połącz i zarządzaj źródłami danych oraz urządzeniami.",
+        "channelsHeading": "Kanały dostarczania",
+        "channelsDescription": "Gdzie dostarczane są przypomnienia i powiadomienia."
       },
       "notifications": {
         "title": "Powiadomienia",
         "description": "Wszystkie przypomnienia w jednym miejscu — co i kiedy oraz gdzie są dostarczane.",
         "subtitle": "Wybierz, które przypomnienia otrzymujesz i gdzie są dostarczane.",
         "remindersHeading": "Przypomnienia",
-        "remindersDescription": "Co otrzymujesz.",
-        "channelsHeading": "Kanały dostarczania",
-        "channelsDescription": "Gdzie dostarczane są przypomnienia i powiadomienia."
+        "remindersDescription": "Co otrzymujesz."
       },
       "layout": {
         "title": "Wygląd",
@@ -4077,6 +4077,10 @@
         "vorsorge": {
           "title": "Badania kontrolne",
           "description": "Widok listy i kolejność przypomnień."
+        },
+        "mood": {
+          "title": "Tagi nastroju",
+          "description": "Grupy, tagi i zarchiwizowane tagi w wyborze nastroju."
         }
       },
       "dashboard": {

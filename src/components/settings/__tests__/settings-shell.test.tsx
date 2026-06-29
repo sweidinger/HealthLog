@@ -226,26 +226,26 @@ describe("<SettingsShell>", () => {
     expect(html.match(layoutActive)?.length ?? 0).toBe(2);
   });
 
-  it("module-gates the Stimmung entry off `user.modules.mood` (v1.18.0 S5)", () => {
-    // Fail-open default: mood undefined → entry shown.
-    expect(renderShell({ active: "account" })).toContain(
-      'href="/settings/mood"',
+  it("no longer surfaces the per-module nav entries (folded into Darstellung, v1.25.7)", () => {
+    // v1.25.7 — Medikamente / Stimmung / Labor / Krankheit / Vorsorge are no
+    // longer standalone left-nav entries: their settings render inline inside
+    // the "Darstellung" hub, gated on the same module key there. The shell
+    // never emits a sidebar link for them regardless of the module map.
+    for (const slug of ["medications", "mood", "labs", "illness", "vorsorge"]) {
+      expect(renderShell({ active: "account" })).not.toContain(
+        `href="/settings/${slug}"`,
+      );
+      // Even with the module explicitly enabled, no sidebar entry appears.
+      expect(
+        renderShell({ active: "account", modules: { [slug]: true } }),
+      ).not.toContain(`href="/settings/${slug}"`);
+    }
+  });
+
+  it("no longer surfaces the Sharing nav entry (folded into Gesundheitsakte, v1.25.7)", () => {
+    expect(renderShell({ active: "account" })).not.toContain(
+      'href="/settings/sharing"',
     );
-    // Explicitly disabled → entry hidden.
-    const disabled = renderShell({
-      active: "account",
-      modules: { mood: false },
-    });
-    expect(disabled).not.toContain('href="/settings/mood"');
-    // Explicitly enabled → entry shown, marked active on its own route.
-    const enabled = renderShell({
-      active: "mood",
-      pathname: "/settings/mood",
-      modules: { mood: true },
-    });
-    const moodActive =
-      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/mood"|<a\b[^>]*\bhref="\/settings\/mood"[^>]*\baria-current="page"/g;
-    expect(enabled.match(moodActive)?.length ?? 0).toBe(2);
   });
 
   it("module-gates the Coach entry off `user.modules.coach` (v1.18.0 S5)", () => {
@@ -305,10 +305,13 @@ describe("<SettingsShell>", () => {
     // left-side entry; Sources keeps its own.
     expect(html).not.toContain('href="/settings/channels"');
     expect(html).toContain('href="/settings/sources"');
-    // v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung, gated;
-    // fail-open mock shows both) are their own nav entries now.
-    expect(html).toContain('href="/settings/medications"');
-    expect(html).toContain('href="/settings/mood"');
+    // v1.25.7 — Medikamente / Stimmung (and Labor / Krankheit / Vorsorge)
+    // folded into "Darstellung" as inline sections, so they no longer have a
+    // standalone left-nav entry.
+    expect(html).not.toContain('href="/settings/medications"');
+    expect(html).not.toContain('href="/settings/mood"');
+    // v1.25.7 — Sharing folded into the Gesundheitsakte section.
+    expect(html).not.toContain('href="/settings/sharing"');
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
     // form so we don't accidentally match a parser that double-escapes.
     expect(html).toContain("API &amp; Tokens");
@@ -345,9 +348,10 @@ describe("<SettingsShell>", () => {
     // v1.25.3 — Channels ("Kanäle") folded into Notifications; Sources keeps
     // its own left-side entry.
     expect(html).not.toContain('href="/settings/channels"');
-    // v1.18.0 (S5) — Medications + Mood are their own nav entries now.
-    expect(html).toContain('href="/settings/medications"');
-    expect(html).toContain('href="/settings/mood"');
+    // v1.25.7 — Medikamente + Stimmung folded into "Darstellung", so they no
+    // longer have their own nav entries.
+    expect(html).not.toContain('href="/settings/medications"');
+    expect(html).not.toContain('href="/settings/mood"');
     // Targets keeps its German nav entry ("Zielwerte").
     expect(html).toContain("Zielwerte");
     // v1.18.6 (W9) — the AI section is named "KI-Anbieter" in German: the

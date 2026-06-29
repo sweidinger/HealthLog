@@ -4038,16 +4038,16 @@
       "integrations": {
         "title": "Integrations",
         "description": "Connected services, delivery channels, and source priority in one place.",
-        "subtitle": "Connect and manage your data sources and devices."
+        "subtitle": "Connect and manage your data sources and devices.",
+        "channelsHeading": "Delivery channels",
+        "channelsDescription": "Where reminders and alerts are delivered."
       },
       "notifications": {
         "title": "Notifications",
         "description": "Every reminder in one place — what gets reminded and when, and where it's delivered.",
         "subtitle": "Choose which reminders you receive and where they're delivered.",
         "remindersHeading": "Reminders",
-        "remindersDescription": "What you receive.",
-        "channelsHeading": "Delivery channels",
-        "channelsDescription": "Where reminders and alerts are delivered."
+        "remindersDescription": "What you receive."
       },
       "layout": {
         "title": "Appearance",
@@ -4077,6 +4077,10 @@
         "vorsorge": {
           "title": "Checkups",
           "description": "List view and reminder order."
+        },
+        "mood": {
+          "title": "Mood tags",
+          "description": "Groups, tags, and archived tags for the mood picker."
         }
       },
       "dashboard": {

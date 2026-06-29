@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { LowStockCard } from "@/components/settings/low-stock-card";
 import { MoodReminderCard } from "@/components/settings/mood-reminder-card";
-import { NotificationChannelsPanel } from "@/components/settings/integrations/notification-channels-panel";
 
 /**
  * `<NotificationsSection>` — Settings → Notifications ("Benachrichtigungen").
@@ -21,15 +20,10 @@ import { NotificationChannelsPanel } from "@/components/settings/integrations/no
  * (a toggleable fail-open module since D3, so a missing key reads as enabled
  * and a stale `/me` payload never blanks a card).
  *
- * v1.25.3 — the standalone "Channels" entry folds back in here. The page is
- * now one Notifications surface with two sequential, labelled groups, ordered
- * the way a user reasons about it: **Reminders** ("what you receive") first,
- * then **Delivery channels** ("where it's delivered") = the existing
- * `<NotificationChannelsPanel>`. This is two distinct-but-related concepts
- * sequenced under one roof, not one concept split top/bottom — the
- * channels group carries `id="channels"` so `/settings/channels` can
- * 301-redirect to `/settings/notifications#channels`, and the per-channel
- * anchors (`#telegram`, `#ntfy`, …) inside the panel keep working.
+ * v1.25.7 — delivery channels move to Settings → Integrationen (channels are
+ * delivery providers, the same family as the connected services). This screen
+ * keeps ONLY the reminder-TYPE content; `/settings/channels` 301-redirects to
+ * `/settings/integrations#channels`.
  *
  * v1.18.6 (W9) — the page heading + subtitle come from the shared
  * `<SettingsSectionFrame>`. The proactive-Coach nudge card lives under
@@ -77,21 +71,6 @@ export function NotificationsSection() {
           ) : null}
         </section>
       ) : null}
-
-      {/* Group 2 — Delivery channels ("where it's delivered"). The existing
-          channels panel, unchanged. `id="channels"` anchors the group for the
-          `/settings/channels` redirect. */}
-      <section id="channels" className="scroll-mt-28 space-y-4">
-        <div className="space-y-0.5">
-          <h2 className="text-foreground text-lg font-semibold">
-            {t("settings.sections.notifications.channelsHeading")}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            {t("settings.sections.notifications.channelsDescription")}
-          </p>
-        </div>
-        <NotificationChannelsPanel />
-      </section>
     </div>
   );
 }
