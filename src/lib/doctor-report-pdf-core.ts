@@ -12,7 +12,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DOCTOR_REPORT_TYPE_LABEL_KEYS } from "./doctor-report/type-label-keys";
-import { makeFormatters } from "./format-locale";
+import { makeFormatters, type TimeFormatPreference } from "./format-locale";
 import type { Locale } from "./i18n/config";
 import { convertGlucose, resolveGlucoseUnit } from "./glucose";
 import {
@@ -130,6 +130,13 @@ export interface DoctorReportRenderOptions {
    * Eastern-time rows even when generated in the browser.
    */
   userTz?: string;
+  /**
+   * v1.25.4 — the user's hour-cycle preference. Threaded into the formatters
+   * so the footer "generated at" timestamp (and any other clock the report
+   * prints) honours H12 / H24 rather than falling to the locale default. When
+   * omitted it stays AUTO (locale default), matching the legacy contract.
+   */
+  timeFormat?: TimeFormatPreference;
   /**
    * v1.7.0 — decrypted KVNR (German insurance number). Printed on the
    * cover when present; the column is encrypted at rest, so the route
@@ -474,11 +481,12 @@ export function buildDoctorReportPdfDocument(
     locale,
     now = new Date(),
     userTz,
+    timeFormat = "AUTO",
     insuranceNumber = null,
     includeCharts = true,
     aiSummary = null,
   } = options;
-  const formatters = makeFormatters(locale, userTz);
+  const formatters = makeFormatters(locale, userTz, timeFormat);
   const num = (value: number, decimals = 1) =>
     formatters.number(value, decimals);
   const fmtDate = (iso: string) => formatters.date(iso);

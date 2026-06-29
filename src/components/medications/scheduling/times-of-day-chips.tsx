@@ -33,7 +33,7 @@ import { useCallback, useId, useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { TimeField } from "@/components/ui/time-field";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -145,13 +145,11 @@ export function TimesOfDayChips({
         <Label htmlFor={inputId} className="sr-only">
           {t(`${i18nPrefix}.label`)}
         </Label>
-        <Input
+        <TimeField
           id={inputId}
-          type="time"
           value={single}
           disabled={disabled}
-          onChange={(e) => {
-            const v = e.target.value;
+          onChange={(v) => {
             if (!v) {
               onChange([]);
               return;
@@ -159,7 +157,7 @@ export function TimesOfDayChips({
             if (!TIME_RE.test(v)) return;
             onChange([v]);
           }}
-          className="h-11 w-32 sm:h-9"
+          className="h-11 w-32 sm:h-9 sm:min-h-9"
           aria-label={t(`${i18nPrefix}.label`)}
         />
       </div>
@@ -253,15 +251,14 @@ export function TimesOfDayChips({
         <Label htmlFor={inputId} className="sr-only">
           {t(`${i18nPrefix}.add`)}
         </Label>
-        <Input
+        <TimeField
           id={inputId}
-          type="time"
           value={draft}
           disabled={disabled || atCap}
-          onChange={(e) => setDraft(e.target.value)}
-          className="h-11 w-32 sm:h-9"
+          onChange={(v) => setDraft(v)}
+          className="h-11 w-32 sm:h-9 sm:min-h-9"
           aria-label={t(`${i18nPrefix}.add`)}
-          data-slot="times-of-day-draft-input"
+          data-testid="times-of-day-draft-input"
         />
         <Button
           type="button"

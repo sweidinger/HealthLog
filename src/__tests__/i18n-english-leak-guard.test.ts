@@ -75,6 +75,9 @@ function isMaskPlaceholder(words: string[]): boolean {
  * reason. Prune an entry only when the value genuinely diverges in a locale.
  */
 const LEGIT_IDENTICAL = new Set<string>([
+  // The AM/PM marker label — the affix abbreviations themselves are the same
+  // 12-hour-clock notation across the shipped Latin-script locales.
+  "common.period",
   // Clinical abbreviations / SI units — identical across locales.
   "charts.vo2Max",
   "cycle.insights.crosstab.unitGlucose",
