@@ -2,7 +2,18 @@
 
 ## [Unreleased]
 
-## [1.25.6] — 2026-06-29 — Optional HTTP geolocation provider
+## [1.25.7] — 2026-06-29 — Settings, tidied
+
+A settings information-architecture cleanup. No schema change; every page keeps a working address (old links 301-redirect).
+
+### Changed
+
+- **Appearance** is now the single home for how each area looks and is set up: the dashboard, insights, medications, mood, labs, illness journal, and preventive-care surfaces render inline as sections there (each with its full view/sort and management cards), instead of being scattered as their own left-hand entries. A disabled module's section simply doesn't appear. The per-area pages keep their addresses and redirect into the matching Appearance section.
+- **Delivery channels** (Telegram, ntfy, web push, …) now live under **Integrations** alongside the other external services, instead of under Notifications. Notifications keeps the reminder types.
+- **Share links** move into **Health record**, next to the export they belong with — the standalone Sharing entry is gone.
+- **Account** no longer repeats active sessions and security activity; those live under Data & Privacy.
+
+These changes only relocate existing surfaces — nothing was restyled, and every deep link keeps working.
 
 A focused configuration release. No schema change.
 
