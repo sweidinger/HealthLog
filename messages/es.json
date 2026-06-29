@@ -7985,5 +7985,87 @@
   },
   "selfDescription": {
     "dataPosture": "HealthLog es autoalojado: tus datos de salud permanecen en tu propia instancia, cifrados en reposo. Las funciones de IA usan una clave de proveedor que tú aportas o un modelo local, así que nada sale de tu instancia más allá del proveedor que configures, y no hay analítica de terceros sobre tus datos de salud."
+  },
+  "customMetrics": {
+    "sectionTitle": "Métricas personalizadas",
+    "sectionSubtitle": "Mediciones que defines y registras tú mismo.",
+    "add": "Añadir métrica personalizada",
+    "addValue": "Añadir valor",
+    "defineTitle": "Definir una métrica personalizada",
+    "defineDescription": "Da nombre a la medición, define su unidad y, opcionalmente, un rango objetivo.",
+    "editTitle": "Editar métrica personalizada",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirmTitle": "¿Eliminar esta métrica personalizada?",
+    "deleteConfirmDescription": "La métrica se quita de tu lista. Los valores registrados se conservan.",
+    "deletedToast": "Métrica personalizada eliminada",
+    "deleteError": "No se pudo eliminar la métrica personalizada",
+    "showAllValues": "Ver todos los valores",
+    "emptyDescription": "Define tus propias mediciones para registrarlas y representarlas.",
+    "noValuesYet": "Aún sin valores",
+    "loadError": "No se pudieron cargar las métricas personalizadas",
+    "loadMore": "Cargar más valores",
+    "showingLatestOf": "Mostrando los {shown} más recientes de {total}",
+    "backToMeasurements": "Volver a las mediciones",
+    "form": {
+      "name": "Nombre",
+      "namePlaceholder": "p. ej. Fuerza de agarre matinal",
+      "unit": "Unidad",
+      "unitPlaceholder": "p. ej. kg",
+      "decimals": "Decimales",
+      "decimalsPlaceholder": "p. ej. 1",
+      "targetLow": "Objetivo mínimo",
+      "targetLowPlaceholder": "Límite inferior",
+      "targetHigh": "Objetivo máximo",
+      "targetHighPlaceholder": "Límite superior",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Qué mide esto (opcional)",
+      "targetHint": "El rango objetivo es opcional y se dibuja como una banda en el gráfico.",
+      "requiredError": "El nombre y la unidad son obligatorios",
+      "rangeOrderError": "El objetivo mínimo no puede superar al máximo",
+      "save": "Guardar",
+      "savedToast": "Métrica personalizada guardada",
+      "updatedToast": "Métrica personalizada actualizada",
+      "saveError": "No se pudo guardar la métrica personalizada"
+    },
+    "entry": {
+      "value": "Valor",
+      "measuredAt": "Fecha",
+      "note": "Nota",
+      "addDescription": "Registra un valor para esta métrica.",
+      "edit": "Editar valor",
+      "editTitle": "Editar valor",
+      "editDescription": "Actualiza el valor, la fecha o la nota.",
+      "delete": "Eliminar valor",
+      "deleteConfirmTitle": "¿Eliminar este valor?",
+      "deleteConfirmDescription": "Este valor se elimina de forma permanente.",
+      "valueError": "Introduce un valor numérico",
+      "timestampError": "Introduce una fecha válida",
+      "savedToast": "Valor registrado",
+      "saveError": "No se pudo registrar el valor",
+      "editedToast": "Valor actualizado",
+      "editError": "No se pudo actualizar el valor",
+      "deletedToast": "Valor eliminado",
+      "deleteError": "No se pudo eliminar el valor"
+    },
+    "chart": {
+      "empty": "Sin valores en este intervalo",
+      "valueLabel": "Valor",
+      "range": {
+        "30": "30d",
+        "90": "90d",
+        "365": "1a",
+        "all": "Todo"
+      }
+    },
+    "detail": {
+      "title": "Métrica personalizada",
+      "genericDescription": "Una medición que registras. Añade valores para seguirla con el tiempo.",
+      "emptyTitle": "Aún sin valores",
+      "emptyDescription": "Añade tu primer valor para empezar a representar esta métrica.",
+      "valuesTitle": "{metric} — todos los valores",
+      "valuesDescription": "Todos los valores registrados de esta métrica.",
+      "backToMetric": "Volver a {metric}"
+    }
   }
 }

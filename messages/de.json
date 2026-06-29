@@ -7985,5 +7985,87 @@
   },
   "selfDescription": {
     "dataPosture": "HealthLog wird selbst gehostet: Deine Gesundheitsdaten bleiben auf deiner eigenen Instanz und sind im Ruhezustand verschlüsselt. KI-Funktionen nutzen einen von dir mitgebrachten Anbieter-Schlüssel oder ein lokales Modell — nichts verlässt deine Instanz über den von dir konfigurierten Anbieter hinaus, und es gibt keine Drittanbieter-Analyse deiner Gesundheitsdaten."
+  },
+  "customMetrics": {
+    "sectionTitle": "Eigene Metriken",
+    "sectionSubtitle": "Messwerte, die du selbst definierst und verfolgst.",
+    "add": "Eigene Metrik hinzufügen",
+    "addValue": "Wert hinzufügen",
+    "defineTitle": "Eigene Metrik definieren",
+    "defineDescription": "Benenne den Messwert, lege seine Einheit fest und optional einen Zielbereich.",
+    "editTitle": "Eigene Metrik bearbeiten",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "deleteConfirmTitle": "Diese eigene Metrik löschen?",
+    "deleteConfirmDescription": "Die Metrik wird aus deiner Liste entfernt. Erfasste Werte bleiben erhalten.",
+    "deletedToast": "Eigene Metrik gelöscht",
+    "deleteError": "Eigene Metrik konnte nicht gelöscht werden",
+    "showAllValues": "Alle Werte anzeigen",
+    "emptyDescription": "Definiere eigene Messwerte, um sie zu verfolgen und darzustellen.",
+    "noValuesYet": "Noch keine Werte",
+    "loadError": "Eigene Metriken konnten nicht geladen werden",
+    "loadMore": "Weitere Werte laden",
+    "showingLatestOf": "Die neuesten {shown} von {total}",
+    "backToMeasurements": "Zurück zu den Messwerten",
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "z. B. Griffkraft morgens",
+      "unit": "Einheit",
+      "unitPlaceholder": "z. B. kg",
+      "decimals": "Nachkommastellen",
+      "decimalsPlaceholder": "z. B. 1",
+      "targetLow": "Zielwert unten",
+      "targetLowPlaceholder": "Untere Grenze",
+      "targetHigh": "Zielwert oben",
+      "targetHighPlaceholder": "Obere Grenze",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Was hier gemessen wird (optional)",
+      "targetHint": "Der Zielbereich ist optional und wird als Band im Diagramm dargestellt.",
+      "requiredError": "Name und Einheit sind erforderlich",
+      "rangeOrderError": "Der untere Zielwert darf den oberen nicht überschreiten",
+      "save": "Speichern",
+      "savedToast": "Eigene Metrik gespeichert",
+      "updatedToast": "Eigene Metrik aktualisiert",
+      "saveError": "Eigene Metrik konnte nicht gespeichert werden"
+    },
+    "entry": {
+      "value": "Wert",
+      "measuredAt": "Datum",
+      "note": "Notiz",
+      "addDescription": "Erfasse einen Wert für diese Metrik.",
+      "edit": "Wert bearbeiten",
+      "editTitle": "Wert bearbeiten",
+      "editDescription": "Wert, Datum oder Notiz aktualisieren.",
+      "delete": "Wert löschen",
+      "deleteConfirmTitle": "Diesen Wert löschen?",
+      "deleteConfirmDescription": "Dieser Wert wird endgültig entfernt.",
+      "valueError": "Gib einen numerischen Wert ein",
+      "timestampError": "Gib ein gültiges Datum ein",
+      "savedToast": "Wert erfasst",
+      "saveError": "Wert konnte nicht erfasst werden",
+      "editedToast": "Wert aktualisiert",
+      "editError": "Wert konnte nicht aktualisiert werden",
+      "deletedToast": "Wert gelöscht",
+      "deleteError": "Wert konnte nicht gelöscht werden"
+    },
+    "chart": {
+      "empty": "Keine Werte in diesem Zeitraum",
+      "valueLabel": "Wert",
+      "range": {
+        "30": "30T",
+        "90": "90T",
+        "365": "1J",
+        "all": "Alle"
+      }
+    },
+    "detail": {
+      "title": "Eigene Metrik",
+      "genericDescription": "Ein Messwert, den du verfolgst. Erfasse Werte, um ihn über die Zeit zu beobachten.",
+      "emptyTitle": "Noch keine Werte",
+      "emptyDescription": "Erfasse deinen ersten Wert, um diese Metrik darzustellen.",
+      "valuesTitle": "{metric} — alle Werte",
+      "valuesDescription": "Alle erfassten Werte dieser Metrik.",
+      "backToMetric": "Zurück zu {metric}"
+    }
   }
 }

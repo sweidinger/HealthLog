@@ -19,6 +19,7 @@ import { allergyKeys } from "./allergies";
 import { authKeys } from "./auth";
 import { coachKeys } from "./coach";
 import { familyHistoryKeys } from "./family-history";
+import { customMetrics } from "./custom-metrics";
 import { cycleKeys } from "./cycle";
 import { dashboardKeys } from "./dashboard";
 import { environmentKeys } from "./environment";
@@ -56,6 +57,7 @@ export const queryKeys = {
   ...familyHistoryKeys,
   ...environmentKeys,
   ...documentKeys,
+  ...customMetrics,
 };
 
 /**

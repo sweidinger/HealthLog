@@ -9116,6 +9116,352 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/custom-metrics:
+    get:
+      tags:
+        - Custom metrics
+      summary: List the caller's custom metrics
+      description: Returns every custom metric the caller has defined, name-ordered, each with its latest logged value and
+        total value count.
+      responses:
+        "200":
+          description: Custom-metric catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListCustomMetricsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Custom metrics
+      summary: Define a custom metric
+      description: Creates a user-scoped custom metric. Re-creating a name that was previously soft-deleted revives that
+        definition. Audits as `customMetric.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                unit:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                targetLow:
+                  type: number
+                targetHigh:
+                  type: number
+                decimals:
+                  type: integer
+                  minimum: 0
+                  maximum: 6
+                description:
+                  type: string
+                  maxLength: 2000
+              required:
+                - name
+                - unit
+      responses:
+        "201":
+          description: Created custom metric.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCustomMetricResponse"
+        "401": *a1
+        "409": &a15
+          description: A custom metric with this name already exists for the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/custom-metrics/{id}:
+    get:
+      tags:
+        - Custom metrics
+      summary: Fetch a single custom metric
+      description: Returns the custom-metric definition. Cross-user rows surface as 404.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Custom-metric detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCustomMetricResponse"
+        "401": *a1
+        "404": &a14
+          description: Custom metric not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Custom metrics
+      summary: Edit a custom metric
+      description: Partial edit; omitted fields are untouched, an explicit null clears a target bound / decimals /
+        description. Audits as `customMetric.update`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                unit:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                targetLow:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                targetHigh:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                decimals:
+                  anyOf:
+                    - type: integer
+                      minimum: 0
+                      maximum: 6
+                    - type: "null"
+                description:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: "null"
+      responses:
+        "200":
+          description: Updated custom metric.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateCustomMetricResponse"
+        "401": *a1
+        "404": *a14
+        "409": *a15
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Custom metrics
+      summary: Delete a custom metric
+      description: Soft-deletes the metric (stamps `deletedAt`); its logged values are retained and re-creating the name
+        revives it. Audits as `customMetric.delete`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Deletion succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteCustomMetricResponse"
+        "401": *a1
+        "404": *a14
+        "422": *a3
+        "429": *a4
+  /api/custom-metrics/{id}/entries:
+    get:
+      tags:
+        - Custom metrics
+      summary: List a custom metric's logged values
+      description: Offset-paginated value feed for one custom metric (the chart + history read). Cross-user / unknown metric
+        ids surface as 404.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 9007199254740991
+        - in: query
+          name: sortDir
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+      responses:
+        "200":
+          description: Logged values.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListCustomMetricEntriesEnvelope"
+        "401": *a1
+        "404": *a14
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Custom metrics
+      summary: Log a value
+      description: Records a value against the custom metric, snapshotting the metric's unit. Audits as `customMetricEntry.create`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: number
+                measuredAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: string
+                      const: ""
+              required:
+                - value
+                - measuredAt
+      responses:
+        "201":
+          description: Created value.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCustomMetricEntryResponse"
+        "401": *a1
+        "404": *a14
+        "422": *a3
+        "429": *a4
+  /api/custom-metrics/{id}/entries/{entryId}:
+    patch:
+      tags:
+        - Custom metrics
+      summary: Edit a logged value
+      description: Partial edit of a value; omitted fields untouched, explicit null clears `note`. Audits as
+        `customMetricEntry.update`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: entryId
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: number
+                measuredAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                note:
+                  anyOf:
+                    - anyOf:
+                        - type: string
+                          maxLength: 2000
+                        - type: string
+                          const: ""
+                    - type: "null"
+      responses:
+        "200":
+          description: Updated value.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateCustomMetricEntryResponse"
+        "401": *a1
+        "404": &a16
+          description: Custom metric entry not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Custom metrics
+      summary: Delete a logged value
+      description: Hard-deletes the value. Audits as `customMetricEntry.delete`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: entryId
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Deletion succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteCustomMetricEntryResponse"
+        "401": *a1
+        "404": *a16
+        "422": *a3
+        "429": *a4
   /api/onboarding/disclaimer:
     post:
       tags:
@@ -25527,6 +25873,297 @@ components:
       description: "The outcome per decision: `approved` (committed, with the new record ref), `rejected` (discarded),
         `needsReview` (refused — edit first, fail-closed), `failed` (a per-fact commit miss, e.g. a numeric observation
         with no unit)."
+    ListCustomMetricsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ListCustomMetricsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListCustomMetricsResponse:
+      type: object
+      properties:
+        customMetrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomMetric"
+      required:
+        - customMetrics
+      additionalProperties: false
+    CustomMetric:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        unit:
+          type: string
+        targetLow:
+          anyOf:
+            - type: number
+            - type: "null"
+        targetHigh:
+          anyOf:
+            - type: number
+            - type: "null"
+        decimals:
+          anyOf:
+            - type: number
+            - type: "null"
+        description:
+          anyOf:
+            - type: string
+            - type: "null"
+        latest:
+          anyOf:
+            - type: object
+              properties:
+                value:
+                  type: number
+                unit:
+                  type: string
+                measuredAt:
+                  type: string
+              required:
+                - value
+                - unit
+                - measuredAt
+              additionalProperties: false
+            - type: "null"
+        entryCount:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - unit
+        - targetLow
+        - targetHigh
+        - decimals
+        - description
+        - latest
+        - entryCount
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: A user-defined custom metric. `latest` is the most recently logged value (or null); `entryCount` is the
+        total logged values. The optional target window is the user's own good range, charted as a reference band.
+    CreateCustomMetricResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CustomMetric"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetCustomMetricResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CustomMetric"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateCustomMetricResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CustomMetric"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteCustomMetricResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListCustomMetricEntriesEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ListCustomMetricEntriesResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListCustomMetricEntriesResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomMetricEntry"
+        meta:
+          type: object
+          properties:
+            total:
+              type: number
+            limit:
+              type: number
+            offset:
+              type: number
+          required:
+            - total
+            - limit
+            - offset
+          additionalProperties: false
+      required:
+        - entries
+        - meta
+      additionalProperties: false
+    CustomMetricEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        customMetricId:
+          type: string
+        value:
+          type: number
+        unit:
+          type: string
+        measuredAt:
+          type: string
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+      required:
+        - id
+        - customMetricId
+        - value
+        - unit
+        - measuredAt
+        - note
+        - createdAt
+      additionalProperties: false
+      description: A single logged value for a custom metric. `unit` is a snapshot of the metric's unit at write time.
+    CreateCustomMetricEntryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CustomMetricEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateCustomMetricEntryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CustomMetricEntry"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteCustomMetricEntryResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     DisclaimerAckEnvelope:
       type: object
       properties:
