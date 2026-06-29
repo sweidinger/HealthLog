@@ -10290,8 +10290,6 @@ components:
           type: boolean
         mcp:
           type: boolean
-        inboundDocuments:
-          type: boolean
         mentalHealth:
           type: boolean
       additionalProperties: false

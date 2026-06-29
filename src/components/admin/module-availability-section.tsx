@@ -7,7 +7,11 @@ import { toast } from "sonner";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { MODULE_KEYS, MODULE_REGISTRY } from "@/lib/modules/registry";
+import {
+  MODULE_KEYS,
+  MODULE_REGISTRY,
+  isCodeDisabledModule,
+} from "@/lib/modules/registry";
 import type { ModuleKey } from "@/lib/modules/registry";
 import { SettingsToggle } from "./_shared";
 import { apiGet, apiPatch } from "@/lib/api/api-fetch";
@@ -90,24 +94,30 @@ export function ModuleAvailabilitySection() {
         description={t("admin.modules.description")}
       />
       <div className="mt-4 space-y-4 pl-7">
-        {MODULE_KEYS.map((key) => {
-          const def = MODULE_REGISTRY[key];
-          // Default-available until the read resolves; an explicit `false`
-          // from the operator layer is the only thing that turns it off.
-          const available = availability?.[key] ?? true;
-          return (
-            <SettingsToggle
-              key={key}
-              label={t(def.labelKey)}
-              description={t(def.descriptionKey)}
-              checked={available}
-              onCheckedChange={(checked) =>
-                mutation.mutate({ [key]: checked } as Partial<AvailabilityMap>)
-              }
-              disabled={mutation.isPending}
-            />
-          );
-        })}
+        {MODULE_KEYS
+          // A module switched off in code (pending a rebuild) is hard-off
+          // server-wide; drop its row so the operator toggle can't mislead.
+          .filter((key) => !isCodeDisabledModule(key))
+          .map((key) => {
+            const def = MODULE_REGISTRY[key];
+            // Default-available until the read resolves; an explicit `false`
+            // from the operator layer is the only thing that turns it off.
+            const available = availability?.[key] ?? true;
+            return (
+              <SettingsToggle
+                key={key}
+                label={t(def.labelKey)}
+                description={t(def.descriptionKey)}
+                checked={available}
+                onCheckedChange={(checked) =>
+                  mutation.mutate({
+                    [key]: checked,
+                  } as Partial<AvailabilityMap>)
+                }
+                disabled={mutation.isPending}
+              />
+            );
+          })}
       </div>
     </div>
   );

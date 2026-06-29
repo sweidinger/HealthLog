@@ -20,7 +20,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "@/lib/i18n/context";
 import type { AuthUser } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
-import { MODULE_KEYS, moduleDelegatesTo } from "@/lib/modules/registry";
+import {
+  MODULE_KEYS,
+  isCodeDisabledModule,
+  moduleDelegatesTo,
+} from "@/lib/modules/registry";
 
 // Capture the latest useMutation config + a shared mutate spy so we can
 // invoke `mutationFn` / `onSuccess` by hand (the SSR pass can't fire a
@@ -112,7 +116,13 @@ describe("<ModulesSection>", () => {
     // only renders the toggleable modules.
     const html = render();
     for (const key of MODULE_KEYS) {
-      if (moduleDelegatesTo(key) !== undefined) {
+      if (isCodeDisabledModule(key)) {
+        // v1.25.3 — a module switched off in code (pending a rebuild) drops
+        // out of the hub entirely: no Switch, no deep-link, no row.
+        expect(html, `code-disabled has no switch ${key}`).not.toContain(
+          `id="module-toggle-${key}"`,
+        );
+      } else if (moduleDelegatesTo(key) !== undefined) {
         // Delegated modules (cycle/coach) are owned by their real control
         // elsewhere — they render as a read-only "manage in X" deep-link,
         // never a live Switch that would write an inert disabled-allowlist
