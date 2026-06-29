@@ -34,6 +34,7 @@ beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
   delete process.env.IP_GEO_LOOKUP_URL;
   delete process.env.IP_GEO_LOOKUP_DISABLED;
+  delete process.env.IP_GEO_ALLOW_INSECURE;
   addWarningSpy.mockClear();
   vi.resetModules();
 });
@@ -119,6 +120,39 @@ describe("lookupIpLocation IP-geolocation HTTPS guard", () => {
     const url = fetchSpy.mock.calls[0]?.[0] as string;
     // Even when an operator misconfigures HTTP, the helper rewrites the
     // URL to a deliberately invalid HTTPS URL so the egress is HTTPS-only.
+    expect(url.startsWith("https://")).toBe(true);
+  });
+
+  it("calls a plain-HTTP provider only when IP_GEO_ALLOW_INSECURE=true", async () => {
+    // v1.25.6 — a self-hoster who explicitly opts in can use the free
+    // HTTP-only ip-api.com endpoint; the helper then issues the HTTP request
+    // verbatim and parses its `status`/`countryCode` shape.
+    process.env.IP_GEO_LOOKUP_URL = "http://ip-api.com/json";
+    process.env.IP_GEO_ALLOW_INSECURE = "true";
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValue(
+        jsonOk({ status: "success", city: "Bochum", countryCode: "DE" }),
+      );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpLocation } = await import("../geo");
+
+    expect(await lookupIpLocation("8.8.8.8")).toBe("Bochum, DE");
+    const url = fetchSpy.mock.calls[0]?.[0] as string;
+    expect(url).toBe("http://ip-api.com/json/8.8.8.8");
+  });
+
+  it("still refuses plain HTTP when the opt-in is any value other than 'true'", async () => {
+    process.env.IP_GEO_LOOKUP_URL = "http://ip-api.com/json";
+    process.env.IP_GEO_ALLOW_INSECURE = "1"; // not the literal "true"
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValue(jsonOk({ status: "success", countryCode: "DE" }));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpLocation } = await import("../geo");
+
+    expect(await lookupIpLocation("8.8.8.8")).toBeNull();
+    const url = fetchSpy.mock.calls[0]?.[0] as string;
     expect(url.startsWith("https://")).toBe(true);
   });
 

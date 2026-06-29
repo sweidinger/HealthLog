@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.25.6] — 2026-06-29 — Optional HTTP geolocation provider
+
+A focused configuration release. No schema change.
+
+### Added
+
+- A self-hoster can now opt into a plain-HTTP IP-location provider by setting `IP_GEO_ALLOW_INSECURE=true` alongside an `http://` `IP_GEO_LOOKUP_URL`. This makes the free ip-api.com endpoint usable (its HTTPS form needs a paid key, but its geolocation is often more accurate, and it includes the carrier). The default stays HTTPS-only with ipwho.is — plain HTTP is refused unless the operator explicitly opts in, since the looked-up IP then travels unencrypted over the server's own egress.
+
 ## [1.25.5] — 2026-06-29 — Mental-wellbeing polish, location lookup
 
 A focused polish release. No schema change.

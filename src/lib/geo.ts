@@ -30,14 +30,15 @@
  * skip the offline tier — local dev without the MMDBs still works and
  * falls straight back to the online provider.
  *
- * Default provider for the online lookup is ip-api.com (HTTPS JSON
- * endpoint). ipwho.is was the v1.18.10 default but rejects datacentre /
- * free-plan server egress with a 403, so it never resolved on prod. Both
- * the ipwho.is shape (`success`/`country_code`) and the ip-api.com shape
+ * Default provider for the online lookup is ipwho.is (free, no key, HTTPS).
+ * Both the ipwho.is shape (`success`/`country_code`) and the ip-api.com shape
  * (`status`/`countryCode`) are accepted, so swapping providers via
  * `IP_GEO_LOOKUP_URL` only requires matching one of those response shapes.
- * A non-ok HTTP status (403/429/5xx) is surfaced on the wide event rather
- * than swallowed, so a future provider rejection is visible.
+ * The URL must be HTTPS by default; a self-hoster can opt into a plain-HTTP
+ * provider (e.g. the free, HTTP-only, often-more-accurate ip-api.com endpoint)
+ * with `IP_GEO_ALLOW_INSECURE=true` — see `buildLookupUrl`. A non-ok HTTP
+ * status (403/429/5xx) is surfaced on the wide event rather than swallowed,
+ * so a future provider rejection is visible.
  *
  * Setting `IP_GEO_LOOKUP_DISABLED=1` disables the online lookup
  * entirely — used by deployments that do not want any IP egress to a
@@ -300,14 +301,25 @@ function buildLookupUrl(ip: string): string {
     /\/+$/,
     "",
   );
-  if (!base.startsWith("https://")) {
-    // V3 audit: never leak audit-event IPs over plaintext HTTP. Reject any
-    // configuration that would do so by upgrading to https; if the operator
-    // has explicitly opted into HTTP via env, we still refuse and return a
-    // dummy URL the parser will fail on.
-    return `https://invalid.invalid/refused-non-https/${encodeURIComponent(ip)}`;
+  if (base.startsWith("https://")) {
+    return `${base}/${encodeURIComponent(ip)}`;
   }
-  return `${base}/${encodeURIComponent(ip)}`;
+  // v1.25.6 — plain HTTP is refused BY DEFAULT (V3 audit: never leak the
+  // looked-up IP over an unencrypted hop). A self-hoster who deliberately
+  // wants a free HTTP-only provider — e.g. the free ip-api.com endpoint,
+  // whose HTTPS form needs a paid key but whose geolocation is often more
+  // accurate — opts in explicitly with `IP_GEO_ALLOW_INSECURE=true`. The
+  // trade-off (the IP travels in clear over the server's own egress) is the
+  // operator's to make; the default stays HTTPS-only for everyone else.
+  if (
+    base.startsWith("http://") &&
+    process.env.IP_GEO_ALLOW_INSECURE === "true"
+  ) {
+    return `${base}/${encodeURIComponent(ip)}`;
+  }
+  // Any other scheme — or HTTP without the explicit opt-in — is refused with a
+  // dummy URL the parser fails on (a clean miss, never a plaintext request).
+  return `https://invalid.invalid/refused-non-https/${encodeURIComponent(ip)}`;
 }
 
 /**
