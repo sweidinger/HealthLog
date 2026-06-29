@@ -7569,7 +7569,6 @@
     "choosePrompt": "Choisis un bilan",
     "start": "Commencer",
     "back": "Retour",
-    "stem": "Au cours des 2 dernières semaines, à quelle fréquence as-tu été gêné(e) par les problèmes suivants ?",
     "submit": "Voir mon résultat",
     "submitting": "Enregistrement…",
     "saved": "Enregistré",
@@ -7619,7 +7618,14 @@
     },
     "history": {
       "title": "Ton historique",
-      "empty": "Aucun bilan pour le moment. Ta tendance apparaîtra ici dès que tu en auras terminé un."
+      "empty": "Aucun bilan pour le moment. Ta tendance apparaîtra ici dès que tu en auras terminé un.",
+      "chartTitle": "Évolution du score",
+      "flaggedBadge": "Aide affichée",
+      "totalLabel": "Score",
+      "tab": {
+        "phq9": "PHQ-9",
+        "gad7": "GAD-7"
+      }
     },
     "crisis": {
       "title": "Tu n'as pas à affronter cela seul(e)",
@@ -7671,6 +7677,25 @@
       "crisisTextLine": {
         "name": "Crisis Text Line"
       }
+    },
+    "instrumentDescription": {
+      "phq9": "Dépistage de la dépression en 9 questions. Répondez en pensant aux deux dernières semaines.",
+      "gad7": "Dépistage de l'anxiété en 7 questions. Répondez en pensant aux deux dernières semaines."
+    },
+    "progress": "{current} / {total}",
+    "questionAria": "Question {current} sur {total}",
+    "next": "Suivant",
+    "lastResult": "Dernier résultat",
+    "noResultYet": "Pas encore de check-in",
+    "backToList": "Vue d'ensemble",
+    "jumpFirst": "Aller à la première question",
+    "jumpLast": "Aller à la dernière question",
+    "review": {
+      "title": "Récapitulatif",
+      "recap": "Vous avez répondu à {answered} questions sur {total}."
+    },
+    "landing": {
+      "disclaimer": "Ce sont des auto-évaluations volontaires, pas un diagnostic. Elles aident à préparer un échange avec un professionnel, sans le remplacer."
     }
   },
   "records": {

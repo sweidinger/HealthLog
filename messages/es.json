@@ -7569,7 +7569,6 @@
     "choosePrompt": "Elige una revisión",
     "start": "Empezar",
     "back": "Atrás",
-    "stem": "Durante las últimas 2 semanas, ¿con qué frecuencia te han molestado los siguientes problemas?",
     "submit": "Ver mi resultado",
     "submitting": "Guardando…",
     "saved": "Guardado",
@@ -7619,7 +7618,14 @@
     },
     "history": {
       "title": "Tu historial",
-      "empty": "Aún no hay revisiones. Tu tendencia aparecerá aquí cuando completes una."
+      "empty": "Aún no hay revisiones. Tu tendencia aparecerá aquí cuando completes una.",
+      "chartTitle": "Evolución de la puntuación",
+      "flaggedBadge": "Apoyo mostrado",
+      "totalLabel": "Puntuación",
+      "tab": {
+        "phq9": "PHQ-9",
+        "gad7": "GAD-7"
+      }
     },
     "crisis": {
       "title": "No tienes que afrontar esto a solas",
@@ -7671,6 +7677,25 @@
       "crisisTextLine": {
         "name": "Crisis Text Line"
       }
+    },
+    "instrumentDescription": {
+      "phq9": "Cribado de depresión de 9 preguntas. Responde pensando en las últimas dos semanas.",
+      "gad7": "Cribado de ansiedad de 7 preguntas. Responde pensando en las últimas dos semanas."
+    },
+    "progress": "{current} / {total}",
+    "questionAria": "Pregunta {current} de {total}",
+    "next": "Siguiente",
+    "lastResult": "Último resultado",
+    "noResultYet": "Aún sin check-in",
+    "backToList": "Vista general",
+    "jumpFirst": "Ir a la primera pregunta",
+    "jumpLast": "Ir a la última pregunta",
+    "review": {
+      "title": "Resumen",
+      "recap": "Has respondido {answered} de {total} preguntas."
+    },
+    "landing": {
+      "disclaimer": "Son autoevaluaciones voluntarias, no un diagnóstico. Sirven de apoyo para hablar con un profesional, no lo sustituyen."
     }
   },
   "records": {
