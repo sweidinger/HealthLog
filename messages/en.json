@@ -4018,46 +4018,16 @@
       "disableError": "Could not disable Research Mode. Please try again."
     },
     "shell": {
-      "sectionsNav": "Settings sections",
-      "subSectionsNav": "Settings sub-sections"
-    },
-    "groups": {
-      "account": {
-        "title": "Account"
-      },
-      "tracking": {
-        "title": "Tracking"
-      },
-      "display": {
-        "title": "Display"
-      },
-      "integrations": {
-        "title": "Integrations"
-      },
-      "notifications": {
-        "title": "Notifications"
-      },
-      "ai": {
-        "title": "AI & Coach"
-      },
-      "access": {
-        "title": "API & Access"
-      },
-      "data": {
-        "title": "Data & Privacy"
-      },
-      "about": {
-        "title": "About"
-      }
+      "sectionsNav": "Settings sections"
     },
     "sections": {
       "account": {
-        "title": "Profile & preferences",
+        "title": "Account",
         "description": "Profile, password, passkeys, and your onboarding tour.",
         "subtitle": "Your profile, identity, and sign-in details."
       },
       "integrations": {
-        "title": "Connections",
+        "title": "Integrations",
         "description": "Connected services, delivery channels, and source priority in one place.",
         "subtitle": "Connect and manage your data sources and devices."
       },
@@ -4069,7 +4039,7 @@
         "subtitle": "Choose which reminders you receive."
       },
       "layout": {
-        "title": "Display",
+        "title": "Dashboard",
         "description": "Arrange how the dashboard and insights are laid out.",
         "backToHub": "Back to Layout & Personalization",
         "dashboard": {
@@ -4348,9 +4318,9 @@
         "subtitle": "Two-factor authentication, recovery codes, and passkeys."
       },
       "privacy": {
-        "title": "Privacy & retention",
-        "subtitle": "Your data, retention, and encryption in one place.",
-        "description": "Export, deletion, retention, and encryption status."
+        "title": "Data & Privacy",
+        "subtitle": "Your data, retention, encryption, and account security in one place.",
+        "description": "Export, deletion, retention, encryption status, sessions, and security activity."
       },
       "mcp": {
         "title": "MCP Connector",
@@ -5317,11 +5287,6 @@
         "description": "Control how much your data is shared with AI features and opt-in research.",
         "openAi": "AI privacy mode",
         "openResearch": "Research mode"
-      },
-      "signIn": {
-        "title": "Sign-in & devices",
-        "description": "Active sessions, trusted devices, and login activity now live in your account security settings.",
-        "openSecurity": "Manage sign-in & security"
       }
     },
     "mcp": {

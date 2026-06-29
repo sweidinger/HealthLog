@@ -4018,46 +4018,16 @@
       "disableError": "Forschungsmodus konnte nicht deaktiviert werden. Bitte erneut versuchen."
     },
     "shell": {
-      "sectionsNav": "Einstellungs-Bereiche",
-      "subSectionsNav": "Einstellungs-Unterbereiche"
-    },
-    "groups": {
-      "account": {
-        "title": "Konto"
-      },
-      "tracking": {
-        "title": "Tracking"
-      },
-      "display": {
-        "title": "Darstellung"
-      },
-      "integrations": {
-        "title": "Integrationen"
-      },
-      "notifications": {
-        "title": "Benachrichtigungen"
-      },
-      "ai": {
-        "title": "KI & Coach"
-      },
-      "access": {
-        "title": "API & Zugriff"
-      },
-      "data": {
-        "title": "Daten & Datenschutz"
-      },
-      "about": {
-        "title": "Über"
-      }
+      "sectionsNav": "Einstellungs-Bereiche"
     },
     "sections": {
       "account": {
-        "title": "Profil & Einstellungen",
+        "title": "Konto",
         "description": "Profil, Passwort, Passkeys und deine Onboarding-Tour.",
         "subtitle": "Dein Profil, deine Identität und deine Anmeldedaten."
       },
       "integrations": {
-        "title": "Verbindungen",
+        "title": "Integrationen",
         "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort.",
         "subtitle": "Datenquellen und Geräte verbinden und verwalten."
       },
@@ -4069,7 +4039,7 @@
         "subtitle": "Wähle, welche Erinnerungen du erhältst."
       },
       "layout": {
-        "title": "Darstellung",
+        "title": "Dashboard",
         "description": "Lege fest, wie Dashboard und Insights aufgebaut und angeordnet sind.",
         "backToHub": "Zurück zu Layout & Personalisierung",
         "dashboard": {
@@ -4348,9 +4318,9 @@
         "subtitle": "Zwei-Faktor-Authentifizierung, Wiederherstellungscodes und Passkeys."
       },
       "privacy": {
-        "title": "Datenschutz & Aufbewahrung",
-        "subtitle": "Deine Daten, Aufbewahrung und Verschlüsselung an einem Ort.",
-        "description": "Export, Löschung, Aufbewahrung und Verschlüsselungsstatus."
+        "title": "Daten & Datenschutz",
+        "subtitle": "Deine Daten, Aufbewahrung, Verschlüsselung und Kontosicherheit an einem Ort.",
+        "description": "Export, Löschung, Aufbewahrung, Verschlüsselungsstatus, Sitzungen und Sicherheitsaktivität."
       },
       "mcp": {
         "title": "MCP-Connector",
@@ -5317,11 +5287,6 @@
         "description": "Steuere, wie viele deiner Daten an KI-Funktionen und die freiwillige Forschung weitergegeben werden.",
         "openAi": "KI-Datenschutzmodus",
         "openResearch": "Forschungsmodus"
-      },
-      "signIn": {
-        "title": "Anmeldung & Geräte",
-        "description": "Aktive Sitzungen, vertraute Geräte und Anmeldeaktivität findest du jetzt in den Sicherheitseinstellungen deines Kontos.",
-        "openSecurity": "Anmeldung & Sicherheit verwalten"
       }
     },
     "mcp": {

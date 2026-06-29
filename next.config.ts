@@ -134,16 +134,6 @@ const nextConfig: NextConfig = {
         destination: "/settings/notifications",
         permanent: true,
       },
-      // v1.25.1 — the settings IA consolidation made the Display group land
-      // directly on `/settings/dashboard` (its first sub-tab), so the old
-      // "Layout & Personalization" hub at `/settings/layout` is no longer
-      // linked from anywhere. 301-redirect it to the Display landing so any old
-      // bookmark or cached navigation still resolves.
-      {
-        source: "/settings/layout",
-        destination: "/settings/dashboard",
-        permanent: true,
-      },
       // v1.22.0 — the preventive-care surface moved from the German slug
       // `/vorsorge` to the English `/checkups` (the feature reads "Checkups"
       // in every non-German locale now). 301-redirect so bookmarks, the PWA's

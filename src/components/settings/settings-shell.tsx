@@ -56,6 +56,7 @@ import {
   isSettingsSectionSlug,
   type SettingsSectionSlug,
 } from "./section-slugs";
+import { SettingsHubBackLink } from "./settings-hub-back-link";
 
 // Re-export so existing call-sites importing from this module keep working.
 // New server-side call-sites (e.g. `generateStaticParams()`) should import
@@ -288,142 +289,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   },
 ] as const;
 
-/**
- * v1.25.1 — Settings information-architecture consolidation.
- *
- * The left rail used to render one entry per section (26 visible). It now
- * renders NINE top-level GROUPS. Every section route stays live at its own
- * URL — `generateStaticParams()` still emits every slug, deep links and the
- * per-page settings cogs still resolve — but the sidebar is driven by this
- * group model and each group page surfaces its children as in-page sub-tabs.
- *
- * The mechanism generalises the old `LAYOUT_CHILD_SLUGS` + `navHighlightSlug`
- * trick (a live route, hidden from the rail, highlighting a parent): every
- * child slug now maps to its group for rail highlighting, and the group page
- * paints a sub-tab strip across its visible children.
- *
- * Two levels everywhere — the rail is one level, the sub-tabs are the second,
- * no child of a child.
- */
-export type SettingsGroupId =
-  | "account"
-  | "tracking"
-  | "display"
-  | "integrations"
-  | "notifications"
-  | "ai"
-  | "access"
-  | "data"
-  | "about";
-
-export interface SettingsGroup {
-  id: SettingsGroupId;
-  /** i18n key under `settings.groups.<id>.title`. */
-  titleKey: string;
-  icon: LucideIcon;
-  /**
-   * Ordered child section slugs. Rendered as in-page sub-tabs (filtered by
-   * module gate) when more than one is visible. The first VISIBLE child is
-   * the group's landing route — the rail entry links there so a click never
-   * lands on a module-gated-off page.
-   */
-  children: readonly SettingsSectionSlug[];
-}
-
-export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
-  {
-    id: "account",
-    titleKey: "settings.groups.account.title",
-    icon: User,
-    children: ["account", "security"],
-  },
-  {
-    id: "tracking",
-    titleKey: "settings.groups.tracking.title",
-    icon: ClipboardList,
-    children: [
-      "modules",
-      "medications",
-      "mood",
-      "labs",
-      "illness",
-      "vorsorge",
-      "anamnesis",
-      "environment",
-      "thresholds",
-    ],
-  },
-  {
-    id: "display",
-    titleKey: "settings.groups.display.title",
-    icon: LayoutDashboard,
-    // `layout` (the personalisation hub) stays a live route and highlights
-    // this group, but it is not a sub-tab — Dashboard + Insights are the
-    // tabs. See `SLUG_TO_GROUP` below for the `layout` alias.
-    children: ["dashboard", "insights"],
-  },
-  {
-    id: "integrations",
-    titleKey: "settings.groups.integrations.title",
-    icon: Link2,
-    // `channels` (delivery channels) stays under Integrations by deliberate
-    // choice (Q2-M1): a channel is a delivery PROVIDER, which the standing
-    // "providers → Integrations" principle places here, not under Notifications
-    // (which owns reminder TYPES). Reconsidered and kept as status quo in
-    // v1.25.1 — do not move it to the Notifications group.
-    children: ["integrations", "channels", "sources"],
-  },
-  {
-    id: "notifications",
-    titleKey: "settings.groups.notifications.title",
-    icon: Bell,
-    children: ["notifications"],
-  },
-  {
-    id: "ai",
-    titleKey: "settings.groups.ai.title",
-    icon: Sparkles,
-    children: ["ai", "coach"],
-  },
-  {
-    id: "access",
-    titleKey: "settings.groups.access.title",
-    icon: KeyRound,
-    children: ["api", "mcp"],
-  },
-  {
-    id: "data",
-    titleKey: "settings.groups.data.title",
-    icon: Lock,
-    children: ["export", "gesundheitsakte", "sharing", "privacy", "advanced"],
-  },
-  {
-    id: "about",
-    titleKey: "settings.groups.about.title",
-    icon: Info,
-    children: ["about"],
-  },
-] as const;
-
-/**
- * Reverse index: every section slug → its owning group id. Built from
- * `SETTINGS_GROUPS.children`, plus the `layout` alias (the personalisation
- * hub route lives under Display but is not one of its sub-tabs).
- */
-const SLUG_TO_GROUP: Record<string, SettingsGroupId> = (() => {
-  const map: Record<string, SettingsGroupId> = {};
-  for (const group of SETTINGS_GROUPS) {
-    for (const child of group.children) map[child] = group.id;
-  }
-  map["layout"] = "display";
-  return map;
-})();
-
-/** Per-slug metadata lookup (icon / titleKey / moduleGate) for sub-tabs. */
-const SECTION_BY_SLUG: ReadonlyMap<string, SettingsSection> = new Map(
-  SETTINGS_SECTIONS.map((section) => [section.slug, section]),
-);
-
 export interface SettingsShellProps {
   /**
    * Optional override for the active section. When omitted the shell reads
@@ -456,38 +321,36 @@ export interface SettingsShellProps {
   children: React.ReactNode;
 }
 
-/**
- * Resolve the active section slug from the route (or an explicit override the
- * page passes). Unlike the pre-v1.25.1 shell this no longer remaps a child
- * onto a parent — the real slug is kept so the heading + active sub-tab are
- * correct. Group highlighting is derived separately via `SLUG_TO_GROUP`.
- */
+// v1.17.1 (F-2) — the personalization editors live under the Layout
+// hub. They keep their own routes but are NOT standalone nav entries, so
+// when the user is on one of them the Layout nav entry is the one that
+// reads active.
+//
+// v1.18.0 (S5) — `mood` (Stimmung) and `medications` (Medikamente)
+// graduated to their own nav entries, so they are no longer Layout-hub
+// children for highlighting purposes.
+const LAYOUT_CHILD_SLUGS: ReadonlySet<string> = new Set([
+  "dashboard",
+  "insights",
+]);
+
+/** Map a Layout child editor onto the Layout hub for nav highlighting. */
+function navHighlightSlug(slug: SettingsSectionSlug): SettingsSectionSlug {
+  return LAYOUT_CHILD_SLUGS.has(slug) ? "layout" : slug;
+}
+
 function deriveActiveSlug(
   pathname: string | null,
   override?: SettingsSectionSlug,
 ): SettingsSectionSlug {
-  if (override) return override;
+  if (override) return navHighlightSlug(override);
   if (!pathname) return "account";
   // Match `/settings/<slug>` and ignore any trailing segments (none today,
   // but cheap insurance for future nested routes).
   const match = pathname.match(/^\/settings\/([^/]+)/);
   const candidate = match?.[1] ?? "";
+  if (LAYOUT_CHILD_SLUGS.has(candidate)) return "layout";
   return isSettingsSectionSlug(candidate) ? candidate : "account";
-}
-
-/** Map any section slug onto its owning group (defaults to Account). */
-function deriveActiveGroup(slug: SettingsSectionSlug): SettingsGroupId {
-  return SLUG_TO_GROUP[slug] ?? "account";
-}
-
-/** Is a slug visible given the user's module map? Fails OPEN. */
-function isSlugVisible(
-  slug: SettingsSectionSlug,
-  modules: Record<string, boolean> | undefined,
-): boolean {
-  const section = SECTION_BY_SLUG.get(slug);
-  if (!section?.moduleGate) return true;
-  return modules?.[section.moduleGate] !== false;
 }
 
 export function SettingsShell({
@@ -507,36 +370,12 @@ export function SettingsShell({
   // reads as enabled so an entry never silently disappears. Entries with
   // no `moduleGate` (global / CORE) are always shown.
   const modules = user?.modules;
-  const activeGroupId = deriveActiveGroup(activeSlug);
-
-  // v1.25.1 — the rail renders one entry per GROUP. Each group surfaces its
-  // first VISIBLE child as the landing route, so a tap never lands on a
-  // module-gated-off page. A group shows when it has at least one visible
-  // child; every group carries an always-on child, so all nine always render
-  // (the proposal's "no group fully disappears" guarantee).
-  const groupNav = SETTINGS_GROUPS.map((group) => {
-    const visibleChildren = group.children.filter((slug) =>
-      isSlugVisible(slug, modules),
-    );
-    return { group, visibleChildren, landingSlug: visibleChildren[0] };
-  }).filter(
-    (
-      entry,
-    ): entry is {
-      group: SettingsGroup;
-      visibleChildren: SettingsSectionSlug[];
-      landingSlug: SettingsSectionSlug;
-    } => entry.landingSlug !== undefined,
+  const visibleSections = SETTINGS_SECTIONS.filter(
+    (section) => !section.moduleGate || modules?.[section.moduleGate] !== false,
   );
-
-  // Sub-tabs for the active group — painted only when it has 2+ visible
-  // children. `layout` (the Display hub) is not one of Display's tabs, so on
-  // that route no tab reads active and the hub body renders below the strip.
-  const activeGroupEntry = groupNav.find(
-    (entry) => entry.group.id === activeGroupId,
+  const activeSection = visibleSections.find(
+    (section) => section.slug === activeSlug,
   );
-  const subTabs: SettingsSectionSlug[] =
-    activeGroupEntry?.visibleChildren ?? [];
 
   // v1.4.33 IW4 — keep the active chip in view inside the horizontal
   // mobile strip. On a 393 CSS px viewport the strip is wider than the
@@ -572,25 +411,6 @@ export function SettingsShell({
     strip.scrollTo({ left: target, behavior: "auto" });
   }, [activeSlug]);
 
-  // v1.25.1 (Q3-M3) — the in-page SUB-TAB strip needs the same
-  // scroll-active-into-view treatment as the group strip above. The Tracking
-  // group renders up to nine sub-tabs in an `overflow-x-auto` strip; deep-linking
-  // (or navigating) to a late tab — thresholds / environment / anamnesis — left
-  // the active `[aria-current="page"]` chip off-screen to the right, reading as
-  // "nothing selected" on a narrow viewport. Pin it to the strip's left edge,
-  // clamped to the scroll range, with the same instant (non-animated) jump.
-  const subTabStripRef = React.useRef<HTMLElement | null>(null);
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const strip = subTabStripRef.current;
-    if (!strip) return;
-    const active = strip.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!active) return;
-    const maxScroll = strip.scrollWidth - strip.clientWidth;
-    const target = Math.max(0, Math.min(active.offsetLeft, maxScroll));
-    strip.scrollTo({ left: target, behavior: "auto" });
-  }, [activeSlug]);
-
   // v1.18.6.1 — resolve the heading once. Pages pass an explicit `heading`
   // (the canonical path); the slug fallback keeps the shell renderable on
   // its own (and in tests that mount it without a heading) by deriving the
@@ -599,94 +419,44 @@ export function SettingsShell({
   // below.
   const resolvedHeading =
     heading ??
-    (isSettingsSectionSlug(activeSlug)
+    (activeSection
       ? {
-          title: t(`settings.sections.${activeSlug}.title`),
-          subtitle: t(`settings.sections.${activeSlug}.subtitle`),
-          headingId: `settings-section-${activeSlug}-title`,
-          topSlot: undefined,
+          title: t(activeSection.titleKey),
+          subtitle: t(`settings.sections.${activeSection.slug}.subtitle`),
+          headingId: `settings-section-${activeSection.slug}-title`,
+          topSlot: LAYOUT_CHILD_SLUGS.has(activeSection.slug) ? (
+            <SettingsHubBackLink
+              href="/settings/layout"
+              labelKey="settings.sections.layout.backToHub"
+            />
+          ) : undefined,
           headingAccessory: undefined,
         }
       : null);
 
-  // v1.25.1 (A11Y-L6) — move focus to the section heading when the active
-  // section changes WITHIN the mounted shell (a sub-tab tap or a rail click;
-  // the shell instance is reused across `/settings/[section]` param changes,
-  // which is also why the mobile-strip effect above keys on `activeSlug`).
-  // Without this, keyboard / screen-reader users stay focused on the nav link
-  // they activated and the new content is never announced. The very first
-  // mount (a deep link or a fresh entry into Settings) is skipped on purpose:
-  // auto-focusing on initial page load is itself a jarring, unexpected focus
-  // move. The heading id is shared by two instances (mobile above the strip,
-  // desktop in the grid) — only one is visible per breakpoint — so we focus
-  // the visible one. `preventScroll` leaves the global scroll-reset in charge.
-  const headingId = resolvedHeading?.headingId;
-  const firstHeadingFocusRef = React.useRef(true);
-  React.useEffect(() => {
-    if (firstHeadingFocusRef.current) {
-      firstHeadingFocusRef.current = false;
-      return;
-    }
-    if (!headingId || typeof document === "undefined") return;
-    const candidates = document.querySelectorAll<HTMLElement>(
-      `[data-settings-heading="${headingId}"]`,
-    );
-    for (const el of candidates) {
-      // `offsetParent === null` ⇒ the element (or an ancestor) is
-      // `display:none` — i.e. the hidden-for-this-breakpoint instance. Skip it
-      // and focus the visible heading.
-      if (el.offsetParent !== null) {
-        el.focus({ preventScroll: true });
-        break;
-      }
-    }
-  }, [activeSlug, headingId]);
-
-  // v1.25.1 (A11Y M1) — the heading node is painted at two breakpoints (mobile
-  // above the strip, desktop inside the grid). Both stay in the DOM (CSS
-  // `display:none`, not unmounted), so emitting the `id` on both produced a real
-  // `duplicate-id-aria` violation (the id is the `aria-labelledby` target of the
-  // section body, and any `getElementById` consumer would resolve the hidden
-  // instance). The `id` now lands on ONE instance only (`withId`). The focus
-  // effect targets `data-settings-heading` (kept on both) and picks the visible
-  // one, and `aria-labelledby` still resolves because referenced-element text
-  // counts even when the element is `display:none`.
-  const makeHeadingBlock = (withId: boolean) =>
-    resolvedHeading ? (
-      <div className="space-y-6">
-        {resolvedHeading.topSlot ? <div>{resolvedHeading.topSlot}</div> : null}
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h1
-              {...(withId ? { id: resolvedHeading.headingId } : {})}
-              data-settings-heading={resolvedHeading.headingId}
-              // v1.25.1 (A11Y-L6) — programmatically focusable so an in-shell
-              // section switch can move focus here (see the `activeSlug` effect).
-              // `tabIndex={-1}` keeps it out of the sequential tab order but lets
-              // `.focus()` land, so keyboard / screen-reader users are placed in
-              // the new section's content instead of being left on the nav link.
-              tabIndex={-1}
-              className="text-2xl font-bold tracking-tight outline-none"
-            >
-              {resolvedHeading.title}
-            </h1>
-            {resolvedHeading.subtitle ? (
-              <p className="text-muted-foreground text-sm">
-                {resolvedHeading.subtitle}
-              </p>
-            ) : null}
-          </div>
-          {resolvedHeading.headingAccessory ? (
-            <div className="shrink-0">{resolvedHeading.headingAccessory}</div>
+  const headingBlock = resolvedHeading ? (
+    <div className="space-y-6">
+      {resolvedHeading.topSlot ? <div>{resolvedHeading.topSlot}</div> : null}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h1
+            id={resolvedHeading.headingId}
+            className="text-2xl font-bold tracking-tight"
+          >
+            {resolvedHeading.title}
+          </h1>
+          {resolvedHeading.subtitle ? (
+            <p className="text-muted-foreground text-sm">
+              {resolvedHeading.subtitle}
+            </p>
           ) : null}
         </div>
+        {resolvedHeading.headingAccessory ? (
+          <div className="shrink-0">{resolvedHeading.headingAccessory}</div>
+        ) : null}
       </div>
-    ) : null;
-
-  // The desktop instance carries the canonical `id`; the mobile instance is
-  // id-less (it keeps `data-settings-heading` for the focus effect).
-  const mobileHeadingBlock = makeHeadingBlock(false);
-  const desktopHeadingBlock = makeHeadingBlock(true);
+    </div>
+  ) : null;
 
   // v1.4.25 W8 — AuthShell wraps the page in `px-4 py-6 md:px-6`
   // already, so this inner shell only carries the wider max-width.
@@ -698,8 +468,8 @@ export function SettingsShell({
       {/* v1.18.6.1 — on mobile the heading sits above the chip strip; on
           desktop it is rendered inside the grid (row 1 / content column) so
           it does not paint twice. */}
-      {mobileHeadingBlock ? (
-        <div className="mb-4 md:hidden">{mobileHeadingBlock}</div>
+      {headingBlock ? (
+        <div className="mb-4 md:hidden">{headingBlock}</div>
       ) : null}
 
       {/* Mobile section strip — horizontal scroll, hidden on md+.
@@ -722,15 +492,13 @@ export function SettingsShell({
         className="no-scrollbar relative -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
-          {groupNav.map(({ group, landingSlug }) => {
-            const isActive = group.id === activeGroupId;
-            const Icon = group.icon;
+          {visibleSections.map((section) => {
+            const isActive = section.slug === activeSlug;
+            const Icon = section.icon;
             return (
-              <li key={group.id} className="snap-start">
+              <li key={section.slug} className="snap-start">
                 <Link
-                  href={`/settings/${landingSlug}`}
-                  data-slot="settings-group-nav-item"
-                  data-group={group.id}
+                  href={`/settings/${section.slug}`}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
                     // v1.4.25 W8 — chip strip is the primary mobile-settings
@@ -743,7 +511,7 @@ export function SettingsShell({
                   )}
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
-                  {t(group.titleKey)}
+                  {t(section.titleKey)}
                 </Link>
               </li>
             );
@@ -761,9 +529,9 @@ export function SettingsShell({
           the `space-y-6` the heading-to-first-card gap used to carry. */}
       <div className="grid gap-6 md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]">
         {/* Heading — desktop only here (mobile renders it above the strip). */}
-        {desktopHeadingBlock ? (
+        {headingBlock ? (
           <div className="hidden md:col-start-2 md:row-start-1 md:block">
-            {desktopHeadingBlock}
+            {headingBlock}
           </div>
         ) : null}
 
@@ -784,15 +552,13 @@ export function SettingsShell({
           className="no-scrollbar hidden max-h-[calc(100dvh-5.5rem)] overflow-y-auto md:sticky md:top-6 md:col-start-1 md:row-start-2 md:block md:self-start"
         >
           <ul className="space-y-1">
-            {groupNav.map(({ group, landingSlug }) => {
-              const isActive = group.id === activeGroupId;
-              const Icon = group.icon;
+            {visibleSections.map((section) => {
+              const isActive = section.slug === activeSlug;
+              const Icon = section.icon;
               return (
-                <li key={group.id}>
+                <li key={section.slug}>
                   <Link
-                    href={`/settings/${landingSlug}`}
-                    data-slot="settings-group-nav-item"
-                    data-group={group.id}
+                    href={`/settings/${section.slug}`}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
@@ -802,7 +568,7 @@ export function SettingsShell({
                     )}
                   >
                     <Icon className="h-4 w-4" aria-hidden="true" />
-                    {t(group.titleKey)}
+                    {t(section.titleKey)}
                   </Link>
                 </li>
               );
@@ -827,48 +593,6 @@ export function SettingsShell({
             already provides the page's single `<main>` landmark and a
             nested second one is an a11y violation. */}
         <div className="min-h-[calc(100dvh-12rem)] min-w-0 pb-24 md:col-start-2 md:row-start-2 md:pb-0">
-          {/* v1.25.1 — in-page sub-tabs for the active group. Painted only
-              when the group has 2+ visible children (single-child groups —
-              Notifications, About — render no strip). Horizontal scroll keeps
-              the nine-tab Tracking group from overflowing a narrow viewport,
-              and the `subTabStripRef` effect scrolls the active tab into view. A
-              segmented control (shadcn-style) on every breakpoint. Each tab is
-              a real route Link so deep links + the back/forward stack work. */}
-          {subTabs.length > 1 ? (
-            <nav
-              ref={subTabStripRef}
-              aria-label={t("settings.shell.subSectionsNav")}
-              data-slot="settings-subtabs"
-              className="no-scrollbar bg-muted/50 -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-lg p-1"
-            >
-              {subTabs.map((slug) => {
-                const isActive = slug === activeSlug;
-                return (
-                  <Link
-                    key={slug}
-                    href={`/settings/${slug}`}
-                    data-slot="settings-subtab"
-                    data-subtab-slug={slug}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "flex min-h-9 items-center rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
-                      isActive
-                        ? "bg-background text-foreground shadow-sm"
-                        : // v1.25.1 (A11Y-L3) — inactive tab text over the
-                          // `bg-muted/50` strip. `text-muted-foreground` is tuned
-                          // for ~AA on the page background; over the tinted strip
-                          // the effective ratio drops below 4.5:1 in light mode.
-                          // `text-foreground/70` keeps the de-emphasised look but
-                          // clears the WCAG AA floor on the strip.
-                          "text-foreground/70 hover:text-foreground",
-                    )}
-                  >
-                    {t(`settings.sections.${slug}.title`)}
-                  </Link>
-                );
-              })}
-            </nav>
-          ) : null}
           {children}
         </div>
       </div>
