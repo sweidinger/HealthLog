@@ -20,7 +20,7 @@
 
 import { useCallback, useId, useMemo } from "react";
 
-import { Input } from "@/components/ui/input";
+import { TimeField } from "@/components/ui/time-field";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
@@ -159,37 +159,31 @@ export function DoseWindowEditor({
                     <Label htmlFor={startId} className="sr-only">
                       {t("medications.detail.zeitplan.window.startLabel")}
                     </Label>
-                    <Input
+                    <TimeField
                       id={startId}
-                      type="time"
                       value={row.start}
                       disabled={disabled}
-                      onChange={(e) =>
-                        setRow(row.timeOfDay, { start: e.target.value })
-                      }
-                      className="h-11 w-32 sm:h-9"
+                      onChange={(v) => setRow(row.timeOfDay, { start: v })}
+                      className="h-11 w-32 sm:h-9 sm:min-h-9"
                       aria-label={t(
                         "medications.detail.zeitplan.window.startLabel",
                       )}
-                      data-slot="dose-window-start"
+                      data-testid="dose-window-start"
                     />
                     <span className="text-muted-foreground text-sm">–</span>
                     <Label htmlFor={endId} className="sr-only">
                       {t("medications.detail.zeitplan.window.endLabel")}
                     </Label>
-                    <Input
+                    <TimeField
                       id={endId}
-                      type="time"
                       value={row.end}
                       disabled={disabled}
-                      onChange={(e) =>
-                        setRow(row.timeOfDay, { end: e.target.value })
-                      }
-                      className="h-11 w-32 sm:h-9"
+                      onChange={(v) => setRow(row.timeOfDay, { end: v })}
+                      className="h-11 w-32 sm:h-9 sm:min-h-9"
                       aria-label={t(
                         "medications.detail.zeitplan.window.endLabel",
                       )}
-                      data-slot="dose-window-end"
+                      data-testid="dose-window-end"
                     />
                   </div>
                   {isValidHhmm(row.start) &&

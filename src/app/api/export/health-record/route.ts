@@ -119,7 +119,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
       resolveUserTimezone(user.id),
       prisma.user.findUnique({
         where: { id: user.id },
-        select: { insuranceNumberEncrypted: true, insightsCachedText: true },
+        select: {
+          insuranceNumberEncrypted: true,
+          insightsCachedText: true,
+          timeFormat: true,
+        },
       }),
       // v1.25 (W-RECORDS) — structured records are always-available reference
       // data (not time-windowed), so they ride alongside the report rather
@@ -203,6 +207,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     t,
     locale,
     userTz,
+    timeFormat: userRow?.timeFormat ?? "AUTO",
     insuranceNumber,
     includeCharts,
     aiSummary,
