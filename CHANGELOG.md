@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.25.5] — 2026-06-29 — Mental-wellbeing polish, location lookup
+
+A focused polish release. No schema change.
+
+### Changed
+
+- **Mental wellbeing** reads cleaner: the screener trend now matches the rest of the app's charts (a single line with the same soft gradient fill and spacing as the dashboard, no surface-only background bands — the severity band still shows on hover); the page uses the full content width like the other tracking surfaces; and the redundant top heading, its tooltip, and the repeated self-test disclaimer are gone. The instrument card's last-test line now reads like a medication card: the label on the left, the day (today / yesterday / date) on the right.
+- **Location lookup** defaults to ipwho.is again — free, no key, resolves a city/country for the login overview out of the box. The offline GeoLite2 databases stay strictly optional (used only when an online lookup misses). Operators whose network blocks ipwho.is can point `IP_GEO_LOOKUP_URL` at another provider without any code change.
+
 ## [1.25.4] — 2026-06-29 — Time picker honors the 24-hour preference
 
 A focused fix release. No schema change.
