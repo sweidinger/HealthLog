@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 
 vi.mock("@/lib/geo", () => ({
-  lookupIpLocation: vi.fn(),
-  lookupIpAsn: vi.fn(),
+  lookupIpGeo: vi.fn(),
 }));
 
 import {
@@ -13,7 +12,7 @@ import {
   GEO_BACKFILL_WINDOW_DAYS,
   runGeoBackfill,
 } from "../geo-backfill";
-import { lookupIpAsn, lookupIpLocation } from "@/lib/geo";
+import { lookupIpGeo } from "@/lib/geo";
 
 interface FakeRow {
   id: string;
@@ -29,10 +28,11 @@ function makePrismaMock(rows: FakeRow[]) {
   } as unknown as PrismaClient;
 }
 
+const EMPTY_GEO = { location: null, asn: null, carrier: null };
+
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(lookupIpAsn).mockReturnValue(null);
-  vi.mocked(lookupIpLocation).mockResolvedValue(null);
+  vi.mocked(lookupIpGeo).mockResolvedValue(EMPTY_GEO);
 });
 
 afterEach(() => {
@@ -53,14 +53,14 @@ describe("runGeoBackfill", () => {
     expect(prisma.auditLog.update).not.toHaveBeenCalled();
   });
 
-  it("queries rows where location is null + ipAddress is not null + createdAt > now()-30d", async () => {
+  it("queries rows missing location OR carrier + ipAddress is not null + createdAt > now()-30d", async () => {
     const prisma = makePrismaMock([]);
     const now = new Date("2026-05-15T12:00:00Z");
     await runGeoBackfill(prisma, now);
 
     const args = vi.mocked(prisma.auditLog.findMany).mock.calls[0][0];
     expect(args?.where).toEqual({
-      location: null,
+      OR: [{ location: null }, { carrier: null }],
       ipAddress: { not: null },
       createdAt: {
         gt: new Date(now.getTime() - GEO_BACKFILL_WINDOW_DAYS * 86_400_000),
@@ -73,10 +73,13 @@ describe("runGeoBackfill", () => {
     expect(GEO_BACKFILL_BATCH_CAP).toBe(500);
   });
 
-  it("updates a row with location only when ASN resolver misses", async () => {
+  it("updates a row with location only when the carrier resolver misses", async () => {
     const prisma = makePrismaMock([{ id: "a1", ipAddress: "203.0.113.7" }]);
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce("Berlin, DE");
-    vi.mocked(lookupIpAsn).mockReturnValueOnce(null);
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: "Berlin, DE",
+      asn: null,
+      carrier: null,
+    });
 
     const summary = await runGeoBackfill(prisma);
 
@@ -94,8 +97,8 @@ describe("runGeoBackfill", () => {
 
   it("updates a row with asn + carrier alongside location", async () => {
     const prisma = makePrismaMock([{ id: "a2", ipAddress: "84.131.0.1" }]);
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce("München, DE");
-    vi.mocked(lookupIpAsn).mockReturnValueOnce({
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: "München, DE",
       asn: 3320,
       carrier: "Deutsche Telekom AG",
     });
@@ -118,10 +121,29 @@ describe("runGeoBackfill", () => {
     });
   });
 
-  it("updates a row with ASN only when location resolver misses but ASN hits", async () => {
+  it("updates a row with carrier (no asn) when the online provider omits the AS number", async () => {
+    // v1.25.8 — ip-api can return `isp` without a parseable `as` field, so a
+    // carrier resolves without an ASN. The carrier alone still counts.
+    const prisma = makePrismaMock([{ id: "a2b", ipAddress: "84.131.0.2" }]);
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: "Bochum, DE",
+      asn: null,
+      carrier: "Deutsche Telekom AG",
+    });
+
+    const summary = await runGeoBackfill(prisma);
+
+    expect(summary.carrierResolved).toBe(1);
+    expect(prisma.auditLog.update).toHaveBeenCalledWith({
+      where: { id: "a2b" },
+      data: { location: "Bochum, DE", carrier: "Deutsche Telekom AG" },
+    });
+  });
+
+  it("updates a row with carrier only when the location resolver misses", async () => {
     const prisma = makePrismaMock([{ id: "a3", ipAddress: "139.7.0.1" }]);
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce(null);
-    vi.mocked(lookupIpAsn).mockReturnValueOnce({
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: null,
       asn: 3209,
       carrier: "Vodafone GmbH",
     });
@@ -136,14 +158,13 @@ describe("runGeoBackfill", () => {
     });
     expect(prisma.auditLog.update).toHaveBeenCalledWith({
       where: { id: "a3" },
-      data: { asn: 3209, carrier: "Vodafone GmbH" },
+      data: { carrier: "Vodafone GmbH", asn: 3209 },
     });
   });
 
-  it("skips the update when both resolvers miss, counts as still-unresolved", async () => {
+  it("skips the update when the resolver misses entirely, counts as still-unresolved", async () => {
     const prisma = makePrismaMock([{ id: "a4", ipAddress: "192.0.2.1" }]);
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce(null);
-    vi.mocked(lookupIpAsn).mockReturnValueOnce(null);
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce(EMPTY_GEO);
 
     const summary = await runGeoBackfill(prisma);
 
@@ -162,14 +183,18 @@ describe("runGeoBackfill", () => {
       { id: "b", ipAddress: "192.0.2.99" },
       { id: "c", ipAddress: "139.7.0.1" },
     ]);
-    vi.mocked(lookupIpLocation)
-      .mockResolvedValueOnce("Berlin, DE") // a
-      .mockResolvedValueOnce(null) // b
-      .mockResolvedValueOnce("Hamburg, DE"); // c
-    vi.mocked(lookupIpAsn)
-      .mockReturnValueOnce({ asn: 3320, carrier: "Deutsche Telekom AG" }) // a
-      .mockReturnValueOnce(null) // b
-      .mockReturnValueOnce({ asn: 3209, carrier: "Vodafone GmbH" }); // c
+    vi.mocked(lookupIpGeo)
+      .mockResolvedValueOnce({
+        location: "Berlin, DE",
+        asn: 3320,
+        carrier: "Deutsche Telekom AG",
+      }) // a
+      .mockResolvedValueOnce(EMPTY_GEO) // b
+      .mockResolvedValueOnce({
+        location: "Hamburg, DE",
+        asn: 3209,
+        carrier: "Vodafone GmbH",
+      }); // c
 
     const summary = await runGeoBackfill(prisma);
 
@@ -187,9 +212,17 @@ describe("runGeoBackfill", () => {
       { id: "x", ipAddress: "84.131.0.1" },
       { id: "y", ipAddress: "139.7.0.1" },
     ]);
-    vi.mocked(lookupIpLocation)
-      .mockResolvedValueOnce("Berlin, DE")
-      .mockResolvedValueOnce("Hamburg, DE");
+    vi.mocked(lookupIpGeo)
+      .mockResolvedValueOnce({
+        location: "Berlin, DE",
+        asn: null,
+        carrier: null,
+      })
+      .mockResolvedValueOnce({
+        location: "Hamburg, DE",
+        asn: null,
+        carrier: null,
+      });
     vi.mocked(prisma.auditLog.update)
       .mockRejectedValueOnce(new Error("row gone"))
       .mockResolvedValueOnce({} as never);
@@ -213,7 +246,7 @@ describe("runGeoBackfill", () => {
       carrierResolved: 0,
       stillUnresolved: 1,
     });
-    expect(lookupIpLocation).not.toHaveBeenCalled();
+    expect(lookupIpGeo).not.toHaveBeenCalled();
     expect(prisma.auditLog.update).not.toHaveBeenCalled();
   });
 });

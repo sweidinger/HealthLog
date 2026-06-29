@@ -317,3 +317,111 @@ describe("lookupIpLocation umlaut roundtrip (v1.4.16 A8a)", () => {
     expect(al.toLowerCase()).toMatch(/de/);
   });
 });
+
+// v1.25.8: the network operator (carrier) is now mined from the same online
+// provider response the location lookup fetched, so a host WITHOUT the
+// optional offline GeoLite2-ASN MMDB still resolves a carrier. `lookupIpGeo`
+// returns location + asn + carrier in one pass.
+describe("lookupIpGeo carrier resolution (v1.25.8)", () => {
+  function jsonOk(value: unknown): Response {
+    return new Response(
+      new TextEncoder().encode(JSON.stringify(value)).buffer as ArrayBuffer,
+      {
+        status: 200,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      },
+    );
+  }
+
+  it("reads ip-api top-level isp + parses the AS number from `as`", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      jsonOk({
+        status: "success",
+        city: "Bochum",
+        countryCode: "DE",
+        isp: "Deutsche Telekom AG",
+        org: "Deutsche Telekom AG",
+        as: "AS3320 Deutsche Telekom AG",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpGeo } = await import("../geo");
+
+    expect(await lookupIpGeo("8.8.8.8")).toEqual({
+      location: "Bochum, DE",
+      asn: 3320,
+      carrier: "Deutsche Telekom AG",
+    });
+  });
+
+  it("reads ipwho.is nested connection.{isp,asn}", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      jsonOk({
+        success: true,
+        city: "Berlin",
+        country_code: "DE",
+        connection: {
+          asn: 3320,
+          isp: "Deutsche Telekom AG",
+          org: "Deutsche Telekom AG",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpGeo } = await import("../geo");
+
+    expect(await lookupIpGeo("8.8.8.8")).toEqual({
+      location: "Berlin, DE",
+      asn: 3320,
+      carrier: "Deutsche Telekom AG",
+    });
+  });
+
+  it("resolves a carrier even when the AS number is absent", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      jsonOk({
+        status: "success",
+        city: "Bochum",
+        countryCode: "DE",
+        isp: "Deutsche Telekom AG",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpGeo } = await import("../geo");
+
+    expect(await lookupIpGeo("8.8.8.8")).toEqual({
+      location: "Bochum, DE",
+      asn: null,
+      carrier: "Deutsche Telekom AG",
+    });
+  });
+
+  it("falls back to org when no isp field is present", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      jsonOk({
+        status: "success",
+        city: "Hamburg",
+        countryCode: "DE",
+        org: "Vodafone GmbH",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpGeo } = await import("../geo");
+
+    const result = await lookupIpGeo("8.8.8.8");
+    expect(result.carrier).toBe("Vodafone GmbH");
+  });
+
+  it("returns an all-null record for private addresses without a request", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const { lookupIpGeo } = await import("../geo");
+
+    expect(await lookupIpGeo("10.0.0.5")).toEqual({
+      location: null,
+      asn: null,
+      carrier: null,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});

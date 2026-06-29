@@ -5875,8 +5875,7 @@
         }
       }
     },
-    "carrier": "Anbieter",
-    "carrierUnavailableGeoFallback": "{location} — Anbieter nicht verfügbar",
+    "carrier": "Netzbetreiber",
     "mfaRequired": "Zweiten Faktor verlangen",
     "mfaRequiredDescription": "Jedes Konto ohne aktiven zweiten Faktor wird nach der Anmeldung zur Einrichtung geleitet. Das fordert Web-Nutzer zur Einrichtung auf – es blockiert jedoch keinen direkten API- oder nativen (Bearer-)Zugriff für noch nicht eingerichtete Konten.",
     "mfaEnforcedOn": "MFA an",

@@ -12,8 +12,11 @@
  *
  * The scope is intentionally narrow:
  *
- *   - Only rows where `location IS NULL` and `ipAddress IS NOT NULL`.
- *     A null IP has no signal to backfill against.
+ *   - Only rows where `location IS NULL` OR `carrier IS NULL`, and
+ *     `ipAddress IS NOT NULL`. A null IP has no signal to backfill against.
+ *     (v1.25.8 widened this from location-only so rows whose location had
+ *     already resolved online but whose carrier was left null on a host
+ *     without the offline ASN MMDB get the now-online carrier filled in.)
  *   - Only rows from the last 30 days. Rows beyond that retention
  *     window typically belong to deleted users or have aged out of
  *     the operational triage window where the `location` chip
@@ -40,7 +43,7 @@
  * scheduling.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
-import { lookupIpAsn, lookupIpLocation } from "@/lib/geo";
+import { lookupIpGeo } from "@/lib/geo";
 
 export const GEO_BACKFILL_BATCH_CAP = 500;
 export const GEO_BACKFILL_WINDOW_DAYS = 30;
@@ -74,7 +77,12 @@ export async function runGeoBackfill(
 
   const rows = await prisma.auditLog.findMany({
     where: {
-      location: null,
+      // v1.25.8 — pick up rows missing EITHER the location or the carrier.
+      // Before, the carrier resolved only from the optional offline ASN MMDB,
+      // so hosts without it left `carrier` null on rows whose `location` had
+      // already resolved online. Now that the online provider yields the
+      // carrier too, those rows are re-resolved on the next pass.
+      OR: [{ location: null }, { carrier: null }],
       ipAddress: { not: null },
       createdAt: { gt: cutoff },
     },
@@ -97,13 +105,9 @@ export async function runGeoBackfill(
       continue;
     }
 
-    // Run both resolvers; the offline path is microsecond-scale and
-    // the online fallback inside `lookupIpLocation` already bounds
-    // itself with `AbortSignal.timeout(3000)`.
-    const [location, asnRow] = await Promise.all([
-      lookupIpLocation(ip),
-      Promise.resolve(lookupIpAsn(ip)),
-    ]);
+    // One unified resolve: online location + carrier merged with the offline
+    // ASN MMDB. The online fallback bounds itself with a request timeout.
+    const { location, asn, carrier } = await lookupIpGeo(ip);
 
     const data: { location?: string; asn?: number; carrier?: string | null } =
       {};
@@ -111,9 +115,9 @@ export async function runGeoBackfill(
       data.location = location;
       summary.located += 1;
     }
-    if (asnRow) {
-      data.asn = asnRow.asn;
-      data.carrier = asnRow.carrier;
+    if (carrier) {
+      data.carrier = carrier;
+      if (typeof asn === "number") data.asn = asn;
       summary.carrierResolved += 1;
     }
 

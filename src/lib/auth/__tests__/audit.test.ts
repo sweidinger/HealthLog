@@ -10,23 +10,28 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/geo", () => ({
-  lookupIpLocation: vi.fn(),
-  lookupIpAsn: vi.fn(),
+  lookupIpGeo: vi.fn(),
 }));
 
 import { auditLog } from "../audit";
 import { prisma } from "@/lib/db";
-import { lookupIpAsn, lookupIpLocation } from "@/lib/geo";
+import { lookupIpGeo } from "@/lib/geo";
 
 const ENTRY = { id: "audit-1" };
+type GeoResolved = {
+  location: string | null;
+  asn: number | null;
+  carrier: string | null;
+};
+const EMPTY_GEO: GeoResolved = { location: null, asn: null, carrier: null };
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.auditLog.create).mockResolvedValue(ENTRY as never);
   vi.mocked(prisma.auditLog.update).mockResolvedValue(ENTRY as never);
-  // Default: no ASN row resolves. Tests that exercise carrier
-  // resolution override this with `mockReturnValueOnce`.
-  vi.mocked(lookupIpAsn).mockReturnValue(null);
+  // Default: nothing resolves. Tests that exercise location/carrier
+  // resolution override this with `mockResolvedValueOnce`.
+  vi.mocked(lookupIpGeo).mockResolvedValue(EMPTY_GEO);
 });
 
 afterEach(() => {
@@ -48,8 +53,6 @@ async function flush(): Promise<void> {
 
 describe("auditLog", () => {
   it("creates an audit-log row with action, userId, JSON-stringified details, ipAddress and null location", async () => {
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce(null);
-
     await auditLog("auth.login", {
       userId: "user-7",
       details: { reason: "passkey", browser: "firefox" },
@@ -80,11 +83,15 @@ describe("auditLog", () => {
       ipAddress: null,
     });
     // No IP → no geo lookup enqueued.
-    expect(lookupIpLocation).not.toHaveBeenCalled();
+    expect(lookupIpGeo).not.toHaveBeenCalled();
   });
 
   it("for auth.* actions with an ip address, runs geo lookup and updates the row with the resolved location", async () => {
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce("Berlin, DE");
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: "Berlin, DE",
+      asn: null,
+      carrier: null,
+    });
 
     await auditLog("auth.login", {
       userId: "user-8",
@@ -92,7 +99,7 @@ describe("auditLog", () => {
     });
     await flush();
 
-    expect(lookupIpLocation).toHaveBeenCalledWith("8.8.8.8");
+    expect(lookupIpGeo).toHaveBeenCalledWith("8.8.8.8");
     expect(prisma.auditLog.update).toHaveBeenCalledTimes(1);
     expect(prisma.auditLog.update).toHaveBeenCalledWith({
       where: { id: "audit-1" },
@@ -100,8 +107,8 @@ describe("auditLog", () => {
     });
   });
 
-  it("does NOT update the row when geo lookup resolves to null", async () => {
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce(null);
+  it("does NOT update the row when geo lookup resolves to nothing", async () => {
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce(EMPTY_GEO);
 
     await auditLog("auth.login", {
       userId: "user-9",
@@ -109,16 +116,16 @@ describe("auditLog", () => {
     });
     await flush();
 
-    expect(lookupIpLocation).toHaveBeenCalledOnce();
+    expect(lookupIpGeo).toHaveBeenCalledOnce();
     expect(prisma.auditLog.update).not.toHaveBeenCalled();
   });
 
   it("does NOT update the row when geo lookup outruns the 3s race timeout", async () => {
     // Lookup that never resolves within 3 s — must lose the Promise.race.
-    let neverResolve: (value: string | null) => void;
-    vi.mocked(lookupIpLocation).mockImplementationOnce(
+    let neverResolve: (value: typeof EMPTY_GEO) => void;
+    vi.mocked(lookupIpGeo).mockImplementationOnce(
       () =>
-        new Promise<string | null>((resolve) => {
+        new Promise<typeof EMPTY_GEO>((resolve) => {
           neverResolve = resolve;
         }),
     );
@@ -138,7 +145,7 @@ describe("auditLog", () => {
     expect(prisma.auditLog.update).not.toHaveBeenCalled();
     // Caller stays unblocked — the awaited promise above already resolved.
     // Resolve the dangling lookup so the test process exits cleanly.
-    neverResolve!("Tokyo, JP");
+    neverResolve!({ location: "Tokyo, JP", asn: null, carrier: null });
     await flush();
   });
 
@@ -150,14 +157,12 @@ describe("auditLog", () => {
     await flush();
 
     expect(prisma.auditLog.create).toHaveBeenCalledOnce();
-    expect(lookupIpLocation).not.toHaveBeenCalled();
+    expect(lookupIpGeo).not.toHaveBeenCalled();
     expect(prisma.auditLog.update).not.toHaveBeenCalled();
   });
 
   it("silently swallows geo-lookup throws — caller stays unblocked, no update emitted", async () => {
-    vi.mocked(lookupIpLocation).mockRejectedValueOnce(
-      new Error("upstream 503"),
-    );
+    vi.mocked(lookupIpGeo).mockRejectedValueOnce(new Error("upstream 503"));
 
     // The auditLog promise itself must NOT reject.
     await expect(
@@ -172,7 +177,11 @@ describe("auditLog", () => {
   });
 
   it("silently swallows update() throws (e.g. row deleted between create + update)", async () => {
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce("Paris, FR");
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: "Paris, FR",
+      asn: null,
+      carrier: null,
+    });
     vi.mocked(prisma.auditLog.update).mockRejectedValueOnce(
       new Error("row gone"),
     );
@@ -188,10 +197,10 @@ describe("auditLog", () => {
     expect(prisma.auditLog.update).toHaveBeenCalledOnce();
   });
 
-  // ── v1.4.27 B3 — ASN + carrier resolution ────────────────────────
-  it("writes asn + carrier alongside location when both resolvers fire", async () => {
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce("Berlin, DE");
-    vi.mocked(lookupIpAsn).mockReturnValueOnce({
+  // ── ASN + carrier resolution ──────────────────────────────────────
+  it("writes asn + carrier alongside location when the resolver fills all three", async () => {
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: "Berlin, DE",
       asn: 3320,
       carrier: "Deutsche Telekom AG",
     });
@@ -202,7 +211,7 @@ describe("auditLog", () => {
     });
     await flush();
 
-    expect(lookupIpAsn).toHaveBeenCalledWith("84.131.0.1");
+    expect(lookupIpGeo).toHaveBeenCalledWith("84.131.0.1");
     expect(prisma.auditLog.update).toHaveBeenCalledTimes(1);
     expect(prisma.auditLog.update).toHaveBeenCalledWith({
       where: { id: "audit-1" },
@@ -215,8 +224,8 @@ describe("auditLog", () => {
   });
 
   it("writes asn + carrier even when the location lookup returns null", async () => {
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce(null);
-    vi.mocked(lookupIpAsn).mockReturnValueOnce({
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: null,
       asn: 3209,
       carrier: "Vodafone GmbH",
     });
@@ -236,9 +245,33 @@ describe("auditLog", () => {
     });
   });
 
-  it("writes location only when the ASN lookup misses", async () => {
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce("Berlin, DE");
-    vi.mocked(lookupIpAsn).mockReturnValueOnce(null);
+  it("writes carrier without asn when the online provider omits the AS number", async () => {
+    // v1.25.8 — ip-api can return `isp` without a parseable `as`, so a carrier
+    // resolves with a null asn. The carrier is still persisted.
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: "Bochum, DE",
+      asn: null,
+      carrier: "Deutsche Telekom AG",
+    });
+
+    await auditLog("auth.login.password", {
+      userId: "user-14b",
+      ipAddress: "84.131.0.2",
+    });
+    await flush();
+
+    expect(prisma.auditLog.update).toHaveBeenCalledWith({
+      where: { id: "audit-1" },
+      data: { location: "Bochum, DE", carrier: "Deutsche Telekom AG" },
+    });
+  });
+
+  it("writes location only when the carrier lookup misses", async () => {
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: "Berlin, DE",
+      asn: null,
+      carrier: null,
+    });
 
     await auditLog("auth.login.password", {
       userId: "user-16",
@@ -252,9 +285,8 @@ describe("auditLog", () => {
     });
   });
 
-  it("does NOT update when both resolvers miss", async () => {
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce(null);
-    vi.mocked(lookupIpAsn).mockReturnValueOnce(null);
+  it("does NOT update when the resolver misses entirely", async () => {
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce(EMPTY_GEO);
 
     await auditLog("auth.login.password", {
       userId: "user-17",
@@ -265,9 +297,12 @@ describe("auditLog", () => {
     expect(prisma.auditLog.update).not.toHaveBeenCalled();
   });
 
-  it("carries a null carrier through when the ASN row has no organisation", async () => {
-    vi.mocked(lookupIpLocation).mockResolvedValueOnce(null);
-    vi.mocked(lookupIpAsn).mockReturnValueOnce({ asn: 64500, carrier: null });
+  it("omits the carrier field when the resolver returns an asn but no organisation", async () => {
+    vi.mocked(lookupIpGeo).mockResolvedValueOnce({
+      location: null,
+      asn: 64500,
+      carrier: null,
+    });
 
     await auditLog("auth.login.password", {
       userId: "user-18",
@@ -277,7 +312,7 @@ describe("auditLog", () => {
 
     expect(prisma.auditLog.update).toHaveBeenCalledWith({
       where: { id: "audit-1" },
-      data: { asn: 64500, carrier: null },
+      data: { asn: 64500 },
     });
   });
 });
