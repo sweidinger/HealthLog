@@ -4038,16 +4038,16 @@
       "integrations": {
         "title": "Integrazioni",
         "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto.",
-        "subtitle": "Collega e gestisci le tue fonti di dati e i dispositivi."
+        "subtitle": "Collega e gestisci le tue fonti di dati e i dispositivi.",
+        "channelsHeading": "Canali di recapito",
+        "channelsDescription": "Dove vengono recapitati promemoria e avvisi."
       },
       "notifications": {
         "title": "Notifiche",
         "description": "Tutti i promemoria in un unico posto — cosa e quando, e dove vengono recapitati.",
         "subtitle": "Scegli quali promemoria ricevere e dove vengono recapitati.",
         "remindersHeading": "Promemoria",
-        "remindersDescription": "Ciò che ricevi.",
-        "channelsHeading": "Canali di recapito",
-        "channelsDescription": "Dove vengono recapitati promemoria e avvisi."
+        "remindersDescription": "Ciò che ricevi."
       },
       "layout": {
         "title": "Aspetto",
@@ -4077,6 +4077,10 @@
         "vorsorge": {
           "title": "Controlli",
           "description": "Vista elenco e ordine dei promemoria."
+        },
+        "mood": {
+          "title": "Tag dell’umore",
+          "description": "Gruppi, tag e tag archiviati del selettore dell’umore."
         }
       },
       "dashboard": {

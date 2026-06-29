@@ -21,12 +21,10 @@ import {
   Bell,
   Blocks,
   Bot,
-  CalendarCheck,
   ClipboardList,
   CloudSun,
   Download,
   FileHeart,
-  FlaskConical,
   Info,
   KeyRound,
   Plug,
@@ -34,14 +32,10 @@ import {
   Link2,
   Lock,
   Palette,
-  Pill,
   Settings2,
-  Share2,
   ShieldCheck,
   SlidersHorizontal,
-  Smile,
   Sparkles,
-  Thermometer,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -147,48 +141,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   // home. v1.25.3 — renamed to "Appearance"/"Darstellung" and widened into the
   // index for every module's view/sort/order surface. The slug stays `layout`
   // so every route + deep link is untouched.
+  // v1.25.7 — "Darstellung" (Appearance) absorbs the per-module view/sort/
+  // order surfaces. The standalone Medikamente / Stimmung / Labor /
+  // Krankheit / Vorsorge nav entries are gone: each module's full settings
+  // now render inline inside this section, gated on the same module key. The
+  // old routes 301-redirect to `/settings/layout#<anchor>` (next.config.ts).
   {
     slug: "layout",
     titleKey: "settings.sections.layout.title",
     icon: Palette,
-  },
-  // v1.18.0 (S5) — Medikamente: medication-specific settings (list view +
-  // order + injection sites). Was a hidden child of the Layout hub.
-  // v1.18.1 (D3) — medications graduated from a CORE domain to a toggleable
-  // module, so this entry now hides when the account turns the module off
-  // (the medication data routes stay live; this only hides the surface).
-  {
-    slug: "medications",
-    titleKey: "settings.sections.medications.title",
-    icon: Pill,
-    moduleGate: "medications",
-  },
-  // v1.18.0 (S5) — Stimmung: the mood-tag management surface gets its own
-  // nav entry, shown only when the mood module is enabled. Was a hidden
-  // child of the Layout hub.
-  {
-    slug: "mood",
-    titleKey: "settings.sections.mood.title",
-    icon: Smile,
-    moduleGate: "mood",
-  },
-  // v1.18.7 — Labor: the labs customise surface (view, sort, biomarkers)
-  // becomes a first-class Settings section, gated on the `labs` module. Was
-  // a standalone `ModuleSettingsFrame` page reached from the /labs wrench.
-  {
-    slug: "labs",
-    titleKey: "settings.sections.labs.title",
-    icon: FlaskConical,
-    moduleGate: "labs",
-  },
-  // v1.18.7 — Krankheitstagebuch: the illness-journal customise surface
-  // (view + order of episodes), gated on the `illness` module. Was a
-  // standalone `ModuleSettingsFrame` page reached from the /illness wrench.
-  {
-    slug: "illness",
-    titleKey: "settings.sections.illness.title",
-    icon: Thermometer,
-    moduleGate: "illness",
   },
   // v1.25 (W-ENV) — Environmental context: home location, travel overrides, and
   // the weather/daylight backfill. Module-gated on the opt-in `environment`
@@ -208,16 +169,9 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.anamnesis.title",
     icon: ClipboardList,
   },
-  // v1.18.7 — Vorsorge: the preventive-care reminders customise surface
-  // (view, order, individual reminders). NOT module-gated — preventive-care
-  // reminders are not a toggleable module — so the entry is always shown.
-  // Was a standalone `ModuleSettingsFrame` page reached from the /vorsorge
-  // wrench.
-  {
-    slug: "vorsorge",
-    titleKey: "settings.sections.vorsorge.title",
-    icon: CalendarCheck,
-  },
+  // v1.25.7 — Vorsorge (preventive-care reminders) folded into "Darstellung"
+  // alongside the other tracking modules; `/settings/vorsorge` 301-redirects
+  // to `/settings/layout#vorsorge` (next.config.ts).
   {
     slug: "thresholds",
     titleKey: "settings.sections.thresholds.title",
@@ -255,15 +209,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.gesundheitsakte.title",
     icon: FileHeart,
   },
-  // v1.18.7 — clinician share links sit next to the health record: minting a
-  // time-boxed read-only link is a sharing face of the same data. Not
-  // module-gated; the link surface is always available (the public
-  // `/c/[token]` view and the `/api/share-links` lifecycle are unchanged).
-  {
-    slug: "sharing",
-    titleKey: "settings.sections.sharing.title",
-    icon: Share2,
-  },
+  // v1.25.7 — clinician share links fold into the Gesundheitsakte section as a
+  // labelled "Sharing" group: minting a time-boxed read-only link is a sharing
+  // face of the same data. `/settings/sharing` 301-redirects to
+  // `/settings/gesundheitsakte#sharing` (next.config.ts). The public
+  // `/c/[token]` view and the `/api/share-links` lifecycle are unchanged.
   {
     slug: "export",
     titleKey: "settings.sections.export.title",
@@ -329,6 +279,14 @@ export interface SettingsShellProps {
 const LAYOUT_CHILD_SLUGS: ReadonlySet<string> = new Set([
   "dashboard",
   "insights",
+  // v1.25.7 — the per-module view/sort/order surfaces moved into the
+  // "Darstellung" hub. Their routes 301-redirect to `/settings/layout#<slug>`,
+  // but if one is ever reached directly the nav still highlights the hub.
+  "medications",
+  "mood",
+  "labs",
+  "illness",
+  "vorsorge",
 ]);
 
 /** Map a Layout child editor onto the Layout hub for nav highlighting. */

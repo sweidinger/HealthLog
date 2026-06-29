@@ -182,13 +182,18 @@ describe("settings sections — SSR smoke", () => {
     expect(html).toContain("settings-section-ai-title");
   });
 
-  it("<IntegrationsSection> renders Withings card title", () => {
+  it("<IntegrationsSection> renders Withings card + the delivery-channels group", () => {
     const html = renderFramed("integrations", <IntegrationsSection />);
     expect(html).toContain("Integrations");
     expect(html).toContain("Withings");
+    // v1.25.7 — delivery channels moved here from Notifications: the
+    // `#channels` anchor and the embedded channels panel both render.
+    expect(html).toContain('id="channels"');
+    expect(html).toContain('data-slot="notification-channels-panel"');
+    expect(html).toContain("Delivery channels");
   });
 
-  it("<NotificationsSection> renders the reminders + delivery-channels groups", () => {
+  it("<NotificationsSection> renders the reminders group only (channels moved out, v1.25.7)", () => {
     const html = renderFramed("notifications", <NotificationsSection />);
     // v1.18.6 (W9) — the visible heading comes from the frame; the proactive
     // Coach nudge moved to Settings → Coach, so it no longer renders here.
@@ -201,12 +206,11 @@ describe("settings sections — SSR smoke", () => {
     expect(html).toContain('id="mood-reminder"');
     expect(html).toContain('id="low-stock"');
     expect(html).not.toContain('id="coach-nudge"');
-    // v1.25.3 — the delivery-channels group is now part of this surface: the
-    // `#channels` anchor and the embedded channels panel both render.
-    expect(html).toContain('id="channels"');
-    expect(html).toContain('data-slot="notification-channels-panel"');
+    // v1.25.7 — delivery channels moved to Settings → Integrationen, so the
+    // channels group + panel no longer render on this surface.
+    expect(html).not.toContain('id="channels"');
+    expect(html).not.toContain('data-slot="notification-channels-panel"');
     expect(html).toContain("Reminders");
-    expect(html).toContain("Delivery channels");
     // No raw i18n key leaks past the provider.
     expect(html).not.toContain("settings.sections.notifications.");
   });

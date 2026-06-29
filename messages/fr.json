@@ -4038,16 +4038,16 @@
       "integrations": {
         "title": "Intégrations",
         "description": "Services connectés, canaux de diffusion et priorité des sources au même endroit.",
-        "subtitle": "Connectez et gérez vos sources de données et appareils."
+        "subtitle": "Connectez et gérez vos sources de données et appareils.",
+        "channelsHeading": "Canaux de diffusion",
+        "channelsDescription": "Où sont envoyés les rappels et alertes."
       },
       "notifications": {
         "title": "Notifications",
         "description": "Tous les rappels au même endroit — quoi et quand, et où c'est envoyé.",
         "subtitle": "Choisissez les rappels que vous recevez et où ils sont envoyés.",
         "remindersHeading": "Rappels",
-        "remindersDescription": "Ce que vous recevez.",
-        "channelsHeading": "Canaux de diffusion",
-        "channelsDescription": "Où sont envoyés les rappels et alertes."
+        "remindersDescription": "Ce que vous recevez."
       },
       "layout": {
         "title": "Apparence",
@@ -4077,6 +4077,10 @@
         "vorsorge": {
           "title": "Examens",
           "description": "Vue en liste et ordre des rappels."
+        },
+        "mood": {
+          "title": "Étiquettes d’humeur",
+          "description": "Groupes, étiquettes et étiquettes archivées du sélecteur d’humeur."
         }
       },
       "dashboard": {

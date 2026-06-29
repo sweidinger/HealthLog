@@ -3,12 +3,10 @@
 /**
  * v1.18.0 (S5) — Settings → Gesundheitsakte (health record).
  *
- * The full health-record export was the hero panel at the top of the
- * Export & Import section. It is a distinct concept — a complete,
- * clinician-ready record (PDF + FHIR R4 + a combined zip package) — and
- * earns its own top-level settings home rather than sharing the page with
- * the generic CSV / JSON data-out paths. Export & Import now keeps only
- * the generic data export/import surfaces.
+ * The full health-record export is a distinct concept — a complete,
+ * clinician-ready record (PDF + FHIR R4 + a combined zip package) — and earns
+ * its own top-level settings home rather than sharing the page with the
+ * generic CSV / JSON data-out paths.
  *
  * The `doctorReport` module governs the data layer, not the Settings
  * entry-point: as of v1.18.6.1 the nav entry always shows (the health record
@@ -17,13 +15,40 @@
  * enforcement — it refuses with a 403 `module.disabled` envelope when the
  * account has opted out, so a disabled doctor-report surface cannot be
  * reached over a Bearer token either.
+ *
+ * v1.25.7 — the clinician share-link surface (formerly the standalone
+ * "Freigabe" section) folds in here as a labelled "Sharing" group below the
+ * export panel: a time-boxed read-only link is a sharing face of the SAME
+ * health record. `/settings/sharing` 301-redirects to
+ * `/settings/gesundheitsakte#sharing`. The backing model, the
+ * `/api/share-links` routes, and the public `/c/[token]` view are unchanged.
  */
 
+import { useTranslations } from "@/lib/i18n/context";
 import { HealthRecordExportPanel } from "@/components/settings/health-record-export-panel";
+import { SharingSection } from "@/components/settings/sharing-section";
 
 export function GesundheitsakteSection() {
-  // v1.18.6 (W9) — the visible heading + subtitle and the module tour-replay
-  // trigger now live in the shared `<SettingsSectionFrame>` in the route; the
-  // body is the health-record export panel only.
-  return <HealthRecordExportPanel />;
+  const { t } = useTranslations();
+
+  // v1.18.6 (W9) — the visible page heading + subtitle come from the shared
+  // `<SettingsSectionFrame>` in the route; the export panel is the primary
+  // surface, with the share-links group sequenced below it.
+  return (
+    <div className="space-y-10">
+      <HealthRecordExportPanel />
+
+      <section id="sharing" className="scroll-mt-28 space-y-4">
+        <div className="space-y-0.5">
+          <h2 className="text-foreground text-lg font-semibold">
+            {t("settings.sections.sharing.title")}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            {t("settings.sections.sharing.subtitle")}
+          </p>
+        </div>
+        <SharingSection />
+      </section>
+    </div>
+  );
 }

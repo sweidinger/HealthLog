@@ -4038,16 +4038,16 @@
       "integrations": {
         "title": "Integraciones",
         "description": "Servicios conectados, canales de entrega y prioridad de fuentes en un solo lugar.",
-        "subtitle": "Conecta y gestiona tus fuentes de datos y dispositivos."
+        "subtitle": "Conecta y gestiona tus fuentes de datos y dispositivos.",
+        "channelsHeading": "Canales de entrega",
+        "channelsDescription": "Dónde se entregan los recordatorios y avisos."
       },
       "notifications": {
         "title": "Notificaciones",
         "description": "Todos los recordatorios en un solo lugar: qué se recuerda y cuándo, y dónde se entrega.",
         "subtitle": "Elige qué recordatorios recibes y dónde se entregan.",
         "remindersHeading": "Recordatorios",
-        "remindersDescription": "Lo que recibes.",
-        "channelsHeading": "Canales de entrega",
-        "channelsDescription": "Dónde se entregan los recordatorios y avisos."
+        "remindersDescription": "Lo que recibes."
       },
       "layout": {
         "title": "Apariencia",
@@ -4077,6 +4077,10 @@
         "vorsorge": {
           "title": "Revisiones",
           "description": "Vista de lista y orden de recordatorios."
+        },
+        "mood": {
+          "title": "Etiquetas de ánimo",
+          "description": "Grupos, etiquetas y etiquetas archivadas del selector de ánimo."
         }
       },
       "dashboard": {
