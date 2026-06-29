@@ -327,6 +327,37 @@ export function isModuleKey(key: string): key is ModuleKey {
   return MODULE_KEY_SET.has(key);
 }
 
+/**
+ * Modules switched OFF in code, pending a holistic rebuild.
+ *
+ * A key listed here is hard-off for every account regardless of the
+ * per-user opt-in or the operator-availability layer: the gate short-
+ * circuits it to disabled (`resolveModuleEnabled`), the Modules hub and the
+ * operator-availability panel drop its row, and the per-user PATCH surface
+ * refuses to write it. The whole implementation (routes, components, schema,
+ * migration) stays intact — re-enabling the module is a one-line removal
+ * from this list once the rebuild lands.
+ *
+ * v1.25.3 — `inboundDocuments` is parked here: the inbound-documents surface
+ * is withdrawn from this release and returns later with more depth. Its
+ * registry entry, `optIn` marker, routes, view, and migration 0222 are all
+ * preserved; only the user-reachable switches are removed.
+ */
+export const CODE_DISABLED_MODULE_KEYS = ["inboundDocuments"] as const;
+
+const CODE_DISABLED_MODULE_SET: ReadonlySet<string> = new Set(
+  CODE_DISABLED_MODULE_KEYS,
+);
+
+/**
+ * True for a module intentionally switched off in code pending a rebuild
+ * (see `CODE_DISABLED_MODULE_KEYS`). Such a module is hard-off everywhere:
+ * the gate never reports it enabled and the user-facing toggles drop it.
+ */
+export function isCodeDisabledModule(key: ModuleKey): boolean {
+  return CODE_DISABLED_MODULE_SET.has(key);
+}
+
 /** The two delegated keys, resolved by their existing source of truth. */
 export function moduleDelegatesTo(
   key: ModuleKey,

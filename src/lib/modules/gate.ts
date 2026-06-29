@@ -55,6 +55,7 @@ import {
 } from "./operator-availability";
 import {
   MODULE_KEYS,
+  isCodeDisabledModule,
   isOptInModule,
   moduleDelegatesTo,
   type ModuleKey,
@@ -126,6 +127,14 @@ export function resolveModuleEnabled(
   assistantCoach: boolean,
   operatorAvailability: OperatorModuleAvailability,
 ): boolean {
+  // LAYER 0 — switched off in code pending a rebuild. Hard-off for every
+  // account, ahead of both the operator and the per-user layer, so no
+  // stored preference or availability blob can re-surface it. See
+  // `CODE_DISABLED_MODULE_KEYS` in ./registry.
+  if (isCodeDisabledModule(key)) {
+    return false;
+  }
+
   // LAYER 1 — operator server-wide availability. An operator-disabled
   // module is off for everyone regardless of personal preference.
   if (operatorAvailability[key] === false) {
