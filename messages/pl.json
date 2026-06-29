@@ -4036,15 +4036,17 @@
       },
       "notifications": {
         "title": "Powiadomienia",
-        "description": "Wszystkie przypomnienia w jednym miejscu — co i kiedy. Kanały dostarczania znajdują się w Integracjach.",
-        "channelsHint": "Telegram, ntfy, Web Push, Webhook i e-mail konfigurujesz teraz w",
-        "channelsHintLink": "Integracje → Kanały",
-        "subtitle": "Wybierz, które przypomnienia otrzymujesz."
+        "description": "Wszystkie przypomnienia w jednym miejscu — co i kiedy oraz gdzie są dostarczane.",
+        "subtitle": "Wybierz, które przypomnienia otrzymujesz i gdzie są dostarczane.",
+        "remindersHeading": "Przypomnienia",
+        "remindersDescription": "Co otrzymujesz.",
+        "channelsHeading": "Kanały dostarczania",
+        "channelsDescription": "Gdzie dostarczane są przypomnienia i powiadomienia."
       },
       "layout": {
-        "title": "Pulpit",
-        "description": "Ustal, jak rozłożone są pulpit i analizy.",
-        "backToHub": "Powrót do Układ i personalizacja",
+        "title": "Wygląd",
+        "description": "Ustal, jak wyglądają i są rozłożone pulpit, analizy i Twoje moduły śledzenia.",
+        "backToHub": "Powrót do Wygląd",
         "dashboard": {
           "title": "Pulpit",
           "description": "Układ i kolejność kafelków."
@@ -4053,7 +4055,23 @@
           "title": "Analizy",
           "description": "Kolejność przeglądu i pigułek nawigacyjnych."
         },
-        "subtitle": "Dostosuj układ pulpitu i analiz."
+        "subtitle": "Dostosuj wygląd pulpitu, analiz i modułów śledzenia.",
+        "medications": {
+          "title": "Leki",
+          "description": "Widok listy i ręczna kolejność."
+        },
+        "labs": {
+          "title": "Laboratorium",
+          "description": "Widok, sortowanie i ręczna kolejność."
+        },
+        "illness": {
+          "title": "Dziennik chorób",
+          "description": "Widok listy i kolejność epizodów."
+        },
+        "vorsorge": {
+          "title": "Badania kontrolne",
+          "description": "Widok listy i kolejność przypomnień."
+        }
       },
       "dashboard": {
         "title": "Pulpit",
@@ -4310,11 +4328,6 @@
         "title": "Coach",
         "description": "Włącz Coacha, ton i zakres, zapisane wspomnienia.",
         "subtitle": "Dostosuj Coacha, jego proaktywne podpowiedzi i pamięć."
-      },
-      "channels": {
-        "title": "Kanały",
-        "description": "Dostarczanie przez Telegram, ntfy, Web Push, Webhook i e-mail.",
-        "subtitle": "Gdzie dostarczane są przypomnienia i powiadomienia."
       },
       "security": {
         "title": "Bezpieczeństwo",

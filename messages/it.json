@@ -4036,15 +4036,17 @@
       },
       "notifications": {
         "title": "Notifiche",
-        "description": "Tutti i promemoria in un unico posto — cosa e quando. I canali di recapito si trovano in Integrazioni.",
-        "channelsHint": "Telegram, ntfy, Web Push, Webhook ed e-mail ora si configurano in",
-        "channelsHintLink": "Integrazioni → Canali",
-        "subtitle": "Scegli quali promemoria ricevere."
+        "description": "Tutti i promemoria in un unico posto — cosa e quando, e dove vengono recapitati.",
+        "subtitle": "Scegli quali promemoria ricevere e dove vengono recapitati.",
+        "remindersHeading": "Promemoria",
+        "remindersDescription": "Ciò che ricevi.",
+        "channelsHeading": "Canali di recapito",
+        "channelsDescription": "Dove vengono recapitati promemoria e avvisi."
       },
       "layout": {
-        "title": "Cruscotto",
-        "description": "Organizza la disposizione del cruscotto e degli approfondimenti.",
-        "backToHub": "Torna a Layout e personalizzazione",
+        "title": "Aspetto",
+        "description": "Scegli l'aspetto e la disposizione di dashboard, approfondimenti e dei tuoi moduli di monitoraggio.",
+        "backToHub": "Torna ad Aspetto",
         "dashboard": {
           "title": "Cruscotto",
           "description": "Layout e ordine dei riquadri."
@@ -4053,7 +4055,23 @@
           "title": "Approfondimenti",
           "description": "Ordine della panoramica e delle schede di navigazione."
         },
-        "subtitle": "Personalizza la disposizione di dashboard e insights."
+        "subtitle": "Personalizza l'aspetto di dashboard, approfondimenti e moduli di monitoraggio.",
+        "medications": {
+          "title": "Farmaci",
+          "description": "Vista elenco e ordine manuale."
+        },
+        "labs": {
+          "title": "Analisi di laboratorio",
+          "description": "Vista, ordinamento e ordine manuale."
+        },
+        "illness": {
+          "title": "Diario delle malattie",
+          "description": "Vista elenco e ordine degli episodi."
+        },
+        "vorsorge": {
+          "title": "Controlli",
+          "description": "Vista elenco e ordine dei promemoria."
+        }
       },
       "dashboard": {
         "title": "Cruscotto",
@@ -4310,11 +4328,6 @@
         "title": "Coach",
         "description": "Attiva il Coach, tono e ambito, ricordi salvati.",
         "subtitle": "Regola il Coach, i suoi suggerimenti proattivi e la sua memoria."
-      },
-      "channels": {
-        "title": "Canali",
-        "description": "Recapito tramite Telegram, ntfy, Web Push, Webhook ed e-mail.",
-        "subtitle": "Dove vengono recapitati promemoria e avvisi."
       },
       "security": {
         "title": "Sicurezza",

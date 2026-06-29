@@ -4036,15 +4036,17 @@
       },
       "notifications": {
         "title": "Benachrichtigungen",
-        "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird. Die Zustellkanäle liegen unter Integrationen.",
-        "channelsHint": "Telegram, ntfy, Web-Push, Webhook und E-Mail richtest du jetzt unter",
-        "channelsHintLink": "Integrationen → Kanäle",
-        "subtitle": "Wähle, welche Erinnerungen du erhältst."
+        "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird und wohin es zugestellt wird.",
+        "subtitle": "Wähle, welche Erinnerungen du erhältst und wohin sie zugestellt werden.",
+        "remindersHeading": "Erinnerungen",
+        "remindersDescription": "Was du erhältst.",
+        "channelsHeading": "Zustellkanäle",
+        "channelsDescription": "Wohin Erinnerungen und Hinweise zugestellt werden."
       },
       "layout": {
-        "title": "Dashboard",
-        "description": "Lege fest, wie Dashboard und Insights aufgebaut und angeordnet sind.",
-        "backToHub": "Zurück zu Layout & Personalisierung",
+        "title": "Darstellung",
+        "description": "Lege fest, wie Dashboard, Auswertungen und deine Tracking-Module dargestellt und angeordnet sind.",
+        "backToHub": "Zurück zu Darstellung",
         "dashboard": {
           "title": "Dashboard",
           "description": "Kachel-Layout und Reihenfolge."
@@ -4053,7 +4055,23 @@
           "title": "Insights",
           "description": "Reihenfolge der Übersicht und der Navigations-Pills."
         },
-        "subtitle": "Passe an, wie Dashboard und Insights angeordnet sind."
+        "subtitle": "Lege fest, wie Dashboard, Auswertungen und Tracking-Module dargestellt werden.",
+        "medications": {
+          "title": "Medikamente",
+          "description": "Listenansicht und manuelle Reihenfolge."
+        },
+        "labs": {
+          "title": "Labor",
+          "description": "Ansicht, Sortierung und manuelle Reihenfolge."
+        },
+        "illness": {
+          "title": "Krankheitstagebuch",
+          "description": "Listenansicht und Reihenfolge der Episoden."
+        },
+        "vorsorge": {
+          "title": "Vorsorge",
+          "description": "Listenansicht und Reihenfolge der Erinnerungen."
+        }
       },
       "dashboard": {
         "title": "Dashboard",
@@ -4310,11 +4328,6 @@
         "title": "Coach",
         "description": "Coach aktivieren, Ton und Umfang, gespeicherte Erinnerungen.",
         "subtitle": "Stelle den Coach, seine proaktiven Hinweise und sein Gedächtnis ein."
-      },
-      "channels": {
-        "title": "Kanäle",
-        "description": "Zustellung über Telegram, ntfy, Web-Push, Webhook und E-Mail.",
-        "subtitle": "Wohin Erinnerungen und Hinweise zugestellt werden."
       },
       "security": {
         "title": "Sicherheit",

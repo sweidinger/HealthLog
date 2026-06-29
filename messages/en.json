@@ -4036,15 +4036,17 @@
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Every reminder in one place — what gets reminded and when. The delivery channels live under Integrations.",
-        "channelsHint": "Telegram, ntfy, Web Push, Webhook, and Email are now set up under",
-        "channelsHintLink": "Integrations → Channels",
-        "subtitle": "Choose which reminders you receive."
+        "description": "Every reminder in one place — what gets reminded and when, and where it's delivered.",
+        "subtitle": "Choose which reminders you receive and where they're delivered.",
+        "remindersHeading": "Reminders",
+        "remindersDescription": "What you receive.",
+        "channelsHeading": "Delivery channels",
+        "channelsDescription": "Where reminders and alerts are delivered."
       },
       "layout": {
-        "title": "Dashboard",
-        "description": "Arrange how the dashboard and insights are laid out.",
-        "backToHub": "Back to Layout & Personalization",
+        "title": "Appearance",
+        "description": "Choose how the dashboard, insights, and your tracking modules look and are arranged.",
+        "backToHub": "Back to Appearance",
         "dashboard": {
           "title": "Dashboard",
           "description": "Tile layout and order."
@@ -4053,7 +4055,23 @@
           "title": "Insights",
           "description": "Overview sections and navigation-pill order."
         },
-        "subtitle": "Personalize how your dashboard and insights are arranged."
+        "subtitle": "Personalize how your dashboard, insights, and tracking modules look.",
+        "medications": {
+          "title": "Medications",
+          "description": "List view and manual order."
+        },
+        "labs": {
+          "title": "Labs",
+          "description": "View, sort, and manual order."
+        },
+        "illness": {
+          "title": "Illness journal",
+          "description": "List view and episode order."
+        },
+        "vorsorge": {
+          "title": "Checkups",
+          "description": "List view and reminder order."
+        }
       },
       "dashboard": {
         "title": "Dashboard",
@@ -4310,11 +4328,6 @@
         "title": "Coach",
         "description": "Enable the Coach, tone and scope, stored memories.",
         "subtitle": "Tune the Coach, its proactive nudges, and its memory."
-      },
-      "channels": {
-        "title": "Channels",
-        "description": "Telegram, ntfy, Web Push, Webhook, and Email delivery.",
-        "subtitle": "Where reminders and alerts are delivered."
       },
       "security": {
         "title": "Security",

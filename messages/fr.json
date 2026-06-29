@@ -4036,15 +4036,17 @@
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Tous les rappels au même endroit — quoi et quand. Les canaux de diffusion se trouvent dans Intégrations.",
-        "channelsHint": "Telegram, ntfy, Web Push, Webhook et e-mail se configurent désormais dans",
-        "channelsHintLink": "Intégrations → Canaux",
-        "subtitle": "Choisissez les rappels que vous recevez."
+        "description": "Tous les rappels au même endroit — quoi et quand, et où c'est envoyé.",
+        "subtitle": "Choisissez les rappels que vous recevez et où ils sont envoyés.",
+        "remindersHeading": "Rappels",
+        "remindersDescription": "Ce que vous recevez.",
+        "channelsHeading": "Canaux de diffusion",
+        "channelsDescription": "Où sont envoyés les rappels et alertes."
       },
       "layout": {
-        "title": "Tableau de bord",
-        "description": "Organisez la disposition du tableau de bord et des analyses.",
-        "backToHub": "Retour à Disposition et personnalisation",
+        "title": "Apparence",
+        "description": "Choisissez l'apparence et l'agencement du tableau de bord, des analyses et de vos modules de suivi.",
+        "backToHub": "Retour à Apparence",
         "dashboard": {
           "title": "Tableau de bord",
           "description": "Disposition et ordre des tuiles."
@@ -4053,7 +4055,23 @@
           "title": "Analyses",
           "description": "Ordre de la vue d'ensemble et des onglets de navigation."
         },
-        "subtitle": "Personnalisez l'agencement de votre tableau de bord et de vos insights."
+        "subtitle": "Personnalisez l'apparence du tableau de bord, des analyses et des modules de suivi.",
+        "medications": {
+          "title": "Médicaments",
+          "description": "Vue en liste et ordre manuel."
+        },
+        "labs": {
+          "title": "Analyses de labo",
+          "description": "Vue, tri et ordre manuel."
+        },
+        "illness": {
+          "title": "Journal des maladies",
+          "description": "Vue en liste et ordre des épisodes."
+        },
+        "vorsorge": {
+          "title": "Examens",
+          "description": "Vue en liste et ordre des rappels."
+        }
       },
       "dashboard": {
         "title": "Tableau de bord",
@@ -4310,11 +4328,6 @@
         "title": "Coach",
         "description": "Activez le Coach, le ton et la portée, les souvenirs enregistrés.",
         "subtitle": "Réglez le Coach, ses suggestions proactives et sa mémoire."
-      },
-      "channels": {
-        "title": "Canaux",
-        "description": "Distribution via Telegram, ntfy, Web Push, Webhook et e-mail.",
-        "subtitle": "Où sont envoyés les rappels et alertes."
       },
       "security": {
         "title": "Sécurité",

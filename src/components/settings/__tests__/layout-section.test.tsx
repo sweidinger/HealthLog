@@ -1,9 +1,14 @@
 /**
- * v1.17.1 (F-2) — the "Layout & Personalization" hub.
+ * v1.17.1 (F-2) — the "Appearance" hub (slug stays `layout`).
  *
- * The hub is the single front door for the four personalization editors.
- * It must link to each of them with consistent framing so the concept
- * reads as one home rather than four scattered settings sections.
+ * The hub is the single front door for every view/arrangement surface. It must
+ * link to each with consistent framing so "how my app looks" reads as one home
+ * rather than scattered settings sections.
+ *
+ * v1.25.3 — the hub widened from 2 links (dashboard + insights) to 6: it now
+ * also deep-links to the view/sort/order cards of medications, labs, the
+ * illness journal, and checkups. Those cards stay on their own module pages;
+ * the hub only indexes them via anchor deep-links.
  */
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -20,26 +25,34 @@ function render(locale: "en" | "de" = "en") {
 }
 
 describe("<LayoutSection>", () => {
-  it("links to the arrangement editors it still hosts", () => {
+  it("links to every view surface it indexes (anchor deep-links)", () => {
     const html = render();
-    for (const href of ["/settings/dashboard", "/settings/insights"]) {
+    for (const href of [
+      "/settings/dashboard",
+      "/settings/insights",
+      "/settings/medications#medications-view",
+      "/settings/labs#labs-view",
+      "/settings/illness#illness-view",
+      "/settings/vorsorge#vorsorge-view",
+    ]) {
       expect(html).toContain(`href="${href}"`);
     }
-    // v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung)
-    // graduated to their own nav entries and are no longer linked here.
-    expect(html).not.toContain('href="/settings/medications"');
-    expect(html).not.toContain('href="/settings/mood"');
   });
 
-  it("renders the hub heading and a card per editor", () => {
+  it("renders one card per indexed surface (6 links)", () => {
     const html = render();
+    // Pin the link count: every hub card is an `<a href="/settings/…">`.
+    const links = html.match(/href="\/settings\//g) ?? [];
+    expect(links.length).toBe(6);
     expect(html).toContain("Dashboard");
     expect(html).toContain("Insights");
   });
 
   it("resolves its copy in German too", () => {
     const html = render("de");
-    expect(html).toContain("Layout");
+    // The hub body is the link list; the German module labels resolve.
+    expect(html).toContain("Medikamente");
+    expect(html).toContain("Labor");
     expect(html).not.toContain("settings.sections.layout.");
   });
 });

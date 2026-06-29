@@ -4036,15 +4036,17 @@
       },
       "notifications": {
         "title": "Notificaciones",
-        "description": "Todos los recordatorios en un solo lugar: qué se recuerda y cuándo. Los canales de entrega están en Integraciones.",
-        "channelsHint": "Telegram, ntfy, Web Push, Webhook y correo se configuran ahora en",
-        "channelsHintLink": "Integraciones → Canales",
-        "subtitle": "Elige qué recordatorios recibes."
+        "description": "Todos los recordatorios en un solo lugar: qué se recuerda y cuándo, y dónde se entrega.",
+        "subtitle": "Elige qué recordatorios recibes y dónde se entregan.",
+        "remindersHeading": "Recordatorios",
+        "remindersDescription": "Lo que recibes.",
+        "channelsHeading": "Canales de entrega",
+        "channelsDescription": "Dónde se entregan los recordatorios y avisos."
       },
       "layout": {
-        "title": "Panel",
-        "description": "Organiza cómo están dispuestos el panel y los análisis.",
-        "backToHub": "Volver a Diseño y personalización",
+        "title": "Apariencia",
+        "description": "Elige cómo se ven y se organizan el panel, los análisis y tus módulos de seguimiento.",
+        "backToHub": "Volver a Apariencia",
         "dashboard": {
           "title": "Panel",
           "description": "Diseño y orden de los mosaicos."
@@ -4053,7 +4055,23 @@
           "title": "Análisis",
           "description": "Orden de la vista general y de las pestañas de navegación."
         },
-        "subtitle": "Personaliza cómo se organizan tu panel e insights."
+        "subtitle": "Personaliza cómo se ven tu panel, los análisis y los módulos de seguimiento.",
+        "medications": {
+          "title": "Medicamentos",
+          "description": "Vista de lista y orden manual."
+        },
+        "labs": {
+          "title": "Laboratorio",
+          "description": "Vista, orden y orden manual."
+        },
+        "illness": {
+          "title": "Diario de enfermedades",
+          "description": "Vista de lista y orden de episodios."
+        },
+        "vorsorge": {
+          "title": "Revisiones",
+          "description": "Vista de lista y orden de recordatorios."
+        }
       },
       "dashboard": {
         "title": "Panel",
@@ -4310,11 +4328,6 @@
         "title": "Coach",
         "description": "Activa el Coach, tono y alcance, recuerdos guardados.",
         "subtitle": "Ajusta el Coach, sus avisos proactivos y su memoria."
-      },
-      "channels": {
-        "title": "Canales",
-        "description": "Envío por Telegram, ntfy, Web Push, Webhook y correo electrónico.",
-        "subtitle": "Dónde se entregan los recordatorios y avisos."
       },
       "security": {
         "title": "Seguridad",
