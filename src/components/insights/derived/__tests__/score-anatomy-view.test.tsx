@@ -56,9 +56,15 @@ describe("<ScoreAnatomyView>", () => {
     expect(html).toContain('data-contributor="respiratory"');
     expect(html).toContain('data-present="false"');
     expect(html).toContain('data-slot="provenance-explainer-method"');
+    expect(html).toContain("A blend of deviation components.");
     // v1.15.12 F4 — the "keine klinische Bewertung" footer line is removed;
     // the non-clinical framing now lives in the inline provenance method.
     expect(html).not.toContain('data-slot="score-anatomy-disclaimer"');
+    // Regression guard: `ProvenanceExplainer` renders its full method body
+    // inline (the v1.22 refactor dropped the ⓘ glyph), so it must sit in
+    // normal flow — never pulled out via `absolute top-3 right-3`, which
+    // painted the whole paragraph over the title, ring and contributor rows.
+    expect(html).not.toContain("absolute top-3 right-3");
   });
 
   it("tints the card + leans the ring hue when a hue is passed (F1)", () => {

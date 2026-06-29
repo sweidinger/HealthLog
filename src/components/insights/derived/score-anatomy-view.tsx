@@ -126,24 +126,12 @@ export function ScoreAnatomyView({
           : undefined
       }
       className={cn(
-        "relative flex flex-col gap-5 rounded-xl border p-5",
+        "flex flex-col gap-5 rounded-xl border p-5",
         hue ? "wellness-detail-card" : "border-border bg-card",
         className,
       )}
       aria-label={typeof title === "string" ? title : undefined}
     >
-      {/* v1.15.12 F5 — the ⓘ explainer is pinned TOP-right at heading height
-          (it used to trail the card at bottom-right). Absolute so it never
-          shifts the centred hero title; the trigger keeps its 44px touch
-          target + popover/sheet behaviour. */}
-      <div className="absolute top-3 right-3 z-10">
-        <ProvenanceExplainer
-          provenance={provenance}
-          method={method}
-          standard={standard}
-        />
-      </div>
-
       {/* Hero: title + ring + caption */}
       <div className="flex flex-col items-center gap-3 text-center">
         <h2
@@ -199,10 +187,18 @@ export function ScoreAnatomyView({
         </div>
       )}
 
-      {/* v1.15.12 F4 — the "Richtwert — keine klinische Bewertung" footer line
-          is gone; the method + cited standard live behind the provenance
-          explainer (now top-right, F5), which carries the non-clinical framing
-          where it belongs. The composition (contributor rows above) stays. */}
+      {/* The plain-language method caption closes the card, in normal flow.
+          `ProvenanceExplainer` (v1.22) is no longer a top-right ⓘ glyph — it
+          renders its full method body inline as a muted caption, so it must
+          sit in the document flow at the foot of the surface. The earlier
+          `absolute top-right` wrapper yanked the whole paragraph out of flow
+          and painted it over the centred title, ring and contributor rows on
+          every breakpoint; rendering it here keeps the spine readable. */}
+      <ProvenanceExplainer
+        provenance={provenance}
+        method={method}
+        standard={standard}
+      />
     </section>
   );
 }
