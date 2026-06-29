@@ -188,19 +188,25 @@ describe("settings sections — SSR smoke", () => {
     expect(html).toContain("Withings");
   });
 
-  it("<NotificationsSection> renders the single reminder-types home", () => {
+  it("<NotificationsSection> renders the reminders + delivery-channels groups", () => {
     const html = renderFramed("notifications", <NotificationsSection />);
     // v1.18.6 (W9) — the visible heading comes from the frame; the proactive
     // Coach nudge moved to Settings → Coach, so it no longer renders here.
     expect(html).toContain("settings-section-notifications-title");
-    expect(html).not.toContain("Notification channels");
     expect(html).not.toContain('data-slot="notifications-channels-cross-link"');
     expect(html).not.toContain('data-slot="notifications-inbox-cross-link"');
     // The mood card fails OPEN (mock user carries no module map), so both
-    // remaining reminder-type cards render. The coach-nudge card is gone.
+    // reminder-type cards render under the Reminders group. The coach-nudge
+    // card is gone.
     expect(html).toContain('id="mood-reminder"');
     expect(html).toContain('id="low-stock"');
     expect(html).not.toContain('id="coach-nudge"');
+    // v1.25.3 — the delivery-channels group is now part of this surface: the
+    // `#channels` anchor and the embedded channels panel both render.
+    expect(html).toContain('id="channels"');
+    expect(html).toContain('data-slot="notification-channels-panel"');
+    expect(html).toContain("Reminders");
+    expect(html).toContain("Delivery channels");
     // No raw i18n key leaks past the provider.
     expect(html).not.toContain("settings.sections.notifications.");
   });

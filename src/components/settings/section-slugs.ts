@@ -57,9 +57,10 @@ export const SETTINGS_SECTION_SLUGS = [
   // single front door for enabling/disabling secondary tracking domains.
   "modules",
   "integrations",
-  // v1.18.1 (D4) — Kanäle (delivery channels) + Quellen (source weighting)
-  // split out of the Integrations tabs into their own left-side entries.
-  "channels",
+  // v1.18.1 (D4) — Quellen (source weighting) split out of the Integrations
+  // tabs into its own left-side entry. v1.25.3 — Kanäle (delivery channels)
+  // folded back into Notifications as an in-page group; `/settings/channels`
+  // 301-redirects to `/settings/notifications#channels` (next.config.ts).
   "sources",
   "notifications",
   "layout",

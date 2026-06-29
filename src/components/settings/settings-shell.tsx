@@ -30,12 +30,11 @@ import {
   Info,
   KeyRound,
   Plug,
-  LayoutDashboard,
   Layers,
   Link2,
   Lock,
+  Palette,
   Pill,
-  Radio,
   Settings2,
   Share2,
   ShieldCheck,
@@ -123,13 +122,9 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.integrations.title",
     icon: Link2,
   },
-  // v1.18.1 (D4) — Kanäle (delivery channels) split out of the Integrations
-  // sub-tabs into its own entry. A channel is a delivery provider.
-  {
-    slug: "channels",
-    titleKey: "settings.sections.channels.title",
-    icon: Radio,
-  },
+  // v1.25.3 — the standalone Kanäle (delivery channels) entry folded back
+  // into Notifications as a labelled in-page group; `/settings/channels`
+  // 301-redirects to `/settings/notifications#channels`.
   // v1.18.1 (D4) — Quellen (source weighting) split out into its own entry:
   // which connection wins when two report the same metric.
   {
@@ -145,15 +140,17 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.notifications.title",
     icon: Bell,
   },
-  // v1.17.1 (F-2) — one "Layout & Personalization" nav entry replaces the
-  // four scattered Dashboard / Insights / Medications / Mood "arrange"
-  // entries. Those routes still resolve (deep links, page-header cogs, and
-  // the hub's own links all work); they are simply reached through the
-  // Layout hub now, so "how my app is laid out" reads as one home.
+  // v1.17.1 (F-2) — one nav entry replaces the four scattered Dashboard /
+  // Insights / Medications / Mood "arrange" entries. Those routes still
+  // resolve (deep links, page-header cogs, and the hub's own links all work);
+  // they are reached through this hub now, so "how my app looks" reads as one
+  // home. v1.25.3 — renamed to "Appearance"/"Darstellung" and widened into the
+  // index for every module's view/sort/order surface. The slug stays `layout`
+  // so every route + deep link is untouched.
   {
     slug: "layout",
     titleKey: "settings.sections.layout.title",
-    icon: LayoutDashboard,
+    icon: Palette,
   },
   // v1.18.0 (S5) — Medikamente: medication-specific settings (list view +
   // order + injection sites). Was a hidden child of the Layout hub.
