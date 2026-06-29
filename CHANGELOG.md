@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.25.2] — 2026-06-29 — Flat settings navigation
+
+### Changed
+
+- The settings navigation returns to the familiar flat list down the left, reversing the grouped layout introduced in 1.25.1. Two-factor and passkeys stay under Account; active sessions, trusted devices, and login activity return to Data & Privacy; account deletion returns to Advanced. Every page keeps its own address. The recent quality-of-life touches stay: active sessions and security activity remain collapsed by default, the personal-context page links to the medical-history form, and your chronic conditions show there.
+
 ## [1.25.1] — 2026-06-29 — Documents library, tidier settings
 
 A patch release that turns the document inbox into a real library, reorganises the settings, closes a cross-account data-isolation gap on shared browsers, and carries a broad quality pass across the new surfaces. One additive migration (`0222`) applies automatically on start.
