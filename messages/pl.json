@@ -5876,7 +5876,6 @@
       }
     },
     "carrier": "Operator",
-    "carrierUnavailableGeoFallback": "{location} — operator niedostępny",
     "mfaRequired": "Wymagaj drugiego składnika",
     "mfaRequiredDescription": "Każde konto bez aktywnego drugiego składnika jest po zalogowaniu kierowane do konfiguracji. To zachęca użytkowników sieci do włączenia go, ale nie blokuje bezpośredniego dostępu przez API ani natywnego (Bearer) dla kont jeszcze nieskonfigurowanych.",
     "mfaEnforcedOn": "MFA wł.",

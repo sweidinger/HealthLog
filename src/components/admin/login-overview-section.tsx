@@ -7,6 +7,7 @@ import {
   Download,
   Loader2,
   MapPin,
+  Network,
   ScrollText,
   XCircle,
 } from "lucide-react";
@@ -409,6 +410,18 @@ export function LoginOverviewSection() {
                         {t("admin.location")}
                       </span>
                     </th>
+                    {/*
+                      v1.25.8 — the network operator (carrier) is now its own
+                      column instead of a chip stacked under the auth-provider.
+                      It resolves from the online geo provider's ISP field, so
+                      it's populated even without the optional offline ASN MMDB.
+                    */}
+                    <th className="px-3 py-2 text-left font-medium">
+                      <span className="inline-flex items-center gap-1">
+                        <Network className="h-3 w-3" aria-hidden="true" />
+                        {t("admin.carrier")}
+                      </span>
+                    </th>
                     <th className="px-3 py-2 text-right font-medium">
                       {t("admin.timestamp")}
                     </th>
@@ -449,44 +462,26 @@ export function LoginOverviewSection() {
                             />
                             {AUTH_PROVIDER_LABELS[provider]}
                           </span>
-                          {/*
-                          v1.4.27 B3 — carrier chip below the auth-provider
-                          chip. v1.4.36 W4g — fall back to the city + country
-                          string with a "carrier unavailable" qualifier when
-                          the GeoLite2-ASN offline lookup miss (free-tier
-                          ipwho.is does not expose ASN) leaves `entry.carrier`
-                          null but the location lookup populated
-                          `entry.location`. Private/loopback IPs and offline-
-                          miss rows on BOTH columns keep the original
-                          single-chip layout. ASN-known chip carries the
-                          short DACH label ("Telekom", "Vodafone", "1&1",
-                          "O2") with unknown organisations falling through
-                          to the raw GeoLite2 string.
-                        */}
-                          {entry.carrier ? (
-                            <span
-                              className="text-muted-foreground/80 mt-0.5 block text-[10px] leading-tight"
-                              data-slot="login-overview-carrier"
-                            >
-                              {carrierShortLabel(entry.carrier)}
-                            </span>
-                          ) : entry.location ? (
-                            <span
-                              className="text-muted-foreground/80 mt-0.5 block text-[10px] leading-tight"
-                              data-slot="login-overview-carrier"
-                              data-source="geo-fallback"
-                            >
-                              {t("admin.carrierUnavailableGeoFallback", {
-                                location: entry.location,
-                              })}
-                            </span>
-                          ) : null}
                         </td>
                         <td className="text-muted-foreground px-3 py-2 font-mono text-xs">
                           {entry.ipAddress ?? "—"}
                         </td>
                         <td className="text-muted-foreground px-3 py-2 text-xs">
                           {entry.location ?? "—"}
+                        </td>
+                        {/*
+                          v1.25.8 — carrier / network operator in its own
+                          column. Known DACH operators fold to a short label
+                          ("Telekom", "Vodafone", "1&1", "O2"); unknown ones
+                          show the raw operator string the provider returned.
+                        */}
+                        <td
+                          className="text-muted-foreground px-3 py-2 text-xs"
+                          data-slot="login-overview-carrier"
+                        >
+                          {entry.carrier
+                            ? carrierShortLabel(entry.carrier)
+                            : "—"}
                         </td>
                         <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
                           {formatDateTime(entry.createdAt)}

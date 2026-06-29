@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.25.8] — 2026-06-29 — Carrier in the sign-in overview
+
+A focused configuration release. No schema change.
+
+### Changed
+
+- The admin sign-in overview now resolves the network operator (carrier) from the online IP-location provider's ISP field, so it is populated even on a host without the optional offline ASN database. The carrier moves out of a chip stacked under the login method into its own column, next to the location.
+- The location backfill now also revisits rows that already had a location but no carrier, so the column fills in across existing history on the next pass — not just for new sign-ins.
+
 ## [1.25.7] — 2026-06-29 — Settings, tidied
 
 A settings information-architecture cleanup. No schema change; every page keeps a working address (old links 301-redirect).

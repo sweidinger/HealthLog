@@ -15,10 +15,13 @@
  *   4. Offline MMDB present → local read fallback on an online miss.
  *
  * The legacy contract still holds: `lookupIpLocation` returns a
- * `"City, CC"` string or `null`, never throws. `lookupIpAsn` is the
- * new sibling that resolves the autonomous-system number + the carrier
- * organisation string (so the admin login overview can render a
- * carrier chip next to the auth provider).
+ * `"City, CC"` string or `null`, never throws. `lookupIpGeo` is the
+ * unified resolver that returns location + autonomous-system number +
+ * carrier organisation in one pass (v1.25.8): the carrier is mined from
+ * the online provider's ISP field — so the admin login overview can render
+ * its own carrier column even without the optional offline ASN MMDB — and
+ * the offline `lookupIpAsn` MMDB read remains the authoritative source when
+ * it is configured.
  *
  * Both helpers are safe to call from any request context. The MMDB
  * Reader is loaded lazily on first call and held in a module-level
@@ -78,15 +81,31 @@ interface IpwhoIsResponse {
   success?: boolean;
   city?: string;
   country_code?: string;
+  // ipwho.is nests the network operator under `connection`. The free
+  // endpoint populates `asn` (a number), `org`, and `isp`.
+  connection?: { asn?: number; org?: string; isp?: string };
 }
 
 interface IpApiProResponse {
   status?: "success" | "fail";
   city?: string;
   countryCode?: string;
+  // ip-api returns the operator at the top level: `isp` is the friendly
+  // ISP name ("Deutsche Telekom AG"), `org` the registered org, and `as`
+  // a combined "AS3320 Deutsche Telekom AG" string we mine for the number.
+  isp?: string;
+  org?: string;
+  as?: string;
 }
 
 type GeoResponse = IpwhoIsResponse & IpApiProResponse;
+
+/** Resolved geo facts for one IP — the cache + every caller speak this shape. */
+interface GeoResolved {
+  location: string | null;
+  asn: number | null;
+  carrier: string | null;
+}
 
 const PRIVATE_IP =
   /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1|fc|fd|fe80|localhost|unknown)/;
@@ -118,25 +137,25 @@ function geoLiteDir(): string {
 
 const LOCATION_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 h
 const LOCATION_CACHE_MAX = 512;
-const LOCATION_CACHE = new Map<string, { value: string | null; at: number }>();
+const GEO_CACHE = new Map<string, { value: GeoResolved; at: number }>();
 
-function getCachedLocation(ip: string): { value: string | null } | null {
-  const hit = LOCATION_CACHE.get(ip);
+function getCachedGeo(ip: string): GeoResolved | null {
+  const hit = GEO_CACHE.get(ip);
   if (!hit) return null;
   if (Date.now() - hit.at > LOCATION_CACHE_TTL_MS) {
-    LOCATION_CACHE.delete(ip);
+    GEO_CACHE.delete(ip);
     return null;
   }
-  return { value: hit.value };
+  return hit.value;
 }
 
-function setCachedLocation(ip: string, value: string | null): void {
+function setCachedGeo(ip: string, value: GeoResolved): void {
   // Bound the map: drop the oldest insertion when full.
-  if (LOCATION_CACHE.size >= LOCATION_CACHE_MAX) {
-    const oldest = LOCATION_CACHE.keys().next().value;
-    if (oldest !== undefined) LOCATION_CACHE.delete(oldest);
+  if (GEO_CACHE.size >= LOCATION_CACHE_MAX) {
+    const oldest = GEO_CACHE.keys().next().value;
+    if (oldest !== undefined) GEO_CACHE.delete(oldest);
   }
-  LOCATION_CACHE.set(ip, { value, at: Date.now() });
+  GEO_CACHE.set(ip, { value, at: Date.now() });
 }
 
 // ── Offline tier (MaxMind GeoLite2) ──────────────────────────────────
@@ -193,7 +212,7 @@ export function __resetGeoLite2CacheForTests(): void {
   cache.city = undefined;
   cache.asn = undefined;
   notifiedThisProcess = false;
-  LOCATION_CACHE.clear();
+  GEO_CACHE.clear();
 }
 
 // ── Offline readiness + one-shot admin notification ─────────────────
@@ -281,6 +300,39 @@ function pickCityName(city: CityResponse["city"]): string | null {
   );
 }
 
+/**
+ * v1.25.8 — extract the network operator (carrier) + AS number from an
+ * online provider response. The bundled offline GeoLite2-ASN MMDB is the
+ * authoritative source when present, but it is OPTIONAL (not baked into the
+ * default image), so on a host without it the carrier column stayed empty.
+ * Both supported providers expose the operator inline — ip-api at the top
+ * level (`isp`/`org`/`as`), ipwho.is under `connection` — so we mine it from
+ * the same response the location lookup already fetched. No second request.
+ */
+function parseOnlineCarrier(data: GeoResponse): {
+  asn: number | null;
+  carrier: string | null;
+} {
+  const conn = data.connection;
+  const carrier =
+    data.isp?.trim() ||
+    data.org?.trim() ||
+    conn?.isp?.trim() ||
+    conn?.org?.trim() ||
+    null;
+
+  let asn: number | null = null;
+  if (typeof conn?.asn === "number") {
+    asn = conn.asn;
+  } else if (typeof data.as === "string") {
+    // ip-api ships "AS3320 Deutsche Telekom AG" — keep just the number.
+    const m = data.as.match(/AS(\d+)/i);
+    if (m) asn = Number(m[1]);
+  }
+
+  return { asn, carrier: carrier || null };
+}
+
 function lookupIpLocationOffline(ip: string): string | null {
   const reader = getCityReader();
   if (!reader) return null;
@@ -339,7 +391,7 @@ async function readUtf8Json(res: Response): Promise<unknown> {
   return JSON.parse(text);
 }
 
-async function lookupIpLocationOnline(ip: string): Promise<string | null> {
+async function lookupIpOnline(ip: string): Promise<GeoResolved | null> {
   if (process.env.IP_GEO_LOOKUP_DISABLED === "1") return null;
   try {
     const res = await safeFetch(
@@ -388,55 +440,76 @@ async function lookupIpLocationOnline(ip: string): Promise<string | null> {
 
     const city = data.city;
     const country = data.country_code ?? data.countryCode;
-    if (!city || !country) return null;
+    const location = city && country ? `${city}, ${country}` : null;
+    const { asn, carrier } = parseOnlineCarrier(data);
 
-    return `${city}, ${country}`;
+    return { location, asn, carrier };
   } catch {
     return null;
   }
 }
 
+/**
+ * Resolve location + carrier + AS number for an IP in a single pass.
+ *
+ * v1.25.8 — the online provider lookup now also yields the carrier, so a
+ * self-host without the optional offline GeoLite2-ASN MMDB still surfaces a
+ * network operator in the admin sign-in overview. The merge order:
+ *
+ *   1. Online lookup (one request) → location + carrier + ASN.
+ *   2. Offline City MMDB → location fallback on an online miss (if present).
+ *   3. Offline ASN MMDB → AUTHORITATIVE carrier/ASN when present (it carries
+ *      the canonical org name the short-label folder expects); the online
+ *      carrier is the fallback so a host without the DBs still resolves one.
+ *
+ * Never throws; the auth-audit caller is fire-and-forget. The resolved
+ * record (including all-null misses) is cached per IP for a bounded TTL.
+ */
+export async function lookupIpGeo(ip: string | null): Promise<GeoResolved> {
+  const empty: GeoResolved = { location: null, asn: null, carrier: null };
+  if (!ip || PRIVATE_IP.test(ip)) return empty;
+
+  const cached = getCachedGeo(ip);
+  if (cached) return cached;
+
+  // v1.18.10 (W7) — online-first by default. The `ipwho.is` HTTPS lookup
+  // is the primary resolver for every self-host: it needs no MaxMind licence
+  // and resolves out of the box. The bundled GeoLite2 offline tier is an
+  // OPTIONAL fallback, so a missing offline tier is the expected baseline.
+  const online = await lookupIpOnline(ip);
+  let location = online?.location ?? null;
+  let asn = online?.asn ?? null;
+  let carrier = online?.carrier ?? null;
+
+  // Offline City MMDB fills the location when the online tier missed it.
+  if (!location && offlineGeoReady()) {
+    location = lookupIpLocationOffline(ip);
+  }
+
+  // Offline ASN MMDB is authoritative for the carrier/ASN when configured;
+  // prefer it over the online ISP string but keep the online value as the
+  // fallback. `lookupIpAsn` also fires the one-shot "no resolver" admin alert
+  // when neither an offline ASN reader nor the offline tier is present.
+  const offlineAsn = lookupIpAsn(ip);
+  if (offlineAsn) {
+    asn = offlineAsn.asn;
+    if (offlineAsn.carrier) carrier = offlineAsn.carrier;
+  }
+
+  const resolved: GeoResolved = { location, asn, carrier };
+  setCachedGeo(ip, resolved);
+  return resolved;
+}
+
+/**
+ * Legacy thin wrapper — returns just the `"City, CC"` string (or null).
+ * Kept for the session list + login-alert call sites that only need the
+ * location; both route through the unified `lookupIpGeo` cache.
+ */
 export async function lookupIpLocation(
   ip: string | null,
 ): Promise<string | null> {
-  if (!ip || PRIVATE_IP.test(ip)) return null;
-
-  const cached = getCachedLocation(ip);
-  if (cached) return cached.value;
-
-  // v1.18.10 (W7) — online-first by default. The `ipwho.is` HTTPS lookup
-  // is now the primary resolver for every self-host: it needs no MaxMind
-  // licence and resolves a location out of the box. The bundled GeoLite2
-  // offline tier is an OPTIONAL fallback kept only for the egress-disabled
-  // case (`IP_GEO_LOOKUP_DISABLED=1`) or for an online miss when the DBs
-  // happen to be present — it is no longer the default path, and a missing
-  // offline tier is the expected baseline rather than a gap to alert on.
-  const online = await lookupIpLocationOnline(ip);
-  if (online) {
-    setCachedLocation(ip, online);
-    return online;
-  }
-
-  // Online missed (provider down, rate-limited, or egress disabled). Fall
-  // back to the offline MMDB if the operator configured one.
-  if (offlineGeoReady()) {
-    const offline = lookupIpLocationOffline(ip);
-    if (offline) {
-      setCachedLocation(ip, offline);
-      return offline;
-    }
-  } else {
-    // Neither resolver produced a location: the online lookup missed (or
-    // egress is disabled) AND no offline tier is configured. That is the
-    // only genuine "no resolver at all" gap — fire the one-shot admin alert
-    // so the maintainer can wire `MAXMIND_LICENSE_KEY` or re-enable egress.
-    // The happy path (ipwho.is resolving by default) never reaches here, so
-    // a self-host without the offline DBs is not nagged on every lookup.
-    void notifyOfflineGeoUnavailable();
-  }
-
-  setCachedLocation(ip, null);
-  return null;
+  return (await lookupIpGeo(ip)).location;
 }
 
 /**
