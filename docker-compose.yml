@@ -84,13 +84,16 @@ services:
       # the real visitor IP is in `cf-connecting-ip`; set
       # TRUST_CF_CONNECTING_IP=1 ONLY when Cloudflare is in front (off by
       # default — a direct-exposed host must not trust a forgeable header).
-      # IP_GEO_LOOKUP_URL overrides the default ip-api.com provider (HTTPS
-      # only); IP_GEO_LOOKUP_DISABLED=1 stops all third-party IP egress.
+      # IP_GEO_LOOKUP_URL overrides the default ipwho.is provider (HTTPS by
+      # default); IP_GEO_LOOKUP_DISABLED=1 stops all third-party IP egress.
+      # IP_GEO_ALLOW_INSECURE=true permits a plain-HTTP provider URL (e.g. the
+      # free ip-api.com endpoint) — off by default, an explicit operator choice.
       # Listed here so operator values in .env reach the container (the
       # `environment:` block is a whitelist — vars not listed never propagate).
       TRUST_CF_CONNECTING_IP: "${TRUST_CF_CONNECTING_IP:-}"
       IP_GEO_LOOKUP_URL: "${IP_GEO_LOOKUP_URL:-}"
       IP_GEO_LOOKUP_DISABLED: "${IP_GEO_LOOKUP_DISABLED:-}"
+      IP_GEO_ALLOW_INSECURE: "${IP_GEO_ALLOW_INSECURE:-}"
       # all = bundle web + worker in this container (default, single-host)
       # web = serve HTTP only; pair with a separate app-worker service
       HEALTHLOG_PROCESS_TYPE: "${HEALTHLOG_PROCESS_TYPE:-all}"
