@@ -2066,7 +2066,10 @@
       "refreshFailedHint": "Impossible d'actualiser le briefing — affichage du précédent.",
       "retryAction": "Réessayer",
       "failedTitle": "Impossible de générer le briefing",
-      "failedDescription": "Le fournisseur d'IA a dépassé le délai ou renvoyé une erreur. Réessayez ou augmentez le délai de réponse dans les paramètres d'IA pour un modèle local lent."
+      "failedDescription": "Le fournisseur d'IA a dépassé le délai ou renvoyé une erreur. Réessayez ou augmentez le délai de réponse dans les paramètres d'IA pour un modèle local lent.",
+      "failedDescriptionTimeout": "La requête IA a dépassé le délai avant que le briefing soit prêt. Pour un modèle local lent, augmentez le délai de réponse dans les Paramètres, puis réessayez.",
+      "failedDescriptionProvider": "Le fournisseur d'IA a rejeté la requête. Vérifiez le fournisseur et la clé API dans les paramètres d'IA, puis réessayez.",
+      "failedDescriptionRateLimit": "Le fournisseur d'IA limite les requêtes pour le moment. Réessayez dans un instant."
     },
     "trendsRow": {
       "title": "Tendances",
@@ -4671,7 +4674,7 @@
       "responseTimeoutHeading": "Délai de réponse",
       "responseTimeoutBody": "Durée d'attente de la réponse de l'IA avant d'abandonner. Augmentez-la pour un modèle local ou auto-hébergé qui a besoin de temps pour se charger à la première requête.",
       "responseTimeoutLabel": "Délai de réponse (secondes)",
-      "responseTimeoutPlaceholder": "Par défaut (~180)",
+      "responseTimeoutPlaceholder": "Par défaut (~120)",
       "responseTimeoutInvalid": "Saisissez un nombre entre 10 et 600 secondes.",
       "ocrHeading": "Numérisation de documents (comptes rendus de laboratoire)",
       "ocrBody": "Utilisez un fournisseur dédié pour lire les comptes rendus de laboratoire importés. Désactivé, la numérisation utilise votre fournisseur principal.",

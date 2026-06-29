@@ -2066,7 +2066,10 @@
       "refreshFailedHint": "No se pudo actualizar el briefing: se muestra el anterior.",
       "retryAction": "Reintentar",
       "failedTitle": "No se pudo generar el briefing",
-      "failedDescription": "El proveedor de IA agotó el tiempo de espera o devolvió un error. Inténtalo de nuevo o aumenta el tiempo de espera de respuesta en los ajustes de IA para un modelo local lento."
+      "failedDescription": "El proveedor de IA agotó el tiempo de espera o devolvió un error. Inténtalo de nuevo o aumenta el tiempo de espera de respuesta en los ajustes de IA para un modelo local lento.",
+      "failedDescriptionTimeout": "La solicitud de IA agotó el tiempo de espera antes de que el resumen estuviera listo. Para un modelo local lento, aumenta el tiempo de espera de respuesta en Ajustes y vuelve a intentarlo.",
+      "failedDescriptionProvider": "El proveedor de IA rechazó la solicitud. Revisa el proveedor y la clave de API en los ajustes de IA y vuelve a intentarlo.",
+      "failedDescriptionRateLimit": "El proveedor de IA está limitando las solicitudes en este momento. Vuelve a intentarlo en un rato."
     },
     "trendsRow": {
       "title": "Tendencias",
@@ -4671,7 +4674,7 @@
       "responseTimeoutHeading": "Tiempo de espera de la respuesta",
       "responseTimeoutBody": "Cuánto esperar a que responda la IA antes de cancelar. Aumenta el valor para un modelo local o autoalojado que necesita tiempo para cargarse en la primera solicitud.",
       "responseTimeoutLabel": "Tiempo de espera de la respuesta (segundos)",
-      "responseTimeoutPlaceholder": "Predeterminado (~180)",
+      "responseTimeoutPlaceholder": "Predeterminado (~120)",
       "responseTimeoutInvalid": "Introduce un número entre 10 y 600 segundos.",
       "ocrHeading": "Escaneo de documentos (informes de laboratorio)",
       "ocrBody": "Usa un proveedor dedicado para leer los informes de laboratorio subidos. Si está desactivado, el escaneo usa tu proveedor principal.",

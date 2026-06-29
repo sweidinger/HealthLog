@@ -2066,7 +2066,10 @@
       "refreshFailedHint": "Nie udało się odświeżyć briefingu — pokazujemy poprzedni.",
       "retryAction": "Spróbuj ponownie",
       "failedTitle": "Nie udało się wygenerować briefingu",
-      "failedDescription": "Dostawca AI przekroczył limit czasu lub zwrócił błąd. Spróbuj ponownie albo zwiększ limit czasu odpowiedzi w ustawieniach AI dla wolnego modelu lokalnego."
+      "failedDescription": "Dostawca AI przekroczył limit czasu lub zwrócił błąd. Spróbuj ponownie albo zwiększ limit czasu odpowiedzi w ustawieniach AI dla wolnego modelu lokalnego.",
+      "failedDescriptionTimeout": "Żądanie AI przekroczyło limit czasu, zanim briefing był gotowy. W przypadku wolnego modelu lokalnego zwiększ limit czasu odpowiedzi w Ustawieniach i spróbuj ponownie.",
+      "failedDescriptionProvider": "Dostawca AI odrzucił żądanie. Sprawdź dostawcę i klucz API w ustawieniach AI, a następnie spróbuj ponownie.",
+      "failedDescriptionRateLimit": "Dostawca AI ogranicza teraz liczbę żądań. Spróbuj ponownie za chwilę."
     },
     "trendsRow": {
       "title": "Trendy",
@@ -4671,7 +4674,7 @@
       "responseTimeoutHeading": "Limit czasu odpowiedzi",
       "responseTimeoutBody": "Jak długo czekać na odpowiedź AI, zanim nastąpi przerwanie. Zwiększ wartość dla lokalnego lub samodzielnie hostowanego modelu, który potrzebuje czasu na załadowanie przy pierwszym żądaniu.",
       "responseTimeoutLabel": "Limit czasu odpowiedzi (sekundy)",
-      "responseTimeoutPlaceholder": "Domyślnie (~180)",
+      "responseTimeoutPlaceholder": "Domyślnie (~120)",
       "responseTimeoutInvalid": "Podaj liczbę od 10 do 600 sekund.",
       "ocrHeading": "Skanowanie dokumentów (wyniki badań)",
       "ocrBody": "Użyj dedykowanego dostawcy do odczytu przesłanych wyników badań. Gdy wyłączone, skanowanie używa Twojego głównego dostawcy.",

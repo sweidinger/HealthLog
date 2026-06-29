@@ -2066,7 +2066,10 @@
       "refreshFailedHint": "Briefing konnte nicht aktualisiert werden — es wird das letzte angezeigt.",
       "retryAction": "Erneut versuchen",
       "failedTitle": "Briefing konnte nicht erstellt werden",
-      "failedDescription": "Der KI-Anbieter hat das Zeitlimit überschritten oder einen Fehler zurückgegeben. Versuche es erneut oder erhöhe in den KI-Einstellungen das Antwort-Zeitlimit für ein langsames lokales Modell."
+      "failedDescription": "Der KI-Anbieter hat das Zeitlimit überschritten oder einen Fehler zurückgegeben. Versuche es erneut oder erhöhe in den KI-Einstellungen das Antwort-Zeitlimit für ein langsames lokales Modell.",
+      "failedDescriptionTimeout": "Die KI-Anfrage hat das Zeitlimit überschritten, bevor das Briefing fertig war. Erhöhe für ein langsames lokales Modell in den Einstellungen das Antwort-Zeitlimit und versuche es dann erneut.",
+      "failedDescriptionProvider": "Der KI-Anbieter hat die Anfrage abgelehnt. Prüfe Anbieter und API-Schlüssel in den KI-Einstellungen und versuche es erneut.",
+      "failedDescriptionRateLimit": "Der KI-Anbieter drosselt derzeit die Anfragen. Versuche es in Kürze erneut."
     },
     "trendsRow": {
       "title": "Trends",
@@ -4671,7 +4674,7 @@
       "responseTimeoutHeading": "Antwort-Timeout",
       "responseTimeoutBody": "Wie lange auf die Antwort der KI gewartet wird, bevor abgebrochen wird. Erhöhe den Wert für ein lokales oder selbst gehostetes Modell, das beim ersten Aufruf Zeit zum Laden braucht.",
       "responseTimeoutLabel": "Antwort-Timeout (Sekunden)",
-      "responseTimeoutPlaceholder": "Standard (~180)",
+      "responseTimeoutPlaceholder": "Standard (~120)",
       "responseTimeoutInvalid": "Gib eine Zahl zwischen 10 und 600 Sekunden ein.",
       "ocrHeading": "Dokumentenscan (Laborberichte)",
       "ocrBody": "Verwende einen eigenen Anbieter zum Auslesen hochgeladener Laborberichte. Ist die Option aus, nutzt der Scan deinen Hauptanbieter.",

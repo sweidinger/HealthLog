@@ -67,6 +67,8 @@ import {
   type MetricStatusMetricId,
 } from "@/lib/insights/metric-status-registry";
 import { withTimeout } from "@/lib/insights/with-timeout";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
+import { resolveEffectiveTimeoutMs } from "@/lib/ai/effective-timeout";
 import {
   INSIGHT_PREGENERATE_QUEUE,
   enqueueForceWarm,
@@ -164,15 +166,72 @@ const WARM_PASS_CONCURRENCY = 3;
  * the provider's own abort governs a genuine completion while this stays the
  * backstop against a wedged call. The per-user budget gate + the WARM_PASS
  * concurrency cap still bound total nightly cost.
+ *
+ * v1.25.3 — the cap is no longer a fixed constant. The per-user
+ * `User.aiResponseTimeoutSeconds` setting (bounded 10–600 s at write-time) is
+ * the operator's lever for slow self-hosted / local backends, and the AI
+ * settings UI tells users to RAISE it for a model that loads slowly. The old
+ * fixed 130 s cap sat below the upper end of that range, so any account whose
+ * response timeout was ≥ ~130 s had every comprehensive warm clipped by the
+ * warm bound — not the provider — before the generation could land, leaving the
+ * briefing on its hard empty state. The warm budget now derives from the
+ * resolved effective per-request timeout plus a fixed headroom for feature
+ * extraction / prompt assembly / IO, so raising the response timeout actually
+ * extends the warm/cron budget. A sane absolute ceiling (the 600 s write-time
+ * maximum plus the same headroom) keeps a single wedged call from pinning the
+ * worker forever, while staying ABOVE the largest value a user can configure.
  */
-const COMPREHENSIVE_WARM_TIMEOUT_MS = 130_000;
+
+/**
+ * Fixed slack added on top of the resolved upstream provider timeout when
+ * sizing the warm/cron outer abort: bounded-feature extraction, prompt
+ * assembly, and the cache write all run inside the warm wrapper but outside the
+ * single provider round-trip the response-timeout governs.
+ */
+const COMPREHENSIVE_WARM_HEADROOM_MS = 30_000;
+
+/**
+ * Largest value `User.aiResponseTimeoutSeconds` accepts (see the 10–600 s
+ * write-time bound in `POST /api/user/ai-provider`), in ms. The warm ceiling is
+ * derived from it so the ceiling is always ABOVE the maximum a user can set.
+ */
+const AI_RESPONSE_TIMEOUT_MAX_MS = 600_000;
+
+/**
+ * Absolute backstop on the warm outer abort. A misconfigured 600 s response
+ * timeout still cannot pin the worker beyond this; the ceiling sits above the
+ * write-time maximum (by exactly the headroom) so a legitimate 600 s setting is
+ * honoured rather than silently clipped.
+ */
+const COMPREHENSIVE_WARM_CEILING_MS =
+  AI_RESPONSE_TIMEOUT_MAX_MS + COMPREHENSIVE_WARM_HEADROOM_MS;
+
+/**
+ * Outer-abort budget (ms) for one comprehensive warm, derived from the user's
+ * resolved effective upstream timeout. `effectiveTimeoutMs + headroom`, clamped
+ * to the absolute ceiling. A null/unset setting falls back to the comprehensive
+ * surface budget (`AI_BUDGETS.comprehensive.timeoutMs`), so a default account
+ * gets `120 s + headroom` rather than the old flat 130 s.
+ */
+export function comprehensiveWarmBudgetMs(
+  aiResponseTimeoutSeconds: number | null | undefined,
+): number {
+  const effectiveTimeoutMs = resolveEffectiveTimeoutMs(
+    aiResponseTimeoutSeconds,
+    AI_BUDGETS.comprehensive.timeoutMs,
+  );
+  return Math.min(
+    effectiveTimeoutMs + COMPREHENSIVE_WARM_HEADROOM_MS,
+    COMPREHENSIVE_WARM_CEILING_MS,
+  );
+}
 
 /** Per-user result of one forced full warm. */
 export interface ForceWarmResult {
   /**
    * Outcome of the comprehensive-insight generation. `"timeout"` is
    * distinct from `"failed"`: the comprehensive step exceeded its own
-   * bounded budget (see `COMPREHENSIVE_WARM_TIMEOUT_MS`) and was
+   * bounded budget (see `comprehensiveWarmBudgetMs`) and was
    * abandoned so the per-status + generic-metric passes could still run.
    *
    * v1.16.8 — three pre-flight outcomes that never reach the generator:
@@ -384,6 +443,12 @@ async function warmGenericMetricCaches(
 interface PregenerateCandidate {
   id: string;
   locale: string | null;
+  /**
+   * v1.25.3 — per-user response-timeout (seconds), feeds the warm outer
+   * abort so a raised setting is not clipped by a fixed cap. Null = the
+   * comprehensive surface default.
+   */
+  aiResponseTimeoutSeconds: number | null;
 }
 
 /**
@@ -410,7 +475,9 @@ export async function findPregenerateCandidates(
     // never-generated users sort ahead of merely-stale ones.
     orderBy: { insightsCachedAt: "asc" },
     take: cap,
-    select: { id: true, locale: true },
+    // v1.25.3 — carry the per-user response-timeout so the warm outer abort
+    // scales with the operator's setting instead of a fixed cap.
+    select: { id: true, locale: true, aiResponseTimeoutSeconds: true },
   });
 }
 
@@ -531,6 +598,12 @@ export async function runInsightPregenerate(
         // late resolve would still write a cache row + timestamp after the
         // loop moved on (the same race the forced single-user warm closes).
         const controller = new AbortController();
+        // v1.25.3 — size the outer abort from the candidate's resolved
+        // response-timeout so a raised setting extends the warm budget
+        // instead of being clipped by a fixed cap.
+        const warmBudgetMs = comprehensiveWarmBudgetMs(
+          candidate.aiResponseTimeoutSeconds,
+        );
         const bounded = await withTimeout(
           () =>
             generate(candidate.id, {
@@ -538,7 +611,7 @@ export async function runInsightPregenerate(
               force: true,
               signal: controller.signal,
             }),
-          COMPREHENSIVE_WARM_TIMEOUT_MS,
+          warmBudgetMs,
           null,
           () => controller.abort(),
         );
@@ -657,7 +730,7 @@ export async function runInsightPregenerate(
  * actually reads warms lazily through the read-path enqueue.
  *
  * The three sections are decoupled: the comprehensive step runs under its
- * own bounded budget (`COMPREHENSIVE_WARM_TIMEOUT_MS`) and its
+ * own bounded budget (`comprehensiveWarmBudgetMs`) and its
  * failure / timeout / skip is non-fatal — the per-status (7) and
  * generic-metric (~30) warm passes ALWAYS run afterwards. The earlier
  * design short-circuited both passes on a non-`generated`/`cached`
@@ -760,11 +833,17 @@ export async function forceWarmUser(
       let freshness: {
         insightsCachedAt: Date | null;
         insightsWarmFailedAt: Date | null;
+        // v1.25.3 — feeds the warm outer abort (see comprehensiveWarmBudgetMs).
+        aiResponseTimeoutSeconds: number | null;
       } | null = null;
       try {
         freshness = await prisma.user.findUnique({
           where: { id: userId },
-          select: { insightsCachedAt: true, insightsWarmFailedAt: true },
+          select: {
+            insightsCachedAt: true,
+            insightsWarmFailedAt: true,
+            aiResponseTimeoutSeconds: true,
+          },
         });
       } catch {
         // Best-effort pre-flight — on a read failure fall through to the
@@ -807,6 +886,12 @@ export async function forceWarmUser(
           });
         } else {
           const controller = new AbortController();
+          // v1.25.3 — size the outer abort from the user's resolved
+          // response-timeout (read with the freshness gate above) so a raised
+          // setting extends the warm budget instead of being clipped.
+          const warmBudgetMs = comprehensiveWarmBudgetMs(
+            freshness?.aiResponseTimeoutSeconds,
+          );
           const comprehensive = await withTimeout(
             () =>
               generate(userId, {
@@ -814,7 +899,7 @@ export async function forceWarmUser(
                 force: true,
                 signal: controller.signal,
               }),
-            COMPREHENSIVE_WARM_TIMEOUT_MS,
+            warmBudgetMs,
             null,
             () => controller.abort(),
           );

@@ -319,8 +319,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // briefing is held rather than freshly refreshed — and, when there is no
   // last good text, that the empty state should read "couldn't generate" with
   // a retry rather than the generic "no briefing yet".
-  const generationFailed =
-    (await readBriefingFailure({ userId, since: cachedAt })) !== null;
+  const briefingFailure = await readBriefingFailure({
+    userId,
+    since: cachedAt,
+  });
+  const generationFailed = briefingFailure !== null;
+  // v1.25.3 — the failure class lets the empty state point its hint at the
+  // right lever (raise the response timeout vs re-check the provider).
+  const generationFailureClass = briefingFailure?.failureClass ?? null;
 
   // Read-only: never block on the provider. Warm out of band only when the
   // cached briefing is stale / missing AND a provider is configured (a
@@ -368,6 +374,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
         hasProvider,
         // v1.25 — true when the last generation attempt failed (held text).
         generationFailed,
+        // v1.25.3 — coarse failure class for the empty-state hint (null when
+        // the last attempt succeeded).
+        generationFailureClass,
       });
     } catch {
       // Invalid cache row — fall through to the empty payload below. The
@@ -390,6 +399,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // v1.25 — no last-good text AND the last attempt failed: the UI shows a
     // "couldn't generate" empty state with a retry instead of the generic one.
     generationFailed,
+    // v1.25.3 — coarse failure class for the empty-state hint.
+    generationFailureClass,
   });
 });
 
@@ -760,6 +771,16 @@ export const POST = apiHandler((request: NextRequest) =>
       // path, so the last good briefing stays intact). The read path pairs the
       // preserved text with a discreet "couldn't refresh" hint, or shows a
       // retry empty state when there is no last good text.
+      // v1.25.3 — carry the upstream status so the read-path hint can tell an
+      // auth / rate-limit failure apart from a plain timeout. For an
+      // all-providers-failed error the first hop's status is the most
+      // representative; a single provider error exposes its own `httpStatus`.
+      const failureHttpStatus =
+        e instanceof AllProvidersFailedError
+          ? (e.attempts[0]?.httpStatus ?? null)
+          : typeof (e as { httpStatus?: number }).httpStatus === "number"
+            ? (e as { httpStatus?: number }).httpStatus
+            : null;
       void recordBriefingFailure({
         userId,
         reason:
@@ -767,6 +788,7 @@ export const POST = apiHandler((request: NextRequest) =>
             ? "all-providers-failed"
             : "provider-error",
         locale,
+        httpStatus: failureHttpStatus,
       });
       if (e instanceof AllProvidersFailedError) {
         annotate({

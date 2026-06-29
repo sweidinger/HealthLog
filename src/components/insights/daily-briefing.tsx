@@ -36,6 +36,7 @@ import type {
   DailyBriefingKeyFinding,
   DailyBriefingSignal,
 } from "@/lib/ai/schema";
+import type { BriefingFailureClass } from "@/lib/insights/briefing-failure-marker";
 
 /**
  * v1.4.27 MB7 / CF-68 — per-metric routing target for the briefing
@@ -127,6 +128,13 @@ interface DailyBriefingProps {
    * generic empty state for a "couldn't generate" one whose CTA retries.
    */
   generationFailed?: boolean;
+  /**
+   * v1.25.3 — coarse class of the most recent failure. When the empty state is
+   * shown ("couldn't generate"), it lets the hint point at the right lever:
+   * `timeout` → raise the AI response timeout, `auth` → re-check the provider.
+   * Absent / null → the generic failed-description holds.
+   */
+  generationFailureClass?: BriefingFailureClass | null;
   /**
    * Optional slot for a meta control mounted in the card header — the
    * comparison toggle migrates here from the hero in commit 5.
@@ -358,12 +366,27 @@ export function DailyBriefing({
   noProvider = false,
   noProviderStale = false,
   generationFailed = false,
+  generationFailureClass = null,
   metaSlot,
   memory = null,
 }: DailyBriefingProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const { user } = useAuth();
+
+  // v1.25.3 — when there is no last good text and the last attempt failed,
+  // point the hint at the lever that matches the failure class. A timeout (the
+  // dominant failure on a slow self-hosted model) → raise the AI response
+  // timeout; an auth / config rejection → re-check the provider in Settings.
+  // Anything else keeps the calmer generic line. Non-alarming by design.
+  const failedDescriptionKey =
+    generationFailureClass === "timeout"
+      ? "insights.dailyBriefing.failedDescriptionTimeout"
+      : generationFailureClass === "auth"
+        ? "insights.dailyBriefing.failedDescriptionProvider"
+        : generationFailureClass === "rate-limit"
+          ? "insights.dailyBriefing.failedDescriptionRateLimit"
+          : "insights.dailyBriefing.failedDescription";
 
   return (
     // v1.13.1 — heading-above-card pattern. The "Tagesbriefing" title
@@ -588,7 +611,7 @@ export function DailyBriefing({
               }
               description={
                 generationFailed
-                  ? t("insights.dailyBriefing.failedDescription")
+                  ? t(failedDescriptionKey)
                   : t("insights.dailyBriefing.emptyDescription")
               }
               action={

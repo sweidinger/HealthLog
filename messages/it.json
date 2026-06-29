@@ -2066,7 +2066,10 @@
       "refreshFailedHint": "Impossibile aggiornare il briefing: viene mostrato l'ultimo.",
       "retryAction": "Riprova",
       "failedTitle": "Impossibile generare il briefing",
-      "failedDescription": "Il provider IA ha superato il tempo limite o ha restituito un errore. Riprova oppure aumenta il timeout di risposta nelle impostazioni IA per un modello locale lento."
+      "failedDescription": "Il provider IA ha superato il tempo limite o ha restituito un errore. Riprova oppure aumenta il timeout di risposta nelle impostazioni IA per un modello locale lento.",
+      "failedDescriptionTimeout": "La richiesta IA ha superato il tempo limite prima che il briefing fosse pronto. Per un modello locale lento, aumenta il timeout di risposta nelle Impostazioni e riprova.",
+      "failedDescriptionProvider": "Il provider IA ha rifiutato la richiesta. Controlla il provider e la chiave API nelle impostazioni IA e riprova.",
+      "failedDescriptionRateLimit": "Il provider IA sta limitando le richieste in questo momento. Riprova tra poco."
     },
     "trendsRow": {
       "title": "Tendenze",
@@ -4671,7 +4674,7 @@
       "responseTimeoutHeading": "Timeout della risposta",
       "responseTimeoutBody": "Quanto attendere la risposta dell'IA prima di annullare. Aumentalo per un modello locale o self-hosted che ha bisogno di tempo per caricarsi alla prima richiesta.",
       "responseTimeoutLabel": "Timeout della risposta (secondi)",
-      "responseTimeoutPlaceholder": "Predefinito (~180)",
+      "responseTimeoutPlaceholder": "Predefinito (~120)",
       "responseTimeoutInvalid": "Inserisci un numero tra 10 e 600 secondi.",
       "ocrHeading": "Scansione documenti (referti di laboratorio)",
       "ocrBody": "Usa un provider dedicato per leggere i referti di laboratorio caricati. Se disattivato, la scansione usa il tuo provider principale.",

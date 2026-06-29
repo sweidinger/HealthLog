@@ -1049,7 +1049,12 @@ export async function generateComprehensiveInsight(
     // discreet "couldn't refresh" hint alongside the preserved last-good
     // briefing. No cache row is written here, so `insightsCachedText` (the
     // last good payload) stays intact and the surface never blanks.
-    void recordBriefingFailure({ userId, reason, locale });
+    void recordBriefingFailure({
+      userId,
+      reason,
+      locale,
+      httpStatus: typeof err.httpStatus === "number" ? err.httpStatus : null,
+    });
     return { status: "failed", reason };
   }
 
