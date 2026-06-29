@@ -7565,7 +7565,6 @@
     "choosePrompt": "Choose a check-in",
     "start": "Start",
     "back": "Back",
-    "stem": "Over the last 2 weeks, how often have you been bothered by the following problems?",
     "submit": "See my result",
     "submitting": "Saving…",
     "saved": "Saved",
@@ -7615,7 +7614,14 @@
     },
     "history": {
       "title": "Your history",
-      "empty": "No check-ins yet. Your trend will appear here once you complete one."
+      "empty": "No check-ins yet. Your trend will appear here once you complete one.",
+      "chartTitle": "Score trend",
+      "flaggedBadge": "Support shown",
+      "totalLabel": "Score",
+      "tab": {
+        "phq9": "PHQ-9",
+        "gad7": "GAD-7"
+      }
     },
     "crisis": {
       "title": "You don't have to face this alone",
@@ -7667,6 +7673,25 @@
       "crisisTextLine": {
         "name": "Crisis Text Line"
       }
+    },
+    "instrumentDescription": {
+      "phq9": "9-question depression screen. Answer for the last two weeks.",
+      "gad7": "7-question anxiety screen. Answer for the last two weeks."
+    },
+    "progress": "{current} / {total}",
+    "questionAria": "Question {current} of {total}",
+    "next": "Next",
+    "lastResult": "Last result",
+    "noResultYet": "No check-in yet",
+    "backToList": "Overview",
+    "jumpFirst": "Jump to first question",
+    "jumpLast": "Jump to last question",
+    "review": {
+      "title": "Review",
+      "recap": "You answered {answered} of {total} questions."
+    },
+    "landing": {
+      "disclaimer": "These are voluntary self-tests, not a diagnosis. They support a conversation with a professional; they don't replace one."
     }
   },
   "records": {

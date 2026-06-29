@@ -7565,7 +7565,6 @@
     "choosePrompt": "Scegli un check-in",
     "start": "Inizia",
     "back": "Indietro",
-    "stem": "Nelle ultime 2 settimane, con quale frequenza ti hanno disturbato i seguenti problemi?",
     "submit": "Vedi il mio risultato",
     "submitting": "Salvataggio…",
     "saved": "Salvato",
@@ -7615,7 +7614,14 @@
     },
     "history": {
       "title": "La tua cronologia",
-      "empty": "Ancora nessun check-in. Il tuo andamento apparirà qui dopo che ne avrai completato uno."
+      "empty": "Ancora nessun check-in. Il tuo andamento apparirà qui dopo che ne avrai completato uno.",
+      "chartTitle": "Andamento del punteggio",
+      "flaggedBadge": "Supporto mostrato",
+      "totalLabel": "Punteggio",
+      "tab": {
+        "phq9": "PHQ-9",
+        "gad7": "GAD-7"
+      }
     },
     "crisis": {
       "title": "Non devi affrontare tutto questo da solo/a",
@@ -7667,6 +7673,25 @@
       "crisisTextLine": {
         "name": "Crisis Text Line"
       }
+    },
+    "instrumentDescription": {
+      "phq9": "Screening della depressione in 9 domande. Rispondi pensando alle ultime due settimane.",
+      "gad7": "Screening dell'ansia in 7 domande. Rispondi pensando alle ultime due settimane."
+    },
+    "progress": "{current} / {total}",
+    "questionAria": "Domanda {current} di {total}",
+    "next": "Avanti",
+    "lastResult": "Ultimo risultato",
+    "noResultYet": "Ancora nessun check-in",
+    "backToList": "Panoramica",
+    "jumpFirst": "Vai alla prima domanda",
+    "jumpLast": "Vai all'ultima domanda",
+    "review": {
+      "title": "Riepilogo",
+      "recap": "Hai risposto a {answered} domande su {total}."
+    },
+    "landing": {
+      "disclaimer": "Sono autovalutazioni volontarie, non una diagnosi. Sostengono il confronto con un professionista, non lo sostituiscono."
     }
   },
   "records": {

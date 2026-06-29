@@ -7565,7 +7565,6 @@
     "choosePrompt": "Check-in auswählen",
     "start": "Starten",
     "back": "Zurück",
-    "stem": "Wie oft fühltest du dich im Verlauf der letzten 2 Wochen durch die folgenden Beschwerden beeinträchtigt?",
     "submit": "Ergebnis ansehen",
     "submitting": "Wird gespeichert…",
     "saved": "Gespeichert",
@@ -7615,7 +7614,14 @@
     },
     "history": {
       "title": "Dein Verlauf",
-      "empty": "Noch keine Check-ins. Dein Verlauf erscheint hier, sobald du einen abgeschlossen hast."
+      "empty": "Noch keine Check-ins. Dein Verlauf erscheint hier, sobald du einen abgeschlossen hast.",
+      "chartTitle": "Punkteverlauf",
+      "flaggedBadge": "Hilfe angezeigt",
+      "totalLabel": "Punkte",
+      "tab": {
+        "phq9": "PHQ-9",
+        "gad7": "GAD-7"
+      }
     },
     "crisis": {
       "title": "Du musst das nicht allein durchstehen",
@@ -7667,6 +7673,25 @@
       "crisisTextLine": {
         "name": "Crisis Text Line"
       }
+    },
+    "instrumentDescription": {
+      "phq9": "Depressions-Screening mit 9 Fragen. Beziehe dich auf die letzten zwei Wochen.",
+      "gad7": "Angst-Screening mit 7 Fragen. Beziehe dich auf die letzten zwei Wochen."
+    },
+    "progress": "{current} / {total}",
+    "questionAria": "Frage {current} von {total}",
+    "next": "Weiter",
+    "lastResult": "Letztes Ergebnis",
+    "noResultYet": "Noch kein Check-in",
+    "backToList": "Übersicht",
+    "jumpFirst": "Zur ersten Frage springen",
+    "jumpLast": "Zur letzten Frage springen",
+    "review": {
+      "title": "Überblick",
+      "recap": "Du hast {answered} von {total} Fragen beantwortet."
+    },
+    "landing": {
+      "disclaimer": "Dies sind freiwillige Selbsttests, keine Diagnose. Sie unterstützen das Gespräch mit einer Fachperson, ersetzen es aber nicht."
     }
   },
   "records": {
