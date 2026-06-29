@@ -13,7 +13,11 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useTimeFormatPreference } from "@/lib/i18n/context";
+import {
+  hourCycleOptions,
+  type TimeFormatPreference,
+} from "@/lib/format-locale";
 import type { WorkoutListEntry } from "@/hooks/use-workouts";
 
 /**
@@ -76,7 +80,11 @@ function formatEnergy(kcal: number, locale: string): string {
   }).format(Math.round(kcal));
 }
 
-function formatDate(iso: string, locale: string): string {
+function formatDate(
+  iso: string,
+  locale: string,
+  timeFormat: TimeFormatPreference,
+): string {
   const d = new Date(iso);
   return new Intl.DateTimeFormat(locale, {
     weekday: "short",
@@ -84,6 +92,7 @@ function formatDate(iso: string, locale: string): string {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    ...hourCycleOptions(timeFormat),
   }).format(d);
 }
 
@@ -94,6 +103,7 @@ export interface WorkoutListProps {
 
 export function WorkoutList({ workouts, className }: WorkoutListProps) {
   const { t, locale } = useTranslations();
+  const timeFormat = useTimeFormatPreference();
 
   return (
     <ul
@@ -129,7 +139,7 @@ export function WorkoutList({ workouts, className }: WorkoutListProps) {
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate font-medium">{sportName}</span>
                 <span className="text-muted-foreground truncate text-xs">
-                  {formatDate(workout.startedAt, locale)}
+                  {formatDate(workout.startedAt, locale, timeFormat)}
                 </span>
               </div>
               <div className="flex flex-col items-end gap-0.5 text-xs">

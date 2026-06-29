@@ -17,7 +17,11 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useTimeFormatPreference } from "@/lib/i18n/context";
+import {
+  hourCycleOptions,
+  type TimeFormatPreference,
+} from "@/lib/format-locale";
 import type { WorkoutDetailPayload } from "@/hooks/use-workouts";
 
 /**
@@ -103,6 +107,7 @@ function formatDateRange(
   startedAt: string,
   endedAt: string,
   locale: string,
+  timeFormat: TimeFormatPreference,
 ): string {
   const start = new Date(startedAt);
   const end = new Date(endedAt);
@@ -115,6 +120,7 @@ function formatDateRange(
   const timeFmt = new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
+    ...hourCycleOptions(timeFormat),
   });
   return `${dateFmt.format(start)} · ${timeFmt.format(start)} – ${timeFmt.format(end)}`;
 }
@@ -139,6 +145,7 @@ function renderSportIconBadge(sportType: string) {
 
 export function WorkoutDetailHeader({ workout }: WorkoutDetailHeaderProps) {
   const { t, locale } = useTranslations();
+  const timeFormat = useTimeFormatPreference();
   const sportLabelKey = `insights.workouts.sport.${workout.sportType}`;
   const sportLabel = t(sportLabelKey);
   const sportName =
@@ -158,7 +165,12 @@ export function WorkoutDetailHeader({ workout }: WorkoutDetailHeaderProps) {
           {sportName}
         </h2>
         <p className="text-muted-foreground text-sm">
-          {formatDateRange(workout.startedAt, workout.endedAt, locale)}
+          {formatDateRange(
+            workout.startedAt,
+            workout.endedAt,
+            locale,
+            timeFormat,
+          )}
         </p>
       </div>
       <div className="flex flex-col items-end text-right">

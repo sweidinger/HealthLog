@@ -61,8 +61,17 @@ export type DateFormatPreference = "AUTO" | "DMY" | "MDY" | "YMD";
 /**
  * Intl options for the requested hour cycle. AUTO contributes nothing so
  * `Intl.DateTimeFormat` falls back to the locale default.
+ *
+ * Exported so call sites that build their own `Intl.DateTimeFormat` (chart
+ * axes, list rows that deliberately render in the browser timezone rather
+ * than the profile zone) can still honour the user's H12 / H24 preference by
+ * spreading these options. Pair it with `useTimeFormatPreference()` on the
+ * client. Any new hour/minute renderer must route through this rather than
+ * re-deciding the cycle locally — that is the regression this single source
+ * prevents (an `en`-locale or AUTO user got AM/PM even with H24 selected
+ * wherever a formatter omitted the cycle).
  */
-function hourCycleOptions(
+export function hourCycleOptions(
   timeFormat: TimeFormatPreference,
 ): Intl.DateTimeFormatOptions {
   switch (timeFormat) {
