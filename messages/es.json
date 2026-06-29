@@ -4018,46 +4018,16 @@
       "disableError": "No se pudo desactivar el modo Investigación. Inténtalo de nuevo."
     },
     "shell": {
-      "sectionsNav": "Secciones de ajustes",
-      "subSectionsNav": "Subsecciones de ajustes"
-    },
-    "groups": {
-      "account": {
-        "title": "Cuenta"
-      },
-      "tracking": {
-        "title": "Seguimiento"
-      },
-      "display": {
-        "title": "Visualización"
-      },
-      "integrations": {
-        "title": "Integraciones"
-      },
-      "notifications": {
-        "title": "Notificaciones"
-      },
-      "ai": {
-        "title": "IA y Coach"
-      },
-      "access": {
-        "title": "API y acceso"
-      },
-      "data": {
-        "title": "Datos y privacidad"
-      },
-      "about": {
-        "title": "Acerca de"
-      }
+      "sectionsNav": "Secciones de ajustes"
     },
     "sections": {
       "account": {
-        "title": "Perfil y preferencias",
+        "title": "Cuenta",
         "description": "Perfil, contraseña, claves de acceso y tu recorrido de incorporación.",
         "subtitle": "Tu perfil, identidad y datos de acceso."
       },
       "integrations": {
-        "title": "Conexiones",
+        "title": "Integraciones",
         "description": "Servicios conectados, canales de entrega y prioridad de fuentes en un solo lugar.",
         "subtitle": "Conecta y gestiona tus fuentes de datos y dispositivos."
       },
@@ -4069,7 +4039,7 @@
         "subtitle": "Elige qué recordatorios recibes."
       },
       "layout": {
-        "title": "Visualización",
+        "title": "Panel",
         "description": "Organiza cómo están dispuestos el panel y los análisis.",
         "backToHub": "Volver a Diseño y personalización",
         "dashboard": {
@@ -4348,9 +4318,9 @@
         "subtitle": "Autenticación de dos factores, códigos de recuperación y claves de acceso."
       },
       "privacy": {
-        "title": "Privacidad y retención",
-        "subtitle": "Tus datos, su retención y el cifrado en un solo lugar.",
-        "description": "Exportación, eliminación, retención y estado de cifrado."
+        "title": "Datos y privacidad",
+        "subtitle": "Tus datos, su retención, el cifrado y la seguridad de la cuenta en un solo lugar.",
+        "description": "Exportación, eliminación, retención, estado de cifrado, sesiones y actividad de seguridad."
       },
       "mcp": {
         "title": "Conector MCP",
@@ -5317,11 +5287,6 @@
         "description": "Controla cuántos de tus datos se comparten con las funciones de IA y la investigación opcional.",
         "openAi": "Modo de privacidad de IA",
         "openResearch": "Modo investigación"
-      },
-      "signIn": {
-        "title": "Inicio de sesión y dispositivos",
-        "description": "Las sesiones activas, los dispositivos de confianza y la actividad de inicio de sesión ahora están en la configuración de seguridad de tu cuenta.",
-        "openSecurity": "Gestionar inicio de sesión y seguridad"
       }
     },
     "mcp": {
