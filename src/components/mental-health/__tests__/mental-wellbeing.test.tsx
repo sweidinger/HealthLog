@@ -39,18 +39,25 @@ function withProviders(node: React.ReactNode): string {
   );
 }
 
-describe("disclaimer placement (§2 — never while testing)", () => {
-  // `renderToStaticMarkup` HTML-escapes apostrophes (don't → don&#x27;t), so
-  // assert on an apostrophe-free, distinctive slice of the disclaimer copy.
-  const DISCLAIMER_FRAGMENT = "voluntary self-tests, not a diagnosis";
-
-  it("renders the disclaimer on the landing", () => {
+describe("landing chrome (v1.25.5 — disclaimer + heading removed)", () => {
+  it("does NOT render the voluntary-self-test disclaimer anywhere", () => {
+    // The disclaimer line + its (i) tooltip were removed from the landing;
+    // the page leads with the description and the instrument cards.
     const html = withProviders(<MentalWellbeing />);
-    expect(html).toContain('data-slot="mental-health-disclaimer"');
-    expect(html).toContain(DISCLAIMER_FRAGMENT);
+    expect(html).not.toContain('data-slot="mental-health-disclaimer"');
+    expect(html).not.toContain("voluntary self-tests, not a diagnosis");
   });
 
-  it("does NOT render the disclaimer inside the check-in wizard", () => {
+  it("keeps the page title for screen readers but not as a visible heading", () => {
+    const html = withProviders(<MentalWellbeing />);
+    // The title survives as an sr-only h1 for the document outline.
+    expect(html).toContain(mh.pageTitle);
+    expect(html).toContain("sr-only");
+    // …and the lead description still introduces the screeners.
+    expect(html).toContain(mh.pageDescription);
+  });
+
+  it("does NOT render any disclaimer inside the check-in wizard", () => {
     const html = withProviders(
       <CheckInWizard
         instrument="PHQ9"
@@ -61,7 +68,6 @@ describe("disclaimer placement (§2 — never while testing)", () => {
       />,
     );
     expect(html).not.toContain('data-slot="mental-health-disclaimer"');
-    expect(html).not.toContain(DISCLAIMER_FRAGMENT);
     // …but the standardized instrument explanation IS shown.
     expect(html).toContain(mh.instrumentDescription.phq9);
   });

@@ -7579,7 +7579,6 @@
   "mentalHealth": {
     "pageTitle": "Sprawdzenie dobrostanu psychicznego",
     "pageDescription": "Dwa zwalidowane, dobrowolne testy — PHQ-9 (nastrój) i GAD-7 (lęk) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
-    "infoTooltip": "To jest przesiewowy autotest, a nie diagnoza.",
     "attributionLabel": "Źródło",
     "choosePrompt": "Wybierz sprawdzenie",
     "start": "Rozpocznij",
@@ -7640,7 +7639,8 @@
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      }
+      },
+      "bandLabel": "Kategoria"
     },
     "crisis": {
       "title": "Nie musisz mierzyć się z tym sam(a)",
@@ -7700,7 +7700,7 @@
     "progress": "{current} / {total}",
     "questionAria": "Pytanie {current} z {total}",
     "next": "Dalej",
-    "lastResult": "Ostatni wynik",
+    "lastResult": "Ostatni test",
     "noResultYet": "Brak check-inów",
     "backToList": "Przegląd",
     "jumpFirst": "Przejdź do pierwszego pytania",
@@ -7708,9 +7708,6 @@
     "review": {
       "title": "Podsumowanie",
       "recap": "Odpowiedziano na {answered} z {total} pytań."
-    },
-    "landing": {
-      "disclaimer": "To dobrowolne testy przesiewowe, a nie diagnoza. Wspierają rozmowę ze specjalistą, ale jej nie zastępują."
     }
   },
   "records": {

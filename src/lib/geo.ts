@@ -90,16 +90,16 @@ type GeoResponse = IpwhoIsResponse & IpApiProResponse;
 const PRIVATE_IP =
   /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1|fc|fd|fe80|localhost|unknown)/;
 
-// v1.18.11 (W3) — the default online provider is ip-api.com, not ipwho.is.
-// ipwho.is rejects datacentre / free-plan server egress with a 403
-// ("CORS is not supported on the Free plan"), which silently produced the
-// "—" location on prod (every server-side lookup failed). The base is
-// `https://ip-api.com/json`; `buildLookupUrl` appends `/<ip>` so the wire
-// URL is `https://ip-api.com/json/<ip>`. The parser already accepts the
-// ip-api.com shape (`status:"success"` + `countryCode`). Operators who need
-// a different / keyed provider override via `IP_GEO_LOOKUP_URL`; the HTTPS
-// egress guard in `buildLookupUrl` still applies to any override.
-const DEFAULT_GEO_URL = "https://ip-api.com/json";
+// v1.25.5 — ipwho.is is the default online provider again (free, no key, no
+// per-minute cap on the standard endpoint). The base is `https://ipwho.is`;
+// `buildLookupUrl` appends `/<ip>` so the wire URL is `https://ipwho.is/<ip>`.
+// The parser accepts BOTH the ipwho.is shape (`success` + `country_code`) and
+// the ip-api.com shape (`status` + `countryCode`), so operators whose egress
+// ipwho.is rejects can point `IP_GEO_LOOKUP_URL` at `https://ip-api.com/json`
+// (or any keyed provider matching one of those shapes) with no code change.
+// The offline GeoLite2 MMDB tier stays OPTIONAL — consulted only when the
+// online lookup misses, and skipped entirely when the databases are absent.
+const DEFAULT_GEO_URL = "https://ipwho.is";
 
 function geoLiteDir(): string {
   return process.env.GEOLITE2_DIR ?? "/opt/geolite2";

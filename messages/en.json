@@ -7579,7 +7579,6 @@
   "mentalHealth": {
     "pageTitle": "Mental wellbeing check-in",
     "pageDescription": "Two validated, opt-in self-assessments — PHQ-9 (mood) and GAD-7 (worry) — that sit beside your mood tracking. The value is the trend over time, not any single number.",
-    "infoTooltip": "This is a screening self-test, not a diagnosis.",
     "attributionLabel": "Attribution",
     "choosePrompt": "Choose a check-in",
     "start": "Start",
@@ -7640,7 +7639,8 @@
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      }
+      },
+      "bandLabel": "Category"
     },
     "crisis": {
       "title": "You don't have to face this alone",
@@ -7700,7 +7700,7 @@
     "progress": "{current} / {total}",
     "questionAria": "Question {current} of {total}",
     "next": "Next",
-    "lastResult": "Last result",
+    "lastResult": "Last test",
     "noResultYet": "No check-in yet",
     "backToList": "Overview",
     "jumpFirst": "Jump to first question",
@@ -7708,9 +7708,6 @@
     "review": {
       "title": "Review",
       "recap": "You answered {answered} of {total} questions."
-    },
-    "landing": {
-      "disclaimer": "These are voluntary self-tests, not a diagnosis. They support a conversation with a professional; they don't replace one."
     }
   },
   "records": {

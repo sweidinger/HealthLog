@@ -9,10 +9,10 @@
  * regardless of the last band — no severity tint (house rule: status reads
  * through a discreet badge only).
  */
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import { relativeCalendarDate } from "@/lib/i18n/relative-time";
 
 import type { AssessmentRow, InstrumentId } from "./types";
 
@@ -46,15 +46,17 @@ export function InstrumentCard({
           </span>
         </div>
 
-        <div className="text-muted-foreground min-h-5 text-xs">
+        {/* Last-test line in the medication-card grammar: label left, the
+            relative day (today / yesterday / date) right-aligned. The severity
+            band is intentionally NOT shown here — the trend below carries it. */}
+        <div className="text-muted-foreground flex min-h-5 items-center justify-between gap-2 text-xs">
           {last ? (
-            <span className="flex flex-wrap items-center gap-1.5">
+            <>
               <span>{t("mentalHealth.lastResult")}</span>
-              <Badge variant="secondary">
-                {t(`mentalHealth.band.${instrument}.${last.severityBand}`)}
-              </Badge>
-              <span>{formatDate(last.takenAt)}</span>
-            </span>
+              <span className="shrink-0">
+                {relativeCalendarDate(last.takenAt, t, formatDate)}
+              </span>
+            </>
           ) : (
             <span>{t("mentalHealth.noResultYet")}</span>
           )}

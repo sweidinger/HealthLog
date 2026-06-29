@@ -84,14 +84,15 @@ describe("lookupIpLocation IP-geolocation HTTPS guard", () => {
     );
   }
 
-  it("uses the ip-api.com HTTPS endpoint by default", async () => {
-    // v1.18.11 (W3): default provider is ip-api.com (ipwho.is 403s on
-    // datacentre egress). The wire URL must be the ip-api.com JSON path
-    // and the parser must accept its `status`/`countryCode` shape.
+  it("uses the ipwho.is HTTPS endpoint by default", async () => {
+    // v1.25.5: ipwho.is is the default provider again. The wire URL must be
+    // the ipwho.is path and the parser must accept its `success`/`country_code`
+    // shape. (Operators whose egress ipwho.is rejects override IP_GEO_LOOKUP_URL
+    // to ip-api.com — the parser still accepts that shape; covered below.)
     const fetchSpy = vi
       .fn()
       .mockResolvedValue(
-        jsonOk({ status: "success", city: "Berlin", countryCode: "DE" }),
+        jsonOk({ success: true, city: "Berlin", country_code: "DE" }),
       );
     vi.stubGlobal("fetch", fetchSpy);
     const { lookupIpLocation } = await import("../geo");
@@ -99,7 +100,7 @@ describe("lookupIpLocation IP-geolocation HTTPS guard", () => {
     expect(await lookupIpLocation("8.8.8.8")).toBe("Berlin, DE");
     const url = fetchSpy.mock.calls[0]?.[0] as string;
     expect(url.startsWith("https://")).toBe(true);
-    expect(url).toBe("https://ip-api.com/json/8.8.8.8");
+    expect(url).toBe("https://ipwho.is/8.8.8.8");
   });
 
   it("refuses to call non-HTTPS configured providers", async () => {

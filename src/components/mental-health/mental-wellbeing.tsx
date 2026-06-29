@@ -26,7 +26,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
-import { InfoHint } from "@/components/ui/info-hint";
 
 import { AssessmentHistory } from "./assessment-history";
 import { AssessmentResult } from "./assessment-result";
@@ -99,25 +98,15 @@ export function MentalWellbeing() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       {phase === "choose" && (
         <>
           <header className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-2xl font-semibold">
-                {t("mentalHealth.pageTitle")}
-              </h1>
-              <InfoHint label={t("mentalHealth.infoTooltip")} />
-            </div>
+            {/* Title kept for screen readers / document outline only — the
+                visible heading + its tooltip were removed (§ Marc v1.25.5). */}
+            <h1 className="sr-only">{t("mentalHealth.pageTitle")}</h1>
             <p className="text-muted-foreground text-sm">
               {t("mentalHealth.pageDescription")}
-            </p>
-            {/* The ONLY place the disclaimer renders as body text (§2). */}
-            <p
-              className="text-muted-foreground text-xs"
-              data-slot="mental-health-disclaimer"
-            >
-              {t("mentalHealth.landing.disclaimer")}
             </p>
           </header>
 

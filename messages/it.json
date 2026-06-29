@@ -7579,7 +7579,6 @@
   "mentalHealth": {
     "pageTitle": "Check-in sul benessere mentale",
     "pageDescription": "Due autovalutazioni validate e facoltative — PHQ-9 (umore) e GAD-7 (preoccupazione) — accanto al tuo diario dell'umore. Ciò che conta è l'andamento nel tempo, non un singolo numero.",
-    "infoTooltip": "Questo è un autotest di screening, non una diagnosi.",
     "attributionLabel": "Fonte",
     "choosePrompt": "Scegli un check-in",
     "start": "Inizia",
@@ -7640,7 +7639,8 @@
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      }
+      },
+      "bandLabel": "Categoria"
     },
     "crisis": {
       "title": "Non devi affrontare tutto questo da solo/a",
@@ -7700,7 +7700,7 @@
     "progress": "{current} / {total}",
     "questionAria": "Domanda {current} di {total}",
     "next": "Avanti",
-    "lastResult": "Ultimo risultato",
+    "lastResult": "Ultimo test",
     "noResultYet": "Ancora nessun check-in",
     "backToList": "Panoramica",
     "jumpFirst": "Vai alla prima domanda",
@@ -7708,9 +7708,6 @@
     "review": {
       "title": "Riepilogo",
       "recap": "Hai risposto a {answered} domande su {total}."
-    },
-    "landing": {
-      "disclaimer": "Sono autovalutazioni volontarie, non una diagnosi. Sostengono il confronto con un professionista, non lo sostituiscono."
     }
   },
   "records": {
