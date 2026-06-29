@@ -190,6 +190,30 @@ function getDefaultMeasuredAtValue() {
   return local.toISOString().slice(0, 16);
 }
 
+/**
+ * Field label that keeps the "Name (unit)" translation on a single line even
+ * in the narrow three-column blood-pressure grid: the metric name truncates if
+ * it must, while the unit renders as a small muted affix that never wraps. The
+ * label strings stay localised — we split the trailing "(unit)" the catalogue
+ * already carries rather than dropping it (so "mmHg" / "bpm" / locale variants
+ * like "lpm" survive).
+ */
+function UnitLabel({ htmlFor, label }: { htmlFor: string; label: string }) {
+  const match = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(label);
+  const name = match ? match[1] : label;
+  const unit = match ? match[2] : null;
+  return (
+    <Label htmlFor={htmlFor} className="flex items-baseline gap-1">
+      <span className="truncate">{name}</span>
+      {unit ? (
+        <span className="text-muted-foreground shrink-0 text-xs font-normal">
+          {unit}
+        </span>
+      ) : null}
+    </Label>
+  );
+}
+
 export function MeasurementForm({
   onSuccess,
   onCancel,
@@ -383,7 +407,7 @@ export function MeasurementForm({
       {isBpMode ? (
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="sys">{t("measurements.systolicLabel")}</Label>
+            <UnitLabel htmlFor="sys" label={t("measurements.systolicLabel")} />
             <Input
               id="sys"
               type="number"
@@ -402,7 +426,7 @@ export function MeasurementForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="dia">{t("measurements.diastolicLabel")}</Label>
+            <UnitLabel htmlFor="dia" label={t("measurements.diastolicLabel")} />
             <Input
               id="dia"
               type="number"
@@ -421,7 +445,7 @@ export function MeasurementForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="puls">{t("measurements.pulseLabel")}</Label>
+            <UnitLabel htmlFor="puls" label={t("measurements.pulseLabel")} />
             <Input
               id="puls"
               type="number"

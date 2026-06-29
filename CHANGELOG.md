@@ -10,6 +10,7 @@ A focused fix release. No schema change.
 
 - **The time picker now follows your 24-hour preference.** The earlier fix corrected the times shown across the app, but tapping a date/time field still opened the browser's own time picker — which renders its clock (and the AM/PM toggle) by the browser's language, not the app's. On an English-language browser you saw AM/PM even with 24-hour selected. The field now uses its own time picker, so hours/minutes always follow your preference (24-hour, 12-hour, or automatic) in every browser. The date half keeps the familiar native calendar.
 - The doctor-report PDF's "generated at" timestamp now honors the time-format preference as well, instead of falling back to the locale default.
+- When adding a blood-pressure reading, the systolic / diastolic / pulse field labels no longer wrap onto a second line in the three-column layout — the metric name stays prominent and its unit (mmHg / bpm) sits beside it as a compact affix.
 
 ## [1.25.3] — 2026-06-29 — Mental wellbeing, labs depth, and fixes
 
