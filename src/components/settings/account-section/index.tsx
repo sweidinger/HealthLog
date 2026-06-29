@@ -37,7 +37,8 @@ import {
   type StatusMessage,
 } from "./account-section-utils";
 import { AvatarSection } from "./avatar-section";
-import { AccountDeleteCard } from "@/components/settings/account-delete-card";
+import { SecuritySessionsCard } from "@/components/settings/security-sessions-card";
+import { SecurityActivityCard } from "@/components/settings/security-activity-card";
 
 export { resolveInitialTimezone } from "./account-section-utils";
 
@@ -497,17 +498,11 @@ export function AccountSection() {
         </div>
       </SettingsCard>
 
-      {/* v1.25.1 (H1) — active-session management + trusted devices + the
-          security-activity feed moved to the Account → Security sub-tab, so all
-          "who can sign in as me" controls (2FA, passkeys, recovery, sessions,
-          devices, login activity) live in one place instead of being split
-          across the Profile tab and the Data & Privacy group. */}
-
-      {/* v1.25.1 (Q2-M3) — account deletion lives here now (it was in the
-          Data & Privacy group's Advanced page). Deleting your account is an
-          account-lifecycle action; it sits at the foot of the profile surface
-          as the page's danger zone. */}
-      <AccountDeleteCard />
+      {/* v1.23 — active-session management (issue #64) + the security-activity
+          feed. Both sit in the account/security block under the credential
+          controls above. */}
+      <SecuritySessionsCard isAuthenticated={isAuthenticated} />
+      <SecurityActivityCard isAuthenticated={isAuthenticated} />
 
       {/* v1.18.1 (D1) — the "Tour neu starten" card moved to Settings →
           Erweitert. It is a maintenance / reset action, not a profile or

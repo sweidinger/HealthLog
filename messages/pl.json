@@ -4018,46 +4018,16 @@
       "disableError": "Nie udało się wyłączyć trybu Badawczego. Spróbuj ponownie."
     },
     "shell": {
-      "sectionsNav": "Sekcje ustawień",
-      "subSectionsNav": "Podsekcje ustawień"
-    },
-    "groups": {
-      "account": {
-        "title": "Konto"
-      },
-      "tracking": {
-        "title": "Śledzenie"
-      },
-      "display": {
-        "title": "Wyświetlanie"
-      },
-      "integrations": {
-        "title": "Integracje"
-      },
-      "notifications": {
-        "title": "Powiadomienia"
-      },
-      "ai": {
-        "title": "AI i Coach"
-      },
-      "access": {
-        "title": "API i dostęp"
-      },
-      "data": {
-        "title": "Dane i prywatność"
-      },
-      "about": {
-        "title": "O aplikacji"
-      }
+      "sectionsNav": "Sekcje ustawień"
     },
     "sections": {
       "account": {
-        "title": "Profil i preferencje",
+        "title": "Konto",
         "description": "Profil, hasło, klucze dostępu i przewodnik wprowadzający.",
         "subtitle": "Twój profil, tożsamość i dane logowania."
       },
       "integrations": {
-        "title": "Połączenia",
+        "title": "Integracje",
         "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
         "subtitle": "Połącz i zarządzaj źródłami danych oraz urządzeniami."
       },
@@ -4069,7 +4039,7 @@
         "subtitle": "Wybierz, które przypomnienia otrzymujesz."
       },
       "layout": {
-        "title": "Wyświetlanie",
+        "title": "Pulpit",
         "description": "Ustal, jak rozłożone są pulpit i analizy.",
         "backToHub": "Powrót do Układ i personalizacja",
         "dashboard": {
@@ -4348,9 +4318,9 @@
         "subtitle": "Uwierzytelnianie dwuskładnikowe, kody odzyskiwania i klucze dostępu."
       },
       "privacy": {
-        "title": "Prywatność i przechowywanie",
-        "subtitle": "Twoje dane, retencja i szyfrowanie w jednym miejscu.",
-        "description": "Eksport, usuwanie, retencja i stan szyfrowania."
+        "title": "Dane i prywatność",
+        "subtitle": "Twoje dane, retencja, szyfrowanie i bezpieczeństwo konta w jednym miejscu.",
+        "description": "Eksport, usuwanie, retencja, stan szyfrowania, sesje i aktywność zabezpieczeń."
       },
       "mcp": {
         "title": "Łącznik MCP",
@@ -5317,11 +5287,6 @@
         "description": "Kontroluj, ile Twoich danych jest udostępnianych funkcjom AI i opcjonalnym badaniom.",
         "openAi": "Tryb prywatności AI",
         "openResearch": "Tryb badawczy"
-      },
-      "signIn": {
-        "title": "Logowanie i urządzenia",
-        "description": "Aktywne sesje, zaufane urządzenia i aktywność logowania znajdują się teraz w ustawieniach zabezpieczeń konta.",
-        "openSecurity": "Zarządzaj logowaniem i zabezpieczeniami"
       }
     },
     "mcp": {

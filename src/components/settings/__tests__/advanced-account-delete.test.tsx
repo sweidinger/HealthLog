@@ -1,19 +1,15 @@
 /**
- * v1.4.43 QoL (M3 + L5) — danger-zone shaping.
+ * v1.4.43 QoL (M3 + L5) — `<AdvancedSection>` danger-zone shaping.
  *
  *   M3: a separate "Delete account entirely" destructive card
- *       (`AccountDeleteCard`) gives the GDPR Article 17 full-erasure CTA its
- *       own surface alongside the half-erasure data reset.
+ *       (`AccountDeleteCard`) sits beside the existing `DataResetCard`
+ *       so a user reading the GDPR Article 17 surface has the full
+ *       erasure CTA right next to the half-erasure one.
  *
  *   L5: the data-reset card no longer paints a red `AlertTriangle`
  *       icon and the title sits in the neutral foreground colour
  *       (mirrors GitHub's danger-zone shaping). The CTA button stays
  *       red; the protective confirmation dialog stays unchanged.
- *
- * v1.25.1 (Q2-M3): account deletion moved out of `<AdvancedSection>` (Data &
- * Privacy group) into the Account group as a standalone `<AccountDeleteCard>`.
- * The L5 data-reset assertions still target `<AdvancedSection>`; the M3
- * account-delete assertions now render the relocated card directly.
  *
  * SSR-only — we render the component statically and inspect the
  * markup. The mutation handlers don't fire in SSR, so this test only
@@ -38,7 +34,6 @@ vi.mock("@/components/medications/research-mode-acknowledgment-dialog", () => ({
 }));
 
 import { AdvancedSection } from "../advanced-section";
-import { AccountDeleteCard } from "../account-delete-card";
 
 function render(locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
@@ -48,25 +43,11 @@ function render(locale: "en" | "de" = "en") {
   );
 }
 
-function renderDeleteCard(locale: "en" | "de" = "en") {
-  return renderToStaticMarkup(
-    <I18nProvider initialLocale={locale}>
-      <AccountDeleteCard />
-    </I18nProvider>,
-  );
-}
-
-describe("<AdvancedSection> danger-zone shaping (v1.4.43 L5)", () => {
-  it("mounts the data-reset card", () => {
+describe("<AdvancedSection> danger-zone shaping (v1.4.43 M3 + L5)", () => {
+  it("mounts both the data-reset card and the account-delete card", () => {
     const html = render();
     expect(html).toContain('data-slot="settings-data-reset-card"');
-  });
-
-  it("v1.25.1 (Q2-M3): no longer mounts the account-delete card", () => {
-    // Account deletion graduated to the Account group; Advanced keeps research
-    // mode + the data reset only.
-    const html = render();
-    expect(html).not.toContain('data-slot="settings-account-delete-card"');
+    expect(html).toContain('data-slot="settings-account-delete-card"');
   });
 
   it("L5: the data-reset card title is neutral foreground (no destructive red)", () => {
@@ -94,16 +75,9 @@ describe("<AdvancedSection> danger-zone shaping (v1.4.43 L5)", () => {
     expect(cardMatch).not.toBeNull();
     expect(cardMatch![0]).not.toMatch(/lucide-alert-triangle/);
   });
-});
-
-describe("<AccountDeleteCard> (v1.4.43 M3, relocated v1.25.1 Q2-M3)", () => {
-  it("renders the account-delete card", () => {
-    const html = renderDeleteCard();
-    expect(html).toContain('data-slot="settings-account-delete-card"');
-  });
 
   it("M3: the account-delete card uses the destructive Button variant", () => {
-    const html = renderDeleteCard();
+    const html = render();
     expect(html).toContain('data-slot="settings-account-delete-trigger"');
     // The trigger button still wears the destructive style — the CTA
     // remains red even though the surrounding card chrome is neutral.
@@ -117,14 +91,14 @@ describe("<AccountDeleteCard> (v1.4.43 M3, relocated v1.25.1 Q2-M3)", () => {
   });
 
   it("M3: the account-delete card surfaces tight DE copy under the 'de' locale", () => {
-    const html = renderDeleteCard("de");
+    const html = render("de");
     expect(html).toContain("Konto vollständig löschen");
     // The descriptive sentence calls out the cascade scope plainly.
     expect(html).toContain("Passkeys");
   });
 
   it("M3: the account-delete card surfaces tight EN copy under the 'en' locale", () => {
-    const html = renderDeleteCard("en");
+    const html = render("en");
     expect(html).toContain("Delete account entirely");
     expect(html).toContain("passkeys");
   });

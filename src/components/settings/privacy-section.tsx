@@ -29,6 +29,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { SettingsInfoTile } from "@/components/settings/_info-tile";
+import { SecuritySessionsCard } from "@/components/settings/security-sessions-card";
+import { SecurityActivityCard } from "@/components/settings/security-activity-card";
+import { TrustedDevicesCard } from "@/components/settings/trusted-devices-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -214,25 +217,10 @@ export function PrivacySection() {
         </div>
       </SettingsCard>
 
-      {/* v1.25.1 (H1) — active sessions, trusted devices, and the
-          security-activity feed moved to Account → Security so all "who can
-          sign in as me" controls sit in one place. They are not re-embedded
-          here; this pane keeps the data / retention / encryption story. */}
-      <SettingsCard>
-        <SettingsCardHeader
-          icon={ShieldCheck}
-          title={t("settings.privacy.signIn.title")}
-          description={t("settings.privacy.signIn.description")}
-          className="mb-4"
-        />
-        <div className="pl-7">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/settings/security">
-              {t("settings.privacy.signIn.openSecurity")}
-            </Link>
-          </Button>
-        </div>
-      </SettingsCard>
+      {/* Active sessions + trusted devices + security activity (embedded) */}
+      <SecuritySessionsCard isAuthenticated={isAuthenticated} />
+      <TrustedDevicesCard isAuthenticated={isAuthenticated} />
+      <SecurityActivityCard isAuthenticated={isAuthenticated} />
     </div>
   );
 }
