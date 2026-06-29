@@ -18,7 +18,12 @@ import { prisma } from "@/lib/db";
 import { lookupIpGeo } from "@/lib/geo";
 
 const ENTRY = { id: "audit-1" };
-const EMPTY_GEO = { location: null, asn: null, carrier: null };
+type GeoResolved = {
+  location: string | null;
+  asn: number | null;
+  carrier: string | null;
+};
+const EMPTY_GEO: GeoResolved = { location: null, asn: null, carrier: null };
 
 beforeEach(() => {
   vi.resetAllMocks();
