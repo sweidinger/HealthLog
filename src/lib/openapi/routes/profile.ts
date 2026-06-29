@@ -339,7 +339,7 @@ const aiProviderResponse = z
       .int()
       .nullable()
       .describe(
-        "v1.22 (#89) — per-user response timeout for AI generation, in seconds (10–600). Null = the generous built-in default (~180 s). Mainly for slow local/self-hosted backends.",
+        "v1.22 (#89) — per-user response timeout for AI generation, in seconds (10–600). Null = the built-in comprehensive-briefing default (~120 s). Mainly for slow local/self-hosted backends.",
       ),
     ocrEnabled: z
       .boolean()

@@ -480,6 +480,9 @@ export default function InsightsPage() {
         // generate" one. Suppressed when no provider is configured (that hint
         // owns the surface and a retry would be futile).
         generationFailed={advisor.generationFailed && advisor.hasProvider}
+        // v1.25.3 — failure class points the empty-state hint at the right
+        // lever (raise the response timeout vs re-check the provider).
+        generationFailureClass={advisor.generationFailureClass}
         // v1.21.2 (A4) — server-resolved recall + forward-look off the dashboard
         // snapshot. Both strings are already localised; null leaves the card's
         // memory block unrendered.

@@ -16945,8 +16945,8 @@ components:
               minimum: -9007199254740991
               maximum: 9007199254740991
             - type: "null"
-          description: v1.22 (#89) — per-user response timeout for AI generation, in seconds (10–600). Null = the generous
-            built-in default (~180 s). Mainly for slow local/self-hosted backends.
+          description: v1.22 (#89) — per-user response timeout for AI generation, in seconds (10–600). Null = the built-in
+            comprehensive-briefing default (~120 s). Mainly for slow local/self-hosted backends.
         ocrEnabled:
           type: boolean
           description: v1.22 (#90) — whether a dedicated document-scan (Lab-OCR) provider is active. When false the OCR path uses

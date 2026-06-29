@@ -2066,7 +2066,10 @@
       "refreshFailedHint": "Couldn't refresh the briefing — showing the last one.",
       "retryAction": "Retry",
       "failedTitle": "Couldn't generate the briefing",
-      "failedDescription": "The AI provider timed out or returned an error. Try again, or raise the response timeout in AI settings for a slow local model."
+      "failedDescription": "The AI provider timed out or returned an error. Try again, or raise the response timeout in AI settings for a slow local model.",
+      "failedDescriptionTimeout": "The AI request ran out of time before the briefing was ready. For a slow local model, raise the AI response timeout in Settings, then try again.",
+      "failedDescriptionProvider": "The AI provider rejected the request. Re-check the provider and API key in AI settings, then try again.",
+      "failedDescriptionRateLimit": "The AI provider is rate-limiting requests right now. Try again in a little while."
     },
     "trendsRow": {
       "title": "Trends",
@@ -4671,7 +4674,7 @@
       "responseTimeoutHeading": "Response timeout",
       "responseTimeoutBody": "How long to wait for the AI to respond before giving up. Raise it for a local or self-hosted model that needs time to load on the first request.",
       "responseTimeoutLabel": "Response timeout (seconds)",
-      "responseTimeoutPlaceholder": "Default (~180)",
+      "responseTimeoutPlaceholder": "Default (~120)",
       "responseTimeoutInvalid": "Enter a number between 10 and 600 seconds.",
       "ocrHeading": "Document scanning (lab reports)",
       "ocrBody": "Use a dedicated provider for reading uploaded lab reports. When off, scanning uses your main provider.",

@@ -16,6 +16,7 @@ import type {
 } from "@/lib/ai/schema";
 import { queryKeys } from "@/lib/query-keys";
 import { apiFetchRaw } from "@/lib/api/api-fetch";
+import type { BriefingFailureClass } from "@/lib/insights/briefing-failure-marker";
 
 /**
  * v1.4.16 phase D reconcile (CRITICAL C1 + C2) — shared TanStack Query
@@ -80,6 +81,13 @@ export interface InsightAdvisorPayload {
    * Absent on a pre-field cached payload → treated as "not failed" (no hint).
    */
   generationFailed?: boolean;
+  /**
+   * v1.25.3 — coarse class of the most recent failure (`timeout`, `auth`,
+   * `rate-limit`, `provider`, `format`, `unknown`), so the empty state can
+   * point its hint at the right lever. Null / absent → no specific hint, the
+   * generic failed-description holds.
+   */
+  generationFailureClass?: BriefingFailureClass | null;
 }
 
 /**
@@ -99,8 +107,7 @@ const ADVISOR_TIMEOUT_MS = 8_000;
  * discarded a slow-but-successful generation — the abort returned a null
  * payload, the mutation only invalidated (re-reading the OLD cache), yet
  * the server had often already written the fresh briefing. Give the force
- * branch the same 45 s budget the out-of-band warm job uses
- * (`COMPREHENSIVE_WARM_TIMEOUT_MS`) so a slow success is kept, not
+ * branch a generous 45 s client budget so a slow success is kept, not
  * dropped. The READ path stays fast at 8 s — only the explicit user tap
  * may wait. Per `.planning/v1.15.18-daily-briefing-audit.md` Fix 1b.
  */
@@ -291,6 +298,12 @@ export interface UseInsightsAdvisorResult {
    * when there is no last good text. Defaults false (no hint) when absent.
    */
   generationFailed: boolean;
+  /**
+   * v1.25.3 — coarse class of the most recent failure, so the empty state can
+   * point its hint at the right lever. Null when the last attempt succeeded or
+   * the payload predates the field.
+   */
+  generationFailureClass: BriefingFailureClass | null;
 }
 
 /**
@@ -379,5 +392,7 @@ export function useInsightsAdvisorQuery(
     // Absent (pre-field cached payload or unsettled query) → not failed, so a
     // transient unknown never flashes a false "couldn't refresh" hint.
     generationFailed: query.data?.payload?.generationFailed ?? false,
+    // Absent → no specific lever hint; the generic failed-description holds.
+    generationFailureClass: query.data?.payload?.generationFailureClass ?? null,
   };
 }
