@@ -547,12 +547,7 @@ export function SettingsShell({
             v1.16.4 — a `<div>`, not `<main>`: the surrounding AuthShell
             already provides the page's single `<main>` landmark and a
             nested second one is an a11y violation. */}
-        {/* v1.25.7 — `scrollbar-gutter: stable` reserves the vertical
-            scrollbar's width on the content column so a section that overflows
-            (e.g. Integrationen, Quellenpriorität, Stimmung) and one that does
-            not render at the SAME width. Without it the gutter appears/
-            disappears between sections and the column visibly jitters. */}
-        <div className="min-h-[calc(100dvh-12rem)] min-w-0 [scrollbar-gutter:stable] pb-24 md:col-start-2 md:row-start-2 md:pb-0">
+        <div className="min-h-[calc(100dvh-12rem)] min-w-0 pb-24 md:col-start-2 md:row-start-2 md:pb-0">
           {children}
         </div>
       </div>
