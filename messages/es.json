@@ -7579,7 +7579,6 @@
   "mentalHealth": {
     "pageTitle": "Revisión de bienestar mental",
     "pageDescription": "Dos autoevaluaciones validadas y opcionales — PHQ-9 (estado de ánimo) y GAD-7 (preocupación) — junto a tu registro de ánimo. Lo valioso es la tendencia en el tiempo, no un único número.",
-    "infoTooltip": "Esto es una autoevaluación de cribado, no un diagnóstico.",
     "attributionLabel": "Fuente",
     "choosePrompt": "Elige una revisión",
     "start": "Empezar",
@@ -7640,7 +7639,8 @@
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      }
+      },
+      "bandLabel": "Categoría"
     },
     "crisis": {
       "title": "No tienes que afrontar esto a solas",
@@ -7700,7 +7700,7 @@
     "progress": "{current} / {total}",
     "questionAria": "Pregunta {current} de {total}",
     "next": "Siguiente",
-    "lastResult": "Último resultado",
+    "lastResult": "Última prueba",
     "noResultYet": "Aún sin check-in",
     "backToList": "Vista general",
     "jumpFirst": "Ir a la primera pregunta",
@@ -7708,9 +7708,6 @@
     "review": {
       "title": "Resumen",
       "recap": "Has respondido {answered} de {total} preguntas."
-    },
-    "landing": {
-      "disclaimer": "Son autoevaluaciones voluntarias, no un diagnóstico. Sirven de apoyo para hablar con un profesional, no lo sustituyen."
     }
   },
   "records": {

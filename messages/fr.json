@@ -7579,7 +7579,6 @@
   "mentalHealth": {
     "pageTitle": "Point sur le bien-être mental",
     "pageDescription": "Deux auto-évaluations validées et facultatives — PHQ-9 (humeur) et GAD-7 (inquiétude) — en complément de ton suivi de l'humeur. Ce qui compte, c'est la tendance dans le temps, pas un chiffre isolé.",
-    "infoTooltip": "Il s'agit d'un autotest de dépistage, pas d'un diagnostic.",
     "attributionLabel": "Source",
     "choosePrompt": "Choisis un bilan",
     "start": "Commencer",
@@ -7640,7 +7639,8 @@
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      }
+      },
+      "bandLabel": "Catégorie"
     },
     "crisis": {
       "title": "Tu n'as pas à affronter cela seul(e)",
@@ -7700,7 +7700,7 @@
     "progress": "{current} / {total}",
     "questionAria": "Question {current} sur {total}",
     "next": "Suivant",
-    "lastResult": "Dernier résultat",
+    "lastResult": "Dernier test",
     "noResultYet": "Pas encore de check-in",
     "backToList": "Vue d'ensemble",
     "jumpFirst": "Aller à la première question",
@@ -7708,9 +7708,6 @@
     "review": {
       "title": "Récapitulatif",
       "recap": "Vous avez répondu à {answered} questions sur {total}."
-    },
-    "landing": {
-      "disclaimer": "Ce sont des auto-évaluations volontaires, pas un diagnostic. Elles aident à préparer un échange avec un professionnel, sans le remplacer."
     }
   },
   "records": {

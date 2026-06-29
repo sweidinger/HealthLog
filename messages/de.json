@@ -7579,7 +7579,6 @@
   "mentalHealth": {
     "pageTitle": "Check-in zum seelischen Wohlbefinden",
     "pageDescription": "Zwei validierte, freiwillige Selbsttests — PHQ-9 (Stimmung) und GAD-7 (Sorgen) — ergänzend zu deinem Stimmungstagebuch. Aussagekräftig ist der Verlauf über die Zeit, nicht ein einzelner Wert.",
-    "infoTooltip": "Dieses ist ein Screening-Selbsttest, keine Diagnose.",
     "attributionLabel": "Quelle",
     "choosePrompt": "Check-in auswählen",
     "start": "Starten",
@@ -7640,7 +7639,8 @@
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      }
+      },
+      "bandLabel": "Einstufung"
     },
     "crisis": {
       "title": "Du musst das nicht allein durchstehen",
@@ -7700,7 +7700,7 @@
     "progress": "{current} / {total}",
     "questionAria": "Frage {current} von {total}",
     "next": "Weiter",
-    "lastResult": "Letztes Ergebnis",
+    "lastResult": "Letzter Test",
     "noResultYet": "Noch kein Check-in",
     "backToList": "Übersicht",
     "jumpFirst": "Zur ersten Frage springen",
@@ -7708,9 +7708,6 @@
     "review": {
       "title": "Überblick",
       "recap": "Du hast {answered} von {total} Fragen beantwortet."
-    },
-    "landing": {
-      "disclaimer": "Dies sind freiwillige Selbsttests, keine Diagnose. Sie unterstützen das Gespräch mit einer Fachperson, ersetzen es aber nicht."
     }
   },
   "records": {

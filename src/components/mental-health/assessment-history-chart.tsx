@@ -1,23 +1,24 @@
 "use client";
 
 /**
- * v1.25.3 — per-instrument screener trend chart, in the dashboard's visual
- * language (mirrors `labs/lab-biomarker-chart.tsx`). A single line of the total
- * score over `takenAt`, with the instrument's severity bands painted as stacked
- * MUTED `ReferenceArea`s (increasing opacity toward the top, all in the
- * primary/muted family) so the reader sees "where this score sits" WITHOUT a
- * danger palette — never an alarm colour (the no-alarming-colour rule the labs
- * chart documents).
+ * v1.25.3 — per-instrument screener trend chart.
+ *
+ * v1.25.5 — aligned to the dashboard's chart language exactly: a single
+ * `type="monotone"` line over the primary colour with a soft gradient area
+ * fill beneath (same `fillOpacity` + margins the dashboard line charts use),
+ * the shared grid / axis tokens, and `RichChartTooltip`. The earlier
+ * severity-band `ReferenceArea`s — unique to this surface — are gone so it
+ * reads like every other trend; the band still surfaces in the tooltip.
  *
  * One instrument at a time: PHQ-9 (0–27) and GAD-7 (0–21) have different ranges
- * and bands, so the parent toggles which series + band set this paints.
+ * and bands, so the parent toggles which series this paints.
  */
 import { useMemo } from "react";
 import {
+  Area,
   CartesianGrid,
   ComposedChart,
   Line,
-  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -36,6 +37,7 @@ import type { AssessmentRow, InstrumentId } from "./types";
 interface ChartPoint {
   timestamp: number;
   value: number;
+  band: string;
 }
 
 export function AssessmentHistoryChart({
@@ -57,11 +59,13 @@ export function AssessmentHistoryChart({
       .map((r) => ({
         timestamp: new Date(r.takenAt).getTime(),
         value: r.totalScore,
+        band: r.severityBand,
       }));
   }, [rows]);
 
   const animate = !prefersReducedMotion();
   const primary = "var(--primary)";
+  const gradientId = `mh-trend-${instrument}`;
 
   if (points.length === 0) {
     return (
@@ -71,35 +75,23 @@ export function AssessmentHistoryChart({
     );
   }
 
-  // Severity bands as stacked muted areas — opacity climbs with severity so the
-  // higher bands read "heavier" without ever painting red. The whole y-range is
-  // the instrument's 0..maxScore so the bands tile the plot.
-  const bandCount = def.bands.length;
-
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT_PX}>
       <ComposedChart
         data={points}
-        margin={{ top: 8, right: 12, bottom: 4, left: 0 }}
+        margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
       >
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={primary} stopOpacity={0.18} />
+            <stop offset="95%" stopColor={primary} stopOpacity={0} />
+          </linearGradient>
+        </defs>
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--border)"
           vertical={false}
         />
-        {def.bands.map((band, i) => (
-          <ReferenceArea
-            key={band.key}
-            y1={band.min}
-            // Extend the top band to the instrument max so the last slice fills.
-            y2={i === bandCount - 1 ? def.maxScore : band.max + 1}
-            fill={primary}
-            // 0.04 → ~0.16 across the bands: muted, monochrome, never alarm.
-            fillOpacity={0.04 + (i / Math.max(1, bandCount - 1)) * 0.12}
-            stroke="none"
-            ifOverflow="extendDomain"
-          />
-        ))}
         <XAxis
           dataKey="timestamp"
           type="number"
@@ -132,6 +124,11 @@ export function AssessmentHistoryChart({
                 value: String(point.value),
                 color: primary,
               },
+              {
+                name: t("mentalHealth.history.bandLabel"),
+                value: t(`mentalHealth.band.${instrument}.${point.band}`),
+                color: "var(--muted-foreground)",
+              },
             ];
             return (
               <RichChartTooltip
@@ -141,6 +138,13 @@ export function AssessmentHistoryChart({
               />
             );
           }}
+        />
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke="none"
+          fill={`url(#${gradientId})`}
+          isAnimationActive={animate}
         />
         <Line
           type="monotone"
