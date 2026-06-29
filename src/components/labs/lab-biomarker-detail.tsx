@@ -9,32 +9,25 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import {
-  FlaskConical,
-  ListOrdered,
-  Pencil,
-  Plus,
-  SlidersHorizontal,
-} from "lucide-react";
+import { FlaskConical, ListOrdered, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { useInsightBiomarkerAssessment } from "@/hooks/use-insight-status";
 import { useMounted } from "@/hooks/use-mounted";
-import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
+import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 import { summarize, type DataSummary } from "@/lib/analytics/trends";
 import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 import { useTranslations } from "@/lib/i18n/context";
-import { cn } from "@/lib/utils";
+import { fallbackMessages } from "@/lib/i18n/load-locale";
+import { resolveKey } from "@/lib/i18n/resolve-key";
 import { queryKeys } from "@/lib/query-keys";
 
 import dynamic from "next/dynamic";
@@ -89,13 +82,29 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   const queryClient = useQueryClient();
   // v1.24 — the per-marker description used to live on the labs overview rows.
   // It belongs on the detail page beneath the heading (mirroring the metric
-  // pages' explainer caption). Resolve the catalog slug from the marker name
-  // exactly as the overview did, then fall back to the user's own `context`.
+  // pages' explainer caption). Resolve the catalog slug from the marker name,
+  // then fall back to the user's own `context`.
+  //
+  // v1.25.3 — key the lookup on BOTH the current-locale display name and the
+  // English canonical name. A marker stores the catalog name as it read at
+  // creation time (`biomarker-form` writes `t("labs.catalog.<slug>")`), so a
+  // marker minted under the English default and then viewed in another locale
+  // never matched a map built only from the current locale's names — the rich
+  // description silently fell through to the generic line. The English bundle
+  // is always in the client chunk (`fallbackMessages`), so adding its names
+  // makes resolution independent of the locale the marker was created in.
   const slugByName = useMemo(() => {
     const map = new Map<string, string>();
     for (const seed of BIOMARKER_CATALOG) {
-      const norm = t(`labs.catalog.${seed.slug}`).trim().toLowerCase();
-      if (norm) map.set(norm, seed.slug);
+      const localized = t(`labs.catalog.${seed.slug}`).trim().toLowerCase();
+      if (localized) map.set(localized, seed.slug);
+      const canonical = resolveKey(
+        fallbackMessages,
+        `labs.catalog.${seed.slug}`,
+      )
+        ?.trim()
+        .toLowerCase();
+      if (canonical && !map.has(canonical)) map.set(canonical, seed.slug);
     }
     return map;
   }, [t]);
@@ -104,12 +113,6 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   const [addFooterEl, setAddFooterEl] = useState<HTMLDivElement | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(null);
-  // v1.24 — focused "adjust target range" sheet. Edits only the reference
-  // bounds (the full marker editor lives behind the pencil); seeded from the
-  // marker each time it opens.
-  const [rangeOpen, setRangeOpen] = useState(false);
-  const [lowerInput, setLowerInput] = useState("");
-  const [upperInput, setUpperInput] = useState("");
 
   const {
     data: marker,
@@ -217,33 +220,6 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     onError: () => toast.error(t("labs.biomarker.deleteError")),
   });
 
-  function openRange() {
-    setLowerInput(marker?.lowerBound != null ? String(marker.lowerBound) : "");
-    setUpperInput(marker?.upperBound != null ? String(marker.upperBound) : "");
-    setRangeOpen(true);
-  }
-
-  const saveRange = useMutation({
-    mutationFn: () => {
-      const lower = lowerInput.trim() === "" ? null : Number(lowerInput);
-      const upper = upperInput.trim() === "" ? null : Number(upperInput);
-      return apiPut(`/api/biomarkers/${biomarkerId}`, {
-        lowerBound: lower,
-        upperBound: upper,
-      });
-    },
-    onSuccess: () => {
-      toast.success(t("labs.biomarker.targetRange.savedToast"));
-      setRangeOpen(false);
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.biomarkerDetail(biomarkerId),
-      });
-      queryClient.invalidateQueries({ queryKey: queryKeys.biomarkers() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
-    },
-    onError: () => toast.error(t("labs.biomarker.targetRange.saveError")),
-  });
-
   // v1.25.1 — the per-marker description leads the page, mirroring the metric
   // sub-pages' explainer caption. Resolve the catalog slug from the marker name
   // and fall back to the user's own `context`, then to a generic explainer so a
@@ -306,45 +282,17 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {/* v1.25.1 — "show all readings" rides the header cluster as an icon
-              button, mirroring the metric sub-pages' `<SubPageShell>` control.
-              The full reading feed lives on `/labs/[biomarkerId]/values`; the
-              detail page keeps the numbers-first spine. */}
-          {readings.length > 0 ? (
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              data-slot="lab-show-all-values"
-              className={cn(
-                "text-muted-foreground hover:text-foreground relative size-10",
-                "before:absolute before:-inset-1.5 before:content-['']",
-              )}
-            >
-              <Link
-                href={`/labs/${biomarkerId}/values`}
-                aria-label={t("insights.subPage.showAllValues")}
-                title={t("insights.subPage.showAllValues")}
-              >
-                <ListOrdered className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          ) : null}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
-            onClick={() => setEditOpen(true)}
-            disabled={!marker}
-            aria-label={t("labs.biomarker.edit")}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
+          {/* v1.25.3 — header control cluster, left → right:
+              Delete · Edit · Show-all-values · Add. The icon controls share one
+              ghost-icon treatment (the target-range editing lives inside the
+              full marker editor behind the pencil, so the separate range
+              control was dropped). */}
           <DeleteButton
             onConfirm={() => deleteMarker.mutate()}
             title={t("labs.biomarker.deleteConfirmTitle")}
             description={t("labs.biomarker.deleteConfirmDescription")}
             confirmLabel={t("labs.biomarker.delete")}
+            triggerTitle={t("labs.biomarker.delete")}
             className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
             iconClassName="h-4 w-4"
           />
@@ -352,12 +300,34 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             variant="ghost"
             size="icon"
             className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
-            onClick={openRange}
+            onClick={() => setEditOpen(true)}
             disabled={!marker}
-            aria-label={t("labs.biomarker.targetRange.title")}
+            aria-label={t("labs.biomarker.edit")}
+            title={t("labs.biomarker.edit")}
           >
-            <SlidersHorizontal className="h-4 w-4" />
+            <Pencil className="h-4 w-4" />
           </Button>
+          {/* "Show all readings" mirrors the metric sub-pages' `<SubPageShell>`
+              control. The full reading feed lives on
+              `/labs/[biomarkerId]/values`; the detail page keeps the
+              numbers-first spine. */}
+          {readings.length > 0 ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              data-slot="lab-show-all-values"
+              className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+            >
+              <Link
+                href={`/labs/${biomarkerId}/values`}
+                aria-label={t("insights.subPage.showAllValues")}
+                title={t("insights.subPage.showAllValues")}
+              >
+                <ListOrdered className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          ) : null}
           <Button
             onClick={() => setAddOpen(true)}
             // v1.18.10 (W10) — on the narrowest phones the h1 + Edit + Delete +
@@ -494,62 +464,6 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             onSuccess={afterEditMarker}
             onCancel={() => setEditOpen(false)}
           />
-        ) : null}
-      </ResponsiveSheet>
-
-      <ResponsiveSheet
-        open={rangeOpen}
-        onOpenChange={setRangeOpen}
-        title={t("labs.biomarker.targetRange.title")}
-        description={t("labs.biomarker.targetRange.description")}
-        footer={
-          <div className="flex w-full justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setRangeOpen(false)}
-              disabled={saveRange.isPending}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              onClick={() => saveRange.mutate()}
-              disabled={saveRange.isPending}
-            >
-              {t("labs.biomarker.targetRange.save")}
-            </Button>
-          </div>
-        }
-      >
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="biomarker-lower-bound">
-              {t("labs.biomarker.form.lowerBound")}
-            </Label>
-            <Input
-              id="biomarker-lower-bound"
-              type="number"
-              inputMode="decimal"
-              value={lowerInput}
-              onChange={(e) => setLowerInput(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="biomarker-upper-bound">
-              {t("labs.biomarker.form.upperBound")}
-            </Label>
-            <Input
-              id="biomarker-upper-bound"
-              type="number"
-              inputMode="decimal"
-              value={upperInput}
-              onChange={(e) => setUpperInput(e.target.value)}
-            />
-          </div>
-        </div>
-        {marker?.unit ? (
-          <p className="text-muted-foreground mt-2 text-xs">
-            {t("labs.biomarker.form.rangeHint")}
-          </p>
         ) : null}
       </ResponsiveSheet>
     </div>
