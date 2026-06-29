@@ -11,7 +11,8 @@ import {
 } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useTimeFormatPreference } from "@/lib/i18n/context";
+import { hourCycleOptions } from "@/lib/format-locale";
 import { STAGE_COLORS } from "./sleep-stage-stacked-bar";
 
 /**
@@ -112,6 +113,7 @@ function formatMinutes(total: number, locale: string): string {
 
 export function SleepHypnogram({ session }: SleepHypnogramProps) {
   const { t, locale } = useTranslations();
+  const timeFormat = useTimeFormatPreference();
 
   const stageLabels: Record<string, string> = {
     DEEP: t("insights.sleep.stages.deep"),
@@ -192,8 +194,9 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
       new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-US", {
         hour: "2-digit",
         minute: "2-digit",
+        ...hourCycleOptions(timeFormat),
       }),
-    [locale],
+    [locale, timeFormat],
   );
 
   // Per-stage breakdown with percentage of the night's total tracked time.
