@@ -15,7 +15,7 @@ import { ChevronDown, Loader2, MonitorSmartphone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SettingsCard } from "@/components/settings/settings-card";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet, apiDelete } from "@/lib/api/api-fetch";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,7 @@ export function SecuritySessionsCard({
   isAuthenticated: boolean;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<string | null>(null);
   // Collapsed by default — the list opens only when the user asks for it, so
@@ -158,7 +159,7 @@ export function SecuritySessionsCard({
                   {s.lastActiveAt && (
                     <p className="text-muted-foreground text-xs">
                       {t("settings.security.lastActive", {
-                        time: new Date(s.lastActiveAt).toLocaleString(),
+                        time: fmt.dateTime(s.lastActiveAt),
                       })}
                     </p>
                   )}

@@ -120,7 +120,7 @@ function CoachConversationsBody() {
   }
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col gap-4 px-4 pt-6 pb-4 md:px-6">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-screen-xl flex-col gap-4 px-4 pt-6 pb-4 md:px-6">
       <header className="flex flex-col gap-3">
         <h1
           data-slot="coach-conversations-heading"

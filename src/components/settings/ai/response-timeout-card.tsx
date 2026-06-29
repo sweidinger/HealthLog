@@ -7,7 +7,8 @@
  * call (`CompletionParams.timeoutMs`). Surfaced here mainly for local /
  * self-hosted backends: an MLX/exo server can take >60 s on the first request
  * while it loads the model, which the legacy 60 s default timed out before the
- * first token landed. Empty = the generous built-in default (~180 s).
+ * first token landed. Empty = the built-in comprehensive-briefing default
+ * (~120 s, `AI_BUDGETS.comprehensive.timeoutMs`).
  * ──────────────────────────────────────────────────────────────── */
 
 import { useState } from "react";

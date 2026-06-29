@@ -63,7 +63,10 @@ export function VorsorgeSettings() {
   // `<section>` blocks with `text-sm` headings.
   return (
     <div className="space-y-6">
-      <SettingsCard>
+      {/* v1.25.3 — `id="vorsorge-view"` + `scroll-mt-28` so the Appearance hub
+          deep-link (`/settings/vorsorge#vorsorge-view`) lands on this card
+          below the sticky page header, mirroring the labs/illness anchors. */}
+      <SettingsCard id="vorsorge-view" className="scroll-mt-28">
         <SettingsCardHeader
           icon={LayoutGrid}
           title={t("moduleList.viewHeading")}

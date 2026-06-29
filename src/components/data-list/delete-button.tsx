@@ -32,6 +32,7 @@ export function DeleteButton({
   description,
   cancelLabel,
   confirmLabel,
+  triggerTitle,
   className = "",
   iconClassName = "h-3.5 w-3.5",
 }: {
@@ -40,6 +41,8 @@ export function DeleteButton({
   description: string;
   cancelLabel?: string;
   confirmLabel?: string;
+  /** Native hover tooltip on the trigger; defaults to the accessible name. */
+  triggerTitle?: string;
   className?: string;
   iconClassName?: string;
 }) {
@@ -52,6 +55,7 @@ export function DeleteButton({
           size="icon-lg"
           className={`text-destructive ${className}`}
           aria-label={confirmLabel ?? t("common.delete")}
+          title={triggerTitle ?? confirmLabel ?? t("common.delete")}
         >
           <Trash2 className={iconClassName} />
         </Button>

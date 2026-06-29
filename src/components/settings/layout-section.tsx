@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import {
+  CalendarCheck,
   ChevronRight,
+  FlaskConical,
   LayoutDashboard,
+  Pill,
+  Thermometer,
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
@@ -12,17 +16,23 @@ import { useTranslations } from "@/lib/i18n/context";
 import { SettingsCard } from "./settings-card";
 
 /**
- * v1.17.1 (F-2) — the one "Layout & Personalization" home.
+ * v1.17.1 (F-2) — the "Appearance" home (slug stays `layout`).
  *
- * Before this section, "how my app is laid out" was scattered across
- * several unrelated settings sections with no shared framing. This
- * section is the single front door for the arrangement editors: it
- * presents them as one consistent set of cards and links to each editor,
- * which keep their own routes and mutation flows intact.
+ * "How my app looks and is arranged" was scattered across several unrelated
+ * settings sections with no shared framing. This section is the single front
+ * door: it presents the view/arrangement surfaces as one consistent set of
+ * cards and links to each editor, which keep their own routes, their own
+ * cards, and their mutation flows intact — the hub indexes them, it does not
+ * own them.
  *
- * v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung) graduated
- * to their own top-level nav entries, so the hub now hosts only the
- * dashboard + insights arrangement editors.
+ * v1.25.3 — the hub widens from the dashboard + insights arrangement editors
+ * to the full set of view surfaces: it now also deep-links to the view/sort/
+ * order cards of medications, labs, the illness journal, and checkups. Each
+ * of those modules keeps its view cards on its own settings page; the links
+ * land on the existing card anchors (`#medications-view`, `#labs-view`,
+ * `#illness-view`, `#vorsorge-view`). Data/behaviour settings (biomarker
+ * catalog, local OCR, injection-site exclusions, per-reminder toggles, the
+ * mood tag/group catalog) stay on their module pages and are NOT indexed here.
  */
 interface LayoutLink {
   href: string;
@@ -44,10 +54,34 @@ const LAYOUT_LINKS: ReadonlyArray<LayoutLink> = [
     titleKey: "settings.sections.layout.insights.title",
     descriptionKey: "settings.sections.layout.insights.description",
   },
-  // v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung) graduated
-  // to their own top-level nav entries, so they are no longer linked from
-  // the Layout hub. Only the dashboard + insights arrangement editors
-  // remain here.
+  // v1.25.3 — view/sort/order surfaces of the tracking modules. Each link
+  // deep-links to the module's existing view card anchor; the cards stay on
+  // their own settings page. The module routes resolve regardless of the
+  // module's enabled state, so the link never dead-ends.
+  {
+    href: "/settings/medications#medications-view",
+    icon: Pill,
+    titleKey: "settings.sections.layout.medications.title",
+    descriptionKey: "settings.sections.layout.medications.description",
+  },
+  {
+    href: "/settings/labs#labs-view",
+    icon: FlaskConical,
+    titleKey: "settings.sections.layout.labs.title",
+    descriptionKey: "settings.sections.layout.labs.description",
+  },
+  {
+    href: "/settings/illness#illness-view",
+    icon: Thermometer,
+    titleKey: "settings.sections.layout.illness.title",
+    descriptionKey: "settings.sections.layout.illness.description",
+  },
+  {
+    href: "/settings/vorsorge#vorsorge-view",
+    icon: CalendarCheck,
+    titleKey: "settings.sections.layout.vorsorge.title",
+    descriptionKey: "settings.sections.layout.vorsorge.description",
+  },
 ];
 
 export function LayoutSection() {

@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Loader2, ShieldCheck } from "lucide-react";
 
 import { SettingsCard } from "@/components/settings/settings-card";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
 import { cn } from "@/lib/utils";
@@ -54,6 +54,7 @@ export function SecurityActivityCard({
   isAuthenticated: boolean;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   // Collapsed by default — the feed opens only on demand, keeping the security
   // surface skimmable. UI-only state; nothing is persisted across reloads.
   const [open, setOpen] = useState(false);
@@ -138,7 +139,7 @@ export function SecurityActivityCard({
                   </p>
                 </div>
                 <p className="text-muted-foreground shrink-0 text-xs">
-                  {new Date(e.createdAt).toLocaleString()}
+                  {fmt.dateTime(e.createdAt)}
                 </p>
               </li>
             ))}

@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.25.3] — 2026-06-29 — Mental wellbeing, labs depth, and fixes
+
+A patch release: a clearer mental-wellbeing check-in, more useful lab pages, two visible bug fixes, and a couple of settings tidy-ups. No schema change.
+
+### Added
+
+- Each biomarker now reads with a short explanation of what it measures and why it matters, in every language — not just a generic line.
+
+### Changed
+
+- **Mental wellbeing** is reworked: the PHQ-9 / GAD-7 check-in is now a calm step-by-step flow (one question at a time, with progress) instead of a single long form; the screen reads as cards with a clear title and a short explanation, the voluntary-self-test note stays on the overview rather than interrupting the test, and past results show as a proper trend with severity context. Crisis-support always surfaces for an at-risk answer.
+- **Labs** biomarker pages: the redundant "adjust target range" control is gone (it already lives in Edit); the controls now read Delete · Edit · Show all values · Add value, with tooltips, and the "show all values" control matches the others.
+- **Settings**: delivery channels now live inside Notifications (one place for "what you receive" and "where it lands"); the former "Dashboard" settings area is renamed **Appearance** and gathers links to the view settings of the dashboard, insights, medications, labs, illness journal, and checkups.
+- The daily briefing now scales its generation budget to your configured AI response timeout, so raising the timeout for a slower model actually takes effect instead of being capped — and when a refresh genuinely fails, the message points at the right lever (raise the timeout / re-check the provider) instead of a generic error.
+
+### Fixed
+
+- **The 24-hour time preference is honored everywhere again** — several screens (sleep timeline, workout times, sign-in activity and sessions) were showing AM/PM even with 24-hour selected. Time now follows your preference across the app.
+- The readiness / recovery insight tile no longer renders broken — the method note was overlapping the score and contributing factors; the card now reads top to bottom with the factors visible, on every screen size.
+- The weekly and monthly review now use the same top-right "ask the Coach" control as the other insights, and the Coach conversations list spans the normal content width instead of a narrow column.
+
+### Removed
+
+- The Documents feature is temporarily switched off pending a deeper rebuild; the existing data and code are untouched.
+
 ## [1.25.2] — 2026-06-29 — Flat settings navigation
 
 ### Changed

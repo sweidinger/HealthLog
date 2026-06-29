@@ -21,6 +21,7 @@ vi.mock("@/lib/db", () => ({
 import {
   readBriefingFailure,
   recordBriefingFailure,
+  classifyBriefingFailure,
   BRIEFING_FAILURE_ACTION,
 } from "../briefing-failure-marker";
 
@@ -43,6 +44,34 @@ describe("readBriefingFailure", () => {
     expect(result).toEqual(
       expect.objectContaining({ reason: "provider-error" }),
     );
+  });
+
+  it("derives a failure class from the recorded reason + httpStatus (v1.25.3)", async () => {
+    findFirst.mockResolvedValue({
+      createdAt: new Date("2026-06-28T10:00:00Z"),
+      details: JSON.stringify({ reason: "provider-error", httpStatus: 401 }),
+    });
+
+    const result = await readBriefingFailure({
+      userId: "u1",
+      since: new Date("2026-06-28T09:00:00Z"),
+    });
+
+    expect(result?.failureClass).toBe("auth");
+  });
+
+  it("classes a status-less failure as a timeout (the slow-backend case)", async () => {
+    findFirst.mockResolvedValue({
+      createdAt: new Date("2026-06-28T10:00:00Z"),
+      details: JSON.stringify({ reason: "provider-error" }),
+    });
+
+    const result = await readBriefingFailure({
+      userId: "u1",
+      since: new Date("2026-06-28T09:00:00Z"),
+    });
+
+    expect(result?.failureClass).toBe("timeout");
   });
 
   it("treats a marker older than the last success as superseded", async () => {
@@ -88,5 +117,46 @@ describe("recordBriefingFailure", () => {
     await expect(
       recordBriefingFailure({ userId: "u1", reason: "timeout" }),
     ).resolves.toBeUndefined();
+  });
+
+  it("persists the upstream httpStatus when one is supplied (v1.25.3)", async () => {
+    create.mockResolvedValue({});
+    await recordBriefingFailure({
+      userId: "u1",
+      reason: "provider-error",
+      httpStatus: 429,
+    });
+    const details = create.mock.calls[0][0].data.details as string;
+    expect(JSON.parse(details).httpStatus).toBe(429);
+  });
+});
+
+describe("classifyBriefingFailure", () => {
+  it("maps invalid-json to format regardless of status", () => {
+    expect(classifyBriefingFailure({ reason: "invalid-json" })).toBe("format");
+  });
+
+  it("maps 429 to rate-limit, other 4xx to auth, 5xx to provider", () => {
+    expect(
+      classifyBriefingFailure({ reason: "provider-error", httpStatus: 429 }),
+    ).toBe("rate-limit");
+    expect(
+      classifyBriefingFailure({ reason: "provider-error", httpStatus: 403 }),
+    ).toBe("auth");
+    expect(
+      classifyBriefingFailure({ reason: "provider-error", httpStatus: 503 }),
+    ).toBe("provider");
+  });
+
+  it("maps a missing / sentinel-zero status to timeout", () => {
+    expect(classifyBriefingFailure({ reason: "provider-error" })).toBe(
+      "timeout",
+    );
+    expect(
+      classifyBriefingFailure({
+        reason: "all-providers-failed",
+        httpStatus: 0,
+      }),
+    ).toBe("timeout");
   });
 });

@@ -2066,7 +2066,10 @@
       "refreshFailedHint": "Couldn't refresh the briefing — showing the last one.",
       "retryAction": "Retry",
       "failedTitle": "Couldn't generate the briefing",
-      "failedDescription": "The AI provider timed out or returned an error. Try again, or raise the response timeout in AI settings for a slow local model."
+      "failedDescription": "The AI provider timed out or returned an error. Try again, or raise the response timeout in AI settings for a slow local model.",
+      "failedDescriptionTimeout": "The AI request ran out of time before the briefing was ready. For a slow local model, raise the AI response timeout in Settings, then try again.",
+      "failedDescriptionProvider": "The AI provider rejected the request. Re-check the provider and API key in AI settings, then try again.",
+      "failedDescriptionRateLimit": "The AI provider is rate-limiting requests right now. Try again in a little while."
     },
     "trendsRow": {
       "title": "Trends",
@@ -4033,15 +4036,17 @@
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Every reminder in one place — what gets reminded and when. The delivery channels live under Integrations.",
-        "channelsHint": "Telegram, ntfy, Web Push, Webhook, and Email are now set up under",
-        "channelsHintLink": "Integrations → Channels",
-        "subtitle": "Choose which reminders you receive."
+        "description": "Every reminder in one place — what gets reminded and when, and where it's delivered.",
+        "subtitle": "Choose which reminders you receive and where they're delivered.",
+        "remindersHeading": "Reminders",
+        "remindersDescription": "What you receive.",
+        "channelsHeading": "Delivery channels",
+        "channelsDescription": "Where reminders and alerts are delivered."
       },
       "layout": {
-        "title": "Dashboard",
-        "description": "Arrange how the dashboard and insights are laid out.",
-        "backToHub": "Back to Layout & Personalization",
+        "title": "Appearance",
+        "description": "Choose how the dashboard, insights, and your tracking modules look and are arranged.",
+        "backToHub": "Back to Appearance",
         "dashboard": {
           "title": "Dashboard",
           "description": "Tile layout and order."
@@ -4050,7 +4055,23 @@
           "title": "Insights",
           "description": "Overview sections and navigation-pill order."
         },
-        "subtitle": "Personalize how your dashboard and insights are arranged."
+        "subtitle": "Personalize how your dashboard, insights, and tracking modules look.",
+        "medications": {
+          "title": "Medications",
+          "description": "List view and manual order."
+        },
+        "labs": {
+          "title": "Labs",
+          "description": "View, sort, and manual order."
+        },
+        "illness": {
+          "title": "Illness journal",
+          "description": "List view and episode order."
+        },
+        "vorsorge": {
+          "title": "Checkups",
+          "description": "List view and reminder order."
+        }
       },
       "dashboard": {
         "title": "Dashboard",
@@ -4307,11 +4328,6 @@
         "title": "Coach",
         "description": "Enable the Coach, tone and scope, stored memories.",
         "subtitle": "Tune the Coach, its proactive nudges, and its memory."
-      },
-      "channels": {
-        "title": "Channels",
-        "description": "Telegram, ntfy, Web Push, Webhook, and Email delivery.",
-        "subtitle": "Where reminders and alerts are delivered."
       },
       "security": {
         "title": "Security",
@@ -4671,7 +4687,7 @@
       "responseTimeoutHeading": "Response timeout",
       "responseTimeoutBody": "How long to wait for the AI to respond before giving up. Raise it for a local or self-hosted model that needs time to load on the first request.",
       "responseTimeoutLabel": "Response timeout (seconds)",
-      "responseTimeoutPlaceholder": "Default (~180)",
+      "responseTimeoutPlaceholder": "Default (~120)",
       "responseTimeoutInvalid": "Enter a number between 10 and 600 seconds.",
       "ocrHeading": "Document scanning (lab reports)",
       "ocrBody": "Use a dedicated provider for reading uploaded lab reports. When off, scanning uses your main provider.",
@@ -7129,14 +7145,7 @@
       "unhiddenToast": "Biomarker restored",
       "hideError": "Could not update the biomarker",
       "allHidden": "Every biomarker is hidden.",
-      "hiddenSection": "Hidden",
-      "targetRange": {
-        "title": "Adjust target range",
-        "description": "Set the reference low and high for this marker. Leave a field empty for an open-ended bound.",
-        "save": "Save range",
-        "savedToast": "Target range updated",
-        "saveError": "Could not update the target range"
-      }
+      "hiddenSection": "Hidden"
     },
     "catalog": {
       "total-cholesterol": "Total cholesterol",
@@ -7569,7 +7578,6 @@
     "choosePrompt": "Choose a check-in",
     "start": "Start",
     "back": "Back",
-    "stem": "Over the last 2 weeks, how often have you been bothered by the following problems?",
     "submit": "See my result",
     "submitting": "Saving…",
     "saved": "Saved",
@@ -7619,7 +7627,14 @@
     },
     "history": {
       "title": "Your history",
-      "empty": "No check-ins yet. Your trend will appear here once you complete one."
+      "empty": "No check-ins yet. Your trend will appear here once you complete one.",
+      "chartTitle": "Score trend",
+      "flaggedBadge": "Support shown",
+      "totalLabel": "Score",
+      "tab": {
+        "phq9": "PHQ-9",
+        "gad7": "GAD-7"
+      }
     },
     "crisis": {
       "title": "You don't have to face this alone",
@@ -7671,6 +7686,25 @@
       "crisisTextLine": {
         "name": "Crisis Text Line"
       }
+    },
+    "instrumentDescription": {
+      "phq9": "9-question depression screen. Answer for the last two weeks.",
+      "gad7": "7-question anxiety screen. Answer for the last two weeks."
+    },
+    "progress": "{current} / {total}",
+    "questionAria": "Question {current} of {total}",
+    "next": "Next",
+    "lastResult": "Last result",
+    "noResultYet": "No check-in yet",
+    "backToList": "Overview",
+    "jumpFirst": "Jump to first question",
+    "jumpLast": "Jump to last question",
+    "review": {
+      "title": "Review",
+      "recap": "You answered {answered} of {total} questions."
+    },
+    "landing": {
+      "disclaimer": "These are voluntary self-tests, not a diagnosis. They support a conversation with a professional; they don't replace one."
     }
   },
   "records": {

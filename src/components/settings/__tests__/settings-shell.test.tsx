@@ -91,6 +91,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // sits right after `ai`.
     // v1.18.1 (D4) — `channels` + `sources` split out of the Integrations
     // sub-tabs into their own left-side entries, right after `integrations`.
+    // v1.25.3 — `channels` folded back into Notifications as an in-page group;
+    // `/settings/channels` 301-redirects to `/settings/notifications#channels`.
+    // `sources` keeps its own entry.
     // v1.18.7 — `labs`, `illness`, `vorsorge` move into the shell as
     // first-class sections, right after `mood` (the three were standalone
     // `ModuleSettingsFrame` pages).
@@ -102,7 +105,6 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "security",
       "modules",
       "integrations",
-      "channels",
       "sources",
       "notifications",
       "layout",
@@ -293,14 +295,15 @@ describe("<SettingsShell>", () => {
     // (single-line; the longer "Notification channels" wrapped). The
     // `/notifications` inbox now shares the "Notifications" label.
     expect(html).toContain("Notifications");
-    // v1.17.1 (F-2) — the dashboard + insights arrangement editors are
-    // reached through one hub entry (route stays `/settings/layout`).
-    // v1.19.1 (S3) — the nav label now reads "Dashboard" to match where
-    // it leads; the route is unchanged.
+    // v1.17.1 (F-2) — the view/arrangement editors are reached through one hub
+    // entry (route stays `/settings/layout`). v1.25.3 — the hub is renamed
+    // "Appearance" (DE "Darstellung") and indexes every module's view surface;
+    // the route is unchanged.
     expect(html).toContain('href="/settings/layout"');
-    expect(html).toContain(">Dashboard</a>");
-    // v1.18.1 (D4) — Channels + Sources are their own left-side entries.
-    expect(html).toContain('href="/settings/channels"');
+    expect(html).toContain(">Appearance</a>");
+    // v1.25.3 — Channels folded into Notifications, so it is no longer a
+    // left-side entry; Sources keeps its own.
+    expect(html).not.toContain('href="/settings/channels"');
     expect(html).toContain('href="/settings/sources"');
     // v1.18.0 (S5) — Medications (Medikamente) and Mood (Stimmung, gated;
     // fail-open mock shows both) are their own nav entries now.
@@ -334,15 +337,14 @@ describe("<SettingsShell>", () => {
     // compound "Benachrichtigungs-Kanäle" wrapped). The `/notifications`
     // inbox now shares the "Benachrichtigungen" label.
     expect(html).toContain("Benachrichtigungen");
-    // v1.17.1 (F-2) — the arrangement editors are reached through one hub
-    // entry (route stays `/settings/layout`). v1.19.1 (S3) — the nav label
-    // reads "Dashboard" in every locale to match where it leads.
+    // v1.17.1 (F-2) — the view editors are reached through one hub entry
+    // (route stays `/settings/layout`). v1.25.3 — the German nav label reads
+    // "Darstellung" (Appearance) to match the renamed hub.
     expect(html).toContain('href="/settings/layout"');
-    expect(html).toContain(">Dashboard</a>");
-    // v1.18.1 (D4) — Channels ("Kanäle") + Sources ("Quellen-Priorität")
-    // are their own left-side entries.
-    expect(html).toContain('href="/settings/channels"');
-    expect(html).toContain("Kanäle");
+    expect(html).toContain(">Darstellung</a>");
+    // v1.25.3 — Channels ("Kanäle") folded into Notifications; Sources keeps
+    // its own left-side entry.
+    expect(html).not.toContain('href="/settings/channels"');
     // v1.18.0 (S5) — Medications + Mood are their own nav entries now.
     expect(html).toContain('href="/settings/medications"');
     expect(html).toContain('href="/settings/mood"');

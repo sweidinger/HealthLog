@@ -82,13 +82,21 @@ import {
   runInsightPregenerate,
   forceWarmUser,
   findPregenerateCandidates,
+  comprehensiveWarmBudgetMs,
   PREGENERATE_STALE_MS,
   FORCE_WARM_DAILY_LIMIT,
   INSIGHT_PREGENERATE_QUEUE,
   INSIGHT_PREGENERATE_CRON,
 } from "../insight-pregenerate";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 
-function makePrisma(users: Array<{ id: string; locale: string | null }>) {
+function makePrisma(
+  users: Array<{
+    id: string;
+    locale: string | null;
+    aiResponseTimeoutSeconds?: number | null;
+  }>,
+) {
   const findMany = vi.fn().mockResolvedValue(users);
   // forceWarmUser reads `insightsCachedAt` / `insightsWarmFailedAt` at job
   // start and maintains the failure marker; default: never warmed, never
@@ -296,8 +304,9 @@ describe("runInsightPregenerate — outcome tally", () => {
           observedSignal = opts.signal;
           setTimeout(
             () => resolve({ status: "generated", providerType: "x" }),
-            // v1.21.5 — above COMPREHENSIVE_WARM_TIMEOUT_MS (130 s) so the
-            // bounded budget fires before this "slow" generation settles.
+            // v1.25.3 — above the default warm budget (~150 s = the 120 s
+            // comprehensive provider budget + headroom) so the bounded budget
+            // fires before this "slow" generation settles.
             200_000,
           );
         }),
@@ -314,7 +323,7 @@ describe("runInsightPregenerate — outcome tally", () => {
         statusGenerators,
         warmGenericMetrics,
       });
-      await vi.advanceTimersByTimeAsync(140_000);
+      await vi.advanceTimersByTimeAsync(160_000);
       const result = await promise;
 
       // The timeout fired, aborted the still-running generation (so its
@@ -789,8 +798,9 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
           // advance past it so the warm continues.
           setTimeout(
             () => resolve({ status: "generated", providerType: "x" }),
-            // v1.21.5 — above COMPREHENSIVE_WARM_TIMEOUT_MS (130 s) so the
-            // bounded budget fires before this "slow" generation settles.
+            // v1.25.3 — above the default warm budget (~150 s = the 120 s
+            // comprehensive provider budget + headroom) so the bounded budget
+            // fires before this "slow" generation settles.
             200_000,
           );
         }),
@@ -808,7 +818,7 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
         warmGenericMetrics,
       });
       // Advance past the comprehensive budget so withTimeout fires.
-      await vi.advanceTimersByTimeAsync(140_000);
+      await vi.advanceTimersByTimeAsync(160_000);
       const result = await promise;
 
       for (const g of statusGenerators) {
@@ -906,8 +916,9 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
           observedSignal = opts.signal;
           setTimeout(
             () => resolve({ status: "generated", providerType: "x" }),
-            // v1.21.5 — above COMPREHENSIVE_WARM_TIMEOUT_MS (130 s) so the
-            // bounded budget fires before this "slow" generation settles.
+            // v1.25.3 — above the default warm budget (~150 s = the 120 s
+            // comprehensive provider budget + headroom) so the bounded budget
+            // fires before this "slow" generation settles.
             200_000,
           );
         }),
@@ -924,7 +935,7 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
         statusGenerators,
         warmGenericMetrics,
       });
-      await vi.advanceTimersByTimeAsync(140_000);
+      await vi.advanceTimersByTimeAsync(160_000);
       const result = await promise;
 
       // The timeout fired and aborted the still-running generation.
@@ -973,5 +984,79 @@ describe("queue registration", () => {
     expect(INSIGHT_PREGENERATE_QUEUE).toBe("insight-pregenerate");
     // Minute Hour … — nightly single tick.
     expect(INSIGHT_PREGENERATE_CRON).toMatch(/^\d+ \d+ \* \* \*$/);
+  });
+});
+
+describe("comprehensiveWarmBudgetMs — warm budget scales with the response timeout (v1.25.3)", () => {
+  const HEADROOM_MS = 30_000;
+  const DEFAULT_MS = AI_BUDGETS.comprehensive.timeoutMs;
+
+  it("falls back to the comprehensive surface budget + headroom for an unset value", () => {
+    expect(comprehensiveWarmBudgetMs(null)).toBe(DEFAULT_MS + HEADROOM_MS);
+    expect(comprehensiveWarmBudgetMs(undefined)).toBe(DEFAULT_MS + HEADROOM_MS);
+    // A non-positive stored value is treated as unset.
+    expect(comprehensiveWarmBudgetMs(0)).toBe(DEFAULT_MS + HEADROOM_MS);
+  });
+
+  it("scales the budget with a raised setting and stays above the old fixed 130 s cap", () => {
+    // The regression: any account whose response timeout was >= ~130 s had its
+    // comprehensive warm clipped by the old flat 130 s cap, never landing.
+    const budget = comprehensiveWarmBudgetMs(300);
+    expect(budget).toBe(300_000 + HEADROOM_MS);
+    expect(budget).toBeGreaterThan(130_000);
+  });
+
+  it("clamps to an absolute ceiling that still sits above the 600 s write-time maximum", () => {
+    // The 600 s max a user can configure is honoured (not clipped below it);
+    // the ceiling adds the headroom so a legitimate 600 s setting fits.
+    expect(comprehensiveWarmBudgetMs(600)).toBe(600_000 + HEADROOM_MS);
+    // A value beyond the write-time bound can never reach here, but the clamp
+    // is the structural backstop against a wedged call regardless.
+    expect(comprehensiveWarmBudgetMs(100_000)).toBe(600_000 + HEADROOM_MS);
+  });
+});
+
+describe("runInsightPregenerate — warm budget honours the response timeout (v1.25.3)", () => {
+  it("does NOT clip a slow comprehensive for an account whose response timeout is raised past the old cap", async () => {
+    const { prisma } = makePrisma([
+      { id: "u1", locale: "de", aiResponseTimeoutSeconds: 300 },
+    ]);
+    let observedSignal: AbortSignal | undefined;
+    const generate = vi.fn().mockImplementation(
+      (_userId: string, opts: { signal?: AbortSignal }) =>
+        new Promise((resolve) => {
+          observedSignal = opts.signal;
+          // 200 s: above the OLD fixed 130 s cap (which would have aborted it)
+          // but well within the 330 s budget a 300 s setting now yields.
+          setTimeout(
+            () => resolve({ status: "generated", providerType: "x" }),
+            200_000,
+          );
+        }),
+    );
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: false }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+
+    vi.useFakeTimers();
+    try {
+      const promise = runInsightPregenerate(prisma as never, {
+        generate,
+        statusGenerators,
+        warmGenericMetrics,
+      });
+      // Advance past the slow generation but below the 330 s warm budget.
+      await vi.advanceTimersByTimeAsync(210_000);
+      const result = await promise;
+
+      // The generation landed instead of being clipped: counted as generated,
+      // not failed, and the abort never fired.
+      expect(result.generated).toBe(1);
+      expect(result.failed).toBe(0);
+      expect(observedSignal?.aborted).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

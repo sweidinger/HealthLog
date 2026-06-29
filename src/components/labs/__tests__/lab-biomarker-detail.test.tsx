@@ -136,4 +136,22 @@ describe("<LabBiomarkerDetail>", () => {
     // skeleton geometry — proof the assessment card mounted on the page.
     expect(html).toContain('data-testid="insight-status-card-loading"');
   });
+
+  it("renders the rich catalog description for a catalogued marker", () => {
+    // "LDL Cholesterol" resolves to the `ldl` catalog slug (case-insensitive),
+    // so the page shows the per-biomarker explainer, not the generic fallback.
+    expect(html).toContain("low-density lipoprotein");
+    expect(html).not.toContain(
+      "A lab biomarker you track. Add readings to follow",
+    );
+  });
+
+  it("offers the edit + delete controls with hover tooltips", () => {
+    expect(html).toContain('title="Edit"');
+    expect(html).toContain('title="Delete"');
+  });
+
+  it("drops the standalone adjust-target-range control", () => {
+    expect(html).not.toContain("Adjust target range");
+  });
 });

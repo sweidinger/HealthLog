@@ -25,14 +25,21 @@
  */
 import { z } from "zod/v4";
 
-import { MODULE_KEYS, moduleDelegatesTo } from "@/lib/modules/registry";
+import {
+  MODULE_KEYS,
+  isCodeDisabledModule,
+  moduleDelegatesTo,
+} from "@/lib/modules/registry";
 
 /**
  * The directly-owned (non-delegated) toggleable keys — the only keys this
- * PATCH surface may write into `modulePreferencesJson`.
+ * PATCH surface may write into `modulePreferencesJson`. A module switched
+ * off in code (pending a rebuild) is also excluded, so a client trying to
+ * opt into it gets a clean 422 rather than persisting an inert `true` the
+ * gate would ignore anyway.
  */
 const WRITABLE_MODULE_KEYS = MODULE_KEYS.filter(
-  (k) => moduleDelegatesTo(k) === undefined,
+  (k) => moduleDelegatesTo(k) === undefined && !isCodeDisabledModule(k),
 );
 
 /** Build `{ <writableKey>?: boolean }` from the directly-owned key list. */

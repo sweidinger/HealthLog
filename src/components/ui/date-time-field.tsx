@@ -10,6 +10,7 @@ import {
   useTimeFormatPreference,
 } from "@/lib/i18n/context";
 import { formatDate, resolveDateLocale } from "@/lib/date-format";
+import { hourCycleOptions } from "@/lib/format-locale";
 
 /**
  * Dependency-free datetime input that DISPLAYS the value in the user's
@@ -219,20 +220,6 @@ function formatLocalDateTime(
   );
 
   return `${datePart} ${timePart}`;
-}
-
-/** Mirror of `format-locale.ts` `hourCycleOptions`, kept local to the field. */
-function hourCycleOptions(
-  timeFormat: ReturnType<typeof useTimeFormatPreference>,
-): Intl.DateTimeFormatOptions {
-  switch (timeFormat) {
-    case "H12":
-      return { hour12: true };
-    case "H24":
-      return { hourCycle: "h23" };
-    default:
-      return {};
-  }
 }
 
 /** Split a local `yyyy-MM-ddTHH:mm` string into its calendar parts. */

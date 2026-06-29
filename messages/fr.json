@@ -2066,7 +2066,10 @@
       "refreshFailedHint": "Impossible d'actualiser le briefing — affichage du précédent.",
       "retryAction": "Réessayer",
       "failedTitle": "Impossible de générer le briefing",
-      "failedDescription": "Le fournisseur d'IA a dépassé le délai ou renvoyé une erreur. Réessayez ou augmentez le délai de réponse dans les paramètres d'IA pour un modèle local lent."
+      "failedDescription": "Le fournisseur d'IA a dépassé le délai ou renvoyé une erreur. Réessayez ou augmentez le délai de réponse dans les paramètres d'IA pour un modèle local lent.",
+      "failedDescriptionTimeout": "La requête IA a dépassé le délai avant que le briefing soit prêt. Pour un modèle local lent, augmentez le délai de réponse dans les Paramètres, puis réessayez.",
+      "failedDescriptionProvider": "Le fournisseur d'IA a rejeté la requête. Vérifiez le fournisseur et la clé API dans les paramètres d'IA, puis réessayez.",
+      "failedDescriptionRateLimit": "Le fournisseur d'IA limite les requêtes pour le moment. Réessayez dans un instant."
     },
     "trendsRow": {
       "title": "Tendances",
@@ -4033,15 +4036,17 @@
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Tous les rappels au même endroit — quoi et quand. Les canaux de diffusion se trouvent dans Intégrations.",
-        "channelsHint": "Telegram, ntfy, Web Push, Webhook et e-mail se configurent désormais dans",
-        "channelsHintLink": "Intégrations → Canaux",
-        "subtitle": "Choisissez les rappels que vous recevez."
+        "description": "Tous les rappels au même endroit — quoi et quand, et où c'est envoyé.",
+        "subtitle": "Choisissez les rappels que vous recevez et où ils sont envoyés.",
+        "remindersHeading": "Rappels",
+        "remindersDescription": "Ce que vous recevez.",
+        "channelsHeading": "Canaux de diffusion",
+        "channelsDescription": "Où sont envoyés les rappels et alertes."
       },
       "layout": {
-        "title": "Tableau de bord",
-        "description": "Organisez la disposition du tableau de bord et des analyses.",
-        "backToHub": "Retour à Disposition et personnalisation",
+        "title": "Apparence",
+        "description": "Choisissez l'apparence et l'agencement du tableau de bord, des analyses et de vos modules de suivi.",
+        "backToHub": "Retour à Apparence",
         "dashboard": {
           "title": "Tableau de bord",
           "description": "Disposition et ordre des tuiles."
@@ -4050,7 +4055,23 @@
           "title": "Analyses",
           "description": "Ordre de la vue d'ensemble et des onglets de navigation."
         },
-        "subtitle": "Personnalisez l'agencement de votre tableau de bord et de vos insights."
+        "subtitle": "Personnalisez l'apparence du tableau de bord, des analyses et des modules de suivi.",
+        "medications": {
+          "title": "Médicaments",
+          "description": "Vue en liste et ordre manuel."
+        },
+        "labs": {
+          "title": "Analyses de labo",
+          "description": "Vue, tri et ordre manuel."
+        },
+        "illness": {
+          "title": "Journal des maladies",
+          "description": "Vue en liste et ordre des épisodes."
+        },
+        "vorsorge": {
+          "title": "Examens",
+          "description": "Vue en liste et ordre des rappels."
+        }
       },
       "dashboard": {
         "title": "Tableau de bord",
@@ -4307,11 +4328,6 @@
         "title": "Coach",
         "description": "Activez le Coach, le ton et la portée, les souvenirs enregistrés.",
         "subtitle": "Réglez le Coach, ses suggestions proactives et sa mémoire."
-      },
-      "channels": {
-        "title": "Canaux",
-        "description": "Distribution via Telegram, ntfy, Web Push, Webhook et e-mail.",
-        "subtitle": "Où sont envoyés les rappels et alertes."
       },
       "security": {
         "title": "Sécurité",
@@ -4671,7 +4687,7 @@
       "responseTimeoutHeading": "Délai de réponse",
       "responseTimeoutBody": "Durée d'attente de la réponse de l'IA avant d'abandonner. Augmentez-la pour un modèle local ou auto-hébergé qui a besoin de temps pour se charger à la première requête.",
       "responseTimeoutLabel": "Délai de réponse (secondes)",
-      "responseTimeoutPlaceholder": "Par défaut (~180)",
+      "responseTimeoutPlaceholder": "Par défaut (~120)",
       "responseTimeoutInvalid": "Saisissez un nombre entre 10 et 600 secondes.",
       "ocrHeading": "Numérisation de documents (comptes rendus de laboratoire)",
       "ocrBody": "Utilisez un fournisseur dédié pour lire les comptes rendus de laboratoire importés. Désactivé, la numérisation utilise votre fournisseur principal.",
@@ -7129,14 +7145,7 @@
       "unhiddenToast": "Biomarqueur restauré",
       "hideError": "Impossible de mettre à jour le biomarqueur",
       "allHidden": "Tous les biomarqueurs sont masqués.",
-      "hiddenSection": "Masqués",
-      "targetRange": {
-        "title": "Ajuster la plage cible",
-        "description": "Définis la référence basse et haute de ce marqueur. Laisse un champ vide pour une limite ouverte.",
-        "save": "Enregistrer la plage",
-        "savedToast": "Plage cible mise à jour",
-        "saveError": "Impossible de mettre à jour la plage cible"
-      }
+      "hiddenSection": "Masqués"
     },
     "catalog": {
       "total-cholesterol": "Cholestérol total",
@@ -7569,7 +7578,6 @@
     "choosePrompt": "Choisis un bilan",
     "start": "Commencer",
     "back": "Retour",
-    "stem": "Au cours des 2 dernières semaines, à quelle fréquence as-tu été gêné(e) par les problèmes suivants ?",
     "submit": "Voir mon résultat",
     "submitting": "Enregistrement…",
     "saved": "Enregistré",
@@ -7619,7 +7627,14 @@
     },
     "history": {
       "title": "Ton historique",
-      "empty": "Aucun bilan pour le moment. Ta tendance apparaîtra ici dès que tu en auras terminé un."
+      "empty": "Aucun bilan pour le moment. Ta tendance apparaîtra ici dès que tu en auras terminé un.",
+      "chartTitle": "Évolution du score",
+      "flaggedBadge": "Aide affichée",
+      "totalLabel": "Score",
+      "tab": {
+        "phq9": "PHQ-9",
+        "gad7": "GAD-7"
+      }
     },
     "crisis": {
       "title": "Tu n'as pas à affronter cela seul(e)",
@@ -7671,6 +7686,25 @@
       "crisisTextLine": {
         "name": "Crisis Text Line"
       }
+    },
+    "instrumentDescription": {
+      "phq9": "Dépistage de la dépression en 9 questions. Répondez en pensant aux deux dernières semaines.",
+      "gad7": "Dépistage de l'anxiété en 7 questions. Répondez en pensant aux deux dernières semaines."
+    },
+    "progress": "{current} / {total}",
+    "questionAria": "Question {current} sur {total}",
+    "next": "Suivant",
+    "lastResult": "Dernier résultat",
+    "noResultYet": "Pas encore de check-in",
+    "backToList": "Vue d'ensemble",
+    "jumpFirst": "Aller à la première question",
+    "jumpLast": "Aller à la dernière question",
+    "review": {
+      "title": "Récapitulatif",
+      "recap": "Vous avez répondu à {answered} questions sur {total}."
+    },
+    "landing": {
+      "disclaimer": "Ce sont des auto-évaluations volontaires, pas un diagnostic. Elles aident à préparer un échange avec un professionnel, sans le remplacer."
     }
   },
   "records": {

@@ -20,6 +20,7 @@ import {
 } from "../operator-availability";
 import {
   isCoreDomain,
+  isCodeDisabledModule,
   isModuleKey,
   isOptInModule,
   moduleDelegatesTo,
@@ -373,14 +374,22 @@ describe("registry — opt-in marker", () => {
   });
 });
 
-describe("resolveModuleEnabled — inboundDocuments module (opt-in, default-OFF)", () => {
+describe("resolveModuleEnabled — inboundDocuments module (disabled in code)", () => {
+  // v1.25.3 — `inboundDocuments` is switched off in code pending a rebuild
+  // (`CODE_DISABLED_MODULE_KEYS`). It is hard-off ahead of both the operator
+  // and the per-user layer: no stored preference or availability blob can
+  // re-surface it. The registry entry + `optIn` marker stay intact.
+  it("is flagged as code-disabled in the registry", () => {
+    expect(isCodeDisabledModule("inboundDocuments")).toBe(true);
+  });
+
   it("is OFF when no preference is recorded", () => {
     expect(
       resolveModuleEnabled("inboundDocuments", inputs(), false, ALL_AVAILABLE),
     ).toBe(false);
   });
 
-  it("turns ON only on an explicit true (opt-in)", () => {
+  it("stays OFF even when the user opted in (the in-code switch wins)", () => {
     expect(
       resolveModuleEnabled(
         "inboundDocuments",
@@ -388,16 +397,16 @@ describe("resolveModuleEnabled — inboundDocuments module (opt-in, default-OFF)
         false,
         ALL_AVAILABLE,
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it("operator-off short-circuits even when the user opted in", () => {
+  it("stays OFF when the user opted in and the operator left it available", () => {
     expect(
       resolveModuleEnabled(
         "inboundDocuments",
         inputs({ modulePreferences: { inboundDocuments: true } }),
         false,
-        operator({ inboundDocuments: false }),
+        operator({ inboundDocuments: true }),
       ),
     ).toBe(false);
   });

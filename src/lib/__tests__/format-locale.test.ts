@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  hourCycleOptions,
   makeFormatters,
   parseLocaleFromAcceptLanguage,
   resolveIntlLocale,
@@ -135,5 +136,51 @@ describe("makeFormatters", () => {
     expect(tokyo.date(lateUtc)).toMatch(/2026/);
     // The narrow check: day-of-month should be 11, not 10.
     expect(tokyo.date(lateUtc)).toMatch(/11/);
+  });
+});
+
+// v1.25.3 — the time-format preference must reach every hour/minute renderer,
+// not only the `makeFormatters().time` path. Some surfaces build their own
+// `Intl.DateTimeFormat` because they render in the browser timezone (chart
+// axes) or combine weekday + time in one label (workout list/detail). They now
+// spread `hourCycleOptions(preference)` into the options. These tests pin both
+// the helper contract and the exact call-site pattern, so a future renderer
+// that drops the spread (re-introducing AM/PM under H24) fails here.
+describe("hourCycleOptions", () => {
+  it("AUTO contributes nothing (locale default applies)", () => {
+    expect(hourCycleOptions("AUTO")).toEqual({});
+  });
+
+  it("H12 forces a 12-hour clock", () => {
+    expect(hourCycleOptions("H12")).toEqual({ hour12: true });
+  });
+
+  it("H24 forces the 24-hour h23 cycle", () => {
+    expect(hourCycleOptions("H24")).toEqual({ hourCycle: "h23" });
+  });
+
+  // The shared call-site shape used by sleep-hypnogram, workout-list and
+  // workout-detail: an `en-US` formatter (AM/PM by default) with hour+minute.
+  const sample = new Date("2026-04-18T14:30:00Z"); // 16:30 Europe/Berlin (CEST)
+  const buildLabel = (preference: Parameters<typeof hourCycleOptions>[0]) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Europe/Berlin",
+      hour: "2-digit",
+      minute: "2-digit",
+      ...hourCycleOptions(preference),
+    }).format(sample);
+
+  it("an en-US hour/minute formatter drops AM/PM under H24", () => {
+    const label = buildLabel("H24");
+    expect(label).not.toMatch(/[AP]M/i);
+    expect(label).toBe("16:30");
+  });
+
+  it("an en-US hour/minute formatter keeps AM/PM under H12", () => {
+    expect(buildLabel("H12")).toMatch(/PM/);
+  });
+
+  it("an en-US hour/minute formatter follows the locale (AM/PM) under AUTO", () => {
+    expect(buildLabel("AUTO")).toMatch(/PM/);
   });
 });

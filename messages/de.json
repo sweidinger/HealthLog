@@ -2066,7 +2066,10 @@
       "refreshFailedHint": "Briefing konnte nicht aktualisiert werden — es wird das letzte angezeigt.",
       "retryAction": "Erneut versuchen",
       "failedTitle": "Briefing konnte nicht erstellt werden",
-      "failedDescription": "Der KI-Anbieter hat das Zeitlimit überschritten oder einen Fehler zurückgegeben. Versuche es erneut oder erhöhe in den KI-Einstellungen das Antwort-Zeitlimit für ein langsames lokales Modell."
+      "failedDescription": "Der KI-Anbieter hat das Zeitlimit überschritten oder einen Fehler zurückgegeben. Versuche es erneut oder erhöhe in den KI-Einstellungen das Antwort-Zeitlimit für ein langsames lokales Modell.",
+      "failedDescriptionTimeout": "Die KI-Anfrage hat das Zeitlimit überschritten, bevor das Briefing fertig war. Erhöhe für ein langsames lokales Modell in den Einstellungen das Antwort-Zeitlimit und versuche es dann erneut.",
+      "failedDescriptionProvider": "Der KI-Anbieter hat die Anfrage abgelehnt. Prüfe Anbieter und API-Schlüssel in den KI-Einstellungen und versuche es erneut.",
+      "failedDescriptionRateLimit": "Der KI-Anbieter drosselt derzeit die Anfragen. Versuche es in Kürze erneut."
     },
     "trendsRow": {
       "title": "Trends",
@@ -4033,15 +4036,17 @@
       },
       "notifications": {
         "title": "Benachrichtigungen",
-        "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird. Die Zustellkanäle liegen unter Integrationen.",
-        "channelsHint": "Telegram, ntfy, Web-Push, Webhook und E-Mail richtest du jetzt unter",
-        "channelsHintLink": "Integrationen → Kanäle",
-        "subtitle": "Wähle, welche Erinnerungen du erhältst."
+        "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird und wohin es zugestellt wird.",
+        "subtitle": "Wähle, welche Erinnerungen du erhältst und wohin sie zugestellt werden.",
+        "remindersHeading": "Erinnerungen",
+        "remindersDescription": "Was du erhältst.",
+        "channelsHeading": "Zustellkanäle",
+        "channelsDescription": "Wohin Erinnerungen und Hinweise zugestellt werden."
       },
       "layout": {
-        "title": "Dashboard",
-        "description": "Lege fest, wie Dashboard und Insights aufgebaut und angeordnet sind.",
-        "backToHub": "Zurück zu Layout & Personalisierung",
+        "title": "Darstellung",
+        "description": "Lege fest, wie Dashboard, Auswertungen und deine Tracking-Module dargestellt und angeordnet sind.",
+        "backToHub": "Zurück zu Darstellung",
         "dashboard": {
           "title": "Dashboard",
           "description": "Kachel-Layout und Reihenfolge."
@@ -4050,7 +4055,23 @@
           "title": "Insights",
           "description": "Reihenfolge der Übersicht und der Navigations-Pills."
         },
-        "subtitle": "Passe an, wie Dashboard und Insights angeordnet sind."
+        "subtitle": "Lege fest, wie Dashboard, Auswertungen und Tracking-Module dargestellt werden.",
+        "medications": {
+          "title": "Medikamente",
+          "description": "Listenansicht und manuelle Reihenfolge."
+        },
+        "labs": {
+          "title": "Labor",
+          "description": "Ansicht, Sortierung und manuelle Reihenfolge."
+        },
+        "illness": {
+          "title": "Krankheitstagebuch",
+          "description": "Listenansicht und Reihenfolge der Episoden."
+        },
+        "vorsorge": {
+          "title": "Vorsorge",
+          "description": "Listenansicht und Reihenfolge der Erinnerungen."
+        }
       },
       "dashboard": {
         "title": "Dashboard",
@@ -4307,11 +4328,6 @@
         "title": "Coach",
         "description": "Coach aktivieren, Ton und Umfang, gespeicherte Erinnerungen.",
         "subtitle": "Stelle den Coach, seine proaktiven Hinweise und sein Gedächtnis ein."
-      },
-      "channels": {
-        "title": "Kanäle",
-        "description": "Zustellung über Telegram, ntfy, Web-Push, Webhook und E-Mail.",
-        "subtitle": "Wohin Erinnerungen und Hinweise zugestellt werden."
       },
       "security": {
         "title": "Sicherheit",
@@ -4671,7 +4687,7 @@
       "responseTimeoutHeading": "Antwort-Timeout",
       "responseTimeoutBody": "Wie lange auf die Antwort der KI gewartet wird, bevor abgebrochen wird. Erhöhe den Wert für ein lokales oder selbst gehostetes Modell, das beim ersten Aufruf Zeit zum Laden braucht.",
       "responseTimeoutLabel": "Antwort-Timeout (Sekunden)",
-      "responseTimeoutPlaceholder": "Standard (~180)",
+      "responseTimeoutPlaceholder": "Standard (~120)",
       "responseTimeoutInvalid": "Gib eine Zahl zwischen 10 und 600 Sekunden ein.",
       "ocrHeading": "Dokumentenscan (Laborberichte)",
       "ocrBody": "Verwende einen eigenen Anbieter zum Auslesen hochgeladener Laborberichte. Ist die Option aus, nutzt der Scan deinen Hauptanbieter.",
@@ -7129,14 +7145,7 @@
       "unhiddenToast": "Biomarker wiederhergestellt",
       "hideError": "Biomarker konnte nicht aktualisiert werden",
       "allHidden": "Alle Biomarker sind ausgeblendet.",
-      "hiddenSection": "Ausgeblendet",
-      "targetRange": {
-        "title": "Zielbereich anpassen",
-        "description": "Lege die untere und obere Referenz für diesen Marker fest. Lass ein Feld leer für eine offene Grenze.",
-        "save": "Bereich speichern",
-        "savedToast": "Zielbereich aktualisiert",
-        "saveError": "Zielbereich konnte nicht aktualisiert werden"
-      }
+      "hiddenSection": "Ausgeblendet"
     },
     "catalog": {
       "total-cholesterol": "Gesamtcholesterin",
@@ -7569,7 +7578,6 @@
     "choosePrompt": "Check-in auswählen",
     "start": "Starten",
     "back": "Zurück",
-    "stem": "Wie oft fühltest du dich im Verlauf der letzten 2 Wochen durch die folgenden Beschwerden beeinträchtigt?",
     "submit": "Ergebnis ansehen",
     "submitting": "Wird gespeichert…",
     "saved": "Gespeichert",
@@ -7619,7 +7627,14 @@
     },
     "history": {
       "title": "Dein Verlauf",
-      "empty": "Noch keine Check-ins. Dein Verlauf erscheint hier, sobald du einen abgeschlossen hast."
+      "empty": "Noch keine Check-ins. Dein Verlauf erscheint hier, sobald du einen abgeschlossen hast.",
+      "chartTitle": "Punkteverlauf",
+      "flaggedBadge": "Hilfe angezeigt",
+      "totalLabel": "Punkte",
+      "tab": {
+        "phq9": "PHQ-9",
+        "gad7": "GAD-7"
+      }
     },
     "crisis": {
       "title": "Du musst das nicht allein durchstehen",
@@ -7671,6 +7686,25 @@
       "crisisTextLine": {
         "name": "Crisis Text Line"
       }
+    },
+    "instrumentDescription": {
+      "phq9": "Depressions-Screening mit 9 Fragen. Beziehe dich auf die letzten zwei Wochen.",
+      "gad7": "Angst-Screening mit 7 Fragen. Beziehe dich auf die letzten zwei Wochen."
+    },
+    "progress": "{current} / {total}",
+    "questionAria": "Frage {current} von {total}",
+    "next": "Weiter",
+    "lastResult": "Letztes Ergebnis",
+    "noResultYet": "Noch kein Check-in",
+    "backToList": "Übersicht",
+    "jumpFirst": "Zur ersten Frage springen",
+    "jumpLast": "Zur letzten Frage springen",
+    "review": {
+      "title": "Überblick",
+      "recap": "Du hast {answered} von {total} Fragen beantwortet."
+    },
+    "landing": {
+      "disclaimer": "Dies sind freiwillige Selbsttests, keine Diagnose. Sie unterstützen das Gespräch mit einer Fachperson, ersetzen es aber nicht."
     }
   },
   "records": {

@@ -134,6 +134,17 @@ const nextConfig: NextConfig = {
         destination: "/settings/notifications",
         permanent: true,
       },
+      // v1.25.3 — the standalone delivery-channels page folded into
+      // Notifications as an in-page group. The channels content now lives
+      // under the `#channels` anchor on the Notifications surface, so the old
+      // URL 301-redirects there (mirroring the `/settings/reminders` precedent
+      // above). The per-channel anchors (`#telegram`, `#ntfy`, …) inside the
+      // panel keep resolving.
+      {
+        source: "/settings/channels",
+        destination: "/settings/notifications#channels",
+        permanent: true,
+      },
       // v1.22.0 — the preventive-care surface moved from the German slug
       // `/vorsorge` to the English `/checkups` (the feature reads "Checkups"
       // in every non-German locale now). 301-redirect so bookmarks, the PWA's
