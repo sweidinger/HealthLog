@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
-import { AskCoachAction } from "@/components/insights/ask-coach-action";
+import { AskCoachIconButton } from "@/components/insights/ask-coach-action";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { apiGet } from "@/lib/api/api-fetch";
 
@@ -142,29 +142,45 @@ export function PeriodNarrativeCard({
         data-period={period}
         className={SHELL}
       >
-        {/* Week / month toggle. Calm segmented control, no chart. */}
-        <div className="flex gap-1 self-start">
-          {(["week", "month"] as const).map((p) => {
-            const active = period === p;
-            return (
-              <button
-                key={p}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setPeriod(p)}
-                className={cn(
-                  "focus-visible:ring-ring inline-flex min-h-11 items-center rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none",
-                  active
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {p === "week"
-                  ? t("insights.narrativeWeek")
-                  : t("insights.narrativeMonth")}
-              </button>
-            );
-          })}
+        {/* Header row: week / month toggle on the left, the icon-only Coach
+            hand-off pinned top-right. Matches the assessment cards, which carry
+            the same single `<AskCoachIconButton>` in their header's right slot
+            (no text label, tooltip + accessible name). The summary spans the
+            whole picture for the window, so no scope: the default snapshot
+            reads best. */}
+        <div className="flex items-start justify-between gap-2">
+          {/* Calm segmented control, no chart. */}
+          <div className="flex gap-1">
+            {(["week", "month"] as const).map((p) => {
+              const active = period === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setPeriod(p)}
+                  className={cn(
+                    "focus-visible:ring-ring inline-flex min-h-11 items-center rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none",
+                    active
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {p === "week"
+                    ? t("insights.narrativeWeek")
+                    : t("insights.narrativeMonth")}
+                </button>
+              );
+            })}
+          </div>
+          <AskCoachIconButton
+            question={t(
+              period === "week"
+                ? "insights.coach.seed.periodWeek"
+                : "insights.coach.seed.periodMonth",
+            )}
+            className="shrink-0"
+          />
         </div>
 
         {/* v1.22 (W6) — real paragraphs via the shared ProseBlocks helper
@@ -184,19 +200,6 @@ export function PeriodNarrativeCard({
                 user?.timezone,
               )}
         </p>
-
-        {/* v1.21.0 (C4 H2) — hand the period summary to the Coach. It spans
-            the whole picture for the window, so no scope: the default
-            snapshot reads best. */}
-        <div className="flex justify-end">
-          <AskCoachAction
-            question={t(
-              period === "week"
-                ? "insights.coach.seed.periodWeek"
-                : "insights.coach.seed.periodMonth",
-            )}
-          />
-        </div>
       </div>
     </section>
   );
