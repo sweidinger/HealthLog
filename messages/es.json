@@ -7129,14 +7129,7 @@
       "unhiddenToast": "Biomarcador restaurado",
       "hideError": "No se pudo actualizar el biomarcador",
       "allHidden": "Todos los biomarcadores están ocultos.",
-      "hiddenSection": "Ocultos",
-      "targetRange": {
-        "title": "Ajustar el rango objetivo",
-        "description": "Define la referencia mínima y máxima de este marcador. Deja un campo vacío para un límite abierto.",
-        "save": "Guardar rango",
-        "savedToast": "Rango objetivo actualizado",
-        "saveError": "No se pudo actualizar el rango objetivo"
-      }
+      "hiddenSection": "Ocultos"
     },
     "catalog": {
       "total-cholesterol": "Colesterol total",
