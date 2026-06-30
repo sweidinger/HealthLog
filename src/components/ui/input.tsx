@@ -17,8 +17,14 @@ import { cn } from "@/lib/utils";
  * because they already pass an explicit `autoComplete` value —
  * `"username"`, `"email"`, `"current-password"`, `"new-password"`. When
  * `autoComplete` is anything other than `"off"`, the LastPass /
- * 1Password ignore attrs are dropped so password managers fill the
- * field normally.
+ * 1Password / Bitwarden ignore attrs are dropped so password managers
+ * fill the field normally.
+ *
+ * v1.25.11 — extend the cross-manager opt-out to Bitwarden
+ * (`data-bwignore`) alongside the existing LastPass (`data-lpignore`)
+ * and 1Password (`data-1p-ignore`) hints, so config / secret fields
+ * (AI keys, bearer tokens, integration secrets, webhook URLs) are not
+ * offered for autofill or saved as a login by any of the three.
  *
  * v1.4.27 mobile pass: derive a sensible `inputMode` default from the
  * `type` prop so every numeric / email / tel / url / search field
@@ -66,6 +72,7 @@ function Input({
       inputMode={resolvedInputMode}
       data-lpignore={skipAutofill ? "true" : undefined}
       data-1p-ignore={skipAutofill ? "true" : undefined}
+      data-bwignore={skipAutofill ? "true" : undefined}
       className={cn(
         // v1.4.34 IW-G — floor at 44 px on mobile to clear WCAG 2.5.5;
         // shrink to 40 px on sm+ where pointer precision is higher.

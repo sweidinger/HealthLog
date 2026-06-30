@@ -527,6 +527,7 @@ export function AccountSection() {
                 </Label>
                 <PasswordInput
                   id="current-password"
+                  autoComplete="current-password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                 />
@@ -537,6 +538,7 @@ export function AccountSection() {
                 </Label>
                 <PasswordInput
                   id="new-password"
+                  autoComplete="new-password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
@@ -547,6 +549,7 @@ export function AccountSection() {
                 </Label>
                 <PasswordInput
                   id="confirm-password"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
