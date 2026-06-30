@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { DateTimeField } from "@/components/ui/date-time-field";
+import { FieldGroup } from "@/components/ui/field-group";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -386,12 +387,9 @@ export function MeasurementForm({
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Label htmlFor="measurement-type" className="shrink-0">
-          {t("measurements.type")}
-        </Label>
+      <FieldGroup htmlFor="measurement-type" label={t("measurements.type")}>
         <Select value={type} onValueChange={setType}>
-          <SelectTrigger id="measurement-type" className="flex-1">
+          <SelectTrigger id="measurement-type" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -402,7 +400,7 @@ export function MeasurementForm({
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FieldGroup>
 
       {isBpMode ? (
         <div className="grid gap-4 sm:grid-cols-3">
@@ -463,16 +461,16 @@ export function MeasurementForm({
           </div>
         </div>
       ) : (
-        <div className="space-y-2">
-          <Label htmlFor="value">
-            {t("measurements.valueWithUnit", {
-              unit: typeInfo
-                ? "unitKey" in typeInfo
-                  ? t(typeInfo.unitKey)
-                  : typeInfo.unit
-                : "",
-            })}
-          </Label>
+        <FieldGroup
+          htmlFor="value"
+          label={t("measurements.valueWithUnit", {
+            unit: typeInfo
+              ? "unitKey" in typeInfo
+                ? t(typeInfo.unitKey)
+                : typeInfo.unit
+              : "",
+          })}
+        >
           <Input
             id="value"
             type="number"
@@ -490,14 +488,14 @@ export function MeasurementForm({
             aria-invalid={!!error || undefined}
             aria-describedby={errorDescriptor}
           />
-        </div>
+        </FieldGroup>
       )}
 
       {isGlucoseMode && (
-        <div className="space-y-2">
-          <Label htmlFor="glucose-context">
-            {t("measurements.glucoseContext")}
-          </Label>
+        <FieldGroup
+          htmlFor="glucose-context"
+          label={t("measurements.glucoseContext")}
+        >
           <Select
             value={glucoseContext}
             onValueChange={(v) => setGlucoseContext(v as GlucoseContextValue)}
@@ -513,11 +511,17 @@ export function MeasurementForm({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </FieldGroup>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="measuredAt">{t("measurements.timestamp")}</Label>
+      <FieldGroup
+        htmlFor="measuredAt"
+        label={t("measurements.timestamp")}
+        // v1.17.1 — surface that the timestamp is editable. The picker
+        // already defaults to now and accepts any earlier instant; many
+        // users never notice they can backdate a reading.
+        hint={t("measurements.timestampBackdateHint")}
+      >
         <DateTimeField
           id="measuredAt"
           value={measuredAt}
@@ -531,26 +535,24 @@ export function MeasurementForm({
           aria-invalid={!!error || undefined}
           aria-describedby={errorDescriptor}
         />
-        {/* v1.17.1 — surface that the timestamp is editable. The picker
-            already defaults to now and accepts any earlier instant; many
-            users never notice they can backdate a reading. */}
-        <p className="text-muted-foreground text-xs">
-          {t("measurements.timestampBackdateHint")}
-        </p>
-      </div>
+      </FieldGroup>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="notes">
+      <FieldGroup
+        htmlFor="notes"
+        label={
+          <>
             {t("measurements.notes")}{" "}
             <span className="text-muted-foreground font-normal">
               ({t("common.optional")})
             </span>
-          </Label>
+          </>
+        }
+        labelAccessory={
           <span className="text-muted-foreground text-xs">
             {notes.length}/{MAX_COMMENT_LENGTH}
           </span>
-        </div>
+        }
+      >
         <Input
           id="notes"
           value={notes}
@@ -560,7 +562,7 @@ export function MeasurementForm({
           enterKeyHint="done"
           autoCapitalize="sentences"
         />
-      </div>
+      </FieldGroup>
 
       {error && (
         <div

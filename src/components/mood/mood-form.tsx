@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DateTimeField } from "@/components/ui/date-time-field";
+import { FieldGroup } from "@/components/ui/field-group";
 import { Label } from "@/components/ui/label";
 import {
   ListChecks,
@@ -473,17 +474,20 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
             </div>
 
             {/* v1.8.5 (C1) — free-text note. */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="mood-note">
+            <FieldGroup
+              htmlFor="mood-note"
+              label={
+                <>
                   {t("mood.note")}{" "}
                   <span className="text-muted-foreground font-normal">
                     ({t("common.optional")})
                   </span>
-                </Label>
-                {/* v1.11.5 — character counter so the `maxLength` cap no
+                </>
+              }
+              labelAccessory={
+                /* v1.11.5 — character counter so the `maxLength` cap no
                 longer truncates silently. Turns destructive (warns) as the
-                input approaches the limit. */}
+                input approaches the limit. */
                 <span
                   data-testid="mood-note-counter"
                   className={`text-xs tabular-nums ${
@@ -498,7 +502,8 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
                     max: String(NOTE_MAX_LENGTH),
                   })}
                 </span>
-              </div>
+              }
+            >
               <Textarea
                 id="mood-note"
                 value={note}
@@ -507,10 +512,9 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
                 maxLength={NOTE_MAX_LENGTH}
                 rows={3}
               />
-            </div>
+            </FieldGroup>
 
-            <div className="space-y-2">
-              <Label htmlFor="mood-logged-at">{t("mood.timestamp")}</Label>
+            <FieldGroup htmlFor="mood-logged-at" label={t("mood.timestamp")}>
               <DateTimeField
                 id="mood-logged-at"
                 value={moodLoggedAt}
@@ -522,7 +526,7 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
                 aria-invalid={!!error || undefined}
                 aria-describedby={errorDescriptor}
               />
-            </div>
+            </FieldGroup>
           </SheetSection>
         </div>
       )}
