@@ -8,6 +8,10 @@
 
 - **Custom metrics.** Define your own measurement — a name, a unit, optional target range, decimal places, and a short description — then log values against it and chart the trend over time, right alongside the built-in measurements. Useful for anything the standard catalog doesn't cover (a symptom score you track, a device reading, a habit count). Each definition and its values are private to your account; they are a deliberately separate, log-and-chart store, so they are not synced to Withings or Apple Health, not exported to FHIR, and not used by AI Insights.
 
+### Fixed
+
+- The settings pages could intermittently render with non-interactive controls (a disclosure that wouldn't open, an export button that did nothing) when the section navigation resolved a different set of entries on the server than on the client. The navigation now renders identically on both passes and applies its module-based filtering once after load, so every settings control stays responsive.
+
 ## [1.25.8] — 2026-06-29 — Carrier in the sign-in overview
 
 A focused configuration release. No schema change.

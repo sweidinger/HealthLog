@@ -248,17 +248,27 @@ describe("<SettingsShell>", () => {
     );
   });
 
-  it("module-gates the Coach entry off `user.modules.coach` (v1.18.0 S5)", () => {
-    // Fail-open default: coach undefined → entry shown.
+  it("surfaces the Coach entry on the fail-open default (v1.18.0 S5)", () => {
+    // coach undefined → entry shown.
     expect(renderShell({ active: "account" })).toContain(
       'href="/settings/coach"',
     );
-    // Explicitly disabled → entry hidden.
-    const disabled = renderShell({
-      active: "account",
-      modules: { coach: false },
-    });
-    expect(disabled).not.toContain('href="/settings/coach"');
+  });
+
+  it("renders the full fail-open nav on the server pass, even for a disabled module (v1.25.9)", () => {
+    // v1.25.9 — the module filter must NOT run during SSR / the first client
+    // paint. `useAuth().user.modules` resolves at different times on the
+    // server-rendered pass and the hydrating client pass, so filtering in the
+    // SSR markup produced a different nav `<li>` count than the client's first
+    // render — a React #418 hydration mismatch that regenerated the whole tree
+    // and left every settings control non-interactive (dead disclosure /
+    // download buttons). The shell now emits the full fail-open list on both
+    // the server pass and the first client paint, and applies the module
+    // filter once, after mount. So a disabled module's entry is STILL present
+    // in the SSR markup here; its client-side removal after hydration is
+    // covered by the e2e suite (settings pages must stay interactive).
+    const ssr = renderShell({ active: "account", modules: { coach: false } });
+    expect(ssr).toContain('href="/settings/coach"');
   });
 
   it("always surfaces the Health-record entry, regardless of `doctorReport` (v1.18.6.1)", () => {

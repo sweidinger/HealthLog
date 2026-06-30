@@ -294,6 +294,10 @@ function navHighlightSlug(slug: SettingsSectionSlug): SettingsSectionSlug {
   return LAYOUT_CHILD_SLUGS.has(slug) ? "layout" : slug;
 }
 
+// Stable no-op subscribe for the hydration probe below — the value never
+// changes after the first commit, so there is nothing to subscribe to.
+const subscribeNoop = () => () => {};
+
 function deriveActiveSlug(
   pathname: string | null,
   override?: SettingsSectionSlug,
@@ -324,9 +328,34 @@ export function SettingsShell({
   // (`!== false`): a missing key, or a not-yet-resolved `/me` payload,
   // reads as enabled so an entry never silently disappears. Entries with
   // no `moduleGate` (global / CORE) are always shown.
+  //
+  // v1.25.9 — the module filter must NOT run during SSR / the first client
+  // paint. `useAuth().user` resolves from the `/api/auth/me` query, which is
+  // populated on the server-rendered pass and the hydrating client pass at
+  // DIFFERENT times (a cache race): the server may render the full list while
+  // the client hydrates with `modules` already resolved (or vice versa),
+  // producing a different number of nav `<li>`s and a React #418 hydration
+  // mismatch. On a mismatch React discards and regenerates the whole tree,
+  // which dropped the event handlers on every settings page (dead toggles /
+  // download buttons). Gate the filter on a post-mount flag so SSR and the
+  // first client render ALWAYS emit the same fail-open list; the real filter
+  // applies once, after hydration, as an ordinary client update.
+  // `useSyncExternalStore` is the SSR-safe hydration probe: it returns the
+  // server snapshot (`false`) on the server render AND the first client paint,
+  // then the client snapshot (`true`) after hydration commits. No setState in
+  // an effect (which the lint rule flags as a cascading render), and no risk
+  // of the two passes disagreeing.
+  const hydrated = React.useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
   const modules = user?.modules;
   const visibleSections = SETTINGS_SECTIONS.filter(
-    (section) => !section.moduleGate || modules?.[section.moduleGate] !== false,
+    (section) =>
+      !hydrated ||
+      !section.moduleGate ||
+      modules?.[section.moduleGate] !== false,
   );
   const activeSection = visibleSections.find(
     (section) => section.slug === activeSlug,
