@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.25.9] — 2026-06-30 — Custom metrics
+
+### Added
+
+- **Custom metrics.** Define your own measurement — a name, a unit, optional target range, decimal places, and a short description — then log values against it and chart the trend over time, right alongside the built-in measurements. Useful for anything the standard catalog doesn't cover (a symptom score you track, a device reading, a habit count). Each definition and its values are private to your account; they are a deliberately separate, log-and-chart store, so they are not synced to Withings or Apple Health, not exported to FHIR, and not used by AI Insights.
+
 ## [1.25.8] — 2026-06-29 — Carrier in the sign-in overview
 
 A focused configuration release. No schema change.
