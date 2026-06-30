@@ -506,7 +506,7 @@ export function SettingsShell({
           holds across locales and however the title or subtitle wraps. No
           fixed-height spacer to guess. The `gap-6` between rows reproduces
           the `space-y-6` the heading-to-first-card gap used to carry. */}
-      <div className="grid gap-6 md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]">
+      <div className="grid gap-6 md:min-h-[calc(100dvh-10.5rem)] md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]">
         {/* Heading — desktop only here (mobile renders it above the strip). */}
         {headingBlock ? (
           <div className="hidden md:col-start-2 md:row-start-1 md:block">
@@ -555,11 +555,20 @@ export function SettingsShell({
           </ul>
         </aside>
 
-        {/* Main column — page renders its own h1 + subtitle. The
-            `min-h-[calc(100dvh-12rem)]` reserve keeps the column tall
-            enough that swapping a short loading state for a long
-            section list (Thresholds, Sources) does not jump the page
-            height under the sticky sidebar.
+        {/* Main column — page renders its own h1 + subtitle.
+
+            v1.25.11 (#154) — the column no longer carries its own
+            `min-h-[calc(100dvh-12rem)]`. That reserve was tuned without
+            the AuthShell wrapper's `pt-6 pb-20` (104 px) in the budget, so
+            on a short section it forced the column ~100 px past the
+            viewport: the page scrolled into a dark empty band below the
+            last card. Instead the GRID carries `md:min-h-[calc(100dvh-
+            10.5rem)]` (top bar 4rem + wrapper pt-6/pb-20 = 10.5rem), and
+            this column is the grid's `1fr` row, so it stretches to fill
+            the viewport EXACTLY on a short section (no over-scroll, no dark
+            band) and grows past it on a long one (normal scroll). The floor
+            still prevents the short-loading-state → long-list height jump
+            the old reserve guarded, just measured against the real budget.
 
             v1.4.33 F14 — `pb-24 md:pb-0` reserves a 96 px bottom gutter
             on `<md` so the last form field on
@@ -571,7 +580,7 @@ export function SettingsShell({
             v1.16.4 — a `<div>`, not `<main>`: the surrounding AuthShell
             already provides the page's single `<main>` landmark and a
             nested second one is an a11y violation. */}
-        <div className="min-h-[calc(100dvh-12rem)] min-w-0 pb-24 md:col-start-2 md:row-start-2 md:pb-0">
+        <div className="min-w-0 pb-24 md:col-start-2 md:row-start-2 md:pb-0">
           {children}
         </div>
       </div>
