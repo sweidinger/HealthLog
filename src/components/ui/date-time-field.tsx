@@ -108,7 +108,17 @@ export const DateTimeField = React.forwardRef<
 
   return (
     <div
-      className={cn("flex items-stretch gap-2", className)}
+      className={cn(
+        // v1.25.10 — stack the date and time halves on a narrow viewport and
+        // only sit them side-by-side from `sm:` up. A native `<input
+        // type="date">` keeps its intrinsic width on mobile WebKit and won't
+        // shrink below it, so the `date + w-32 time` row overran a phone-width
+        // sheet (the time field + clock icon spilled ~70px past the edge,
+        // forcing a sideways scroll on every add form). Stacked, each half
+        // takes the full sheet width and nothing overflows.
+        "flex flex-col gap-2 sm:flex-row sm:items-stretch",
+        className,
+      )}
       data-slot="date-time-field"
     >
       {/* Hidden mirror so the combined value participates in native submits. */}
@@ -141,7 +151,7 @@ export const DateTimeField = React.forwardRef<
         onChange={(tm) => commitParts(dateStr, tm)}
         onBlur={onBlur}
         disabled={disabled}
-        className="w-32 shrink-0"
+        className="w-full shrink-0 sm:w-32"
         aria-label={ariaLabel}
         aria-required={ariaRequired}
       />
