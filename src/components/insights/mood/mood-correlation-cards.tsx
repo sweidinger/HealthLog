@@ -83,15 +83,21 @@ const STRENGTH_KEY: Record<CorrelationResult["strength"], string> = {
 function MoodCorrelationCard({
   kind,
   data,
+  className,
 }: {
   kind: MetricKind;
   data: MoodMetricCorrelationData;
+  className?: string;
 }) {
   const { t } = useTranslations();
   const hasResult = data.result != null && data.n >= 5;
 
   return (
-    <Card data-slot="mood-correlation-card" data-kind={kind}>
+    <Card
+      data-slot="mood-correlation-card"
+      data-kind={kind}
+      className={className}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-sm font-semibold">
@@ -165,7 +171,15 @@ export function MoodCorrelationCards({
       <MoodCorrelationCard kind="steps" data={steps} />
       <MoodCorrelationCard kind="pulse" data={pulse} />
       <MoodCorrelationCard kind="weight" data={weight} />
-      <MoodCorrelationCard kind="bloodPressure" data={bloodPressureSystolic} />
+      {/* Five fixed cards: on the two-up sm grid the trailing card lands
+          alone in its row, so it spans full width there; the three-up lg
+          grid leaves it paired (row of 3 + row of 2) and it stays one
+          column. */}
+      <MoodCorrelationCard
+        kind="bloodPressure"
+        data={bloodPressureSystolic}
+        className="sm:col-span-2 lg:col-span-1"
+      />
     </div>
   );
 }

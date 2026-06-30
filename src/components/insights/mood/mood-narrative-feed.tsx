@@ -14,6 +14,7 @@ import {
 import type { ComponentType } from "react";
 
 import { useTranslations } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
 
 /**
  * v1.8.6 — narrative takeaway feed.
@@ -69,7 +70,12 @@ export function MoodNarrativeFeed({ items }: { items: MoodNarrativeItem[] }) {
     // ladder. Lay them two-up on anything wider than a phone; a lone
     // takeaway still spans the row rather than orphaning half of it.
     <ul
-      className="grid gap-2 sm:grid-cols-2"
+      className={cn(
+        "grid gap-2",
+        // A lone takeaway spans the row rather than orphaning half of it;
+        // two or more lay out two-up on anything wider than a phone.
+        items.length > 1 && "sm:grid-cols-2",
+      )}
       data-slot="mood-narrative-feed"
       aria-label={t("insights.mood.narrative.title")}
     >
