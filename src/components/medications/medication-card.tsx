@@ -452,7 +452,7 @@ export function MedicationCard({
               {s.dose && (
                 <span className="text-dose-accent hidden font-medium sm:inline">
                   {" "}
-                  — {s.dose}
+                  — {formatDose(s.dose, t)}
                 </span>
               )}
             </>

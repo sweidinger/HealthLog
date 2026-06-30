@@ -468,7 +468,7 @@ export function Glp1MedicationCard({
           {schedule?.dose && (
             <span className="text-dose-accent hidden font-medium sm:inline">
               {" "}
-              — {schedule.dose}
+              — {formatDose(schedule.dose, t)}
             </span>
           )}
         </>
