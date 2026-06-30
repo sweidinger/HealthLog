@@ -4039,6 +4039,8 @@
         "title": "Intégrations",
         "description": "Services connectés, canaux de diffusion et priorité des sources au même endroit.",
         "subtitle": "Connectez et gérez vos sources de données et appareils.",
+        "connectionsHeading": "Connexions",
+        "connectionsDescription": "Connectez et gérez vos sources de données et appareils.",
         "channelsHeading": "Canaux de diffusion",
         "channelsDescription": "Où sont envoyés les rappels et alertes."
       },

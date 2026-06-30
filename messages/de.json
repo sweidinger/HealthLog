@@ -4039,6 +4039,8 @@
         "title": "Integrationen",
         "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort.",
         "subtitle": "Datenquellen und Geräte verbinden und verwalten.",
+        "connectionsHeading": "Verbindungen",
+        "connectionsDescription": "Datenquellen und Geräte verbinden und verwalten.",
         "channelsHeading": "Zustellkanäle",
         "channelsDescription": "Wohin Erinnerungen und Hinweise zugestellt werden."
       },

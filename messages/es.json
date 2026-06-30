@@ -4039,6 +4039,8 @@
         "title": "Integraciones",
         "description": "Servicios conectados, canales de entrega y prioridad de fuentes en un solo lugar.",
         "subtitle": "Conecta y gestiona tus fuentes de datos y dispositivos.",
+        "connectionsHeading": "Conexiones",
+        "connectionsDescription": "Conecta y gestiona tus fuentes de datos y dispositivos.",
         "channelsHeading": "Canales de entrega",
         "channelsDescription": "Dónde se entregan los recordatorios y avisos."
       },

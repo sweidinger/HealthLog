@@ -473,27 +473,21 @@ export function AccountSection() {
           card's "Restart onboarding tour" actually broke through the
           right border by ~48 px). */}
       <SettingsCard>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-          <div className="flex items-start gap-2">
-            <Shield className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">
-                {t("settings.passwordReset")}
-              </h2>
-              <p className="text-muted-foreground text-xs">
-                {t("settings.changePasswordDescription")}
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setPasswordDialogOpen(true)}
-            className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
-          >
-            {t("settings.changePassword")}
-          </Button>
-        </div>
+        <SettingsCardHeader
+          icon={Shield}
+          title={t("settings.passwordReset")}
+          description={t("settings.changePasswordDescription")}
+          status={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPasswordDialogOpen(true)}
+              className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
+            >
+              {t("settings.changePassword")}
+            </Button>
+          }
+        />
       </SettingsCard>
 
       {/* v1.25.7 — active-session management + the security-activity feed

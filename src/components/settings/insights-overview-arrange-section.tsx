@@ -2,9 +2,10 @@
 
 import { useMemo } from "react";
 
-import { Loader2 } from "lucide-react";
+import { LayoutGrid, Loader2 } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
@@ -50,17 +51,12 @@ export function InsightsOverviewArrangeSection({ id }: { id?: string }) {
       aria-labelledby="insights-overview-arrange-title"
       className="space-y-3"
     >
-      <header className="space-y-1">
-        <h2
-          id="insights-overview-arrange-title"
-          className="text-lg font-semibold"
-        >
-          {t("insights.settings.overviewTitle")}
-        </h2>
-        <p className="text-muted-foreground text-sm">
-          {t("insights.settings.overviewDescription")}
-        </p>
-      </header>
+      <SettingsCardHeader
+        icon={LayoutGrid}
+        titleId="insights-overview-arrange-title"
+        title={t("insights.settings.overviewTitle")}
+        description={t("insights.settings.overviewDescription")}
+      />
 
       {/* Gate the editor mount until the layout GET settles. The editor seeds
           its draft once from `layout` on mount, which is the canonical default

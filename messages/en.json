@@ -4039,6 +4039,8 @@
         "title": "Integrations",
         "description": "Connected services, delivery channels, and source priority in one place.",
         "subtitle": "Connect and manage your data sources and devices.",
+        "connectionsHeading": "Connections",
+        "connectionsDescription": "Connect and manage your data sources and devices.",
         "channelsHeading": "Delivery channels",
         "channelsDescription": "Where reminders and alerts are delivered."
       },

@@ -4039,6 +4039,8 @@
         "title": "Integracje",
         "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
         "subtitle": "Połącz i zarządzaj źródłami danych oraz urządzeniami.",
+        "connectionsHeading": "Połączenia",
+        "connectionsDescription": "Połącz i zarządzaj źródłami danych oraz urządzeniami.",
         "channelsHeading": "Kanały dostarczania",
         "channelsDescription": "Gdzie dostarczane są przypomnienia i powiadomienia."
       },

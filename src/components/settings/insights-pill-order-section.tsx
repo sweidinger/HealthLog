@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Eye, EyeOff, GripVertical, Loader2 } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ListOrdered, Loader2 } from "lucide-react";
 import {
   DndContext,
   KeyboardSensor,
@@ -44,6 +44,7 @@ import {
 import { SUB_PAGE_TABS } from "@/components/insights/insights-tab-strip";
 import { apiPut } from "@/lib/api/api-fetch";
 import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 
 /**
  * v1.15.18 — dedicated pill-sort control for the Insights settings section.
@@ -210,28 +211,26 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
       aria-labelledby="insights-pill-order-title"
       className="space-y-4"
     >
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-        <div className="space-y-1">
-          <h2 id="insights-pill-order-title" className="text-lg font-semibold">
-            {t("insights.pillOrder.title")}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            {t("insights.pillOrder.description")}
-          </p>
-        </div>
-        <Button
-          size="sm"
-          onClick={() => saveMutation.mutate(draftTiles)}
-          disabled={busy || !dirty}
-          data-slot="insights-pill-order-save"
-          className="min-h-11 self-end sm:min-h-9 sm:self-auto"
-        >
-          {saveMutation.isPending && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-          )}
-          {t("insights.pillOrder.save")}
-        </Button>
-      </div>
+      <SettingsCardHeader
+        icon={ListOrdered}
+        titleId="insights-pill-order-title"
+        title={t("insights.pillOrder.title")}
+        description={t("insights.pillOrder.description")}
+        status={
+          <Button
+            size="sm"
+            onClick={() => saveMutation.mutate(draftTiles)}
+            disabled={busy || !dirty}
+            data-slot="insights-pill-order-save"
+            className="min-h-11 self-end sm:min-h-9 sm:self-auto"
+          >
+            {saveMutation.isPending && (
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            )}
+            {t("insights.pillOrder.save")}
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <p

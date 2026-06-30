@@ -52,6 +52,7 @@ import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
 import { useAuth } from "@/hooks/use-auth";
 import { WIDGET_MODULE_BY_ID } from "@/lib/dashboard/widget-modules";
 import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 
 /**
  * v1.4.47 W4 — pure reorder helper shared by the arrow buttons and the
@@ -336,24 +337,22 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           right-align-on-desktop contract as Account → Password +
           Restart onboarding tour. Avoids the long German "Auf Standard
           zurücksetzen" copy clipping the card edge at narrow widths. */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="flex items-center gap-2">
-          <LayoutDashboard className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("dashboard.customizeTitle")}
-          </h2>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => resetMutation.mutate()}
-          disabled={resetMutation.isPending}
-          className="min-h-11 self-end sm:min-h-9 sm:self-auto"
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          {t("dashboard.layoutReset")}
-        </Button>
-      </div>
+      <SettingsCardHeader
+        icon={LayoutDashboard}
+        title={t("dashboard.customizeTitle")}
+        status={
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => resetMutation.mutate()}
+            disabled={resetMutation.isPending}
+            className="min-h-11 self-end sm:min-h-9 sm:self-auto"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            {t("dashboard.layoutReset")}
+          </Button>
+        }
+      />
       {/*
         v1.4.22 D / F-32 — the surrounding `<DashboardSection>` page
         already renders a `settings.sections.dashboard.description`

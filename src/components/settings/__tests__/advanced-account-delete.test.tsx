@@ -53,14 +53,17 @@ describe("<AdvancedSection> danger-zone shaping (v1.4.43 M3 + L5)", () => {
   it("L5: the data-reset card title is neutral foreground (no destructive red)", () => {
     const html = render();
     // The reset card's title used to ship with `text-destructive`; the
-    // v1.4.43 fix pins it on `text-foreground`. We don't care if other
-    // strings in the section happen to use `text-destructive` (the CTA
-    // button does), only that the specific card title slot does NOT.
+    // v1.4.43 fix neutralised it. The header now routes through the
+    // canonical `<SettingsCardHeader>`, whose `<h2>` carries no colour
+    // class at all and so inherits the neutral foreground. We don't care
+    // if other strings in the section happen to use `text-destructive`
+    // (the CTA button does), only that the specific card title slot does
+    // NOT paint red.
     const cardMatch = html.match(
       /data-slot="settings-data-reset-card"[\s\S]*?<\/h2>/,
     );
     expect(cardMatch).not.toBeNull();
-    expect(cardMatch![0]).toContain("text-foreground");
+    expect(cardMatch![0]).toContain("text-lg font-semibold");
     expect(cardMatch![0]).not.toContain("text-destructive");
   });
 

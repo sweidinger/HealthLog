@@ -4039,6 +4039,8 @@
         "title": "Integrazioni",
         "description": "Servizi collegati, canali di consegna e priorità delle fonti in un unico posto.",
         "subtitle": "Collega e gestisci le tue fonti di dati e i dispositivi.",
+        "connectionsHeading": "Connessioni",
+        "connectionsDescription": "Collega e gestisci le tue fonti di dati e i dispositivi.",
         "channelsHeading": "Canali di recapito",
         "channelsDescription": "Dove vengono recapitati promemoria e avvisi."
       },
