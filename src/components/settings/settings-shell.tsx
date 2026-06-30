@@ -42,6 +42,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
 import type { ModuleKey } from "@/lib/modules/registry";
 import {
@@ -294,10 +295,6 @@ function navHighlightSlug(slug: SettingsSectionSlug): SettingsSectionSlug {
   return LAYOUT_CHILD_SLUGS.has(slug) ? "layout" : slug;
 }
 
-// Stable no-op subscribe for the hydration probe below — the value never
-// changes after the first commit, so there is nothing to subscribe to.
-const subscribeNoop = () => () => {};
-
 function deriveActiveSlug(
   pathname: string | null,
   override?: SettingsSectionSlug,
@@ -340,16 +337,12 @@ export function SettingsShell({
   // download buttons). Gate the filter on a post-mount flag so SSR and the
   // first client render ALWAYS emit the same fail-open list; the real filter
   // applies once, after hydration, as an ordinary client update.
-  // `useSyncExternalStore` is the SSR-safe hydration probe: it returns the
-  // server snapshot (`false`) on the server render AND the first client paint,
-  // then the client snapshot (`true`) after hydration commits. No setState in
-  // an effect (which the lint rule flags as a cascading render), and no risk
-  // of the two passes disagreeing.
-  const hydrated = React.useSyncExternalStore(
-    subscribeNoop,
-    () => true,
-    () => false,
-  );
+  // `useMounted()` is the SSR-safe hydration probe: it returns the server
+  // snapshot (`false`) on the server render AND the first client paint, then
+  // the client snapshot (`true`) after hydration commits. No setState in an
+  // effect (which the lint rule flags as a cascading render), and no risk of
+  // the two passes disagreeing.
+  const hydrated = useMounted();
   const modules = user?.modules;
   const visibleSections = SETTINGS_SECTIONS.filter(
     (section) =>
