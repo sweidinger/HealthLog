@@ -1,6 +1,6 @@
 import { apiHandler } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";
-import { offlineGeoReady } from "@/lib/geo";
+import { offlineGeoReady, resolveGeoProviderHost } from "@/lib/geo";
 import packageJson from "../../../../package.json";
 
 // v1.4.27 R5 — `offlineGeoEnabled` reads from the same source the geo
@@ -32,9 +32,11 @@ export const dynamic = "force-dynamic";
  *
  * `offlineGeoEnabled` is `true` when the GeoLite2-City MMDB is present
  * at the configured `GEOLITE2_DIR` and no `.empty` marker is set.
- * When `false` the runtime falls back to the online `ipwho.is`
- * provider and the resolver emits a one-shot admin notification on
- * first use.
+ * When `false` the runtime falls back to the online provider named by
+ * `geoProviderHost` (the host of `IP_GEO_LOOKUP_URL`, default
+ * `ipwho.is`) and the resolver emits a one-shot admin notification on
+ * first use. `geoProviderHost` lets the admin status surface name the
+ * real provider instead of assuming the default.
  */
 export const GET = apiHandler(async () => {
   // v1.4.43 B11 — prefer the build-arg-injected env var so the runtime
@@ -50,6 +52,7 @@ export const GET = apiHandler(async () => {
   const buildSha = process.env.NEXT_PUBLIC_APP_BUILD_SHA?.trim() || null;
   const builtAt = process.env.NEXT_PUBLIC_APP_BUILT_AT?.trim() || null;
   const offlineGeoEnabled = offlineGeoReady();
+  const geoProviderHost = resolveGeoProviderHost();
 
   return apiSuccess({
     version,
@@ -60,5 +63,6 @@ export const GET = apiHandler(async () => {
     changelog: "https://github.com/MBombeck/HealthLog/blob/main/CHANGELOG.md",
     docs: "https://docs.healthlog.dev",
     offlineGeoEnabled,
+    geoProviderHost,
   });
 });

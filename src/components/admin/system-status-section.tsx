@@ -169,7 +169,9 @@ export function SystemStatusSection() {
                 value={
                   version.offlineGeoEnabled
                     ? t("admin.offlineGeoEnabled")
-                    : t("admin.offlineGeoFallback")
+                    : t("admin.offlineGeoFallback", {
+                        host: version.geoProviderHost ?? "ipwho.is",
+                      })
                 }
                 className={
                   version.offlineGeoEnabled

@@ -106,7 +106,9 @@ export function SystemStatusSummary() {
               value={
                 version.offlineGeoEnabled
                   ? t("admin.overview.snapshotOfflineGeoOn")
-                  : t("admin.overview.snapshotOfflineGeoOff")
+                  : t("admin.overview.snapshotOfflineGeoOff", {
+                      host: version.geoProviderHost ?? "ipwho.is",
+                    })
               }
               className={
                 version.offlineGeoEnabled

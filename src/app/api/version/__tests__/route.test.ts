@@ -5,8 +5,10 @@ vi.mock("@/lib/api-handler", () => ({
 }));
 
 const offlineGeoReadyMock = vi.fn(() => false);
+const resolveGeoProviderHostMock = vi.fn(() => "ipwho.is");
 vi.mock("@/lib/geo", () => ({
   offlineGeoReady: () => offlineGeoReadyMock(),
+  resolveGeoProviderHost: () => resolveGeoProviderHostMock(),
 }));
 
 import { GET } from "../route";
@@ -16,6 +18,7 @@ beforeEach(() => {
   delete process.env.NEXT_PUBLIC_APP_BUILT_AT;
   delete process.env.NEXT_PUBLIC_APP_VERSION;
   offlineGeoReadyMock.mockReturnValue(false);
+  resolveGeoProviderHostMock.mockReturnValue("ipwho.is");
 });
 
 interface VersionEnvelope {
@@ -28,6 +31,7 @@ interface VersionEnvelope {
     changelog: string;
     docs: string;
     offlineGeoEnabled: boolean;
+    geoProviderHost: string;
   };
 }
 
@@ -94,5 +98,12 @@ describe("GET /api/version", () => {
     const response = await (GET as unknown as () => Promise<Response>)();
     const body = (await response.json()) as VersionEnvelope;
     expect(body.data.offlineGeoEnabled).toBe(true);
+  });
+
+  it("surfaces the resolved online geo provider host", async () => {
+    resolveGeoProviderHostMock.mockReturnValue("ip-api.com");
+    const response = await (GET as unknown as () => Promise<Response>)();
+    const body = (await response.json()) as VersionEnvelope;
+    expect(body.data.geoProviderHost).toBe("ip-api.com");
   });
 });

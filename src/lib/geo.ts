@@ -121,6 +121,32 @@ const PRIVATE_IP =
 // online lookup misses, and skipped entirely when the databases are absent.
 const DEFAULT_GEO_URL = "https://ipwho.is";
 
+// The host portion of DEFAULT_GEO_URL — the provider name the admin status
+// surface shows when the offline tier is absent and the runtime resolves
+// locations online.
+const DEFAULT_GEO_HOST = "ipwho.is";
+
+/**
+ * Resolve the online geo provider HOST the runtime actually queries.
+ *
+ * Reads `IP_GEO_LOOKUP_URL` and returns its hostname (e.g. `ip-api.com`),
+ * falling back to the default `ipwho.is` when the env is unset, blank, or
+ * not a parseable URL. Pure and safe — never throws.
+ *
+ * `/api/version` surfaces this so the admin System-Snapshot can name the
+ * real provider instead of a hardcoded "ipwho.is": an operator who points
+ * `IP_GEO_LOOKUP_URL` at another provider sees that provider's host.
+ */
+export function resolveGeoProviderHost(): string {
+  const raw = process.env.IP_GEO_LOOKUP_URL?.trim();
+  if (!raw) return DEFAULT_GEO_HOST;
+  try {
+    return new URL(raw).host || DEFAULT_GEO_HOST;
+  } catch {
+    return DEFAULT_GEO_HOST;
+  }
+}
+
 function geoLiteDir(): string {
   return process.env.GEOLITE2_DIR ?? "/opt/geolite2";
 }
