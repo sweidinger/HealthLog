@@ -7828,12 +7828,12 @@
     },
     "conditions": {
       "cardTitle": "Patologie preesistenti",
-      "cardDescription": "Patologie croniche e ciò che il Coach deve tenere d'occhio, dal tuo contesto personale.",
+      "cardDescription": "Patologie croniche e ciò che il Coach deve tenere d'occhio.",
       "conditionsLabel": "Patologie croniche",
       "focusLabel": "Cosa tiene d'occhio il Coach",
-      "empty": "Ancora nessuna annotazione.",
-      "editCta": "Modifica nel contesto personale",
-      "loadError": "Impossibile caricare le tue patologie."
+      "loadError": "Impossibile caricare le tue patologie.",
+      "savedToast": "Patologie salvate.",
+      "saveError": "Impossibile salvare. Riprova."
     }
   },
   "environment": {

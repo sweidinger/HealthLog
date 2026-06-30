@@ -9,12 +9,13 @@
  * signal and not a clinical diagnosis — surfaced alongside the existing
  * tracking-domain settings sections (Labs / Illness / Vorsorge).
  *
- * v1.25.1 — the section also surfaces the pre-existing / chronic conditions the
- * Coach watches (the self-context entered under Profile → "About me") as a
- * read-only shared view, so conditions + allergies + family history read as one
- * coherent medical history. The conditions card is coach-gated (the data only
- * feeds the Coach) and links back to its single editing home in personal
- * context.
+ * v1.25.12 — the section is the single home for the pre-existing / chronic
+ * conditions the Coach watches, edited inline here so conditions + allergies +
+ * family history read (and write) as one coherent medical history. The
+ * conditions card is coach-gated (the data only feeds the Coach); it reads and
+ * writes the same self-context store (`/api/coach/about-me`) the rest of the app
+ * uses — the placement simply moved out of personal context into the medical
+ * record where it belongs.
  */
 
 import {
@@ -28,7 +29,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useModuleEnabled } from "@/hooks/use-module-enabled";
 
 import { AllergyManager } from "@/components/records/allergy-manager";
-import { ConditionsOverview } from "@/components/records/conditions-overview";
+import { ConditionsManager } from "@/components/records/conditions-manager";
 import { FamilyHistoryManager } from "@/components/records/family-history-manager";
 
 export function AnamnesisSection() {
@@ -45,7 +46,7 @@ export function AnamnesisSection() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ConditionsOverview />
+            <ConditionsManager />
           </CardContent>
         </Card>
       )}

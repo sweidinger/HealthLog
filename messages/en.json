@@ -7828,12 +7828,12 @@
     },
     "conditions": {
       "cardTitle": "Pre-existing conditions",
-      "cardDescription": "Chronic conditions and what the Coach watches — from your personal context.",
+      "cardDescription": "Chronic conditions and what the Coach watches.",
       "conditionsLabel": "Chronic conditions",
       "focusLabel": "What the Coach watches",
-      "empty": "Nothing noted yet.",
-      "editCta": "Edit in personal context",
-      "loadError": "Couldn't load your conditions."
+      "loadError": "Couldn't load your conditions.",
+      "savedToast": "Conditions saved.",
+      "saveError": "Could not save. Please try again."
     }
   },
   "environment": {

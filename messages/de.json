@@ -7828,12 +7828,12 @@
     },
     "conditions": {
       "cardTitle": "Vorerkrankungen",
-      "cardDescription": "Chronische Erkrankungen und worauf der Coach achten soll — aus deinem persönlichen Kontext.",
+      "cardDescription": "Chronische Erkrankungen und worauf der Coach achten soll.",
       "conditionsLabel": "Chronische Erkrankungen",
       "focusLabel": "Worauf der Coach achtet",
-      "empty": "Noch nichts hinterlegt.",
-      "editCta": "Im persönlichen Kontext bearbeiten",
-      "loadError": "Vorerkrankungen konnten nicht geladen werden."
+      "loadError": "Vorerkrankungen konnten nicht geladen werden.",
+      "savedToast": "Erkrankungen gespeichert.",
+      "saveError": "Speichern fehlgeschlagen. Bitte versuche es erneut."
     }
   },
   "environment": {

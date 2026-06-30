@@ -7828,12 +7828,12 @@
     },
     "conditions": {
       "cardTitle": "Choroby przewlekłe",
-      "cardDescription": "Choroby przewlekłe i to, na co Coach ma zwracać uwagę — z Twojego kontekstu osobistego.",
+      "cardDescription": "Choroby przewlekłe i to, na co Coach ma zwracać uwagę.",
       "conditionsLabel": "Choroby przewlekłe",
       "focusLabel": "Na co zwraca uwagę Coach",
-      "empty": "Nic jeszcze nie zapisano.",
-      "editCta": "Edytuj w kontekście osobistym",
-      "loadError": "Nie udało się wczytać Twoich chorób."
+      "loadError": "Nie udało się wczytać Twoich chorób.",
+      "savedToast": "Choroby zapisane.",
+      "saveError": "Nie udało się zapisać. Spróbuj ponownie."
     }
   },
   "environment": {
