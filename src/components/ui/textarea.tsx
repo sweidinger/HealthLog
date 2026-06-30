@@ -34,7 +34,9 @@ import { cn } from "@/lib/utils";
  *     `<Input>`: HealthLog is a health-data app, and we don't want
  *     a password manager pasting the user's saved password into a
  *     free-text textarea that we then persist server-side. Caller
- *     can opt back in (e.g. `"on"`) per field.
+ *     can opt back in (e.g. `"on"`) per field. When autofill is
+ *     skipped, the LastPass / 1Password / Bitwarden ignore hints are
+ *     emitted so none of the three offer to fill or save the field.
  *
  * Composition is via `cn(…)` so callers can override anything — the
  * primitive defaults are the strict pass, not the only pass.
@@ -59,6 +61,7 @@ function Textarea({
       spellCheck={resolvedSpellCheck}
       data-lpignore={skipAutofill ? "true" : undefined}
       data-1p-ignore={skipAutofill ? "true" : undefined}
+      data-bwignore={skipAutofill ? "true" : undefined}
       className={cn(
         // iOS zoom defence + WCAG 2.5.5 tap-target floor; see the
         // primitive's docblock for the full reasoning.

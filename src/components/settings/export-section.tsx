@@ -522,6 +522,9 @@ function FullBackupCard() {
               "settings.sections.export.cards.fullBackup.passphrasePlaceholder",
             )}
             autoComplete="new-password"
+            data-lpignore="true"
+            data-1p-ignore="true"
+            data-bwignore="true"
             className="h-9 text-sm"
           />
           <p className="text-muted-foreground text-xs">

@@ -121,7 +121,7 @@ export function DeviceScoreTile({
           </CardAction>
         ) : null}
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 pb-1">
         {isLearning ? (
           <LearningGate
             compact

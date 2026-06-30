@@ -9,6 +9,7 @@ describe("<Input>", () => {
     expect(html).toContain('autoComplete="off"');
     expect(html).toContain('data-lpignore="true"');
     expect(html).toContain('data-1p-ignore="true"');
+    expect(html).toContain('data-bwignore="true"');
   });
 
   it("respects an explicit autoComplete value and drops the ignore attrs", () => {
@@ -18,6 +19,7 @@ describe("<Input>", () => {
     expect(html).toContain('autoComplete="email"');
     expect(html).not.toContain('data-lpignore="true"');
     expect(html).not.toContain('data-1p-ignore="true"');
+    expect(html).not.toContain('data-bwignore="true"');
   });
 
   it("explicit autoComplete=username keeps password manager active for login flows", () => {
@@ -27,6 +29,7 @@ describe("<Input>", () => {
     expect(html).toContain('autoComplete="username"');
     expect(html).not.toContain("lpignore");
     expect(html).not.toContain("1p-ignore");
+    expect(html).not.toContain("bwignore");
   });
 
   it("derives inputMode=decimal from type=number", () => {

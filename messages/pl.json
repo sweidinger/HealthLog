@@ -4039,6 +4039,8 @@
         "title": "Integracje",
         "description": "Połączone usługi, kanały dostarczania i priorytet źródeł w jednym miejscu.",
         "subtitle": "Połącz i zarządzaj źródłami danych oraz urządzeniami.",
+        "connectionsHeading": "Połączenia",
+        "connectionsDescription": "Połącz i zarządzaj źródłami danych oraz urządzeniami.",
         "channelsHeading": "Kanały dostarczania",
         "channelsDescription": "Gdzie dostarczane są przypomnienia i powiadomienia."
       },
@@ -5435,7 +5437,7 @@
     "integrationWebPush": "Web Push",
     "offlineGeoLabel": "Dane geograficzne",
     "offlineGeoEnabled": "Offline (GeoLite2)",
-    "offlineGeoFallback": "Awaryjne (ipwho.is) — ustaw MAXMIND_LICENSE_KEY w CI",
+    "offlineGeoFallback": "Online ({host}) — ustaw MAXMIND_LICENSE_KEY w CI",
     "apiGlobal": "Zezwól na punkty końcowe API i tokeny API.",
     "umamiTitle": "Umami",
     "umamiDescription": "Analityka internetowa z Umami",
@@ -5671,7 +5673,7 @@
       "snapshotBuiltAt": "Skompilowano",
       "snapshotOfflineGeo": "Dane geograficzne",
       "snapshotOfflineGeoOn": "Offline (GeoLite2)",
-      "snapshotOfflineGeoOff": "Awaryjne (ipwho.is)",
+      "snapshotOfflineGeoOff": "Online ({host})",
       "versionTileTitle": "Wersja",
       "versionTileVersion": "Uruchomiona wersja",
       "versionTileBuildSha": "SHA kompilacji",
@@ -5881,7 +5883,10 @@
     "mfaEnforcedOn": "MFA wł.",
     "mfaEnforcedOff": "MFA wył.",
     "mfaEnforcedOnHint": "Ten użytkownik musi używać drugiego składnika. Kliknij, aby przestać go wymagać.",
-    "mfaEnforcedOffHint": "Wymagaj drugiego składnika dla tego użytkownika."
+    "mfaEnforcedOffHint": "Wymagaj drugiego składnika dla tego użytkownika.",
+    "copyIp": "Kopiuj adres IP",
+    "ipCopied": "Skopiowano adres IP",
+    "copyFailed": "Nie udało się skopiować."
   },
   "achievements": {
     "title": "Osiągnięcia",

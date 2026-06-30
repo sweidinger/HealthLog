@@ -500,6 +500,10 @@ export interface PublicVersion {
   buildSha: string | null;
   builtAt: string | null;
   offlineGeoEnabled?: boolean;
+  // Host of the online geo provider the runtime falls back to when the
+  // offline tier is absent (host of IP_GEO_LOOKUP_URL, default ipwho.is).
+  // Optional so legacy /api/version responses still satisfy the shape.
+  geoProviderHost?: string;
 }
 
 /** Shared `/api/version` reader — the system-status section + overview

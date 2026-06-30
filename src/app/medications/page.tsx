@@ -370,7 +370,7 @@ export default function MedicationsPage() {
             className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
           >
             <Link
-              href="/settings/medications"
+              href="/settings/layout/medications"
               aria-label={t("medications.customize")}
               title={t("medications.customize")}
             >

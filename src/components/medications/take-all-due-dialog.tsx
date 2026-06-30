@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTranslations } from "@/lib/i18n/context";
+import { formatDose } from "@/lib/medications/format-dose";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import {
   runTakeAllDue,
@@ -88,7 +89,10 @@ export function TakeAllDueDialog({
               <span className="min-w-0 truncate">
                 <span className="font-medium">{med.name}</span>
                 {med.dose ? (
-                  <span className="text-muted-foreground"> — {med.dose}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    — {formatDose(med.dose, t)}
+                  </span>
                 ) : null}
               </span>
               {med.window ? (

@@ -401,7 +401,7 @@ export function IllnessView() {
             className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
           >
             <Link
-              href="/settings/illness"
+              href="/settings/layout/illness"
               aria-label={t("illness.customize")}
               title={t("illness.customize")}
             >

@@ -283,7 +283,7 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).not.toContain("Dose history");
   });
 
-  it("shows drug name + current dose on line 1 ('Mounjaro 7.5 mg')", () => {
+  it("shows drug name on line 1 and the dose on its own line below", () => {
     const client = makeClient();
     seedCompliance(client, med7p5.id);
     seedGlp1Details(client, med7p5.id, {});
@@ -299,10 +299,10 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
 
     expect(html).toContain("Mounjaro");
     expect(html).toContain("7.5 mg");
-    // v1.4.28 FB-G1 — the GLP-1 row drops the middle-dot separator and
-    // surfaces `{name} {dose}` together on line 1 via the shared
-    // `<MedicationCardHeader>` primitive. The dot separator is gone.
-    expect(html).toContain("Mounjaro 7.5 mg");
+    // FB-G1 — the GLP-1 row drops the middle-dot separator; the dose now
+    // rides its OWN muted line under the name (the shared
+    // `<MedicationCardHeader>` primitive), localised via `formatDose`.
+    expect(html).toContain('data-slot="medication-card-header-dose"');
   });
 
   it("shows last + next injection labels with localised weekday", () => {

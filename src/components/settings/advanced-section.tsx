@@ -258,72 +258,69 @@ function DataResetCard() {
           GitHub-style (red CTA only) rather than red-on-red-on-red.
           The protective gate (confirmation dialog) is unchanged; this
           is purely a visual-tone fix per the v1.4.43 audit. */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-        <div className="space-y-1">
-          <h2 className="text-foreground text-lg font-semibold">
-            {t("settings.dangerZone")}
-          </h2>
-          <p className="text-muted-foreground text-xs">
-            {t("settings.dangerZoneDescription")}
-          </p>
-        </div>
-        <AlertDialog
-          open={confirmOpen}
-          onOpenChange={(open) => {
-            // Hold the dialog open while the destructive mutation is in
-            // flight so the in-dialog pending state stays visible and a
-            // stray backdrop tap can't dismiss it mid-request.
-            if (deleting) return;
-            setConfirmOpen(open);
-          }}
-        >
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={deleting}
-              className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
-            >
-              {deleting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" />
-              )}
-              {t("settings.dangerZone")}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {t("settings.dangerZoneConfirm")}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("settings.dangerZoneConfirmDescription")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleting}>
-                {t("common.cancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
+      <SettingsCardHeader
+        icon={Trash2}
+        title={t("settings.dangerZone")}
+        description={t("settings.dangerZoneDescription")}
+        status={
+          <AlertDialog
+            open={confirmOpen}
+            onOpenChange={(open) => {
+              // Hold the dialog open while the destructive mutation is in
+              // flight so the in-dialog pending state stays visible and a
+              // stray backdrop tap can't dismiss it mid-request.
+              if (deleting) return;
+              setConfirmOpen(open);
+            }}
+          >
+            <AlertDialogTrigger asChild>
+              <Button
                 variant="destructive"
-                onClick={(e) => {
-                  e.preventDefault();
-                  void handleDeleteAllData();
-                }}
+                size="sm"
                 disabled={deleting}
-                aria-busy={deleting || undefined}
-                data-slot="settings-data-reset-confirm"
+                className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
               >
-                {deleting && (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                {deleting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
                 )}
-                {t("settings.finalDelete")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+                {t("settings.dangerZone")}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("settings.dangerZoneConfirm")}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("settings.dangerZoneConfirmDescription")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>
+                  {t("common.cancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void handleDeleteAllData();
+                  }}
+                  disabled={deleting}
+                  aria-busy={deleting || undefined}
+                  data-slot="settings-data-reset-confirm"
+                >
+                  {deleting && (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  )}
+                  {t("settings.finalDelete")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        }
+      />
 
       {msg && (
         <p
@@ -398,73 +395,70 @@ function AccountDeleteCard() {
 
   return (
     <SettingsCard data-slot="settings-account-delete-card">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-        <div className="space-y-1">
-          <h2 className="text-foreground text-lg font-semibold">
-            {t("settings.deleteAccountCardTitle")}
-          </h2>
-          <p className="text-muted-foreground text-xs">
-            {t("settings.deleteAccountCardDescription")}
-          </p>
-        </div>
-        <AlertDialog
-          open={confirmOpen}
-          onOpenChange={(open) => {
-            // Hold the dialog open while the irreversible delete runs so
-            // the pending state stays on screen and a stray dismissal
-            // can't fire a second request.
-            if (deleting) return;
-            setConfirmOpen(open);
-          }}
-        >
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={deleting}
-              className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
-              data-slot="settings-account-delete-trigger"
-            >
-              {deleting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" />
-              )}
-              {t("settings.deleteAccountCta")}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {t("settings.deleteAccountConfirmTitle")}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("settings.deleteAccountConfirmDescription")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleting}>
-                {t("common.cancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
+      <SettingsCardHeader
+        icon={Trash2}
+        title={t("settings.deleteAccountCardTitle")}
+        description={t("settings.deleteAccountCardDescription")}
+        status={
+          <AlertDialog
+            open={confirmOpen}
+            onOpenChange={(open) => {
+              // Hold the dialog open while the irreversible delete runs so
+              // the pending state stays on screen and a stray dismissal
+              // can't fire a second request.
+              if (deleting) return;
+              setConfirmOpen(open);
+            }}
+          >
+            <AlertDialogTrigger asChild>
+              <Button
                 variant="destructive"
-                onClick={(e) => {
-                  e.preventDefault();
-                  void handleDeleteAccount();
-                }}
+                size="sm"
                 disabled={deleting}
-                aria-busy={deleting || undefined}
-                data-slot="settings-account-delete-confirm"
+                className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
+                data-slot="settings-account-delete-trigger"
               >
-                {deleting && (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                {deleting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
                 )}
-                {t("settings.deleteAccountFinal")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+                {t("settings.deleteAccountCta")}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("settings.deleteAccountConfirmTitle")}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("settings.deleteAccountConfirmDescription")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>
+                  {t("common.cancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void handleDeleteAccount();
+                  }}
+                  disabled={deleting}
+                  aria-busy={deleting || undefined}
+                  data-slot="settings-account-delete-confirm"
+                >
+                  {deleting && (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  )}
+                  {t("settings.deleteAccountFinal")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        }
+      />
 
       {msg && (
         <p

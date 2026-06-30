@@ -21,6 +21,7 @@ describe("<Textarea>", () => {
     expect(html).toContain('autoComplete="off"');
     expect(html).toContain('data-lpignore="true"');
     expect(html).toContain('data-1p-ignore="true"');
+    expect(html).toContain('data-bwignore="true"');
   });
 
   it("defaults autoCapitalize to sentences for prose-like free-text input", () => {
@@ -51,6 +52,7 @@ describe("<Textarea>", () => {
     expect(html).toContain('autoComplete="on"');
     expect(html).not.toContain('data-lpignore="true"');
     expect(html).not.toContain('data-1p-ignore="true"');
+    expect(html).not.toContain('data-bwignore="true"');
   });
 
   it("merges caller className via cn() without dropping defaults", () => {

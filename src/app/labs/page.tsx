@@ -90,7 +90,7 @@ export default function LabsPage() {
             className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
           >
             <Link
-              href="/settings/labs"
+              href="/settings/layout/labs"
               aria-label={t("labs.customize")}
               title={t("labs.customize")}
             >

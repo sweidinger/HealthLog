@@ -4039,6 +4039,8 @@
         "title": "Intégrations",
         "description": "Services connectés, canaux de diffusion et priorité des sources au même endroit.",
         "subtitle": "Connectez et gérez vos sources de données et appareils.",
+        "connectionsHeading": "Connexions",
+        "connectionsDescription": "Connectez et gérez vos sources de données et appareils.",
         "channelsHeading": "Canaux de diffusion",
         "channelsDescription": "Où sont envoyés les rappels et alertes."
       },
@@ -5435,7 +5437,7 @@
     "integrationWebPush": "Web Push",
     "offlineGeoLabel": "Données géographiques",
     "offlineGeoEnabled": "Hors ligne (GeoLite2)",
-    "offlineGeoFallback": "Fallback (ipwho.is) — définissez MAXMIND_LICENSE_KEY dans la CI",
+    "offlineGeoFallback": "En ligne ({host}) — définissez MAXMIND_LICENSE_KEY dans la CI",
     "apiGlobal": "Autoriser les points de terminaison d'API et les jetons d'API.",
     "umamiTitle": "Umami",
     "umamiDescription": "Analyse web avec Umami",
@@ -5671,7 +5673,7 @@
       "snapshotBuiltAt": "Compilé le",
       "snapshotOfflineGeo": "Données géographiques",
       "snapshotOfflineGeoOn": "Hors ligne (GeoLite2)",
-      "snapshotOfflineGeoOff": "Fallback (ipwho.is)",
+      "snapshotOfflineGeoOff": "En ligne ({host})",
       "versionTileTitle": "Version",
       "versionTileVersion": "Version en cours",
       "versionTileBuildSha": "SHA de build",
@@ -5881,7 +5883,10 @@
     "mfaEnforcedOn": "MFA activé",
     "mfaEnforcedOff": "MFA désactivé",
     "mfaEnforcedOnHint": "Un second facteur est requis pour cet utilisateur. Cliquez pour ne plus l'exiger.",
-    "mfaEnforcedOffHint": "Exiger un second facteur pour cet utilisateur."
+    "mfaEnforcedOffHint": "Exiger un second facteur pour cet utilisateur.",
+    "copyIp": "Copier l’adresse IP",
+    "ipCopied": "Adresse IP copiée",
+    "copyFailed": "Impossible de copier."
   },
   "achievements": {
     "title": "Réussites",

@@ -24,7 +24,10 @@
  * `/api/share-links` routes, and the public `/c/[token]` view are unchanged.
  */
 
+import { Share2 } from "lucide-react";
+
 import { useTranslations } from "@/lib/i18n/context";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { HealthRecordExportPanel } from "@/components/settings/health-record-export-panel";
 import { SharingSection } from "@/components/settings/sharing-section";
 
@@ -39,14 +42,11 @@ export function GesundheitsakteSection() {
       <HealthRecordExportPanel />
 
       <section id="sharing" className="scroll-mt-28 space-y-4">
-        <div className="space-y-0.5">
-          <h2 className="text-foreground text-lg font-semibold">
-            {t("settings.sections.sharing.title")}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            {t("settings.sections.sharing.subtitle")}
-          </p>
-        </div>
+        <SettingsCardHeader
+          icon={Share2}
+          title={t("settings.sections.sharing.title")}
+          description={t("settings.sections.sharing.subtitle")}
+        />
         <SharingSection />
       </section>
     </div>

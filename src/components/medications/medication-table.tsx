@@ -35,6 +35,7 @@ import {
 import { formatTime } from "@/lib/format";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { formatDose } from "@/lib/medications/format-dose";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
 import {
@@ -649,7 +650,7 @@ function MedicationTableRowItem({
             {medication.name}
           </span>
           <span className="text-muted-foreground block text-xs">
-            {medication.dose}
+            {formatDose(medication.dose, t)}
             {!medication.active && <> · {t("common.inactive")}</>}
           </span>
         </Link>

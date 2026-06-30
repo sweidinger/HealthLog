@@ -22,29 +22,10 @@ import {
 } from "@/lib/medications/injection-sites";
 import type { MedicationDeliveryForm } from "@/lib/validations/medication";
 import { unitsPerDoseOptionsFor } from "@/components/medications/units-per-dose";
+import { DOSE_UNIT_KEYS } from "@/lib/medications/dose-units";
 import { useTranslations } from "@/lib/i18n/context";
 
 import type { StepProps } from "./step1-name";
-
-/**
- * Dose unit choices, ordered so mg / ml / IE / µg lead and the
- * device-form units (Tablette, Hub, Sprühstoß, …) follow. Mirrors the
- * v1.5.3 list with the maintainer-requested order tightening.
- */
-const DOSE_UNIT_KEYS = [
-  "mg",
-  "ml",
-  "iu",
-  "mcg",
-  "g",
-  "tablets",
-  "capsules",
-  "drops",
-  "puffs",
-  "sprays",
-  "pieces",
-  "other",
-] as const;
 
 const DELIVERY_FORM_KEYS: readonly MedicationDeliveryForm[] = [
   "ORAL",

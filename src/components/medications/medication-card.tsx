@@ -11,6 +11,7 @@ import { useWeekdayLabel } from "@/components/medications/card-parts/medication-
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
+import { formatDose } from "@/lib/medications/format-dose";
 import {
   reduceCurrentWindowStatus,
   toZonedDate,
@@ -451,7 +452,7 @@ export function MedicationCard({
               {s.dose && (
                 <span className="text-dose-accent hidden font-medium sm:inline">
                   {" "}
-                  — {s.dose}
+                  — {formatDose(s.dose, t)}
                 </span>
               )}
             </>
@@ -462,7 +463,7 @@ export function MedicationCard({
   return (
     <MedicationCardBody
       name={medication.name}
-      dose={medication.dose}
+      dose={formatDose(medication.dose, t)}
       categoryLabel={categoryLabel}
       active={medication.active}
       href={`/medications/${medication.id}`}

@@ -9,8 +9,8 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
+import { FieldGroup } from "@/components/ui/field-group";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -170,10 +170,11 @@ export function BaselineForm() {
       <fieldset className="bg-card border-border space-y-5 rounded-xl border p-5">
         <legend className="sr-only">{t("onboarding.baseline.title")}</legend>
 
-        <div className="space-y-2">
-          <Label htmlFor="ob-baseline-display-name">
-            {t("onboarding.baseline.displayNameLabel")}
-          </Label>
+        <FieldGroup
+          htmlFor="ob-baseline-display-name"
+          label={t("onboarding.baseline.displayNameLabel")}
+          hint={t("onboarding.baseline.displayNameHint")}
+        >
           <Input
             id="ob-baseline-display-name"
             value={form.displayName}
@@ -182,16 +183,13 @@ export function BaselineForm() {
             maxLength={50}
             placeholder={t("onboarding.baseline.displayNamePlaceholder")}
           />
-          <p className="text-muted-foreground text-xs">
-            {t("onboarding.baseline.displayNameHint")}
-          </p>
-        </div>
+        </FieldGroup>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="ob-baseline-height">
-              {t("onboarding.baseline.heightLabel")}
-            </Label>
+          <FieldGroup
+            htmlFor="ob-baseline-height"
+            label={t("onboarding.baseline.heightLabel")}
+          >
             <Input
               id="ob-baseline-height"
               type="number"
@@ -204,11 +202,11 @@ export function BaselineForm() {
               step={0.1}
               autoComplete="off"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="ob-baseline-gender">
-              {t("onboarding.baseline.genderLabel")}
-            </Label>
+          </FieldGroup>
+          <FieldGroup
+            htmlFor="ob-baseline-gender"
+            label={t("onboarding.baseline.genderLabel")}
+          >
             <Select
               // The design system's Radix Select uses an empty-string
               // sentinel to mean "no selection"; map back and forth so
@@ -235,13 +233,14 @@ export function BaselineForm() {
                 </SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </FieldGroup>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="ob-baseline-dob">
-            {t("onboarding.baseline.dateOfBirthLabel")}
-          </Label>
+        <FieldGroup
+          htmlFor="ob-baseline-dob"
+          label={t("onboarding.baseline.dateOfBirthLabel")}
+          hint={t("onboarding.baseline.dateOfBirthHint")}
+        >
           <DateField
             id="ob-baseline-dob"
             value={form.dateOfBirth}
@@ -249,10 +248,7 @@ export function BaselineForm() {
             max={new Date().toISOString().slice(0, 10)}
             autoComplete="bday"
           />
-          <p className="text-muted-foreground text-xs">
-            {t("onboarding.baseline.dateOfBirthHint")}
-          </p>
-        </div>
+        </FieldGroup>
       </fieldset>
 
       <AnamnesisCard

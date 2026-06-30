@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
@@ -65,6 +66,7 @@ const TEST_ENDPOINTS: Record<ChannelType, string> = {
 };
 
 export function NotificationStatusCard() {
+  const hydrated = useMounted();
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -108,7 +110,14 @@ export function NotificationStatusCard() {
     },
   });
 
-  if (!isAuthenticated) return null;
+  // SSR and the first client paint must render the SAME tree shape. `useAuth`
+  // reads a client TanStack query, so `isAuthenticated` is `false` on the
+  // server (renders `null`) but `true` on the hydrating client (would render
+  // the loading card) — different shapes → React #418 hydration mismatch.
+  // Gate every auth/loading-dependent branch behind the post-mount probe so
+  // both passes render `null`; the real content lands as an ordinary
+  // post-hydration client update, not a hydration-time branch.
+  if (!hydrated || !isAuthenticated) return null;
 
   if (isLoading) {
     return (

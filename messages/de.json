@@ -4039,6 +4039,8 @@
         "title": "Integrationen",
         "description": "Verbundene Dienste, Zustellkanäle und die Quellen-Priorität an einem Ort.",
         "subtitle": "Datenquellen und Geräte verbinden und verwalten.",
+        "connectionsHeading": "Verbindungen",
+        "connectionsDescription": "Datenquellen und Geräte verbinden und verwalten.",
         "channelsHeading": "Zustellkanäle",
         "channelsDescription": "Wohin Erinnerungen und Hinweise zugestellt werden."
       },
@@ -5435,7 +5437,7 @@
     "integrationWebPush": "Web Push",
     "offlineGeoLabel": "Geodaten",
     "offlineGeoEnabled": "Offline (GeoLite2)",
-    "offlineGeoFallback": "Fallback (ipwho.is) — MAXMIND_LICENSE_KEY in CI setzen",
+    "offlineGeoFallback": "Online ({host}) — MAXMIND_LICENSE_KEY in CI setzen",
     "apiGlobal": "API-Endpunkte und API-Tokens erlauben.",
     "umamiTitle": "Umami",
     "umamiDescription": "Web-Analyse mit Umami",
@@ -5671,7 +5673,7 @@
       "snapshotBuiltAt": "Gebaut am",
       "snapshotOfflineGeo": "Geodaten",
       "snapshotOfflineGeoOn": "Offline (GeoLite2)",
-      "snapshotOfflineGeoOff": "Fallback (ipwho.is)",
+      "snapshotOfflineGeoOff": "Online ({host})",
       "versionTileTitle": "Version",
       "versionTileVersion": "Laufende Version",
       "versionTileBuildSha": "Build-SHA",
@@ -5881,7 +5883,10 @@
     "mfaEnforcedOn": "MFA an",
     "mfaEnforcedOff": "MFA aus",
     "mfaEnforcedOnHint": "Für diesen Nutzer ist ein zweiter Faktor erforderlich. Klicken, um die Anforderung aufzuheben.",
-    "mfaEnforcedOffHint": "Einen zweiten Faktor für diesen Nutzer verlangen."
+    "mfaEnforcedOffHint": "Einen zweiten Faktor für diesen Nutzer verlangen.",
+    "copyIp": "IP-Adresse kopieren",
+    "ipCopied": "IP-Adresse kopiert",
+    "copyFailed": "Kopieren fehlgeschlagen."
   },
   "achievements": {
     "title": "Erfolge",

@@ -784,7 +784,14 @@ export function VitalsDashboard({ batch, layout, className }: DashboardProps) {
             aria-label={
               isLoading ? t("insights.derived.vitals.loadingLabel") : undefined
             }
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            className={cn(
+              "grid grid-cols-1 gap-3",
+              // Multi-column only when the skeleton row or more than one tile
+              // fills it; a lone tile spans the full width rather than sitting
+              // in a one-third column with dead space beside it.
+              (isLoading || vitalTiles.length > 1) &&
+                "sm:grid-cols-2 lg:grid-cols-3",
+            )}
           >
             {isLoading
               ? Array.from({ length: 6 }).map((_, i) => (
@@ -806,7 +813,12 @@ export function VitalsDashboard({ batch, layout, className }: DashboardProps) {
           />
           <div
             data-slot="vitals-mobility-grid"
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            className={cn(
+              "grid grid-cols-1 gap-3",
+              // A lone mobility tile spans the full width rather than
+              // orphaning a one-third column.
+              mobilityTiles.length > 1 && "sm:grid-cols-2 lg:grid-cols-3",
+            )}
           >
             {mobilityTiles.map((tile) => tile.node)}
           </div>

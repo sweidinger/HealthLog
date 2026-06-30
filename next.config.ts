@@ -144,34 +144,46 @@ const nextConfig: NextConfig = {
         destination: "/settings/integrations#channels",
         permanent: true,
       },
-      // v1.25.7 — the per-module view/sort/order surfaces (Medikamente,
-      // Stimmung, Labor, Krankheit, Vorsorge) folded into "Darstellung"
-      // (`/settings/layout`) as inline anchored sections. Their standalone
-      // routes 301-redirect to the matching anchor so bookmarks, the PWA's
-      // cached navigation, and the per-module page-header cogs keep resolving.
+      // v1.25.11 (#148) — "Darstellung" (`/settings/layout`) is a HUB that lists
+      // each module's view/sort/order surface; every module now lives on its own
+      // subpage at `/settings/layout/<module>`. The legacy per-module routes
+      // 301-redirect to the matching SUBPAGE (no longer an in-page anchor) so
+      // bookmarks, the PWA's cached navigation, and the per-module page-header
+      // cogs keep resolving. `dashboard` + `insights` join the redirect set so
+      // all seven modules share one canonical URL shape.
+      {
+        source: "/settings/dashboard",
+        destination: "/settings/layout/dashboard",
+        permanent: true,
+      },
+      {
+        source: "/settings/insights",
+        destination: "/settings/layout/insights",
+        permanent: true,
+      },
       {
         source: "/settings/medications",
-        destination: "/settings/layout#medications",
+        destination: "/settings/layout/medications",
         permanent: true,
       },
       {
         source: "/settings/mood",
-        destination: "/settings/layout#mood",
+        destination: "/settings/layout/mood",
         permanent: true,
       },
       {
         source: "/settings/labs",
-        destination: "/settings/layout#labs",
+        destination: "/settings/layout/labs",
         permanent: true,
       },
       {
         source: "/settings/illness",
-        destination: "/settings/layout#illness",
+        destination: "/settings/layout/illness",
         permanent: true,
       },
       {
         source: "/settings/vorsorge",
-        destination: "/settings/layout#vorsorge",
+        destination: "/settings/layout/vorsorge",
         permanent: true,
       },
       // v1.25.7 — clinician share links fold into the Gesundheitsakte section

@@ -36,9 +36,9 @@ export function InstrumentCard({
 
   return (
     <Card className="h-full gap-3" data-slot="instrument-card">
-      <CardContent className="flex h-full flex-col gap-4 p-4">
+      <CardContent className="flex h-full flex-col space-y-3.5 p-4">
         <div className="flex flex-col gap-0.5">
-          <span className="font-medium">
+          <span className="text-lg leading-none font-semibold">
             {t(`mentalHealth.instrument.${key}`)}
           </span>
           <span className="text-muted-foreground text-xs">

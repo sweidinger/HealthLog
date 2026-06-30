@@ -18,6 +18,7 @@ import {
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
+import { formatDose } from "@/lib/medications/format-dose";
 import { type InjectionSiteKey } from "@/lib/medications/injection-sites";
 import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
 import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
@@ -467,7 +468,7 @@ export function Glp1MedicationCard({
           {schedule?.dose && (
             <span className="text-dose-accent hidden font-medium sm:inline">
               {" "}
-              — {schedule.dose}
+              — {formatDose(schedule.dose, t)}
             </span>
           )}
         </>
@@ -483,7 +484,7 @@ export function Glp1MedicationCard({
   return (
     <MedicationCardBody
       name={medication.name}
-      dose={medication.dose}
+      dose={formatDose(medication.dose, t)}
       categoryLabel={categoryLabel}
       active={medication.active}
       href={`/medications/${medication.id}`}

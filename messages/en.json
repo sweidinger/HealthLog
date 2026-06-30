@@ -4039,6 +4039,8 @@
         "title": "Integrations",
         "description": "Connected services, delivery channels, and source priority in one place.",
         "subtitle": "Connect and manage your data sources and devices.",
+        "connectionsHeading": "Connections",
+        "connectionsDescription": "Connect and manage your data sources and devices.",
         "channelsHeading": "Delivery channels",
         "channelsDescription": "Where reminders and alerts are delivered."
       },
@@ -5435,7 +5437,7 @@
     "integrationWebPush": "Web Push",
     "offlineGeoLabel": "Geo data",
     "offlineGeoEnabled": "Offline (GeoLite2)",
-    "offlineGeoFallback": "Fallback (ipwho.is) — set MAXMIND_LICENSE_KEY in CI",
+    "offlineGeoFallback": "Online ({host}) — set MAXMIND_LICENSE_KEY in CI",
     "apiGlobal": "Allow API endpoints and API tokens.",
     "umamiTitle": "Umami",
     "umamiDescription": "Web analytics with Umami",
@@ -5671,7 +5673,7 @@
       "snapshotBuiltAt": "Built at",
       "snapshotOfflineGeo": "Geo data",
       "snapshotOfflineGeoOn": "Offline (GeoLite2)",
-      "snapshotOfflineGeoOff": "Fallback (ipwho.is)",
+      "snapshotOfflineGeoOff": "Online ({host})",
       "versionTileTitle": "Version",
       "versionTileVersion": "Running version",
       "versionTileBuildSha": "Build SHA",
@@ -5881,7 +5883,10 @@
     "mfaEnforcedOn": "MFA on",
     "mfaEnforcedOff": "MFA off",
     "mfaEnforcedOnHint": "A second factor is required for this user. Click to stop requiring it.",
-    "mfaEnforcedOffHint": "Require a second factor for this user."
+    "mfaEnforcedOffHint": "Require a second factor for this user.",
+    "copyIp": "Copy IP address",
+    "ipCopied": "IP address copied",
+    "copyFailed": "Could not copy."
   },
   "achievements": {
     "title": "Achievements",

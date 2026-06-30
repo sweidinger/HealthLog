@@ -102,6 +102,7 @@ export function GlitchtipSection() {
               spellCheck={false}
               data-lpignore="true"
               data-1p-ignore="true"
+              data-bwignore="true"
               disabled={updateSettings.isPending}
             />
           </div>
@@ -121,6 +122,7 @@ export function GlitchtipSection() {
               spellCheck={false}
               data-lpignore="true"
               data-1p-ignore="true"
+              data-bwignore="true"
               disabled={updateSettings.isPending}
             />
           </div>

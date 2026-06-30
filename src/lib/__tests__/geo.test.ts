@@ -425,3 +425,34 @@ describe("lookupIpGeo carrier resolution (v1.25.8)", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
+
+describe("resolveGeoProviderHost (task #162)", () => {
+  it("returns the default ipwho.is host when IP_GEO_LOOKUP_URL is unset", async () => {
+    const { resolveGeoProviderHost } = await import("../geo");
+    expect(resolveGeoProviderHost()).toBe("ipwho.is");
+  });
+
+  it("returns the configured provider host", async () => {
+    process.env.IP_GEO_LOOKUP_URL = "http://ip-api.com/json";
+    const { resolveGeoProviderHost } = await import("../geo");
+    expect(resolveGeoProviderHost()).toBe("ip-api.com");
+  });
+
+  it("preserves an explicit port in the host", async () => {
+    process.env.IP_GEO_LOOKUP_URL = "https://geo.example.com:8443/lookup";
+    const { resolveGeoProviderHost } = await import("../geo");
+    expect(resolveGeoProviderHost()).toBe("geo.example.com:8443");
+  });
+
+  it("falls back to the default host for a blank env value", async () => {
+    process.env.IP_GEO_LOOKUP_URL = "   ";
+    const { resolveGeoProviderHost } = await import("../geo");
+    expect(resolveGeoProviderHost()).toBe("ipwho.is");
+  });
+
+  it("falls back to the default host for an unparseable env value", async () => {
+    process.env.IP_GEO_LOOKUP_URL = "not a url";
+    const { resolveGeoProviderHost } = await import("../geo");
+    expect(resolveGeoProviderHost()).toBe("ipwho.is");
+  });
+});

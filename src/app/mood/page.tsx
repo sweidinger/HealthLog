@@ -90,7 +90,7 @@ export default function MoodPage() {
             className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
           >
             <Link
-              href="/settings/mood"
+              href="/settings/layout/mood"
               aria-label={t("mood.customize")}
               title={t("mood.customize")}
             >

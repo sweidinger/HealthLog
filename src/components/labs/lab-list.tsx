@@ -15,6 +15,7 @@ import { formatDate } from "@/lib/format";
 import { formatReferenceRange } from "@/lib/labs/reference-range";
 import { formatLabReading, formatLabValue } from "@/lib/labs/format-value";
 import { useTranslations } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import { applyOrder, useModuleListPrefs } from "@/lib/module-list-prefs";
 
@@ -247,7 +248,14 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   // the line-1 chip, the panel as the category badge. v1.18.10 (#3) — no delete
   // control on the tile; the trash icon lives only on the value detail view.
   return (
-    <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">
+    <ul
+      className={cn(
+        "grid list-none gap-4 p-0",
+        // A lone lab spans the full row rather than orphaning half of it;
+        // two or more fall into the two-up grid.
+        groups.length > 1 && "sm:grid-cols-2",
+      )}
+    >
       {truncated ? (
         <li className="sm:col-span-2">
           <p className="text-muted-foreground text-xs">

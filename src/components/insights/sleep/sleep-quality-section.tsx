@@ -4,6 +4,7 @@ import { Activity, Gauge, Moon, Repeat, Target, Waves } from "lucide-react";
 
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { DeviceScoreTile } from "@/components/insights/device-score-tile";
 import { DeviceScoreGridSkeleton } from "@/components/insights/device-score-tile-skeleton";
@@ -111,7 +112,14 @@ export function SleepQualitySection({ enabled }: { enabled: boolean }) {
           </p>
         }
       />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div
+        className={cn(
+          "grid gap-4",
+          // Two-up only when more than one metric has data; a lone tile spans
+          // the full row rather than leaving a half-width orphan.
+          present.length > 1 && "sm:grid-cols-2",
+        )}
+      >
         {present.map((tile) => (
           <DeviceScoreTile
             key={tile.type}

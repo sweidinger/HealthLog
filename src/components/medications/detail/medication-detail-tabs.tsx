@@ -80,6 +80,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { formatUnitCount } from "@/components/medications/units-per-dose";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { formatDose } from "@/lib/medications/format-dose";
 import type { MedicationPayload } from "@/components/medications/wizard/wizard-payload";
 import type { ComplianceDisplay } from "@/lib/analytics/compliance";
 
@@ -392,7 +393,7 @@ export function MedicationDetailTabs({
           page" and misled). `?edit=1` still opens the wizard directly. */}
       <MedicationDetailSummary
         name={medication.name}
-        dose={medication.dose}
+        dose={formatDose(medication.dose, t)}
         active={medication.active}
         endsOn={medication.endsOn}
         payload={payload}

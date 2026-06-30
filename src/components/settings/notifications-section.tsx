@@ -1,7 +1,10 @@
 "use client";
 
+import { Bell } from "lucide-react";
+
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { LowStockCard } from "@/components/settings/low-stock-card";
 import { MoodReminderCard } from "@/components/settings/mood-reminder-card";
 
@@ -46,14 +49,13 @@ export function NotificationsSection() {
           account never shows an empty heading. */}
       {anyReminder ? (
         <section className="space-y-4">
-          <div className="space-y-0.5">
-            <h2 className="text-foreground text-lg font-semibold">
-              {t("settings.sections.notifications.remindersHeading")}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {t("settings.sections.notifications.remindersDescription")}
-            </p>
-          </div>
+          <SettingsCardHeader
+            icon={Bell}
+            title={t("settings.sections.notifications.remindersHeading")}
+            description={t(
+              "settings.sections.notifications.remindersDescription",
+            )}
+          />
 
           {/* Mood check-in reminder — only when the mood module is enabled. */}
           {moodEnabled ? (

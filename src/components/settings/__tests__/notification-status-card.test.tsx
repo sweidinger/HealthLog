@@ -35,6 +35,14 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ isAuthenticated: true }),
 }));
 
+// The card gates its auth/loading branches behind `useMounted()` so SSR and
+// the first client paint render identically (`null`) and avoid a React #418
+// hydration mismatch. These tests assert the POST-hydration content tree, so
+// pin the probe to `true` — the state the card reaches once hydrated.
+vi.mock("@/hooks/use-mounted", () => ({
+  useMounted: () => true,
+}));
+
 import { I18nProvider } from "@/lib/i18n/context";
 import { NotificationStatusCard } from "../notification-status-card";
 

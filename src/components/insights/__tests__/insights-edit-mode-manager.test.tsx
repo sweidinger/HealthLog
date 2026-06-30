@@ -49,7 +49,9 @@ describe("<InsightsEditMode> — detail-page manager retired (v1.15.20)", () => 
   it("links to the settings pill section instead", () => {
     const html = renderEditMode();
     expect(html).toContain('data-slot="insights-edit-manage-link"');
-    expect(html).toContain('href="/settings/insights#insights-pill-order"');
+    expect(html).toContain(
+      'href="/settings/layout/insights#insights-pill-order"',
+    );
     expect(html).toContain("Manage pills &amp; detail pages in Settings");
   });
 
