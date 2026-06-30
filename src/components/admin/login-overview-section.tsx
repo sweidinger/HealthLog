@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
+  Check,
   CheckCircle2,
+  Copy,
   Download,
   Loader2,
   MapPin,
@@ -93,6 +96,25 @@ export function LoginOverviewSection() {
 
   const AUTH_ACTION_LABELS = useAuthActionLabels();
   const AUTH_PROVIDER_LABELS = useAuthProviderLabels();
+
+  // v1.25.11 (#151) — long IPv6 addresses are truncated in the table cell so
+  // they never force the wrapper into horizontal scroll; the full value is one
+  // click away. Track the most-recently-copied row so the icon can flip to a
+  // checkmark for transient feedback.
+  const [copiedIp, setCopiedIp] = useState<string | null>(null);
+
+  async function copyIp(id: string, ip: string) {
+    try {
+      await navigator.clipboard.writeText(ip);
+      setCopiedIp(id);
+      toast.success(t("admin.ipCopied"));
+      window.setTimeout(() => {
+        setCopiedIp((current) => (current === id ? null : current));
+      }, 2_000);
+    } catch {
+      toast.error(t("admin.copyFailed"));
+    }
+  }
 
   // Build the query string once so it's reused by the data-query key, the
   // export download, and the next-/prev- buttons.
@@ -464,7 +486,35 @@ export function LoginOverviewSection() {
                           </span>
                         </td>
                         <td className="text-muted-foreground px-3 py-2 font-mono text-xs">
-                          {entry.ipAddress ?? "—"}
+                          {entry.ipAddress ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                copyIp(entry.id, entry.ipAddress as string)
+                              }
+                              title={entry.ipAddress}
+                              aria-label={t("admin.copyIp")}
+                              data-slot="login-overview-ip"
+                              className="hover:text-foreground focus-visible:ring-ring inline-flex max-w-[10rem] items-center gap-1 rounded font-mono focus-visible:ring-2 focus-visible:outline-none"
+                            >
+                              <span className="truncate">
+                                {entry.ipAddress}
+                              </span>
+                              {copiedIp === entry.id ? (
+                                <Check
+                                  className="text-dracula-green h-3 w-3 shrink-0"
+                                  aria-hidden="true"
+                                />
+                              ) : (
+                                <Copy
+                                  className="h-3 w-3 shrink-0 opacity-60"
+                                  aria-hidden="true"
+                                />
+                              )}
+                            </button>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="text-muted-foreground px-3 py-2 text-xs">
                           {entry.location ?? "—"}

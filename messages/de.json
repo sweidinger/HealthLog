@@ -5883,7 +5883,10 @@
     "mfaEnforcedOn": "MFA an",
     "mfaEnforcedOff": "MFA aus",
     "mfaEnforcedOnHint": "Für diesen Nutzer ist ein zweiter Faktor erforderlich. Klicken, um die Anforderung aufzuheben.",
-    "mfaEnforcedOffHint": "Einen zweiten Faktor für diesen Nutzer verlangen."
+    "mfaEnforcedOffHint": "Einen zweiten Faktor für diesen Nutzer verlangen.",
+    "copyIp": "IP-Adresse kopieren",
+    "ipCopied": "IP-Adresse kopiert",
+    "copyFailed": "Kopieren fehlgeschlagen."
   },
   "achievements": {
     "title": "Erfolge",

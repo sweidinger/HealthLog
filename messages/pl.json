@@ -5883,7 +5883,10 @@
     "mfaEnforcedOn": "MFA wł.",
     "mfaEnforcedOff": "MFA wył.",
     "mfaEnforcedOnHint": "Ten użytkownik musi używać drugiego składnika. Kliknij, aby przestać go wymagać.",
-    "mfaEnforcedOffHint": "Wymagaj drugiego składnika dla tego użytkownika."
+    "mfaEnforcedOffHint": "Wymagaj drugiego składnika dla tego użytkownika.",
+    "copyIp": "Kopiuj adres IP",
+    "ipCopied": "Skopiowano adres IP",
+    "copyFailed": "Nie udało się skopiować."
   },
   "achievements": {
     "title": "Osiągnięcia",

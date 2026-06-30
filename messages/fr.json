@@ -5883,7 +5883,10 @@
     "mfaEnforcedOn": "MFA activé",
     "mfaEnforcedOff": "MFA désactivé",
     "mfaEnforcedOnHint": "Un second facteur est requis pour cet utilisateur. Cliquez pour ne plus l'exiger.",
-    "mfaEnforcedOffHint": "Exiger un second facteur pour cet utilisateur."
+    "mfaEnforcedOffHint": "Exiger un second facteur pour cet utilisateur.",
+    "copyIp": "Copier l’adresse IP",
+    "ipCopied": "Adresse IP copiée",
+    "copyFailed": "Impossible de copier."
   },
   "achievements": {
     "title": "Réussites",
