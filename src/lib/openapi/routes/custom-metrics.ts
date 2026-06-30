@@ -1,0 +1,355 @@
+/**
+ * OpenAPI route table for the user-defined custom-metric store
+ * (`/api/custom-metrics`).
+ *
+ * Part of the OpenAPI route table; aggregated in `./index.ts`. The request
+ * bodies reuse the runtime Zod schemas from `@/lib/validations/custom-metrics`
+ * so the wire contract stays single-source. The response shapes are declared
+ * here.
+ *
+ * Custom metrics are a SEPARATE generic store from the closed measurement
+ * system: not synced, not in FHIR, not in AI insights — log + chart only. All
+ * fields are plaintext.
+ */
+import type { ZodOpenApiObject } from "zod-openapi";
+import { z } from "zod/v4";
+
+import {
+  createCustomMetricEntrySchema,
+  createCustomMetricSchema,
+  updateCustomMetricEntrySchema,
+  updateCustomMetricSchema,
+} from "@/lib/validations/custom-metrics";
+
+import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
+
+createCustomMetricSchema.meta({
+  id: "CreateCustomMetricRequest",
+  description:
+    "Define a user-scoped custom metric ONCE: free-text `name` + `unit`, an optional target window (`targetLow` / `targetHigh`; when both present `targetLow` must not exceed `targetHigh`), optional display `decimals`, and an optional `description`. The name is unique per user. Logging a value later just picks this metric — its unit is snapshotted onto the value at write time. Isolated from the closed measurement system: not synced, not in FHIR, not in insights.",
+});
+
+updateCustomMetricSchema.meta({
+  id: "UpdateCustomMetricRequest",
+  description:
+    "Partial edit of a custom metric. An omitted key leaves the column untouched; an explicit `null` on a target bound / `decimals` / `description` clears it. A rename that collides with another of the caller's live metrics is rejected 409.",
+});
+
+createCustomMetricEntrySchema.meta({
+  id: "CreateCustomMetricEntryRequest",
+  description:
+    "Log a value against a custom metric: numeric `value`, ISO 8601 `measuredAt`, optional free-text `note`. The metric's current unit is snapshotted onto the entry server-side.",
+});
+
+updateCustomMetricEntrySchema.meta({
+  id: "UpdateCustomMetricEntryRequest",
+  description:
+    "Partial edit of a logged value. An omitted key leaves the column untouched; an explicit `null` on `note` clears it.",
+});
+
+const latestValue = z
+  .object({
+    value: z.number(),
+    unit: z.string(),
+    measuredAt: z.string(),
+  })
+  .nullable();
+
+const customMetricRow = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    unit: z.string(),
+    targetLow: z.number().nullable(),
+    targetHigh: z.number().nullable(),
+    decimals: z.number().nullable(),
+    description: z.string().nullable(),
+    latest: latestValue,
+    entryCount: z.number(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .meta({
+    id: "CustomMetric",
+    description:
+      "A user-defined custom metric. `latest` is the most recently logged value (or null); `entryCount` is the total logged values. The optional target window is the user's own good range, charted as a reference band.",
+  });
+
+const entryRow = z
+  .object({
+    id: z.string(),
+    customMetricId: z.string(),
+    value: z.number(),
+    unit: z.string(),
+    measuredAt: z.string(),
+    note: z.string().nullable(),
+    createdAt: z.string(),
+  })
+  .meta({
+    id: "CustomMetricEntry",
+    description:
+      "A single logged value for a custom metric. `unit` is a snapshot of the metric's unit at write time.",
+  });
+
+const listResponse = z
+  .object({ customMetrics: z.array(customMetricRow) })
+  .meta({ id: "ListCustomMetricsResponse" });
+
+const entriesResponse = z
+  .object({
+    entries: z.array(entryRow),
+    meta: z.object({
+      total: z.number(),
+      limit: z.number(),
+      offset: z.number(),
+    }),
+  })
+  .meta({ id: "ListCustomMetricEntriesResponse" });
+
+const conflict = {
+  "409": {
+    description:
+      "A custom metric with this name already exists for the caller.",
+    content: { "application/json": { schema: errorEnvelope } },
+  },
+};
+
+const notFound = {
+  "404": {
+    description: "Custom metric not found (or owned by another user).",
+    content: { "application/json": { schema: errorEnvelope } },
+  },
+};
+
+const entryNotFound = {
+  "404": {
+    description: "Custom metric entry not found (or owned by another user).",
+    content: { "application/json": { schema: errorEnvelope } },
+  },
+};
+
+export const customMetricPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/custom-metrics": {
+    get: {
+      tags: ["Custom metrics"],
+      summary: "List the caller's custom metrics",
+      description:
+        "Returns every custom metric the caller has defined, name-ordered, each with its latest logged value and total value count.",
+      responses: {
+        "200": {
+          description: "Custom-metric catalog.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(listResponse, "ListCustomMetricsEnvelope"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Custom metrics"],
+      summary: "Define a custom metric",
+      description:
+        "Creates a user-scoped custom metric. Re-creating a name that was previously soft-deleted revives that definition. Audits as `customMetric.create`.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: createCustomMetricSchema } },
+      },
+      responses: {
+        "201": {
+          description: "Created custom metric.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                customMetricRow,
+                "CreateCustomMetricResponse",
+              ),
+            },
+          },
+        },
+        ...conflict,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/custom-metrics/{id}": {
+    get: {
+      tags: ["Custom metrics"],
+      summary: "Fetch a single custom metric",
+      description:
+        "Returns the custom-metric definition. Cross-user rows surface as 404.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      responses: {
+        "200": {
+          description: "Custom-metric detail.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(customMetricRow, "GetCustomMetricResponse"),
+            },
+          },
+        },
+        ...notFound,
+        ...stdResponses,
+      },
+    },
+    patch: {
+      tags: ["Custom metrics"],
+      summary: "Edit a custom metric",
+      description:
+        "Partial edit; omitted fields are untouched, an explicit null clears a target bound / decimals / description. Audits as `customMetric.update`.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: updateCustomMetricSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Updated custom metric.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                customMetricRow,
+                "UpdateCustomMetricResponse",
+              ),
+            },
+          },
+        },
+        ...conflict,
+        ...notFound,
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Custom metrics"],
+      summary: "Delete a custom metric",
+      description:
+        "Soft-deletes the metric (stamps `deletedAt`); its logged values are retained and re-creating the name revives it. Audits as `customMetric.delete`.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      responses: {
+        "200": {
+          description: "Deletion succeeded.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ deleted: z.boolean() }),
+                "DeleteCustomMetricResponse",
+              ),
+            },
+          },
+        },
+        ...notFound,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/custom-metrics/{id}/entries": {
+    get: {
+      tags: ["Custom metrics"],
+      summary: "List a custom metric's logged values",
+      description:
+        "Offset-paginated value feed for one custom metric (the chart + history read). Cross-user / unknown metric ids surface as 404.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+        query: z.object({
+          limit: z.coerce.number().int().min(1).max(500).optional(),
+          offset: z.coerce.number().int().min(0).optional(),
+          sortDir: z.enum(["asc", "desc"]).optional(),
+        }),
+      },
+      responses: {
+        "200": {
+          description: "Logged values.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                entriesResponse,
+                "ListCustomMetricEntriesEnvelope",
+              ),
+            },
+          },
+        },
+        ...notFound,
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Custom metrics"],
+      summary: "Log a value",
+      description:
+        "Records a value against the custom metric, snapshotting the metric's unit. Audits as `customMetricEntry.create`.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: createCustomMetricEntrySchema },
+        },
+      },
+      responses: {
+        "201": {
+          description: "Created value.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(entryRow, "CreateCustomMetricEntryResponse"),
+            },
+          },
+        },
+        ...notFound,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/custom-metrics/{id}/entries/{entryId}": {
+    patch: {
+      tags: ["Custom metrics"],
+      summary: "Edit a logged value",
+      description:
+        "Partial edit of a value; omitted fields untouched, explicit null clears `note`. Audits as `customMetricEntry.update`.",
+      requestParams: {
+        path: z.object({ id: z.string(), entryId: z.string() }),
+      },
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: updateCustomMetricEntrySchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Updated value.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(entryRow, "UpdateCustomMetricEntryResponse"),
+            },
+          },
+        },
+        ...entryNotFound,
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Custom metrics"],
+      summary: "Delete a logged value",
+      description:
+        "Hard-deletes the value. Audits as `customMetricEntry.delete`.",
+      requestParams: {
+        path: z.object({ id: z.string(), entryId: z.string() }),
+      },
+      responses: {
+        "200": {
+          description: "Deletion succeeded.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ deleted: z.boolean() }),
+                "DeleteCustomMetricEntryResponse",
+              ),
+            },
+          },
+        },
+        ...entryNotFound,
+        ...stdResponses,
+      },
+    },
+  },
+};

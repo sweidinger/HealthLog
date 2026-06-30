@@ -7985,5 +7985,87 @@
   },
   "selfDescription": {
     "dataPosture": "HealthLog is self-hosted: your health data stays on your own instance, encrypted at rest. AI features use a provider key you bring or a local model, so nothing leaves your instance beyond the provider you configure, and there is no third-party analytics on your health data."
+  },
+  "customMetrics": {
+    "sectionTitle": "Custom metrics",
+    "sectionSubtitle": "Measurements you define and track yourself.",
+    "add": "Add custom metric",
+    "addValue": "Add value",
+    "defineTitle": "Define a custom metric",
+    "defineDescription": "Name the measurement, set its unit, and optionally a target range.",
+    "editTitle": "Edit custom metric",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete this custom metric?",
+    "deleteConfirmDescription": "The metric is removed from your list. Its logged values are kept.",
+    "deletedToast": "Custom metric deleted",
+    "deleteError": "Could not delete the custom metric",
+    "showAllValues": "Show all values",
+    "emptyDescription": "Define your own measurements to track and chart them.",
+    "noValuesYet": "No values yet",
+    "loadError": "Could not load custom metrics",
+    "loadMore": "Load more values",
+    "showingLatestOf": "Showing the latest {shown} of {total}",
+    "backToMeasurements": "Back to measurements",
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "e.g. Morning grip strength",
+      "unit": "Unit",
+      "unitPlaceholder": "e.g. kg",
+      "decimals": "Decimal places",
+      "decimalsPlaceholder": "e.g. 1",
+      "targetLow": "Target low",
+      "targetLowPlaceholder": "Lower bound",
+      "targetHigh": "Target high",
+      "targetHighPlaceholder": "Upper bound",
+      "description": "Description",
+      "descriptionPlaceholder": "What this measures (optional)",
+      "targetHint": "The target range is optional and is drawn as a band on the chart.",
+      "requiredError": "Name and unit are required",
+      "rangeOrderError": "Target low must not exceed target high",
+      "save": "Save",
+      "savedToast": "Custom metric saved",
+      "updatedToast": "Custom metric updated",
+      "saveError": "Could not save the custom metric"
+    },
+    "entry": {
+      "value": "Value",
+      "measuredAt": "Date",
+      "note": "Note",
+      "addDescription": "Log a value for this metric.",
+      "edit": "Edit value",
+      "editTitle": "Edit value",
+      "editDescription": "Update the value, date, or note.",
+      "delete": "Delete value",
+      "deleteConfirmTitle": "Delete this value?",
+      "deleteConfirmDescription": "This value is removed permanently.",
+      "valueError": "Enter a numeric value",
+      "timestampError": "Enter a valid date",
+      "savedToast": "Value logged",
+      "saveError": "Could not log the value",
+      "editedToast": "Value updated",
+      "editError": "Could not update the value",
+      "deletedToast": "Value deleted",
+      "deleteError": "Could not delete the value"
+    },
+    "chart": {
+      "empty": "No values in this range",
+      "valueLabel": "Value",
+      "range": {
+        "30": "30d",
+        "90": "90d",
+        "365": "1y",
+        "all": "All"
+      }
+    },
+    "detail": {
+      "title": "Custom metric",
+      "genericDescription": "A measurement you track. Add values to follow it over time.",
+      "emptyTitle": "No values yet",
+      "emptyDescription": "Add your first value to start charting this metric.",
+      "valuesTitle": "{metric} — all values",
+      "valuesDescription": "Every logged value for this metric.",
+      "backToMetric": "Back to {metric}"
+    }
   }
 }

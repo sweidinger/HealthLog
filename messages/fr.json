@@ -7985,5 +7985,87 @@
   },
   "selfDescription": {
     "dataPosture": "HealthLog est auto-hébergé : vos données de santé restent sur votre propre instance, chiffrées au repos. Les fonctions d'IA utilisent une clé de fournisseur que vous apportez ou un modèle local, donc rien ne quitte votre instance au-delà du fournisseur que vous configurez, et il n'y a aucune analyse tierce de vos données de santé."
+  },
+  "customMetrics": {
+    "sectionTitle": "Mesures personnalisées",
+    "sectionSubtitle": "Des mesures que vous définissez et suivez vous-même.",
+    "add": "Ajouter une mesure personnalisée",
+    "addValue": "Ajouter une valeur",
+    "defineTitle": "Définir une mesure personnalisée",
+    "defineDescription": "Nommez la mesure, définissez son unité et éventuellement une plage cible.",
+    "editTitle": "Modifier la mesure personnalisée",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "deleteConfirmTitle": "Supprimer cette mesure personnalisée ?",
+    "deleteConfirmDescription": "La mesure est retirée de votre liste. Les valeurs enregistrées sont conservées.",
+    "deletedToast": "Mesure personnalisée supprimée",
+    "deleteError": "Impossible de supprimer la mesure personnalisée",
+    "showAllValues": "Afficher toutes les valeurs",
+    "emptyDescription": "Définissez vos propres mesures pour les suivre et les représenter.",
+    "noValuesYet": "Aucune valeur pour l'instant",
+    "loadError": "Impossible de charger les mesures personnalisées",
+    "loadMore": "Charger plus de valeurs",
+    "showingLatestOf": "Affichage des {shown} dernières sur {total}",
+    "backToMeasurements": "Retour aux mesures",
+    "form": {
+      "name": "Nom",
+      "namePlaceholder": "p. ex. Force de préhension du matin",
+      "unit": "Unité",
+      "unitPlaceholder": "p. ex. kg",
+      "decimals": "Décimales",
+      "decimalsPlaceholder": "p. ex. 1",
+      "targetLow": "Cible basse",
+      "targetLowPlaceholder": "Borne inférieure",
+      "targetHigh": "Cible haute",
+      "targetHighPlaceholder": "Borne supérieure",
+      "description": "Description",
+      "descriptionPlaceholder": "Ce que cela mesure (facultatif)",
+      "targetHint": "La plage cible est facultative et s'affiche comme une bande sur le graphique.",
+      "requiredError": "Le nom et l'unité sont obligatoires",
+      "rangeOrderError": "La cible basse ne doit pas dépasser la cible haute",
+      "save": "Enregistrer",
+      "savedToast": "Mesure personnalisée enregistrée",
+      "updatedToast": "Mesure personnalisée mise à jour",
+      "saveError": "Impossible d'enregistrer la mesure personnalisée"
+    },
+    "entry": {
+      "value": "Valeur",
+      "measuredAt": "Date",
+      "note": "Note",
+      "addDescription": "Enregistrez une valeur pour cette mesure.",
+      "edit": "Modifier la valeur",
+      "editTitle": "Modifier la valeur",
+      "editDescription": "Mettez à jour la valeur, la date ou la note.",
+      "delete": "Supprimer la valeur",
+      "deleteConfirmTitle": "Supprimer cette valeur ?",
+      "deleteConfirmDescription": "Cette valeur est supprimée définitivement.",
+      "valueError": "Saisissez une valeur numérique",
+      "timestampError": "Saisissez une date valide",
+      "savedToast": "Valeur enregistrée",
+      "saveError": "Impossible d'enregistrer la valeur",
+      "editedToast": "Valeur mise à jour",
+      "editError": "Impossible de mettre à jour la valeur",
+      "deletedToast": "Valeur supprimée",
+      "deleteError": "Impossible de supprimer la valeur"
+    },
+    "chart": {
+      "empty": "Aucune valeur sur cette période",
+      "valueLabel": "Valeur",
+      "range": {
+        "30": "30j",
+        "90": "90j",
+        "365": "1a",
+        "all": "Tout"
+      }
+    },
+    "detail": {
+      "title": "Mesure personnalisée",
+      "genericDescription": "Une mesure que vous suivez. Ajoutez des valeurs pour la suivre dans le temps.",
+      "emptyTitle": "Aucune valeur pour l'instant",
+      "emptyDescription": "Ajoutez votre première valeur pour commencer à représenter cette mesure.",
+      "valuesTitle": "{metric} — toutes les valeurs",
+      "valuesDescription": "Toutes les valeurs enregistrées pour cette mesure.",
+      "backToMetric": "Retour à {metric}"
+    }
   }
 }

@@ -32,6 +32,7 @@ import {
   coachSuggestedActionPaths,
 } from "./coach";
 import { consentPaths } from "./consent";
+import { customMetricPaths } from "./custom-metrics";
 import { cyclePaths } from "./cycle";
 import { biomarkerPaths } from "./biomarkers";
 import { inboundDocumentPaths } from "./documents";
@@ -91,6 +92,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...allergyPaths,
   ...familyHistoryPaths,
   ...inboundDocumentPaths,
+  ...customMetricPaths,
   ...onboardingPaths,
 };
 

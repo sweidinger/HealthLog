@@ -10,6 +10,7 @@ import {
   resolveAddToken,
 } from "@/components/measurements/measurement-form";
 import { MeasurementList } from "@/components/measurements/measurement-list";
+import { CustomMetricList } from "@/components/custom-metrics/custom-metric-list";
 import { MEASUREMENT_TYPE_LABEL_KEYS } from "@/components/measurements/measurement-list-meta";
 import { Button } from "@/components/ui/button";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
@@ -177,6 +178,8 @@ export default function MeasurementsPage() {
         onAddFirst={() => setDialogOpen(true)}
         initialType={initialType}
       />
+
+      <CustomMetricList />
     </div>
   );
 }

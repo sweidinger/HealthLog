@@ -7985,5 +7985,87 @@
   },
   "selfDescription": {
     "dataPosture": "HealthLog è self-hosted: i tuoi dati di salute restano sulla tua istanza, cifrati a riposo. Le funzioni di IA usano una chiave del provider che fornisci tu o un modello locale, quindi nulla lascia la tua istanza oltre il provider che configuri, e non c'è alcuna analisi di terze parti sui tuoi dati di salute."
+  },
+  "customMetrics": {
+    "sectionTitle": "Metriche personalizzate",
+    "sectionSubtitle": "Misurazioni che definisci e monitori tu stesso.",
+    "add": "Aggiungi metrica personalizzata",
+    "addValue": "Aggiungi valore",
+    "defineTitle": "Definisci una metrica personalizzata",
+    "defineDescription": "Dai un nome alla misurazione, imposta l'unità ed eventualmente un intervallo obiettivo.",
+    "editTitle": "Modifica metrica personalizzata",
+    "edit": "Modifica",
+    "delete": "Elimina",
+    "deleteConfirmTitle": "Eliminare questa metrica personalizzata?",
+    "deleteConfirmDescription": "La metrica viene rimossa dal tuo elenco. I valori registrati vengono mantenuti.",
+    "deletedToast": "Metrica personalizzata eliminata",
+    "deleteError": "Impossibile eliminare la metrica personalizzata",
+    "showAllValues": "Mostra tutti i valori",
+    "emptyDescription": "Definisci le tue misurazioni per monitorarle e rappresentarle.",
+    "noValuesYet": "Ancora nessun valore",
+    "loadError": "Impossibile caricare le metriche personalizzate",
+    "loadMore": "Carica altri valori",
+    "showingLatestOf": "Mostrati gli ultimi {shown} di {total}",
+    "backToMeasurements": "Torna alle misurazioni",
+    "form": {
+      "name": "Nome",
+      "namePlaceholder": "es. Forza di presa al mattino",
+      "unit": "Unità",
+      "unitPlaceholder": "es. kg",
+      "decimals": "Cifre decimali",
+      "decimalsPlaceholder": "es. 1",
+      "targetLow": "Obiettivo minimo",
+      "targetLowPlaceholder": "Limite inferiore",
+      "targetHigh": "Obiettivo massimo",
+      "targetHighPlaceholder": "Limite superiore",
+      "description": "Descrizione",
+      "descriptionPlaceholder": "Cosa misura (facoltativo)",
+      "targetHint": "L'intervallo obiettivo è facoltativo e viene disegnato come una banda sul grafico.",
+      "requiredError": "Nome e unità sono obbligatori",
+      "rangeOrderError": "L'obiettivo minimo non può superare quello massimo",
+      "save": "Salva",
+      "savedToast": "Metrica personalizzata salvata",
+      "updatedToast": "Metrica personalizzata aggiornata",
+      "saveError": "Impossibile salvare la metrica personalizzata"
+    },
+    "entry": {
+      "value": "Valore",
+      "measuredAt": "Data",
+      "note": "Nota",
+      "addDescription": "Registra un valore per questa metrica.",
+      "edit": "Modifica valore",
+      "editTitle": "Modifica valore",
+      "editDescription": "Aggiorna il valore, la data o la nota.",
+      "delete": "Elimina valore",
+      "deleteConfirmTitle": "Eliminare questo valore?",
+      "deleteConfirmDescription": "Questo valore viene eliminato definitivamente.",
+      "valueError": "Inserisci un valore numerico",
+      "timestampError": "Inserisci una data valida",
+      "savedToast": "Valore registrato",
+      "saveError": "Impossibile registrare il valore",
+      "editedToast": "Valore aggiornato",
+      "editError": "Impossibile aggiornare il valore",
+      "deletedToast": "Valore eliminato",
+      "deleteError": "Impossibile eliminare il valore"
+    },
+    "chart": {
+      "empty": "Nessun valore in questo intervallo",
+      "valueLabel": "Valore",
+      "range": {
+        "30": "30g",
+        "90": "90g",
+        "365": "1a",
+        "all": "Tutti"
+      }
+    },
+    "detail": {
+      "title": "Metrica personalizzata",
+      "genericDescription": "Una misurazione che monitori. Aggiungi valori per seguirla nel tempo.",
+      "emptyTitle": "Ancora nessun valore",
+      "emptyDescription": "Aggiungi il primo valore per iniziare a rappresentare questa metrica.",
+      "valuesTitle": "{metric} — tutti i valori",
+      "valuesDescription": "Tutti i valori registrati per questa metrica.",
+      "backToMetric": "Torna a {metric}"
+    }
   }
 }

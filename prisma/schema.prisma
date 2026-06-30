@@ -735,6 +735,11 @@ model User {
   // v1.19.0 — user-scoped biomarker catalog (canonical name/unit/range per
   // marker); LabResult rows link to a Biomarker for the resolved range/unit.
   biomarkers                  Biomarker[]
+  // v1.25.5 — user-defined custom metrics. A separate generic store
+  // (catalog + values), fully isolated from the closed MeasurementType
+  // system: not synced, not in FHIR, not in AI insights — log + chart only.
+  customMetrics               CustomMetric[]
+  customMetricEntries         CustomMetricEntry[]
   // v1.19.0 — illness / condition journal (born-gated by the module system).
   // IllnessEpisode is the soft-deleted episode row; IllnessDayLog is the
   // per-day timeline mirroring the CycleDayLog shape.
@@ -4148,6 +4153,67 @@ model Biomarker {
   @@unique([userId, name])
   @@index([userId])
   @@map("biomarkers")
+}
+
+// ─── Custom metrics ──────────────────────────────────────────
+
+/// v1.25.5 — user-defined custom metrics. A self-hoster defines an arbitrary
+/// measurement (name, unit, optional target window, decimals, description),
+/// logs values against it, and charts them. Deliberately a SEPARATE generic
+/// store from the closed `MeasurementType` enum + `Measurement` table: custom
+/// metrics are NOT synced (Withings / Apple Health), NOT in FHIR, NOT in AI
+/// insights / correlations / health-score / dashboard tiles — log + chart only.
+/// `name` / `unit` / `description` are PLAINTEXT (they may hold personal text
+/// but, like the Biomarker catalog, stay clear-text so the list can sort +
+/// search). Unique per user + name so there is never a second definition.
+/// Soft-deleted.
+model CustomMetric {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  /// Free-text display name, e.g. "Morning grip strength".
+  name        String
+  /// Free-text unit label, e.g. "kg", "reps", "score".
+  unit        String
+  /// Optional target window. Both independently optional; when both present
+  /// the low bound must not exceed the high bound (charted as a reference band).
+  targetLow   Float?    @map("target_low")
+  targetHigh  Float?    @map("target_high")
+  /// Optional fixed decimal places for display (null = sensible default).
+  decimals    Int?
+  /// Optional free-text description ("what this measures"). Plaintext.
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
+  deletedAt   DateTime? @map("deleted_at")
+
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries CustomMetricEntry[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("custom_metrics")
+}
+
+/// v1.25.5 — a single logged value against a `CustomMetric`. The `unit` is a
+/// snapshot of the metric's unit at write time (historical truth, mirroring the
+/// LabResult per-row unit). Charts read these LIVE (no rollup tier).
+model CustomMetricEntry {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  customMetricId String   @map("custom_metric_id")
+  value          Float
+  /// Unit snapshot from the metric at write time.
+  unit           String
+  measuredAt     DateTime @map("measured_at")
+  note           String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metric CustomMetric @relation(fields: [customMetricId], references: [id], onDelete: Cascade)
+
+  @@index([userId, customMetricId, measuredAt])
+  @@map("custom_metric_entries")
 }
 
 // ─── User Achievements ───────────────────────────────────────

@@ -7985,5 +7985,87 @@
   },
   "selfDescription": {
     "dataPosture": "HealthLog jest hostowany samodzielnie: Twoje dane zdrowotne pozostają na Twojej instancji, zaszyfrowane w spoczynku. Funkcje AI korzystają z dostarczonego przez Ciebie klucza dostawcy lub modelu lokalnego, więc nic nie opuszcza Twojej instancji poza skonfigurowanym dostawcą i nie ma analityki firm trzecich na Twoich danych zdrowotnych."
+  },
+  "customMetrics": {
+    "sectionTitle": "Metryki własne",
+    "sectionSubtitle": "Pomiary, które sam definiujesz i śledzisz.",
+    "add": "Dodaj metrykę własną",
+    "addValue": "Dodaj wartość",
+    "defineTitle": "Zdefiniuj metrykę własną",
+    "defineDescription": "Nazwij pomiar, ustaw jego jednostkę i opcjonalnie zakres docelowy.",
+    "editTitle": "Edytuj metrykę własną",
+    "edit": "Edytuj",
+    "delete": "Usuń",
+    "deleteConfirmTitle": "Usunąć tę metrykę własną?",
+    "deleteConfirmDescription": "Metryka zostanie usunięta z listy. Zapisane wartości pozostaną.",
+    "deletedToast": "Usunięto metrykę własną",
+    "deleteError": "Nie udało się usunąć metryki własnej",
+    "showAllValues": "Pokaż wszystkie wartości",
+    "emptyDescription": "Zdefiniuj własne pomiary, aby je śledzić i przedstawiać na wykresie.",
+    "noValuesYet": "Brak wartości",
+    "loadError": "Nie udało się wczytać metryk własnych",
+    "loadMore": "Wczytaj więcej wartości",
+    "showingLatestOf": "Wyświetlono najnowsze {shown} z {total}",
+    "backToMeasurements": "Powrót do pomiarów",
+    "form": {
+      "name": "Nazwa",
+      "namePlaceholder": "np. Siła chwytu rano",
+      "unit": "Jednostka",
+      "unitPlaceholder": "np. kg",
+      "decimals": "Miejsca dziesiętne",
+      "decimalsPlaceholder": "np. 1",
+      "targetLow": "Cel dolny",
+      "targetLowPlaceholder": "Dolna granica",
+      "targetHigh": "Cel górny",
+      "targetHighPlaceholder": "Górna granica",
+      "description": "Opis",
+      "descriptionPlaceholder": "Co to mierzy (opcjonalnie)",
+      "targetHint": "Zakres docelowy jest opcjonalny i jest rysowany jako pasmo na wykresie.",
+      "requiredError": "Nazwa i jednostka są wymagane",
+      "rangeOrderError": "Cel dolny nie może przekraczać celu górnego",
+      "save": "Zapisz",
+      "savedToast": "Zapisano metrykę własną",
+      "updatedToast": "Zaktualizowano metrykę własną",
+      "saveError": "Nie udało się zapisać metryki własnej"
+    },
+    "entry": {
+      "value": "Wartość",
+      "measuredAt": "Data",
+      "note": "Notatka",
+      "addDescription": "Zapisz wartość dla tej metryki.",
+      "edit": "Edytuj wartość",
+      "editTitle": "Edytuj wartość",
+      "editDescription": "Zaktualizuj wartość, datę lub notatkę.",
+      "delete": "Usuń wartość",
+      "deleteConfirmTitle": "Usunąć tę wartość?",
+      "deleteConfirmDescription": "Ta wartość zostanie trwale usunięta.",
+      "valueError": "Podaj wartość liczbową",
+      "timestampError": "Podaj prawidłową datę",
+      "savedToast": "Zapisano wartość",
+      "saveError": "Nie udało się zapisać wartości",
+      "editedToast": "Zaktualizowano wartość",
+      "editError": "Nie udało się zaktualizować wartości",
+      "deletedToast": "Usunięto wartość",
+      "deleteError": "Nie udało się usunąć wartości"
+    },
+    "chart": {
+      "empty": "Brak wartości w tym zakresie",
+      "valueLabel": "Wartość",
+      "range": {
+        "30": "30d",
+        "90": "90d",
+        "365": "1r",
+        "all": "Wszystko"
+      }
+    },
+    "detail": {
+      "title": "Metryka własna",
+      "genericDescription": "Pomiar, który śledzisz. Dodawaj wartości, aby obserwować go w czasie.",
+      "emptyTitle": "Brak wartości",
+      "emptyDescription": "Dodaj pierwszą wartość, aby zacząć przedstawiać tę metrykę na wykresie.",
+      "valuesTitle": "{metric} — wszystkie wartości",
+      "valuesDescription": "Wszystkie zapisane wartości tej metryki.",
+      "backToMetric": "Powrót do {metric}"
+    }
   }
 }
