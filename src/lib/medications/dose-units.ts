@@ -25,5 +25,3 @@ export const DOSE_UNIT_KEYS = [
   "pieces",
   "other",
 ] as const;
-
-export type DoseUnitKey = (typeof DOSE_UNIT_KEYS)[number];
