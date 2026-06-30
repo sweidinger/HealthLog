@@ -110,7 +110,7 @@ export function DashboardHeader({
           data-testid="dashboard-customize-shortcut"
         >
           <Link
-            href="/settings/dashboard"
+            href="/settings/layout/dashboard"
             aria-label={t("dashboard.customizeDashboard")}
             title={t("dashboard.customizeDashboard")}
           >

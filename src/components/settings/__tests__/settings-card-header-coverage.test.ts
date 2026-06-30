@@ -28,8 +28,6 @@ const SETTINGS_DIR = join(ROOT, "src/components/settings");
 
 // Files allowed to retain a hand-rolled `<h2 text-lg>` header.
 const ALLOWLIST = new Set<string>([
-  // TODO #148: rebuilt into hub+subpages, will use SettingsCardHeader then
-  "layout-section.tsx",
   // allowed: collapsible-toggle header, button-wrapped, typography already canonical
   "security-activity-card.tsx",
   // allowed: collapsible-toggle header, button-wrapped, typography already canonical

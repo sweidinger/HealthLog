@@ -145,8 +145,9 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   // v1.25.7 — "Darstellung" (Appearance) absorbs the per-module view/sort/
   // order surfaces. The standalone Medikamente / Stimmung / Labor /
   // Krankheit / Vorsorge nav entries are gone: each module's full settings
-  // now render inline inside this section, gated on the same module key. The
-  // old routes 301-redirect to `/settings/layout#<anchor>` (next.config.ts).
+  // v1.25.11 (#148) — "Darstellung" is a HUB that lists each module and links
+  // to its own subpage at `/settings/layout/<module>`. The old per-module
+  // routes 301-redirect to the matching subpage (next.config.ts).
   {
     slug: "layout",
     titleKey: "settings.sections.layout.title",
@@ -172,7 +173,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   },
   // v1.25.7 — Vorsorge (preventive-care reminders) folded into "Darstellung"
   // alongside the other tracking modules; `/settings/vorsorge` 301-redirects
-  // to `/settings/layout#vorsorge` (next.config.ts).
+  // to `/settings/layout/vorsorge` (next.config.ts).
   {
     slug: "thresholds",
     titleKey: "settings.sections.thresholds.title",
@@ -281,8 +282,9 @@ const LAYOUT_CHILD_SLUGS: ReadonlySet<string> = new Set([
   "dashboard",
   "insights",
   // v1.25.7 — the per-module view/sort/order surfaces moved into the
-  // "Darstellung" hub. Their routes 301-redirect to `/settings/layout#<slug>`,
-  // but if one is ever reached directly the nav still highlights the hub.
+  // "Darstellung" hub. v1.25.11 (#148) — each lives on its own subpage at
+  // `/settings/layout/<slug>`; the legacy `/settings/<slug>` routes
+  // 301-redirect there, and a direct hit still highlights the hub.
   "medications",
   "mood",
   "labs",

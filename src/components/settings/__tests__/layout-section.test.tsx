@@ -1,13 +1,14 @@
 /**
- * v1.25.7 — the "Appearance" home (slug stays `layout`).
+ * v1.25.11 (#148) — the "Appearance" hub (slug stays `layout`).
  *
- * The hub stopped being a link list: it now composes the dashboard, insights,
- * and every tracking module's settings inline as stacked, anchored sections.
- * Each module section keeps its module-gate (fail-open `!== false`), so a
- * disabled module's section does not render. These tests pin the composition
- * contract — anchors, headings, and gating — and mock the child section
- * components (each has its own dedicated test) so the render stays a pure
- * composition smoke.
+ * The hub is a navigable index: it lists each module as a clickable row
+ * (`<a href="/settings/layout/<id>">` with the localized title + description +
+ * a chevron) and links to the module's own subpage. NOTHING is stacked inline.
+ * These tests pin the hub contract — the rows link to the right subpages, the
+ * module gate hides a disabled module's row, the never-gated rows always show,
+ * and the titles resolve through i18n. The child section components are NOT
+ * rendered by the hub, so they need no mocking here (each has its own test and
+ * its own subpage).
  */
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -23,28 +24,12 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
-// Each composed surface has its own test; stub them at the import boundary so
-// this test exercises only the LayoutSection composition (anchors + gating).
-vi.mock("@/components/settings/dashboard-section", () => ({
-  DashboardSection: () => <div data-testid="body-dashboard" />,
-}));
-vi.mock("@/components/settings/insights-section", () => ({
-  InsightsSection: () => <div data-testid="body-insights" />,
-}));
-vi.mock("@/components/settings/medications-section", () => ({
-  MedicationsSection: () => <div data-testid="body-medications" />,
-}));
-vi.mock("@/components/settings/mood-section", () => ({
-  MoodSection: () => <div data-testid="body-mood" />,
-}));
-vi.mock("@/components/settings/labs-section", () => ({
-  LabsSection: () => <div data-testid="body-labs" />,
-}));
-vi.mock("@/components/settings/illness-section", () => ({
-  IllnessSection: () => <div data-testid="body-illness" />,
-}));
-vi.mock("@/components/settings/vorsorge-section", () => ({
-  VorsorgeSection: () => <div data-testid="body-vorsorge" />,
+// The hub renders post-mount fail-open gating via `useMounted()`. Under SSR
+// (`renderToStaticMarkup`) `useMounted()` returns `false`, which would render
+// EVERY row regardless of the gate map. Force it to the hydrated (`true`)
+// snapshot so these tests exercise the real module filter.
+vi.mock("@/hooks/use-mounted", () => ({
+  useMounted: () => true,
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
@@ -59,8 +44,8 @@ function render(modules?: Record<string, boolean>, locale: "en" | "de" = "en") {
   );
 }
 
-describe("<LayoutSection>", () => {
-  it("stacks every surface inline with a stable anchor id (fail-open default)", () => {
+describe("<LayoutSection> hub", () => {
+  it("lists every module as a clickable row linking to its subpage", () => {
     const html = render(undefined);
     for (const id of [
       "dashboard",
@@ -71,45 +56,40 @@ describe("<LayoutSection>", () => {
       "illness",
       "vorsorge",
     ]) {
-      expect(html).toContain(`id="${id}"`);
-      expect(html).toContain(`data-testid="body-${id}"`);
+      expect(html).toContain(`href="/settings/layout/${id}"`);
     }
-    // It is no longer a link hub — no `/settings/*` cards.
-    expect(html).not.toContain('href="/settings/');
   });
 
-  it("hides a module's section when that module is disabled", () => {
+  it("hides a module's row when that module is disabled", () => {
     const html = render({ medications: false, labs: false });
-    expect(html).not.toContain('data-testid="body-medications"');
-    expect(html).not.toContain('id="medications"');
-    expect(html).not.toContain('data-testid="body-labs"');
-    expect(html).not.toContain('id="labs"');
+    expect(html).not.toContain('href="/settings/layout/medications"');
+    expect(html).not.toContain('href="/settings/layout/labs"');
     // Other modules unaffected; Vorsorge is never gated.
-    expect(html).toContain('data-testid="body-mood"');
-    expect(html).toContain('data-testid="body-vorsorge"');
+    expect(html).toContain('href="/settings/layout/mood"');
+    expect(html).toContain('href="/settings/layout/vorsorge"');
   });
 
-  it("always renders dashboard, insights, and vorsorge (no module gate)", () => {
+  it("always lists dashboard, insights, and vorsorge (no module gate)", () => {
     const html = render({
       medications: false,
       mood: false,
       labs: false,
       illness: false,
     });
-    expect(html).toContain('data-testid="body-dashboard"');
-    expect(html).toContain('data-testid="body-insights"');
-    expect(html).toContain('data-testid="body-vorsorge"');
-    expect(html).not.toContain('data-testid="body-mood"');
+    expect(html).toContain('href="/settings/layout/dashboard"');
+    expect(html).toContain('href="/settings/layout/insights"');
+    expect(html).toContain('href="/settings/layout/vorsorge"');
+    expect(html).not.toContain('href="/settings/layout/mood"');
   });
 
-  it("resolves its section headings via i18n (no raw keys leak)", () => {
+  it("resolves its row titles via i18n (no raw keys leak)", () => {
     const html = render();
     expect(html).toContain("Medications");
     expect(html).toContain("Labs");
     expect(html).not.toContain("settings.sections.layout.");
   });
 
-  it("resolves the headings in German too", () => {
+  it("resolves the titles in German too", () => {
     const html = render(undefined, "de");
     expect(html).toContain("Medikamente");
     expect(html).toContain("Labor");

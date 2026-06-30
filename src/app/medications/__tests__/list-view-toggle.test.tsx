@@ -123,12 +123,14 @@ describe("/medications — view renders from the persisted preference", () => {
     expect(html).not.toContain('data-slot="medications-view-table"');
   });
 
-  it("links the header customize glyph to /settings/medications", () => {
+  it("links the header customize glyph to /settings/layout/medications", () => {
     // v1.16.11 — same entry-point logic as the dashboard and insights
     // headers: one wrench ghost icon linking to the page's settings
     // section (view preference + manual order live there).
+    // v1.25.11 (#148) — the per-module settings now live on the Appearance
+    // subpage `/settings/layout/medications`.
     const html = renderPage({ version: 1, view: "cards", order: [] });
-    expect(html).toContain('href="/settings/medications"');
+    expect(html).toContain('href="/settings/layout/medications"');
     expect(html).toContain('aria-label="Customize medications"');
     // The in-page order dialog is gone — no dialog trigger remains.
     expect(html).not.toContain('aria-label="Adjust order"');

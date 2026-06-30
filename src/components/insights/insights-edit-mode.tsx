@@ -279,7 +279,7 @@ export function InsightsEditMode({
           the Vitals row duplicated it. Keep a quiet pointer instead. */}
       <p className="text-muted-foreground text-xs">
         <Link
-          href="/settings/insights#insights-pill-order"
+          href="/settings/layout/insights#insights-pill-order"
           data-slot="insights-edit-manage-link"
           className="hover:text-foreground focus-visible:ring-ring rounded underline underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
         >

@@ -570,7 +570,9 @@ export default function InsightsPage() {
           description={t("insights.editMode.emptyDescription")}
           action={
             <Button size="sm" asChild>
-              <Link href="/settings/insights">{t("insights.customize")}</Link>
+              <Link href="/settings/layout/insights">
+                {t("insights.customize")}
+              </Link>
             </Button>
           }
         />

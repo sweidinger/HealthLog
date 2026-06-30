@@ -882,7 +882,7 @@ function InsightsTabStripImpl({
             point. */}
         {onRegenerate && (
           <Link
-            href="/settings/insights"
+            href="/settings/layout/insights"
             aria-label={customizeLabel}
             title={customizeLabel}
             data-slot="insights-tab-strip-customize"
