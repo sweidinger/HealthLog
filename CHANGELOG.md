@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.25.10] — 2026-06-30 — Mobile add-form fix
+
+### Fixed
+
+- On a phone, opening an add form (measurements, mood, medication, …) could push the layout wider than the screen, so the page scrolled sideways. The date-and-time field now stacks its date and time halves on narrow viewports instead of forcing them onto one row, so the form stays within the screen width. They still sit side-by-side from tablet width up.
+
 ## [1.25.9] — 2026-06-30 — Custom metrics
 
 ### Added
