@@ -24,6 +24,7 @@ import { MentalWellbeing } from "../mental-wellbeing";
 import { CheckInWizard } from "../check-in-wizard";
 import { AssessmentResult } from "../assessment-result";
 import { AssessmentHistory } from "../assessment-history";
+import { InstrumentCard } from "../instrument-card";
 import type { AssessmentRow, CreateResponse } from "../types";
 
 const mh = en.mentalHealth;
@@ -192,5 +193,77 @@ describe("history rendering", () => {
     const empty = withProviders(<AssessmentHistory rows={[]} />);
     expect(empty).toContain(mh.history.empty);
     expect(empty).not.toContain('data-slot="history-list"');
+  });
+});
+
+describe("instrument card → per-instrument trend (v1.25.12)", () => {
+  it("exposes the card body as a detail target separate from Start", () => {
+    const html = withProviders(
+      <InstrumentCard
+        instrument="PHQ9"
+        last={undefined}
+        onStart={() => {}}
+        onOpenDetail={() => {}}
+      />,
+    );
+    // The title + last-result block is a button that opens the Verlauf…
+    expect(html).toContain('data-slot="instrument-card-open"');
+    expect(html).toContain(mh.openDetail);
+    // …and the Start action is still its own button.
+    expect(html).toContain(mh.start);
+  });
+
+  it("pins the history to one instrument: no toggle, bare (no titled card)", () => {
+    const rows: AssessmentRow[] = [
+      {
+        id: "p1",
+        instrument: "PHQ9",
+        locale: "en",
+        totalScore: 8,
+        severityBand: "mild",
+        item9Flagged: false,
+        crisisShownAt: null,
+        takenAt: "2026-06-20T00:00:00.000Z",
+      },
+      {
+        id: "g1",
+        instrument: "GAD7",
+        locale: "en",
+        totalScore: 12,
+        severityBand: "moderate",
+        item9Flagged: false,
+        crisisShownAt: null,
+        takenAt: "2026-06-20T00:00:00.000Z",
+      },
+    ];
+    const html = withProviders(
+      <AssessmentHistory rows={rows} instrument="PHQ9" />,
+    );
+    // Pinned: the PHQ-9 / GAD-7 toggle + the titled landing card are gone…
+    expect(html).toContain('data-pinned="PHQ9"');
+    expect(html).not.toContain('role="tablist"');
+    // …only the chosen instrument's row paints (its band), not the other's.
+    expect(html).toContain(mh.band.PHQ9.mild);
+    expect(html).not.toContain(mh.band.GAD7.moderate);
+  });
+
+  it("shows the per-instrument empty state when that instrument has no rows", () => {
+    const onlyGad: AssessmentRow[] = [
+      {
+        id: "g2",
+        instrument: "GAD7",
+        locale: "en",
+        totalScore: 5,
+        severityBand: "mild",
+        item9Flagged: false,
+        crisisShownAt: null,
+        takenAt: "2026-06-20T00:00:00.000Z",
+      },
+    ];
+    const html = withProviders(
+      <AssessmentHistory rows={onlyGad} instrument="PHQ9" />,
+    );
+    expect(html).toContain(mh.history.empty);
+    expect(html).not.toContain('data-slot="history-list"');
   });
 });

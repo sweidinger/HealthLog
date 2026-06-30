@@ -7716,7 +7716,8 @@
     "review": {
       "title": "Podsumowanie",
       "recap": "Odpowiedziano na {answered} z {total} pytań."
-    }
+    },
+    "openDetail": "Pokaż przebieg"
   },
   "records": {
     "disclaimer": "To Twoje własne wpisy, a nie diagnoza lekarska. HealthLog nie diagnozuje, nie leczy i ich nie interpretuje.",

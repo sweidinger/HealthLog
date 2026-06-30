@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 
 import { AssessmentHistory } from "./assessment-history";
 import { AssessmentResult } from "./assessment-result";
@@ -45,6 +46,11 @@ export function MentalWellbeing() {
   const [phase, setPhase] = useState<Phase>("choose");
   const [instrument, setInstrument] = useState<InstrumentId>("PHQ9");
   const [result, setResult] = useState<CreateResponse | null>(null);
+  // Which instrument's trend detail is open (null = closed). Clicking a card
+  // body surfaces THAT instrument's Verlauf in a sheet; Start stays separate.
+  const [detailInstrument, setDetailInstrument] = useState<InstrumentId | null>(
+    null,
+  );
 
   const { data: history } = useQuery({
     queryKey: queryKeys.mentalHealthAssessments(),
@@ -119,6 +125,7 @@ export function MentalWellbeing() {
                     instrument={id}
                     last={lastByInstrument.get(id)}
                     onStart={() => begin(id)}
+                    onOpenDetail={() => setDetailInstrument(id)}
                   />
                 </li>
               ))}
@@ -126,6 +133,33 @@ export function MentalWellbeing() {
           </section>
 
           <AssessmentHistory rows={history?.assessments ?? []} />
+
+          {/* Per-instrument trend detail, opened from a card body. Reuses the
+              history's chart + dated list, pinned to the chosen instrument. */}
+          <ResponsiveSheet
+            open={detailInstrument !== null}
+            onOpenChange={(open) => {
+              if (!open) setDetailInstrument(null);
+            }}
+            contentWidth="lg"
+            title={
+              detailInstrument
+                ? t(
+                    `mentalHealth.instrument.${
+                      detailInstrument === "PHQ9" ? "phq9" : "gad7"
+                    }`,
+                  )
+                : t("mentalHealth.history.title")
+            }
+            description={t("mentalHealth.history.chartTitle")}
+          >
+            {detailInstrument && (
+              <AssessmentHistory
+                rows={history?.assessments ?? []}
+                instrument={detailInstrument}
+              />
+            )}
+          </ResponsiveSheet>
         </>
       )}
 

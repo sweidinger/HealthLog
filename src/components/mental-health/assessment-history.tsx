@@ -68,44 +68,60 @@ function crisisFromRow(row: AssessmentRow): CrisisSet {
   };
 }
 
-export function AssessmentHistory({ rows }: { rows: AssessmentRow[] }) {
+export function AssessmentHistory({
+  rows,
+  instrument,
+}: {
+  rows: AssessmentRow[];
+  /**
+   * Pin the history to a single instrument. When set, the PHQ-9 / GAD-7
+   * toggle + the outer Card chrome are dropped — the surface is a per-
+   * instrument detail (opened from an instrument card; the chrome + title
+   * come from the host sheet). Unset, it renders the combined landing card
+   * with the toggle, exactly as before.
+   */
+  instrument?: InstrumentId;
+}) {
   const { t } = useTranslations();
   const { date: formatDate } = useFormatters();
-  const [tab, setTab] = useState<InstrumentId>("PHQ9");
+  const [tab, setTab] = useState<InstrumentId>(instrument ?? "PHQ9");
   // Which flagged row's crisis card is currently expanded (re-surfaced).
   const [openCrisisRowId, setOpenCrisisRowId] = useState<string | null>(null);
+
+  const pinned = instrument != null;
+  // When pinned, the tab is forced to the host instrument so re-opening the
+  // detail for the other instrument never paints a stale series.
+  const activeTab = pinned ? instrument : tab;
 
   const forTab = useMemo(
     () =>
       rows
-        .filter((r) => r.instrument === tab)
+        .filter((r) => r.instrument === activeTab)
         .sort(
           (a, b) =>
             new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime(),
         ),
-    [rows, tab],
+    [rows, activeTab],
   );
 
-  const isEmpty = rows.length === 0;
+  // Pinned: emptiness is per-instrument (the host opened THIS instrument's
+  // detail). Combined: emptiness spans both instruments, as before.
+  const isEmpty = pinned ? forTab.length === 0 : rows.length === 0;
 
-  return (
-    <Card data-slot="mental-health-history">
-      <CardHeader>
-        <CardTitle className="text-base">
-          {t("mentalHealth.history.title")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {isEmpty ? (
-          <EmptyState
-            icon={<Activity className="size-6" />}
-            title={t("mentalHealth.history.title")}
-            description={t("mentalHealth.history.empty")}
-          />
-        ) : (
-          <>
-            {/* PHQ-9 / GAD-7 toggle — the two ranges + band sets can't share an
-                axis, so the chart + list paint one instrument at a time. */}
+  const body = (
+    <>
+      {isEmpty ? (
+        <EmptyState
+          icon={<Activity className="size-6" />}
+          title={t("mentalHealth.history.title")}
+          description={t("mentalHealth.history.empty")}
+        />
+      ) : (
+        <>
+          {/* PHQ-9 / GAD-7 toggle — the two ranges + band sets can't share an
+              axis, so the chart + list paint one instrument at a time. Hidden
+              when pinned: the host already chose the instrument. */}
+          {!pinned && (
             <div
               className="flex gap-1"
               role="tablist"
@@ -116,9 +132,9 @@ export function AssessmentHistory({ rows }: { rows: AssessmentRow[] }) {
                   key={id}
                   type="button"
                   role="tab"
-                  aria-selected={tab === id}
+                  aria-selected={activeTab === id}
                   size="sm"
-                  variant={tab === id ? "secondary" : "ghost"}
+                  variant={activeTab === id ? "secondary" : "ghost"}
                   className="h-8 px-3 text-xs"
                   onClick={() => {
                     setTab(id);
@@ -129,63 +145,88 @@ export function AssessmentHistory({ rows }: { rows: AssessmentRow[] }) {
                 </Button>
               ))}
             </div>
+          )}
 
-            <AssessmentHistoryChart instrument={tab} rows={forTab} />
+          <AssessmentHistoryChart instrument={activeTab} rows={forTab} />
 
-            {forTab.length === 0 ? (
-              <p className="text-muted-foreground py-4 text-center text-sm">
-                {t("mentalHealth.history.empty")}
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-1.5" data-slot="history-list">
-                {forTab.map((row) => {
-                  const flagged = row.item9Flagged;
-                  const open = openCrisisRowId === row.id;
-                  return (
-                    <li key={row.id} className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-muted-foreground">
-                          {formatDate(row.takenAt)}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {flagged && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-auto p-0"
-                              aria-expanded={open}
-                              onClick={() =>
-                                setOpenCrisisRowId(open ? null : row.id)
-                              }
-                              data-slot="history-flagged-marker"
-                            >
-                              <Badge variant="outline">
-                                {t("mentalHealth.history.flaggedBadge")}
-                              </Badge>
-                            </Button>
+          {forTab.length === 0 ? (
+            <p className="text-muted-foreground py-4 text-center text-sm">
+              {t("mentalHealth.history.empty")}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1.5" data-slot="history-list">
+              {forTab.map((row) => {
+                const flagged = row.item9Flagged;
+                const open = openCrisisRowId === row.id;
+                return (
+                  <li key={row.id} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">
+                        {formatDate(row.takenAt)}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {flagged && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto p-0"
+                            aria-expanded={open}
+                            onClick={() =>
+                              setOpenCrisisRowId(open ? null : row.id)
+                            }
+                            data-slot="history-flagged-marker"
+                          >
+                            <Badge variant="outline">
+                              {t("mentalHealth.history.flaggedBadge")}
+                            </Badge>
+                          </Button>
+                        )}
+                        <Badge variant="secondary">
+                          {t(
+                            `mentalHealth.band.${row.instrument}.${row.severityBand}`,
                           )}
-                          <Badge variant="secondary">
-                            {t(
-                              `mentalHealth.band.${row.instrument}.${row.severityBand}`,
-                            )}
-                          </Badge>
-                          <span className="font-medium tabular-nums">
-                            {row.totalScore}
-                          </span>
-                        </div>
+                        </Badge>
+                        <span className="font-medium tabular-nums">
+                          {row.totalScore}
+                        </span>
                       </div>
-                      {flagged && open && (
-                        <CrisisCard crisis={crisisFromRow(row)} />
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </>
-        )}
-      </CardContent>
+                    </div>
+                    {flagged && open && (
+                      <CrisisCard crisis={crisisFromRow(row)} />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
+      )}
+    </>
+  );
+
+  // Pinned: render bare (the host sheet owns the chrome + title). Combined:
+  // the landing's titled history card, unchanged.
+  if (pinned) {
+    return (
+      <div
+        data-slot="mental-health-history"
+        data-pinned={instrument}
+        className="flex flex-col gap-4"
+      >
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Card data-slot="mental-health-history">
+      <CardHeader>
+        <CardTitle className="text-base">
+          {t("mentalHealth.history.title")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">{body}</CardContent>
     </Card>
   );
 }
