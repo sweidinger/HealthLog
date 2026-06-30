@@ -1,31 +1,43 @@
 "use client";
 
 import * as React from "react";
-import { Calendar } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
+import type { Matcher } from "react-day-picker";
+import { de, enUS, es, fr, it, pl } from "date-fns/locale";
+import type { Locale as DateFnsLocale } from "date-fns";
 
 import { cn } from "@/lib/utils";
 import { useTranslations, useDateFormatPreference } from "@/lib/i18n/context";
 import { formatDate, parseIsoDate } from "@/lib/date-format";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 /**
  * Dependency-free date input that DISPLAYS the value in the user's date-order
  * preference (AUTO follows the locale; DMY / MDY / YMD pin the field order)
- * while editing rides the browser's native date picker.
+ * while editing rides a fully app-controlled calendar — no native date picker.
  *
  * The committed VALUE is always ISO `yyyy-MM-dd` — identical to the native
  * `<input type="date">` contract `<DateInput>` ships — so this is a drop-in
  * for `<DateInput>` and existing react-hook-form wiring is unchanged.
  *
  * How it works:
- *   - A visually-hidden native `<input type="date">` holds the real value and
- *     emits the change events the form listens to. Tapping the field (or its
- *     calendar button) calls `showPicker()` on that input, falling back to
- *     `focus()` where the API is unavailable.
- *   - A text overlay paints the formatted display string (or the placeholder).
- *   - As a progressive enhancement the user can type a date directly: the
- *     overlay is an editable text input; on blur / Enter we parse what they
- *     typed against the active locale order and, on a clean parse, write the
- *     ISO value back through the hidden input so the form sees a normal change.
+ *   - A text overlay paints the formatted display string (or the placeholder)
+ *     and stays editable: the user can type a date directly. On blur / Enter we
+ *     parse what they typed against the active locale order and, on a clean
+ *     parse, commit the ISO value through `commitIso`.
+ *   - The calendar button is a `<Popover>` trigger; the popover holds the
+ *     shadcn `<Calendar>` (react-day-picker). Picking a day commits the ISO
+ *     value and closes the popover. The calendar renders identically on every
+ *     browser / OS — the native picker's per-platform chrome (and its mobile
+ *     quirks) is gone.
+ *   - A hidden mirror input carries `name` + the ISO value so any caller that
+ *     relies on native form submission still sees a normal field; the forwarded
+ *     ref points at it for react-hook-form `register()` parity.
  *
  * Height / a11y / target-size parity with `<DateInput>`: the same
  * `min-h-11 h-11 sm:min-h-10 sm:h-10` floor (WCAG 2.5.5 — 44 px on mobile,
@@ -33,7 +45,7 @@ import { formatDate, parseIsoDate } from "@/lib/date-format";
  */
 
 // Mirrors the `<DateInput>` height contract (minus the date-shadow rule, which
-// only applies to the native value text — here the native input is hidden).
+// only applies to the native value text — here no native input is rendered).
 const FIELD_HEIGHT_CLASSES = "min-h-11 h-11 sm:min-h-10 sm:h-10";
 
 const FIELD_BASE_CLASSES =
@@ -50,7 +62,7 @@ export interface DateFieldProps {
   onBlur?: () => void;
   disabled?: boolean;
   required?: boolean;
-  /** Autofill hint forwarded to the native date input (e.g. "bday"). */
+  /** Autofill hint forwarded to the hidden mirror input (e.g. "bday"). */
   autoComplete?: string;
   /** ISO `yyyy-MM-dd`. */
   min?: string;
@@ -91,16 +103,6 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(
     const { locale, t } = useTranslations();
     const dateFormat = useDateFormatPreference();
 
-    const innerRef = React.useRef<HTMLInputElement | null>(null);
-    const setRefs = React.useCallback(
-      (node: HTMLInputElement | null) => {
-        innerRef.current = node;
-        if (typeof forwardedRef === "function") forwardedRef(node);
-        else if (forwardedRef) forwardedRef.current = node;
-      },
-      [forwardedRef],
-    );
-
     // Track the ISO value so the overlay reflects controlled + uncontrolled
     // updates. Controlled `value` always wins on render.
     const [internal, setInternal] = React.useState(defaultValue ?? "");
@@ -110,30 +112,21 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(
     // formatted string whenever the committed ISO value changes.
     const [typed, setTyped] = React.useState<string | null>(null);
 
+    // Calendar popover open state — selecting a day commits + closes.
+    const [open, setOpen] = React.useState(false);
+
     const display = formatDate(iso, dateFormat, locale);
     const overlayValue = typed ?? display;
 
+    const minDate = min ? isoToDate(min) : undefined;
+    const maxDate = max ? isoToDate(max) : undefined;
+    const selectedDate = isoToDate(iso);
+
     function commitIso(next: string) {
-      if (value === undefined) setInternal(next);
+      const clamped = clampIso(next, min, max);
+      if (value === undefined) setInternal(clamped);
       setTyped(null);
-      onChange?.(next);
-    }
-
-    function openPicker() {
-      const el = innerRef.current;
-      if (!el || disabled) return;
-      // showPicker() throws if not user-activated or unsupported — fall back
-      // to focusing the (hidden) input, which still opens the picker on most
-      // mobile engines.
-      try {
-        (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
-      } catch {
-        el.focus();
-      }
-    }
-
-    function handleNativeChange(e: React.ChangeEvent<HTMLInputElement>) {
-      commitIso(e.target.value);
+      onChange?.(clamped);
     }
 
     // Progressive enhancement: parse free-typed text against the active locale
@@ -156,69 +149,84 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(
       }
     }
 
+    // react-day-picker gates out-of-range days; `commitIso` still clamps typed
+    // entry, so the two agree on the bounds.
+    const disabledMatchers: Matcher[] = [];
+    if (minDate) disabledMatchers.push({ before: minDate });
+    if (maxDate) disabledMatchers.push({ after: maxDate });
+
     return (
-      <div
-        className={cn(FIELD_BASE_CLASSES, FIELD_HEIGHT_CLASSES, className)}
-        data-slot="date-field"
-        data-disabled={disabled ? "" : undefined}
-      >
-        {/* Visually-hidden native date input — owns the real value + events. */}
-        <input
-          {...rest}
-          ref={setRefs}
-          id={id}
-          name={name}
-          type="date"
-          lang={locale}
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-          value={value !== undefined ? value : undefined}
-          defaultValue={value === undefined ? defaultValue : undefined}
-          disabled={disabled}
-          required={required}
-          autoComplete={autoComplete}
-          min={min}
-          max={max}
-          onChange={handleNativeChange}
-        />
-        {/* Editable display overlay. */}
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          data-testid={dataTestId}
-          className="placeholder:text-muted-foreground h-full flex-1 bg-transparent py-1 outline-none disabled:cursor-not-allowed"
-          value={overlayValue}
-          placeholder={placeholder ?? formatPlaceholder(dateFormat, locale)}
-          disabled={disabled}
-          aria-label={ariaLabel}
-          aria-describedby={ariaDescribedBy}
-          aria-invalid={ariaInvalid}
-          onChange={(e) => setTyped(e.target.value)}
-          onClick={openPicker}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              commitTyped();
-            }
-          }}
-          onBlur={() => {
-            commitTyped();
-            onBlur?.();
-          }}
-        />
-        <button
-          type="button"
-          tabIndex={-1}
-          disabled={disabled}
-          aria-label={t("common.openDatePicker")}
-          className="text-muted-foreground hover:text-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-md disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={openPicker}
+      <Popover open={open} onOpenChange={setOpen}>
+        <div
+          className={cn(FIELD_BASE_CLASSES, FIELD_HEIGHT_CLASSES, className)}
+          data-slot="date-field"
+          data-disabled={disabled ? "" : undefined}
         >
-          <Calendar className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </div>
+          {/* Hidden mirror — carries `name` + value for native submits and is
+              the target of the forwarded ref. */}
+          <input
+            {...rest}
+            ref={forwardedRef}
+            id={id}
+            name={name}
+            type="hidden"
+            value={iso}
+            disabled={disabled}
+            required={required}
+            autoComplete={autoComplete}
+            readOnly
+          />
+          {/* Editable display overlay. */}
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            data-testid={dataTestId}
+            className="placeholder:text-muted-foreground h-full flex-1 bg-transparent py-1 outline-none disabled:cursor-not-allowed"
+            value={overlayValue}
+            placeholder={placeholder ?? formatPlaceholder(dateFormat, locale)}
+            disabled={disabled}
+            aria-label={ariaLabel}
+            aria-describedby={ariaDescribedBy}
+            aria-invalid={ariaInvalid}
+            onChange={(e) => setTyped(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitTyped();
+              }
+            }}
+            onBlur={() => {
+              commitTyped();
+              onBlur?.();
+            }}
+          />
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              disabled={disabled}
+              aria-label={t("common.openDatePicker")}
+              className="text-muted-foreground hover:text-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-md disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <CalendarIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </PopoverTrigger>
+        </div>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(d) => {
+              commitIso(d ? dateToIso(d) : "");
+              setOpen(false);
+            }}
+            disabled={disabledMatchers.length ? disabledMatchers : undefined}
+            defaultMonth={selectedDate ?? new Date()}
+            locale={resolveDateFnsLocale(locale)}
+            autoFocus
+          />
+        </PopoverContent>
+      </Popover>
     );
   },
 );
@@ -278,6 +286,67 @@ function resolveOrder(
   if (dateFormat === "YMD") return "YMD";
   // AUTO: en → MDY, every other shipped locale → DMY.
   return locale === "en" ? "MDY" : "DMY";
+}
+
+/**
+ * Map the app locale → the date-fns locale so the calendar's month / weekday
+ * names match the UI language. Defaults to enUS for anything unmapped.
+ */
+function resolveDateFnsLocale(
+  locale: ReturnType<typeof useTranslations>["locale"],
+): DateFnsLocale {
+  switch (locale) {
+    case "de":
+      return de;
+    case "es":
+      return es;
+    case "fr":
+      return fr;
+    case "it":
+      return it;
+    case "pl":
+      return pl;
+    default:
+      return enUS;
+  }
+}
+
+/**
+ * ISO `yyyy-MM-dd` → a LOCAL `Date` at midnight (no UTC shift — the value is a
+ * plain calendar date, so it must read back as the same day in the user's
+ * zone). Returns undefined for an empty / malformed value.
+ */
+function isoToDate(value: string): Date | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return undefined;
+  const [, y, m, d] = match;
+  const date = new Date(Number(y), Number(m) - 1, Number(d));
+  // Reject rollover (e.g. 2026-02-31): a real date round-trips its parts.
+  if (
+    date.getFullYear() !== Number(y) ||
+    date.getMonth() !== Number(m) - 1 ||
+    date.getDate() !== Number(d)
+  ) {
+    return undefined;
+  }
+  return date;
+}
+
+/** LOCAL `Date` → ISO `yyyy-MM-dd` read in the user's own zone (no UTC shift). */
+function dateToIso(date: Date): string {
+  return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1, 2)}-${pad(
+    date.getDate(),
+    2,
+  )}`;
+}
+
+/** Clamp an ISO `yyyy-MM-dd` string to `[min, max]` (lexical = chronological). */
+function clampIso(value: string, min?: string, max?: string): string {
+  if (value === "") return value;
+  let out = value;
+  if (min && out < min) out = min;
+  if (max && out > max) out = max;
+  return out;
 }
 
 function toIso(date: Date): string {

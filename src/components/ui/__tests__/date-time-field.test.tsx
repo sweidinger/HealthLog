@@ -1,18 +1,20 @@
 /**
  * `<DateTimeField>` contract (v1.25.4).
  *
- * The field now composes a native-calendar `<DateField>` (date part) with the
- * app-controlled `<TimeField>` (time part) so the time picker always follows
- * the user's hour-cycle preference rather than the browser UI language. Like
- * `<DateField>`, the SSR-only convention (`renderToStaticMarkup`,
- * `environment: "node"`) means the interactive picker path can't be driven
- * here. What the static markup pins is the load-bearing contract:
+ * The field now composes an app-controlled `<DateField>` (date part, a shadcn
+ * `<Calendar>` in a popover) with the app-controlled `<TimeField>` (time part)
+ * so both pickers follow the user's preferences rather than the browser UI
+ * language and render identically on every OS. Like `<DateField>`, the SSR-only
+ * convention (`renderToStaticMarkup`, `environment: "node"`) means the
+ * interactive picker path can't be driven here. What the static markup pins is
+ * the load-bearing contract:
  *
  *   - the committed VALUE stays a local `yyyy-MM-ddTHH:mm` string on a hidden
  *     input carrying `name`, so this is a drop-in for the old field;
  *   - the date overlay paints the date-order preference; the time overlay paints
  *     the hour-cycle preference;
- *   - disabled threads through; min / max gate the native calendar by date part;
+ *   - disabled threads through; min / max gate the calendar (matcher + ISO
+ *     clamp) and are not observable in the static markup;
  *   - height + target-size parity classes are present on both halves.
  *
  * Under SSR both preferences resolve AUTO (no `window`), so each half follows
@@ -59,7 +61,7 @@ describe("<DateTimeField>", () => {
     expect(html).toContain('placeholder="Pick a moment"');
   });
 
-  it("gates the native calendar by the min/max date part and threads disabled", () => {
+  it("threads disabled onto both halves; min/max ride the calendar matcher", () => {
     const html = render(
       <DateTimeField
         value="2026-12-31T14:05"
@@ -68,9 +70,14 @@ describe("<DateTimeField>", () => {
         max="2030-12-31T23:59"
       />,
     );
-    expect(html).toMatch(/<input[^>]*type="date"[^>]*min="2020-01-01"/);
-    expect(html).toMatch(/<input[^>]*type="date"[^>]*max="2030-12-31"/);
-    expect(html).toMatch(/<input[^>]*type="date"[^>]*disabled/);
+    // No native date picker anymore — the date half is the hidden mirror +
+    // overlay, both disabled.
+    expect(html).not.toContain('type="date"');
+    expect(html).toMatch(/<input[^>]*type="hidden"[^>]*disabled/);
+    // min/max gate the popover calendar (matcher) + ISO clamp, so the date-part
+    // bounds are not present as native input attributes in the static markup.
+    expect(html).not.toContain('min="2020-01-01"');
+    expect(html).not.toContain('max="2030-12-31"');
   });
 
   it("ships the WCAG target-size + height-parity classes on both halves", () => {
