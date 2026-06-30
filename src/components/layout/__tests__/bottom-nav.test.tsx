@@ -61,11 +61,22 @@ function render() {
 }
 
 describe("<BottomNav> iOS-parity layout", () => {
-  it("renders the flanking primary anchors (Home, Meds, Insights)", () => {
+  it("renders the always-on flanking primary anchors (Home, Meds)", () => {
     const html = render();
-    for (const href of ["/", "/medications", "/insights"]) {
+    // Home + Meds are not module-gated, so they anchor the strip on first
+    // paint. The Insights slot IS module-gated; v1.25.12 gates it behind
+    // hydration (fail-closed pre-mount) so a disabled module can't flicker
+    // in — its presence is asserted in the mounted/e2e path, not here.
+    for (const href of ["/", "/medications"]) {
       expect(html).toContain(`href="${href}"`);
     }
+  });
+
+  it("keeps the module-gated Insights slot OUT of the first-paint markup (v1.25.12)", () => {
+    const html = render();
+    // Pre-hydration the module map isn't settled; the Insights primary slot
+    // therefore fails closed (absent) rather than flickering in.
+    expect(html).not.toContain('href="/insights"');
   });
 
   it("renders the center capture action as a dialog-opening button, not a link", () => {
@@ -100,11 +111,13 @@ describe("<BottomNav> iOS-parity layout", () => {
 
   it("each strip entry meets the 44 px tap-target floor (min-h-11 min-w-11)", () => {
     const html = render();
-    // The four flanking strip slots (Home, Meds, Insights, More) carry
-    // `min-h-11 min-w-11`. We don't hard-pin the count because a future
-    // entry would also satisfy the contract.
+    // The flanking strip slots carry `min-h-11 min-w-11`. On first paint the
+    // module-gated Insights slot is fail-closed (v1.25.12), so the strip
+    // shows Home, Meds and More — three slots. We don't hard-pin the count
+    // because the mounted render adds Insights back and a future entry would
+    // also satisfy the contract.
     const matches = html.match(/min-h-11 min-w-11/g) ?? [];
-    expect(matches.length).toBeGreaterThanOrEqual(4);
+    expect(matches.length).toBeGreaterThanOrEqual(3);
   });
 
   it("the center capture FAB is a larger, elevated tap target", () => {
@@ -164,10 +177,15 @@ describe("<BottomNav> iOS-parity layout", () => {
     mockUserRef.value = { id: "u1", modules: {} };
   });
 
-  it("keeps the Insights primary slot when the insights module is on", () => {
+  it("still fails the Insights slot closed on first paint even when the module is on (v1.25.12)", () => {
+    // Pre-hydration the slot is fail-closed regardless of the map, so the
+    // disabled-module flicker cannot occur. The mounted render restores the
+    // slot when the module is on (the resolved set is the pure
+    // `mobileMoreHubDestinations(..., mounted: true)` contract in
+    // nav-model.test.ts, plus the e2e mounted render).
     mockUserRef.value = { id: "u1", modules: { insights: true } };
     const html = render();
-    expect(html).toContain('href="/insights"');
+    expect(html).not.toContain('href="/insights"');
     mockUserRef.value = { id: "u1", modules: {} };
   });
 

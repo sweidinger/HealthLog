@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useAuth, useLogout } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import { useTheme } from "@/components/providers";
 import { useTranslations } from "@/lib/i18n/context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -241,9 +242,15 @@ export function SidebarNav() {
   // its "More" hub from. v1.18.0 — entries are filtered by the account's
   // resolved module map (mood, cycle, labs, coach, achievements …); cycle +
   // coach are delegated server-side and already reflected in that map.
+  // The module map rides the client-only `/api/auth/me` query, so it is not
+  // settled on SSR or the first client paint. Gating the filter behind
+  // `useMounted()` keeps SSR and first paint identical (core destinations
+  // only) and stops a disabled module's entry from flickering in for one
+  // frame before the query resolves; once mounted the real map applies.
+  const mounted = useMounted();
   const visibleNavItems = useMemo(
-    () => visibleNavDestinations(user?.modules),
-    [user?.modules],
+    () => visibleNavDestinations(user?.modules, mounted),
+    [user?.modules, mounted],
   );
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;

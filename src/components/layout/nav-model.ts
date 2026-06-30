@@ -242,12 +242,24 @@ export type ModuleVisibilityMap = Partial<Record<ModuleKey, boolean>>;
  * Whether a destination is visible under the given module map. Core
  * destinations (no `requiresModule`) always pass; a gated entry passes
  * unless its module resolves to an explicit `false`.
+ *
+ * `mounted` (default `true`) is the hydration gate the nav bars thread in.
+ * The resolved module map rides the client-only `/api/auth/me` query, which
+ * can still be unresolved on SSR and the first client paint. Reading the map
+ * then would fail OPEN and flicker a disabled module's entry in for one frame
+ * before the query lands and filters it out (the #418-class SSR/client
+ * divergence). So before mount a gated entry is treated as hidden —
+ * fail-CLOSED — making SSR and first paint identical (core-only); once
+ * mounted the real map applies. The default keeps the pure helper fail-open
+ * for non-component callers that pass a settled map.
  */
 function isNavDestinationVisible(
   d: NavDestination,
   modules: ModuleVisibilityMap | undefined,
+  mounted = true,
 ): boolean {
   if (!d.requiresModule) return true;
+  if (!mounted) return false;
   return modules?.[d.requiresModule] !== false;
 }
 
@@ -260,8 +272,11 @@ function isNavDestinationVisible(
  */
 export function visibleNavDestinations(
   modules: ModuleVisibilityMap | undefined,
+  mounted = true,
 ): NavDestination[] {
-  return NAV_DESTINATIONS.filter((d) => isNavDestinationVisible(d, modules));
+  return NAV_DESTINATIONS.filter((d) =>
+    isNavDestinationVisible(d, modules, mounted),
+  );
 }
 
 /**
@@ -293,8 +308,10 @@ export interface MobileMoreHubEntry {
  */
 export function mobileMoreHubDestinations(opts: {
   modules: ModuleVisibilityMap | undefined;
+  /** Hydration gate — see `isNavDestinationVisible`. Defaults to mounted. */
+  mounted?: boolean;
 }): MobileMoreHubEntry[] {
-  const features = visibleNavDestinations(opts.modules)
+  const features = visibleNavDestinations(opts.modules, opts.mounted ?? true)
     .filter((d) => !BOTTOM_NAV_PRIMARY_SLOT_HREFS.includes(d.href))
     .map((d) => ({ href: d.href, tKey: d.tKey, icon: d.icon }));
   const tail = visibleUtilityDestinations().map((d) => ({
