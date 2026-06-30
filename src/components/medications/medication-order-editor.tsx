@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { reorderById } from "@/lib/insights-layout-reorder";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { useTranslations } from "@/lib/i18n/context";
+import { formatDose } from "@/lib/medications/format-dose";
 import { runSaveMedicationListOrder } from "@/lib/queries/use-medication-list-layout";
 
 /**
@@ -321,6 +322,7 @@ function SortableMedicationRow({
   labels,
   onMove,
 }: SortableMedicationRowProps) {
+  const { t } = useTranslations();
   const {
     attributes,
     listeners,
@@ -363,7 +365,7 @@ function SortableMedicationRow({
           {medication.name}
         </span>
         <span className="text-muted-foreground block truncate text-xs">
-          {medication.dose}
+          {formatDose(medication.dose, t)}
           {!medication.active && <> · {labels.inactive}</>}
         </span>
       </span>

@@ -9,8 +9,9 @@ import { MedicationCardHeader } from "@/components/medications/medication-card-h
  * v1.4.28 — narrow-viewport contract for the shared medication-list
  * row primitive (D-H6).
  *
- * FB-G1 calls for a two-line shape: `{name} {dose}` on line 1 and the
- * category badge on line 2. State badges (without-notification, paused,
+ * FB-G1 calls for a stacked shape: `{name}` on line 1, the localised
+ * `{dose}` on its own muted line below it (omitted when empty), and the
+ * category badge under that. State badges (without-notification, paused,
  * inactive) used to share line 2 via `flex flex-wrap`; on a 320 px
  * viewport that pushed the row to three lines for ~20 % of configured
  * drugs. State badges now ride their own row below the category badge
@@ -27,7 +28,7 @@ function render(node: React.ReactNode) {
 }
 
 describe("<MedicationCardHeader>", () => {
-  it("paints `{name} {dose}` on the title row", () => {
+  it("paints the name on the title row and the dose on its own muted line", () => {
     const html = render(
       <MedicationCardHeader
         name="Ramipril"
@@ -35,8 +36,29 @@ describe("<MedicationCardHeader>", () => {
         categoryLabel="Blood Pressure"
       />,
     );
-    expect(html).toContain("Ramipril 5 mg");
+    // Name + dose are now separate elements — the dose rides its own
+    // `data-slot` line directly under the title, not glued to the name.
+    expect(html).toContain("Ramipril");
+    expect(html).toContain('data-slot="medication-card-header-dose"');
+    expect(html).toContain("5 mg");
     expect(html).toContain("Blood Pressure");
+    // The dose line paints between the name and the category badge.
+    const nameIdx = html.indexOf("Ramipril");
+    const doseIdx = html.indexOf('data-slot="medication-card-header-dose"');
+    const categoryIdx = html.indexOf("Blood Pressure");
+    expect(nameIdx).toBeLessThan(doseIdx);
+    expect(doseIdx).toBeLessThan(categoryIdx);
+  });
+
+  it("omits the dose line entirely when the dose is empty", () => {
+    const html = render(
+      <MedicationCardHeader
+        name="Vorsorge"
+        dose=""
+        categoryLabel="Screening"
+      />,
+    );
+    expect(html).not.toContain('data-slot="medication-card-header-dose"');
   });
 
   it("does not paint the state-badges row when no badges are supplied", () => {
@@ -100,8 +122,9 @@ describe("<MedicationCardHeader>", () => {
     expect(html).toContain('data-slot="medication-card-header-link"');
     expect(html).toContain('href="/medications/med-1"');
     expect(html).toContain('aria-label="Open medication detail page"');
-    // The title still rides inside the link region.
-    expect(html).toContain("Ramipril 5 mg");
+    // The name + dose still ride inside the link region.
+    expect(html).toContain("Ramipril");
+    expect(html).toContain("5 mg");
   });
 
   it("falls back to a non-navigating div when href is omitted", () => {

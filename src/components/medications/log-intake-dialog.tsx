@@ -39,6 +39,7 @@ import { DateTimeField } from "@/components/ui/date-time-field";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
+import { formatDose } from "@/lib/medications/format-dose";
 import { runLogIntake } from "@/components/medications/use-medication-intake";
 
 interface LogIntakeSchedule {
@@ -243,7 +244,7 @@ export function LogIntakeDialog({
                 >
                   {medications.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.dose ? `${m.name} — ${m.dose}` : m.name}
+                      {m.dose ? `${m.name} — ${formatDose(m.dose, t)}` : m.name}
                     </option>
                   ))}
                 </NativeSelect>

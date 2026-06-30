@@ -14,8 +14,9 @@ import { CardHeader, CardTitle } from "@/components/ui/card";
  * route their title + dose + drug class through this primitive so the
  * surface stays one consistent shape:
  *
- *   Line 1: `{name} {dose}` — bold, `text-lg`
- *   Line 2: `{categoryLabel}` outline badge + optional state badges
+ *   Line 1: `{name}` — bold, `text-lg`
+ *   Line 2: `{dose}` — muted, rendered only when non-empty
+ *   Line 3: `{categoryLabel}` outline badge + optional state badges
  *
  * The trailing `actions` slot carries the overflow kebab on the right of
  * the row. State badges (without-notification, paused-since, inactive)
@@ -78,11 +79,22 @@ export function MedicationCardHeader({
   const body = (
     <>
       <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg">
-        <span>
-          {name} {dose}
-        </span>
+        <span>{name}</span>
         {nameChip}
       </CardTitle>
+      {/* The dose sits on its OWN muted line directly under the name, above
+          the category badge. Rendered only when a non-empty dose string is
+          supplied — Vorsorge / lab-list rows pass `dose=""` and get no empty
+          line. The unit is already localised by `formatDose` at the call
+          site (the raw `Medication.dose` carries the English unit key). */}
+      {dose ? (
+        <p
+          data-slot="medication-card-header-dose"
+          className="text-muted-foreground text-sm"
+        >
+          {dose}
+        </p>
+      ) : null}
       {/* D-H6 — state badges (without-notification, paused-since,
           inactive) used to share line 2 with the category badge
           via `flex flex-wrap`. At 320 px any state badge pushed
