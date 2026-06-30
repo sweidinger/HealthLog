@@ -47,7 +47,10 @@ export function CustomMetricList() {
   }
 
   return (
-    <section className="space-y-3" data-slot="custom-metric-list">
+    <section
+      className="border-border space-y-3 border-t pt-6"
+      data-slot="custom-metric-list"
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold tracking-tight">
@@ -62,6 +65,7 @@ export function CustomMetricList() {
           size="sm"
           className="min-h-11 shrink-0 sm:min-h-9"
           onClick={() => setAddOpen(true)}
+          aria-label={t("customMetrics.add")}
         >
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">{t("customMetrics.add")}</span>
@@ -86,7 +90,11 @@ export function CustomMetricList() {
             <p className="text-muted-foreground text-sm">
               {t("customMetrics.emptyDescription")}
             </p>
-            <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Button
+              size="sm"
+              onClick={() => setAddOpen(true)}
+              aria-label={t("customMetrics.add")}
+            >
               {t("customMetrics.add")}
             </Button>
           </CardContent>
