@@ -7716,7 +7716,8 @@
     "review": {
       "title": "Récapitulatif",
       "recap": "Vous avez répondu à {answered} questions sur {total}."
-    }
+    },
+    "openDetail": "Voir l’évolution"
   },
   "records": {
     "disclaimer": "Ce sont vos propres informations, pas un diagnostic médical. HealthLog ne diagnostique pas, ne traite pas et ne les interprète pas.",
@@ -7827,12 +7828,12 @@
     },
     "conditions": {
       "cardTitle": "Affections préexistantes",
-      "cardDescription": "Affections chroniques et ce que le Coach doit surveiller, d'après votre contexte personnel.",
+      "cardDescription": "Affections chroniques et ce que le Coach doit surveiller.",
       "conditionsLabel": "Affections chroniques",
       "focusLabel": "Ce que le Coach surveille",
-      "empty": "Rien de noté pour l'instant.",
-      "editCta": "Modifier dans le contexte personnel",
-      "loadError": "Impossible de charger vos antécédents."
+      "loadError": "Impossible de charger vos antécédents.",
+      "savedToast": "Affections enregistrées.",
+      "saveError": "Impossible d'enregistrer. Veuillez réessayer."
     }
   },
   "environment": {

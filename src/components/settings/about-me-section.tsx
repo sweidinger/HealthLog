@@ -3,14 +3,21 @@
 /**
  * v1.15.20 — Settings → AI "About me" panel (free text only).
  * v1.16.0 — structured self-context: alongside the free text the user
- * answers three short questions (chronic conditions, allergies /
- * intolerances, what the Coach should watch). All four fields are
- * encrypted at rest; age/gender stay on the profile and are merged
- * into the prompt server-side — the panel says so instead of asking
- * again.
+ * notes allergies / intolerances. All fields are encrypted at rest;
+ * age/gender stay on the profile and are merged into the prompt
+ * server-side — the panel says so instead of asking again.
+ *
+ * v1.25.12 — the pre-existing / chronic conditions and the "what should the
+ * Coach watch" focus moved out of this panel into Settings → Anamnese, where
+ * they sit with allergies + family history as one medical history. Editing them
+ * has a single home there now; this panel keeps the free-text note and the
+ * allergies line. The store is unchanged — every field is still part of the
+ * `/api/coach/about-me` payload; the PUT here simply omits the two conditions
+ * fields, which are preserved server-side.
  *
  *   GET /api/coach/about-me — full structured payload + pending questions
- *   PUT /api/coach/about-me — writes all four fields (empty string clears)
+ *   PUT /api/coach/about-me — writes aboutMe (empty string clears) + allergies;
+ *     conditions / coachFocus are omitted here and left untouched
  *
  * After a save the server derives up to 3 clarifying questions (AI
  * when a provider + budget allow, deterministic hints otherwise); the
@@ -54,7 +61,7 @@ interface AboutMeData {
   fieldMaxChars: number;
 }
 
-type StructuredKey = "conditions" | "allergies" | "coachFocus";
+type StructuredKey = "allergies";
 
 async function fetchAboutMe(): Promise<AboutMeData> {
   return apiGet<AboutMeData>("/api/coach/about-me");
@@ -72,10 +79,8 @@ export function AboutMeSection({
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<{
     aboutMe: string | null;
-    conditions: string | null;
     allergies: string | null;
-    coachFocus: string | null;
-  }>({ aboutMe: null, conditions: null, allergies: null, coachFocus: null });
+  }>({ aboutMe: null, allergies: null });
 
   const query = useQuery({
     queryKey: queryKeys.coachAboutMe(),
@@ -85,9 +90,7 @@ export function AboutMeSection({
 
   const saved = {
     aboutMe: query.data?.aboutMe ?? "",
-    conditions: query.data?.conditions ?? "",
     allergies: query.data?.allergies ?? "",
-    coachFocus: query.data?.coachFocus ?? "",
   };
   const maxChars = query.data?.maxChars ?? FALLBACK_MAX_CHARS;
   const fieldMaxChars = query.data?.fieldMaxChars ?? FALLBACK_FIELD_MAX_CHARS;
@@ -95,57 +98,33 @@ export function AboutMeSection({
 
   const value = {
     aboutMe: drafts.aboutMe ?? saved.aboutMe,
-    conditions: drafts.conditions ?? saved.conditions,
     allergies: drafts.allergies ?? saved.allergies,
-    coachFocus: drafts.coachFocus ?? saved.coachFocus,
   };
   const dirty =
-    value.aboutMe !== saved.aboutMe ||
-    value.conditions !== saved.conditions ||
-    value.allergies !== saved.allergies ||
-    value.coachFocus !== saved.coachFocus;
-  const hasAnyContent =
-    saved.aboutMe.length > 0 ||
-    saved.conditions.length > 0 ||
-    saved.allergies.length > 0 ||
-    saved.coachFocus.length > 0;
+    value.aboutMe !== saved.aboutMe || value.allergies !== saved.allergies;
+  const hasAnyContent = saved.aboutMe.length > 0 || saved.allergies.length > 0;
 
   // Quiet completeness meter: one segment per answered field. Reads
   // the SAVED state (not the draft) so it only moves on persistence.
-  const answered = [
-    saved.conditions,
-    saved.allergies,
-    saved.coachFocus,
-    saved.aboutMe,
-  ].filter((v) => v.length > 0).length;
+  const answered = [saved.allergies, saved.aboutMe].filter(
+    (v) => v.length > 0,
+  ).length;
 
   const save = useMutation({
     mutationKey: queryKeys.coachAboutMe(),
-    mutationFn: async (input: {
-      aboutMe: string;
-      conditions: string;
-      allergies: string;
-      coachFocus: string;
-    }) => {
+    // Send only the two fields this panel owns. `conditions` / `coachFocus`
+    // are omitted so the server preserves them (they are edited under Anamnese).
+    mutationFn: async (input: { aboutMe: string; allergies: string }) => {
       return apiPut<AboutMeData>("/api/coach/about-me", input);
     },
     onSuccess: (next) => {
-      const cleared =
-        !next.aboutMe &&
-        !next.conditions &&
-        !next.allergies &&
-        !next.coachFocus;
+      const cleared = !next.aboutMe && !next.allergies;
       toast.success(
         cleared
           ? t("settings.ai.aboutMe.clearedToast")
           : t("settings.ai.aboutMe.savedToast"),
       );
-      setDrafts({
-        aboutMe: null,
-        conditions: null,
-        allergies: null,
-        coachFocus: null,
-      });
+      setDrafts({ aboutMe: null, allergies: null });
       queryClient.invalidateQueries({ queryKey: queryKeys.coachAboutMe() });
       queryClient.invalidateQueries({
         queryKey: queryKeys.coachAboutMeQuestions(),
@@ -195,19 +174,19 @@ export function AboutMeSection({
           titleId="settings-ai-about-me-title"
           description={t("settings.ai.aboutMe.description")}
         />
-        {/* Completeness — four quiet segments, no percentage shouting. */}
+        {/* Completeness — two quiet segments, no percentage shouting. */}
         <div
           className="flex items-center gap-1.5"
           aria-label={t("settings.ai.aboutMe.completeness", {
             answered,
-            total: 4,
+            total: 2,
           })}
           title={t("settings.ai.aboutMe.completeness", {
             answered,
-            total: 4,
+            total: 2,
           })}
         >
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1].map((i) => (
             <span
               key={i}
               aria-hidden="true"
@@ -220,24 +199,12 @@ export function AboutMeSection({
         </div>
       </div>
 
-      <div className="grid gap-4 pl-7 sm:grid-cols-2">
-        {structuredField(
-          "conditions",
-          t("settings.ai.aboutMe.conditionsLabel"),
-          t("settings.ai.aboutMe.conditionsPlaceholder"),
-        )}
+      <div className="pl-7">
         {structuredField(
           "allergies",
           t("settings.ai.aboutMe.allergiesLabel"),
           t("settings.ai.aboutMe.allergiesPlaceholder"),
         )}
-        <div className="sm:col-span-2">
-          {structuredField(
-            "coachFocus",
-            t("settings.ai.aboutMe.focusLabel"),
-            t("settings.ai.aboutMe.focusPlaceholder"),
-          )}
-        </div>
       </div>
 
       <div className="space-y-1.5 pl-7">
@@ -277,14 +244,7 @@ export function AboutMeSection({
               className="min-h-11 sm:min-h-9"
               data-testid="settings-about-me-clear"
               disabled={!isAuthenticated || save.isPending}
-              onClick={() =>
-                save.mutate({
-                  aboutMe: "",
-                  conditions: "",
-                  allergies: "",
-                  coachFocus: "",
-                })
-              }
+              onClick={() => save.mutate({ aboutMe: "", allergies: "" })}
             >
               <Trash2 className="size-4" aria-hidden />
               {t("settings.ai.aboutMe.clear")}
@@ -351,9 +311,9 @@ export function AboutMeSection({
         {t("settings.ai.aboutMe.hint")} {t("settings.ai.aboutMe.profileHint")}
       </p>
 
-      {/* v1.25.1 — cross-link to the Anamnese (medical-history) home. The
-          chronic conditions noted above plus allergies + family history read as
-          one coherent medical history there. */}
+      {/* v1.25.12 — cross-link to the Anamnese (medical-history) home, where the
+          chronic conditions the Coach watches now live alongside allergies +
+          family history as one coherent medical history. */}
       <p className="text-muted-foreground pl-7 text-xs">
         {t("settings.ai.aboutMe.recordsLink")}{" "}
         <Link

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.25.12] — 2026-06-30 — Follow-up fixes
+
+### Fixed
+
+- The left navigation no longer briefly flashes entries for modules you don't have enabled while a page loads.
+- The daily briefing could time out before finishing on an account with a long history; it now has a longer window to generate. (If it still clips, raise the AI response timeout in Settings → AI and/or add a second AI provider so a slow one falls back.)
+- Pre-existing and chronic conditions — the ones the Coach watches — now live in Medical history (Anamnese), alongside allergies and family history, instead of the personal-context panel. Where they are stored is unchanged.
+
+### Changed
+
+- Tapping a mental-wellbeing assessment card (PHQ-9, GAD-7) now opens that instrument's trend, the same way a medication card opens its detail.
+
 ## [1.25.11] — 2026-06-30 — Consistent settings and cards
 
 ### Added

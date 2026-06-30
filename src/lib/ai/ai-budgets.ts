@@ -61,8 +61,20 @@ export const AI_BUDGETS = {
    * generation runs off the request hot path (nightly warm + the on-demand
    * background warm), and the explicit regenerate is rate-limited, so the
    * wider ceiling is bounded.
+   *
+   * v1.25.12 — raised again to 180 s. The same "operation aborted due to
+   * timeout" hop (no upstream status) recurred at exactly the 120 s ceiling
+   * once the codex default slug moved to the heavier-reasoning `gpt-5.5`
+   * line: a wide account (full-history briefing, raw signals included) spends
+   * longer in the reasoning channel before the first visible token than the
+   * 120 s budget allowed, so the single-provider chain timed out with nothing
+   * to fall back to and the briefing rendered its greeting with no body. The
+   * per-user `aiResponseTimeoutSeconds` setting still overrides this default
+   * for operators on even slower backends; this only lifts the floor for
+   * accounts that never set it. The worker cap in `insight-pregenerate.ts`
+   * derives from this value plus fixed headroom, so it tracks automatically.
    */
-  comprehensive: { temperature: 0.3, maxTokens: 1500, timeoutMs: 120_000 },
+  comprehensive: { temperature: 0.3, maxTokens: 1500, timeoutMs: 180_000 },
 
   /**
    * Per-metric status assessment cards — output is a single

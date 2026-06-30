@@ -7716,7 +7716,8 @@
     "review": {
       "title": "Resumen",
       "recap": "Has respondido {answered} de {total} preguntas."
-    }
+    },
+    "openDetail": "Ver evolución"
   },
   "records": {
     "disclaimer": "Son tus propios registros, no un diagnóstico médico. HealthLog no diagnostica, no trata ni los interpreta.",
@@ -7827,12 +7828,12 @@
     },
     "conditions": {
       "cardTitle": "Enfermedades preexistentes",
-      "cardDescription": "Enfermedades crónicas y aquello que el Coach debe vigilar, desde tu contexto personal.",
+      "cardDescription": "Enfermedades crónicas y aquello que el Coach debe vigilar.",
       "conditionsLabel": "Enfermedades crónicas",
       "focusLabel": "Qué vigila el Coach",
-      "empty": "Aún no hay nada anotado.",
-      "editCta": "Editar en el contexto personal",
-      "loadError": "No se pudieron cargar tus enfermedades."
+      "loadError": "No se pudieron cargar tus enfermedades.",
+      "savedToast": "Enfermedades guardadas.",
+      "saveError": "No se pudo guardar. Inténtalo de nuevo."
     }
   },
   "environment": {

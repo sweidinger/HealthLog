@@ -72,111 +72,96 @@ function render({
   );
 }
 
-describe("<SidebarNav> cycle entry gate (v1.15.0 / v1.18.0 module map)", () => {
-  it("renders the Cycle entry when the cycle module is enabled", () => {
-    const html = render({ modules: { cycle: true } });
-    expect(html).toContain('href="/cycle"');
-    expect(html).toContain("Cycle");
+// v1.25.12 — these suites render the FIRST-PAINT (pre-hydration) markup.
+// `renderToStaticMarkup` drives `useMounted()` to its server snapshot
+// (`false`), so the sidebar applies its fail-CLOSED gate: only CORE
+// (non-module-gated) destinations render and EVERY module-gated entry is
+// absent regardless of the module map. This is the fix for the disabled-
+// module flicker — a gated entry can no longer paint for one frame before the
+// `/api/auth/me` query resolves. The resolved, post-mount visible set
+// ("cycle shows when its module is on", "a disabled module drops out") is the
+// pure `visibleNavDestinations(modules, true)` contract verified in
+// `nav-model.test.ts`; the mounted render is exercised in e2e.
+
+// CORE destinations carry no `requiresModule` and always render.
+const CORE_HREFS = ["/", "/measurements", "/checkups"] as const;
+// A representative slice of the module-gated entries that must stay out of
+// the first-paint markup whatever the module map says.
+const GATED_HREFS = [
+  "/mood",
+  "/cycle",
+  "/medications",
+  "/labs",
+  "/illness",
+  "/insights",
+  "/coach",
+  "/achievements",
+] as const;
+
+describe("<SidebarNav> first-paint fail-closed module gate (v1.25.12)", () => {
+  it("renders core destinations on first paint regardless of the module map", () => {
+    const maps: Record<string, boolean>[] = [
+      {},
+      { cycle: true, mood: true, labs: true, coach: true },
+      { cycle: false, mood: false },
+    ];
+    for (const modules of maps) {
+      const html = render({ modules });
+      for (const href of CORE_HREFS) {
+        expect(html).toContain(`href="${href}"`);
+      }
+    }
   });
 
-  it("hides the Cycle entry when the cycle module is disabled", () => {
-    const html = render({ modules: { cycle: false } });
-    expect(html).not.toContain('href="/cycle"');
-  });
-
-  it("places the Cycle entry between Mood and Medications when enabled", () => {
-    const html = render({ modules: { cycle: true } });
-    const mood = html.indexOf('href="/mood"');
-    const cycle = html.indexOf('href="/cycle"');
-    const med = html.indexOf('href="/medications"');
-    expect(mood).toBeGreaterThan(-1);
-    expect(cycle).toBeGreaterThan(-1);
-    expect(med).toBeGreaterThan(-1);
-    // v1.19.1 (S4) — Cycle sits after Mood and before Medications in document
-    // order; Medications opens the fixed clinical/insight spine below it.
-    expect(mood).toBeLessThan(cycle);
-    expect(cycle).toBeLessThan(med);
-  });
-});
-
-describe("<SidebarNav> module gating (v1.18.0)", () => {
-  it("hides a disabled module's nav entry (mood / labs / coach / achievements)", () => {
+  it("keeps every module-gated entry OUT of the first-paint markup, even when its module is enabled", () => {
+    // The flicker bug: a gated entry painted before the module query
+    // resolved. Pre-mount it must be absent even with the module turned on.
     const html = render({
       modules: {
-        mood: false,
-        labs: false,
-        coach: false,
-        achievements: false,
-      },
-    });
-    expect(html).not.toContain('href="/mood"');
-    expect(html).not.toContain('href="/labs"');
-    expect(html).not.toContain('href="/coach"');
-    expect(html).not.toContain('href="/achievements"');
-    // Core destinations stay regardless of the module map.
-    expect(html).toContain('href="/measurements"');
-    expect(html).toContain('href="/medications"');
-    expect(html).toContain('href="/insights"');
-    expect(html).toContain('href="/checkups"');
-  });
-
-  it("renders a module's nav entry when its module is enabled", () => {
-    const html = render({
-      modules: {
+        cycle: true,
         mood: true,
         labs: true,
         coach: true,
         achievements: true,
+        insights: true,
       },
     });
-    expect(html).toContain('href="/mood"');
-    expect(html).toContain('href="/labs"');
-    expect(html).toContain('href="/coach"');
-    expect(html).toContain('href="/achievements"');
+    for (const href of GATED_HREFS) {
+      expect(html).not.toContain(`href="${href}"`);
+    }
   });
 
-  it("fails open: an empty module map keeps every gated entry visible", () => {
+  it("keeps gated entries out when the module map is empty (no fail-open flicker)", () => {
     const html = render({ modules: {} });
-    expect(html).toContain('href="/mood"');
-    expect(html).toContain('href="/cycle"');
-    expect(html).toContain('href="/labs"');
-    expect(html).toContain('href="/coach"');
-    expect(html).toContain('href="/achievements"');
+    for (const href of GATED_HREFS) {
+      expect(html).not.toContain(`href="${href}"`);
+    }
+  });
+
+  it("keeps gated entries out when the module is explicitly disabled", () => {
+    const html = render({
+      modules: { mood: false, labs: false, coach: false, achievements: false },
+    });
+    for (const href of GATED_HREFS) {
+      expect(html).not.toContain(`href="${href}"`);
+    }
+  });
+
+  it("does not render the deprecated /insights/workouts sub-link", () => {
+    const html = render();
+    expect(html).not.toContain('href="/insights/workouts"');
   });
 });
 
 describe("<SidebarNav> targets deprecation (v1.8.6)", () => {
   it("no longer renders the deprecated /targets entry", () => {
     // The Targets (Zielwerte) page is deprecated; target editing moved
-    // inline into Insights, so the sidebar drops the entry. The main nav
-    // links render into the SSR markup, so asserting absence here is a
-    // real regression net (Insights, the sibling that stays, still shows).
+    // inline into Insights, so the sidebar drops the entry. Assert absence
+    // against a stable CORE sibling that renders on first paint
+    // (Measurements stays; Insights is module-gated and pre-mount absent).
     const html = render();
     expect(html).not.toContain('href="/targets"');
-    expect(html).toContain('href="/insights"');
-  });
-});
-
-describe("<SidebarNav> unified destination model (v1.17.1 F-1 / F-3)", () => {
-  it("surfaces the Coach as a first-class sidebar destination", () => {
-    // Pre-unify the sidebar had no Coach home while the mobile bar missed
-    // it too; both now render the one shared model so both carry it.
-    // (v1.18.0 — Workouts left the left nav for its Insights pill, so it is
-    // no longer a sidebar destination.)
-    const html = render();
-    expect(html).toContain('href="/coach"');
-    expect(html).toContain("Coach");
-    expect(html).not.toContain('href="/insights/workouts"');
-  });
-
-  it("marks Coach active without also marking Insights active", () => {
-    const html = render({ pathname: "/coach" });
-    // The Coach link carries aria-current="page"; the standalone /coach
-    // route is not a sibling of /insights, so the Insights link must not.
-    const coach = html.match(/<a[^>]*href="\/coach"[^>]*>/);
-    const insights = html.match(/<a[^>]*href="\/insights"[^>]*>/);
-    expect(coach?.[0]).toMatch(/aria-current="page"/);
-    expect(insights?.[0]).not.toMatch(/aria-current="page"/);
+    expect(html).toContain('href="/measurements"');
   });
 });
 

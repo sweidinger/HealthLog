@@ -19,6 +19,7 @@ import {
 import type { ModuleKey } from "@/lib/modules/registry";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import {
   Sheet,
   SheetContent,
@@ -85,6 +86,13 @@ export function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
 
+  // The module map rides the client-only `/api/auth/me` query, so it is not
+  // settled on SSR or the first client paint. Gating the module filter behind
+  // `useMounted()` keeps SSR and first paint identical and stops a disabled
+  // module from flickering into the hub / primary slot before the query
+  // resolves (the #418-class divergence); once mounted the real map applies.
+  const mounted = useMounted();
+
   // v1.17.1 (F-1) — the More hub is the model-computed hub: every visible
   // feature destination that isn't a primary slot, plus the shared utility
   // tail. Cycle is gated by the same flag the sidebar uses, so the two
@@ -93,21 +101,24 @@ export function BottomNav() {
     () =>
       mobileMoreHubDestinations({
         modules: user?.modules,
+        mounted,
       }),
-    [user?.modules],
+    [user?.modules, mounted],
   );
 
   // v1.18.0 — drop a module-gated primary slot (Insights) when the account
-  // has that module disabled. Fail-open: a missing key / unloaded map keeps
-  // the slot, mirroring the gate + More-hub default-on contract.
+  // has that module disabled. Fail-closed until mounted (so a disabled
+  // Insights never flickers in), then the real map applies: a missing key /
+  // unloaded map keeps the slot, mirroring the gate + More-hub default-on
+  // contract.
   const primaryRight = useMemo(
     () =>
       PRIMARY_RIGHT.filter(
         (item) =>
           !item.requiresModule ||
-          user?.modules?.[item.requiresModule] !== false,
+          (mounted && user?.modules?.[item.requiresModule] !== false),
       ),
-    [user?.modules],
+    [user?.modules, mounted],
   );
 
   function isActiveLink(href: string) {

@@ -304,10 +304,10 @@ describe("runInsightPregenerate — outcome tally", () => {
           observedSignal = opts.signal;
           setTimeout(
             () => resolve({ status: "generated", providerType: "x" }),
-            // v1.25.3 — above the default warm budget (~150 s = the 120 s
+            // v1.25.12 — above the default warm budget (~210 s = the 180 s
             // comprehensive provider budget + headroom) so the bounded budget
             // fires before this "slow" generation settles.
-            200_000,
+            260_000,
           );
         }),
     );
@@ -323,7 +323,7 @@ describe("runInsightPregenerate — outcome tally", () => {
         statusGenerators,
         warmGenericMetrics,
       });
-      await vi.advanceTimersByTimeAsync(160_000);
+      await vi.advanceTimersByTimeAsync(230_000);
       const result = await promise;
 
       // The timeout fired, aborted the still-running generation (so its
@@ -798,10 +798,10 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
           // advance past it so the warm continues.
           setTimeout(
             () => resolve({ status: "generated", providerType: "x" }),
-            // v1.25.3 — above the default warm budget (~150 s = the 120 s
+            // v1.25.12 — above the default warm budget (~210 s = the 180 s
             // comprehensive provider budget + headroom) so the bounded budget
             // fires before this "slow" generation settles.
-            200_000,
+            260_000,
           );
         }),
     );
@@ -818,7 +818,7 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
         warmGenericMetrics,
       });
       // Advance past the comprehensive budget so withTimeout fires.
-      await vi.advanceTimersByTimeAsync(160_000);
+      await vi.advanceTimersByTimeAsync(230_000);
       const result = await promise;
 
       for (const g of statusGenerators) {
@@ -916,10 +916,10 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
           observedSignal = opts.signal;
           setTimeout(
             () => resolve({ status: "generated", providerType: "x" }),
-            // v1.25.3 — above the default warm budget (~150 s = the 120 s
+            // v1.25.12 — above the default warm budget (~210 s = the 180 s
             // comprehensive provider budget + headroom) so the bounded budget
             // fires before this "slow" generation settles.
-            200_000,
+            260_000,
           );
         }),
     );
@@ -935,7 +935,7 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
         statusGenerators,
         warmGenericMetrics,
       });
-      await vi.advanceTimersByTimeAsync(160_000);
+      await vi.advanceTimersByTimeAsync(230_000);
       const result = await promise;
 
       // The timeout fired and aborted the still-running generation.
