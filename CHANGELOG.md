@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.25.11] — 2026-06-30 — Consistent settings and cards
+
+### Added
+
+- A date field now opens an in-app calendar that looks and behaves the same on every browser and phone, instead of handing off to the device's own date picker. The time field — and your 12-/24-hour preference — are unchanged.
+- Appearance settings are now a hub: a list of the modules you can arrange (dashboard, insights, medications, and the rest). Pick one to open its own page with that module's view and ordering options, plus a link back to the list.
+
+### Fixed
+
+- Medication doses now show their unit in your language ("1 Stück", "2 tablets") instead of an English code, and the dose sits on its own line under the name instead of running into it — on the cards, the detail view and the dose lists.
+- The integrations settings could intermittently render with non-interactive notification controls after a slow load; the notification card now renders identically on the server and on the first client paint, so its controls stay responsive.
+- A short settings section no longer over-scrolls into an empty band below its last card — the content now fills the visible height exactly, and switching sections stays width-stable.
+- The admin sign-in overview truncates a long IPv6 address instead of forcing the table to scroll sideways, and clicking an address copies it in full.
+- The admin system snapshot now names the geo provider you actually configured, rather than always showing the default.
+- Several insight charts no longer leave a lone tile stranded at half width, and a chart's rolling-average line no longer sits flush against the card edge.
+
+### Changed
+
+- Settings section headers, card layouts and add-form spacing are now drawn from shared building blocks, so they stay consistent across the app — the medication card's shape is the template every card follows.
+- Configuration and secret fields — API keys, tokens, integration URLs — no longer prompt your password manager to fill or save them, while real sign-in and password fields still do.
+- The custom-metrics add button carries an accessible label on mobile, and the custom-metrics section reads as its own block on the measurements page.
+
 ## [1.25.10] — 2026-06-30 — Mobile add-form fix
 
 ### Fixed
