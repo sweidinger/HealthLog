@@ -561,19 +561,19 @@ export default function DashboardPage() {
         {
           min: bpTargets.sysLow,
           max: bpTargets.sysHigh,
-          color: "#ff79c6",
+          color: "var(--chart-3)",
           opacity: 0.21,
           label: t("charts.systolic"),
-          textColor: "#ff79c6",
+          textColor: "var(--chart-3)",
           lineOpacity: 0.24,
         },
         {
           min: bpTargets.diaLow,
           max: bpTargets.diaHigh,
-          color: "#8be9fd",
+          color: "var(--chart-4)",
           opacity: 0.21,
           label: t("charts.diastolic"),
-          textColor: "#8be9fd",
+          textColor: "var(--chart-4)",
           lineOpacity: 0.24,
         },
       ]
@@ -1174,7 +1174,7 @@ export default function DashboardPage() {
                 chartKey="weight"
                 types={["WEIGHT"]}
                 title={t("dashboard.weight")}
-                colors={["#bd93f9"]}
+                colors={["var(--chart-1)"]}
                 unit="kg"
                 valueBands={weightBands}
                 compareBaseline={compareBaseline}
@@ -1196,15 +1196,40 @@ export default function DashboardPage() {
                   chartKey="bmi"
                   types={["WEIGHT"]}
                   title={t("targets.bmi")}
-                  colors={["#f1fa8c"]}
+                  colors={["var(--dracula-yellow)"]}
                   unit="kg/m²"
                   valueMode="bmi"
                   valueBands={[
-                    { min: 0, max: 17, color: "#ff5555", opacity: 0.16 },
-                    { min: 17, max: 18.5, color: "#ffb86c", opacity: 0.18 },
-                    { min: 18.5, max: 24.9, color: "#50fa7b", opacity: 0.2 },
-                    { min: 24.9, max: 29.9, color: "#ffb86c", opacity: 0.18 },
-                    { min: 29.9, max: 120, color: "#ff5555", opacity: 0.16 },
+                    {
+                      min: 0,
+                      max: 17,
+                      color: "var(--destructive)",
+                      opacity: 0.16,
+                    },
+                    {
+                      min: 17,
+                      max: 18.5,
+                      color: "var(--warning)",
+                      opacity: 0.18,
+                    },
+                    {
+                      min: 18.5,
+                      max: 24.9,
+                      color: "var(--success)",
+                      opacity: 0.2,
+                    },
+                    {
+                      min: 24.9,
+                      max: 29.9,
+                      color: "var(--warning)",
+                      opacity: 0.18,
+                    },
+                    {
+                      min: 29.9,
+                      max: 120,
+                      color: "var(--destructive)",
+                      opacity: 0.16,
+                    },
                   ]}
                   compareBaseline={compareBaseline}
                 />
@@ -1227,7 +1252,7 @@ export default function DashboardPage() {
                 chartKey="bp"
                 types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
                 title={t("dashboard.bloodPressure")}
-                colors={["#ff79c6", "#8be9fd"]}
+                colors={["var(--chart-3)", "var(--chart-4)"]}
                 unit="mmHg"
                 yAxisUnit="Hg"
                 targetZones={bpTargetZones}
@@ -1256,7 +1281,7 @@ export default function DashboardPage() {
                 // expected-high workout HR as "outside target").
                 types={hasRestingHr ? ["RESTING_HEART_RATE"] : ["PULSE"]}
                 title={t("dashboard.pulse")}
-                colors={["#50fa7b"]}
+                colors={["var(--success)"]}
                 unit="bpm"
                 valueBands={hasRestingHr ? pulseBands : undefined}
                 compareBaseline={compareBaseline}
@@ -1280,7 +1305,7 @@ export default function DashboardPage() {
                 chartKey="bodyFat"
                 types={["BODY_FAT"]}
                 title={t("dashboard.bodyFat")}
-                colors={["#ffb86c"]}
+                colors={["var(--warning)"]}
                 unit="%"
                 valueBands={bodyFatBands}
                 compareBaseline={compareBaseline}
@@ -1319,7 +1344,7 @@ export default function DashboardPage() {
                 chartKey="sleep"
                 types={["SLEEP_DURATION"]}
                 title={t("dashboard.sleep") ?? "Sleep"}
-                colors={["#8be9fd"]}
+                colors={["var(--chart-4)"]}
                 unit="h"
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
@@ -1342,7 +1367,7 @@ export default function DashboardPage() {
                 chartKey="steps"
                 types={["ACTIVITY_STEPS"]}
                 title={t("dashboard.steps") ?? "Steps"}
-                colors={["#50fa7b"]}
+                colors={["var(--success)"]}
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
               />
