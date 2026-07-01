@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
+import { isP2025 } from "@/lib/prisma-errors";
 import { annotate } from "@/lib/logging/context";
 import { encrypt } from "@/lib/crypto";
 import { withingsCredentialsSchema } from "@/lib/validations/withings";
@@ -64,10 +65,15 @@ export const DELETE = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "withings.credentials.delete" } });
 
-  // Remove connection first
+  // Remove connection first. A missing connection row (P2025) is a benign
+  // "already disconnected" no-op; any other failure must propagate rather
+  // than be swallowed — otherwise the encrypted OAuth tokens can be left
+  // orphaned while the user is told the integration was disconnected.
   await prisma.withingsConnection
     .delete({ where: { userId: user.id } })
-    .catch(() => {});
+    .catch((err) => {
+      if (!isP2025(err)) throw err;
+    });
 
   // Remove credentials
   await prisma.user.update({

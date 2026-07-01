@@ -340,9 +340,11 @@ export async function requireAuth(
  *
  * The validation itself lives in the transport-agnostic `resolveBearerToken`
  * (`./auth/bearer`) — the single source of truth shared with the MCP wire. This
- * wrapper adds the HTTP-edge concerns: the `auth.bearer.*` audit trail for both
- * outcomes and the Wide-Event `auth_method: "bearer"` annotation, then maps the
- * result onto the `AuthContext` contract (`session.id` carries the token id).
+ * wrapper adds the HTTP-edge concerns: the `auth.bearer.failure` audit trail
+ * (only the failure path writes a durable audit row — the success row was
+ * intentionally dropped for perf) and the Wide-Event `auth_method: "bearer"`
+ * annotation, then maps the result onto the `AuthContext` contract
+ * (`session.id` carries the token id).
  *
  * Authorisation contract (unchanged): a route that declares no
  * `requiredPermission` accepts any valid token; one that declares a scope
@@ -648,7 +650,12 @@ async function reportToGlitchtip(
       level: "error",
       type: err.name || "Error",
       stack: redactOptional(err.stack),
-      url: scrubbedUrl,
+      // Query string is already stripped above, but path-segment secrets
+      // (e.g. `/api/withings/webhook/<secret>`, `/api/whoop/webhook/<secret>`)
+      // survive that strip. Run the same `redactSecrets` pass that guards the
+      // message/stack so a `PATH_SECRET_PATHS`-registered secret cannot reach
+      // the external incident UI.
+      url: redactSecrets(scrubbedUrl),
       sourceTag: "healthlog-api-handler",
       requestId: evt.getRequestId(),
     },

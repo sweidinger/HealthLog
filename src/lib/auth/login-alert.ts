@@ -24,6 +24,7 @@ import { dispatchNotification } from "@/lib/notifications/dispatcher";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { defaultLocale, type Locale } from "@/lib/i18n/config";
 import { getEvent } from "@/lib/logging/context";
+import { isP2002 } from "@/lib/prisma-errors";
 
 function isLocale(value: string | null | undefined): value is Locale {
   return (
@@ -105,8 +106,15 @@ export async function recordSignInDevice(params: {
       await prisma.userKnownDevice.create({
         data: { userId, deviceHash, label: storedLabel },
       });
-    } catch {
-      return { known: true, alerted: false };
+    } catch (err) {
+      // ONLY the unique-index race (a concurrent first-login inserting the
+      // same (userId, deviceHash)) is a legitimate "already known" outcome —
+      // swallow it and skip the alert so we never double-alert. Any other
+      // failure (a real DB fault) must NOT be silently classified as a known
+      // device, which would suppress the SECURITY_ALERT + audit row: rethrow
+      // so the outer catch records it via `addWarning`.
+      if (isP2002(err)) return { known: true, alerted: false };
+      throw err;
     }
 
     if (!alertOnNew || isBaseline) return { known: false, alerted: false };

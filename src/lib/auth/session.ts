@@ -4,6 +4,7 @@ import type { User } from "@/generated/prisma/client";
 import { ensureDbCompatibility } from "@/lib/db-compat";
 import { getEvent } from "@/lib/logging/context";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
+import { isP2025 } from "@/lib/prisma-errors";
 
 const SESSION_COOKIE = "healthlog_session";
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -179,7 +180,13 @@ export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
   if (sessionId) {
-    await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
+    // Logout is idempotent: a session row that no longer exists (P2025) is a
+    // no-op success — the cookie clear below still runs. Any other failure is
+    // a real delete error that must NOT be masked as a successful logout, so
+    // it propagates rather than being swallowed.
+    await prisma.session.delete({ where: { id: sessionId } }).catch((err) => {
+      if (!isP2025(err)) throw err;
+    });
   }
   cookieStore.delete(SESSION_COOKIE);
   cookieStore.delete(ONBOARDING_COOKIE);

@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     session: {
       findUnique: vi.fn(),
+      delete: vi.fn(),
       deleteMany: vi.fn(),
       update: vi.fn(),
     },
@@ -46,7 +47,7 @@ vi.mock("next/headers", () => ({
 }));
 
 import { prisma } from "@/lib/db";
-import { getSession, destroyAllSessions } from "../session";
+import { getSession, destroyAllSessions, destroySession } from "../session";
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -71,6 +72,32 @@ describe("getSession", () => {
     });
     expect(cookieState.delete).toHaveBeenCalledWith("healthlog_session");
     expect(cookieState.delete).toHaveBeenCalledWith("hl_onboarding");
+  });
+});
+
+describe("destroySession", () => {
+  it("treats an already-deleted session row (P2025) as an idempotent logout", async () => {
+    cookieState.sessionId = "sess-gone";
+    vi.mocked(prisma.session.delete).mockRejectedValue(
+      Object.assign(new Error("record not found"), { code: "P2025" }) as never,
+    );
+
+    await expect(destroySession()).resolves.toBeUndefined();
+
+    expect(prisma.session.delete).toHaveBeenCalledWith({
+      where: { id: "sess-gone" },
+    });
+    expect(cookieState.delete).toHaveBeenCalledWith("healthlog_session");
+    expect(cookieState.delete).toHaveBeenCalledWith("hl_onboarding");
+  });
+
+  it("propagates a real delete failure instead of reporting a false logout", async () => {
+    cookieState.sessionId = "sess-live";
+    vi.mocked(prisma.session.delete).mockRejectedValue(
+      Object.assign(new Error("connection reset"), { code: "P1001" }) as never,
+    );
+
+    await expect(destroySession()).rejects.toThrow(/connection reset/);
   });
 });
 
