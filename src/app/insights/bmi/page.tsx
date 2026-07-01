@@ -31,11 +31,11 @@ import { SubPageShell } from "@/components/insights/sub-page-shell";
  * the CTA targets `/settings/account`, not the measurement onboarding.
  */
 const BMI_BANDS = [
-  { min: 0, max: 17, color: "#ff5555", opacity: 0.16 },
-  { min: 17, max: 18.5, color: "#ffb86c", opacity: 0.18 },
-  { min: 18.5, max: 24.9, color: "#50fa7b", opacity: 0.2 },
-  { min: 24.9, max: 29.9, color: "#ffb86c", opacity: 0.18 },
-  { min: 29.9, max: 120, color: "#ff5555", opacity: 0.16 },
+  { min: 0, max: 17, color: "var(--destructive)", opacity: 0.16 },
+  { min: 17, max: 18.5, color: "var(--warning)", opacity: 0.18 },
+  { min: 18.5, max: 24.9, color: "var(--success)", opacity: 0.2 },
+  { min: 24.9, max: 29.9, color: "var(--warning)", opacity: 0.18 },
+  { min: 29.9, max: 120, color: "var(--destructive)", opacity: 0.16 },
 ];
 
 export default function InsightsBmiPage() {
@@ -117,7 +117,7 @@ export default function InsightsBmiPage() {
         chartKey="bmi"
         types={["WEIGHT"]}
         title={t("targets.bmi")}
-        colors={["#f1fa8c"]}
+        colors={["var(--dracula-yellow)"]}
         unit="kg/m²"
         valueMode="bmi"
         valueBands={BMI_BANDS}

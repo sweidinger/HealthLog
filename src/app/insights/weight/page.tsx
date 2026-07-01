@@ -104,7 +104,7 @@ export default function InsightsGewichtPage() {
         types={["WEIGHT"]}
         title={t("charts.weight")}
         titleIcon={Scale}
-        colors={["#bd93f9"]}
+        colors={["var(--chart-1)"]}
         unit="kg"
         valueBands={weightBands}
         compareBaseline={compareBaseline}

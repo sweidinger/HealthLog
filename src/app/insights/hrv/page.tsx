@@ -27,7 +27,7 @@ export default function InsightsHrvPage() {
       chartKey="hrv"
       i18nPrefix="insights.hrv"
       explainerMetric="hrv"
-      color="#bd93f9"
+      color="var(--chart-1)"
       unit="ms"
       yAxisUnit="ms"
       emptyStateIcon={<Activity className="size-6" />}

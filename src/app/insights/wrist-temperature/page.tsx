@@ -21,7 +21,7 @@ export default function InsightsWristTemperaturePage() {
       chartKey="wristTemperature"
       i18nPrefix="insights.wristTemperature"
       explainerMetric="wristTemperature"
-      color="#ffb86c"
+      color="var(--warning)"
       unit="°C"
       yAxisUnit="°C"
       emptyStateIcon={<Thermometer className="size-6" />}

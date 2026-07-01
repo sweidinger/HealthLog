@@ -26,7 +26,7 @@ export default function InsightsStepsPage() {
       i18nPrefix="insights.steps"
       explainerMetric="steps"
       statIcon={Footprints}
-      color="#50fa7b"
+      color="var(--success)"
       unit="steps"
       yAxisUnit="steps"
       emptyStateIcon={<Footprints className="size-6" />}

@@ -29,7 +29,7 @@ export default function InsightsHauttemperaturPage() {
       chartKey="skinTemperature"
       i18nPrefix="insights.skinTemperature"
       explainerMetric="skinTemperature"
-      color="#ffb86c"
+      color="var(--warning)"
       unit="°C"
       yAxisUnit="°C"
       emptyStateIcon={<Thermometer className="size-6" />}
@@ -40,7 +40,7 @@ export default function InsightsHauttemperaturPage() {
           type="BODY_TEMPERATURE_DEVIATION"
           title={t("measurements.typeBodyTemperatureDeviation")}
           icon={ThermometerSnowflake}
-          color="#8be9fd"
+          color="var(--info)"
           unit="°C"
           fractionDigits={2}
           sectionTitle={t("insights.bodyTempDeviation.title")}

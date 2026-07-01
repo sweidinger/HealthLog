@@ -23,16 +23,16 @@ export default function InsightsOxygenSaturationPage() {
       chartKey="oxygenSaturation"
       i18nPrefix="insights.oxygenSaturation"
       explainerMetric="oxygenSaturation"
-      color="#8be9fd"
+      color="var(--info)"
       unit="%"
       yAxisUnit="%"
       valueBands={[
         // < 90 % — clinical hypoxia floor, paint the danger band.
-        { min: 80, max: 90, color: "#ff5555", opacity: 0.18 },
+        { min: 80, max: 90, color: "var(--destructive)", opacity: 0.18 },
         // 90 .. 95 % — watch zone.
-        { min: 90, max: 95, color: "#ffb86c", opacity: 0.18 },
+        { min: 90, max: 95, color: "var(--warning)", opacity: 0.18 },
         // 95 .. 100 % — clinical normal.
-        { min: 95, max: 100, color: "#50fa7b", opacity: 0.18 },
+        { min: 95, max: 100, color: "var(--success)", opacity: 0.18 },
       ]}
       emptyStateIcon={<Wind className="size-6" />}
       emptyStateCtaType={null}

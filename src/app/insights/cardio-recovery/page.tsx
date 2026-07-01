@@ -21,7 +21,7 @@ export default function InsightsCardioRecoveryPage() {
       chartKey="cardioRecovery"
       i18nPrefix="insights.cardioRecovery"
       explainerMetric="cardioRecovery"
-      color="#ff79c6"
+      color="var(--chart-3)"
       unit="bpm"
       yAxisUnit="bpm"
       emptyStateIcon={<HeartPulse className="size-6" />}

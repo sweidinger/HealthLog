@@ -21,7 +21,7 @@ export default function InsightsAtemfrequenzPage() {
       chartKey="respiratoryRate"
       i18nPrefix="insights.respiratoryRate"
       explainerMetric="respiratoryRate"
-      color="#8be9fd"
+      color="var(--info)"
       unit="breaths/min"
       yAxisUnit="breaths/min"
       emptyStateIcon={<Wind className="size-6" />}

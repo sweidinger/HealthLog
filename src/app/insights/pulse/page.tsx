@@ -98,26 +98,36 @@ export default function InsightsPulsPage() {
     (user?.gender as "MALE" | "FEMALE" | null | undefined) ?? null,
   );
   const pulseBands = [
-    { min: 30, max: pulseTarget.orangeMin, color: "#ff5555", opacity: 0.16 },
+    {
+      min: 30,
+      max: pulseTarget.orangeMin,
+      color: "var(--destructive)",
+      opacity: 0.16,
+    },
     {
       min: pulseTarget.orangeMin,
       max: pulseTarget.greenMin,
-      color: "#ffb86c",
+      color: "var(--warning)",
       opacity: 0.18,
     },
     {
       min: pulseTarget.greenMin,
       max: pulseTarget.greenMax,
-      color: "#50fa7b",
+      color: "var(--success)",
       opacity: 0.2,
     },
     {
       min: pulseTarget.greenMax,
       max: pulseTarget.orangeMax,
-      color: "#ffb86c",
+      color: "var(--warning)",
       opacity: 0.18,
     },
-    { min: pulseTarget.orangeMax, max: 220, color: "#ff5555", opacity: 0.16 },
+    {
+      min: pulseTarget.orangeMax,
+      max: 220,
+      color: "var(--destructive)",
+      opacity: 0.16,
+    },
   ].filter((band) => band.max > band.min);
 
   return (
@@ -156,7 +166,7 @@ export default function InsightsPulsPage() {
         types={hasRestingHr ? ["RESTING_HEART_RATE"] : ["PULSE"]}
         title={t("charts.pulse")}
         titleIcon={Heart}
-        colors={["#50fa7b"]}
+        colors={["var(--success)"]}
         unit="bpm"
         valueBands={hasRestingHr ? pulseBands : undefined}
         compareBaseline={compareBaseline}

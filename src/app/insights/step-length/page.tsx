@@ -21,7 +21,7 @@ export default function InsightsSchrittlaengePage() {
       chartKey="walkingStepLength"
       i18nPrefix="insights.walkingStepLength"
       explainerMetric="stepLength"
-      color="#50fa7b"
+      color="var(--success)"
       unit="m"
       yAxisUnit="m"
       emptyStateIcon={<Footprints className="size-6" />}

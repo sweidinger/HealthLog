@@ -21,7 +21,7 @@ export default function InsightsBodyTemperaturePage() {
       chartKey="bodyTemperature"
       i18nPrefix="insights.bodyTemperature"
       explainerMetric="bodyTemperature"
-      color="#ff79c6"
+      color="var(--chart-3)"
       unit="°C"
       yAxisUnit="°C"
       emptyStateIcon={<Thermometer className="size-6" />}
