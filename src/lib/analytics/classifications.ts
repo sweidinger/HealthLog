@@ -13,35 +13,39 @@ export interface BmiClassification {
 
 export function classifyBMI(bmi: number): BmiClassification {
   if (bmi < 18.5) {
-    return { category: "Underweight", color: "#f1fa8c", severity: "warning" };
+    return {
+      category: "Underweight",
+      color: "var(--dracula-yellow)",
+      severity: "warning",
+    };
   }
   if (bmi < 25) {
-    return { category: "Normal", color: "#50fa7b", severity: "normal" };
+    return { category: "Normal", color: "var(--success)", severity: "normal" };
   }
   if (bmi < 30) {
     return {
       category: "Overweight",
-      color: "#ffb86c",
+      color: "var(--warning)",
       severity: "warning",
     };
   }
   if (bmi < 35) {
     return {
       category: "Obesity Grade I",
-      color: "#ff79c6",
+      color: "var(--chart-3)",
       severity: "danger",
     };
   }
   if (bmi < 40) {
     return {
       category: "Obesity Grade II",
-      color: "#ff5555",
+      color: "var(--destructive)",
       severity: "danger",
     };
   }
   return {
     category: "Obesity Grade III",
-    color: "#ff5555",
+    color: "var(--destructive)",
     severity: "danger",
   };
 }
@@ -56,35 +60,35 @@ export interface BpClassification {
 
 export function classifyBP(sys: number, dia: number): BpClassification {
   if (sys < 120 && dia < 80) {
-    return { category: "Optimal", color: "#50fa7b", severity: "normal" };
+    return { category: "Optimal", color: "var(--success)", severity: "normal" };
   }
   if (sys < 130 && dia < 85) {
-    return { category: "Normal", color: "#8be9fd", severity: "normal" };
+    return { category: "Normal", color: "var(--info)", severity: "normal" };
   }
   if (sys < 140 && dia < 90) {
     return {
       category: "High-normal",
-      color: "#f1fa8c",
+      color: "var(--dracula-yellow)",
       severity: "elevated",
     };
   }
   if (sys < 160 && dia < 100) {
     return {
       category: "Hypertension Grade 1",
-      color: "#ffb86c",
+      color: "var(--warning)",
       severity: "warning",
     };
   }
   if (sys < 180 && dia < 110) {
     return {
       category: "Hypertension Grade 2",
-      color: "#ff79c6",
+      color: "var(--chart-3)",
       severity: "danger",
     };
   }
   return {
     category: "Hypertension Grade 3",
-    color: "#ff5555",
+    color: "var(--destructive)",
     severity: "danger",
   };
 }
@@ -99,15 +103,23 @@ export interface PulseClassification {
 
 export function classifyPulse(bpm: number): PulseClassification {
   if (bpm < 60) {
-    return { category: "Bradycardia", color: "#8be9fd", severity: "info" };
+    return { category: "Bradycardia", color: "var(--info)", severity: "info" };
   }
   if (bpm <= 100) {
-    return { category: "Normal", color: "#50fa7b", severity: "normal" };
+    return { category: "Normal", color: "var(--success)", severity: "normal" };
   }
   if (bpm <= 120) {
-    return { category: "Elevated", color: "#ffb86c", severity: "warning" };
+    return {
+      category: "Elevated",
+      color: "var(--warning)",
+      severity: "warning",
+    };
   }
-  return { category: "Tachycardia", color: "#ff5555", severity: "danger" };
+  return {
+    category: "Tachycardia",
+    color: "var(--destructive)",
+    severity: "danger",
+  };
 }
 
 // ── Sleep Duration Classification (AASM/SRS) ───────────
@@ -124,22 +136,34 @@ export function classifySleepDuration(
   if (hours < 6) {
     return {
       category: "Far too short",
-      color: "#ff5555",
+      color: "var(--destructive)",
       severity: "warning",
     };
   }
   if (hours < 7) {
-    return { category: "Too short", color: "#ffb86c", severity: "warning" };
+    return {
+      category: "Too short",
+      color: "var(--warning)",
+      severity: "warning",
+    };
   }
   if (hours <= 9) {
-    return { category: "On target", color: "#50fa7b", severity: "normal" };
+    return {
+      category: "On target",
+      color: "var(--success)",
+      severity: "normal",
+    };
   }
   if (hours <= 10) {
-    return { category: "Slightly long", color: "#8be9fd", severity: "info" };
+    return {
+      category: "Slightly long",
+      color: "var(--info)",
+      severity: "info",
+    };
   }
   return {
     category: "Far too long",
-    color: "#ff79c6",
+    color: "var(--chart-3)",
     severity: "warning",
   };
 }
@@ -220,23 +244,35 @@ export function classifyBodyFat(
     // hormonal / cardiac risk in chronic depletion).
     return {
       category: "Below essential",
-      color: "#ff5555",
+      color: "var(--destructive)",
       severity: "danger",
     };
   }
   if (pct <= essentialMax) {
-    return { category: "Essential", color: "#f1fa8c", severity: "warning" };
+    return {
+      category: "Essential",
+      color: "var(--dracula-yellow)",
+      severity: "warning",
+    };
   }
   if (pct <= athleteMax) {
-    return { category: "Athletic", color: "#50fa7b", severity: "normal" };
+    return {
+      category: "Athletic",
+      color: "var(--success)",
+      severity: "normal",
+    };
   }
   if (pct <= fitnessMax) {
-    return { category: "Fitness", color: "#50fa7b", severity: "normal" };
+    return { category: "Fitness", color: "var(--success)", severity: "normal" };
   }
   if (pct <= acceptableMax) {
-    return { category: "Acceptable", color: "#ffb86c", severity: "warning" };
+    return {
+      category: "Acceptable",
+      color: "var(--warning)",
+      severity: "warning",
+    };
   }
-  return { category: "Obese", color: "#ff5555", severity: "danger" };
+  return { category: "Obese", color: "var(--destructive)", severity: "danger" };
 }
 
 // ── Activity Steps Classification ───────────────────────
@@ -259,24 +295,32 @@ export function classifySteps(steps: number): StepsClassification {
   if (steps < 3000) {
     return {
       category: "Very low",
-      color: "#ff5555",
+      color: "var(--destructive)",
       severity: "warning",
     };
   }
   if (steps < 5000) {
-    return { category: "Low active", color: "#ffb86c", severity: "warning" };
+    return {
+      category: "Low active",
+      color: "var(--warning)",
+      severity: "warning",
+    };
   }
   if (steps < 7500) {
     return {
       category: "Moderately active",
-      color: "#f1fa8c",
+      color: "var(--dracula-yellow)",
       severity: "info",
     };
   }
   if (steps < 10000) {
-    return { category: "Active", color: "#50fa7b", severity: "normal" };
+    return { category: "Active", color: "var(--success)", severity: "normal" };
   }
-  return { category: "Very active", color: "#50fa7b", severity: "normal" };
+  return {
+    category: "Very active",
+    color: "var(--success)",
+    severity: "normal",
+  };
 }
 
 /**

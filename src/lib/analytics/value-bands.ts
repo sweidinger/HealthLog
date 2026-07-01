@@ -39,11 +39,21 @@ export function buildTrafficLightBands(
   const upperBound = options.upperBound ?? orangeHigh + Math.max(span, 1) * 2;
 
   const bands: ValueBand[] = [
-    { min: lowerBound, max: orangeLow, color: "#ff5555", opacity: 0.16 },
-    { min: orangeLow, max: min, color: "#ffb86c", opacity: 0.18 },
-    { min, max, color: "#50fa7b", opacity: 0.2 },
-    { min: max, max: orangeHigh, color: "#ffb86c", opacity: 0.18 },
-    { min: orangeHigh, max: upperBound, color: "#ff5555", opacity: 0.16 },
+    {
+      min: lowerBound,
+      max: orangeLow,
+      color: "var(--destructive)",
+      opacity: 0.16,
+    },
+    { min: orangeLow, max: min, color: "var(--warning)", opacity: 0.18 },
+    { min, max, color: "var(--success)", opacity: 0.2 },
+    { min: max, max: orangeHigh, color: "var(--warning)", opacity: 0.18 },
+    {
+      min: orangeHigh,
+      max: upperBound,
+      color: "var(--destructive)",
+      opacity: 0.16,
+    },
   ];
 
   return bands.filter((band) => band.max > band.min);
@@ -88,26 +98,36 @@ export function buildWeightBandsFromHeight(
   const upperBound = options.upperBound ?? 250;
 
   return [
-    { min: lowerBound, max: range.orangeMin, color: "#ff5555", opacity: 0.16 },
+    {
+      min: lowerBound,
+      max: range.orangeMin,
+      color: "var(--destructive)",
+      opacity: 0.16,
+    },
     {
       min: range.orangeMin,
       max: range.greenMin,
-      color: "#ffb86c",
+      color: "var(--warning)",
       opacity: 0.18,
     },
     {
       min: range.greenMin,
       max: range.greenMax,
-      color: "#50fa7b",
+      color: "var(--success)",
       opacity: 0.2,
     },
     {
       min: range.greenMax,
       max: range.orangeMax,
-      color: "#ffb86c",
+      color: "var(--warning)",
       opacity: 0.18,
     },
-    { min: range.orangeMax, max: upperBound, color: "#ff5555", opacity: 0.16 },
+    {
+      min: range.orangeMax,
+      max: upperBound,
+      color: "var(--destructive)",
+      opacity: 0.16,
+    },
   ].filter((band) => band.max > band.min);
 }
 

@@ -171,7 +171,11 @@ export const SIGNALS: Record<string, SignalDefinition> = {
     archetype: "physiological-vital",
     normalRange: { low: 50, high: 100 },
     referenceMetric: "RESTING_HEART_RATE",
-    chart: { overlayKey: "restingHr", color: "#ff5555", yAxisUnit: "bpm" },
+    chart: {
+      overlayKey: "restingHr",
+      color: "var(--destructive)",
+      yAxisUnit: "bpm",
+    },
     surfaces: {
       detailPage: true,
       correlationEligible: false,
