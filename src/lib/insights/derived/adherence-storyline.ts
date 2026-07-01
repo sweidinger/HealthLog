@@ -26,7 +26,8 @@ import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
 import { readDayMeanSeries } from "@/lib/insights/derived/baseline";
-import { readMedicationCompliance } from "@/lib/rollups/medication-compliance-rollups";
+import { buildScheduleAnchoredComplianceBuckets } from "@/lib/analytics/schedule-anchored-compliance";
+import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import {
   inferMedTargetClass,
   MED_TARGET_MAP,
@@ -171,11 +172,20 @@ export async function buildAdherenceStoryline(
     .filter((c): c is { label: string; cls: MedTargetClass } => c.cls !== null);
   if (candidates.length === 0) return null;
 
-  // 2. Overall recent adherence (slot-level, cadence-aware via the rollup).
-  const buckets = await readMedicationCompliance(
+  // 2. Overall recent adherence — schedule-anchored + cadence-aware, the SAME
+  //    engine the dashboard tile reads (`buildScheduleAnchoredComplianceBuckets`).
+  //    v1.26.0 SEAM-N3 — this replaced `readMedicationCompliance`, whose
+  //    `scheduled` was a RAW coverage count of LOGGED intake slots: a user who
+  //    logs only the doses they took (never minting `takenAt:null` reminder
+  //    rows for missed ones) read ~100% adherence, and the dip gate below
+  //    (adherencePct > 80 → null) wrongly suppressed the storyline. The
+  //    schedule-anchored `scheduled` is the recurrence engine's EXPECTED-dose
+  //    count, so genuinely missed doses pull the rate down. One engine, one
+  //    number — the storyline's % now equals the dashboard tile's %.
+  const buckets = await buildScheduleAnchoredComplianceBuckets(
     userId,
     ADHERENCE_WINDOW_DAYS,
-    timezone ?? "Europe/Berlin",
+    timezone ?? DEFAULT_TIMEZONE,
     now,
   );
   let scheduled = 0;
