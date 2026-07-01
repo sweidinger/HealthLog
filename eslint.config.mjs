@@ -44,6 +44,13 @@ const eslintConfig = defineConfig([
       // envelope unwrap, one ApiError shape. Wrapper internals and test
       // files are exempt; see the rule file for the allowlist.
       "healthlog/api-fetch-required": "error",
+      // v1.26.0 — the design-consistency wave locked the app's colour
+      // vocabulary onto semantic tokens. Raw Tailwind palette utilities
+      // (`text-amber-500`, `bg-green-500`, `dark:text-red-400`, …) under
+      // src/components + src/app are banned so the tokenised palette can't
+      // regress. `src/app/global-error.tsx` (renders without the token
+      // stylesheet) and test files are exempt; see the rule file.
+      "healthlog/no-raw-palette-color": "error",
     },
   },
 ]);

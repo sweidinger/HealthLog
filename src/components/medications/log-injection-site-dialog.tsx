@@ -152,7 +152,7 @@ export function LogInjectionSiteDialog({
                     cy="8"
                     r="6"
                     fill="none"
-                    className="stroke-amber-500"
+                    className="stroke-[var(--warning)]"
                     strokeWidth="1.8"
                   />
                 </svg>

@@ -81,10 +81,10 @@ function NotificationHealthPanel() {
               >
                 <span className="font-medium">{c.channel}</span>
                 <span className="flex items-center gap-3 text-xs">
-                  <span className="text-success dark:text-green-400">
+                  <span className="text-success">
                     {t("admin.notificationHealth.ok")}: {c.ok}
                   </span>
-                  <span className="text-destructive dark:text-red-400">
+                  <span className="text-destructive">
                     {t("admin.notificationHealth.error")}: {c.error}
                   </span>
                   <span className="text-muted-foreground">
@@ -323,9 +323,9 @@ export function RemindersSection() {
               {testNotification.data.results.map((r, i) => (
                 <div key={i} className="flex items-center gap-1.5 text-xs">
                   {r.success ? (
-                    <CheckCircle2 className="text-success h-3.5 w-3.5 shrink-0 dark:text-green-400" />
+                    <CheckCircle2 className="text-success h-3.5 w-3.5 shrink-0" />
                   ) : (
-                    <XCircle className="text-destructive h-3.5 w-3.5 shrink-0 dark:text-red-400" />
+                    <XCircle className="text-destructive h-3.5 w-3.5 shrink-0" />
                   )}
                   <span className="font-medium">{r.channel}</span>
                   {r.error && (
@@ -371,11 +371,11 @@ export function RemindersSection() {
                     {med.schedules.map((sched, j) => {
                       const statusColor =
                         sched.status === "open"
-                          ? "text-success dark:text-green-400"
+                          ? "text-success"
                           : sched.status === "threshold"
-                            ? "text-warning dark:text-yellow-400"
+                            ? "text-warning"
                             : sched.status === "missed"
-                              ? "text-destructive dark:text-red-400"
+                              ? "text-destructive"
                               : sched.status === "skipped"
                                 ? "text-muted-foreground"
                                 : "";
@@ -392,7 +392,7 @@ export function RemindersSection() {
                           </span>
                           <span className={statusColor}>{sched.label}</span>
                           {sched.notificationSent && (
-                            <span className="text-success flex shrink-0 items-center gap-0.5 dark:text-green-400">
+                            <span className="text-success flex shrink-0 items-center gap-0.5">
                               <Bell className="h-3 w-3" />
                               {t("admin.reminderCheckNotifSent")}
                             </span>
