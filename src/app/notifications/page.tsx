@@ -187,14 +187,10 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t("notifications.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("notifications.subtitle")}
-        </p>
-      </div>
+      <PageHeader
+        title={t("notifications.title")}
+        description={t("notifications.subtitle")}
+      />
 
       {/* Desktop: table layout */}
       <div className="bg-card border-border hidden overflow-hidden rounded-xl border md:block">

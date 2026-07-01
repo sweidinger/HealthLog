@@ -238,7 +238,9 @@ export function InboundDocumentsView() {
       <header className="flex items-center gap-3">
         <FileScan className="text-primary h-6 w-6" aria-hidden />
         <div>
-          <h1 className="text-xl font-semibold">{t("documents.title")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {t("documents.title")}
+          </h1>
           <p className="text-muted-foreground text-sm">
             {t("documents.subtitle")}
           </p>
