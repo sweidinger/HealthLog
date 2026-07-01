@@ -7,10 +7,14 @@
  *      shape locked by `createBatchWorkoutSchema` in
  *      `src/lib/validations/workout.ts`.
  *   2. The Withings activity sync (W17b, deferred) — server-to-server
- *      ingest with `source: "WITHINGS"` and `externalId` formatted as
+ *      ingest with `externalId` formatted as
  *      `"${withings.id}:${withings.model_id ?? "0"}:${withings.startdate}"`.
  *      Withings ships no route geometry, so the nested `route` is
- *      always absent for WITHINGS-sourced entries.
+ *      always absent for WITHINGS-sourced entries. NOTE: the request
+ *      schema's `source` is narrowed to the client-writable set
+ *      (MANUAL / APPLE_HEALTH), so this server path must write its
+ *      `WITHINGS`-sourced rows directly via `prisma.workout.upsert`
+ *      (as the WHOOP / Fitbit syncs already do), not through this route.
  *
  * Cross-cutting concerns mirror `/api/measurements/batch` so the iOS
  * sync engine can re-use the same retry / cursor plumbing:

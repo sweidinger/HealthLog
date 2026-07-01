@@ -181,11 +181,16 @@ export async function destroySession(): Promise<void> {
   const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
   if (sessionId) {
     // Logout is idempotent: a session row that no longer exists (P2025) is a
-    // no-op success — the cookie clear below still runs. Any other failure is
-    // a real delete error that must NOT be masked as a successful logout, so
-    // it propagates rather than being swallowed.
+    // no-op. Any other failure is a real delete error — record it on the wide
+    // event rather than swallowing it silently, but never block the cookie
+    // clear below: a transient DB fault must not leave the client logged in
+    // with the cookie intact.
     await prisma.session.delete({ where: { id: sessionId } }).catch((err) => {
-      if (!isP2025(err)) throw err;
+      if (!isP2025(err)) {
+        getEvent()?.addWarning(
+          `destroySession delete failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
     });
   }
   cookieStore.delete(SESSION_COOKIE);

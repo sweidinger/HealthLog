@@ -91,13 +91,17 @@ describe("destroySession", () => {
     expect(cookieState.delete).toHaveBeenCalledWith("hl_onboarding");
   });
 
-  it("propagates a real delete failure instead of reporting a false logout", async () => {
+  it("clears the cookie even when the row delete fails on a transient fault", async () => {
     cookieState.sessionId = "sess-live";
     vi.mocked(prisma.session.delete).mockRejectedValue(
       Object.assign(new Error("connection reset"), { code: "P1001" }) as never,
     );
 
-    await expect(destroySession()).rejects.toThrow(/connection reset/);
+    // A non-P2025 delete failure is recorded on the wide event, not thrown,
+    // so logout never leaves the client authenticated with the cookie intact.
+    await expect(destroySession()).resolves.toBeUndefined();
+    expect(cookieState.delete).toHaveBeenCalledWith("healthlog_session");
+    expect(cookieState.delete).toHaveBeenCalledWith("hl_onboarding");
   });
 });
 
