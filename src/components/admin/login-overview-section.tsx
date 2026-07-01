@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -219,7 +220,7 @@ export function LoginOverviewSection() {
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={ScrollText}
         title={t("admin.loginOverview")}
@@ -580,6 +581,6 @@ export function LoginOverviewSection() {
           </>
         )}
       </div>
-    </div>
+    </SettingsCard>
   );
 }

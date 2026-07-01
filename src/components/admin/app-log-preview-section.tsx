@@ -46,6 +46,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -115,7 +116,7 @@ export function AppLogPreviewSection() {
   const events = data?.events ?? [];
 
   return (
-    <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
+    <SettingsCard className="space-y-4">
       <SettingsCardHeader
         icon={FileText}
         title={t("admin.section.app-logs.title")}
@@ -303,6 +304,6 @@ export function AppLogPreviewSection() {
           </DialogClose>
         </DialogContent>
       </Dialog>
-    </div>
+    </SettingsCard>
   );
 }

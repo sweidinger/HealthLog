@@ -23,6 +23,7 @@ import {
   Tag,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { StatusItem, usePublicVersion, useSystemStatus } from "./_shared";
@@ -33,9 +34,9 @@ export function SystemStatusSummary() {
   const { data: version } = usePublicVersion();
 
   return (
-    <section
+    <SettingsCard
+      as="section"
       aria-labelledby="admin-overview-snapshot-heading"
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={Server}
@@ -136,6 +137,6 @@ export function SystemStatusSummary() {
           </span>
         </div>
       )}
-    </section>
+    </SettingsCard>
   );
 }

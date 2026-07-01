@@ -13,13 +13,14 @@ import {
   Key,
   Loader2,
   Map,
-  RotateCw,
+  RefreshCw,
   Server,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { StatusItem, usePublicVersion, useSystemStatus } from "./_shared";
@@ -51,7 +52,7 @@ export function SystemStatusSection() {
   return (
     <div className="space-y-6">
       <HostMetricsChart />
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         <SettingsCardHeader
           icon={Server}
           title={t("admin.systemStatus")}
@@ -205,7 +206,7 @@ export function SystemStatusSection() {
               {isFetching ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <RotateCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3.5 w-3.5" />
               )}
               {t("admin.systemStatusRetry")}
             </Button>
@@ -218,7 +219,7 @@ export function SystemStatusSection() {
             </span>
           </div>
         )}
-      </div>
+      </SettingsCard>
     </div>
   );
 }

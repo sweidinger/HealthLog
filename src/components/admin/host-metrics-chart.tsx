@@ -39,6 +39,7 @@ import { useMemo } from "react";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { apiGet } from "@/lib/api/api-fetch";
 
 interface HostMetricsApiSample {
@@ -156,10 +157,7 @@ export function HostMetricsChart() {
   // jump when data lands. Animated only when motion isn't reduced.
   if (isLoading) {
     return (
-      <section
-        aria-labelledby="admin-host-metrics-heading"
-        className="bg-card border-border rounded-xl border p-4 md:p-6"
-      >
+      <SettingsCard as="section" aria-labelledby="admin-host-metrics-heading">
         <div className="mb-3 flex items-center justify-between">
           <h2 id="admin-host-metrics-heading" className="text-sm font-semibold">
             {t("admin.hostMetrics.title")}
@@ -169,16 +167,13 @@ export function HostMetricsChart() {
           </span>
         </div>
         <Skeleton className="bg-muted/40 h-[180px] w-full" />
-      </section>
+      </SettingsCard>
     );
   }
 
   if (isError) {
     return (
-      <section
-        aria-labelledby="admin-host-metrics-heading"
-        className="bg-card border-border rounded-xl border p-4 md:p-6"
-      >
+      <SettingsCard as="section" aria-labelledby="admin-host-metrics-heading">
         <h2 id="admin-host-metrics-heading" className="text-sm font-semibold">
           {t("admin.hostMetrics.title")}
         </h2>
@@ -188,7 +183,7 @@ export function HostMetricsChart() {
         >
           {t("admin.hostMetrics.loadError")}
         </p>
-      </section>
+      </SettingsCard>
     );
   }
 
@@ -197,10 +192,7 @@ export function HostMetricsChart() {
   // instead of an empty plot.
   if (rows.length === 0) {
     return (
-      <section
-        aria-labelledby="admin-host-metrics-heading"
-        className="bg-card border-border rounded-xl border p-4 md:p-6"
-      >
+      <SettingsCard as="section" aria-labelledby="admin-host-metrics-heading">
         <div className="mb-3 flex items-center justify-between">
           <h2 id="admin-host-metrics-heading" className="text-sm font-semibold">
             {t("admin.hostMetrics.title")}
@@ -212,15 +204,12 @@ export function HostMetricsChart() {
         <p className="text-muted-foreground text-xs">
           {t("admin.hostMetrics.empty")}
         </p>
-      </section>
+      </SettingsCard>
     );
   }
 
   return (
-    <section
-      aria-labelledby="admin-host-metrics-heading"
-      className="bg-card border-border rounded-xl border p-4 md:p-6"
-    >
+    <SettingsCard as="section" aria-labelledby="admin-host-metrics-heading">
       <div className="mb-3 flex items-center justify-between">
         <h2 id="admin-host-metrics-heading" className="text-sm font-semibold">
           {t("admin.hostMetrics.title")}
@@ -354,6 +343,6 @@ export function HostMetricsChart() {
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </section>
+    </SettingsCard>
   );
 }

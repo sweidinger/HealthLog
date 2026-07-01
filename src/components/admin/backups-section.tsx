@@ -39,7 +39,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { ListRow } from "@/components/ui/list-row";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import type { BackupRow, BackupsList } from "@/types/backups";
@@ -332,7 +334,7 @@ export function BackupsSection() {
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       {/* v1.18.1 E3 — the snapshot count leads (numbers first), the
           "Run now" button follows, and the explainer + docs link move
           into the header's description slot. Previously the description
@@ -550,48 +552,51 @@ export function BackupsSection() {
             data-testid="admin-backups-mobile-list"
           >
             {rows.map((row) => (
-              <li
+              <ListRow
+                asChild
                 key={row.id}
-                className="bg-muted/30 border-border rounded-lg border p-3"
+                className="bg-muted/30 border-border"
               >
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-medium">{row.username}</span>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {formatBackupType(row.type, t)}
-                  </Badge>
-                </div>
-                <p className="text-muted-foreground text-[11px]">
-                  {t("admin.section.backups.colSize")}:{" "}
-                  {formatBytes(row.sizeBytes, fmt)} ·{" "}
-                  {fmt.dateTime(row.createdAt)}
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={downloadingId === row.id}
-                    onClick={() => handleDownload(row)}
-                    aria-label={t("admin.section.backups.downloadAria", {
-                      username: row.username,
-                    })}
-                    className="min-h-11"
-                  >
-                    {downloadingId === row.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5" />
-                    )}
-                    {t("admin.section.backups.download")}
-                  </Button>
-                  <RestoreRowDialog
-                    row={row}
-                    pending={
-                      restore.isPending && restore.variables?.id === row.id
-                    }
-                    onConfirm={() => restore.mutate(row)}
-                  />
-                </div>
-              </li>
+                <li>
+                  <div className="flex items-center gap-2">
+                    <span className="truncate font-medium">{row.username}</span>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {formatBackupType(row.type, t)}
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">
+                    {t("admin.section.backups.colSize")}:{" "}
+                    {formatBytes(row.sizeBytes, fmt)} ·{" "}
+                    {fmt.dateTime(row.createdAt)}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={downloadingId === row.id}
+                      onClick={() => handleDownload(row)}
+                      aria-label={t("admin.section.backups.downloadAria", {
+                        username: row.username,
+                      })}
+                      className="min-h-11"
+                    >
+                      {downloadingId === row.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5" />
+                      )}
+                      {t("admin.section.backups.download")}
+                    </Button>
+                    <RestoreRowDialog
+                      row={row}
+                      pending={
+                        restore.isPending && restore.variables?.id === row.id
+                      }
+                      onConfirm={() => restore.mutate(row)}
+                    />
+                  </div>
+                </li>
+              </ListRow>
             ))}
           </ul>
 
@@ -602,6 +607,6 @@ export function BackupsSection() {
           </p>
         </div>
       )}
-    </div>
+    </SettingsCard>
   );
 }

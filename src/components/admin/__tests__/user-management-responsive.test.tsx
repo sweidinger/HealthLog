@@ -115,9 +115,9 @@ describe("UserManagementSection — mobile responsive", () => {
     expect(mobileSlice).toContain("Force logout");
   });
 
-  it("uses smaller card padding on mobile (p-4 sm:p-6)", () => {
+  it("uses smaller card padding on mobile (p-4 md:p-6)", () => {
     const html = render();
-    expect(html).toMatch(/class="[^"]*\bp-4\b[^"]*sm:p-6/);
+    expect(html).toMatch(/class="[^"]*\bp-4\b[^"]*md:p-6/);
   });
 
   it("wraps the filter pills below the title on narrow viewports", () => {

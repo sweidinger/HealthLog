@@ -21,6 +21,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Sparkles } from "lucide-react";
 
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -70,7 +71,7 @@ export function CoachFeedbackSection() {
   // /admin/coach-feedback. Mirrors the canonical structure used by
   // <SystemStatusSection> (header outside the fetch-state branch).
   return (
-    <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
+    <SettingsCard className="space-y-4">
       <SettingsCardHeader
         icon={Sparkles}
         title={t("admin.coachFeedback.title")}
@@ -167,6 +168,6 @@ export function CoachFeedbackSection() {
           </table>
         </div>
       )}
-    </div>
+    </SettingsCard>
   );
 }

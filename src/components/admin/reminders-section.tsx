@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -53,7 +54,7 @@ function NotificationHealthPanel() {
   });
 
   return (
-    <div className="bg-card border-border mt-6 rounded-xl border p-4 sm:p-6">
+    <SettingsCard className="mt-6">
       <SettingsCardHeader
         icon={HeartPulse}
         title={t("admin.notificationHealth.title")}
@@ -110,7 +111,7 @@ function NotificationHealthPanel() {
           </div>
         )}
       </div>
-    </div>
+    </SettingsCard>
   );
 }
 
@@ -194,7 +195,7 @@ export function RemindersSection() {
 
   return (
     <>
-      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCard>
         {/* v1.4.22 D / F-58 — icon swap so the section header matches
           the admin-shell nav tile (Bell). Clock now lives on the
           timing chips inline instead of competing as the page icon. */}
@@ -404,7 +405,7 @@ export function RemindersSection() {
               </div>
             </div>
           )}
-      </div>
+      </SettingsCard>
       <NotificationHealthPanel />
     </>
   );

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -99,7 +100,7 @@ export function AssistantSection() {
   const disabledSubs = !masterOn || mutation.isPending;
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Sparkles}
         title={t("admin.assistant.title")}
@@ -166,6 +167,6 @@ export function AssistantSection() {
           />
         </div>
       </div>
-    </div>
+    </SettingsCard>
   );
 }
