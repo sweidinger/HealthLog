@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.26.0] — 2026-07-02 — Light theme and a consistent interface
+
+### Changed
+
+- The light theme is calmer. Text now sits on a soft off-white instead of pure white, the near-black body colour is lifted to a dark tinted grey, cards separate from the background by a gentle step rather than a hard edge, and charts and status colours draw from the theme's own palette — so nothing glares and light mode reads as one harmonious whole. The dark theme is unchanged.
+- Every page shares one header now: the same title size, the same one-line description beneath it, and the same back control. Admin sections, cards and list rows follow the same spacing everywhere, so the app feels of a piece as you move between modules.
+- The remaining forms that still opened the device's own date picker (allergies, environment, documents) now use the in-app calendar, matching the rest of the app.
+- Wording is consistent across the interface — one word per action and one term per concept throughout.
+- Mental Wellbeing now shows a visible page title, like every other module.
+
+### Fixed
+
+- When a list can't load, it shows a clear "couldn't load — retry" card instead of looking like there is no data; lists also show a placeholder skeleton while loading rather than a blank spinner.
+- The Coach's medication-adherence storyline now reports the same figure as the dashboard tile. An account that only logged doses it took could previously read as fully on track and hide a real decline.
+- Charts over a custom historic date range now return the range you asked for; a range far in the past could come back showing the most recent stretch instead.
+- Logging out now always clears the session on this device, even if the server hits a transient database error while doing so.
+
+### Security
+
+- Error reports sent to an operator's monitoring service no longer carry the webhook path secret. This only applies if outbound error reporting is enabled.
+- The workout import endpoint no longer accepts a device-owned source from a client, so a synced-device label cannot be forged.
+
 ## [1.25.13] — 2026-07-01 — Briefing and medication fixes
 
 ### Fixed
