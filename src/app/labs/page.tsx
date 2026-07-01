@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PageHeader } from "@/components/ui/page-header";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useAuth } from "@/hooks/use-auth";
@@ -66,73 +67,66 @@ export default function LabsPage() {
   return (
     <div className="space-y-6">
       <PullToRefreshIndicator {...pull} />
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1
-            data-tour-id="labs-hero"
-            className="text-2xl font-bold tracking-tight"
-          >
-            {t("labs.title")}
-          </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm">
-            {t("labs.subtitle")}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {/* v1.18.6 (MOD-01) — the wrench is the module's customize entry
-              point, left of the primary Add and linking to the Labs settings
-              page (view, sort order, biomarker CRUD + reorder). Mirrors the
-              medication page header's wrench glyph + slot + 44px tap floor. */}
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
-          >
-            <Link
-              href="/settings/layout/labs"
-              aria-label={t("labs.customize")}
-              title={t("labs.customize")}
-            >
-              <Wrench className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </Button>
-          {/* v1.18.10 — the "Add" action is a CHOICE when scanning is
-              available: scan a document (OCR) or add a value by hand. The scan
-              option only appears when the capability probe reports a usable
-              mode (vision, or local OCR opted-in for text-only providers), so
-              the surface stays simple for everyone else. When scanning is
-              unavailable, Add opens the manual form directly. */}
-          {ocrCapability.data?.available ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="min-h-11 sm:min-h-9">
-                  <Plus className="h-4 w-4" />
-                  {t("common.add")}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setScanOpen(true)}>
-                  <ScanLine className="h-4 w-4" aria-hidden="true" />
-                  {t("labs.ocr.addScan")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setDialogOpen(true)}>
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                  {t("labs.ocr.addManual")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
+      <PageHeader
+        title={<span data-tour-id="labs-hero">{t("labs.title")}</span>}
+        description={t("labs.subtitle")}
+        actions={
+          <>
+            {/* v1.18.6 (MOD-01) — the wrench is the module's customize entry
+                point, left of the primary Add and linking to the Labs settings
+                page (view, sort order, biomarker CRUD + reorder). Mirrors the
+                medication page header's wrench glyph + slot + 44px tap floor. */}
             <Button
-              onClick={() => setDialogOpen(true)}
-              className="min-h-11 sm:min-h-9"
+              asChild
+              variant="ghost"
+              size="icon"
+              className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
             >
-              <Plus className="h-4 w-4" />
-              {t("common.add")}
+              <Link
+                href="/settings/layout/labs"
+                aria-label={t("labs.customize")}
+                title={t("labs.customize")}
+              >
+                <Wrench className="h-4 w-4" aria-hidden="true" />
+              </Link>
             </Button>
-          )}
-        </div>
-      </div>
+            {/* v1.18.10 — the "Add" action is a CHOICE when scanning is
+                available: scan a document (OCR) or add a value by hand. The scan
+                option only appears when the capability probe reports a usable
+                mode (vision, or local OCR opted-in for text-only providers), so
+                the surface stays simple for everyone else. When scanning is
+                unavailable, Add opens the manual form directly. */}
+            {ocrCapability.data?.available ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="min-h-11 sm:min-h-9">
+                    <Plus className="h-4 w-4" />
+                    {t("common.add")}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => setScanOpen(true)}>
+                    <ScanLine className="h-4 w-4" aria-hidden="true" />
+                    {t("labs.ocr.addScan")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setDialogOpen(true)}>
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                    {t("labs.ocr.addManual")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                onClick={() => setDialogOpen(true)}
+                className="min-h-11 sm:min-h-9"
+              >
+                <Plus className="h-4 w-4" />
+                {t("common.add")}
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <ResponsiveSheet
         open={dialogOpen}

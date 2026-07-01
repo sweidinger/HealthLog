@@ -21,7 +21,7 @@ export default function InsightsMuskelmassePage() {
       chartKey="muscleMass"
       i18nPrefix="insights.muscleMass"
       explainerMetric="muscleMass"
-      color="#bd93f9"
+      color="var(--chart-1)"
       unit="kg"
       yAxisUnit="kg"
       emptyStateIcon={<Dumbbell className="size-6" />}

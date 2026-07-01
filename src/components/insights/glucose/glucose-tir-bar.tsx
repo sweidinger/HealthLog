@@ -16,11 +16,11 @@ import type { TimeInRangeDistribution } from "@/lib/analytics/glucose-metrics";
  */
 
 const BAND_COLORS = {
-  veryLow: "#ff5555", // dracula-red — urgent low
-  low: "#ffb86c", // dracula-orange — low
-  inRange: "#50fa7b", // dracula-green — target
-  high: "#f1fa8c", // dracula-yellow — high
-  veryHigh: "#ff79c6", // dracula-pink — urgent high
+  veryLow: "var(--destructive)", // dracula-red — urgent low
+  low: "var(--warning)", // dracula-orange — low
+  inRange: "var(--success)", // dracula-green — target
+  high: "var(--dracula-yellow)", // dracula-yellow — high
+  veryHigh: "var(--chart-3)", // dracula-pink — urgent high
 } as const;
 
 type BandKey = keyof typeof BAND_COLORS;

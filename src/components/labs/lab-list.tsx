@@ -9,6 +9,7 @@ import { MedicationCardHeader } from "@/components/medications/medication-card-h
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/api-fetch";
 import { formatDate } from "@/lib/format";
@@ -93,7 +94,7 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
     sortDir: "desc",
   });
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: listKey,
     queryFn: () =>
       apiGet<LabResultListResponse>("/api/labs?limit=500&sortDir=desc"),
@@ -149,10 +150,13 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
   }
 
   if (isError) {
+    // A read failure is NOT an empty list — surface the error + Retry so an
+    // outage never reads as "you have no lab results".
     return (
-      <p role="alert" className="text-destructive py-8 text-center text-sm">
-        {t("labs.loadError")}
-      </p>
+      <QueryErrorCard
+        title={t("labs.loadError")}
+        onRetry={() => void refetch()}
+      />
     );
   }
 

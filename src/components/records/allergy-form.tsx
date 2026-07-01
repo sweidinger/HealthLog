@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -231,11 +232,10 @@ export function AllergyForm({
           <Label htmlFor="allergy-onset">
             {t("records.allergies.form.onset")}
           </Label>
-          <Input
+          <DateField
             id="allergy-onset"
-            type="date"
             value={onsetDate}
-            onChange={(e) => setOnsetDate(e.target.value)}
+            onChange={setOnsetDate}
           />
         </div>
         <div className="space-y-1.5 sm:col-span-2">

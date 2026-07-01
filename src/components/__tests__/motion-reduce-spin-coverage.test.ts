@@ -66,6 +66,67 @@ describe("motion-reduce coverage — every animate-spin pairs with motion-reduce
 });
 
 /**
+ * v1.26.0 — indefinite-animation reduced-motion sweep.
+ *
+ * `animate-pulse` / `animate-bounce` / `animate-ping` are Tailwind's
+ * INDEFINITE keyframe utilities: unlike a one-shot entrance, they loop
+ * until the element unmounts. Any such site that runs for an unbounded
+ * time (a typing indicator, a "listening" mic pulse, a live-status dot)
+ * must pair with `motion-reduce:animate-none` so a motion-sensitive user
+ * sees a static element instead of a perpetual throb.
+ *
+ * Allowlisted: load-terminating skeletons. A `<Skeleton>` / chart
+ * placeholder animates only while data is in flight and then unmounts, so
+ * its pulse is transient rather than perpetual; those files own their own
+ * reduced-motion story (and today still carry the modifier anyway). The
+ * allowlist is the escape hatch for that one legitimate class of use — an
+ * indefinite site elsewhere still has to carry the modifier.
+ *
+ * The check is textual and skips comment lines, mirroring the
+ * `animate-spin` sweep above.
+ */
+describe("motion-reduce coverage — indefinite pulse/bounce/ping pairs with motion-reduce:animate-none", () => {
+  const files = collectTsxFiles(ROOT);
+
+  // Load-terminating skeleton surfaces: their animation is bounded by the
+  // data-load lifecycle, so they are exempt from the perpetual-animation
+  // rule. Path-suffix matched against the absolute filename.
+  const SKELETON_ALLOWLIST = [
+    "src/components/ui/skeleton.tsx",
+    "src/components/charts/chart-skeleton.tsx",
+  ];
+
+  const INDEFINITE_RE = /animate-(pulse|bounce|ping)/;
+
+  it("every indefinite animation site declares motion-reduce:animate-none", () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const posix = file.replace(/\\/g, "/");
+      if (SKELETON_ALLOWLIST.some((f) => posix.includes(f))) continue;
+      const src = readFileSync(file, "utf8");
+      const lines = src.split("\n");
+      lines.forEach((line, idx) => {
+        if (!INDEFINITE_RE.test(line)) return;
+        // Skip comment / JSDoc prose that merely names the utility.
+        const trimmed = line.trim();
+        if (trimmed.startsWith("//") || trimmed.startsWith("*")) return;
+        if (!line.includes("motion-reduce:animate-none")) {
+          violations.push(`${file}:${idx + 1}: ${trimmed}`);
+        }
+      });
+    }
+    expect(
+      violations,
+      `The following indefinite animate-pulse/bounce/ping sites are missing ` +
+        `motion-reduce:animate-none. Append the modifier so motion-sensitive ` +
+        `users see a static element (or allowlist the file if it is a ` +
+        `load-terminating skeleton):\n` +
+        violations.join("\n"),
+    ).toEqual([]);
+  });
+});
+
+/**
  * v1.11.3 — `.animate-insight-in` reduced-motion guard.
  *
  * Unlike `animate-spin` (a Tailwind utility paired with an inline

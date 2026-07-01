@@ -21,7 +21,7 @@ export default function InsightsKopfhoererpegelPage() {
       chartKey="audioExposureHeadphone"
       i18nPrefix="insights.audioExposureHeadphone"
       explainerMetric="headphoneAudio"
-      color="#ff79c6"
+      color="var(--chart-3)"
       unit="dBA"
       yAxisUnit="dBA"
       emptyStateIcon={<Headphones className="size-6" />}

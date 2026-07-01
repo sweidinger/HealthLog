@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -53,10 +54,7 @@ export function RecentAuditPreview() {
   const entries = data?.entries ?? [];
 
   return (
-    <section
-      aria-labelledby="admin-overview-audit-heading"
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
-    >
+    <SettingsCard as="section" aria-labelledby="admin-overview-audit-heading">
       <SettingsCardHeader
         icon={ScrollText}
         titleId="admin-overview-audit-heading"
@@ -145,6 +143,6 @@ export function RecentAuditPreview() {
           </ul>
         )}
       </div>
-    </section>
+    </SettingsCard>
   );
 }

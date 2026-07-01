@@ -24,7 +24,7 @@ export default function InsightsRestingHrPage() {
       chartKey="restingHr"
       i18nPrefix="insights.restingHr"
       explainerMetric="restingHr"
-      color="#ff5555"
+      color="var(--destructive)"
       unit="bpm"
       yAxisUnit="bpm"
       emptyStateIcon={<Heart className="size-6" />}

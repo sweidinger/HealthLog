@@ -25,16 +25,15 @@ import {
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
-import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 import {
-  buildComplianceMedicationContext,
-  expectedSlotCountForDay,
-  lastNonSkippedTakenAt,
-} from "@/lib/analytics/compliance";
-import { getUserTodayBounds, startOfLocalDayInTz } from "@/lib/tz/local-day";
+  buildScheduleAnchoredComplianceBuckets,
+  type ScheduleAnchoredComplianceBucket,
+} from "@/lib/analytics/schedule-anchored-compliance";
+import { startOfLocalDayInTz } from "@/lib/tz/local-day";
 import { projectTodayIntakesAndRecompute } from "@/lib/medications/scheduling/project-today-intakes";
 import {
   applyCanonicalSlotWrite,
@@ -204,7 +203,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // makes the rate genuinely reflect taken-of-expected and lets the 7/30/90
   // windows diverge with partial adherence.
   const result = await cached(
-    caches.medicationsIntake as ServerCache<ComplianceBucket[]>,
+    caches.medicationsIntake as ServerCache<ScheduleAnchoredComplianceBucket[]>,
     `${user.id}|compliance|${days}|${userTz}`,
     () => buildScheduleAnchoredComplianceBuckets(user.id, days, userTz),
     annotate,
@@ -217,161 +216,6 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   return apiSuccess(result);
 });
-
-interface ComplianceBucket {
-  date: string;
-  scheduled: number;
-  taken: number;
-}
-
-/**
- * v1.15.9 — schedule-anchored per-day compliance buckets for the dashboard
- * tile. Replaces the rollup/legacy path whose `scheduled` was the count of
- * logged intake rows (BUG #1: rate `taken / scheduled` ≈ 100% across every
- * window because every logged row was both numerator and denominator).
- *
- * `scheduled` is now the canonical recurrence engine's expected-dose count
- * for the day, summed across the user's active medications, so days the
- * schedule expected a dose that the user missed pull the rate down — and the
- * 7/30/90 windows genuinely diverge with partial adherence. `taken` stays the
- * count of taken (non-skipped, non-auto-missed) doses that day, capped at the
- * day's expected count so a duplicate log can't push a day above 100%.
- *
- * Pure-ish over a single pinned `now` so a 15-minute cached row is internally
- * consistent. Bounded: one active-medications query + one window-events query,
- * then per-medication-per-day engine expansion over the trailing window.
- */
-async function buildScheduleAnchoredComplianceBuckets(
-  userId: string,
-  days: number,
-  userTz: string,
-): Promise<ComplianceBucket[]> {
-  const now = new Date();
-  const nowMs = now.getTime();
-  const start = new Date(nowMs - days * 86_400_000);
-
-  const medications = await prisma.medication.findMany({
-    where: { userId, active: true },
-    include: {
-      schedules: true,
-      // v1.16.3 — archived schedule eras for era-aware expected counts.
-      scheduleRevisions: { orderBy: { validFrom: "asc" } },
-      // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
-      pauseEras: { select: { pausedAt: true, resumedAt: true } },
-    },
-  });
-
-  const events = await prisma.medicationIntakeEvent.findMany({
-    // v1.7.0 sync — exclude tombstoned rows from the compliance buckets.
-    where: { userId, deletedAt: null, scheduledFor: { gte: start } },
-    select: {
-      medicationId: true,
-      scheduledFor: true,
-      takenAt: true,
-      skipped: true,
-      autoMissed: true,
-    },
-  });
-
-  // Pre-compute each local day's [start, end) bounds + key, oldest → newest.
-  // Each day's representative instant anchors on the user's LOCAL NOON of
-  // the current day and steps back in 24-hour increments: noon stays inside
-  // the intended local day across DST shifts (23/25-hour days), and —
-  // unlike the previous `now − 12 h` anchor — it cannot slip into
-  // yesterday when the user's local time is before noon, which silently
-  // dropped TODAY from the buckets for every pre-noon read.
-  const { start: todayStart } = getUserTodayBounds(now, userTz);
-  const todayNoonMs = todayStart.getTime() + 12 * 60 * 60 * 1000;
-  const dayKeys: string[] = [];
-  const dayBounds = new Map<string, { start: Date; end: Date }>();
-  for (let i = days - 1; i >= 0; i--) {
-    const representative = new Date(todayNoonMs - i * 86_400_000);
-    const { start: dayStart, end: dayEndInclusive } = getUserTodayBounds(
-      representative,
-      userTz,
-    );
-    const key = userDayKey(dayStart, userTz);
-    if (dayBounds.has(key)) continue;
-    dayKeys.push(key);
-    dayBounds.set(key, {
-      start: dayStart,
-      end: new Date(dayEndInclusive.getTime() + 1), // half-open [start, end)
-    });
-  }
-
-  const totals = new Map<string, { scheduled: number; taken: number }>();
-  for (const key of dayKeys) totals.set(key, { scheduled: 0, taken: 0 });
-
-  // Group events by medication so each med's engine context is built once.
-  const eventsByMed = new Map<
-    string,
-    {
-      scheduledFor: Date;
-      takenAt: Date | null;
-      skipped: boolean;
-      autoMissed: boolean;
-    }[]
-  >();
-  for (const e of events) {
-    const list = eventsByMed.get(e.medicationId) ?? [];
-    list.push({
-      scheduledFor: e.scheduledFor,
-      takenAt: e.takenAt,
-      skipped: e.skipped,
-      autoMissed: e.autoMissed,
-    });
-    eventsByMed.set(e.medicationId, list);
-  }
-
-  for (const med of medications) {
-    if (med.schedules.length === 0) continue;
-    const medEvents = eventsByMed.get(med.id) ?? [];
-    const ctx = buildComplianceMedicationContext(
-      med,
-      lastNonSkippedTakenAt(medEvents),
-      userTz,
-    );
-
-    for (const key of dayKeys) {
-      const bounds = dayBounds.get(key)!;
-      // Skip days before the medication existed so a young med doesn't paint
-      // missed-denominator days it could not have been dosed on.
-      if (bounds.end <= med.createdAt) continue;
-
-      const scheduled = expectedSlotCountForDay(
-        med.schedules,
-        bounds.start,
-        bounds.end,
-        ctx,
-        medEvents,
-      );
-      if (scheduled === 0) continue;
-
-      // Taken doses that landed in this day's window (non-skipped, non-auto-
-      // missed), capped at the expected count so a duplicate log can't push a
-      // single day above 100%.
-      const takenThisDay = medEvents.filter(
-        (e) =>
-          e.takenAt !== null &&
-          !e.skipped &&
-          !e.autoMissed &&
-          e.scheduledFor >= bounds.start &&
-          e.scheduledFor < bounds.end,
-      ).length;
-
-      const bucket = totals.get(key)!;
-      bucket.scheduled += scheduled;
-      bucket.taken += Math.min(takenThisDay, scheduled);
-    }
-  }
-
-  return dayKeys
-    .map((date) => {
-      const v = totals.get(date)!;
-      return { date, scheduled: v.scheduled, taken: v.taken };
-    })
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
 
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();

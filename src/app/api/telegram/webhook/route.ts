@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { isP2025 } from "@/lib/prisma-errors";
 import { decrypt } from "@/lib/crypto";
 import {
   answerTelegramCallbackQuery,
@@ -945,11 +946,19 @@ async function handleTextMessage(update: TelegramUpdate) {
       context.userId === user.id &&
       (context.kind === "mood_note" || context.kind === "measure_value")
     ) {
-      // Consume the context row regardless of outcome so a reply can't be
-      // replayed onto the entry twice.
-      await prisma.telegramPromptContext
-        .delete({ where: { id: context.id } })
-        .catch(() => {});
+      // The delete IS the replay guard: consuming the context row is what
+      // stops a redelivered reply from being applied to the entry twice. Make
+      // it authoritative — if the delete fails for any reason OTHER than the
+      // row already being gone (P2025), do NOT apply the reply; abort and let
+      // Telegram redeliver against a still-present row. P2025 means the row
+      // was already consumed, which is the guard succeeding, so proceed.
+      try {
+        await prisma.telegramPromptContext.delete({
+          where: { id: context.id },
+        });
+      } catch (err) {
+        if (!isP2025(err)) return;
+      }
       const userMsgId = message?.message_id;
       if (context.expiresAt.getTime() < Date.now()) {
         const resp = await sendTelegramMessage(

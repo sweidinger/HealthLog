@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     session: {
       findUnique: vi.fn(),
+      delete: vi.fn(),
       deleteMany: vi.fn(),
       update: vi.fn(),
     },
@@ -46,7 +47,7 @@ vi.mock("next/headers", () => ({
 }));
 
 import { prisma } from "@/lib/db";
-import { getSession, destroyAllSessions } from "../session";
+import { getSession, destroyAllSessions, destroySession } from "../session";
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -69,6 +70,36 @@ describe("getSession", () => {
     expect(prisma.session.deleteMany).toHaveBeenCalledWith({
       where: { id: "sess-expired" },
     });
+    expect(cookieState.delete).toHaveBeenCalledWith("healthlog_session");
+    expect(cookieState.delete).toHaveBeenCalledWith("hl_onboarding");
+  });
+});
+
+describe("destroySession", () => {
+  it("treats an already-deleted session row (P2025) as an idempotent logout", async () => {
+    cookieState.sessionId = "sess-gone";
+    vi.mocked(prisma.session.delete).mockRejectedValue(
+      Object.assign(new Error("record not found"), { code: "P2025" }) as never,
+    );
+
+    await expect(destroySession()).resolves.toBeUndefined();
+
+    expect(prisma.session.delete).toHaveBeenCalledWith({
+      where: { id: "sess-gone" },
+    });
+    expect(cookieState.delete).toHaveBeenCalledWith("healthlog_session");
+    expect(cookieState.delete).toHaveBeenCalledWith("hl_onboarding");
+  });
+
+  it("clears the cookie even when the row delete fails on a transient fault", async () => {
+    cookieState.sessionId = "sess-live";
+    vi.mocked(prisma.session.delete).mockRejectedValue(
+      Object.assign(new Error("connection reset"), { code: "P1001" }) as never,
+    );
+
+    // A non-P2025 delete failure is recorded on the wide event, not thrown,
+    // so logout never leaves the client authenticated with the cookie intact.
+    await expect(destroySession()).resolves.toBeUndefined();
     expect(cookieState.delete).toHaveBeenCalledWith("healthlog_session");
     expect(cookieState.delete).toHaveBeenCalledWith("hl_onboarding");
   });

@@ -21,7 +21,7 @@ export default function InsightsLaermbelastungPage() {
       chartKey="audioExposureEnv"
       i18nPrefix="insights.audioExposureEnv"
       explainerMetric="environmentalAudio"
-      color="#ff79c6"
+      color="var(--chart-3)"
       unit="dBA"
       yAxisUnit="dBA"
       emptyStateIcon={<Volume2 className="size-6" />}

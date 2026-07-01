@@ -21,7 +21,7 @@ export default function InsightsDoppelstandphasePage() {
       chartKey="walkingDoubleSupport"
       i18nPrefix="insights.walkingDoubleSupport"
       explainerMetric="doubleSupportTime"
-      color="#50fa7b"
+      color="var(--success)"
       unit="%"
       yAxisUnit="%"
       emptyStateIcon={<Footprints className="size-6" />}

@@ -115,11 +115,12 @@ describe("ApiTokenOverviewSection — responsive", () => {
     expect(html).toContain("All");
   });
 
-  it("uses a smaller card padding on mobile (p-4 sm:p-6)", () => {
+  it("uses a smaller card padding on mobile (p-4 md:p-6)", () => {
     const html = render();
-    // The card root carries the responsive padding to leave more room
-    // for content within a 393 CSS-px viewport.
-    expect(html).toMatch(/class="[^"]*\bp-4\b[^"]*sm:p-6/);
+    // The card root carries the shared SettingsCard padding contract
+    // (`p-4 md:p-6`) to leave more room for content within a 393 CSS-px
+    // viewport while stepping up only from `md`, not `sm`.
+    expect(html).toMatch(/class="[^"]*\bp-4\b[^"]*md:p-6/);
   });
 
   it("desktop date cells drop whitespace-nowrap (v1.4.22 C2 5th-attempt fix)", () => {

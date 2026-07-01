@@ -21,7 +21,7 @@ export default function InsightsCardioFitnessPage() {
       chartKey="vo2Max"
       i18nPrefix="insights.cardioFitness"
       explainerMetric="cardioFitness"
-      color="#bd93f9"
+      color="var(--chart-1)"
       unit="mL/(kg·min)"
       yAxisUnit="mL/(kg·min)"
       statIcon={Gauge}

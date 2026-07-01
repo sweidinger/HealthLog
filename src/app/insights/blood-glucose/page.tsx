@@ -51,7 +51,7 @@ export default function InsightsBlutzuckerPage() {
       chartKey="bloodGlucose"
       i18nPrefix="insights.bloodGlucose"
       explainerMetric="bloodGlucose"
-      color="#ff79c6"
+      color="var(--chart-3)"
       unit={glucoseUnit}
       yAxisUnit={glucoseUnit}
       // mmol/L = mg/dL ÷ 18.0182; the chart's valueScale multiplies, so pass

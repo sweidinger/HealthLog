@@ -117,10 +117,10 @@ describe("recordSignInDevice — new-device dedupe", () => {
     expect(dispatchNotification).not.toHaveBeenCalled();
   });
 
-  it("a unique-index race on create does not double-alert", async () => {
+  it("a unique-index race (P2002) on create does not double-alert", async () => {
     vi.mocked(prisma.userKnownDevice.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.userKnownDevice.create).mockRejectedValue(
-      new Error("unique violation"),
+      Object.assign(new Error("unique violation"), { code: "P2002" }),
     );
 
     const res = await recordSignInDevice({
@@ -130,6 +130,27 @@ describe("recordSignInDevice — new-device dedupe", () => {
     });
 
     expect(res).toEqual({ known: true, alerted: false });
+    expect(dispatchNotification).not.toHaveBeenCalled();
+  });
+
+  it("a non-P2002 create failure is NOT masked as a known device", async () => {
+    // A real DB fault must not be misclassified as "device already known" —
+    // that would silently skip the SECURITY_ALERT + audit row. The narrowed
+    // catch rethrows it to the outer handler, which records the failure and
+    // returns the safe `{ known: false, alerted: false }` verdict without
+    // dispatching a bogus alert.
+    vi.mocked(prisma.userKnownDevice.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.userKnownDevice.create).mockRejectedValue(
+      Object.assign(new Error("connection reset"), { code: "P1001" }),
+    );
+
+    const res = await recordSignInDevice({
+      userId: "u1",
+      ip: "203.0.113.9",
+      userAgent: UA,
+    });
+
+    expect(res).toEqual({ known: false, alerted: false });
     expect(dispatchNotification).not.toHaveBeenCalled();
   });
 

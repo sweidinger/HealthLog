@@ -828,10 +828,10 @@ export async function buildTargetsResponse(user: AuthedUser) {
       classification:
         bpInTargetRate != null
           ? bpInTargetRate >= 70
-            ? { category: "Good", color: "#50fa7b" }
+            ? { category: "Good", color: "var(--success)" }
             : bpInTargetRate >= 40
-              ? { category: "Moderate", color: "#f1fa8c" }
-              : { category: "Low", color: "#ff5555" }
+              ? { category: "Moderate", color: "var(--dracula-yellow)" }
+              : { category: "Low", color: "var(--destructive)" }
           : null,
       source: "ESH 2023",
       ...inTargetConsistency,
@@ -1233,10 +1233,10 @@ export async function buildTargetsResponse(user: AuthedUser) {
       classification:
         complianceRate7 != null
           ? complianceRate7 >= 90
-            ? { category: "Very good", color: "#50fa7b" }
+            ? { category: "Very good", color: "var(--success)" }
             : complianceRate7 >= 70
-              ? { category: "Good", color: "#f1fa8c" }
-              : { category: "Low", color: "#ff5555" }
+              ? { category: "Good", color: "var(--dracula-yellow)" }
+              : { category: "Low", color: "var(--destructive)" }
           : null,
       source: "7-day",
       details: {
@@ -1358,10 +1358,10 @@ export async function buildTargetsResponse(user: AuthedUser) {
     const moodClassification =
       latestMoodScore != null
         ? latestMoodScore >= 3.5
-          ? { category: "Good", color: "#50fa7b" }
+          ? { category: "Good", color: "var(--success)" }
           : latestMoodScore >= 2
-            ? { category: "Moderate", color: "#f1fa8c" }
-            : { category: "Low", color: "#ff5555" }
+            ? { category: "Moderate", color: "var(--dracula-yellow)" }
+            : { category: "Low", color: "var(--destructive)" }
         : null;
 
     const moodRange = { min: 3.5, max: 5 };
@@ -1397,10 +1397,10 @@ export async function buildTargetsResponse(user: AuthedUser) {
 
       const stabilityClassification =
         stdDev <= 0.5
-          ? { category: "Very stable", color: "#50fa7b" }
+          ? { category: "Very stable", color: "var(--success)" }
           : stdDev <= 1.0
-            ? { category: "Stable", color: "#f1fa8c" }
-            : { category: "Fluctuating", color: "#ff5555" };
+            ? { category: "Stable", color: "var(--dracula-yellow)" }
+            : { category: "Fluctuating", color: "var(--destructive)" };
 
       // Mood stability is computed from the same recent-mood window;
       // consistency mirrors MOOD_SCORE so the strip aligns with the
@@ -1476,11 +1476,14 @@ export async function buildTargetsResponse(user: AuthedUser) {
     let classification: { category: string; color: string } | null = null;
     if (range && effRange) {
       if (latest >= range.min && latest <= range.max) {
-        classification = { category: "Optimal", color: "#50fa7b" };
+        classification = { category: "Optimal", color: "var(--success)" };
       } else if (latest >= effRange.orangeMin && latest <= effRange.orangeMax) {
-        classification = { category: "Elevated", color: "#f1fa8c" };
+        classification = {
+          category: "Elevated",
+          color: "var(--dracula-yellow)",
+        };
       } else {
-        classification = { category: "High", color: "#ff5555" };
+        classification = { category: "High", color: "var(--destructive)" };
       }
     }
 

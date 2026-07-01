@@ -21,7 +21,7 @@ export default function InsightsGefaessalterPage() {
       chartKey="vascularAge"
       i18nPrefix="insights.vascularAge"
       explainerMetric="vascularAge"
-      color="#ff79c6"
+      color="var(--chart-3)"
       unit="years"
       yAxisUnit="years"
       emptyStateIcon={<HeartPulse className="size-6" />}

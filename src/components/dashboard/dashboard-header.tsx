@@ -22,11 +22,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PageHeader } from "@/components/ui/page-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
 import { getHourForTimeZone } from "@/components/dashboard/range-display";
-import { cn } from "@/lib/utils";
 import type { QuickEntryDialog } from "@/components/dashboard/quick-entry-sheets";
 
 export function DashboardHeader({
@@ -68,106 +68,102 @@ export function DashboardHeader({
       : t("dashboard.welcomeBack", { greeting: timeGreeting });
 
   return (
-    /* With the greeting the title block is two lines on narrow
-       viewports: centre the buttons against it on mobile, top-align on
-       sm+ (the pre-hero posture). Without the greeting the single-line
-       centre alignment stands. */
-    <div
-      className={cn(
-        "flex items-center justify-between gap-4",
-        showGreeting && "sm:items-start",
-      )}
-    >
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t("dashboard.title")}
-        </h1>
-        {showGreeting ? (
+    <PageHeader
+      title={t("dashboard.title")}
+      description={
+        showGreeting ? (
           /* `min-h-5` reserves the greeting's line box from the SSR
              pass on: the text personalises (name appended) on the first
              client re-render after hydration, and the reserved line
              keeps the header from collapsing/growing around that swap. */
-          <p
+          <span
             data-slot="dashboard-header-greeting"
-            className="text-muted-foreground mt-1 min-h-5 truncate text-sm"
+            className="block min-h-5 truncate"
           >
             {welcomeText}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {/* Customize shortcut to the dashboard-customization settings
-            (the tile/layout editor at /settings/dashboard). Sits to
-            the left of the add button as a monochrome ghost icon, with
-            a `min-h-11 min-w-11` mobile floor so it meets the 44 px
-            touch-target contract the add button also honours, shrinking
-            back to the 40 px icon footprint on sm+. */}
-        <Button
-          asChild
-          variant="ghost"
-          size="icon"
-          className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
-          data-testid="dashboard-customize-shortcut"
-        >
-          <Link
-            href="/settings/layout/dashboard"
-            aria-label={t("dashboard.customizeDashboard")}
-            title={t("dashboard.customizeDashboard")}
+          </span>
+        ) : undefined
+      }
+      actions={
+        <>
+          {/* Customize shortcut to the dashboard-customization settings
+              (the tile/layout editor at /settings/dashboard). Sits to
+              the left of the add button as a monochrome ghost icon, with
+              a `min-h-11 min-w-11` mobile floor so it meets the 44 px
+              touch-target contract the add button also honours, shrinking
+              back to the 40 px icon footprint on sm+. */}
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+            data-testid="dashboard-customize-shortcut"
           >
-            <Wrench className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            {/* v1.4.33 maintainer-item-7 — restore proportional sizing
-                across viewports. The v1.4.27 fix pinned a `size="sm"
-                min-h-11` combo to hit WCAG 2.5.5's 44 px touch-target
-                contract on mobile, but `size="sm"` is h-8 (32 px) and
-                the `min-h-11` override stretched the cap vertically
-                while keeping the small horizontal padding — the
-                button read as klobig on Pixel 5. Switch to
-                `size="default"` (h-10 = 40 px) on mobile with a
-                responsive `min-h-11 sm:min-h-9` so the button is
-                44 px tall under finger pressure and shrinks back to
-                the desktop-friendly 36 px on `sm:` upwards. The icon
-                + label keep the same visual contract. */}
-            <Button
-              size="default"
-              className="min-h-11 sm:min-h-9"
-              data-tour-id="dashboard-quick-add"
+            <Link
+              href="/settings/layout/dashboard"
+              aria-label={t("dashboard.customizeDashboard")}
+              title={t("dashboard.customizeDashboard")}
             >
-              <Plus className="h-4 w-4" />
-              {t("common.add")}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-w-[calc(100vw-2rem)]">
-            {/* Menu items must each carry a self-contained verb-phrase
-                ("Log measurement", "Log mood") — the trigger above already
-                says "Add", and the icon is `aria-hidden`, so the visible
-                text is the only thing distinguishing the rows. v1.4.15
-                phase-A3 fix #1 hardened this with a unit guard at
-                `src/app/__tests__/quick-add-labels.test.ts` — both labels
-                must differ from each other AND from `common.add`. */}
-            <DropdownMenuItem onClick={() => onQuickEntry("measurement")}>
-              <Activity className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t("dashboard.quickAddMeasurement")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onQuickEntry("mood")}>
-              <Waves className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t("dashboard.quickAddMood")}
-            </DropdownMenuItem>
-            {/* v1.4.37 W7b — third quick-add row: medication intake.
-                Same Sheet-on-mobile / Dialog-on-desktop primitive as
-                the other two; the menu label is a self-contained
-                verb-phrase so it doesn't collide with the trigger or
-                the sibling rows (cf. quick-add-labels.test.ts). */}
-            <DropdownMenuItem onClick={() => onQuickEntry("medicationIntake")}>
-              <Pill className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t("dashboard.quickAddMedicationIntake")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
+              <Wrench className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              {/* v1.4.33 maintainer-item-7 — restore proportional sizing
+                  across viewports. The v1.4.27 fix pinned a `size="sm"
+                  min-h-11` combo to hit WCAG 2.5.5's 44 px touch-target
+                  contract on mobile, but `size="sm"` is h-8 (32 px) and
+                  the `min-h-11` override stretched the cap vertically
+                  while keeping the small horizontal padding — the
+                  button read as klobig on Pixel 5. Switch to
+                  `size="default"` (h-10 = 40 px) on mobile with a
+                  responsive `min-h-11 sm:min-h-9` so the button is
+                  44 px tall under finger pressure and shrinks back to
+                  the desktop-friendly 36 px on `sm:` upwards. The icon
+                  + label keep the same visual contract. */}
+              <Button
+                size="default"
+                className="min-h-11 sm:min-h-9"
+                data-tour-id="dashboard-quick-add"
+              >
+                <Plus className="h-4 w-4" />
+                {t("common.add")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="max-w-[calc(100vw-2rem)]"
+            >
+              {/* Menu items must each carry a self-contained verb-phrase
+                  ("Log measurement", "Log mood") — the trigger above already
+                  says "Add", and the icon is `aria-hidden`, so the visible
+                  text is the only thing distinguishing the rows. v1.4.15
+                  phase-A3 fix #1 hardened this with a unit guard at
+                  `src/app/__tests__/quick-add-labels.test.ts` — both labels
+                  must differ from each other AND from `common.add`. */}
+              <DropdownMenuItem onClick={() => onQuickEntry("measurement")}>
+                <Activity className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("dashboard.quickAddMeasurement")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onQuickEntry("mood")}>
+                <Waves className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("dashboard.quickAddMood")}
+              </DropdownMenuItem>
+              {/* v1.4.37 W7b — third quick-add row: medication intake.
+                  Same Sheet-on-mobile / Dialog-on-desktop primitive as
+                  the other two; the menu label is a self-contained
+                  verb-phrase so it doesn't collide with the trigger or
+                  the sibling rows (cf. quick-add-labels.test.ts). */}
+              <DropdownMenuItem
+                onClick={() => onQuickEntry("medicationIntake")}
+              >
+                <Pill className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("dashboard.quickAddMedicationIntake")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      }
+    />
   );
 }

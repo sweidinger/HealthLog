@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { measurementSourceEnum } from "./measurement";
+import { writableMeasurementSourceEnum } from "./measurement";
 
 /**
  * Workout sport-type union.
@@ -166,7 +166,13 @@ export const createWorkoutSchema = z
     stepCount: z.number().int().min(0).max(200_000).optional(),
     elevationM: z.number().min(-500).max(10_000).optional(),
     pauseDurationSec: z.number().int().min(0).max(86_400).optional(),
-    source: measurementSourceEnum.optional().default("MANUAL"),
+    // Narrowed to the client-writable subset ({MANUAL, APPLE_HEALTH}) — the
+    // same allowlist the measurement writes use (`WRITABLE_MEASUREMENT_SOURCES`
+    // / `batchSourceEnum`). Server-owned sources (WHOOP, FITBIT) write directly
+    // via `prisma.workout.upsert` with a hardcoded `source`, never through this
+    // schema, so a client cannot forge a row attributed to an integration it
+    // does not own.
+    source: writableMeasurementSourceEnum.optional().default("MANUAL"),
     externalId: z.string().max(128).optional(),
     externalSourceVersion: z.string().max(64).optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),

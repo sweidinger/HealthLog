@@ -21,7 +21,7 @@ export default function InsightsGehgeschwindigkeitPage() {
       chartKey="walkingSpeed"
       i18nPrefix="insights.walkingSpeed"
       explainerMetric="walkingSpeed"
-      color="#50fa7b"
+      color="var(--success)"
       unit="km/h"
       yAxisUnit="km/h"
       valueScale={3.6}

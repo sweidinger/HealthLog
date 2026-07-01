@@ -184,10 +184,10 @@ describe("<IntakeHistoryListV2> — populated rows", () => {
     expect(html).toContain("lucide-check");
     expect(html).toContain("lucide-skip-forward");
 
-    // The green styling pins the taken branch visually so a future
+    // The success styling pins the taken branch visually so a future
     // refactor cannot silently collapse the two chips back into one
     // neutral badge.
-    expect(html).toMatch(/bg-green-500\/20[^"]*text-green-400/);
+    expect(html).toMatch(/bg-success\/15[^"]*text-success/);
 
     // Skipped rows render as a muted outline chip — never as the
     // secondary "Eingenommen" badge.

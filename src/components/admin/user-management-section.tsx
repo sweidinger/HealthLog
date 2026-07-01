@@ -30,7 +30,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDate } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { ListRow } from "@/components/ui/list-row";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { type AdminUser, PasswordInput } from "./_shared";
@@ -253,7 +255,7 @@ export function UserManagementSection() {
   );
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Users}
         title={t("admin.userManagement")}
@@ -385,36 +387,41 @@ export function UserManagementSection() {
               data-testid="admin-users-mobile-list"
             >
               {filteredUsers.map((u) => (
-                <li
+                <ListRow
+                  asChild
                   key={u.id}
-                  className="bg-muted/30 border-border rounded-lg border p-3"
+                  className="bg-muted/30 border-border"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-medium">
-                          {u.username}
-                        </span>
-                        <Badge
-                          variant={u.role === "ADMIN" ? "default" : "secondary"}
-                          className="text-[10px]"
-                        >
-                          {u.role}
-                        </Badge>
+                  <li>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate font-medium">
+                            {u.username}
+                          </span>
+                          <Badge
+                            variant={
+                              u.role === "ADMIN" ? "default" : "secondary"
+                            }
+                            className="text-[10px]"
+                          >
+                            {u.role}
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground truncate text-xs">
+                          {u.email || "—"}
+                        </p>
+                        <p className="text-muted-foreground text-[11px]">
+                          {t("admin.userPasskeys")}: {u.passkeyCount} ·{" "}
+                          {formatDate(u.createdAt)}
+                        </p>
                       </div>
-                      <p className="text-muted-foreground truncate text-xs">
-                        {u.email || "—"}
-                      </p>
-                      <p className="text-muted-foreground text-[11px]">
-                        {t("admin.userPasskeys")}: {u.passkeyCount} ·{" "}
-                        {formatDate(u.createdAt)}
-                      </p>
                     </div>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1">
-                    {renderUserActions(u)}
-                  </div>
-                </li>
+                    <div className="mt-2 flex flex-wrap items-center gap-1">
+                      {renderUserActions(u)}
+                    </div>
+                  </li>
+                </ListRow>
               ))}
             </ul>
           </>
@@ -594,6 +601,6 @@ export function UserManagementSection() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </SettingsCard>
   );
 }

@@ -11,7 +11,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { ListRow } from "@/components/ui/list-row";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { type ApiTokenInfo } from "./_shared";
@@ -157,7 +159,7 @@ export function ApiTokenOverviewSection() {
   });
 
   return (
-    <div className="bg-card border-border overflow-hidden rounded-xl border p-4 sm:p-6">
+    <SettingsCard className="overflow-hidden">
       <SettingsCardHeader
         icon={Key}
         title={t("admin.apiTokens")}
@@ -293,55 +295,60 @@ export function ApiTokenOverviewSection() {
             >
               {tokens.map((token) => {
                 return (
-                  <li
+                  <ListRow
+                    asChild
                     key={token.id}
-                    className="bg-muted/30 border-border overflow-hidden rounded-lg border p-3"
+                    className="bg-muted/30 border-border overflow-hidden"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                    <li>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <TruncatedCell
+                              value={formatTokenName(token.name)}
+                              className="min-w-0 flex-1 font-medium"
+                            />
+                            <TokenStatusBadge token={token} size="xs" />
+                          </div>
                           <TruncatedCell
-                            value={formatTokenName(token.name)}
-                            className="min-w-0 flex-1 font-medium"
+                            value={token.user.username}
+                            className="text-muted-foreground text-xs"
                           />
-                          <TokenStatusBadge token={token} size="xs" />
                         </div>
-                        <TruncatedCell
-                          value={token.user.username}
-                          className="text-muted-foreground text-xs"
-                        />
                       </div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {token.permissions.map((p) => (
-                        <Badge
-                          key={p}
-                          variant="secondary"
-                          className="max-w-full truncate text-[10px]"
-                          title={
-                            p === "*" ? t("admin.tokenPermissionAllTooltip") : p
-                          }
-                        >
-                          {p === "*" ? t("admin.tokenPermissionAll") : p}
-                        </Badge>
-                      ))}
-                    </div>
-                    <p className="text-muted-foreground mt-2 text-[11px]">
-                      {t("admin.tokenLastUsed")}:{" "}
-                      {token.lastUsedAt
-                        ? formatDateTime(token.lastUsedAt)
-                        : t("admin.tokenNeverUsed")}
-                    </p>
-                    <p className="text-muted-foreground text-[11px]">
-                      {t("admin.tokenCreated")}: {formatDate(token.createdAt)}
-                    </p>
-                  </li>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {token.permissions.map((p) => (
+                          <Badge
+                            key={p}
+                            variant="secondary"
+                            className="max-w-full truncate text-[10px]"
+                            title={
+                              p === "*"
+                                ? t("admin.tokenPermissionAllTooltip")
+                                : p
+                            }
+                          >
+                            {p === "*" ? t("admin.tokenPermissionAll") : p}
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-muted-foreground mt-2 text-[11px]">
+                        {t("admin.tokenLastUsed")}:{" "}
+                        {token.lastUsedAt
+                          ? formatDateTime(token.lastUsedAt)
+                          : t("admin.tokenNeverUsed")}
+                      </p>
+                      <p className="text-muted-foreground text-[11px]">
+                        {t("admin.tokenCreated")}: {formatDate(token.createdAt)}
+                      </p>
+                    </li>
+                  </ListRow>
                 );
               })}
             </ul>
           </>
         )}
       </div>
-    </div>
+    </SettingsCard>
   );
 }

@@ -17,13 +17,7 @@
  */
 import { useId, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  ChevronDown,
-  Plus,
-  RefreshCw,
-  Stethoscope,
-  Wrench,
-} from "lucide-react";
+import { ChevronDown, Plus, Stethoscope, Wrench } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +29,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -379,46 +375,39 @@ export function IllnessView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1
-            data-tour-id="illness-hero"
-            className="text-2xl font-bold tracking-tight"
-          >
-            {t("illness.title")}
-          </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm">
-            {t("illness.subtitle")}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {/* v1.18.6 (MOD-01) — wrench left of the primary Add, linking to the
-              Illness settings page (view + reorder). */}
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
-          >
-            <Link
-              href="/settings/layout/illness"
-              aria-label={t("illness.customize")}
-              title={t("illness.customize")}
+      <PageHeader
+        title={<span data-tour-id="illness-hero">{t("illness.title")}</span>}
+        description={t("illness.subtitle")}
+        actions={
+          <>
+            {/* v1.18.6 (MOD-01) — wrench left of the primary Add, linking to the
+                Illness settings page (view + reorder). */}
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
             >
-              <Wrench className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </Button>
-          {/* v1.18.6 (MOD-02) — the add button reads "hinzufügen" like every
-              other module, not the bespoke "neue Episode". */}
-          <Button
-            onClick={() => setNewOpen(true)}
-            className="min-h-11 sm:min-h-9"
-          >
-            <Plus className="h-4 w-4" />
-            {t("common.add")}
-          </Button>
-        </div>
-      </div>
+              <Link
+                href="/settings/layout/illness"
+                aria-label={t("illness.customize")}
+                title={t("illness.customize")}
+              >
+                <Wrench className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+            {/* v1.18.6 (MOD-02) — the add button reads "hinzufügen" like every
+                other module, not the bespoke "neue Episode". */}
+            <Button
+              onClick={() => setNewOpen(true)}
+              className="min-h-11 sm:min-h-9"
+            >
+              <Plus className="h-4 w-4" />
+              {t("common.add")}
+            </Button>
+          </>
+        }
+      />
 
       {/* v1.18.6 (DISC-01) — the per-page medical disclaimer line is removed;
           the one-time acknowledgment now lives at onboarding and the legal
@@ -430,23 +419,12 @@ export function IllnessView() {
           <Skeleton className="h-32 w-full" />
         </div>
       ) : isError ? (
-        <div
-          role="alert"
-          data-slot="illness-list-error"
-          className="text-muted-foreground flex flex-col items-start gap-3 py-8 text-sm sm:flex-row sm:items-center sm:justify-between"
-        >
-          <span>{t("illness.listLoadError")}</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => void refetch()}
-            className="gap-1.5"
-          >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{t("common.retry")}</span>
-          </Button>
-        </div>
+        // A read failure is NOT an empty journal — surface the error + Retry so
+        // an outage never reads as "no episodes yet".
+        <QueryErrorCard
+          title={t("illness.listLoadError")}
+          onRetry={() => void refetch()}
+        />
       ) : hasEpisodes ? (
         <>
           {/* Retrospective summary sits above the list so a long history

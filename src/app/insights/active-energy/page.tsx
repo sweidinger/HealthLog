@@ -22,7 +22,7 @@ export default function InsightsActiveEnergyPage() {
       chartKey="activeEnergy"
       i18nPrefix="insights.activeEnergy"
       explainerMetric="activeEnergy"
-      color="#ffb86c"
+      color="var(--warning)"
       unit="kcal"
       yAxisUnit="kcal"
       emptyStateIcon={<Flame className="size-6" />}

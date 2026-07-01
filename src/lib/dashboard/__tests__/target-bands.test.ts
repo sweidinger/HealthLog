@@ -58,26 +58,36 @@ function clientBands(profile: {
       orangeMax: pulseTarget.orangeMax,
     },
     pulseBands: [
-      { min: 30, max: pulseTarget.orangeMin, color: "#ff5555", opacity: 0.16 },
+      {
+        min: 30,
+        max: pulseTarget.orangeMin,
+        color: "var(--destructive)",
+        opacity: 0.16,
+      },
       {
         min: pulseTarget.orangeMin,
         max: pulseTarget.greenMin,
-        color: "#ffb86c",
+        color: "var(--warning)",
         opacity: 0.18,
       },
       {
         min: pulseTarget.greenMin,
         max: pulseTarget.greenMax,
-        color: "#50fa7b",
+        color: "var(--success)",
         opacity: 0.2,
       },
       {
         min: pulseTarget.greenMax,
         max: pulseTarget.orangeMax,
-        color: "#ffb86c",
+        color: "var(--warning)",
         opacity: 0.18,
       },
-      { min: pulseTarget.orangeMax, max: 220, color: "#ff5555", opacity: 0.16 },
+      {
+        min: pulseTarget.orangeMax,
+        max: 220,
+        color: "var(--destructive)",
+        opacity: 0.16,
+      },
     ].filter((b) => b.max > b.min),
     bodyFatRange,
     bodyFatBands: buildTrafficLightBands(bodyFatRange.min, bodyFatRange.max, {

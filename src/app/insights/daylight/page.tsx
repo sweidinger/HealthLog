@@ -21,7 +21,7 @@ export default function InsightsTageslichtPage() {
       chartKey="timeInDaylight"
       i18nPrefix="insights.timeInDaylight"
       explainerMetric="daylight"
-      color="#50fa7b"
+      color="var(--success)"
       unit="min"
       yAxisUnit="min"
       emptyStateIcon={<Sun className="size-6" />}

@@ -89,11 +89,11 @@ export const STAGE_ORDER = ["DEEP", "REM", "CORE", "ASLEEP", "AWAKE"] as const;
  * charts-visual-identity rule, no token reshuffle.
  */
 export const STAGE_COLORS: Record<string, string> = {
-  DEEP: "#bd93f9", // dracula-purple — deepest, most restorative
-  REM: "#ff79c6", // dracula-pink — dream phase
-  CORE: "#8be9fd", // dracula-cyan — bulk of sleep
-  ASLEEP: "#50fa7b", // dracula-green — legacy iOS 15- unspecified
-  AWAKE: "#f1fa8c", // dracula-yellow — wake bouts
+  DEEP: "var(--chart-1)", // dracula-purple — deepest, most restorative
+  REM: "var(--chart-3)", // dracula-pink — dream phase
+  CORE: "var(--info)", // dracula-cyan — bulk of sleep
+  ASLEEP: "var(--success)", // dracula-green — legacy iOS 15- unspecified
+  AWAKE: "var(--dracula-yellow)", // dracula-yellow — wake bouts
   IN_BED: "#6272a4", // dracula-comment — pre-asleep
 };
 

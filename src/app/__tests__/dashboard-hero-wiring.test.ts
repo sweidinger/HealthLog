@@ -74,7 +74,7 @@ describe("dashboard hero — header handoff", () => {
     // prop gates the paragraph, and the `min-h-5` line-box reservation
     // keeps the header stable through the post-hydration name swap.
     expect(header).toContain("showGreeting");
-    expect(header).toMatch(/\{showGreeting\s*\?/);
+    expect(header).toMatch(/\{\s*showGreeting\s*\?/);
     expect(header).toContain("min-h-5");
     expect(header).toContain('data-slot="dashboard-header-greeting"');
   });

@@ -205,7 +205,7 @@ export function ClinicianView({
 
         {/* ── Fenced wellness card (descriptive, NOT clinical) ────── */}
         {wellness.length > 0 ? (
-          <section className="rounded-lg border border-dashed border-amber-500/50 bg-amber-500/5 p-5">
+          <section className="border-warning/50 bg-warning/5 rounded-lg border border-dashed p-5">
             <h2 className="text-muted-foreground mb-1 text-base font-semibold">
               {t("clinicianView.wellness.title")}
             </h2>

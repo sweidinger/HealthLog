@@ -19,7 +19,7 @@ export default function InsightsFallsPage() {
       chartKey="fallCount"
       i18nPrefix="insights.falls"
       explainerMetric="falls"
-      color="#ff5555"
+      color="var(--destructive)"
       unit="falls"
       yAxisUnit="falls"
       emptyStateIcon={<PersonStanding className="size-6" />}

@@ -46,7 +46,7 @@ describe("resolveVerticalMarkerPositions", () => {
     );
     expect(positions).toHaveLength(1);
     expect(positions[0].pointIndex).toBe(0);
-    expect(positions[0].color).toBe("#50fa7b");
+    expect(positions[0].color).toBe("var(--success)");
     expect(positions[0].label).toBeUndefined();
   });
 
@@ -69,7 +69,7 @@ describe("resolveVerticalMarkerPositions", () => {
     expect(positions[0].color).toBe("#ff79c6");
     expect(positions[0].label).toBe("Mounjaro 7.5");
     // Default color preserved for the second marker.
-    expect(positions[1].color).toBe("#50fa7b");
+    expect(positions[1].color).toBe("var(--success)");
     expect(positions[1].label).toBeUndefined();
   });
 

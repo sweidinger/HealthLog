@@ -288,25 +288,34 @@
 
 /* ── Light mode (Alucard — official Dracula light) ── */
 :root.light {
-  --background: #f5f5f5;
-  --foreground: #1f1f1f;
-  --card: #ffffff;
-  --card-foreground: #1f1f1f;
-  --popover: #ffffff;
-  --popover-foreground: #1f1f1f;
+  /*
+   * Neutral spine (retuned v1.26.0). Softened off the pure-white / pure-black
+   * high-contrast set — a faint mauve tint (hue ~295–300) runs through every
+   * neutral so the light theme reads gentle rather than harsh. Foreground is a
+   * tinted near-black (not #000), dropping fg-on-card from ~16.5:1 to a
+   * comfortable ~13:1. Accent + semantic tokens below stay as the Alucard
+   * AA-tuned set. oklch throughout so lightness steps are perceptually even.
+   */
+  --background: oklch(0.964 0.004 300);
+  --foreground: oklch(0.3 0.012 295);
+  --card: oklch(0.988 0.003 300);
+  --card-foreground: oklch(0.3 0.012 295);
+  --popover: oklch(0.992 0.002 300);
+  --popover-foreground: oklch(0.3 0.012 295);
   --primary: #644ac9;
-  --primary-foreground: #ffffff;
-  --secondary: #dcdeef;
-  --secondary-foreground: #1f1f1f;
-  --muted: #dcdeef;
-  --muted-foreground: #5b6273;
-  /* Inactive tab-trigger text — the light muted-foreground already clears
-   * AA (4.58:1) on the light muted strip, so the token mirrors it. */
-  --tab-inactive: #5b6273;
-  /* Light-theme counterpart of the NativeSelect chevron (see dark block). */
-  --native-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6273' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  --accent: #dcdeef;
-  --accent-foreground: #1f1f1f;
+  --primary-foreground: oklch(0.99 0.002 300);
+  --secondary: oklch(0.95 0.008 300);
+  --secondary-foreground: oklch(0.3 0.012 295);
+  --muted: oklch(0.955 0.006 300);
+  --muted-foreground: oklch(0.515 0.02 295);
+  /* Inactive tab-trigger text — the light muted-foreground clears AA on the
+   * light muted strip, so the token mirrors it. */
+  --tab-inactive: oklch(0.515 0.02 295);
+  /* Light-theme counterpart of the NativeSelect chevron (see dark block).
+   * Stroke tracks the muted-foreground hex (#686572). */
+  --native-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23686572' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --accent: oklch(0.95 0.008 300);
+  --accent-foreground: oklch(0.3 0.012 295);
   --destructive: #cb3a2a;
   /*
    * Alucard light-mode overrides for the semantic tokens — straight Dracula
@@ -318,22 +327,23 @@
   --info: #036a96;
   /* White glyph on the darker light-mode green — ~6.1:1 on `#14720a`. */
   --success-foreground: #ffffff;
-  --border: #cfcfde;
-  --input: #cfcfde;
-  --ring: #644ac9;
+  --border: oklch(0.885 0.008 300);
+  --input: oklch(0.87 0.009 300);
+  --ring: oklch(0.6 0.13 292);
   --chart-1: #644ac9;
   --chart-2: #14720a;
   --chart-3: #a3134d;
   --chart-4: #036a96;
   --chart-5: #a34d14;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #1f1f1f;
+  --dracula-yellow: #846e15;
+  --sidebar: oklch(0.988 0.003 300);
+  --sidebar-foreground: oklch(0.3 0.012 295);
   --sidebar-primary: #644ac9;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #dcdeef;
-  --sidebar-accent-foreground: #1f1f1f;
-  --sidebar-border: #cfcfde;
-  --sidebar-ring: #644ac9;
+  --sidebar-primary-foreground: oklch(0.99 0.002 300);
+  --sidebar-accent: oklch(0.95 0.008 300);
+  --sidebar-accent-foreground: oklch(0.3 0.012 295);
+  --sidebar-border: oklch(0.885 0.008 300);
+  --sidebar-ring: oklch(0.6 0.13 292);
 
   /*
    * v1.18.7 — wellness-ring per-metric arc colours (Alucard light), CALM pass.

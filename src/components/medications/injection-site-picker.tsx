@@ -252,7 +252,7 @@ export function InjectionSitePicker({
                   cy={coord.y}
                   r="7"
                   fill="none"
-                  className="stroke-amber-500"
+                  className="stroke-[var(--warning)]"
                   strokeWidth="1.2"
                 />
               )}

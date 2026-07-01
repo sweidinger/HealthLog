@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
+import { PageHeader } from "@/components/ui/page-header";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 
 import { AssessmentHistory } from "./assessment-history";
@@ -107,14 +108,12 @@ export function MentalWellbeing() {
     <div className="flex flex-col gap-6">
       {phase === "choose" && (
         <>
-          <header className="flex flex-col gap-2">
-            {/* Title kept for screen readers / document outline only — the
-                visible heading + its tooltip were removed (§ Marc v1.25.5). */}
-            <h1 className="sr-only">{t("mentalHealth.pageTitle")}</h1>
-            <p className="text-muted-foreground text-sm">
-              {t("mentalHealth.pageDescription")}
-            </p>
-          </header>
+          {/* v1.26 — visible page header, consistent with every other module
+              (the title was previously sr-only; the description stays). */}
+          <PageHeader
+            title={t("mentalHealth.pageTitle")}
+            description={t("mentalHealth.pageDescription")}
+          />
 
           <section aria-label={t("mentalHealth.choosePrompt")}>
             <h2 className="sr-only">{t("mentalHealth.choosePrompt")}</h2>

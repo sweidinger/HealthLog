@@ -187,7 +187,7 @@ function IntakeEditDialogBody({
                 date typo, but a deliberate far edit stays saveable. */}
               {showFarHint && (
                 <p
-                  className="text-xs text-amber-600 dark:text-amber-400"
+                  className="text-warning text-xs"
                   data-slot="intake-edit-far-hint"
                 >
                   {t("medications.detail.intake.edit.farFromScheduledWarning")}

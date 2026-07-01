@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { isP2025 } from "@/lib/prisma-errors";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
@@ -69,9 +70,15 @@ export const DELETE = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "whoop.credentials.delete" } });
 
+  // A missing connection row (P2025) is a benign "already disconnected"
+  // no-op; any other failure must propagate rather than be swallowed —
+  // otherwise the encrypted OAuth tokens can be left orphaned while the user
+  // is told the integration was disconnected.
   await prisma.whoopConnection
     .delete({ where: { userId: user.id } })
-    .catch(() => {});
+    .catch((err) => {
+      if (!isP2025(err)) throw err;
+    });
 
   await prisma.user.update({
     where: { id: user.id },

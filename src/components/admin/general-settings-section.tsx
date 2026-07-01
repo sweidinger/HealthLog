@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Settings } from "lucide-react";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -26,7 +27,7 @@ export function GeneralSettingsSection() {
   const currentDefaultTz = settings?.defaultUserTimezone ?? "";
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Settings}
         title={t("admin.appSettings")}
@@ -117,6 +118,6 @@ export function GeneralSettingsSection() {
           </NativeSelect>
         </div>
       </div>
-    </div>
+    </SettingsCard>
   );
 }

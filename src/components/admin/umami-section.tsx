@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Activity, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,7 +73,7 @@ export function UmamiSection() {
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+    <SettingsCard>
       <SettingsCardHeader
         icon={Activity}
         title={t("admin.umamiTitle")}
@@ -153,6 +154,6 @@ export function UmamiSection() {
           {t("common.save")}
         </Button>
       </div>
-    </div>
+    </SettingsCard>
   );
 }

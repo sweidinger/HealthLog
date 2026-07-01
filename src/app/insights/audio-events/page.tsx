@@ -21,7 +21,7 @@ export default function InsightsLaermereignissePage() {
       chartKey="audioExposureEvent"
       i18nPrefix="insights.audioExposureEvent"
       explainerMetric="audioEvents"
-      color="#ff79c6"
+      color="var(--chart-3)"
       unit=""
       yAxisUnit=""
       emptyStateIcon={<Volume2 className="size-6" />}

@@ -217,6 +217,18 @@ describe("createWorkoutSchema", () => {
     ).toThrow();
   });
 
+  it("rejects a server-owned source a client cannot forge", () => {
+    // The client-writable set is exactly {MANUAL, APPLE_HEALTH}. WHOOP /
+    // FITBIT rows are minted server-side by the sync workers; letting a
+    // client attribute a row to them would pollute the per-source canonical
+    // workout picker with rows the integration never produced.
+    for (const forged of ["WHOOP", "FITBIT", "WITHINGS", "COMPUTED"]) {
+      expect(() =>
+        createWorkoutSchema.parse({ ...minimalRun, source: forged }),
+      ).toThrow();
+    }
+  });
+
   it("rejects a max heart rate below the resting floor", () => {
     expect(() =>
       createWorkoutSchema.parse({ ...minimalRun, maxHeartRate: 5 }),

@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ListRow } from "@/components/ui/list-row";
 import {
   FilterBar,
@@ -461,7 +463,7 @@ export function MeasurementList({
       ? "groupBy=day"
       : "raw";
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.measurementsList({
       type: typeFilter === "ALL" ? undefined : typeFilter,
       sourceEq,
@@ -825,9 +827,15 @@ export function MeasurementList({
         )}
 
         {isLoading ? (
-          <div className="flex h-32 items-center justify-center">
-            <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+          <div className="space-y-2" data-slot="measurement-list-loading">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+            ))}
           </div>
+        ) : isError ? (
+          // A read failure is NOT an empty list — surface the error + Retry so
+          // an outage never reads as "you have no measurements".
+          <QueryErrorCard onRetry={() => void refetch()} />
         ) : !data?.measurements?.length ? (
           // v1.4.15 phase-C5: replaces the bare-text empty rectangle.
           // Filter-aware copy distinguishes brand-new accounts ("no

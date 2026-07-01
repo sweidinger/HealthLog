@@ -88,7 +88,7 @@ export const viewport: Viewport = {
   // `--background` from `app/globals.css` for each theme so the bar
   // edge never seams against the page on cold paint.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f2f5" },
     { media: "(prefers-color-scheme: dark)", color: "#282a36" },
   ],
 };

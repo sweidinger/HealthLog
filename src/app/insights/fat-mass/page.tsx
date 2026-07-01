@@ -21,7 +21,7 @@ export default function InsightsFettmassePage() {
       chartKey="fatMass"
       i18nPrefix="insights.fatMass"
       explainerMetric="fatMass"
-      color="#ffb86c"
+      color="var(--warning)"
       unit="kg"
       yAxisUnit="kg"
       emptyStateIcon={<Droplets className="size-6" />}

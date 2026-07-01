@@ -10,16 +10,17 @@ interface PasswordStrengthProps {
   minLength?: number;
 }
 
-// The bar fill stays vivid (it's a non-text indicator), but the label text
-// routes through the AA-tuned semantic tokens — the raw Tailwind 500 tones
-// failed contrast against the white card. Weakest is destructive, the middle
-// band warning, the strong band success.
+// Both the bar fill and the label route through the AA-tuned semantic tokens
+// — the raw Tailwind 500 tones failed contrast against the white card and
+// drift off the app's token vocabulary. Weakest two bands are destructive,
+// the middle band warning, the strong two bands success; fill and text share
+// the same tone per score so the meter reads as one signal.
 const SCORE_COLORS = [
-  { color: "bg-red-500", textColor: "text-destructive" },
-  { color: "bg-orange-500", textColor: "text-destructive" },
-  { color: "bg-yellow-500", textColor: "text-warning" },
-  { color: "bg-green-500", textColor: "text-success" },
-  { color: "bg-emerald-600", textColor: "text-success" },
+  { color: "bg-destructive", textColor: "text-destructive" },
+  { color: "bg-destructive", textColor: "text-destructive" },
+  { color: "bg-warning", textColor: "text-warning" },
+  { color: "bg-success", textColor: "text-success" },
+  { color: "bg-success", textColor: "text-success" },
 ];
 
 export function PasswordStrength({

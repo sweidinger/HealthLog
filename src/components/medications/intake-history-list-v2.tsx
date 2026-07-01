@@ -360,7 +360,7 @@ export function IntakeHistoryListV2({
                         {isTaken ? (
                           <Badge
                             variant="secondary"
-                            className="bg-success/15 text-success gap-1 text-xs dark:bg-green-500/20 dark:text-green-400"
+                            className="bg-success/15 text-success gap-1 text-xs"
                           >
                             <Check aria-hidden="true" className="h-3 w-3" />
                             {t("medications.intakeHistoryStatusTaken")}

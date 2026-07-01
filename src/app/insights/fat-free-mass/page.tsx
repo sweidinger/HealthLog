@@ -21,7 +21,7 @@ export default function InsightsFettfreieMassePage() {
       chartKey="fatFreeMass"
       i18nPrefix="insights.fatFreeMass"
       explainerMetric="fatFreeMass"
-      color="#bd93f9"
+      color="var(--chart-1)"
       unit="kg"
       yAxisUnit="kg"
       emptyStateIcon={<Scale className="size-6" />}

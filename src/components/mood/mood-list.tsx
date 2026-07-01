@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   FilterBar,
   FilterBarDateRange,
@@ -43,7 +45,6 @@ import {
   Loader2,
   Pencil,
   Plus,
-  RefreshCw,
   Smile,
   Trash2,
   ChevronLeft,
@@ -500,27 +501,18 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
         </FilterBar>
 
         {isLoading ? (
-          <div className="flex h-32 items-center justify-center">
-            <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+          <div className="space-y-2" data-slot="mood-list-loading">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+            ))}
           </div>
         ) : isError ? (
-          <div
-            role="alert"
-            data-slot="mood-list-error"
-            className="text-muted-foreground flex flex-col items-start gap-3 py-8 text-sm sm:flex-row sm:items-center sm:justify-between"
-          >
-            <span>{t("mood.loadError")}</span>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => void refetch()}
-              className="gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{t("common.retry")}</span>
-            </Button>
-          </div>
+          // A read failure is NOT an empty list — surface the error + Retry so
+          // an outage never reads as "you have no mood entries".
+          <QueryErrorCard
+            title={t("mood.loadError")}
+            onRetry={() => void refetch()}
+          />
         ) : !data?.entries?.length ? (
           // v1.4.15 phase-C5: replace bare-text empty rectangle with
           // EmptyState. Filter-aware copy splits "no mood entries yet"

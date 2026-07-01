@@ -190,7 +190,7 @@ interface HealthChartProps {
    *   2. A small filled dot sits at the x-axis intersection (mood-
    *      chart style emoji-on-axis pattern repurposed) so a row of
    *      green dots reads as "injection cadence" at a glance.
-   *   3. Default green (`#50fa7b`) to match the strip-tile palette
+   *   3. Default green (`var(--success)`) to match the strip-tile palette
    *      for active medications; callers can override per marker.
    *
    * Off-window markers silently drop via `ifOverflow="discard"`,
@@ -485,7 +485,7 @@ export function resolveVerticalMarkerPositions(
     if (idx === undefined) continue;
     out.push({
       pointIndex: idx,
-      color: marker.color ?? "#50fa7b",
+      color: marker.color ?? "var(--success)",
       label: marker.label,
     });
   }
@@ -570,7 +570,7 @@ function buildTrendSeriesByTime(data: Array<{ date: Date; value: number }>): {
 export function HealthChart({
   types,
   title,
-  colors = ["#bd93f9", "#ff79c6", "#8be9fd"],
+  colors = ["var(--chart-1)", "var(--chart-3)", "var(--chart-4)"],
   unit,
   yAxisUnit,
   valueMode = "raw",

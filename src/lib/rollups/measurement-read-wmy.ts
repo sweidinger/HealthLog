@@ -164,6 +164,10 @@ export async function readBestGranularityRollups(
       type,
       floor.granularity,
       since,
+      // Trailing-window semantics: no upper bound. This router serves the
+      // "last N days to now" probes (summaries-slice / health-score); the
+      // requested-window bounding lives on `readTieredRollupSeries`.
+      null,
       priority,
     );
     if (rows && rows.length > 0) {
@@ -229,20 +233,27 @@ async function readGranularity(
   userId: string,
   type: MeasurementType,
   granularity: RollupGranularity,
-  since: Date,
+  from: Date,
+  to: Date | null,
   userPriorityJson: unknown,
 ): Promise<RollupBucketRow[] | null> {
   // Bounded `findMany`: `(userId, type, granularity, bucketStart, source)`
   // is the composite primary key so the planner picks the index path
-  // every time. `bucketStart >= since` is the same shape
-  // `readRollupBuckets` uses; we don't carry an upper bound because
-  // the helpers are always reading "trailing window to now".
+  // every time. When `to` is supplied the `bucketStart` filter is bounded
+  // on BOTH ends (`gte from` AND `lte to`) so a caller asking for an
+  // arbitrary historic window — `[2020-01-01, 2022-01-01]` — reads the
+  // buckets INSIDE that window rather than the trailing "to now" slice.
+  // This mirrors the DAY-tier `readRollup` in `daily-series-read.ts`
+  // (`bucketStart: { gte: from, lte: to }`) so the tiered read reproduces
+  // the same window contract the live-SQL fallback bounds on both ends.
+  // `to === null` keeps the legacy trailing-window semantics for the
+  // `readBestGranularityRollups` router.
   const rows = await prisma.measurementRollup.findMany({
     where: {
       userId,
       type,
       granularity,
-      bucketStart: { gte: since },
+      bucketStart: to === null ? { gte: from } : { gte: from, lte: to },
     },
     orderBy: { bucketStart: "asc" },
     select: {
@@ -346,20 +357,32 @@ const TIER_ORDER: RollupGranularity[] = ["DAY", "WEEK", "MONTH", "YEAR"];
  * (≤ ~104 weeks for the WEEK tier, ≤ ~12 months/year for MONTH). If a
  * future tier ever risks an unbounded count it must step coarser rather
  * than truncate; no silent cap lives on this path.
+ *
+ * v1.26.0 SEAM-N2 — the reader is bounded to the REQUESTED `[from, to]`
+ * window on BOTH ends, not a trailing "now − windowDays … now" slice.
+ * The caller passes arbitrary ISO instants (a historic "All" range whose
+ * `to` need not be ≈ now), so anchoring on `Date.now()` returned the wrong
+ * buckets entirely. The tier SELECTION still keys off the window WIDTH
+ * (`windowDays`, derived from the span) — only the window the tier READS
+ * changed. This matches the DAY-tier `readRollup` + the live-SQL
+ * `readLiveDaily` fallback, both of which bound on `[from, to]`.
  */
 export async function readTieredRollupSeries(opts: {
   userId: string;
   type: MeasurementType;
-  windowDays: number;
+  from: Date;
+  to: Date;
   priorityJson?: unknown;
 }): Promise<{
   granularity: RollupGranularity;
   rows: TieredSeriesRow[];
 } | null> {
-  const { userId, type, windowDays, priorityJson } = opts;
+  const { userId, type, from, to, priorityJson } = opts;
+  // Tier selection keys off the window WIDTH; derive it the same way the
+  // caller (`daily-series-read`) does so the chosen tier is identical.
+  const windowDays = Math.ceil((to.getTime() - from.getTime()) / 86_400_000);
   if (!Number.isFinite(windowDays) || windowDays <= 0) return null;
 
-  const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
   const priority =
     priorityJson !== undefined
       ? priorityJson
@@ -375,7 +398,8 @@ export async function readTieredRollupSeries(opts: {
       userId,
       type,
       granularity,
-      since,
+      from,
+      to,
       priority,
     );
     if (rows && rows.length > 0) {

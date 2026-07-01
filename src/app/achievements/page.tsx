@@ -32,6 +32,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatDate } from "@/lib/format";
@@ -293,12 +294,10 @@ export default function AchievementsPage() {
   if (!isAuthenticated) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t("achievements.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("achievements.loginRequired")}
-        </p>
+        <PageHeader
+          title={t("achievements.title")}
+          description={t("achievements.loginRequired")}
+        />
       </div>
     );
   }
@@ -313,20 +312,14 @@ export default function AchievementsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1
-            data-tour-id="achievements-hero"
-            className="text-2xl font-bold tracking-tight"
-          >
+      <PageHeader
+        title={
+          <span data-tour-id="achievements-hero">
             {t("achievements.title")}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {t("achievements.subtitle")}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2"></div>
-      </div>
+          </span>
+        }
+        description={t("achievements.subtitle")}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="bg-card border-border flex min-h-34 flex-col justify-between rounded-xl border p-5">

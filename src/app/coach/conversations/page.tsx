@@ -6,6 +6,7 @@ import { MessagesSquare, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { COACH_SCROLLBAR } from "@/components/insights/coach-panel/message-thread";
 import {
   useCoachConversations,
@@ -122,13 +123,13 @@ function CoachConversationsBody() {
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-screen-xl flex-col gap-4 px-4 pt-6 pb-4 md:px-6">
       <header className="flex flex-col gap-3">
-        <h1
-          data-slot="coach-conversations-heading"
-          className="text-foreground flex items-center gap-2 text-lg font-semibold"
-        >
-          <MessagesSquare className="size-5" aria-hidden="true" />
-          {t("insights.coach.historyTitle")}
-        </h1>
+        <PageHeader
+          title={
+            <span data-slot="coach-conversations-heading">
+              {t("insights.coach.historyTitle")}
+            </span>
+          }
+        />
         <div className="relative">
           <Search
             aria-hidden="true"

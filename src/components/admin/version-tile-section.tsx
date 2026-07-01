@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -82,10 +83,7 @@ export function VersionTileSection() {
   const sha = shortSha(version?.buildSha ?? null);
 
   return (
-    <section
-      aria-labelledby="admin-overview-version-heading"
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
-    >
+    <SettingsCard as="section" aria-labelledby="admin-overview-version-heading">
       <SettingsCardHeader
         icon={Tag}
         titleId="admin-overview-version-heading"
@@ -133,6 +131,6 @@ export function VersionTileSection() {
           value={version?.builtAt ? formatDateTime(version.builtAt) : "—"}
         />
       </div>
-    </section>
+    </SettingsCard>
   );
 }

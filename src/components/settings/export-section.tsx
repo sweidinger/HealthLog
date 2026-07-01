@@ -530,7 +530,7 @@ function FullBackupCard() {
           <p className="text-muted-foreground text-xs">
             {t("settings.sections.export.cards.fullBackup.passphraseHelp")}
           </p>
-          <p className="text-xs text-amber-600 dark:text-amber-500">
+          <p className="text-warning text-xs">
             {t("settings.sections.export.cards.fullBackup.noRecoveryWarning")}
           </p>
         </div>

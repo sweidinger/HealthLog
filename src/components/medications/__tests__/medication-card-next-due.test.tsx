@@ -267,7 +267,7 @@ describe("<MedicationCard> — open overdue slot (v1.16.4)", () => {
 
     expect(html).toContain("Overdue ·");
     expect(html).toContain("can still be taken");
-    expect(html).toContain("text-amber-600");
+    expect(html).toContain("text-warning");
     expect(html).not.toContain("Next intake: Tomorrow,");
   });
 
