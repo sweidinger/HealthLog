@@ -60,6 +60,7 @@ import {
   type MergeCandidate,
 } from "@/lib/measurements/cross-source-merge";
 import { validateMeasurementRange } from "@/lib/validations/measurement";
+import { isPlausibleEntryInstant } from "@/lib/validations/entry-instant";
 import { deviceTypeEnum } from "@/lib/validations/source-priority";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
@@ -115,8 +116,23 @@ const batchEntrySchema = z.object({
   hkIdentifier: z.string().min(1).max(120),
   value: z.number().finite(),
   unit: z.string().min(1).max(60),
-  startDate: z.iso.datetime({ offset: true }),
-  endDate: z.iso.datetime({ offset: true }),
+  // Same plausibility bound the single-entry POST applies to `measuredAt`
+  // via `validateEntryInstant` (shared `entry-instant` helper): no future
+  // instant beyond a 5-min clock-skew tolerance, nothing before 1900. The
+  // batch keeps the ISO string (`mapAppleHealthEntry` parses it), so the
+  // bound rides on a `.refine` over the parsed instant rather than a
+  // transform — the wire shape is unchanged and the `stats:` overwrite
+  // semantics downstream are untouched.
+  startDate: z.iso
+    .datetime({ offset: true })
+    .refine((s) => isPlausibleEntryInstant(new Date(s)), {
+      message: "startDate must not be in the future or predate 1900",
+    }),
+  endDate: z.iso
+    .datetime({ offset: true })
+    .refine((s) => isPlausibleEntryInstant(new Date(s)), {
+      message: "endDate must not be in the future or predate 1900",
+    }),
   sleepStage: z.number().int().min(0).max(20).optional(),
   // v1.10.0 — categorical events (WX-B). The integer `HKCategoryValue`
   // codepoint for an EVENT-class category sample (irregular-rhythm,

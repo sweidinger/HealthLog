@@ -2664,17 +2664,7 @@ paths:
                         type: string
                         enum:
                           - MANUAL
-                          - WITHINGS
-                          - IMPORT
                           - APPLE_HEALTH
-                          - COMPUTED
-                          - WHOOP
-                          - FITBIT
-                          - NIGHTSCOUT
-                          - POLAR
-                          - OURA
-                          - TELEGRAM
-                          - MCP
                       externalId:
                         type: string
                         maxLength: 128
