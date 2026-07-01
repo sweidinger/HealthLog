@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.25.13] — 2026-07-01 — Briefing and medication fixes
+
+### Fixed
+
+- The daily briefing no longer vanishes when it mentions one of your own vitals. It could quote a blood-pressure average, a resting pulse, a weight, a mood or a sleep figure that the server had computed but the briefing's number check did not recognise; a single unrecognised figure dropped the entire briefing while the rest of the insight refreshed, so the briefing looked like it had stopped working. Every figure the server pre-computes for those signals is now recognised, and a genuinely invented number is still caught.
+- A medication's dose now reads as a tag next to its category — `7,5 mg` beside `Other` — instead of a separate grey line under the name. Blood-pressure tablets and GLP-1 injections present their strength the same way.
+- The custom on-time window switch in a medication's schedule can now be turned on. Turning it on was previously undone in the same step, so it snapped straight back off and no custom window could be set.
+- The Appearance sub-pages no longer carry a "Back to appearance" link that pushed the layout down; each sub-page is a dead-end by design.
+
 ## [1.25.12] — 2026-06-30 — Follow-up fixes
 
 ### Fixed

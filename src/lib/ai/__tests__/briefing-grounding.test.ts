@@ -196,3 +196,69 @@ describe("W8 aggregate-block grounding extension", () => {
     expect(found.map((f) => f.value)).toContain(250);
   });
 });
+
+// v1.25.13 — the allow-set previously omitted the CORE vitals blocks (weight,
+// blood pressure, pulse, mood, sleep, …) even though the briefing prompt is fed
+// all of them. A verdict-first briefing that restated a blood-pressure average
+// or a resting pulse — figures every BP-tracking user has — tripped the gate and
+// got the WHOLE dailyBriefing stripped to null while the rest of the insight
+// refreshed. These lock in that those figures are now grounded.
+describe("core-vitals grounding extension", () => {
+  const signals = [signal({})];
+
+  it("flags blood-pressure + pulse figures when only signals are passed", () => {
+    const found = findUngroundedBriefingNumbers(
+      {
+        paragraph:
+          "Your blood pressure has averaged 128/82 with a resting pulse near 68.",
+      },
+      signals,
+    );
+    // Without the features block these are ungrounded (the pre-fix strip).
+    // (82 is omitted from the assertion — it collides with the default weight
+    // signal's `latest: 82`, so it grounds coincidentally; 128 + 68 do not.)
+    expect(found.map((f) => f.value)).toEqual(
+      expect.arrayContaining([128, 68]),
+    );
+  });
+
+  it("admits blood-pressure + pulse averages once the features block is passed", () => {
+    const found = findUngroundedBriefingNumbers(
+      {
+        paragraph:
+          "Your blood pressure has averaged 128/82 with a resting pulse near 68.",
+      },
+      signals,
+      {
+        bloodPressure: { avgSys30: 128, avgDia30: 82 },
+        pulse: { avg30: 68 },
+      } as never,
+    );
+    expect(found).toEqual([]);
+  });
+
+  it("admits weight, mood and sleep means from the features block", () => {
+    const found = findUngroundedBriefingNumbers(
+      {
+        paragraph:
+          "Weight sits at 84.5 kg, your mood averaged 3.8 and you slept 7.2 hours.",
+      },
+      signals,
+      {
+        weight: { latest: 84.5, bmi: 26.1 },
+        mood: { avg30: 3.8 },
+        sleep: { avg7: 7.2 },
+      } as never,
+    );
+    expect(found).toEqual([]);
+  });
+
+  it("still flags a genuinely fabricated vital absent from every block", () => {
+    const found = findUngroundedBriefingNumbers(
+      { paragraph: "Your systolic spiked to 195 overnight." },
+      signals,
+      { bloodPressure: { avgSys30: 128, avgDia30: 82 } } as never,
+    );
+    expect(found.map((f) => f.value)).toContain(195);
+  });
+});

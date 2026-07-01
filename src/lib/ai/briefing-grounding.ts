@@ -176,6 +176,107 @@ function authoritativeValues(
       push(pain.avg30);
       push(pain.slope30);
     }
+
+    // v1.25.13 — the core vitals blocks (weight, blood pressure, pulse, body
+    // fat, mood, sleep, activity, RPP, seasonal, historical) are ALL fed to the
+    // briefing prompt, but the allow-set only admitted signalsOfDay + the W8/
+    // clinical aggregates — so a verdict-first briefing that restated a blood-
+    // pressure average or a resting pulse (values every BP-tracking user has)
+    // tripped the gate and got the WHOLE dailyBriefing stripped to null while
+    // the rest of the insight refreshed. Admit every figure the server actually
+    // pre-computed for these blocks; the anti-fabrication guarantee is intact
+    // (only server-computed numbers are ever added to the set).
+    const weight = features.weight;
+    if (weight) {
+      push(weight.latest);
+      push(weight.avg7);
+      push(weight.avg30);
+      push(weight.avg90);
+      push(weight.allTimeAvg);
+      push(weight.allTimeMin);
+      push(weight.allTimeMax);
+      push(weight.slope30);
+      push(weight.bmi);
+    }
+    const bp = features.bloodPressure;
+    if (bp) {
+      push(bp.avgSys30);
+      push(bp.avgDia30);
+      push(bp.avgSys90);
+      push(bp.avgDia90);
+      push(bp.allTimeAvgSys);
+      push(bp.allTimeAvgDia);
+      push(bp.allTimeMinSys);
+      push(bp.allTimeMaxSys);
+      push(bp.allTimeMinDia);
+      push(bp.allTimeMaxDia);
+      push(bp.slopeSys30);
+      push(bp.slopeDia30);
+      push(bp.sdSys30);
+      push(bp.sdDia30);
+      push(bp.pulsePressure30);
+      push(bp.pctInTarget);
+    }
+    const pulse = features.pulse;
+    if (pulse) {
+      push(pulse.avg7);
+      push(pulse.avg30);
+      push(pulse.avg90);
+      push(pulse.allTimeAvg);
+      push(pulse.allTimeMin);
+      push(pulse.allTimeMax);
+      push(pulse.slope30);
+    }
+    const bodyFat = features.bodyFat;
+    if (bodyFat) {
+      push(bodyFat.latest);
+      push(bodyFat.avg30);
+      push(bodyFat.slope30);
+    }
+    const mood = features.mood;
+    if (mood) {
+      push(mood.avg7);
+      push(mood.avg30);
+      push(mood.latest);
+    }
+    const sleep = features.sleep;
+    if (sleep) {
+      push(sleep.avg7);
+      push(sleep.avg30);
+      push(sleep.latest);
+    }
+    const activity = features.activity;
+    if (activity) {
+      push(activity.avg7);
+      push(activity.avg30);
+      push(activity.latest);
+    }
+    const rpp = features.ratePressureProduct;
+    if (rpp) {
+      push(rpp.rpp7);
+      push(rpp.rpp30);
+    }
+    const seasonal = features.seasonalVariation;
+    if (seasonal) {
+      push(seasonal.winterAvgSys);
+      push(seasonal.summerAvgSys);
+      push(seasonal.delta);
+    }
+    const hist = features.historicalComparison;
+    if (hist) {
+      for (const block of [
+        hist.weight,
+        hist.systolic,
+        hist.diastolic,
+        hist.pulse,
+      ]) {
+        if (block) {
+          push(block.current7dAvg);
+          push(block.previous30dAvg);
+          push(block.change);
+        }
+      }
+    }
   }
 
   return values;

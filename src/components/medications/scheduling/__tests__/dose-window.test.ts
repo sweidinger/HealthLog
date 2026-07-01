@@ -158,6 +158,21 @@ describe("dose-window helpers", () => {
       ];
       expect(rowsToEntries(rows)).toEqual([]);
     });
+
+    // v1.25.13 regression — a row toggled custom but still sitting at the
+    // default band serialises to `[]`. This is WHY <DoseWindowEditor> tracks
+    // the "opened" switch state locally instead of reconstructing it from the
+    // persisted value: a value round-trip would drop the row and snap the
+    // switch back off, so the toggle could never turn on until an explicit
+    // range existed — which the editor won't reveal until the toggle is on.
+    it("round-trips a default-band custom row to empty (the toggle-deadlock trap)", () => {
+      const seeded = buildRows(["08:00"], []); // custom:false, band 07:00–09:00
+      const openedAtDefault: DoseWindowRow[] = seeded.map((r) => ({
+        ...r,
+        custom: true,
+      }));
+      expect(rowsToEntries(openedAtDefault)).toEqual([]);
+    });
   });
 
   describe("isOrderedRange", () => {

@@ -28,7 +28,7 @@ function render(node: React.ReactNode) {
 }
 
 describe("<MedicationCardHeader>", () => {
-  it("paints the name on the title row and the dose on its own muted line", () => {
+  it("paints the name on the title row and the dose as a tag before the category", () => {
     const html = render(
       <MedicationCardHeader
         name="Ramipril"
@@ -36,13 +36,13 @@ describe("<MedicationCardHeader>", () => {
         categoryLabel="Blood Pressure"
       />,
     );
-    // Name + dose are now separate elements — the dose rides its own
-    // `data-slot` line directly under the title, not glued to the name.
+    // Name + dose are separate elements — the dose is its own tagged badge
+    // (`data-slot`) sitting beside the category badge, not glued to the name.
     expect(html).toContain("Ramipril");
     expect(html).toContain('data-slot="medication-card-header-dose"');
     expect(html).toContain("5 mg");
     expect(html).toContain("Blood Pressure");
-    // The dose line paints between the name and the category badge.
+    // The dose tag paints between the name and the category badge.
     const nameIdx = html.indexOf("Ramipril");
     const doseIdx = html.indexOf('data-slot="medication-card-header-dose"');
     const categoryIdx = html.indexOf("Blood Pressure");

@@ -6,7 +6,6 @@ import {
   LAYOUT_GROUP_IDS,
   isLayoutGroupId,
 } from "@/components/settings/layout-groups";
-import { SettingsHubBackLink } from "@/components/settings/settings-hub-back-link";
 import { SettingsShell } from "@/components/settings/settings-shell";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
@@ -67,12 +66,6 @@ export default async function SettingsLayoutModulePage({ params }: PageProps) {
         title: t(group.titleKey),
         subtitle: t(group.descriptionKey),
         headingId,
-        topSlot: (
-          <SettingsHubBackLink
-            href="/settings/layout"
-            labelKey="settings.sections.layout.backToHub"
-          />
-        ),
       }}
     >
       <section aria-labelledby={headingId} className="space-y-6">

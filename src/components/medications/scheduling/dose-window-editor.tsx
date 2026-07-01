@@ -18,7 +18,7 @@
  * section chrome the other Zeitplan / Erinnerung rows use.
  */
 
-import { useCallback, useId, useMemo } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 
 import { TimeField } from "@/components/ui/time-field";
 import { Switch } from "@/components/ui/switch";
@@ -26,7 +26,6 @@ import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
 import {
   buildRows,
-  defaultBandForTime,
   isOrderedRange,
   isValidHhmm,
   lateTailDays,
@@ -68,7 +67,31 @@ export function DoseWindowEditor({
   const generatedId = useId();
   const prefix = idPrefix ?? generatedId;
 
-  const rows = useMemo(() => buildRows(timesOfDay, value), [timesOfDay, value]);
+  // v1.25.13 — the switch reflects the user's INTENT to customise, held in
+  // local state, because it cannot be reconstructed from `value` alone: the
+  // persisted contract stores ONLY ranges that differ from the default band
+  // (`rowsToEntries` drops a default-equal range so the column stays minimal).
+  // The former editor seeded the range from the default band on toggle-ON and
+  // emitted immediately, so serialisation dropped it right back to `[]`, the
+  // controlled `checked={row.custom}` recomputed `false`, and the switch
+  // snapped off — the toggle could never turn on without first editing a range
+  // the editor wouldn't reveal until the toggle was on (a deadlock). Tracking
+  // the opened set here decouples the toggle from serialisation: the row shows
+  // its default band, and an explicit range only persists once it differs.
+  const [opened, setOpened] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
+
+  const rows = useMemo(() => {
+    const base = buildRows(timesOfDay, value);
+    if (opened.size === 0) return base;
+    // A row the user opened reads as custom even while its range still equals
+    // the default band (nothing persisted yet); a row already carrying a
+    // stored explicit range is custom via `value` regardless.
+    return base.map((r) =>
+      opened.has(r.timeOfDay) ? { ...r, custom: true } : r,
+    );
+  }, [timesOfDay, value, opened]);
 
   // Rebuild the persisted set from the next row state and bubble it up.
   const emit = useCallback(
@@ -89,12 +112,17 @@ export function DoseWindowEditor({
 
   const toggleCustom = useCallback(
     (row: DoseWindowRow, custom: boolean) => {
-      if (custom) {
-        // Switching ON seeds the range from the current default band so
-        // the user starts from the same band the engine would derive.
-        const def = defaultBandForTime(row.timeOfDay);
-        setRow(row.timeOfDay, { custom: true, start: def.start, end: def.end });
-      } else {
+      setOpened((prev) => {
+        const next = new Set(prev);
+        if (custom) next.add(row.timeOfDay);
+        else next.delete(row.timeOfDay);
+        return next;
+      });
+      // Switching OFF drops any persisted explicit range for the slot (back to
+      // the default derivation). Switching ON needs no emit — the row already
+      // renders the default band and the opened set keeps the switch on; a
+      // range only persists once the user edits it away from the default.
+      if (!custom) {
         setRow(row.timeOfDay, { custom: false });
       }
     },
