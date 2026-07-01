@@ -15,8 +15,9 @@ import { CardHeader, CardTitle } from "@/components/ui/card";
  * surface stays one consistent shape:
  *
  *   Line 1: `{name}` — bold, `text-lg`
- *   Line 2: `{dose}` — muted, rendered only when non-empty
- *   Line 3: `{categoryLabel}` outline badge + optional state badges
+ *   Line 2: `{dose}` outline badge (only when non-empty) + `{categoryLabel}`
+ *           outline badge, side by side — `[7,5 mg] [Sonstiges]`
+ *   Line 3: optional state badges (own row, below)
  *
  * The trailing `actions` slot carries the overflow kebab on the right of
  * the row. State badges (without-notification, paused-since, inactive)
@@ -82,28 +83,27 @@ export function MedicationCardHeader({
         <span>{name}</span>
         {nameChip}
       </CardTitle>
-      {/* The dose sits on its OWN muted line directly under the name, above
-          the category badge. Rendered only when a non-empty dose string is
-          supplied — Vorsorge / lab-list rows pass `dose=""` and get no empty
-          line. The unit is already localised by `formatDose` at the call
-          site (the raw `Medication.dose` carries the English unit key). */}
-      {dose ? (
-        <p
-          data-slot="medication-card-header-dose"
-          className="text-muted-foreground text-sm"
-        >
-          {dose}
-        </p>
-      ) : null}
-      {/* D-H6 — state badges (without-notification, paused-since,
-          inactive) used to share line 2 with the category badge
-          via `flex flex-wrap`. At 320 px any state badge pushed
-          the row to three lines and broke the FB-G1 "two-line,
-          no exceptions" contract for ~20 % of configured drugs.
-          State badges now ride their own row below the category
-          badge so the canonical row stays two lines on narrow
-          viewports. */}
+      {/* v1.25.13 — the dose reads as a TAG sitting beside the category badge
+          (`[7,5 mg] [Sonstiges]`), not as a muted grey line of its own. Both
+          are outline badges on the same row directly under the name so a
+          blood-pressure drug and a GLP-1 injection surface their strength the
+          same way. Rendered only when a non-empty dose string is supplied —
+          Vorsorge / lab-list rows pass `dose=""` and get only the category
+          badge. The unit is already localised by `formatDose` at the call site
+          (the raw `Medication.dose` carries the English unit key).
+          D-H6 — state badges (without-notification, paused-since, inactive)
+          ride their OWN row below (see `stateBadges`) so the canonical row
+          stays two lines at 320 px even for a drug carrying a state badge. */}
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+        {dose ? (
+          <Badge
+            data-slot="medication-card-header-dose"
+            variant="outline"
+            className="text-xs"
+          >
+            {dose}
+          </Badge>
+        ) : null}
         <Badge variant="outline" className="text-xs">
           {categoryLabel}
         </Badge>
