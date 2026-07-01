@@ -79,7 +79,12 @@ export async function readDailySeries(opts: {
     const tiered = await readTieredRollupSeries({
       userId,
       type,
-      windowDays: windowDaysFull,
+      // v1.26.0 SEAM-N2 — pass the resolved `[from, to]` bounds so the tier
+      // reads the REQUESTED window (which may be entirely historic), not a
+      // trailing "to now" slice. `windowDaysFull` still gates entry above and
+      // drives the tier width inside the reader.
+      from,
+      to,
       priorityJson,
     });
     if (tiered && tiered.rows.length > 0) {

@@ -296,12 +296,23 @@ describe("readBestGranularityRollups — cross-consumer routing parity", () => {
  * miss; and that the wire shape mirrors the daily reader.
  */
 describe("readTieredRollupSeries", () => {
+  const DAY_MS = 86_400_000;
+  // A fixed "now-ish" anchor for the current-window cases; the historic case
+  // uses its own explicit past bounds. Nothing in the reader reads
+  // `Date.now()` any more, so these are just span endpoints.
+  const NOW = new Date("2026-06-21T00:00:00.000Z");
+  const win = (days: number, to: Date = NOW) => ({
+    from: new Date(to.getTime() - days * DAY_MS),
+    to,
+  });
+
   it("returns null on a non-positive window without touching the db", async () => {
     expect(
       await readTieredRollupSeries({
         userId: "u",
         type: "WEIGHT",
-        windowDays: 0,
+        from: NOW,
+        to: NOW,
       }),
     ).toBeNull();
     expect(findMany).not.toHaveBeenCalled();
@@ -320,7 +331,7 @@ describe("readTieredRollupSeries", () => {
     const result = await readTieredRollupSeries({
       userId: "u",
       type: "WEIGHT",
-      windowDays: 3650,
+      ...win(3650),
     });
 
     expect(result).not.toBeNull();
@@ -332,12 +343,59 @@ describe("readTieredRollupSeries", () => {
     expect(result?.rows.length).toBe(10);
   });
 
+  // v1.26.0 SEAM-N2 — a historic window entirely in the past must bound the
+  // rollup read on BOTH ends. Pre-fix the reader anchored on `now − windowDays`
+  // and would have queried `bucketStart >= now − 730d` (mid-2024 onward),
+  // returning recent buckets for a 2020–2022 ask.
+  it("bounds the rollup read on BOTH ends for a historic past window", async () => {
+    const from = new Date("2020-01-01T00:00:00.000Z");
+    const to = new Date("2022-01-01T00:00:00.000Z");
+    const inWindow: RollupBucketRow[] = [
+      bucket("2020-02-01T00:00:00.000Z", { count: 12, mean: 80 }),
+      bucket("2021-06-01T00:00:00.000Z", { count: 12, mean: 81 }),
+      bucket("2021-12-01T00:00:00.000Z", { count: 12, mean: 82 }),
+    ];
+    findMany.mockResolvedValueOnce(inWindow);
+
+    const result = await readTieredRollupSeries({
+      userId: "u",
+      type: "WEIGHT",
+      from,
+      to,
+    });
+
+    // The `bucketStart` filter carries BOTH the requested lower AND upper
+    // bound — not a trailing "to now" slice.
+    const where = findMany.mock.calls[0][0].where;
+    expect(where.bucketStart).toEqual({ gte: from, lte: to });
+    // Every returned bucket_start falls inside the requested window.
+    for (const row of result?.rows ?? []) {
+      const t = new Date(row.measuredAt).getTime();
+      expect(t).toBeGreaterThanOrEqual(from.getTime());
+      expect(t).toBeLessThanOrEqual(to.getTime());
+    }
+    // Tier width is 2 years (731 days) → still the MONTH tier for >730 d.
+    expect(result?.granularity).toBe("MONTH");
+  });
+
+  // The web-chart "All" path passes `to ≈ now`; prove that case still bounds
+  // on both ends (no regression) — the historic fix must not perturb it.
+  it("bounds a current-window (to = now) read on both ends too", async () => {
+    findMany.mockResolvedValueOnce([bucket("2026-01-01T00:00:00.000Z")]);
+    const { from, to } = win(3650);
+    await readTieredRollupSeries({ userId: "u", type: "WEIGHT", from, to });
+    expect(findMany.mock.calls[0][0].where.bucketStart).toEqual({
+      gte: from,
+      lte: to,
+    });
+  });
+
   it("reads the WEEK tier for a 1–2 year window", async () => {
     findMany.mockResolvedValueOnce([bucket("2025-08-04T00:00:00.000Z")]);
     const result = await readTieredRollupSeries({
       userId: "u",
       type: "WEIGHT",
-      windowDays: 540,
+      ...win(540),
     });
     expect(result?.granularity).toBe("WEEK");
     expect(findMany.mock.calls[0][0].where.granularity).toBe("WEEK");
@@ -351,7 +409,7 @@ describe("readTieredRollupSeries", () => {
     const result = await readTieredRollupSeries({
       userId: "u",
       type: "WEIGHT",
-      windowDays: 3650,
+      ...win(3650),
     });
     expect(result?.granularity).toBe("DAY");
     expect(findMany.mock.calls[0][0].where.granularity).toBe("MONTH");
@@ -364,7 +422,7 @@ describe("readTieredRollupSeries", () => {
     const result = await readTieredRollupSeries({
       userId: "u",
       type: "WEIGHT",
-      windowDays: 3650,
+      ...win(3650),
     });
     expect(result).toBeNull();
     // MONTH, WEEK, DAY all probed (never coarser than the target).
@@ -384,7 +442,7 @@ describe("readTieredRollupSeries", () => {
     const result = await readTieredRollupSeries({
       userId: "u",
       type: "ACTIVITY_STEPS",
-      windowDays: 3650,
+      ...win(3650),
     });
     expect(result?.rows[0].value).toBe(240_000);
     expect(result?.rows[0].minValue).toBeUndefined();
@@ -403,7 +461,7 @@ describe("readTieredRollupSeries", () => {
     const result = await readTieredRollupSeries({
       userId: "u",
       type: "WEIGHT",
-      windowDays: 3650,
+      ...win(3650),
     });
     expect(result?.rows[0].value).toBe(81.5);
     expect(result?.rows[0].minValue).toBe(78);

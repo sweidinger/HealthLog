@@ -112,7 +112,10 @@ describe("readDailySeries — long-range tier step-up", () => {
     });
 
     expect(mocks.readTieredRollupSeries).toHaveBeenCalledTimes(1);
-    expect(mocks.readTieredRollupSeries.mock.calls[0][0].windowDays).toBe(3650);
+    // v1.26.0 SEAM-N2 — the resolved `[from, to]` bounds are threaded so the
+    // tier reads the REQUESTED window, not a trailing "to now" slice.
+    expect(mocks.readTieredRollupSeries.mock.calls[0][0].from).toBe(from);
+    expect(mocks.readTieredRollupSeries.mock.calls[0][0].to).toBe(to);
     // Whole-history coverage: the earliest 2017 bucket survives.
     expect(result[0].measuredAt).toBe("2017-01-01T00:00:00.000Z");
     expect(result).toHaveLength(2);
