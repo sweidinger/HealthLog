@@ -6,6 +6,7 @@ import { Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
@@ -125,19 +126,10 @@ export function CycleView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1
-            data-tour-id="cycle-hero"
-            className="text-2xl font-bold tracking-tight"
-          >
-            {t("cycle.title")}
-          </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm">
-            {t("cycle.subtitle")}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+      <PageHeader
+        title={<span data-tour-id="cycle-hero">{t("cycle.title")}</span>}
+        description={t("cycle.subtitle")}
+        actions={
           <Button
             onClick={() => openSheet(today)}
             className="min-h-11 sm:min-h-9"
@@ -145,8 +137,8 @@ export function CycleView() {
             <Plus className="h-4 w-4" />
             {t("cycle.logToday")}
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Desktop: ring (left) + tabs (right). Single column below lg. */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">

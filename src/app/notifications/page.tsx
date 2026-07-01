@@ -6,6 +6,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { Bell, Loader2, Settings, AlertCircle } from "lucide-react";
 import {
@@ -129,12 +130,10 @@ export default function NotificationsPage() {
   if (!isAuthenticated) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t("notifications.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("notifications.loginRequired")}
-        </p>
+        <PageHeader
+          title={t("notifications.title")}
+          description={t("notifications.loginRequired")}
+        />
       </div>
     );
   }
@@ -146,14 +145,10 @@ export default function NotificationsPage() {
   if (isError) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {t("notifications.title")}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {t("notifications.subtitle")}
-          </p>
-        </div>
+        <PageHeader
+          title={t("notifications.title")}
+          description={t("notifications.subtitle")}
+        />
         <div
           role="alert"
           className="border-destructive/40 bg-destructive/10 text-destructive rounded-lg border p-4 text-sm"
@@ -168,14 +163,10 @@ export default function NotificationsPage() {
   if (activeChannels.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {t("notifications.title")}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {t("notifications.subtitle")}
-          </p>
-        </div>
+        <PageHeader
+          title={t("notifications.title")}
+          description={t("notifications.subtitle")}
+        />
         <div className="bg-card border-border max-w-2xl rounded-xl border p-6">
           <div className="flex flex-col items-center gap-4 py-8 text-center">
             <Bell className="text-muted-foreground h-12 w-12" />

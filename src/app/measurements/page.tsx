@@ -13,6 +13,7 @@ import { MeasurementList } from "@/components/measurements/measurement-list";
 import { CustomMetricList } from "@/components/custom-metrics/custom-metric-list";
 import { MEASUREMENT_TYPE_LABEL_KEYS } from "@/components/measurements/measurement-list-meta";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Plus, Loader2 } from "lucide-react";
@@ -125,22 +126,14 @@ export default function MeasurementsPage() {
   return (
     <div className="space-y-6">
       <PullToRefreshIndicator {...pull} />
-      <div className="flex items-center justify-between">
-        <div className="min-w-0">
-          <h1
-            data-tour-id="measurements-hero"
-            className="text-2xl font-bold tracking-tight"
-          >
+      <PageHeader
+        title={
+          <span data-tour-id="measurements-hero">
             {t("measurements.title")}
-          </h1>
-          {/* v1.4.34 IW-G — subtitle now stays visible on mobile so
-              the H1 isn't an unframed label. `text-xs sm:text-sm`
-              preserves the desktop hierarchy. */}
-          <p className="text-muted-foreground truncate text-xs sm:text-sm">
-            {t("measurements.subtitle")}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+          </span>
+        }
+        description={t("measurements.subtitle")}
+        actions={
           <Button
             className="min-h-11 sm:min-h-9"
             onClick={() => setDialogOpen(true)}
@@ -148,8 +141,8 @@ export default function MeasurementsPage() {
             <Plus className="h-4 w-4" />
             {t("measurements.addMeasurement")}
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       <ResponsiveSheet
         open={dialogOpen}
