@@ -62,6 +62,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -309,11 +310,10 @@ export function InboundDocumentsView() {
               <Label htmlFor="doc-date">
                 {t("documents.upload.dateLabel")}
               </Label>
-              <Input
+              <DateField
                 id="doc-date"
-                type="date"
                 value={uploadDate}
-                onChange={(e) => setUploadDate(e.target.value)}
+                onChange={setUploadDate}
                 disabled={upload.isPending}
               />
             </div>
@@ -398,22 +398,20 @@ export function InboundDocumentsView() {
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="doc-from">{t("documents.toolbar.fromLabel")}</Label>
-          <Input
+          <DateField
             id="doc-from"
-            type="date"
             value={fromDate}
             max={toDate || undefined}
-            onChange={(e) => setFromDate(e.target.value)}
+            onChange={setFromDate}
           />
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="doc-to">{t("documents.toolbar.toLabel")}</Label>
-          <Input
+          <DateField
             id="doc-to"
-            type="date"
             value={toDate}
             min={fromDate || undefined}
-            onChange={(e) => setToDate(e.target.value)}
+            onChange={setToDate}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -920,7 +918,7 @@ function InlineNote({ slot, children }: { slot: string; children: string }) {
     <div
       role="status"
       aria-live="polite"
-      className="flex items-start gap-2 rounded-md border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200"
+      className="border-info/30 bg-info/10 text-info flex items-start gap-2 rounded-md border p-3 text-sm"
       data-slot={slot}
     >
       <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
@@ -1007,12 +1005,7 @@ export function DocumentMetaEditForm({
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="edit-doc-date">{t("documents.edit.dateLabel")}</Label>
-        <Input
-          id="edit-doc-date"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
+        <DateField id="edit-doc-date" value={date} onChange={setDate} />
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onCancel} disabled={save.isPending}>
@@ -1281,11 +1274,10 @@ function EditFields({
         <Label htmlFor={`edit-${idPrefix}-date`} className="text-xs">
           {t("documents.fields.date")}
         </Label>
-        <Input
+        <DateField
           id={`edit-${idPrefix}-date`}
-          type="date"
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={setDate}
         />
       </div>
       <Button

@@ -23,6 +23,7 @@ import { CloudSun, MapPin, Plane, Trash2 } from "lucide-react";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
@@ -410,22 +411,20 @@ export function EnvironmentSection() {
                 <Label htmlFor="env-travel-start">
                   {t("settings.sections.environment.startDate")}
                 </Label>
-                <Input
+                <DateField
                   id="env-travel-start"
-                  type="date"
                   value={travelStart}
-                  onChange={(e) => setTravelStart(e.target.value)}
+                  onChange={setTravelStart}
                 />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="env-travel-end">
                   {t("settings.sections.environment.endDate")}
                 </Label>
-                <Input
+                <DateField
                   id="env-travel-end"
-                  type="date"
                   value={travelEnd}
-                  onChange={(e) => setTravelEnd(e.target.value)}
+                  onChange={setTravelEnd}
                 />
               </div>
               <Button
@@ -457,22 +456,20 @@ export function EnvironmentSection() {
             <Label htmlFor="env-backfill-start">
               {t("settings.sections.environment.startDate")}
             </Label>
-            <Input
+            <DateField
               id="env-backfill-start"
-              type="date"
               value={effectiveBackfillStart}
-              onChange={(e) => setBackfillStart(e.target.value)}
+              onChange={setBackfillStart}
             />
           </div>
           <div className="space-y-1">
             <Label htmlFor="env-backfill-end">
               {t("settings.sections.environment.endDate")}
             </Label>
-            <Input
+            <DateField
               id="env-backfill-end"
-              type="date"
               value={backfillEnd}
-              onChange={(e) => setBackfillEnd(e.target.value)}
+              onChange={setBackfillEnd}
             />
           </div>
           <Button

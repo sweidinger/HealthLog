@@ -459,7 +459,7 @@ export function Glp1MedicationCard({
   const nextLine =
     next && currentWindowStatus.status !== "in_window" ? (
       overdueLabel ? (
-        <span className="font-medium text-amber-600 dark:text-amber-400">
+        <span className="text-warning font-medium">
           {t("medications.nextIntakeOverdue", { time: overdueLabel })}
         </span>
       ) : (

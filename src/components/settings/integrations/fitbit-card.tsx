@@ -201,7 +201,7 @@ export function FitbitCard({
             <Badge
               variant="outline"
               data-testid="fitbit-experimental-badge"
-              className="border-amber-500/50 text-amber-600 dark:text-amber-400"
+              className="border-warning/50 text-warning"
             >
               {t("settings.fitbitExperimentalBadge")}
             </Badge>

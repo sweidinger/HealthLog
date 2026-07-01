@@ -506,7 +506,7 @@ function MedicationTableRowItem({
   } else if (medication.active) {
     if (medication.nextDueOverdue && nextAt) {
       nextCell = (
-        <span className="font-medium text-amber-600 dark:text-amber-400">
+        <span className="text-warning font-medium">
           {t("medications.nextIntakeOverdue", {
             time: formatTime(new Date(nextAt).toISOString()),
           })}
