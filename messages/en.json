@@ -8,7 +8,7 @@
     "moreOptions": "More options",
     "create": "Create",
     "close": "Close",
-    "loading": "Loading...",
+    "loading": "Loading…",
     "loadFailed": "Could not load",
     "error": "Error",
     "saved": "Saved",
@@ -306,7 +306,7 @@
     "hero": {
       "scoreLabel": "Health Score",
       "scoreProvisional": "Not enough data yet",
-      "scoreComputing": "Calculating score …",
+      "scoreComputing": "Calculating score…",
       "doses": {
         "summary": "{taken} of {scheduled} doses taken",
         "nextAt": "Next at {time}",
@@ -817,7 +817,7 @@
     "importIntakes": "Import intakes",
     "importDescription": "Paste a JSON array with intake data. Expected format:",
     "importUploadFile": "Upload JSON file",
-    "importPaste": "Paste JSON here...",
+    "importPaste": "Paste JSON here…",
     "importSelected": "Selected: {name}",
     "importFileLoaded": "File \"{name}\" loaded",
     "importInvalidJson": "File does not contain valid JSON",
@@ -1412,7 +1412,7 @@
         }
       },
       "verlauf": {
-        "loading": "Loading history …",
+        "loading": "Loading history…",
         "loadError": "Could not load the history.",
         "empty": "No intakes in this period yet.",
         "summaryEmpty": "No doses to score yet.",
@@ -1682,7 +1682,7 @@
       "zeitplan": {
         "title": "Schedule",
         "timesTitle": "Dose times",
-        "timesNote": "Adjust each dose's time and on-time window. The frequency (daily, weekly …) is edited in the editor under Advanced.",
+        "timesNote": "Adjust each dose's time and on-time window. The frequency (daily, weekly…) is edited in the editor under Advanced.",
         "scheduleLabel": "Schedule {index}",
         "fullEditNote": "Frequency, treatment class and course window are edited in the editor under Advanced → Lifecycle.",
         "graceEcho": "Reminder window: {minutes} minutes",
@@ -2152,7 +2152,7 @@
       "send": "Send",
       "stop": "Stop",
       "thinking": "Thinking…",
-      "composerPlaceholder": "Ask me anything …",
+      "composerPlaceholder": "Ask me anything…",
       "nudgeBubbleLabel": "New message from the Coach — open chat",
       "fabLabel": "Open the Coach",
       "readAloud": "Read aloud",
@@ -2534,7 +2534,7 @@
       "stimmungEmptyAction": "Open mood journal",
       "medikamenteDescription": "Per-medication adherence calendars and a written assessment.",
       "medikamenteEmptyTitle": "Add your first medication",
-      "medikamenteEmptyDescription": "Compliance insights need at least one tracked medication.",
+      "medikamenteEmptyDescription": "Adherence insights need at least one tracked medication.",
       "medikamenteEmptyAction": "Open medications",
       "bmiDescription": "BMI derived from your weight and height, with a written assessment.",
       "target": {
@@ -3820,7 +3820,7 @@
         },
         "medications": {
           "title": "Medications & intakes",
-          "body": "Medications manages schedules, intakes, stock, and titration. Hidden: recurring plans (RRULE/rolling) and low-stock warnings. Your intake rate feeds the compliance pillar on the dashboard and the AI’s context."
+          "body": "Medications manages schedules, intakes, stock, and titration. Hidden: recurring plans (RRULE/rolling) and low-stock warnings. Your intake rate feeds the adherence pillar on the dashboard and the AI’s context."
         },
         "labs": {
           "title": "Lab values",
@@ -5355,7 +5355,7 @@
     "measurementsCount": "Measurements",
     "activeTokens": "Active API Tokens",
     "activeSessions": "Active Sessions",
-    "loadingStatus": "Loading status...",
+    "loadingStatus": "Loading status…",
     "systemStatusLoadError": "Failed to load system status.",
     "systemStatusRetry": "Retry",
     "adminSettingsLoadError": "Failed to load admin settings. Toggles below may not reflect the live state — refresh the page.",
@@ -5387,7 +5387,7 @@
     },
     "aiQuality": {
       "title": "Insights Quality",
-      "loading": "Loading feedback summary...",
+      "loading": "Loading feedback summary…",
       "loadError": "Failed to load Insights quality summary. Try refreshing the page.",
       "empty": "No feedback yet. The aggregator runs daily at 04:00 — once users start rating recommendations, helpful-rate bands appear here.",
       "windowLabel": "Last {days} days",
@@ -5402,7 +5402,7 @@
     },
     "coachFeedback": {
       "title": "Coach Feedback",
-      "loading": "Loading Coach feedback summary...",
+      "loading": "Loading Coach feedback summary…",
       "loadError": "Failed to load Coach feedback summary. Try refreshing the page.",
       "empty": "No Coach feedback yet. The aggregator runs daily at 04:00 — once users rate Coach replies, helpful-rate bands appear here.",
       "windowLabel": "Last {days} days",
@@ -5574,7 +5574,7 @@
     "newPasswordPlaceholder": "At least 12 characters",
     "passwordReset": "Password has been reset",
     "reset": "Reset",
-    "loadingUsers": "Loading users...",
+    "loadingUsers": "Loading users…",
     "apiTokens": "API Tokens",
     "apiTokensDescription": "All active and revoked API tokens across all accounts.",
     "tokenUser": "User",
@@ -5681,11 +5681,11 @@
       "versionTileUpdateAvailable": "Update available: {tag}",
       "versionTileUpToDate": "Up to date",
       "snapshotLoadError": "Failed to load system snapshot.",
-      "snapshotLoading": "Loading snapshot...",
+      "snapshotLoading": "Loading snapshot…",
       "auditTitle": "Recent activity",
       "auditEmpty": "No recent audit entries.",
       "auditLoadError": "Failed to load recent activity.",
-      "auditLoading": "Loading activity...",
+      "auditLoading": "Loading activity…",
       "auditViewAll": "View all"
     },
     "section": {
@@ -5792,7 +5792,7 @@
         "runNow": "Backup now",
         "runEnqueued": "Backup job enqueued",
         "runFailed": "Failed to enqueue backup",
-        "loading": "Loading backups...",
+        "loading": "Loading backups…",
         "loadError": "Failed to load backups.",
         "emptyTitle": "No backups yet",
         "emptyDescription": "Backups run automatically every Sunday at 03:00 — or trigger one now to create the first snapshot.",
@@ -5820,7 +5820,7 @@
         "restoreDescription": "This will replace ALL current data for {username} with the snapshot from {when}. Existing measurements, medications, intake events, mood entries, notification channels, push subscriptions and queued Telegram deletions will be deleted.",
         "restorePromptLabel": "Type RESTORE to continue",
         "restoreConfirm": "Restore now",
-        "restoreInProgress": "Restoring...",
+        "restoreInProgress": "Restoring…",
         "restoreSuccess": "Restore complete",
         "restoreFailed": "Restore failed",
         "docsLink": "Documentation"
@@ -5840,7 +5840,7 @@
       "encryption": {
         "title": "Encryption",
         "subtitle": "Encryption coverage and key-rotation status for data at rest.",
-        "loading": "Loading encryption status...",
+        "loading": "Loading encryption status…",
         "loadError": "Failed to load encryption status.",
         "coverageTitle": "Coverage",
         "coverageDescription": "How many encrypted rows sit under each key id. Only key ids and counts are shown — never key material.",
@@ -7332,7 +7332,7 @@
     },
     "medications": {
       "label": "Medications",
-      "description": "Schedules, intakes, and compliance."
+      "description": "Schedules, intakes, and adherence."
     },
     "illness": {
       "label": "Illness journal",
