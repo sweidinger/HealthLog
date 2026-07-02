@@ -2,7 +2,13 @@
 
 ## [Unreleased]
 
-## [1.26.0] — 2026-07-02 — Light theme and a consistent interface
+## [1.26.1] — 2026-07-02 — Fitbit setup guide fix
+
+### Fixed
+
+- The Fitbit (Fitbit & Pixel) setup guide described the wrong OAuth app. HealthLog connects through the classic Fitbit Web API, so you register a **Fitbit developer app at dev.fitbit.com** and paste that Client ID/Secret — but the guide walked you through creating a **Google Cloud** OAuth client instead, which the Fitbit sign-in rejects with `unauthorized_client — Invalid client_id`. The guide now describes the correct dev.fitbit.com setup (app type, HTTPS callback, scopes), and flags that Google is retiring the classic Fitbit Web API in September 2026.
+
+
 
 ### Changed
 
