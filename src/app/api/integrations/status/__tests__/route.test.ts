@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => ({
     withingsConnection: { findUnique: vi.fn(async () => null) },
     whoopConnection: { findUnique: vi.fn(async () => null) },
     fitbitConnection: { findUnique: vi.fn(async () => null) },
+    googleHealthConnection: { findUnique: vi.fn(async () => null) },
     moodEntry: { count: vi.fn(async () => 0) },
   },
 }));

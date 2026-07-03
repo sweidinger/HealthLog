@@ -17,15 +17,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Link2,
-  Loader2,
-  RefreshCw,
-  RotateCw,
-  Save,
-  Unlink,
-  Watch,
-} from "lucide-react";
+import { Link2, Loader2, RefreshCw, Save, Unlink, Watch } from "lucide-react";
 
 import {
   AlertDialog,
@@ -263,7 +255,7 @@ export function GoogleHealthCard({
               data-testid="google-health-reconnect-button"
               className="min-h-11"
             >
-              <RotateCw className="h-3.5 w-3.5" />
+              <RefreshCw className="h-3.5 w-3.5" />
               {t("settings.googleHealthReconnect")}
             </Button>
           </div>

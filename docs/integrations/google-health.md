@@ -82,10 +82,13 @@ https://www.googleapis.com/auth/googlehealth.sleep.readonly
 https://www.googleapis.com/auth/googlehealth.profile.readonly
 ```
 
-No write scopes are requested — the connection is read-only. The optional ECG
-and irregular-rhythm (Pixel Watch clinical) scopes stay off unless an operator
-opts in via `GOOGLE_HEALTH_EXPERIMENTAL_SCOPES=true`; they widen the Restricted
-review surface and only apply to Pixel Watch sources.
+No write scopes are requested — the connection is read-only. These four core
+scopes are the full set the client requests today.
+
+ECG and irregular-rhythm notifications (the Pixel Watch clinical data types) are
+a **planned** future addition, not a current option — there is no reader for them
+yet, so no scope is requested for either. When that support lands the runbook
+will document how to opt in; until then leave them out of your OAuth client.
 
 ## 5. Wire the credentials in Settings → Integrations
 

@@ -40,12 +40,14 @@ export const GET = apiHandler(async () => {
     moodLogStatus,
     whoopStatus,
     fitbitStatus,
+    googleHealthStatus,
     polarStatus,
     ouraStatus,
     dbUser,
     withingsConn,
     whoopConn,
     fitbitConn,
+    googleHealthConn,
     moodLogEntryCount,
     // v1.17.1 — `available` reports whether usable OAuth credentials resolve
     // (per-user BYO first, then the shared env app), mirroring the per-card
@@ -57,6 +59,7 @@ export const GET = apiHandler(async () => {
     getIntegrationStatus(user.id, "moodlog"),
     getIntegrationStatus(user.id, "whoop"),
     getIntegrationStatus(user.id, "fitbit"),
+    getIntegrationStatus(user.id, "google-health"),
     getIntegrationStatus(user.id, "polar"),
     getIntegrationStatus(user.id, "oura"),
     prisma.user.findUnique({
@@ -68,6 +71,8 @@ export const GET = apiHandler(async () => {
         whoopClientSecretEncrypted: true,
         fitbitClientIdEncrypted: true,
         fitbitClientSecretEncrypted: true,
+        googleHealthClientIdEncrypted: true,
+        googleHealthClientSecretEncrypted: true,
         polarAccessTokenEncrypted: true,
         polarClientIdEncrypted: true,
         polarClientSecretEncrypted: true,
@@ -106,6 +111,16 @@ export const GET = apiHandler(async () => {
         lastSyncedAt: true,
         createdAt: true,
         backfillCompletedAt: true,
+      },
+    }),
+    prisma.googleHealthConnection.findUnique({
+      where: { userId: user.id },
+      select: {
+        tokenExpiresAt: true,
+        lastSyncedAt: true,
+        createdAt: true,
+        backfillCompletedAt: true,
+        needsReauth: true,
       },
     }),
     // v1.7.0 sync — exclude tombstoned rows from the entry count.
@@ -184,6 +199,27 @@ export const GET = apiHandler(async () => {
         backfillCompleted: fitbitConn ? !!fitbitConn.backfillCompletedAt : null,
       } satisfies IntegrationViewModel & FitbitExtras,
       {
+        ...googleHealthStatus,
+        configured:
+          !!dbUser?.googleHealthClientIdEncrypted &&
+          !!dbUser?.googleHealthClientSecretEncrypted,
+        connected: !!googleHealthConn,
+        connectedAt: googleHealthConn?.createdAt?.toISOString() ?? null,
+        legacyLastSyncedAt:
+          googleHealthConn?.lastSyncedAt?.toISOString() ?? null,
+        tokenExpiresAt: googleHealthConn?.tokenExpiresAt?.toISOString() ?? null,
+        tokenExpired: googleHealthConn
+          ? googleHealthConn.tokenExpiresAt.getTime() <= now
+          : null,
+        backfillCompleted: googleHealthConn
+          ? !!googleHealthConn.backfillCompletedAt
+          : null,
+        // v1.27.0 — `needsReauth` is the 7-day Testing-mode refresh expiry (or a
+        // user-revoked grant) surfaced from the connection row; the card reads it
+        // to raise a distinct "Reconnect" CTA separate from parked/disconnected.
+        needsReauth: googleHealthConn ? googleHealthConn.needsReauth : false,
+      } satisfies IntegrationViewModel & GoogleHealthExtras,
+      {
         ...polarStatus,
         // `connected` = a stored access token; `configured` mirrors it (the
         // OAuth card has no separate "credentials saved but disconnected" view
@@ -254,6 +290,21 @@ interface FitbitExtras {
   tokenExpiresAt: string | null;
   tokenExpired: boolean | null;
   backfillCompleted: boolean | null;
+}
+
+// v1.27.0 — Google Health mirrors the Fitbit shape plus `needsReauth`: Google
+// expires the refresh token after 7 days in "Testing" publishing mode, so a
+// connected user is periodically pushed back through OAuth. The card reads the
+// flag to raise a distinct reconnect banner.
+interface GoogleHealthExtras {
+  configured: boolean;
+  connected: boolean;
+  connectedAt: string | null;
+  legacyLastSyncedAt: string | null;
+  tokenExpiresAt: string | null;
+  tokenExpired: boolean | null;
+  backfillCompleted: boolean | null;
+  needsReauth: boolean;
 }
 
 // v1.17.1 — Polar / Oura fold into the consolidated envelope. They carry the
