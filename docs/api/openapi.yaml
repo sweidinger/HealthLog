@@ -2171,6 +2171,7 @@ paths:
               - OURA
               - TELEGRAM
               - MCP
+              - GOOGLE_HEALTH
         - in: query
           name: valueMin
           schema:
@@ -3784,6 +3785,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -3802,6 +3804,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -3820,6 +3823,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -3838,6 +3842,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 sleep:
                   maxItems: 8
                   type: array
@@ -3856,6 +3861,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 weight:
                   maxItems: 8
                   type: array
@@ -3874,6 +3880,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -3892,6 +3899,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 pulse:
                   maxItems: 8
                   type: array
@@ -3910,6 +3918,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -3928,6 +3937,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -3946,6 +3956,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 spo2:
                   maxItems: 8
                   type: array
@@ -3964,6 +3975,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 hrv:
                   maxItems: 8
                   type: array
@@ -3982,6 +3994,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -4000,6 +4013,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -4018,6 +4032,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -4036,6 +4051,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -4054,6 +4070,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 recovery:
                   maxItems: 8
                   type: array
@@ -4072,6 +4089,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 stress:
                   maxItems: 8
                   type: array
@@ -4090,6 +4108,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 sleepDebt:
                   maxItems: 8
                   type: array
@@ -4108,6 +4127,7 @@ paths:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 metricPriority:
                   type: object
                   properties:
@@ -4129,6 +4149,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     activeEnergy:
                       maxItems: 8
                       type: array
@@ -4147,6 +4168,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     walkingRunningDistance:
                       maxItems: 8
                       type: array
@@ -4165,6 +4187,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     flightsClimbed:
                       maxItems: 8
                       type: array
@@ -4183,6 +4206,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     sleep:
                       maxItems: 8
                       type: array
@@ -4201,6 +4225,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     weight:
                       maxItems: 8
                       type: array
@@ -4219,6 +4244,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     bloodPressure:
                       maxItems: 8
                       type: array
@@ -4237,6 +4263,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     pulse:
                       maxItems: 8
                       type: array
@@ -4255,6 +4282,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     bodyFat:
                       maxItems: 8
                       type: array
@@ -4273,6 +4301,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     bodyTemperature:
                       maxItems: 8
                       type: array
@@ -4291,6 +4320,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     spo2:
                       maxItems: 8
                       type: array
@@ -4309,6 +4339,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     hrv:
                       maxItems: 8
                       type: array
@@ -4327,6 +4358,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     restingHeartRate:
                       maxItems: 8
                       type: array
@@ -4345,6 +4377,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     vo2Max:
                       maxItems: 8
                       type: array
@@ -4363,6 +4396,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     skinTemperature:
                       maxItems: 8
                       type: array
@@ -4381,6 +4415,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     respiratoryRate:
                       maxItems: 8
                       type: array
@@ -4399,6 +4434,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     recovery:
                       maxItems: 8
                       type: array
@@ -4417,6 +4453,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     stress:
                       maxItems: 8
                       type: array
@@ -4435,6 +4472,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                     sleepDebt:
                       maxItems: 8
                       type: array
@@ -4453,6 +4491,7 @@ paths:
                           - OURA
                           - TELEGRAM
                           - MCP
+                          - GOOGLE_HEALTH
                 deviceTypePriority:
                   type: object
                   properties:
@@ -13876,6 +13915,7 @@ components:
             - OURA
             - TELEGRAM
             - MCP
+            - GOOGLE_HEALTH
         notes:
           anyOf:
             - type: string
@@ -14624,6 +14664,7 @@ components:
             - OURA
             - TELEGRAM
             - MCP
+            - GOOGLE_HEALTH
         notes:
           anyOf:
             - type: string
@@ -14868,6 +14909,7 @@ components:
                         - OURA
                         - TELEGRAM
                         - MCP
+                        - GOOGLE_HEALTH
                     - type: "null"
                 start:
                   type: string
@@ -14996,6 +15038,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                   - type: "null"
               start:
                 type: string
@@ -15175,6 +15218,7 @@ components:
                 - OURA
                 - TELEGRAM
                 - MCP
+                - GOOGLE_HEALTH
               description: v1.25.0 — the active source the debt is resolved FROM, picked off the user's `sleepDebt` source ladder.
                 `COMPUTED` is HealthLog's own rolling-balance estimate (the only producer today); a provider value would
                 be a device-native debt. Clients explain the figure when it is `COMPUTED`.
@@ -15389,6 +15433,7 @@ components:
             - OURA
             - TELEGRAM
             - MCP
+            - GOOGLE_HEALTH
         externalId:
           anyOf:
             - type: string
@@ -15499,6 +15544,7 @@ components:
             - OURA
             - TELEGRAM
             - MCP
+            - GOOGLE_HEALTH
         externalId:
           anyOf:
             - type: string
@@ -17767,6 +17813,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             activeEnergy:
               maxItems: 8
               type: array
@@ -17785,6 +17832,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -17803,6 +17851,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             flightsClimbed:
               maxItems: 8
               type: array
@@ -17821,6 +17870,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             sleep:
               maxItems: 8
               type: array
@@ -17839,6 +17889,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             weight:
               maxItems: 8
               type: array
@@ -17857,6 +17908,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             bloodPressure:
               maxItems: 8
               type: array
@@ -17875,6 +17927,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             pulse:
               maxItems: 8
               type: array
@@ -17893,6 +17946,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             bodyFat:
               maxItems: 8
               type: array
@@ -17911,6 +17965,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             bodyTemperature:
               maxItems: 8
               type: array
@@ -17929,6 +17984,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             spo2:
               maxItems: 8
               type: array
@@ -17947,6 +18003,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             hrv:
               maxItems: 8
               type: array
@@ -17965,6 +18022,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             restingHeartRate:
               maxItems: 8
               type: array
@@ -17983,6 +18041,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             vo2Max:
               maxItems: 8
               type: array
@@ -18001,6 +18060,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             skinTemperature:
               maxItems: 8
               type: array
@@ -18019,6 +18079,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             respiratoryRate:
               maxItems: 8
               type: array
@@ -18037,6 +18098,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             recovery:
               maxItems: 8
               type: array
@@ -18055,6 +18117,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             stress:
               maxItems: 8
               type: array
@@ -18073,6 +18136,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             sleepDebt:
               maxItems: 8
               type: array
@@ -18091,6 +18155,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             metricPriority:
               type: object
               properties:
@@ -18112,6 +18177,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -18130,6 +18196,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -18148,6 +18215,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -18166,6 +18234,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 sleep:
                   maxItems: 8
                   type: array
@@ -18184,6 +18253,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 weight:
                   maxItems: 8
                   type: array
@@ -18202,6 +18272,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -18220,6 +18291,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 pulse:
                   maxItems: 8
                   type: array
@@ -18238,6 +18310,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -18256,6 +18329,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -18274,6 +18348,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 spo2:
                   maxItems: 8
                   type: array
@@ -18292,6 +18367,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 hrv:
                   maxItems: 8
                   type: array
@@ -18310,6 +18386,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -18328,6 +18405,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -18346,6 +18424,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -18364,6 +18443,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -18382,6 +18462,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 recovery:
                   maxItems: 8
                   type: array
@@ -18400,6 +18481,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 stress:
                   maxItems: 8
                   type: array
@@ -18418,6 +18500,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 sleepDebt:
                   maxItems: 8
                   type: array
@@ -18436,6 +18519,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
               additionalProperties: false
             deviceTypePriority:
               type: object
@@ -18503,6 +18587,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             activeEnergy:
               maxItems: 8
               type: array
@@ -18521,6 +18606,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -18539,6 +18625,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             flightsClimbed:
               maxItems: 8
               type: array
@@ -18557,6 +18644,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             sleep:
               maxItems: 8
               type: array
@@ -18575,6 +18663,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             weight:
               maxItems: 8
               type: array
@@ -18593,6 +18682,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             bloodPressure:
               maxItems: 8
               type: array
@@ -18611,6 +18701,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             pulse:
               maxItems: 8
               type: array
@@ -18629,6 +18720,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             bodyFat:
               maxItems: 8
               type: array
@@ -18647,6 +18739,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             bodyTemperature:
               maxItems: 8
               type: array
@@ -18665,6 +18758,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             spo2:
               maxItems: 8
               type: array
@@ -18683,6 +18777,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             hrv:
               maxItems: 8
               type: array
@@ -18701,6 +18796,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             restingHeartRate:
               maxItems: 8
               type: array
@@ -18719,6 +18815,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             vo2Max:
               maxItems: 8
               type: array
@@ -18737,6 +18834,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             skinTemperature:
               maxItems: 8
               type: array
@@ -18755,6 +18853,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             respiratoryRate:
               maxItems: 8
               type: array
@@ -18773,6 +18872,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             recovery:
               maxItems: 8
               type: array
@@ -18791,6 +18891,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             stress:
               maxItems: 8
               type: array
@@ -18809,6 +18910,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             sleepDebt:
               maxItems: 8
               type: array
@@ -18827,6 +18929,7 @@ components:
                   - OURA
                   - TELEGRAM
                   - MCP
+                  - GOOGLE_HEALTH
             metricPriority:
               type: object
               properties:
@@ -18848,6 +18951,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -18866,6 +18970,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -18884,6 +18989,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -18902,6 +19008,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 sleep:
                   maxItems: 8
                   type: array
@@ -18920,6 +19027,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 weight:
                   maxItems: 8
                   type: array
@@ -18938,6 +19046,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -18956,6 +19065,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 pulse:
                   maxItems: 8
                   type: array
@@ -18974,6 +19084,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -18992,6 +19103,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -19010,6 +19122,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 spo2:
                   maxItems: 8
                   type: array
@@ -19028,6 +19141,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 hrv:
                   maxItems: 8
                   type: array
@@ -19046,6 +19160,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -19064,6 +19179,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -19082,6 +19198,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -19100,6 +19217,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -19118,6 +19236,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 recovery:
                   maxItems: 8
                   type: array
@@ -19136,6 +19255,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 stress:
                   maxItems: 8
                   type: array
@@ -19154,6 +19274,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
                 sleepDebt:
                   maxItems: 8
                   type: array
@@ -19172,6 +19293,7 @@ components:
                       - OURA
                       - TELEGRAM
                       - MCP
+                      - GOOGLE_HEALTH
               additionalProperties: false
             deviceTypePriority:
               type: object

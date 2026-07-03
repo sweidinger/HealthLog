@@ -19,7 +19,14 @@ import { queryKeys } from "@/lib/query-keys";
 // IntegrationStatusPill now owns state + last-sync presentation, and
 // the actionable error message is shown inline above the action row.
 export type IntegrationKey =
-  "withings" | "whoop" | "fitbit" | "moodlog" | "polar" | "oura";
+  | "withings"
+  | "whoop"
+  | "fitbit"
+  | "moodlog"
+  | "polar"
+  | "oura"
+  // v1.27.0 — Google Health (Fitbit + Pixel Watch + Fitbit Air).
+  | "google-health";
 export type IntegrationState =
   "connected" | "error_transient" | "error_reauth" | "disconnected" | "parked";
 
@@ -46,6 +53,11 @@ export interface IntegrationStatusViewModel {
   hasActivityScope?: boolean;
   // WHOOP / Fitbit backfill-in-progress note.
   backfillCompleted?: boolean | null;
+  // v1.27.0 — Google Health surfaces `needsReauth` when the refresh token has
+  // lapsed (the 7-day "Testing"-mode expiry, or a revoked grant). The card
+  // paints a distinct re-consent CTA off this flag, separate from the parked
+  // state. Server-populated on the `/api/integrations/status` envelope.
+  needsReauth?: boolean;
   // moodLog webhook secret + entry count.
   webhookSecret?: string | null;
   entryCount?: number;

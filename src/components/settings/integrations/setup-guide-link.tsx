@@ -23,7 +23,14 @@ import { useTranslations } from "@/lib/i18n/context";
 export const INTEGRATION_DOCS_BASE = "https://docs.healthlog.dev/integrations";
 
 export type IntegrationDocsProvider =
-  "whoop" | "withings" | "fitbit" | "polar" | "oura" | "nightscout";
+  | "whoop"
+  | "withings"
+  | "fitbit"
+  | "polar"
+  | "oura"
+  | "nightscout"
+  // v1.27.0 — Google Health runbook (docs.healthlog.dev/integrations/google-health).
+  | "google-health";
 
 export function integrationDocsHref(provider: IntegrationDocsProvider): string {
   return `${INTEGRATION_DOCS_BASE}/${provider}`;
