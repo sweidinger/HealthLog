@@ -140,6 +140,14 @@ model User {
   fitbitClientIdEncrypted     String? @map("fitbit_client_id_encrypted")
   fitbitClientSecretEncrypted String? @map("fitbit_client_secret_encrypted")
 
+  // v1.27.0 — Google Health API OAuth credentials (per-user BYO-keys, encrypted
+  // at app level). A separate provider from the classic Fitbit Web API columns
+  // above: the CASA-free "Testing" consent path caps a single OAuth client at
+  // ≤100 test users, so each self-hoster registers their own Google Cloud OAuth
+  // client and pastes the client id/secret into Settings.
+  googleHealthClientIdEncrypted     String? @map("google_health_client_id_encrypted")
+  googleHealthClientSecretEncrypted String? @map("google_health_client_secret_encrypted")
+
   // v1.17.0 — Nightscout glucose integration (F1, per-user, encrypted at app
   // level). A self-hoster points HealthLog at their own Nightscout instance:
   // the base URL + the API token / secret are stored encrypted. By default
@@ -626,6 +634,11 @@ model User {
   // OAuth-state ledger (1:N) relations.
   fitbitConnection            FitbitConnection?
   fitbitOAuthStates           FitbitOAuthState[]
+  // v1.27.0 — Google Health API integration (separate provider from the classic
+  // Fitbit Web API above). Mirrors the connection (1:1) + OAuth-state ledger
+  // (1:N) relations.
+  googleHealthConnection      GoogleHealthConnection?
+  googleHealthOAuthStates     GoogleHealthOAuthState[]
   moodEntries                 MoodEntry[]
   mentalHealthAssessments     MentalHealthAssessment[]
   moodTagsCustom              MoodTag[]                    @relation("UserMoodTags")
@@ -1453,6 +1466,13 @@ enum MeasurementSource {
   // surfaces still reject it (server-resolved only); iOS DTO mirrors this
   // spelling so the /api/sync/changes delta feed decodes the rows.
   MCP
+  // v1.27.0 — Google Health API integration (Fitbit + Pixel Watch + Fitbit
+  // Air) over `health.googleapis.com/v4`. A separate, coexisting provider
+  // alongside the classic Fitbit Web API integration (source `FITBIT`) with
+  // its own connection table and OAuth client. Server-owned (no client write
+  // path); rejected on batch + single POST like WITHINGS/WHOOP/FITBIT. iOS DTO
+  // mirrors this exact spelling so /api/sync/changes decodes the rows.
+  GOOGLE_HEALTH
 
   @@map("measurement_source")
 }
@@ -3216,6 +3236,66 @@ model FitbitOAuthState {
 
   @@index([expiresAt])
   @@map("fitbit_oauth_states")
+}
+
+/// v1.27.0 — Google Health connection (Fitbit + Pixel Watch + Fitbit Air) over
+/// the Google Health API (`health.googleapis.com/v4`). A separate, coexisting
+/// provider alongside the classic Fitbit Web API integration (`FitbitConnection`)
+/// — its own token row, `GOOGLE_HEALTH` source enum value, and OAuth client.
+/// Tokens are encrypted at the app level before persistence. Google refresh
+/// tokens do NOT rotate per use, so `refreshToken` is overwritten only when a
+/// token response carries a fresh one.
+///
+/// `needsReauth` flags the CASA-free "Testing" consent path, where refresh
+/// tokens expire after 7 days: the sync loop sets it on an `invalid_grant`
+/// refresh failure so the card can surface a soft "reconnect" CTA rather than a
+/// hard error, and the callback clears it on a fresh consent.
+model GoogleHealthConnection {
+  id                  String    @id @default(cuid())
+  userId              String    @unique @map("user_id")
+  googleUserId        String    @map("google_user_id") // Google external account id
+  accessToken         String    @map("access_token") // encrypted at app level
+  refreshToken        String    @map("refresh_token") // encrypted at app level
+  tokenExpiresAt      DateTime  @map("token_expires_at")
+  /// Space-separated OAuth scope string granted by the Google authorisation
+  /// flow. Null = legacy connection that predates scope tracking.
+  scope               String?   @map("scope")
+  /// Set true when a refresh fails with `invalid_grant` (7-day Testing-mode
+  /// refresh expiry) so the connection reads as a soft disconnect awaiting
+  /// re-consent; cleared on a successful reconnect.
+  needsReauth         Boolean   @default(false) @map("needs_reauth")
+  /// Single high-water mark on interval `start_time` — Google exposes no sync
+  /// cursor, so incremental sync walks forward from here.
+  lastSyncedAt        DateTime? @map("last_synced_at")
+  /// Set once the self-converging history backfill walks every data type to
+  /// completion. Null = backfill still in flight (or never started).
+  backfillCompletedAt DateTime? @map("backfill_completed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("google_health_connections")
+}
+
+/// v1.27.0 — short-lived `(nonce → userId)` ledger backing the Google Health
+/// OAuth state check, identical in shape + lifecycle to `FitbitOAuthState`.
+/// Google's OAuth is Authorization Code + PKCE (S256), so the connect route
+/// mints a `code_verifier` alongside the nonce and stashes it here; the callback
+/// reads it back to present on the token exchange.
+model GoogleHealthOAuthState {
+  nonce        String   @id
+  userId       String   @map("user_id")
+  /// PKCE code_verifier carried from connect to callback. Null when no PKCE
+  /// handshake is in flight (legacy rows).
+  codeVerifier String?  @map("code_verifier")
+  createdAt    DateTime @default(now()) @map("created_at")
+  expiresAt    DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("google_health_oauth_states")
 }
 
 // ─── Mood Entries (moodLog) ───────────────────────────────────
