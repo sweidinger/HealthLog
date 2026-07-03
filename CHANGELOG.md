@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.27.0] — 2026-07-03 — Fitbit and Pixel Watch through Google Health
+
+### Added
+
+- A new Google Health connection reads your Fitbit, Pixel Watch, and Fitbit Air data through your Google account: heart rate and resting heart rate, heart-rate variability, blood-oxygen, respiratory rate, steps, distance, floors climbed, active energy, cardio fitness, sleep, and weight. It runs alongside the existing Fitbit connection and is the path forward as Google retires the older Fitbit Web API in September 2026 — connect through Google and your devices keep syncing. You register your own Google client once, and the setup guide walks through it step by step. Two things are stated plainly up front: stress and readiness scores are not offered by this interface, and Google may ask you to reconnect from time to time — the connection shows a clear prompt when it does.
+
 ## [1.26.0] — 2026-07-02 — Light theme and a consistent interface
 
 ### Changed
