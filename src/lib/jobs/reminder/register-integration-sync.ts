@@ -29,6 +29,13 @@ import {
   type FitbitBackfillPayload,
 } from "@/lib/jobs/fitbit-backfill";
 import {
+  GOOGLE_HEALTH_BACKFILL_QUEUE,
+  GOOGLE_HEALTH_BACKFILL_CONCURRENCY,
+  runGoogleHealthBackfillForUser,
+  enqueueBootTimeGoogleHealthBackfill,
+  type GoogleHealthBackfillPayload,
+} from "@/lib/jobs/google-health-backfill";
+import {
   SLEEP_TIMELINE_BACKFILL_QUEUE,
   SLEEP_TIMELINE_BACKFILL_CONCURRENCY,
   runSleepTimelineBackfillForUser,
@@ -75,6 +82,12 @@ import {
   FitbitOAuthStateCleanupPayload,
   handleFitbitOAuthStateCleanup,
 } from "./fitbit-sync";
+import {
+  GoogleHealthSyncPayload,
+  handleGoogleHealthSync,
+  GoogleHealthOAuthStateCleanupPayload,
+  handleGoogleHealthOAuthStateCleanup,
+} from "./google-health-sync";
 
 const WITHINGS_SYNC_QUEUE = "withings-fallback-sync";
 
@@ -150,6 +163,23 @@ const FITBIT_SYNC_CRON = "8 * * * *"; // every hour at :08
 const FITBIT_OAUTH_STATE_CLEANUP_QUEUE = "fitbit-oauth-state-cleanup";
 
 const FITBIT_OAUTH_STATE_CLEANUP_CRON = "24 3 * * *";
+// v1.26.0 — Google Health / Fitbit-Pixel-Wear-OS poll-only sync. There is no
+// Google Health webhook at launch (Pub/Sub deferred), so a single hourly cron
+// drives the per-user `syncUserGoogleHealth` driver across every connection.
+// Minute staggered off the WHOOP (:05/:20/:35/:50), Fitbit (:08), Nightscout
+// (:11), Polar (:13), and Oura (:15) slots so the hourly ticks don't pile up on
+// one boss poll.
+
+const GOOGLE_HEALTH_SYNC_QUEUE = "google-health-sync";
+
+const GOOGLE_HEALTH_SYNC_CRON = "18 * * * *"; // every hour at :18
+// v1.26.0 — daily sweep for the Google Health OAuth state ledger. Slots at
+// 03:26, next to the Fitbit sweep (03:24), inside the maintenance window.
+
+const GOOGLE_HEALTH_OAUTH_STATE_CLEANUP_QUEUE =
+  "google-health-oauth-state-cleanup";
+
+const GOOGLE_HEALTH_OAUTH_STATE_CLEANUP_CRON = "26 3 * * *";
 // v1.17.0 — Nightscout CGM poll sync. Poll-only (no webhook): one hourly tick
 // pulls the recent SGV window per configured instance. :11 staggers off the
 // WHOOP (:05), Fitbit (:08), and Withings sync ticks so the hourly polls don't
@@ -195,6 +225,11 @@ const allQueues = [
   FITBIT_SYNC_QUEUE,
   FITBIT_BACKFILL_QUEUE,
   FITBIT_OAUTH_STATE_CLEANUP_QUEUE,
+  // v1.26.0 — Google Health poll-only sync (no webhook at launch),
+  // self-converging boot backfill, and the daily OAuth-state ledger sweep.
+  GOOGLE_HEALTH_SYNC_QUEUE,
+  GOOGLE_HEALTH_BACKFILL_QUEUE,
+  GOOGLE_HEALTH_OAUTH_STATE_CLEANUP_QUEUE,
   // v1.17.1 — one-shot sleep-timeline backfill for WHOOP + Withings.
   // Discovery enqueues one job per connection whose sleep rows predate the
   // stamp/shape fix; the pass deletes the affected SLEEP_DURATION rows and
@@ -230,6 +265,14 @@ const schedules: ScheduleEntry[] = [
   // daily 03:24 Europe/Berlin prune for expired Fitbit OAuth states.
   [FITBIT_SYNC_QUEUE, FITBIT_SYNC_CRON],
   [FITBIT_OAUTH_STATE_CLEANUP_QUEUE, FITBIT_OAUTH_STATE_CLEANUP_CRON],
+  // v1.26.0 — hourly Google Health poll (:18, staggered off WHOOP/Fitbit/
+  // Nightscout/Polar/Oura) + the daily 03:26 Europe/Berlin prune for expired
+  // Google Health OAuth states.
+  [GOOGLE_HEALTH_SYNC_QUEUE, GOOGLE_HEALTH_SYNC_CRON],
+  [
+    GOOGLE_HEALTH_OAUTH_STATE_CLEANUP_QUEUE,
+    GOOGLE_HEALTH_OAUTH_STATE_CLEANUP_CRON,
+  ],
   // v1.17.0 — hourly Nightscout CGM poll (:11, staggered off the other sync
   // ticks).
   [NIGHTSCOUT_SYNC_QUEUE, NIGHTSCOUT_SYNC_CRON],
@@ -340,6 +383,36 @@ export async function registerIntegrationSyncQueues(
     FITBIT_OAUTH_STATE_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleFitbitOAuthStateCleanup,
+  );
+  // v1.26.0 — Google Health poll-sync (cron full-iteration; no webhook). Serial
+  // concurrency so a backfill-heavy tick never crowds the request pool.
+  await boss.work<GoogleHealthSyncPayload>(
+    GOOGLE_HEALTH_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleGoogleHealthSync,
+  );
+  // v1.26.0 — self-converging Google Health backfill. The boot enqueue below
+  // sends one full-history sync per un-backfilled connection; this handler runs
+  // it and stamps `backfillCompletedAt` so the discovery query drops the
+  // account.
+  await boss.work<GoogleHealthBackfillPayload>(
+    GOOGLE_HEALTH_BACKFILL_QUEUE,
+    { localConcurrency: GOOGLE_HEALTH_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const { imported } = await runGoogleHealthBackfillForUser(userId);
+        workerLog(
+          "info",
+          `[google-health-backfill] user=${userId} imported=${imported}`,
+        );
+      }
+    },
+  );
+  await boss.work<GoogleHealthOAuthStateCleanupPayload>(
+    GOOGLE_HEALTH_OAUTH_STATE_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleGoogleHealthOAuthStateCleanup,
   );
   // v1.17.1 — one-shot sleep-timeline backfill. The boot enqueue below sends
   // one job per (user, provider) whose sleep rows predate the stamp/shape fix;
@@ -454,6 +527,30 @@ export async function enqueueIntegrationSyncBootDiscovery(): Promise<void> {
     workerLog(
       "error",
       "[fitbit-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.26.0 — Google Health backfill. Finds every Google Health connection not
+  // yet backfilled and enqueues one full-history sync per account.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeGoogleHealthBackfill();
+    if (error) {
+      workerLog(
+        "error",
+        `[google-health-backfill] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[google-health-backfill] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[google-health-backfill] boot discovery threw an unexpected error",
       err,
     );
   }

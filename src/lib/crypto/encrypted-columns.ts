@@ -55,6 +55,9 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "User", field: "whoopClientSecretEncrypted", kind: "string" },
   { model: "User", field: "fitbitClientIdEncrypted", kind: "string" },
   { model: "User", field: "fitbitClientSecretEncrypted", kind: "string" },
+  // v1.27.0 — Google Health (Fitbit / Pixel Watch) BYO OAuth client.
+  { model: "User", field: "googleHealthClientIdEncrypted", kind: "string" },
+  { model: "User", field: "googleHealthClientSecretEncrypted", kind: "string" },
   { model: "User", field: "nightscoutUrlEncrypted", kind: "string" },
   { model: "User", field: "nightscoutTokenEncrypted", kind: "string" },
   { model: "User", field: "polarAccessTokenEncrypted", kind: "string" },
@@ -82,6 +85,8 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "WhoopConnection", field: "refreshToken", kind: "string" },
   { model: "FitbitConnection", field: "accessToken", kind: "string" },
   { model: "FitbitConnection", field: "refreshToken", kind: "string" },
+  { model: "GoogleHealthConnection", field: "accessToken", kind: "string" },
+  { model: "GoogleHealthConnection", field: "refreshToken", kind: "string" },
 
   // ───── AppSettings — operator credentials ─────
   { model: "AppSettings", field: "adminAiKeyEncrypted", kind: "string" },

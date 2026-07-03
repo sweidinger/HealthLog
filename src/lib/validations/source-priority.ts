@@ -234,11 +234,24 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // they rank below the phone-aggregated Apple Health (which sees all-day
   // steps) but as legitimate sources above MANUAL, so an Oura/Polar-only day
   // is not dropped when another source coexists.
-  steps: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "OURA", "POLAR", "MANUAL"],
+  // v1.26.0 — Google Health surfaces Fitbit/Pixel/Wear OS device data (the
+  // successor API to the classic Fitbit Web API); it rides in the same
+  // wrist-wearable class as FITBIT and ranks immediately below it in every
+  // device ladder, above OURA/POLAR and MANUAL.
+  steps: [
+    "APPLE_HEALTH",
+    "WITHINGS",
+    "FITBIT",
+    "GOOGLE_HEALTH",
+    "OURA",
+    "POLAR",
+    "MANUAL",
+  ],
   activeEnergy: [
     "APPLE_HEALTH",
     "WITHINGS",
     "FITBIT",
+    "GOOGLE_HEALTH",
     "OURA",
     "POLAR",
     "MANUAL",
@@ -247,11 +260,18 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
     "APPLE_HEALTH",
     "WITHINGS",
     "FITBIT",
+    "GOOGLE_HEALTH",
     "OURA",
     "POLAR",
     "MANUAL",
   ],
-  flightsClimbed: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "MANUAL"],
+  flightsClimbed: [
+    "APPLE_HEALTH",
+    "WITHINGS",
+    "FITBIT",
+    "GOOGLE_HEALTH",
+    "MANUAL",
+  ],
   // v1.11.0 — WHOOP leads the recovery-input ladders (sleep / HRV / RHR):
   // a worn-all-night strap has higher-resolution overnight sampling than
   // the iPhone-relayed HealthKit summary or the Withings nightly summary.
@@ -260,26 +280,64 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // v1.17.0 — Polar + Oura are worn wearables in the same overnight-sampling
   // class as WHOOP/Fitbit; they rank below the established straps but above
   // the iPhone-relayed HealthKit summary and the Withings nightly summary.
-  sleep: ["WHOOP", "FITBIT", "OURA", "POLAR", "APPLE_HEALTH", "WITHINGS"],
-  hrv: ["WHOOP", "FITBIT", "OURA", "POLAR", "APPLE_HEALTH", "WITHINGS"],
+  sleep: [
+    "WHOOP",
+    "FITBIT",
+    "GOOGLE_HEALTH",
+    "OURA",
+    "POLAR",
+    "APPLE_HEALTH",
+    "WITHINGS",
+  ],
+  hrv: [
+    "WHOOP",
+    "FITBIT",
+    "GOOGLE_HEALTH",
+    "OURA",
+    "POLAR",
+    "APPLE_HEALTH",
+    "WITHINGS",
+  ],
   restingHeartRate: [
     "WHOOP",
     "FITBIT",
+    "GOOGLE_HEALTH",
     "OURA",
     "POLAR",
     "APPLE_HEALTH",
     "WITHINGS",
   ],
   // A real scale beats a strap's body-measurement estimate for weight.
-  weight: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "WHOOP", "FITBIT"],
+  weight: [
+    "WITHINGS",
+    "APPLE_HEALTH",
+    "MANUAL",
+    "WHOOP",
+    "FITBIT",
+    "GOOGLE_HEALTH",
+  ],
   bloodPressure: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
   // v1.17.0 — continuous optical-HR wearables (Fitbit / Polar / Oura) rank
   // above a hand-typed MANUAL pulse; the device-source order matches the
   // rhr / hrv ladders (FITBIT > OURA > POLAR). Withings BPM cuff + the
   // HealthKit relay stay the primary point-measurement sources.
-  pulse: ["WITHINGS", "APPLE_HEALTH", "FITBIT", "OURA", "POLAR", "MANUAL"],
-  bodyFat: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
-  bodyTemperature: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
+  pulse: [
+    "WITHINGS",
+    "APPLE_HEALTH",
+    "FITBIT",
+    "GOOGLE_HEALTH",
+    "OURA",
+    "POLAR",
+    "MANUAL",
+  ],
+  bodyFat: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT", "GOOGLE_HEALTH"],
+  bodyTemperature: [
+    "WITHINGS",
+    "APPLE_HEALTH",
+    "MANUAL",
+    "FITBIT",
+    "GOOGLE_HEALTH",
+  ],
   // Withings ScanWatch pulse-ox is the primary SpO2 sensor; WHOOP second,
   // Fitbit third, Oura's ring fourth. v1.17.1 — Polar Elixir pulse-ox slots
   // below the established straps and above the iPhone-relay / manual sources.
@@ -287,19 +345,35 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
     "WITHINGS",
     "WHOOP",
     "FITBIT",
+    "GOOGLE_HEALTH",
     "OURA",
     "POLAR",
     "APPLE_HEALTH",
     "MANUAL",
   ],
-  vo2Max: ["WITHINGS", "APPLE_HEALTH", "FITBIT", "OURA", "MANUAL"],
+  vo2Max: [
+    "WITHINGS",
+    "APPLE_HEALTH",
+    "FITBIT",
+    "GOOGLE_HEALTH",
+    "OURA",
+    "MANUAL",
+  ],
   // v1.11.0 — new WHOOP-overlapping keys. ScanWatch dermal reading is the
   // primary skin-temperature sensor; WHOOP's strap is second, Fitbit third,
   // Oura's ring fourth.
-  skinTemperature: ["WITHINGS", "WHOOP", "FITBIT", "OURA", "APPLE_HEALTH"],
+  skinTemperature: [
+    "WITHINGS",
+    "WHOOP",
+    "FITBIT",
+    "GOOGLE_HEALTH",
+    "OURA",
+    "APPLE_HEALTH",
+  ],
   respiratoryRate: [
     "WHOOP",
     "FITBIT",
+    "GOOGLE_HEALTH",
     "OURA",
     "POLAR",
     "APPLE_HEALTH",
