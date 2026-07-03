@@ -32,6 +32,7 @@ import {
   type GoogleHealthResourceSyncOptions,
 } from "./sync";
 import { annotate } from "@/lib/logging/context";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 
 export async function syncUserSleep(
   userId: string,
@@ -39,6 +40,11 @@ export async function syncUserSleep(
 ): Promise<number> {
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
+
+  // Sleep-segment timestamps can arrive offset-less; anchor them against the
+  // user's stored zone so a near-midnight segment END lands on the correct
+  // wake-day rather than being shifted by the process zone.
+  const tz = await resolveUserTimezone(userId);
 
   // Cycle-wide watermark snapshotted once by `syncUserGoogleHealth`; undefined
   // on a full/backfill run.
@@ -58,7 +64,7 @@ export async function syncUserSleep(
 
   const readings: GoogleHealthMeasurementUpsert[] = [];
   for (const point of points) {
-    for (const m of mapSleepSession(point)) {
+    for (const m of mapSleepSession(point, tz)) {
       readings.push({
         type: m.type,
         value: m.value,

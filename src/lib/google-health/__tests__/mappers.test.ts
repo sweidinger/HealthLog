@@ -101,6 +101,34 @@ describe("mapSteps — daily cumulative total", () => {
   });
 });
 
+describe("mapSteps — civil-day keying for a non-UTC-midnight interval", () => {
+  it("keys the day + measuredAt on the CIVIL day, not the physical start instant", () => {
+    const rows = mapSteps({
+      steps: {
+        count: 12000,
+        interval: {
+          // Physical instant is 15:00Z on 2026-06-01, but the civil day the
+          // total belongs to is 2026-06-02 (a positive-UTC-offset user's local
+          // midnight). The day-key must follow civil_start_time so Google/Apple/
+          // Fitbit `stats:<tag>:<YYYY-MM-DD>` keys agree — start_time alone would
+          // off-by-one the day.
+          start_time: "2026-06-01T15:00:00.000Z",
+          civil_start_time: "2026-06-02",
+        },
+      },
+    });
+    expect(rows).toHaveLength(1);
+    const r = rows[0]!;
+    expect(r.type).toBe("ACTIVITY_STEPS");
+    expect(r.value).toBe(12000);
+    expect(r.cumulativeDaily).toBe(true);
+    // Day-key follows the civil day, not the 2026-06-01 physical instant.
+    expect(r.fieldTag).toBe("steps:2026-06-02");
+    // Anchored at UTC-midday so a tz shift can't roll the civil day.
+    expect(r.measuredAt.toISOString()).toBe("2026-06-02T12:00:00.000Z");
+  });
+});
+
 describe("mapDistance — unit conversion", () => {
   it("converts a kilometers daily total to metres", () => {
     const rows = mapDistance({

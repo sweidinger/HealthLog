@@ -41,11 +41,15 @@ import {
   type GoogleHealthResourceSyncOptions,
 } from "./sync";
 import { annotate } from "@/lib/logging/context";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 
 /** One mappable activity metric: its data-type encoding + the mapper + a verb. */
 interface ActivityResource {
   dataType: GoogleHealthDataType;
-  map: (point: Record<string, unknown>) => GoogleHealthMappedMeasurement[];
+  map: (
+    point: Record<string, unknown>,
+    tz?: string,
+  ) => GoogleHealthMappedMeasurement[];
   verb: string;
 }
 
@@ -94,6 +98,12 @@ export async function syncUserActivity(
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
 
+  // A cumulative daily total whose `interval.start_time` sits at the user's
+  // local midnight can carry an offset-less civil anchor; resolve the user's
+  // stored zone so the day-key lands on the correct civil day rather than the
+  // process zone's.
+  const tz = await resolveUserTimezone(userId);
+
   // Cycle-wide watermark snapshotted once by `syncUserGoogleHealth`; undefined
   // on a full/backfill run.
   const start = opts.start;
@@ -115,7 +125,7 @@ export async function syncUserActivity(
 
     const readings: GoogleHealthMeasurementUpsert[] = [];
     for (const point of points) {
-      for (const m of resource.map(point)) {
+      for (const m of resource.map(point, tz)) {
         readings.push({
           type: m.type,
           value: m.value,

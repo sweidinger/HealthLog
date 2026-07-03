@@ -27,6 +27,7 @@ import {
 } from "./sync";
 import { prisma } from "@/lib/db";
 import { annotate, getEvent } from "@/lib/logging/context";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 
 export async function syncUserWorkout(
   userId: string,
@@ -34,6 +35,10 @@ export async function syncUserWorkout(
 ): Promise<number> {
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
+
+  // Session start/end can arrive offset-less; anchor them against the user's
+  // stored zone rather than the process zone.
+  const tz = await resolveUserTimezone(userId);
 
   // Cycle-wide watermark snapshotted once by `syncUserGoogleHealth`; undefined
   // on a full/backfill run.
@@ -53,7 +58,7 @@ export async function syncUserWorkout(
 
   let imported = 0;
   for (const point of points) {
-    const w: GoogleHealthMappedWorkout | null = mapWorkout(point);
+    const w: GoogleHealthMappedWorkout | null = mapWorkout(point, tz);
     if (!w) continue; // no usable time span — not a workout
 
     try {

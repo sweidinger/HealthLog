@@ -12,7 +12,6 @@
  *   - daily-resting-HR       → RESTING_HEART_RATE
  *   - respiratory-rate       → RESPIRATORY_RATE
  *   - heart-rate (intraday)  → PULSE
- *   - daily sleep-temp deriv.→ WRIST_TEMPERATURE
  *   - height                 → User.heightCm (profile seed, NOT a Measurement)
  *
  * Each data point yields at most one Measurement row, disambiguated by the
@@ -35,7 +34,6 @@ import {
   mapOxygenSaturation,
   mapRespiratoryRate,
   mapRestingHeartRate,
-  mapSleepTemperature,
   mapWeight,
 } from "./client";
 import {
@@ -92,11 +90,9 @@ const METRIC_RESOURCES: MetricResource[] = [
     map: mapHeartRate,
     verb: "fetchHeartRate",
   },
-  {
-    dataType: GOOGLE_HEALTH_DATA_TYPES.sleepTemperature,
-    map: mapSleepTemperature,
-    verb: "fetchSleepTemperature",
-  },
+  // Skin temperature is intentionally omitted for v1 — Google surfaces a nightly
+  // signed DEVIATION from baseline, a future enhancement needing a signed-delta
+  // model (see `GOOGLE_HEALTH_DATA_TYPES` in `client.ts`).
 ];
 
 export async function syncUserMetrics(

@@ -362,14 +362,9 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // v1.11.0 — new WHOOP-overlapping keys. ScanWatch dermal reading is the
   // primary skin-temperature sensor; WHOOP's strap is second, Fitbit third,
   // Oura's ring fourth.
-  skinTemperature: [
-    "WITHINGS",
-    "WHOOP",
-    "FITBIT",
-    "GOOGLE_HEALTH",
-    "OURA",
-    "APPLE_HEALTH",
-  ],
+  // GOOGLE_HEALTH intentionally absent — it produces no skin-temperature row for
+  // v1 (Google surfaces a nightly signed deviation, not an absolute reading).
+  skinTemperature: ["WITHINGS", "WHOOP", "FITBIT", "OURA", "APPLE_HEALTH"],
   respiratoryRate: [
     "WHOOP",
     "FITBIT",
