@@ -84,6 +84,32 @@ describe("ProseBlocks", () => {
     expect(html).toContain("metric:WEIGHT");
     expect(html).not.toContain('data-slot="inline-learn-link"');
   });
+
+  it("groups consecutive '- ' lines into a real <ul> and strips the markers", () => {
+    const html = render(
+      <ProseBlocks
+        text={
+          "Two options stand out:\n- walk after lunch\n- an earlier bedtime\n\nBoth are low effort."
+        }
+      />,
+    );
+    expect((html.match(/<ul\b/g) ?? []).length).toBe(1);
+    expect((html.match(/<li\b/g) ?? []).length).toBe(2);
+    expect(html).toContain("walk after lunch");
+    expect(html).not.toContain("- walk");
+    // The intro line and the trailing paragraph stay real <p> blocks.
+    expect((html.match(/<p\b/g) ?? []).length).toBe(2);
+  });
+
+  it("renders a **bold** span as <strong> and leaves unclosed markers literal", () => {
+    const html = render(
+      <ProseBlocks
+        text={"The **key takeaway** stands.\n\nA stray ** stays literal."}
+      />,
+    );
+    expect(html).toContain("<strong>key takeaway</strong>");
+    expect(html).toContain("A stray ** stays literal.");
+  });
 });
 
 describe("StreamedProse", () => {

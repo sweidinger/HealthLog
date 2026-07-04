@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import {
   ProseBlocks,
-  ParagraphText,
+  ProseBlock,
   splitParagraphs,
   PROSE_PARAGRAPH_CLASS,
 } from "@/components/insights/prose-blocks";
@@ -96,13 +96,11 @@ export function StreamedProse({ content, streaming }: StreamedProseProps) {
 
   return (
     <>
-      {/* Completed paragraphs settle immediately — plain text + linkifier,
-          identical to the non-streaming render so nothing reflows when the
-          turn finishes. */}
+      {/* Completed paragraphs settle immediately — plain text + linkifier
+          (and real list markup for `- ` runs), identical to the
+          non-streaming render so nothing reflows when the turn finishes. */}
       {settled.map((p, i) => (
-        <p key={i} className={cn(PROSE_PARAGRAPH_CLASS)}>
-          <ParagraphText text={p} strip />
-        </p>
+        <ProseBlock key={i} text={p} strip />
       ))}
       {/* The growing tail paragraph: word-by-word fade. No linkify here —
           a half-arrived URL must not flicker into a link mid-stream; it

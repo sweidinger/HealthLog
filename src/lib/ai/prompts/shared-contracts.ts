@@ -142,13 +142,18 @@ Schließe, wenn es passt, mit einem kleinen Ausblick, damit sich die Person in d
  * the shared `ProseBlocks` helper, which turns a blank line into a real
  * paragraph break — but only if the model emits one. This single fragment asks
  * for that structure on every narrative surface so a longer assessment reads as
- * 1–3 short paragraphs instead of one run-on block. It is whitespace, never
- * markup: the grounding verifiers operate on extracted numbers / causal verbs
- * and are whitespace-agnostic, so this changes nothing they grade.
+ * short paragraphs instead of one run-on block.
+ *
+ * v1.27.2 — the renderer grew a closed-set list + bold vocabulary (`- ` lines
+ * become a real `<ul>`, `**bold**` becomes `<strong>` — pure string splitting,
+ * still no markdown library), so the contract now permits exactly those two
+ * shapes where they genuinely help, instead of banning all structure. The
+ * grounding verifiers operate on extracted numbers / causal verbs and are
+ * whitespace-agnostic, so this changes nothing they grade.
  */
 export const formattingContract: SharedContract = {
-  en: `FORMATTING — write in 1–3 short paragraphs separated by a BLANK LINE, each 1–3 sentences. Put a blank line between distinct ideas (e.g. "where things stand" vs "one thing to try"). A steady one-liner stays a single paragraph — do NOT pad to fill a second. No markdown, no headings, no asterisks, no bullet points, no emojis.`,
-  de: `FORMATIERUNG — schreibe in 1–3 kurzen Absätzen, getrennt durch eine LEERZEILE, je 1–3 Sätze. Setze eine Leerzeile zwischen unterschiedliche Gedanken (z. B. "wie es steht" vs. "eine Sache zum Ausprobieren"). Ein stabiler Einzeiler bleibt EIN Absatz — strecke nicht auf einen zweiten. Kein Markdown, keine Überschriften, keine Sternchen, keine Aufzählungen, keine Emojis.`,
+  en: `FORMATTING — write in short paragraphs separated by a BLANK LINE, each 1–3 sentences; a longer reply is 2–4 paragraphs, never one block. Put a blank line between distinct ideas (e.g. "where things stand" vs "one thing to try"). A steady one-liner stays a single paragraph — do NOT pad to fill a second. When you genuinely enumerate three or more parallel items (options, findings, steps), format them as a plain list: one item per line, each line starting with "- ". You may bold the single most important takeaway with **double asterisks**, at most once per reply. Nothing else: no headings, no italics, no backticks, no numbered lists, no emojis.`,
+  de: `FORMATIERUNG — schreibe in kurzen Absätzen, getrennt durch eine LEERZEILE, je 1–3 Sätze; eine längere Antwort hat 2–4 Absätze, nie einen Block. Setze eine Leerzeile zwischen unterschiedliche Gedanken (z. B. "wie es steht" vs. "eine Sache zum Ausprobieren"). Ein stabiler Einzeiler bleibt EIN Absatz — strecke nicht auf einen zweiten. Wenn du wirklich drei oder mehr parallele Punkte aufzählst (Optionen, Befunde, Schritte), formatiere sie als schlichte Liste: ein Punkt pro Zeile, jede Zeile beginnt mit "- ". Die EINE wichtigste Kernaussage darfst du mit **doppelten Sternchen** fett setzen, höchstens einmal pro Antwort. Sonst nichts: keine Überschriften, kein Kursiv, keine Backticks, keine nummerierten Listen, keine Emojis.`,
 };
 
 /**
