@@ -178,6 +178,8 @@ async function main() {
     "whoopClientSecretEncrypted",
     "fitbitClientIdEncrypted",
     "fitbitClientSecretEncrypted",
+    "googleHealthClientIdEncrypted",
+    "googleHealthClientSecretEncrypted",
     "nightscoutUrlEncrypted",
     "nightscoutTokenEncrypted",
     "polarAccessTokenEncrypted",
@@ -221,6 +223,13 @@ async function main() {
         "FitbitConnection",
         field,
         prisma.fitbitConnection,
+      ),
+    );
+    results.push(
+      await rotateStringColumn(
+        "GoogleHealthConnection",
+        field,
+        prisma.googleHealthConnection,
       ),
     );
   }

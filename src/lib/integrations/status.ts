@@ -48,6 +48,10 @@ export type IntegrationKey =
   | "nightscout"
   | "polar"
   | "oura"
+  // v1.27.0 — Google Health (Fitbit + Pixel Watch + Fitbit Air) via the
+  // successor Google Health API. Separate connection from the classic
+  // `fitbit` transport, which sunsets Sept 2026.
+  | "google-health"
   | "moodlog";
 
 /**
@@ -809,6 +813,7 @@ const INTEGRATION_LABELS: Record<IntegrationKey, string> = {
   nightscout: "Nightscout",
   polar: "Polar",
   oura: "Oura",
+  "google-health": "Google Health",
   moodlog: "moodLog",
 };
 

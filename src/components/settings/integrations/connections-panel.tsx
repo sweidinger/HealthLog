@@ -17,6 +17,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { FitbitCard } from "@/components/settings/integrations/fitbit-card";
+import { GoogleHealthCard } from "@/components/settings/integrations/google-health-card";
 import { NightscoutCard } from "@/components/settings/integrations/nightscout-card";
 import type { OAuthProviderStatus } from "@/components/settings/integrations/oauth-provider-card";
 import { OuraCard } from "@/components/settings/integrations/oura-card";
@@ -60,7 +61,17 @@ type WithingsOauthOutcome =
  * per-card status query; WHOOP/Fitbit read off the consolidated envelope — both
  * are invalidated on a successful return so the card repaints either way.
  */
-const OAUTH_OUTCOME_PROVIDERS = ["polar", "oura", "whoop", "fitbit"] as const;
+// v1.27.0 — `googleHealth` joins the outcome set. Its callback redirects with
+// `?googleHealth=connected|error&reason=<tag>` (the fitbit→googleHealth
+// identifier rename), and the i18n toast keys resolve under the same camelCase
+// prefix (`settings.googleHealthOauth*`).
+const OAUTH_OUTCOME_PROVIDERS = [
+  "polar",
+  "oura",
+  "whoop",
+  "fitbit",
+  "googleHealth",
+] as const;
 type OAuthOutcomeProvider = (typeof OAUTH_OUTCOME_PROVIDERS)[number];
 
 const OAUTH_OUTCOME_KEYS: Record<
@@ -71,6 +82,7 @@ const OAUTH_OUTCOME_KEYS: Record<
   oura: queryKeys.oura,
   whoop: queryKeys.whoop,
   fitbit: queryKeys.fitbit,
+  googleHealth: queryKeys.googleHealth,
 };
 
 /**
@@ -240,6 +252,9 @@ export function ConnectionsPanel() {
   const withingsViewModel = pickStatus(integrationStatus, "withings");
   const whoopViewModel = pickStatus(integrationStatus, "whoop");
   const fitbitViewModel = pickStatus(integrationStatus, "fitbit");
+  // v1.27.0 — Google Health reads off the same consolidated envelope; the
+  // ledger integration key is the hyphenated `google-health`.
+  const googleHealthViewModel = pickStatus(integrationStatus, "google-health");
   // v1.17.1 — Polar/Oura now read off the same consolidated envelope; the cards
   // no longer fire their own /api/<provider>/status round-trip.
   const polarViewModel = toOAuthStatus(pickStatus(integrationStatus, "polar"));
@@ -250,6 +265,7 @@ export function ConnectionsPanel() {
       <WithingsCard viewModel={withingsViewModel} />
       <WhoopCard viewModel={whoopViewModel} />
       <FitbitCard viewModel={fitbitViewModel} />
+      <GoogleHealthCard viewModel={googleHealthViewModel} />
       <PolarCard enabled={isAuthenticated} viewModel={polarViewModel} />
       <OuraCard enabled={isAuthenticated} viewModel={ouraViewModel} />
       <NightscoutCard enabled={isAuthenticated} />

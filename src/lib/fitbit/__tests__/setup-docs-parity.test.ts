@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { GOOGLE_HEALTH_CORE_SCOPES } from "@/lib/google-health/client";
+
 import { FITBIT_OAUTH_SCOPE } from "../client";
 
 /**
@@ -39,11 +41,17 @@ describe("Fitbit setup docs stay in sync with the code", () => {
     expect(fitbitDoc).not.toContain("googleapis.com/auth/googlehealth");
   });
 
-  it("keeps the old google-health page as a pointer to the Fitbit setup", () => {
-    const legacy = readDoc("google-health.md");
-    expect(legacy).toContain("fitbit.md");
-    // The legacy page must not re-introduce the wrong Google Cloud walkthrough.
-    expect(legacy).not.toContain("console.cloud.google");
-    expect(legacy).not.toContain("googleapis.com/auth/googlehealth");
+  it("keeps the Google Health runbook on Google endpoints (the inverse mix-up)", () => {
+    // Since v1.27.0 google-health.md documents the real Google Health
+    // integration — a Google Cloud OAuth client. The guard flips: this page
+    // must never send the user to the classic Fitbit app registry, and the
+    // scopes it lists must match what the google-health client requests.
+    const googleHealthDoc = readDoc("google-health.md");
+    expect(googleHealthDoc).toContain("accounts.google.com/o/oauth2/v2/auth");
+    for (const scope of GOOGLE_HEALTH_CORE_SCOPES) {
+      expect(googleHealthDoc).toContain(scope);
+    }
+    expect(googleHealthDoc).not.toContain("dev.fitbit.com");
+    expect(googleHealthDoc).not.toContain("fitbit.com/oauth2/authorize");
   });
 });

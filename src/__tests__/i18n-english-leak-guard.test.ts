@@ -93,6 +93,7 @@ const LEGIT_IDENTICAL = new Set<string>([
   "measurements.typeVo2Max",
   "settings.sections.sources.metrics.vo2Max",
   // Brand / product / proper nouns.
+  "settings.googleHealth",
   "admin.glitchtipDsn",
   "admin.integrationWebPush",
   "admin.offlineGeoEnabled",

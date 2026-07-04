@@ -36,6 +36,13 @@ export const integrationKeys = {
    */
   fitbitStatus: () => ["fitbit", "status"] as const,
 
+  // v1.27.0 — Google Health (Fitbit + Pixel Watch + Fitbit Air) integration
+  // card. Reads status off the consolidated /api/integrations/status envelope
+  // (like Fitbit/WHOOP); the connect/disconnect/credentials/sync mutations
+  // invalidate this key so the card repaints. Distinct hyphenated array so it
+  // never collides with the classic `fitbit` key.
+  googleHealth: () => ["google-health"] as const,
+
   // v1.17.0 — Nightscout CGM integration card. Self-contained status read
   // (not the consolidated /api/integrations/status envelope), so the
   // connect/disconnect mutations invalidate this single key.
