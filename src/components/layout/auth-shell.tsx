@@ -268,7 +268,12 @@ export function AuthShell({
       </a>
       <div className="flex h-dvh flex-col md:flex-row">
         <SidebarNav />
-        <div className="flex min-h-0 flex-1 flex-col">
+        {/* `min-w-0` lets the content column shrink below its children's
+            intrinsic min width (e.g. the measurements table); without it
+            the column widens past the viewport next to the sidebar and
+            the whole page gains a horizontal scrollbar. Wide children
+            scroll inside their own `overflow-x-auto` containers. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/*
             v1.4.43 QoL (M5) — `<OfflineBanner>` paints only when
             `navigator.onLine === false`. Sits above the maintainership
