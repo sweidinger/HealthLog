@@ -8,6 +8,12 @@
 
 - A new Google Health connection reads your Fitbit, Pixel Watch, and Fitbit Air data through your Google account: heart rate and resting heart rate, heart-rate variability, blood-oxygen, respiratory rate, steps, distance, floors climbed, active energy, cardio fitness, sleep, and weight. It runs alongside the existing Fitbit connection and is the path forward as Google retires the older Fitbit Web API in September 2026 — connect through Google and your devices keep syncing. You register your own Google client once, and the setup guide walks through it step by step. Two things are stated plainly up front: stress and readiness scores are not offered by this interface, and Google may ask you to reconnect from time to time — the connection shows a clear prompt when it does.
 
+## [1.26.1] — 2026-07-02 — Fitbit setup guide fix
+
+### Fixed
+
+- The Fitbit (Fitbit & Pixel) setup guide described the wrong OAuth app. HealthLog connects through the classic Fitbit Web API, so you register a **Fitbit developer app at dev.fitbit.com** and paste that Client ID/Secret — but the guide walked you through creating a **Google Cloud** OAuth client instead, which the Fitbit sign-in rejects with `unauthorized_client — Invalid client_id`. The guide now describes the correct dev.fitbit.com setup (app type, HTTPS callback, scopes), and flags that Google is retiring the classic Fitbit Web API in September 2026.
+
 ## [1.26.0] — 2026-07-02 — Light theme and a consistent interface
 
 ### Changed

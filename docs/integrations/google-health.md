@@ -10,7 +10,8 @@ The OAuth app is a **Google Cloud** OAuth client, not a Fitbit developer-console
 app. Credentials are brought **per user**: each user registers their own Google
 Cloud OAuth client and pastes the client id/secret into Settings. The internal
 integration key is `google-health`; it runs alongside the classic `fitbit`
-integration without touching it.
+integration without touching it. For the classic connection (a developer app
+registered on the Fitbit side), see [fitbit.md](./fitbit.md).
 
 > **Beta.** Field mapping is still being verified against live Google Health
 > accounts, so some values may be missing or shift in a later update.
