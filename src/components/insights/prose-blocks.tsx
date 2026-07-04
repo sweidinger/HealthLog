@@ -103,12 +103,54 @@ function linkifyLearnLinks(line: string): ReactNode {
 }
 
 /**
+ * `**bold**` span matcher. The ONLY inline emphasis the formatting contract
+ * allows the models; anything else (headings, underscores, backticks) stays
+ * literal text. No `*` or `\n` inside the span, so an unclosed `**` or a
+ * stray asterisk falls through verbatim — fail-closed, never swallowed.
+ */
+const BOLD_SPAN_RE = /\*\*([^*\n]+)\*\*/g;
+
+/**
+ * Render one line's inline content: closed-set `**bold**` spans become
+ * `<strong>`, and each plain/bold fragment runs through the catalog-
+ * whitelisted Learn linkifier. Pure `matchAll` + slicing over the trusted
+ * string — no parser, no markup passthrough.
+ */
+function renderInline(line: string, linkify: boolean): ReactNode {
+  const linkified = (s: string) => (linkify ? linkifyLearnLinks(s) : s);
+  if (!line.includes("**")) return linkified(line);
+
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let key = 0;
+  for (const match of line.matchAll(BOLD_SPAN_RE)) {
+    const start = match.index ?? 0;
+    if (start > lastIndex)
+      nodes.push(
+        <Fragment key={`t-${key++}`}>
+          {linkified(line.slice(lastIndex, start))}
+        </Fragment>,
+      );
+    nodes.push(<strong key={`b-${key++}`}>{linkified(match[1])}</strong>);
+    lastIndex = start + match[0].length;
+  }
+  if (nodes.length === 0) return linkified(line);
+  if (lastIndex < line.length)
+    nodes.push(
+      <Fragment key={`t-${key++}`}>
+        {linkified(line.slice(lastIndex))}
+      </Fragment>,
+    );
+  return <>{nodes}</>;
+}
+
+/**
  * Render one paragraph's inner text: each single `\n` becomes a `<br/>`, each
- * line is (optionally) chart-token-stripped, then run through the
- * catalog-whitelisted Learn linkifier. Stripping per LINE preserves the
- * `\n` breaks that a whole-string strip would collapse. Exported so the
- * Coach streaming renderer can settle completed paragraphs with the same
- * markup the non-streaming path produces.
+ * line is (optionally) chart-token-stripped, then run through the closed-set
+ * inline renderer (`**bold**` + the catalog-whitelisted Learn linkifier).
+ * Stripping per LINE preserves the `\n` breaks that a whole-string strip
+ * would collapse. Exported so the Coach streaming renderer can settle
+ * completed paragraphs with the same markup the non-streaming path produces.
  */
 export function ParagraphText({
   text,
@@ -127,10 +169,70 @@ export function ParagraphText({
         return (
           <Fragment key={i}>
             {i > 0 && <br />}
-            {linkify ? linkifyLearnLinks(cleaned) : cleaned}
+            {renderInline(cleaned, linkify)}
           </Fragment>
         );
       })}
+    </>
+  );
+}
+
+/** `- ` / `– ` / `• ` list-item marker (leading whitespace tolerated). */
+const BULLET_LINE_RE = /^\s*[-–•]\s+/;
+
+/**
+ * Render ONE blank-line-delimited block: consecutive `- ` lines group into a
+ * real `<ul>` (marker stripped, one `<li>` per line), the remaining line runs
+ * render as `<p>` with `<br/>` joins — so a model reply that enumerates
+ * ("- option one\n- option two") reads as a list instead of dash-prefixed
+ * text lines. Same pure line-splitting as everything else here: no parser,
+ * no markup passthrough. Exported for the Coach streaming renderer.
+ */
+export function ProseBlock({
+  text,
+  strip = false,
+  linkify = true,
+  paragraphClassName,
+}: {
+  text: string;
+  strip?: boolean;
+  linkify?: boolean;
+  paragraphClassName?: string;
+}) {
+  const blockClass = cn(paragraphClassName ?? PROSE_PARAGRAPH_CLASS);
+  const lines = text.split("\n");
+  const runs: Array<{ bullets: boolean; lines: string[] }> = [];
+  for (const line of lines) {
+    const bullets = BULLET_LINE_RE.test(line);
+    const last = runs[runs.length - 1];
+    if (last && last.bullets === bullets) last.lines.push(line);
+    else runs.push({ bullets, lines: [line] });
+  }
+  return (
+    <>
+      {runs.map((run, i) =>
+        run.bullets ? (
+          <ul key={i} className={cn(blockClass, "list-disc space-y-1 pl-5")}>
+            {run.lines.map((line, j) => (
+              <li key={j}>
+                <ParagraphText
+                  text={line.replace(BULLET_LINE_RE, "")}
+                  strip={strip}
+                  linkify={linkify}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p key={i} className={blockClass}>
+            <ParagraphText
+              text={run.lines.join("\n")}
+              strip={strip}
+              linkify={linkify}
+            />
+          </p>
+        ),
+      )}
     </>
   );
 }
@@ -166,9 +268,13 @@ export function ProseBlocks({
   return (
     <>
       {paras.map((p, i) => (
-        <p key={i} className={cn(paragraphClassName ?? PROSE_PARAGRAPH_CLASS)}>
-          <ParagraphText text={p} strip={strip} linkify={linkify} />
-        </p>
+        <ProseBlock
+          key={i}
+          text={p}
+          strip={strip}
+          linkify={linkify}
+          paragraphClassName={paragraphClassName}
+        />
       ))}
     </>
   );
