@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.27.2] — 2026-07-04 — Readable AI texts
+
+### Changed
+
+- The AI texts — Coach replies, the daily briefing, and the insight assessments — now read as structured prose instead of a single block: short paragraphs with real spacing, a proper list when a reply genuinely enumerates options or steps, and the one key takeaway may be set in bold. The rendering stays deliberately minimal: those two shapes are the only ones the app accepts, everything else remains plain text, and there is still no markdown engine anywhere in the tree.
+
 ## [1.27.1] — 2026-07-04 — iPad layout fixes
 
 ### Fixed
