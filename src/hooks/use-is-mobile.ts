@@ -36,8 +36,13 @@ import { useSyncExternalStore } from "react";
  * need a tighter cut (e.g. the Coach drawer, which flips to a
  * bottom-sheet only below `sm` / 640 px) pass an explicit breakpoint.
  */
-function getMediaQuery(breakpoint: "sm" | "md"): string {
-  const maxWidth = breakpoint === "sm" ? "639.98px" : "767.98px";
+function getMediaQuery(breakpoint: "sm" | "md" | "lg"): string {
+  const maxWidth =
+    breakpoint === "sm"
+      ? "639.98px"
+      : breakpoint === "md"
+        ? "767.98px"
+        : "1023.98px";
   return `(max-width: ${maxWidth})`;
 }
 
@@ -59,7 +64,7 @@ function getServerSnapshot(): boolean {
   return false;
 }
 
-export function useIsMobile(breakpoint: "sm" | "md" = "md"): boolean {
+export function useIsMobile(breakpoint: "sm" | "md" | "lg" = "md"): boolean {
   const query = getMediaQuery(breakpoint);
   return useSyncExternalStore(
     subscribe(query),

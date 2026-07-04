@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useAuth, useLogout } from "@/hooks/use-auth";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useMounted } from "@/hooks/use-mounted";
 import { useTheme } from "@/components/providers";
 import { useTranslations } from "@/lib/i18n/context";
@@ -252,25 +253,37 @@ export function SidebarNav() {
     () => visibleNavDestinations(user?.modules, mounted),
     [user?.modules, mounted],
   );
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
+  // Collapsed = the user's stored choice, or — with no stored choice — a
+  // viewport default: tablet widths (md–lg, e.g. an iPad held upright)
+  // fall back to the icon rail so the content column keeps its room; a
+  // 256 px sidebar squeezes a 768 px viewport down to a 512 px column.
+  // Everything is gated on `mounted` (same pattern as the module filter
+  // above): SSR and the hydration render both paint the expanded shell,
+  // the stored pref / viewport default applies on the first client render
+  // after hydration settles. Branching earlier — localStorage or
+  // matchMedia inside the initial render — is a React #418 hydration
+  // mismatch, because the sidebar is only CSS-hidden below `md` and still
+  // hydrates its DOM there.
+  const tabletOrBelow = useIsMobile("lg");
+  const [collapsedPref, setCollapsedPref] = useState<boolean | null>(() => {
+    if (typeof window === "undefined") return null;
     try {
-      return localStorage.getItem(STORAGE_KEY) === "true";
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored === null ? null : stored === "true";
     } catch {
-      return false;
+      return null;
     }
   });
+  const collapsed = mounted ? (collapsedPref ?? tabletOrBelow) : false;
 
   function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(STORAGE_KEY, String(next));
-      } catch {
-        // Ignore storage errors
-      }
-      return next;
-    });
+    const next = !collapsed;
+    setCollapsedPref(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, String(next));
+    } catch {
+      // Ignore storage errors
+    }
   }
 
   // v1.17.1 (F-1 residue) — the sidebar footer utility links derive from
