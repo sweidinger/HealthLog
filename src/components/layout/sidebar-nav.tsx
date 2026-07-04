@@ -255,7 +255,17 @@ export function SidebarNav() {
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
-      return localStorage.getItem(STORAGE_KEY) === "true";
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored !== null) return stored === "true";
+    } catch {
+      return false;
+    }
+    // No stored preference: tablet widths (md–lg, e.g. an iPad held
+    // upright) start on the icon rail so the content column keeps its
+    // room — a 256 px sidebar squeezes a 768 px viewport down to 512 px.
+    // A manual toggle persists and wins on every later visit.
+    try {
+      return window.matchMedia("(max-width: 1023.98px)").matches;
     } catch {
       return false;
     }
