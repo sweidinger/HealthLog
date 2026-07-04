@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.27.1] — 2026-07-04 — iPad layout fixes
+
+### Fixed
+
+- On tablet-width screens — an iPad held upright — the app now starts with the compact icon sidebar, so the content keeps the width it needs instead of being squeezed into a narrow column next to the full navigation. Expanding the sidebar still works and the choice is remembered, as before.
+- The measurements page no longer pushes the whole page into a horizontal scroll on tablet widths; the history table scrolls within its own frame instead.
+
 ## [1.27.0] — 2026-07-03 — Fitbit and Pixel Watch through Google Health
 
 ### Added
