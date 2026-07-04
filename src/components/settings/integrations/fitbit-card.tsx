@@ -1,6 +1,6 @@
 "use client";
 
-// v1.12.0 — Google Health (Fitbit & Pixel) card. Mirrors the WHOOP card: a
+// v1.12.0 — Fitbit (Fitbit & Pixel) card. Mirrors the WHOOP card: a
 // BYO-key credentials form first, then an OAuth connect, then the
 // sync/test/disconnect action row + parked-resume banner. v1.12.1 — status
 // reads off the consolidated /api/integrations/status envelope (the per-card
