@@ -8,8 +8,6 @@
 
 - The Fitbit (Fitbit & Pixel) setup guide described the wrong OAuth app. HealthLog connects through the classic Fitbit Web API, so you register a **Fitbit developer app at dev.fitbit.com** and paste that Client ID/Secret — but the guide walked you through creating a **Google Cloud** OAuth client instead, which the Fitbit sign-in rejects with `unauthorized_client — Invalid client_id`. The guide now describes the correct dev.fitbit.com setup (app type, HTTPS callback, scopes), and flags that Google is retiring the classic Fitbit Web API in September 2026.
 
-
-
 ### Changed
 
 - The light theme is calmer. Text now sits on a soft off-white instead of pure white, the near-black body colour is lifted to a dark tinted grey, cards separate from the background by a gentle step rather than a hard edge, and charts and status colours draw from the theme's own palette — so nothing glares and light mode reads as one harmonious whole. The dark theme is unchanged.
