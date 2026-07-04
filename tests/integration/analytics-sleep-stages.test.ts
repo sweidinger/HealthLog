@@ -204,9 +204,16 @@ describe("GET /api/analytics — sleep-stage aggregation", () => {
     const prisma = getPrismaClient();
     const user = await seedSession("sleep-reconcile-user");
 
-    // Contiguous overnight: 22:30 → 06:15 local (Berlin, UTC+2 in June),
-    // stage ends straddling UTC midnight. WHOOP + Apple Health both report
-    // it; WHOOP wins the default ladder.
+    // Contiguous overnight, stage rows straddling a UTC midnight
+    // (≈23:30 → 06:15 Berlin). WHOOP + Apple Health both report it;
+    // WHOOP wins the default ladder. Anchor the night ~6 days back so it
+    // stays inside the route's trailing 30-day window as the calendar
+    // advances — fixed calendar dates seeded here expire out of the
+    // window and the test starts failing a month later.
+    const midnight = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+    midnight.setUTCHours(0, 0, 0, 0);
+    const at = (offsetMin: number) =>
+      new Date(midnight.getTime() + offsetMin * 60_000).toISOString();
     const seed = async (
       iso: string,
       stage: "CORE" | "DEEP" | "REM",
@@ -227,13 +234,13 @@ describe("GET /api/analytics — sleep-stage aggregation", () => {
       });
     };
     // WHOOP — the canonical source. CORE 60 + DEEP 90 + REM 120 + CORE 195.
-    await seed("2026-06-03T21:30:00.000Z", "CORE", 60, "WHOOP");
-    await seed("2026-06-03T23:00:00.000Z", "DEEP", 90, "WHOOP");
-    await seed("2026-06-04T01:00:00.000Z", "REM", 120, "WHOOP");
-    await seed("2026-06-04T04:15:00.000Z", "CORE", 195, "WHOOP");
+    await seed(at(-150), "CORE", 60, "WHOOP"); // 21:30 UTC, day before
+    await seed(at(-60), "DEEP", 90, "WHOOP"); // 23:00 UTC, day before
+    await seed(at(60), "REM", 120, "WHOOP"); // 01:00 UTC
+    await seed(at(255), "CORE", 195, "WHOOP"); // 04:15 UTC
     // Apple Health parallel rows for the SAME night — must be dropped.
-    await seed("2026-06-03T21:35:00.000Z", "CORE", 55, "APPLE_HEALTH");
-    await seed("2026-06-04T01:05:00.000Z", "REM", 110, "APPLE_HEALTH");
+    await seed(at(-145), "CORE", 55, "APPLE_HEALTH"); // 21:35 UTC, day before
+    await seed(at(65), "REM", 110, "APPLE_HEALTH"); // 01:05 UTC
 
     const { GET } = await import("@/app/api/analytics/route");
     const response = await (
