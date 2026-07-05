@@ -133,6 +133,10 @@ export const ALLOWED_CHART_TOKENS = [
   // generic chart.
   "metric:PHQ9_SCORE",
   "metric:GAD7_SCORE",
+  // v1.27.9 — WHO-5 (0–100 percentage) + SCI (0–32) screening totals; same
+  // continuous-series contract, higher = better.
+  "metric:WHO5_SCORE",
+  "metric:SCI_SCORE",
   "metric:GRIP_STRENGTH",
   "metric:PAIN_NRS",
   "metric:WAIST_CIRCUMFERENCE",
