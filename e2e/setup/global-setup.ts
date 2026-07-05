@@ -203,6 +203,26 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   state.cookies = state.cookies.filter((c) =>
     ["healthlog_session", "healthlog-locale", "hl_onboarding"].includes(c.name),
   );
+  // v1.27.11 — pin the shared auth state to English via an explicit locale
+  // cookie. The server now honours `User.locale` when the cookie is absent
+  // (the ITP fix), and the locale-switch spec mirrors its German pick into
+  // the SHARED e2e user's profile — without this cookie every spec running
+  // after it would render German and the English-string assertions fail.
+  // The cookie sits at the top of the resolution ladder, so each spec
+  // context stays deterministically English; locale-switch overrides it
+  // inside its own context only.
+  const base = new URL(baseURL);
+  state.cookies = state.cookies.filter((c) => c.name !== "healthlog-locale");
+  state.cookies.push({
+    name: "healthlog-locale",
+    value: "en",
+    domain: base.hostname,
+    path: "/",
+    expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365,
+    httpOnly: false,
+    secure: false,
+    sameSite: "Lax",
+  });
   await writeFile(STORAGE_STATE_PATH, JSON.stringify(state, null, 2));
   await ctx.dispose();
   console.log(
