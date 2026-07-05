@@ -125,7 +125,7 @@ export function ResearchModeAcknowledgmentDialog({
       onOpenChange={onOpenChange}
       title={
         <span className="flex items-center gap-2">
-          <BookOpenCheck className="text-dracula-purple h-5 w-5 shrink-0" />
+          <BookOpenCheck className="text-primary h-5 w-5 shrink-0" />
           {t("medications.researchMode.dialog.title")}
         </span>
       }

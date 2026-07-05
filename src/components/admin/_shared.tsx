@@ -122,7 +122,7 @@ export interface ApiTokenInfo {
 export function ConfiguredBadge() {
   const { t } = useTranslations();
   return (
-    <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
+    <Badge className="border-success/30 bg-success/15 text-success">
       {t("admin.configured")}
     </Badge>
   );
@@ -488,11 +488,14 @@ export function useSystemStatus() {
 }
 
 /** Helpful-rate tint shared by the AI-quality + Coach-feedback tables.
- * Green ≥80 %, yellow ≥50 %, orange below. */
+ * The standard urgency ramp (the medication-status-pill precedent):
+ * ≥80 % success, ≥50 % warning, below destructive — a sub-50 % helpful
+ * rate is a genuine quality alarm, and the percent label always carries
+ * the exact value alongside the tint. */
 export function helpfulRateColour(rate: number): string {
-  if (rate >= 0.8) return "text-dracula-green";
-  if (rate >= 0.5) return "text-dracula-yellow";
-  return "text-dracula-orange";
+  if (rate >= 0.8) return "text-success";
+  if (rate >= 0.5) return "text-warning";
+  return "text-destructive";
 }
 
 export interface PublicVersion {

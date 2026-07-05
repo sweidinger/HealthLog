@@ -74,14 +74,14 @@ export function DoneScreen() {
       <div className="border-border/60 bg-muted/30 mx-auto flex w-full max-w-md flex-col items-center gap-2 rounded-lg border p-4 text-center">
         <span
           aria-hidden="true"
-          className="from-dracula-purple to-dracula-pink flex size-9 items-center justify-center rounded-full bg-gradient-to-br"
+          className="from-primary to-brand-pink flex size-9 items-center justify-center rounded-full bg-gradient-to-br"
         >
           <Sparkles className="text-background size-4" />
         </span>
         <p className="text-foreground text-sm font-medium">
           {t("onboarding.done.aiTitle")}
         </p>
-        <p className="text-muted-foreground text-sm leading-relaxed">
+        <p className="text-foreground text-sm leading-relaxed">
           {t("onboarding.done.aiBody")}
         </p>
         <Link

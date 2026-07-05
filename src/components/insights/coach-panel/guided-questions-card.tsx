@@ -44,14 +44,14 @@ export function GuidedQuestionsCard({
     <div
       data-slot="coach-guided-offer"
       className={cn(
-        "border-dracula-purple/30 from-dracula-purple/10 to-dracula-pink/5",
+        "border-primary/30 from-primary/10 to-brand-pink/5",
         "mb-2 rounded-lg border bg-gradient-to-r px-3 py-2.5",
       )}
     >
       <div className="flex items-start gap-2.5">
         <div
           aria-hidden="true"
-          className="from-dracula-purple to-dracula-pink mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
+          className="from-primary to-brand-pink mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
         >
           <MessageCircleQuestion className="text-background size-3.5" />
         </div>
@@ -71,8 +71,8 @@ export function GuidedQuestionsCard({
               disabled={disabled}
               onClick={onStart}
               className={cn(
-                "bg-dracula-purple/15 text-dracula-purple inline-flex min-h-8 items-center rounded-full px-3 text-xs font-medium",
-                "hover:bg-dracula-purple/25 focus-visible:ring-dracula-purple/40 focus-visible:ring-2 focus-visible:outline-none",
+                "bg-primary/15 text-primary inline-flex min-h-8 items-center rounded-full px-3 text-xs font-medium",
+                "hover:bg-primary/25 focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none",
                 "disabled:opacity-60",
               )}
             >
@@ -85,7 +85,7 @@ export function GuidedQuestionsCard({
               onClick={onLater}
               className={cn(
                 "text-muted-foreground hover:text-foreground inline-flex min-h-8 items-center rounded-full px-2.5 text-xs",
-                "hover:bg-dracula-purple/10 focus-visible:ring-dracula-purple/40 focus-visible:ring-2 focus-visible:outline-none",
+                "hover:bg-primary/10 focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none",
                 "disabled:opacity-60",
               )}
             >
@@ -98,7 +98,7 @@ export function GuidedQuestionsCard({
               onClick={onDismissAll}
               className={cn(
                 "text-muted-foreground hover:text-foreground inline-flex min-h-8 items-center rounded-full px-2.5 text-xs",
-                "hover:bg-dracula-purple/10 focus-visible:ring-dracula-purple/40 focus-visible:ring-2 focus-visible:outline-none",
+                "hover:bg-primary/10 focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none",
                 "disabled:opacity-60",
               )}
             >

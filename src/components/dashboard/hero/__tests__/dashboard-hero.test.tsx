@@ -395,12 +395,20 @@ describe("<DashboardHero> — ring row (v1.27.7)", () => {
     expect(rings).toHaveLength(3);
     // Labels (de locale): the derived ring reuses its wellness-strip
     // title; the dose ring names today's tally and shows it as
-    // taken/scheduled over the constant green arc — never the band
-    // gradient (a pending morning dose is not an alert state).
+    // taken/scheduled over the constant med-family arc (`--primary`,
+    // the hue the medication surfaces in Insights paint) — never the
+    // band gradient (a pending morning dose is not an alert state) and
+    // never the ring system's green (reserved for band semantics).
     expect(html).toContain("Bereitschaft");
     expect(html).toContain("Dosen heute");
     expect(html).toContain(">1/3<");
-    expect(html).toContain("var(--ring-green-from)");
+    // Window the assertion to the dose ring's own SVG (its gradient defs
+    // close with the svg) so the trailing health-score ring's band-green
+    // gradient can't mask a regression.
+    const medIdx = html.indexOf('data-ring="MED_COMPLIANCE"');
+    const doseRing = html.slice(medIdx, html.indexOf("</svg>", medIdx));
+    expect(doseRing).toContain("var(--primary)");
+    expect(doseRing).not.toContain("var(--ring-green-from)");
     expect(html).not.toContain("var(--ring-yellow-from)");
   });
 

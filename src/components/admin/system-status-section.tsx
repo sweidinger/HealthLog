@@ -70,7 +70,7 @@ export function SystemStatusSection() {
               }
               className={
                 status.database === "connected"
-                  ? "text-dracula-green"
+                  ? "text-success"
                   : "text-destructive"
               }
             />
@@ -108,9 +108,7 @@ export function SystemStatusSection() {
                   : t("admin.workerStopped")
               }
               className={
-                status.worker.running
-                  ? "text-dracula-green"
-                  : "text-destructive"
+                status.worker.running ? "text-success" : "text-destructive"
               }
             />
             {status.worker.lastReminderCheck && (
@@ -131,7 +129,7 @@ export function SystemStatusSection() {
                 }
                 className={
                   status.integrations.umami.enabled
-                    ? "text-dracula-green"
+                    ? "text-success"
                     : "text-destructive"
                 }
               />
@@ -147,7 +145,7 @@ export function SystemStatusSection() {
                 }
                 className={
                   status.integrations.glitchtip.enabled
-                    ? "text-dracula-green"
+                    ? "text-success"
                     : "text-destructive"
                 }
               />
@@ -157,7 +155,7 @@ export function SystemStatusSection() {
                 icon={BellRing}
                 label={t("admin.integrationWebPush")}
                 value={t("admin.configured")}
-                className="text-dracula-green"
+                className="text-success"
               />
             )}
             {/* v1.4.27 R5 — offline GeoLite2 availability. Renders only
@@ -175,9 +173,7 @@ export function SystemStatusSection() {
                       })
                 }
                 className={
-                  version.offlineGeoEnabled
-                    ? "text-dracula-green"
-                    : "text-dracula-yellow"
+                  version.offlineGeoEnabled ? "text-success" : "text-warning"
                 }
               />
             )}

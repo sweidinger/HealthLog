@@ -70,15 +70,15 @@ describe("MeasurementList — APPLE_HEALTH badge", () => {
     expect(html).not.toContain(">APPLE_HEALTH<");
   });
 
-  it("paints the badge with the Dracula-pink utility classes", () => {
+  it("paints the badge with the brand-pink utility classes", () => {
     const html = render("en");
-    // The chip class composition (`border-dracula-pink/50`,
-    // `bg-dracula-pink/15`, `text-dracula-pink`) is what gives the
+    // The chip class composition (`border-brand-pink/50`,
+    // `bg-brand-pink/15`, `text-brand-pink`) is what gives the
     // badge its iOS-accent identity. Asserting all three keeps the
     // colour contract from drifting silently.
-    expect(html).toMatch(/border-dracula-pink\/50/);
-    expect(html).toMatch(/bg-dracula-pink\/15/);
-    expect(html).toMatch(/text-dracula-pink/);
+    expect(html).toMatch(/border-brand-pink\/50/);
+    expect(html).toMatch(/bg-brand-pink\/15/);
+    expect(html).toMatch(/text-brand-pink/);
   });
 
   it("renders the localised label in German too", () => {

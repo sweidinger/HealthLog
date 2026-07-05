@@ -726,7 +726,7 @@ export function CoachConversation({
         ) : null}
         <div
           aria-hidden="true"
-          className="from-dracula-purple to-dracula-pink flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br shadow-sm"
+          className="from-primary to-brand-pink flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br shadow-sm"
         >
           <Sparkles className="text-background size-4" />
         </div>

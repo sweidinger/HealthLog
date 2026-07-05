@@ -148,13 +148,13 @@ describe("<RecommendationsGrid>", () => {
       rec("d", "info", "info-rec"),
     ];
     const html = render(<RecommendationsGrid recs={recs} />);
-    // Each card gets a Dracula-token border-l class. The exact class
+    // Each card gets a semantic-token border-l class. The exact class
     // varies by severity; we assert at least one of each is in the
     // output.
-    expect(html).toMatch(/border-l-dracula-red/);
-    expect(html).toMatch(/border-l-dracula-orange/);
-    expect(html).toMatch(/border-l-dracula-purple/);
-    expect(html).toMatch(/border-l-dracula-cyan/);
+    expect(html).toMatch(/border-l-destructive/);
+    expect(html).toMatch(/border-l-warning/);
+    expect(html).toMatch(/border-l-primary/);
+    expect(html).toMatch(/border-l-info/);
   });
 
   it("renders nothing when recs is empty", () => {

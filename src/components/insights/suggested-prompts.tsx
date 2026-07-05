@@ -91,11 +91,11 @@ export function SuggestedPrompts({
           // target clears the 44 px iOS/WCAG floor on phones (`min-h-11`)
           // and relaxes to the denser 36 px from `sm` up.
           className={cn(
-            "border-dracula-purple/18 hover:border-dracula-purple/40 hover:text-foreground",
+            "border-primary/18 hover:border-primary/40 hover:text-foreground",
             "text-muted-foreground inline-flex min-h-11 items-center gap-1.5 sm:min-h-9",
             "rounded-full border bg-transparent px-3 py-1.5 text-xs",
             "transition-colors focus-visible:ring-2 focus-visible:outline-none",
-            "focus-visible:ring-dracula-purple/50",
+            "focus-visible:ring-primary/50",
           )}
         >
           <Quote className="h-3 w-3 shrink-0" aria-hidden="true" />

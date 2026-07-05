@@ -62,10 +62,10 @@ export function sortRecommendationsBySeverity(
 }
 
 const SEVERITY_BORDER_CLASSES: Record<string, string> = {
-  urgent: "border-l-dracula-red/70",
-  important: "border-l-dracula-orange/70",
-  suggestion: "border-l-dracula-purple/70",
-  info: "border-l-dracula-cyan/70",
+  urgent: "border-l-destructive/70",
+  important: "border-l-warning/70",
+  suggestion: "border-l-primary/70",
+  info: "border-l-info/70",
 };
 
 const SEVERITY_BORDER_FALLBACK = "border-l-border";

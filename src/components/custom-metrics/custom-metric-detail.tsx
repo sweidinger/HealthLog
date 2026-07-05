@@ -172,7 +172,7 @@ export function CustomMetricDetail({
           <h1 className="text-2xl font-bold tracking-tight">
             {metric?.name ?? t("customMetrics.detail.title")}
           </h1>
-          <p className="text-muted-foreground text-sm leading-relaxed">
+          <p className="text-foreground text-sm leading-relaxed">
             {description}
           </p>
         </header>
@@ -262,9 +262,7 @@ export function CustomMetricDetail({
         </div>
       </div>
 
-      <p className="text-muted-foreground text-sm leading-relaxed">
-        {description}
-      </p>
+      <p className="text-foreground text-sm leading-relaxed">{description}</p>
 
       {isLoading ? (
         <Card>

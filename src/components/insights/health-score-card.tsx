@@ -302,7 +302,7 @@ export function HealthScoreCard({
       data-slot="health-score-card"
       data-band={band}
       className={cn(
-        "bg-card/65 rounded-xl border px-4 py-4 shadow-sm backdrop-blur-sm",
+        "bg-card/65 rounded-xl border p-4 shadow-sm backdrop-blur-sm md:p-6",
         BAND_BORDER_CLASS[band],
         // v1.4.27 MB7 / CF-34 — basis-based width so the score column
         // flexes inside the hero strip's `md:flex-row` split. Earlier

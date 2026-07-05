@@ -145,20 +145,20 @@ const STATUS_STYLES: Record<InviteStatus, { dot: string; chip: string }> = {
   // Quiet tinted chips with a colour dot — the dot carries the state at
   // a glance, the tint stays low so a table of mixed states reads calm.
   active: {
-    dot: "bg-dracula-green",
-    chip: "border-dracula-green/30 bg-dracula-green/10 text-dracula-green",
+    dot: "bg-success",
+    chip: "border-success/30 bg-success/10 text-success",
   },
   expired: {
     dot: "bg-muted-foreground/60",
     chip: "border-border bg-muted/40 text-muted-foreground",
   },
   exhausted: {
-    dot: "bg-dracula-cyan",
-    chip: "border-dracula-cyan/30 bg-dracula-cyan/10 text-dracula-cyan",
+    dot: "bg-info",
+    chip: "border-info/30 bg-info/10 text-info",
   },
   revoked: {
-    dot: "bg-dracula-red",
-    chip: "border-dracula-red/30 bg-dracula-red/10 text-dracula-red",
+    dot: "bg-destructive",
+    chip: "border-destructive/30 bg-destructive/10 text-destructive",
   },
 };
 
@@ -451,7 +451,7 @@ export function InviteTokensSection() {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="text-dracula-red hover:text-dracula-red"
+                            className="text-destructive hover:text-destructive"
                             aria-label={t("admin.invites.revokeAria")}
                             disabled={revoke.isPending}
                             onClick={() => setRevokeTarget(invite)}
@@ -519,7 +519,7 @@ export function InviteTokensSection() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-dracula-red hover:text-dracula-red"
+                        className="text-destructive hover:text-destructive"
                         disabled={revoke.isPending}
                         onClick={() => setRevokeTarget(invite)}
                       >
@@ -582,7 +582,7 @@ export function InviteTokensSection() {
                           className={cn(
                             "min-h-11 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                             ttlDays === days
-                              ? "border-dracula-purple/50 bg-dracula-purple/10 text-dracula-purple"
+                              ? "border-primary/50 bg-primary/10 text-primary"
                               : "border-border text-foreground hover:bg-accent",
                           )}
                         >
@@ -647,7 +647,7 @@ export function InviteTokensSection() {
               </DialogHeader>
               {/* The ticket — dashed edge marks the one-time nature. */}
               <div
-                className="border-dracula-purple/40 bg-background rounded-xl border border-dashed p-4"
+                className="border-primary/40 bg-background rounded-xl border border-dashed p-4"
                 data-testid="admin-invites-minted"
               >
                 <div className="flex flex-col items-center gap-4">
@@ -671,7 +671,7 @@ export function InviteTokensSection() {
                   >
                     {copied ? (
                       <Check
-                        className="text-dracula-green size-4"
+                        className="text-success size-4"
                         aria-hidden="true"
                       />
                     ) : (

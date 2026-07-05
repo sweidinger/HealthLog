@@ -105,6 +105,17 @@
   --color-info: var(--info);
 
   /*
+   * Brand accent tokens — identity colours with no semantic (status)
+   * twin. `--brand-pink` is the Coach-gradient / Apple-Health accent
+   * (`from-primary to-brand-pink`, the iOS-source badge, the recording
+   * mic). Per-theme values ride the `--dracula-pink` primitive, which
+   * the light theme overrides to its AA-tuned counterpart:
+   * dark #ff79c6 — 6.86:1 card / 5.97:1 bg; light #a3134d — 7.32:1
+   * card / 6.83:1 bg (WCAG relative-luminance, computed).
+   */
+  --color-brand-pink: var(--brand-pink);
+
+  /*
    * Status-pill text tokens. The target status pill paints coloured text
    * on a 10% same-hue tint; the raw Dracula green/orange/red would fail
    * WCAG AA (4.5:1) for the "out" tone on the muted reference panel in
@@ -159,6 +170,14 @@
   --success: var(--dracula-green);
   --warning: var(--dracula-orange);
   --info: var(--dracula-cyan);
+
+  /*
+   * Brand accent (see the @theme re-export). Aliased over the pink
+   * primitive so the light theme's AA-tuned `--dracula-pink` override
+   * carries through automatically — pixel-identical to the raw utility
+   * sites it replaced.
+   */
+  --brand-pink: var(--dracula-pink);
 
   /*
    * Foreground for glyphs/labels painted on a solid `bg-success` fill. The
@@ -337,13 +356,15 @@
   --chart-5: #a34d14;
   /*
    * Light-mode (Alucard) overrides for the raw `--dracula-*` primitives.
-   * ~250 legacy `text-dracula-*` / opacity-suffixed `bg-dracula-*` call
-   * sites still read these directly; without an override the dark neons render on the white
-   * card at 1.2–1.6:1. Each value below is tuned to the AA light palette
-   * already in this block (same hue family, measured >=4.5:1 on both
-   * `--card` oklch(0.988 0.003 300) and `--background` oklch(0.964 0.004
-   * 300)), so every legacy utility inherits a readable tone until the
-   * semantic sweep retires it.
+   * The semantic sweep retired every `text-dracula-*` / `bg-dracula-*`
+   * UTILITY site (lint-enforced via healthlog/no-dracula-utility), but
+   * chart code still passes `var(--dracula-*)` token references
+   * (Recharts stroke/fill maps) and the Coach gradient CSS below reads
+   * the purple/pink primitives — without an override the dark neons
+   * render on the white card at 1.2–1.6:1. Each value below is tuned to
+   * the AA light palette already in this block (same hue family,
+   * measured >=4.5:1 on both `--card` oklch(0.988 0.003 300) and
+   * `--background` oklch(0.964 0.004 300)).
    */
   --dracula-cyan: #036a96; /* shadows --info            — 5.78:1 card / 5.39:1 bg */
   --dracula-green: #14720a; /* shadows --success         — 5.89:1 card / 5.49:1 bg */

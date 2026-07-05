@@ -92,9 +92,7 @@ function TokenStatusBadge({
     );
   }
   return (
-    <Badge
-      className={`bg-dracula-green/15 text-dracula-green shrink-0 ${sizeClass}`}
-    >
+    <Badge className={`bg-success/15 text-success shrink-0 ${sizeClass}`}>
       {t("common.active")}
     </Badge>
   );

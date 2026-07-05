@@ -190,7 +190,7 @@ export function UserManagementSection() {
       <Button
         variant="ghost"
         size="sm"
-        className={`min-h-11 min-w-11 px-3 text-xs ${u.mfaEnforced ? "text-dracula-green" : ""}`}
+        className={`min-h-11 min-w-11 px-3 text-xs ${u.mfaEnforced ? "text-success" : ""}`}
         onClick={() =>
           updateUser.mutate({
             id: u.id,
@@ -554,7 +554,7 @@ export function UserManagementSection() {
             </div>
             {resetMsg && (
               <p
-                className={`text-sm ${resetMsg === t("admin.passwordReset") ? "text-dracula-green" : "text-destructive"}`}
+                className={`text-sm ${resetMsg === t("admin.passwordReset") ? "text-success" : "text-destructive"}`}
               >
                 {resetMsg}
               </p>

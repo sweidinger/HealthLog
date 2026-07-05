@@ -210,7 +210,7 @@ export default function InsightsMedikamentePage() {
                 ? t("medications.categoryVitamin")
                 : t("medications.categoryOther");
           return (
-            <Card key={med.id} className="gap-2 py-4 md:gap-3 md:py-5">
+            <Card key={med.id} className="gap-2 py-3 md:py-4">
               <CardHeader>
                 <TileHeader icon={Pill} title={med.name} />
                 <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">

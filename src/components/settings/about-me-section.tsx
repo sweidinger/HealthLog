@@ -192,7 +192,7 @@ export function AboutMeSection({
               aria-hidden="true"
               className={cn(
                 "h-1 w-5 rounded-full transition-colors",
-                i < answered ? "bg-dracula-purple" : "bg-border",
+                i < answered ? "bg-primary" : "bg-border",
               )}
             />
           ))}
@@ -272,11 +272,11 @@ export function AboutMeSection({
       {pendingQuestions.length > 0 && (
         <div
           data-testid="settings-about-me-questions"
-          className="border-dracula-purple/30 bg-dracula-purple/5 rounded-lg border p-4"
+          className="border-primary/30 bg-primary/5 rounded-lg border p-4"
         >
           <p className="flex items-center gap-2 text-sm font-medium">
             <MessageCircleQuestion
-              className="text-dracula-purple size-4 shrink-0"
+              className="text-primary size-4 shrink-0"
               aria-hidden="true"
             />
             {t("settings.ai.aboutMe.questionsTitle")}
@@ -289,7 +289,7 @@ export function AboutMeSection({
           <p className="mt-3 text-xs">
             <Link
               href="/coach"
-              className="text-dracula-purple underline-offset-4 hover:underline"
+              className="text-primary underline-offset-4 hover:underline"
             >
               {t("settings.ai.aboutMe.questionsOpenCoach")}
             </Link>
@@ -318,7 +318,7 @@ export function AboutMeSection({
         {t("settings.ai.aboutMe.recordsLink")}{" "}
         <Link
           href="/settings/anamnesis"
-          className="text-dracula-purple underline-offset-4 hover:underline"
+          className="text-primary underline-offset-4 hover:underline"
         >
           {t("settings.ai.aboutMe.recordsLinkCta")}
         </Link>

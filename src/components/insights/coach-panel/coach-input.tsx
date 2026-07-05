@@ -428,7 +428,7 @@ export function CoachInput({
       className={cn(
         "size-11 shrink-0 rounded-xl transition-colors sm:size-9",
         listening
-          ? "text-dracula-pink bg-dracula-pink/10 hover:text-dracula-pink"
+          ? "text-brand-pink bg-brand-pink/10 hover:text-brand-pink"
           : "text-muted-foreground hover:text-foreground",
       )}
     >
@@ -553,7 +553,7 @@ export function CoachInput({
         className={cn(
           "border-border/60 bg-muted/40 group rounded-2xl border",
           "shadow-sm transition-colors",
-          "focus-within:border-dracula-purple/50 focus-within:ring-dracula-purple/15 focus-within:bg-background focus-within:ring-2",
+          "focus-within:border-primary/50 focus-within:ring-primary/15 focus-within:bg-background focus-within:ring-2",
           // Both surfaces share ONE baseline row: the drawer flanks the
           // textarea with mic (left) + send (right); the page leads with a
           // `+` actions menu, then the textarea, then mic + send. `items-end`
@@ -601,7 +601,7 @@ export function CoachInput({
             // v1.18.7 — calm, thin scrollbar inside the composer when
             // dictation overruns 6 lines (see also the thread/history
             // scroll regions). Scoped here, not in globals.css.
-            "[scrollbar-width:thin] [scrollbar-color:color-mix(in_srgb,var(--dracula-purple)_35%,transparent)_transparent]",
+            "[scrollbar-width:thin] [scrollbar-color:color-mix(in_srgb,var(--primary)_35%,transparent)_transparent]",
             "placeholder:text-muted-foreground disabled:opacity-60",
             // Keep the placeholder a single line on narrow phones: a long
             // hint used to wrap to two lines inside the one-row composer and

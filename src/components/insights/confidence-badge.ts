@@ -12,5 +12,9 @@ export type ConfidenceBand = "low" | "moderate" | "high";
 export const CONFIDENCE_BADGE_CLASS: Record<ConfidenceBand, string> = {
   high: "border-success/40 bg-success/10 text-success",
   moderate: "border-warning/40 bg-warning/10 text-warning",
-  low: "border-dracula-comment/40 bg-dracula-comment/10 text-muted-foreground",
+  // Neutral (non-status) tier. The former `*-dracula-comment/*` classes
+  // had no generated utility (`--color-dracula-comment` was never in the
+  // @theme block) and silently painted nothing; border/muted is the real
+  // neutral vocabulary.
+  low: "border-border bg-muted/50 text-muted-foreground",
 };

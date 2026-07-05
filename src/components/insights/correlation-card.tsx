@@ -51,9 +51,9 @@ interface CorrelationCardProps {
 }
 
 const TONE_BAR_CLASSNAME: Record<CorrelationResult["kind"], string> = {
-  "bp-compliance": "bg-dracula-pink",
-  "mood-pulse": "bg-dracula-cyan",
-  "weight-weekday": "bg-dracula-purple",
+  "bp-compliance": "bg-brand-pink",
+  "mood-pulse": "bg-info",
+  "weight-weekday": "bg-primary",
 };
 
 const TITLE_KEY: Record<CorrelationResult["kind"], string> = {
@@ -208,12 +208,13 @@ export function CorrelationCard({ result }: CorrelationCardProps) {
 }
 
 function tonesByKind(kind: CorrelationResult["kind"]): string {
+  // Keep in step with TONE_BAR_CLASSNAME above — same token per kind.
   switch (kind) {
     case "bp-compliance":
-      return "var(--dracula-pink)";
+      return "var(--brand-pink)";
     case "mood-pulse":
-      return "var(--dracula-cyan)";
+      return "var(--info)";
     case "weight-weekday":
-      return "var(--dracula-purple)";
+      return "var(--primary)";
   }
 }

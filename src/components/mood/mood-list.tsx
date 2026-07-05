@@ -688,7 +688,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                     key={entry.id}
                     data-testid="mood-row"
                     data-state={isSelected ? "selected" : undefined}
-                    className="bg-card border-border data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5 flex items-center justify-between rounded-lg border p-3"
+                    className="bg-card border-border data-[state=selected]:border-primary/60 data-[state=selected]:bg-primary/5 flex items-center justify-between rounded-lg border p-3"
                   >
                     <div className="flex items-center gap-2 overflow-hidden">
                       {/* v1.15.13 MEDIUM-1 kept the 16px Radix Checkbox
@@ -1098,7 +1098,7 @@ function MoodNoteText({
           aria-expanded={expanded}
           aria-controls={noteId}
           data-testid="mood-note-toggle"
-          className="text-dracula-purple cursor-pointer text-[11px] font-medium"
+          className="text-primary cursor-pointer text-[11px] font-medium"
         >
           {expanded ? t("mood.noteCollapse") : t("mood.noteExpand")}
         </button>

@@ -315,9 +315,7 @@ export function MedicationComplianceChart({
   // mood tiles.
   const trendColor = ((): string => {
     if (!trend || trend.direction === "stable") return "text-muted-foreground";
-    return trend.direction === "up"
-      ? "text-dracula-green"
-      : "text-dracula-orange";
+    return trend.direction === "up" ? "text-success" : "text-warning";
   })();
 
   const TrendIcon = !trend

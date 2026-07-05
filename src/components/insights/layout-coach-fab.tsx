@@ -252,8 +252,8 @@ export function LayoutCoachFab() {
           // Dark glyph on the purple/pink gradient — white sat at
           // ≈2.3:1 against the gradient midpoint; the background token
           // reads ≈6.5:1.
-          "from-dracula-purple to-dracula-pink text-background bg-gradient-to-br",
-          "hover:from-dracula-purple/90 hover:to-dracula-pink/90",
+          "from-primary to-brand-pink text-background bg-gradient-to-br",
+          "hover:from-primary/90 hover:to-brand-pink/90",
           // The default ring alone is hard to see against the gradient;
           // the offset ring draws a clear halo around the circle.
           "focus-visible:ring-offset-background focus-visible:ring-offset-2",
@@ -285,7 +285,7 @@ export function LayoutCoachFab() {
           <span
             data-slot="coach-fab-unread"
             aria-hidden="true"
-            className="border-background bg-dracula-cyan absolute top-0.5 right-0.5 size-3 rounded-full border-2"
+            className="border-background bg-info absolute top-0.5 right-0.5 size-3 rounded-full border-2"
           />
         ) : null}
       </Button>

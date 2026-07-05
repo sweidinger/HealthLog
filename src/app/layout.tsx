@@ -1,31 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { headers, cookies } from "next/headers";
+import { headers } from "next/headers";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { AuthShell } from "@/components/layout/auth-shell";
 import { MonitoringBootstrap } from "@/components/monitoring/bootstrap";
 import { WebVitalsReporter } from "@/components/monitoring/web-vitals-reporter";
-import { parseLocaleFromAcceptLanguage } from "@/lib/format-locale";
-import { locales, type Locale } from "@/lib/i18n/config";
+import { resolveInitialLocale } from "@/lib/i18n/resolve-initial-locale";
 import { allMessages } from "@/lib/i18n/shared-resolve";
-
-async function resolveInitialLocale(): Promise<Locale> {
-  // Both cookies() and headers() can throw (DynamicServerError, etc.) —
-  // fall back to the default so a locale hiccup never crashes the root
-  // layout into global-error.tsx.
-  try {
-    const cookieStore = await cookies();
-    const cookieLocale = cookieStore.get("healthlog-locale")?.value;
-    if (cookieLocale && (locales as readonly string[]).includes(cookieLocale)) {
-      return cookieLocale as Locale;
-    }
-    const headerList = await headers();
-    return parseLocaleFromAcceptLanguage(headerList.get("accept-language"));
-  } catch {
-    return "en";
-  }
-}
 
 const inter = Inter({
   variable: "--font-sans",

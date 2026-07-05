@@ -9,6 +9,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { useChartDomainStats } from "@/hooks/use-chart-domain-stats";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
@@ -189,18 +190,24 @@ export default function InsightsBlutdruckPage() {
         const pp = Math.round(sbp - dbp);
         const map = Math.round((sbp + 2 * dbp) / 3);
         return (
-          <p
-            data-slot="bp-derived-caption"
-            className="text-muted-foreground text-sm leading-relaxed"
-          >
-            {t("insights.subPage.bpDerived.pulsePressure", {
-              value: pp,
-            })}{" "}
-            {t("insights.subPage.bpDerived.meanArterialPressure", {
-              value: map,
-            })}{" "}
-            {t("insights.subPage.bpDerived.caveat")}
-          </p>
+          // Card shell at the compact density so the explainer shares the
+          // spine's left text edge (the bare paragraph sat at the container
+          // edge, ~16–24 px left of every neighbouring card's text) — and
+          // foreground, not muted: multi-sentence explainer prose is
+          // content, muted stays reserved for meta.
+          <Card data-slot="bp-derived-caption" className="gap-2 py-3 md:py-4">
+            <CardContent>
+              <p className="text-sm leading-relaxed">
+                {t("insights.subPage.bpDerived.pulsePressure", {
+                  value: pp,
+                })}{" "}
+                {t("insights.subPage.bpDerived.meanArterialPressure", {
+                  value: map,
+                })}{" "}
+                {t("insights.subPage.bpDerived.caveat")}
+              </p>
+            </CardContent>
+          </Card>
         );
       })()}
 

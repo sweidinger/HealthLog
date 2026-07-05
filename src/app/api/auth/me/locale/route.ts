@@ -20,11 +20,13 @@
  * holds a value the resolver would later have to defend against.
  */
 import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiError, apiSuccess, safeJson } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { locales, type Locale } from "@/lib/i18n/config";
+import { setLocaleCookie } from "@/lib/i18n/locale-cookie";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,16 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     });
     annotate({ meta: { locale_next: locale } });
   }
+
+  // Mirror the accepted locale into the `healthlog-locale` cookie via
+  // Set-Cookie. The client's own `document.cookie` write is capped at 7
+  // days by Safari ITP; the server-set copy is not, so an explicit choice
+  // survives on every device. Runs on the idempotent path too — the
+  // mount-time backfill hitting this route is exactly the weekly refresh
+  // that keeps the cookie alive. Harmless no-op payload for Bearer
+  // callers (native clients ignore cookies).
+  const cookieStore = await cookies();
+  setLocaleCookie(cookieStore, locale);
 
   return apiSuccess({ locale });
 });

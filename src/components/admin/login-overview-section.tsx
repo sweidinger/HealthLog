@@ -464,7 +464,7 @@ export function LoginOverviewSection() {
                           {isFailed ? (
                             <XCircle className="text-destructive h-4 w-4" />
                           ) : (
-                            <CheckCircle2 className="text-dracula-green h-4 w-4" />
+                            <CheckCircle2 className="text-success h-4 w-4" />
                           )}
                         </td>
                         <td
@@ -503,7 +503,7 @@ export function LoginOverviewSection() {
                               </span>
                               {copiedIp === entry.id ? (
                                 <Check
-                                  className="text-dracula-green h-3 w-3 shrink-0"
+                                  className="text-success h-3 w-3 shrink-0"
                                   aria-hidden="true"
                                 />
                               ) : (

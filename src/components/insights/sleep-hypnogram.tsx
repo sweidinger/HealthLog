@@ -247,7 +247,7 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
     // v1.12.0 — card tightened: drop the default Card `gap-4 md:gap-6` to
     // `gap-3` so the header sits closer to the timeline, reclaiming the empty
     // band the maintainer flagged. The chart keeps its 200 px footprint.
-    <Card data-slot="sleep-hypnogram" className="gap-3 md:gap-3">
+    <Card data-slot="sleep-hypnogram" className="gap-2">
       <CardHeader>
         <div className="flex flex-col gap-0.5">
           <TileHeader title={t("insights.sleep.hypnogram.title")} />

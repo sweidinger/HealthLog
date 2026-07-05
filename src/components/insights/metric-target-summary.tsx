@@ -296,14 +296,14 @@ function TargetReferencePanel({
     target.consistency7d.length > 0;
 
   return (
-    // Card-wrapped so the header-to-body offset matches the `<CardHeader
-    // pb-2>` tiles on the same subpage spine rather than the old bare-div
-    // `space-y-3`. The body keeps its inter-row `space-y-3` inside
+    // Card-wrapped at the compact density so the header-to-body offset
+    // matches the assessment / read-strip / stat-strip tiles on the same
+    // subpage spine. The body keeps its inter-row `space-y-3` inside
     // `CardContent`; every data-slot is preserved.
     <Card
       data-slot="metric-target-summary"
       data-target-type={target.type}
-      className="gap-2 py-4 md:gap-3 md:py-5"
+      className="gap-2 py-3 md:py-4"
     >
       {/* Row 1: the canonical tile header — a single-word "Ziel" / "Target"
           heading (the range numbers live on the range bar below, so the

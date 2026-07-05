@@ -211,7 +211,7 @@ export function WelcomeCarousel() {
               >
                 {t(slide.titleKey)}
               </h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
+              <p className="text-foreground text-sm leading-relaxed">
                 {t(slide.bodyKey)}
               </p>
             </article>
@@ -302,7 +302,7 @@ export function WelcomeCarousel() {
         />
         <label
           htmlFor={disclaimerId}
-          className="text-muted-foreground text-sm leading-relaxed"
+          className="text-foreground text-sm leading-relaxed"
         >
           {t("onboarding.disclaimer.acknowledge")}{" "}
           <Link

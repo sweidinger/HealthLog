@@ -139,10 +139,10 @@ export function SourcesRail({ className, activeScopeLabel }: SourcesRailProps) {
       {activeScopeLabel ? (
         <div
           data-slot="coach-sources-active-scope"
-          className="border-dracula-purple/30 bg-dracula-purple/5 text-foreground flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium"
+          className="border-primary/30 bg-primary/5 text-foreground flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium"
         >
           <Target
-            className="text-dracula-purple size-3.5 shrink-0"
+            className="text-primary size-3.5 shrink-0"
             aria-hidden="true"
           />
           <span className="min-w-0 truncate">

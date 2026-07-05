@@ -64,7 +64,7 @@ export function ReminderSuggestionCard({
         data-slot="coach-reminder-suggestion-done"
         className="text-muted-foreground flex items-center gap-1.5 text-xs"
       >
-        <Check className="text-dracula-green size-3.5" aria-hidden="true" />
+        <Check className="text-success size-3.5" aria-hidden="true" />
         {t(
           settled === "accepted"
             ? "coach.reminderSuggestion.accepted"
@@ -89,7 +89,7 @@ export function ReminderSuggestionCard({
       <div className="flex items-start gap-2">
         <div
           aria-hidden="true"
-          className="from-dracula-purple to-dracula-pink mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
+          className="from-primary to-brand-pink mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
         >
           <BellPlus className="text-background size-3.5" />
         </div>
@@ -111,7 +111,7 @@ export function ReminderSuggestionCard({
           onClick={() => act.mutate("accept")}
           disabled={busy}
           className={cn(
-            "bg-dracula-purple/90 text-background hover:bg-dracula-purple",
+            "bg-primary/90 text-background hover:bg-primary",
             "focus-visible:ring-ring/50 inline-flex min-h-9 items-center gap-1.5",
             "rounded-md px-3 py-1.5 text-xs font-medium outline-none",
             "focus-visible:ring-2 disabled:opacity-50",

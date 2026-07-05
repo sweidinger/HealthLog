@@ -20,7 +20,7 @@ function render(props: Parameters<typeof RangeBar>[0]) {
 }
 
 describe("<RangeBar>", () => {
-  it("renders the bar slot + green/orange/red zones with Dracula tokens", () => {
+  it("renders the bar slot + green/orange/red zones with semantic tokens", () => {
     const html = render({
       value: 72,
       min: 60,
@@ -28,9 +28,9 @@ describe("<RangeBar>", () => {
       unit: "bpm",
     });
     expect(html).toContain('data-slot="target-range-bar"');
-    expect(html).toContain("bg-dracula-green/20");
-    expect(html).toContain("bg-dracula-orange/15");
-    expect(html).toContain("bg-dracula-red/10");
+    expect(html).toContain("bg-success/20");
+    expect(html).toContain("bg-warning/15");
+    expect(html).toContain("bg-destructive/10");
     // Pin the absence of the legacy raw Tailwind palette so the swap
     // doesn't silently regress on future merges.
     expect(html).not.toContain("bg-green-500/20");
@@ -38,23 +38,23 @@ describe("<RangeBar>", () => {
     expect(html).not.toContain("bg-red-500/8");
   });
 
-  it("paints the marker with the green token when the value is in range", () => {
+  it("paints the marker with the success token when the value is in range", () => {
     const html = render({
       value: 80,
       min: 60,
       max: 100,
       unit: "bpm",
     });
-    expect(html).toContain("var(--dracula-green)");
+    expect(html).toContain("var(--success)");
   });
 
-  it("paints the marker with the red token when the value is out of band", () => {
+  it("paints the marker with the destructive token when the value is out of band", () => {
     const html = render({
       value: 180,
       min: 60,
       max: 100,
       unit: "bpm",
     });
-    expect(html).toContain("var(--dracula-red)");
+    expect(html).toContain("var(--destructive)");
   });
 });

@@ -86,7 +86,7 @@ export function TrendCaptionCard({
       className="border-border/60 bg-card/40 flex items-start gap-2 rounded-md border p-3"
     >
       <Sparkles
-        className="text-dracula-purple mt-0.5 h-3.5 w-3.5 shrink-0"
+        className="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1 space-y-1">

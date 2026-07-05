@@ -5,6 +5,8 @@ import { ensureDbCompatibility } from "@/lib/db-compat";
 import { getEvent } from "@/lib/logging/context";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
 import { isP2025 } from "@/lib/prisma-errors";
+import { locales, type Locale } from "@/lib/i18n/config";
+import { LOCALE_COOKIE, setLocaleCookie } from "@/lib/i18n/locale-cookie";
 
 const SESSION_COOKIE = "healthlog_session";
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -170,10 +172,54 @@ export async function getSession(): Promise<{
       .catch(() => {});
   }
 
+  // Locale-cookie refresh: Safari's ITP expires the script-written
+  // `healthlog-locale` cookie after 7 days, so a returning user's first
+  // paint fell back to the browser language once a week. When the user
+  // has a persisted locale but the cookie is gone, re-emit it here —
+  // Set-Cookie is exempt from the ITP cap. Absent-only on purpose: a
+  // locale switch writes the cookie client-side before the PUT persists
+  // the column, and overwriting a *differing* cookie here would revert
+  // that fresh choice mid-flight. Fail-soft: in a server-component
+  // render the cookie store is read-only and `set` throws — the next
+  // route-handler request re-attempts.
+  if (
+    session.user.locale &&
+    (locales as readonly string[]).includes(session.user.locale) &&
+    !cookieStore.get(LOCALE_COOKIE)
+  ) {
+    try {
+      setLocaleCookie(cookieStore, session.user.locale as Locale);
+    } catch {
+      // Read-only cookie context — skip; nothing depends on this write.
+    }
+  }
+
   return {
     session: { id: session.id, expiresAt: session.expiresAt },
     user: session.user,
   };
+}
+
+/**
+ * Lightweight read of the signed-in user's persisted locale for the root
+ * layout's first-paint language resolution. Deliberately NOT
+ * `getSession()`: no db-compat check, no sliding-expiry write, no cookie
+ * mutation — the root layout renders on every request in a context where
+ * the cookie store is read-only, so the full session touch is both dead
+ * weight and a throw hazard there. Returns null for missing/expired
+ * sessions and users without a persisted locale.
+ */
+export async function getSessionUserLocale(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!sessionId) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { id: sessionId },
+    select: { expiresAt: true, user: { select: { locale: true } } },
+  });
+  if (!session || session.expiresAt < new Date()) return null;
+  return session.user.locale;
 }
 
 export async function destroySession(): Promise<void> {

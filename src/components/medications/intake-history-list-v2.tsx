@@ -238,7 +238,7 @@ export function IntakeHistoryListV2({
           {t("medications.intakeHistory")}
         </CardTitle>
       </CardHeader>
-      <CardContent className="pb-4 md:pb-6">
+      <CardContent>
         {isLoading ? (
           <div className="flex h-24 items-center justify-center">
             <Loader2 className="text-muted-foreground h-5 w-5 animate-spin motion-reduce:animate-none" />

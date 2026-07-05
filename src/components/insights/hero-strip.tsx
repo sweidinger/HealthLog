@@ -285,7 +285,7 @@ export function HeroStrip({
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Sparkles
-                className="text-dracula-purple h-5 w-5 shrink-0"
+                className="text-primary h-5 w-5 shrink-0"
                 aria-hidden="true"
               />
               <h1
@@ -368,7 +368,7 @@ export function HeroStrip({
             data-slot="health-score-card-skeleton"
             aria-hidden="true"
             className={cn(
-              "bg-card/65 border-border/60 rounded-xl border px-4 py-4 shadow-sm backdrop-blur-sm",
+              "bg-card/65 border-border/60 rounded-xl border p-4 shadow-sm backdrop-blur-sm md:p-6",
               "w-full md:shrink-0 md:grow-0 md:basis-[22rem] xl:basis-[26rem]",
               "flex h-full min-h-64 flex-col gap-3.5",
             )}

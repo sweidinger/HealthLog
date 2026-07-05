@@ -107,7 +107,7 @@ export function InsightStatusCard({
         aria-busy="true"
         aria-live="polite"
         data-testid="insight-status-card-preparing"
-        className="gap-1.5 py-4 md:py-5"
+        className="gap-2 py-3 md:py-4"
       >
         <CardHeader>
           <TileHeader icon={nodeIcon(icon)} title={title} />
@@ -140,11 +140,10 @@ export function InsightStatusCard({
         aria-busy="true"
         aria-live="polite"
         data-testid="insight-status-card-loading"
-        // v1.13.1 — match the canonical `gap-1.5` + `pb-1` heading-to-body
-        // rhythm the populated / preparing / empty states use, so the
-        // heading and the first skeleton line sit on the same tight
-        // baseline across every assessment-card state.
-        className="gap-1.5 py-4 md:py-5"
+        // Compact card density — the same tier the populated / preparing /
+        // empty states use, so the heading and the first skeleton line sit
+        // on the same baseline across every assessment-card state.
+        className="gap-2 py-3 md:py-4"
       >
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -165,7 +164,7 @@ export function InsightStatusCard({
 
   if (!hasProvider) {
     return (
-      <Card className="gap-1.5 py-4 opacity-80 md:py-5">
+      <Card className="gap-2 py-3 opacity-80 md:py-4">
         <CardHeader>
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
@@ -187,7 +186,7 @@ export function InsightStatusCard({
 
   if (!text) {
     return (
-      <Card className="gap-1.5 py-4 md:py-5">
+      <Card className="gap-2 py-3 md:py-4">
         <CardHeader>
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
@@ -211,25 +210,15 @@ export function InsightStatusCard({
       // v1.12.2 — stable hook for the spine guard test, which asserts the
       // assessment is the LAST content block on every bespoke metric page.
       data-slot="insight-assessment"
-      // v1.8.5 W4a — the `Card` primitive ships `gap-4 md:gap-6` as the flex
-      // gap between header and content, which floated the "Einschätzung"
-      // heading ~16-24 px above its prose. Override to `gap-2 md:gap-3` (the
-      // `CardHeader`'s own `pb-2` does not touch the flex gap) and trim the
-      // shell padding to `py-4 md:py-5` so the assessment block reads tight
-      // in the denser sub-page rhythm. The same override lands on every
-      // status variant below so the gap is consistent across states.
-      //
-      // v1.8.6 — drop the purple left accent (`border-l-dracula-purple
-      // border-l-2`). The coloured rule made the assessment card read as
-      // restless against the calmer surrounding cards; the plain card
-      // border carries enough separation on its own.
-      //
-      // v1.12.8 — tighten the header-to-prose gap. The card flex gap is
-      // `gap-1.5` (was `gap-2 md:gap-3`) and the `CardHeader` trims its
-      // bottom padding to `pb-1` (was `pb-2`), so the `<TileHeader>` sits
-      // close to the prose and matches the header-to-body rhythm of the
-      // sibling tiles. The loading skeleton keeps its own spacing.
-      className="animate-insight-in gap-1.5 py-4 md:py-5"
+      // Compact card density (`gap-2 py-3 md:py-4`) — the sanctioned tight
+      // tier, so the assessment shares one header→body rhythm with the
+      // target summary, the read strip, and the stat strip on the same
+      // spine. Earlier bespoke values (`gap-1.5` + `md:py-5`) predate the
+      // two-density contract and were normalised onto it. The same class
+      // lands on every status variant so the gap is consistent across
+      // states. (The one-time purple left accent stays dropped — the plain
+      // card border carries enough separation.)
+      className="animate-insight-in gap-2 py-3 md:py-4"
     >
       <CardHeader>
         {/* v1.11.5 — the top-right "cached" label was removed: it surfaced
