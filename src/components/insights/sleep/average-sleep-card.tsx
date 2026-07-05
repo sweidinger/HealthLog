@@ -34,7 +34,7 @@ export function AverageSleepCard({ average }: { average: AverageSleepDto }) {
   if (average.state === "partial") {
     return (
       <Card data-slot="average-sleep-card">
-        <CardHeader className="pb-0">
+        <CardHeader>
           <div className="flex items-center gap-2">
             <BedDouble className="text-info h-4 w-4" />
             <CardTitle className="text-base font-semibold">
@@ -58,7 +58,7 @@ export function AverageSleepCard({ average }: { average: AverageSleepDto }) {
 
   return (
     <Card data-slot="average-sleep-card">
-      <CardHeader className="pb-0">
+      <CardHeader>
         <div className="flex items-center gap-2">
           <BedDouble className="text-info h-4 w-4" />
           <CardTitle className="text-base font-semibold">

@@ -47,7 +47,7 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
     const need = chronotype.freeNightsCounted + chronotype.freeNightsUntilReady;
     return (
       <Card data-slot="chronotype-card">
-        <CardHeader className="pb-0">
+        <CardHeader>
           <div className="flex items-center gap-2">
             <Clock className="text-info h-4 w-4" />
             <CardTitle className="text-base font-semibold">
@@ -73,7 +73,7 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
 
   return (
     <Card data-slot="chronotype-card">
-      <CardHeader className="pb-0">
+      <CardHeader>
         <div className="flex items-center gap-2">
           <Clock className="text-info h-4 w-4" />
           <CardTitle className="text-base font-semibold">

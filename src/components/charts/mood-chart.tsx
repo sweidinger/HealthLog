@@ -996,7 +996,7 @@ export function MoodChart({
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader>
         {/* v1.4.19 A2 — mobile-first header: stack title row above
             controls row on small viewports so the bucket / comparison
             chips never push the range tabs into a 2nd line. ≥sm goes

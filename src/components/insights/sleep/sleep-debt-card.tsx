@@ -32,7 +32,7 @@ export function SleepDebtCard({ debt }: { debt: SleepDebtDto }) {
   if (debt.state === "partial") {
     return (
       <Card>
-        <CardHeader className="pb-0">
+        <CardHeader>
           <div className="flex items-center gap-2">
             <Moon className="text-info h-4 w-4" />
             <CardTitle className="text-base font-semibold">
@@ -64,7 +64,7 @@ export function SleepDebtCard({ debt }: { debt: SleepDebtDto }) {
 
   return (
     <Card>
-      <CardHeader className="pb-0">
+      <CardHeader>
         <div className="flex items-center gap-2">
           <Moon className="text-info h-4 w-4" />
           <CardTitle className="text-base font-semibold">

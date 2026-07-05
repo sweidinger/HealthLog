@@ -109,7 +109,7 @@ export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
 
       {episode?.note ? (
         <Card>
-          <CardContent className="pt-6">
+          <CardContent>
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               {t("illness.detail.note")}
             </p>

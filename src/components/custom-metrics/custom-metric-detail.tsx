@@ -268,13 +268,13 @@ export function CustomMetricDetail({
 
       {isLoading ? (
         <Card>
-          <CardContent className="pt-6">
+          <CardContent>
             <Skeleton className="h-60 w-full" />
           </CardContent>
         </Card>
       ) : entries.length === 0 ? (
         <Card>
-          <CardContent className="pt-6">
+          <CardContent>
             <EmptyState
               icon={<Gauge className="size-6" />}
               title={t("customMetrics.detail.emptyTitle")}
@@ -296,7 +296,7 @@ export function CustomMetricDetail({
             icon={Gauge}
           />
           <Card>
-            <CardContent className="pt-6">
+            <CardContent>
               <CustomMetricChart
                 entries={entries}
                 unit={metric?.unit ?? ""}

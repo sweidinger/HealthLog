@@ -247,7 +247,7 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
     // `gap-3` so the header sits closer to the timeline, reclaiming the empty
     // band the maintainer flagged. The chart keeps its 200 px footprint.
     <Card data-slot="sleep-hypnogram" className="gap-3 md:gap-3">
-      <CardHeader className="pb-0">
+      <CardHeader>
         <div className="flex flex-col gap-0.5">
           <CardTitle className="text-base font-semibold">
             {t("insights.sleep.hypnogram.title")}

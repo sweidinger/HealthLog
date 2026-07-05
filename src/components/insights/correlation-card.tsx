@@ -115,7 +115,7 @@ export function CorrelationCard({ result }: CorrelationCardProps) {
           TONE_BAR_CLASSNAME[result.kind],
         )}
       />
-      <CardHeader className="pb-2">
+      <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-0.5">
             <CardTitle className="text-sm font-semibold">{title}</CardTitle>

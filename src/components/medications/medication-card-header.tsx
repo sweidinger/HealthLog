@@ -126,7 +126,7 @@ export function MedicationCardHeader({
   );
 
   return (
-    <CardHeader className="pb-2.5">
+    <CardHeader>
       <div className="flex items-start justify-between gap-2">
         {href ? (
           <Link

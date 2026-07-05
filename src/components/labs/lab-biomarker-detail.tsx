@@ -353,13 +353,13 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
 
       {isLoading ? (
         <Card>
-          <CardContent className="pt-6">
+          <CardContent>
             <Skeleton className="h-60 w-full" />
           </CardContent>
         </Card>
       ) : readings.length === 0 ? (
         <Card>
-          <CardContent className="pt-6">
+          <CardContent>
             <EmptyState
               icon={<FlaskConical className="size-6" />}
               title={t("labs.detail.emptyTitle")}
@@ -376,7 +376,7 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
         // Qualitative marker — no numeric strip / chart. Show the latest
         // result text on its own simple line, no unit, no range badge.
         <Card>
-          <CardContent className="space-y-1 pt-6">
+          <CardContent className="space-y-1">
             <p className="text-muted-foreground text-xs">
               {t("labs.detail.latestResult")}
             </p>
@@ -394,7 +394,7 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             icon={FlaskConical}
           />
           <Card>
-            <CardContent className="pt-6">
+            <CardContent>
               <LabBiomarkerChart
                 readings={readings}
                 unit={marker?.unit ?? latest?.unit ?? ""}

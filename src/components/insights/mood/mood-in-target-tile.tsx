@@ -27,7 +27,7 @@ export function MoodInTargetTile({ pct }: { pct: number | null }) {
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader>
         <TileHeader icon={Target} title={t("insights.mood.inTargetTitle")} />
       </CardHeader>
       <CardContent>

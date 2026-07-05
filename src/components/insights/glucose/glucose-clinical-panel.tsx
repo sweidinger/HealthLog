@@ -50,7 +50,7 @@ export function GlucoseClinicalPanel() {
   if (query.isLoading) {
     return (
       <Card data-slot="glucose-clinical-panel-skeleton">
-        <CardHeader className="pb-2">
+        <CardHeader>
           <Skeleton className="h-5 w-40" />
         </CardHeader>
         <CardContent className="space-y-4">
@@ -96,7 +96,7 @@ export function GlucoseClinicalPanel() {
 
     return (
       <Card data-slot="glucose-clinical-panel" data-state="learning">
-        <CardHeader className="pb-2">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <Droplet className="h-4 w-4" aria-hidden="true" />
             {t("insights.bloodGlucose.clinical.learningTitle")}
@@ -132,7 +132,7 @@ export function GlucoseClinicalPanel() {
 
   return (
     <Card data-slot="glucose-clinical-panel" data-state="asserted">
-      <CardHeader className="pb-2">
+      <CardHeader>
         <div className="flex flex-col gap-0.5">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <Droplet className="h-4 w-4" aria-hidden="true" />

@@ -98,7 +98,7 @@ function MoodCorrelationCard({
       data-kind={kind}
       className={className}
     >
-      <CardHeader className="pb-2">
+      <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-sm font-semibold">
             {t(TITLE_KEY[kind])}
