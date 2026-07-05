@@ -345,12 +345,21 @@ export async function fetchProfile(
     .json()
     .catch(() => null)) as GoogleHealthProfile | null;
   const verdict = classifyGoogleHealthResponse(res.status);
+  const apiErrorDetail =
+    verdict.classification === "success"
+      ? undefined
+      : extractGoogleApiErrorDetail(json);
   getEvent()?.addExternalCall({
     service: "google-health",
     method: "fetchProfile",
     duration_ms: Math.round(performance.now() - start),
     status: res.status,
-    error: verdict.classification === "success" ? undefined : verdict.reason,
+    error:
+      verdict.classification === "success"
+        ? undefined
+        : apiErrorDetail
+          ? `${verdict.reason} ${apiErrorDetail}`
+          : verdict.reason,
   });
   if (verdict.classification !== "success") {
     throw new GoogleHealthApiError({
@@ -358,6 +367,7 @@ export async function fetchProfile(
       classification: verdict.classification,
       httpStatus: verdict.httpStatus,
       reason: verdict.reason,
+      upstreamError: apiErrorDetail,
     });
   }
   return (json ?? {}) as GoogleHealthProfile;
@@ -654,6 +664,41 @@ export function incrementalFilter(
 }
 
 /**
+ * Redact + bound an upstream Google API error message before it reaches an
+ * error object / wide event: strip bearer tokens, drop query strings from any
+ * embedded URL (they can carry filters echoing user data or tokens), cap at
+ * 200 chars.
+ */
+function redactApiErrorMessage(msg: string): string {
+  return msg
+    .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
+    .replace(/(https?:\/\/[^\s"'?]+)\?[^\s"']*/gi, "$1?[REDACTED]")
+    .slice(0, 200);
+}
+
+/**
+ * Extract the AIP-193 error envelope (`{"error":{code,message,status}}`) from a
+ * non-2xx Google Health body into a short redacted `STATUS: message` detail
+ * string, or undefined when the body carries no such envelope. This is what
+ * makes a field-grammar 400 (`INVALID_ARGUMENT: Invalid filter …`) diagnosable
+ * from operator logs. (The OAuth token endpoint uses the flat
+ * `{"error":"invalid_grant"}` shape instead — handled in `postToken`.)
+ */
+export function extractGoogleApiErrorDetail(json: unknown): string | undefined {
+  if (!json || typeof json !== "object") return undefined;
+  const e = (json as { error?: unknown }).error;
+  if (!e || typeof e !== "object") return undefined;
+  const o = e as { status?: unknown; message?: unknown };
+  const status = typeof o.status === "string" ? o.status : undefined;
+  const message =
+    typeof o.message === "string"
+      ? redactApiErrorMessage(o.message)
+      : undefined;
+  if (!status && !message) return undefined;
+  return [status, message].filter(Boolean).join(": ");
+}
+
+/**
  * Walk every `DataPoint` for one data type since the incremental cursor via
  * `dataPoints.list` with `nextPageToken` pagination. The data-type id is
  * kebab-cased in the path; the `filter` predicate is built from the snake_case
@@ -697,12 +742,21 @@ export async function fetchDataPoints(
       .json()
       .catch(() => null)) as GoogleHealthDataPointPage | null;
     const verdict = classifyGoogleHealthResponse(res.status);
+    const apiErrorDetail =
+      verdict.classification === "success"
+        ? undefined
+        : extractGoogleApiErrorDetail(json);
     getEvent()?.addExternalCall({
       service: "google-health",
       method: `${verb}(page=${pageCount})`,
       duration_ms: Math.round(performance.now() - pageStart),
       status: res.status,
-      error: verdict.classification === "success" ? undefined : verdict.reason,
+      error:
+        verdict.classification === "success"
+          ? undefined
+          : apiErrorDetail
+            ? `${verdict.reason} ${apiErrorDetail}`
+            : verdict.reason,
     });
     if (verdict.classification !== "success") {
       throw new GoogleHealthApiError({
@@ -710,6 +764,7 @@ export async function fetchDataPoints(
         classification: verdict.classification,
         httpStatus: verdict.httpStatus,
         reason: verdict.reason,
+        upstreamError: apiErrorDetail,
       });
     }
 
@@ -873,13 +928,21 @@ export async function fetchDailyRollUp(
         .json()
         .catch(() => null)) as GoogleHealthRollupPage | null;
       const verdict = classifyGoogleHealthResponse(res.status);
+      const apiErrorDetail =
+        verdict.classification === "success"
+          ? undefined
+          : extractGoogleApiErrorDetail(json);
       getEvent()?.addExternalCall({
         service: "google-health",
         method: `${verb}(chunk=${chunkIndex},page=${pageCount})`,
         duration_ms: Math.round(performance.now() - reqStart),
         status: res.status,
         error:
-          verdict.classification === "success" ? undefined : verdict.reason,
+          verdict.classification === "success"
+            ? undefined
+            : apiErrorDetail
+              ? `${verdict.reason} ${apiErrorDetail}`
+              : verdict.reason,
       });
       if (verdict.classification !== "success") {
         throw new GoogleHealthApiError({
@@ -887,6 +950,7 @@ export async function fetchDailyRollUp(
           classification: verdict.classification,
           httpStatus: verdict.httpStatus,
           reason: verdict.reason,
+          upstreamError: apiErrorDetail,
         });
       }
 
