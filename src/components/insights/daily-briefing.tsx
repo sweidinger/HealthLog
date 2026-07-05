@@ -44,7 +44,7 @@ import type { BriefingFailureClass } from "@/lib/insights/briefing-failure-marke
  * dedicated routed sub-page yet (hrv, resting_hr, steps, …) fall
  * through to `null` and render as a plain row (no link wrap).
  */
-const METRIC_HREF: Record<
+export const METRIC_HREF: Record<
   DailyBriefingKeyFinding["sourceMetric"],
   string | null
 > = {

@@ -83,7 +83,11 @@ const VERDICT_MESSAGE_KEY: Record<
   allQuiet: "dashboard.hero.verdict.allQuiet",
 };
 
-/** Variant → CTA label key. `allQuiet` carries no CTA (cta: null). */
+/** Variant → CTA label key. `allQuiet` carries no CTA (cta: null).
+ *  `scoreDrop` / `briefing` carry none either: their only destination was
+ *  the Insights overview, which the health-score card already links — a
+ *  second broad "open Insights" button on the hero was redundant. Only
+ *  verdicts with a SPECIFIC destination or action keep a button. */
 const CTA_LABEL_KEY: Partial<Record<DashboardVerdictVariant, string>> = {
   doseOverdue: "dashboard.hero.action.takeDose",
   doseUpcoming: "dashboard.hero.action.takeDose",
@@ -91,8 +95,6 @@ const CTA_LABEL_KEY: Partial<Record<DashboardVerdictVariant, string>> = {
   weightDrift: "dashboard.hero.action.viewWeight",
   shortNights: "dashboard.hero.action.viewSleep",
   silence: "dashboard.hero.action.logMeasurement",
-  scoreDrop: "dashboard.hero.action.viewInsights",
-  briefing: "dashboard.hero.action.viewInsights",
 };
 
 /**
