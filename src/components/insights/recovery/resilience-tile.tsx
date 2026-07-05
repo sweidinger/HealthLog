@@ -113,7 +113,7 @@ export function ResilienceTile() {
         ) : null}
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-muted-foreground text-sm leading-relaxed">
+        <p className="text-foreground text-sm leading-relaxed">
           {t("insights.resilience.explainer")}
         </p>
         {count < MIN_TREND_READINGS ? (

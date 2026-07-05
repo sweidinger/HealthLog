@@ -81,7 +81,7 @@ export function DoneScreen() {
         <p className="text-foreground text-sm font-medium">
           {t("onboarding.done.aiTitle")}
         </p>
-        <p className="text-muted-foreground text-sm leading-relaxed">
+        <p className="text-foreground text-sm leading-relaxed">
           {t("onboarding.done.aiBody")}
         </p>
         <Link

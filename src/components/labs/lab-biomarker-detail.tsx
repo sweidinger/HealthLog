@@ -245,7 +245,7 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
           <h1 className="text-2xl font-bold tracking-tight">
             {marker?.name ?? t("labs.detail.title")}
           </h1>
-          <p className="text-muted-foreground text-sm leading-relaxed">
+          <p className="text-foreground text-sm leading-relaxed">
             {description}
           </p>
         </header>
@@ -340,9 +340,7 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
           heading, mirroring the metric sub-pages' explainer caption. Computed
           once above (catalog desc → user `context` → generic fallback) so a
           catalog-less marker still carries a description. */}
-      <p className="text-muted-foreground text-sm leading-relaxed">
-        {description}
-      </p>
+      <p className="text-foreground text-sm leading-relaxed">{description}</p>
 
       {isLoading ? (
         <Card>
