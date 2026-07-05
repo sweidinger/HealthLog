@@ -1,0 +1,286 @@
+"use client";
+
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Check, Loader2, Target, Trash2, X } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
+import { COACH_SCROLLBAR } from "@/components/insights/coach-panel/message-thread";
+import {
+  useCoachPlans,
+  useCoachPlanMutations,
+  type CoachPlanDTO,
+} from "@/hooks/use-coach-plans";
+import { useFeatureFlags } from "@/hooks/use-feature-flags";
+import { useDisableCoach } from "@/hooks/use-disable-coach";
+import { useTranslations } from "@/lib/i18n/context";
+import { formatDateOrRelative } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+/**
+ * v1.27.x — the Coach plans management page (`/coach/plans`).
+ *
+ * The ledger for the durable goal / if-then plans the Coach proposes and the
+ * user confirms — a sibling of `/coach/conversations`, reachable from the
+ * composer's `+` actions menu. Three groups over one `?scope=all` read:
+ *
+ *   - proposed:  confirm (→ active) or decline (soft-delete)
+ *   - standing:  active + review_due — mark met or end (→ abandoned)
+ *   - past:      met + abandoned + reviewed — remove from the ledger
+ *
+ * There is deliberately NO prose editor: the extractor is the only writer of
+ * plan text, and the PATCH contract only moves the lifecycle. An active plan
+ * is injected into the Coach's snapshot memory (top-6, newest first), so
+ * follow-up conversations recall it; a proposed or declined plan never is.
+ *
+ * Gating mirrors `/coach`: the operator master flag OR a per-user opt-out
+ * redirects back to `/insights` rather than painting a dead shell.
+ */
+
+type GroupId = "proposed" | "standing" | "past";
+
+const GROUPS: Array<{ id: GroupId; labelKey: string }> = [
+  { id: "proposed", labelKey: "coach.plans.groupProposed" },
+  { id: "standing", labelKey: "coach.plans.groupActive" },
+  { id: "past", labelKey: "coach.plans.groupPast" },
+];
+
+function groupOf(status: string): GroupId {
+  if (status === "proposed") return "proposed";
+  if (status === "active" || status === "review_due") return "standing";
+  return "past";
+}
+
+function CoachPlansBody() {
+  const { t } = useTranslations();
+  const query = useCoachPlans({ filter: { scope: "all" } });
+  const { setStatus, remove } = useCoachPlanMutations();
+
+  const plans = useMemo(() => query.data ?? [], [query.data]);
+  const groups = useMemo(() => {
+    const buckets: Record<GroupId, CoachPlanDTO[]> = {
+      proposed: [],
+      standing: [],
+      past: [],
+    };
+    for (const p of plans) buckets[groupOf(p.status)].push(p);
+    return GROUPS.map((g) => ({ ...g, plans: buckets[g.id] })).filter(
+      (g) => g.plans.length > 0,
+    );
+  }, [plans]);
+
+  const pendingId =
+    (setStatus.isPending && setStatus.variables?.id) ||
+    (remove.isPending && remove.variables) ||
+    null;
+
+  const row = (plan: CoachPlanDTO) => {
+    const busy = pendingId === plan.id;
+    const group = groupOf(plan.status);
+    return (
+      <li
+        key={plan.id}
+        data-slot="coach-plan-row"
+        data-status={plan.status}
+        className="border-border bg-card flex flex-col gap-2 rounded-lg border p-3"
+      >
+        {/* Plan prose is the user's own committed intention — content tier. */}
+        <p className="text-sm leading-relaxed break-words">
+          {t("coach.plans.ifThen", {
+            cue: plan.ifCue ?? "",
+            action: plan.thenAction ?? "",
+          })}
+        </p>
+        {plan.target ? (
+          <p className="text-xs break-words">
+            {t("coach.plans.targetPrefix", { target: plan.target })}
+          </p>
+        ) : null}
+        <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <span className="uppercase">{plan.metric}</span>
+          <span>{t(`coach.plans.status.${plan.status}`)}</span>
+          <span>{formatDateOrRelative(plan.updatedAt, t)}</span>
+          {plan.reviewDate ? (
+            <span>
+              {t("coach.plans.reviewPrefix", {
+                when: formatDateOrRelative(plan.reviewDate, t),
+              })}
+            </span>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {group === "proposed" && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-9"
+                disabled={busy}
+                data-slot="coach-plan-accept"
+                onClick={() =>
+                  setStatus.mutate({ id: plan.id, status: "active" })
+                }
+              >
+                {busy && setStatus.isPending ? (
+                  <Loader2
+                    className="size-3.5 animate-spin motion-reduce:animate-none"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Check className="size-3.5" aria-hidden="true" />
+                )}
+                {t("coach.plans.accept")}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="min-h-9"
+                disabled={busy}
+                data-slot="coach-plan-decline"
+                onClick={() => remove.mutate(plan.id)}
+              >
+                <X className="size-3.5" aria-hidden="true" />
+                {t("coach.plans.decline")}
+              </Button>
+            </>
+          )}
+          {group === "standing" && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-9"
+                disabled={busy}
+                data-slot="coach-plan-met"
+                onClick={() => setStatus.mutate({ id: plan.id, status: "met" })}
+              >
+                <Check className="size-3.5" aria-hidden="true" />
+                {t("coach.plans.markMet")}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="min-h-9"
+                disabled={busy}
+                data-slot="coach-plan-abandon"
+                onClick={() =>
+                  setStatus.mutate({ id: plan.id, status: "abandoned" })
+                }
+              >
+                <X className="size-3.5" aria-hidden="true" />
+                {t("coach.plans.abandon")}
+              </Button>
+            </>
+          )}
+          {group === "past" && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="min-h-9"
+              disabled={busy}
+              data-slot="coach-plan-delete"
+              onClick={() => remove.mutate(plan.id)}
+            >
+              <Trash2 className="size-3.5" aria-hidden="true" />
+              {t("coach.plans.remove")}
+            </Button>
+          )}
+        </div>
+      </li>
+    );
+  };
+
+  return (
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-screen-xl flex-col gap-4 px-4 pt-6 pb-4 md:px-6">
+      <PageHeader
+        title={
+          <span data-slot="coach-plans-heading">{t("coach.plans.title")}</span>
+        }
+        description={t("coach.plans.pageDescription")}
+      />
+
+      <div
+        data-slot="coach-plans-list"
+        className={cn(
+          "-mx-1 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1",
+          COACH_SCROLLBAR,
+        )}
+      >
+        {query.isError ? (
+          <QueryErrorCard onRetry={() => query.refetch()} />
+        ) : query.isLoading ? (
+          <p
+            data-slot="coach-plans-loading"
+            className="text-muted-foreground px-1 py-3 text-sm"
+          >
+            {t("common.loading")}
+          </p>
+        ) : groups.length === 0 ? (
+          <div
+            data-slot="coach-plans-empty"
+            className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center"
+          >
+            <span className="bg-muted/40 text-muted-foreground flex size-12 items-center justify-center rounded-full">
+              <Target className="size-6" aria-hidden="true" />
+            </span>
+            <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
+              {t("coach.plans.empty")}
+            </p>
+          </div>
+        ) : (
+          groups.map((group) => (
+            <section
+              key={group.id}
+              data-slot="coach-plans-group"
+              data-group={group.id}
+              className="flex flex-col gap-1.5"
+            >
+              <h2 className="text-muted-foreground px-1 text-xs font-medium tracking-wide uppercase">
+                {t(group.labelKey)}
+              </h2>
+              <ul className="flex flex-col gap-2">{group.plans.map(row)}</ul>
+            </section>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function CoachPlansPage() {
+  const router = useRouter();
+  const flags = useFeatureFlags();
+  const disableCoach = useDisableCoach();
+
+  const coachUnavailable = !flags.coach || disableCoach;
+
+  // Same gating as `/coach`: operator master flag OR per-user opt-out
+  // redirects back to the Insights mother page so the route is never a
+  // dead-end.
+  useEffect(() => {
+    if (coachUnavailable) {
+      router.replace("/insights");
+    }
+  }, [coachUnavailable, router]);
+
+  if (coachUnavailable) return null;
+
+  return (
+    <div
+      data-slot="coach-plans-page"
+      // Match `/coach/conversations`' full-bleed sizing: cancel the AuthShell
+      // padding and claim the viewport height below the top bar (minus the
+      // mobile-only BottomNav band).
+      className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-8rem-env(safe-area-inset-bottom,0px))] min-h-[32rem] flex-col overflow-hidden md:-mx-6 md:h-[calc(100dvh-4rem)]"
+    >
+      <CoachPlansBody />
+    </div>
+  );
+}

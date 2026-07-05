@@ -46,6 +46,7 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
 
 import { SourceChips } from "./source-chips";
+import { PlanProposalCards } from "./plan-proposal-card";
 import { ReminderSuggestionCard } from "./reminder-suggestion-card";
 import { SuggestedActionCard } from "./suggested-action-card";
 import { StreamedProse } from "./streamed-prose";
@@ -1026,6 +1027,14 @@ export function MessageThread({
       {placement.tail.map((i) => (
         <Fragment key={i.key}>{i.node}</Fragment>
       ))}
+      {/* Plan-proposal confirm cards for THIS conversation. The extractor
+          runs after the turn (memory-refresh worker), so the block appears at
+          the thread tail once the proposal lands rather than under a specific
+          bubble; the component itself slow-polls and renders nothing while
+          the conversation has no open proposal. */}
+      {conversation ? (
+        <PlanProposalCards conversationId={conversation.id} />
+      ) : null}
     </div>
   );
 }

@@ -7609,6 +7609,34 @@
     "settings": {
       "reminderSuggestionsLabel": "Cadence suggestions",
       "reminderSuggestionsDescription": "Let the Coach offer an occasional, evidence-based reminder to measure a metric more regularly."
+    },
+    "plans": {
+      "title": "Plans",
+      "pageDescription": "If-then plans agreed in your Coach conversations. Confirm a proposal to make it part of the Coach's memory.",
+      "proposalTitle": "Plan proposal",
+      "ifThen": "If {cue}, then {action}.",
+      "targetPrefix": "Target: {target}",
+      "reviewPrefix": "Check-in: {when}",
+      "accept": "Accept plan",
+      "decline": "Decline",
+      "accepted": "Plan accepted — the Coach will keep it in mind.",
+      "declined": "Proposal declined.",
+      "failed": "That didn't work — please try again.",
+      "markMet": "Goal met",
+      "abandon": "End plan",
+      "remove": "Remove",
+      "empty": "No plans yet. When you commit to a concrete if-then intention in a conversation, the Coach proposes it here for confirmation.",
+      "groupProposed": "Suggestions",
+      "groupActive": "Active",
+      "groupPast": "Completed",
+      "status": {
+        "proposed": "Proposed",
+        "active": "Active",
+        "met": "Met",
+        "abandoned": "Ended",
+        "review_due": "Check-in due",
+        "reviewed": "Reviewed"
+      }
     }
   },
   "safety": {

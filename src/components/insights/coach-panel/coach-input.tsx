@@ -18,6 +18,7 @@ import {
   Send,
   Settings,
   Square,
+  Target,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -516,6 +517,12 @@ export function CoachInput({
         >
           <MessagesSquare className="size-4" aria-hidden="true" />
           {t("insights.coach.historyTitle")}
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild data-slot="coach-input-action-plans">
+          <Link href="/coach/plans">
+            <Target className="size-4" aria-hidden="true" />
+            {t("coach.plans.title")}
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild data-slot="coach-input-action-settings">
           <Link href="/settings/ai">

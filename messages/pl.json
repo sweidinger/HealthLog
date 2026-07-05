@@ -7609,6 +7609,34 @@
     "settings": {
       "reminderSuggestionsLabel": "Sugestie częstotliwości",
       "reminderSuggestionsDescription": "Pozwól Coachowi od czasu do czasu zaproponować oparte na dowodach przypomnienie, aby mierzyć daną wartość bardziej regularnie."
+    },
+    "plans": {
+      "title": "Plany",
+      "pageDescription": "Plany typu „jeśli… to” uzgodnione w rozmowach z Coachem. Potwierdź propozycję, aby Coach ją zapamiętał.",
+      "proposalTitle": "Propozycja planu",
+      "ifThen": "Jeśli {cue}, to {action}.",
+      "targetPrefix": "Cel: {target}",
+      "reviewPrefix": "Przegląd: {when}",
+      "accept": "Przyjmij plan",
+      "decline": "Odrzuć",
+      "accepted": "Plan przyjęty — Coach będzie o nim pamiętał.",
+      "declined": "Propozycja odrzucona.",
+      "failed": "Nie udało się — spróbuj ponownie.",
+      "markMet": "Cel osiągnięty",
+      "abandon": "Zakończ plan",
+      "remove": "Usuń",
+      "empty": "Nie ma jeszcze planów. Gdy w rozmowie zobowiążesz się do konkretnej intencji „jeśli… to”, Coach zaproponuje ją tutaj do potwierdzenia.",
+      "groupProposed": "Propozycje",
+      "groupActive": "Aktywne",
+      "groupPast": "Zakończone",
+      "status": {
+        "proposed": "Zaproponowany",
+        "active": "Aktywny",
+        "met": "Osiągnięty",
+        "abandoned": "Zakończony",
+        "review_due": "Przegląd do zrobienia",
+        "reviewed": "Oceniony"
+      }
     }
   },
   "safety": {
