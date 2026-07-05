@@ -5,14 +5,14 @@
  * `health_metrics_and_measurements.readonly` Restricted bundle and upserts each
  * mapped reading as `source = GOOGLE_HEALTH`:
  *
- *   - weight                 → WEIGHT
- *   - body-fat               → BODY_FAT
- *   - oxygen-saturation      → OXYGEN_SATURATION
- *   - heart-rate-variability → HEART_RATE_VARIABILITY (SDNN slot; see mapper)
- *   - daily-resting-HR       → RESTING_HEART_RATE
- *   - respiratory-rate       → RESPIRATORY_RATE
- *   - heart-rate (intraday)  → PULSE
- *   - height                 → User.heightCm (profile seed, NOT a Measurement)
+ *   - weight                        → WEIGHT
+ *   - body-fat                      → BODY_FAT
+ *   - daily-oxygen-saturation       → OXYGEN_SATURATION
+ *   - daily-heart-rate-variability  → HEART_RATE_VARIABILITY (SDNN slot; see mapper)
+ *   - daily-resting-heart-rate      → RESTING_HEART_RATE
+ *   - daily-respiratory-rate        → RESPIRATORY_RATE
+ *   - heart-rate (intraday)         → PULSE
+ *   - height                        → User.heightCm (profile seed, NOT a Measurement)
  *
  * Each data point yields at most one Measurement row, disambiguated by the
  * per-point anchor + field-tag in the externalId (`<anchor>:<fieldTag>`) so a
@@ -30,7 +30,7 @@ import {
   mapBodyFat,
   mapHeartRate,
   mapHeartRateVariability,
-  mapHeightCm,
+  mapHeight,
   mapOxygenSaturation,
   mapRespiratoryRate,
   mapRestingHeartRate,
@@ -160,11 +160,20 @@ export async function syncUserMetrics(
       await handleCollectionFetchError("fetchHeight", userId, err);
     }
 
-    // Latest non-null parsed height wins (the points are time-ordered ascending).
+    // Latest sample wins — picked by max(sampledAt) explicitly, because the
+    // list response is ordered DESCENDING by time (a "last row wins" loop would
+    // seed the OLDEST height). A sample with no parseable instant only wins
+    // over nothing.
     let heightCm: number | null = null;
+    let heightAt = -Infinity;
     for (const point of heightPoints) {
-      const cm = mapHeightCm(point);
-      if (cm !== null) heightCm = cm;
+      const sample = mapHeight(point);
+      if (sample === null) continue;
+      const at = sample.sampledAt?.getTime() ?? -Infinity;
+      if (heightCm === null || at > heightAt) {
+        heightCm = sample.cm;
+        heightAt = at;
+      }
     }
     if (heightCm !== null) {
       const user = await prisma.user.findUnique({

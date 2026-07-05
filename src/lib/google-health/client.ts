@@ -29,7 +29,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
-import { zonedWallClockToUtc } from "@/lib/tz/wall-clock";
+import { wallClockInTz, zonedWallClockToUtc } from "@/lib/tz/wall-clock";
 import {
   GoogleHealthApiError,
   classifyGoogleHealthResponse,
@@ -382,18 +382,24 @@ export function resolveGoogleHealthUserId(
 // ─── Data-point reads (Google Health `dataPoints.list` / `:dailyRollUp`) ──────
 //
 // The Google Health API exposes one uniform `DataPoint` resource shape across
-// every data type, read through `GET /v4/users/me/dataTypes/{dataType}/dataPoints`
-// with `nextPageToken` pagination. Google's value-field JSON is NOT fully
-// published, so the mappers below are intentionally defensive: every value is
-// pulled out of a small set of candidate field shapes and guarded by a
-// finite-positive check before it becomes a Measurement. Capture the real
-// per-type value-field JSON into `mapping.md` against a live test account at
-// build and tighten the extractors then.
+// every data type. Spot / daily-summary / session types are read through
+// `GET /v4/users/me/dataTypes/{dataType}/dataPoints` with `nextPageToken`
+// pagination; the cumulative activity types (steps / distance / active energy /
+// floors) are read through `POST …/dataPoints:dailyRollUp` — their `list`
+// surface returns minute-grain observation buckets (or, for floors, does not
+// exist at all), so the daily totals MUST come from the rollup.
 //
-// Casing gotcha: the data-type id is **kebab-case in the path** (`body-fat`)
-// and **snake_case in the `filter`** (`body_fat`). `GOOGLE_HEALTH_DATA_TYPES`
-// pins both forms so a fetcher can never encode the wrong one. Every launch
-// data type is read through `dataPoints.list`.
+// Casing gotcha (three encodings per type, all pinned in
+// `GOOGLE_HEALTH_DATA_TYPES` so a fetcher can never mix them up):
+//   - request path:      kebab-case  (`body-fat`)
+//   - `filter` predicate: snake_case (`body_fat.sample_time.physical_time`)
+//   - response payload:   camelCase — the `DataPoint` value is a union keyed by
+//     the camelCase type name (`bodyFat`, `dailyRestingHeartRate`, …) with
+//     camelCase nested objects (`sampleTime.physicalTime`,
+//     `interval.startTime`, `civilStartTime.date`).
+//
+// proto3 int64 fields arrive as JSON **strings** (`"12345"`) — every numeric
+// extractor coerces numeric strings before the finite check.
 
 /**
  * Page-size ceiling for `dataPoints.list`. The daily/intraday reads default to
@@ -407,94 +413,158 @@ export const GOOGLE_HEALTH_ACTIVITY_PAGE_SIZE = 25;
 /**
  * One data type's on-the-wire encodings. `path` is the kebab-case segment
  * spliced into the request URL; `filter` is the snake_case prefix used to build
- * the incremental `filter=` predicate. `timeField` names the value object's
- * time anchor. Every launch data type reads through `dataPoints.list`.
+ * the incremental `filter=` predicate; `key` is the camelCase union key the
+ * response payload nests the value object under. `timeField` names the read
+ * method + time anchor.
  */
 export interface GoogleHealthDataType {
   /** kebab-case segment for the request path. */
   path: string;
   /** snake_case prefix for the `filter` predicate. */
   filter: string;
+  /** camelCase union key in the response `DataPoint` payload. */
+  key: string;
   /**
-   * Which time anchor the filter / measuredAt resolution targets:
-   *   - `sample`   → spot reading (`{type}.sample_time.physical_time`).
-   *   - `date`     → daily summary keyed on a civil date (`{type}.date`).
-   *   - `interval` → an INTERVAL data type (steps / distance / active energy /
-   *     floors, sleep, exercise). The cumulative daily totals key on the CIVIL
-   *     day: `{type}.interval.civil_start_time` (anchored at UTC-midday) with
-   *     `{type}.interval.start_time` (the physical instant) as the fallback —
-   *     NOT a `sample_time` (which 400s/empties for interval types and stalls
-   *     the incremental filter) and NOT a bare `date`.
+   * Which read method + time anchor the type uses:
+   *   - `sample`     → spot reading via list; filter
+   *     `{filter}.sample_time.physical_time`, read `{key}.sampleTime.physicalTime`.
+   *   - `date`       → daily summary via list; filter `{filter}.date`
+   *     (`YYYY-MM-DD`), read `{key}.date` (a `{year,month,day}` object).
+   *   - `sessionEnd` → sleep sessions via list; sleep filters ONLY on
+   *     `{filter}.interval.end_time` (any other field 400s); anchor
+   *     `{key}.interval.endTime`.
+   *   - `civilStart` → exercise sessions via list; session types filter ONLY on
+   *     `{filter}.interval.civil_start_time` with an offset-less civil bound;
+   *     times read from `{key}.interval.startTime/endTime` (RFC-3339).
+   *   - `rollup`     → cumulative daily totals via `POST :dailyRollUp`
+   *     (`windowSizeDays: 1`); never listed. Day key `civilStartTime.date`.
    */
-  timeField: "sample" | "date" | "interval";
+  timeField: "sample" | "date" | "sessionEnd" | "civilStart" | "rollup";
 }
 
 /**
- * The launch data types. Each entry pins the kebab-path + snake-filter pair so
- * the two encodings can never drift. Identifiers verified against the 2026
- * Google Health contract (API-RESEARCH §3/§4).
+ * The launch data types. Each entry pins the kebab-path + snake-filter +
+ * camelCase-payload triple so the three encodings can never drift. Identifiers
+ * reconciled against the official v4 reference (data-types index + per-type
+ * schema pages).
  */
 export const GOOGLE_HEALTH_DATA_TYPES = {
-  weight: { path: "weight", filter: "weight", timeField: "sample" },
-  bodyFat: { path: "body-fat", filter: "body_fat", timeField: "sample" },
+  weight: {
+    path: "weight",
+    filter: "weight",
+    key: "weight",
+    timeField: "sample",
+  },
+  bodyFat: {
+    path: "body-fat",
+    filter: "body_fat",
+    key: "bodyFat",
+    timeField: "sample",
+  },
+  // Daily-grain SpO2 lives on `daily-oxygen-saturation` (`averagePercentage`);
+  // the bare `oxygen-saturation` type is per-SAMPLE and does not accept a
+  // `.date` filter (400).
   oxygenSaturation: {
-    path: "oxygen-saturation",
-    filter: "oxygen_saturation",
+    path: "daily-oxygen-saturation",
+    filter: "daily_oxygen_saturation",
+    key: "dailyOxygenSaturation",
     timeField: "date",
   },
+  // Nightly HRV summary lives on `daily-heart-rate-variability`; the bare
+  // `heart-rate-variability` type is per-sample (RMSSD + SDNN fields) and does
+  // not accept a `.date` filter.
   heartRateVariability: {
-    path: "heart-rate-variability",
-    filter: "heart_rate_variability",
+    path: "daily-heart-rate-variability",
+    filter: "daily_heart_rate_variability",
+    key: "dailyHeartRateVariability",
     timeField: "date",
   },
   restingHeartRate: {
     path: "daily-resting-heart-rate",
     filter: "daily_resting_heart_rate",
+    key: "dailyRestingHeartRate",
     timeField: "date",
   },
+  // `respiratory-rate` does not exist in the catalogue; the daily summary is
+  // `daily-respiratory-rate` (`dailyRespiratoryRateBpm`).
   respiratoryRate: {
-    path: "respiratory-rate",
-    filter: "respiratory_rate",
+    path: "daily-respiratory-rate",
+    filter: "daily_respiratory_rate",
+    key: "dailyRespiratoryRate",
     timeField: "date",
   },
-  heartRate: { path: "heart-rate", filter: "heart_rate", timeField: "sample" },
-  height: { path: "height", filter: "height", timeField: "sample" },
+  heartRate: {
+    path: "heart-rate",
+    filter: "heart_rate",
+    key: "heartRate",
+    timeField: "sample",
+  },
+  height: {
+    path: "height",
+    filter: "height",
+    key: "height",
+    timeField: "sample",
+  },
   // Skin temperature (`daily-sleep-temperature-derivations`) is intentionally
   // OMITTED: Google surfaces a nightly signed DEVIATION from baseline, not an
   // absolute reading — a future enhancement needing a signed-delta model, not an
   // absolute WRIST_TEMPERATURE row.
   // ── Activity bundle — daily cumulative totals ──────────────────
-  // Scope: `googlehealth.activity_and_fitness.readonly`. These are INTERVAL
-  // data types: Google buckets a daily total into an `interval` (a `start_time`
-  // + `end_time`, with `civil_start_time` for the calendar-day grain). The
-  // incremental filter targets `interval.start_time` and the externalId carries
-  // the `stats:` prefix so a re-fetched day overwrites in place (mirrors the
-  // Apple-Health `stats:<HK>:<YYYY-MM-DD>` daily-total overwrite contract).
-  steps: { path: "steps", filter: "steps", timeField: "interval" },
-  distance: { path: "distance", filter: "distance", timeField: "interval" },
-  // Active energy — canonical id `active-energy-burned` (release-notes
-  // 2026-05-26); this is the ACTIVE portion only, NOT `total-calories` (which
-  // folds in BMR and is roll-up-only, see below).
+  // Scope: `googlehealth.activity_and_fitness.readonly`. Read through
+  // `POST :dailyRollUp` with `windowSizeDays: 1`: the `list` surface returns
+  // minute-grain observation buckets, NOT daily totals (and floors has no list
+  // method at all). The externalId carries the `stats:` prefix so a re-fetched
+  // day overwrites in place (mirrors the Apple-Health
+  // `stats:<HK>:<YYYY-MM-DD>` daily-total overwrite contract).
+  steps: { path: "steps", filter: "steps", key: "steps", timeField: "rollup" },
+  distance: {
+    path: "distance",
+    filter: "distance",
+    key: "distance",
+    timeField: "rollup",
+  },
+  // Active energy — canonical id `active-energy-burned`; this is the ACTIVE
+  // portion only, NOT `total-calories` (which folds in BMR).
   activeEnergy: {
     path: "active-energy-burned",
     filter: "active_energy_burned",
-    timeField: "interval",
+    key: "activeEnergyBurned",
+    timeField: "rollup",
   },
-  floors: { path: "floors", filter: "floors", timeField: "interval" },
-  // VO2 max is a daily-summary metric (one civil-date reading), not an interval
-  // bucket — keep the `date` anchor.
-  vo2Max: { path: "vo2-max", filter: "vo2_max", timeField: "date" },
+  floors: {
+    path: "floors",
+    filter: "floors",
+    key: "floors",
+    timeField: "rollup",
+  },
+  // The daily VO2-max reading lives on `daily-vo2-max` (`vo2Max`); the bare
+  // `vo2-max` type is per-sample and does not accept a `.date` filter.
+  vo2Max: {
+    path: "daily-vo2-max",
+    filter: "daily_vo2_max",
+    key: "dailyVo2Max",
+    timeField: "date",
+  },
   // ── Sleep bundle ───────────────────────────────────────────────
-  // Scope: `googlehealth.sleep.readonly`. A sleep session is an INTERVAL data
-  // type (a start + end span carrying a per-stage breakdown); the incremental
-  // filter must target `interval.start_time`, not a `sample_time` (which 400s
-  // for interval types). Mapped to per-stage SLEEP_DURATION rows.
-  sleep: { path: "sleep", filter: "sleep", timeField: "interval" },
+  // Scope: `googlehealth.sleep.readonly`. Sleep sessions filter ONLY on
+  // `sleep.interval.end_time` / `.civil_end_time` — a start-time filter 400s.
+  // Mapped to per-stage SLEEP_DURATION rows.
+  sleep: {
+    path: "sleep",
+    filter: "sleep",
+    key: "sleep",
+    timeField: "sessionEnd",
+  },
   // ── Exercise bundle ────────────────────────────────────────────
-  // Scope: `googlehealth.activity_and_fitness.readonly`. An exercise session is
-  // an INTERVAL data type (a start + end span) → a `Workout` row (NOT a
-  // Measurement). The incremental filter targets `interval.start_time`.
-  exercise: { path: "exercise", filter: "exercise", timeField: "interval" },
+  // Scope: `googlehealth.activity_and_fitness.readonly`. Session types
+  // (excluding sleep/ECG) filter ONLY on `interval.civil_start_time` with an
+  // offset-less civil bound → a `Workout` row (NOT a Measurement).
+  exercise: {
+    path: "exercise",
+    filter: "exercise",
+    key: "exercise",
+    timeField: "civilStart",
+  },
 } as const satisfies Record<string, GoogleHealthDataType>;
 
 /** Google Health `DataPoint` — value object is type-keyed + carries a time anchor. */
@@ -515,18 +585,45 @@ interface DataPointQuery {
   pageSize?: number;
   /** Hard ceiling on pages walked (defence against a runaway cursor). */
   maxPages?: number;
+  /**
+   * The user's IANA zone — needed only by the `civilStart` filter (the
+   * offset-less civil bound must be the watermark's wall clock in the USER'S
+   * zone). Omitted → the bound forms in UTC.
+   */
+  tz?: string;
+}
+
+const pad2 = (n: number): string => String(n).padStart(2, "0");
+
+/**
+ * Format a UTC instant as the offset-less civil wall clock an observer in `tz`
+ * reads at that moment (`YYYY-MM-DDTHH:MM:SS`, no `Z`, no offset) — the bound
+ * format the session `civil_start_time` filter expects. Without `tz` the bound
+ * forms in UTC.
+ */
+export function formatCivilBound(instant: Date, tz?: string): string {
+  if (!tz) return instant.toISOString().slice(0, 19);
+  const p = wallClockInTz(instant, tz);
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)}T${pad2(p.hour)}:${pad2(p.minute)}:${pad2(p.second)}`;
 }
 
 /**
- * Build the incremental `filter` field + bound for one data type. Centralised
- * so the predicate and the read-time anchor resolution can never drift.
- *   - `sample`   → spot reading, filter on `{filter}.sample_time.physical_time`.
- *   - `interval` → INTERVAL type, filter on `{filter}.interval.start_time`.
- *   - `date`     → daily civil-date summary, filter on `{filter}.date`.
+ * Build the incremental `filter` field + bound for one list-read data type.
+ * Centralised so the predicate and the read-time anchor resolution can never
+ * drift. The legal filter fields are per-shape (anything else 400s):
+ *   - `sample`     → `{filter}.sample_time.physical_time` (RFC-3339).
+ *   - `date`       → `{filter}.date` (`YYYY-MM-DD`).
+ *   - `sessionEnd` → sleep only: `{filter}.interval.end_time` (RFC-3339) — the
+ *     ONLY filterable time field on sleep; watermark semantics improve too (a
+ *     night is fetched when it ENDS after the cursor).
+ *   - `civilStart` → exercise: `{filter}.interval.civil_start_time` with an
+ *     offset-less civil bound in the user's zone.
+ * `rollup` types never build a list filter — they read via `:dailyRollUp`.
  */
 export function incrementalFilter(
   dataType: GoogleHealthDataType,
   start: Date,
+  tz?: string,
 ): { field: string; bound: string } {
   switch (dataType.timeField) {
     case "sample":
@@ -534,16 +631,25 @@ export function incrementalFilter(
         field: `${dataType.filter}.sample_time.physical_time`,
         bound: start.toISOString(),
       };
-    case "interval":
+    case "sessionEnd":
       return {
-        field: `${dataType.filter}.interval.start_time`,
+        field: `${dataType.filter}.interval.end_time`,
         bound: start.toISOString(),
+      };
+    case "civilStart":
+      return {
+        field: `${dataType.filter}.interval.civil_start_time`,
+        bound: formatCivilBound(start, tz),
       };
     case "date":
       return {
         field: `${dataType.filter}.date`,
         bound: start.toISOString().slice(0, 10),
       };
+    case "rollup":
+      throw new Error(
+        `Google Health data type ${dataType.path} reads via :dailyRollUp, not dataPoints.list`,
+      );
   }
 }
 
@@ -551,7 +657,8 @@ export function incrementalFilter(
  * Walk every `DataPoint` for one data type since the incremental cursor via
  * `dataPoints.list` with `nextPageToken` pagination. The data-type id is
  * kebab-cased in the path; the `filter` predicate is built from the snake_case
- * form against the type's time anchor.
+ * form against the type's time anchor. `rollup` types refuse — they read via
+ * `fetchDailyRollUp`.
  */
 export async function fetchDataPoints(
   dataType: GoogleHealthDataType,
@@ -568,7 +675,11 @@ export async function fetchDataPoints(
   do {
     const params = new URLSearchParams({ pageSize: String(pageSize) });
     if (query.start) {
-      const { field, bound } = incrementalFilter(dataType, query.start);
+      const { field, bound } = incrementalFilter(
+        dataType,
+        query.start,
+        query.tz,
+      );
       params.set("filter", `${field} >= "${bound}"`);
     }
     if (pageToken) params.set("pageToken", pageToken);
@@ -610,6 +721,185 @@ export async function fetchDataPoints(
   return points;
 }
 
+// ─── Daily roll-up reads (`POST …/dataPoints:dailyRollUp`) ─────────────────
+
+/** Max civil days one dailyRollUp request range may span (per the v4 docs). */
+export const GOOGLE_HEALTH_ROLLUP_RANGE_DAYS = 90;
+
+/**
+ * Full-sync horizon for the rollup types, in civil days. The rollup read needs
+ * an explicit range (unlike the unbounded list walk), so the backfill is
+ * pinned: 5 years ≈ 21 chunks per type — bounded, and deeper than any
+ * wearable-history horizon the dashboard reads.
+ */
+export const GOOGLE_HEALTH_ROLLUP_BACKFILL_DAYS = 5 * 365;
+
+/** A civil calendar date (1-based month), the dailyRollUp range unit. */
+export interface GoogleHealthCivilDate {
+  year: number;
+  month: number;
+  day: number;
+}
+
+/** The civil date an observer in `tz` reads at `instant` (UTC without `tz`). */
+export function civilDateInTz(
+  instant: Date,
+  tz?: string,
+): GoogleHealthCivilDate {
+  if (!tz) {
+    return {
+      year: instant.getUTCFullYear(),
+      month: instant.getUTCMonth() + 1,
+      day: instant.getUTCDate(),
+    };
+  }
+  const p = wallClockInTz(instant, tz);
+  return { year: p.year, month: p.month, day: p.day };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function civilToUtcMs(d: GoogleHealthCivilDate): number {
+  return Date.UTC(d.year, d.month - 1, d.day);
+}
+
+function utcMsToCivil(ms: number): GoogleHealthCivilDate {
+  const d = new Date(ms);
+  return {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+  };
+}
+
+/**
+ * Split a closed-open civil range into ≤`maxDays` closed-open chunks — the
+ * dailyRollUp request range caps at 90 days, so a multi-year backfill walks the
+ * range in slices. Returns an empty list when `start >= end`.
+ */
+export function chunkCivilRange(
+  start: GoogleHealthCivilDate,
+  endExclusive: GoogleHealthCivilDate,
+  maxDays: number = GOOGLE_HEALTH_ROLLUP_RANGE_DAYS,
+): Array<{ start: GoogleHealthCivilDate; end: GoogleHealthCivilDate }> {
+  const s = civilToUtcMs(start);
+  const e = civilToUtcMs(endExclusive);
+  const out: Array<{
+    start: GoogleHealthCivilDate;
+    end: GoogleHealthCivilDate;
+  }> = [];
+  for (let cur = s; cur < e; cur += maxDays * DAY_MS) {
+    const chunkEnd = Math.min(cur + maxDays * DAY_MS, e);
+    out.push({ start: utcMsToCivil(cur), end: utcMsToCivil(chunkEnd) });
+  }
+  return out;
+}
+
+/**
+ * One dailyRollUp aggregate window: `civilStartTime`/`civilEndTime` are
+ * CivilDateTime objects (`{date:{year,month,day}, time:{…}}`), the value is a
+ * union keyed by the camelCase type name carrying the `*Sum` rollup fields
+ * (`steps.countSum`, `distance.millimetersSum`, `activeEnergyBurned.kcalSum`,
+ * `floors.countSum` — int64 sums arrive as JSON strings).
+ */
+export interface GoogleHealthRollupPoint {
+  [key: string]: unknown;
+}
+
+/** `dataPoints:dailyRollUp` envelope. */
+interface GoogleHealthRollupPage {
+  rollupDataPoints?: GoogleHealthRollupPoint[];
+  nextPageToken?: string | null;
+}
+
+interface RollupQuery {
+  /** Lower-bound incremental cursor; a full backfill walks the pinned horizon. */
+  start?: Date;
+  /** The user's IANA zone — the civil range is user-local. */
+  tz?: string;
+}
+
+/**
+ * Read one cumulative data type's daily totals via `POST …/dataPoints:dailyRollUp`
+ * with `windowSizeDays: 1`. The civil range is closed-open and user-local,
+ * chunked at ≤90 days per request; without an incremental `start` the walk
+ * covers the pinned backfill horizon. A `nextPageToken` is honoured defensively
+ * (the response is documented without one, but the request accepts page
+ * tokens).
+ */
+export async function fetchDailyRollUp(
+  dataType: GoogleHealthDataType,
+  accessToken: string,
+  verb: string,
+  query: RollupQuery = {},
+): Promise<GoogleHealthRollupPoint[]> {
+  const now = new Date();
+  const from =
+    query.start ??
+    new Date(now.getTime() - GOOGLE_HEALTH_ROLLUP_BACKFILL_DAYS * DAY_MS);
+  // End exclusive at tomorrow (user-local) so today's running total is covered.
+  const startCivil = civilDateInTz(from, query.tz);
+  const endCivil = civilDateInTz(new Date(now.getTime() + DAY_MS), query.tz);
+
+  const points: GoogleHealthRollupPoint[] = [];
+  let chunkIndex = 0;
+  for (const chunk of chunkCivilRange(startCivil, endCivil)) {
+    let pageToken: string | null | undefined;
+    let pageCount = 0;
+    do {
+      const body: Record<string, unknown> = {
+        range: {
+          start: { date: chunk.start },
+          end: { date: chunk.end },
+        },
+        windowSizeDays: 1,
+        pageSize: 100,
+      };
+      if (pageToken) body.pageToken = pageToken;
+
+      const reqStart = performance.now();
+      const res = await safeFetch(
+        `${GOOGLE_HEALTH_API_BASE}/users/me/dataTypes/${dataType.path}/dataPoints:dailyRollUp`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+        },
+      );
+      const json = (await res
+        .json()
+        .catch(() => null)) as GoogleHealthRollupPage | null;
+      const verdict = classifyGoogleHealthResponse(res.status);
+      getEvent()?.addExternalCall({
+        service: "google-health",
+        method: `${verb}(chunk=${chunkIndex},page=${pageCount})`,
+        duration_ms: Math.round(performance.now() - reqStart),
+        status: res.status,
+        error:
+          verdict.classification === "success" ? undefined : verdict.reason,
+      });
+      if (verdict.classification !== "success") {
+        throw new GoogleHealthApiError({
+          verb,
+          classification: verdict.classification,
+          httpStatus: verdict.httpStatus,
+          reason: verdict.reason,
+        });
+      }
+
+      for (const p of json?.rollupDataPoints ?? []) points.push(p);
+      pageToken = json?.nextPageToken ?? null;
+      pageCount += 1;
+    } while (pageToken && pageCount < 100);
+    chunkIndex += 1;
+  }
+
+  return points;
+}
+
 // ─── Field → Measurement mapping ───────────────────────────────
 // The single source of truth is `mapping.md` — keep both in sync when adding
 // entries.
@@ -621,9 +911,19 @@ function round2(n: number): number {
   return parseFloat(n.toFixed(2));
 }
 
-/** Finite + strictly-positive guard. */
-function positive(n: unknown): n is number {
-  return typeof n === "number" && Number.isFinite(n) && n > 0;
+/**
+ * Coerce a raw payload value to a finite number, or null. proto3 int64 fields
+ * arrive as JSON strings (`"12345"`); `Number()` handles both int and decimal
+ * strings, guarded by a finite check (empty / whitespace strings coerce to 0
+ * via `Number("")` — reject them explicitly).
+ */
+function coerceNumber(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
 }
 
 /**
@@ -655,22 +955,18 @@ export type GoogleHealthSleepStage =
   "IN_BED" | "AWAKE" | "ASLEEP" | "REM" | "CORE" | "DEEP";
 
 /**
- * Pull the first finite number out of a list of candidate value paths on a
- * `DataPoint`. The Google value-field JSON is undocumented, so each mapper hands
- * the small set of shapes the field is likely to take (a bare `value`, a typed
- * sub-object, a `{ value: { fpVal } }` wrapper, …); the first finite hit wins.
+ * Pull the first finite STRICTLY-POSITIVE number out of a list of candidate
+ * value paths on a `DataPoint`, coercing int64 JSON strings. The launch metrics
+ * (weight, body-fat, SpO2, HRV, RHR, respiratory rate, HR, height, VO2 max) are
+ * all strictly positive — a zero is a garbage/empty reading and is dropped.
  */
 function firstNumber(
   point: GoogleHealthDataPoint,
   paths: string[],
 ): number | null {
   for (const path of paths) {
-    const v = readPath(point, path);
-    if (positive(v)) return v;
-    // A value can legitimately be zero for some metrics, but the launch metrics
-    // (weight, body-fat, SpO2, HRV, RHR, respiratory rate, HR, height) are all
-    // strictly positive — a zero is a garbage/empty reading, so `positive` is
-    // the right guard.
+    const n = coerceNumber(readPath(point, path));
+    if (n !== null && n > 0) return n;
   }
   return null;
 }
@@ -757,18 +1053,17 @@ function parseLocalInstant(iso: string, tz?: string): Date | null {
 }
 
 /**
- * Resolve a `DataPoint`'s measurement timestamp.
- *   - `sample`   → `sample_time.physical_time` (a spot instant; offset-less
+ * Resolve a `DataPoint`'s measurement timestamp. The read paths are camelCase —
+ * the response payload nests the value union under the camelCase type name with
+ * camelCase time objects (the snake_case forms exist only inside the request
+ * `filter` parameter).
+ *   - `sample` → `{key}.sampleTime.physicalTime` (a spot instant; offset-less
  *     strings resolve against `tz`).
- *   - `interval` → the cumulative daily total keys on the CIVIL day:
- *     `interval.civil_start_time` anchored at UTC-midday (so a tz shift can't
- *     roll the day and the day-key aligns with the Apple/Fitbit `stats:` civil
- *     convention), falling back to `interval.start_time` (the physical instant)
- *     only when civil is absent. `start_time` alone off-by-ones the day for
- *     positive-UTC-offset users.
- *   - `date`     → `date` (a civil string or `{year,month,day}` object).
+ *   - `date`   → `{key}.date` (a `{year,month,day}` object, or a civil string) —
+ *     anchored at UTC-midday so a tz shift can't roll the civil day.
  * Falls back to `fallback` only when nothing parses, so a row is never dropped
- * for a missing anchor.
+ * for a missing anchor. (Sleep / exercise sessions and the rollup types anchor
+ * through their own helpers, never here.)
  */
 function resolveMeasuredAt(
   point: GoogleHealthDataPoint,
@@ -777,33 +1072,15 @@ function resolveMeasuredAt(
   tz?: string,
 ): Date {
   if (dataType.timeField === "sample") {
-    const t = readPath(point, `${dataType.filter}.sample_time.physical_time`);
+    const t = readPath(point, `${dataType.key}.sampleTime.physicalTime`);
     if (typeof t === "string") {
       const d = parseLocalInstant(t, tz);
       if (d) return d;
     }
-  } else if (dataType.timeField === "interval") {
-    // Civil day first — the day the total belongs to, tz-invariant at UTC-midday.
-    const civil = readPath(
-      point,
-      `${dataType.filter}.interval.civil_start_time`,
-    );
-    const civilDate = parseCivilStart(civil);
-    if (civilDate) return civilDate;
-    // Fall back to the physical instant only when civil is absent.
-    const t = readPath(point, `${dataType.filter}.interval.start_time`);
-    if (typeof t === "string") {
-      const d = parseLocalInstant(t, tz);
-      if (d) return d;
-    }
-  } else {
-    const dateVal = readPath(point, `${dataType.filter}.date`);
-    if (typeof dateVal === "string") {
-      const d = new Date(dateVal);
-      if (!Number.isNaN(d.getTime())) return d;
-    }
-    const civilObj = parseCivilDateObject(dateVal);
-    if (civilObj) return civilObj;
+  } else if (dataType.timeField === "date") {
+    const dateVal = readPath(point, `${dataType.key}.date`);
+    const civil = parseCivilStart(dateVal);
+    if (civil) return civil;
   }
   return fallback;
 }
@@ -819,11 +1096,10 @@ function externalAnchor(
   tz?: string,
 ): string {
   const at = resolveMeasuredAt(point, dataType, new Date(0), tz);
-  // The mapper-driven interval types (steps/distance/calories/floors) are daily
-  // totals, so they share the civil-day externalId grain with `date` summaries —
-  // a re-fetched day overwrites in place. (Sleep/exercise are interval too but
-  // mint their own per-session anchors and never reach this helper.)
-  if (dataType.timeField === "date" || dataType.timeField === "interval") {
+  // Daily summaries share the civil-day externalId grain so a re-fetched day
+  // overwrites in place. (Sleep/exercise sessions and the rollup daily totals
+  // mint their own anchors and never reach this helper.)
+  if (dataType.timeField === "date") {
     return at.toISOString().slice(0, 10);
   }
   return at.toISOString();
@@ -859,26 +1135,17 @@ function mapSimple(
   ];
 }
 
-/** Candidate value-field shapes a Google `DataPoint` is likely to carry. */
-function valuePaths(filterKey: string, leaf: string): string[] {
-  return [
-    `${filterKey}.${leaf}`,
-    `${filterKey}.value.${leaf}`,
-    `${filterKey}.value`,
-    `value.${leaf}`,
-    `value`,
-  ];
-}
-
 export function mapWeight(
   point: GoogleHealthDataPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.weight;
+  // Documented field is `weightGrams` (grams) → kg.
   return mapSimple(point, dt, {
     type: "WEIGHT",
     unit: "kg",
     fieldTag: "weight",
-    valuePaths: valuePaths(dt.filter, "kilograms"),
+    valuePaths: [`${dt.key}.weightGrams`],
+    factor: 0.001,
   });
 }
 
@@ -890,7 +1157,7 @@ export function mapBodyFat(
     type: "BODY_FAT",
     unit: "%",
     fieldTag: "body_fat",
-    valuePaths: valuePaths(dt.filter, "percentage"),
+    valuePaths: [`${dt.key}.percentage`],
   });
 }
 
@@ -902,10 +1169,7 @@ export function mapOxygenSaturation(
     type: "OXYGEN_SATURATION",
     unit: "%",
     fieldTag: "spo2",
-    valuePaths: [
-      ...valuePaths(dt.filter, "average_percentage"),
-      ...valuePaths(dt.filter, "percentage"),
-    ],
+    valuePaths: [`${dt.key}.averagePercentage`],
   });
 }
 
@@ -913,18 +1177,16 @@ export function mapHeartRateVariability(
   point: GoogleHealthDataPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.heartRateVariability;
-  // Google reports a nightly RMSSD-style HRV. Per the design decision it lands
-  // in the SDNN-lineage `HEART_RATE_VARIABILITY` slot (Apple-comparable), NOT
-  // WHOOP's `HRV_RMSSD` (reserved for the WHOOP-native estimator). Re-confirm
-  // the estimator against a live account and revisit if it warrants `HRV_RMSSD`.
+  // The daily field is an unlabelled "average HRV ms". Per the design decision
+  // it lands in the SDNN-lineage `HEART_RATE_VARIABILITY` slot
+  // (Apple-comparable), NOT WHOOP's `HRV_RMSSD` (reserved for the WHOOP-native
+  // estimator). The per-sample type carries explicit RMSSD + SDNN fields —
+  // re-confirm the estimator against live data and revisit if warranted.
   return mapSimple(point, dt, {
     type: "HEART_RATE_VARIABILITY",
     unit: "ms",
     fieldTag: "hrv",
-    valuePaths: [
-      ...valuePaths(dt.filter, "rmssd_milliseconds"),
-      ...valuePaths(dt.filter, "milliseconds"),
-    ],
+    valuePaths: [`${dt.key}.averageHeartRateVariabilityMilliseconds`],
   });
 }
 
@@ -932,11 +1194,12 @@ export function mapRestingHeartRate(
   point: GoogleHealthDataPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.restingHeartRate;
+  // `beatsPerMinute` is an int64 JSON string — coerced by the extractor.
   return mapSimple(point, dt, {
     type: "RESTING_HEART_RATE",
     unit: "bpm",
     fieldTag: "rhr",
-    valuePaths: valuePaths(dt.filter, "beats_per_minute"),
+    valuePaths: [`${dt.key}.beatsPerMinute`],
   });
 }
 
@@ -944,14 +1207,12 @@ export function mapRespiratoryRate(
   point: GoogleHealthDataPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.respiratoryRate;
+  // `dailyRespiratoryRateBpm` is an int64 JSON string.
   return mapSimple(point, dt, {
     type: "RESPIRATORY_RATE",
     unit: "breaths/min",
     fieldTag: "resp_rate",
-    valuePaths: [
-      ...valuePaths(dt.filter, "breaths_per_minute"),
-      ...valuePaths(dt.filter, "average_breaths_per_minute"),
-    ],
+    valuePaths: [`${dt.key}.dailyRespiratoryRateBpm`],
   });
 }
 
@@ -959,90 +1220,94 @@ export function mapHeartRate(
   point: GoogleHealthDataPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.heartRate;
+  // `beatsPerMinute` is an int64 JSON string.
   return mapSimple(point, dt, {
     type: "PULSE",
     unit: "bpm",
     fieldTag: "hr",
-    valuePaths: valuePaths(dt.filter, "beats_per_minute"),
+    valuePaths: [`${dt.key}.beatsPerMinute`],
   });
 }
 
+/** One extracted `height` sample: centimetres + the sample instant (if any). */
+export interface GoogleHealthHeightSample {
+  cm: number;
+  sampledAt: Date | null;
+}
+
 /**
- * Extract the profile height (in cm) from a Google `height` data point, or null
- * when nothing parses. Height is a one-time `User.heightCm` profile seed (written
- * only when the user has no height yet) — NOT a Measurement. Returns cm.
+ * Extract the profile height from a Google `height` data point, or null when
+ * nothing parses. Height is a one-time `User.heightCm` profile seed (written
+ * only when the user has no height yet) — NOT a Measurement. The documented
+ * field is `heightMeters` (metres) → cm. `sampledAt` lets the caller pick the
+ * LATEST sample explicitly — list responses are ordered DESCENDING, so
+ * "last row wins" would pick the OLDEST.
  */
-export function mapHeightCm(point: GoogleHealthDataPoint): number | null {
+export function mapHeight(
+  point: GoogleHealthDataPoint,
+): GoogleHealthHeightSample | null {
   const dt = GOOGLE_HEALTH_DATA_TYPES.height;
-  // Google may report height in metres or centimetres; try cm-direct first, then
-  // metres × 100. Both pass through the positive guard.
-  const cm = firstNumber(point, valuePaths(dt.filter, "centimeters"));
-  if (cm !== null) return round2(cm);
-  const m = firstNumber(point, valuePaths(dt.filter, "meters"));
-  if (m !== null) return round2(m * M_TO_CM);
-  return null;
+  const m = firstNumber(point, [`${dt.key}.heightMeters`]);
+  if (m === null) return null;
+  const t = readPath(point, `${dt.key}.sampleTime.physicalTime`);
+  const sampledAt = typeof t === "string" ? parseLocalInstant(t) : null;
+  return { cm: round2(m * M_TO_CM), sampledAt };
 }
 
-// ─── Activity mappers: daily cumulative ────────────────────────
-
-/** Finite + non-negative guard — cumulative metrics admit a legitimate 0. */
-function nonNegative(n: unknown): n is number {
-  return typeof n === "number" && Number.isFinite(n) && n >= 0;
-}
+// ─── Activity mappers: daily roll-up totals ────────────────────
 
 /**
  * Pull the first finite NON-negative number out of a list of candidate value
- * paths. Unlike `firstNumber` (strictly positive), this admits a legitimate
- * zero — a day of rest still records 0 steps / 0 floors / 0 active kcal, and
- * dropping the zero would leave a hole the chart misreads as missing data.
+ * paths, coercing int64 JSON strings. Unlike `firstNumber` (strictly positive),
+ * this admits a legitimate zero — a day of rest still records 0 steps /
+ * 0 floors / 0 active kcal, and dropping the zero would leave a hole the chart
+ * misreads as missing data.
  */
 function firstNonNegativeNumber(
   point: GoogleHealthDataPoint,
   paths: string[],
 ): number | null {
   for (const path of paths) {
-    const v = readPath(point, path);
-    if (nonNegative(v)) return v;
+    const n = coerceNumber(readPath(point, path));
+    if (n !== null && n >= 0) return n;
   }
   return null;
 }
 
 /**
- * Map one daily cumulative-activity data point into a single Measurement
- * reading. The externalId is the `stats:`-prefixed daily-total shape so a
- * re-fetched day overwrites in place rather than minting a duplicate — the same
+ * Map one `dailyRollUp` aggregate window (`windowSizeDays: 1`) into a single
+ * daily-total Measurement reading. The day key comes from the window's
+ * `civilStartTime.date` (a `{year,month,day}` object), anchored at UTC-midday
+ * per the shared civil-day convention; a window with no parseable civil day is
+ * dropped (it cannot be keyed). The externalId is the `stats:`-prefixed
+ * daily-total shape so a re-fetched day overwrites in place — the same
  * overwrite contract the Apple-Health `stats:<HK>:<YYYY-MM-DD>` daily totals
- * use. A zero is preserved (a rest day is real data, not a gap). `latestWins`
- * (VO2 max) carries the same daily anchor; it is daily latest-wins rather than a
- * running sum, but the per-day overwrite key is identical.
+ * use. A zero is preserved (a rest day is real data, not a gap).
  */
-function mapDailyCumulative(
-  point: GoogleHealthDataPoint,
-  dataType: GoogleHealthDataType,
+function mapDailyRollup(
+  point: GoogleHealthRollupPoint,
   spec: {
     type: string;
     unit: string;
     fieldTag: string;
     valuePaths: string[];
     factor?: number;
-    /** VO2 max is daily latest-wins, not a running total — still one row/day. */
-    latestWins?: boolean;
   },
-  tz?: string,
 ): GoogleHealthMappedMeasurement[] {
-  // VO2 max is strictly positive; the running totals admit a legitimate zero.
-  let value = spec.latestWins
-    ? firstNumber(point, spec.valuePaths)
-    : firstNonNegativeNumber(point, spec.valuePaths);
+  const day =
+    parseCivilDateObject(readPath(point, "civilStartTime.date")) ??
+    parseCivilStart(readPath(point, "civilStartTime"));
+  if (!day) return [];
+  let value = firstNonNegativeNumber(point, spec.valuePaths);
   if (value === null) return [];
   if (spec.factor) value = value * spec.factor;
-  const dayKey = externalAnchor(point, dataType, tz); // civil YYYY-MM-DD
+  const dayKey = day.toISOString().slice(0, 10);
   return [
     {
       type: spec.type,
       value: round2(value),
       unit: spec.unit,
-      measuredAt: resolveMeasuredAt(point, dataType, new Date(), tz),
+      measuredAt: day,
       // `stats:<type-tag>:<YYYY-MM-DD>` — the sync layer reads `cumulativeDaily`
       // to assemble the externalId, matching the Apple-Health daily-total shape.
       fieldTag: `${spec.fieldTag}:${dayKey}`,
@@ -1052,125 +1317,81 @@ function mapDailyCumulative(
 }
 
 export function mapSteps(
-  point: GoogleHealthDataPoint,
-  tz?: string,
+  point: GoogleHealthRollupPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.steps;
-  return mapDailyCumulative(
-    point,
-    dt,
-    {
-      type: "ACTIVITY_STEPS",
-      unit: "steps",
-      fieldTag: "steps",
-      valuePaths: [
-        ...valuePaths(dt.filter, "count"),
-        ...valuePaths(dt.filter, "steps"),
-      ],
-    },
-    tz,
-  );
+  // `countSum` is an int64 JSON string.
+  return mapDailyRollup(point, {
+    type: "ACTIVITY_STEPS",
+    unit: "steps",
+    fieldTag: "steps",
+    valuePaths: [`${dt.key}.countSum`],
+  });
 }
 
 export function mapDistance(
-  point: GoogleHealthDataPoint,
-  tz?: string,
+  point: GoogleHealthRollupPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.distance;
-  // Google may report metres or kilometres; prefer the explicit-metres field,
-  // else convert km → m. Both pass the non-negative guard.
-  const meters = firstNonNegativeNumber(point, valuePaths(dt.filter, "meters"));
-  if (meters !== null) {
-    return [
-      {
-        type: "WALKING_RUNNING_DISTANCE",
-        value: round2(meters),
-        unit: "m",
-        measuredAt: resolveMeasuredAt(point, dt, new Date(), tz),
-        fieldTag: `distance:${externalAnchor(point, dt, tz)}`,
-        cumulativeDaily: true,
-      },
-    ];
-  }
-  return mapDailyCumulative(
-    point,
-    dt,
-    {
-      type: "WALKING_RUNNING_DISTANCE",
-      unit: "m",
-      fieldTag: "distance",
-      valuePaths: valuePaths(dt.filter, "kilometers"),
-      factor: 1000,
-    },
-    tz,
-  );
+  // `millimetersSum` is an int64 JSON string → metres.
+  return mapDailyRollup(point, {
+    type: "WALKING_RUNNING_DISTANCE",
+    unit: "m",
+    fieldTag: "distance",
+    valuePaths: [`${dt.key}.millimetersSum`],
+    factor: 0.001,
+  });
 }
 
 export function mapActiveEnergy(
-  point: GoogleHealthDataPoint,
-  tz?: string,
+  point: GoogleHealthRollupPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.activeEnergy;
-  // ACTIVE energy only — NOT total-calories (which folds in BMR). The candidate
-  // paths target the active-portion field explicitly.
-  return mapDailyCumulative(
-    point,
-    dt,
-    {
-      type: "ACTIVE_ENERGY_BURNED",
-      unit: "kcal",
-      fieldTag: "active_energy",
-      valuePaths: [
-        ...valuePaths(dt.filter, "active_kilocalories"),
-        ...valuePaths(dt.filter, "kilocalories"),
-        ...valuePaths(dt.filter, "calories"),
-      ],
-    },
-    tz,
-  );
+  // ACTIVE energy only — NOT total-calories (which folds in BMR).
+  return mapDailyRollup(point, {
+    type: "ACTIVE_ENERGY_BURNED",
+    unit: "kcal",
+    fieldTag: "active_energy",
+    valuePaths: [`${dt.key}.kcalSum`],
+  });
 }
 
 export function mapFloors(
-  point: GoogleHealthDataPoint,
-  tz?: string,
+  point: GoogleHealthRollupPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.floors;
-  return mapDailyCumulative(
-    point,
-    dt,
-    {
-      type: "FLIGHTS_CLIMBED",
-      unit: "flights",
-      fieldTag: "floors",
-      valuePaths: [
-        ...valuePaths(dt.filter, "count"),
-        ...valuePaths(dt.filter, "floors"),
-      ],
-    },
-    tz,
-  );
+  // `countSum` is an int64 JSON string.
+  return mapDailyRollup(point, {
+    type: "FLIGHTS_CLIMBED",
+    unit: "flights",
+    fieldTag: "floors",
+    valuePaths: [`${dt.key}.countSum`],
+  });
 }
 
+/**
+ * Map one `daily-vo2-max` summary into a VO2_MAX reading. A daily latest-wins
+ * metric (one civil-date reading, strictly positive — not a running sum), read
+ * via list with a `.date` filter; it keeps the `stats:`-style per-day overwrite
+ * key so a re-rolled day replaces in place.
+ */
 export function mapVo2Max(
   point: GoogleHealthDataPoint,
-  tz?: string,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.vo2Max;
-  return mapDailyCumulative(
-    point,
-    dt,
+  const value = firstNumber(point, [`${dt.key}.vo2Max`]);
+  if (value === null) return [];
+  const measuredAt = resolveMeasuredAt(point, dt, new Date());
+  return [
     {
       type: "VO2_MAX",
+      value: round2(value),
       unit: "mL/(kg·min)",
-      fieldTag: "vo2_max",
-      valuePaths: [
-        ...valuePaths(dt.filter, "milliliters_per_kilogram_per_minute"),
-        ...valuePaths(dt.filter, "value"),
-      ],
-      latestWins: true, // strictly positive, one daily reading; not a running sum
+      measuredAt,
+      fieldTag: `vo2_max:${externalAnchor(point, dt)}`,
+      cumulativeDaily: true,
     },
-    tz,
-  );
+  ];
 }
 
 // ── Sleep ──────────────────────────────────────────────────────
@@ -1233,71 +1454,43 @@ function minutesBetween(startIso?: string, endIso?: string): number | null {
 }
 
 /**
- * Read the per-stage segments off a Google sleep `DataPoint`, tolerating the
- * undocumented JSON shape. Candidate locations: `sleep.segments`,
- * `sleep.stages`, `sleep.levels.data`, or a bare top-level `segments`/`stages`.
+ * Read the per-stage segments off a Google sleep `DataPoint`. Documented shape:
+ * `sleep.stages` is an array of
+ * `{ startTime, startUtcOffset, endTime, endUtcOffset, type }` where `type` is
+ * the `SLEEP_STAGE_TYPE` enum (`AWAKE | LIGHT | DEEP | REM | ASLEEP | RESTLESS
+ * | SLEEP_STAGE_TYPE_UNSPECIFIED`) and the times are RFC-3339 Timestamps.
  */
 function readSleepSegments(
   point: GoogleHealthDataPoint,
 ): GoogleHealthSleepSegment[] {
-  const candidates = [
-    readPath(point, "sleep.segments"),
-    readPath(point, "sleep.stages"),
-    readPath(point, "sleep.levels.data"),
-    readPath(point, "segments"),
-    readPath(point, "stages"),
-    readPath(point, "levels.data"),
-  ];
-  for (const c of candidates) {
-    if (!Array.isArray(c)) continue;
-    const out: GoogleHealthSleepSegment[] = [];
-    for (const raw of c) {
-      if (!raw || typeof raw !== "object") continue;
-      const o = raw as Record<string, unknown>;
-      const stage =
-        (typeof o.stage === "string" && o.stage) ||
-        (typeof o.level === "string" && o.level) ||
-        (typeof o.type === "string" && o.type) ||
-        "";
-      const startTime =
-        (typeof o.startTime === "string" && o.startTime) ||
-        (typeof o.start_time === "string" && o.start_time) ||
-        (typeof o.dateTime === "string" && o.dateTime) ||
-        undefined;
-      const endTime =
-        (typeof o.endTime === "string" && o.endTime) ||
-        (typeof o.end_time === "string" && o.end_time) ||
-        undefined;
-      if (stage) out.push({ stage, startTime, endTime });
-    }
-    if (out.length > 0) return out;
+  const stages = readPath(point, "sleep.stages");
+  if (!Array.isArray(stages)) return [];
+  const out: GoogleHealthSleepSegment[] = [];
+  for (const raw of stages) {
+    if (!raw || typeof raw !== "object") continue;
+    const o = raw as Record<string, unknown>;
+    const stage = typeof o.type === "string" ? o.type : "";
+    const startTime = typeof o.startTime === "string" ? o.startTime : undefined;
+    const endTime = typeof o.endTime === "string" ? o.endTime : undefined;
+    if (stage) out.push({ stage, startTime, endTime });
   }
-  return [];
+  return out;
 }
 
 /**
  * The stable session anchor for a sleep `DataPoint`'s externalId. The session
  * end (or start) ISO instant is unique per night, so per-stage rows key as
  * `<session-anchor>:sleep_<stage>` — a re-scored night overwrites in place.
+ * Paths are camelCase (`sleep.interval.endTime`) — the response payload never
+ * uses snake_case.
  */
 function sleepSessionAnchor(point: GoogleHealthDataPoint, tz?: string): string {
-  const end =
-    readPath(point, "sleep.interval.end_time") ??
-    readPath(point, "interval.end_time") ??
-    readPath(point, "sleep.endTime") ??
-    readPath(point, "sleep.end_time") ??
-    readPath(point, "endTime") ??
-    readPath(point, "end_time");
+  const end = readPath(point, "sleep.interval.endTime");
   if (typeof end === "string") {
     const d = parseLocalInstant(end, tz);
     if (d) return d.toISOString();
   }
-  const start =
-    readPath(point, "sleep.interval.start_time") ??
-    readPath(point, "interval.start_time") ??
-    readPath(point, "sleep.startTime") ??
-    readPath(point, "sleep.start_time") ??
-    readPath(point, "startTime");
+  const start = readPath(point, "sleep.interval.startTime");
   if (typeof start === "string") {
     const d = parseLocalInstant(start, tz);
     if (d) return d.toISOString();
@@ -1356,9 +1549,12 @@ export function mapSleepSession(
 // ── Workouts (exercise sessions) ───────────────────────────────
 
 /**
- * Google Health exercise-activity-type → HealthLog `WorkoutSportType`. Unknown
- * types fall through to a generic label; the column is free-text so an unmapped
- * type still persists (just not under a canonical sport bucket).
+ * Google Health `Exercise.exerciseType` → HealthLog `WorkoutSportType`. The
+ * enum arrives UPPERCASE (`RUNNING`, `STRENGTH_TRAINING`, …); the resolver
+ * lowercases + underscores before the lookup, so the keys here are the
+ * normalised forms. Unknown types fall through to a generic label; the column
+ * is free-text so an unmapped type still persists (just not under a canonical
+ * sport bucket).
  */
 const GOOGLE_HEALTH_EXERCISE_TYPE_MAP: Record<string, string> = {
   walk: "walking",
@@ -1366,10 +1562,12 @@ const GOOGLE_HEALTH_EXERCISE_TYPE_MAP: Record<string, string> = {
   run: "running",
   running: "running",
   treadmill: "running",
+  treadmill_running: "running",
   bike: "cycling",
   biking: "cycling",
   cycling: "cycling",
   spinning: "cycling",
+  mountain_biking: "cycling",
   hike: "hiking",
   hiking: "hiking",
   swim: "swimming",
@@ -1377,18 +1575,25 @@ const GOOGLE_HEALTH_EXERCISE_TYPE_MAP: Record<string, string> = {
   rowing: "rowing",
   elliptical: "elliptical",
   stairclimber: "stairClimber",
+  stair_climbing: "stairClimber",
   yoga: "yoga",
   pilates: "mindAndBody",
   weights: "strength",
   strength: "strength",
+  strength_training: "strength",
+  weightlifting: "strength",
   workout: "strength",
   hiit: "hiit",
+  high_intensity_interval_training: "hiit",
   interval_workout: "hiit",
+  interval_training: "hiit",
   dance: "dance",
+  dancing: "dance",
   golf: "golf",
   tennis: "tennis",
   basketball: "basketball",
   soccer: "soccer",
+  football: "soccer",
   bootcamp: "crossTraining",
   circuit_training: "crossTraining",
   sport: "mixedCardio",
@@ -1422,14 +1627,17 @@ export interface GoogleHealthMappedWorkout {
   minHeartRate: number | null;
 }
 
-/** Read a finite number off a list of candidate paths (any sign), or null. */
+/**
+ * Read a finite number off a list of candidate paths (any sign), coercing int64
+ * JSON strings, or null.
+ */
 function readNumber(
   point: GoogleHealthDataPoint,
   paths: string[],
 ): number | null {
   for (const path of paths) {
-    const v = readPath(point, path);
-    if (typeof v === "number" && Number.isFinite(v)) return v;
+    const n = coerceNumber(readPath(point, path));
+    if (n !== null) return n;
   }
   return null;
 }
@@ -1457,89 +1665,46 @@ function readInstant(
 /**
  * Map one Google exercise session `DataPoint` into a `Workout` shape. Returns
  * null when there is no usable start/end (a session with no time span is not a
- * workout). The externalId anchors on the session id when present, else on the
- * start instant, so a re-fetch overwrites the same `Workout` row in place.
- * Energy is the active session energy in kcal; HR fields are optional.
+ * workout).
  *
- * Session start/end can arrive OFFSET-LESS (local wall clock); `tz` anchors them
- * to the correct UTC instant rather than the process zone.
+ * Documented payload: `exercise.interval.startTime/endTime` (RFC-3339),
+ * `exercise.exerciseType` (UPPERCASE enum), and
+ * `exercise.metricsSummary.{caloriesKcal, distanceMillimeters,
+ * averageHeartRateBeatsPerMinute (int64 string), …}`. There is no session-id
+ * field — the DataPoint's top-level `name` (a resource name) is the stable id;
+ * the start instant is the fallback. metricsSummary carries no max/min HR →
+ * null.
+ *
+ * Session start/end can arrive OFFSET-LESS (local wall clock); `tz` anchors
+ * them to the correct UTC instant rather than the process zone.
  */
 export function mapWorkout(
   point: GoogleHealthDataPoint,
   tz?: string,
 ): GoogleHealthMappedWorkout | null {
-  const f = GOOGLE_HEALTH_DATA_TYPES.exercise.filter;
-  const startedAt = readInstant(
-    point,
-    [
-      `${f}.interval.start_time`,
-      `${f}.startTime`,
-      `${f}.start_time`,
-      `${f}.sample_time.physical_time`,
-      "interval.start_time",
-      "startTime",
-      "start_time",
-    ],
-    tz,
-  );
-  const endedAt = readInstant(
-    point,
-    [
-      `${f}.interval.end_time`,
-      `${f}.endTime`,
-      `${f}.end_time`,
-      "interval.end_time",
-      "endTime",
-      "end_time",
-    ],
-    tz,
-  );
+  const k = GOOGLE_HEALTH_DATA_TYPES.exercise.key;
+  const startedAt = readInstant(point, [`${k}.interval.startTime`], tz);
+  const endedAt = readInstant(point, [`${k}.interval.endTime`], tz);
   if (!startedAt || !endedAt || endedAt <= startedAt) return null;
 
   const durationSec = Math.round(
     (endedAt.getTime() - startedAt.getTime()) / 1000,
   );
 
-  const sessionId =
-    (typeof readPath(point, `${f}.session_id`) === "string" &&
-      (readPath(point, `${f}.session_id`) as string)) ||
-    (typeof readPath(point, `${f}.id`) === "string" &&
-      (readPath(point, `${f}.id`) as string)) ||
-    (typeof readPath(point, "name") === "string" &&
-      (readPath(point, "name") as string)) ||
-    null;
-  const externalId = sessionId ?? `exercise:${startedAt.toISOString()}`;
+  const name = readPath(point, "name");
+  const externalId =
+    typeof name === "string" && name !== ""
+      ? name
+      : `exercise:${startedAt.toISOString()}`;
 
-  const sportRaw =
-    readPath(point, `${f}.activity_type`) ??
-    readPath(point, `${f}.exercise_type`) ??
-    readPath(point, `${f}.type`) ??
-    readPath(point, "activityType");
+  const sportRaw = readPath(point, `${k}.exerciseType`);
 
-  const energyKcal = readNumber(point, [
-    `${f}.active_kilocalories`,
-    `${f}.calories`,
-    `${f}.energy.kilocalories`,
-  ]);
-  const distanceM = readNumber(point, [
-    `${f}.distance.meters`,
-    `${f}.distance_meters`,
-    `${f}.distance`,
+  const energyKcal = readNumber(point, [`${k}.metricsSummary.caloriesKcal`]);
+  const distanceMm = readNumber(point, [
+    `${k}.metricsSummary.distanceMillimeters`,
   ]);
   const avgHr = readNumber(point, [
-    `${f}.average_heart_rate.beats_per_minute`,
-    `${f}.average_heart_rate`,
-    `${f}.heart_rate.average`,
-  ]);
-  const maxHr = readNumber(point, [
-    `${f}.maximum_heart_rate.beats_per_minute`,
-    `${f}.max_heart_rate`,
-    `${f}.heart_rate.maximum`,
-  ]);
-  const minHr = readNumber(point, [
-    `${f}.minimum_heart_rate.beats_per_minute`,
-    `${f}.min_heart_rate`,
-    `${f}.heart_rate.minimum`,
+    `${k}.metricsSummary.averageHeartRateBeatsPerMinute`,
   ]);
 
   return {
@@ -1550,9 +1715,10 @@ export function mapWorkout(
     durationSec,
     totalEnergyKcal: energyKcal !== null ? Math.round(energyKcal) : null,
     totalDistanceM:
-      distanceM !== null && distanceM >= 0 ? round2(distanceM) : null,
+      distanceMm !== null && distanceMm >= 0 ? round2(distanceMm / 1000) : null,
     avgHeartRate: avgHr !== null && avgHr > 0 ? Math.round(avgHr) : null,
-    maxHeartRate: maxHr !== null && maxHr > 0 ? Math.round(maxHr) : null,
-    minHeartRate: minHr !== null && minHr > 0 ? Math.round(minHr) : null,
+    // metricsSummary carries no maximum/minimum heart rate.
+    maxHeartRate: null,
+    minHeartRate: null,
   };
 }
