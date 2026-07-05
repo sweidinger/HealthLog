@@ -8,7 +8,7 @@ import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
-import { cn } from "@/lib/utils";
+import { TileHeader } from "@/components/insights/tile-header";
 import type { CoachReadStripData } from "@/lib/insights/derived/coach-read-shape";
 
 /**
@@ -109,37 +109,27 @@ export function CoachReadStrip({
   // fires defensively.)
   if (!baselineLine && !driverLine) return null;
 
+  // Standard card anatomy — the same TileHeader-led shape as every other
+  // insights card (foreground icon + title), instead of the former inline
+  // mini-icon strip that read as chrome outside the card system. Body prose
+  // in the regular foreground; muted stays reserved for meta lines.
   return (
     <div
       data-slot="coach-read-strip"
-      className={cn(
-        "bg-card/60 border-border/60 rounded-xl border px-3.5 py-2.5",
-        "text-muted-foreground space-y-1 text-sm leading-relaxed",
-      )}
+      className="bg-card/60 border-border/60 space-y-2 rounded-xl border px-4 py-3.5"
     >
-      <div className="flex items-start gap-2">
-        <Sparkles
-          className="text-primary/70 mt-0.5 size-3.5 shrink-0"
-          aria-hidden="true"
-        />
-        <div className="min-w-0 space-y-1">
-          <span className="text-foreground/70 sr-only text-xs font-medium">
-            {t("insights.coach.readStrip.label")}
-          </span>
-          {baselineLine ? (
-            <p data-slot="coach-read-baseline" className="text-pretty">
-              {baselineLine}
-            </p>
-          ) : null}
-          {driverLine ? (
-            <p
-              data-slot="coach-read-driver"
-              className="text-muted-foreground/90 text-pretty"
-            >
-              {driverLine}
-            </p>
-          ) : null}
-        </div>
+      <TileHeader icon={Sparkles} title={t("insights.coach.readStrip.label")} />
+      <div className="text-foreground min-w-0 space-y-1 text-sm leading-relaxed">
+        {baselineLine ? (
+          <p data-slot="coach-read-baseline" className="text-pretty">
+            {baselineLine}
+          </p>
+        ) : null}
+        {driverLine ? (
+          <p data-slot="coach-read-driver" className="text-pretty">
+            {driverLine}
+          </p>
+        ) : null}
       </div>
     </div>
   );

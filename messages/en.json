@@ -2353,7 +2353,7 @@
       "tokensUsedWithModel": "{count} tokens · {model}",
       "askAboutThis": "Ask the coach about this",
       "readStrip": {
-        "label": "Coach read",
+        "label": "Usual range",
         "baselineWithin": "Your usual range is {low}–{high} {unit}; today's {value} sits within it.",
         "baselineAbove": "Your usual range is {low}–{high} {unit}; today's {value} sits above it.",
         "baselineBelow": "Your usual range is {low}–{high} {unit}; today's {value} sits below it.",

@@ -300,7 +300,7 @@ export function HeroStrip({
                 spacing (still plain text children, no markdown). */}
             <div
               data-slot="insights-hero-strip-subtitle"
-              className="text-muted-foreground max-w-3xl text-sm"
+              className="text-foreground max-w-3xl text-sm"
             >
               <ProseBlocks text={subtitle} />
             </div>

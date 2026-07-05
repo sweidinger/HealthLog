@@ -2353,7 +2353,7 @@
       "tokensUsedWithModel": "{count} Tokens · {model}",
       "askAboutThis": "Den Coach dazu fragen",
       "readStrip": {
-        "label": "Coach-Einschätzung",
+        "label": "Üblicher Bereich",
         "baselineWithin": "Dein üblicher Bereich liegt bei {low}–{high} {unit}; heute liegt {value} darin.",
         "baselineAbove": "Dein üblicher Bereich liegt bei {low}–{high} {unit}; heute liegt {value} darüber.",
         "baselineBelow": "Dein üblicher Bereich liegt bei {low}–{high} {unit}; heute liegt {value} darunter.",

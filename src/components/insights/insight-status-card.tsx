@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -287,67 +286,13 @@ export function InsightStatusCard({
  * overflow, and re-measures on resize / font load via `ResizeObserver`.
  */
 function StatusBody({ text }: { text: string }) {
-  const { t } = useTranslations();
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-
-  // v1.22 (W6) — the assessment now renders through the shared `ProseBlocks`
-  // helper (real paragraphs). The 3-line clamp therefore moves from the single
-  // `<p>` to the BLOCK CONTAINER: a max-height + overflow-hidden when collapsed,
-  // measured on the wrapper node so multi-paragraph text doesn't re-collapse.
-  // When the text fits, `scrollHeight` equals `clientHeight`; an overflow means
-  // the clamp is hiding content and the toggle earns its place. Gated on
-  // `!expanded` so the comparison reads against the clamped element.
-  useEffect(() => {
-    if (expanded) return;
-    const node = wrapperRef.current;
-    if (!node) return;
-
-    const measure = () => {
-      setOverflows(node.scrollHeight > node.clientHeight + 1);
-    };
-    measure();
-
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
-    // Re-measure whenever the source text changes (a fresh assessment) or
-    // the user collapses the card again.
-  }, [text, expanded]);
-
+  // The assessment shows in full — the 3-line clamp + "show more" toggle
+  // hid the prose behind an extra tap for no gain on a card whose whole
+  // point is the text. Body prose reads in the regular foreground; muted
+  // stays reserved for meta lines (timestamps, captions).
   return (
-    <div className="space-y-1">
-      <div
-        ref={wrapperRef}
-        className={cn(
-          "text-muted-foreground text-sm",
-          // ~3 lines at text-sm / leading-relaxed; only when collapsed.
-          !expanded && "max-h-[4.5rem] overflow-hidden",
-        )}
-      >
-        <ProseBlocks text={text} />
-      </div>
-      {/* Only render the toggle on a genuine overflow. When the full text
-          fits inside three lines there is nothing more to show, so no
-          affordance is painted. */}
-      {(overflows || expanded) && (
-        <button
-          type="button"
-          onClick={() => setExpanded((prev) => !prev)}
-          aria-expanded={expanded}
-          data-slot="assessment-show-more"
-          className={cn(
-            "text-foreground/80 hover:text-foreground inline-flex text-xs font-medium",
-            "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
-          )}
-        >
-          {expanded
-            ? t("insights.assessmentShowLess")
-            : t("insights.assessmentShowMore")}
-        </button>
-      )}
+    <div className="text-foreground text-sm">
+      <ProseBlocks text={text} />
     </div>
   );
 }

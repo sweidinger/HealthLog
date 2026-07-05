@@ -2353,7 +2353,7 @@
       "tokensUsedWithModel": "{count} jetons · {model}",
       "askAboutThis": "Interroger le coach à ce sujet",
       "readStrip": {
-        "label": "Lecture du Coach",
+        "label": "Plage habituelle",
         "baselineWithin": "Ta plage habituelle est de {low}–{high} {unit} ; aujourd'hui, {value} s'y situe.",
         "baselineAbove": "Ta plage habituelle est de {low}–{high} {unit} ; aujourd'hui, {value} se situe au-dessus.",
         "baselineBelow": "Ta plage habituelle est de {low}–{high} {unit} ; aujourd'hui, {value} se situe en dessous.",

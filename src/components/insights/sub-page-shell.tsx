@@ -218,7 +218,10 @@ export function SubPageShell({
       <div data-slot="insights-subpage" className="space-y-3 md:space-y-4">
         {/* v1.8.7.1 — back-nav leads the page, above the heading. */}
         {backLink}
-        <header className="space-y-1.5">
+        {/* The heading + explainer indent to the cards' inner text edge
+            (`px-6`, the Card content padding), so the page head reads as
+            part of the card column instead of hanging outside it. */}
+        <header className="space-y-1.5 px-6">
           {/* v1.8.6 — the heading row pins the Coach icon top-right while the
             title / nudge / badge wrap together on the left.
 
@@ -337,7 +340,7 @@ export function SubPageShell({
             // string was removed.
             <p
               data-slot="metric-explainer-inline"
-              className="text-muted-foreground text-sm leading-relaxed"
+              className="text-foreground text-sm leading-relaxed"
             >
               {t(`insights.subPage.explainer.${explainerMetric}Body`)}
             </p>
