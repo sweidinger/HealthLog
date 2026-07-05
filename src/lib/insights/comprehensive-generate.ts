@@ -1111,6 +1111,7 @@ export async function generateComprehensiveInsight(
   // the briefing rather than persist a fabricated number.
   {
     const signals = features.signalsOfDay ?? null;
+    let retryTransportFailed = false;
     let ungrounded = findUngroundedBriefingNumbers(
       readBriefingBlock(insights),
       signals,
@@ -1151,14 +1152,39 @@ export async function generateComprehensiveInsight(
           ungrounded = retryUngrounded;
         }
       } catch {
-        // Retry failed — fall through to the strip below.
+        // Retry failed on TRANSPORT (provider outage / timeout), not on
+        // content — the model never got its correction chance.
+        retryTransportFailed = true;
       }
     }
     if (ungrounded.length > 0 && insights && typeof insights === "object") {
-      (insights as Record<string, unknown>).dailyBriefing = null;
+      // A content-failed retry (the model repeated ungrounded numbers)
+      // still strips hard — a fabricated figure must never persist. But
+      // when the corrective retry died on transport, prefer the previous
+      // payload's briefing (it passed this same gate when it was written)
+      // over a hole: a day-old briefing beats a vanished one, and the next
+      // successful run replaces it.
+      let fallbackBriefing: unknown = null;
+      if (retryTransportFailed && dbUser?.insightsCachedText) {
+        try {
+          const prev = JSON.parse(dbUser.insightsCachedText) as Record<
+            string,
+            unknown
+          >;
+          fallbackBriefing = prev.dailyBriefing ?? null;
+        } catch {
+          // Unparseable previous payload — keep the hard strip.
+        }
+      }
+      (insights as Record<string, unknown>).dailyBriefing = fallbackBriefing;
       annotate({
         action: { name: "insights.generate.briefing_grounding_stripped" },
-        meta: { locale, ungroundedCount: ungrounded.length },
+        meta: {
+          locale,
+          ungroundedCount: ungrounded.length,
+          briefing_fallback:
+            fallbackBriefing != null ? "previous-cached" : "stripped",
+        },
       });
     }
   }
