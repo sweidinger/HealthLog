@@ -84,6 +84,7 @@ The architecture map in `.planning/codebase/arch.md` walks each layer with file:
 
 ## Code conventions
 
+- **UI work follows the design standards.** `.planning/audits/2026-07-05-fable/UI-STANDARDS.md` is the binding design rulebook (card anatomy via TileHeader, spacing scale, text-colour rules — foreground for content, muted for meta only —, token discipline, primitive mapping). Read it before touching any surface; deviations need a written reason in the PR. Where the standards conflict with older in-file comments, the standards win.
 - **RSC by default.** Server components are the default; add `"use client"` only when a hook, state, or browser API actually needs it.
 - **Every API route wraps in `apiHandler`.** Verified — zero exceptions in the current tree. Every body-accepting route runs Zod `safeParse` and returns 422 via `returnAllZodIssues` (multi-issue envelope sanitised against echoed input through `sanitiseZodIssues`).
 - **`userId` is always narrowed from session or Bearer.** No route accepts `userId` as a body field — it comes from `requireAuth()` and feeds the Prisma `where`. The batch endpoints (`/api/measurements/batch`, `/api/mood-entries/bulk`, `/api/medications/intake/bulk`, `/api/workouts/batch`) don't even declare a `userId` field in their Zod schemas.
