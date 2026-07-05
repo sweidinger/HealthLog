@@ -264,7 +264,7 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
           {session.source ? (
             <span
               data-slot="sleep-hypnogram-source"
-              className="text-muted-foreground/70 text-xs"
+              className="text-muted-foreground text-xs"
             >
               {t("insights.sleep.hypnogram.source", {
                 source: session.source,
@@ -278,7 +278,7 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
           {session.reconstructed === true && hasBreakdown ? (
             <span
               data-slot="sleep-hypnogram-estimate-note"
-              className="text-muted-foreground/70 text-xs"
+              className="text-muted-foreground text-xs"
             >
               {t("insights.sleep.hypnogram.estimateNote")}
             </span>

@@ -714,7 +714,7 @@ function BubbleTimestamp({
         aria-label={t("insights.coach.messageTimeLabel", { time: label })}
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setOpen(false)}
-        className="peer text-muted-foreground/70 hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex size-11 items-center justify-center rounded outline-none focus-visible:ring-2 sm:size-8"
+        className="peer text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex size-11 items-center justify-center rounded outline-none focus-visible:ring-2 sm:size-8"
       >
         <Clock className="size-3" aria-hidden="true" />
       </button>

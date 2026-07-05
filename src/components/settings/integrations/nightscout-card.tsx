@@ -282,7 +282,7 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
               autoCapitalize="none"
               enterKeyHint="done"
             />
-            <p className="text-muted-foreground/80 text-xs">
+            <p className="text-muted-foreground text-xs">
               {t("settings.nightscoutTokenHelp")}
             </p>
           </div>
@@ -292,7 +292,7 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
               <Label htmlFor="nightscout-private" className="text-sm">
                 {t("settings.nightscoutPrivateHost")}
               </Label>
-              <p className="text-muted-foreground/80 text-xs">
+              <p className="text-muted-foreground text-xs">
                 {t("settings.nightscoutPrivateHostHelp")}
               </p>
             </div>

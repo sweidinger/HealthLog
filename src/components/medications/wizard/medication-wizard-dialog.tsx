@@ -538,7 +538,7 @@ function WizardDialogShell({
                     knows what the Next tap leads to (or, on the final
                     slot, that Next saves). */}
                 <p
-                  className="text-muted-foreground/80 flex items-center gap-0.5 pt-0.5 text-xs"
+                  className="text-muted-foreground flex items-center gap-0.5 pt-0.5 text-xs"
                   data-slot="wizard-next-hint"
                 >
                   <ChevronRight

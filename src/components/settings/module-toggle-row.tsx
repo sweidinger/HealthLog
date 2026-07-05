@@ -106,13 +106,13 @@ export function ModuleToggleRow({
           )}
           <p className="text-muted-foreground text-xs">{description}</p>
           {locked && lockedNote ? (
-            <p className="text-muted-foreground/80 text-xs">{lockedNote}</p>
+            <p className="text-muted-foreground text-xs">{lockedNote}</p>
           ) : null}
         </div>
       </div>
       {operatorDisabled ? (
         // Operator kill-switch: read-only note, no toggle.
-        <span className="text-muted-foreground/80 mt-0.5 shrink-0 text-xs">
+        <span className="text-muted-foreground mt-0.5 shrink-0 text-xs">
           {operatorNote}
         </span>
       ) : managed ? (

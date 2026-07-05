@@ -1081,9 +1081,12 @@ function MoodNoteText({
         ref={paragraphRef}
         data-testid="mood-note-text"
         className={
+          // User-authored content renders in foreground — user data is never
+          // muted (the row's timestamp stays muted); italic keeps the note
+          // visually distinct from app copy.
           expanded
-            ? "text-muted-foreground/80 text-xs break-words whitespace-pre-wrap italic"
-            : "text-muted-foreground/80 line-clamp-2 text-xs italic"
+            ? "text-foreground text-sm break-words whitespace-pre-wrap italic"
+            : "text-foreground line-clamp-2 text-sm italic"
         }
       >
         {note}

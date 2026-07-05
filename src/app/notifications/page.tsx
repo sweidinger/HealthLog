@@ -205,17 +205,12 @@ export default function NotificationsPage() {
                   key={ch.id}
                   className="px-4 py-3 text-center text-xs font-medium tracking-wider uppercase"
                 >
-                  <span
-                    className={
-                      ch.enabled
-                        ? "text-muted-foreground"
-                        : "text-muted-foreground/70"
-                    }
-                  >
-                    {ch.label}
-                  </span>
+                  {/* Disabled state reads through the note + the disabled
+                      switches below — never through sub-AA opacity dimming
+                      on the label or the note itself. */}
+                  <span className="text-muted-foreground">{ch.label}</span>
                   {!ch.enabled && (
-                    <span className="text-muted-foreground/70 block text-[10px] normal-case">
+                    <span className="text-muted-foreground block text-xs normal-case">
                       {t("notifications.channelDisabled")}
                     </span>
                   )}
@@ -296,11 +291,11 @@ export default function NotificationsPage() {
                     >
                       <Label
                         htmlFor={switchId}
-                        className={`text-sm ${disabled ? "text-muted-foreground/70" : ""}`}
+                        className={`text-sm ${disabled ? "text-muted-foreground" : ""}`}
                       >
                         {ch.label}
                         {disabled && (
-                          <span className="text-muted-foreground/70 ml-1 text-xs">
+                          <span className="text-muted-foreground ml-1 text-xs">
                             ({t("notifications.channelDisabled")})
                           </span>
                         )}

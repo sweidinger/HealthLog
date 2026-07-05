@@ -406,7 +406,7 @@ export function SidebarNav() {
           <button
             onClick={toggleCollapsed}
             className={cn(
-              "text-muted-foreground/80 hover:text-foreground hover:bg-accent z-20 rounded-md p-1 transition-colors",
+              "text-muted-foreground hover:text-foreground hover:bg-accent z-20 rounded-md p-1 transition-colors",
               className,
             )}
             aria-label={t("nav.collapseSidebar")}

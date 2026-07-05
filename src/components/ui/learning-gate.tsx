@@ -83,7 +83,7 @@ export function LearningGate({
       {caveat ? (
         <p
           data-slot="learning-gate-caveat"
-          className="text-muted-foreground/80 text-xs leading-snug"
+          className="text-muted-foreground text-xs leading-snug"
         >
           {caveat}
         </p>
