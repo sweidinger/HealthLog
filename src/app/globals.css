@@ -337,8 +337,8 @@
   --chart-5: #a34d14;
   /*
    * Light-mode (Alucard) overrides for the raw `--dracula-*` primitives.
-   * ~250 legacy `text-dracula-*` / `bg-dracula-*/N` call sites still read
-   * these directly; without an override the dark neons render on the white
+   * ~250 legacy `text-dracula-*` / opacity-suffixed `bg-dracula-*` call
+   * sites still read these directly; without an override the dark neons render on the white
    * card at 1.2–1.6:1. Each value below is tuned to the AA light palette
    * already in this block (same hue family, measured >=4.5:1 on both
    * `--card` oklch(0.988 0.003 300) and `--background` oklch(0.964 0.004
