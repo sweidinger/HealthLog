@@ -48,9 +48,22 @@ const eslintConfig = defineConfig([
       // vocabulary onto semantic tokens. Raw Tailwind palette utilities
       // (`text-amber-500`, `bg-green-500`, `dark:text-red-400`, …) under
       // src/components + src/app are banned so the tokenised palette can't
-      // regress. `src/app/global-error.tsx` (renders without the token
-      // stylesheet) and test files are exempt; see the rule file.
-      "healthlog/no-raw-palette-color": "error",
+      // regress. v1.27.x extends the rule with two further error-level
+      // checks: colour-shaped JS props carrying a raw `#hex`/`rgb(`/`hsl(`/
+      // `oklch(` literal (the Recharts `color`/`stroke`/`fill` blind spot),
+      // and Tailwind arbitrary-value colours (`bg-[#…]`).
+      // `src/app/global-error.tsx` (renders without the token stylesheet),
+      // the `themeColor` viewport metadata, and test files are exempt; see
+      // the rule file.
+      "healthlog/no-raw-palette-color": [
+        "error",
+        { checks: ["palette", "color-props", "arbitrary-value"] },
+      ],
+      // Staged: raw `*-dracula-*` utilities warn for now — ~250 legacy
+      // sites predate the token system and the light-theme overrides in
+      // globals.css keep them readable. Moves to error once the semantic
+      // sweep has retired the legacy sites (see the rule header).
+      "healthlog/no-dracula-utility": ["warn", { checks: ["dracula"] }],
     },
   },
 ]);
