@@ -64,6 +64,10 @@ const eslintConfig = defineConfig([
       // globals.css keep them readable. Moves to error once the semantic
       // sweep has retired the legacy sites (see the rule header).
       "healthlog/no-dracula-utility": ["warn", { checks: ["dracula"] }],
+      // The Card primitive is gap-based; pt-/pb- on CardHeader/CardContent
+      // fights the gap and re-opens the sl-001 drift class. Density lives
+      // on the Card itself (`gap-2 py-3 md:py-4`). See the rule header.
+      "healthlog/spacing-scale": "error",
     },
   },
 ]);
