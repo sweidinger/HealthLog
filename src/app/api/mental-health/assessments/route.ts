@@ -28,6 +28,7 @@ import {
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { withIdempotency } from "@/lib/idempotency";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
@@ -326,6 +327,12 @@ async function postAssessment(request: NextRequest): Promise<Response> {
       externalId: `assessment:${assessment.id}`,
     },
   });
+
+  // v1.27.6 — a screening can be planned as a Vorsorge reminder keyed on
+  // PHQ9_SCORE / GAD7_SCORE. Kick the eventful satisfy worker so completing
+  // a check-in resolves the reminder immediately (the ingest-route
+  // precedent); the 15-min cron stays the idempotent safety-net.
+  await enqueueReminderSatisfy(user.id);
 
   await auditLog("mental-health.create", {
     userId: user.id,

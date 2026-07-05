@@ -11135,9 +11135,12 @@ components:
         - TOTAL_BODY_WATER
         - VISCERAL_FAT
         - BODY_MASS_INDEX
-      description: Auto-resolve target metric (vitals + body-composition family). BP resolves on BLOOD_PRESSURE_SYS (the SYS
-        row is the 'a BP was measured' sentinel). Omit for a free-text Vorsorge that resolves only on a manual satisfy
-        or a matching lab result.
+        - PHQ9_SCORE
+        - GAD7_SCORE
+      description: Auto-resolve target metric (vitals + body-composition family + the PHQ-9 / GAD-7 screenings). BP resolves
+        on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured' sentinel); a screening reminder resolves on the
+        server-written PHQ9_SCORE / GAD7_SCORE row when a check-in completes. Omit for a free-text Vorsorge that
+        resolves only on a manual satisfy or a matching lab result.
     MeasurementReminderUpdate:
       type: object
       properties:

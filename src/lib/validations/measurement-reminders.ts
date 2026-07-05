@@ -56,16 +56,43 @@ export const measurementReminderTypeEnum = z
     "TOTAL_BODY_WATER",
     "VISCERAL_FAT",
     "BODY_MASS_INDEX",
+    // v1.27.6 — the mental-wellbeing screeners become plannable Vorsorge
+    // items. Not a passive wearable score: a screening is an active "go and
+    // do it" action exactly like stepping on the scale. Auto-resolves from
+    // the server-owned COMPUTED PHQ9_SCORE / GAD7_SCORE row the assessment
+    // route writes on completion. Gated on the opt-in mentalHealth module in
+    // the dispatcher (see `moduleForMeasurementType`).
+    "PHQ9_SCORE",
+    "GAD7_SCORE",
   ])
   .meta({
     id: "MeasurementReminderType",
     description:
-      "Auto-resolve target metric (vitals + body-composition family). BP resolves on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured' sentinel). Omit for a free-text Vorsorge that resolves only on a manual satisfy or a matching lab result.",
+      "Auto-resolve target metric (vitals + body-composition family + the PHQ-9 / GAD-7 screenings). BP resolves on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured' sentinel); a screening reminder resolves on the server-written PHQ9_SCORE / GAD7_SCORE row when a check-in completes. Omit for a free-text Vorsorge that resolves only on a manual satisfy or a matching lab result.",
   });
 
 export type MeasurementReminderType = z.infer<
   typeof measurementReminderTypeEnum
 >;
+
+/**
+ * v1.27.6 — the reminder types that are SCREENINGS, not numeric readings.
+ * Every surface with a per-reminder primary action branches on this: a
+ * screening routes to the check-in page (`/mental-wellbeing`) instead of
+ * opening the numeric MeasurementForm — a score is never typed in, it
+ * falls out of a completed test (which then auto-satisfies the reminder).
+ */
+export const SCREENING_REMINDER_TYPES: ReadonlySet<string> = new Set([
+  "PHQ9_SCORE",
+  "GAD7_SCORE",
+]);
+
+/** Whether a reminder's `measurementType` targets a screening check-in. */
+export function isScreeningReminderType(
+  type: string | null | undefined,
+): boolean {
+  return type != null && SCREENING_REMINDER_TYPES.has(type);
+}
 
 /**
  * RFC-5545 RRULE guard. The recurrence engine parses it; here we only

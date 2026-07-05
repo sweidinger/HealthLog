@@ -6987,11 +6987,14 @@
       "BONE_MASS": "Massa ossea",
       "TOTAL_BODY_WATER": "Acqua corporea",
       "VISCERAL_FAT": "Grasso viscerale",
-      "BODY_MASS_INDEX": "Indice di massa corporea (IMC)"
+      "BODY_MASS_INDEX": "Indice di massa corporea (IMC)",
+      "PHQ9_SCORE": "PHQ-9 · umore",
+      "GAD7_SCORE": "GAD-7 · preoccupazione"
     },
     "typeGroups": {
       "vitals": "Parametri vitali",
-      "bodyComposition": "Composizione corporea"
+      "bodyComposition": "Composizione corporea",
+      "mentalWellbeing": "Benessere mentale"
     },
     "empty": {
       "title": "Ancora nessun promemoria",
@@ -7025,6 +7028,7 @@
     "selfPlanned": "Autopianificato",
     "captureValue": "Registra valore",
     "measureNow": "Misura ora",
+    "startCheckIn": "Avvia il check-in",
     "nextDueLabel": "Prossima scadenza:",
     "lastDoneLabel": "Ultima volta:",
     "customize": "Personalizza controlli",

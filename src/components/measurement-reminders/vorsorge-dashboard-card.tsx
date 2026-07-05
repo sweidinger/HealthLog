@@ -16,6 +16,7 @@
  */
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CalendarClock, CheckCircle2, Plus } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
@@ -26,6 +27,7 @@ import { ListRow } from "@/components/ui/list-row";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
+import { isScreeningReminderType } from "@/lib/validations/measurement-reminders";
 import {
   useMeasurementReminders,
   useMeasurementReminderMutations,
@@ -60,6 +62,7 @@ function resolveLabel(
 
 export function VorsorgeDashboardCard() {
   const { t } = useTranslations();
+  const router = useRouter();
   const { data: reminders, isLoading } = useMeasurementReminders();
   const { satisfy } = useMeasurementReminderMutations();
   const [now] = useState(() => Date.now());
@@ -74,8 +77,12 @@ export function VorsorgeDashboardCard() {
     .filter((r) => r.enabled)
     .slice(0, SUMMARY_LIMIT);
 
+  // v1.27.6 — a screening reminder routes to the check-in page (a score is
+  // never typed in); completing the test auto-satisfies the reminder.
   function onPrimaryAction(reminder: MeasurementReminder) {
-    if (reminder.measurementType) {
+    if (isScreeningReminderType(reminder.measurementType)) {
+      router.push("/mental-wellbeing");
+    } else if (reminder.measurementType) {
       setCapturing(reminder);
     } else {
       satisfy.mutate(reminder.id);
@@ -119,6 +126,9 @@ export function VorsorgeDashboardCard() {
             {upcoming.map((reminder) => {
               const due = relativeDueKey(reminder.nextDueAt, now);
               const isLinked = reminder.measurementType != null;
+              const isScreening = isScreeningReminderType(
+                reminder.measurementType,
+              );
               return (
                 <ListRow
                   key={reminder.id}
@@ -146,7 +156,11 @@ export function VorsorgeDashboardCard() {
                       {isLinked ? (
                         <>
                           <Plus className="h-4 w-4" />
-                          {t("measurementReminders.captureValue")}
+                          {t(
+                            isScreening
+                              ? "measurementReminders.startCheckIn"
+                              : "measurementReminders.captureValue",
+                          )}
                         </>
                       ) : (
                         <>

@@ -6987,11 +6987,14 @@
       "BONE_MASS": "Knochenmasse",
       "TOTAL_BODY_WATER": "Körperwasser",
       "VISCERAL_FAT": "Viszeralfett",
-      "BODY_MASS_INDEX": "Body-Mass-Index (BMI)"
+      "BODY_MASS_INDEX": "Body-Mass-Index (BMI)",
+      "PHQ9_SCORE": "PHQ-9 · Stimmung",
+      "GAD7_SCORE": "GAD-7 · Sorgen"
     },
     "typeGroups": {
       "vitals": "Vitalwerte",
-      "bodyComposition": "Körperzusammensetzung"
+      "bodyComposition": "Körperzusammensetzung",
+      "mentalWellbeing": "Seelisches Wohlbefinden"
     },
     "empty": {
       "title": "Noch keine Erinnerungen",
@@ -7025,6 +7028,7 @@
     "selfPlanned": "Selbstgeplant",
     "captureValue": "Wert erfassen",
     "measureNow": "Jetzt messen",
+    "startCheckIn": "Check-in starten",
     "nextDueLabel": "Nächste Fälligkeit:",
     "lastDoneLabel": "Zuletzt erledigt:",
     "customize": "Vorsorge anpassen",

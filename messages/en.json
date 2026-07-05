@@ -6987,11 +6987,14 @@
       "BONE_MASS": "Bone mass",
       "TOTAL_BODY_WATER": "Body water",
       "VISCERAL_FAT": "Visceral fat",
-      "BODY_MASS_INDEX": "Body mass index (BMI)"
+      "BODY_MASS_INDEX": "Body mass index (BMI)",
+      "PHQ9_SCORE": "PHQ-9 · mood",
+      "GAD7_SCORE": "GAD-7 · worry"
     },
     "typeGroups": {
       "vitals": "Vitals",
-      "bodyComposition": "Body composition"
+      "bodyComposition": "Body composition",
+      "mentalWellbeing": "Mental wellbeing"
     },
     "empty": {
       "title": "No reminders yet",
@@ -7025,6 +7028,7 @@
     "selfPlanned": "Self-planned",
     "captureValue": "Log value",
     "measureNow": "Measure now",
+    "startCheckIn": "Start check-in",
     "nextDueLabel": "Next due:",
     "lastDoneLabel": "Last done:",
     "customize": "Customize checkups",
