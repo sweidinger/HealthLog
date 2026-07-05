@@ -76,10 +76,10 @@ export function RangeBar({
     !inGreen && value >= effectiveOrangeMin && value <= effectiveOrangeMax;
 
   const markerColor = inGreen
-    ? "var(--dracula-green)"
+    ? "var(--success)"
     : inYellow
-      ? "var(--dracula-orange)"
-      : "var(--dracula-red)";
+      ? "var(--warning)"
+      : "var(--destructive)";
   const minLabelPosition = Math.max(5, Math.min(95, greenStart));
   const maxLabelPosition = Math.max(5, Math.min(95, greenEnd));
 
@@ -99,18 +99,18 @@ export function RangeBar({
             chart palette stays aligned with PR-badge, alerts, and the
             marker dot itself. Raw Tailwind palettes drift from the
             theme over time and never get dark-mode tuned. */}
-        <div className="bg-dracula-red/10 absolute inset-0 rounded-full" />
+        <div className="bg-destructive/10 absolute inset-0 rounded-full" />
         {/* Orange (caution) side zones — `--dracula-orange` matches the
             marker's out-of-band tint. */}
         <div
-          className="bg-dracula-orange/15 absolute top-0 h-full"
+          className="bg-warning/15 absolute top-0 h-full"
           style={{
             left: `${yellowLeftStart}%`,
             width: `${greenStart - yellowLeftStart}%`,
           }}
         />
         <div
-          className="bg-dracula-orange/15 absolute top-0 h-full"
+          className="bg-warning/15 absolute top-0 h-full"
           style={{
             left: `${greenEnd}%`,
             width: `${yellowRightEnd - greenEnd}%`,
@@ -118,7 +118,7 @@ export function RangeBar({
         />
         {/* In-band green zone — `--dracula-green`. */}
         <div
-          className="bg-dracula-green/20 absolute top-0 h-full"
+          className="bg-success/20 absolute top-0 h-full"
           style={{
             left: `${greenStart}%`,
             width: `${greenEnd - greenStart}%`,

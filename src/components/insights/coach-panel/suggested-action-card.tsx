@@ -50,7 +50,7 @@ export function SuggestedActionCard({
         data-slot="coach-suggested-action-done"
         className="text-muted-foreground flex items-center gap-1.5 text-xs"
       >
-        <Check className="text-dracula-green size-3.5" aria-hidden="true" />
+        <Check className="text-success size-3.5" aria-hidden="true" />
         {t(
           settled === "applied"
             ? "coach.suggestedAction.applied"
@@ -77,7 +77,7 @@ export function SuggestedActionCard({
       <div className="flex items-start gap-2">
         <div
           aria-hidden="true"
-          className="from-dracula-purple to-dracula-cyan mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
+          className="from-primary to-info mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
         >
           <Sparkles className="text-background size-3.5" />
         </div>
@@ -102,7 +102,7 @@ export function SuggestedActionCard({
           onClick={() => apply.mutate()}
           disabled={busy}
           className={cn(
-            "bg-dracula-purple/90 text-background hover:bg-dracula-purple",
+            "bg-primary/90 text-background hover:bg-primary",
             "focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1.5 sm:min-h-9",
             "rounded-md px-3 py-1.5 text-xs font-medium outline-none",
             "focus-visible:ring-2 disabled:opacity-50",

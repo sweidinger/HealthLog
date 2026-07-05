@@ -89,9 +89,9 @@ describe("CoachFeedbackSection", () => {
     // Two bucket rows in the table.
     const matches = (html.match(/coach-feedback-bucket/g) ?? []).length;
     expect(matches).toBe(2);
-    // Helpful-rate column carries the band tint.
-    expect(html).toContain("text-dracula-green"); // 80% bucket
-    expect(html).toContain("text-dracula-yellow"); // 50% bucket
+    // Helpful-rate column carries the band tint (semantic urgency ramp).
+    expect(html).toContain("text-success"); // 80% bucket
+    expect(html).toContain("text-warning"); // 50% bucket
     // Numbers visible in the markup.
     expect(html).toContain("80%");
     expect(html).toContain("50%");

@@ -274,7 +274,7 @@ function dayBoundaryIso(
  */
 function sourceBadgeClass(source: string): string {
   if (source === "APPLE_HEALTH") {
-    return "border-dracula-pink/50 bg-dracula-pink/15 text-dracula-pink";
+    return "border-brand-pink/50 bg-brand-pink/15 text-brand-pink";
   }
   return "";
 }
@@ -1145,7 +1145,7 @@ export function MeasurementList({
                   <ListRow
                     key={m.id}
                     data-state={isSelected ? "selected" : undefined}
-                    className="bg-card border-border data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5"
+                    className="bg-card border-border data-[state=selected]:border-primary/60 data-[state=selected]:bg-primary/5"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 overflow-hidden">

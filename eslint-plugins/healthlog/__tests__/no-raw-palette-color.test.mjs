@@ -159,3 +159,36 @@ ruleTester.run("no-raw-palette-color (dracula check)", rule, {
     },
   ],
 });
+
+ruleTester.run("no-raw-palette-color (dracula blind spots)", rule, {
+  valid: [
+    // Semantic replacements for the directional + paren-var forms.
+    {
+      code: 'const c = "border-l-destructive/70 bg-success border-success";',
+      filename: APP_FILE,
+      options: [{ checks: ["dracula"] }],
+    },
+    // Token references through var() stay legal.
+    {
+      code: 'const c = "shadow-[0_0_0_1px_color-mix(in_oklab,var(--success)_20%,transparent)]";',
+      filename: APP_FILE,
+      options: [{ checks: ["dracula"] }],
+    },
+  ],
+  invalid: [
+    // Directional border form.
+    {
+      code: 'const c = "border-l-dracula-red/70";',
+      filename: APP_FILE,
+      options: [{ checks: ["dracula"] }],
+      errors: [{ messageId: "draculaUtility" }],
+    },
+    // Parenthesised CSS-var utility shorthand.
+    {
+      code: 'const c = "bg-(--dracula-green)";',
+      filename: APP_FILE,
+      options: [{ checks: ["dracula"] }],
+      errors: [{ messageId: "draculaUtility" }],
+    },
+  ],
+});

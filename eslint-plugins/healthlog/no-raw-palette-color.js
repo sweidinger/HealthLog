@@ -28,14 +28,13 @@
  *     before any stylesheet loads, so it must stay a literal).
  *   - `arbitrary-value` (error) — Tailwind arbitrary colour values
  *     (`bg-[#…]`, `text-[oklch(…)]`). `…-[var(--token)]` never matches.
- *   - `dracula` (WARN, staged) — raw `*-dracula-*` utilities. ~250
- *     legacy sites predate the token system; the light-theme overrides in
- *     `globals.css` defuse their AA failures, so the check ships as a
- *     warning first (registered separately as
- *     `healthlog/no-dracula-utility`). It moves to error once the
- *     semantic sweep (status meaning → `text-success/warning/info/
- *     destructive`, brand use → `--brand-*` tokens) has retired the
- *     legacy sites.
+ *   - `dracula` (error, registered separately as
+ *     `healthlog/no-dracula-utility`) — raw `*-dracula-*` utilities.
+ *     The semantic sweep retired every legacy site: status meaning →
+ *     `text-success/warning/info/destructive`, purple → `primary`,
+ *     pink → the `--brand-pink` token. `var(--dracula-*)` references in
+ *     chart code are token references, not utilities, and never match —
+ *     the light-theme overrides in `globals.css` keep them AA.
  *
  * The `checks` option selects which detectors run, so the flat config can
  * register the same module twice at different severities (see
@@ -78,9 +77,12 @@ const RAW_PALETTE_RE =
 
 // Raw `dracula-*` utility: the pre-token palette accessed directly
 // (`text-dracula-green`, `bg-dracula-orange/15`). Same prefix set and
-// modifier tolerance as the palette check.
+// modifier tolerance as the palette check, plus the directional border
+// forms (`border-l-dracula-red`) and the parenthesised CSS-var utility
+// shorthand (`bg-(--dracula-green)`) — both bypassed the plain prefix
+// match during the staged-warning phase.
 const DRACULA_RE =
-  /\b(?:text|bg|border|ring|stroke|fill|from|to|via)-dracula-[a-z]+\b/;
+  /\b(?:text|bg|border(?:-[lrtbxyse])?|ring|stroke|fill|from|to|via)-(?:dracula-[a-z]+\b|\(--dracula-[a-z]+\))/;
 
 // Tailwind arbitrary colour value: `bg-[#…]`, `text-[rgb(…)]`,
 // `border-[oklch(…)]`. Matching on the bracket-open plus a colour-literal

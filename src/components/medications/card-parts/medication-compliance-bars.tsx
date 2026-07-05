@@ -87,7 +87,7 @@ function ComplianceMetaRow({
  * The streak flame uses the semantic `text-warning` token (an alias over
  * Dracula orange in dark mode, AA-safe on the light card). The generic card
  * historically drifted onto Tailwind stock `text-orange-400`, and the flame
- * later carried the raw `text-dracula-orange` palette token; v1.12.2 routes
+ * later carried the raw `text-warning` palette token; v1.12.2 routes
  * it through the semantic vocabulary the rest of the status surface uses.
  */
 export function MedicationComplianceBars({

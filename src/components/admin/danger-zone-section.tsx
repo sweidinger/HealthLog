@@ -171,7 +171,7 @@ export function DangerZoneSection() {
       {wipeMsg && (
         <p
           className={`mt-3 pl-7 text-sm ${
-            wipeAllData.isError ? "text-destructive" : "text-dracula-green"
+            wipeAllData.isError ? "text-destructive" : "text-success"
           }`}
         >
           {wipeMsg}

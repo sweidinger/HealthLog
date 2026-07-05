@@ -61,7 +61,7 @@ export function CoachHero({ composer, scopeHint }: CoachHeroProps) {
         aria-hidden="true"
         className={cn(
           "pointer-events-none absolute inset-0 -z-10",
-          "bg-[radial-gradient(60%_50%_at_50%_38%,color-mix(in_srgb,var(--dracula-purple)_14%,transparent),transparent_70%)]",
+          "bg-[radial-gradient(60%_50%_at_50%_38%,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_70%)]",
         )}
       />
 
@@ -70,7 +70,7 @@ export function CoachHero({ composer, scopeHint }: CoachHeroProps) {
         <div
           aria-hidden="true"
           className={cn(
-            "from-dracula-purple to-dracula-pink flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br shadow-sm",
+            "from-primary to-brand-pink flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br shadow-sm",
             "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:duration-500",
           )}
         >

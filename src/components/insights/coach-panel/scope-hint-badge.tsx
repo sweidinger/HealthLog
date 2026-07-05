@@ -83,10 +83,7 @@ export function ScopeHintBadge({
           "text-xs font-medium",
         )}
       >
-        <Icon
-          className="text-dracula-purple size-3.5 shrink-0"
-          aria-hidden="true"
-        />
+        <Icon className="text-primary size-3.5 shrink-0" aria-hidden="true" />
         <span className="truncate">{prefix}</span>
       </span>
 

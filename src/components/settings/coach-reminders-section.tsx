@@ -67,7 +67,7 @@ export function CoachRemindersSection({
         data-status={r.status}
         className={
           highlighted
-            ? "border-dracula-purple/40 bg-dracula-purple/5 flex flex-col gap-2 rounded-lg border p-3"
+            ? "border-primary/40 bg-primary/5 flex flex-col gap-2 rounded-lg border p-3"
             : "border-border bg-background flex flex-col gap-2 rounded-lg border p-3"
         }
       >

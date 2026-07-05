@@ -115,7 +115,7 @@ export function RecentAuditPreview() {
                       {isFailed ? (
                         <XCircle className="text-destructive h-4 w-4" />
                       ) : (
-                        <CheckCircle2 className="text-dracula-green h-4 w-4" />
+                        <CheckCircle2 className="text-success h-4 w-4" />
                       )}
                     </span>
                     <span

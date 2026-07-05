@@ -62,22 +62,24 @@ describe("<ConfidenceMeter> bars variant (default)", () => {
     expect(lit).toBe(2);
   });
 
-  it("uses green band class at value>=80", () => {
+  it("uses the success tint at value>=80", () => {
     const html = render(<ConfidenceMeter value={85} />);
     expect(html).toContain('data-confidence-band="high"');
-    expect(html).toMatch(/dracula-green/);
+    expect(html).toMatch(/bg-success/);
   });
 
-  it("uses yellow band class at value 50..79", () => {
+  it("uses the caution tint at value 50..79", () => {
     const html = render(<ConfidenceMeter value={65} />);
     expect(html).toContain('data-confidence-band="medium"');
-    expect(html).toMatch(/dracula-yellow/);
+    expect(html).toMatch(/bg-warning/);
   });
 
-  it("uses orange band class at value 25..49", () => {
+  // Medium and low share the caution tint (coverage-meter precedent);
+  // the band attribute + lit-bar count carry the distinction.
+  it("uses the caution tint at value 25..49", () => {
     const html = render(<ConfidenceMeter value={35} />);
     expect(html).toContain('data-confidence-band="low"');
-    expect(html).toMatch(/dracula-orange/);
+    expect(html).toMatch(/bg-warning/);
   });
 
   it("renders the 'draft' pill INSTEAD of bars when value<25", () => {

@@ -151,7 +151,7 @@ export function HistoryRail({
                   "group flex items-center gap-1.5 rounded-lg px-2.5 py-2",
                   "text-sm transition-colors",
                   isActive
-                    ? "bg-dracula-purple/15 text-foreground"
+                    ? "bg-primary/15 text-foreground"
                     : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
                 )}
               >
@@ -186,7 +186,7 @@ export function HistoryRail({
                   data-confirming={isConfirming ? "true" : undefined}
                   className={cn(
                     "size-11 shrink-0",
-                    isConfirming && "text-dracula-red hover:text-dracula-red",
+                    isConfirming && "text-destructive hover:text-destructive",
                   )}
                 >
                   <Trash2 className="size-4" aria-hidden="true" />

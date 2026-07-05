@@ -76,7 +76,7 @@ export function SelfContextAdoptOffer({
     <div
       data-slot="coach-self-context-adopt"
       className={cn(
-        "border-dracula-purple/30 bg-dracula-purple/10 mb-2 flex items-center gap-2 rounded-lg border px-3 py-2",
+        "border-primary/30 bg-primary/10 mb-2 flex items-center gap-2 rounded-lg border px-3 py-2",
       )}
     >
       {settled ? (
@@ -85,7 +85,7 @@ export function SelfContextAdoptOffer({
           className="text-muted-foreground flex items-center gap-1.5 text-xs"
         >
           <Check
-            className="text-dracula-green size-3.5 shrink-0"
+            className="text-success size-3.5 shrink-0"
             aria-hidden="true"
           />
           {t(
@@ -97,7 +97,7 @@ export function SelfContextAdoptOffer({
       ) : (
         <>
           <BookmarkPlus
-            className="text-dracula-purple size-3.5 shrink-0"
+            className="text-primary size-3.5 shrink-0"
             aria-hidden="true"
           />
           <p className="text-muted-foreground min-w-0 flex-1 text-xs">
@@ -109,8 +109,8 @@ export function SelfContextAdoptOffer({
             disabled={adopt.isPending}
             onClick={() => adopt.mutate()}
             className={cn(
-              "text-dracula-purple inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium",
-              "hover:bg-dracula-purple/15 focus-visible:ring-dracula-purple/40 focus-visible:ring-2 focus-visible:outline-none",
+              "text-primary inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium",
+              "hover:bg-primary/15 focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none",
               "disabled:opacity-60",
             )}
           >
@@ -132,7 +132,7 @@ export function SelfContextAdoptOffer({
             }}
             className={cn(
               "text-muted-foreground hover:text-foreground flex min-h-8 items-center rounded-full px-1.5",
-              "hover:bg-dracula-purple/15 focus-visible:ring-dracula-purple/40 focus-visible:ring-2 focus-visible:outline-none",
+              "hover:bg-primary/15 focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none",
             )}
           >
             <X className="size-3" aria-hidden="true" />

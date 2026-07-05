@@ -46,10 +46,10 @@ interface FeedbackSummary {
 }
 
 const SEVERITY_TINT: Record<string, string> = {
-  info: "text-dracula-cyan",
-  suggestion: "text-dracula-purple",
-  important: "text-dracula-orange",
-  urgent: "text-dracula-red",
+  info: "text-info",
+  suggestion: "text-primary",
+  important: "text-warning",
+  urgent: "text-destructive",
 };
 
 export function AiQualitySection() {

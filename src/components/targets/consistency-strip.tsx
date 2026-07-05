@@ -54,9 +54,9 @@ export interface ConsistencyStripProps {
 // encoded inside the value via color-mix so the opacity modifier is
 // no longer needed and the bracketed form parses cleanly.
 const BAND_STYLES: Record<NonNullable<ConsistencyBand>, string> = {
-  in: "bg-(--dracula-green) border-(--dracula-green) shadow-[0_0_0_1px_color-mix(in_oklab,var(--dracula-green)_20%,transparent)]",
-  near: "bg-(--dracula-orange) border-(--dracula-orange)",
-  out: "bg-(--dracula-red) border-(--dracula-red)",
+  in: "bg-success border-success shadow-[0_0_0_1px_color-mix(in_oklab,var(--success)_20%,transparent)]",
+  near: "bg-warning border-warning",
+  out: "bg-destructive border-destructive",
 };
 
 const BAND_ARIA: Record<NonNullable<ConsistencyBand>, string> = {

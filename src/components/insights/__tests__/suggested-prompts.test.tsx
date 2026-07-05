@@ -68,9 +68,9 @@ describe("<SuggestedPrompts>", () => {
     expect(matches.length).toBe(2);
   });
 
-  it("uses Dracula purple chip styling tokens", () => {
+  it("uses the primary-token chip styling", () => {
     const html = render(<SuggestedPrompts onPick={() => {}} />);
-    expect(html).toMatch(/border-dracula-purple\/18/);
+    expect(html).toMatch(/border-primary\/18/);
   });
 
   it("invokes onPick with the localised prompt string when a chip is clicked", () => {

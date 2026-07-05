@@ -75,12 +75,12 @@ function levelIcon(level: LogLevel) {
     case "error":
       return <AlertCircle className="text-destructive h-4 w-4" />;
     case "warn":
-      return <AlertTriangle className="text-dracula-yellow h-4 w-4" />;
+      return <AlertTriangle className="text-warning h-4 w-4" />;
     case "debug":
       return <Info className="text-muted-foreground h-4 w-4" />;
     case "info":
     default:
-      return <CheckCircle2 className="text-dracula-green h-4 w-4" />;
+      return <CheckCircle2 className="text-success h-4 w-4" />;
   }
 }
 

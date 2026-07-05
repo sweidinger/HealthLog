@@ -181,14 +181,14 @@ export function placeInterleaved(
  * is mixed down so the bar reads as a hairline accent, not a hard edge.
  */
 export const COACH_SCROLLBAR = cn(
-  "[scrollbar-color:color-mix(in_srgb,var(--dracula-purple)_30%,transparent)_transparent] [scrollbar-width:thin]",
+  "[scrollbar-color:color-mix(in_srgb,var(--primary)_30%,transparent)_transparent] [scrollbar-width:thin]",
   "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2",
   "[&::-webkit-scrollbar-track]:bg-transparent",
   "[&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-button]:size-0",
   "[&::-webkit-scrollbar-thumb]:rounded-full",
   "[&::-webkit-scrollbar-thumb]:border-[3px] [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-content",
-  "[&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--dracula-purple)_30%,transparent)]",
-  "hover:[&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--dracula-purple)_45%,transparent)]",
+  "[&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--primary)_30%,transparent)]",
+  "hover:[&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--primary)_45%,transparent)]",
 );
 
 function isPinnedToBottom(el: HTMLElement, slack = 64): boolean {
@@ -660,7 +660,7 @@ function CopyMessageButton({
       className={COACH_ICON_BUTTON}
     >
       {copied ? (
-        <Check className="text-dracula-green size-3.5" aria-hidden="true" />
+        <Check className="text-success size-3.5" aria-hidden="true" />
       ) : (
         <Copy className="size-3.5" aria-hidden="true" />
       )}
@@ -897,7 +897,7 @@ export function MessageThread({
       >
         <div
           aria-hidden="true"
-          className="from-dracula-purple to-dracula-pink flex size-12 items-center justify-center rounded-full bg-gradient-to-br"
+          className="from-primary to-brand-pink flex size-12 items-center justify-center rounded-full bg-gradient-to-br"
         >
           <Sparkles className="text-background size-5" />
         </div>
@@ -1257,7 +1257,7 @@ function ChatBubble({
     >
       <div
         aria-hidden="true"
-        className="from-dracula-purple to-dracula-pink mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
+        className="from-primary to-brand-pink mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
       >
         {providerType === "refusal" ? (
           <Bot className="text-background size-3.5" />
@@ -1545,7 +1545,7 @@ function RememberUserMessage({ content }: { content: string }) {
         data-slot="coach-remember-message-done"
         className="text-muted-foreground flex items-center gap-1 text-xs outline-none"
       >
-        <Check className="text-dracula-green size-3" aria-hidden="true" />
+        <Check className="text-success size-3" aria-hidden="true" />
         {t(
           settled === "adopted"
             ? "insights.coach.rememberMessage.done"
@@ -1616,7 +1616,7 @@ export function TypingDots({ label }: { label: string }) {
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="bg-dracula-purple/70 size-1.5 animate-bounce rounded-full motion-reduce:animate-none"
+            className="bg-primary/70 size-1.5 animate-bounce rounded-full motion-reduce:animate-none"
             style={{ animationDelay: `${i * 150}ms`, animationDuration: "1s" }}
           />
         ))}

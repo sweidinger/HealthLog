@@ -171,7 +171,7 @@ export function ScheduleHistoryTimeline({
       <ol className="space-y-0">
         {/* Live plan — the accent node. */}
         <TimelineRow
-          dotClassName="bg-dracula-green"
+          dotClassName="bg-success"
           railVisible={expanded && revisions.length > 0}
           dataSlot="zeitplan-history-current"
         >
@@ -208,7 +208,7 @@ export function ScheduleHistoryTimeline({
                         : t("medications.detail.zeitplan.history.noTimes")}
                       {revision.source === "MANUAL" && (
                         <span
-                          className="border-dracula-purple/30 bg-dracula-purple/10 text-dracula-purple ml-2 inline-flex rounded-full border px-2 py-px align-middle text-[11px] font-medium"
+                          className="border-primary/30 bg-primary/10 text-primary ml-2 inline-flex rounded-full border px-2 py-px align-middle text-[11px] font-medium"
                           data-slot="zeitplan-history-manual-chip"
                         >
                           {t("medications.detail.zeitplan.history.manualChip")}
@@ -240,7 +240,7 @@ export function ScheduleHistoryTimeline({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-dracula-red size-8"
+                        className="text-muted-foreground hover:text-destructive size-8"
                         aria-label={t(
                           "medications.detail.zeitplan.history.deleteAria",
                         )}
@@ -569,7 +569,7 @@ function EraDialog({
           </p>
           {validationKey !== null && (
             <p
-              className="text-dracula-red text-sm"
+              className="text-destructive text-sm"
               role="alert"
               data-slot="zeitplan-history-validation"
             >

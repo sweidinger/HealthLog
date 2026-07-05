@@ -224,7 +224,7 @@ function CoachConversationsBody() {
                         className={cn(
                           "shrink-0",
                           isConfirming &&
-                            "text-dracula-red hover:text-dracula-red",
+                            "text-destructive hover:text-destructive",
                         )}
                       >
                         <Trash2 className="size-4" aria-hidden="true" />

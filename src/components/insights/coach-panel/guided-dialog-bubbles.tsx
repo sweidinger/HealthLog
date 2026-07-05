@@ -37,7 +37,7 @@ import { TypingDots } from "./message-thread";
 /** Shared quiet text-button styling for the per-question actions. */
 const guidedActionClass = cn(
   "text-muted-foreground hover:text-foreground inline-flex min-h-8 items-center rounded-full px-2.5 text-xs",
-  "hover:bg-dracula-purple/10 focus-visible:ring-dracula-purple/40 focus-visible:ring-2 focus-visible:outline-none",
+  "hover:bg-primary/10 focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none",
   "disabled:opacity-60",
 );
 
@@ -45,7 +45,7 @@ function GuidedAvatar({ icon: Icon }: { icon: typeof ClipboardCheck }) {
   return (
     <div
       aria-hidden="true"
-      className="from-dracula-purple to-dracula-pink mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
+      className="from-primary to-brand-pink mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
     >
       <Icon className="text-background size-3.5" />
     </div>
@@ -66,9 +66,8 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
           key={i}
           className={cn(
             "size-1.5 rounded-full",
-            i + 1 < current && "bg-dracula-purple",
-            i + 1 === current &&
-              "ring-dracula-purple bg-dracula-purple/40 ring-1",
+            i + 1 < current && "bg-primary",
+            i + 1 === current && "ring-primary bg-primary/40 ring-1",
             i + 1 > current && "bg-muted-foreground/25",
           )}
         />
@@ -125,7 +124,7 @@ export function GuidedQuestionBubble({
       <div className="flex max-w-[calc(80%-2.625rem)] min-w-0 flex-col gap-1.5">
         <div
           className={cn(
-            "border-dracula-purple/30 bg-dracula-purple/10 text-foreground",
+            "border-primary/30 bg-primary/10 text-foreground",
             "rounded-xl rounded-tl-sm border px-3.5 py-2.5",
             "text-sm leading-relaxed",
           )}
@@ -134,7 +133,7 @@ export function GuidedQuestionBubble({
             <>
               <p
                 data-slot="coach-guided-progress"
-                className="text-dracula-purple mb-1 flex items-center gap-2 text-[10px] font-semibold tracking-wider uppercase"
+                className="text-primary mb-1 flex items-center gap-2 text-[10px] font-semibold tracking-wider uppercase"
               >
                 {t("insights.coach.guided.progress", {
                   current: progress.current,
@@ -208,7 +207,7 @@ export function GuidedSummaryBubble({
       <GuidedAvatar icon={ClipboardCheck} />
       <div
         className={cn(
-          "border-dracula-purple/30 bg-dracula-purple/10 text-foreground",
+          "border-primary/30 bg-primary/10 text-foreground",
           "max-w-[calc(80%-2.625rem)] min-w-0 rounded-xl rounded-tl-sm border px-3.5 py-2.5",
         )}
       >
@@ -226,8 +225,8 @@ export function GuidedSummaryBubble({
           href="/settings/ai"
           data-slot="coach-guided-summary-link"
           className={cn(
-            "text-dracula-purple mt-2 inline-flex min-h-8 items-center gap-1 text-xs font-medium",
-            "focus-visible:ring-dracula-purple/40 rounded hover:underline focus-visible:ring-2 focus-visible:outline-none",
+            "text-primary mt-2 inline-flex min-h-8 items-center gap-1 text-xs font-medium",
+            "focus-visible:ring-primary/40 rounded hover:underline focus-visible:ring-2 focus-visible:outline-none",
           )}
         >
           {t("insights.coach.guided.summaryLink")}

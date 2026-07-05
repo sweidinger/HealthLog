@@ -47,22 +47,26 @@ function litBarsFor(value: number): number {
   return lit;
 }
 
+// Semantic severities only (the coverage-meter precedent): medium and
+// low both ride the caution `--warning` — the lit-bar count and the
+// numeric aria-label carry the medium↔low distinction, never colour
+// alone.
 const BAR_LIT_COLOUR_BY_BAND: Record<
   Exclude<ConfidenceBand, "draft">,
   string
 > = {
-  high: "bg-dracula-green",
-  medium: "bg-dracula-yellow",
-  low: "bg-dracula-orange",
+  high: "bg-success",
+  medium: "bg-warning",
+  low: "bg-warning",
 };
 
 const RING_STROKE_COLOUR_BY_BAND: Record<
   Exclude<ConfidenceBand, "draft">,
   string
 > = {
-  high: "stroke-dracula-green",
-  medium: "stroke-dracula-yellow",
-  low: "stroke-dracula-orange",
+  high: "stroke-success",
+  medium: "stroke-warning",
+  low: "stroke-warning",
 };
 
 function DraftPill({ ariaLabel }: { ariaLabel: string }) {
@@ -72,7 +76,7 @@ function DraftPill({ ariaLabel }: { ariaLabel: string }) {
       data-confidence-band="draft"
       role="img"
       aria-label={ariaLabel}
-      className="bg-dracula-red/10 text-dracula-red border-dracula-red/25 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+      className="bg-destructive/10 text-destructive border-destructive/25 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase"
     >
       {t("insights.recommendation.confidenceDraft")}
     </span>

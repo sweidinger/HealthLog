@@ -59,11 +59,13 @@ const eslintConfig = defineConfig([
         "error",
         { checks: ["palette", "color-props", "arbitrary-value"] },
       ],
-      // Staged: raw `*-dracula-*` utilities warn for now — ~250 legacy
-      // sites predate the token system and the light-theme overrides in
-      // globals.css keep them readable. Moves to error once the semantic
-      // sweep has retired the legacy sites (see the rule header).
-      "healthlog/no-dracula-utility": ["warn", { checks: ["dracula"] }],
+      // The semantic sweep retired every raw `*-dracula-*` utility site
+      // (status meaning → success/warning/info/destructive, purple →
+      // primary, pink → the --brand-pink token), so the staged warning is
+      // now a hard error. `var(--dracula-*)` references in chart code are
+      // token references, not utilities, and stay legal — the light-theme
+      // overrides in globals.css keep them AA on both themes.
+      "healthlog/no-dracula-utility": ["error", { checks: ["dracula"] }],
       // The Card primitive is gap-based; pt-/pb- on CardHeader/CardContent
       // fights the gap and re-opens the sl-001 drift class. Density lives
       // on the Card itself (`gap-2 py-3 md:py-4`). See the rule header.

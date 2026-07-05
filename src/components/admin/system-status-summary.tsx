@@ -61,7 +61,7 @@ export function SystemStatusSummary() {
             }
             className={
               status.database === "connected"
-                ? "text-dracula-green"
+                ? "text-success"
                 : "text-destructive"
             }
           />
@@ -74,7 +74,7 @@ export function SystemStatusSummary() {
                 : t("admin.workerStopped")
             }
             className={
-              status.worker.running ? "text-dracula-green" : "text-destructive"
+              status.worker.running ? "text-success" : "text-destructive"
             }
           />
           <StatusItem
@@ -112,9 +112,7 @@ export function SystemStatusSummary() {
                     })
               }
               className={
-                version.offlineGeoEnabled
-                  ? "text-dracula-green"
-                  : "text-dracula-yellow"
+                version.offlineGeoEnabled ? "text-success" : "text-warning"
               }
             />
           )}

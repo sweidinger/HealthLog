@@ -25,9 +25,9 @@ module.exports = {
     "no-raw-palette-color": noRawPaletteColor,
     "spacing-scale": spacingScale,
     // Same module as `no-raw-palette-color`, registered under a second
-    // name so the flat config can run the `dracula` check at a different
-    // severity (warn) than the error-level checks. See the staged plan in
-    // the rule header.
+    // name so the flat config can run the `dracula` check as its own
+    // named rule (now error-level too; the staged warn phase ended with
+    // the semantic sweep). See the rule header.
     "no-dracula-utility": noRawPaletteColor,
   },
 };

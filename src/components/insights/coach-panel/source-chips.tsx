@@ -86,7 +86,7 @@ export function SourceChips({ provenance, className }: SourceChipsProps) {
           data-slot="coach-source-chip"
           data-metric={chip.metric}
           className={cn(
-            "border-dracula-cyan/25 text-dracula-cyan/90",
+            "border-info/25 text-info/90",
             "inline-flex items-center gap-1 rounded-full border bg-transparent",
             "px-2 py-0.5 text-[11px] leading-none",
           )}
