@@ -30,6 +30,7 @@
  */
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   CalendarClock,
@@ -76,6 +77,7 @@ import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
 import { MedicationCardHeader } from "@/components/medications/medication-card-header";
+import { isScreeningReminderType } from "@/lib/validations/measurement-reminders";
 import {
   useMeasurementReminders,
   useMeasurementReminderMutations,
@@ -113,9 +115,23 @@ const TYPE_GROUPS = [
       "BODY_MASS_INDEX",
     ],
   },
+  // v1.27.6 — the mental-wellbeing screenings become plannable like any
+  // other Vorsorge item. Auto-resolve rides the server-written PHQ9_SCORE /
+  // GAD7_SCORE row a completed check-in produces.
+  {
+    group: "mentalWellbeing",
+    types: ["PHQ9_SCORE", "GAD7_SCORE"],
+  },
 ] as const;
 
-const INTERVAL_PRESETS = [7, 14, 30, 90, 180, 365] as const;
+// v1.27.6 — screening types get a dedicated primary action (the check-in
+// page, not the numeric MeasurementForm) and a 4-week default cadence
+// (both instruments cover the last two weeks).
+const MENTAL_SCREENING_DEFAULT_INTERVAL = "28";
+
+// 28 joined in v1.27.6 as the screening default (every 4 weeks); 30 stays
+// so existing monthly reminders keep resolving onto a preset.
+const INTERVAL_PRESETS = [7, 14, 28, 30, 90, 180, 365] as const;
 // v1.18.2 — the sentinel the cadence picker writes when the user wants a
 // free interval or an RFC-5545 RRULE instead of a fixed preset.
 const CADENCE_CUSTOM = "custom";
@@ -220,6 +236,7 @@ export function VorsorgeSection({
   variant?: "settings" | "page";
 }) {
   const { t } = useTranslations();
+  const router = useRouter();
   const {
     data: reminders,
     isLoading,
@@ -330,9 +347,14 @@ export function VorsorgeSection({
 
   // The mark-done action. A free-text / self-planned exam satisfies
   // silently; a measurement-linked reminder opens the real value-entry
-  // form so the user logs an actual reading.
+  // form so the user logs an actual reading. A screening reminder
+  // (v1.27.6) routes to the check-in page instead — the score is never
+  // typed in, it falls out of a completed test, which then auto-satisfies
+  // the reminder through the eventful worker.
   function onPrimaryAction(reminder: MeasurementReminder) {
-    if (reminder.measurementType) {
+    if (isScreeningReminderType(reminder.measurementType)) {
+      router.push("/mental-wellbeing");
+    } else if (reminder.measurementType) {
       setCapturing(reminder);
     } else {
       satisfy.mutate(reminder.id);
@@ -495,9 +517,19 @@ export function VorsorgeSection({
               <NativeSelect
                 id="vorsorge-type"
                 value={form.measurementType}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, measurementType: e.target.value }))
-                }
+                onChange={(e) => {
+                  const nextType = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    measurementType: nextType,
+                    // v1.27.6 — a screening covers the last two weeks, so
+                    // switching onto a screening type defaults the cadence
+                    // to every 4 weeks (still freely changeable).
+                    cadenceChoice: isScreeningReminderType(nextType)
+                      ? MENTAL_SCREENING_DEFAULT_INTERVAL
+                      : f.cadenceChoice,
+                  }));
+                }}
               >
                 {TYPE_GROUPS.map(({ group, types }) => (
                   <optgroup
@@ -784,10 +816,13 @@ function VorsorgeCard({
         : "";
   const isCoach = reminder.origin === "COACH";
   const isLinked = reminder.measurementType != null;
-  // v1.27.5 — due-ness never changes the ACTION BUTTON either: the button
-  // keeps one constant look in every state (same rule as the medication
-  // card's constant surface). Due / overdue reads only through the discreet
+  // v1.27.5 — due-ness never changes the ACTION BUTTON: it keeps one
+  // constant look in every state (same rule as the medication card's
+  // constant surface). Due / overdue reads only through the discreet
   // coloured next-due text + the adherence meta line below.
+  // v1.27.6 — a screening reminder's action is "start the check-in" (it
+  // routes to the check-in page), never the numeric value-entry wording.
+  const isScreening = isScreeningReminderType(reminder.measurementType);
   const isDue = due.key === "nextDue.today" || due.key === "overdueByDays";
   const progress = intervalProgress(reminder, now);
 
@@ -889,7 +924,11 @@ function VorsorgeCard({
       {isLinked ? (
         <>
           <Activity className="h-4 w-4" />
-          {t("measurementReminders.measureNow")}
+          {t(
+            isScreening
+              ? "measurementReminders.startCheckIn"
+              : "measurementReminders.measureNow",
+          )}
         </>
       ) : (
         <>
@@ -952,7 +991,11 @@ function VorsorgeCard({
                 disabled={busy}
               >
                 {isLinked
-                  ? t("measurementReminders.measureNow")
+                  ? t(
+                      isScreening
+                        ? "measurementReminders.startCheckIn"
+                        : "measurementReminders.measureNow",
+                    )
                   : t("measurementReminders.markDone")}
               </Button>
               {headerActions}

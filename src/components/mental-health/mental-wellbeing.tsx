@@ -15,10 +15,14 @@
  *
  * v1.25.3 — this is now the ORCHESTRATOR + landing only; the 387-line monolith
  * split into focused components (`instrument-card`, `check-in-wizard`,
- * `assessment-result`, `assessment-history` + its lazy chart, `crisis-card`).
+ * `assessment-result`, `assessment-history`, `crisis-card`).
  * The landing follows the card grammar of Vorsorge / Medications: instrument
  * cards (last-result line + Start) + a history card. The disclaimer renders
  * ONLY here (a muted caption) and behind the InfoHint — never while testing.
+ *
+ * v1.27.6 — the trend chart (and the per-card trend sheet) left this surface;
+ * the score curve lives in Insights / Measurements via the PHQ9_SCORE /
+ * GAD7_SCORE measurement rows. The landing keeps the calm dated list only.
  */
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,7 +31,6 @@ import { useTranslations } from "@/lib/i18n/context";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
-import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 
 import { AssessmentHistory } from "./assessment-history";
 import { AssessmentResult } from "./assessment-result";
@@ -47,11 +50,6 @@ export function MentalWellbeing() {
   const [phase, setPhase] = useState<Phase>("choose");
   const [instrument, setInstrument] = useState<InstrumentId>("PHQ9");
   const [result, setResult] = useState<CreateResponse | null>(null);
-  // Which instrument's trend detail is open (null = closed). Clicking a card
-  // body surfaces THAT instrument's Verlauf in a sheet; Start stays separate.
-  const [detailInstrument, setDetailInstrument] = useState<InstrumentId | null>(
-    null,
-  );
 
   const { data: history } = useQuery({
     queryKey: queryKeys.mentalHealthAssessments(),
@@ -95,11 +93,14 @@ export function MentalWellbeing() {
     setPhase("choose");
   }
 
-  function submit(items: number[], functional: number | null) {
+  // v1.27.6 — the review step (and with it the optional functional-difficulty
+  // follow-up) left the web wizard; the check-in submits the scored items
+  // directly after the last question. The API keeps accepting
+  // `functionalDifficulty` for clients that still capture it.
+  function submit(items: number[]) {
     mutation.mutate({
       instrument,
       items,
-      ...(functional !== null ? { functionalDifficulty: functional } : {}),
       locale,
     });
   }
@@ -115,6 +116,13 @@ export function MentalWellbeing() {
             description={t("mentalHealth.pageDescription")}
           />
 
+          {/* v1.27.6 — one gentle cadence hint: both instruments ask about
+              the last two weeks, so every 2–4 weeks is a sensible rhythm.
+              Body prose (foreground), not another muted description line. */}
+          <p className="max-w-prose text-sm">
+            {t("mentalHealth.pageRhythmHint")}
+          </p>
+
           <section aria-label={t("mentalHealth.choosePrompt")}>
             <h2 className="sr-only">{t("mentalHealth.choosePrompt")}</h2>
             <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">
@@ -124,7 +132,6 @@ export function MentalWellbeing() {
                     instrument={id}
                     last={lastByInstrument.get(id)}
                     onStart={() => begin(id)}
-                    onOpenDetail={() => setDetailInstrument(id)}
                   />
                 </li>
               ))}
@@ -132,33 +139,6 @@ export function MentalWellbeing() {
           </section>
 
           <AssessmentHistory rows={history?.assessments ?? []} />
-
-          {/* Per-instrument trend detail, opened from a card body. Reuses the
-              history's chart + dated list, pinned to the chosen instrument. */}
-          <ResponsiveSheet
-            open={detailInstrument !== null}
-            onOpenChange={(open) => {
-              if (!open) setDetailInstrument(null);
-            }}
-            contentWidth="lg"
-            title={
-              detailInstrument
-                ? t(
-                    `mentalHealth.instrument.${
-                      detailInstrument === "PHQ9" ? "phq9" : "gad7"
-                    }`,
-                  )
-                : t("mentalHealth.history.title")
-            }
-            description={t("mentalHealth.history.chartTitle")}
-          >
-            {detailInstrument && (
-              <AssessmentHistory
-                rows={history?.assessments ?? []}
-                instrument={detailInstrument}
-              />
-            )}
-          </ResponsiveSheet>
         </>
       )}
 

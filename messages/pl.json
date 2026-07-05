@@ -6988,11 +6988,14 @@
       "BONE_MASS": "Masa kostna",
       "TOTAL_BODY_WATER": "Woda w organizmie",
       "VISCERAL_FAT": "Tłuszcz trzewny",
-      "BODY_MASS_INDEX": "Wskaźnik masy ciała (BMI)"
+      "BODY_MASS_INDEX": "Wskaźnik masy ciała (BMI)",
+      "PHQ9_SCORE": "PHQ-9 · nastrój",
+      "GAD7_SCORE": "GAD-7 · lęk"
     },
     "typeGroups": {
       "vitals": "Parametry życiowe",
-      "bodyComposition": "Skład ciała"
+      "bodyComposition": "Skład ciała",
+      "mentalWellbeing": "Dobrostan psychiczny"
     },
     "empty": {
       "title": "Brak przypomnień",
@@ -7026,6 +7029,7 @@
     "selfPlanned": "Zaplanowane samodzielnie",
     "captureValue": "Zapisz wartość",
     "measureNow": "Zmierz teraz",
+    "startCheckIn": "Rozpocznij check-in",
     "nextDueLabel": "Następny termin:",
     "lastDoneLabel": "Ostatnio wykonano:",
     "customize": "Dostosuj badania",
@@ -7627,6 +7631,7 @@
   "mentalHealth": {
     "pageTitle": "Sprawdzenie dobrostanu psychicznego",
     "pageDescription": "Dwa zwalidowane, dobrowolne testy — PHQ-9 (nastrój) i GAD-7 (lęk) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
+    "pageRhythmHint": "Oba testy dotyczą ostatnich dwóch tygodni, dlatego check-in co dwa–cztery tygodnie to dobry rytm.",
     "attributionLabel": "Źródło",
     "choosePrompt": "Wybierz sprawdzenie",
     "start": "Rozpocznij",
@@ -7637,8 +7642,8 @@
     "error": "Coś poszło nie tak. Spróbuj ponownie.",
     "considerProfessional": "Twój wynik mieści się w zakresie, w którym rozmowa ze specjalistą może pomóc. To życzliwa sugestia, a nie diagnoza.",
     "instrument": {
-      "phq9": "PHQ-9 — nastrój",
-      "gad7": "GAD-7 — lęk"
+      "phq9": "PHQ-9 · nastrój",
+      "gad7": "GAD-7 · lęk"
     },
     "instrumentSub": {
       "phq9": "Przesiew depresji, 9 pytań",
@@ -7649,13 +7654,6 @@
       "1": "Kilka dni",
       "2": "Więcej niż połowę dni",
       "3": "Niemal codziennie"
-    },
-    "functionalTitle": "Jeśli zaznaczyłeś(-aś) jakiekolwiek problemy, na ile utrudniły Ci one pracę, prowadzenie domu lub kontakty z innymi ludźmi?",
-    "functional": {
-      "0": "Wcale nie utrudniły",
-      "1": "Trochę utrudniły",
-      "2": "Bardzo utrudniły",
-      "3": "Skrajnie utrudniły"
     },
     "result": {
       "title": "Twój wynik",
@@ -7681,14 +7679,11 @@
     "history": {
       "title": "Twoja historia",
       "empty": "Brak sprawdzeń. Twój trend pojawi się tutaj po ukończeniu pierwszego.",
-      "chartTitle": "Przebieg wyniku",
       "flaggedBadge": "Pokazano wsparcie",
-      "totalLabel": "Wynik",
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      },
-      "bandLabel": "Kategoria"
+      }
     },
     "crisis": {
       "title": "Nie musisz mierzyć się z tym sam(a)",
@@ -7746,18 +7741,11 @@
       "gad7": "Przesiew w kierunku lęku, 7 pytań. Odpowiadaj, myśląc o ostatnich dwóch tygodniach."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Pytanie {current} z {total}",
     "next": "Dalej",
     "lastResult": "Ostatni test",
+    "lastScore": "Ostatni wynik",
     "noResultYet": "Brak check-inów",
-    "backToList": "Przegląd",
-    "jumpFirst": "Przejdź do pierwszego pytania",
-    "jumpLast": "Przejdź do ostatniego pytania",
-    "review": {
-      "title": "Podsumowanie",
-      "recap": "Odpowiedziano na {answered} z {total} pytań."
-    },
-    "openDetail": "Pokaż przebieg"
+    "backToList": "Przegląd"
   },
   "records": {
     "disclaimer": "To Twoje własne wpisy, a nie diagnoza lekarska. HealthLog nie diagnozuje, nie leczy i ich nie interpretuje.",

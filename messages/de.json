@@ -6988,11 +6988,14 @@
       "BONE_MASS": "Knochenmasse",
       "TOTAL_BODY_WATER": "Körperwasser",
       "VISCERAL_FAT": "Viszeralfett",
-      "BODY_MASS_INDEX": "Body-Mass-Index (BMI)"
+      "BODY_MASS_INDEX": "Body-Mass-Index (BMI)",
+      "PHQ9_SCORE": "PHQ-9 · Stimmung",
+      "GAD7_SCORE": "GAD-7 · Sorgen"
     },
     "typeGroups": {
       "vitals": "Vitalwerte",
-      "bodyComposition": "Körperzusammensetzung"
+      "bodyComposition": "Körperzusammensetzung",
+      "mentalWellbeing": "Seelisches Wohlbefinden"
     },
     "empty": {
       "title": "Noch keine Erinnerungen",
@@ -7026,6 +7029,7 @@
     "selfPlanned": "Selbstgeplant",
     "captureValue": "Wert erfassen",
     "measureNow": "Jetzt messen",
+    "startCheckIn": "Check-in starten",
     "nextDueLabel": "Nächste Fälligkeit:",
     "lastDoneLabel": "Zuletzt erledigt:",
     "customize": "Vorsorge anpassen",
@@ -7627,6 +7631,7 @@
   "mentalHealth": {
     "pageTitle": "Check-in zum seelischen Wohlbefinden",
     "pageDescription": "Zwei validierte, freiwillige Selbsttests — PHQ-9 (Stimmung) und GAD-7 (Sorgen) — ergänzend zu deinem Stimmungstagebuch. Aussagekräftig ist der Verlauf über die Zeit, nicht ein einzelner Wert.",
+    "pageRhythmHint": "Beide Tests blicken auf die letzten zwei Wochen zurück — ein Check-in alle zwei bis vier Wochen ist deshalb ein guter Rhythmus.",
     "attributionLabel": "Quelle",
     "choosePrompt": "Check-in auswählen",
     "start": "Starten",
@@ -7637,8 +7642,8 @@
     "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
     "considerProfessional": "Dein Wert liegt in einem Bereich, in dem ein Gespräch mit einer Fachperson helfen kann. Das ist ein behutsamer Hinweis, keine Diagnose.",
     "instrument": {
-      "phq9": "PHQ-9 — Stimmung",
-      "gad7": "GAD-7 — Sorgen"
+      "phq9": "PHQ-9 · Stimmung",
+      "gad7": "GAD-7 · Sorgen"
     },
     "instrumentSub": {
       "phq9": "Depressions-Screening, 9 Fragen",
@@ -7649,13 +7654,6 @@
       "1": "An einzelnen Tagen",
       "2": "An mehr als der Hälfte der Tage",
       "3": "Beinahe jeden Tag"
-    },
-    "functionalTitle": "Wenn du eine oder mehrere Beschwerden angegeben hast: Wie sehr haben diese deine Arbeit, deinen Haushalt oder den Umgang mit anderen Menschen erschwert?",
-    "functional": {
-      "0": "Überhaupt nicht erschwert",
-      "1": "Etwas erschwert",
-      "2": "Sehr erschwert",
-      "3": "Extrem erschwert"
     },
     "result": {
       "title": "Dein Ergebnis",
@@ -7681,14 +7679,11 @@
     "history": {
       "title": "Dein Verlauf",
       "empty": "Noch keine Check-ins. Dein Verlauf erscheint hier, sobald du einen abgeschlossen hast.",
-      "chartTitle": "Punkteverlauf",
       "flaggedBadge": "Hilfe angezeigt",
-      "totalLabel": "Punkte",
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      },
-      "bandLabel": "Einstufung"
+      }
     },
     "crisis": {
       "title": "Du musst das nicht allein durchstehen",
@@ -7746,18 +7741,11 @@
       "gad7": "Angst-Screening mit 7 Fragen. Beziehe dich auf die letzten zwei Wochen."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Frage {current} von {total}",
     "next": "Weiter",
     "lastResult": "Letzter Test",
+    "lastScore": "Letztes Ergebnis",
     "noResultYet": "Noch kein Check-in",
-    "backToList": "Übersicht",
-    "jumpFirst": "Zur ersten Frage springen",
-    "jumpLast": "Zur letzten Frage springen",
-    "review": {
-      "title": "Überblick",
-      "recap": "Du hast {answered} von {total} Fragen beantwortet."
-    },
-    "openDetail": "Verlauf anzeigen"
+    "backToList": "Übersicht"
   },
   "records": {
     "disclaimer": "Das sind deine eigenen Angaben, keine ärztliche Diagnose. HealthLog stellt keine Diagnose, behandelt nicht und deutet nichts.",

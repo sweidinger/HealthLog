@@ -6988,11 +6988,14 @@
       "BONE_MASS": "Masse osseuse",
       "TOTAL_BODY_WATER": "Eau corporelle",
       "VISCERAL_FAT": "Graisse viscérale",
-      "BODY_MASS_INDEX": "Indice de masse corporelle (IMC)"
+      "BODY_MASS_INDEX": "Indice de masse corporelle (IMC)",
+      "PHQ9_SCORE": "PHQ-9 · humeur",
+      "GAD7_SCORE": "GAD-7 · inquiétude"
     },
     "typeGroups": {
       "vitals": "Constantes vitales",
-      "bodyComposition": "Composition corporelle"
+      "bodyComposition": "Composition corporelle",
+      "mentalWellbeing": "Bien-être mental"
     },
     "empty": {
       "title": "Aucun rappel pour l'instant",
@@ -7026,6 +7029,7 @@
     "selfPlanned": "Auto-planifié",
     "captureValue": "Enregistrer la valeur",
     "measureNow": "Mesurer maintenant",
+    "startCheckIn": "Commencer le check-in",
     "nextDueLabel": "Prochaine échéance :",
     "lastDoneLabel": "Dernière fois :",
     "customize": "Personnaliser les examens",
@@ -7627,6 +7631,7 @@
   "mentalHealth": {
     "pageTitle": "Point sur le bien-être mental",
     "pageDescription": "Deux auto-évaluations validées et facultatives — PHQ-9 (humeur) et GAD-7 (inquiétude) — en complément de ton suivi de l'humeur. Ce qui compte, c'est la tendance dans le temps, pas un chiffre isolé.",
+    "pageRhythmHint": "Les deux tests portent sur les deux dernières semaines — un check-in toutes les deux à quatre semaines est donc un bon rythme.",
     "attributionLabel": "Source",
     "choosePrompt": "Choisis un bilan",
     "start": "Commencer",
@@ -7637,8 +7642,8 @@
     "error": "Une erreur est survenue. Réessaie.",
     "considerProfessional": "Ton score se situe dans une plage où parler à un professionnel de santé peut aider. C'est une suggestion bienveillante, pas un diagnostic.",
     "instrument": {
-      "phq9": "PHQ-9 — humeur",
-      "gad7": "GAD-7 — inquiétude"
+      "phq9": "PHQ-9 · humeur",
+      "gad7": "GAD-7 · inquiétude"
     },
     "instrumentSub": {
       "phq9": "Dépistage de la dépression, 9 questions",
@@ -7649,13 +7654,6 @@
       "1": "Plusieurs jours",
       "2": "Plus de la moitié des jours",
       "3": "Presque tous les jours"
-    },
-    "functionalTitle": "Si tu as coché des problèmes, à quel point t'ont-ils gêné(e) dans ton travail, à la maison ou dans tes relations avec les autres ?",
-    "functional": {
-      "0": "Pas du tout gênant",
-      "1": "Un peu gênant",
-      "2": "Très gênant",
-      "3": "Extrêmement gênant"
     },
     "result": {
       "title": "Ton résultat",
@@ -7681,14 +7679,11 @@
     "history": {
       "title": "Ton historique",
       "empty": "Aucun bilan pour le moment. Ta tendance apparaîtra ici dès que tu en auras terminé un.",
-      "chartTitle": "Évolution du score",
       "flaggedBadge": "Aide affichée",
-      "totalLabel": "Score",
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      },
-      "bandLabel": "Catégorie"
+      }
     },
     "crisis": {
       "title": "Tu n'as pas à affronter cela seul(e)",
@@ -7746,18 +7741,11 @@
       "gad7": "Dépistage de l'anxiété en 7 questions. Répondez en pensant aux deux dernières semaines."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Question {current} sur {total}",
     "next": "Suivant",
     "lastResult": "Dernier test",
+    "lastScore": "Dernier résultat",
     "noResultYet": "Pas encore de check-in",
-    "backToList": "Vue d'ensemble",
-    "jumpFirst": "Aller à la première question",
-    "jumpLast": "Aller à la dernière question",
-    "review": {
-      "title": "Récapitulatif",
-      "recap": "Vous avez répondu à {answered} questions sur {total}."
-    },
-    "openDetail": "Voir l’évolution"
+    "backToList": "Vue d'ensemble"
   },
   "records": {
     "disclaimer": "Ce sont vos propres informations, pas un diagnostic médical. HealthLog ne diagnostique pas, ne traite pas et ne les interprète pas.",

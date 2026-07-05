@@ -6988,11 +6988,14 @@
       "BONE_MASS": "Masa ósea",
       "TOTAL_BODY_WATER": "Agua corporal",
       "VISCERAL_FAT": "Grasa visceral",
-      "BODY_MASS_INDEX": "Índice de masa corporal (IMC)"
+      "BODY_MASS_INDEX": "Índice de masa corporal (IMC)",
+      "PHQ9_SCORE": "PHQ-9 · ánimo",
+      "GAD7_SCORE": "GAD-7 · preocupación"
     },
     "typeGroups": {
       "vitals": "Constantes vitales",
-      "bodyComposition": "Composición corporal"
+      "bodyComposition": "Composición corporal",
+      "mentalWellbeing": "Bienestar mental"
     },
     "empty": {
       "title": "Aún no hay recordatorios",
@@ -7026,6 +7029,7 @@
     "selfPlanned": "Autoplanificado",
     "captureValue": "Registrar valor",
     "measureNow": "Medir ahora",
+    "startCheckIn": "Iniciar check-in",
     "nextDueLabel": "Próximo vencimiento:",
     "lastDoneLabel": "Última vez:",
     "customize": "Personalizar revisiones",
@@ -7627,6 +7631,7 @@
   "mentalHealth": {
     "pageTitle": "Revisión de bienestar mental",
     "pageDescription": "Dos autoevaluaciones validadas y opcionales — PHQ-9 (estado de ánimo) y GAD-7 (preocupación) — junto a tu registro de ánimo. Lo valioso es la tendencia en el tiempo, no un único número.",
+    "pageRhythmHint": "Ambos tests se refieren a las últimas dos semanas, por lo que un check-in cada dos a cuatro semanas es un buen ritmo.",
     "attributionLabel": "Fuente",
     "choosePrompt": "Elige una revisión",
     "start": "Empezar",
@@ -7637,8 +7642,8 @@
     "error": "Algo salió mal. Inténtalo de nuevo.",
     "considerProfessional": "Tu puntuación está en un rango en el que hablar con un profesional de salud puede ayudar. Es una sugerencia amable, no un diagnóstico.",
     "instrument": {
-      "phq9": "PHQ-9 — ánimo",
-      "gad7": "GAD-7 — preocupación"
+      "phq9": "PHQ-9 · ánimo",
+      "gad7": "GAD-7 · preocupación"
     },
     "instrumentSub": {
       "phq9": "Cribado de depresión, 9 preguntas",
@@ -7649,13 +7654,6 @@
       "1": "Varios días",
       "2": "Más de la mitad de los días",
       "3": "Casi todos los días"
-    },
-    "functionalTitle": "Si marcaste algún problema, ¿cuánta dificultad te han causado para trabajar, ocuparte de la casa o relacionarte con otras personas?",
-    "functional": {
-      "0": "Ninguna dificultad",
-      "1": "Algo de dificultad",
-      "2": "Mucha dificultad",
-      "3": "Dificultad extrema"
     },
     "result": {
       "title": "Tu resultado",
@@ -7681,14 +7679,11 @@
     "history": {
       "title": "Tu historial",
       "empty": "Aún no hay revisiones. Tu tendencia aparecerá aquí cuando completes una.",
-      "chartTitle": "Evolución de la puntuación",
       "flaggedBadge": "Apoyo mostrado",
-      "totalLabel": "Puntuación",
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      },
-      "bandLabel": "Categoría"
+      }
     },
     "crisis": {
       "title": "No tienes que afrontar esto a solas",
@@ -7746,18 +7741,11 @@
       "gad7": "Cribado de ansiedad de 7 preguntas. Responde pensando en las últimas dos semanas."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Pregunta {current} de {total}",
     "next": "Siguiente",
     "lastResult": "Última prueba",
+    "lastScore": "Último resultado",
     "noResultYet": "Aún sin check-in",
-    "backToList": "Vista general",
-    "jumpFirst": "Ir a la primera pregunta",
-    "jumpLast": "Ir a la última pregunta",
-    "review": {
-      "title": "Resumen",
-      "recap": "Has respondido {answered} de {total} preguntas."
-    },
-    "openDetail": "Ver evolución"
+    "backToList": "Vista general"
   },
   "records": {
     "disclaimer": "Son tus propios registros, no un diagnóstico médico. HealthLog no diagnostica, no trata ni los interpreta.",
