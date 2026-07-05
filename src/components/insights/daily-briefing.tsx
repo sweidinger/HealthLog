@@ -25,7 +25,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
-import { AskCoachAction } from "@/components/insights/ask-coach-action";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
@@ -140,20 +139,6 @@ interface DailyBriefingProps {
    * comparison toggle migrates here from the hero in commit 5.
    */
   metaSlot?: React.ReactNode;
-  /**
-   * v1.21.2 (A4) — server-resolved callback + forward-look. The briefing
-   * recalls the prior period and points ahead ("as I noted Monday, your sleep
-   * was short; it's recovered since — worth watching tonight"). Both strings
-   * are already localised and figure-anchored by the resolver; the card only
-   * renders them. One callback per surface — absent (the common case) when no
-   * prior narrative recall is on file.
-   */
-  memory?: {
-    /** The recall of the prior-period read, anchored to a figure. */
-    recall: string;
-    /** The forward-look pointing ahead. */
-    forward: string;
-  } | null;
 }
 
 const METRIC_ICON: Record<
@@ -368,7 +353,6 @@ export function DailyBriefing({
   generationFailed = false,
   generationFailureClass = null,
   metaSlot,
-  memory = null,
 }: DailyBriefingProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -424,33 +408,11 @@ export function DailyBriefing({
             // looser `space-y-4`, which read as taller than its neighbours on
             // the overview. One token, no new spacing scale.
             <div className="space-y-3">
-              {/* v1.21.2 (A4) — callback + forward-look. Recalls the prior
-                  period and points ahead, both server-resolved and
-                  figure-anchored. Leads the card so the briefing opens by
-                  closing the loop on what it noted last, then looks forward. */}
-              {memory && (
-                <div
-                  data-slot="daily-briefing-memory"
-                  className="border-border/60 bg-card/40 space-y-1 rounded-md border px-3 py-2"
-                >
-                  <p
-                    data-slot="daily-briefing-memory-recall"
-                    className="text-muted-foreground text-xs leading-snug"
-                  >
-                    {t("insights.briefing.memory.recall", {
-                      text: memory.recall,
-                    })}
-                  </p>
-                  <p
-                    data-slot="daily-briefing-memory-forward"
-                    className="text-foreground/80 text-xs leading-snug"
-                  >
-                    {t("insights.briefing.memory.forward", {
-                      text: memory.forward,
-                    })}
-                  </p>
-                </div>
-              )}
+              {/* The v1.21.2 recall/forward-look block is gone: the card
+                  opens straight on "signals of the day". The narrative
+                  memory read as a second briefing paragraph above the
+                  structured list and pulled the card down; the server
+                  still resolves `briefingMemory` for other consumers. */}
               {/* v1.4.27 B1 — the leading narrative paragraph dropped.
                 The hero strip subtitle on `/insights` already renders
                 the same `briefing.paragraph` text directly above this
@@ -465,7 +427,7 @@ export function DailyBriefing({
                 <div className="space-y-2">
                   <p
                     data-slot="daily-briefing-signals-title"
-                    className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+                    className="text-foreground text-xs font-semibold tracking-wide uppercase"
                   >
                     {t("insights.dailyBriefing.signalsTitle")}
                   </p>
@@ -483,7 +445,7 @@ export function DailyBriefing({
                 <div className="space-y-2">
                   <p
                     data-slot="daily-briefing-findings-title"
-                    className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+                    className="text-foreground text-xs font-semibold tracking-wide uppercase"
                   >
                     {t("insights.dailyBriefing.keyFindingsTitle")}
                   </p>
@@ -565,12 +527,6 @@ export function DailyBriefing({
                   )}
                 </div>
               )}
-              {/* v1.21.0 (C4 H2) — hand off to the Coach for the whole
-                picture. The briefing spans every metric, so no scope: the
-                default all-source snapshot reads best here. */}
-              <div className="flex justify-end">
-                <AskCoachAction question={t("insights.coach.seed.briefing")} />
-              </div>
             </div>
           ) : noProvider ? (
             // v1.15.20 — no provider configured anywhere: a regenerate CTA
