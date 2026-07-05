@@ -20,9 +20,12 @@
  * cards (last-result line + Start) + a history card. The disclaimer renders
  * ONLY here (a muted caption) and behind the InfoHint — never while testing.
  *
- * v1.27.6 — the trend chart (and the per-card trend sheet) left this surface;
- * the score curve lives in Insights / Measurements via the PHQ9_SCORE /
- * GAD7_SCORE measurement rows. The landing keeps the calm dated list only.
+ * v1.27.9 — the landing is intro + instrument cards, nothing else: the
+ * combined history card left the main page entirely. Each card opens a
+ * per-instrument detail sheet (the Vorsorge-/med-card detail interaction)
+ * carrying last score + band, the trend chart, the dated history, and the
+ * Start action — the Verlauf is opt-in behind that click, never pushed onto
+ * the page someone arrives at to take stock.
  */
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,12 +33,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
+import { INSTRUMENTS, INSTRUMENT_ORDER } from "@/lib/mental-health/instruments";
 import { PageHeader } from "@/components/ui/page-header";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 
-import { AssessmentHistory } from "./assessment-history";
 import { AssessmentResult } from "./assessment-result";
 import { CheckInWizard } from "./check-in-wizard";
 import { InstrumentCard } from "./instrument-card";
+import { InstrumentDetail } from "./instrument-detail";
 import type {
   AssessmentRow,
   CreateResponse,
@@ -50,6 +55,11 @@ export function MentalWellbeing() {
   const [phase, setPhase] = useState<Phase>("choose");
   const [instrument, setInstrument] = useState<InstrumentId>("PHQ9");
   const [result, setResult] = useState<CreateResponse | null>(null);
+  // Which instrument's detail sheet is open (null = closed). Clicking a card
+  // body opens THAT instrument's detail; Start stays a separate action.
+  const [detailInstrument, setDetailInstrument] = useState<InstrumentId | null>(
+    null,
+  );
 
   const { data: history } = useQuery({
     queryKey: queryKeys.mentalHealthAssessments(),
@@ -82,6 +92,7 @@ export function MentalWellbeing() {
   }, [history]);
 
   function begin(id: InstrumentId) {
+    setDetailInstrument(null);
     setInstrument(id);
     setResult(null);
     mutation.reset();
@@ -116,29 +127,48 @@ export function MentalWellbeing() {
             description={t("mentalHealth.pageDescription")}
           />
 
-          {/* v1.27.6 — one gentle cadence hint: both instruments ask about
-              the last two weeks, so every 2–4 weeks is a sensible rhythm.
-              Body prose (foreground), not another muted description line. */}
-          <p className="max-w-prose text-sm">
-            {t("mentalHealth.pageRhythmHint")}
-          </p>
-
           <section aria-label={t("mentalHealth.choosePrompt")}>
             <h2 className="sr-only">{t("mentalHealth.choosePrompt")}</h2>
             <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">
-              {(["PHQ9", "GAD7"] as InstrumentId[]).map((id) => (
+              {INSTRUMENT_ORDER.map((id) => (
                 <li key={id} className="contents">
                   <InstrumentCard
                     instrument={id}
                     last={lastByInstrument.get(id)}
                     onStart={() => begin(id)}
+                    onOpenDetail={() => setDetailInstrument(id)}
                   />
                 </li>
               ))}
             </ul>
           </section>
 
-          <AssessmentHistory rows={history?.assessments ?? []} />
+          {/* Per-instrument detail, opened from a card body: last result,
+              trend chart, dated history, Start — the Verlauf lives here,
+              not on the landing. */}
+          <ResponsiveSheet
+            open={detailInstrument !== null}
+            onOpenChange={(open) => {
+              if (!open) setDetailInstrument(null);
+            }}
+            contentWidth="lg"
+            title={
+              detailInstrument
+                ? t(
+                    `mentalHealth.instrument.${INSTRUMENTS[detailInstrument].i18nKey}`,
+                  )
+                : t("mentalHealth.history.title")
+            }
+            description={t("mentalHealth.history.chartTitle")}
+          >
+            {detailInstrument && (
+              <InstrumentDetail
+                instrument={detailInstrument}
+                rows={history?.assessments ?? []}
+                onStart={() => begin(detailInstrument)}
+              />
+            )}
+          </ResponsiveSheet>
         </>
       )}
 

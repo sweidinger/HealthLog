@@ -599,7 +599,9 @@
     "typeWaistCircumference": "Obwód talii",
     "typeWaistToHeight": "Stosunek talii do wzrostu",
     "unitScore": "pkt",
-    "unitRatio": "stosunek"
+    "unitRatio": "stosunek",
+    "typeWho5Score": "Wynik WHO-5",
+    "typeSciScore": "Wynik SCI"
   },
   "mood": {
     "title": "Nastrój",
@@ -7667,8 +7669,7 @@
   },
   "mentalHealth": {
     "pageTitle": "Sprawdzenie dobrostanu psychicznego",
-    "pageDescription": "Dwa zwalidowane, dobrowolne testy — PHQ-9 (nastrój) i GAD-7 (lęk) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
-    "pageRhythmHint": "Oba testy dotyczą ostatnich dwóch tygodni, dlatego check-in co dwa–cztery tygodnie to dobry rytm.",
+    "pageDescription": "Cztery zwalidowane, dobrowolne testy — PHQ-9 (nastrój), GAD-7 (lęk), WHO-5 (samopoczucie) i SCI (sen) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
     "attributionLabel": "Źródło",
     "choosePrompt": "Wybierz sprawdzenie",
     "start": "Rozpocznij",
@@ -7677,14 +7678,17 @@
     "submitting": "Zapisywanie…",
     "saved": "Zapisano",
     "error": "Coś poszło nie tak. Spróbuj ponownie.",
-    "considerProfessional": "Twój wynik mieści się w zakresie, w którym rozmowa ze specjalistą może pomóc. To życzliwa sugestia, a nie diagnoza.",
     "instrument": {
       "phq9": "PHQ-9 · nastrój",
-      "gad7": "GAD-7 · lęk"
+      "gad7": "GAD-7 · lęk",
+      "who5": "WHO-5 · samopoczucie",
+      "sci": "SCI · sen"
     },
     "instrumentSub": {
       "phq9": "Przesiew depresji, 9 pytań",
-      "gad7": "Przesiew lęku, 7 pytań"
+      "gad7": "Przesiew lęku, 7 pytań",
+      "who5": "Test samopoczucia, 5 pytań",
+      "sci": "Test snu, 8 pytań"
     },
     "options": {
       "0": "Wcale",
@@ -7719,16 +7723,23 @@
         "mild": "Łagodny",
         "moderate": "Umiarkowany",
         "severe": "Ciężki"
+      },
+      "WHO5": {
+        "low": "Niższe samopoczucie",
+        "good": "Dobre samopoczucie"
+      },
+      "SCI": {
+        "belowThreshold": "Zakres możliwej bezsenności",
+        "aboveThreshold": "Brak wskazań na bezsenność"
       }
     },
     "history": {
       "title": "Twoja historia",
       "empty": "Brak sprawdzeń. Twój trend pojawi się tutaj po ukończeniu pierwszego.",
       "flaggedBadge": "Pokazano wsparcie",
-      "tab": {
-        "phq9": "PHQ-9",
-        "gad7": "GAD-7"
-      }
+      "chartTitle": "Przebieg wyniku",
+      "totalLabel": "Wynik",
+      "bandLabel": "Kategoria"
     },
     "crisis": {
       "title": "Nie musisz mierzyć się z tym sam(a)",
@@ -7756,6 +7767,23 @@
         "5": "Niepokój tak duży, że trudno usiedzieć w miejscu",
         "6": "Łatwe wpadanie w rozdrażnienie lub irytację",
         "7": "Odczuwanie lęku, jakby miało się zdarzyć coś strasznego"
+      },
+      "who5": {
+        "1": "Czułam się wesoła/Czułem się wesoły i w dobrym nastroju",
+        "2": "Czułam się spokojna i odprężona/Czułem się spokojny i odprężony",
+        "3": "Czułam się aktywna i energiczna/Czułem się aktywny i energiczny",
+        "4": "Budziłam się z uczuciem świeżości i wypoczęta/Budziłem się z uczuciem świeżości i wypoczęty",
+        "5": "Moje życie codzienne było wypełnione interesującymi mnie sprawami"
+      },
+      "sci": {
+        "1": "… how long does it take you to fall asleep?",
+        "2": "… if you then wake up during the night … how long are you awake for in total? (add all the wakenings up)",
+        "3": "… how many nights a week do you have a problem with your sleep?",
+        "4": "… how would you rate your sleep quality?",
+        "5": "… affected your mood, energy, or relationships?",
+        "6": "… affected your concentration, productivity, or ability to stay awake?",
+        "7": "… troubled you in general?",
+        "8": "… how long have you had a problem with your sleep?"
       }
     },
     "crisisResource": {
@@ -7783,14 +7811,79 @@
     },
     "instrumentDescription": {
       "phq9": "Przesiew w kierunku depresji, 9 pytań. Odpowiadaj, myśląc o ostatnich dwóch tygodniach.",
-      "gad7": "Przesiew w kierunku lęku, 7 pytań. Odpowiadaj, myśląc o ostatnich dwóch tygodniach."
+      "gad7": "Przesiew w kierunku lęku, 7 pytań. Odpowiadaj, myśląc o ostatnich dwóch tygodniach.",
+      "who5": "Test samopoczucia, 5 pytań. Odpowiadaj, myśląc o ostatnich dwóch tygodniach; wyższe cyfry oznaczają lepsze samopoczucie.",
+      "sci": "Test snu, 8 pytań. Większość pytań dotyczy ostatniego miesiąca; wyższe wyniki oznaczają lepszy sen."
     },
     "progress": "{current} / {total}",
     "next": "Dalej",
     "lastResult": "Ostatni test",
     "lastScore": "Ostatni wynik",
     "noResultYet": "Brak check-inów",
-    "backToList": "Przegląd"
+    "backToList": "Przegląd",
+    "followUpHint": {
+      "phq9": "Twój wynik mieści się w zakresie, w którym rozmowa ze specjalistą może pomóc. To życzliwa sugestia, a nie diagnoza.",
+      "gad7": "Twój wynik mieści się w zakresie, w którym rozmowa ze specjalistą może pomóc. To życzliwa sugestia, a nie diagnoza.",
+      "who5": "Wynik samopoczucia 50 lub niższy może być wart bliższego spojrzenia. Jeśli chcesz, PHQ-9 na tej stronie przygląda się nastrojowi dokładniej. To życzliwa sugestia, a nie diagnoza.",
+      "sci": "W badaniu tego kwestionariusza wyniki 16 lub niższe wiązały się z prawdopodobną bezsennością. Jeśli zły sen nadal Ci doskwiera, rozmowa ze specjalistą może pomóc. To nie jest diagnoza."
+    },
+    "validatedInEnglishNote": "Ten kwestionariusz jest zwalidowany w języku angielskim; pytania są wyświetlane w angielskim oryginale.",
+    "who5Options": {
+      "5": "Cały czas",
+      "4": "Prawie cały czas",
+      "3": "Więcej niż połowę czasu",
+      "2": "Mniej niż połowę czasu",
+      "1": "Od czasu do czasu",
+      "0": "Nigdy"
+    },
+    "sciOptions": {
+      "duration": {
+        "4": "0–15 min",
+        "3": "16–30 min",
+        "2": "31–45 min",
+        "1": "46–60 min",
+        "0": "≥ 61 min"
+      },
+      "nights": {
+        "4": "0–1",
+        "3": "2",
+        "2": "3",
+        "1": "4",
+        "0": "5–7"
+      },
+      "quality": {
+        "4": "Very good",
+        "3": "Good",
+        "2": "Average",
+        "1": "Poor",
+        "0": "Very poor"
+      },
+      "impact": {
+        "4": "Not at all",
+        "3": "A little",
+        "2": "Somewhat",
+        "1": "Much",
+        "0": "Very much"
+      },
+      "problemDuration": {
+        "4": "I don't have a problem / < 1 month",
+        "3": "1–2 months",
+        "2": "3–6 months",
+        "1": "7–12 months",
+        "0": "> 1 year"
+      }
+    },
+    "stems": {
+      "who5": {
+        "period": "W ciągu ostatnich dwóch tygodni"
+      },
+      "sci": {
+        "night": "Thinking about a typical night in the last month …",
+        "impact": "Thinking about the past month, to what extent has poor sleep …",
+        "finally": "Finally …"
+      }
+    },
+    "openDetail": "Pokaż szczegóły"
   },
   "records": {
     "disclaimer": "To Twoje własne wpisy, a nie diagnoza lekarska. HealthLog nie diagnozuje, nie leczy i ich nie interpretuje.",

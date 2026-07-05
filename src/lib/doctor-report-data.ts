@@ -1620,6 +1620,9 @@ const MEASUREMENT_TYPE_MODULE: Record<string, ModuleKey> = {
   // opted into.
   PHQ9_SCORE: "mentalHealth",
   GAD7_SCORE: "mentalHealth",
+  // v1.27.9 — the WHO-5 / SCI totals ride the same module gate.
+  WHO5_SCORE: "mentalHealth",
+  SCI_SCORE: "mentalHealth",
 };
 
 function filterMeasurementKeys<T>(

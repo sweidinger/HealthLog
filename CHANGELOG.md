@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.27.10] — 2026-07-05 — Two new check-ins: wellbeing and sleep
+
+### Added
+
+- The WHO-5 wellbeing check-in joins the mental-wellbeing page: five positively worded questions about the last two weeks, scored 0–100 per the WHO's official scheme. A lower result gently points to the PHQ-9 check-in — a hint, never a diagnosis. The questionnaire uses the WHO's own official translations in all six app languages.
+- The Sleep Condition Indicator (SCI) adds a sleep check-in: eight questions, aligned with how sleep problems are clinically described, shown with neutral wording. The validated English questionnaire is used; languages without a validated translation show the English items with an honest note.
+- Both scores persist as measurements (server-computed, like the existing screening scores) and can be scheduled as preventive-care reminders that satisfy themselves when a check-in is completed.
+
+### Changed
+
+- The mental-wellbeing page now leads with the four instrument cards; the result history moved off the landing page. Each card opens a detail view with the score trend chart, the dated history, and the start button.
+- Dependency refresh: Next.js 16.2.10, TanStack Query 5.101.2, nodemailer 9.0.3, react-hook-form 7.81.0, @types/node 26, and current Docker build-action pins.
+
 ## [1.27.9] — 2026-07-05 — Coach plans you can accept
 
 ### Added

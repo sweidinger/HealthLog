@@ -105,10 +105,14 @@ const EXPECTED_TYPES = [
   "PAIN_NRS",
   "WAIST_CIRCUMFERENCE",
   "WAIST_TO_HEIGHT",
+  // ── v1.27.9 — screening scores (WHO-5 percentage 0–100, SCI total 0–32;
+  // both server-derived from a completed assessment, higher = better) ──
+  "WHO5_SCORE",
+  "SCI_SCORE",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 73 canonical measurement types", () => {
+  it("exposes the 75 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -264,6 +268,12 @@ describe("measurementTypeEnum coverage", () => {
     "PAIN_NRS",
     "WAIST_CIRCUMFERENCE",
     "WAIST_TO_HEIGHT",
+    // v1.27.9 — WHO-5 / SCI screening totals follow the PHQ-9 / GAD-7
+    // precedent: opt-in questionnaire derivations, excluded from the vitals
+    // table; they ride the module-gated mental-health export section
+    // instead. See doctor-report-pdf-core.ts for the matching rationale.
+    "WHO5_SCORE",
+    "SCI_SCORE",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

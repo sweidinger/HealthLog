@@ -473,9 +473,15 @@ describe("measurement validation", () => {
     it("rejects a COMPUTED-attributed screener score row on a client write", () => {
       // v1.27.6 — the mental-wellbeing screener projects each completed
       // administration onto a COMPUTED-source PHQ9_SCORE / GAD7_SCORE row
-      // (the RECOVERY_SCORE precedent). COMPUTED is not client-attributable,
-      // so a client can never mint a server-owned score trend point.
-      for (const type of ["PHQ9_SCORE", "GAD7_SCORE"]) {
+      // (the RECOVERY_SCORE precedent; v1.27.9 adds WHO5_SCORE / SCI_SCORE).
+      // COMPUTED is not client-attributable, so a client can never mint a
+      // server-owned score trend point.
+      for (const type of [
+        "PHQ9_SCORE",
+        "GAD7_SCORE",
+        "WHO5_SCORE",
+        "SCI_SCORE",
+      ]) {
         const parsed = createMeasurementSchema.safeParse({
           type,
           value: 5,

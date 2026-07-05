@@ -229,8 +229,9 @@ async function postAssessment(request: NextRequest): Promise<Response> {
     if (existing) return respondExisting(existing);
   }
 
-  // Server-authoritative scoring (the client never computes these).
-  const total = scoreTotal(items);
+  // Server-authoritative scoring (the client never computes these). The
+  // total is the REPORTED score — the WHO-5 projects raw-sum × 4 (0–100).
+  const total = scoreTotal(id, items);
   const band = severityBand(id, total);
   const flagged = isSafetyFlagged(id, items);
   const presentedLocale = locale ?? user.locale ?? "en";

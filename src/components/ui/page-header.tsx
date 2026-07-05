@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils";
  * The one canonical page header. Every module surface renders its title
  * through this so the header vocabulary reads identically app-wide: the H1
  * is always `text-2xl font-bold tracking-tight`, the description is always
- * `text-muted-foreground text-sm`, and no icon sits beside the H1. An
+ * `text-foreground text-sm` (it is content, not meta — the muted tier is
+ * reserved for timestamps/counts per the design standards), and no icon
+ * sits beside the H1. An
  * optional back-link rides above the title, and an `actions` slot holds the
  * page's primary buttons to the right of the title block.
  */
@@ -31,7 +33,7 @@ export function PageHeader({
         <div className="min-w-0 space-y-1.5">
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {description ? (
-            <p className="text-muted-foreground text-sm">{description}</p>
+            <p className="text-foreground text-sm">{description}</p>
           ) : null}
         </div>
         {actions ? (

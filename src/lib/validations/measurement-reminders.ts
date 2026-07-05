@@ -64,11 +64,16 @@ export const measurementReminderTypeEnum = z
     // the dispatcher (see `moduleForMeasurementType`).
     "PHQ9_SCORE",
     "GAD7_SCORE",
+    // v1.27.9 — WHO-5 + SCI join the plannable screenings on the identical
+    // contract (auto-resolve on the server-owned COMPUTED score row, module-
+    // gated in the dispatcher).
+    "WHO5_SCORE",
+    "SCI_SCORE",
   ])
   .meta({
     id: "MeasurementReminderType",
     description:
-      "Auto-resolve target metric (vitals + body-composition family + the PHQ-9 / GAD-7 screenings). BP resolves on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured' sentinel); a screening reminder resolves on the server-written PHQ9_SCORE / GAD7_SCORE row when a check-in completes. Omit for a free-text Vorsorge that resolves only on a manual satisfy or a matching lab result.",
+      "Auto-resolve target metric (vitals + body-composition family + the PHQ-9 / GAD-7 / WHO-5 / SCI screenings). BP resolves on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured' sentinel); a screening reminder resolves on the server-written *_SCORE row when a check-in completes. Omit for a free-text Vorsorge that resolves only on a manual satisfy or a matching lab result.",
   });
 
 export type MeasurementReminderType = z.infer<
@@ -85,6 +90,8 @@ export type MeasurementReminderType = z.infer<
 export const SCREENING_REMINDER_TYPES: ReadonlySet<string> = new Set([
   "PHQ9_SCORE",
   "GAD7_SCORE",
+  "WHO5_SCORE",
+  "SCI_SCORE",
 ]);
 
 /** Whether a reminder's `measurementType` targets a screening check-in. */
