@@ -657,3 +657,92 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
     }
   });
 });
+
+/**
+ * v1.27.7 — hero score rings (`selectedScoreRings`). Closed id set, max
+ * three, dedupe + unknown-drop on read, default single MED_COMPLIANCE
+ * ring for legacy blobs, explicit empty array respected.
+ */
+describe("resolveDashboardLayout() — selectedScoreRings", () => {
+  const base = {
+    version: 1,
+    widgets: [{ id: "weight", visible: true, tileVisible: true, order: 0 }],
+  };
+
+  it("defaults a legacy blob (field missing) to the single MED_COMPLIANCE ring", () => {
+    const resolved = resolveDashboardLayout(base);
+    expect(resolved.selectedScoreRings).toEqual(["MED_COMPLIANCE"]);
+  });
+
+  it("defaults a null / non-array field to MED_COMPLIANCE", () => {
+    for (const bad of [null, "READINESS", 3, { READINESS: true }]) {
+      const resolved = resolveDashboardLayout({
+        ...base,
+        selectedScoreRings: bad,
+      });
+      expect(resolved.selectedScoreRings).toEqual(["MED_COMPLIANCE"]);
+    }
+  });
+
+  it("respects an explicitly-saved empty array (user chose no rings)", () => {
+    const resolved = resolveDashboardLayout({
+      ...base,
+      selectedScoreRings: [],
+    });
+    expect(resolved.selectedScoreRings).toEqual([]);
+  });
+
+  it("drops unknown ids and dedupes, preserving selection order", () => {
+    const resolved = resolveDashboardLayout({
+      ...base,
+      selectedScoreRings: [
+        "SLEEP_SCORE",
+        "STRESS_SCORE", // not a ring id — drops
+        "READINESS",
+        "SLEEP_SCORE", // duplicate — collapses
+      ],
+    });
+    expect(resolved.selectedScoreRings).toEqual(["SLEEP_SCORE", "READINESS"]);
+  });
+
+  it("clamps the selection to three rings (first three win)", () => {
+    const resolved = resolveDashboardLayout({
+      ...base,
+      selectedScoreRings: [
+        "READINESS",
+        "RECOVERY_SCORE",
+        "SLEEP_SCORE",
+        "MED_COMPLIANCE",
+      ],
+    });
+    expect(resolved.selectedScoreRings).toEqual([
+      "READINESS",
+      "RECOVERY_SCORE",
+      "SLEEP_SCORE",
+    ]);
+  });
+
+  it("serializeDashboardLayout persists the coerced selection explicitly", () => {
+    const serialized = serializeDashboardLayout({
+      ...DEFAULT_DASHBOARD_LAYOUT,
+      selectedScoreRings: [
+        "MED_COMPLIANCE",
+        "MED_COMPLIANCE",
+        "READINESS",
+        "RECOVERY_SCORE",
+        "SLEEP_SCORE",
+      ],
+    } as DashboardLayout);
+    expect(serialized.selectedScoreRings).toEqual([
+      "MED_COMPLIANCE",
+      "READINESS",
+      "RECOVERY_SCORE",
+    ]);
+  });
+
+  it("the default layout carries the MED_COMPLIANCE ring", () => {
+    expect(DEFAULT_DASHBOARD_LAYOUT.selectedScoreRings).toEqual([
+      "MED_COMPLIANCE",
+    ]);
+  });
+});

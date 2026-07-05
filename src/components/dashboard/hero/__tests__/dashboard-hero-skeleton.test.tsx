@@ -23,14 +23,26 @@ describe("<DashboardHeroSkeleton>", () => {
   });
 
   it("reserves the hero's exact footprint classes", () => {
+    // v1.27.7 — the shell mirrors the loaded band's plain `bg-card`
+    // surface (the old `hero-gradient` chrome was a leftover from the
+    // pre-v1.18.1 gradient hero and never matched the loaded state).
     for (const cls of [
       "min-h-[8.75rem]",
       "md:min-h-[9.5rem]",
-      "hero-gradient",
+      "bg-card",
+      "border-border",
       "rounded-xl",
     ]) {
       expect(html).toContain(cls);
     }
+    expect(html).not.toContain("hero-gradient");
+  });
+
+  it("reserves no dose-row pill — the ring row replaced it (v1.27.7)", () => {
+    // The left column carries exactly three skeleton bars (greeting +
+    // verdict + CTA); the old fourth dose-pill bar is gone.
+    const bars = html.match(/data-slot="skeleton"/g) ?? [];
+    expect(bars.length).toBe(4); // 3 left-column bars + 1 ring circle
   });
 
   it("mirrors the two-column md:flex-row split with the fixed ring circle", () => {
