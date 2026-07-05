@@ -67,6 +67,8 @@ function moduleForMeasurementType(
       return "sleep";
     case "PHQ9_SCORE":
     case "GAD7_SCORE":
+    case "WHO5_SCORE":
+    case "SCI_SCORE":
       return "mentalHealth";
     default:
       return null;

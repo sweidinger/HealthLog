@@ -1284,17 +1284,26 @@ enum MeasurementType {
   // waist-to-height ratio (WHtR; keep waist < half your height ⇒ < 0.5).
   WAIST_CIRCUMFERENCE // cm — waist circumference (WHO bands; ethnicity-aware at display).
   WAIST_TO_HEIGHT // ratio — waist-to-height ratio (WHtR ≥ 0.5 = increased risk).
+  // ── v1.27.9 — screening scores (WHO-5 well-being + Sleep Condition Indicator) ──
+  // Same contract as PHQ9_SCORE / GAD7_SCORE: server-derived from a completed
+  // `MentalHealthAssessment`, `source = COMPUTED`, one row per administration.
+  // Note the inverted direction versus PHQ-9 / GAD-7: HIGHER is better for both.
+  WHO5_SCORE // score (0–100) — WHO-5 well-being percentage (raw 0–25 × 4). Opt-in. See MentalHealthAssessment.
+  SCI_SCORE // score (0–32) — Sleep Condition Indicator total; higher = better sleep. Opt-in. See MentalHealthAssessment.
 
   @@map("measurement_type")
 }
 
 /// v1.25 — validated mental-health self-assessment instruments: PHQ-9
 /// (depression) + GAD-7 (anxiety). The discriminator on
-/// `MentalHealthAssessment`; extensible (WHO-5 / PSS-10 are natural future
-/// siblings) without a schema change.
+/// `MentalHealthAssessment`. v1.27.9 adds the WHO-5 well-being index and the
+/// Sleep Condition Indicator (SCI) — same administration contract, inverted
+/// score direction (higher = better).
 enum AssessmentInstrument {
   PHQ9
   GAD7
+  WHO5
+  SCI
 
   @@map("assessment_instrument")
 }

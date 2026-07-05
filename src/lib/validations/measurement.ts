@@ -135,6 +135,11 @@ export const measurementTypeEnum = z.enum([
   "PAIN_NRS",
   "WAIST_CIRCUMFERENCE",
   "WAIST_TO_HEIGHT",
+  // ── v1.27.9 — screening scores (same assessment contract as PHQ-9/GAD-7,
+  // inverted direction: HIGHER is better). WHO-5 stores the reported 0–100
+  // percentage (raw sum × 4); SCI stores the 0–32 total.
+  "WHO5_SCORE",
+  "SCI_SCORE",
 ]);
 
 /**
@@ -379,6 +384,9 @@ const unitMap: Record<string, string> = {
   // ── v1.25 — clinical-signals wave ──
   PHQ9_SCORE: "score",
   GAD7_SCORE: "score",
+  // ── v1.27.9 — screening scores ──
+  WHO5_SCORE: "score",
+  SCI_SCORE: "score",
   GRIP_STRENGTH: "kg",
   PAIN_NRS: "score",
   WAIST_CIRCUMFERENCE: "cm",
@@ -581,6 +589,10 @@ export const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // PHQ-9 total 0–27, GAD-7 total 0–21 — server-derived from the screener.
   PHQ9_SCORE: { min: 0, max: 27 },
   GAD7_SCORE: { min: 0, max: 21 },
+  // ── v1.27.9 — screening scores. WHO-5 reported percentage 0–100 (raw × 4),
+  // SCI total 0–32 — both server-derived, higher = better.
+  WHO5_SCORE: { min: 0, max: 100 },
+  SCI_SCORE: { min: 0, max: 32 },
   // Grip strength kg — a child can read in the single digits, an elite athlete
   // tops ~90 kg; 120 is a generous ceiling that still rejects sensor noise.
   GRIP_STRENGTH: { min: 0, max: 120 },

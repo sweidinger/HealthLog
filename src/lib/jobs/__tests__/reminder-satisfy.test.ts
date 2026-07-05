@@ -184,6 +184,28 @@ describe("runReminderSatisfyForUser", () => {
     expect(updates[0].data.lastSatisfiedAt).toEqual(measuredAt);
   });
 
+  it("satisfies the WHO-5 / SCI screening reminders on the identical contract (v1.27.9)", async () => {
+    for (const measurementType of ["WHO5_SCORE", "SCI_SCORE"]) {
+      const measuredAt = new Date("2026-07-01T10:00:00Z");
+      const { prisma, updates } = makePrisma({
+        reminders: [reminderRow({ measurementType, intervalDays: 28 })],
+        measurement: { measuredAt },
+      });
+      const isModuleEnabled = vi.fn(async () => true);
+
+      const summary = await runReminderSatisfyForUser(
+        prisma as never,
+        "u1",
+        new Date("2026-07-01T12:00:00Z"),
+        { isModuleEnabled },
+      );
+
+      expect(summary.satisfied, `${measurementType} should satisfy`).toBe(1);
+      expect(isModuleEnabled).toHaveBeenCalledWith("u1", "mentalHealth");
+      expect(updates[0].data.lastSatisfiedAt).toEqual(measuredAt);
+    }
+  });
+
   it("produces no engine activity for a screening reminder when the mental-health module is off", async () => {
     const { prisma, updates } = makePrisma({
       reminders: [

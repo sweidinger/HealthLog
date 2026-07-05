@@ -2103,6 +2103,8 @@ paths:
               - PAIN_NRS
               - WAIST_CIRCUMFERENCE
               - WAIST_TO_HEIGHT
+              - WHO5_SCORE
+              - SCI_SCORE
         - in: query
           name: from
           schema:
@@ -2299,6 +2301,8 @@ paths:
                     - PAIN_NRS
                     - WAIST_CIRCUMFERENCE
                     - WAIST_TO_HEIGHT
+                    - WHO5_SCORE
+                    - SCI_SCORE
                 value:
                   type: number
                 measuredAt:
@@ -5865,6 +5869,8 @@ paths:
               - PAIN_NRS
               - WAIST_CIRCUMFERENCE
               - WAIST_TO_HEIGHT
+              - WHO5_SCORE
+              - SCI_SCORE
             description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
           required: true
           description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
@@ -8103,8 +8109,8 @@ paths:
       tags:
         - Mental health
       summary: List the caller's screener history
-      description: Returns PHQ-9 / GAD-7 administrations (newest first). Totals + bands + flags only; raw item answers are
-        never returned.
+      description: Returns PHQ-9 / GAD-7 / WHO-5 / SCI administrations (newest first). Totals + bands + flags only; raw item
+        answers are never returned.
       parameters:
         - in: query
           name: instrument
@@ -8113,6 +8119,8 @@ paths:
             enum:
               - PHQ9
               - GAD7
+              - WHO5
+              - SCI
         - in: query
           name: limit
           schema:
@@ -8138,10 +8146,11 @@ paths:
     post:
       tags:
         - Mental health
-      summary: Record a completed PHQ-9 / GAD-7 screener
+      summary: Record a completed screener
       description: Stores one administration (item answers encrypted) and writes the derived total as a server-owned
-        PHQ9_SCORE / GAD7_SCORE measurement (source COMPUTED — never client-writable). On a positive PHQ-9 item-9 the
-        response carries the locale-aware crisis-resource set.
+        PHQ9_SCORE / GAD7_SCORE / WHO5_SCORE / SCI_SCORE measurement (source COMPUTED — never client-writable). WHO-5
+        and SCI totals run HIGHER = better; their follow-up thresholds point downwards (≤ 50 / ≤ 16). On a positive
+        PHQ-9 item-9 the response carries the locale-aware crisis-resource set.
       requestBody:
         content:
           application/json:
@@ -8153,6 +8162,8 @@ paths:
                   enum:
                     - PHQ9
                     - GAD7
+                    - WHO5
+                    - SCI
                 items:
                   minItems: 1
                   maxItems: 12
@@ -8160,7 +8171,7 @@ paths:
                   items:
                     type: integer
                     minimum: 0
-                    maximum: 3
+                    maximum: 5
                 functionalDifficulty:
                   type: integer
                   minimum: 0
@@ -11145,9 +11156,11 @@ components:
         - BODY_MASS_INDEX
         - PHQ9_SCORE
         - GAD7_SCORE
-      description: Auto-resolve target metric (vitals + body-composition family + the PHQ-9 / GAD-7 screenings). BP resolves
-        on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured' sentinel); a screening reminder resolves on the
-        server-written PHQ9_SCORE / GAD7_SCORE row when a check-in completes. Omit for a free-text Vorsorge that
+        - WHO5_SCORE
+        - SCI_SCORE
+      description: Auto-resolve target metric (vitals + body-composition family + the PHQ-9 / GAD-7 / WHO-5 / SCI screenings).
+        BP resolves on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured' sentinel); a screening reminder
+        resolves on the server-written *_SCORE row when a check-in completes. Omit for a free-text Vorsorge that
         resolves only on a manual satisfy or a matching lab result.
     MeasurementReminderUpdate:
       type: object
@@ -13904,6 +13917,8 @@ components:
             - PAIN_NRS
             - WAIST_CIRCUMFERENCE
             - WAIST_TO_HEIGHT
+            - WHO5_SCORE
+            - SCI_SCORE
         value:
           type: number
         unit:
@@ -14227,6 +14242,8 @@ components:
               - PAIN_NRS
               - WAIST_CIRCUMFERENCE
               - WAIST_TO_HEIGHT
+              - WHO5_SCORE
+              - SCI_SCORE
           additionalProperties:
             type: array
             items:
@@ -14310,6 +14327,8 @@ components:
                     - PAIN_NRS
                     - WAIST_CIRCUMFERENCE
                     - WAIST_TO_HEIGHT
+                    - WHO5_SCORE
+                    - SCI_SCORE
                 value:
                   type: number
                   description: Daily mean (spot metrics) or SUM (cumulative).
@@ -14414,6 +14433,8 @@ components:
             - PAIN_NRS
             - WAIST_CIRCUMFERENCE
             - WAIST_TO_HEIGHT
+            - WHO5_SCORE
+            - SCI_SCORE
           description: Per-type daily series, keyed by MeasurementType.
       required:
         - series
@@ -14653,6 +14674,8 @@ components:
             - PAIN_NRS
             - WAIST_CIRCUMFERENCE
             - WAIST_TO_HEIGHT
+            - WHO5_SCORE
+            - SCI_SCORE
         value:
           type: number
         unit:
@@ -25212,6 +25235,8 @@ components:
           enum:
             - PHQ9
             - GAD7
+            - WHO5
+            - SCI
         locale:
           type: string
         version:

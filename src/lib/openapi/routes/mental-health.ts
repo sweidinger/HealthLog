@@ -1,6 +1,6 @@
 /**
  * OpenAPI route table for the opt-in mental-health screeners
- * (`/api/mental-health/assessments`). PHQ-9 / GAD-7.
+ * (`/api/mental-health/assessments`). PHQ-9 / GAD-7 / WHO-5 / SCI.
  *
  * Part of the OpenAPI route table; aggregated in `./index.ts`. The request body
  * reuses the runtime Zod schema from `@/lib/validations/mental-health` so the
@@ -23,7 +23,7 @@ import { dataEnvelope, stdResponses } from "./shared";
 createAssessmentSchema.meta({
   id: "CreateMentalHealthAssessmentRequest",
   description:
-    "Record one completed PHQ-9 (9 items) / GAD-7 (7 items) administration. Each item answer is 0–3; the array length must match the instrument. The item answers are encrypted at rest and never returned. The server computes the total + severity band + item-9 safety flag. Opt-in, beside mood tracking — this is a screening surface, not a diagnosis.",
+    "Record one completed screener administration: PHQ-9 (9 items, 0–3), GAD-7 (7 items, 0–3), WHO-5 (5 items, 0–5) or SCI (8 items, 0–4). The array length and per-item ceiling must match the instrument. The item answers are encrypted at rest and never returned. The server computes the total (WHO-5 reports raw-sum × 4 as 0–100) + severity band + item-9 safety flag. Opt-in, beside mood tracking — this is a screening surface, not a diagnosis.",
 });
 
 listAssessmentsSchema.meta({
@@ -35,7 +35,7 @@ listAssessmentsSchema.meta({
 const assessmentRow = z
   .object({
     id: z.string(),
-    instrument: z.enum(["PHQ9", "GAD7"]),
+    instrument: z.enum(["PHQ9", "GAD7", "WHO5", "SCI"]),
     locale: z.string(),
     version: z.string(),
     totalScore: z.number(),
@@ -87,7 +87,7 @@ export const mentalHealthPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Mental health"],
       summary: "List the caller's screener history",
       description:
-        "Returns PHQ-9 / GAD-7 administrations (newest first). Totals + bands + flags only; raw item answers are never returned.",
+        "Returns PHQ-9 / GAD-7 / WHO-5 / SCI administrations (newest first). Totals + bands + flags only; raw item answers are never returned.",
       requestParams: { query: listAssessmentsSchema },
       responses: {
         "200": {
@@ -106,9 +106,9 @@ export const mentalHealthPaths: NonNullable<ZodOpenApiObject["paths"]> = {
     },
     post: {
       tags: ["Mental health"],
-      summary: "Record a completed PHQ-9 / GAD-7 screener",
+      summary: "Record a completed screener",
       description:
-        "Stores one administration (item answers encrypted) and writes the derived total as a server-owned PHQ9_SCORE / GAD7_SCORE measurement (source COMPUTED — never client-writable). On a positive PHQ-9 item-9 the response carries the locale-aware crisis-resource set.",
+        "Stores one administration (item answers encrypted) and writes the derived total as a server-owned PHQ9_SCORE / GAD7_SCORE / WHO5_SCORE / SCI_SCORE measurement (source COMPUTED — never client-writable). WHO-5 and SCI totals run HIGHER = better; their follow-up thresholds point downwards (≤ 50 / ≤ 16). On a positive PHQ-9 item-9 the response carries the locale-aware crisis-resource set.",
       requestBody: {
         content: {
           "application/json": { schema: createAssessmentSchema },
