@@ -7650,13 +7650,6 @@
       "2": "Più della metà dei giorni",
       "3": "Quasi ogni giorno"
     },
-    "functionalTitle": "Se hai indicato dei problemi, quanto ti hanno reso difficile lavorare, occuparti della casa o andare d'accordo con gli altri?",
-    "functional": {
-      "0": "Per niente difficile",
-      "1": "Un po' difficile",
-      "2": "Molto difficile",
-      "3": "Estremamente difficile"
-    },
     "result": {
       "title": "Il tuo risultato",
       "totalLabel": "Punteggio totale",
@@ -7743,18 +7736,11 @@
       "gad7": "Screening dell'ansia in 7 domande. Rispondi pensando alle ultime due settimane."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Domanda {current} di {total}",
     "next": "Avanti",
     "lastResult": "Ultimo test",
     "lastScore": "Ultimo risultato",
     "noResultYet": "Ancora nessun check-in",
-    "backToList": "Panoramica",
-    "jumpFirst": "Vai alla prima domanda",
-    "jumpLast": "Vai all'ultima domanda",
-    "review": {
-      "title": "Riepilogo",
-      "recap": "Hai risposto a {answered} domande su {total}."
-    }
+    "backToList": "Panoramica"
   },
   "records": {
     "disclaimer": "Sono i tuoi dati, non una diagnosi medica. HealthLog non diagnostica, non cura e non li interpreta.",

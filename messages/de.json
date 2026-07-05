@@ -7650,13 +7650,6 @@
       "2": "An mehr als der Hälfte der Tage",
       "3": "Beinahe jeden Tag"
     },
-    "functionalTitle": "Wenn du eine oder mehrere Beschwerden angegeben hast: Wie sehr haben diese deine Arbeit, deinen Haushalt oder den Umgang mit anderen Menschen erschwert?",
-    "functional": {
-      "0": "Überhaupt nicht erschwert",
-      "1": "Etwas erschwert",
-      "2": "Sehr erschwert",
-      "3": "Extrem erschwert"
-    },
     "result": {
       "title": "Dein Ergebnis",
       "totalLabel": "Gesamtwert",
@@ -7743,18 +7736,11 @@
       "gad7": "Angst-Screening mit 7 Fragen. Beziehe dich auf die letzten zwei Wochen."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Frage {current} von {total}",
     "next": "Weiter",
     "lastResult": "Letzter Test",
     "lastScore": "Letztes Ergebnis",
     "noResultYet": "Noch kein Check-in",
-    "backToList": "Übersicht",
-    "jumpFirst": "Zur ersten Frage springen",
-    "jumpLast": "Zur letzten Frage springen",
-    "review": {
-      "title": "Überblick",
-      "recap": "Du hast {answered} von {total} Fragen beantwortet."
-    }
+    "backToList": "Übersicht"
   },
   "records": {
     "disclaimer": "Das sind deine eigenen Angaben, keine ärztliche Diagnose. HealthLog stellt keine Diagnose, behandelt nicht und deutet nichts.",

@@ -7650,13 +7650,6 @@
       "2": "Más de la mitad de los días",
       "3": "Casi todos los días"
     },
-    "functionalTitle": "Si marcaste algún problema, ¿cuánta dificultad te han causado para trabajar, ocuparte de la casa o relacionarte con otras personas?",
-    "functional": {
-      "0": "Ninguna dificultad",
-      "1": "Algo de dificultad",
-      "2": "Mucha dificultad",
-      "3": "Dificultad extrema"
-    },
     "result": {
       "title": "Tu resultado",
       "totalLabel": "Puntuación total",
@@ -7743,18 +7736,11 @@
       "gad7": "Cribado de ansiedad de 7 preguntas. Responde pensando en las últimas dos semanas."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Pregunta {current} de {total}",
     "next": "Siguiente",
     "lastResult": "Última prueba",
     "lastScore": "Último resultado",
     "noResultYet": "Aún sin check-in",
-    "backToList": "Vista general",
-    "jumpFirst": "Ir a la primera pregunta",
-    "jumpLast": "Ir a la última pregunta",
-    "review": {
-      "title": "Resumen",
-      "recap": "Has respondido {answered} de {total} preguntas."
-    }
+    "backToList": "Vista general"
   },
   "records": {
     "disclaimer": "Son tus propios registros, no un diagnóstico médico. HealthLog no diagnostica, no trata ni los interpreta.",

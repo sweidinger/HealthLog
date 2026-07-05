@@ -7650,13 +7650,6 @@
       "2": "More than half the days",
       "3": "Nearly every day"
     },
-    "functionalTitle": "If you checked off any problems, how difficult have these made it to do your work, take care of things at home, or get along with other people?",
-    "functional": {
-      "0": "Not difficult at all",
-      "1": "Somewhat difficult",
-      "2": "Very difficult",
-      "3": "Extremely difficult"
-    },
     "result": {
       "title": "Your result",
       "totalLabel": "Total score",
@@ -7743,18 +7736,11 @@
       "gad7": "7-question anxiety screen. Answer for the last two weeks."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Question {current} of {total}",
     "next": "Next",
     "lastResult": "Last test",
     "lastScore": "Last result",
     "noResultYet": "No check-in yet",
-    "backToList": "Overview",
-    "jumpFirst": "Jump to first question",
-    "jumpLast": "Jump to last question",
-    "review": {
-      "title": "Review",
-      "recap": "You answered {answered} of {total} questions."
-    }
+    "backToList": "Overview"
   },
   "records": {
     "disclaimer": "These are your own records, not a medical diagnosis. HealthLog does not diagnose, treat, or interpret them.",

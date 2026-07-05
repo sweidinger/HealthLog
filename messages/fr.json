@@ -7650,13 +7650,6 @@
       "2": "Plus de la moitié des jours",
       "3": "Presque tous les jours"
     },
-    "functionalTitle": "Si tu as coché des problèmes, à quel point t'ont-ils gêné(e) dans ton travail, à la maison ou dans tes relations avec les autres ?",
-    "functional": {
-      "0": "Pas du tout gênant",
-      "1": "Un peu gênant",
-      "2": "Très gênant",
-      "3": "Extrêmement gênant"
-    },
     "result": {
       "title": "Ton résultat",
       "totalLabel": "Score total",
@@ -7743,18 +7736,11 @@
       "gad7": "Dépistage de l'anxiété en 7 questions. Répondez en pensant aux deux dernières semaines."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Question {current} sur {total}",
     "next": "Suivant",
     "lastResult": "Dernier test",
     "lastScore": "Dernier résultat",
     "noResultYet": "Pas encore de check-in",
-    "backToList": "Vue d'ensemble",
-    "jumpFirst": "Aller à la première question",
-    "jumpLast": "Aller à la dernière question",
-    "review": {
-      "title": "Récapitulatif",
-      "recap": "Vous avez répondu à {answered} questions sur {total}."
-    }
+    "backToList": "Vue d'ensemble"
   },
   "records": {
     "disclaimer": "Ce sont vos propres informations, pas un diagnostic médical. HealthLog ne diagnostique pas, ne traite pas et ne les interprète pas.",

@@ -93,11 +93,14 @@ export function MentalWellbeing() {
     setPhase("choose");
   }
 
-  function submit(items: number[], functional: number | null) {
+  // v1.27.6 — the review step (and with it the optional functional-difficulty
+  // follow-up) left the web wizard; the check-in submits the scored items
+  // directly after the last question. The API keeps accepting
+  // `functionalDifficulty` for clients that still capture it.
+  function submit(items: number[]) {
     mutation.mutate({
       instrument,
       items,
-      ...(functional !== null ? { functionalDifficulty: functional } : {}),
       locale,
     });
   }

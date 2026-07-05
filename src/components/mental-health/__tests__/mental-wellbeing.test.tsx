@@ -75,7 +75,7 @@ describe("landing chrome (v1.25.5 — disclaimer + heading removed)", () => {
   });
 });
 
-describe("check-in wizard scaffolding", () => {
+describe("check-in wizard scaffolding (v1.27.6 — questions only)", () => {
   const html = withProviders(
     <CheckInWizard
       instrument="PHQ9"
@@ -86,8 +86,13 @@ describe("check-in wizard scaffolding", () => {
     />,
   );
 
-  it("reuses the medication wizard stepper", () => {
-    expect(html).toContain('data-slot="wizard-stepper"');
+  it("no longer renders the question-overview strip", () => {
+    expect(html).not.toContain('data-slot="wizard-stepper"');
+  });
+
+  it("no longer renders the review recap or the functional follow-up", () => {
+    expect(html).not.toContain("You have answered");
+    expect(html).not.toContain('data-slot="check-in-submit"');
   });
 
   it("opens on the first question with the Back/Next footer", () => {

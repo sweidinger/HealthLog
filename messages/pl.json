@@ -7650,13 +7650,6 @@
       "2": "Więcej niż połowę dni",
       "3": "Niemal codziennie"
     },
-    "functionalTitle": "Jeśli zaznaczyłeś(-aś) jakiekolwiek problemy, na ile utrudniły Ci one pracę, prowadzenie domu lub kontakty z innymi ludźmi?",
-    "functional": {
-      "0": "Wcale nie utrudniły",
-      "1": "Trochę utrudniły",
-      "2": "Bardzo utrudniły",
-      "3": "Skrajnie utrudniły"
-    },
     "result": {
       "title": "Twój wynik",
       "totalLabel": "Wynik łączny",
@@ -7743,18 +7736,11 @@
       "gad7": "Przesiew w kierunku lęku, 7 pytań. Odpowiadaj, myśląc o ostatnich dwóch tygodniach."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Pytanie {current} z {total}",
     "next": "Dalej",
     "lastResult": "Ostatni test",
     "lastScore": "Ostatni wynik",
     "noResultYet": "Brak check-inów",
-    "backToList": "Przegląd",
-    "jumpFirst": "Przejdź do pierwszego pytania",
-    "jumpLast": "Przejdź do ostatniego pytania",
-    "review": {
-      "title": "Podsumowanie",
-      "recap": "Odpowiedziano na {answered} z {total} pytań."
-    }
+    "backToList": "Przegląd"
   },
   "records": {
     "disclaimer": "To Twoje własne wpisy, a nie diagnoza lekarska. HealthLog nie diagnozuje, nie leczy i ich nie interpretuje.",
