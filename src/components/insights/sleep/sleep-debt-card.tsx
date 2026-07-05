@@ -3,8 +3,9 @@
 import { Moon } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { InfoHint } from "@/components/ui/info-hint";
+import { TileHeader } from "@/components/insights/tile-header";
 import { LearningGate } from "@/components/ui/learning-gate";
 import type { SleepDebtDto } from "./use-sleep-rhythm";
 
@@ -33,19 +34,19 @@ export function SleepDebtCard({ debt }: { debt: SleepDebtDto }) {
     return (
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Moon className="text-info h-4 w-4" />
-            <CardTitle className="text-base font-semibold">
-              {t("insights.sleep.debt.title")}
-            </CardTitle>
-            {/* v1.25.0 — when the active source on the user's sleep-debt ladder
-                is our own COMPUTED engine (every user today, until a provider
-                ships a native debt), explain what the figure means and that it
-                differs from a wearable's native number. */}
-            {debt.source === "COMPUTED" ? (
-              <InfoHint label={t("insights.sleep.debt.computedInfo")} />
-            ) : null}
-          </div>
+          {/* v1.25.0 — when the active source on the user's sleep-debt ladder
+              is our own COMPUTED engine (every user today, until a provider
+              ships a native debt), explain what the figure means and that it
+              differs from a wearable's native number. */}
+          <TileHeader
+            icon={Moon}
+            title={t("insights.sleep.debt.title")}
+            right={
+              debt.source === "COMPUTED" ? (
+                <InfoHint label={t("insights.sleep.debt.computedInfo")} />
+              ) : undefined
+            }
+          />
         </CardHeader>
         <CardContent>
           <LearningGate
@@ -65,19 +66,19 @@ export function SleepDebtCard({ debt }: { debt: SleepDebtDto }) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <Moon className="text-info h-4 w-4" />
-          <CardTitle className="text-base font-semibold">
-            {t("insights.sleep.debt.title")}
-          </CardTitle>
-          {/* v1.25.0 — the resolved full-debt card is the common case and the
-              place the figure most needs context: explain the COMPUTED engine
-              and that it differs from a wearable's native number here too, not
-              only in the still-learning `partial` state above. */}
-          {debt.source === "COMPUTED" ? (
-            <InfoHint label={t("insights.sleep.debt.computedInfo")} />
-          ) : null}
-        </div>
+        {/* v1.25.0 — the resolved full-debt card is the common case and the
+            place the figure most needs context: explain the COMPUTED engine
+            and that it differs from a wearable's native number here too, not
+            only in the still-learning `partial` state above. */}
+        <TileHeader
+          icon={Moon}
+          title={t("insights.sleep.debt.title")}
+          right={
+            debt.source === "COMPUTED" ? (
+              <InfoHint label={t("insights.sleep.debt.computedInfo")} />
+            ) : undefined
+          }
+        />
       </CardHeader>
       <CardContent>
         <div className="space-y-0.5">

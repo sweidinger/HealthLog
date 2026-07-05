@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { Activity, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
@@ -116,23 +117,26 @@ export function CorrelationCard({ result }: CorrelationCardProps) {
         )}
       />
       <CardHeader>
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-0.5">
-            <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-            <p className="text-muted-foreground text-xs">{subtitle}</p>
-          </div>
-          {result.status === "ok" && (
-            <Badge
-              data-slot="correlation-card-confidence"
-              variant="outline"
-              className={cn(
-                "shrink-0 text-xs",
-                CONFIDENCE_BADGE_CLASS[result.confidenceBand.label],
-              )}
-            >
-              {t(CONFIDENCE_LABEL_KEY[result.confidenceBand.label])}
-            </Badge>
-          )}
+        <div className="space-y-0.5">
+          <TileHeader
+            size="sm"
+            title={title}
+            right={
+              result.status === "ok" ? (
+                <Badge
+                  data-slot="correlation-card-confidence"
+                  variant="outline"
+                  className={cn(
+                    "shrink-0 text-xs",
+                    CONFIDENCE_BADGE_CLASS[result.confidenceBand.label],
+                  )}
+                >
+                  {t(CONFIDENCE_LABEL_KEY[result.confidenceBand.label])}
+                </Badge>
+              ) : undefined
+            }
+          />
+          <p className="text-muted-foreground text-xs">{subtitle}</p>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

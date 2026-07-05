@@ -80,8 +80,10 @@ describe("<SleepDebtCard>", () => {
     for (const html of [partial, ready]) {
       expect(html).not.toContain("gap-2 py-4 md:gap-2 md:py-4");
       expect(html).toContain("md:py-6");
-      // Semantic info token, not the raw Dracula cyan.
-      expect(html).toContain("text-info");
+      // Header rides the canonical TileHeader (foreground icon), never a
+      // hand-rolled accent-coloured row or the raw Dracula cyan.
+      expect(html).toContain('data-slot="tile-header"');
+      expect(html).not.toContain("text-info");
       expect(html).not.toContain("text-dracula-cyan");
     }
   });
@@ -123,11 +125,12 @@ describe("<ChronotypeCard>", () => {
     expect(html).toContain("text-2xl");
   });
 
-  it("uses the semantic info token, never the raw Dracula cyan", () => {
+  it("renders the canonical TileHeader, never the raw Dracula cyan", () => {
     const learning = render(<ChronotypeCard chronotype={LEARNING_CHRONO} />);
     const ready = render(<ChronotypeCard chronotype={READY_CHRONO} />);
     for (const html of [learning, ready]) {
-      expect(html).toContain("text-info");
+      expect(html).toContain('data-slot="tile-header"');
+      expect(html).not.toContain("text-info");
       expect(html).not.toContain("text-dracula-cyan");
     }
   });
