@@ -654,6 +654,15 @@ export function MeasurementList({
         setEditError(t("measurements.duplicateTimestamp"));
         return;
       }
+      // v1.27.5 (di-001) — value edits on server-owned sources
+      // (connector / import / computed rows) are refused with a 409.
+      if (
+        err instanceof ApiError &&
+        err.meta?.errorCode === "measurement.update.server_owned_source"
+      ) {
+        setEditError(t("measurements.serverOwnedSource"));
+        return;
+      }
       setEditError(
         err instanceof Error ? err.message : t("measurements.saveError"),
       );

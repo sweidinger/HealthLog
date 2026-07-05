@@ -517,6 +517,7 @@
     "formReset": "Réinitialiser le formulaire",
     "saveError": "Erreur lors de l’enregistrement",
     "duplicateTimestamp": "Une mesure de ce type existe déjà à cet horodatage.",
+    "serverOwnedSource": "Les valeurs provenant d’une source connectée ne peuvent pas être modifiées — l’horodatage et la note restent modifiables.",
     "deleteError": "Erreur lors de la suppression",
     "deletedToast": "Mesure supprimée",
     "restoredToast": "Mesure restaurée",

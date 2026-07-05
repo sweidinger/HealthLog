@@ -517,6 +517,7 @@
     "formReset": "Formular zurücksetzen",
     "saveError": "Fehler beim Speichern",
     "duplicateTimestamp": "Zum gewählten Zeitpunkt existiert bereits ein Messwert dieses Typs.",
+    "serverOwnedSource": "Werte aus einer verbundenen Quelle lassen sich nicht bearbeiten – Zeitpunkt und Notiz bleiben änderbar.",
     "deleteError": "Fehler beim Löschen",
     "deletedToast": "Messwert gelöscht",
     "restoredToast": "Messwert wiederhergestellt",

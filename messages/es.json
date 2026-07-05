@@ -517,6 +517,7 @@
     "formReset": "Restablecer formulario",
     "saveError": "Error al guardar",
     "duplicateTimestamp": "Ya existe una medición de este tipo en la marca de tiempo seleccionada.",
+    "serverOwnedSource": "Los valores de una fuente conectada no se pueden editar — la fecha y la nota siguen siendo editables.",
     "deleteError": "Error al eliminar",
     "deletedToast": "Medición eliminada",
     "restoredToast": "Medición restaurada",

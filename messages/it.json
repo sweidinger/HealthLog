@@ -517,6 +517,7 @@
     "formReset": "Reimposta modulo",
     "saveError": "Errore durante il salvataggio",
     "duplicateTimestamp": "Esiste già una misurazione di questo tipo a questa marca temporale.",
+    "serverOwnedSource": "I valori provenienti da una fonte collegata non possono essere modificati — data e nota restano modificabili.",
     "deleteError": "Errore durante l’eliminazione",
     "deletedToast": "Misurazione eliminata",
     "restoredToast": "Misurazione ripristinata",

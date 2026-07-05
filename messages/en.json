@@ -517,6 +517,7 @@
     "formReset": "Reset form",
     "saveError": "Error saving",
     "duplicateTimestamp": "A measurement of this type already exists at the selected timestamp.",
+    "serverOwnedSource": "Values from a connected source can't be edited — the timestamp and note stay editable.",
     "deleteError": "Error deleting",
     "deletedToast": "Measurement deleted",
     "restoredToast": "Measurement restored",

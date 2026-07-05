@@ -10,13 +10,18 @@ import {
   safeJson,
   sanitiseZodIssues,
 } from "@/lib/api-response";
-import { updateMeasurementSchema } from "@/lib/validations/measurement";
+import {
+  updateMeasurementSchema,
+  validateMeasurementRange,
+  WRITABLE_MEASUREMENT_SOURCES,
+} from "@/lib/validations/measurement";
 import { encryptNote, shapeMeasurementNotes } from "@/lib/crypto/note-cipher";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 import { Prisma } from "@/generated/prisma/client";
 import { NextRequest } from "next/server";
+import { z } from "zod";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -104,6 +109,61 @@ export const PUT = apiHandler(
     }
 
     const data = parsed.data;
+
+    // v1.27.5 (di-001) — the edit path was the ONE write surface that skipped
+    // the per-type plausibility bands: every other producer (POST, batch,
+    // CSV import, Apple export, Telegram, MCP) enforces `VALUE_RANGES`, so an
+    // implausible edited value flowed unchecked into rollups, the health
+    // score, the BP gates and the Coach snapshot.
+    if (data.value !== undefined && data.value !== existing.value) {
+      // Server-owned rows first: a value attributed to a connector / import /
+      // computed engine is the provider's reading — editing the number would
+      // forge a source-attributed row the server never received. Mirrors the
+      // write-side classification (`WRITABLE_MEASUREMENT_SOURCES`): only
+      // MANUAL and APPLE_HEALTH rows are client-owned. Timestamp and note
+      // edits stay allowed — annotating a Withings reading is legitimate.
+      if (
+        !(WRITABLE_MEASUREMENT_SOURCES as readonly string[]).includes(
+          existing.source,
+        )
+      ) {
+        annotate({
+          action: { name: "measurements.update.server-owned-source" },
+          meta: { measurement_id: id, source: existing.source },
+        });
+        return apiError(
+          "Values from a connected source cannot be edited",
+          409,
+          { errorCode: "measurement.update.server_owned_source" },
+        );
+      }
+
+      // Range check against the row's OWN type (the edit body carries no
+      // type). Returned through the standard multi-issue 422 envelope so the
+      // edit sheet renders it like any other field error.
+      const rangeCheck = z
+        .object({
+          value: z.number().superRefine((value, ctx) => {
+            const rangeError = validateMeasurementRange(existing.type, value);
+            if (rangeError) {
+              ctx.addIssue({ code: "custom", message: rangeError });
+            }
+          }),
+        })
+        .safeParse({ value: data.value });
+      if (!rangeCheck.success) {
+        annotate({
+          action: { name: "measurements.update.validation-failed" },
+          meta: {
+            issue_count: rangeCheck.error.issues.length,
+            measurement_id: id,
+            reason: "value_out_of_range",
+          },
+        });
+        return returnAllZodIssues(rangeCheck.error, 422);
+      }
+    }
+
     let measurement;
     try {
       measurement = await prisma.measurement.update({

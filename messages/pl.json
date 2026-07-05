@@ -517,6 +517,7 @@
     "formReset": "Resetuj formularz",
     "saveError": "Błąd zapisu",
     "duplicateTimestamp": "Pomiar tego typu już istnieje dla wybranej daty.",
+    "serverOwnedSource": "Wartości z połączonego źródła nie można edytować — znacznik czasu i notatka pozostają edytowalne.",
     "deleteError": "Błąd usuwania",
     "deletedToast": "Pomiar usunięty",
     "restoredToast": "Pomiar przywrócony",
