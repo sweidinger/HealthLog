@@ -307,12 +307,6 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Dati ancora insufficienti",
       "scoreComputing": "Calcolo del punteggio in corso …",
-      "doses": {
-        "summary": "{taken} dosi assunte su {scheduled}",
-        "nextAt": "Prossima alle {time}",
-        "allDone": "Tutte le dosi di oggi completate",
-        "none": "Nessuna dose in programma oggi"
-      },
       "verdict": {
         "doseOverdue": "Una dose di {name} è in ritardo.",
         "doseOverdueNoName": "Una dose è in ritardo.",
@@ -390,7 +384,9 @@
     "mood": "Umore",
     "customizeTitle": "Layout della dashboard",
     "heroToggleLabel": "Panoramica del giorno",
-    "heroToggleDescription": "Mostra saluto, punteggio, focus del giorno e stato delle dosi in cima alla dashboard.",
+    "heroToggleDescription": "Mostra saluto, focus del giorno e anelli dei punteggi in cima alla dashboard.",
+    "scoreRingsTitle": "Anelli dei punteggi",
+    "scoreRingsDescription": "Fino a tre anelli aggiuntivi accanto al punteggio di salute, ad esempio prontezza, recupero, sonno o aderenza.",
     "layoutReset": "Ripristina i valori predefiniti",
     "layoutSaveSuccess": "Layout della dashboard salvato",
     "layoutSaveError": "Impossibile salvare il layout",

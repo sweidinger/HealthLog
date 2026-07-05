@@ -305,7 +305,7 @@ describe("<DashboardLayoutSection> — hero visibility switch", () => {
     const de = render(<DashboardLayoutSection id="dashboard-layout" />, "de");
     expect(de).toContain("Tagesüberblick");
     expect(de).toContain(
-      "Zeigt Begrüßung, Score, Tagesfokus und Dosen-Status ganz oben auf dem Dashboard.",
+      "Zeigt Begrüßung, Tagesfokus und Score-Ringe ganz oben auf dem Dashboard.",
     );
     const en = render(<DashboardLayoutSection id="dashboard-layout" />);
     expect(en).toContain("Daily overview");
@@ -436,5 +436,74 @@ describe("<DashboardLayoutSection> — disabled-module widget toggles", () => {
     const tileSwitches = html.match(/data-slot="widget-tile-switch"/g) ?? [];
     expect(tileSwitches).toHaveLength(WEB_RENDERABLE_ROW_COUNT);
     expect(html).toContain(ACHIEVEMENTS_ARIA);
+  });
+});
+
+/**
+ * v1.27.7 — hero score-ring picker. Rendered only while the hero is on
+ * (the rings live inside the hero band); offers only rings whose owning
+ * module is enabled; caps the selection at three via disabled switches.
+ * SSR smoke assertions, matching the rest of this suite.
+ */
+describe("<DashboardLayoutSection> — hero score-ring picker (v1.27.7)", () => {
+  it("stays hidden while the hero is off (default layout)", () => {
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    expect(html).not.toContain('data-slot="score-rings-picker"');
+  });
+
+  it("renders one switch per ring when the hero is on (fail-open module map)", () => {
+    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    expect(html).toContain('data-slot="score-rings-picker"');
+    const switches = html.match(/data-slot="score-ring-switch"/g) ?? [];
+    expect(switches).toHaveLength(4);
+    // The default selection (MED_COMPLIANCE) reads checked.
+    const compliance = html.match(
+      /<button[^>]*data-slot="score-ring-switch"[^>]*data-ring="MED_COMPLIANCE"[^>]*>/,
+    );
+    expect(compliance).not.toBeNull();
+    expect(compliance![0]).toContain('data-state="checked"');
+  });
+
+  it("hides rings whose owning module is disabled", () => {
+    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    authState.modules = { recovery: false, sleep: false };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    const switches = html.match(/data-slot="score-ring-switch"/g) ?? [];
+    // READINESS + RECOVERY_SCORE (recovery) and SLEEP_SCORE (sleep) are
+    // gone; only the adherence ring remains offered.
+    expect(switches).toHaveLength(1);
+    expect(html).toContain('data-ring="MED_COMPLIANCE"');
+  });
+
+  it("hides the derived rings when the insights module is off", () => {
+    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    authState.modules = { insights: false };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    const switches = html.match(/data-slot="score-ring-switch"/g) ?? [];
+    expect(switches).toHaveLength(1);
+    expect(html).toContain('data-ring="MED_COMPLIANCE"');
+  });
+
+  it("disables the remaining switches at the three-ring cap", () => {
+    queryState.layout = {
+      ...DEFAULT_DASHBOARD_LAYOUT,
+      heroVisible: true,
+      selectedScoreRings: ["READINESS", "RECOVERY_SCORE", "SLEEP_SCORE"],
+    };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    const compliance = html.match(
+      /<button[^>]*data-slot="score-ring-switch"[^>]*data-ring="MED_COMPLIANCE"[^>]*>/,
+    );
+    expect(compliance).not.toBeNull();
+    // The rendered `disabled` HTML attribute — not the Tailwind
+    // `disabled:` variant prefixes that every switch class list carries.
+    expect(compliance![0]).toContain('disabled=""');
+    // The three selected rings stay enabled (unchecking must stay possible).
+    const readiness = html.match(
+      /<button[^>]*data-slot="score-ring-switch"[^>]*data-ring="READINESS"[^>]*>/,
+    );
+    expect(readiness).not.toBeNull();
+    expect(readiness![0]).not.toContain('disabled=""');
   });
 });

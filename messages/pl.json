@@ -307,12 +307,6 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Za mało danych",
       "scoreComputing": "Trwa obliczanie wyniku …",
-      "doses": {
-        "summary": "Przyjęto {taken} z {scheduled} dawek",
-        "nextAt": "Następna o {time}",
-        "allDone": "Wszystkie dzisiejsze dawki przyjęte",
-        "none": "Brak zaplanowanych dawek na dziś"
-      },
       "verdict": {
         "doseOverdue": "Dawka {name} jest zaległa.",
         "doseOverdueNoName": "Dawka jest zaległa.",
@@ -390,7 +384,9 @@
     "mood": "Nastrój",
     "customizeTitle": "Układ panelu",
     "heroToggleLabel": "Przegląd dnia",
-    "heroToggleDescription": "Pokazuje powitanie, wynik, fokus dnia i status dawek na górze pulpitu.",
+    "heroToggleDescription": "Pokazuje powitanie, fokus dnia i pierścienie wyników na górze pulpitu.",
+    "scoreRingsTitle": "Pierścienie wyników",
+    "scoreRingsDescription": "Maksymalnie trzy dodatkowe pierścienie obok wskaźnika zdrowia — np. gotowość, regeneracja, sen lub przestrzeganie zaleceń.",
     "layoutReset": "Przywróć wartości domyślne",
     "layoutSaveSuccess": "Układ panelu zapisany",
     "layoutSaveError": "Nie udało się zapisać układu",

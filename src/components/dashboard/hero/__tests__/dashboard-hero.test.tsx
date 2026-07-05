@@ -19,9 +19,11 @@ import { DashboardHero } from "../dashboard-hero";
  *     a button; allQuiet carries none);
  *   - the briefing rung renders the model headline VERBATIM as plain
  *     text (no i18n key);
- *   - the dose row prints the day tally with next-at / all-done / none
- *     detail, and the documented stale-cache state (past `nextDueAt`,
- *     `nextDueOverdue: false`) renders as the plain summary — never as
+ *   - v1.27.7 — the ring row replaced the dose text row: the selected
+ *     `scoreRings` render beside the health-score ring (hue per ring,
+ *     band semantics for the adherence ring) and self-gate on data;
+ *     the documented stale-cache state (past `nextDueAt`,
+ *     `nextDueOverdue: false`) still renders a calm verdict — never
  *     overdue;
  *   - the greeting derives from the snapshot's server-computed
  *     `greetingHour` and personalises from the snapshot username;
@@ -233,8 +235,6 @@ describe("<DashboardHero> — verdict variants", () => {
     expect(html).toContain('data-verdict-variant="doseUpcoming"');
     expect(html).toContain(`Um ${expectedTime} steht Jardiance an.`);
     expect(html).toContain("Jetzt eintragen");
-    // The dose row repeats the same instant as "Nächste um …".
-    expect(html).toContain(`Nächste um ${expectedTime}`);
   });
 
   it("weightDrift: sentence + link to the weight insight", () => {
@@ -366,49 +366,65 @@ describe("<DashboardHero> — verdict variants", () => {
   });
 });
 
-describe("<DashboardHero> — dose row", () => {
-  it("prints the day tally with the neutral chip chrome and the Pill icon", () => {
+describe("<DashboardHero> — ring row (v1.27.7)", () => {
+  it("renders the selected rings beside the health-score ring, in selection order", () => {
+    const html = render(
+      baseSnapshot({
+        healthScore: { score: 82, band: "green", delta: 2 },
+        scoreRings: [
+          { id: "READINESS", score: 71, band: "green" },
+          { id: "MED_COMPLIANCE", score: 95, band: "green" },
+        ],
+      }),
+    );
+    const row = html.match(/data-slot="dashboard-hero-rings"/g) ?? [];
+    expect(row).toHaveLength(1);
+    // Selection order preserved, health ring trailing (3 rings total).
+    const readinessIdx = html.indexOf('data-ring="READINESS"');
+    const complianceIdx = html.indexOf('data-ring="MED_COMPLIANCE"');
+    expect(readinessIdx).toBeGreaterThan(-1);
+    expect(complianceIdx).toBeGreaterThan(readinessIdx);
+    const rings = html.match(/data-slot="score-ring"/g) ?? [];
+    expect(rings).toHaveLength(3);
+    // Labels (de locale): the derived ring reuses its wellness-strip
+    // title, the adherence ring the medications adherence label.
+    expect(html).toContain("Bereitschaft");
+    expect(html).toContain("Therapietreue");
+  });
+
+  it("no dose text row renders anymore — the ring row carries the slot", () => {
     const html = render(
       baseSnapshot({
         medsToday: medsToday({ scheduledToday: 3, takenToday: 1 }),
       }),
     );
-    expect(html).toContain("1 von 3 Dosen genommen");
-    const doseRow = html.match(
-      /<div[^>]*data-slot="dashboard-hero-doses"[^>]*>/,
-    );
-    expect(doseRow).not.toBeNull();
-    // v1.18.1: chip sits on a neutral muted surface over the plain card —
-    // no translucent card tint, no blur, no shadow (the gradient is gone).
-    for (const cls of ["bg-muted/50", "border-border/60", "rounded-xl"]) {
-      expect(doseRow![0]).toContain(cls);
-    }
-    expect(doseRow![0]).not.toContain("backdrop-blur");
-    expect(doseRow![0]).not.toContain("shadow-sm");
-  });
-
-  it("all doses resolved (taken + skipped) → 'Alle Dosen für heute erledigt'", () => {
-    const html = render(
-      baseSnapshot({
-        medsToday: medsToday({
-          scheduledToday: 2,
-          takenToday: 1,
-          skippedToday: 1,
-        }),
-      }),
-    );
-    expect(html).toContain("1 von 2 Dosen genommen");
-    expect(html).toContain("Alle Dosen für heute erledigt");
-    expect(html).not.toContain("Nächste um");
-  });
-
-  it("no doses scheduled → 'Heute keine Dosen geplant'", () => {
-    const html = render(baseSnapshot());
-    expect(html).toContain("Heute keine Dosen geplant");
+    expect(html).not.toContain('data-slot="dashboard-hero-doses"');
     expect(html).not.toContain("Dosen genommen");
   });
 
-  it("DEFENSIVE: a stale past nextDueAt with nextDueOverdue false renders the plain summary, never overdue", () => {
+  it("an empty / absent scoreRings block leaves the health ring alone (self-gating)", () => {
+    const html = render(
+      baseSnapshot({ healthScore: { score: 60, band: "yellow", delta: 0 } }),
+    );
+    const rings = html.match(/data-slot="score-ring"/g) ?? [];
+    expect(rings).toHaveLength(1);
+    expect(html).not.toContain('data-slot="dashboard-hero-ring"');
+  });
+
+  it("the adherence ring paints band semantics (data-band), not a metric hue", () => {
+    const html = render(
+      baseSnapshot({
+        scoreRings: [{ id: "MED_COMPLIANCE", score: 65, band: "red" }],
+      }),
+    );
+    const ring = html.match(
+      /<div[^>]*data-ring="MED_COMPLIANCE"[\s\S]*?data-band="([a-z]+)"/,
+    );
+    expect(ring).not.toBeNull();
+    expect(ring![1]).toBe("red");
+  });
+
+  it("DEFENSIVE: a stale past nextDueAt with nextDueOverdue false still renders a calm verdict, never overdue", () => {
     const html = render(
       baseSnapshot({
         medsToday: medsToday({
@@ -420,25 +436,8 @@ describe("<DashboardHero> — dose row", () => {
         }),
       }),
     );
-    expect(html).toContain("1 von 2 Dosen genommen");
-    expect(html).not.toContain("Nächste um");
     expect(html).not.toContain("überfällig");
     expect(html).toContain('data-verdict-variant="allQuiet"');
-  });
-
-  it("a next-due anchor on TOMORROW's local day stays off the dose row", () => {
-    const html = render(
-      baseSnapshot({
-        medsToday: medsToday({
-          scheduledToday: 2,
-          takenToday: 1,
-          nextDueAt: isoHoursFromNow(20), // 08:00 Berlin tomorrow
-          nextDueMedicationName: "Metformin",
-        }),
-      }),
-    );
-    expect(html).toContain("1 von 2 Dosen genommen");
-    expect(html).not.toContain("Nächste um");
   });
 });
 
