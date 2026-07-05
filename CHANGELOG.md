@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.27.11] — 2026-07-05 — Consistency, colour, and locale fixes
+
+### Fixed
+
+- An explicitly chosen display language now sticks on every device, permanently. Two causes were fixed together: the server never consulted the profile's language when the locale cookie was missing, and Safari deletes script-written cookies after seven days — which silently flipped the UI back to the system language every week. The cookie is now set server-side and the profile choice wins whenever the cookie is gone.
+- Every insights and dashboard card now shares one measured geometry: the same text edge, the same header-to-body distance, the same foreground colour for body prose. A measurement pass over all pages found and fixed a dozen drifted surfaces, including the "usual range" strip (rebuilt on the standard card) and the blood-pressure explainer.
+- The dose ring on the dashboard paints in the medication hue used across the insights instead of green.
+
+### Changed
+
+- The last raw theme-palette colour utilities are gone — every surface reads from semantic tokens now, and the lint rule that guards this is set to error. A small brand token covers the few places that genuinely carry the brand accent, with computed AA contrast in both themes.
+- Card slots are guarded against padding overrides by a new lint rule, keeping the spacing scale uniform going forward.
+
 ## [1.27.10] — 2026-07-05 — Two new check-ins: wellbeing and sleep
 
 ### Added
