@@ -7636,8 +7636,8 @@
     "error": "Coś poszło nie tak. Spróbuj ponownie.",
     "considerProfessional": "Twój wynik mieści się w zakresie, w którym rozmowa ze specjalistą może pomóc. To życzliwa sugestia, a nie diagnoza.",
     "instrument": {
-      "phq9": "PHQ-9 — nastrój",
-      "gad7": "GAD-7 — lęk"
+      "phq9": "PHQ-9 · nastrój",
+      "gad7": "GAD-7 · lęk"
     },
     "instrumentSub": {
       "phq9": "Przesiew depresji, 9 pytań",
@@ -7745,6 +7745,7 @@
     "questionAria": "Pytanie {current} z {total}",
     "next": "Dalej",
     "lastResult": "Ostatni test",
+    "lastScore": "Ostatni wynik",
     "noResultYet": "Brak check-inów",
     "backToList": "Przegląd",
     "jumpFirst": "Przejdź do pierwszego pytania",

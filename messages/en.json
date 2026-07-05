@@ -7636,8 +7636,8 @@
     "error": "Something went wrong. Please try again.",
     "considerProfessional": "Your score is in a range where talking to a health professional may help. This is a gentle suggestion, not a diagnosis.",
     "instrument": {
-      "phq9": "PHQ-9 — mood",
-      "gad7": "GAD-7 — worry"
+      "phq9": "PHQ-9 · mood",
+      "gad7": "GAD-7 · worry"
     },
     "instrumentSub": {
       "phq9": "Depression screen, 9 questions",
@@ -7745,6 +7745,7 @@
     "questionAria": "Question {current} of {total}",
     "next": "Next",
     "lastResult": "Last test",
+    "lastScore": "Last result",
     "noResultYet": "No check-in yet",
     "backToList": "Overview",
     "jumpFirst": "Jump to first question",

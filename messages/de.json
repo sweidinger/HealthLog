@@ -7636,8 +7636,8 @@
     "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
     "considerProfessional": "Dein Wert liegt in einem Bereich, in dem ein Gespräch mit einer Fachperson helfen kann. Das ist ein behutsamer Hinweis, keine Diagnose.",
     "instrument": {
-      "phq9": "PHQ-9 — Stimmung",
-      "gad7": "GAD-7 — Sorgen"
+      "phq9": "PHQ-9 · Stimmung",
+      "gad7": "GAD-7 · Sorgen"
     },
     "instrumentSub": {
       "phq9": "Depressions-Screening, 9 Fragen",
@@ -7745,6 +7745,7 @@
     "questionAria": "Frage {current} von {total}",
     "next": "Weiter",
     "lastResult": "Letzter Test",
+    "lastScore": "Letztes Ergebnis",
     "noResultYet": "Noch kein Check-in",
     "backToList": "Übersicht",
     "jumpFirst": "Zur ersten Frage springen",

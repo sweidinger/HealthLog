@@ -7636,8 +7636,8 @@
     "error": "Une erreur est survenue. Réessaie.",
     "considerProfessional": "Ton score se situe dans une plage où parler à un professionnel de santé peut aider. C'est une suggestion bienveillante, pas un diagnostic.",
     "instrument": {
-      "phq9": "PHQ-9 — humeur",
-      "gad7": "GAD-7 — inquiétude"
+      "phq9": "PHQ-9 · humeur",
+      "gad7": "GAD-7 · inquiétude"
     },
     "instrumentSub": {
       "phq9": "Dépistage de la dépression, 9 questions",
@@ -7745,6 +7745,7 @@
     "questionAria": "Question {current} sur {total}",
     "next": "Suivant",
     "lastResult": "Dernier test",
+    "lastScore": "Dernier résultat",
     "noResultYet": "Pas encore de check-in",
     "backToList": "Vue d'ensemble",
     "jumpFirst": "Aller à la première question",

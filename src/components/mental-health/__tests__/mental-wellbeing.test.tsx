@@ -200,14 +200,42 @@ describe("history rendering", () => {
   });
 });
 
-describe("instrument card (v1.27.6 — no trend-detail target)", () => {
-  it("renders the card body as plain content with Start as the single action", () => {
+describe("instrument card (v1.27.6 — med-/Vorsorge card anatomy)", () => {
+  const lastRow: AssessmentRow = {
+    id: "l1",
+    instrument: "PHQ9",
+    locale: "en",
+    totalScore: 8,
+    severityBand: "mild",
+    item9Flagged: false,
+    crisisShownAt: null,
+    takenAt: "2026-06-20T00:00:00.000Z",
+  };
+
+  it("renders the shared med-card header (title + category badge), no trend target", () => {
     const html = withProviders(
       <InstrumentCard instrument="PHQ9" last={undefined} onStart={() => {}} />,
     );
+    // The med-card header primitive paints the bold name + category badge.
+    expect(html).toContain(mh.instrument.phq9);
+    expect(html).toContain(mh.instrumentSub.phq9);
     // The former trend-detail button is gone…
     expect(html).not.toContain('data-slot="instrument-card-open"');
-    // …and the Start action remains.
+    // …and the Start action remains the single bottom-pinned action.
     expect(html).toContain(mh.start);
+    // No history yet → the calm no-check-in line, no fabricated dashes.
+    expect(html).toContain(mh.noResultYet);
+  });
+
+  it("shows last test (relative) and last result (score + band word)", () => {
+    const html = withProviders(
+      <InstrumentCard instrument="PHQ9" last={lastRow} onStart={() => {}} />,
+    );
+    expect(html).toContain(mh.lastResult);
+    expect(html).toContain(mh.lastScore);
+    // Score + band word ride one value slot ("8 · Mild").
+    expect(html).toContain('data-slot="instrument-card-last-score"');
+    expect(html).toContain(mh.band.PHQ9.mild);
+    expect(html).not.toContain(mh.noResultYet);
   });
 });

@@ -7636,8 +7636,8 @@
     "error": "Qualcosa è andato storto. Riprova.",
     "considerProfessional": "Il tuo punteggio è in un intervallo in cui parlare con un professionista sanitario può aiutare. È un suggerimento gentile, non una diagnosi.",
     "instrument": {
-      "phq9": "PHQ-9 — umore",
-      "gad7": "GAD-7 — preoccupazione"
+      "phq9": "PHQ-9 · umore",
+      "gad7": "GAD-7 · preoccupazione"
     },
     "instrumentSub": {
       "phq9": "Screening della depressione, 9 domande",
@@ -7745,6 +7745,7 @@
     "questionAria": "Domanda {current} di {total}",
     "next": "Avanti",
     "lastResult": "Ultimo test",
+    "lastScore": "Ultimo risultato",
     "noResultYet": "Ancora nessun check-in",
     "backToList": "Panoramica",
     "jumpFirst": "Vai alla prima domanda",

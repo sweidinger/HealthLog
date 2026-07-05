@@ -7636,8 +7636,8 @@
     "error": "Algo salió mal. Inténtalo de nuevo.",
     "considerProfessional": "Tu puntuación está en un rango en el que hablar con un profesional de salud puede ayudar. Es una sugerencia amable, no un diagnóstico.",
     "instrument": {
-      "phq9": "PHQ-9 — ánimo",
-      "gad7": "GAD-7 — preocupación"
+      "phq9": "PHQ-9 · ánimo",
+      "gad7": "GAD-7 · preocupación"
     },
     "instrumentSub": {
       "phq9": "Cribado de depresión, 9 preguntas",
@@ -7745,6 +7745,7 @@
     "questionAria": "Pregunta {current} de {total}",
     "next": "Siguiente",
     "lastResult": "Última prueba",
+    "lastScore": "Último resultado",
     "noResultYet": "Aún sin check-in",
     "backToList": "Vista general",
     "jumpFirst": "Ir a la primera pregunta",
