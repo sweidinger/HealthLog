@@ -5,7 +5,15 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { getValidToken } from "@/lib/google-health/sync";
-import { GOOGLE_HEALTH_API_BASE } from "@/lib/google-health/client";
+import {
+  GOOGLE_HEALTH_ACTIVITY_PAGE_SIZE,
+  GOOGLE_HEALTH_API_BASE,
+  GOOGLE_HEALTH_DATA_TYPES,
+  fetchDailyRollUp,
+  fetchDataPoints,
+} from "@/lib/google-health/client";
+import { GoogleHealthApiError } from "@/lib/google-health/response-classifier";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { safeFetch, SafeFetchError } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
@@ -43,8 +51,106 @@ function categoriseHttpStatus(status: number): CategorisedError {
   };
 }
 
+/**
+ * Reduce an arbitrary JSON value to its STRUCTURE: object keys survive, every
+ * leaf collapses to its `typeof` label (`"string"`, `"number"`, …; null →
+ * `"null"`), arrays keep only their first element's structure. No health value,
+ * timestamp, or identifier survives — the output is safe for a self-hoster to
+ * paste into a public diagnostics thread.
+ */
+function describeStructure(v: unknown, depth = 0): unknown {
+  if (depth > 8) return "…";
+  if (v === null) return "null";
+  if (Array.isArray(v)) {
+    return v.length > 0 ? [describeStructure(v[0], depth + 1)] : [];
+  }
+  if (typeof v === "object") {
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>).map(([k, val]) => [
+        k,
+        describeStructure(val, depth + 1),
+      ]),
+    );
+  }
+  return typeof v;
+}
+
+type ProbeResult =
+  | { ok: true; count: number; structure: unknown }
+  | {
+      ok: false;
+      httpStatus: number | null;
+      classification: string | null;
+      detail: string | null;
+    };
+
+/**
+ * Fetch ONE recent page/window per data type and reduce the first data point to
+ * its structure. Errors are captured per type (a 400's AIP-193 detail included)
+ * so a broken type doesn't hide the others — that per-type verdict is the whole
+ * point of the probe.
+ */
+async function runStructureProbe(
+  accessToken: string,
+  tz: string | undefined,
+): Promise<Record<string, ProbeResult>> {
+  const now = Date.now();
+  const listStart = new Date(now - 14 * 24 * 60 * 60 * 1000);
+  const rollupStart = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+  const results: Record<string, ProbeResult> = {};
+  for (const [name, dataType] of Object.entries(GOOGLE_HEALTH_DATA_TYPES)) {
+    try {
+      let points: Record<string, unknown>[];
+      if (dataType.timeField === "rollup") {
+        points = await fetchDailyRollUp(
+          dataType,
+          accessToken,
+          `probe:${name}`,
+          {
+            start: rollupStart,
+            tz,
+          },
+        );
+      } else {
+        const pageSize =
+          dataType.timeField === "sessionEnd" ||
+          dataType.timeField === "civilStart"
+            ? GOOGLE_HEALTH_ACTIVITY_PAGE_SIZE
+            : 5;
+        points = await fetchDataPoints(dataType, accessToken, `probe:${name}`, {
+          start: listStart,
+          pageSize,
+          maxPages: 1,
+          tz,
+        });
+      }
+      results[name] = {
+        ok: true,
+        count: points.length,
+        structure: points.length > 0 ? describeStructure(points[0]) : null,
+      };
+    } catch (e) {
+      results[name] =
+        e instanceof GoogleHealthApiError
+          ? {
+              ok: false,
+              httpStatus: e.httpStatus ?? null,
+              classification: e.classification,
+              detail: e.upstreamError ?? null,
+            }
+          : {
+              ok: false,
+              httpStatus: null,
+              classification: null,
+              detail: "fetch_failed",
+            };
+    }
+  }
+  return results;
+}
+
 export const POST = apiHandler(async (request: NextRequest) => {
-  void request;
   const { user } = await requireAuth();
   annotate({ action: { name: "integrations.google-health.test" } });
 
@@ -55,10 +161,41 @@ export const POST = apiHandler(async (request: NextRequest) => {
     });
   }
 
+  // Flag-only payload — `{ "probe": "structure" }` switches to the per-type
+  // structure probe; anything else runs the plain connection check. Cap the
+  // parse cost (mirrors safeJson maxBytes).
+  let structureProbe = false;
+  try {
+    const raw = await request.text();
+    if (raw.length > 64 * 1024) {
+      return apiError(`Request body exceeds ${64 * 1024} bytes`, 413);
+    }
+    const body = JSON.parse(raw);
+    structureProbe = body?.probe === "structure";
+  } catch {
+    // no body provided -> plain connection check
+  }
+
   const tokenInfo = await getValidToken(user.id);
   if (!tokenInfo) {
     return apiError("Google Health not connected", 422, {
       errorCode: "not_configured",
+    });
+  }
+
+  if (structureProbe) {
+    // Per-data-type structure probe: one page/window per type, reduced to field
+    // names + leaf types (never values) so a self-hoster can paste the output
+    // as diagnostics without leaking a single reading.
+    annotate({
+      action: { name: "integrations.google-health.structure_probe" },
+    });
+    const tz = await resolveUserTimezone(user.id);
+    const types = await runStructureProbe(tokenInfo.accessToken, tz);
+    return apiSuccess({
+      probe: "structure",
+      probedAt: new Date().toISOString(),
+      types,
     });
   }
 

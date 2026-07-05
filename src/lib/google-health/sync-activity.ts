@@ -5,19 +5,21 @@
  * `activity_and_fitness.readonly` Restricted bundle and upserts each mapped
  * daily total as `source = GOOGLE_HEALTH`:
  *
- *   - steps               → ACTIVITY_STEPS            (count)
- *   - distance            → WALKING_RUNNING_DISTANCE  (metres)
- *   - active-energy-burned→ ACTIVE_ENERGY_BURNED      (kcal — ACTIVE portion only)
- *   - floors              → FLIGHTS_CLIMBED           (count)
- *   - vo2-max             → VO2_MAX                    (mL/(kg·min); daily latest-wins)
+ *   - steps                → ACTIVITY_STEPS            (countSum)
+ *   - distance             → WALKING_RUNNING_DISTANCE  (millimetersSum → m)
+ *   - active-energy-burned → ACTIVE_ENERGY_BURNED      (kcalSum — ACTIVE portion only)
+ *   - floors               → FLIGHTS_CLIMBED           (countSum)
+ *   - daily-vo2-max        → VO2_MAX                    (mL/(kg·min); daily latest-wins)
  *
- * These are per-day summaries (one value per calendar day). The externalId is
- * minted with the `stats:` daily-total prefix — `stats:<fieldTag>:<YYYY-MM-DD>`
- * — so a re-fetched day OVERWRITES the existing row rather than minting a
- * duplicate, matching the Apple-Health `stats:<HK>:<YYYY-MM-DD>` overwrite
- * contract. A day of rest legitimately records 0 steps / 0 floors / 0 active
- * kcal, so the cumulative mappers preserve a zero; VO2 max stays strictly
- * positive.
+ * The four cumulative types read through `POST :dailyRollUp` with
+ * `windowSizeDays: 1` (their `list` surface returns minute-grain buckets, not
+ * daily totals — and floors has no list method at all); VO2 max is a daily
+ * summary read through list with a `.date` filter. The externalId is minted
+ * with the `stats:` daily-total prefix — `stats:<fieldTag>:<YYYY-MM-DD>` — so a
+ * re-fetched day OVERWRITES the existing row rather than minting a duplicate,
+ * matching the Apple-Health `stats:<HK>:<YYYY-MM-DD>` overwrite contract. A day
+ * of rest legitimately records 0 steps / 0 floors / 0 active kcal, so the
+ * rollup mapper preserves a zero; VO2 max stays strictly positive.
  *
  * A per-data-class 403 soft-skips THAT class (returns 0, leaves the connection
  * connected) — the Restricted bundles are granted independently.
@@ -26,6 +28,7 @@ import {
   GOOGLE_HEALTH_DATA_TYPES,
   type GoogleHealthDataType,
   type GoogleHealthMappedMeasurement,
+  fetchDailyRollUp,
   fetchDataPoints,
   mapActiveEnergy,
   mapDistance,
@@ -46,14 +49,12 @@ import { resolveUserTimezone } from "@/lib/tz/resolver";
 /** One mappable activity metric: its data-type encoding + the mapper + a verb. */
 interface ActivityResource {
   dataType: GoogleHealthDataType;
-  map: (
-    point: Record<string, unknown>,
-    tz?: string,
-  ) => GoogleHealthMappedMeasurement[];
+  map: (point: Record<string, unknown>) => GoogleHealthMappedMeasurement[];
   verb: string;
 }
 
-const ACTIVITY_RESOURCES: ActivityResource[] = [
+/** The four cumulative daily totals — read via `POST :dailyRollUp`. */
+const ROLLUP_RESOURCES: ActivityResource[] = [
   {
     dataType: GOOGLE_HEALTH_DATA_TYPES.steps,
     map: mapSteps,
@@ -74,11 +75,6 @@ const ACTIVITY_RESOURCES: ActivityResource[] = [
     map: mapFloors,
     verb: "fetchFloors",
   },
-  {
-    dataType: GOOGLE_HEALTH_DATA_TYPES.vo2Max,
-    map: mapVo2Max,
-    verb: "fetchVo2Max",
-  },
 ];
 
 /**
@@ -98,10 +94,10 @@ export async function syncUserActivity(
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
 
-  // A cumulative daily total whose `interval.start_time` sits at the user's
-  // local midnight can carry an offset-less civil anchor; resolve the user's
-  // stored zone so the day-key lands on the correct civil day rather than the
-  // process zone's.
+  // The dailyRollUp request range is civil and user-local; resolve the user's
+  // stored zone so the range bounds land on the correct civil days rather than
+  // the process zone's. (The response day-key comes from each window's own
+  // `civilStartTime.date`, tz-independent.)
   const tz = await resolveUserTimezone(userId);
 
   // Cycle-wide watermark snapshotted once by `syncUserGoogleHealth`; undefined
@@ -109,14 +105,14 @@ export async function syncUserActivity(
   const start = opts.start;
 
   let imported = 0;
-  for (const resource of ACTIVITY_RESOURCES) {
+  for (const resource of ROLLUP_RESOURCES) {
     let points: Record<string, unknown>[];
     try {
-      points = await fetchDataPoints(
+      points = await fetchDailyRollUp(
         resource.dataType,
         tokenInfo.accessToken,
         resource.verb,
-        { start },
+        { start, tz },
       );
     } catch (err) {
       imported += await handleCollectionFetchError(resource.verb, userId, err);
@@ -125,7 +121,7 @@ export async function syncUserActivity(
 
     const readings: GoogleHealthMeasurementUpsert[] = [];
     for (const point of points) {
-      for (const m of resource.map(point, tz)) {
+      for (const m of resource.map(point)) {
         readings.push({
           type: m.type,
           value: m.value,
@@ -140,6 +136,35 @@ export async function syncUserActivity(
         deferRollup: opts.deferRollup,
       })
     ).imported;
+  }
+
+  // VO2 max — a daily summary (list + `.date` filter), not a rollup type.
+  try {
+    const points = await fetchDataPoints(
+      GOOGLE_HEALTH_DATA_TYPES.vo2Max,
+      tokenInfo.accessToken,
+      "fetchVo2Max",
+      { start },
+    );
+    const readings: GoogleHealthMeasurementUpsert[] = [];
+    for (const point of points) {
+      for (const m of mapVo2Max(point)) {
+        readings.push({
+          type: m.type,
+          value: m.value,
+          unit: m.unit,
+          measuredAt: m.measuredAt,
+          externalId: externalIdFor(m),
+        });
+      }
+    }
+    imported += (
+      await upsertGoogleHealthMeasurements(userId, readings, {
+        deferRollup: opts.deferRollup,
+      })
+    ).imported;
+  } catch (err) {
+    imported += await handleCollectionFetchError("fetchVo2Max", userId, err);
   }
 
   // `markSynced` is owned by the orchestrator (`syncUserGoogleHealth`).

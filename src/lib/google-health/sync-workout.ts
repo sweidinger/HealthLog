@@ -37,7 +37,10 @@ export async function syncUserWorkout(
   if (!tokenInfo) return 0;
 
   // Session start/end can arrive offset-less; anchor them against the user's
-  // stored zone rather than the process zone.
+  // stored zone rather than the process zone. The zone also shapes the
+  // incremental filter: exercise sessions filter on
+  // `exercise.interval.civil_start_time` with an offset-less civil bound, which
+  // must be the watermark's wall clock in the USER'S zone.
   const tz = await resolveUserTimezone(userId);
 
   // Cycle-wide watermark snapshotted once by `syncUserGoogleHealth`; undefined
@@ -50,7 +53,7 @@ export async function syncUserWorkout(
       GOOGLE_HEALTH_DATA_TYPES.exercise,
       tokenInfo.accessToken,
       "fetchExercise",
-      { start, pageSize: GOOGLE_HEALTH_ACTIVITY_PAGE_SIZE },
+      { start, pageSize: GOOGLE_HEALTH_ACTIVITY_PAGE_SIZE, tz },
     );
   } catch (err) {
     return handleCollectionFetchError("fetchExercise", userId, err);
