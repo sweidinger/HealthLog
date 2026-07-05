@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.27.4] — 2026-07-05 — Google Health sync fixed against the live API
+
+### Fixed
+
+- The Google Health sync now actually imports data. Against the live service the v4 responses differ from what the connection was built against: payload fields arrive in a different naming form, large numbers arrive as text, and several data types only answer on other read methods. Steps, distance, floors, and active energy now read as true daily totals; sleep, workouts, blood oxygen, HRV, respiratory rate, and cardio fitness use the read method and data type the service accepts, so their requests no longer fail. Weight and height convert from the service's units correctly.
+- When Google rejects a request, the sync log now carries the service's own error message (shortened, without credentials), so a failing setup can be diagnosed from the integration status instead of a bare status code.
+
+### Added
+
+- The Google Health connection test can return a structure probe: one sample request per data type, reduced to field names and value kinds — never actual readings. Useful when reporting sync issues.
+
 ## [1.27.3] — 2026-07-05 — Briefing resilience and Insights readability
 
 ### Fixed
