@@ -2193,7 +2193,6 @@
         "summaryAdoptedNone": "nothing new added to your self-context",
         "summaryLink": "Review your self-context"
       },
-      "voiceComingSoon": "Voice input arrives with the iOS app in v1.5.",
       "threadEmpty": "Ask anything about your trends, medications, or readings to start a conversation.",
       "historyTitle": "Conversations",
       "historySearchPlaceholder": "Search conversations…",
@@ -2696,11 +2695,11 @@
         "asleep": "Asleep",
         "awake": "Awake",
         "inBed": "In bed",
-        "unavailable": "No stage data yet — Apple Health stage syncing arrives in v1.5."
+        "unavailable": "No stage data yet — sleep stages appear here as soon as a connected source delivers them."
       },
       "empty": {
         "title": "No sleep data yet",
-        "description": "Apple Health sync arrives in v1.5 and will fill this in automatically.",
+        "description": "Connect a source like Apple Health or a wearable — or log sleep manually — and this view fills in automatically.",
         "action": "Manage devices"
       },
       "debt": {

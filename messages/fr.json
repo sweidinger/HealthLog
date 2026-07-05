@@ -2193,7 +2193,6 @@
         "summaryAdoptedNone": "rien de nouveau ajouté à vos informations personnelles",
         "summaryLink": "Voir vos informations personnelles"
       },
-      "voiceComingSoon": "La saisie vocale arrive avec l’app iOS en v1.5.",
       "threadEmpty": "Pose une question sur tes tendances, médicaments ou mesures pour démarrer.",
       "historyTitle": "Conversations",
       "historySearchPlaceholder": "Rechercher dans les conversations…",
@@ -2696,11 +2695,11 @@
         "asleep": "Endormi",
         "awake": "Éveillé",
         "inBed": "Au lit",
-        "unavailable": "Pas encore de données de phases — la synchro des phases via Apple Health arrive avec la v1.5."
+        "unavailable": "Pas encore de données de phases — les phases de sommeil apparaîtront ici dès qu’une source connectée les fournira."
       },
       "empty": {
         "title": "Pas encore de données de sommeil",
-        "description": "La synchro Apple Health arrive avec la v1.5 et remplira automatiquement cette vue.",
+        "description": "Connecte une source comme Apple Health ou un objet connecté — ou enregistre ton sommeil manuellement — et cette vue se remplira automatiquement.",
         "action": "Gérer les appareils"
       },
       "debt": {

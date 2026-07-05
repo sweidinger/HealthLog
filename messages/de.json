@@ -2193,7 +2193,6 @@
         "summaryAdoptedNone": "nichts Neues in die Selbstauskunft übernommen",
         "summaryLink": "Selbstauskunft ansehen"
       },
-      "voiceComingSoon": "Spracheingabe kommt mit der iOS-App in v1.5.",
       "threadEmpty": "Frag mich etwas zu deinen Trends, Medikamenten oder Messwerten, um zu starten.",
       "historyTitle": "Unterhaltungen",
       "historySearchPlaceholder": "Unterhaltungen durchsuchen…",
@@ -2696,11 +2695,11 @@
         "asleep": "Schlafend",
         "awake": "Wach",
         "inBed": "Im Bett",
-        "unavailable": "Noch keine Phasen-Daten – Apple-Health-Sync für Schlafphasen folgt mit v1.5."
+        "unavailable": "Noch keine Phasen-Daten – Schlafphasen erscheinen hier, sobald eine verbundene Quelle sie liefert."
       },
       "empty": {
         "title": "Noch keine Schlafdaten",
-        "description": "Apple-Health-Sync folgt mit v1.5 und füllt diese Ansicht automatisch.",
+        "description": "Verbinde eine Quelle wie Apple Health oder ein Wearable – oder erfasse Schlaf manuell – und diese Ansicht füllt sich automatisch.",
         "action": "Geräte verwalten"
       },
       "debt": {

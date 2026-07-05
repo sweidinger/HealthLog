@@ -2193,7 +2193,6 @@
         "summaryAdoptedNone": "nulla di nuovo aggiunto alle tue informazioni personali",
         "summaryLink": "Vedi le tue informazioni personali"
       },
-      "voiceComingSoon": "L’input vocale arriva con l’app iOS in v1.5.",
       "threadEmpty": "Chiedimi qualcosa sui tuoi trend, farmaci o misurazioni per iniziare.",
       "historyTitle": "Conversazioni",
       "historySearchPlaceholder": "Cerca nelle conversazioni…",
@@ -2696,11 +2695,11 @@
         "asleep": "Addormentato",
         "awake": "Sveglio",
         "inBed": "A letto",
-        "unavailable": "Ancora nessun dato sulle fasi — la sync delle fasi via Apple Health arriva con v1.5."
+        "unavailable": "Ancora nessun dato sulle fasi — le fasi del sonno appariranno qui non appena una fonte collegata le fornirà."
       },
       "empty": {
         "title": "Ancora nessun dato sul sonno",
-        "description": "La sync con Apple Health arriva con v1.5 e riempirà questa vista in automatico.",
+        "description": "Collega una fonte come Apple Health o un wearable — oppure registra il sonno manualmente — e questa vista si riempirà in automatico.",
         "action": "Gestisci dispositivi"
       },
       "debt": {
