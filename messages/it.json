@@ -7609,6 +7609,34 @@
     "settings": {
       "reminderSuggestionsLabel": "Suggerimenti di cadenza",
       "reminderSuggestionsDescription": "Lascia che il Coach proponga ogni tanto un promemoria basato sull'evidenza per misurare una metrica più regolarmente."
+    },
+    "plans": {
+      "title": "Piani",
+      "pageDescription": "Piani «se… allora» concordati nelle conversazioni con il Coach. Conferma una proposta perché il Coach la tenga a mente.",
+      "proposalTitle": "Proposta di piano",
+      "ifThen": "Se {cue}, allora {action}.",
+      "targetPrefix": "Obiettivo: {target}",
+      "reviewPrefix": "Verifica: {when}",
+      "accept": "Adotta il piano",
+      "decline": "Rifiuta",
+      "accepted": "Piano adottato: il Coach lo terrà a mente.",
+      "declined": "Proposta rifiutata.",
+      "failed": "Operazione non riuscita: riprova.",
+      "markMet": "Obiettivo raggiunto",
+      "abandon": "Termina piano",
+      "remove": "Rimuovi",
+      "empty": "Ancora nessun piano. Quando in una conversazione ti impegni in un'intenzione concreta «se… allora», il Coach la propone qui per la conferma.",
+      "groupProposed": "Proposte",
+      "groupActive": "Attivi",
+      "groupPast": "Conclusi",
+      "status": {
+        "proposed": "Proposto",
+        "active": "Attivo",
+        "met": "Raggiunto",
+        "abandoned": "Terminato",
+        "review_due": "Verifica in scadenza",
+        "reviewed": "Valutato"
+      }
     }
   },
   "safety": {

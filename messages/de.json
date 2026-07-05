@@ -7609,6 +7609,34 @@
     "settings": {
       "reminderSuggestionsLabel": "Kadenz-Vorschläge",
       "reminderSuggestionsDescription": "Lass den Coach gelegentlich eine evidenzbasierte Erinnerung anbieten, eine Metrik regelmäßiger zu messen."
+    },
+    "plans": {
+      "title": "Pläne",
+      "pageDescription": "Wenn-dann-Pläne aus deinen Coach-Gesprächen. Bestätige einen Vorschlag, damit der Coach ihn sich merkt.",
+      "proposalTitle": "Plan-Vorschlag",
+      "ifThen": "Wenn {cue}, dann {action}.",
+      "targetPrefix": "Ziel: {target}",
+      "reviewPrefix": "Check-in: {when}",
+      "accept": "Plan übernehmen",
+      "decline": "Ablehnen",
+      "accepted": "Plan übernommen — der Coach behält ihn im Blick.",
+      "declined": "Vorschlag abgelehnt.",
+      "failed": "Das hat nicht geklappt — bitte erneut versuchen.",
+      "markMet": "Ziel erreicht",
+      "abandon": "Plan beenden",
+      "remove": "Entfernen",
+      "empty": "Noch keine Pläne. Wenn du dich im Gespräch zu einer konkreten Wenn-dann-Absicht bekennst, schlägt der Coach sie hier zur Bestätigung vor.",
+      "groupProposed": "Vorschläge",
+      "groupActive": "Aktiv",
+      "groupPast": "Abgeschlossen",
+      "status": {
+        "proposed": "Vorgeschlagen",
+        "active": "Aktiv",
+        "met": "Erreicht",
+        "abandoned": "Beendet",
+        "review_due": "Check-in fällig",
+        "reviewed": "Ausgewertet"
+      }
     }
   },
   "safety": {

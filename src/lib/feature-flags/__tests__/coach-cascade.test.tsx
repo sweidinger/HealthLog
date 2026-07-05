@@ -288,6 +288,9 @@ describe("Coach disable cascade invariant", () => {
     // `flags.coach` like the main Coach route and renders unavailable
     // when the operator master flag is off.
     "src/app/coach/conversations/page.tsx",
+    // The plans management page mirrors the conversation-history page's
+    // gate: operator master flag off redirects back to `/insights`.
+    "src/app/coach/plans/page.tsx",
     // v1.15.20 — the proactive Coach-nudge cron short-circuits on
     // `flags.coach` (gate 1) so an operator kill-switch also silences
     // the nudges. Server-side cron, not a render path — the cascade

@@ -7609,6 +7609,34 @@
     "settings": {
       "reminderSuggestionsLabel": "Sugerencias de frecuencia",
       "reminderSuggestionsDescription": "Permite que el Coach ofrezca de vez en cuando un recordatorio basado en evidencia para medir una métrica con más regularidad."
+    },
+    "plans": {
+      "title": "Planes",
+      "pageDescription": "Planes de tipo «si… entonces» acordados en tus conversaciones con el Coach. Confirma una propuesta para que el Coach la recuerde.",
+      "proposalTitle": "Propuesta de plan",
+      "ifThen": "Si {cue}, entonces {action}.",
+      "targetPrefix": "Objetivo: {target}",
+      "reviewPrefix": "Revisión: {when}",
+      "accept": "Aceptar plan",
+      "decline": "Rechazar",
+      "accepted": "Plan aceptado: el Coach lo tendrá en cuenta.",
+      "declined": "Propuesta rechazada.",
+      "failed": "No ha funcionado; inténtalo de nuevo.",
+      "markMet": "Objetivo cumplido",
+      "abandon": "Finalizar plan",
+      "remove": "Eliminar",
+      "empty": "Aún no hay planes. Cuando te comprometas con una intención concreta de tipo «si… entonces» en una conversación, el Coach la propondrá aquí para confirmarla.",
+      "groupProposed": "Propuestas",
+      "groupActive": "Activos",
+      "groupPast": "Completados",
+      "status": {
+        "proposed": "Propuesto",
+        "active": "Activo",
+        "met": "Cumplido",
+        "abandoned": "Finalizado",
+        "review_due": "Revisión pendiente",
+        "reviewed": "Revisado"
+      }
     }
   },
   "safety": {

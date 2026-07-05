@@ -302,6 +302,9 @@ describe("Coach per-user disableCoach invariant", () => {
     // Coach route gate: operator master flag OR per-user opt-out marks
     // the page unavailable instead of painting a dead history shell.
     "src/app/coach/conversations/page.tsx",
+    // The plans management page mirrors the same gate: operator master
+    // flag OR per-user opt-out redirects instead of a dead plans shell.
+    "src/app/coach/plans/page.tsx",
     // The hook itself + its `useAuth`-backed reader.
     "src/hooks/use-disable-coach.ts",
     // Cross-cut gates owned by sibling invariants / route tests.

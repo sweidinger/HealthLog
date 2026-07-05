@@ -42,4 +42,14 @@ export const coachKeys = {
     ["coach-reminders", status ?? "all"] as const,
   /** Prefix key — invalidates every `coachReminders(status)` slot at once. */
   coachRemindersAll: () => ["coach-reminders"] as const,
+  /**
+   * v1.27.x — the user's Coach goal / if-then plans (`GET /api/coach/plans`).
+   * The `filter` arg keys the chat thread's proposal read (`status:proposed`)
+   * separately from the management page's ledger read (`scope:all`) so the
+   * two never share a cache slot.
+   */
+  coachPlans: (filter?: string) =>
+    ["coach-plans", filter ?? "default"] as const,
+  /** Prefix key — invalidates every `coachPlans(filter)` slot at once. */
+  coachPlansAll: () => ["coach-plans"] as const,
 };
