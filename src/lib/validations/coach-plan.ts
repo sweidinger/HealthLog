@@ -17,10 +17,26 @@ import { z } from "zod/v4";
 
 import { COACH_PLAN_STATUSES } from "@/lib/ai/coach/plans";
 
-/** Optional `?status=` filter on the list endpoint. */
-export const coachPlansListQuerySchema = z.object({
-  status: z.enum(COACH_PLAN_STATUSES).optional(),
-});
+/**
+ * Optional `?scope=` filter on the list endpoint — a named status group so
+ * the plans management surface can pull its whole ledger in one read:
+ *   - `open`: proposed + active + review_due (everything still standing)
+ *   - `past`: met + abandoned + reviewed (the settled history)
+ *   - `all`:  every non-deleted plan
+ * Additive next to `?status=`; the two are mutually exclusive per request.
+ */
+export const COACH_PLAN_SCOPES = ["open", "past", "all"] as const;
+
+/** Optional `?status=` / `?scope=` filters on the list endpoint. */
+export const coachPlansListQuerySchema = z
+  .object({
+    status: z.enum(COACH_PLAN_STATUSES).optional(),
+    scope: z.enum(COACH_PLAN_SCOPES).optional(),
+  })
+  .refine(
+    (v) => !(v.status !== undefined && v.scope !== undefined),
+    "Provide either status or scope, not both",
+  );
 
 /**
  * The user-facing PATCH body. `status` is the only mutable lifecycle field; a

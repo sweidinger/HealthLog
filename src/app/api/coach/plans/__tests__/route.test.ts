@@ -175,9 +175,71 @@ describe("GET /api/coach/plans", () => {
     expect(where.status).toBe("proposed");
   });
 
+  it("maps ?scope=open to the standing set incl. review_due", async () => {
+    vi.mocked(prisma.coachPlan.findMany).mockResolvedValue([] as never);
+    await callGet("http://localhost/api/coach/plans?scope=open");
+    const where = vi.mocked(prisma.coachPlan.findMany).mock.calls[0]?.[0]
+      ?.where as { status: unknown };
+    expect(where.status).toEqual({
+      in: ["proposed", "active", "review_due"],
+    });
+  });
+
+  it("maps ?scope=past to the settled set", async () => {
+    vi.mocked(prisma.coachPlan.findMany).mockResolvedValue([] as never);
+    await callGet("http://localhost/api/coach/plans?scope=past");
+    const where = vi.mocked(prisma.coachPlan.findMany).mock.calls[0]?.[0]
+      ?.where as { status: unknown };
+    expect(where.status).toEqual({ in: ["met", "abandoned", "reviewed"] });
+  });
+
+  it("drops the status clause entirely for ?scope=all", async () => {
+    vi.mocked(prisma.coachPlan.findMany).mockResolvedValue([] as never);
+    await callGet("http://localhost/api/coach/plans?scope=all");
+    const where = vi.mocked(prisma.coachPlan.findMany).mock.calls[0]?.[0]
+      ?.where as Record<string, unknown>;
+    expect(where.userId).toBe("user-1");
+    expect(where.deletedAt).toBeNull();
+    expect("status" in where).toBe(false);
+  });
+
+  it("422s when both ?status= and ?scope= are given", async () => {
+    const res = await callGet(
+      "http://localhost/api/coach/plans?status=active&scope=all",
+    );
+    expect(res.status).toBe(422);
+  });
+
   it("422s on an invalid ?status=", async () => {
     const res = await callGet("http://localhost/api/coach/plans?status=bogus");
     expect(res.status).toBe(422);
+  });
+
+  it("422s on an invalid ?scope=", async () => {
+    const res = await callGet("http://localhost/api/coach/plans?scope=bogus");
+    expect(res.status).toBe(422);
+  });
+
+  it("carries the source conversation id through to the item", async () => {
+    vi.mocked(prisma.coachPlan.findMany).mockResolvedValue([
+      {
+        id: "p1",
+        metric: "WEIGHT",
+        ifCueEncrypted: bytes("every morning"),
+        thenActionEncrypted: bytes("weigh in"),
+        targetEncrypted: null,
+        status: "proposed",
+        reviewDate: null,
+        sourceConversationId: "conv-9",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ] as never);
+    const res = await callGet();
+    const body = (await res.json()) as {
+      data: { plans: Array<{ sourceConversationId: string | null }> };
+    };
+    expect(body.data.plans[0]?.sourceConversationId).toBe("conv-9");
   });
 
   it("skips an undecryptable row rather than 500ing", async () => {

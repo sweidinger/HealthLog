@@ -17,7 +17,9 @@
  * The owner is always narrowed from the session, never the body.
  *
  * `?status=proposed|active|met|abandoned` optionally filters the list (e.g.
- * the composer fetches `proposed` to surface confirm cards). Omitted returns
+ * the chat thread fetches `proposed` to surface confirm cards). `?scope=`
+ * pulls a named status group instead (`open` | `past` | `all`) so the plans
+ * management page reads its whole ledger in one round-trip. Omitted returns
  * the non-terminal set (proposed + active), newest first.
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
@@ -27,6 +29,12 @@ import { prisma } from "@/lib/db";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { coachPlansListQuerySchema } from "@/lib/validations/coach-plan";
+
+/** The status sets behind the named `?scope=` groups (`all` = no filter). */
+const SCOPE_STATUSES: Record<"open" | "past", string[]> = {
+  open: ["proposed", "active", "review_due"],
+  past: ["met", "abandoned", "reviewed"],
+};
 
 export const GET = apiHandler(async (req: Request) => {
   const { user } = await requireAuth();
@@ -38,16 +46,23 @@ export const GET = apiHandler(async (req: Request) => {
   const url = new URL(req.url);
   const parsed = coachPlansListQuerySchema.safeParse({
     status: url.searchParams.get("status") ?? undefined,
+    scope: url.searchParams.get("scope") ?? undefined,
   });
   if (!parsed.success) {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  // No status filter → the non-terminal set (the actionable plans). An
-  // explicit status filters to exactly that status.
+  // No filter → the non-terminal set (the actionable plans). An explicit
+  // status filters to exactly that status; a scope selects a named group
+  // (`all` drops the status clause entirely).
+  const scope = parsed.data.scope;
   const statusWhere = parsed.data.status
     ? { status: parsed.data.status }
-    : { status: { in: ["proposed", "active"] } };
+    : scope === "all"
+      ? {}
+      : scope
+        ? { status: { in: SCOPE_STATUSES[scope] } }
+        : { status: { in: ["proposed", "active"] } };
 
   const rows = await prisma.coachPlan.findMany({
     where: { userId: user.id, deletedAt: null, ...statusWhere },
@@ -60,6 +75,7 @@ export const GET = apiHandler(async (req: Request) => {
       targetEncrypted: true,
       status: true,
       reviewDate: true,
+      sourceConversationId: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -73,6 +89,7 @@ export const GET = apiHandler(async (req: Request) => {
     target: string | null;
     status: string;
     reviewDate: string | null;
+    sourceConversationId: string | null;
     createdAt: string;
     updatedAt: string;
   }> = [];
@@ -104,6 +121,9 @@ export const GET = apiHandler(async (req: Request) => {
       target,
       status: row.status,
       reviewDate: row.reviewDate?.toISOString() ?? null,
+      // Provenance for the chat surface: the thread only shows proposal
+      // cards born in the OPEN conversation, never strays from another one.
+      sourceConversationId: row.sourceConversationId,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     });
