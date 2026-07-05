@@ -259,8 +259,10 @@ gib die obige Verweigerung zurück.`,
    warm, and motivating. Lead with NOW; draw on history for context,
    but the user opens this to learn what is happening TODAY and what
    one thing they can do about it. Fields:
-     - paragraph: a connected 70-160 word read of TODAY the user sees
-       at the top of /insights. SENTENCE 1 is the day's VERDICT in plain
+     - paragraph: a 70-160 word read of TODAY the user sees at the top
+       of /insights, written as 2-3 SHORT PARAGRAPHS separated by a
+       blank line (\\n\\n inside the JSON string) — never one unbroken
+       block. SENTENCE 1 is the day's VERDICT in plain
        words — the overall picture, NOT a number ("Today reads like a
        recovery day", "A steady day, nothing demanding your attention").
        Then weave the 2-3 most salient signals into ONE story: lead from
@@ -452,8 +454,10 @@ gib die obige Verweigerung zurück.`,
    JETZT; nutze die Historie als Kontext, aber der Nutzer öffnet das, um
    zu erfahren, was HEUTE passiert und welche eine Sache er dagegen tun
    kann. Felder:
-     - paragraph: ein zusammenhängender 70-160 Wörter langer Tages-Read,
-       den der Nutzer oben auf /insights liest. SATZ 1 ist das URTEIL des
+     - paragraph: ein 70-160 Wörter langer Tages-Read, den der Nutzer
+       oben auf /insights liest — geschrieben als 2-3 KURZE ABSÄTZE,
+       getrennt durch eine Leerzeile (\\n\\n innerhalb des JSON-Strings),
+       nie als ein durchgehender Block. SATZ 1 ist das URTEIL des
        Tages in klaren Worten — das Gesamtbild, KEINE Zahl ("Heute liest
        sich wie ein Erholungstag", "Ein ruhiger Tag, nichts, das deine
        Aufmerksamkeit braucht"). Dann verwebe die 2-3 wichtigsten Signale
