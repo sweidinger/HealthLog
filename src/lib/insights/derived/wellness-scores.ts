@@ -20,6 +20,7 @@ import type {
 import { buildInsufficient, buildOk, nowProvenanceTimestamp } from "./coverage";
 import type { BaselineProfile } from "./baseline";
 import type { StrainAnchor } from "@/lib/insights/strain-score";
+import { computeReadiness, type ReadinessComponent } from "./readiness";
 import { resolveCanonicalRecovery } from "./recovery-resolve";
 import { SPARKLINE_MAX_POINTS, type Derived } from "./types";
 
@@ -53,6 +54,19 @@ export interface WellnessScoreValue {
    * non-breaking).
    */
   anchor?: StrainAnchor | null;
+  /**
+   * v1.27.5 — RECOVERY only: the factor decomposition behind the score, so
+   * the detail page renders the same ranked contributor bars the READINESS /
+   * SLEEP_SCORE composites carry. The persisted row stores only the number;
+   * the components come from a server-side run of the SAME readiness blend
+   * that mints the nightly score (`computeRecoveryScore` delegates to
+   * `computeReadiness` verbatim), so weights and per-factor values can never
+   * drift from the engine. Only attached when the canonical latest row is
+   * the COMPUTED proxy — a WHOOP-native percentage is not our blend, so it
+   * carries no decomposition. `null` / absent otherwise (additive — iOS
+   * non-breaking).
+   */
+  components?: ReadinessComponent[] | null;
 }
 
 /** The three persisted score types this engine serves. */
@@ -108,7 +122,7 @@ export interface WellnessScoreOpts {
 export async function computeWellnessScore(
   type: WellnessScoreType,
   userId: string,
-  _profile: BaselineProfile,
+  profile: BaselineProfile,
   opts: WellnessScoreOpts = {},
 ): Promise<Derived<WellnessScoreValue>> {
   const now = opts.now ?? new Date();
@@ -203,6 +217,25 @@ export async function computeWellnessScore(
     }
   }
 
+  // v1.27.5 — RECOVERY factor decomposition. The persisted row stores only
+  // the number, but the COMPUTED proxy IS the readiness blend
+  // (`computeRecoveryScore` delegates to `computeReadiness` verbatim), so the
+  // blend's per-factor sub-scores are the honest breakdown to show under the
+  // ring — same engine, same weights, resolved server-side on the same read.
+  // A WHOOP-native canonical row is not our blend and carries none. Never
+  // fails the read: a gated blend (below the min-component floor) simply
+  // leaves the breakdown off.
+  let components: ReadinessComponent[] | null = null;
+  if (isRecovery && latest.source === "COMPUTED") {
+    const readiness = await computeReadiness(userId, profile, {
+      now,
+      tz: timezone ?? undefined,
+    });
+    if (readiness.status === "ok" && readiness.value) {
+      components = readiness.value.components;
+    }
+  }
+
   return buildOk<WellnessScoreValue>({
     value: {
       score,
@@ -216,6 +249,7 @@ export async function computeWellnessScore(
         .map((r) => r.value)
         .reverse(),
       anchor,
+      components,
     },
     coverage: {
       requiredInputs: 1,
