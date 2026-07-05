@@ -93,6 +93,10 @@ import {
   buildCoachMemoryBlock,
   type CoachMemoryBlock,
 } from "@/lib/ai/coach/memory-snapshot";
+import {
+  buildScoreRingsBlock,
+  type DashboardScoreRing,
+} from "@/lib/dashboard/score-rings";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
 import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
@@ -401,6 +405,17 @@ export interface DashboardSnapshot {
    * thick phase alongside `extras`) and when no pillar is computable.
    */
   healthScore: DashboardSnapshotHealthScore | null;
+  /**
+   * v1.27.7 — the user-selected hero score rings (max 3), resolved
+   * server-side: READINESS / RECOVERY_SCORE / SLEEP_SCORE through the
+   * same engines the derived batch route calls, MED_COMPLIANCE as the
+   * pooled 7-day adherence from the canonical compliance engine. Only
+   * rings with data appear (selection order preserved); module-disabled
+   * and data-less selections drop out, so the hero row self-gates.
+   * Optional on the type (additive contract) so older cached snapshots
+   * / fixtures stay valid; the live builder always sets it.
+   */
+  scoreRings?: DashboardScoreRing[];
   briefing: DailyBriefing | null;
   /**
    * v1.21.2 (A4) — server-resolved recall + forward-look for the briefing card.
@@ -1027,6 +1042,12 @@ export async function buildDashboardSnapshot(
      * derived engines. Defaults to the real `buildScoreNarrativeBlock`.
      */
     scoreNarrative?: typeof buildScoreNarrativeBlock;
+    /**
+     * v1.27.7 — injectable hero score-ring resolver so the snapshot tests
+     * can pin the wire without the derived engines / compliance reads.
+     * Defaults to the real `buildScoreRingsBlock`.
+     */
+    scoreRings?: typeof buildScoreRingsBlock;
   } = {},
 ): Promise<DashboardSnapshot> {
   const userTz = user.timezone ?? DEFAULT_TIMEZONE;
@@ -1045,28 +1066,56 @@ export async function buildDashboardSnapshot(
   const coverage = await time("coverage", () => probeRollupCoverage(user.id));
   const warm = isThickPhaseWarm(coverage);
 
-  const [slimRaw, moodRaw, extrasResult, flags, medsToday, modules] =
-    await Promise.all([
-      // A5 — reuse the coverage map already probed above so the slice
-      // doesn't re-run the identical `probeRollupCoverage` query.
-      time("summaries", () => computeSummariesSlice(user.id, coverage)),
-      time("mood", () => buildMoodBlock(prisma, user.id)),
-      warm
-        ? time("extras", () =>
-            buildExtras(prisma, user, userTz, coverage, now, time),
-          )
-        : Promise.resolve(null),
-      time("flags", () => getAssistantFlags()),
-      // Fast phase — projection-backed today tally + earliest next-due.
-      time("medsToday", () =>
-        buildMedsTodayBlock(prisma, user.id, userTz, now),
+  // Resolve the stored layout once up front: the hero score rings read
+  // the `selectedScoreRings` preference off it, and the module-gated
+  // `layout` block below reuses the same resolution.
+  const storedLayout = resolveDashboardLayout(user.dashboardWidgetsJson);
+
+  // v1.18.0 — resolved module map (memoised per request); gates the
+  // toggleable tiles below at the build layer. Held as a shared promise
+  // so the score-ring task can await it inside the same `Promise.all`
+  // without a second resolver call.
+  const modulesPromise = time("modules", () =>
+    (options.modules ?? (() => resolveModuleMap(user.id)))(),
+  );
+
+  const [
+    slimRaw,
+    moodRaw,
+    extrasResult,
+    flags,
+    medsToday,
+    modules,
+    scoreRings,
+  ] = await Promise.all([
+    // A5 — reuse the coverage map already probed above so the slice
+    // doesn't re-run the identical `probeRollupCoverage` query.
+    time("summaries", () => computeSummariesSlice(user.id, coverage)),
+    time("mood", () => buildMoodBlock(prisma, user.id)),
+    warm
+      ? time("extras", () =>
+          buildExtras(prisma, user, userTz, coverage, now, time),
+        )
+      : Promise.resolve(null),
+    time("flags", () => getAssistantFlags()),
+    // Fast phase — projection-backed today tally + earliest next-due.
+    time("medsToday", () => buildMedsTodayBlock(prisma, user.id, userTz, now)),
+    modulesPromise,
+    // v1.27.7 — the selected hero score rings, resolved through the
+    // same engines the derived batch route calls (+ the canonical
+    // compliance engine for MED_COMPLIANCE). Fail-soft: a throwing
+    // resolver yields no rings, never a sunk snapshot.
+    time("scoreRings", async () =>
+      (options.scoreRings ?? buildScoreRingsBlock)(
+        prisma,
+        user.id,
+        userTz,
+        storedLayout.selectedScoreRings ?? [],
+        await modulesPromise,
+        now,
       ),
-      // v1.18.0 — resolved module map (memoised per request); gates the
-      // toggleable tiles below at the build layer.
-      time("modules", () =>
-        (options.modules ?? (() => resolveModuleMap(user.id)))(),
-      ),
-    ]);
+    ).catch(() => [] as DashboardScoreRing[]),
+  ]);
 
   // v1.18.0 — strip disabled-module data before it leaves the server.
   // Mood is blanked when the mood module is off; sleep / glucose summary
@@ -1090,10 +1139,7 @@ export async function buildDashboardSnapshot(
     });
   }
 
-  const layout = gateLayoutByModules(
-    resolveDashboardLayout(user.dashboardWidgetsJson),
-    modules,
-  );
+  const layout = gateLayoutByModules(storedLayout, modules);
   // v1.18.0 — the Daily Briefing is the dashboard's AI-narrative surface,
   // so the `insights` module gates it alongside the operator briefing
   // flag + per-user coach opt-out. Disabling `insights` yields the same
@@ -1191,6 +1237,10 @@ export async function buildDashboardSnapshot(
           returnToBand: scoreNarrative?.returnToBand ?? null,
         }
       : null,
+    // v1.27.7 — the resolved hero score rings (selection order, data-
+    // gated). Always set by the live builder; optional on the type so
+    // older cached snapshots stay valid.
+    scoreRings,
     briefing: briefing.briefing,
     // v1.21.2 (A4) — the briefing recall + forward-look. Null when there is no
     // prior narrative on file or no briefing is shown.

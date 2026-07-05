@@ -64,6 +64,12 @@ const resolveModuleMap = vi.fn();
 vi.mock("@/lib/modules/gate", () => ({
   resolveModuleMap: (...a: unknown[]) => resolveModuleMap(...a),
 }));
+// v1.27.7 — hero score rings. Mocked so the suite never touches the
+// derived engines / compliance reads; the resolver has its own suite.
+const buildScoreRingsBlock = vi.fn();
+vi.mock("@/lib/dashboard/score-rings", () => ({
+  buildScoreRingsBlock: (...a: unknown[]) => buildScoreRingsBlock(...a),
+}));
 
 /** Every toggleable key on, with optional per-key overrides. */
 function moduleMap(
@@ -173,6 +179,7 @@ beforeEach(() => {
   });
   computeUserHealthScoreFastPath.mockResolvedValue(null);
   resolveModuleMap.mockResolvedValue(moduleMap());
+  buildScoreRingsBlock.mockResolvedValue([]);
 });
 
 describe("buildDashboardSnapshot — envelope shape", () => {
@@ -1169,5 +1176,64 @@ describe("buildDashboardSnapshot — ambient narrative (A4/A5/A6)", () => {
       },
     );
     expect(snap.briefingMemory).toBeNull();
+  });
+});
+
+/**
+ * v1.27.7 — hero score rings on the snapshot wire. The resolver itself
+ * is pinned in `score-rings.test.ts`; here only the assembly contract:
+ * the builder receives the RESOLVED `selectedScoreRings` preference +
+ * the module map, its result rides `snapshot.scoreRings`, and a
+ * rejection degrades to an empty row (never a sunk snapshot).
+ */
+describe("buildDashboardSnapshot — scoreRings wire", () => {
+  it("threads the default selection (MED_COMPLIANCE) for a layout-less user", async () => {
+    probeRollupCoverage.mockResolvedValue(new Map());
+    buildScoreRingsBlock.mockResolvedValue([
+      { id: "MED_COMPLIANCE", score: 92, band: "green" },
+    ]);
+
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    expect(buildScoreRingsBlock).toHaveBeenCalledTimes(1);
+    const [, userId, tz, selected, modules] =
+      buildScoreRingsBlock.mock.calls[0];
+    expect(userId).toBe("user-1");
+    expect(tz).toBe("Europe/Berlin");
+    expect(selected).toEqual(["MED_COMPLIANCE"]);
+    expect(modules).toEqual(moduleMap());
+    expect(snap.scoreRings).toEqual([
+      { id: "MED_COMPLIANCE", score: 92, band: "green" },
+    ]);
+  });
+
+  it("threads a saved multi-ring selection in order", async () => {
+    probeRollupCoverage.mockResolvedValue(new Map());
+    buildScoreRingsBlock.mockResolvedValue([]);
+
+    await buildDashboardSnapshot(
+      fakePrisma,
+      baseUser({
+        dashboardWidgetsJson: {
+          version: 1,
+          widgets: [{ id: "weight", visible: true, order: 0 }],
+          selectedScoreRings: ["READINESS", "SLEEP_SCORE"],
+        },
+      }),
+    );
+
+    const [, , , selected] = buildScoreRingsBlock.mock.calls[0];
+    expect(selected).toEqual(["READINESS", "SLEEP_SCORE"]);
+  });
+
+  it("degrades a rejecting resolver to an empty ring row (fail-soft)", async () => {
+    probeRollupCoverage.mockResolvedValue(new Map());
+    buildScoreRingsBlock.mockRejectedValue(new Error("engine down"));
+
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    expect(snap.scoreRings).toEqual([]);
+    // The rest of the envelope is untouched by the failure.
+    expect(snap.tiles.summaries.WEIGHT).toBeDefined();
   });
 });

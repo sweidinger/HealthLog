@@ -852,6 +852,26 @@ export const dashboardSnapshotResponse = z
       .describe(
         "Personal health score summary (0..100 score, traffic-light band, week-over-week delta). Null on a rollup-coverage miss (it rides the thick phase alongside `extras`) and when no pillar is computable. Component breakdown is deliberately not serialised here.",
       ),
+    // v1.27.7 — user-selected hero score rings (max 3), resolved
+    // server-side next to the health score. Additive; optional so
+    // cached pre-v1.27.7 snapshots stay decodable.
+    scoreRings: z
+      .array(
+        z.object({
+          id: z.enum([
+            "READINESS",
+            "RECOVERY_SCORE",
+            "SLEEP_SCORE",
+            "MED_COMPLIANCE",
+          ]),
+          score: z.number().int(),
+          band: z.enum(["green", "yellow", "red"]),
+        }),
+      )
+      .optional()
+      .describe(
+        "User-selected hero score rings (max 3, `selectedScoreRings` on the dashboard layout), resolved server-side: READINESS / RECOVERY_SCORE / SLEEP_SCORE via the derived engines (module-gated like `/api/insights/derived`), MED_COMPLIANCE as the pooled 7-day medication adherence (0..100, banded ≥90 green / ≥70 yellow / else red). Only rings with data appear, in selection order — a missing entry means no data or a disabled module, never zero. Clients render what arrives and never recompute.",
+      ),
     briefing: z.record(z.string(), z.unknown()).nullable(),
     briefingState: z.enum(["ready", "preparing", "disabled", "no-provider"]),
     briefingUpdatedAt: z.string().nullable(),
