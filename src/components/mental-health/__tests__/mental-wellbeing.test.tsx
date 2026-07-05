@@ -11,8 +11,9 @@ import en from "../../../../messages/en.json";
  * means clicks can't be driven here — the wizard's advance/back grammar is
  * pinned in `check-in-nav.test.ts`. These tests pin the SSR-observable
  * contracts: the disclaimer renders ONLY on the landing (never while testing),
- * a positive item-9 surfaces the crisis card, and the history paints its chart
- * shell + dated list with severity + "support shown" badges.
+ * a positive item-9 surfaces the crisis card, and the history paints its
+ * dated list with severity + "support shown" badges — and NO trend chart
+ * (v1.27.6: the score curve lives in Insights / Measurements, not here).
  */
 
 vi.mock("@/lib/api/api-fetch", () => ({
@@ -174,9 +175,12 @@ describe("history rendering", () => {
 
   const html = withProviders(<AssessmentHistory rows={rows} />);
 
-  it("paints the lazy chart shell + the dated list", () => {
-    expect(html).toContain('data-slot="skeleton"');
+  it("paints the dated list WITHOUT a trend chart shell", () => {
     expect(html).toContain('data-slot="history-list"');
+    // v1.27.6 — no chart on this surface: no lazy-chart skeleton, no
+    // recharts container.
+    expect(html).not.toContain('data-slot="skeleton"');
+    expect(html).not.toContain("recharts");
   });
 
   it("shows the PHQ-9 / GAD-7 toggle and a severity badge", () => {
@@ -196,74 +200,14 @@ describe("history rendering", () => {
   });
 });
 
-describe("instrument card → per-instrument trend (v1.25.12)", () => {
-  it("exposes the card body as a detail target separate from Start", () => {
+describe("instrument card (v1.27.6 — no trend-detail target)", () => {
+  it("renders the card body as plain content with Start as the single action", () => {
     const html = withProviders(
-      <InstrumentCard
-        instrument="PHQ9"
-        last={undefined}
-        onStart={() => {}}
-        onOpenDetail={() => {}}
-      />,
+      <InstrumentCard instrument="PHQ9" last={undefined} onStart={() => {}} />,
     );
-    // The title + last-result block is a button that opens the Verlauf…
-    expect(html).toContain('data-slot="instrument-card-open"');
-    expect(html).toContain(mh.openDetail);
-    // …and the Start action is still its own button.
+    // The former trend-detail button is gone…
+    expect(html).not.toContain('data-slot="instrument-card-open"');
+    // …and the Start action remains.
     expect(html).toContain(mh.start);
-  });
-
-  it("pins the history to one instrument: no toggle, bare (no titled card)", () => {
-    const rows: AssessmentRow[] = [
-      {
-        id: "p1",
-        instrument: "PHQ9",
-        locale: "en",
-        totalScore: 8,
-        severityBand: "mild",
-        item9Flagged: false,
-        crisisShownAt: null,
-        takenAt: "2026-06-20T00:00:00.000Z",
-      },
-      {
-        id: "g1",
-        instrument: "GAD7",
-        locale: "en",
-        totalScore: 12,
-        severityBand: "moderate",
-        item9Flagged: false,
-        crisisShownAt: null,
-        takenAt: "2026-06-20T00:00:00.000Z",
-      },
-    ];
-    const html = withProviders(
-      <AssessmentHistory rows={rows} instrument="PHQ9" />,
-    );
-    // Pinned: the PHQ-9 / GAD-7 toggle + the titled landing card are gone…
-    expect(html).toContain('data-pinned="PHQ9"');
-    expect(html).not.toContain('role="tablist"');
-    // …only the chosen instrument's row paints (its band), not the other's.
-    expect(html).toContain(mh.band.PHQ9.mild);
-    expect(html).not.toContain(mh.band.GAD7.moderate);
-  });
-
-  it("shows the per-instrument empty state when that instrument has no rows", () => {
-    const onlyGad: AssessmentRow[] = [
-      {
-        id: "g2",
-        instrument: "GAD7",
-        locale: "en",
-        totalScore: 5,
-        severityBand: "mild",
-        item9Flagged: false,
-        crisisShownAt: null,
-        takenAt: "2026-06-20T00:00:00.000Z",
-      },
-    ];
-    const html = withProviders(
-      <AssessmentHistory rows={onlyGad} instrument="PHQ9" />,
-    );
-    expect(html).toContain(mh.history.empty);
-    expect(html).not.toContain('data-slot="history-list"');
   });
 });

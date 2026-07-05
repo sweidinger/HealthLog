@@ -7680,14 +7680,11 @@
     "history": {
       "title": "La tua cronologia",
       "empty": "Ancora nessun check-in. Il tuo andamento apparirà qui dopo che ne avrai completato uno.",
-      "chartTitle": "Andamento del punteggio",
       "flaggedBadge": "Supporto mostrato",
-      "totalLabel": "Punteggio",
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      },
-      "bandLabel": "Categoria"
+      }
     },
     "crisis": {
       "title": "Non devi affrontare tutto questo da solo/a",
@@ -7755,8 +7752,7 @@
     "review": {
       "title": "Riepilogo",
       "recap": "Hai risposto a {answered} domande su {total}."
-    },
-    "openDetail": "Mostra andamento"
+    }
   },
   "records": {
     "disclaimer": "Sono i tuoi dati, non una diagnosi medica. HealthLog non diagnostica, non cura e non li interpreta.",

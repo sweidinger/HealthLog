@@ -7680,14 +7680,11 @@
     "history": {
       "title": "Your history",
       "empty": "No check-ins yet. Your trend will appear here once you complete one.",
-      "chartTitle": "Score trend",
       "flaggedBadge": "Support shown",
-      "totalLabel": "Score",
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      },
-      "bandLabel": "Category"
+      }
     },
     "crisis": {
       "title": "You don't have to face this alone",
@@ -7755,8 +7752,7 @@
     "review": {
       "title": "Review",
       "recap": "You answered {answered} of {total} questions."
-    },
-    "openDetail": "Show trend"
+    }
   },
   "records": {
     "disclaimer": "These are your own records, not a medical diagnosis. HealthLog does not diagnose, treat, or interpret them.",

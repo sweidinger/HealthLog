@@ -24,18 +24,11 @@ export function InstrumentCard({
   instrument,
   last,
   onStart,
-  onOpenDetail,
 }: {
   instrument: InstrumentId;
   /** Most-recent assessment for this instrument, or undefined when none yet. */
   last: AssessmentRow | undefined;
   onStart: () => void;
-  /**
-   * Open this instrument's trend detail. The card BODY (title + last-result
-   * line) is the navigation target — mirroring how a medication card opens its
-   * detail — while the bottom-pinned Start button stays a separate action.
-   */
-  onOpenDetail: () => void;
 }) {
   const { t } = useTranslations();
   const { date: formatDate } = useFormatters();
@@ -45,16 +38,10 @@ export function InstrumentCard({
   return (
     <Card className="h-full gap-3" data-slot="instrument-card">
       <CardContent className="flex h-full flex-col space-y-3.5 p-4">
-        {/* Body is the detail target: clicking the title / last-result block
-            opens this instrument's Verlauf, like a medication card. The Start
-            button below is a separate, deliberately non-overlapping action. */}
-        <button
-          type="button"
-          onClick={onOpenDetail}
-          data-slot="instrument-card-open"
-          aria-label={`${title} — ${t("mentalHealth.openDetail")}`}
-          className="focus-visible:ring-ring/60 hover:bg-accent/40 -m-1 flex flex-1 cursor-pointer flex-col gap-3.5 rounded-md p-1 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        >
+        {/* v1.27.6 — the card body is no longer a trend-detail target (the
+            trend chart left this surface); the card informs, the Start button
+            below is the single action. */}
+        <div className="flex flex-1 flex-col gap-3.5">
           <div className="flex flex-col gap-0.5">
             <span className="text-lg leading-none font-semibold">{title}</span>
             <span className="text-muted-foreground text-xs">
@@ -63,9 +50,7 @@ export function InstrumentCard({
           </div>
 
           {/* Last-test line in the medication-card grammar: label left, the
-              relative day (today / yesterday / date) right-aligned. The severity
-              band is intentionally NOT shown here — the trend behind the card
-              carries it. */}
+              relative day (today / yesterday / date) right-aligned. */}
           <div className="text-muted-foreground flex min-h-5 items-center justify-between gap-2 text-xs">
             {last ? (
               <>
@@ -78,7 +63,7 @@ export function InstrumentCard({
               <span>{t("mentalHealth.noResultYet")}</span>
             )}
           </div>
-        </button>
+        </div>
 
         <div className="pt-0">
           <Button type="button" className="min-h-11 w-full" onClick={onStart}>

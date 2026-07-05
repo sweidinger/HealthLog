@@ -7680,14 +7680,11 @@
     "history": {
       "title": "Twoja historia",
       "empty": "Brak sprawdzeń. Twój trend pojawi się tutaj po ukończeniu pierwszego.",
-      "chartTitle": "Przebieg wyniku",
       "flaggedBadge": "Pokazano wsparcie",
-      "totalLabel": "Wynik",
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      },
-      "bandLabel": "Kategoria"
+      }
     },
     "crisis": {
       "title": "Nie musisz mierzyć się z tym sam(a)",
@@ -7755,8 +7752,7 @@
     "review": {
       "title": "Podsumowanie",
       "recap": "Odpowiedziano na {answered} z {total} pytań."
-    },
-    "openDetail": "Pokaż przebieg"
+    }
   },
   "records": {
     "disclaimer": "To Twoje własne wpisy, a nie diagnoza lekarska. HealthLog nie diagnozuje, nie leczy i ich nie interpretuje.",

@@ -7680,14 +7680,11 @@
     "history": {
       "title": "Ton historique",
       "empty": "Aucun bilan pour le moment. Ta tendance apparaîtra ici dès que tu en auras terminé un.",
-      "chartTitle": "Évolution du score",
       "flaggedBadge": "Aide affichée",
-      "totalLabel": "Score",
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      },
-      "bandLabel": "Catégorie"
+      }
     },
     "crisis": {
       "title": "Tu n'as pas à affronter cela seul(e)",
@@ -7755,8 +7752,7 @@
     "review": {
       "title": "Récapitulatif",
       "recap": "Vous avez répondu à {answered} questions sur {total}."
-    },
-    "openDetail": "Voir l’évolution"
+    }
   },
   "records": {
     "disclaimer": "Ce sont vos propres informations, pas un diagnostic médical. HealthLog ne diagnostique pas, ne traite pas et ne les interprète pas.",
