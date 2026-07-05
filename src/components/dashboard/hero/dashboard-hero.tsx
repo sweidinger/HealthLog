@@ -13,12 +13,18 @@
  *     paragraph — the snapshot's server-computed `greetingHour` keeps
  *     the daypart free of any client `Intl` work; typographically the
  *     band's anchor, larger and heavier than the verdict so the
- *     personalised line is not drowned by the content below it), the
- *     verdict sentence with its single CTA button, and the dose row;
- *   - right column: the shared `<ScoreRing>` at `sm` geometry, in its
- *     `flat` treatment (no bloom / pulse / sheen / sweep) so the dial
- *     sits as calmly as the surrounding chart cards. A null score
- *     renders the ring's provisional state at the identical
+ *     personalised line is not drowned by the content below it) and the
+ *     verdict sentence with its single CTA button;
+ *   - right column: the ring row — the health-score `<ScoreRing>` at
+ *     `sm` geometry in its `flat` treatment (no bloom / pulse / sheen /
+ *     sweep) plus the user-selected score rings the snapshot resolved
+ *     server-side (`scoreRings`, max 3: readiness / recovery / sleep in
+ *     their wellness-strip hues, medication adherence in band
+ *     semantics). v1.27.7 — the ring row replaces the old dose text row;
+ *     the adherence ring carries its information role. Selected rings
+ *     self-gate: an entry absent from `scoreRings` (no data, disabled
+ *     module) renders nothing, exactly like the wellness strip. A null
+ *     health score renders the ring's provisional state at the identical
  *     120 px footprint, so the column never collapses. The provisional
  *     label is honest about WHY the score is null: when the snapshot
  *     already carries score inputs (weight / BP summaries, mood
@@ -30,9 +36,7 @@
  * past with `nextDueOverdue: false` means the slot's anchor passed
  * after the snapshot was built. The verdict resolver already falls
  * through (rung 2 keys on the flag, rung 3 requires a future anchor),
- * and the dose row below only prints "next at" for a FUTURE anchor on
- * the user's local today — the stale state renders as the plain day
- * summary, never as overdue.
+ * so the stale state renders as a calm verdict, never as overdue.
  *
  * Rung 8 (`briefing`) renders the model-authored headline VERBATIM as a
  * plain React text child — no i18n key, no HTML, no markdown — per the
@@ -44,9 +48,9 @@
  */
 import { useMemo } from "react";
 import Link from "next/link";
-import { Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScoreRing } from "@/components/insights/derived/score-ring";
+import type { RingHue } from "@/components/insights/derived/ring-hues";
 import { RestModeBanner } from "@/components/insights/rest-mode-banner";
 import { BriefingSpotlight } from "@/components/dashboard/hero/briefing-spotlight";
 import {
@@ -54,6 +58,7 @@ import {
   type DashboardVerdictVariant,
 } from "@/lib/dashboard/verdict";
 import type { DashboardSnapshot } from "@/lib/dashboard/snapshot";
+import type { ScoreRingId } from "@/lib/dashboard-layout";
 import type { QuickEntryDialog } from "@/components/dashboard/quick-entry-sheets";
 import { useTranslations, useTimeFormatPreference } from "@/lib/i18n/context";
 import { makeFormatters } from "@/lib/format-locale";
@@ -78,7 +83,11 @@ const VERDICT_MESSAGE_KEY: Record<
   allQuiet: "dashboard.hero.verdict.allQuiet",
 };
 
-/** Variant → CTA label key. `allQuiet` carries no CTA (cta: null). */
+/** Variant → CTA label key. `allQuiet` carries no CTA (cta: null).
+ *  `scoreDrop` / `briefing` carry none either: their only destination was
+ *  the Insights overview, which the health-score card already links — a
+ *  second broad "open Insights" button on the hero was redundant. Only
+ *  verdicts with a SPECIFIC destination or action keep a button. */
 const CTA_LABEL_KEY: Partial<Record<DashboardVerdictVariant, string>> = {
   doseOverdue: "dashboard.hero.action.takeDose",
   doseUpcoming: "dashboard.hero.action.takeDose",
@@ -86,19 +95,28 @@ const CTA_LABEL_KEY: Partial<Record<DashboardVerdictVariant, string>> = {
   weightDrift: "dashboard.hero.action.viewWeight",
   shortNights: "dashboard.hero.action.viewSleep",
   silence: "dashboard.hero.action.logMeasurement",
-  scoreDrop: "dashboard.hero.action.viewInsights",
-  briefing: "dashboard.hero.action.viewInsights",
 };
 
-/** YYYY-MM-DD key of `d`'s calendar day in `tz` (mirrors the resolver). */
-function dayKeyInTz(d: Date, tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
-}
+/**
+ * Per-ring hue for the selected score rings — the wellness-strip
+ * vocabulary. MED_COMPLIANCE deliberately carries NO hue: the adherence
+ * ring falls back to the ring's band gradient (green / yellow / red
+ * semantic tokens), because for adherence the band IS the message —
+ * exactly the classification colouring the targets tile uses.
+ */
+const RING_HUE_BY_ID: Partial<Record<ScoreRingId, RingHue>> = {
+  READINESS: "readiness",
+  RECOVERY_SCORE: "recovery",
+  SLEEP_SCORE: "sleep",
+};
+
+/** Per-ring label key — reuses the existing score / adherence labels. */
+const RING_LABEL_KEY: Record<ScoreRingId, string> = {
+  READINESS: "insights.derived.composite.READINESS.title",
+  RECOVERY_SCORE: "insights.derived.scores.recovery",
+  SLEEP_SCORE: "insights.derived.composite.SLEEP_SCORE.title",
+  MED_COMPLIANCE: "medications.compliance",
+};
 
 export function DashboardHero({
   snapshot,
@@ -194,31 +212,12 @@ export function DashboardHero({
     snapshot.tiles.mood.entries.length > 0 ||
     snapshot.medsToday.activeCount > 0;
 
-  // ── Dose row ────────────────────────────────────────────────────────
-  const meds = snapshot.medsToday;
-  const now = new Date();
-  const tz = snapshot.user.timezone;
-  const unresolvedRemain =
-    meds.scheduledToday > meds.takenToday + meds.skippedToday;
-  const nextDueMs = meds.nextDueAt !== null ? Date.parse(meds.nextDueAt) : NaN;
-  // "Next at" only for a FUTURE anchor on the user's local today. A past
-  // anchor with `nextDueOverdue: false` is the documented stale-cache
-  // state and must render as the plain summary — never as overdue.
-  const showNextAt =
-    unresolvedRemain &&
-    Number.isFinite(nextDueMs) &&
-    nextDueMs >= now.getTime() &&
-    dayKeyInTz(new Date(nextDueMs), tz) === dayKeyInTz(now, tz);
-  const doseDetail =
-    meds.scheduledToday > 0
-      ? !unresolvedRemain
-        ? t("dashboard.hero.doses.allDone")
-        : showNextAt
-          ? t("dashboard.hero.doses.nextAt", {
-              time: fmt.time(new Date(nextDueMs)),
-            })
-          : null
-      : null;
+  // ── Ring row (v1.27.7) ─────────────────────────────────────────────
+  // The snapshot resolves the selected rings server-side; entries absent
+  // from the array (no data / disabled module) simply don't render —
+  // the wellness-strip self-gating rule. Optional on the type (additive
+  // contract), so an older cached snapshot renders the health ring alone.
+  const scoreRings = snapshot.scoreRings ?? [];
 
   return (
     <section
@@ -278,34 +277,34 @@ export function DashboardHero({
                 )
               ) : null}
             </div>
-            <div
-              data-slot="dashboard-hero-doses"
-              className="bg-muted/50 border-border/60 inline-flex max-w-full items-center gap-2 rounded-xl border px-3 py-2"
-            >
-              <Pill
-                className="text-muted-foreground h-4 w-4 shrink-0"
-                aria-hidden="true"
-              />
-              <span className="text-foreground truncate text-sm">
-                {meds.scheduledToday > 0
-                  ? t("dashboard.hero.doses.summary", {
-                      taken: meds.takenToday,
-                      scheduled: meds.scheduledToday,
-                    })
-                  : t("dashboard.hero.doses.none")}
-              </span>
-              {doseDetail !== null ? (
-                <span className="text-muted-foreground shrink-0 text-sm">
-                  · {doseDetail}
-                </span>
-              ) : null}
-            </div>
           </div>
-          {/* Right column — fixed 120 px ring footprint. A null score
-            renders the ring's provisional state (aria announces "not
-            enough data", never 0) at identical geometry, so the column
-            NEVER collapses. */}
-          <div className="flex shrink-0 items-center justify-center md:justify-end">
+          {/* Ring row — the selected score rings (max 3, each at the
+            fixed 120 px sm footprint, flat) lead into the health-score
+            ring on the trailing edge. A null health score renders the
+            ring's provisional state (aria announces "not enough data",
+            never 0) at identical geometry, so the column NEVER
+            collapses; missing selected rings render nothing. */}
+          <div
+            data-slot="dashboard-hero-rings"
+            className="flex shrink-0 flex-wrap items-center justify-center gap-3 md:justify-end"
+          >
+            {scoreRings.map((ring) => (
+              <div
+                key={ring.id}
+                data-slot="dashboard-hero-ring"
+                data-ring={ring.id}
+                className="flex shrink-0 items-center"
+              >
+                <ScoreRing
+                  score={ring.score}
+                  band={ring.band}
+                  size="sm"
+                  flat
+                  hue={RING_HUE_BY_ID[ring.id]}
+                  label={t(RING_LABEL_KEY[ring.id])}
+                />
+              </div>
+            ))}
             <ScoreRing
               score={snapshot.healthScore?.score ?? null}
               band={snapshot.healthScore?.band}

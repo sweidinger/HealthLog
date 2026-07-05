@@ -307,12 +307,6 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Not enough data yet",
       "scoreComputing": "Calculating score…",
-      "doses": {
-        "summary": "{taken} of {scheduled} doses taken",
-        "nextAt": "Next at {time}",
-        "allDone": "All doses done for today",
-        "none": "No doses scheduled today"
-      },
       "verdict": {
         "doseOverdue": "A dose of {name} is overdue.",
         "doseOverdueNoName": "A dose is overdue.",
@@ -330,8 +324,7 @@
         "viewBp": "View blood pressure",
         "viewWeight": "View weight",
         "viewSleep": "View sleep",
-        "logMeasurement": "Log measurement",
-        "viewInsights": "Open Insights"
+        "logMeasurement": "Log measurement"
       },
       "briefing": {
         "title": "Today’s briefing",
@@ -390,7 +383,9 @@
     "mood": "Mood",
     "customizeTitle": "Dashboard layout",
     "heroToggleLabel": "Daily overview",
-    "heroToggleDescription": "Shows your greeting, score, daily focus and dose status at the top of the dashboard.",
+    "heroToggleDescription": "Shows your greeting, daily focus and score rings at the top of the dashboard.",
+    "scoreRingsTitle": "Score rings",
+    "scoreRingsDescription": "Up to three additional rings next to the health score — for example readiness, recovery, sleep or adherence.",
     "layoutReset": "Reset to defaults",
     "layoutSaveSuccess": "Dashboard layout saved",
     "layoutSaveError": "Could not save dashboard layout",

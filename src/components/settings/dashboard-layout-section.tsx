@@ -36,10 +36,14 @@ import {
   type DashboardLayout,
   type DashboardWidgetId,
   type ComparisonBaseline,
+  type ScoreRingId,
   COMPARISON_BASELINES,
   DEFAULT_DASHBOARD_LAYOUT,
   DASHBOARD_WIDGET_IDS,
   IOS_PIN_ONLY_WIDGET_IDS,
+  SCORE_RING_IDS,
+  SCORE_RING_MODULE,
+  MAX_SELECTED_SCORE_RINGS,
 } from "@/lib/dashboard-layout";
 import {
   Select,
@@ -150,6 +154,19 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   walkingSteadiness: "measurements.typeWalkingSteadiness",
   // v1.18.2 — Vorsorge preventive-care summary card.
   vorsorge: "measurementReminders.sectionTitle",
+};
+
+/**
+ * v1.27.7 — option labels for the hero score-ring picker. The three
+ * derived rings reuse their wellness-strip titles; the adherence ring
+ * reuses the existing "adherence (7 days)" label so the picker names
+ * the exact window the ring shows.
+ */
+const SCORE_RING_LABEL_KEYS: Record<ScoreRingId, string> = {
+  READINESS: "insights.derived.composite.READINESS.title",
+  RECOVERY_SCORE: "insights.derived.scores.recovery",
+  SLEEP_SCORE: "insights.derived.composite.SLEEP_SCORE.title",
+  MED_COMPLIANCE: "dashboard.compliance7d",
 };
 
 export function DashboardLayoutSection({ id }: { id: string }) {
@@ -281,6 +298,24 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   function setHeroVisible(value: boolean) {
     if (!layout) return;
     setDraft({ ...layout, heroVisible: value });
+  }
+
+  /**
+   * v1.27.7 — toggle one hero score ring. Selection order is preserved
+   * (a newly-enabled ring appends), the count is capped at
+   * `MAX_SELECTED_SCORE_RINGS` (the remaining switches disable at the
+   * cap), and the choice persists as `selectedScoreRings` on the layout
+   * blob through the same PUT the widget toggles use.
+   */
+  function toggleScoreRing(ringId: ScoreRingId, enabled: boolean) {
+    if (!layout) return;
+    const current = layout.selectedScoreRings ?? [];
+    const next = enabled
+      ? current.includes(ringId)
+        ? current
+        : [...current, ringId].slice(0, MAX_SELECTED_SCORE_RINGS)
+      : current.filter((id) => id !== ringId);
+    setDraft({ ...layout, selectedScoreRings: next });
   }
 
   /**
@@ -436,6 +471,60 @@ export function DashboardLayoutSection({ id }: { id: string }) {
             disabled={saveMutation.isPending}
             data-slot="hero-visible-switch"
           />
+        </div>
+      )}
+
+      {/* v1.27.7 — hero score-ring picker. Only rendered while the hero
+          is on (the rings live inside the hero band, so the picker would
+          be a dead control otherwise). Offers only rings whose owning
+          module is enabled — the WIDGET_MODULE_BY_ID gating pattern; the
+          three derived rings additionally sit behind the insights
+          module, mirroring the derived routes. Selection caps at
+          MAX_SELECTED_SCORE_RINGS; unchecked switches disable at the cap. */}
+      {layout && layout.heroVisible === true && (
+        <div
+          data-slot="score-rings-picker"
+          className="border-border bg-background/30 space-y-3 rounded-md border px-3 py-2"
+        >
+          <div className="min-w-0">
+            <p className="text-foreground text-sm font-medium">
+              {t("dashboard.scoreRingsTitle")}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {t("dashboard.scoreRingsDescription")}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {SCORE_RING_IDS.filter((ringId) => {
+              if (modules?.[SCORE_RING_MODULE[ringId]] === false) return false;
+              if (ringId !== "MED_COMPLIANCE" && modules?.insights === false)
+                return false;
+              return true;
+            }).map((ringId) => {
+              const selected = layout.selectedScoreRings ?? [];
+              const checked = selected.includes(ringId);
+              const atCap =
+                !checked && selected.length >= MAX_SELECTED_SCORE_RINGS;
+              return (
+                <div
+                  key={ringId}
+                  className="flex min-h-9 items-center justify-between gap-3"
+                >
+                  <span className="text-foreground truncate text-sm">
+                    {t(SCORE_RING_LABEL_KEYS[ringId])}
+                  </span>
+                  <Switch
+                    checked={checked}
+                    onCheckedChange={(v) => toggleScoreRing(ringId, v)}
+                    disabled={saveMutation.isPending || atCap}
+                    aria-label={t(SCORE_RING_LABEL_KEYS[ringId])}
+                    data-slot="score-ring-switch"
+                    data-ring={ringId}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

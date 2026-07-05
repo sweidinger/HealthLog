@@ -307,12 +307,6 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Aún no hay datos suficientes",
       "scoreComputing": "Calculando la puntuación …",
-      "doses": {
-        "summary": "{taken} de {scheduled} dosis tomadas",
-        "nextAt": "Próxima a las {time}",
-        "allDone": "Todas las dosis de hoy completadas",
-        "none": "Hoy no hay dosis programadas"
-      },
       "verdict": {
         "doseOverdue": "Una dosis de {name} está atrasada.",
         "doseOverdueNoName": "Una dosis está atrasada.",
@@ -330,8 +324,7 @@
         "viewBp": "Ver tensión arterial",
         "viewWeight": "Ver peso",
         "viewSleep": "Ver sueño",
-        "logMeasurement": "Registrar medición",
-        "viewInsights": "Abrir Insights"
+        "logMeasurement": "Registrar medición"
       },
       "briefing": {
         "title": "Resumen de hoy",
@@ -390,7 +383,9 @@
     "mood": "Estado de ánimo",
     "customizeTitle": "Diseño del panel",
     "heroToggleLabel": "Resumen del día",
-    "heroToggleDescription": "Muestra el saludo, la puntuación, el foco del día y el estado de las dosis en la parte superior del panel.",
+    "heroToggleDescription": "Muestra el saludo, el foco del día y los anillos de puntuación en la parte superior del panel.",
+    "scoreRingsTitle": "Anillos de puntuación",
+    "scoreRingsDescription": "Hasta tres anillos adicionales junto a la puntuación de salud, por ejemplo preparación, recuperación, sueño o cumplimiento.",
     "layoutReset": "Restablecer valores por defecto",
     "layoutSaveSuccess": "Diseño del panel guardado",
     "layoutSaveError": "No se ha podido guardar el diseño",

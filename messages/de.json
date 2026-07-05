@@ -307,12 +307,6 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Noch nicht genug Daten",
       "scoreComputing": "Score wird berechnet…",
-      "doses": {
-        "summary": "{taken} von {scheduled} Dosen genommen",
-        "nextAt": "Nächste um {time}",
-        "allDone": "Alle Dosen für heute erledigt",
-        "none": "Heute keine Dosen geplant"
-      },
       "verdict": {
         "doseOverdue": "Eine Dosis {name} ist überfällig.",
         "doseOverdueNoName": "Eine Dosis ist überfällig.",
@@ -330,8 +324,7 @@
         "viewBp": "Blutdruck ansehen",
         "viewWeight": "Gewicht ansehen",
         "viewSleep": "Schlaf ansehen",
-        "logMeasurement": "Messung erfassen",
-        "viewInsights": "Insights öffnen"
+        "logMeasurement": "Messung erfassen"
       },
       "briefing": {
         "title": "Tagesbriefing",
@@ -390,7 +383,9 @@
     "mood": "Stimmung",
     "customizeTitle": "Dashboard-Layout",
     "heroToggleLabel": "Tagesüberblick",
-    "heroToggleDescription": "Zeigt Begrüßung, Score, Tagesfokus und Dosen-Status ganz oben auf dem Dashboard.",
+    "heroToggleDescription": "Zeigt Begrüßung, Tagesfokus und Score-Ringe ganz oben auf dem Dashboard.",
+    "scoreRingsTitle": "Score-Ringe",
+    "scoreRingsDescription": "Bis zu drei zusätzliche Ringe neben dem Health Score – zum Beispiel Bereitschaft, Erholung, Schlaf oder Therapietreue.",
     "layoutReset": "Auf Defaults zurücksetzen",
     "layoutSaveSuccess": "Dashboard-Layout gespeichert",
     "layoutSaveError": "Layout konnte nicht gespeichert werden",

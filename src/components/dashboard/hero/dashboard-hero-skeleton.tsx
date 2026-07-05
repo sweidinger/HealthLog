@@ -3,12 +3,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 /**
  * Loading silhouette for the dashboard hero band.
  *
- * Mirrors the real `<DashboardHero>` footprint exactly — same
- * `.hero-gradient` chrome, same `min-h-[8.75rem] md:min-h-[9.5rem]`
+ * Mirrors the real `<DashboardHero>` footprint — same plain `bg-card`
+ * shell (border + radius + `p-4 md:p-6`, matching the loaded band since
+ * the v1.18.1 gradient removal), same `min-h-[8.75rem] md:min-h-[9.5rem]`
  * floor, same two-column `md:flex-row` split with the fixed 120 px ring
  * circle on the right — so the swap to the loaded hero happens in place
- * with zero layout shift. The left column reserves the greeting line,
- * the verdict sentence + CTA row, and the dose-row pill.
+ * with zero layout shift. The left column reserves the greeting line and
+ * the verdict sentence + CTA row; the right column reserves the
+ * health-score circle (v1.27.7 — the old dose-row pill is gone; the
+ * user-selected extra rings self-gate on data, so the skeleton reserves
+ * only the always-present health ring and lets the row grow in place).
  *
  * Always `aria-hidden` with no focusable content: the tile-strip
  * skeleton alongside carries the page's loading semantics, and a second
@@ -21,7 +25,7 @@ export function DashboardHeroSkeleton() {
     <div
       aria-hidden="true"
       data-slot="dashboard-hero-skeleton"
-      className="hero-gradient relative isolate min-h-[8.75rem] overflow-hidden rounded-xl px-4 py-5 sm:px-6 md:min-h-[9.5rem]"
+      className="bg-card border-border relative isolate min-h-[8.75rem] overflow-hidden rounded-xl border p-4 md:min-h-[9.5rem] md:p-6"
     >
       <div className="flex h-full flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
@@ -32,11 +36,9 @@ export function DashboardHeroSkeleton() {
             <Skeleton className="h-5 w-72 max-w-full" />
             <Skeleton className="h-8 w-32" />
           </div>
-          {/* Dose-row pill. */}
-          <Skeleton className="h-9 w-64 max-w-full rounded-xl" />
         </div>
-        {/* Fixed right column — the ScoreRing's `sm` circle (120 px). */}
-        <div className="flex shrink-0 items-center justify-center md:justify-end">
+        {/* Ring row — the always-present health-score circle (120 px). */}
+        <div className="flex shrink-0 items-center justify-center gap-3 md:justify-end">
           <Skeleton className="size-[120px] rounded-full" />
         </div>
       </div>

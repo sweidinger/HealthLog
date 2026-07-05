@@ -49,6 +49,7 @@ import {
   Zap,
 } from "lucide-react";
 import { ListRow } from "@/components/ui/list-row";
+import { METRIC_HREF } from "@/components/insights/daily-briefing";
 import { useTranslations } from "@/lib/i18n/context";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { cn } from "@/lib/utils";
@@ -178,7 +179,10 @@ export function BriefingSpotlight({
                 "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
               )}
             >
-              <Link href="/insights">
+              {/* Deep-link each signal to its metric sub-page (the same
+                  mapping the briefing card's finding rows use); metrics
+                  without a routed sub-page fall back to the overview. */}
+              <Link href={METRIC_HREF[row.sourceMetric] ?? "/insights"}>
                 <span
                   aria-hidden="true"
                   className={cn(

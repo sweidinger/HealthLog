@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.27.6
+  version: 1.27.7
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -21421,6 +21421,38 @@ components:
           description: Personal health score summary (0..100 score, traffic-light band, week-over-week delta). Null on a
             rollup-coverage miss (it rides the thick phase alongside `extras`) and when no pillar is computable.
             Component breakdown is deliberately not serialised here.
+        scoreRings:
+          description: "User-selected hero score rings (max 3, `selectedScoreRings` on the dashboard layout), resolved
+            server-side: READINESS / RECOVERY_SCORE / SLEEP_SCORE via the derived engines (module-gated like
+            `/api/insights/derived`), MED_COMPLIANCE as the pooled 7-day medication adherence (0..100, banded ≥90 green
+            / ≥70 yellow / else red). Only rings with data appear, in selection order — a missing entry means no data or
+            a disabled module, never zero. Clients render what arrives and never recompute."
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                enum:
+                  - READINESS
+                  - RECOVERY_SCORE
+                  - SLEEP_SCORE
+                  - MED_COMPLIANCE
+              score:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              band:
+                type: string
+                enum:
+                  - green
+                  - yellow
+                  - red
+            required:
+              - id
+              - score
+              - band
+            additionalProperties: false
         briefing:
           anyOf:
             - type: object

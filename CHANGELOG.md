@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.27.7] — 2026-07-05 — Score rings on the dashboard
+
+### Added
+
+- The dashboard hero can now show up to three score rings of your choice beside the health score — readiness, recovery, sleep, or medication adherence — picked under Settings → Dashboard. Rings only offer themselves when their module is on, and a ring without data simply stays away. The default shows medication adherence, which replaces the old "doses taken" text line.
+
+### Changed
+
+- Tapping a briefing signal on the dashboard now opens that metric's own page instead of the Insights overview.
+- The hero's broad "Open Insights" button is gone; the health-score card already links there. Verdict buttons with a specific action (take dose, view blood pressure, …) stay.
+
 ## [1.27.6] — 2026-07-05 — A calmer mental-wellbeing check-in
 
 ### Changed
