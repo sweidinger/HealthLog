@@ -209,6 +209,9 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   // PHQ-9 / GAD-7 totals are composite screener indices → scores cluster.
   ["PHQ9_SCORE", "scores"],
   ["GAD7_SCORE", "scores"],
+  // ── v1.27.9 — WHO-5 / SCI totals join the same screener-index cluster.
+  ["WHO5_SCORE", "scores"],
+  ["SCI_SCORE", "scores"],
   // Grip strength is a strength/fitness reading → activity cluster.
   ["GRIP_STRENGTH", "activity"],
   // Pain NRS is a patient-reported clinical point-in-time signal → vitals.

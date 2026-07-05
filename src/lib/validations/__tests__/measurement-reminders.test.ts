@@ -37,8 +37,24 @@ describe("measurementReminderTypeEnum (V3 — completeness)", () => {
         // v1.27.6 — plannable mental-wellbeing screenings
         "PHQ9_SCORE",
         "GAD7_SCORE",
+        // v1.27.9 — WHO-5 + SCI join on the identical contract
+        "WHO5_SCORE",
+        "SCI_SCORE",
       ]),
     );
+  });
+
+  it("accepts the WHO-5 / SCI screenings with the 4-week default cadence", () => {
+    for (const measurementType of ["WHO5_SCORE", "SCI_SCORE"]) {
+      const parsed = createMeasurementReminderSchema.safeParse({
+        label: "Screening check-in",
+        measurementType,
+        intervalDays: 28,
+      });
+      expect(parsed.success, `expected ${measurementType} to be allowed`).toBe(
+        true,
+      );
+    }
   });
 
   it("accepts a plannable screening reminder with the 4-week default cadence", () => {

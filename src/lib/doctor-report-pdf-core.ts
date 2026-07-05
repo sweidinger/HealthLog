@@ -201,6 +201,11 @@ export const DOCTOR_REPORT_TYPE_UNIT_KEYS: Record<string, string | null> = {
  * v1.19.0 — Oura resilience. `RESILIENCE` is an ordinal-encoded categorical
  * band (limited=1 … exceptional=5), a derived recovery composite — descriptive,
  * not a measured clinical vital — so it is excluded too.
+ *
+ * v1.27.9 — WHO-5 / SCI screening totals. `WHO5_SCORE` + `SCI_SCORE` follow
+ * the PHQ-9 / GAD-7 precedent: opt-in, derived from an in-app questionnaire,
+ * excluded from the vitals table (they ride the module-gated mental-health
+ * export section instead, see `doctor-report-data.ts`).
  */
 export const DOCTOR_REPORT_VITAL_TYPES = [
   "WEIGHT",

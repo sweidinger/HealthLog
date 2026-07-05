@@ -1272,6 +1272,47 @@ export const SIGNALS: Record<string, SignalDefinition> = {
       category: "survey",
     },
   },
+  // ── v1.27.9 — WHO-5 well-being + Sleep Condition Indicator totals ───────
+  // Same privacy posture as PHQ-9 / GAD-7 (off Coach snapshot + MCP; item
+  // content never rides a Measurement row). Direction inverts: HIGHER is
+  // better for both. No verified total-score LOINC exists for either, so no
+  // FHIR coding is attached (the export skips uncoded signals rather than
+  // shipping an invented code).
+  WHO5_SCORE: {
+    key: "WHO5_SCORE",
+    kind: "score",
+    source: { measurementType: "WHO5_SCORE" },
+    displayName: "WHO-5 well-being index (0–100)",
+    unit: "score",
+    direction: "higher-better",
+    archetype: "physiological-vital",
+    // "Below 50" is the WHO-suggested cut-off; achievable totals are
+    // multiples of 4, so ≥ 52 is the good side.
+    normalRange: { low: 52, high: 100 },
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
+  SCI_SCORE: {
+    key: "SCI_SCORE",
+    kind: "score",
+    source: { measurementType: "SCI_SCORE" },
+    displayName: "Sleep Condition Indicator (total)",
+    unit: "score",
+    direction: "higher-better",
+    archetype: "physiological-vital",
+    // > 16 identified "no insomnia disorder" in Espie et al. 2014.
+    normalRange: { low: 17, high: 32 },
+    surfaces: {
+      detailPage: false,
+      correlationEligible: false,
+      coachSnapshot: false,
+      mcp: false,
+    },
+  },
   // ── v1.25 clinical-signals wave — physical / clinical measurements ──────
   GRIP_STRENGTH: {
     key: "GRIP_STRENGTH",

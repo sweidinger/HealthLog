@@ -599,7 +599,9 @@
     "typeWaistCircumference": "Circonferenza vita",
     "typeWaistToHeight": "Rapporto vita-altezza",
     "unitScore": "pti",
-    "unitRatio": "rapporto"
+    "unitRatio": "rapporto",
+    "typeWho5Score": "Punteggio WHO-5",
+    "typeSciScore": "Punteggio SCI"
   },
   "mood": {
     "title": "Umore",
@@ -7667,8 +7669,8 @@
   },
   "mentalHealth": {
     "pageTitle": "Check-in sul benessere mentale",
-    "pageDescription": "Due autovalutazioni validate e facoltative — PHQ-9 (umore) e GAD-7 (preoccupazione) — accanto al tuo diario dell'umore. Ciò che conta è l'andamento nel tempo, non un singolo numero.",
-    "pageRhythmHint": "Entrambi i test riguardano le ultime due settimane, quindi un check-in ogni due-quattro settimane è un buon ritmo.",
+    "pageDescription": "Quattro autovalutazioni validate e facoltative — PHQ-9 (umore), GAD-7 (preoccupazione), WHO-5 (benessere) e SCI (sonno) — accanto al tuo diario dell'umore. Ciò che conta è l'andamento nel tempo, non un singolo numero.",
+    "pageRhythmHint": "PHQ-9, GAD-7 e il test sul benessere riguardano le ultime due settimane; il test sul sonno chiede dell'ultimo mese. Un check-in ogni due-quattro settimane è un buon ritmo.",
     "attributionLabel": "Fonte",
     "choosePrompt": "Scegli un check-in",
     "start": "Inizia",
@@ -7677,14 +7679,17 @@
     "submitting": "Salvataggio…",
     "saved": "Salvato",
     "error": "Qualcosa è andato storto. Riprova.",
-    "considerProfessional": "Il tuo punteggio è in un intervallo in cui parlare con un professionista sanitario può aiutare. È un suggerimento gentile, non una diagnosi.",
     "instrument": {
       "phq9": "PHQ-9 · umore",
-      "gad7": "GAD-7 · preoccupazione"
+      "gad7": "GAD-7 · preoccupazione",
+      "who5": "WHO-5 · benessere",
+      "sci": "SCI · sonno"
     },
     "instrumentSub": {
       "phq9": "Screening della depressione, 9 domande",
-      "gad7": "Screening dell'ansia, 7 domande"
+      "gad7": "Screening dell'ansia, 7 domande",
+      "who5": "Test sul benessere, 5 domande",
+      "sci": "Test sul sonno, 8 domande"
     },
     "options": {
       "0": "Per niente",
@@ -7719,16 +7724,23 @@
         "mild": "Lieve",
         "moderate": "Moderata",
         "severe": "Grave"
+      },
+      "WHO5": {
+        "low": "Benessere più basso",
+        "good": "Buon benessere"
+      },
+      "SCI": {
+        "belowThreshold": "Fascia di possibile insonnia",
+        "aboveThreshold": "Nessun indizio di insonnia"
       }
     },
     "history": {
       "title": "La tua cronologia",
       "empty": "Ancora nessun check-in. Il tuo andamento apparirà qui dopo che ne avrai completato uno.",
       "flaggedBadge": "Supporto mostrato",
-      "tab": {
-        "phq9": "PHQ-9",
-        "gad7": "GAD-7"
-      }
+      "chartTitle": "Andamento del punteggio",
+      "totalLabel": "Punteggio",
+      "bandLabel": "Categoria"
     },
     "crisis": {
       "title": "Non devi affrontare tutto questo da solo/a",
@@ -7756,6 +7768,23 @@
         "5": "Essere così irrequieto/a da far fatica a stare seduto/a fermo/a",
         "6": "Infastidirsi o irritarsi facilmente",
         "7": "Avere paura come se potesse accadere qualcosa di terribile"
+      },
+      "who5": {
+        "1": "Mi sono sentito/a allegro/a e di buon umore",
+        "2": "Mi sono sentito/a calmo/a e rilassato/a",
+        "3": "Mi sono sentito/a attivo/a ed energico/a",
+        "4": "Mi sono svegliato/a sentendomi fresco/a e riposato/a",
+        "5": "La mia vita di tutti i giorni è stata piena di cose che mi interessano"
+      },
+      "sci": {
+        "1": "… how long does it take you to fall asleep?",
+        "2": "… if you then wake up during the night … how long are you awake for in total? (add all the wakenings up)",
+        "3": "… how many nights a week do you have a problem with your sleep?",
+        "4": "… how would you rate your sleep quality?",
+        "5": "… affected your mood, energy, or relationships?",
+        "6": "… affected your concentration, productivity, or ability to stay awake?",
+        "7": "… troubled you in general?",
+        "8": "… how long have you had a problem with your sleep?"
       }
     },
     "crisisResource": {
@@ -7783,14 +7812,79 @@
     },
     "instrumentDescription": {
       "phq9": "Screening della depressione in 9 domande. Rispondi pensando alle ultime due settimane.",
-      "gad7": "Screening dell'ansia in 7 domande. Rispondi pensando alle ultime due settimane."
+      "gad7": "Screening dell'ansia in 7 domande. Rispondi pensando alle ultime due settimane.",
+      "who5": "Test sul benessere in 5 domande. Rispondi pensando alle ultime due settimane; numeri più alti indicano un maggior benessere.",
+      "sci": "Test sul sonno in 8 domande. La maggior parte riguarda l'ultimo mese; punteggi più alti indicano un sonno migliore."
     },
     "progress": "{current} / {total}",
     "next": "Avanti",
     "lastResult": "Ultimo test",
     "lastScore": "Ultimo risultato",
     "noResultYet": "Ancora nessun check-in",
-    "backToList": "Panoramica"
+    "backToList": "Panoramica",
+    "followUpHint": {
+      "phq9": "Il tuo punteggio è in un intervallo in cui parlare con un professionista sanitario può aiutare. È un suggerimento gentile, non una diagnosi.",
+      "gad7": "Il tuo punteggio è in un intervallo in cui parlare con un professionista sanitario può aiutare. È un suggerimento gentile, non una diagnosi.",
+      "who5": "Un punteggio di benessere pari o inferiore a 50 può meritare uno sguardo più attento. Se vuoi, il PHQ-9 in questa pagina esplora l'umore più in dettaglio. È un suggerimento gentile, non una diagnosi.",
+      "sci": "Nello studio di questo questionario, punteggi pari o inferiori a 16 erano associati a insonnia probabile. Se dormire male continua a pesarti, parlare con un professionista sanitario può aiutare. Non è una diagnosi."
+    },
+    "validatedInEnglishNote": "Questo questionario è validato in inglese; le domande sono mostrate nella versione originale inglese.",
+    "who5Options": {
+      "5": "Sempre",
+      "4": "La maggior parte del tempo",
+      "3": "Più della metà del tempo",
+      "2": "Meno della metà del tempo",
+      "1": "A volte",
+      "0": "Mai"
+    },
+    "sciOptions": {
+      "duration": {
+        "4": "0–15 min",
+        "3": "16–30 min",
+        "2": "31–45 min",
+        "1": "46–60 min",
+        "0": "≥ 61 min"
+      },
+      "nights": {
+        "4": "0–1",
+        "3": "2",
+        "2": "3",
+        "1": "4",
+        "0": "5–7"
+      },
+      "quality": {
+        "4": "Very good",
+        "3": "Good",
+        "2": "Average",
+        "1": "Poor",
+        "0": "Very poor"
+      },
+      "impact": {
+        "4": "Not at all",
+        "3": "A little",
+        "2": "Somewhat",
+        "1": "Much",
+        "0": "Very much"
+      },
+      "problemDuration": {
+        "4": "I don't have a problem / < 1 month",
+        "3": "1–2 months",
+        "2": "3–6 months",
+        "1": "7–12 months",
+        "0": "> 1 year"
+      }
+    },
+    "stems": {
+      "who5": {
+        "period": "Nelle ultime due settimane"
+      },
+      "sci": {
+        "night": "Thinking about a typical night in the last month …",
+        "impact": "Thinking about the past month, to what extent has poor sleep …",
+        "finally": "Finally …"
+      }
+    },
+    "openDetail": "Mostra dettagli"
   },
   "records": {
     "disclaimer": "Sono i tuoi dati, non una diagnosi medica. HealthLog non diagnostica, non cura e non li interpreta.",

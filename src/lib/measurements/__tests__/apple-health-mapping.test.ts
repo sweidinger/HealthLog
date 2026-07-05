@@ -89,6 +89,10 @@ const MEASUREMENT_TYPES_WITHOUT_HK_COUNTERPART = new Set<MeasurementType>([
   "GRIP_STRENGTH",
   "PAIN_NRS",
   "WAIST_TO_HEIGHT",
+  // v1.27.9 — WHO-5 / SCI screening totals: same in-app questionnaire
+  // derivation as PHQ-9 / GAD-7. No HK mapping by design.
+  "WHO5_SCORE",
+  "SCI_SCORE",
 ]);
 
 describe("APPLE_HEALTH_TYPE_MAP", () => {

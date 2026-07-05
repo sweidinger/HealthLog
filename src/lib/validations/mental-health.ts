@@ -1,8 +1,10 @@
 /**
  * v1.25 — request/response validation for the opt-in mental-health screeners
- * (PHQ-9 / GAD-7). The item answers are 0–3 integers; the array length must
- * match the instrument (PHQ-9 = 9, GAD-7 = 7). `userId` is NEVER a body field —
- * it is narrowed from the session in the handler (CLAUDE.md convention).
+ * (PHQ-9 / GAD-7; v1.27.9 adds WHO-5 + SCI). The item answers are small
+ * integers whose ceiling is instrument-specific (PHQ/GAD 0–3, SCI 0–4,
+ * WHO-5 0–5); the array length must match the instrument. `userId` is NEVER
+ * a body field — it is narrowed from the session in the handler (CLAUDE.md
+ * convention).
  */
 import { z } from "zod/v4";
 import {
@@ -10,7 +12,7 @@ import {
   type InstrumentId,
 } from "@/lib/mental-health/instruments";
 
-export const assessmentInstrumentEnum = z.enum(["PHQ9", "GAD7"]);
+export const assessmentInstrumentEnum = z.enum(["PHQ9", "GAD7", "WHO5", "SCI"]);
 
 /**
  * Client provenance for an administration. Closed enum so the column can never
@@ -21,12 +23,15 @@ export const assessmentInstrumentEnum = z.enum(["PHQ9", "GAD7"]);
  */
 export const assessmentSourceEnum = z.enum(["WEB", "IOS"]);
 
-const itemAnswer = z.number().int().min(0).max(3);
+// Structural ceiling — the WHO-5's 0–5 scale is the widest. The exact
+// per-instrument ceiling (PHQ/GAD 3, SCI 4) is enforced in the superRefine
+// below, where the instrument is known.
+const itemAnswer = z.number().int().min(0).max(5);
 
 export const createAssessmentSchema = z
   .object({
     instrument: assessmentInstrumentEnum,
-    /** Per-item answers, each 0–3, ordered as the instrument presents them. */
+    /** Per-item answers, ordered as the instrument presents them. */
     items: z.array(itemAnswer).min(1).max(12),
     /** Optional functional-impairment follow-up (not scored into the total). */
     functionalDifficulty: z.number().int().min(0).max(3).optional(),
@@ -55,6 +60,15 @@ export const createAssessmentSchema = z
         message: `${val.instrument} expects exactly ${def.itemCount} item answers`,
       });
     }
+    val.items.forEach((answer, index) => {
+      if (answer > def.itemMax) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["items", index],
+          message: `${val.instrument} answers range 0–${def.itemMax}`,
+        });
+      }
+    });
   });
 
 export const listAssessmentsSchema = z.object({

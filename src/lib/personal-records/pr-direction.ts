@@ -205,6 +205,10 @@ export function getPRDirection(
     // all). All defer to a null PR direction.
     case "PHQ9_SCORE":
     case "GAD7_SCORE":
+    // v1.27.9 — WHO-5 / SCI screening totals follow the same no-gamification
+    // safety rule (no streaks / "best score" framing around a screener).
+    case "WHO5_SCORE":
+    case "SCI_SCORE":
     case "PAIN_NRS":
     case "WAIST_CIRCUMFERENCE":
     case "WAIST_TO_HEIGHT":

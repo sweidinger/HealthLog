@@ -155,6 +155,39 @@ const LEGIT_IDENTICAL = new Set<string>([
   "mentalHealth.items.phq9.7",
   "mentalHealth.items.phq9.8",
   "mentalHealth.items.phq9.9",
+  // v1.27.9 — the Sleep Condition Indicator is validated in English only
+  // (Espie 2014, CC BY-NC). Item text, section stems and response anchors
+  // ship VERBATIM in the source language in every locale — a self-made
+  // translation would invalidate the instrument — and the UI shows a
+  // localized "validated in English" note instead. Identical-to-EN is the
+  // intended state here, not a leak.
+  "mentalHealth.items.sci.1",
+  "mentalHealth.items.sci.2",
+  "mentalHealth.items.sci.3",
+  "mentalHealth.items.sci.4",
+  "mentalHealth.items.sci.5",
+  "mentalHealth.items.sci.6",
+  "mentalHealth.items.sci.7",
+  "mentalHealth.items.sci.8",
+  "mentalHealth.stems.sci.night",
+  "mentalHealth.stems.sci.impact",
+  "mentalHealth.stems.sci.finally",
+  "mentalHealth.sciOptions.duration.0",
+  "mentalHealth.sciOptions.quality.4",
+  "mentalHealth.sciOptions.quality.3",
+  "mentalHealth.sciOptions.quality.2",
+  "mentalHealth.sciOptions.quality.1",
+  "mentalHealth.sciOptions.quality.0",
+  "mentalHealth.sciOptions.impact.4",
+  "mentalHealth.sciOptions.impact.3",
+  "mentalHealth.sciOptions.impact.2",
+  "mentalHealth.sciOptions.impact.1",
+  "mentalHealth.sciOptions.impact.0",
+  "mentalHealth.sciOptions.problemDuration.4",
+  "mentalHealth.sciOptions.problemDuration.3",
+  "mentalHealth.sciOptions.problemDuration.2",
+  "mentalHealth.sciOptions.problemDuration.1",
+  "mentalHealth.sciOptions.problemDuration.0",
 ]);
 
 describe("i18n English-leak guard", () => {

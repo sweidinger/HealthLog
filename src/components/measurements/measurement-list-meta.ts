@@ -125,6 +125,9 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   // ── v1.25 — clinical-signals wave ──
   PHQ9_SCORE: "measurements.typePhq9Score",
   GAD7_SCORE: "measurements.typeGad7Score",
+  // ── v1.27.9 — screening scores ──
+  WHO5_SCORE: "measurements.typeWho5Score",
+  SCI_SCORE: "measurements.typeSciScore",
   GRIP_STRENGTH: "measurements.typeGripStrength",
   PAIN_NRS: "measurements.typePainNrs",
   WAIST_CIRCUMFERENCE: "measurements.typeWaistCircumference",
@@ -257,6 +260,9 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   // Activity the pain trace; Scale the anthropometric waist pair.
   PHQ9_SCORE: Gauge,
   GAD7_SCORE: Gauge,
+  // ── v1.27.9 — screening scores ride the same composite-dial icon ──
+  WHO5_SCORE: Gauge,
+  SCI_SCORE: Gauge,
   GRIP_STRENGTH: Dumbbell,
   PAIN_NRS: Activity,
   WAIST_CIRCUMFERENCE: Scale,
@@ -380,6 +386,9 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   // chart-3 (cardio/alert family) for pain; chart-4 (body family) for waist.
   PHQ9_SCORE: "bg-chart-1/20 text-chart-1",
   GAD7_SCORE: "bg-chart-1/20 text-chart-1",
+  // ── v1.27.9 — screening scores join the composite/score colour family ──
+  WHO5_SCORE: "bg-chart-1/20 text-chart-1",
+  SCI_SCORE: "bg-chart-1/20 text-chart-1",
   GRIP_STRENGTH: "bg-chart-1/20 text-chart-1",
   PAIN_NRS: "bg-chart-3/20 text-chart-3",
   WAIST_CIRCUMFERENCE: "bg-chart-4/20 text-chart-4",

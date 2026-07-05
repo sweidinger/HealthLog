@@ -116,11 +116,11 @@ const TYPE_GROUPS = [
     ],
   },
   // v1.27.6 — the mental-wellbeing screenings become plannable like any
-  // other Vorsorge item. Auto-resolve rides the server-written PHQ9_SCORE /
-  // GAD7_SCORE row a completed check-in produces.
+  // other Vorsorge item. Auto-resolve rides the server-written *_SCORE row a
+  // completed check-in produces (v1.27.9 adds WHO-5 + SCI).
   {
     group: "mentalWellbeing",
-    types: ["PHQ9_SCORE", "GAD7_SCORE"],
+    types: ["PHQ9_SCORE", "GAD7_SCORE", "WHO5_SCORE", "SCI_SCORE"],
   },
 ] as const;
 

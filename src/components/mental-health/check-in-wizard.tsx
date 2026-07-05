@@ -12,6 +12,14 @@
  * Answering the last question arms the submit directly — the next thing
  * the user sees is the dignified result view.
  *
+ * v1.27.9 — the wizard drives from the instrument registry instead of a
+ * hard-wired 0–3 scale: option values/order, option-label scheme (shared
+ * anchors vs the SCI's per-item anchor groups), and the recall-stem caption
+ * (the WHO-5 / SCI items are fragments under a shared stem on the source
+ * forms) all come from `INSTRUMENTS`. Locales without a validated item
+ * translation (SCI outside English) get an honest chrome note; the items
+ * themselves stay in the validated source language.
+ *
  * Header: instrument title + ONE standardized explanation line, NO
  * disclaimer (§2 — the "voluntary self-test, not a diagnosis" disclaimer
  * renders only on the landing, never while taking the test).
@@ -22,7 +30,12 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTranslations } from "@/lib/i18n/context";
-import { INSTRUMENTS } from "@/lib/mental-health/instruments";
+import {
+  INSTRUMENTS,
+  hasValidatedItems,
+  optionLabelKey,
+  stemKey,
+} from "@/lib/mental-health/instruments";
 
 import {
   isComplete,
@@ -33,11 +46,7 @@ import {
 } from "./check-in-nav";
 import type { InstrumentId } from "./types";
 
-const SCALE = [0, 1, 2, 3] as const;
-
-function lower(id: InstrumentId): "phq9" | "gad7" {
-  return id === "PHQ9" ? "phq9" : "gad7";
-}
+const FUNCTIONAL_SCALE = [0, 1, 2, 3] as const;
 
 export function CheckInWizard({
   instrument,
@@ -54,15 +63,16 @@ export function CheckInWizard({
   isPending: boolean;
   isError: boolean;
 }) {
-  const { t } = useTranslations();
-  const key = lower(instrument);
-  const itemCount = INSTRUMENTS[instrument].itemCount;
+  const { t, locale } = useTranslations();
+  const def = INSTRUMENTS[instrument];
+  const key = def.i18nKey;
+  const itemCount = def.itemCount;
   // v1.27.8 — the PHQ-9 asks its validated functional-impairment
   // follow-up as a regular LAST question (10 of 10) instead of a
   // separate review-step widget. It is OPTIONAL per the instrument
   // (answering is not required to submit) and never scores into the
   // total — the value rides the existing `functionalDifficulty` API
-  // field. GAD-7 has no such item and keeps its 7 steps.
+  // field. The other instruments have no such item.
   const hasFunctionalStep = instrument === "PHQ9";
   const totalSteps = itemCount + (hasFunctionalStep ? 1 : 0);
 
@@ -79,6 +89,9 @@ export function CheckInWizard({
   const questionLabel = onFunctionalStep
     ? t("mentalHealth.functionalTitle")
     : t(`mentalHealth.items.${key}.${step}`);
+  // Recall-stem caption above the question (WHO-5 / SCI fragments).
+  const stem = onFunctionalStep ? null : stemKey(instrument, questionIndex);
+  const scale = onFunctionalStep ? FUNCTIONAL_SCALE : def.optionOrder;
 
   // a11y: announce each step by moving focus to its heading (the question
   // text). Mirrors the medication dialog's per-step title focus so a
@@ -135,6 +148,16 @@ export function CheckInWizard({
         <p className="text-muted-foreground text-sm">
           {t(`mentalHealth.instrumentDescription.${key}`)}
         </p>
+        {/* Honest translation note: the instrument is validated in its source
+            language; the surrounding chrome stays localized. */}
+        {!hasValidatedItems(instrument, locale) && (
+          <p
+            className="text-muted-foreground text-xs"
+            data-slot="check-in-validated-note"
+          >
+            {t("mentalHealth.validatedInEnglishNote")}
+          </p>
+        )}
       </header>
 
       <Card className="gap-0 p-0">
@@ -146,6 +169,11 @@ export function CheckInWizard({
                 total: totalSteps,
               })}
             </p>
+            {stem && (
+              <p className="text-sm" data-slot="check-in-stem">
+                {t(`mentalHealth.stems.${stem}`)}
+              </p>
+            )}
             <h2
               ref={headingRef}
               tabIndex={-1}
@@ -163,7 +191,7 @@ export function CheckInWizard({
               role="group"
               aria-label={questionLabel}
             >
-              {SCALE.map((v) => {
+              {scale.map((v) => {
                 const selected = onFunctionalStep
                   ? functional === v
                   : items[questionIndex] === v;
@@ -180,7 +208,9 @@ export function CheckInWizard({
                   >
                     {onFunctionalStep
                       ? t(`mentalHealth.functional.${v}`)
-                      : t(`mentalHealth.options.${v}`)}
+                      : t(
+                          `mentalHealth.${optionLabelKey(instrument, questionIndex, v)}`,
+                        )}
                   </Button>
                 );
               })}

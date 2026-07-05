@@ -284,6 +284,98 @@ describe("POST /api/mental-health/assessments", () => {
     expect(createArg.data.externalId).toBe("outbox-aa01");
   });
 
+  it("scores a WHO-5 check-in as raw-sum × 4 and projects a WHO5_SCORE measurement", async () => {
+    // Raw 3+3+2+2+2 = 12 → reported 48 (below the WHO "below 50" cut → low).
+    vi.mocked(prisma.mentalHealthAssessment.create).mockResolvedValue({
+      id: "mha_who5",
+      instrument: "WHO5",
+      locale: "en",
+      version: "standard",
+      totalScore: 48,
+      severityBand: "low",
+      item9Flagged: false,
+      crisisShownAt: null,
+      takenAt: new Date("2026-06-28T00:00:00.000Z"),
+      createdAt: new Date("2026-06-28T00:00:00.000Z"),
+    } as never);
+
+    const res = await callPost(
+      makeReq({ instrument: "WHO5", items: [3, 3, 2, 2, 2] }),
+    );
+    expect(res.status).toBe(201);
+
+    const createArg = vi.mocked(prisma.mentalHealthAssessment.create).mock
+      .calls[0][0] as {
+      data: { totalScore: number; severityBand: string; item9Flagged: boolean };
+    };
+    expect(createArg.data.totalScore).toBe(48);
+    expect(createArg.data.severityBand).toBe("low");
+    // Positively-worded instrument, no safety item — never flagged.
+    expect(createArg.data.item9Flagged).toBe(false);
+
+    const measArg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
+      data: { type: string; value: number; source: string };
+    };
+    expect(measArg.data.type).toBe("WHO5_SCORE");
+    expect(measArg.data.value).toBe(48);
+    expect(measArg.data.source).toBe("COMPUTED");
+
+    const body = (await res.json()) as {
+      data: { crisis: unknown; actionThreshold: number };
+    };
+    // No crisis routing on the WHO-5 — the ≤50 pointer is client-side copy.
+    expect(body.data.crisis).toBeNull();
+    expect(body.data.actionThreshold).toBe(50);
+  });
+
+  it("accepts an SCI check-in (0–4 anchors) and projects an SCI_SCORE measurement", async () => {
+    vi.mocked(prisma.mentalHealthAssessment.create).mockResolvedValue({
+      id: "mha_sci",
+      instrument: "SCI",
+      locale: "en",
+      version: "standard",
+      totalScore: 16,
+      severityBand: "belowThreshold",
+      item9Flagged: false,
+      crisisShownAt: null,
+      takenAt: new Date("2026-06-28T00:00:00.000Z"),
+      createdAt: new Date("2026-06-28T00:00:00.000Z"),
+    } as never);
+
+    // Total 4+3+2+1+0+4+1+1 = 16 → the paper's ≤16 probable-insomnia range.
+    const res = await callPost(
+      makeReq({ instrument: "SCI", items: [4, 3, 2, 1, 0, 4, 1, 1] }),
+    );
+    expect(res.status).toBe(201);
+
+    const createArg = vi.mocked(prisma.mentalHealthAssessment.create).mock
+      .calls[0][0] as { data: { totalScore: number; severityBand: string } };
+    expect(createArg.data.totalScore).toBe(16);
+    expect(createArg.data.severityBand).toBe("belowThreshold");
+
+    const measArg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
+      data: { type: string; value: number; source: string };
+    };
+    expect(measArg.data.type).toBe("SCI_SCORE");
+    expect(measArg.data.value).toBe(16);
+    expect(measArg.data.source).toBe("COMPUTED");
+  });
+
+  it("rejects an out-of-scale answer for the instrument with 422 (SCI max 4, PHQ-9 max 3)", async () => {
+    // 5 is a legal WHO-5 answer but out of scale for the SCI…
+    const sciRes = await callPost(
+      makeReq({ instrument: "SCI", items: [5, 3, 2, 1, 0, 4, 1, 1] }),
+    );
+    expect(sciRes.status).toBe(422);
+    // …and 4 is out of scale for the PHQ-9.
+    const phqRes = await callPost(
+      makeReq({ instrument: "PHQ9", items: [4, 0, 0, 0, 0, 0, 0, 0, 0] }),
+    );
+    expect(phqRes.status).toBe(422);
+    expect(prisma.mentalHealthAssessment.create).not.toHaveBeenCalled();
+    expect(prisma.measurement.create).not.toHaveBeenCalled();
+  });
+
   it("rejects a wrong item count with 422 and never writes", async () => {
     const res = await callPost(
       makeReq({ instrument: "PHQ9", items: [1, 2, 3] }), // 3 ≠ 9
