@@ -101,16 +101,18 @@ const CTA_LABEL_KEY: Partial<Record<DashboardVerdictVariant, string>> = {
 /**
  * Per-ring hue for the selected score rings — the wellness-strip
  * vocabulary, so every hero ring paints EXACTLY the hue its insights
- * sibling paints. MED_COMPLIANCE carries no per-metric hue entry: the
- * dose ring pins the ring system's green arc (`band="green"`, constant)
- * — the same green family the medication compliance surfaces in
- * Insights paint for a taken dose — instead of a band gradient that
- * would flash yellow/red over pending morning doses.
+ * sibling paints. MED_COMPLIANCE rides the `meds` hue: the medication
+ * family in Insights paints `--primary` on every surface (compliance
+ * bars, compliance trend line, drug-level / dose-strength curves), so
+ * the dose ring holds that one constant tone — never a band gradient
+ * that would flash yellow/red over pending morning doses, and not the
+ * green arc the ring system reserves for band semantics.
  */
 const RING_HUE_BY_ID: Partial<Record<ScoreRingId, RingHue>> = {
   READINESS: "readiness",
   RECOVERY_SCORE: "recovery",
   SLEEP_SCORE: "sleep",
+  MED_COMPLIANCE: "meds",
 };
 
 /** Per-ring label key — reuses the existing score labels; the dose ring
@@ -328,13 +330,19 @@ export function DashboardHero({
                 className="flex shrink-0 items-center"
               >
                 {/* Dose ring — today's tally ("1/3") over the constant
-                    green arc; the arc still sweeps on the 0..100
-                    progress `score`. Falls through to the score render
-                    when a cached pre-doses snapshot carries no tally. */}
+                    med-family arc (`hue="meds"` = --primary, the tone
+                    every medication surface in Insights paints); the arc
+                    still sweeps on the 0..100 progress `score`.
+                    `band="green"` stays as the stable data-band anchor —
+                    a pending morning dose is not an alert state — while
+                    the hue owns the paint. Falls through to the score
+                    render when a cached pre-doses snapshot carries no
+                    tally. */}
                 {ring.id === "MED_COMPLIANCE" && ring.doses ? (
                   <ScoreRing
                     score={ring.score}
                     band="green"
+                    hue="meds"
                     valueText={`${ring.doses.taken}/${ring.doses.scheduled}`}
                     ariaLabel={t("dashboard.hero.ringDosesAria", {
                       taken: ring.doses.taken,
