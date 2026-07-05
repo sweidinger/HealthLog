@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.27.6] — 2026-07-05 — A calmer mental-wellbeing check-in
+
+### Changed
+
+- The mental-wellbeing page is a judgment-free space now: the score history chart is gone from the page itself. Trends stay available through Insights and Measurements for those who want them.
+- The PHQ-9 and GAD-7 cards follow the same card anatomy as medications and preventive care: title, when you last tested, your last result, the time since — and one start button.
+- The check-in itself is just the questions: the question-overview strip at the top is gone, and after the last answer you land directly on your result — no summary step in between. The back button stays.
+- The page intro now mentions a comfortable rhythm: both tests cover the last two weeks, so checking in every two to four weeks is plenty.
+
+### Added
+
+- Mental-wellbeing check-ins can be planned under preventive care like any other reminder, with a four-week default interval. Completing a check-in satisfies the reminder automatically, and its card button starts the check-in directly.
+
+### Fixed
+
+- Completed screening scores are now recorded as server-computed readings, so they cannot be confused with hand-entered values; existing score entries are re-attributed once during the update.
+
 ## [1.27.5] — 2026-07-05 — Insights polish and honest states
 
 ### Fixed

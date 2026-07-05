@@ -160,6 +160,52 @@ describe("runReminderSatisfyForUser", () => {
     expect(prisma.measurement.findFirst).not.toHaveBeenCalled();
   });
 
+  it("satisfies a screening reminder from the server-written score row (v1.27.6)", async () => {
+    // A completed PHQ-9 check-in writes a COMPUTED PHQ9_SCORE measurement;
+    // the screening reminder resolves from that row like any typed reminder.
+    const measuredAt = new Date("2026-07-01T10:00:00Z");
+    const { prisma, updates } = makePrisma({
+      reminders: [
+        reminderRow({ measurementType: "PHQ9_SCORE", intervalDays: 28 }),
+      ],
+      measurement: { measuredAt },
+    });
+    const isModuleEnabled = vi.fn(async () => true);
+
+    const summary = await runReminderSatisfyForUser(
+      prisma as never,
+      "u1",
+      new Date("2026-07-01T12:00:00Z"),
+      { isModuleEnabled },
+    );
+
+    expect(summary.satisfied).toBe(1);
+    expect(isModuleEnabled).toHaveBeenCalledWith("u1", "mentalHealth");
+    expect(updates[0].data.lastSatisfiedAt).toEqual(measuredAt);
+  });
+
+  it("produces no engine activity for a screening reminder when the mental-health module is off", async () => {
+    const { prisma, updates } = makePrisma({
+      reminders: [
+        reminderRow({ measurementType: "GAD7_SCORE", intervalDays: 28 }),
+      ],
+      measurement: { measuredAt: new Date("2026-07-01T10:00:00Z") },
+    });
+    const isModuleEnabled = vi.fn(async () => false);
+
+    const summary = await runReminderSatisfyForUser(
+      prisma as never,
+      "u1",
+      new Date(),
+      { isModuleEnabled },
+    );
+
+    expect(summary.skippedModuleDisabled).toBe(1);
+    expect(summary.satisfied).toBe(0);
+    expect(isModuleEnabled).toHaveBeenCalledWith("u1", "mentalHealth");
+    expect(updates).toHaveLength(0);
+  });
+
   it("is forward-only: a stale event is a no-op (cron + hook converge)", async () => {
     const { prisma, updates } = makePrisma({
       reminders: [

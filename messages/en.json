@@ -6988,11 +6988,14 @@
       "BONE_MASS": "Bone mass",
       "TOTAL_BODY_WATER": "Body water",
       "VISCERAL_FAT": "Visceral fat",
-      "BODY_MASS_INDEX": "Body mass index (BMI)"
+      "BODY_MASS_INDEX": "Body mass index (BMI)",
+      "PHQ9_SCORE": "PHQ-9 · mood",
+      "GAD7_SCORE": "GAD-7 · worry"
     },
     "typeGroups": {
       "vitals": "Vitals",
-      "bodyComposition": "Body composition"
+      "bodyComposition": "Body composition",
+      "mentalWellbeing": "Mental wellbeing"
     },
     "empty": {
       "title": "No reminders yet",
@@ -7026,6 +7029,7 @@
     "selfPlanned": "Self-planned",
     "captureValue": "Log value",
     "measureNow": "Measure now",
+    "startCheckIn": "Start check-in",
     "nextDueLabel": "Next due:",
     "lastDoneLabel": "Last done:",
     "customize": "Customize checkups",
@@ -7627,6 +7631,7 @@
   "mentalHealth": {
     "pageTitle": "Mental wellbeing check-in",
     "pageDescription": "Two validated, opt-in self-assessments — PHQ-9 (mood) and GAD-7 (worry) — that sit beside your mood tracking. The value is the trend over time, not any single number.",
+    "pageRhythmHint": "Both tests look back over the last two weeks, so a check-in every two to four weeks is a comfortable rhythm.",
     "attributionLabel": "Attribution",
     "choosePrompt": "Choose a check-in",
     "start": "Start",
@@ -7637,8 +7642,8 @@
     "error": "Something went wrong. Please try again.",
     "considerProfessional": "Your score is in a range where talking to a health professional may help. This is a gentle suggestion, not a diagnosis.",
     "instrument": {
-      "phq9": "PHQ-9 — mood",
-      "gad7": "GAD-7 — worry"
+      "phq9": "PHQ-9 · mood",
+      "gad7": "GAD-7 · worry"
     },
     "instrumentSub": {
       "phq9": "Depression screen, 9 questions",
@@ -7649,13 +7654,6 @@
       "1": "Several days",
       "2": "More than half the days",
       "3": "Nearly every day"
-    },
-    "functionalTitle": "If you checked off any problems, how difficult have these made it to do your work, take care of things at home, or get along with other people?",
-    "functional": {
-      "0": "Not difficult at all",
-      "1": "Somewhat difficult",
-      "2": "Very difficult",
-      "3": "Extremely difficult"
     },
     "result": {
       "title": "Your result",
@@ -7681,14 +7679,11 @@
     "history": {
       "title": "Your history",
       "empty": "No check-ins yet. Your trend will appear here once you complete one.",
-      "chartTitle": "Score trend",
       "flaggedBadge": "Support shown",
-      "totalLabel": "Score",
       "tab": {
         "phq9": "PHQ-9",
         "gad7": "GAD-7"
-      },
-      "bandLabel": "Category"
+      }
     },
     "crisis": {
       "title": "You don't have to face this alone",
@@ -7746,18 +7741,11 @@
       "gad7": "7-question anxiety screen. Answer for the last two weeks."
     },
     "progress": "{current} / {total}",
-    "questionAria": "Question {current} of {total}",
     "next": "Next",
     "lastResult": "Last test",
+    "lastScore": "Last result",
     "noResultYet": "No check-in yet",
-    "backToList": "Overview",
-    "jumpFirst": "Jump to first question",
-    "jumpLast": "Jump to last question",
-    "review": {
-      "title": "Review",
-      "recap": "You answered {answered} of {total} questions."
-    },
-    "openDetail": "Show trend"
+    "backToList": "Overview"
   },
   "records": {
     "disclaimer": "These are your own records, not a medical diagnosis. HealthLog does not diagnose, treat, or interpret them.",

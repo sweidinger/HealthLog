@@ -3,14 +3,17 @@
 /**
  * v1.25.3 — one neutral card per instrument on the landing.
  *
- * Mirrors the Vorsorge / medication card grammar: a header (title + sub),
- * a discreet "last result" line when history exists (band badge + relative
- * date), and a single bottom-pinned Start action. The surface stays NEUTRAL
+ * v1.27.6 — rebuilt onto the shared med-/Vorsorge card anatomy so the two
+ * test cards read exactly like their peers: `MedicationCardHeader` (bold
+ * name + outline category badge), a label/value block in the next-last
+ * grammar ("last test" → relative day, "last result" → score + band word),
+ * and a single bottom-pinned Start action. The surface stays NEUTRAL
  * regardless of the last band — no severity tint (house rule: status reads
- * through a discreet badge only).
+ * through discreet text only, never a card wash).
  */
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { MedicationCardHeader } from "@/components/medications/medication-card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { relativeCalendarDate } from "@/lib/i18n/relative-time";
 
@@ -24,18 +27,11 @@ export function InstrumentCard({
   instrument,
   last,
   onStart,
-  onOpenDetail,
 }: {
   instrument: InstrumentId;
   /** Most-recent assessment for this instrument, or undefined when none yet. */
   last: AssessmentRow | undefined;
   onStart: () => void;
-  /**
-   * Open this instrument's trend detail. The card BODY (title + last-result
-   * line) is the navigation target — mirroring how a medication card opens its
-   * detail — while the bottom-pinned Start button stays a separate action.
-   */
-  onOpenDetail: () => void;
 }) {
   const { t } = useTranslations();
   const { date: formatDate } = useFormatters();
@@ -43,44 +39,48 @@ export function InstrumentCard({
   const title = t(`mentalHealth.instrument.${key}`);
 
   return (
-    <Card className="h-full gap-3" data-slot="instrument-card">
-      <CardContent className="flex h-full flex-col space-y-3.5 p-4">
-        {/* Body is the detail target: clicking the title / last-result block
-            opens this instrument's Verlauf, like a medication card. The Start
-            button below is a separate, deliberately non-overlapping action. */}
-        <button
-          type="button"
-          onClick={onOpenDetail}
-          data-slot="instrument-card-open"
-          aria-label={`${title} — ${t("mentalHealth.openDetail")}`}
-          className="focus-visible:ring-ring/60 hover:bg-accent/40 -m-1 flex flex-1 cursor-pointer flex-col gap-3.5 rounded-md p-1 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        >
-          <div className="flex flex-col gap-0.5">
-            <span className="text-lg leading-none font-semibold">{title}</span>
-            <span className="text-muted-foreground text-xs">
-              {t(`mentalHealth.instrumentSub.${key}`)}
-            </span>
+    <Card className="h-full gap-3 md:gap-3" data-slot="instrument-card">
+      <MedicationCardHeader
+        name={title}
+        dose=""
+        categoryLabel={t(`mentalHealth.instrumentSub.${key}`)}
+      />
+      <CardContent className="flex h-full flex-col space-y-3.5">
+        {/* Label/value block in the Vorsorge card's next-last grammar. With
+            no history yet, one calm line replaces the pair — no dashes
+            pretending a value exists. */}
+        {last ? (
+          <div className="min-h-[2.75rem] space-y-1.5 text-sm">
+            <div className="text-muted-foreground flex items-baseline justify-between gap-3">
+              <span className="min-w-0 flex-shrink truncate font-medium">
+                {t("mentalHealth.lastResult")}
+              </span>
+              <span className="text-foreground text-right">
+                {relativeCalendarDate(last.takenAt, t, formatDate)}
+              </span>
+            </div>
+            <div className="text-muted-foreground flex items-baseline justify-between gap-3">
+              <span className="min-w-0 flex-shrink truncate font-medium">
+                {t("mentalHealth.lastScore")}
+              </span>
+              <span
+                className="text-foreground text-right"
+                data-slot="instrument-card-last-score"
+              >
+                {last.totalScore}
+                {" · "}
+                {t(`mentalHealth.band.${last.instrument}.${last.severityBand}`)}
+              </span>
+            </div>
           </div>
-
-          {/* Last-test line in the medication-card grammar: label left, the
-              relative day (today / yesterday / date) right-aligned. The severity
-              band is intentionally NOT shown here — the trend behind the card
-              carries it. */}
-          <div className="text-muted-foreground flex min-h-5 items-center justify-between gap-2 text-xs">
-            {last ? (
-              <>
-                <span>{t("mentalHealth.lastResult")}</span>
-                <span className="shrink-0">
-                  {relativeCalendarDate(last.takenAt, t, formatDate)}
-                </span>
-              </>
-            ) : (
-              <span>{t("mentalHealth.noResultYet")}</span>
-            )}
+        ) : (
+          <div className="text-muted-foreground flex min-h-[2.75rem] items-center text-sm">
+            {t("mentalHealth.noResultYet")}
           </div>
-        </button>
+        )}
 
-        <div className="pt-0">
+        {/* Bottom-pinned single primary action — the med-/Vorsorge card slot. */}
+        <div className="mt-auto pt-0">
           <Button type="button" className="min-h-11 w-full" onClick={onStart}>
             {t("mentalHealth.start")}
           </Button>

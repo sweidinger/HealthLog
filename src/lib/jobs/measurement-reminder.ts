@@ -51,9 +51,11 @@ import { satisfyReminder } from "@/lib/measurement-reminders/satisfy";
  * pressure, pulse, body composition) or has no module of its own. A
  * `null` reminder type (free-text Vorsorge entry) also yields `null`.
  *
- * Only the two secondary-domain types carry a gate: glucose and sleep.
- * Everything else is core and dispatches regardless — disabling a module
- * must never silence a core-vital reminder.
+ * Only the secondary-domain types carry a gate: glucose, sleep, and the
+ * mental-wellbeing screenings (v1.27.6 — the PHQ-9 / GAD-7 module is
+ * opt-in, so a screening reminder must fall silent the moment the module
+ * is off). Everything else is core and dispatches regardless — disabling
+ * a module must never silence a core-vital reminder.
  */
 function moduleForMeasurementType(
   type: MeasurementType | null,
@@ -63,6 +65,9 @@ function moduleForMeasurementType(
       return "glucose";
     case "SLEEP_DURATION":
       return "sleep";
+    case "PHQ9_SCORE":
+    case "GAD7_SCORE":
+      return "mentalHealth";
     default:
       return null;
   }

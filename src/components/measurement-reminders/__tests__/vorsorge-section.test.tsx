@@ -14,6 +14,12 @@ import type { MeasurementReminder } from "@/hooks/use-measurement-reminders";
  * `<EmptyState>` with an add action. These tests pin both.
  */
 
+// v1.27.6 — a screening reminder's primary action navigates to the
+// check-in page via the app router, which the SSR harness doesn't mount.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+}));
+
 const remindersMock = vi.fn();
 vi.mock("@/hooks/use-measurement-reminders", () => ({
   useMeasurementReminders: () => remindersMock(),
@@ -134,6 +140,32 @@ describe("<VorsorgeSection> loading + empty", () => {
     expect(html).toContain("Done");
     expect(html).toContain("Self-planned");
     expect(html).not.toContain("Log value");
+  });
+
+  it("renders a 'Start check-in' action for a screening reminder (v1.27.6)", () => {
+    // A PHQ-9 / GAD-7 reminder routes to the check-in page — the score is
+    // never typed in, so the numeric "Measure now" wording would mislead.
+    const reminder: MeasurementReminder = {
+      id: "screening",
+      label: "PHQ-9 check-in",
+      measurementType: "PHQ9_SCORE",
+      intervalDays: 28,
+      rrule: null,
+      anchorDate: null,
+      endsOn: null,
+      origin: "VORSORGE",
+      nextDueAt: null,
+      notifyHour: 9,
+      location: null,
+      lastSatisfiedAt: null,
+      enabled: true,
+      createdAt: "2030-01-01T00:00:00.000Z",
+      updatedAt: "2030-01-01T00:00:00.000Z",
+    } as MeasurementReminder;
+    remindersMock.mockReturnValue({ data: [reminder], isLoading: false });
+    const html = render(<VorsorgeSection />);
+    expect(html).toContain("Start check-in");
+    expect(html).not.toContain("Measure now");
   });
 
   it("reads a same-day due time as 'today' (calendar-day delta, not rolling 24h)", () => {

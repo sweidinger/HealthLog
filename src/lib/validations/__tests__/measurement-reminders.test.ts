@@ -14,7 +14,7 @@ import {
 describe("measurementReminderTypeEnum (V3 — completeness)", () => {
   const allowed = measurementReminderTypeEnum.options;
 
-  it("exposes the full active set: vitals + body composition", () => {
+  it("exposes the full active set: vitals + body composition + screenings", () => {
     expect(new Set(allowed)).toEqual(
       new Set([
         // Vitals
@@ -34,8 +34,20 @@ describe("measurementReminderTypeEnum (V3 — completeness)", () => {
         "TOTAL_BODY_WATER",
         "VISCERAL_FAT",
         "BODY_MASS_INDEX",
+        // v1.27.6 — plannable mental-wellbeing screenings
+        "PHQ9_SCORE",
+        "GAD7_SCORE",
       ]),
     );
+  });
+
+  it("accepts a plannable screening reminder with the 4-week default cadence", () => {
+    const parsed = createMeasurementReminderSchema.safeParse({
+      label: "PHQ-9 Check-in",
+      measurementType: "PHQ9_SCORE",
+      intervalDays: 28,
+    });
+    expect(parsed.success).toBe(true);
   });
 
   it("accepts a newly-added body-composition type on create", () => {

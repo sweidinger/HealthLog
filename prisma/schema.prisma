@@ -1306,8 +1306,10 @@ enum AssessmentInstrument {
 /// nor logged. The derived total / band / item-9 flag are denormalised
 /// (server-authoritative) for cheap history reads without decrypting. A
 /// matching `PHQ9_SCORE` / `GAD7_SCORE` Measurement row is written per
-/// administration (linked by `externalId = assessment:<id>`) so the score rides
-/// the existing chart / rollup infra — the trend, never the item content.
+/// administration (linked by `externalId = assessment:<id>`, `source =
+/// COMPUTED` — server-owned like RECOVERY_SCORE, never client-attributable) so
+/// the score rides the existing chart / rollup infra — the trend, never the
+/// item content.
 model MentalHealthAssessment {
   id                 String               @id @default(cuid())
   userId             String               @map("user_id")

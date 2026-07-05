@@ -28,6 +28,7 @@ import {
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { withIdempotency } from "@/lib/idempotency";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
@@ -308,9 +309,11 @@ async function postAssessment(request: NextRequest): Promise<Response> {
   // chart/rollup infra reads the trend without ever touching item content. The
   // externalId anchors the trend point to this administration; duplicate trend
   // points are structurally impossible because a replayed externalId returns
-  // the existing assessment above before reaching this create. `MeasurementSource`
-  // carries no WEB/IOS member (a screener is questionnaire input, not a device
-  // sample), so the row stays MANUAL — the WEB/IOS provenance + client
+  // the existing assessment above before reaching this create. The row is
+  // `COMPUTED` — a server-derived projection of the encrypted answers, exactly
+  // like RECOVERY_SCORE: clients cannot attribute the COMPUTED source on any
+  // write surface, so a forged PHQ9_SCORE / GAD7_SCORE trend point can never
+  // enter through the measurement POST. The WEB/IOS provenance + client
   // externalId live on the assessment this row links to.
   await prisma.measurement.create({
     data: {
@@ -318,12 +321,18 @@ async function postAssessment(request: NextRequest): Promise<Response> {
       type: INSTRUMENT_MEASUREMENT_TYPE[id] as MeasurementType,
       value: total,
       unit: "score",
-      source: "MANUAL" as MeasurementSource,
+      source: "COMPUTED" as MeasurementSource,
       measuredAt: when,
       notes: null,
       externalId: `assessment:${assessment.id}`,
     },
   });
+
+  // v1.27.6 — a screening can be planned as a Vorsorge reminder keyed on
+  // PHQ9_SCORE / GAD7_SCORE. Kick the eventful satisfy worker so completing
+  // a check-in resolves the reminder immediately (the ingest-route
+  // precedent); the 15-min cron stays the idempotent safety-net.
+  await enqueueReminderSatisfy(user.id);
 
   await auditLog("mental-health.create", {
     userId: user.id,

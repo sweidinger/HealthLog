@@ -37,6 +37,12 @@ vi.mock("@/lib/ai/coach/bytes-codec", () => ({
   encryptToBytes: vi.fn(() => Buffer.from("ciphertext")),
 }));
 
+// v1.27.6 — a completed check-in kicks the eventful Vorsorge satisfy worker
+// so a plannable screening reminder resolves immediately.
+vi.mock("@/lib/jobs/reminder-satisfy", () => ({
+  enqueueReminderSatisfy: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
@@ -55,6 +61,7 @@ vi.mock("next/headers", () => ({
 }));
 
 import { POST } from "../route";
+import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { getSession } from "@/lib/auth/session";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -183,13 +190,27 @@ describe("POST /api/mental-health/assessments", () => {
     expect(createArg.data.item9Flagged).toBe(false);
 
     // Derived projection: one PHQ9_SCORE/GAD7_SCORE Measurement per assessment.
+    // Server-owned: the row carries the COMPUTED source (the RECOVERY_SCORE
+    // precedent) — a client can never attribute COMPUTED on a write surface,
+    // so the trend cannot be forged through the measurement POST.
     const measArg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
-      data: { type: string; value: number; unit: string; externalId: string };
+      data: {
+        type: string;
+        value: number;
+        unit: string;
+        source: string;
+        externalId: string;
+      };
     };
     expect(measArg.data.type).toBe("GAD7_SCORE");
     expect(measArg.data.value).toBe(6);
     expect(measArg.data.unit).toBe("score");
+    expect(measArg.data.source).toBe("COMPUTED");
     expect(measArg.data.externalId).toBe("assessment:mha_2");
+
+    // The eventful Vorsorge satisfy worker is kicked so a plannable
+    // screening reminder (PHQ9_SCORE / GAD7_SCORE) auto-resolves at once.
+    expect(enqueueReminderSatisfy).toHaveBeenCalledWith("user-1");
   });
 
   it("dedups a repeat externalId: returns the existing administration, writes nothing new", async () => {
@@ -229,6 +250,8 @@ describe("POST /api/mental-health/assessments", () => {
     );
     expect(prisma.mentalHealthAssessment.create).not.toHaveBeenCalled();
     expect(prisma.measurement.create).not.toHaveBeenCalled();
+    // No new trend point → nothing to satisfy either.
+    expect(enqueueReminderSatisfy).not.toHaveBeenCalled();
   });
 
   it("persists client provenance + externalId on a first write", async () => {
