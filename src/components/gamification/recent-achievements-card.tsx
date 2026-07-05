@@ -111,7 +111,7 @@ export function RecentAchievementsCard() {
   return (
     <div
       data-slot="recent-achievements-card"
-      className="bg-card border-border space-y-3 rounded-xl border p-4"
+      className="bg-card border-border space-y-3 rounded-xl border p-4 md:p-6"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">

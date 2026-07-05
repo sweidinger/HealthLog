@@ -121,16 +121,15 @@ export function ModulesSection() {
   // was removed: a domain that can't be turned off doesn't need to be listed.
   return (
     <SettingsCard>
+      {/* The "what this section does" hint rides the header's standard
+          description slot; the body follows at the settings-wide mt-4
+          header→content rhythm instead of the former mb-2/mb-3 one-offs. */}
       <SettingsCardHeader
         icon={Blocks}
         title={t("settings.sections.modules.toggleable.title")}
-        className="mb-2"
+        description={t("settings.sections.modules.toggleable.description")}
       />
-      {/* v1.18.6 — restore the one-line "what this section does" hint. */}
-      <p className="text-muted-foreground mb-3 pl-7 text-sm leading-relaxed">
-        {t("settings.sections.modules.toggleable.description")}
-      </p>
-      <div className="divide-border divide-y pl-7">
+      <div className="divide-border mt-4 divide-y pl-7">
         {(Object.keys(MODULE_REGISTRY) as ModuleKey[])
           // Modules switched off in code (pending a rebuild) carry no live
           // toggle — drop the row entirely so a user can't turn one on.

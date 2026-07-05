@@ -103,7 +103,9 @@ export function RecentWorkoutsTile() {
   return (
     <div
       data-slot="recent-workouts-tile"
-      className={cn("bg-card border-border space-y-3 rounded-xl border p-4")}
+      className={cn(
+        "bg-card border-border space-y-3 rounded-xl border p-4 md:p-6",
+      )}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">

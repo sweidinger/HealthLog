@@ -8,6 +8,7 @@ import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { TileHeader } from "@/components/insights/tile-header";
 import type { CoachReadStripData } from "@/lib/insights/derived/coach-read-shape";
 
@@ -109,28 +110,35 @@ export function CoachReadStrip({
   // fires defensively.)
   if (!baselineLine && !driverLine) return null;
 
-  // Standard card anatomy — the same TileHeader-led shape as every other
-  // insights card (foreground icon + title), instead of the former inline
-  // mini-icon strip that read as chrome outside the card system. Body prose
-  // in the regular foreground; muted stays reserved for meta lines.
+  // Standard card anatomy — the real Card + TileHeader + CardContent
+  // primitives at the compact density (the metric-stat-strip reference),
+  // so background, radius, icon spacing and the left text edge match
+  // every other insights tile. The former hand-rolled shell
+  // (`bg-card/60 … px-4 py-3.5`) painted a translucent background and a
+  // text edge ~8 px left of the card norm on md+. Body prose in the
+  // regular foreground; muted stays reserved for meta lines.
   return (
-    <div
-      data-slot="coach-read-strip"
-      className="bg-card/60 border-border/60 space-y-2 rounded-xl border px-4 py-3.5"
-    >
-      <TileHeader icon={Sparkles} title={t("insights.coach.readStrip.label")} />
-      <div className="text-foreground min-w-0 space-y-1 text-sm leading-relaxed">
-        {baselineLine ? (
-          <p data-slot="coach-read-baseline" className="text-pretty">
-            {baselineLine}
-          </p>
-        ) : null}
-        {driverLine ? (
-          <p data-slot="coach-read-driver" className="text-pretty">
-            {driverLine}
-          </p>
-        ) : null}
-      </div>
-    </div>
+    <Card data-slot="coach-read-strip" className="gap-2 py-3 md:py-4">
+      <CardHeader>
+        <TileHeader
+          icon={Sparkles}
+          title={t("insights.coach.readStrip.label")}
+        />
+      </CardHeader>
+      <CardContent>
+        <div className="min-w-0 space-y-1 text-sm leading-relaxed">
+          {baselineLine ? (
+            <p data-slot="coach-read-baseline" className="text-pretty">
+              {baselineLine}
+            </p>
+          ) : null}
+          {driverLine ? (
+            <p data-slot="coach-read-driver" className="text-pretty">
+              {driverLine}
+            </p>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

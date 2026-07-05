@@ -368,7 +368,7 @@ export function HeroStrip({
             data-slot="health-score-card-skeleton"
             aria-hidden="true"
             className={cn(
-              "bg-card/65 border-border/60 rounded-xl border px-4 py-4 shadow-sm backdrop-blur-sm",
+              "bg-card/65 border-border/60 rounded-xl border p-4 shadow-sm backdrop-blur-sm md:p-6",
               "w-full md:shrink-0 md:grow-0 md:basis-[22rem] xl:basis-[26rem]",
               "flex h-full min-h-64 flex-col gap-3.5",
             )}
