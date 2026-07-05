@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.27.9] — 2026-07-05 — Coach plans you can accept
+
+### Added
+
+- When the Coach works out a concrete if-then plan with you, it now appears as a card right in the conversation — accept it or decline it with one tap. Accepted plans become part of what the Coach remembers: follow-up conversations refer back to them, and a plan with a review date comes back for review on its own.
+- A new plans page in the Coach area lists your proposals, active plans, and finished ones — mark a goal as met, end a plan, or clean up past ones.
+
 ## [1.27.8] — 2026-07-05 — Dashboard follow-ups and design-system sweeps
 
 ### Changed
