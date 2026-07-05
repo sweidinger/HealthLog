@@ -54,7 +54,7 @@ export function IntegrationCardDescription({
   return (
     <>
       <p className="text-foreground">{t(`${i18nPrefix}Description`)}</p>
-      <p className="text-muted-foreground/80">
+      <p className="text-muted-foreground">
         {t(`${i18nPrefix}DescriptionSecondary`)}{" "}
         <a
           href={integrationDocsHref(provider)}

@@ -198,18 +198,26 @@ export function CycleView() {
                 />
               )}
               {!calendarError ? (
-                <p className="text-muted-foreground text-xs">
-                  {t("cycle.ring.caption")}
+                <p className="text-muted-foreground max-w-56 text-center text-xs">
+                  {/* v1.27.5 — beyond typical length + grace the wheel stops
+                      asserting a day count; this caption says why instead of
+                      the "of your cycle" tagline under an empty ring. */}
+                  {wheel.periodOverdue
+                    ? t("cycle.ring.periodOverdue")
+                    : t("cycle.ring.caption")}
                 </p>
               ) : null}
-              {/* First-period CTA — only when no cycle is active yet. */}
+              {/* Log CTA — first period when no cycle exists yet, next period
+                  when the count paused on an overdue cycle. */}
               {!loading && !calendarError && wheel.dayOfCycle == null ? (
                 <Button
                   variant="outline"
                   className="mt-1 w-full"
                   onClick={() => openSheet(today)}
                 >
-                  {t("cycle.ring.firstPeriodCta")}
+                  {wheel.periodOverdue
+                    ? t("cycle.ring.logPeriodCta")
+                    : t("cycle.ring.firstPeriodCta")}
                 </Button>
               ) : null}
             </div>

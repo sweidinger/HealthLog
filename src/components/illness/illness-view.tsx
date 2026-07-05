@@ -289,9 +289,7 @@ function EpisodeGroup({
             aria-hidden="true"
           />
           {title}
-          <span className="text-muted-foreground/70 normal-case">
-            ({parents.length})
-          </span>
+          <span className="normal-case">({parents.length})</span>
         </button>
         {open ? grid : null}
       </section>

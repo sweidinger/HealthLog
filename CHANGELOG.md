@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.27.5] — 2026-07-05 — Insights polish and honest states
+
+### Fixed
+
+- The cycle wheel no longer counts into implausible territory when the last logged period lies far back. Beyond a grace window past your typical cycle length it pauses the day count and says plainly that the period is later than usual, with a shortcut to log it.
+- Injection medications no longer show the overdue notice twice on one card; the line under the streak row is gone, the escalated next-intake line stays.
+- The preventive-care measure button keeps one constant look; a due checkup no longer tints it green. Due-ness still reads from the next-due line.
+- Editing a measurement now runs the same per-type plausibility bands as every other entry path, and readings owned by a connected device or the server can no longer have their value edited by hand. Signed metrics accept negative values on edit again.
+- The daily briefing card opens straight on the day's signals: the recall/outlook paragraph above the list is gone, the section titles read in the regular text colour, and the card's Ask-the-Coach entry is removed.
+- Assessments and the briefing overview are asked to write short paragraphs instead of one connected block — takes effect as texts regenerate.
+- Dimmed low-contrast text is gone from informational lines (integration cards, notifications, sleep chart, module rows, and more); your own mood notes now read in the regular text colour and size.
+- Sleep-phase and voice copy no longer promise features "coming in v1.x" — those texts now describe the actual state.
+
+### Added
+
+- The recovery score's detail view shows how the score is composed — the same ranked factor rows the readiness and sleep scores already have (shown for scores computed from your vitals; watch-native scores stay as delivered).
+
 ## [1.27.4] — 2026-07-05 — Google Health sync fixed against the live API
 
 ### Fixed

@@ -662,7 +662,12 @@ export const createMeasurementSchema = z
   );
 
 export const updateMeasurementSchema = z.object({
-  value: z.number().min(0).max(500000).optional(),
+  // No generic magnitude bound here: the route validates the new value
+  // against the row's OWN type through `validateMeasurementRange` after the
+  // lookup (the schema cannot know the type — the edit body doesn't carry
+  // it). The former `min(0)` also blocked legitimate edits of the signed
+  // types (ANS_CHARGE, BODY_TEMPERATURE_DEVIATION).
+  value: z.number().optional(),
   // v1.17 W1b — same plausibility bound on the edit path; an edit cannot
   // forward-date a reading into the future nor before 1900.
   measuredAt: validateEntryInstant(

@@ -784,9 +784,10 @@ function VorsorgeCard({
         : "";
   const isCoach = reminder.origin === "COACH";
   const isLinked = reminder.measurementType != null;
-  // Due now / overdue ⇒ the action button takes the green "do it now" tone.
-  // The CARD stays neutral (no tint) per the project rule — only the action
-  // button goes green; the surface follows the medication-card grammar.
+  // v1.27.5 — due-ness never changes the ACTION BUTTON either: the button
+  // keeps one constant look in every state (same rule as the medication
+  // card's constant surface). Due / overdue reads only through the discreet
+  // coloured next-due text + the adherence meta line below.
   const isDue = due.key === "nextDue.today" || due.key === "overdueByDays";
   const progress = intervalProgress(reminder, now);
 
@@ -873,18 +874,15 @@ function VorsorgeCard({
     </DropdownMenu>
   );
 
-  // v1.18.6 (MOD-06) — the green "Jetzt messen" / mark-done action. Green only
-  // on the action button (never the card surface). When not due it stays the
-  // calm default tone so the green reads as "now is the time". `bg-success`
-  // pairs with the theme-aware `text-success-foreground` (dark glyph in dark,
-  // white in light) so the label clears WCAG AA in both themes.
+  // The measure / mark-done action. One constant appearance in every state —
+  // no due-driven tint, no label swap (v1.27.5 retired the former green
+  // "do it now" wash; a button that changes colour by schedule state reads as
+  // a different control). Due-ness is communicated by the discreet coloured
+  // next-due text above.
   const primaryButton = (
     <Button
       type="button"
-      className={cn(
-        "min-h-11 w-full",
-        isDue && "bg-success text-success-foreground hover:bg-success/90",
-      )}
+      className="min-h-11 w-full"
       onClick={onPrimaryAction}
       disabled={busy}
     >
@@ -949,11 +947,7 @@ function VorsorgeCard({
               <Button
                 type="button"
                 size="sm"
-                className={cn(
-                  "min-h-11 sm:min-h-9",
-                  isDue &&
-                    "bg-success text-success-foreground hover:bg-success/90",
-                )}
+                className="min-h-11 sm:min-h-9"
                 onClick={onPrimaryAction}
                 disabled={busy}
               >
@@ -1019,9 +1013,9 @@ function VorsorgeCard({
 
   return (
     <>
-      {/* NEUTRAL card — no status-driven colour. Due state reads only through
-          the discreet badge + the green action button below (MOD-06). Shares
-          the medication card shell + tokens. */}
+      {/* NEUTRAL card — no status-driven colour anywhere on the surface or
+          the action button. Due state reads only through the discreet
+          coloured next-due text. Shares the medication card shell + tokens. */}
       <Card className="h-full gap-3 md:gap-3">
         <MedicationCardHeader
           name={resolveReminderLabel(reminder, t)}

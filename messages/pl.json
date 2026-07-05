@@ -517,6 +517,7 @@
     "formReset": "Resetuj formularz",
     "saveError": "Błąd zapisu",
     "duplicateTimestamp": "Pomiar tego typu już istnieje dla wybranej daty.",
+    "serverOwnedSource": "Wartości z połączonego źródła nie można edytować — znacznik czasu i notatka pozostają edytowalne.",
     "deleteError": "Błąd usuwania",
     "deletedToast": "Pomiar usunięty",
     "restoredToast": "Pomiar przywrócony",
@@ -870,7 +871,6 @@
     "dayStreak": "dni serii",
     "dayStreakOne": "dzień serii",
     "cycleDueToday": "Termin dzisiaj",
-    "cycleOverdue": "Zaległa",
     "cycleNoClosedCycles": "Brak zakończonych cykli dawkowania",
     "taken": "Przyjęte",
     "skipped": "Pominięte",
@@ -2194,7 +2194,6 @@
         "summaryAdoptedNone": "nie dodano nic nowego do informacji o sobie",
         "summaryLink": "Zobacz informacje o sobie"
       },
-      "voiceComingSoon": "Wejście głosowe pojawi się z aplikacją iOS w v1.5.",
       "threadEmpty": "Zapytaj o swoje trendy, leki lub pomiary, aby zacząć.",
       "historyTitle": "Rozmowy",
       "historySearchPlaceholder": "Szukaj w rozmowach…",
@@ -2697,11 +2696,11 @@
         "asleep": "Śpi",
         "awake": "Czuwa",
         "inBed": "W łóżku",
-        "unavailable": "Brak danych o fazach — synchronizacja faz przez Apple Health pojawi się w v1.5."
+        "unavailable": "Brak danych o fazach — fazy snu pojawią się tutaj, gdy tylko dostarczy je połączone źródło."
       },
       "empty": {
         "title": "Brak danych o śnie",
-        "description": "Synchronizacja Apple Health pojawi się w v1.5 i wypełni ten widok automatycznie.",
+        "description": "Połącz źródło takie jak Apple Health lub urządzenie noszone — albo zapisuj sen ręcznie — a ten widok wypełni się automatycznie.",
         "action": "Zarządzaj urządzeniami"
       },
       "debt": {
@@ -6748,7 +6747,9 @@
       "ariaPhase": "Dzień {day} cyklu, faza {phase}",
       "ariaUnknown": "Brak aktywnego cyklu",
       "caption": "twojego cyklu",
-      "firstPeriodCta": "Zapisz pierwszą miesiączkę"
+      "firstPeriodCta": "Zapisz pierwszą miesiączkę",
+      "periodOverdue": "Okres jest późniejszy niż zwykle — licznik dni jest wstrzymany, dopóki nie zapiszesz następnego okresu.",
+      "logPeriodCta": "Zapisz okres"
     },
     "calendar": {
       "legendPeriod": "Zapisana miesiączka",

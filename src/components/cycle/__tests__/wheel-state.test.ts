@@ -118,6 +118,52 @@ describe("deriveWheelState", () => {
     expect(w.cycleLength).toBe(28);
     expect(w.phase).toBe("MENSTRUAL");
     expect(w.dayOfCycle).toBe(1);
+    expect(w.periodOverdue).toBe(false);
+  });
+
+  // v1.27.5 — a months-old open cycle whose predicted next start moved into
+  // the future labels every gap day LUTEAL; the wheel must not read that back
+  // as "day 90 of your cycle".
+  describe("overdue ceiling", () => {
+    /** A run of 5 MENSTRUAL days + (n−5) LUTEAL days ending at `today`. */
+    function longRun(n: number): { days: CalendarDay[]; today: string } {
+      const start = Date.UTC(2026, 0, 1);
+      const days: CalendarDay[] = [];
+      for (let i = 0; i < n; i++) {
+        const date = new Date(start + i * 86_400_000)
+          .toISOString()
+          .slice(0, 10);
+        days.push(day(date, i < 5 ? "MENSTRUAL" : "LUTEAL"));
+      }
+      return { days, today: days[n - 1].date };
+    }
+
+    it("stops asserting a day count beyond typical length + grace", () => {
+      const { days, today } = longRun(90);
+      const w = deriveWheelState(days, today, { typicalCycleLength: 28 });
+      expect(w.periodOverdue).toBe(true);
+      expect(w.dayOfCycle).toBeNull();
+      expect(w.phase).toBeNull();
+      // The ring still draws the canonical four-phase dial.
+      expect(w.spans).toHaveLength(4);
+      expect(w.cycleLength).toBe(28);
+    });
+
+    it("keeps counting inside the grace window", () => {
+      // Typical 28 + 14 grace = 42; day 42 is still an honest count.
+      const { days, today } = longRun(42);
+      const w = deriveWheelState(days, today, { typicalCycleLength: 28 });
+      expect(w.periodOverdue).toBe(false);
+      expect(w.dayOfCycle).toBe(42);
+    });
+
+    it("respects a long typical cycle length from the profile", () => {
+      // A 60-day typical cycle keeps day 49 honest.
+      const { days, today } = longRun(49);
+      const w = deriveWheelState(days, today, { typicalCycleLength: 60 });
+      expect(w.periodOverdue).toBe(false);
+      expect(w.dayOfCycle).toBe(49);
+    });
   });
 });
 

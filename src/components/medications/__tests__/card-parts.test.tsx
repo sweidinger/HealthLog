@@ -288,7 +288,10 @@ describe("medication cycle status — open-cycle line", () => {
     expect(html).toContain("lucide-calendar-clock");
   });
 
-  it("missed reads the destructive overdue line", () => {
+  it("missed renders nothing — the overdue escalation already reads on the next-intake line", () => {
+    // v1.27.5 — the card's next-intake value line carries the destructive
+    // overdue escalation; a second overdue line below the streak row doubled
+    // the signal and is retired.
     const html = render(
       <MedicationCycleStatus
         cycle={{
@@ -299,9 +302,7 @@ describe("medication cycle status — open-cycle line", () => {
         }}
       />,
     );
-    expect(html).toContain("Overdue");
-    expect(html).toContain("text-destructive");
-    expect(html).toContain("lucide-triangle-alert");
+    expect(html).toBe("");
   });
 });
 

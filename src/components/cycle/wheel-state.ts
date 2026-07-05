@@ -22,6 +22,15 @@ export interface WheelState {
   cycleLength: number | null;
   phase: CyclePhase | null;
   spans: { phase: CyclePhase; fraction: number }[];
+  /**
+   * v1.27.5 — true when the current run overshoots the profile's typical
+   * cycle length by more than the overdue grace window. The wheel then stops
+   * asserting a day-of-cycle / phase (both null) and the view renders the
+   * honest "period overdue" caption instead: a day count like "90" inside
+   * the ring is a population-frame artefact of the open cycle window, not an
+   * observed fact (see `OVERDUE_GRACE_DAYS`).
+   */
+  periodOverdue: boolean;
 }
 
 /**
@@ -45,6 +54,20 @@ export interface CycleProfileLengths {
  * of 7+ labelled days already spans more than the menstrual phase, so the
  * observed-share path takes over from there. */
 const SPARSE_RUN_THRESHOLD = 7;
+
+/**
+ * Days PAST the profile's typical cycle length before the wheel stops
+ * counting up. The engine keeps the open cycle's phase window alive until
+ * the predicted next start, and a confirmed/anchored ovulation signal (BBT
+ * trend, symptothermal double-check, LH surge) or a long estimated length
+ * can push that prediction into the future while the last logged period is
+ * months old — every day of the gap then carries a (population-framed)
+ * LUTEAL label and the day-of-cycle walks up without bound ("day 90").
+ * Beyond typical + grace the count is no longer an observed fact, so the
+ * wheel degrades to the honest overdue state instead. Two weeks of grace
+ * covers ordinary cycle-to-cycle variation without hiding a real delay.
+ */
+const OVERDUE_GRACE_DAYS = 14;
 
 /**
  * The canonical four-phase span set for a low-data tracker, derived from the
@@ -136,19 +159,50 @@ export function deriveWheelState(
   const byDate = new Map(days.map((d) => [d.date, d]));
   const todayDay = byDate.get(today);
   if (!todayDay || todayDay.phase == null) {
-    return { dayOfCycle: null, cycleLength: null, phase: null, spans: [] };
+    return {
+      dayOfCycle: null,
+      cycleLength: null,
+      phase: null,
+      spans: [],
+      periodOverdue: false,
+    };
   }
 
   // Sort dates ascending and find today's index.
   const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
   const todayIdx = sorted.findIndex((d) => d.date === today);
   if (todayIdx < 0) {
-    return { dayOfCycle: null, cycleLength: null, phase: null, spans: [] };
+    return {
+      dayOfCycle: null,
+      cycleLength: null,
+      phase: null,
+      spans: [],
+      periodOverdue: false,
+    };
   }
 
   const startIdx = findCycleStartIndex(sorted, todayIdx);
   const run = sorted.slice(startIdx, todayIdx + 1);
   const dayOfCycle = run.length;
+
+  // Honest ceiling: once the run overshoots the typical length + grace, the
+  // count reflects the engine's open-ended cycle window, not an observed
+  // cycle day. Degrade to the idealized ring with no day / phase claim; the
+  // view pairs it with the "period overdue" caption + log CTA.
+  const typicalLength = Math.max(
+    Math.round(profile?.typicalCycleLength ?? 28) || 28,
+    7,
+  );
+  if (dayOfCycle > typicalLength + OVERDUE_GRACE_DAYS) {
+    const ideal = idealizedSpans(profile);
+    return {
+      dayOfCycle: null,
+      cycleLength: ideal.cycleLength,
+      phase: null,
+      spans: ideal.spans,
+      periodOverdue: true,
+    };
+  }
 
   // Tally each phase's day-count across the run + the forward predicted run
   // (so the ring shows the whole cycle, not just elapsed days).
@@ -185,6 +239,7 @@ export function deriveWheelState(
       cycleLength: ideal.cycleLength,
       phase: todayDay.phase,
       spans: ideal.spans,
+      periodOverdue: false,
     };
   }
 
@@ -199,5 +254,6 @@ export function deriveWheelState(
     cycleLength: fullRun.length,
     phase: todayDay.phase,
     spans,
+    periodOverdue: false,
   };
 }

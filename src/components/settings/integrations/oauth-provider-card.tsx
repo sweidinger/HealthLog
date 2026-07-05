@@ -322,7 +322,7 @@ export function OAuthProviderCard({
                   />
                 </div>
               </div>
-              <p className="text-muted-foreground/80 text-xs">
+              <p className="text-muted-foreground text-xs">
                 {t("settings.integrationCredentialsHint")}
               </p>
               <div className="flex justify-end">
@@ -357,7 +357,7 @@ export function OAuthProviderCard({
 
         {serverUnavailable && (
           <p
-            className="text-muted-foreground/80 text-xs"
+            className="text-muted-foreground text-xs"
             data-testid={`${provider}-unavailable`}
           >
             {t(`${i18nPrefix}Unavailable`)}

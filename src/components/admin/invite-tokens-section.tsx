@@ -325,7 +325,7 @@ export function InviteTokensSection() {
           <p className="text-muted-foreground mt-1 pl-7 text-xs">
             {t("admin.invites.description")}
           </p>
-          <p className="text-muted-foreground/80 mt-1 flex items-center gap-1.5 pl-7 text-xs">
+          <p className="text-muted-foreground mt-1 flex items-center gap-1.5 pl-7 text-xs">
             <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
             {t("admin.invites.adminOnlyHint")}
           </p>

@@ -223,7 +223,7 @@ export function GlucoseClinicalPanel() {
             the data. */}
         {clinical.isSpotEstimate ? (
           <p
-            className="text-muted-foreground/80 text-xs"
+            className="text-muted-foreground text-xs"
             data-slot="glucose-spot-caveat"
           >
             {t("insights.bloodGlucose.clinical.spotCaveat")}

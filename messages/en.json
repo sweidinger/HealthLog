@@ -517,6 +517,7 @@
     "formReset": "Reset form",
     "saveError": "Error saving",
     "duplicateTimestamp": "A measurement of this type already exists at the selected timestamp.",
+    "serverOwnedSource": "Values from a connected source can't be edited — the timestamp and note stay editable.",
     "deleteError": "Error deleting",
     "deletedToast": "Measurement deleted",
     "restoredToast": "Measurement restored",
@@ -870,7 +871,6 @@
     "dayStreak": "day streak",
     "dayStreakOne": "day streak",
     "cycleDueToday": "Due today",
-    "cycleOverdue": "Overdue",
     "cycleNoClosedCycles": "No closed dose cycles yet",
     "taken": "Taken",
     "skipped": "Skipped",
@@ -2194,7 +2194,6 @@
         "summaryAdoptedNone": "nothing new added to your self-context",
         "summaryLink": "Review your self-context"
       },
-      "voiceComingSoon": "Voice input arrives with the iOS app in v1.5.",
       "threadEmpty": "Ask anything about your trends, medications, or readings to start a conversation.",
       "historyTitle": "Conversations",
       "historySearchPlaceholder": "Search conversations…",
@@ -2697,11 +2696,11 @@
         "asleep": "Asleep",
         "awake": "Awake",
         "inBed": "In bed",
-        "unavailable": "No stage data yet — Apple Health stage syncing arrives in v1.5."
+        "unavailable": "No stage data yet — sleep stages appear here as soon as a connected source delivers them."
       },
       "empty": {
         "title": "No sleep data yet",
-        "description": "Apple Health sync arrives in v1.5 and will fill this in automatically.",
+        "description": "Connect a source like Apple Health or a wearable — or log sleep manually — and this view fills in automatically.",
         "action": "Manage devices"
       },
       "debt": {
@@ -6748,7 +6747,9 @@
       "ariaPhase": "Cycle day {day}, {phase} phase",
       "ariaUnknown": "No active cycle yet",
       "caption": "of your cycle",
-      "firstPeriodCta": "Log my first period"
+      "firstPeriodCta": "Log my first period",
+      "periodOverdue": "Your period is later than usual — the day count pauses until the next period is logged.",
+      "logPeriodCta": "Log period"
     },
     "calendar": {
       "legendPeriod": "Logged period",

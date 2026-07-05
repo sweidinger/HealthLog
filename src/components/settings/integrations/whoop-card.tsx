@@ -309,7 +309,7 @@ export function WhoopCard({
                 />
               </div>
             </div>
-            <p className="text-muted-foreground/80 text-xs">
+            <p className="text-muted-foreground text-xs">
               {t("settings.integrationCredentialsHint")}
             </p>
             <div className="flex justify-end">

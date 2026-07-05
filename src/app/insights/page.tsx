@@ -303,19 +303,18 @@ export default function InsightsPage() {
   const analyticsQuery = useAnalyticsQuery();
   const analytics = analyticsQuery.data as AnalyticsData | undefined;
 
-  // v1.21.2 (A4 / A5 / A6) — the dashboard snapshot is the single server source
-  // for the ambient narrative the hero + briefing surface: the Tension Verdict
-  // and return-to-baseline ride its `healthScore`, the briefing recall +
-  // forward-look rides `briefingMemory`. The hero score number itself stays on
-  // the analytics payload (unchanged); only these three additive, server-
-  // resolved DTO fields are lifted from the snapshot. Reads the same shared
+  // v1.21.2 (A5 / A6) — the dashboard snapshot is the single server source
+  // for the ambient narrative the hero surfaces: the Tension Verdict and
+  // return-to-baseline ride its `healthScore`. The hero score number itself
+  // stays on the analytics payload (unchanged). Reads the same shared
   // `queryKeys.dashboardSnapshot()` cell the dashboard warms, so the insights
   // visit pays at most one extra round-trip and usually a warm cache hit.
+  // (The A4 recall/forward-look block left the briefing card — the card now
+  // opens straight on the day's signals.)
   const snapshotQuery = useDashboardSnapshot(isAuthenticated);
   const snapshotHealthScore = snapshotQuery.data?.healthScore ?? null;
   const heroTension = snapshotHealthScore?.tension ?? null;
   const heroReturnToBand = snapshotHealthScore?.returnToBand ?? null;
-  const briefingMemory = snapshotQuery.data?.briefingMemory ?? null;
 
   // v1.12.6 — the page owns the ONE overview derived batch. The wellness
   // strip (above the briefing) and the vitals grid (below it) both read this
@@ -483,10 +482,6 @@ export default function InsightsPage() {
         // v1.25.3 — failure class points the empty-state hint at the right
         // lever (raise the response timeout vs re-check the provider).
         generationFailureClass={advisor.generationFailureClass}
-        // v1.21.2 (A4) — server-resolved recall + forward-look off the dashboard
-        // snapshot. Both strings are already localised; null leaves the card's
-        // memory block unrendered.
-        memory={briefingMemory}
       />
     ) : null,
     vitals: <VitalsDashboard batch={dashboardDerived} layout={layout} />,

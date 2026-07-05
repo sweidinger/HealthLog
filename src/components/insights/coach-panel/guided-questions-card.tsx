@@ -97,7 +97,7 @@ export function GuidedQuestionsCard({
               disabled={disabled}
               onClick={onDismissAll}
               className={cn(
-                "text-muted-foreground/70 hover:text-foreground inline-flex min-h-8 items-center rounded-full px-2.5 text-xs",
+                "text-muted-foreground hover:text-foreground inline-flex min-h-8 items-center rounded-full px-2.5 text-xs",
                 "hover:bg-dracula-purple/10 focus-visible:ring-dracula-purple/40 focus-visible:ring-2 focus-visible:outline-none",
                 "disabled:opacity-60",
               )}

@@ -517,6 +517,7 @@
     "formReset": "Formular zurücksetzen",
     "saveError": "Fehler beim Speichern",
     "duplicateTimestamp": "Zum gewählten Zeitpunkt existiert bereits ein Messwert dieses Typs.",
+    "serverOwnedSource": "Werte aus einer verbundenen Quelle lassen sich nicht bearbeiten – Zeitpunkt und Notiz bleiben änderbar.",
     "deleteError": "Fehler beim Löschen",
     "deletedToast": "Messwert gelöscht",
     "restoredToast": "Messwert wiederhergestellt",
@@ -870,7 +871,6 @@
     "dayStreak": "Tage Serie",
     "dayStreakOne": "Tag Serie",
     "cycleDueToday": "Heute fällig",
-    "cycleOverdue": "Überfällig",
     "cycleNoClosedCycles": "Noch keine abgeschlossenen Dosiszyklen",
     "taken": "Genommen",
     "skipped": "Übersprungen",
@@ -2194,7 +2194,6 @@
         "summaryAdoptedNone": "nichts Neues in die Selbstauskunft übernommen",
         "summaryLink": "Selbstauskunft ansehen"
       },
-      "voiceComingSoon": "Spracheingabe kommt mit der iOS-App in v1.5.",
       "threadEmpty": "Frag mich etwas zu deinen Trends, Medikamenten oder Messwerten, um zu starten.",
       "historyTitle": "Unterhaltungen",
       "historySearchPlaceholder": "Unterhaltungen durchsuchen…",
@@ -2697,11 +2696,11 @@
         "asleep": "Schlafend",
         "awake": "Wach",
         "inBed": "Im Bett",
-        "unavailable": "Noch keine Phasen-Daten – Apple-Health-Sync für Schlafphasen folgt mit v1.5."
+        "unavailable": "Noch keine Phasen-Daten – Schlafphasen erscheinen hier, sobald eine verbundene Quelle sie liefert."
       },
       "empty": {
         "title": "Noch keine Schlafdaten",
-        "description": "Apple-Health-Sync folgt mit v1.5 und füllt diese Ansicht automatisch.",
+        "description": "Verbinde eine Quelle wie Apple Health oder ein Wearable – oder erfasse Schlaf manuell – und diese Ansicht füllt sich automatisch.",
         "action": "Geräte verwalten"
       },
       "debt": {
@@ -6748,7 +6747,9 @@
       "ariaPhase": "Zyklustag {day}, {phase}-Phase",
       "ariaUnknown": "Noch kein aktiver Zyklus",
       "caption": "deines Zyklus",
-      "firstPeriodCta": "Erste Periode erfassen"
+      "firstPeriodCta": "Erste Periode erfassen",
+      "periodOverdue": "Deine Periode ist später als üblich – die Tageszählung pausiert, bis die nächste Periode erfasst ist.",
+      "logPeriodCta": "Periode erfassen"
     },
     "calendar": {
       "legendPeriod": "Erfasste Periode",

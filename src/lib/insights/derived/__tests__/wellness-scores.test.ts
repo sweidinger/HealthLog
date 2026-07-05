@@ -8,7 +8,14 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+// v1.27.5 — the RECOVERY read attaches the readiness-blend components; the
+// blend engine itself is covered by its own suite, so it is mocked here.
+vi.mock("../readiness", () => ({
+  computeReadiness: vi.fn(),
+}));
+
 import { prisma } from "@/lib/db";
+import { computeReadiness } from "../readiness";
 import {
   computeWellnessScore,
   bandWellnessScore,
@@ -22,6 +29,7 @@ const cacheFindUnique = prisma.strainTrimpCache.findUnique as ReturnType<
   typeof vi.fn
 >;
 const userFindUnique = prisma.user.findUnique as ReturnType<typeof vi.fn>;
+const readinessMock = vi.mocked(computeReadiness);
 
 beforeEach(() => {
   findMany.mockReset();
@@ -31,6 +39,10 @@ beforeEach(() => {
   // loads the zone when none is passed. Default the cohort to Europe/Berlin.
   userFindUnique.mockReset();
   userFindUnique.mockResolvedValue({ timezone: "Europe/Berlin" });
+  // Default: the blend gates (below the min-component floor) — the recovery
+  // read must survive that and simply omit the breakdown.
+  readinessMock.mockReset();
+  readinessMock.mockResolvedValue({ status: "insufficient" } as never);
 });
 
 describe("bandWellnessScore", () => {
@@ -142,6 +154,41 @@ describe("computeWellnessScore", () => {
     expect(r.status).toBe("ok");
     if (r.status === "ok") {
       expect((r.value as WellnessScoreValue).anchor).toBeNull();
+      // Gated blend (default mock) → no breakdown, read still ok.
+      expect((r.value as WellnessScoreValue).components).toBeNull();
+    }
+  });
+
+  it("RECOVERY attaches the readiness-blend components for a COMPUTED row", async () => {
+    findMany.mockResolvedValue([
+      {
+        value: 72,
+        measuredAt: new Date("2026-06-01T12:00:00Z"),
+        source: "COMPUTED",
+      },
+    ]);
+    const components = [
+      { key: "rhr", value: 90, weight: 0.25 },
+      { key: "hrv", value: 60, weight: 0.25 },
+      { key: "sleep", value: 70, weight: 0.25 },
+      { key: "respiratory", value: null, weight: 0 },
+      { key: "mood", value: 80, weight: 0.25 },
+    ];
+    readinessMock.mockResolvedValue({
+      status: "ok",
+      value: { score: 74, band: "green", components },
+    } as never);
+    const r = await computeWellnessScore("RECOVERY_SCORE", "u1", PROFILE, {
+      now: NOW,
+    });
+    // Same engine, same user, the resolved profile timezone threaded through.
+    expect(readinessMock).toHaveBeenCalledWith("u1", PROFILE, {
+      now: NOW,
+      tz: "Europe/Berlin",
+    });
+    expect(r.status).toBe("ok");
+    if (r.status === "ok") {
+      expect((r.value as WellnessScoreValue).components).toEqual(components);
     }
   });
 
@@ -174,7 +221,11 @@ describe("computeWellnessScore", () => {
       expect((r.value as WellnessScoreValue).band).toBe("green");
       // One night, one canonical row — the off-by-one collapsed.
       expect((r.value as WellnessScoreValue).daysInWindow).toBe(1);
+      // A WHOOP-native percentage is not our blend — no decomposition, and
+      // the blend engine is never invoked for it.
+      expect((r.value as WellnessScoreValue).components).toBeNull();
     }
+    expect(readinessMock).not.toHaveBeenCalled();
   });
 
   it("STRESS still hard-filters to the COMPUTED source", async () => {

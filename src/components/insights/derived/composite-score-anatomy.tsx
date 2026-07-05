@@ -185,10 +185,25 @@ export function CompositeScoreAnatomy({
         }))
         .sort(rankByImpact);
     } else {
-      // Persisted nightly score — no sub-decomposition; ring + provenance.
+      // Persisted nightly score — ring + provenance. RECOVERY additionally
+      // carries the readiness-blend factor decomposition (v1.27.5, resolved
+      // server-side by the same engine that mints the nightly score), so it
+      // renders the same ranked contributor rows as the composites. The
+      // factor set IS the readiness component set, so the labels reuse the
+      // READINESS component keys verbatim. STRESS / STRAIN stay row-less.
       const v = data.value as WellnessScoreValue;
       score = v.score;
       caption = t(`insights.derived.scoreRing.band.${v.band}`);
+      if (metric === "RECOVERY_SCORE" && v.components) {
+        contributors = v.components
+          .map((c) => ({
+            key: c.key,
+            label: t(`insights.derived.composite.READINESS.component.${c.key}`),
+            value: c.value,
+            weight: c.weight,
+          }))
+          .sort(rankByImpact);
+      }
     }
   }
 

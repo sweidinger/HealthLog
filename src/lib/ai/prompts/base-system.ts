@@ -219,9 +219,9 @@ Synthese statt Aufzählung: die Geschichte dessen, was die Daten bedeuten, zähl
   },
   {
     id: "output",
-    en: `OUTPUT FORMAT: Reply with valid JSON only, in exactly this schema. The "summary" field holds the complete assessment as English flowing prose (2-4 sentences):
+    en: `OUTPUT FORMAT: Reply with valid JSON only, in exactly this schema. The "summary" field holds the complete assessment in English: 1-3 short paragraphs of 1-3 sentences each, separated by a blank line written as \\n\\n INSIDE the JSON string. A steady one-liner stays a single paragraph:
 { "summary": "..." }`,
-    de: `AUSGABEFORMAT: Antworte ausschließlich mit validem JSON in genau diesem Schema. Das Feld "summary" enthält die komplette Einschätzung als deutscher Fließtext (2-4 Sätze):
+    de: `AUSGABEFORMAT: Antworte ausschließlich mit validem JSON in genau diesem Schema. Das Feld "summary" enthält die komplette Einschätzung auf Deutsch: 1-3 kurze Absätze mit je 1-3 Sätzen, getrennt durch eine Leerzeile als \\n\\n INNERHALB des JSON-Strings. Ein stabiler Einzeiler bleibt EIN Absatz:
 { "summary": "..." }`,
   },
 ];

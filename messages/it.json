@@ -517,6 +517,7 @@
     "formReset": "Reimposta modulo",
     "saveError": "Errore durante il salvataggio",
     "duplicateTimestamp": "Esiste già una misurazione di questo tipo a questa marca temporale.",
+    "serverOwnedSource": "I valori provenienti da una fonte collegata non possono essere modificati — data e nota restano modificabili.",
     "deleteError": "Errore durante l’eliminazione",
     "deletedToast": "Misurazione eliminata",
     "restoredToast": "Misurazione ripristinata",
@@ -870,7 +871,6 @@
     "dayStreak": "giorni di serie",
     "dayStreakOne": "giorno di serie",
     "cycleDueToday": "In scadenza oggi",
-    "cycleOverdue": "In ritardo",
     "cycleNoClosedCycles": "Ancora nessun ciclo di dose completato",
     "taken": "Assunta",
     "skipped": "Saltata",
@@ -2194,7 +2194,6 @@
         "summaryAdoptedNone": "nulla di nuovo aggiunto alle tue informazioni personali",
         "summaryLink": "Vedi le tue informazioni personali"
       },
-      "voiceComingSoon": "L’input vocale arriva con l’app iOS in v1.5.",
       "threadEmpty": "Chiedimi qualcosa sui tuoi trend, farmaci o misurazioni per iniziare.",
       "historyTitle": "Conversazioni",
       "historySearchPlaceholder": "Cerca nelle conversazioni…",
@@ -2697,11 +2696,11 @@
         "asleep": "Addormentato",
         "awake": "Sveglio",
         "inBed": "A letto",
-        "unavailable": "Ancora nessun dato sulle fasi — la sync delle fasi via Apple Health arriva con v1.5."
+        "unavailable": "Ancora nessun dato sulle fasi — le fasi del sonno appariranno qui non appena una fonte collegata le fornirà."
       },
       "empty": {
         "title": "Ancora nessun dato sul sonno",
-        "description": "La sync con Apple Health arriva con v1.5 e riempirà questa vista in automatico.",
+        "description": "Collega una fonte come Apple Health o un wearable — oppure registra il sonno manualmente — e questa vista si riempirà in automatico.",
         "action": "Gestisci dispositivi"
       },
       "debt": {
@@ -6748,7 +6747,9 @@
       "ariaPhase": "Giorno {day} del ciclo, fase {phase}",
       "ariaUnknown": "Nessun ciclo attivo ancora",
       "caption": "del tuo ciclo",
-      "firstPeriodCta": "Registra il mio primo ciclo"
+      "firstPeriodCta": "Registra il mio primo ciclo",
+      "periodOverdue": "Il ciclo è in ritardo rispetto al solito — il conteggio dei giorni resta in pausa finché non registri la prossima mestruazione.",
+      "logPeriodCta": "Registra mestruazione"
     },
     "calendar": {
       "legendPeriod": "Ciclo registrato",
