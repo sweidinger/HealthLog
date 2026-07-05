@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.27.3] — 2026-07-05 — Briefing resilience and Insights readability
+
+### Fixed
+
+- The daily briefing no longer disappears when the AI provider fails mid-generation. If the number-grounding recheck cannot run because the provider is unreachable, the previous day's briefing stays in place until the next successful run — a briefing that restates unverified numbers is still withheld, as before.
+- Assessments show their full text right away; the three-line cut with the "show more" step is gone.
+
+### Changed
+
+- Insights read better: the assessment, the daily briefing, the page explainers, and the "usual range" note now use the regular text colour instead of grey — grey stays reserved for meta lines such as timestamps.
+- The "usual range" note is a proper card now, with the same icon-and-title header as every other insights card.
+- The page heading and explainer on each metric page line up with the card text below them instead of hanging to the left of it.
+- The health-score card drops its "Ask the Coach" corner button.
+
 ## [1.27.2] — 2026-07-04 — Readable AI texts
 
 ### Changed
