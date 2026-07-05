@@ -6,6 +6,12 @@
  * another". Content is unchanged from the v1.25 monolith; it is re-housed as
  * one stack inside the page spine instead of loose top-level sections.
  *
+ * v1.27.9 — direction-aware follow-up hints from the registry: PHQ-9/GAD-7
+ * keep the ≥10 professional-help suggestion, a WHO-5 total of 50 or below
+ * gets a gentle pointer to the PHQ-9 check-in (per the WHO scoring comment),
+ * and an SCI total of 16 or below gets the paper's neutral band wording.
+ * The attribution footer now comes from the instrument definition.
+ *
  * SAFETY: the crisis set rides the POST response (`crisis`) on any non-zero
  * item 9 and renders immediately; this surface never invites an AI Coach
  * conversation about item content.
@@ -16,14 +22,10 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslations } from "@/lib/i18n/context";
-import { PHQ_GAD_ATTRIBUTION } from "@/lib/mental-health/instruments";
+import { INSTRUMENTS, needsFollowUp } from "@/lib/mental-health/instruments";
 
 import { CrisisCard } from "./crisis-card";
-import type { CreateResponse, InstrumentId } from "./types";
-
-function lower(id: InstrumentId): "phq9" | "gad7" {
-  return id === "PHQ9" ? "phq9" : "gad7";
-}
+import type { CreateResponse } from "./types";
 
 export function AssessmentResult({
   result,
@@ -36,7 +38,8 @@ export function AssessmentResult({
 }) {
   const { t } = useTranslations();
   const instrument = result.assessment.instrument;
-  const key = lower(instrument);
+  const def = INSTRUMENTS[instrument];
+  const key = def.i18nKey;
 
   // a11y: on submit the wizard unmounts and this view mounts; move focus to the
   // result heading so keyboard / screen-reader users land on the new content
@@ -104,9 +107,16 @@ export function AssessmentResult({
               )}
             </span>
           </div>
-          {result.assessment.totalScore >= result.actionThreshold && (
-            <p className="text-muted-foreground bg-muted/40 rounded-md p-3 text-xs">
-              {t("mentalHealth.considerProfessional")}
+          {/* Direction-aware follow-up hint: PHQ-9/GAD-7 point up (≥ 10),
+              WHO-5 (≤ 50 → gentle PHQ-9 pointer) and SCI (≤ 16 → the paper's
+              neutral band wording) point down. Soft suggestions, never a
+              diagnosis. */}
+          {needsFollowUp(instrument, result.assessment.totalScore) && (
+            <p
+              className="text-muted-foreground bg-muted/40 rounded-md p-3 text-xs"
+              data-slot="result-follow-up-hint"
+            >
+              {t(`mentalHealth.followUpHint.${key}`)}
             </p>
           )}
         </CardContent>
@@ -114,11 +124,11 @@ export function AssessmentResult({
 
       {result.crisis && <CrisisCard crisis={result.crisis} />}
 
-      <p className="text-muted-foreground text-[11px] leading-snug">
+      <p className="text-muted-foreground text-xs leading-snug">
         <span className="font-medium">
           {t("mentalHealth.attributionLabel")}:
         </span>{" "}
-        {PHQ_GAD_ATTRIBUTION}
+        {def.attribution}
       </p>
 
       <Button variant="outline" onClick={onTakeAnother}>

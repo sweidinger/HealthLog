@@ -11,9 +11,9 @@ import en from "../../../../messages/en.json";
  * means clicks can't be driven here — the wizard's advance/back grammar is
  * pinned in `check-in-nav.test.ts`. These tests pin the SSR-observable
  * contracts: the disclaimer renders ONLY on the landing (never while testing),
- * a positive item-9 surfaces the crisis card, and the history paints its
- * dated list with severity + "support shown" badges — and NO trend chart
- * (v1.27.6: the score curve lives in Insights / Measurements, not here).
+ * a positive item-9 surfaces the crisis card, and (v1.27.9) the landing is
+ * intro + instrument cards only — the dated history + trend chart live in the
+ * per-instrument detail a card click opens, pinned to one instrument.
  */
 
 vi.mock("@/lib/api/api-fetch", () => ({
@@ -26,6 +26,7 @@ import { CheckInWizard } from "../check-in-wizard";
 import { AssessmentResult } from "../assessment-result";
 import { AssessmentHistory } from "../assessment-history";
 import { InstrumentCard } from "../instrument-card";
+import { InstrumentDetail } from "../instrument-detail";
 import type { AssessmentRow, CreateResponse } from "../types";
 
 const mh = en.mentalHealth;
@@ -178,18 +179,17 @@ describe("history rendering", () => {
     },
   ];
 
-  const html = withProviders(<AssessmentHistory rows={rows} />);
+  const html = withProviders(
+    <AssessmentHistory rows={rows} instrument="PHQ9" />,
+  );
 
-  it("paints the dated list WITHOUT a trend chart shell", () => {
+  it("paints the pinned dated list with the trend-chart shell, no instrument toggle", () => {
+    // v1.27.9 — the history is pinned to one instrument inside the detail
+    // surface: no PHQ-9/GAD-7 tablist, and the lazy chart's skeleton shell
+    // holds the layout in SSR (recharts itself stays off first-load JS).
     expect(html).toContain('data-slot="history-list"');
-    // v1.27.6 — no chart on this surface: no lazy-chart skeleton, no
-    // recharts container.
-    expect(html).not.toContain('data-slot="skeleton"');
-    expect(html).not.toContain("recharts");
-  });
-
-  it("shows the PHQ-9 / GAD-7 toggle and a severity badge", () => {
-    expect(html).toContain('role="tablist"');
+    expect(html).toContain('data-pinned="PHQ9"');
+    expect(html).not.toContain('role="tablist"');
     expect(html).toContain(mh.band.PHQ9.modSevere);
   });
 
@@ -198,14 +198,175 @@ describe("history rendering", () => {
     expect(html).toContain(mh.history.flaggedBadge);
   });
 
-  it("renders the empty state with no rows", () => {
-    const empty = withProviders(<AssessmentHistory rows={[]} />);
+  it("renders the empty state with no rows for the pinned instrument", () => {
+    const empty = withProviders(
+      <AssessmentHistory rows={rows} instrument="SCI" />,
+    );
     expect(empty).toContain(mh.history.empty);
     expect(empty).not.toContain('data-slot="history-list"');
   });
+
+  it("stays OFF the landing entirely (intro + cards only)", () => {
+    const landing = withProviders(<MentalWellbeing />);
+    expect(landing).not.toContain('data-slot="mental-health-history"');
+    expect(landing).not.toContain('data-slot="history-list"');
+  });
 });
 
-describe("instrument card (v1.27.6 — med-/Vorsorge card anatomy)", () => {
+describe("WHO-5 / SCI on the same infrastructure (v1.27.9)", () => {
+  it("renders all four instrument cards on the landing", () => {
+    const html = withProviders(<MentalWellbeing />);
+    expect(html).toContain(mh.instrument.phq9);
+    expect(html).toContain(mh.instrument.gad7);
+    expect(html).toContain(mh.instrument.who5);
+    expect(html).toContain(mh.instrument.sci);
+    // The rhythm hint states both recall windows honestly.
+    expect(html).toContain(mh.pageRhythmHint);
+  });
+
+  it("WHO-5 wizard opens on item 1 with the six-point scale in source order and the recall stem", () => {
+    const html = withProviders(
+      <CheckInWizard
+        instrument="WHO5"
+        onSubmit={() => {}}
+        onBack={() => {}}
+        isPending={false}
+        isError={false}
+      />,
+    );
+    expect(html).toContain(mh.items.who5["1"]);
+    expect(html).toContain('data-slot="check-in-stem"');
+    expect(html).toContain(mh.stems.who5.period);
+    // Six anchors, 5 → 0 (the WHO form leads with "All of the time").
+    for (const v of ["5", "4", "3", "2", "1", "0"] as const) {
+      expect(html).toContain(mh.who5Options[v]);
+    }
+    // English items are the validated wording for en — no translation note.
+    expect(html).not.toContain('data-slot="check-in-validated-note"');
+    // No functional follow-up outside the PHQ-9: 5 steps total.
+    expect(html).toContain("1 / 5");
+  });
+
+  it("SCI wizard opens on item 1 with the item-specific duration anchors and section stem", () => {
+    const html = withProviders(
+      <CheckInWizard
+        instrument="SCI"
+        onSubmit={() => {}}
+        onBack={() => {}}
+        isPending={false}
+        isError={false}
+      />,
+    );
+    expect(html).toContain(mh.items.sci["1"]);
+    expect(html).toContain(mh.stems.sci.night);
+    // Item 1 carries the sleep-latency time ranges, 4 → 0.
+    for (const v of ["4", "3", "2", "1", "0"] as const) {
+      expect(html).toContain(mh.sciOptions.duration[v]);
+    }
+    expect(html).toContain("1 / 8");
+  });
+
+  it("shows the gentle PHQ-9 pointer on a WHO-5 total of 50 or below", () => {
+    const result: CreateResponse = {
+      assessment: {
+        id: "w1",
+        instrument: "WHO5",
+        locale: "en",
+        totalScore: 48,
+        severityBand: "low",
+        item9Flagged: false,
+        crisisShownAt: null,
+        takenAt: "2026-06-20T00:00:00.000Z",
+      },
+      actionThreshold: 50,
+      crisis: null,
+    };
+    const html = withProviders(
+      <AssessmentResult
+        result={result}
+        onTakeAnother={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    expect(html).toContain('data-slot="result-follow-up-hint"');
+    expect(html).toContain(mh.followUpHint.who5);
+    // Required WHO attribution rides the result view.
+    expect(html).toContain("CC BY-NC-SA 3.0 IGO");
+    expect(html).not.toContain('data-slot="mental-health-crisis-card"');
+  });
+
+  it("suppresses the hint on a good WHO-5 total (direction is inverted vs PHQ-9)", () => {
+    const result: CreateResponse = {
+      assessment: {
+        id: "w2",
+        instrument: "WHO5",
+        locale: "en",
+        totalScore: 80,
+        severityBand: "good",
+        item9Flagged: false,
+        crisisShownAt: null,
+        takenAt: "2026-06-20T00:00:00.000Z",
+      },
+      actionThreshold: 50,
+      crisis: null,
+    };
+    const html = withProviders(
+      <AssessmentResult
+        result={result}
+        onTakeAnother={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    expect(html).not.toContain('data-slot="result-follow-up-hint"');
+  });
+
+  it("shows the neutral SCI band wording at 16 or below, with the Sleepio/BMJ attribution", () => {
+    const result: CreateResponse = {
+      assessment: {
+        id: "s1",
+        instrument: "SCI",
+        locale: "en",
+        totalScore: 14,
+        severityBand: "belowThreshold",
+        item9Flagged: false,
+        crisisShownAt: null,
+        takenAt: "2026-06-20T00:00:00.000Z",
+      },
+      actionThreshold: 16,
+      crisis: null,
+    };
+    const html = withProviders(
+      <AssessmentResult
+        result={result}
+        onTakeAnother={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    expect(html).toContain(mh.followUpHint.sci);
+    expect(html).toContain(mh.band.SCI.belowThreshold);
+    expect(html).toContain("BMJ Open");
+  });
+
+  it("pinned history renders the WHO-5 / SCI series through the same component", () => {
+    const row: AssessmentRow = {
+      id: "t1",
+      instrument: "WHO5",
+      locale: "en",
+      totalScore: 72,
+      severityBand: "good",
+      item9Flagged: false,
+      crisisShownAt: null,
+      takenAt: "2026-06-20T00:00:00.000Z",
+    };
+    const html = withProviders(
+      <AssessmentHistory rows={[row]} instrument="WHO5" />,
+    );
+    expect(html).toContain('data-pinned="WHO5"');
+    expect(html).toContain(mh.band.WHO5.good);
+  });
+});
+
+describe("instrument card (med-/Vorsorge card anatomy + detail opener)", () => {
   const lastRow: AssessmentRow = {
     id: "l1",
     instrument: "PHQ9",
@@ -217,30 +378,91 @@ describe("instrument card (v1.27.6 — med-/Vorsorge card anatomy)", () => {
     takenAt: "2026-06-20T00:00:00.000Z",
   };
 
-  it("renders the shared med-card header (title + category badge), no trend target", () => {
-    const html = withProviders(
-      <InstrumentCard instrument="PHQ9" last={undefined} onStart={() => {}} />,
+  function card(
+    instrument: AssessmentRow["instrument"],
+    last?: AssessmentRow,
+  ): string {
+    return withProviders(
+      <InstrumentCard
+        instrument={instrument}
+        last={last}
+        onStart={() => {}}
+        onOpenDetail={() => {}}
+      />,
     );
+  }
+
+  it("renders the shared med-card header and the clickable detail body", () => {
+    const html = card("PHQ9");
     // The med-card header primitive paints the bold name + category badge.
     expect(html).toContain(mh.instrument.phq9);
     expect(html).toContain(mh.instrumentSub.phq9);
-    // The former trend-detail button is gone…
-    expect(html).not.toContain('data-slot="instrument-card-open"');
+    // v1.27.9 — the card body opens the per-instrument detail…
+    expect(html).toContain('data-slot="instrument-card-open"');
+    expect(html).toContain(mh.openDetail);
     // …and the Start action remains the single bottom-pinned action.
     expect(html).toContain(mh.start);
     // No history yet → the calm no-check-in line, no fabricated dashes.
     expect(html).toContain(mh.noResultYet);
+    // v1.27.9 — the required attribution footer rides every card.
+    expect(html).toContain('data-slot="instrument-card-attribution"');
+  });
+
+  it("carries the instrument's licence line on the WHO-5 / SCI cards", () => {
+    expect(card("WHO5")).toContain("CC BY-NC-SA 3.0 IGO");
+    expect(card("SCI")).toContain("Sleepio Limited");
   });
 
   it("shows last test (relative) and last result (score + band word)", () => {
-    const html = withProviders(
-      <InstrumentCard instrument="PHQ9" last={lastRow} onStart={() => {}} />,
-    );
+    const html = card("PHQ9", lastRow);
     expect(html).toContain(mh.lastResult);
     expect(html).toContain(mh.lastScore);
     // Score + band word ride one value slot ("8 · Mild").
     expect(html).toContain('data-slot="instrument-card-last-score"');
     expect(html).toContain(mh.band.PHQ9.mild);
     expect(html).not.toContain(mh.noResultYet);
+  });
+});
+
+describe("instrument detail (v1.27.9 — opened from a card)", () => {
+  const rows: AssessmentRow[] = [
+    {
+      id: "d1",
+      instrument: "SCI",
+      locale: "en",
+      totalScore: 22,
+      severityBand: "aboveThreshold",
+      item9Flagged: false,
+      crisisShownAt: null,
+      takenAt: "2026-06-20T00:00:00.000Z",
+    },
+    {
+      id: "d2",
+      instrument: "PHQ9",
+      locale: "en",
+      totalScore: 4,
+      severityBand: "minimal",
+      item9Flagged: false,
+      crisisShownAt: null,
+      takenAt: "2026-06-01T00:00:00.000Z",
+    },
+  ];
+
+  it("shows last score + band, the Start action, the pinned history and the attribution", () => {
+    const html = withProviders(
+      <InstrumentDetail instrument="SCI" rows={rows} onStart={() => {}} />,
+    );
+    expect(html).toContain('data-slot="instrument-detail"');
+    expect(html).toContain('data-slot="instrument-detail-last-score"');
+    expect(html).toContain(mh.band.SCI.aboveThreshold);
+    expect(html).toContain('data-slot="instrument-detail-start"');
+    expect(html).toContain(mh.start);
+    // The pinned history (chart shell + dated list) rides inside the detail.
+    expect(html).toContain('data-pinned="SCI"');
+    expect(html).toContain('data-slot="history-list"');
+    // …filtered to the pinned instrument: the PHQ-9 row stays out.
+    expect(html).not.toContain(mh.band.PHQ9.minimal);
+    // Required attribution line.
+    expect(html).toContain("Sleepio Limited");
   });
 });
