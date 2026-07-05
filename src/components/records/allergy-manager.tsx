@@ -9,6 +9,7 @@ import { DeleteButton } from "@/components/data-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiDelete, apiGet } from "@/lib/api/api-fetch";
@@ -30,7 +31,7 @@ export function AllergyManager() {
   const [editing, setEditing] = useState<AllergyDTO | null>(null);
   const [formFooterEl, setFormFooterEl] = useState<HTMLDivElement | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.allergyList(true),
     queryFn: () => apiGet<AllergyDTO[]>("/api/allergies"),
   });
@@ -135,9 +136,10 @@ export function AllergyManager() {
           ))}
         </div>
       ) : isError ? (
-        <p className="text-destructive py-6 text-center text-sm">
-          {t("records.allergies.loadError")}
-        </p>
+        <QueryErrorCard
+          title={t("records.allergies.loadError")}
+          onRetry={() => void refetch()}
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<ShieldAlert className="size-6" />}

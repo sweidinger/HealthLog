@@ -13,6 +13,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 
@@ -35,7 +36,12 @@ function todayLocal(): string {
 export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
   const { t } = useTranslations();
   const fmt = useFormatters();
-  const { data: episode, isLoading, isError } = useIllnessEpisode(episodeId);
+  const {
+    data: episode,
+    isLoading,
+    isError,
+    refetch,
+  } = useIllnessEpisode(episodeId);
   const resolve = useResolveEpisode();
 
   const [logOpen, setLogOpen] = useState(false);
@@ -44,9 +50,10 @@ export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
 
   if (isError) {
     return (
-      <p className="text-destructive py-8 text-center text-sm">
-        {t("illness.loadError")}
-      </p>
+      <QueryErrorCard
+        title={t("illness.loadError")}
+        onRetry={() => void refetch()}
+      />
     );
   }
 

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiDelete, apiGet } from "@/lib/api/api-fetch";
@@ -30,7 +31,7 @@ export function FamilyHistoryManager() {
   const [editing, setEditing] = useState<FamilyHistoryEntryDTO | null>(null);
   const [formFooterEl, setFormFooterEl] = useState<HTMLDivElement | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.familyHistoryList(),
     queryFn: () => apiGet<FamilyHistoryEntryDTO[]>("/api/family-history"),
   });
@@ -120,9 +121,10 @@ export function FamilyHistoryManager() {
           ))}
         </div>
       ) : isError ? (
-        <p className="text-destructive py-6 text-center text-sm">
-          {t("records.family.loadError")}
-        </p>
+        <QueryErrorCard
+          title={t("records.family.loadError")}
+          onRetry={() => void refetch()}
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<Users className="size-6" />}

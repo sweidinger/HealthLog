@@ -16,6 +16,7 @@ import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
@@ -248,21 +249,13 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
             {description}
           </p>
         </header>
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-            <p className="text-destructive text-sm">{t("labs.loadError")}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (markerError) void refetchMarker();
-                if (listError) void refetchList();
-              }}
-            >
-              {t("common.retry")}
-            </Button>
-          </CardContent>
-        </Card>
+        <QueryErrorCard
+          title={t("labs.loadError")}
+          onRetry={() => {
+            if (markerError) void refetchMarker();
+            if (listError) void refetchList();
+          }}
+        />
       </div>
     );
   }

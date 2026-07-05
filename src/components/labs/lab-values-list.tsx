@@ -5,6 +5,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
@@ -33,6 +34,7 @@ export function LabValuesList({ biomarkerId }: { biomarkerId: string }) {
     data: list,
     isLoading,
     isError,
+    refetch,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -60,9 +62,10 @@ export function LabValuesList({ biomarkerId }: { biomarkerId: string }) {
 
   if (isError) {
     return (
-      <p className="text-destructive py-8 text-center text-sm">
-        {t("labs.loadError")}
-      </p>
+      <QueryErrorCard
+        title={t("labs.loadError")}
+        onRetry={() => void refetch()}
+      />
     );
   }
 

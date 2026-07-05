@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
@@ -40,7 +41,7 @@ export function BiomarkerManager() {
   const [editing, setEditing] = useState<BiomarkerDto | null>(null);
   const [formFooterEl, setFormFooterEl] = useState<HTMLDivElement | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.biomarkers(),
     queryFn: () => apiGet<BiomarkerListResponse>("/api/biomarkers"),
   });
@@ -174,9 +175,10 @@ export function BiomarkerManager() {
           ))}
         </div>
       ) : isError ? (
-        <p className="text-destructive py-6 text-center text-sm">
-          {t("labs.biomarker.loadError")}
-        </p>
+        <QueryErrorCard
+          title={t("labs.biomarker.loadError")}
+          onRetry={() => void refetch()}
+        />
       ) : markers.length === 0 ? (
         <EmptyState
           icon={<FlaskConical className="size-6" />}
