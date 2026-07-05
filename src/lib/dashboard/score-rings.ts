@@ -2,8 +2,8 @@
  * v1.27.7 — hero score-ring resolution for the dashboard snapshot.
  *
  * Resolves the user-selected `selectedScoreRings` (max 3, closed
- * `SCORE_RING_IDS` set) into `{ id, score, band }` entries the hero
- * renders next to the health-score ring:
+ * `SCORE_RING_IDS` set) into ring entries the hero renders next to the
+ * health-score ring:
  *
  *   - `READINESS` / `RECOVERY_SCORE` / `SLEEP_SCORE` call the SAME
  *     `computeDerivedMetric` dispatcher the `/api/insights/derived`
@@ -11,13 +11,19 @@
  *     `loadBaselineProfile`) — no score logic is re-derived here, and a
  *     non-`ok` compute (insufficient data, engine gate) simply yields no
  *     ring, mirroring the wellness strip's self-gating.
- *   - `MED_COMPLIANCE` is the pooled 7-day adherence across active
- *     non-PRN medications through the canonical `calculateCompliance`
- *     engine (the exact per-medication pattern the targets tile and the
- *     health-score pillar use): per-med `ComplianceResult`s are pooled
- *     as Σtaken / Σ(taken + missed) — skips stay out of the denominator,
- *     matching the per-medication rate semantics — and banded on the
- *     same ≥90 / ≥70 thresholds the targets-tile classification carries.
+ *   - `MED_COMPLIANCE` is TODAY's dose progress from the snapshot's own
+ *     `medsToday` block (takenToday / scheduledToday) — the same numbers
+ *     the old hero dose row carried and the native client shows. The
+ *     v1.27.7 first cut showed the pooled 7-day adherence percentage
+ *     here; a percentage on a ring next to "today" scores read as a
+ *     mystery number, so the ring now answers the question the hero
+ *     actually poses: how many of today's doses are done. `score` stays
+ *     the 0..100 progress (rounded) for wire compatibility; the additive
+ *     `doses` field carries the taken/scheduled pair for the "1/3"
+ *     display. No doses scheduled today → no ring (self-gating). The
+ *     band is progress semantics — `green` once every scheduled dose is
+ *     taken, `yellow` while doses remain — never `red`: pending doses in
+ *     the morning are not an alert state.
  *
  * Module gating rides the client-safe `SCORE_RING_MODULE` map in
  * `@/lib/dashboard-layout` (mirroring the derived routes'
@@ -41,21 +47,27 @@ import {
   isDerivedOk,
   type DerivedMetricId,
 } from "@/lib/insights/derived";
-import {
-  buildComplianceMedicationContext,
-  calculateCompliance,
-  lastNonSkippedTakenAt,
-  SCHEDULE_COMPLIANCE_SELECT,
-} from "@/lib/analytics/compliance";
 
 export type ScoreRingBand = "green" | "yellow" | "red";
 
-/** One resolved hero ring — score + band only, no component breakdown. */
+/** One resolved hero ring. */
 export interface DashboardScoreRing {
   id: ScoreRingId;
-  /** The 0..100 score (rounded). */
+  /** The 0..100 score (rounded). For `MED_COMPLIANCE`: today's dose progress. */
   score: number;
   band: ScoreRingBand;
+  /**
+   * `MED_COMPLIANCE` only — today's dose tally behind the progress
+   * score, for the "taken/scheduled" ring display. Additive; absent on
+   * the derived score rings.
+   */
+  doses?: { taken: number; scheduled: number };
+}
+
+/** The medsToday slice the dose ring reads (subset of `MedsTodayBlock`). */
+export interface MedsTodayForRings {
+  takenToday: number;
+  scheduledToday: number;
 }
 
 /** The derived-registry id behind each derived ring (identity mapping). */
@@ -65,18 +77,6 @@ const DERIVED_RING_METRIC: Partial<Record<ScoreRingId, DerivedMetricId>> = {
   SLEEP_SCORE: "SLEEP_SCORE",
 };
 
-/**
- * Adherence % → band, on the thresholds the targets tile's
- * MEDICATION_COMPLIANCE classification already uses (≥90 "very good" /
- * ≥70 "good" / below "low"), so the ring and the targets surface can
- * never disagree on colour for the same rate.
- */
-export function complianceBandForRate(rate: number): ScoreRingBand {
-  if (rate >= 90) return "green";
-  if (rate >= 70) return "yellow";
-  return "red";
-}
-
 /** The compute payload slice every derived score ring reads. */
 interface ScoreBandValue {
   score: number;
@@ -84,101 +84,25 @@ interface ScoreBandValue {
 }
 
 /**
- * Pooled 7-day medication adherence, or `null` when nothing was expected
- * (no active non-PRN medication, or no due slot in the window) — the
- * ring self-gates instead of asserting a hollow 100%.
+ * Today's dose-progress ring from the snapshot's `medsToday` block, or
+ * `null` when nothing is scheduled today — the ring self-gates instead
+ * of asserting a hollow 100%.
  */
-async function resolveMedComplianceRing(
-  prisma: PrismaClient,
-  userId: string,
-  userTz: string,
-  now: Date,
-): Promise<DashboardScoreRing | null> {
-  const medications = await prisma.medication.findMany({
-    // As-needed (PRN) medications carry no expected doses and are
-    // excluded from every compliance rate (the v1.16.11 rule).
-    where: { userId, active: true, asNeeded: false },
-    select: {
-      id: true,
-      createdAt: true,
-      startsOn: true,
-      endsOn: true,
-      oneShot: true,
-      schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
-      // Archived schedule eras + pause eras so a past day scores against
-      // the schedule that was live then and paused days drop out of the
-      // denominator — the same context every compliance caller threads.
-      scheduleRevisions: {
-        orderBy: { validFrom: "asc" },
-        select: {
-          id: true,
-          validFrom: true,
-          validUntil: true,
-          payload: true,
-          supersededByRevisionId: true,
-        },
-      },
-      pauseEras: { select: { pausedAt: true, resumedAt: true } },
-    },
-  });
-  if (medications.length === 0) return null;
-
-  // 30 days of intake events even though the rate window is 7: rolling /
-  // interval cadences anchor `nextDue` off the last non-skipped take,
-  // which can sit before the window start (the health-score pillar
-  // fetches the same margin).
-  const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const intakeEvents = await prisma.medicationIntakeEvent.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      medicationId: { in: medications.map((m) => m.id) },
-      scheduledFor: { gte: since, lte: now },
-    },
-    select: {
-      medicationId: true,
-      scheduledFor: true,
-      takenAt: true,
-      skipped: true,
-    },
-  });
-  const eventsByMed = new Map<string, typeof intakeEvents>();
-  for (const ev of intakeEvents) {
-    const list = eventsByMed.get(ev.medicationId);
-    if (list) list.push(ev);
-    else eventsByMed.set(ev.medicationId, [ev]);
-  }
-
-  let taken = 0;
-  let missed = 0;
-  for (const med of medications) {
-    const events = eventsByMed.get(med.id) ?? [];
-    const medicationContext = buildComplianceMedicationContext(
-      med,
-      lastNonSkippedTakenAt(events),
-      userTz,
-    );
-    const result = calculateCompliance(
-      events,
-      med.schedules,
-      7,
-      med.createdAt,
-      {
-        now,
-        medicationContext,
-      },
-    );
-    taken += result.taken;
-    missed += result.missed;
-  }
-
-  const denominator = taken + missed;
-  if (denominator === 0) return null;
-  const rate = Math.min(100, Math.round((taken / denominator) * 100));
+export function resolveDoseRing(
+  medsToday: MedsTodayForRings | null,
+): DashboardScoreRing | null {
+  if (!medsToday) return null;
+  const scheduled = medsToday.scheduledToday;
+  if (!Number.isFinite(scheduled) || scheduled <= 0) return null;
+  const taken = Math.max(0, Math.min(medsToday.takenToday, scheduled));
+  const score = Math.round((taken / scheduled) * 100);
   return {
     id: "MED_COMPLIANCE",
-    score: rate,
-    band: complianceBandForRate(rate),
+    score,
+    // Progress semantics, not adherence judgment: green when done,
+    // yellow while doses remain. Pending morning doses are not "red".
+    band: taken >= scheduled ? "green" : "yellow",
+    doses: { taken, scheduled },
   };
 }
 
@@ -191,10 +115,10 @@ async function resolveMedComplianceRing(
 export async function buildScoreRingsBlock(
   prisma: PrismaClient,
   userId: string,
-  userTz: string,
   selected: ScoreRingId[],
   modules: Record<ModuleKey, boolean>,
   now: Date,
+  medsToday: MedsTodayForRings | null,
 ): Promise<DashboardScoreRing[]> {
   const eligible = selected.filter((id) => {
     if (!(SCORE_RING_IDS as readonly string[]).includes(id)) return false;
@@ -218,7 +142,7 @@ export async function buildScoreRingsBlock(
     eligible.map(async (id): Promise<DashboardScoreRing | null> => {
       try {
         if (id === "MED_COMPLIANCE") {
-          return await resolveMedComplianceRing(prisma, userId, userTz, now);
+          return resolveDoseRing(medsToday);
         }
         const metric = DERIVED_RING_METRIC[id];
         if (!metric || !profile) return null;

@@ -10,7 +10,8 @@ import {
   YAxis,
 } from "recharts";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations, useTimeFormatPreference } from "@/lib/i18n/context";
 import { hourCycleOptions } from "@/lib/format-locale";
 import { STAGE_COLORS } from "./sleep-stage-stacked-bar";
@@ -247,11 +248,9 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
     // `gap-3` so the header sits closer to the timeline, reclaiming the empty
     // band the maintainer flagged. The chart keeps its 200 px footprint.
     <Card data-slot="sleep-hypnogram" className="gap-3 md:gap-3">
-      <CardHeader className="pb-0">
+      <CardHeader>
         <div className="flex flex-col gap-0.5">
-          <CardTitle className="text-base font-semibold">
-            {t("insights.sleep.hypnogram.title")}
-          </CardTitle>
+          <TileHeader title={t("insights.sleep.hypnogram.title")} />
           <span className="text-muted-foreground text-xs">
             {t("insights.sleep.hypnogram.subtitle", {
               asleep: formatMinutes(session.asleepMinutes, locale),

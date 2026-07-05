@@ -44,7 +44,7 @@ export function MoodStabilityTile({
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader>
         <TileHeader
           icon={Activity}
           title={t("insights.mood.stability.title")}

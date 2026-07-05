@@ -152,18 +152,17 @@ export function BriefingSpotlight({
 
   return (
     <div data-slot="dashboard-briefing-spotlight" className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
-          {t("dashboard.hero.briefing.title")}
-        </p>
-        <Link
-          href="/insights"
-          data-slot="dashboard-briefing-spotlight-link"
-          className="text-muted-foreground hover:text-foreground text-[11px] underline underline-offset-2"
-        >
-          {t("dashboard.hero.briefing.viewAll")}
-        </Link>
-      </div>
+      {/* The heading itself routes to the briefing card on /insights —
+          quiet (no underline, hover lift only). The former separate
+          "open Insights" text link is gone: it thickened the card while
+          every signal row below already deep-links. */}
+      <Link
+        href="/insights#daily-briefing"
+        data-slot="dashboard-briefing-spotlight-title"
+        className="text-muted-foreground hover:text-foreground inline-block text-[11px] font-semibold tracking-wide uppercase transition-colors"
+      >
+        {t("dashboard.hero.briefing.title")}
+      </Link>
       <div className="space-y-2">
         {rows.map((row, index) => {
           const Icon = METRIC_ICON[row.sourceMetric];

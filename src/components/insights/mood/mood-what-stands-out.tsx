@@ -65,7 +65,7 @@ export function MoodWhatStandsOut({
 
   return (
     <Card data-slot="mood-what-stands-out">
-      <CardHeader className="pb-2">
+      <CardHeader>
         <TileHeader
           icon={TrendingUp}
           title={t("insights.mood.narrative.title")}

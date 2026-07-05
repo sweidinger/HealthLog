@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { Activity } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { CYCLE_SYMPTOM_CATALOG } from "./symptom-catalog";
 import { PHASE_HUE } from "./phase-tokens";
@@ -56,10 +57,10 @@ export function CycleSymptomPatterns({ rows }: CycleSymptomPatternsProps) {
   return (
     <Card data-slot="cycle-symptom-patterns">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Activity className="text-primary h-4 w-4" aria-hidden="true" />
-          {t("cycle.insights.symptomPatternsTitle")}
-        </CardTitle>
+        <TileHeader
+          icon={Activity}
+          title={t("cycle.insights.symptomPatternsTitle")}
+        />
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (

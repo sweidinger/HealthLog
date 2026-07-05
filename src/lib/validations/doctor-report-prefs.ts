@@ -33,6 +33,8 @@ export const doctorReportPrefsSchema = z
     sleep: z.boolean(),
     cycle: z.boolean(),
     labs: z.boolean(),
+    allergies: z.boolean(),
+    familyHistory: z.boolean(),
   })
   .partial();
 
@@ -53,6 +55,8 @@ export interface DoctorReportPrefs {
   sleep: boolean;
   cycle: boolean;
   labs: boolean;
+  allergies: boolean;
+  familyHistory: boolean;
 }
 
 /**
@@ -75,6 +79,12 @@ export const DEFAULT_DOCTOR_REPORT_PREFS: DoctorReportPrefs = {
   // Lab results the user recorded for exactly this purpose — sharing
   // bloodwork with a clinician. ON by default, like BP / weight.
   labs: true,
+  // Structured allergy / intolerance records — the section every clinical
+  // intake asks for first. Reference data recorded to share, ON by default
+  // like labs.
+  allergies: true,
+  // Structured family history — same stance as allergies.
+  familyHistory: true,
 };
 
 /**

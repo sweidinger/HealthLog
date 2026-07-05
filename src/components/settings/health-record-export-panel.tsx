@@ -58,6 +58,8 @@ interface SectionState {
   mood: boolean;
   bmi: boolean;
   labs: boolean;
+  allergies: boolean;
+  familyHistory: boolean;
 }
 
 const DEFAULT_SECTIONS: SectionState = {
@@ -79,6 +81,8 @@ const DEFAULT_SECTIONS: SectionState = {
   mood: false, // privacy default
   bmi: true,
   labs: true,
+  allergies: true,
+  familyHistory: true,
 };
 
 function buildSelectionSections(s: SectionState) {
@@ -106,6 +110,8 @@ function buildSelectionSections(s: SectionState) {
     mood: s.mood,
     bmi: s.bmi,
     labs: s.labs,
+    allergies: s.allergies,
+    familyHistory: s.familyHistory,
   };
 }
 
@@ -405,6 +411,16 @@ export function HealthRecordExportPanel() {
                   label={t("settings.healthRecord.labs")}
                   checked={sections.labs}
                   onToggle={() => toggle("labs")}
+                />
+                <ToggleRow
+                  label={t("settings.healthRecord.allergies")}
+                  checked={sections.allergies}
+                  onToggle={() => toggle("allergies")}
+                />
+                <ToggleRow
+                  label={t("settings.healthRecord.familyHistory")}
+                  checked={sections.familyHistory}
+                  onToggle={() => toggle("familyHistory")}
                 />
               </div>
 

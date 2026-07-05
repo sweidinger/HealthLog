@@ -3,8 +3,9 @@
 import { BedDouble } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LearningGate } from "@/components/ui/learning-gate";
+import { TileHeader } from "@/components/insights/tile-header";
 import type { AverageSleepDto } from "./use-sleep-rhythm";
 
 /** Whole hours + minutes from a minute total, for the headline figure. */
@@ -34,13 +35,11 @@ export function AverageSleepCard({ average }: { average: AverageSleepDto }) {
   if (average.state === "partial") {
     return (
       <Card data-slot="average-sleep-card">
-        <CardHeader className="pb-0">
-          <div className="flex items-center gap-2">
-            <BedDouble className="text-info h-4 w-4" />
-            <CardTitle className="text-base font-semibold">
-              {t("insights.sleep.average.title")}
-            </CardTitle>
-          </div>
+        <CardHeader>
+          <TileHeader
+            icon={BedDouble}
+            title={t("insights.sleep.average.title")}
+          />
         </CardHeader>
         <CardContent>
           <LearningGate
@@ -58,13 +57,11 @@ export function AverageSleepCard({ average }: { average: AverageSleepDto }) {
 
   return (
     <Card data-slot="average-sleep-card">
-      <CardHeader className="pb-0">
-        <div className="flex items-center gap-2">
-          <BedDouble className="text-info h-4 w-4" />
-          <CardTitle className="text-base font-semibold">
-            {t("insights.sleep.average.title")}
-          </CardTitle>
-        </div>
+      <CardHeader>
+        <TileHeader
+          icon={BedDouble}
+          title={t("insights.sleep.average.title")}
+        />
       </CardHeader>
       <CardContent>
         <div className="space-y-0.5">

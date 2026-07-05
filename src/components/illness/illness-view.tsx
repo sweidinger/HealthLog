@@ -132,7 +132,7 @@ function EpisodeCard({
 
   return (
     <Card className="h-full gap-3 md:gap-3">
-      <CardHeader className="pb-0">
+      <CardHeader>
         <CardTitle className="min-w-0">
           <Link
             href={`/illness/${episode.id}`}

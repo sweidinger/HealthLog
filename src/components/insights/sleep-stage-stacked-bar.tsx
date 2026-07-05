@@ -209,7 +209,7 @@ export function SleepStageStackedBar({ breakdown }: SleepStageStackedBarProps) {
 
   return (
     <Card data-slot="sleep-stage-stacked-bar">
-      <CardHeader className="pb-2">
+      <CardHeader>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-0.5">
             <CardTitle className="text-base font-semibold">

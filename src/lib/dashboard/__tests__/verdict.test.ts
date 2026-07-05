@@ -606,7 +606,10 @@ describe("rung 8 — briefing", () => {
       NOW,
     );
     expect(verdict.variant).toBe("briefing");
-    expect(verdict.values).toEqual({ headline: WATCH_FINDING.headline });
+    expect(verdict.values).toEqual({
+      headline: WATCH_FINDING.headline,
+      sourceMetric: WATCH_FINDING.sourceMetric,
+    });
     expect(verdict.cta).toEqual({ kind: "link", href: "/insights" });
   });
 
@@ -623,7 +626,10 @@ describe("rung 8 — briefing", () => {
       NOW,
     );
     expect(verdict.variant).toBe("briefing");
-    expect(verdict.values).toEqual({ headline: FRESH_FINDING.headline });
+    expect(verdict.values).toEqual({
+      headline: FRESH_FINDING.headline,
+      sourceMetric: FRESH_FINDING.sourceMetric,
+    });
   });
 
   it("skips a STALE briefing even in ready-shaped delivery", () => {

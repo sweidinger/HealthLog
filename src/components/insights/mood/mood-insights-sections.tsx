@@ -167,7 +167,7 @@ function SectionCard({
 }) {
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader>
         <TileHeader icon={icon} title={title} />
       </CardHeader>
       <CardContent>{children}</CardContent>
@@ -289,7 +289,7 @@ export function MoodInsightsSections({
         // above its body instead of floating ~16-24 px above it.
         className="animate-insight-in gap-1.5 py-4 md:py-5"
       >
-        <CardHeader className="pb-1">
+        <CardHeader>
           <TileHeader
             icon={Sparkles}
             title={t("insights.mood.betterDays.title")}

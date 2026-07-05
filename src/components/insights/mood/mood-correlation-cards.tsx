@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { Activity } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
@@ -98,29 +99,30 @@ function MoodCorrelationCard({
       data-kind={kind}
       className={className}
     >
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-semibold">
-            {t(TITLE_KEY[kind])}
-          </CardTitle>
-          {hasResult && data.result && (
-            <div className="flex shrink-0 items-center gap-1.5">
-              <Badge variant="outline" className="text-[10px]">
-                {t(STRENGTH_KEY[data.result.strength])}
-              </Badge>
-              {/* v1.12.4 (C4) — the "{n} paired days · r" line sat under the
-                  scatter as a half-empty row. Move it into an explainer icon
-                  in the header so the card footprint stays tight. */}
-              <MoodExplainerIcon
-                label={t("insights.mood.correlation.sourceLabel")}
-                detail={t("insights.mood.correlation.source", {
-                  n: data.n,
-                  r: data.result.r.toFixed(2),
-                })}
-              />
-            </div>
-          )}
-        </div>
+      <CardHeader>
+        <TileHeader
+          size="sm"
+          title={t(TITLE_KEY[kind])}
+          right={
+            hasResult && data.result ? (
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Badge variant="outline" className="text-[10px]">
+                  {t(STRENGTH_KEY[data.result.strength])}
+                </Badge>
+                {/* v1.12.4 (C4) — the "{n} paired days · r" line sat under the
+                    scatter as a half-empty row. Move it into an explainer icon
+                    in the header so the card footprint stays tight. */}
+                <MoodExplainerIcon
+                  label={t("insights.mood.correlation.sourceLabel")}
+                  detail={t("insights.mood.correlation.source", {
+                    n: data.n,
+                    r: data.result.r.toFixed(2),
+                  })}
+                />
+              </div>
+            ) : undefined
+          }
+        />
       </CardHeader>
       <CardContent className="space-y-3">
         {hasResult && data.result ? (

@@ -77,6 +77,11 @@ export const exportSectionsSchema = z
     // Structured lab results — ON by default (recorded to share with a
     // clinician, same stance as BP / weight).
     labs: z.boolean(),
+    // Structured allergy / intolerance records — ON by default (the
+    // section every clinical intake asks for first; same stance as labs).
+    allergies: z.boolean(),
+    // Structured family history — ON by default, same stance as allergies.
+    familyHistory: z.boolean(),
   })
   .partial();
 
@@ -139,5 +144,7 @@ export function toDoctorReportPrefs(
     // Cycle is opt-in: only true when explicitly requested (privacy).
     cycle: s.cycle === true,
     labs: s.labs ?? fallback.labs,
+    allergies: s.allergies ?? fallback.allergies,
+    familyHistory: s.familyHistory ?? fallback.familyHistory,
   };
 }

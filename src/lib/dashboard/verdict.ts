@@ -273,7 +273,10 @@ export function resolveDashboardVerdict(
     const picked = findings.find((f) => f.tone === "watch") ?? findings[0];
     return {
       variant: "briefing",
-      values: { headline: picked.headline },
+      // `sourceMetric` rides along so the hero can deep-link the
+      // sentence to the picked finding's metric sub-page (METRIC_HREF);
+      // renderers that don't know the field ignore it.
+      values: { headline: picked.headline, sourceMetric: picked.sourceMetric },
       cta: { kind: "link", href: "/insights" },
     };
   }

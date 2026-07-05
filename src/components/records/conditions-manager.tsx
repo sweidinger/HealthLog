@@ -28,6 +28,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -126,9 +127,10 @@ export function ConditionsManager() {
   return (
     <div className="space-y-4" data-slot="conditions-manager">
       {query.isError ? (
-        <p role="alert" className="text-destructive text-sm">
-          {t("records.conditions.loadError")}
-        </p>
+        <QueryErrorCard
+          title={t("records.conditions.loadError")}
+          onRetry={() => void query.refetch()}
+        />
       ) : (
         <>
           {field(

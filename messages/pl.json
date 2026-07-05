@@ -187,7 +187,18 @@
     "illnessColType": "Typ",
     "illnessColLifecycle": "Przebieg",
     "illnessColOnset": "Początek",
-    "illnessColResolved": "Ustąpiła"
+    "illnessColResolved": "Ustąpiła",
+    "allergiesTitle": "Alergie i nietolerancje",
+    "allergiesColSubstance": "Substancja",
+    "allergiesColCategory": "Kategoria",
+    "allergiesColKind": "Rodzaj",
+    "allergiesColSeverity": "Nasilenie",
+    "allergiesColReaction": "Reakcja",
+    "allergiesColStatus": "Status",
+    "familyHistoryTitle": "Wywiad rodzinny",
+    "familyHistoryColRelationship": "Pokrewieństwo",
+    "familyHistoryColCondition": "Schorzenie",
+    "familyHistoryColAgeAtOnset": "Wiek zachorowania"
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",
@@ -307,6 +318,8 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Za mało danych",
       "scoreComputing": "Trwa obliczanie wyniku …",
+      "ringDoses": "Dzisiejsze dawki",
+      "ringDosesAria": "Przyjęto {taken} z {scheduled} dawek dzisiaj",
       "verdict": {
         "doseOverdue": "Dawka {name} jest zaległa.",
         "doseOverdueNoName": "Dawka jest zaległa.",
@@ -327,8 +340,7 @@
         "logMeasurement": "Zapisz pomiar"
       },
       "briefing": {
-        "title": "Briefing dnia",
-        "viewAll": "Otwórz Insights"
+        "title": "Briefing dnia"
       }
     },
     "greetingSalutation": "Cześć, {name}",
@@ -5061,7 +5073,9 @@
       "fhirNote": "Dane ustrukturyzowane są zgodne ze standardem FHIR R4 (kompatybilne z ePA).",
       "generate": "Generuj",
       "error": "Eksport nie powiódł się ({code}).",
-      "labs": "Wyniki badań"
+      "labs": "Wyniki badań",
+      "allergies": "Alergie i nietolerancje",
+      "familyHistory": "Wywiad rodzinny"
     },
     "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
     "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje.",
@@ -7650,6 +7664,14 @@
       "2": "Więcej niż połowę dni",
       "3": "Niemal codziennie"
     },
+    "functionalTitle": "Jeśli zaznaczyłeś(-aś) jakiekolwiek problemy, na ile utrudniły Ci one pracę, prowadzenie domu lub kontakty z innymi ludźmi?",
+    "functional": {
+      "0": "Wcale nie utrudniły",
+      "1": "Trochę utrudniły",
+      "2": "Bardzo utrudniły",
+      "3": "Skrajnie utrudniły"
+    },
+    "functionalOptionalHint": "Opcjonalne — możesz wysłać bez odpowiedzi na to pytanie.",
     "result": {
       "title": "Twój wynik",
       "totalLabel": "Wynik łączny",

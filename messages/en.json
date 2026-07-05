@@ -187,7 +187,18 @@
     "illnessColType": "Type",
     "illnessColLifecycle": "Course",
     "illnessColOnset": "Onset",
-    "illnessColResolved": "Resolved"
+    "illnessColResolved": "Resolved",
+    "allergiesTitle": "Allergies & intolerances",
+    "allergiesColSubstance": "Substance",
+    "allergiesColCategory": "Category",
+    "allergiesColKind": "Kind",
+    "allergiesColSeverity": "Severity",
+    "allergiesColReaction": "Reaction",
+    "allergiesColStatus": "Status",
+    "familyHistoryTitle": "Family history",
+    "familyHistoryColRelationship": "Relative",
+    "familyHistoryColCondition": "Condition",
+    "familyHistoryColAgeAtOnset": "Age at onset"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -307,6 +318,8 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Not enough data yet",
       "scoreComputing": "Calculating score…",
+      "ringDoses": "Doses today",
+      "ringDosesAria": "{taken} of {scheduled} doses taken today",
       "verdict": {
         "doseOverdue": "A dose of {name} is overdue.",
         "doseOverdueNoName": "A dose is overdue.",
@@ -327,8 +340,7 @@
         "logMeasurement": "Log measurement"
       },
       "briefing": {
-        "title": "Today’s briefing",
-        "viewAll": "Open Insights"
+        "title": "Today’s briefing"
       }
     },
     "greetingSalutation": "Hi, {name}",
@@ -5061,7 +5073,9 @@
       "fhirNote": "The structured output follows the FHIR R4 standard (ePA-compatible).",
       "generate": "Generate",
       "error": "Export failed ({code}).",
-      "labs": "Lab results"
+      "labs": "Lab results",
+      "allergies": "Allergies & intolerances",
+      "familyHistory": "Family history"
     },
     "globalExcludedInjectionSitesLabel": "Globally excluded injection sites",
     "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them.",
@@ -7650,6 +7664,14 @@
       "2": "More than half the days",
       "3": "Nearly every day"
     },
+    "functionalTitle": "If you checked off any problems, how difficult have these made it to do your work, take care of things at home, or get along with other people?",
+    "functional": {
+      "0": "Not difficult at all",
+      "1": "Somewhat difficult",
+      "2": "Very difficult",
+      "3": "Extremely difficult"
+    },
+    "functionalOptionalHint": "Optional — you can submit without answering this question.",
     "result": {
       "title": "Your result",
       "totalLabel": "Total score",

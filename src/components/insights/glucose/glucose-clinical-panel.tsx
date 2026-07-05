@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Activity, Droplet, FlaskConical, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { InfoHint } from "@/components/ui/info-hint";
 import { LearningGate } from "@/components/ui/learning-gate";
 import { LearnMoreLink } from "@/components/ui/learn-more-link";
@@ -50,7 +51,7 @@ export function GlucoseClinicalPanel() {
   if (query.isLoading) {
     return (
       <Card data-slot="glucose-clinical-panel-skeleton">
-        <CardHeader className="pb-2">
+        <CardHeader>
           <Skeleton className="h-5 w-40" />
         </CardHeader>
         <CardContent className="space-y-4">
@@ -96,11 +97,11 @@ export function GlucoseClinicalPanel() {
 
     return (
       <Card data-slot="glucose-clinical-panel" data-state="learning">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Droplet className="h-4 w-4" aria-hidden="true" />
-            {t("insights.bloodGlucose.clinical.learningTitle")}
-          </CardTitle>
+        <CardHeader>
+          <TileHeader
+            icon={Droplet}
+            title={t("insights.bloodGlucose.clinical.learningTitle")}
+          />
         </CardHeader>
         <CardContent>
           <LearningGate
@@ -132,12 +133,12 @@ export function GlucoseClinicalPanel() {
 
   return (
     <Card data-slot="glucose-clinical-panel" data-state="asserted">
-      <CardHeader className="pb-2">
+      <CardHeader>
         <div className="flex flex-col gap-0.5">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Droplet className="h-4 w-4" aria-hidden="true" />
-            {t("insights.bloodGlucose.clinical.title")}
-          </CardTitle>
+          <TileHeader
+            icon={Droplet}
+            title={t("insights.bloodGlucose.clinical.title")}
+          />
           <span className="text-muted-foreground text-xs">
             {t("insights.bloodGlucose.clinical.subtitle", {
               days: Math.max(1, Math.round(clinical.actualSpanDays)),

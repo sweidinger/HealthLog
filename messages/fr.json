@@ -187,7 +187,18 @@
     "illnessColType": "Type",
     "illnessColLifecycle": "Évolution",
     "illnessColOnset": "Début",
-    "illnessColResolved": "Résolue"
+    "illnessColResolved": "Résolue",
+    "allergiesTitle": "Allergies et intolérances",
+    "allergiesColSubstance": "Substance",
+    "allergiesColCategory": "Catégorie",
+    "allergiesColKind": "Type",
+    "allergiesColSeverity": "Sévérité",
+    "allergiesColReaction": "Réaction",
+    "allergiesColStatus": "Statut",
+    "familyHistoryTitle": "Antécédents familiaux",
+    "familyHistoryColRelationship": "Lien de parenté",
+    "familyHistoryColCondition": "Affection",
+    "familyHistoryColAgeAtOnset": "Âge au début"
   },
   "errorBoundary": {
     "title": "Une erreur est survenue",
@@ -307,6 +318,8 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Pas encore assez de données",
       "scoreComputing": "Calcul du score en cours …",
+      "ringDoses": "Doses du jour",
+      "ringDosesAria": "{taken} des {scheduled} doses prises aujourd'hui",
       "verdict": {
         "doseOverdue": "Une dose de {name} est en retard.",
         "doseOverdueNoName": "Une dose est en retard.",
@@ -327,8 +340,7 @@
         "logMeasurement": "Saisir une mesure"
       },
       "briefing": {
-        "title": "Briefing du jour",
-        "viewAll": "Ouvrir Insights"
+        "title": "Briefing du jour"
       }
     },
     "greetingSalutation": "Bonjour, {name}",
@@ -5061,7 +5073,9 @@
       "fhirNote": "La sortie structurée suit la norme FHIR R4 (compatible ePA).",
       "generate": "Générer",
       "error": "Échec de l’export ({code}).",
-      "labs": "Résultats d'analyses"
+      "labs": "Résultats d'analyses",
+      "allergies": "Allergies et intolérances",
+      "familyHistory": "Antécédents familiaux"
     },
     "globalExcludedInjectionSitesLabel": "Sites d'injection exclus globalement",
     "globalExcludedInjectionSitesHint": "Les sites listés ici ne sont proposés pour aucun médicament et sont refusés lors de l'enregistrement d'une dose, même si un médicament les privilégie.",
@@ -7650,6 +7664,14 @@
       "2": "Plus de la moitié des jours",
       "3": "Presque tous les jours"
     },
+    "functionalTitle": "Si tu as coché des problèmes, à quel point t'ont-ils gêné(e) dans ton travail, à la maison ou dans tes relations avec les autres ?",
+    "functional": {
+      "0": "Pas du tout gênant",
+      "1": "Un peu gênant",
+      "2": "Très gênant",
+      "3": "Extrêmement gênant"
+    },
+    "functionalOptionalHint": "Facultatif — tu peux envoyer sans répondre à cette question.",
     "result": {
       "title": "Ton résultat",
       "totalLabel": "Score total",

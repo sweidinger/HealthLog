@@ -1604,6 +1604,121 @@ export function buildDoctorReportPdfDocument(
         .finalY + 8;
   }
 
+  // v1.27.x — structured allergy / intolerance records. Reference data
+  // (not time-windowed) the aggregator populates when the `allergies`
+  // toggle is ON (default) and rows exist. Stored fields only — substance,
+  // category, kind, severity, reaction, status — in the same calm factual
+  // table register as the illness section; no colour, no severity tint.
+  if (data.allergies && data.allergies.length > 0) {
+    y = ensureSpace(y, 6 + 18);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text(t("doctorReport.allergiesTitle"), margin, y);
+    y += 6;
+
+    const allergyRows = data.allergies.map((al) => [
+      al.substance,
+      t(`records.allergies.category.${al.category}`),
+      t(`records.allergies.type.${al.type}`),
+      al.severity ? t(`records.allergies.severity.${al.severity}`) : "—",
+      al.reaction ?? "—",
+      t(`records.allergies.status.${al.status}`),
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [
+        [
+          t("doctorReport.allergiesColSubstance"),
+          t("doctorReport.allergiesColCategory"),
+          t("doctorReport.allergiesColKind"),
+          t("doctorReport.allergiesColSeverity"),
+          t("doctorReport.allergiesColReaction"),
+          t("doctorReport.allergiesColStatus"),
+        ],
+      ],
+      body: allergyRows,
+      theme: "grid",
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        textColor: [30, 30, 30],
+        lineColor: [200, 200, 200],
+        lineWidth: 0.3,
+      },
+      headStyles: {
+        fillColor: [245, 245, 245],
+        textColor: [30, 30, 30],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: { fillColor: [252, 252, 252] },
+      margin: {
+        left: margin,
+        right: margin,
+        top: margin,
+        bottom: tableBottomMargin,
+      },
+    });
+    y =
+      (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+        .finalY + 8;
+  }
+
+  // v1.27.x — structured family-history records. Reference data the
+  // aggregator populates when the `familyHistory` toggle is ON (default)
+  // and rows exist. Relationship + condition + age at onset only — the
+  // free-text note never reaches this surface.
+  if (data.familyHistory && data.familyHistory.length > 0) {
+    y = ensureSpace(y, 6 + 18);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text(t("doctorReport.familyHistoryTitle"), margin, y);
+    y += 6;
+
+    const familyRows = data.familyHistory.map((fh) => [
+      t(`records.family.relationship.${fh.relationship}`),
+      fh.condition,
+      fh.ageAtOnset !== null ? String(fh.ageAtOnset) : "—",
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [
+        [
+          t("doctorReport.familyHistoryColRelationship"),
+          t("doctorReport.familyHistoryColCondition"),
+          t("doctorReport.familyHistoryColAgeAtOnset"),
+        ],
+      ],
+      body: familyRows,
+      theme: "grid",
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        textColor: [30, 30, 30],
+        lineColor: [200, 200, 200],
+        lineWidth: 0.3,
+      },
+      headStyles: {
+        fillColor: [245, 245, 245],
+        textColor: [30, 30, 30],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: { fillColor: [252, 252, 252] },
+      margin: {
+        left: margin,
+        right: margin,
+        top: margin,
+        bottom: tableBottomMargin,
+      },
+    });
+    y =
+      (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+        .finalY + 8;
+  }
+
   // v1.7.0 — optional AI summary. OUT of the clinical PDF by default;
   // rendered ONLY when the user explicitly opted in. Clearly labelled and
   // flagged as not clinically validated so a physician never mistakes it

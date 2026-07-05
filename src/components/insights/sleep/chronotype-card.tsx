@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Clock, ChevronDown, ChevronUp } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LearningGate } from "@/components/ui/learning-gate";
+import { TileHeader } from "@/components/insights/tile-header";
 import type { ChronotypeDto } from "./use-sleep-rhythm";
 
 /** Minutes-of-day → "HH:MM" wall-clock label (24 h, zero-padded). */
@@ -47,13 +48,11 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
     const need = chronotype.freeNightsCounted + chronotype.freeNightsUntilReady;
     return (
       <Card data-slot="chronotype-card">
-        <CardHeader className="pb-0">
-          <div className="flex items-center gap-2">
-            <Clock className="text-info h-4 w-4" />
-            <CardTitle className="text-base font-semibold">
-              {t("insights.sleep.chronotype.title")}
-            </CardTitle>
-          </div>
+        <CardHeader>
+          <TileHeader
+            icon={Clock}
+            title={t("insights.sleep.chronotype.title")}
+          />
         </CardHeader>
         <CardContent>
           <LearningGate
@@ -73,13 +72,8 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
 
   return (
     <Card data-slot="chronotype-card">
-      <CardHeader className="pb-0">
-        <div className="flex items-center gap-2">
-          <Clock className="text-info h-4 w-4" />
-          <CardTitle className="text-base font-semibold">
-            {t("insights.sleep.chronotype.title")}
-          </CardTitle>
-        </div>
+      <CardHeader>
+        <TileHeader icon={Clock} title={t("insights.sleep.chronotype.title")} />
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Uniform with the sleep-debt tile: a bold primary value (the band) at

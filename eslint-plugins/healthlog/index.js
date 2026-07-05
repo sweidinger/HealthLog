@@ -21,5 +21,10 @@ module.exports = {
     "safe-fetch-required": safeFetchRequired,
     "api-fetch-required": apiFetchRequired,
     "no-raw-palette-color": noRawPaletteColor,
+    // Same module as `no-raw-palette-color`, registered under a second
+    // name so the flat config can run the `dracula` check at a different
+    // severity (warn) than the error-level checks. See the staged plan in
+    // the rule header.
+    "no-dracula-utility": noRawPaletteColor,
   },
 };

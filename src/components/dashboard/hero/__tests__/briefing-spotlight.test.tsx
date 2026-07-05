@@ -117,7 +117,10 @@ describe("<BriefingSpotlight>", () => {
     });
     expect(html).toContain('data-slot="dashboard-briefing-spotlight"');
     expect(html).toContain("Short on sleep this week");
-    expect(html).toContain('href="/insights"');
+    // The heading itself links to the briefing card anchor; the former
+    // separate "view all" text link is gone.
+    expect(html).toContain('href="/insights#daily-briefing"');
+    expect(html).not.toContain('data-slot="dashboard-briefing-spotlight-link"');
     expect(html).toContain("-1.2 h");
     // Signals win over key findings when present.
     expect(html).not.toContain("should not appear when signals exist");

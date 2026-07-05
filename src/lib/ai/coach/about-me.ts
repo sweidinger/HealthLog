@@ -114,6 +114,155 @@ const GENDER_LABELS: Record<"de" | "en", Record<string, string>> = {
 };
 
 /**
+ * v1.27.x — structured-record projection (link between the Anamnese
+ * stores and the AI context). A user who records a penicillin allergy in
+ * the structured records UI — the app's most explicit input for exactly
+ * this — must not have a Coach that only knows the free-text answer.
+ * Stored fields only, rendered descriptively; the structured rows are the
+ * deliberate record, so the block labels them as such and they take
+ * precedence over the free-text answer on conflict.
+ */
+
+export interface StructuredAllergyForPrompt {
+  substance: string;
+  type: string;
+  severity: string | null;
+  status: string;
+  reaction: string | null;
+}
+
+export interface StructuredFamilyHistoryForPrompt {
+  relationship: string;
+  condition: string;
+  ageAtOnset: number | null;
+}
+
+const ALLERGY_SEVERITY_LABELS: Record<"de" | "en", Record<string, string>> = {
+  de: {
+    NONE: "ohne Beschwerden",
+    MILD: "leicht",
+    MODERATE: "mittel",
+    SEVERE: "schwer",
+  },
+  en: {
+    NONE: "no symptoms",
+    MILD: "mild",
+    MODERATE: "moderate",
+    SEVERE: "severe",
+  },
+};
+
+const ALLERGY_STATUS_LABELS: Record<"de" | "en", Record<string, string>> = {
+  de: { INACTIVE: "inaktiv", RESOLVED: "abgeklungen" },
+  en: { INACTIVE: "inactive", RESOLVED: "resolved" },
+};
+
+const FAMILY_RELATIONSHIP_LABELS: Record<
+  "de" | "en",
+  Record<string, string>
+> = {
+  de: {
+    MOTHER: "Mutter",
+    FATHER: "Vater",
+    SISTER: "Schwester",
+    BROTHER: "Bruder",
+    DAUGHTER: "Tochter",
+    SON: "Sohn",
+    GRANDMOTHER_MATERNAL: "Großmutter (mütterlicherseits)",
+    GRANDFATHER_MATERNAL: "Großvater (mütterlicherseits)",
+    GRANDMOTHER_PATERNAL: "Großmutter (väterlicherseits)",
+    GRANDFATHER_PATERNAL: "Großvater (väterlicherseits)",
+    AUNT: "Tante",
+    UNCLE: "Onkel",
+    COUSIN: "Cousin/Cousine",
+    HALF_SIBLING: "Halbgeschwister",
+    OTHER: "Weitere Verwandte",
+  },
+  en: {
+    MOTHER: "mother",
+    FATHER: "father",
+    SISTER: "sister",
+    BROTHER: "brother",
+    DAUGHTER: "daughter",
+    SON: "son",
+    GRANDMOTHER_MATERNAL: "maternal grandmother",
+    GRANDFATHER_MATERNAL: "maternal grandfather",
+    GRANDMOTHER_PATERNAL: "paternal grandmother",
+    GRANDFATHER_PATERNAL: "paternal grandfather",
+    AUNT: "aunt",
+    UNCLE: "uncle",
+    COUSIN: "cousin",
+    HALF_SIBLING: "half-sibling",
+    OTHER: "other relative",
+  },
+};
+
+/**
+ * Compose the structured-records lines for the prompt context block.
+ * Descriptive, stored fields only — substance/kind/severity/reaction/
+ * status for allergies, relationship/condition/age-at-onset for family
+ * history. Returns `null` when both lists are empty so the caller can
+ * skip the block.
+ */
+export function composeStructuredRecordsText(
+  allergies: StructuredAllergyForPrompt[],
+  familyHistory: StructuredFamilyHistoryForPrompt[],
+  locale: string,
+): string | null {
+  const de = locale === "de";
+  const lang = de ? "de" : "en";
+  const lines: string[] = [];
+
+  if (allergies.length > 0) {
+    const items = allergies.map((a) => {
+      const details: string[] = [];
+      if (a.type === "INTOLERANCE") {
+        details.push(de ? "Unverträglichkeit" : "intolerance");
+      }
+      if (a.severity) {
+        const label = ALLERGY_SEVERITY_LABELS[lang][a.severity];
+        if (label) details.push(label);
+      }
+      if (a.reaction) {
+        details.push((de ? "Reaktion: " : "reaction: ") + a.reaction);
+      }
+      const statusLabel = ALLERGY_STATUS_LABELS[lang][a.status];
+      if (statusLabel) details.push(statusLabel);
+      return details.length > 0
+        ? `${a.substance} (${details.join(", ")})`
+        : a.substance;
+    });
+    lines.push(
+      (de
+        ? "Dokumentierte Allergien/Unverträglichkeiten (strukturierte Einträge — bei Widerspruch maßgeblich): "
+        : "Recorded allergies/intolerances (structured entries — authoritative on conflict): ") +
+        items.join("; "),
+    );
+  }
+
+  if (familyHistory.length > 0) {
+    const items = familyHistory.map((f) => {
+      const rel =
+        FAMILY_RELATIONSHIP_LABELS[lang][f.relationship] ?? f.relationship;
+      const onset =
+        f.ageAtOnset !== null
+          ? de
+            ? ` (Beginn mit ${f.ageAtOnset})`
+            : ` (onset at ${f.ageAtOnset})`
+          : "";
+      return `${rel}: ${f.condition}${onset}`;
+    });
+    lines.push(
+      (de
+        ? "Familienanamnese (strukturierte Einträge): "
+        : "Family history (structured entries): ") + items.join("; "),
+    );
+  }
+
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+/**
  * Compose the merged self-context text the prompt block quotes: profile
  * facts first (age/gender from the User row — the single source, never
  * duplicated into the questionnaire), then the structured answers, then
@@ -194,14 +343,33 @@ export async function getSelfContextTextForUser(
   locale: string,
 ): Promise<string | null> {
   try {
-    const [ctx, user] = await Promise.all([
+    const [ctx, user, allergyRows, familyRows] = await Promise.all([
       getSelfContextForUser(userId),
       prisma.user.findUnique({
         where: { id: userId },
         select: { dateOfBirth: true, gender: true },
       }),
+      // v1.27.x — structured records join the context block. Live rows
+      // only; the free-text notes are never selected. The reaction
+      // ciphertext decrypts fail-closed per row below.
+      prisma.allergy.findMany({
+        where: { userId, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: {
+          substance: true,
+          type: true,
+          severity: true,
+          status: true,
+          reactionEncrypted: true,
+        },
+      }),
+      prisma.familyHistoryEntry.findMany({
+        where: { userId, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { relationship: true, condition: true, ageAtOnset: true },
+      }),
     ]);
-    return composeSelfContextText(
+    const selfText = composeSelfContextText(
       ctx,
       {
         ageYears: deriveAgeYears(user?.dateOfBirth ?? null),
@@ -209,6 +377,19 @@ export async function getSelfContextTextForUser(
       },
       locale,
     );
+    const recordsText = composeStructuredRecordsText(
+      allergyRows.map((r) => ({
+        substance: r.substance,
+        type: r.type,
+        severity: r.severity,
+        status: r.status,
+        reaction: decryptOrNull(r.reactionEncrypted),
+      })),
+      familyRows,
+      locale,
+    );
+    if (!selfText && !recordsText) return null;
+    return [selfText, recordsText].filter(Boolean).join("\n");
   } catch {
     return null;
   }

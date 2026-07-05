@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.27.8] — 2026-07-05 — Dashboard follow-ups and design-system sweeps
+
+### Changed
+
+- The hero's medication ring now shows today's doses — "1/3 taken" as a filling ring — instead of a seven-day percentage. No doses scheduled today means no ring.
+- Ring choices under Settings → Dashboard apply immediately when toggled and the selection can be reordered; the order carries over to the hero. Ring colours match the Insights rings exactly.
+- The "daily briefing" heading on the dashboard is itself the link to the full briefing (no underline), the verdict sentence links to the metric it talks about when it has no action button, and the separate "open Insights" text link is gone.
+- The light theme now tunes all remaining highlight colours to readable contrast on light cards — admin pages, the Coach thread, and confidence meters no longer render neon-on-white.
+- Failed data loads show the same retry card everywhere; a dozen surfaces previously showed a bare error line without a retry.
+- Insights tiles share one header anatomy (icon and title in the standard size and colour) — the sleep, glucose, cycle, and correlation tiles had drifted into hand-rolled variants.
+- Card paddings across ~20 surfaces now come from the card primitive alone, removing stale per-card overrides from an older spacing era.
+
+### Added
+
+- The doctor report can include structured allergies and family history as toggleable sections, and the Coach considers both in its picture of you.
+- The PHQ-9 check-in regained its optional closing question ("how difficult have these problems made daily life?") as a regular tenth question — answering is optional.
+- A guard test pins the settings pages against the recurring scroll-past-the-end class, and the lint rule against raw palette colours now also catches theme utilities, colour props, and arbitrary values.
+
 ## [1.27.7] — 2026-07-05 — Score rings on the dashboard
 
 ### Added

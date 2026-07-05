@@ -158,15 +158,15 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
 
 /**
  * v1.27.7 — option labels for the hero score-ring picker. The three
- * derived rings reuse their wellness-strip titles; the adherence ring
- * reuses the existing "adherence (7 days)" label so the picker names
- * the exact window the ring shows.
+ * derived rings reuse their wellness-strip titles; the dose ring names
+ * today's tally (the exact thing the ring shows since it moved off the
+ * 7-day adherence percentage).
  */
 const SCORE_RING_LABEL_KEYS: Record<ScoreRingId, string> = {
   READINESS: "insights.derived.composite.READINESS.title",
   RECOVERY_SCORE: "insights.derived.scores.recovery",
   SLEEP_SCORE: "insights.derived.composite.SLEEP_SCORE.title",
-  MED_COMPLIANCE: "dashboard.compliance7d",
+  MED_COMPLIANCE: "dashboard.hero.ringDoses",
 };
 
 export function DashboardLayoutSection({ id }: { id: string }) {
@@ -301,11 +301,70 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   }
 
   /**
+   * v1.27.8 — the ring choices apply INSTANTLY, outside the draft/Save
+   * machine the rest of the section keeps. The first cut routed ring
+   * toggles through the draft, and the combination of an unflushed
+   * draft, the server snapshot cache, and client staleness read as
+   * "flipping does nothing, rings appear later". The mutation PUTs the
+   * SERVER layout copy with only `selectedScoreRings` changed (an open
+   * draft's other edits stay unsent and untouched), optimistically
+   * updates the widgets query, and invalidates the dashboard snapshot on
+   * settle so the hero reflects the choice on the next visit.
+   */
+  const ringMutation = useMutation({
+    mutationFn: async (next: ScoreRingId[]) => {
+      if (!remote) throw new Error("layout not loaded");
+      return apiPut<DashboardLayout>("/api/dashboard/widgets", {
+        ...remote,
+        selectedScoreRings: next,
+      });
+    },
+    onMutate: async (next) => {
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.dashboardWidgets(),
+      });
+      const previous = queryClient.getQueryData<DashboardLayout>(
+        queryKeys.dashboardWidgets(),
+      );
+      if (previous) {
+        queryClient.setQueryData(queryKeys.dashboardWidgets(), {
+          ...previous,
+          selectedScoreRings: next,
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _next, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          queryKeys.dashboardWidgets(),
+          context.previous,
+        );
+      }
+      toast.error(t("dashboard.layoutSaveError"));
+    },
+    onSuccess: (saved) => {
+      queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboardSnapshot(),
+      });
+    },
+  });
+
+  /** Apply a new ring selection/order instantly (see `ringMutation`). */
+  function applyScoreRings(next: ScoreRingId[]) {
+    if (!remote) return;
+    // Keep an open draft's ring slice in sync so a later Save of the
+    // OTHER layout edits can't revert the instantly-applied choice.
+    if (draft) setDraft({ ...draft, selectedScoreRings: next });
+    ringMutation.mutate(next);
+  }
+
+  /**
    * v1.27.7 — toggle one hero score ring. Selection order is preserved
    * (a newly-enabled ring appends), the count is capped at
    * `MAX_SELECTED_SCORE_RINGS` (the remaining switches disable at the
-   * cap), and the choice persists as `selectedScoreRings` on the layout
-   * blob through the same PUT the widget toggles use.
+   * cap). v1.27.8 — applies instantly via `applyScoreRings`.
    */
   function toggleScoreRing(ringId: ScoreRingId, enabled: boolean) {
     if (!layout) return;
@@ -315,7 +374,37 @@ export function DashboardLayoutSection({ id }: { id: string }) {
         ? current
         : [...current, ringId].slice(0, MAX_SELECTED_SCORE_RINGS)
       : current.filter((id) => id !== ringId);
-    setDraft({ ...layout, selectedScoreRings: next });
+    applyScoreRings(next);
+  }
+
+  /**
+   * v1.27.8 — reorder the selected rings (the array order IS the render
+   * order on the hero; the server preserves it). Same interaction pair
+   * as the widget rows below: drag handle + arrow buttons.
+   */
+  function moveScoreRing(ringId: ScoreRingId, delta: -1 | 1) {
+    if (!layout) return;
+    const current = layout.selectedScoreRings ?? [];
+    const idx = current.indexOf(ringId);
+    const target = idx + delta;
+    if (idx < 0 || target < 0 || target >= current.length) return;
+    const next = [...current];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    applyScoreRings(next);
+  }
+
+  function handleRingDragEnd(event: DragEndEvent) {
+    if (!layout) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const current = layout.selectedScoreRings ?? [];
+    const from = current.indexOf(active.id as ScoreRingId);
+    const to = current.indexOf(over.id as ScoreRingId);
+    if (from < 0 || to < 0) return;
+    const next = [...current];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    applyScoreRings(next);
   }
 
   /**
@@ -480,7 +569,10 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           module is enabled — the WIDGET_MODULE_BY_ID gating pattern; the
           three derived rings additionally sit behind the insights
           module, mirroring the derived routes. Selection caps at
-          MAX_SELECTED_SCORE_RINGS; unchecked switches disable at the cap. */}
+          MAX_SELECTED_SCORE_RINGS; unchecked switches disable at the cap.
+          v1.27.8 — choices apply instantly (no Save round) and the
+          selected rings reorder with the same drag-handle + arrow pair
+          as the widget rows below; the array order is the hero order. */}
       {layout && layout.heroVisible === true && (
         <div
           data-slot="score-rings-picker"
@@ -494,37 +586,71 @@ export function DashboardLayoutSection({ id }: { id: string }) {
               {t("dashboard.scoreRingsDescription")}
             </p>
           </div>
-          <div className="space-y-2">
-            {SCORE_RING_IDS.filter((ringId) => {
+          {(() => {
+            const available = SCORE_RING_IDS.filter((ringId) => {
               if (modules?.[SCORE_RING_MODULE[ringId]] === false) return false;
               if (ringId !== "MED_COMPLIANCE" && modules?.insights === false)
                 return false;
               return true;
-            }).map((ringId) => {
-              const selected = layout.selectedScoreRings ?? [];
-              const checked = selected.includes(ringId);
-              const atCap =
-                !checked && selected.length >= MAX_SELECTED_SCORE_RINGS;
-              return (
-                <div
-                  key={ringId}
-                  className="flex min-h-9 items-center justify-between gap-3"
+            });
+            const selected = (layout.selectedScoreRings ?? []).filter(
+              (ringId) => available.includes(ringId),
+            );
+            const unselected = available.filter(
+              (ringId) => !selected.includes(ringId),
+            );
+            const atCap = selected.length >= MAX_SELECTED_SCORE_RINGS;
+            const busy = ringMutation.isPending;
+            return (
+              <div className="space-y-2">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleRingDragEnd}
                 >
-                  <span className="text-foreground truncate text-sm">
-                    {t(SCORE_RING_LABEL_KEYS[ringId])}
-                  </span>
-                  <Switch
-                    checked={checked}
-                    onCheckedChange={(v) => toggleScoreRing(ringId, v)}
-                    disabled={saveMutation.isPending || atCap}
-                    aria-label={t(SCORE_RING_LABEL_KEYS[ringId])}
-                    data-slot="score-ring-switch"
-                    data-ring={ringId}
-                  />
-                </div>
-              );
-            })}
-          </div>
+                  <SortableContext
+                    items={selected}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {selected.map((ringId, index) => (
+                      <SortableRingRow
+                        key={ringId}
+                        ringId={ringId}
+                        label={t(SCORE_RING_LABEL_KEYS[ringId])}
+                        index={index}
+                        total={selected.length}
+                        dragHintId={dragHintId}
+                        disabled={busy}
+                        moveUpLabel={t("dashboard.moveUp")}
+                        moveDownLabel={t("dashboard.moveDown")}
+                        dragHandleLabel={t("dashboard.dragHandle")}
+                        onToggle={toggleScoreRing}
+                        onMove={moveScoreRing}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+                {unselected.map((ringId) => (
+                  <div
+                    key={ringId}
+                    className="flex min-h-9 items-center justify-between gap-3 px-1"
+                  >
+                    <span className="text-foreground truncate text-sm">
+                      {t(SCORE_RING_LABEL_KEYS[ringId])}
+                    </span>
+                    <Switch
+                      checked={false}
+                      onCheckedChange={(v) => toggleScoreRing(ringId, v)}
+                      disabled={busy || atCap}
+                      aria-label={t(SCORE_RING_LABEL_KEYS[ringId])}
+                      data-slot="score-ring-switch"
+                      data-ring={ringId}
+                    />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -832,6 +958,113 @@ function SortableWidgetRow({
         onClick={() => onMove(widget.id, 1)}
         disabled={index === total - 1 || disabled}
         aria-label={labels.moveDown}
+      >
+        <ArrowDown className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * v1.27.8 — sortable row for one SELECTED hero score ring. Mirrors the
+ * `SortableWidgetRow` interaction exactly (drag handle + arrow buttons +
+ * switch) so the two lists in this section share one sorting language;
+ * only the payload differs — the ring order is the `selectedScoreRings`
+ * array itself, applied instantly through the ring mutation.
+ */
+function SortableRingRow({
+  ringId,
+  label,
+  index,
+  total,
+  dragHintId,
+  disabled,
+  moveUpLabel,
+  moveDownLabel,
+  dragHandleLabel,
+  onToggle,
+  onMove,
+}: {
+  ringId: ScoreRingId;
+  label: string;
+  index: number;
+  total: number;
+  dragHintId: string;
+  disabled: boolean;
+  moveUpLabel: string;
+  moveDownLabel: string;
+  dragHandleLabel: string;
+  onToggle: (id: ScoreRingId, value: boolean) => void;
+  onMove: (id: ScoreRingId, delta: -1 | 1) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: ringId });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition: prefersReducedMotion() ? "none" : transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      data-slot="score-ring-row"
+      data-ring={ringId}
+      data-dragging={isDragging ? "true" : undefined}
+      className={`border-border bg-background/30 flex min-h-12 items-center gap-2 rounded-md border px-3 py-2 ${
+        isDragging ? "ring-primary z-10 opacity-90 shadow-lg ring-2" : ""
+      }`}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={`${dragHandleLabel} — ${label}`}
+        aria-describedby={dragHintId}
+        title={dragHandleLabel}
+        disabled={disabled}
+        data-slot="score-ring-drag-handle"
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background relative -m-1 inline-flex h-7 w-7 cursor-grab touch-none items-center justify-center rounded transition-colors before:absolute before:inset-[-8px] before:content-[''] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="flex-1 truncate text-sm" title={label}>
+        {label}
+      </span>
+      <Switch
+        checked
+        onCheckedChange={(v) => onToggle(ringId, v)}
+        disabled={disabled}
+        aria-label={label}
+        data-slot="score-ring-switch"
+        data-ring={ringId}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-11 sm:size-9"
+        onClick={() => onMove(ringId, -1)}
+        disabled={index === 0 || disabled}
+        aria-label={moveUpLabel}
+      >
+        <ArrowUp className="h-4 w-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-11 sm:size-9"
+        onClick={() => onMove(ringId, 1)}
+        disabled={index === total - 1 || disabled}
+        aria-label={moveDownLabel}
       >
         <ArrowDown className="h-4 w-4" />
       </Button>

@@ -21,7 +21,7 @@ export default function InsightsWaistToHeightPage() {
       insightMetric="WAIST_TO_HEIGHT"
       chartKey="waistToHeight"
       i18nPrefix="insights.waistToHeight"
-      color="#8b5cf6"
+      color="var(--chart-1)"
       unit=""
       statIcon={Scaling}
       emptyStateIcon={<Scaling className="size-6" />}

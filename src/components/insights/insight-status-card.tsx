@@ -109,7 +109,7 @@ export function InsightStatusCard({
         data-testid="insight-status-card-preparing"
         className="gap-1.5 py-4 md:py-5"
       >
-        <CardHeader className="pb-1">
+        <CardHeader>
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent className="space-y-2">
@@ -146,7 +146,7 @@ export function InsightStatusCard({
         // baseline across every assessment-card state.
         className="gap-1.5 py-4 md:py-5"
       >
-        <CardHeader className="pb-1">
+        <CardHeader>
           <div className="flex items-center gap-2">
             <Skeleton className="bg-muted h-5 w-5 rounded" />
             <Skeleton className="bg-muted h-4 w-32 rounded" />
@@ -166,7 +166,7 @@ export function InsightStatusCard({
   if (!hasProvider) {
     return (
       <Card className="gap-1.5 py-4 opacity-80 md:py-5">
-        <CardHeader className="pb-1">
+        <CardHeader>
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent className="flex flex-col gap-1.5">
@@ -188,7 +188,7 @@ export function InsightStatusCard({
   if (!text) {
     return (
       <Card className="gap-1.5 py-4 md:py-5">
-        <CardHeader className="pb-1">
+        <CardHeader>
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent>
@@ -231,7 +231,7 @@ export function InsightStatusCard({
       // sibling tiles. The loading skeleton keeps its own spacing.
       className="animate-insight-in gap-1.5 py-4 md:py-5"
     >
-      <CardHeader className="pb-1">
+      <CardHeader>
         {/* v1.11.5 — the top-right "cached" label was removed: it surfaced
             an implementation detail and devalued the assessment. The card
             still consumes the warm cache; it just no longer announces it.

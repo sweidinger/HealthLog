@@ -22,7 +22,7 @@ export default function InsightsGripStrengthPage() {
       insightMetric="GRIP_STRENGTH"
       chartKey="gripStrength"
       i18nPrefix="insights.gripStrength"
-      color="#22c55e"
+      color="var(--success)"
       unit="kg"
       yAxisUnit="kg"
       statIcon={Dumbbell}

@@ -47,8 +47,8 @@ export function CheckInWizard({
   isError,
 }: {
   instrument: InstrumentId;
-  /** Submit the completed check-in. */
-  onSubmit: (items: number[]) => void;
+  /** Submit the completed check-in (+ the optional PHQ-9 follow-up). */
+  onSubmit: (items: number[], functionalDifficulty?: number) => void;
   /** Return to the landing (abandons the in-progress check-in). */
   onBack: () => void;
   isPending: boolean;
@@ -57,15 +57,28 @@ export function CheckInWizard({
   const { t } = useTranslations();
   const key = lower(instrument);
   const itemCount = INSTRUMENTS[instrument].itemCount;
+  // v1.27.8 — the PHQ-9 asks its validated functional-impairment
+  // follow-up as a regular LAST question (10 of 10) instead of a
+  // separate review-step widget. It is OPTIONAL per the instrument
+  // (answering is not required to submit) and never scores into the
+  // total — the value rides the existing `functionalDifficulty` API
+  // field. GAD-7 has no such item and keeps its 7 steps.
+  const hasFunctionalStep = instrument === "PHQ9";
+  const totalSteps = itemCount + (hasFunctionalStep ? 1 : 0);
 
   const [step, setStep] = useState(1);
   const [items, setItems] = useState<number[]>(() =>
     Array(itemCount).fill(UNANSWERED),
   );
+  const [functional, setFunctional] = useState<number>(UNANSWERED);
 
-  const onLast = isLastStep(step, itemCount);
+  const onFunctionalStep = hasFunctionalStep && step === itemCount + 1;
+  const onLast = isLastStep(step, totalSteps);
   const questionIndex = step - 1; // 0-based item index for the current question
   const complete = isComplete(items);
+  const questionLabel = onFunctionalStep
+    ? t("mentalHealth.functionalTitle")
+    : t(`mentalHealth.items.${key}.${step}`);
 
   // a11y: announce each step by moving focus to its heading (the question
   // text). Mirrors the medication dialog's per-step title focus so a
@@ -77,6 +90,13 @@ export function CheckInWizard({
   }, [step]);
 
   function selectAnswer(value: number) {
+    if (onFunctionalStep) {
+      // Optional follow-up: selecting never advances (it IS the last
+      // step) and tapping the selected option again clears it — the
+      // answer stays skippable right up to submit.
+      setFunctional((prev) => (prev === value ? UNANSWERED : value));
+      return;
+    }
     setItems((prev) => {
       const next = [...prev];
       next[questionIndex] = value;
@@ -85,7 +105,7 @@ export function CheckInWizard({
     // Forward-on-select: advance to the next question. On the last question
     // the selection stays visible and the footer submit arms — submitting is
     // a deliberate second tap, never a side effect of answering.
-    if (!onLast) setStep((s) => nextStep(s, itemCount));
+    if (!onLast) setStep((s) => nextStep(s, totalSteps));
   }
 
   return (
@@ -123,7 +143,7 @@ export function CheckInWizard({
             <p className="text-muted-foreground text-xs">
               {t("mentalHealth.progress", {
                 current: step,
-                total: itemCount,
+                total: totalSteps,
               })}
             </p>
             <h2
@@ -131,27 +151,39 @@ export function CheckInWizard({
               tabIndex={-1}
               className="scroll-mt-4 text-base font-medium outline-none"
             >
-              {t(`mentalHealth.items.${key}.${step}`)}
+              {questionLabel}
             </h2>
+            {onFunctionalStep && (
+              <p className="text-muted-foreground text-xs">
+                {t("mentalHealth.functionalOptionalHint")}
+              </p>
+            )}
             <div
               className="flex flex-col gap-2"
               role="group"
-              aria-label={t(`mentalHealth.items.${key}.${step}`)}
+              aria-label={questionLabel}
             >
-              {SCALE.map((v) => (
-                <Button
-                  key={v}
-                  type="button"
-                  // 44px touch-target floor (WCAG 2.5.5).
-                  className="min-h-11 justify-start"
-                  variant={items[questionIndex] === v ? "default" : "outline"}
-                  aria-pressed={items[questionIndex] === v}
-                  onClick={() => selectAnswer(v)}
-                  disabled={isPending}
-                >
-                  {t(`mentalHealth.options.${v}`)}
-                </Button>
-              ))}
+              {SCALE.map((v) => {
+                const selected = onFunctionalStep
+                  ? functional === v
+                  : items[questionIndex] === v;
+                return (
+                  <Button
+                    key={v}
+                    type="button"
+                    // 44px touch-target floor (WCAG 2.5.5).
+                    className="min-h-11 justify-start"
+                    variant={selected ? "default" : "outline"}
+                    aria-pressed={selected}
+                    onClick={() => selectAnswer(v)}
+                    disabled={isPending}
+                  >
+                    {onFunctionalStep
+                      ? t(`mentalHealth.functional.${v}`)
+                      : t(`mentalHealth.options.${v}`)}
+                  </Button>
+                );
+              })}
             </div>
 
             {isError && (
@@ -177,7 +209,7 @@ export function CheckInWizard({
             <Button
               type="button"
               className="h-11"
-              onClick={() => setStep((s) => nextStep(s, itemCount))}
+              onClick={() => setStep((s) => nextStep(s, totalSteps))}
               disabled={items[questionIndex] < 0}
               data-slot="check-in-next"
             >
@@ -187,7 +219,9 @@ export function CheckInWizard({
             <Button
               type="button"
               className="h-11"
-              onClick={() => onSubmit(items)}
+              onClick={() =>
+                onSubmit(items, functional >= 0 ? functional : undefined)
+              }
               disabled={!complete || isPending}
               aria-busy={isPending || undefined}
               data-slot="check-in-submit"

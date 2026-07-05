@@ -35,7 +35,8 @@ import {
   YAxis,
 } from "recharts";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { cn } from "@/lib/utils";
@@ -150,10 +151,7 @@ export function BbtChart({
   return (
     <Card data-slot="cycle-bbt-chart">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Thermometer className="text-primary h-4 w-4" aria-hidden="true" />
-          {t("cycle.bbt.title")}
-        </CardTitle>
+        <TileHeader icon={Thermometer} title={t("cycle.bbt.title")} />
       </CardHeader>
       <CardContent>
         {!hasCurve ? (

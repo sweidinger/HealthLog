@@ -53,6 +53,7 @@ import { ScoreRing } from "@/components/insights/derived/score-ring";
 import type { RingHue } from "@/components/insights/derived/ring-hues";
 import { RestModeBanner } from "@/components/insights/rest-mode-banner";
 import { BriefingSpotlight } from "@/components/dashboard/hero/briefing-spotlight";
+import { METRIC_HREF } from "@/components/insights/daily-briefing";
 import {
   resolveDashboardVerdict,
   type DashboardVerdictVariant,
@@ -99,10 +100,12 @@ const CTA_LABEL_KEY: Partial<Record<DashboardVerdictVariant, string>> = {
 
 /**
  * Per-ring hue for the selected score rings — the wellness-strip
- * vocabulary. MED_COMPLIANCE deliberately carries NO hue: the adherence
- * ring falls back to the ring's band gradient (green / yellow / red
- * semantic tokens), because for adherence the band IS the message —
- * exactly the classification colouring the targets tile uses.
+ * vocabulary, so every hero ring paints EXACTLY the hue its insights
+ * sibling paints. MED_COMPLIANCE carries no per-metric hue entry: the
+ * dose ring pins the ring system's green arc (`band="green"`, constant)
+ * — the same green family the medication compliance surfaces in
+ * Insights paint for a taken dose — instead of a band gradient that
+ * would flash yellow/red over pending morning doses.
  */
 const RING_HUE_BY_ID: Partial<Record<ScoreRingId, RingHue>> = {
   READINESS: "readiness",
@@ -110,12 +113,13 @@ const RING_HUE_BY_ID: Partial<Record<ScoreRingId, RingHue>> = {
   SLEEP_SCORE: "sleep",
 };
 
-/** Per-ring label key — reuses the existing score / adherence labels. */
+/** Per-ring label key — reuses the existing score labels; the dose ring
+ *  names today's tally. */
 const RING_LABEL_KEY: Record<ScoreRingId, string> = {
   READINESS: "insights.derived.composite.READINESS.title",
   RECOVERY_SCORE: "insights.derived.scores.recovery",
   SLEEP_SCORE: "insights.derived.composite.SLEEP_SCORE.title",
-  MED_COMPLIANCE: "medications.compliance",
+  MED_COMPLIANCE: "dashboard.hero.ringDoses",
 };
 
 export function DashboardHero({
@@ -196,6 +200,23 @@ export function DashboardHero({
   const cta = verdict.cta;
   const ctaLabelKey = CTA_LABEL_KEY[verdict.variant];
 
+  // Link-CTA verdicts WITHOUT a button label (scoreDrop, briefing) make
+  // the sentence itself the link — after the broad "open Insights"
+  // button was dropped the sentence was a dead end. The briefing
+  // sentence deep-links to the picked finding's metric sub-page (the
+  // METRIC_HREF map the briefing rows use); metrics without a routed
+  // sub-page fall back to the resolver's `/insights` href. Verdicts
+  // with their own action (take dose, view BP, …) keep the button.
+  const sentenceHref =
+    cta !== null && cta.kind === "link" && !ctaLabelKey
+      ? verdict.variant === "briefing" &&
+        typeof verdict.values.sourceMetric === "string"
+        ? (METRIC_HREF[
+            verdict.values.sourceMetric as keyof typeof METRIC_HREF
+          ] ?? cta.href)
+        : cta.href
+      : null;
+
   // ── Provisional score copy ──────────────────────────────────────────
   // The score's four pillars are weight, BP, mood, and medication
   // compliance. When ANY of them already carries data, a null score is
@@ -247,13 +268,24 @@ export function DashboardHero({
               {welcomeText}
             </p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <p
-                data-slot="dashboard-hero-verdict"
-                data-verdict-variant={verdict.variant}
-                className="text-foreground/90 text-base font-medium"
-              >
-                {sentence}
-              </p>
+              {sentenceHref ? (
+                <Link
+                  href={sentenceHref}
+                  data-slot="dashboard-hero-verdict"
+                  data-verdict-variant={verdict.variant}
+                  className="text-foreground/90 hover:text-foreground text-base font-medium transition-colors"
+                >
+                  {sentence}
+                </Link>
+              ) : (
+                <p
+                  data-slot="dashboard-hero-verdict"
+                  data-verdict-variant={verdict.variant}
+                  className="text-foreground/90 text-base font-medium"
+                >
+                  {sentence}
+                </p>
+              )}
               {cta !== null && ctaLabelKey ? (
                 cta.kind === "link" ? (
                   <Button
@@ -295,14 +327,33 @@ export function DashboardHero({
                 data-ring={ring.id}
                 className="flex shrink-0 items-center"
               >
-                <ScoreRing
-                  score={ring.score}
-                  band={ring.band}
-                  size="sm"
-                  flat
-                  hue={RING_HUE_BY_ID[ring.id]}
-                  label={t(RING_LABEL_KEY[ring.id])}
-                />
+                {/* Dose ring — today's tally ("1/3") over the constant
+                    green arc; the arc still sweeps on the 0..100
+                    progress `score`. Falls through to the score render
+                    when a cached pre-doses snapshot carries no tally. */}
+                {ring.id === "MED_COMPLIANCE" && ring.doses ? (
+                  <ScoreRing
+                    score={ring.score}
+                    band="green"
+                    valueText={`${ring.doses.taken}/${ring.doses.scheduled}`}
+                    ariaLabel={t("dashboard.hero.ringDosesAria", {
+                      taken: ring.doses.taken,
+                      scheduled: ring.doses.scheduled,
+                    })}
+                    size="sm"
+                    flat
+                    label={t(RING_LABEL_KEY[ring.id])}
+                  />
+                ) : (
+                  <ScoreRing
+                    score={ring.score}
+                    band={ring.band}
+                    size="sm"
+                    flat
+                    hue={RING_HUE_BY_ID[ring.id]}
+                    label={t(RING_LABEL_KEY[ring.id])}
+                  />
+                )}
               </div>
             ))}
             <ScoreRing

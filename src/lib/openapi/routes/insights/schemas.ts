@@ -866,11 +866,20 @@ export const dashboardSnapshotResponse = z
           ]),
           score: z.number().int(),
           band: z.enum(["green", "yellow", "red"]),
+          doses: z
+            .object({
+              taken: z.number().int(),
+              scheduled: z.number().int(),
+            })
+            .optional()
+            .describe(
+              "MED_COMPLIANCE only — today's dose tally behind the progress score, for a 'taken/scheduled' ring display (e.g. 1/3). Absent on the derived score rings.",
+            ),
         }),
       )
       .optional()
       .describe(
-        "User-selected hero score rings (max 3, `selectedScoreRings` on the dashboard layout), resolved server-side: READINESS / RECOVERY_SCORE / SLEEP_SCORE via the derived engines (module-gated like `/api/insights/derived`), MED_COMPLIANCE as the pooled 7-day medication adherence (0..100, banded ≥90 green / ≥70 yellow / else red). Only rings with data appear, in selection order — a missing entry means no data or a disabled module, never zero. Clients render what arrives and never recompute.",
+        "User-selected hero score rings (max 3, `selectedScoreRings` on the dashboard layout), resolved server-side: READINESS / RECOVERY_SCORE / SLEEP_SCORE via the derived engines (module-gated like `/api/insights/derived`); MED_COMPLIANCE is TODAY's dose progress off the snapshot's medsToday tally — `score` is the rounded 0..100 progress, `doses` carries the taken/scheduled pair, the band is progress semantics (green once every scheduled dose is taken, yellow while doses remain, never red), and the ring is absent when no dose is scheduled today. Only rings with data appear, in selection order — a missing entry means no data or a disabled module, never zero. Clients render what arrives and never recompute.",
       ),
     briefing: z.record(z.string(), z.unknown()).nullable(),
     briefingState: z.enum(["ready", "preparing", "disabled", "no-provider"]),

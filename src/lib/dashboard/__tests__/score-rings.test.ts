@@ -1,42 +1,31 @@
 /**
  * v1.27.7 — unit tests for the hero score-ring resolver.
  *
- * The resolver is tested in isolation with the derived dispatcher and
- * the compliance engine mocked, pinning:
+ * The resolver is tested in isolation with the derived dispatcher
+ * mocked, pinning:
  *   - module gating (owning module + the insights gate on derived rings);
  *   - the pass-through contract for derived scores (same resolvers the
  *     batch route calls, no recomputation, non-`ok` → no ring);
- *   - the pooled 7-day adherence math (Σtaken / Σ(taken+missed), skips
- *     out of the denominator, empty denominator → no ring);
- *   - the adherence band thresholds (≥90 / ≥70 — the targets-tile rule);
+ *   - the dose ring: today's taken/scheduled progress off the shared
+ *     medsToday block (no ring when nothing is scheduled today, never a
+ *     red band — pending doses are not an alert state);
  *   - per-ring fail-softness (one throwing engine drops only its ring).
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const computeDerivedMetric = vi.fn();
 const loadBaselineProfile = vi.fn();
-const calculateCompliance = vi.fn();
-const buildComplianceMedicationContext = vi.fn();
-const lastNonSkippedTakenAt = vi.fn();
 
 vi.mock("@/lib/insights/derived", () => ({
   computeDerivedMetric: (...a: unknown[]) => computeDerivedMetric(...a),
   loadBaselineProfile: (...a: unknown[]) => loadBaselineProfile(...a),
   isDerivedOk: (d: { status: string }) => d.status === "ok",
 }));
-vi.mock("@/lib/analytics/compliance", () => ({
-  calculateCompliance: (...a: unknown[]) => calculateCompliance(...a),
-  buildComplianceMedicationContext: (...a: unknown[]) =>
-    buildComplianceMedicationContext(...a),
-  lastNonSkippedTakenAt: (...a: unknown[]) => lastNonSkippedTakenAt(...a),
-  SCHEDULE_COMPLIANCE_SELECT: { id: true },
-}));
 
-import { buildScoreRingsBlock, complianceBandForRate } from "../score-rings";
+import { buildScoreRingsBlock, resolveDoseRing } from "../score-rings";
 import type { ModuleKey } from "@/lib/modules/gate";
 
 const NOW = new Date("2026-07-01T10:00:00.000Z");
-const TZ = "Europe/Berlin";
 
 function moduleMap(
   overrides: Partial<Record<ModuleKey, boolean>> = {},
@@ -50,54 +39,46 @@ function moduleMap(
   } as Record<ModuleKey, boolean>;
 }
 
-const fakePrisma = {
-  medication: { findMany: vi.fn() },
-  medicationIntakeEvent: { findMany: vi.fn() },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any;
+// The dose ring reads the pre-computed medsToday block — no queries.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const fakePrisma = {} as any;
 
-/** A minimal medication row matching the resolver's select. */
-function med(id: string) {
-  return {
-    id,
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    startsOn: null,
-    endsOn: null,
-    oneShot: false,
-    schedules: [{ id: `${id}-s` }],
-    scheduleRevisions: [],
-    pauseEras: [],
-  };
-}
-
-function complianceResult(taken: number, missed: number, skipped = 0) {
-  return {
-    totalExpected: taken + missed + skipped,
-    taken,
-    skipped,
-    missed,
-    rate: 0, // the resolver pools counts, never this per-med rate
-    streak: 0,
-  };
+function medsToday(taken: number, scheduled: number) {
+  return { takenToday: taken, scheduledToday: scheduled };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   loadBaselineProfile.mockResolvedValue({ userId: "user-1" });
-  buildComplianceMedicationContext.mockReturnValue({ ctx: true });
-  lastNonSkippedTakenAt.mockReturnValue(null);
-  fakePrisma.medication.findMany.mockResolvedValue([]);
-  fakePrisma.medicationIntakeEvent.findMany.mockResolvedValue([]);
 });
 
-describe("complianceBandForRate()", () => {
-  it("bands on the targets-tile thresholds (≥90 green / ≥70 yellow / else red)", () => {
-    expect(complianceBandForRate(100)).toBe("green");
-    expect(complianceBandForRate(90)).toBe("green");
-    expect(complianceBandForRate(89)).toBe("yellow");
-    expect(complianceBandForRate(70)).toBe("yellow");
-    expect(complianceBandForRate(69)).toBe("red");
-    expect(complianceBandForRate(0)).toBe("red");
+describe("resolveDoseRing()", () => {
+  it("renders today's progress with the taken/scheduled pair", () => {
+    expect(resolveDoseRing(medsToday(1, 3))).toEqual({
+      id: "MED_COMPLIANCE",
+      score: 33,
+      band: "yellow",
+      doses: { taken: 1, scheduled: 3 },
+    });
+  });
+
+  it("goes green only when every scheduled dose is taken — never red", () => {
+    expect(resolveDoseRing(medsToday(3, 3))?.band).toBe("green");
+    expect(resolveDoseRing(medsToday(0, 3))?.band).toBe("yellow");
+  });
+
+  it("no doses scheduled today → no ring (never a hollow 100%)", () => {
+    expect(resolveDoseRing(medsToday(0, 0))).toBeNull();
+    expect(resolveDoseRing(null)).toBeNull();
+  });
+
+  it("clamps a taken overshoot (extra manual logs) to the scheduled count", () => {
+    expect(resolveDoseRing(medsToday(5, 3))).toEqual({
+      id: "MED_COMPLIANCE",
+      score: 100,
+      band: "green",
+      doses: { taken: 3, scheduled: 3 },
+    });
   });
 });
 
@@ -106,15 +87,14 @@ describe("buildScoreRingsBlock() — selection + module gating", () => {
     const rings = await buildScoreRingsBlock(
       fakePrisma,
       "user-1",
-      TZ,
       [],
       moduleMap(),
       NOW,
+      medsToday(1, 3),
     );
     expect(rings).toEqual([]);
     expect(loadBaselineProfile).not.toHaveBeenCalled();
     expect(computeDerivedMetric).not.toHaveBeenCalled();
-    expect(fakePrisma.medication.findMany).not.toHaveBeenCalled();
   });
 
   it("drops rings whose owning module is disabled", async () => {
@@ -125,10 +105,10 @@ describe("buildScoreRingsBlock() — selection + module gating", () => {
     const rings = await buildScoreRingsBlock(
       fakePrisma,
       "user-1",
-      TZ,
       ["READINESS", "SLEEP_SCORE"],
       moduleMap({ recovery: false }),
       NOW,
+      null,
     );
     expect(rings).toEqual([{ id: "SLEEP_SCORE", score: 80, band: "green" }]);
     expect(computeDerivedMetric).toHaveBeenCalledTimes(1);
@@ -137,20 +117,25 @@ describe("buildScoreRingsBlock() — selection + module gating", () => {
     );
   });
 
-  it("the insights gate drops derived rings but keeps the adherence ring", async () => {
-    fakePrisma.medication.findMany.mockResolvedValue([med("m1")]);
-    calculateCompliance.mockReturnValue(complianceResult(9, 1));
+  it("the insights gate drops derived rings but keeps the dose ring", async () => {
     const rings = await buildScoreRingsBlock(
       fakePrisma,
       "user-1",
-      TZ,
       ["READINESS", "MED_COMPLIANCE"],
       moduleMap({ insights: false }),
       NOW,
+      medsToday(2, 2),
     );
     expect(computeDerivedMetric).not.toHaveBeenCalled();
     expect(loadBaselineProfile).not.toHaveBeenCalled();
-    expect(rings).toEqual([{ id: "MED_COMPLIANCE", score: 90, band: "green" }]);
+    expect(rings).toEqual([
+      {
+        id: "MED_COMPLIANCE",
+        score: 100,
+        band: "green",
+        doses: { taken: 2, scheduled: 2 },
+      },
+    ]);
   });
 });
 
@@ -165,10 +150,10 @@ describe("buildScoreRingsBlock() — derived rings", () => {
     const rings = await buildScoreRingsBlock(
       fakePrisma,
       "user-1",
-      TZ,
       ["RECOVERY_SCORE", "READINESS"],
       moduleMap(),
       NOW,
+      null,
     );
     expect(rings).toEqual([
       { id: "RECOVERY_SCORE", score: 38, band: "red" },
@@ -186,10 +171,10 @@ describe("buildScoreRingsBlock() — derived rings", () => {
     const rings = await buildScoreRingsBlock(
       fakePrisma,
       "user-1",
-      TZ,
       ["SLEEP_SCORE"],
       moduleMap(),
       NOW,
+      null,
     );
     expect(rings).toEqual([]);
   });
@@ -204,66 +189,11 @@ describe("buildScoreRingsBlock() — derived rings", () => {
     const rings = await buildScoreRingsBlock(
       fakePrisma,
       "user-1",
-      TZ,
       ["READINESS", "SLEEP_SCORE"],
       moduleMap(),
       NOW,
+      null,
     );
     expect(rings).toEqual([{ id: "SLEEP_SCORE", score: 55, band: "yellow" }]);
-  });
-});
-
-describe("buildScoreRingsBlock() — pooled 7-day adherence", () => {
-  it("pools Σtaken / Σ(taken+missed) across medications; skips stay out", async () => {
-    fakePrisma.medication.findMany.mockResolvedValue([med("m1"), med("m2")]);
-    calculateCompliance
-      .mockReturnValueOnce(complianceResult(6, 1, 2)) // m1: skips ignored
-      .mockReturnValueOnce(complianceResult(2, 3));
-    const rings = await buildScoreRingsBlock(
-      fakePrisma,
-      "user-1",
-      TZ,
-      ["MED_COMPLIANCE"],
-      moduleMap(),
-      NOW,
-    );
-    // (6+2) / (6+1+2+3) = 8/12 = 66.67 → 67, red band.
-    expect(rings).toEqual([{ id: "MED_COMPLIANCE", score: 67, band: "red" }]);
-    // The 7-day window rides the canonical engine call.
-    expect(calculateCompliance).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      7,
-      expect.anything(),
-      expect.objectContaining({ now: NOW }),
-    );
-  });
-
-  it("no active non-PRN medication → no ring", async () => {
-    fakePrisma.medication.findMany.mockResolvedValue([]);
-    const rings = await buildScoreRingsBlock(
-      fakePrisma,
-      "user-1",
-      TZ,
-      ["MED_COMPLIANCE"],
-      moduleMap(),
-      NOW,
-    );
-    expect(rings).toEqual([]);
-    expect(fakePrisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
-  });
-
-  it("zero expected doses in the window → no ring (never a hollow 100%)", async () => {
-    fakePrisma.medication.findMany.mockResolvedValue([med("m1")]);
-    calculateCompliance.mockReturnValue(complianceResult(0, 0, 0));
-    const rings = await buildScoreRingsBlock(
-      fakePrisma,
-      "user-1",
-      TZ,
-      ["MED_COMPLIANCE"],
-      moduleMap(),
-      NOW,
-    );
-    expect(rings).toEqual([]);
   });
 });

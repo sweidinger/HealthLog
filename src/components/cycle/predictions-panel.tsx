@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { FERTILE_HUE, FLOW_HUE, OVULATION_HUE } from "./phase-tokens";
 import type { CyclePrediction, CycleHistoryResponse } from "./types";
@@ -64,10 +65,7 @@ export function PredictionsPanel({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="text-primary h-4 w-4" aria-hidden="true" />
-            {t("cycle.predictions.title")}
-          </CardTitle>
+          <TileHeader icon={Sparkles} title={t("cycle.predictions.title")} />
         </CardHeader>
         <CardContent className="space-y-4">
           {rawChartMode ? (

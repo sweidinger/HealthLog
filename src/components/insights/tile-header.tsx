@@ -30,13 +30,23 @@ interface TileHeaderProps {
    * Leading glyph. Accepts a Lucide icon component (or any component that
    * takes a `className`) so the caller passes the component itself
    * (`icon={Target}`), not a pre-sized node — `TileHeader` owns the size
-   * and colour so every tile header matches.
+   * and colour so every tile header matches. Optional: a text-only tile
+   * header (chart cards whose title needs no glyph) omits it and still
+   * gets the canonical row + `CardTitle` treatment.
    */
-  icon: ComponentType<{ className?: string }>;
+  icon?: ComponentType<{ className?: string }>;
   /** Heading text (or node). Rendered inside a `CardTitle` at `text-base`. */
   title: ReactNode;
   /** Optional trailing affordance pinned to the right edge of the row. */
   right?: ReactNode;
+  /**
+   * The ONE sanctioned compact variant: icon `h-4 w-4`, title `text-sm` —
+   * for dense correlation/stat tiles that sit several to a row where the
+   * full `text-base` header visually overpowers the tile body. Everything
+   * else stays on the default; do not express a third size via
+   * `titleClassName`.
+   */
+  size?: "default" | "sm";
   className?: string;
   titleClassName?: string;
   /** Optional id on the `CardTitle`, e.g. for an `aria-labelledby` link. */
@@ -47,6 +57,7 @@ export function TileHeader({
   icon: Icon,
   title,
   right,
+  size = "default",
   className,
   titleClassName,
   id,
@@ -58,8 +69,19 @@ export function TileHeader({
     >
       {/* Icon and heading share the foreground colour — the calm,
           high-contrast read the "Einschätzung" card established. */}
-      <Icon className="text-foreground h-5 w-5 shrink-0" aria-hidden="true" />
-      <CardTitle id={id} className={cn("text-base", titleClassName)}>
+      {Icon ? (
+        <Icon
+          className={cn(
+            "text-foreground shrink-0",
+            size === "sm" ? "h-4 w-4" : "h-5 w-5",
+          )}
+          aria-hidden="true"
+        />
+      ) : null}
+      <CardTitle
+        id={id}
+        className={cn(size === "sm" ? "text-sm" : "text-base", titleClassName)}
+      >
         {title}
       </CardTitle>
       {right ? <div className="ml-auto flex items-center">{right}</div> : null}

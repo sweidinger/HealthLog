@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.27.7
+  version: 1.27.8
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -944,6 +944,10 @@ paths:
                       type: boolean
                     labs:
                       type: boolean
+                    allergies:
+                      type: boolean
+                    familyHistory:
+                      type: boolean
                 locale:
                   type: string
                   enum:
@@ -1075,6 +1079,10 @@ paths:
                     cycle:
                       type: boolean
                     labs:
+                      type: boolean
+                    allergies:
+                      type: boolean
+                    familyHistory:
                       type: boolean
                 resourceTypes:
                   maxItems: 8
@@ -21424,9 +21432,11 @@ components:
         scoreRings:
           description: "User-selected hero score rings (max 3, `selectedScoreRings` on the dashboard layout), resolved
             server-side: READINESS / RECOVERY_SCORE / SLEEP_SCORE via the derived engines (module-gated like
-            `/api/insights/derived`), MED_COMPLIANCE as the pooled 7-day medication adherence (0..100, banded ≥90 green
-            / ≥70 yellow / else red). Only rings with data appear, in selection order — a missing entry means no data or
-            a disabled module, never zero. Clients render what arrives and never recompute."
+            `/api/insights/derived`); MED_COMPLIANCE is TODAY's dose progress off the snapshot's medsToday tally —
+            `score` is the rounded 0..100 progress, `doses` carries the taken/scheduled pair, the band is progress
+            semantics (green once every scheduled dose is taken, yellow while doses remain, never red), and the ring is
+            absent when no dose is scheduled today. Only rings with data appear, in selection order — a missing entry
+            means no data or a disabled module, never zero. Clients render what arrives and never recompute."
           type: array
           items:
             type: object
@@ -21448,6 +21458,23 @@ components:
                   - green
                   - yellow
                   - red
+              doses:
+                description: MED_COMPLIANCE only — today's dose tally behind the progress score, for a 'taken/scheduled' ring display
+                  (e.g. 1/3). Absent on the derived score rings.
+                type: object
+                properties:
+                  taken:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  scheduled:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                required:
+                  - taken
+                  - scheduled
+                additionalProperties: false
             required:
               - id
               - score

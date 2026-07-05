@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import {
   Table,
   TableBody,
@@ -172,7 +173,7 @@ export function IntakeHistoryListV2({
 
   const offset = page * pageSize;
 
-  const { data, isLoading, isError } = useQuery<IntakeListResponse>({
+  const { data, isLoading, isError, refetch } = useQuery<IntakeListResponse>({
     queryKey: queryKeys.medicationIntakeList(medicationId, {
       sortBy,
       sortDir,
@@ -243,9 +244,10 @@ export function IntakeHistoryListV2({
             <Loader2 className="text-muted-foreground h-5 w-5 animate-spin motion-reduce:animate-none" />
           </div>
         ) : isError ? (
-          <p className="text-destructive text-sm">
-            {t("medications.loadFailed")}
-          </p>
+          <QueryErrorCard
+            title={t("medications.loadFailed")}
+            onRetry={() => void refetch()}
+          />
         ) : events.length === 0 ? (
           <EmptyState
             variant="plain"

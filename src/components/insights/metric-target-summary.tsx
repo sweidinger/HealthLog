@@ -312,7 +312,7 @@ function TargetReferencePanel({
           per-context label (Fasting / Postprandial / …) carries real,
           non-duplicative info, so it stays as a sub-caption under the
           header. */}
-      <CardHeader className="pb-2">
+      <CardHeader>
         <TileHeader
           icon={Target}
           title={t("insights.target.heading")}
