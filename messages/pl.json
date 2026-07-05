@@ -7670,7 +7670,6 @@
   "mentalHealth": {
     "pageTitle": "Sprawdzenie dobrostanu psychicznego",
     "pageDescription": "Cztery zwalidowane, dobrowolne testy — PHQ-9 (nastrój), GAD-7 (lęk), WHO-5 (samopoczucie) i SCI (sen) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
-    "pageRhythmHint": "PHQ-9, GAD-7 i test samopoczucia dotyczą ostatnich dwóch tygodni; test snu pyta o ostatni miesiąc. Check-in co dwa–cztery tygodnie to dobry rytm.",
     "attributionLabel": "Źródło",
     "choosePrompt": "Wybierz sprawdzenie",
     "start": "Rozpocznij",

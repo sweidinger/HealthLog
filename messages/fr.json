@@ -7670,7 +7670,6 @@
   "mentalHealth": {
     "pageTitle": "Point sur le bien-être mental",
     "pageDescription": "Quatre auto-évaluations validées et facultatives — PHQ-9 (humeur), GAD-7 (inquiétude), WHO-5 (bien-être) et SCI (sommeil) — en complément de ton suivi de l'humeur. Ce qui compte, c'est la tendance dans le temps, pas un chiffre isolé.",
-    "pageRhythmHint": "Le PHQ-9, le GAD-7 et le test de bien-être portent sur les deux dernières semaines ; le test de sommeil porte sur le dernier mois. Un check-in toutes les deux à quatre semaines est un bon rythme.",
     "attributionLabel": "Source",
     "choosePrompt": "Choisis un bilan",
     "start": "Commencer",

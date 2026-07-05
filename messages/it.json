@@ -7670,7 +7670,6 @@
   "mentalHealth": {
     "pageTitle": "Check-in sul benessere mentale",
     "pageDescription": "Quattro autovalutazioni validate e facoltative — PHQ-9 (umore), GAD-7 (preoccupazione), WHO-5 (benessere) e SCI (sonno) — accanto al tuo diario dell'umore. Ciò che conta è l'andamento nel tempo, non un singolo numero.",
-    "pageRhythmHint": "PHQ-9, GAD-7 e il test sul benessere riguardano le ultime due settimane; il test sul sonno chiede dell'ultimo mese. Un check-in ogni due-quattro settimane è un buon ritmo.",
     "attributionLabel": "Fonte",
     "choosePrompt": "Scegli un check-in",
     "start": "Inizia",

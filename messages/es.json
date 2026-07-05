@@ -7670,7 +7670,6 @@
   "mentalHealth": {
     "pageTitle": "Revisión de bienestar mental",
     "pageDescription": "Cuatro autoevaluaciones validadas y opcionales — PHQ-9 (estado de ánimo), GAD-7 (preocupación), WHO-5 (bienestar) y SCI (sueño) — junto a tu registro de ánimo. Lo valioso es la tendencia en el tiempo, no un único número.",
-    "pageRhythmHint": "El PHQ-9, el GAD-7 y el test de bienestar se refieren a las últimas dos semanas; el test de sueño pregunta por el último mes. Un check-in cada dos a cuatro semanas es un buen ritmo.",
     "attributionLabel": "Fuente",
     "choosePrompt": "Elige una revisión",
     "start": "Empezar",

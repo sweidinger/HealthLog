@@ -220,8 +220,9 @@ describe("WHO-5 / SCI on the same infrastructure (v1.27.9)", () => {
     expect(html).toContain(mh.instrument.gad7);
     expect(html).toContain(mh.instrument.who5);
     expect(html).toContain(mh.instrument.sci);
-    // The rhythm hint states both recall windows honestly.
-    expect(html).toContain(mh.pageRhythmHint);
+    // The landing stays lean: no rhythm-hint paragraph between the header
+    // and the cards (removed on maintainer review of v1.27.10).
+    expect(html).not.toContain("Rhythmus");
   });
 
   it("WHO-5 wizard opens on item 1 with the six-point scale in source order and the recall stem", () => {

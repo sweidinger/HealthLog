@@ -7670,7 +7670,6 @@
   "mentalHealth": {
     "pageTitle": "Check-in zum seelischen Wohlbefinden",
     "pageDescription": "Vier validierte, freiwillige Selbsttests — PHQ-9 (Stimmung), GAD-7 (Sorgen), WHO-5 (Wohlbefinden) und SCI (Schlaf) — ergänzend zu deinem Stimmungstagebuch. Aussagekräftig ist der Verlauf über die Zeit, nicht ein einzelner Wert.",
-    "pageRhythmHint": "PHQ-9, GAD-7 und der Wohlbefindens-Check blicken auf die letzten zwei Wochen zurück, der Schlaf-Check auf den letzten Monat — ein Check-in alle zwei bis vier Wochen ist ein guter Rhythmus.",
     "attributionLabel": "Quelle",
     "choosePrompt": "Check-in auswählen",
     "start": "Starten",

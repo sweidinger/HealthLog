@@ -127,14 +127,6 @@ export function MentalWellbeing() {
             description={t("mentalHealth.pageDescription")}
           />
 
-          {/* v1.27.6 — one gentle cadence hint; v1.27.9 states each recall
-              window honestly (PHQ-9 / GAD-7 / WHO-5 look back two weeks, the
-              SCI asks about the past month). Body prose (foreground), not
-              another muted description line. */}
-          <p className="max-w-prose text-sm">
-            {t("mentalHealth.pageRhythmHint")}
-          </p>
-
           <section aria-label={t("mentalHealth.choosePrompt")}>
             <h2 className="sr-only">{t("mentalHealth.choosePrompt")}</h2>
             <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">

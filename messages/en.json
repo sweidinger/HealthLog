@@ -7670,7 +7670,6 @@
   "mentalHealth": {
     "pageTitle": "Mental wellbeing check-in",
     "pageDescription": "Validated, opt-in self-checks — PHQ-9 (mood), GAD-7 (worry), WHO-5 (well-being) and SCI (sleep) — that sit beside your mood tracking. The value is the trend over time, not any single number.",
-    "pageRhythmHint": "PHQ-9, GAD-7 and the well-being check look back over the last two weeks; the sleep check asks about the past month. A check-in every two to four weeks is a comfortable rhythm.",
     "attributionLabel": "Attribution",
     "choosePrompt": "Choose a check-in",
     "start": "Start",
