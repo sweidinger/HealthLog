@@ -324,8 +324,7 @@
         "viewBp": "Blutdruck ansehen",
         "viewWeight": "Gewicht ansehen",
         "viewSleep": "Schlaf ansehen",
-        "logMeasurement": "Messung erfassen",
-        "viewInsights": "Insights öffnen"
+        "logMeasurement": "Messung erfassen"
       },
       "briefing": {
         "title": "Tagesbriefing",

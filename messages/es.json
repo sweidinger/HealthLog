@@ -324,8 +324,7 @@
         "viewBp": "Ver tensión arterial",
         "viewWeight": "Ver peso",
         "viewSleep": "Ver sueño",
-        "logMeasurement": "Registrar medición",
-        "viewInsights": "Abrir Insights"
+        "logMeasurement": "Registrar medición"
       },
       "briefing": {
         "title": "Resumen de hoy",

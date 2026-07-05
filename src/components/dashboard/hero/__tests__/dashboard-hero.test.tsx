@@ -302,7 +302,7 @@ describe("<DashboardHero> — verdict variants", () => {
     expect(html).toMatch(/<button[^>]*data-slot="dashboard-hero-cta"/);
   });
 
-  it("scoreDrop: point delta + link to /insights", () => {
+  it("scoreDrop: point delta, no broad Insights CTA", () => {
     const html = render(
       baseSnapshot({
         healthScore: { score: 58, band: "yellow", delta: -14 },
@@ -310,11 +310,13 @@ describe("<DashboardHero> — verdict variants", () => {
     );
     expect(html).toContain('data-verdict-variant="scoreDrop"');
     expect(html).toContain("liegt 14 Punkte unter der Vorwoche.");
-    expect(html).toContain('href="/insights"');
-    expect(html).toContain("Insights öffnen");
+    // v1.27.7 — the overview-only CTA left the band; the health-score
+    // card carries the Insights link. Only specific-action verdicts
+    // keep a button.
+    expect(html).not.toContain('data-slot="dashboard-hero-cta"');
   });
 
-  it("briefing: renders the model headline verbatim as plain text + Insights link", () => {
+  it("briefing: renders the model headline verbatim as plain text, no broad CTA", () => {
     const headline = "Systolic crept up over seven days.";
     const html = render(
       baseSnapshot({
@@ -338,8 +340,8 @@ describe("<DashboardHero> — verdict variants", () => {
     );
     expect(html).toContain('data-verdict-variant="briefing"');
     expect(html).toContain(headline);
-    expect(html).toContain('href="/insights"');
-    expect(html).toContain("Insights öffnen");
+    // v1.27.7 — same rule as scoreDrop: no broad Insights CTA.
+    expect(html).not.toContain('data-slot="dashboard-hero-cta"');
   });
 
   it("allQuiet: sentence with NO CTA in the band", () => {

@@ -324,8 +324,7 @@
         "viewBp": "View blood pressure",
         "viewWeight": "View weight",
         "viewSleep": "View sleep",
-        "logMeasurement": "Log measurement",
-        "viewInsights": "Open Insights"
+        "logMeasurement": "Log measurement"
       },
       "briefing": {
         "title": "Today’s briefing",

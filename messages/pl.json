@@ -324,8 +324,7 @@
         "viewBp": "Zobacz ciśnienie",
         "viewWeight": "Zobacz wagę",
         "viewSleep": "Zobacz sen",
-        "logMeasurement": "Zapisz pomiar",
-        "viewInsights": "Otwórz Insights"
+        "logMeasurement": "Zapisz pomiar"
       },
       "briefing": {
         "title": "Briefing dnia",
