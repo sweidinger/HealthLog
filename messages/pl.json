@@ -187,7 +187,18 @@
     "illnessColType": "Typ",
     "illnessColLifecycle": "Przebieg",
     "illnessColOnset": "Początek",
-    "illnessColResolved": "Ustąpiła"
+    "illnessColResolved": "Ustąpiła",
+    "allergiesTitle": "Alergie i nietolerancje",
+    "allergiesColSubstance": "Substancja",
+    "allergiesColCategory": "Kategoria",
+    "allergiesColKind": "Rodzaj",
+    "allergiesColSeverity": "Nasilenie",
+    "allergiesColReaction": "Reakcja",
+    "allergiesColStatus": "Status",
+    "familyHistoryTitle": "Wywiad rodzinny",
+    "familyHistoryColRelationship": "Pokrewieństwo",
+    "familyHistoryColCondition": "Schorzenie",
+    "familyHistoryColAgeAtOnset": "Wiek zachorowania"
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",
@@ -5061,7 +5072,9 @@
       "fhirNote": "Dane ustrukturyzowane są zgodne ze standardem FHIR R4 (kompatybilne z ePA).",
       "generate": "Generuj",
       "error": "Eksport nie powiódł się ({code}).",
-      "labs": "Wyniki badań"
+      "labs": "Wyniki badań",
+      "allergies": "Alergie i nietolerancje",
+      "familyHistory": "Wywiad rodzinny"
     },
     "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
     "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje.",

@@ -29,6 +29,7 @@ import type {
 } from "@/generated/prisma/client";
 import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
 import { readNote } from "@/lib/crypto/note-cipher";
+import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
 import { userDayKey } from "@/lib/tz/resolver";
 import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
@@ -319,6 +320,46 @@ export interface DoctorReportData {
     onsetAt: string;
     /** ISO resolution instant, or null while ongoing. */
     resolvedAt: string | null;
+  }> | null;
+  /**
+   * v1.27.x — structured allergy / intolerance records. Reference data,
+   * not time-windowed: populated whenever the `allergies` section toggle
+   * is ON (default) and the user recorded at least one live row. The
+   * reaction description is decrypted fail-soft per row (a key-rotation
+   * gap omits the value, never fails the report); the free-text note is
+   * NEVER read here — same stance as the illness journal. Null/absent
+   * otherwise; the PDF builder then skips the section. Optional so older
+   * fixtures still typecheck.
+   */
+  allergies?: Array<{
+    /** Substance / allergen label as the user recorded it. */
+    substance: string;
+    /** Category (FOOD / MEDICATION / ENVIRONMENT / BIOLOGIC / OTHER). */
+    category: string;
+    /** Kind (ALLERGY / INTOLERANCE). */
+    type: string;
+    /** Worst observed severity (NONE / MILD / MODERATE / SEVERE), or null. */
+    severity: string | null;
+    /** Status (ACTIVE / INACTIVE / RESOLVED). */
+    status: string;
+    /** Decrypted reaction description, or null (unset or key gap). */
+    reaction: string | null;
+  }> | null;
+  /**
+   * v1.27.x — structured family-history records. Reference data, not
+   * time-windowed: populated whenever the `familyHistory` section toggle
+   * is ON (default) and the user recorded at least one live row. Labels +
+   * onset age only — the free-text note is never read here. Null/absent
+   * otherwise; the PDF builder then skips the section. Optional so older
+   * fixtures still typecheck.
+   */
+  familyHistory?: Array<{
+    /** Relationship (MOTHER / FATHER / SISTER / …). */
+    relationship: string;
+    /** Condition label as the user recorded it. */
+    condition: string;
+    /** The relative's age at onset (years), or null when unknown. */
+    ageAtOnset: number | null;
   }> | null;
 }
 
@@ -1410,6 +1451,58 @@ export async function collectDoctorReportData(
     illnessEpisodes = mapped.length > 0 ? mapped : null;
   }
 
+  // v1.27.x — structured allergies + family history. Reference data, not
+  // time-windowed (a penicillin allergy does not expire with the report
+  // window), so no date filter. Riding the section toggles keeps the "you
+  // can deselect any section" contract; both default ON — a clinical
+  // report without an allergy section is the riskier default. The
+  // reaction description decrypts fail-soft per row; the free-text notes
+  // are never selected, matching the illness-journal stance.
+  let allergies: DoctorReportData["allergies"] = null;
+  if (sections.allergies) {
+    const rows = await prisma.allergy.findMany({
+      where: { userId, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: {
+        substance: true,
+        category: true,
+        type: true,
+        severity: true,
+        status: true,
+        reactionEncrypted: true,
+      },
+    });
+    const mapped = rows.map((r) => {
+      let reaction: string | null = null;
+      if (r.reactionEncrypted && r.reactionEncrypted.byteLength > 0) {
+        try {
+          reaction = decryptFromBytes(r.reactionEncrypted);
+        } catch {
+          reaction = null;
+        }
+      }
+      return {
+        substance: r.substance,
+        category: r.category,
+        type: r.type,
+        severity: r.severity,
+        status: r.status,
+        reaction,
+      };
+    });
+    allergies = mapped.length > 0 ? mapped : null;
+  }
+
+  let familyHistory: DoctorReportData["familyHistory"] = null;
+  if (sections.familyHistory) {
+    const rows = await prisma.familyHistoryEntry.findMany({
+      where: { userId, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { relationship: true, condition: true, ageAtOnset: true },
+    });
+    familyHistory = rows.length > 0 ? rows : null;
+  }
+
   return {
     period: {
       days,
@@ -1464,6 +1557,8 @@ export async function collectDoctorReportData(
     cycle,
     labResults,
     illnessEpisodes,
+    allergies,
+    familyHistory,
   };
 }
 

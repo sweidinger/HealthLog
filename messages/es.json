@@ -187,7 +187,18 @@
     "illnessColType": "Tipo",
     "illnessColLifecycle": "Curso",
     "illnessColOnset": "Inicio",
-    "illnessColResolved": "Resuelta"
+    "illnessColResolved": "Resuelta",
+    "allergiesTitle": "Alergias e intolerancias",
+    "allergiesColSubstance": "Sustancia",
+    "allergiesColCategory": "Categoría",
+    "allergiesColKind": "Tipo",
+    "allergiesColSeverity": "Gravedad",
+    "allergiesColReaction": "Reacción",
+    "allergiesColStatus": "Estado",
+    "familyHistoryTitle": "Antecedentes familiares",
+    "familyHistoryColRelationship": "Parentesco",
+    "familyHistoryColCondition": "Afección",
+    "familyHistoryColAgeAtOnset": "Edad de inicio"
   },
   "errorBoundary": {
     "title": "Algo ha salido mal",
@@ -5061,7 +5072,9 @@
       "fhirNote": "La salida estructurada sigue el estándar FHIR R4 (compatible con ePA).",
       "generate": "Generar",
       "error": "Error en la exportación ({code}).",
-      "labs": "Resultados de análisis"
+      "labs": "Resultados de análisis",
+      "allergies": "Alergias e intolerancias",
+      "familyHistory": "Antecedentes familiares"
     },
     "globalExcludedInjectionSitesLabel": "Sitios de inyección excluidos globalmente",
     "globalExcludedInjectionSitesHint": "Los sitios listados aquí no se ofrecen para ningún medicamento y se rechazan al registrar una dosis, aunque un medicamento los prefiera.",

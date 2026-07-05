@@ -944,6 +944,10 @@ paths:
                       type: boolean
                     labs:
                       type: boolean
+                    allergies:
+                      type: boolean
+                    familyHistory:
+                      type: boolean
                 locale:
                   type: string
                   enum:
@@ -1075,6 +1079,10 @@ paths:
                     cycle:
                       type: boolean
                     labs:
+                      type: boolean
+                    allergies:
+                      type: boolean
+                    familyHistory:
                       type: boolean
                 resourceTypes:
                   maxItems: 8

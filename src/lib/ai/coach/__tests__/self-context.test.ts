@@ -19,6 +19,7 @@ vi.mock("@/lib/db", () => ({ prisma: {} }));
 import {
   clampPendingQuestions,
   composeSelfContextText,
+  composeStructuredRecordsText,
   deriveAgeYears,
   PENDING_QUESTION_MAX_CHARS,
   type SelfContext,
@@ -102,6 +103,52 @@ describe("composeSelfContextText", () => {
       "en",
     );
     expect(text).toBe("hello");
+  });
+});
+
+describe("composeStructuredRecordsText", () => {
+  it("stays null when both structured stores are empty", () => {
+    expect(composeStructuredRecordsText([], [], "en")).toBeNull();
+  });
+
+  it("renders allergies from stored fields only (severity, reaction, non-active status)", () => {
+    const text = composeStructuredRecordsText(
+      [
+        {
+          substance: "Penicillin",
+          type: "ALLERGY",
+          severity: "SEVERE",
+          status: "ACTIVE",
+          reaction: "Anaphylaxis",
+        },
+        {
+          substance: "Lactose",
+          type: "INTOLERANCE",
+          severity: null,
+          status: "RESOLVED",
+          reaction: null,
+        },
+      ],
+      [],
+      "en",
+    );
+    expect(text).toContain("Penicillin (severe, reaction: Anaphylaxis)");
+    expect(text).toContain("Lactose (intolerance, resolved)");
+  });
+
+  it("renders family history with relationship labels and onset age (de)", () => {
+    const text = composeStructuredRecordsText(
+      [],
+      [
+        { relationship: "MOTHER", condition: "Typ-2-Diabetes", ageAtOnset: 55 },
+        { relationship: "FATHER", condition: "Hypertonie", ageAtOnset: null },
+      ],
+      "de",
+    );
+    expect(text).toContain("Familienanamnese");
+    expect(text).toContain("Mutter: Typ-2-Diabetes (Beginn mit 55)");
+    expect(text).toContain("Vater: Hypertonie");
+    expect(text).not.toContain("Vater: Hypertonie (");
   });
 });
 

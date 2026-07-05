@@ -187,7 +187,18 @@
     "illnessColType": "Type",
     "illnessColLifecycle": "Course",
     "illnessColOnset": "Onset",
-    "illnessColResolved": "Resolved"
+    "illnessColResolved": "Resolved",
+    "allergiesTitle": "Allergies & intolerances",
+    "allergiesColSubstance": "Substance",
+    "allergiesColCategory": "Category",
+    "allergiesColKind": "Kind",
+    "allergiesColSeverity": "Severity",
+    "allergiesColReaction": "Reaction",
+    "allergiesColStatus": "Status",
+    "familyHistoryTitle": "Family history",
+    "familyHistoryColRelationship": "Relative",
+    "familyHistoryColCondition": "Condition",
+    "familyHistoryColAgeAtOnset": "Age at onset"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -5061,7 +5072,9 @@
       "fhirNote": "The structured output follows the FHIR R4 standard (ePA-compatible).",
       "generate": "Generate",
       "error": "Export failed ({code}).",
-      "labs": "Lab results"
+      "labs": "Lab results",
+      "allergies": "Allergies & intolerances",
+      "familyHistory": "Family history"
     },
     "globalExcludedInjectionSitesLabel": "Globally excluded injection sites",
     "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them.",

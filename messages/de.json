@@ -187,7 +187,18 @@
     "illnessColType": "Art",
     "illnessColLifecycle": "Verlauf",
     "illnessColOnset": "Beginn",
-    "illnessColResolved": "Abgeklungen"
+    "illnessColResolved": "Abgeklungen",
+    "allergiesTitle": "Allergien & Unverträglichkeiten",
+    "allergiesColSubstance": "Substanz",
+    "allergiesColCategory": "Kategorie",
+    "allergiesColKind": "Art",
+    "allergiesColSeverity": "Schweregrad",
+    "allergiesColReaction": "Reaktion",
+    "allergiesColStatus": "Status",
+    "familyHistoryTitle": "Familienanamnese",
+    "familyHistoryColRelationship": "Verwandtschaft",
+    "familyHistoryColCondition": "Erkrankung",
+    "familyHistoryColAgeAtOnset": "Alter bei Beginn"
   },
   "errorBoundary": {
     "title": "Da ist etwas schiefgelaufen",
@@ -5061,7 +5072,9 @@
       "fhirNote": "Die strukturierte Ausgabe folgt dem FHIR-R4-Standard (ePA-kompatibel).",
       "generate": "Erstellen",
       "error": "Export fehlgeschlagen ({code}).",
-      "labs": "Laborwerte"
+      "labs": "Laborwerte",
+      "allergies": "Allergien & Unverträglichkeiten",
+      "familyHistory": "Familienanamnese"
     },
     "globalExcludedInjectionSitesLabel": "Global ausgeschlossene Injektionsstellen",
     "globalExcludedInjectionSitesHint": "Hier gelistete Stellen werden für keine Medikation angeboten und beim Erfassen einer Dosis abgelehnt — auch wenn eine Medikation sie bevorzugt.",
