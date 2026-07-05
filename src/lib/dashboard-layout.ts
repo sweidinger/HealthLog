@@ -4,6 +4,7 @@
  * Single source of truth for which widgets show on /, what order, and
  * what the default layout is for new users. Null / missing = default.
  */
+import type { ModuleKey } from "@/lib/modules/registry";
 
 /**
  * Every widget the dashboard layout knows about. The order of
@@ -334,6 +335,76 @@ function coerceChartOverlayPrefsMap(value: unknown): ChartOverlayPrefsMap {
   return out;
 }
 
+/**
+ * v1.27.7 — selectable hero score rings. The closed id set the hero's
+ * ring row can render next to the health score:
+ *
+ *   - `READINESS` / `RECOVERY_SCORE` / `SLEEP_SCORE` resolve through the
+ *     derived registry's engines (module-gated like the derived routes);
+ *   - `MED_COMPLIANCE` is the pooled 7-day medication adherence from the
+ *     canonical compliance engine — the ring that absorbs the retired
+ *     hero dose row's information role.
+ *
+ * The preference piggy-backs on the layout blob like `heroVisible` (a UI
+ * affordance, no Prisma migration). The resolver drops unknown ids,
+ * dedupes, and clamps to `MAX_SELECTED_SCORE_RINGS`; a missing /
+ * malformed field falls back to the default single MED_COMPLIANCE ring,
+ * while an explicitly-saved empty array stays empty (the user chose no
+ * extra rings).
+ */
+export const SCORE_RING_IDS = [
+  "READINESS",
+  "RECOVERY_SCORE",
+  "SLEEP_SCORE",
+  "MED_COMPLIANCE",
+] as const;
+export type ScoreRingId = (typeof SCORE_RING_IDS)[number];
+
+export const MAX_SELECTED_SCORE_RINGS = 3;
+
+export const DEFAULT_SELECTED_SCORE_RINGS: ScoreRingId[] = ["MED_COMPLIANCE"];
+
+/**
+ * Ring id → owning toggleable module. Mirrors the derived routes'
+ * `DERIVED_MODULE` map for the three derived rings (READINESS rides the
+ * recovery module like the recovery/strain/stress trio); MED_COMPLIANCE
+ * belongs to the medications module. Client-safe (type-only ModuleKey
+ * import) so the Settings picker and the server snapshot resolver gate
+ * on the same map — the `WIDGET_MODULE_BY_ID` pattern.
+ */
+export const SCORE_RING_MODULE: Record<ScoreRingId, ModuleKey> = {
+  READINESS: "recovery",
+  RECOVERY_SCORE: "recovery",
+  SLEEP_SCORE: "sleep",
+  MED_COMPLIANCE: "medications",
+};
+
+function isScoreRingId(value: unknown): value is ScoreRingId {
+  return (
+    typeof value === "string" &&
+    (SCORE_RING_IDS as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Coerce the persisted `selectedScoreRings` field: unknown ids drop,
+ * duplicates collapse (first occurrence wins), the list clamps to
+ * `MAX_SELECTED_SCORE_RINGS`. A non-array (missing field, legacy blob,
+ * malformed client) falls back to the default; an array — even an empty
+ * one — is respected as an explicit choice.
+ */
+function coerceSelectedScoreRings(value: unknown): ScoreRingId[] {
+  if (!Array.isArray(value)) return [...DEFAULT_SELECTED_SCORE_RINGS];
+  const out: ScoreRingId[] = [];
+  for (const entry of value) {
+    if (!isScoreRingId(entry)) continue;
+    if (out.includes(entry)) continue;
+    out.push(entry);
+    if (out.length >= MAX_SELECTED_SCORE_RINGS) break;
+  }
+  return out;
+}
+
 export interface DashboardLayout {
   version: number;
   widgets: DashboardWidgetConfig[];
@@ -351,6 +422,12 @@ export interface DashboardLayout {
    * serializer persists the resolved boolean explicitly.
    */
   heroVisible?: boolean;
+  /**
+   * v1.27.7 — hero score rings (max 3, closed `SCORE_RING_IDS` set)
+   * rendered next to the health-score ring. See the doc on
+   * `SCORE_RING_IDS`; the resolver clamps/dedupes/drops-unknown.
+   */
+  selectedScoreRings?: ScoreRingId[];
 }
 
 const DASHBOARD_LAYOUT_VERSION = 1;
@@ -365,6 +442,9 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
   // Hero (daily verdict) is off by default; users opt in via
   // Settings → Dashboard.
   heroVisible: false,
+  // One medication-adherence ring next to the health score by default —
+  // the successor of the hero dose row's information role.
+  selectedScoreRings: [...DEFAULT_SELECTED_SCORE_RINGS],
   widgets: [
     { id: "weight", visible: true, tileVisible: true, order: 0 },
     { id: "bp", visible: true, tileVisible: true, order: 1 },
@@ -506,6 +586,10 @@ export function resolveDashboardLayout(raw: unknown): DashboardLayout {
     // clamps to `false` (default-off for legacy blobs and malformed
     // values alike; the hero is opt-in).
     heroVisible: candidate.heroVisible === true,
+    // v1.27.7 — hero score rings: unknown ids drop, duplicates collapse,
+    // the list clamps to three. A legacy blob without the field gets the
+    // default single MED_COMPLIANCE ring.
+    selectedScoreRings: coerceSelectedScoreRings(candidate.selectedScoreRings),
   };
 }
 
@@ -536,5 +620,8 @@ export function serializeDashboardLayout(
     // Persist hero visibility explicitly (same clamp as the resolver)
     // so a re-read never has to guess the default.
     heroVisible: layout.heroVisible === true,
+    // v1.27.7 — persist the score-ring selection through the same
+    // coercion the resolver runs so the wire shape is stable.
+    selectedScoreRings: coerceSelectedScoreRings(layout.selectedScoreRings),
   };
 }
