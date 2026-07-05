@@ -21,7 +21,7 @@ export default function InsightsWaistPage() {
       insightMetric="WAIST_CIRCUMFERENCE"
       chartKey="waistCircumference"
       i18nPrefix="insights.waist"
-      color="#0ea5e9"
+      color="var(--info)"
       unit="cm"
       yAxisUnit="cm"
       statIcon={Ruler}

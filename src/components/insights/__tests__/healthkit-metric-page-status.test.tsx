@@ -70,7 +70,7 @@ const baseProps = {
   insightMetric: "HEART_RATE_VARIABILITY" as const,
   chartKey: "hrv" as const,
   i18nPrefix: "insights.hrv",
-  color: "#bd93f9",
+  color: "var(--chart-1)" as const,
   unit: "ms",
   emptyStateIcon: null,
 };

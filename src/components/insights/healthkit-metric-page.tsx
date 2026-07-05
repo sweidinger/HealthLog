@@ -82,8 +82,13 @@ export interface HealthKitMetricPageProps {
    * sub-key off the prefix.
    */
   i18nPrefix: string;
-  /** Single canonical colour for the chart line. */
-  color: string;
+  /**
+   * Single canonical colour for the chart line. Typed as a `var(--…)`
+   * template so pages can only pass a theme token (`"var(--success)"`),
+   * never a raw hex — raw stock hex ignores both themes and every future
+   * token retune (see UI standards, colour token rules).
+   */
+  color: `var(--${string})`;
   /** Unit suffix the chart renders next to the value. */
   unit: string;
   /** Optional y-axis label shown above the unit. */
