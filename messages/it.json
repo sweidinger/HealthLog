@@ -2353,7 +2353,7 @@
       "tokensUsedWithModel": "{count} token · {model}",
       "askAboutThis": "Chiedi al coach",
       "readStrip": {
-        "label": "Lettura del Coach",
+        "label": "Intervallo abituale",
         "baselineWithin": "Il tuo intervallo abituale è {low}–{high} {unit}; oggi {value} rientra al suo interno.",
         "baselineAbove": "Il tuo intervallo abituale è {low}–{high} {unit}; oggi {value} si colloca al di sopra.",
         "baselineBelow": "Il tuo intervallo abituale è {low}–{high} {unit}; oggi {value} si colloca al di sotto.",

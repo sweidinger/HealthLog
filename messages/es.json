@@ -2353,7 +2353,7 @@
       "tokensUsedWithModel": "{count} tokens · {model}",
       "askAboutThis": "Pregúntale al coach sobre esto",
       "readStrip": {
-        "label": "Lectura del Coach",
+        "label": "Rango habitual",
         "baselineWithin": "Tu rango habitual es {low}–{high} {unit}; hoy {value} se sitúa dentro de él.",
         "baselineAbove": "Tu rango habitual es {low}–{high} {unit}; hoy {value} se sitúa por encima.",
         "baselineBelow": "Tu rango habitual es {low}–{high} {unit}; hoy {value} se sitúa por debajo.",

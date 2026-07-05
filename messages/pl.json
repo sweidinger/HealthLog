@@ -2353,7 +2353,7 @@
       "tokensUsedWithModel": "{count} tokenów · {model}",
       "askAboutThis": "Zapytaj trenera o to",
       "readStrip": {
-        "label": "Ocena Coacha",
+        "label": "Typowy zakres",
         "baselineWithin": "Twój zwykły zakres to {low}–{high} {unit}; dzisiejsza wartość {value} mieści się w nim.",
         "baselineAbove": "Twój zwykły zakres to {low}–{high} {unit}; dzisiejsza wartość {value} jest powyżej niego.",
         "baselineBelow": "Twój zwykły zakres to {low}–{high} {unit}; dzisiejsza wartość {value} jest poniżej niego.",
