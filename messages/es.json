@@ -340,8 +340,7 @@
         "logMeasurement": "Registrar medición"
       },
       "briefing": {
-        "title": "Resumen de hoy",
-        "viewAll": "Abrir Insights"
+        "title": "Resumen de hoy"
       }
     },
     "greetingSalutation": "Hola, {name}",

@@ -340,8 +340,7 @@
         "logMeasurement": "Log measurement"
       },
       "briefing": {
-        "title": "Today’s briefing",
-        "viewAll": "Open Insights"
+        "title": "Today’s briefing"
       }
     },
     "greetingSalutation": "Hi, {name}",

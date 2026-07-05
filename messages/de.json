@@ -340,8 +340,7 @@
         "logMeasurement": "Messung erfassen"
       },
       "briefing": {
-        "title": "Tagesbriefing",
-        "viewAll": "Insights öffnen"
+        "title": "Tagesbriefing"
       }
     },
     "greetingSalutation": "Hallo, {name}",

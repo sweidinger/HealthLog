@@ -379,9 +379,13 @@ export function DailyBriefing({
     // straight on its content and the surface reclaims the vertical
     // space the in-card header used to occupy.
     <section
+      // Anchor target for the dashboard spotlight's heading link
+      // (`/insights#daily-briefing`); `scroll-mt-28` is the app-wide
+      // sticky-header offset token.
+      id="daily-briefing"
       data-slot="daily-briefing-section"
       aria-label={t("insights.dailyBriefing.title")}
-      className="space-y-3"
+      className="scroll-mt-28 space-y-3"
     >
       <SectionHeading
         icon={Sparkles}

@@ -53,6 +53,7 @@ import { ScoreRing } from "@/components/insights/derived/score-ring";
 import type { RingHue } from "@/components/insights/derived/ring-hues";
 import { RestModeBanner } from "@/components/insights/rest-mode-banner";
 import { BriefingSpotlight } from "@/components/dashboard/hero/briefing-spotlight";
+import { METRIC_HREF } from "@/components/insights/daily-briefing";
 import {
   resolveDashboardVerdict,
   type DashboardVerdictVariant,
@@ -199,6 +200,23 @@ export function DashboardHero({
   const cta = verdict.cta;
   const ctaLabelKey = CTA_LABEL_KEY[verdict.variant];
 
+  // Link-CTA verdicts WITHOUT a button label (scoreDrop, briefing) make
+  // the sentence itself the link — after the broad "open Insights"
+  // button was dropped the sentence was a dead end. The briefing
+  // sentence deep-links to the picked finding's metric sub-page (the
+  // METRIC_HREF map the briefing rows use); metrics without a routed
+  // sub-page fall back to the resolver's `/insights` href. Verdicts
+  // with their own action (take dose, view BP, …) keep the button.
+  const sentenceHref =
+    cta !== null && cta.kind === "link" && !ctaLabelKey
+      ? verdict.variant === "briefing" &&
+        typeof verdict.values.sourceMetric === "string"
+        ? (METRIC_HREF[
+            verdict.values.sourceMetric as keyof typeof METRIC_HREF
+          ] ?? cta.href)
+        : cta.href
+      : null;
+
   // ── Provisional score copy ──────────────────────────────────────────
   // The score's four pillars are weight, BP, mood, and medication
   // compliance. When ANY of them already carries data, a null score is
@@ -250,13 +268,24 @@ export function DashboardHero({
               {welcomeText}
             </p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <p
-                data-slot="dashboard-hero-verdict"
-                data-verdict-variant={verdict.variant}
-                className="text-foreground/90 text-base font-medium"
-              >
-                {sentence}
-              </p>
+              {sentenceHref ? (
+                <Link
+                  href={sentenceHref}
+                  data-slot="dashboard-hero-verdict"
+                  data-verdict-variant={verdict.variant}
+                  className="text-foreground/90 hover:text-foreground text-base font-medium transition-colors"
+                >
+                  {sentence}
+                </Link>
+              ) : (
+                <p
+                  data-slot="dashboard-hero-verdict"
+                  data-verdict-variant={verdict.variant}
+                  className="text-foreground/90 text-base font-medium"
+                >
+                  {sentence}
+                </p>
+              )}
               {cta !== null && ctaLabelKey ? (
                 cta.kind === "link" ? (
                   <Button

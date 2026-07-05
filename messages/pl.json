@@ -340,8 +340,7 @@
         "logMeasurement": "Zapisz pomiar"
       },
       "briefing": {
-        "title": "Briefing dnia",
-        "viewAll": "Otwórz Insights"
+        "title": "Briefing dnia"
       }
     },
     "greetingSalutation": "Cześć, {name}",

@@ -340,8 +340,7 @@
         "logMeasurement": "Registra misurazione"
       },
       "briefing": {
-        "title": "Briefing di oggi",
-        "viewAll": "Apri Insights"
+        "title": "Briefing di oggi"
       }
     },
     "greetingSalutation": "Ciao, {name}",
