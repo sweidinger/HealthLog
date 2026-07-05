@@ -470,6 +470,24 @@ describe("measurement validation", () => {
       }
     });
 
+    it("rejects a COMPUTED-attributed screener score row on a client write", () => {
+      // v1.27.6 — the mental-wellbeing screener projects each completed
+      // administration onto a COMPUTED-source PHQ9_SCORE / GAD7_SCORE row
+      // (the RECOVERY_SCORE precedent). COMPUTED is not client-attributable,
+      // so a client can never mint a server-owned score trend point.
+      for (const type of ["PHQ9_SCORE", "GAD7_SCORE"]) {
+        const parsed = createMeasurementSchema.safeParse({
+          type,
+          value: 5,
+          measuredAt: "2026-06-02T12:00:00Z",
+          source: "COMPUTED",
+        });
+        expect(parsed.success, `expected COMPUTED ${type} to be rejected`).toBe(
+          false,
+        );
+      }
+    });
+
     it("accepts the client-writable sources MANUAL and APPLE_HEALTH", () => {
       for (const source of ["MANUAL", "APPLE_HEALTH"]) {
         const parsed = createMeasurementSchema.safeParse({

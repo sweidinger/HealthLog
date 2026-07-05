@@ -183,12 +183,22 @@ describe("POST /api/mental-health/assessments", () => {
     expect(createArg.data.item9Flagged).toBe(false);
 
     // Derived projection: one PHQ9_SCORE/GAD7_SCORE Measurement per assessment.
+    // Server-owned: the row carries the COMPUTED source (the RECOVERY_SCORE
+    // precedent) — a client can never attribute COMPUTED on a write surface,
+    // so the trend cannot be forged through the measurement POST.
     const measArg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
-      data: { type: string; value: number; unit: string; externalId: string };
+      data: {
+        type: string;
+        value: number;
+        unit: string;
+        source: string;
+        externalId: string;
+      };
     };
     expect(measArg.data.type).toBe("GAD7_SCORE");
     expect(measArg.data.value).toBe(6);
     expect(measArg.data.unit).toBe("score");
+    expect(measArg.data.source).toBe("COMPUTED");
     expect(measArg.data.externalId).toBe("assessment:mha_2");
   });
 

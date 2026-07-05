@@ -108,7 +108,7 @@ export const mentalHealthPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Mental health"],
       summary: "Record a completed PHQ-9 / GAD-7 screener",
       description:
-        "Stores one administration (item answers encrypted) and writes the derived total as a PHQ9_SCORE / GAD7_SCORE measurement. On a positive PHQ-9 item-9 the response carries the locale-aware crisis-resource set.",
+        "Stores one administration (item answers encrypted) and writes the derived total as a server-owned PHQ9_SCORE / GAD7_SCORE measurement (source COMPUTED — never client-writable). On a positive PHQ-9 item-9 the response carries the locale-aware crisis-resource set.",
       requestBody: {
         content: {
           "application/json": { schema: createAssessmentSchema },
