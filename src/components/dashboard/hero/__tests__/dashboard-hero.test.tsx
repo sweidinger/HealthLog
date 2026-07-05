@@ -375,7 +375,12 @@ describe("<DashboardHero> — ring row (v1.27.7)", () => {
         healthScore: { score: 82, band: "green", delta: 2 },
         scoreRings: [
           { id: "READINESS", score: 71, band: "green" },
-          { id: "MED_COMPLIANCE", score: 95, band: "green" },
+          {
+            id: "MED_COMPLIANCE",
+            score: 33,
+            band: "yellow",
+            doses: { taken: 1, scheduled: 3 },
+          },
         ],
       }),
     );
@@ -389,9 +394,14 @@ describe("<DashboardHero> — ring row (v1.27.7)", () => {
     const rings = html.match(/data-slot="score-ring"/g) ?? [];
     expect(rings).toHaveLength(3);
     // Labels (de locale): the derived ring reuses its wellness-strip
-    // title, the adherence ring the medications adherence label.
+    // title; the dose ring names today's tally and shows it as
+    // taken/scheduled over the constant green arc — never the band
+    // gradient (a pending morning dose is not an alert state).
     expect(html).toContain("Bereitschaft");
-    expect(html).toContain("Therapietreue");
+    expect(html).toContain("Dosen heute");
+    expect(html).toContain(">1/3<");
+    expect(html).toContain("var(--ring-green-from)");
+    expect(html).not.toContain("var(--ring-yellow-from)");
   });
 
   it("no dose text row renders anymore — the ring row carries the slot", () => {

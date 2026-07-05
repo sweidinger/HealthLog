@@ -99,10 +99,12 @@ const CTA_LABEL_KEY: Partial<Record<DashboardVerdictVariant, string>> = {
 
 /**
  * Per-ring hue for the selected score rings — the wellness-strip
- * vocabulary. MED_COMPLIANCE deliberately carries NO hue: the adherence
- * ring falls back to the ring's band gradient (green / yellow / red
- * semantic tokens), because for adherence the band IS the message —
- * exactly the classification colouring the targets tile uses.
+ * vocabulary, so every hero ring paints EXACTLY the hue its insights
+ * sibling paints. MED_COMPLIANCE carries no per-metric hue entry: the
+ * dose ring pins the ring system's green arc (`band="green"`, constant)
+ * — the same green family the medication compliance surfaces in
+ * Insights paint for a taken dose — instead of a band gradient that
+ * would flash yellow/red over pending morning doses.
  */
 const RING_HUE_BY_ID: Partial<Record<ScoreRingId, RingHue>> = {
   READINESS: "readiness",
@@ -110,12 +112,13 @@ const RING_HUE_BY_ID: Partial<Record<ScoreRingId, RingHue>> = {
   SLEEP_SCORE: "sleep",
 };
 
-/** Per-ring label key — reuses the existing score / adherence labels. */
+/** Per-ring label key — reuses the existing score labels; the dose ring
+ *  names today's tally. */
 const RING_LABEL_KEY: Record<ScoreRingId, string> = {
   READINESS: "insights.derived.composite.READINESS.title",
   RECOVERY_SCORE: "insights.derived.scores.recovery",
   SLEEP_SCORE: "insights.derived.composite.SLEEP_SCORE.title",
-  MED_COMPLIANCE: "medications.compliance",
+  MED_COMPLIANCE: "dashboard.hero.ringDoses",
 };
 
 export function DashboardHero({
@@ -295,14 +298,33 @@ export function DashboardHero({
                 data-ring={ring.id}
                 className="flex shrink-0 items-center"
               >
-                <ScoreRing
-                  score={ring.score}
-                  band={ring.band}
-                  size="sm"
-                  flat
-                  hue={RING_HUE_BY_ID[ring.id]}
-                  label={t(RING_LABEL_KEY[ring.id])}
-                />
+                {/* Dose ring — today's tally ("1/3") over the constant
+                    green arc; the arc still sweeps on the 0..100
+                    progress `score`. Falls through to the score render
+                    when a cached pre-doses snapshot carries no tally. */}
+                {ring.id === "MED_COMPLIANCE" && ring.doses ? (
+                  <ScoreRing
+                    score={ring.score}
+                    band="green"
+                    valueText={`${ring.doses.taken}/${ring.doses.scheduled}`}
+                    ariaLabel={t("dashboard.hero.ringDosesAria", {
+                      taken: ring.doses.taken,
+                      scheduled: ring.doses.scheduled,
+                    })}
+                    size="sm"
+                    flat
+                    label={t(RING_LABEL_KEY[ring.id])}
+                  />
+                ) : (
+                  <ScoreRing
+                    score={ring.score}
+                    band={ring.band}
+                    size="sm"
+                    flat
+                    hue={RING_HUE_BY_ID[ring.id]}
+                    label={t(RING_LABEL_KEY[ring.id])}
+                  />
+                )}
               </div>
             ))}
             <ScoreRing

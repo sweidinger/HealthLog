@@ -158,15 +158,15 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
 
 /**
  * v1.27.7 — option labels for the hero score-ring picker. The three
- * derived rings reuse their wellness-strip titles; the adherence ring
- * reuses the existing "adherence (7 days)" label so the picker names
- * the exact window the ring shows.
+ * derived rings reuse their wellness-strip titles; the dose ring names
+ * today's tally (the exact thing the ring shows since it moved off the
+ * 7-day adherence percentage).
  */
 const SCORE_RING_LABEL_KEYS: Record<ScoreRingId, string> = {
   READINESS: "insights.derived.composite.READINESS.title",
   RECOVERY_SCORE: "insights.derived.scores.recovery",
   SLEEP_SCORE: "insights.derived.composite.SLEEP_SCORE.title",
-  MED_COMPLIANCE: "dashboard.compliance7d",
+  MED_COMPLIANCE: "dashboard.hero.ringDoses",
 };
 
 export function DashboardLayoutSection({ id }: { id: string }) {

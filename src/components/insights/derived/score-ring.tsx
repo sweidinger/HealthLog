@@ -103,6 +103,16 @@ export interface ScoreRingProps {
    * + tests don't break.
    */
   variant?: "band" | "onGradient";
+  /**
+   * v1.27.x — optional centre-text override for rings whose number is a
+   * tally rather than a score (the hero dose ring's "1/3"). The arc still
+   * sweeps on `score` (the 0..100 progress); only the displayed text
+   * changes, and the count-up is skipped. Pair with `ariaLabel` — the
+   * default announcement reads score + band, which is wrong for a tally.
+   */
+  valueText?: string;
+  /** Optional aria-label override (see `valueText`). */
+  ariaLabel?: string;
   className?: string;
 }
 
@@ -116,6 +126,8 @@ export function ScoreRing({
   delayMs = 0,
   baseline,
   flat = false,
+  valueText,
+  ariaLabel: ariaLabelOverride,
   className,
 }: ScoreRingProps) {
   const { t } = useTranslations();
@@ -162,12 +174,14 @@ export function ScoreRing({
   });
   const displayedRounded = Math.round(displayed);
 
-  const ariaLabel = hasScore
-    ? t("insights.derived.scoreRing.aria", {
-        score: Math.round(clamped),
-        band: t(`insights.derived.scoreRing.band.${resolvedBand}`),
-      })
-    : t("insights.derived.scoreRing.ariaProvisional");
+  const ariaLabel =
+    ariaLabelOverride ??
+    (hasScore
+      ? t("insights.derived.scoreRing.aria", {
+          score: Math.round(clamped),
+          band: t(`insights.derived.scoreRing.band.${resolvedBand}`),
+        })
+      : t("insights.derived.scoreRing.ariaProvisional"));
 
   return (
     <div
@@ -259,7 +273,7 @@ export function ScoreRing({
             hasScore ? "text-foreground" : "text-muted-foreground",
           )}
         >
-          {hasScore ? displayedRounded : "—"}
+          {hasScore ? (valueText ?? displayedRounded) : "—"}
         </span>
         {label ? (
           <span className={cn("text-muted-foreground", dims.labelClass)}>

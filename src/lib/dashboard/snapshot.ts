@@ -1079,6 +1079,14 @@ export async function buildDashboardSnapshot(
     (options.modules ?? (() => resolveModuleMap(user.id)))(),
   );
 
+  // Fast phase — projection-backed today tally + earliest next-due. Held
+  // as a shared promise (the `modulesPromise` pattern) so the score-ring
+  // task can read today's dose tally inside the same `Promise.all`
+  // without a second builder call.
+  const medsTodayPromise = time("medsToday", () =>
+    buildMedsTodayBlock(prisma, user.id, userTz, now),
+  );
+
   const [
     slimRaw,
     moodRaw,
@@ -1098,21 +1106,20 @@ export async function buildDashboardSnapshot(
         )
       : Promise.resolve(null),
     time("flags", () => getAssistantFlags()),
-    // Fast phase — projection-backed today tally + earliest next-due.
-    time("medsToday", () => buildMedsTodayBlock(prisma, user.id, userTz, now)),
+    medsTodayPromise,
     modulesPromise,
     // v1.27.7 — the selected hero score rings, resolved through the
-    // same engines the derived batch route calls (+ the canonical
-    // compliance engine for MED_COMPLIANCE). Fail-soft: a throwing
-    // resolver yields no rings, never a sunk snapshot.
+    // same engines the derived batch route calls; the dose ring reads
+    // today's tally off the shared medsToday block. Fail-soft: a
+    // throwing resolver yields no rings, never a sunk snapshot.
     time("scoreRings", async () =>
       (options.scoreRings ?? buildScoreRingsBlock)(
         prisma,
         user.id,
-        userTz,
         storedLayout.selectedScoreRings ?? [],
         await modulesPromise,
         now,
+        await medsTodayPromise,
       ),
     ).catch(() => [] as DashboardScoreRing[]),
   ]);

@@ -1196,12 +1196,14 @@ describe("buildDashboardSnapshot — scoreRings wire", () => {
     const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
 
     expect(buildScoreRingsBlock).toHaveBeenCalledTimes(1);
-    const [, userId, tz, selected, modules] =
+    const [, userId, selected, modules, , medsToday] =
       buildScoreRingsBlock.mock.calls[0];
     expect(userId).toBe("user-1");
-    expect(tz).toBe("Europe/Berlin");
     expect(selected).toEqual(["MED_COMPLIANCE"]);
     expect(modules).toEqual(moduleMap());
+    // The dose ring reads the SAME medsToday block the snapshot ships —
+    // one builder call, no second tally.
+    expect(medsToday).toEqual(snap.medsToday);
     expect(snap.scoreRings).toEqual([
       { id: "MED_COMPLIANCE", score: 92, band: "green" },
     ]);
@@ -1222,7 +1224,7 @@ describe("buildDashboardSnapshot — scoreRings wire", () => {
       }),
     );
 
-    const [, , , selected] = buildScoreRingsBlock.mock.calls[0];
+    const [, , selected] = buildScoreRingsBlock.mock.calls[0];
     expect(selected).toEqual(["READINESS", "SLEEP_SCORE"]);
   });
 

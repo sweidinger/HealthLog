@@ -318,6 +318,8 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Noch nicht genug Daten",
       "scoreComputing": "Score wird berechnet…",
+      "ringDoses": "Dosen heute",
+      "ringDosesAria": "{taken} von {scheduled} Dosen heute genommen",
       "verdict": {
         "doseOverdue": "Eine Dosis {name} ist überfällig.",
         "doseOverdueNoName": "Eine Dosis ist überfällig.",

@@ -318,6 +318,8 @@
       "scoreLabel": "Health Score",
       "scoreProvisional": "Za mało danych",
       "scoreComputing": "Trwa obliczanie wyniku …",
+      "ringDoses": "Dzisiejsze dawki",
+      "ringDosesAria": "Przyjęto {taken} z {scheduled} dawek dzisiaj",
       "verdict": {
         "doseOverdue": "Dawka {name} jest zaległa.",
         "doseOverdueNoName": "Dawka jest zaległa.",
