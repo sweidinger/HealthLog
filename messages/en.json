@@ -7626,6 +7626,7 @@
   "mentalHealth": {
     "pageTitle": "Mental wellbeing check-in",
     "pageDescription": "Two validated, opt-in self-assessments — PHQ-9 (mood) and GAD-7 (worry) — that sit beside your mood tracking. The value is the trend over time, not any single number.",
+    "pageRhythmHint": "Both tests look back over the last two weeks, so a check-in every two to four weeks is a comfortable rhythm.",
     "attributionLabel": "Attribution",
     "choosePrompt": "Choose a check-in",
     "start": "Start",

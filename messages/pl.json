@@ -7626,6 +7626,7 @@
   "mentalHealth": {
     "pageTitle": "Sprawdzenie dobrostanu psychicznego",
     "pageDescription": "Dwa zwalidowane, dobrowolne testy — PHQ-9 (nastrój) i GAD-7 (lęk) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
+    "pageRhythmHint": "Oba testy dotyczą ostatnich dwóch tygodni, dlatego check-in co dwa–cztery tygodnie to dobry rytm.",
     "attributionLabel": "Źródło",
     "choosePrompt": "Wybierz sprawdzenie",
     "start": "Rozpocznij",

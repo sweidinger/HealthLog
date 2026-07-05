@@ -7626,6 +7626,7 @@
   "mentalHealth": {
     "pageTitle": "Check-in zum seelischen Wohlbefinden",
     "pageDescription": "Zwei validierte, freiwillige Selbsttests — PHQ-9 (Stimmung) und GAD-7 (Sorgen) — ergänzend zu deinem Stimmungstagebuch. Aussagekräftig ist der Verlauf über die Zeit, nicht ein einzelner Wert.",
+    "pageRhythmHint": "Beide Tests blicken auf die letzten zwei Wochen zurück — ein Check-in alle zwei bis vier Wochen ist deshalb ein guter Rhythmus.",
     "attributionLabel": "Quelle",
     "choosePrompt": "Check-in auswählen",
     "start": "Starten",

@@ -113,6 +113,13 @@ export function MentalWellbeing() {
             description={t("mentalHealth.pageDescription")}
           />
 
+          {/* v1.27.6 — one gentle cadence hint: both instruments ask about
+              the last two weeks, so every 2–4 weeks is a sensible rhythm.
+              Body prose (foreground), not another muted description line. */}
+          <p className="max-w-prose text-sm">
+            {t("mentalHealth.pageRhythmHint")}
+          </p>
+
           <section aria-label={t("mentalHealth.choosePrompt")}>
             <h2 className="sr-only">{t("mentalHealth.choosePrompt")}</h2>
             <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">

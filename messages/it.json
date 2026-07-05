@@ -7626,6 +7626,7 @@
   "mentalHealth": {
     "pageTitle": "Check-in sul benessere mentale",
     "pageDescription": "Due autovalutazioni validate e facoltative — PHQ-9 (umore) e GAD-7 (preoccupazione) — accanto al tuo diario dell'umore. Ciò che conta è l'andamento nel tempo, non un singolo numero.",
+    "pageRhythmHint": "Entrambi i test riguardano le ultime due settimane, quindi un check-in ogni due-quattro settimane è un buon ritmo.",
     "attributionLabel": "Fonte",
     "choosePrompt": "Scegli un check-in",
     "start": "Inizia",

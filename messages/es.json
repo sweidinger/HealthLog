@@ -7626,6 +7626,7 @@
   "mentalHealth": {
     "pageTitle": "Revisión de bienestar mental",
     "pageDescription": "Dos autoevaluaciones validadas y opcionales — PHQ-9 (estado de ánimo) y GAD-7 (preocupación) — junto a tu registro de ánimo. Lo valioso es la tendencia en el tiempo, no un único número.",
+    "pageRhythmHint": "Ambos tests se refieren a las últimas dos semanas, por lo que un check-in cada dos a cuatro semanas es un buen ritmo.",
     "attributionLabel": "Fuente",
     "choosePrompt": "Elige una revisión",
     "start": "Empezar",

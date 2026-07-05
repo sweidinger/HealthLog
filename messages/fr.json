@@ -7626,6 +7626,7 @@
   "mentalHealth": {
     "pageTitle": "Point sur le bien-être mental",
     "pageDescription": "Deux auto-évaluations validées et facultatives — PHQ-9 (humeur) et GAD-7 (inquiétude) — en complément de ton suivi de l'humeur. Ce qui compte, c'est la tendance dans le temps, pas un chiffre isolé.",
+    "pageRhythmHint": "Les deux tests portent sur les deux dernières semaines — un check-in toutes les deux à quatre semaines est donc un bon rythme.",
     "attributionLabel": "Source",
     "choosePrompt": "Choisis un bilan",
     "start": "Commencer",
