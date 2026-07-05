@@ -7664,6 +7664,14 @@
       "2": "Più della metà dei giorni",
       "3": "Quasi ogni giorno"
     },
+    "functionalTitle": "Se hai indicato dei problemi, quanto ti hanno reso difficile lavorare, occuparti della casa o andare d'accordo con gli altri?",
+    "functional": {
+      "0": "Per niente difficile",
+      "1": "Un po' difficile",
+      "2": "Molto difficile",
+      "3": "Estremamente difficile"
+    },
+    "functionalOptionalHint": "Facoltativo — puoi inviare anche senza rispondere a questa domanda.",
     "result": {
       "title": "Il tuo risultato",
       "totalLabel": "Punteggio totale",

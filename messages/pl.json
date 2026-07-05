@@ -7664,6 +7664,14 @@
       "2": "Więcej niż połowę dni",
       "3": "Niemal codziennie"
     },
+    "functionalTitle": "Jeśli zaznaczyłeś(-aś) jakiekolwiek problemy, na ile utrudniły Ci one pracę, prowadzenie domu lub kontakty z innymi ludźmi?",
+    "functional": {
+      "0": "Wcale nie utrudniły",
+      "1": "Trochę utrudniły",
+      "2": "Bardzo utrudniły",
+      "3": "Skrajnie utrudniły"
+    },
+    "functionalOptionalHint": "Opcjonalne — możesz wysłać bez odpowiedzi na to pytanie.",
     "result": {
       "title": "Twój wynik",
       "totalLabel": "Wynik łączny",

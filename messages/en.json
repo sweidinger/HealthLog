@@ -7664,6 +7664,14 @@
       "2": "More than half the days",
       "3": "Nearly every day"
     },
+    "functionalTitle": "If you checked off any problems, how difficult have these made it to do your work, take care of things at home, or get along with other people?",
+    "functional": {
+      "0": "Not difficult at all",
+      "1": "Somewhat difficult",
+      "2": "Very difficult",
+      "3": "Extremely difficult"
+    },
+    "functionalOptionalHint": "Optional — you can submit without answering this question.",
     "result": {
       "title": "Your result",
       "totalLabel": "Total score",

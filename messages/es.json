@@ -7664,6 +7664,14 @@
       "2": "Más de la mitad de los días",
       "3": "Casi todos los días"
     },
+    "functionalTitle": "Si marcaste algún problema, ¿cuánta dificultad te han causado para trabajar, ocuparte de la casa o relacionarte con otras personas?",
+    "functional": {
+      "0": "Ninguna dificultad",
+      "1": "Algo de dificultad",
+      "2": "Mucha dificultad",
+      "3": "Dificultad extrema"
+    },
+    "functionalOptionalHint": "Opcional: puedes enviar sin responder esta pregunta.",
     "result": {
       "title": "Tu resultado",
       "totalLabel": "Puntuación total",

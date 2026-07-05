@@ -7664,6 +7664,14 @@
       "2": "An mehr als der Hälfte der Tage",
       "3": "Beinahe jeden Tag"
     },
+    "functionalTitle": "Wenn du eine oder mehrere Beschwerden angegeben hast: Wie sehr haben diese deine Arbeit, deinen Haushalt oder den Umgang mit anderen Menschen erschwert?",
+    "functional": {
+      "0": "Überhaupt nicht erschwert",
+      "1": "Etwas erschwert",
+      "2": "Sehr erschwert",
+      "3": "Extrem erschwert"
+    },
+    "functionalOptionalHint": "Optional — du kannst auch ohne Antwort auf diese Frage absenden.",
     "result": {
       "title": "Dein Ergebnis",
       "totalLabel": "Gesamtwert",

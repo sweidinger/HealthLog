@@ -93,15 +93,15 @@ export function MentalWellbeing() {
     setPhase("choose");
   }
 
-  // v1.27.6 — the review step (and with it the optional functional-difficulty
-  // follow-up) left the web wizard; the check-in submits the scored items
-  // directly after the last question. The API keeps accepting
-  // `functionalDifficulty` for clients that still capture it.
-  function submit(items: number[]) {
+  // v1.27.8 — the PHQ-9 functional-impairment follow-up returned as the
+  // wizard's regular last question (optional, unscored); the value rides
+  // the existing `functionalDifficulty` field when the user answered it.
+  function submit(items: number[], functionalDifficulty?: number) {
     mutation.mutate({
       instrument,
       items,
       locale,
+      ...(functionalDifficulty !== undefined ? { functionalDifficulty } : {}),
     });
   }
 
