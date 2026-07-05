@@ -6747,7 +6747,9 @@
       "ariaPhase": "Cycle day {day}, {phase} phase",
       "ariaUnknown": "No active cycle yet",
       "caption": "of your cycle",
-      "firstPeriodCta": "Log my first period"
+      "firstPeriodCta": "Log my first period",
+      "periodOverdue": "Your period is later than usual — the day count pauses until the next period is logged.",
+      "logPeriodCta": "Log period"
     },
     "calendar": {
       "legendPeriod": "Logged period",

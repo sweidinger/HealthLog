@@ -6747,7 +6747,9 @@
       "ariaPhase": "Zyklustag {day}, {phase}-Phase",
       "ariaUnknown": "Noch kein aktiver Zyklus",
       "caption": "deines Zyklus",
-      "firstPeriodCta": "Erste Periode erfassen"
+      "firstPeriodCta": "Erste Periode erfassen",
+      "periodOverdue": "Deine Periode ist später als üblich – die Tageszählung pausiert, bis die nächste Periode erfasst ist.",
+      "logPeriodCta": "Periode erfassen"
     },
     "calendar": {
       "legendPeriod": "Erfasste Periode",

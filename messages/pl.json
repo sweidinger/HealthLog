@@ -6747,7 +6747,9 @@
       "ariaPhase": "Dzień {day} cyklu, faza {phase}",
       "ariaUnknown": "Brak aktywnego cyklu",
       "caption": "twojego cyklu",
-      "firstPeriodCta": "Zapisz pierwszą miesiączkę"
+      "firstPeriodCta": "Zapisz pierwszą miesiączkę",
+      "periodOverdue": "Okres jest późniejszy niż zwykle — licznik dni jest wstrzymany, dopóki nie zapiszesz następnego okresu.",
+      "logPeriodCta": "Zapisz okres"
     },
     "calendar": {
       "legendPeriod": "Zapisana miesiączka",

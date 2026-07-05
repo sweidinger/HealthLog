@@ -6747,7 +6747,9 @@
       "ariaPhase": "Jour {day} du cycle, phase {phase}",
       "ariaUnknown": "Pas encore de cycle actif",
       "caption": "de ton cycle",
-      "firstPeriodCta": "Enregistrer mes premières règles"
+      "firstPeriodCta": "Enregistrer mes premières règles",
+      "periodOverdue": "Tes règles arrivent plus tard que d’habitude — le compteur de jours est en pause jusqu’à ce que les prochaines règles soient enregistrées.",
+      "logPeriodCta": "Enregistrer les règles"
     },
     "calendar": {
       "legendPeriod": "Règles enregistrées",

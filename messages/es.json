@@ -6747,7 +6747,9 @@
       "ariaPhase": "Día {day} del ciclo, fase {phase}",
       "ariaUnknown": "Aún no hay ciclo activo",
       "caption": "de tu ciclo",
-      "firstPeriodCta": "Registrar mi primer periodo"
+      "firstPeriodCta": "Registrar mi primer periodo",
+      "periodOverdue": "Tu período llega más tarde de lo habitual — el conteo de días se pausa hasta que registres el próximo período.",
+      "logPeriodCta": "Registrar período"
     },
     "calendar": {
       "legendPeriod": "Periodo registrado",
