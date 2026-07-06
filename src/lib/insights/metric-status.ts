@@ -26,6 +26,7 @@ import {
   getMetricArchetypeSystemPrompt,
   getMetricArchetypeUserPrompt,
 } from "@/lib/ai/prompts/metric-archetypes";
+import { buildInterpretationBlock } from "@/lib/ai/prompts/interpretation-block";
 import {
   getMetricStatusMeta,
   metricStatusScope,
@@ -461,6 +462,24 @@ export async function generateMetricStatus(args: {
     locale,
   );
 
+  // v1.27.13 (Welle J) — the guideline interpretation block for metrics the
+  // knowledge base covers (visceral fat, resting HR, SpO₂, respiratory rate,
+  // body temperature, sleep duration, waist, PWV). The band position is
+  // computed from the signal's current value (or the latest day when no signal
+  // window exists); absent for uncovered metrics (fail-soft to personal-
+  // relative). Sex-split bands (waist) resolve only when the profile carries a
+  // sex.
+  const interpretationValue = signal?.current ?? latest?.value ?? null;
+  const interpretationBlock =
+    interpretationValue !== null
+      ? buildInterpretationBlock({
+          metricKey: meta.id,
+          value: interpretationValue,
+          sex,
+          locale,
+        })
+      : undefined;
+
   const outcome = await runStatusCompletion({
     userId: args.userId,
     cacheAction,
@@ -473,6 +492,7 @@ export async function generateMetricStatus(args: {
       locale,
       previousContextBlock,
       contextBlock,
+      interpretationBlock,
     ),
     // v1.12.1 (D1) — the phrasing task benefits from a touch more sampling
     // entropy while the FACTS stay pinned by the snapshot + the

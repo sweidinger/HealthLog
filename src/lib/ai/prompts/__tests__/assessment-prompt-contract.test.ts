@@ -119,6 +119,25 @@ describe("metric-archetype user prompt — context block plumbing", () => {
     expect(out).not.toContain("undefined");
   });
 
+  it("appends the interpretation block when provided (Welle J)", () => {
+    const out = getMetricArchetypeUserPrompt(
+      meta,
+      "{}",
+      "2026-06-05",
+      "en",
+      "",
+      "",
+      "INTERPRETATION CONTEXT (guideline bands): the healthy band.",
+    );
+    expect(out).toContain("INTERPRETATION CONTEXT");
+  });
+
+  it("omits the interpretation block cleanly when absent", () => {
+    const out = getMetricArchetypeUserPrompt(meta, "{}", "2026-06-05", "en");
+    expect(out).not.toContain("INTERPRETATION CONTEXT");
+    expect(out).not.toContain("undefined");
+  });
+
   it("makes the closing step conditional in the user instruction (both locales)", () => {
     expect(
       getMetricArchetypeUserPrompt(meta, "{}", "2026-06-05", "en"),
