@@ -37,6 +37,8 @@ import {
 import {
   grounding,
   toneContract,
+  antiRecitation,
+  interpretationDepth,
   safetyGlp1,
   safetyAcute,
   metricIdentifierBan,
@@ -841,6 +843,20 @@ neutralem Label + Detail. Höchstgrenze: 20 Einträge.`,
   // future safety edit is made once in `shared-contracts.ts`.
   { id: "sharedGrounding", en: grounding.en, de: grounding.de },
   { id: "sharedTone", en: toneContract.en, de: toneContract.de },
+  // v1.27.13 (Welle J) — the overview + briefing text carried the same
+  // recitation disease (counts, cadence). Both contracts apply here so the
+  // summary and the daily briefing interpret rather than enumerate; the
+  // briefing's own grounding/format machinery is untouched.
+  {
+    id: "sharedAntiRecitation",
+    en: antiRecitation.en,
+    de: antiRecitation.de,
+  },
+  {
+    id: "sharedInterpretationDepth",
+    en: interpretationDepth.en,
+    de: interpretationDepth.de,
+  },
   { id: "sharedSafetyGlp1", en: safetyGlp1.en, de: safetyGlp1.de },
   { id: "sharedSafetyAcute", en: safetyAcute.en, de: safetyAcute.de },
   {

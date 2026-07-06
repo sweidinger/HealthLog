@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.27.13] — 2026-07-07 — Assessments that interpret
+
+### Changed
+
+- The per-metric AI assessments now interpret values instead of enumerating them: where the current value sits on guideline reference bands (resting heart rate, SpO₂, respiratory rate, body temperature, sleep duration, waist measures, pulse-wave velocity, BMI, visceral-fat rating — each derived from cited primary sources), what that band means in plain words, and a trend judged by its position — a shift deep inside a healthy band reads as a footnote, the same shift near a boundary leads the text. Metrics without an established general reference band say so honestly and interpret against the person's own baseline.
+- Two contract rules now bind every AI text surface: measurement counts and logging cadence are not insights (they may only appear when they carry a consequence), and the tone standard is encouraging and dignified — celebrates what is genuinely good, names what deserves attention, never alarms or moralises.
+- Band positions are computed server-side and handed to the model as context — the model states them, it never computes them; no diagnosis language anywhere.
+
 ## [1.27.12] — 2026-07-06 — Google Health daily totals
 
 ### Fixed

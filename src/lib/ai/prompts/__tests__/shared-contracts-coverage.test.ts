@@ -13,6 +13,8 @@ import { describe, expect, it } from "vitest";
 import {
   grounding,
   toneContract,
+  antiRecitation,
+  interpretationDepth,
   safetyGlp1,
   safetyAcute,
   metricIdentifierBan,
@@ -53,6 +55,10 @@ const SURFACES: Record<
     contracts: [
       grounding,
       toneContract,
+      // v1.27.13 (Welle J) — anti-recitation + interpretation-depth reach the
+      // overview + briefing text too.
+      antiRecitation,
+      interpretationDepth,
       safetyGlp1,
       safetyAcute,
       metricIdentifierBan,
@@ -69,6 +75,9 @@ const SURFACES: Record<
     contracts: [
       grounding,
       toneContract,
+      // v1.27.13 (Welle J) — the assessment cards enforce both new contracts.
+      antiRecitation,
+      interpretationDepth,
       safetyGlp1,
       safetyAcute,
       metricIdentifierBan,
