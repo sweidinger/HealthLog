@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.27.12] — 2026-07-06 — Google Health daily totals
+
+### Fixed
+
+- Steps, distance, floors, and active energy now import from Google Health. The daily-totals request counted one calendar day too many per window (an exclusive end bound where the API expects the last covered day), which the API rejected outright; the request now matches the documented example exactly, with a self-reporting fallback to the tighter window size should a stricter limit apply.
+- One data type's failure no longer blocks the remaining ones — each cumulative type fetches independently, failures are reported per type, and the sync watermark is withheld so the next run refetches what failed.
+- Google API errors now carry the offending field names in the logs (redacted to field paths), so a future rejection explains itself; the connection test's structure probe also exercises a minimal daily-totals request.
+
 ## [1.27.11] — 2026-07-05 — Consistency, colour, and locale fixes
 
 ### Fixed
