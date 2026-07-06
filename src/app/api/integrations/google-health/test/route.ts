@@ -76,7 +76,17 @@ function describeStructure(v: unknown, depth = 0): unknown {
 }
 
 type ProbeResult =
-  | { ok: true; count: number; structure: unknown }
+  | {
+      ok: true;
+      count: number;
+      structure: unknown;
+      /**
+       * Rollup types only: which documented dailyRollUp request shape Google
+       * accepted (`days90` standard chunking vs `days14` conservative
+       * fallback) — the live verdict on the range constraint.
+       */
+      requestShape?: string;
+    }
   | {
       ok: false;
       httpStatus: number | null;
@@ -102,7 +112,12 @@ async function runStructureProbe(
   for (const [name, dataType] of Object.entries(GOOGLE_HEALTH_DATA_TYPES)) {
     try {
       let points: Record<string, unknown>[];
+      let requestShape: string | undefined;
       if (dataType.timeField === "rollup") {
+        // One minimal dailyRollUp exercise per rollup type (7-day range) — the
+        // probe reports the response skeleton AND which documented request
+        // shape Google accepted, so a live account settles the range-constraint
+        // question from the UI.
         points = await fetchDailyRollUp(
           dataType,
           accessToken,
@@ -110,6 +125,9 @@ async function runStructureProbe(
           {
             start: rollupStart,
             tz,
+            onShape: (shape) => {
+              requestShape = shape;
+            },
           },
         );
       } else {
@@ -129,6 +147,7 @@ async function runStructureProbe(
         ok: true,
         count: points.length,
         structure: points.length > 0 ? describeStructure(points[0]) : null,
+        ...(requestShape ? { requestShape } : {}),
       };
     } catch (e) {
       results[name] =
