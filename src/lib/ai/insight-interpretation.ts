@@ -292,9 +292,6 @@ const INTERPRETATION_REGISTRY: Record<string, MetricInterpretation> = {
   },
 };
 
-/** The metric keys that carry a guideline interpretation. */
-export const INTERPRETED_METRIC_KEYS = Object.keys(INTERPRETATION_REGISTRY);
-
 /**
  * Resolve the interpretation for a metric key, picking the sex-split bands when
  * the entry is sex-specific and a sex is known. Returns null when the metric
