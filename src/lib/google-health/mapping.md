@@ -44,9 +44,14 @@ Two read methods are in use — NOT every type supports `dataPoints.list`:
 - **`dataPoints:dailyRollUp`** (POST, `windowSizeDays: 1`) — the cumulative
   activity totals (steps, distance, active-energy-burned, floors). Their list
   surface returns minute-grain observation buckets (≈1440/day), NOT daily
-  totals — and **floors has no list method at all**. The request range is
-  CivilDateTime, closed-open, user-local, max **90 days** per request; the
-  client chunks longer ranges and pins the full-sync horizon
+  totals — and **floors has no list method at all**. The request range is a
+  pair of CivilDateTime bounds (`{date:{year,month,day}, time:{hours,minutes,
+seconds,nanos}}`), user-local; per the documented example, the `end` bound
+  is the LAST covered civil day at 23:59:59 — not the next day's midnight.
+  Max **90 days** per request for these types (14 days only for
+  heart-rate / total-calories / active-minutes / calories-in-heart-rate-zone);
+  the client chunks longer ranges (`buildDailyRollUpBody`), falls back once to
+  14-day chunks if the first request 400s, and pins the full-sync horizon
   (`GOOGLE_HEALTH_ROLLUP_BACKFILL_DAYS`).
 
 Legal incremental `filter` fields are per-shape — anything else is an HTTP 400
