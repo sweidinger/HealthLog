@@ -27,7 +27,7 @@
  *     a refresh token (and force one on every re-consent).
  */
 import { createHash, randomBytes } from "node:crypto";
-import { getEvent } from "@/lib/logging/context";
+import { annotate, getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
 import { wallClockInTz, zonedWallClockToUtc } from "@/lib/tz/wall-clock";
 import {
@@ -677,25 +677,63 @@ function redactApiErrorMessage(msg: string): string {
 }
 
 /**
- * Extract the AIP-193 error envelope (`{"error":{code,message,status}}`) from a
- * non-2xx Google Health body into a short redacted `STATUS: message` detail
- * string, or undefined when the body carries no such envelope. This is what
- * makes a field-grammar 400 (`INVALID_ARGUMENT: Invalid filter …`) diagnosable
- * from operator logs. (The OAuth token endpoint uses the flat
- * `{"error":"invalid_grant"}` shape instead — handled in `postToken`.)
+ * Collect the `google.rpc.BadRequest` field violations out of an AIP-193
+ * `error.details[]` array as `field: description` fragments. Only the field
+ * PATH and the description sentence survive — both run through the message
+ * redactor and a per-fragment cap, and at most three violations are kept, so
+ * no request value can ride an error string into the logs.
+ */
+function extractFieldViolations(details: unknown): string[] {
+  if (!Array.isArray(details)) return [];
+  const out: string[] = [];
+  for (const d of details) {
+    if (!d || typeof d !== "object") continue;
+    const fv = (d as { fieldViolations?: unknown }).fieldViolations;
+    if (!Array.isArray(fv)) continue;
+    for (const v of fv) {
+      if (out.length >= 3) return out;
+      if (!v || typeof v !== "object") continue;
+      const o = v as { field?: unknown; description?: unknown };
+      const field =
+        typeof o.field === "string"
+          ? redactApiErrorMessage(o.field).slice(0, 80)
+          : undefined;
+      const description =
+        typeof o.description === "string"
+          ? redactApiErrorMessage(o.description).slice(0, 120)
+          : undefined;
+      if (!field && !description) continue;
+      out.push([field, description].filter(Boolean).join(": "));
+    }
+  }
+  return out;
+}
+
+/**
+ * Extract the AIP-193 error envelope (`{"error":{code,message,status,details}}`)
+ * from a non-2xx Google Health body into a short redacted
+ * `STATUS: message [field: description]` detail string, or undefined when the
+ * body carries no such envelope. This is what makes a field-grammar 400
+ * (`INVALID_ARGUMENT: Invalid filter …`) diagnosable from operator logs: the
+ * `details[]` BadRequest field violations name the exact offending request
+ * field. (The OAuth token endpoint uses the flat `{"error":"invalid_grant"}`
+ * shape instead — handled in `postToken`.)
  */
 export function extractGoogleApiErrorDetail(json: unknown): string | undefined {
   if (!json || typeof json !== "object") return undefined;
   const e = (json as { error?: unknown }).error;
   if (!e || typeof e !== "object") return undefined;
-  const o = e as { status?: unknown; message?: unknown };
+  const o = e as { status?: unknown; message?: unknown; details?: unknown };
   const status = typeof o.status === "string" ? o.status : undefined;
   const message =
     typeof o.message === "string"
       ? redactApiErrorMessage(o.message)
       : undefined;
-  if (!status && !message) return undefined;
-  return [status, message].filter(Boolean).join(": ");
+  const violations = extractFieldViolations(o.details);
+  if (!status && !message && violations.length === 0) return undefined;
+  const head = [status, message].filter(Boolean).join(": ");
+  const tail = violations.length > 0 ? `[${violations.join("; ")}]` : "";
+  return [head, tail].filter(Boolean).join(" ").slice(0, 500);
 }
 
 /**
@@ -778,8 +816,24 @@ export async function fetchDataPoints(
 
 // ─── Daily roll-up reads (`POST …/dataPoints:dailyRollUp`) ─────────────────
 
-/** Max civil days one dailyRollUp request range may span (per the v4 docs). */
+/**
+ * Max civil days one dailyRollUp request range may span. Per the v4 reference
+ * (`users.dataTypes.dataPoints/dailyRollUp`, `range`): "The maximum range for
+ * `calories-in-heart-rate-zone`, `heart-rate`, `active-minutes` and
+ * `total-calories` is 14 days. The maximum range for all other data types is
+ * 90 days." The four types read here (steps / distance / active-energy-burned /
+ * floors) all sit in the 90-day class; the 14-day cap would only bind if
+ * `heart-rate` or `total-calories` ever moved onto the rollup path.
+ */
 export const GOOGLE_HEALTH_ROLLUP_RANGE_DAYS = 90;
+
+/**
+ * Conservative chunk span for the one-shot fallback walk: the tightest range
+ * cap the dailyRollUp docs state for ANY data type (the 14-day class above).
+ * Used only after the standard 90-day first request is rejected with a 400 —
+ * see `fetchDailyRollUp`.
+ */
+export const GOOGLE_HEALTH_ROLLUP_FALLBACK_RANGE_DAYS = 14;
 
 /**
  * Full-sync horizon for the rollup types, in civil days. The rollup read needs
@@ -872,15 +926,70 @@ interface RollupQuery {
   start?: Date;
   /** The user's IANA zone — the civil range is user-local. */
   tz?: string;
+  /**
+   * Observes which request shape the walk settled on (`days90` standard vs
+   * `days14` fallback) — the structure probe surfaces it so a live account
+   * reports which shape Google actually accepted.
+   */
+  onShape?: (shape: GoogleHealthRollupShape) => void;
+}
+
+/** The dailyRollUp request shape a walk settled on. */
+export type GoogleHealthRollupShape = "days90" | "days14";
+
+/**
+ * Build the documented dailyRollUp request body for one closed-open civil-day
+ * chunk (`end` exclusive). Doc-example parity (developers.google.com/health/
+ * endpoints, dailyRollUp sample): both range bounds carry explicit
+ * `{date, time}` CivilDateTime objects, and the `end` bound is the LAST civil
+ * day INSIDE the chunk at 23:59:59 — NOT the next day's midnight. The range
+ * validator counts the civil days the range touches against the documented
+ * cap, so an exclusive next-day-midnight end makes a maximal chunk read one
+ * day too wide. `windowSizeDays: 1` is the documented daily-total window;
+ * `pageSize` is omitted (the documented default of 1440 already covers the
+ * ≤90 daily windows a chunk can produce); `pageToken` rides along on
+ * follow-up pages ("All other request fields need to be the same as in the
+ * initial request when the page token is specified").
+ */
+export function buildDailyRollUpBody(
+  chunk: { start: GoogleHealthCivilDate; end: GoogleHealthCivilDate },
+  pageToken?: string,
+): Record<string, unknown> {
+  const lastDay = utcMsToCivil(civilToUtcMs(chunk.end) - DAY_MS);
+  const body: Record<string, unknown> = {
+    range: {
+      start: {
+        date: chunk.start,
+        time: { hours: 0, minutes: 0, seconds: 0, nanos: 0 },
+      },
+      end: {
+        date: lastDay,
+        time: { hours: 23, minutes: 59, seconds: 59, nanos: 0 },
+      },
+    },
+    windowSizeDays: 1,
+  };
+  if (pageToken) body.pageToken = pageToken;
+  return body;
 }
 
 /**
  * Read one cumulative data type's daily totals via `POST …/dataPoints:dailyRollUp`
- * with `windowSizeDays: 1`. The civil range is closed-open and user-local,
- * chunked at ≤90 days per request; without an incremental `start` the walk
- * covers the pinned backfill horizon. A `nextPageToken` is honoured defensively
- * (the response is documented without one, but the request accepts page
- * tokens).
+ * with `windowSizeDays: 1`. The civil range is user-local, chunked at ≤90 days
+ * per request (the documented cap for these types); without an incremental
+ * `start` the walk covers the pinned backfill horizon. A `nextPageToken` is
+ * honoured defensively (the dailyRollUp response is documented without one,
+ * but the request accepts page tokens and the sibling `:rollUp` documents the
+ * response field).
+ *
+ * FALLBACK: if the very first request of a walk is rejected with a 400
+ * (INVALID_ARGUMENT — a range/shape constraint, since the body already
+ * mirrors the documented example), the whole range is re-walked once with the
+ * most conservative documented span (14 days, the tightest cap the docs state
+ * for any type). The shape that succeeded is annotated as
+ * `googleHealth.rollup.shape` so live behaviour reports which constraint
+ * actually binds. Any other failure, or a 400 past the first request,
+ * propagates.
  */
 export async function fetchDailyRollUp(
   dataType: GoogleHealthDataType,
@@ -896,71 +1005,84 @@ export async function fetchDailyRollUp(
   const startCivil = civilDateInTz(from, query.tz);
   const endCivil = civilDateInTz(new Date(now.getTime() + DAY_MS), query.tz);
 
-  const points: GoogleHealthRollupPoint[] = [];
-  let chunkIndex = 0;
-  for (const chunk of chunkCivilRange(startCivil, endCivil)) {
-    let pageToken: string | null | undefined;
-    let pageCount = 0;
-    do {
-      const body: Record<string, unknown> = {
-        range: {
-          start: { date: chunk.start },
-          end: { date: chunk.end },
-        },
-        windowSizeDays: 1,
-        pageSize: 100,
-      };
-      if (pageToken) body.pageToken = pageToken;
+  let requestCount = 0;
 
-      const reqStart = performance.now();
-      const res = await safeFetch(
-        `${GOOGLE_HEALTH_API_BASE}/users/me/dataTypes/${dataType.path}/dataPoints:dailyRollUp`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
+  const walk = async (maxDays: number): Promise<GoogleHealthRollupPoint[]> => {
+    const points: GoogleHealthRollupPoint[] = [];
+    let chunkIndex = 0;
+    for (const chunk of chunkCivilRange(startCivil, endCivil, maxDays)) {
+      let pageToken: string | null | undefined;
+      let pageCount = 0;
+      do {
+        const body = buildDailyRollUpBody(chunk, pageToken ?? undefined);
+
+        requestCount += 1;
+        const reqStart = performance.now();
+        const res = await safeFetch(
+          `${GOOGLE_HEALTH_API_BASE}/users/me/dataTypes/${dataType.path}/dataPoints:dailyRollUp`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
           },
-          body: JSON.stringify(body),
-        },
-      );
-      const json = (await res
-        .json()
-        .catch(() => null)) as GoogleHealthRollupPage | null;
-      const verdict = classifyGoogleHealthResponse(res.status);
-      const apiErrorDetail =
-        verdict.classification === "success"
-          ? undefined
-          : extractGoogleApiErrorDetail(json);
-      getEvent()?.addExternalCall({
-        service: "google-health",
-        method: `${verb}(chunk=${chunkIndex},page=${pageCount})`,
-        duration_ms: Math.round(performance.now() - reqStart),
-        status: res.status,
-        error:
+        );
+        const json = (await res
+          .json()
+          .catch(() => null)) as GoogleHealthRollupPage | null;
+        const verdict = classifyGoogleHealthResponse(res.status);
+        const apiErrorDetail =
           verdict.classification === "success"
             ? undefined
-            : apiErrorDetail
-              ? `${verdict.reason} ${apiErrorDetail}`
-              : verdict.reason,
-      });
-      if (verdict.classification !== "success") {
-        throw new GoogleHealthApiError({
-          verb,
-          classification: verdict.classification,
-          httpStatus: verdict.httpStatus,
-          reason: verdict.reason,
-          upstreamError: apiErrorDetail,
+            : extractGoogleApiErrorDetail(json);
+        getEvent()?.addExternalCall({
+          service: "google-health",
+          method: `${verb}(chunk=${chunkIndex},page=${pageCount})`,
+          duration_ms: Math.round(performance.now() - reqStart),
+          status: res.status,
+          error:
+            verdict.classification === "success"
+              ? undefined
+              : apiErrorDetail
+                ? `${verdict.reason} ${apiErrorDetail}`
+                : verdict.reason,
         });
-      }
+        if (verdict.classification !== "success") {
+          throw new GoogleHealthApiError({
+            verb,
+            classification: verdict.classification,
+            httpStatus: verdict.httpStatus,
+            reason: verdict.reason,
+            upstreamError: apiErrorDetail,
+          });
+        }
 
-      for (const p of json?.rollupDataPoints ?? []) points.push(p);
-      pageToken = json?.nextPageToken ?? null;
-      pageCount += 1;
-    } while (pageToken && pageCount < 100);
-    chunkIndex += 1;
+        for (const p of json?.rollupDataPoints ?? []) points.push(p);
+        pageToken = json?.nextPageToken ?? null;
+        pageCount += 1;
+      } while (pageToken && pageCount < 100);
+      chunkIndex += 1;
+    }
+    return points;
+  };
+
+  let shape: GoogleHealthRollupShape = "days90";
+  let points: GoogleHealthRollupPoint[];
+  try {
+    points = await walk(GOOGLE_HEALTH_ROLLUP_RANGE_DAYS);
+  } catch (err) {
+    const firstRequestRejected =
+      requestCount === 1 &&
+      err instanceof GoogleHealthApiError &&
+      err.httpStatus === 400;
+    if (!firstRequestRejected) throw err;
+    shape = "days14";
+    points = await walk(GOOGLE_HEALTH_ROLLUP_FALLBACK_RANGE_DAYS);
   }
-
+  annotate({ meta: { "googleHealth.rollup.shape": shape } });
+  query.onShape?.(shape);
   return points;
 }
 

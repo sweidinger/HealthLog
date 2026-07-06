@@ -191,6 +191,20 @@ interface SoftSkipTracker {
 const softSkipStorage = new AsyncLocalStorage<SoftSkipTracker>();
 
 /**
+ * Per-cycle ledger of collection fetches that HARD-failed (non-403). A hard
+ * failure on one collection must not abort its siblings — steps 400ing must
+ * not suppress distance / floors / active-energy — so
+ * `handleCollectionFetchError` records the failure here and returns instead of
+ * rethrowing. The orchestrator reads the ledger to keep the cycle's verdict
+ * honest: any entry ⇒ the run counts as failed (partial error), the watermark
+ * is NOT stamped, and the next tick refetches the window.
+ */
+interface HardFailTracker {
+  failures: string[];
+}
+const hardFailStorage = new AsyncLocalStorage<HardFailTracker>();
+
+/**
  * Per-cycle accumulator of the `(type, day)` keys every resource's writes
  * touched. Only populated on a `fullSync` backfill (when the inline per-day
  * rollup hook is deferred); the orchestrator drains it into ONE
@@ -204,10 +218,17 @@ const rollupDeferStorage = new AsyncLocalStorage<RollupDeferTracker>();
 
 /**
  * Single-source the per-resource collection-fetch error handling. A 403 on one
- * data class soft-skips it (warn + return 0) so sibling resources still sync;
- * anything else records a classified sync failure and rethrows. A soft-skip
- * increments the ambient tracker so `syncUserGoogleHealth` can refuse to stamp
- * success on an all-403 grant-revoke cycle that imported nothing.
+ * data class soft-skips it (warn + return 0) so sibling resources still sync; a
+ * soft-skip increments the ambient tracker so `syncUserGoogleHealth` can refuse
+ * to stamp success on an all-403 grant-revoke cycle that imported nothing.
+ *
+ * Anything else records a classified sync failure, warns with the per-type
+ * detail, notes the collection on the ambient hard-fail ledger, and RETURNS —
+ * it does not rethrow. Every call site sits in a per-collection catch, so
+ * returning lets the sibling collections in the same resource keep fetching
+ * (one 400 on steps must not kill distance / floors / active-energy), while
+ * the ledger still fails the cycle so the watermark is not stamped past the
+ * broken collection.
  */
 export async function handleCollectionFetchError(
   resource: string,
@@ -223,7 +244,12 @@ export async function handleCollectionFetchError(
     return 0;
   }
   await recordGoogleHealthSyncFailure(userId, err);
-  throw err;
+  getEvent()?.addWarning(
+    `google-health ${resource} failed for ${userId}: ${err}`,
+  );
+  const hardTracker = hardFailStorage.getStore();
+  if (hardTracker) hardTracker.failures.push(resource);
+  return 0;
 }
 
 /**
@@ -562,31 +588,41 @@ export async function syncUserGoogleHealth(
     import("./sync-workout"),
   ]);
 
+  // Explicit labels — the production bundle minifies `fn.name` into a useless
+  // single letter ("google-health c failed"), so the warning names the resource
+  // itself.
   const resources = [
-    syncUserMetrics,
-    syncUserActivity,
-    syncUserSleep,
-    syncUserWorkout,
+    { name: "metrics", fn: syncUserMetrics },
+    { name: "activity", fn: syncUserActivity },
+    { name: "sleep", fn: syncUserSleep },
+    { name: "workout", fn: syncUserWorkout },
   ];
 
   const tracker: SoftSkipTracker = { count: 0 };
+  const hardFailTracker: HardFailTracker = { failures: [] };
   const deferTracker: RollupDeferTracker = { keys: [] };
   let total = 0;
   let anyFailed = false;
   await softSkipStorage.run(tracker, async () => {
-    await rollupDeferStorage.run(deferTracker, async () => {
-      for (const fn of resources) {
-        try {
-          total += await fn(userId, resourceOpts);
-        } catch (err) {
-          anyFailed = true;
-          getEvent()?.addWarning(
-            `google-health ${fn.name} failed for ${userId}: ${err}`,
-          );
+    await hardFailStorage.run(hardFailTracker, async () => {
+      await rollupDeferStorage.run(deferTracker, async () => {
+        for (const { name, fn } of resources) {
+          try {
+            total += await fn(userId, resourceOpts);
+          } catch (err) {
+            anyFailed = true;
+            getEvent()?.addWarning(
+              `google-health ${name} sync failed for ${userId}: ${err}`,
+            );
+          }
         }
-      }
+      });
     });
   });
+  // A collection that hard-failed inside a resource (recorded on the ledger by
+  // `handleCollectionFetchError` without aborting its siblings) still fails the
+  // cycle: partial error, no watermark stamp.
+  if (hardFailTracker.failures.length > 0) anyFailed = true;
 
   // On a `fullSync` backfill the per-write inline rollup hook was deferred; the
   // accumulated touched type-days collapse into ONE range-recompute spanning the
