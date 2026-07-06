@@ -2,6 +2,8 @@ import type { Locale } from "@/lib/i18n/config";
 import {
   grounding,
   toneContract,
+  antiRecitation,
+  interpretationDepth,
   safetyGlp1,
   safetyAcute,
   metricIdentifierBan,
@@ -197,6 +199,18 @@ Synthese statt Aufzählung: die Geschichte dessen, was die Daten bedeuten, zähl
   // the cross-surface wording so an edit lands here and everywhere at once.
   { id: "sharedGrounding", en: grounding.en, de: grounding.de },
   { id: "sharedTone", en: toneContract.en, de: toneContract.de },
+  // v1.27.13 (Welle J) — the anti-recitation + interpretation-depth contracts.
+  // The assessment surface is exactly where the maintainer's "counts are nice
+  // but useless" complaint lands, so both contracts are enforced here: don't
+  // narrate mechanics, and place the value on its guideline scale + judge the
+  // trend by position (the per-metric INTERPRETATION CONTEXT block carries the
+  // computed placement).
+  { id: "sharedAntiRecitation", en: antiRecitation.en, de: antiRecitation.de },
+  {
+    id: "sharedInterpretationDepth",
+    en: interpretationDepth.en,
+    de: interpretationDepth.de,
+  },
   // v1.22 (W6) — paragraph formatting contract so a longer assessment renders
   // as real paragraphs through the shared `ProseBlocks` helper.
   {

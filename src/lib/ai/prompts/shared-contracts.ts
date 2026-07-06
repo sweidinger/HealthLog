@@ -77,6 +77,34 @@ Schreibe in der zweiten Person, warm und direkt. Wenn die Daten es hergeben, ben
 };
 
 /**
+ * v1.27.13 (Welle J) — anti-recitation contract. The maintainer's complaint,
+ * verbatim intent: "that I logged it three times, or in what rhythm values were
+ * taken, is nice but does nothing for me." Measurement counts, logging cadence,
+ * and page-mechanics narration are NOT insights. They may appear ONLY when they
+ * carry a consequence — and then as the consequence, not the count.
+ */
+export const antiRecitation: SharedContract = {
+  en: `NOT AN INSIGHT — never recite mechanics
+A measurement count ("logged 3 times"), a logging cadence ("measured every few days"), or page-mechanics narration is NOT an insight and does not belong in the prose on its own. Use such a fact ONLY when it carries a consequence, and then state the consequence, not the count: e.g. "too few readings this week to call a trend — one morning reading would settle it", not "you measured twice this week". Every sentence must earn its place by telling the person what a value MEANS or what follows from it, never by narrating how the data was collected.`,
+  de: `KEINE EINSCHÄTZUNG — nie Mechanik nacherzählen
+Eine Messanzahl ("3-mal erfasst"), ein Erfassungsrhythmus ("alle paar Tage gemessen") oder Bedien-Mechanik ist KEINE Einschätzung und gehört für sich genommen nicht in den Text. Nutze eine solche Angabe NUR, wenn sie eine Konsequenz trägt, und nenne dann die Konsequenz, nicht die Zahl: z. B. "diese Woche zu wenige Werte für eine Tendenz — eine Morgenmessung würde es klären", nicht "du hast diese Woche zweimal gemessen". Jeder Satz muss sich verdienen, indem er sagt, was ein Wert BEDEUTET oder was daraus folgt — nie, indem er erzählt, wie die Daten erhoben wurden.`,
+};
+
+/**
+ * v1.27.13 (Welle J) — interpretation-depth contract. Assessments must
+ * interpret, not enumerate: place the value on its guideline scale, judge the
+ * trend BY that position, frame the consequence without diagnosis. Where the
+ * user prompt carries an INTERPRETATION CONTEXT block, lead from it; where it
+ * does not, interpret against the person's own baseline and say so honestly.
+ */
+export const interpretationDepth: SharedContract = {
+  en: `INTERPRET, DON'T ENUMERATE
+Say what a value MEANS, not just what it is. When the user prompt carries an INTERPRETATION CONTEXT block, use it: name where the value sits on the guideline scale, what that band means in plain, dignified words, and what practically follows. Judge the trend IN CONTEXT — a "slightly rising" reading deep inside a favourable band is a footnote; the same movement at or near a boundary is the headline. Frame any consequence WITHOUT diagnosis: "values in this range are considered … per guidelines", never "you have X" or "you are at risk of X". When NO interpretation block is present, the metric has no general reference band — interpret it relative to the person's OWN baseline and say plainly that no general reference band is attached, rather than inventing one.`,
+  de: `EINORDNEN, NICHT AUFZÄHLEN
+Sag, was ein Wert BEDEUTET, nicht nur, was er ist. Trägt der User-Prompt einen EINORDNUNGS-KONTEXT-Block, nutze ihn: benenne, wo der Wert auf der Leitlinien-Skala liegt, was dieses Band in klaren, würdevollen Worten bedeutet und was praktisch folgt. Beurteile den Trend IM KONTEXT — ein "leicht steigender" Wert tief in einem günstigen Band ist eine Randnotiz; dieselbe Bewegung an oder nahe einer Grenze ist die Schlagzeile. Rahme jede Konsequenz OHNE Diagnose: "Werte in diesem Bereich gelten laut Leitlinien als …", nie "du hast X" oder "du bist gefährdet für X". Ist KEIN Einordnungs-Block vorhanden, hat die Metrik kein allgemeines Referenzband — ordne sie gegen die EIGENE Baseline der Person ein und sage klar, dass kein allgemeines Referenzband hinterlegt ist, statt eines zu erfinden.`,
+};
+
+/**
  * GLP-1 dose-prescription safety contract. Previously present ONLY in the
  * comprehensive + Coach prompts; now enforced on every surface that can name
  * a medication (the stricter, more-complete posture).
@@ -163,6 +191,8 @@ export const formattingContract: SharedContract = {
 export const SHARED_CONTRACTS = {
   grounding,
   toneContract,
+  antiRecitation,
+  interpretationDepth,
   safetyGlp1,
   safetyAcute,
   metricIdentifierBan,
