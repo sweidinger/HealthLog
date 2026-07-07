@@ -5119,7 +5119,23 @@
       "passphraseHint": "Die Empfängerin oder der Empfänger benötigt Link und Passphrase. Der QR-Code enthält beides.",
       "copyLink": "Link kopieren",
       "copyPassphrase": "Passphrase kopieren",
-      "protected": "Passphrase"
+      "protected": "Passphrase",
+      "attachTitle": "Dokumente anhängen",
+      "attachButton": "Dokumente auswählen",
+      "attachCount": "{count} von {max} ausgewählt",
+      "attachFrozen": "Die Dokumentenauswahl ist nach dem Erstellen des Links fest — Dokumente lassen sich danach weder hinzufügen noch entfernen.",
+      "attachRemove": "{title} entfernen",
+      "exifNote": "Kamera-Metadaten (EXIF/GPS) werden beim Teilen aus JPEG-, PNG- und WebP-Bildern entfernt. PDF-, TIFF-, HEIC- und Office-Dateien werden unverändert übernommen.",
+      "documentCount": "Angehängte Dokumente: {count}",
+      "qrScanTitle": "Zum Öffnen auf einem anderen Gerät scannen",
+      "qrScanHint": "Richte eine Handykamera auf den Code, um die geteilte Akte zu öffnen — die Passphrase ist bereits enthalten.",
+      "pickerTitle": "Dokumente anhängen",
+      "pickerDescription": "Durchsuche deinen Tresor und wähle Dokumente zum Teilen. Bis zu {max}.",
+      "pickerSearch": "Dokumente suchen",
+      "pickerEmpty": "Keine Dokumente gefunden.",
+      "pickerDone": "Fertig",
+      "pickerSelectedCount": "{count} von {max} ausgewählt",
+      "pickerMaxReached": "Maximum von {max} Dokumenten erreicht."
     },
     "genderOther": "Divers",
     "cycleTracking": {
@@ -6591,6 +6607,13 @@
       "title": "Diese geteilte Ansicht konnte nicht geladen werden",
       "description": "Beim Öffnen dieser geteilten Gesundheitsdaten ist ein Fehler aufgetreten. Der Link ist möglicherweise abgelaufen, oder es lag ein vorübergehendes Problem vor. Versuche es erneut oder bitte die Person, die den Link geteilt hat, um einen neuen.",
       "retry": "Erneut versuchen"
+    },
+    "documents": {
+      "title": "Dokumente",
+      "untitled": "Unbenanntes Dokument",
+      "download": "Herunterladen",
+      "attachmentHint": "Diese Datei wird auf dein Gerät heruntergeladen (keine Vorschau in der Seite).",
+      "exifNote": "Kamera-Metadaten (EXIF/GPS) wurden aus geteilten JPEG-, PNG- und WebP-Bildern entfernt."
     }
   },
   "cycle": {

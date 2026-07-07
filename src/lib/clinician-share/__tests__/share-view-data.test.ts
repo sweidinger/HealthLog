@@ -125,6 +125,7 @@ describe("loadShareViewData — KVNR default OFF", () => {
         kind: "LAB_REPORT",
         documentDate: "2026-01-15",
         byteSize: 12345,
+        mimeType: "application/pdf",
         servingClass: "inline",
       },
       {
@@ -133,6 +134,7 @@ describe("loadShareViewData — KVNR default OFF", () => {
         kind: "OTHER",
         documentDate: null,
         byteSize: 6789,
+        mimeType: "application/msword",
         servingClass: "attachment",
       },
     ]);

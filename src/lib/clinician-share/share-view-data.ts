@@ -36,6 +36,13 @@ export interface ShareViewDocument {
   /** Filing date (YYYY-MM-DD at UTC) or null. */
   documentDate: string | null;
   byteSize: number;
+  /**
+   * The stored content type (metadata, never bytes). The recipient view uses
+   * it to pick the inline surface — an image tag for `image/*`, a framed PDF
+   * for `application/pdf` — within the Class A carve-out. Class B types are
+   * download-only regardless.
+   */
+  mimeType: string;
   servingClass: DocumentServingClass;
 }
 
@@ -119,6 +126,7 @@ async function loadShareDocuments(
       ? document.documentDate.toISOString().slice(0, 10)
       : null,
     byteSize: document.byteSize,
+    mimeType: document.mimeType,
     servingClass: servingClassFor(document.mimeType),
   }));
 }

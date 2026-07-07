@@ -5119,7 +5119,23 @@
       "passphraseHint": "Odbiorca potrzebuje linku i tego hasła. Kod QR zawiera oba.",
       "copyLink": "Kopiuj link",
       "copyPassphrase": "Kopiuj hasło",
-      "protected": "Hasło"
+      "protected": "Hasło",
+      "attachTitle": "Dołącz dokumenty",
+      "attachButton": "Wybierz dokumenty",
+      "attachCount": "Wybrano {count} z {max}",
+      "attachFrozen": "Zestaw dokumentów jest ustalany przy tworzeniu linku — później nie można dodawać ani usuwać dokumentów.",
+      "attachRemove": "Usuń {title}",
+      "exifNote": "Metadane aparatu (EXIF/GPS) są usuwane z obrazów JPEG, PNG i WebP podczas udostępniania. Pliki PDF, TIFF, HEIC i Office są przekazywane bez zmian.",
+      "documentCount": "Dołączone dokumenty: {count}",
+      "qrScanTitle": "Zeskanuj, aby otworzyć na innym urządzeniu",
+      "qrScanHint": "Skieruj aparat telefonu na kod, aby otworzyć udostępnioną dokumentację — hasło jest już dołączone.",
+      "pickerTitle": "Dołącz dokumenty",
+      "pickerDescription": "Przeszukaj swój sejf i wybierz dokumenty do udostępnienia. Maksymalnie {max}.",
+      "pickerSearch": "Szukaj dokumentów",
+      "pickerEmpty": "Nie znaleziono dokumentów.",
+      "pickerDone": "Gotowe",
+      "pickerSelectedCount": "Wybrano {count} z {max}",
+      "pickerMaxReached": "Osiągnięto maksymalną liczbę {max} dokumentów."
     },
     "genderOther": "Inna",
     "cycleTracking": {
@@ -6591,6 +6607,13 @@
       "title": "Nie udało się załadować udostępnionego widoku",
       "description": "Podczas otwierania udostępnionej dokumentacji zdrowotnej wystąpił błąd. Link mógł wygasnąć lub wystąpił chwilowy problem. Spróbuj ponownie albo poproś osobę, która go udostępniła, o nowy link.",
       "retry": "Spróbuj ponownie"
+    },
+    "documents": {
+      "title": "Dokumenty",
+      "untitled": "Dokument bez tytułu",
+      "download": "Pobierz",
+      "attachmentHint": "Ten plik zostanie pobrany na Twoje urządzenie (bez podglądu na stronie).",
+      "exifNote": "Metadane aparatu (EXIF/GPS) zostały usunięte z udostępnionych obrazów JPEG, PNG i WebP."
     }
   },
   "cycle": {

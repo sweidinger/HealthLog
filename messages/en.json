@@ -5119,7 +5119,23 @@
       "passphraseHint": "The recipient needs both the link and this passphrase. The QR code carries both.",
       "copyLink": "Copy link",
       "copyPassphrase": "Copy passphrase",
-      "protected": "Passphrase"
+      "protected": "Passphrase",
+      "attachTitle": "Attach documents",
+      "attachButton": "Choose documents",
+      "attachCount": "{count} of {max} selected",
+      "attachFrozen": "The document set is fixed once you create the link — documents can't be added or removed afterwards.",
+      "attachRemove": "Remove {title}",
+      "exifNote": "Camera metadata (EXIF/GPS) is removed from JPEG, PNG and WebP images when shared. PDF, TIFF, HEIC and Office files pass through unchanged.",
+      "documentCount": "Attached documents: {count}",
+      "qrScanTitle": "Scan to open on another device",
+      "qrScanHint": "Point a phone camera at the code to open the shared record — the passphrase is already included.",
+      "pickerTitle": "Attach documents",
+      "pickerDescription": "Search your vault and select documents to share. Up to {max}.",
+      "pickerSearch": "Search documents",
+      "pickerEmpty": "No documents found.",
+      "pickerDone": "Done",
+      "pickerSelectedCount": "{count} of {max} selected",
+      "pickerMaxReached": "You've reached the maximum of {max} documents."
     },
     "genderOther": "Other",
     "cycleTracking": {
@@ -6591,6 +6607,13 @@
       "title": "This shared view could not be loaded",
       "description": "Something went wrong while opening this shared health record. The link may have expired, or there was a temporary problem. Try again, or ask the person who shared it for a new link.",
       "retry": "Try again"
+    },
+    "documents": {
+      "title": "Documents",
+      "untitled": "Untitled document",
+      "download": "Download",
+      "attachmentHint": "This file downloads to your device (no in-page preview).",
+      "exifNote": "Camera metadata (EXIF/GPS) has been removed from shared JPEG, PNG and WebP images."
     }
   },
   "cycle": {
