@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.27.21] — 2026-07-07 — Hero spacing and one green
+
+### Changed
+
+- The dashboard hero's greeting anchors to the top edge instead of drifting to the vertical centre of the taller ring column, and the briefing follows closely instead of sitting a full step below — the wide gap under the greeting is gone.
+- A "green" score ring now uses the same green as every positive signal and trend delta beside it (the band-fallback ring green landed on its own hue before). Green reads as one green across rings, signals, and deltas — the change is app-wide (insights rings included), with computed contrast 11.9:1 dark / 6.1:1 light.
+
 ## [1.27.20] — 2026-07-07 — Coach and cycle toggle from the modules hub
 
 ### Changed
