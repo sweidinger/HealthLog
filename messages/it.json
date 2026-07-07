@@ -8044,7 +8044,6 @@
     "filter": {
       "searchLabel": "Cerca documenti",
       "searchPlaceholder": "Cerca titolo o nome file…",
-      "groupLabel": "Filtra documenti",
       "typeGroup": "Tipo di documento",
       "conditionGroup": "Patologia",
       "yearGroup": "Anno",

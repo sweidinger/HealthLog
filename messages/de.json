@@ -8044,7 +8044,6 @@
     "filter": {
       "searchLabel": "Dokumente durchsuchen",
       "searchPlaceholder": "Titel oder Dateiname suchen…",
-      "groupLabel": "Dokumente filtern",
       "typeGroup": "Dokumenttyp",
       "conditionGroup": "Erkrankung",
       "yearGroup": "Jahr",

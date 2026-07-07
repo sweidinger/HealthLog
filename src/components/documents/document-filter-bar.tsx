@@ -19,7 +19,15 @@
  * sticks below the top edge inside the shell's scroll container (sticky,
  * translucent background, border-b — no viewport-height tricks).
  */
-import { ChevronDown, ScanSearch, Search, X } from "lucide-react";
+import {
+  Activity,
+  Calendar,
+  ChevronDown,
+  ListFilter,
+  ScanSearch,
+  Search,
+  X,
+} from "lucide-react";
 import type { RefObject } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -41,6 +49,19 @@ import { DOCUMENT_KIND_ICONS, DOCUMENT_KIND_ORDER } from "./document-kind-meta";
 const TRIGGER_ACTIVE = "border-primary/40 bg-primary/10 text-foreground";
 /** Shared trigger chrome: compact, fixed, never shrinks below its label. */
 const TRIGGER_CLASSES = "shrink-0 gap-1.5 font-normal";
+
+/**
+ * The facet label is the whole point of the trigger — but three text labels
+ * plus the search will not fit a 360px phone. So the label shows from `sm`
+ * up, and on a phone only when the facet is ACTIVE (truncated), while the
+ * leading icon always carries the facet identity. The trailing chevron is
+ * desktop-only chrome. Net: inactive phone triggers collapse to a single
+ * icon, the row stays one line at every width, and the accessible name is
+ * pinned via `aria-label` so an icon-only trigger still announces its state.
+ */
+function facetLabelClass(active: boolean): string {
+  return cn("max-w-28 truncate", active ? "inline" : "hidden sm:inline");
+}
 
 export interface ConditionChip {
   episodeId: string;
@@ -150,10 +171,17 @@ export function DocumentFilterBar({
               variant="outline"
               size="sm"
               data-slot="document-type-filter"
+              aria-label={typeLabel}
               className={cn(TRIGGER_CLASSES, kindCount > 0 && TRIGGER_ACTIVE)}
             >
-              <span className="max-w-32 truncate">{typeLabel}</span>
-              <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+              <ListFilter className="size-4 shrink-0" aria-hidden />
+              <span className={facetLabelClass(kindCount > 0)}>
+                {typeLabel}
+              </span>
+              <ChevronDown
+                className="hidden size-3.5 opacity-60 sm:inline"
+                aria-hidden
+              />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -191,13 +219,20 @@ export function DocumentFilterBar({
                 variant="outline"
                 size="sm"
                 data-slot="document-condition-filter"
+                aria-label={conditionLabel}
                 className={cn(
                   TRIGGER_CLASSES,
                   activeCondition && TRIGGER_ACTIVE,
                 )}
               >
-                <span className="max-w-32 truncate">{conditionLabel}</span>
-                <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+                <Activity className="size-4 shrink-0" aria-hidden />
+                <span className={facetLabelClass(Boolean(activeCondition))}>
+                  {conditionLabel}
+                </span>
+                <ChevronDown
+                  className="hidden size-3.5 opacity-60 sm:inline"
+                  aria-hidden
+                />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -230,14 +265,21 @@ export function DocumentFilterBar({
                 variant="outline"
                 size="sm"
                 data-slot="document-year-filter"
+                aria-label={yearLabel}
                 className={cn(
                   TRIGGER_CLASSES,
                   "tabular-nums",
                   activeYear !== undefined && TRIGGER_ACTIVE,
                 )}
               >
-                <span>{yearLabel}</span>
-                <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+                <Calendar className="size-4 shrink-0" aria-hidden />
+                <span className={facetLabelClass(activeYear !== undefined)}>
+                  {yearLabel}
+                </span>
+                <ChevronDown
+                  className="hidden size-3.5 opacity-60 sm:inline"
+                  aria-hidden
+                />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

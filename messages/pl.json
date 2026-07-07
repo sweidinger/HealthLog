@@ -8044,7 +8044,6 @@
     "filter": {
       "searchLabel": "Szukaj dokumentów",
       "searchPlaceholder": "Szukaj tytułu lub nazwy pliku…",
-      "groupLabel": "Filtruj dokumenty",
       "typeGroup": "Typ dokumentu",
       "conditionGroup": "Schorzenie",
       "yearGroup": "Rok",

@@ -8044,7 +8044,6 @@
     "filter": {
       "searchLabel": "Search documents",
       "searchPlaceholder": "Search title or filename…",
-      "groupLabel": "Filter documents",
       "typeGroup": "Document type",
       "conditionGroup": "Condition",
       "yearGroup": "Year",
