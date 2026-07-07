@@ -11,7 +11,7 @@
  * sticks below the top edge inside the shell's scroll container (sticky,
  * translucent background, border-b — no viewport-height tricks).
  */
-import { Search, X } from "lucide-react";
+import { ScanSearch, Search, X } from "lucide-react";
 import type { RefObject } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,10 @@ export function DocumentFilterBar({
   onToggleYear,
   activeCount,
   onClearAll,
+  contentSearchActive = false,
+  showIndexAll = false,
+  indexAllPending = false,
+  onIndexAll,
 }: {
   searchValue: string;
   onSearchChange: (value: string) => void;
@@ -60,6 +64,12 @@ export function DocumentFilterBar({
   onToggleYear: (year: number) => void;
   activeCount: number;
   onClearAll: () => void;
+  /** Search already matches indexed document CONTENT (whole words). */
+  contentSearchActive?: boolean;
+  /** Some documents are not yet indexed — offer the corpus backfill. */
+  showIndexAll?: boolean;
+  indexAllPending?: boolean;
+  onIndexAll?: () => void;
 }) {
   const { t } = useTranslations();
 
@@ -205,6 +215,35 @@ export function DocumentFilterBar({
           </Button>
         ) : null}
       </div>
+
+      {contentSearchActive || showIndexAll ? (
+        <div
+          data-slot="content-search-hint"
+          className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <ScanSearch className="size-3.5 shrink-0" aria-hidden />
+            {contentSearchActive
+              ? t("documents.contentIndex.searchHint")
+              : t("documents.contentIndex.indexPrompt")}
+          </span>
+          {showIndexAll ? (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              data-slot="content-index-all"
+              onClick={onIndexAll}
+              disabled={indexAllPending}
+              className="text-primary h-auto p-0 text-xs"
+            >
+              {indexAllPending
+                ? t("documents.contentIndex.indexAllPending")
+                : t("documents.contentIndex.indexAll")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
