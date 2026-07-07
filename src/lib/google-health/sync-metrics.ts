@@ -5,14 +5,17 @@
  * `health_metrics_and_measurements.readonly` Restricted bundle and upserts each
  * mapped reading as `source = GOOGLE_HEALTH`:
  *
- *   - weight                        → WEIGHT
- *   - body-fat                      → BODY_FAT
- *   - daily-oxygen-saturation       → OXYGEN_SATURATION
- *   - daily-heart-rate-variability  → HEART_RATE_VARIABILITY (SDNN slot; see mapper)
- *   - daily-resting-heart-rate      → RESTING_HEART_RATE
- *   - daily-respiratory-rate        → RESPIRATORY_RATE
- *   - heart-rate (intraday)         → PULSE
- *   - height                        → User.heightCm (profile seed, NOT a Measurement)
+ *   - weight                                → WEIGHT
+ *   - body-fat                              → BODY_FAT
+ *   - daily-oxygen-saturation               → OXYGEN_SATURATION
+ *   - daily-heart-rate-variability          → HEART_RATE_VARIABILITY (SDNN slot; see mapper)
+ *   - daily-resting-heart-rate              → RESTING_HEART_RATE
+ *   - daily-respiratory-rate                → RESPIRATORY_RATE
+ *   - heart-rate (intraday)                 → PULSE
+ *   - blood-glucose                         → BLOOD_GLUCOSE (mg/dL at source)
+ *   - core-body-temperature                 → BODY_TEMPERATURE
+ *   - daily-sleep-temperature-derivations   → WRIST_TEMPERATURE (absolute nightly skin temp)
+ *   - height                                → User.heightCm (profile seed, NOT a Measurement)
  *
  * Each data point yields at most one Measurement row, disambiguated by the
  * per-point anchor + field-tag in the externalId (`<anchor>:<fieldTag>`) so a
@@ -27,7 +30,9 @@ import {
   type GoogleHealthDataType,
   type GoogleHealthMappedMeasurement,
   fetchDataPoints,
+  mapBloodGlucose,
   mapBodyFat,
+  mapCoreBodyTemperature,
   mapHeartRate,
   mapHeartRateVariability,
   mapHeight,
@@ -35,6 +40,7 @@ import {
   mapRespiratoryRate,
   mapRestingHeartRate,
   mapWeight,
+  mapWristTemperature,
 } from "./client";
 import {
   getValidToken,
@@ -90,9 +96,24 @@ const METRIC_RESOURCES: MetricResource[] = [
     map: mapHeartRate,
     verb: "fetchHeartRate",
   },
-  // Skin temperature is intentionally omitted for v1 — Google surfaces a nightly
-  // signed DEVIATION from baseline, a future enhancement needing a signed-delta
-  // model (see `GOOGLE_HEALTH_DATA_TYPES` in `client.ts`).
+  {
+    dataType: GOOGLE_HEALTH_DATA_TYPES.bloodGlucose,
+    map: mapBloodGlucose,
+    verb: "fetchBloodGlucose",
+  },
+  {
+    dataType: GOOGLE_HEALTH_DATA_TYPES.coreBodyTemperature,
+    map: mapCoreBodyTemperature,
+    verb: "fetchCoreBodyTemperature",
+  },
+  // Nightly sleep skin temperature — the documented `nightlyTemperatureCelsius`
+  // is an absolute reading (not the once-assumed signed deviation), so it lands
+  // in the WRIST_TEMPERATURE absolute-reading slot.
+  {
+    dataType: GOOGLE_HEALTH_DATA_TYPES.sleepTemperature,
+    map: mapWristTemperature,
+    verb: "fetchSleepTemperature",
+  },
 ];
 
 export async function syncUserMetrics(

@@ -519,10 +519,29 @@ export const GOOGLE_HEALTH_DATA_TYPES = {
     key: "height",
     timeField: "sample",
   },
-  // Skin temperature (`daily-sleep-temperature-derivations`) is intentionally
-  // OMITTED: Google surfaces a nightly signed DEVIATION from baseline, not an
-  // absolute reading — a future enhancement needing a signed-delta model, not an
-  // absolute WRIST_TEMPERATURE row.
+  bloodGlucose: {
+    path: "blood-glucose",
+    filter: "blood_glucose",
+    key: "bloodGlucose",
+    timeField: "sample",
+  },
+  coreBodyTemperature: {
+    path: "core-body-temperature",
+    filter: "core_body_temperature",
+    key: "coreBodyTemperature",
+    timeField: "sample",
+  },
+  // Nightly sleep skin temperature. The documented `nightlyTemperatureCelsius`
+  // is an ABSOLUTE reading ("the mean of skin temperature samples taken from
+  // the user's sleep"), alongside a separate `baselineTemperatureCelsius` — so
+  // it maps cleanly onto the absolute WRIST_TEMPERATURE slot. (An earlier note
+  // claimed Google only ships a signed deviation; the schema refutes that.)
+  sleepTemperature: {
+    path: "daily-sleep-temperature-derivations",
+    filter: "daily_sleep_temperature_derivations",
+    key: "dailySleepTemperatureDerivations",
+    timeField: "date",
+  },
   // ── Activity bundle — daily cumulative totals ──────────────────
   // Scope: `googlehealth.activity_and_fitness.readonly`. Read through
   // `POST :dailyRollUp` with `windowSizeDays: 1`: the `list` surface returns
@@ -1475,6 +1494,52 @@ export function mapRespiratoryRate(
     unit: "breaths/min",
     fieldTag: "resp_rate",
     valuePaths: [`${dt.key}.breathsPerMinute`],
+  });
+}
+
+export function mapBloodGlucose(
+  point: GoogleHealthDataPoint,
+): GoogleHealthMappedMeasurement[] {
+  const dt = GOOGLE_HEALTH_DATA_TYPES.bloodGlucose;
+  // Documented field `bloodGlucoseMilligramsPerDeciliter` (number) — already in
+  // HealthLog's canonical mg/dL storage unit, no conversion.
+  return mapSimple(point, dt, {
+    type: "BLOOD_GLUCOSE",
+    unit: "mg/dL",
+    fieldTag: "glucose",
+    valuePaths: [`${dt.key}.bloodGlucoseMilligramsPerDeciliter`],
+  });
+}
+
+export function mapCoreBodyTemperature(
+  point: GoogleHealthDataPoint,
+): GoogleHealthMappedMeasurement[] {
+  const dt = GOOGLE_HEALTH_DATA_TYPES.coreBodyTemperature;
+  // Documented field `temperatureCelsius` (number) → the core BODY_TEMPERATURE
+  // slot (distinct from SKIN_TEMPERATURE / WRIST_TEMPERATURE surface readings).
+  return mapSimple(point, dt, {
+    type: "BODY_TEMPERATURE",
+    unit: "celsius",
+    fieldTag: "core_temp",
+    valuePaths: [`${dt.key}.temperatureCelsius`],
+  });
+}
+
+export function mapWristTemperature(
+  point: GoogleHealthDataPoint,
+): GoogleHealthMappedMeasurement[] {
+  const dt = GOOGLE_HEALTH_DATA_TYPES.sleepTemperature;
+  // `nightlyTemperatureCelsius` is the ABSOLUTE nightly skin temperature ("the
+  // mean of skin temperature samples taken from the user's sleep") → the
+  // WRIST_TEMPERATURE slot, mirroring the Apple sleeping-wrist-temperature
+  // absolute-reading convention. The sibling `baselineTemperatureCelsius` /
+  // `relativeNightlyStddev30dCelsius` derivations are not stored — the user's
+  // own series carries the baseline.
+  return mapSimple(point, dt, {
+    type: "WRIST_TEMPERATURE",
+    unit: "celsius",
+    fieldTag: "wrist_temp",
+    valuePaths: [`${dt.key}.nightlyTemperatureCelsius`],
   });
 }
 

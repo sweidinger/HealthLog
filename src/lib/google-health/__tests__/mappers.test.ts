@@ -20,7 +20,9 @@ import {
   incrementalFilter,
   GOOGLE_HEALTH_DATA_TYPES,
   mapActiveEnergy,
+  mapBloodGlucose,
   mapBodyFat,
+  mapCoreBodyTemperature,
   mapDistance,
   mapFloors,
   mapGoogleHealthSleepStage,
@@ -36,6 +38,7 @@ import {
   mapVo2Max,
   mapWeight,
   mapWorkout,
+  mapWristTemperature,
 } from "../client";
 
 describe("mapWeight — spot sample", () => {
@@ -162,6 +165,66 @@ describe("mapRespiratoryRate — daily-respiratory-rate summary", () => {
         },
       }),
     ).toEqual([]);
+  });
+});
+
+describe("mapBloodGlucose — spot sample", () => {
+  it("reads bloodGlucoseMilligramsPerDeciliter in the canonical mg/dL unit", () => {
+    const rows = mapBloodGlucose({
+      bloodGlucose: {
+        bloodGlucoseMilligramsPerDeciliter: 104,
+        measurementSource: "GLUCOMETER",
+        sampleTime: { physicalTime: "2026-06-01T07:45:00.000Z" },
+      },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      type: "BLOOD_GLUCOSE",
+      unit: "mg/dL",
+      value: 104,
+      fieldTag: "2026-06-01T07:45:00.000Z:glucose",
+    });
+  });
+});
+
+describe("mapCoreBodyTemperature — spot sample", () => {
+  it("reads temperatureCelsius into the core BODY_TEMPERATURE slot", () => {
+    const rows = mapCoreBodyTemperature({
+      coreBodyTemperature: {
+        temperatureCelsius: 36.9,
+        measurementLocation: "BODY",
+        sampleTime: { physicalTime: "2026-06-01T19:00:00.000Z" },
+      },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      type: "BODY_TEMPERATURE",
+      unit: "celsius",
+      value: 36.9,
+      fieldTag: "2026-06-01T19:00:00.000Z:core_temp",
+    });
+  });
+});
+
+describe("mapWristTemperature — daily-sleep-temperature-derivations", () => {
+  it("reads the ABSOLUTE nightlyTemperatureCelsius into WRIST_TEMPERATURE", () => {
+    // `nightlyTemperatureCelsius` is the mean absolute skin temperature over
+    // the night — NOT a signed deviation. Baseline/stddev siblings are ignored.
+    const rows = mapWristTemperature({
+      dailySleepTemperatureDerivations: {
+        nightlyTemperatureCelsius: 33.4,
+        baselineTemperatureCelsius: 33.1,
+        relativeNightlyStddev30dCelsius: 0.4,
+        date: { year: 2026, month: 6, day: 1 },
+      },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      type: "WRIST_TEMPERATURE",
+      unit: "celsius",
+      value: 33.4,
+      fieldTag: "2026-06-01:wrist_temp",
+    });
   });
 });
 
