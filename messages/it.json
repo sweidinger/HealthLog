@@ -8048,7 +8048,11 @@
       "typeGroup": "Tipo di documento",
       "conditionGroup": "Patologia",
       "yearGroup": "Anno",
-      "clear": "Cancella filtri"
+      "clear": "Cancella filtri",
+      "typeAll": "Tutti i tipi",
+      "typeCount": "{count} tipi",
+      "conditionAll": "Tutte le patologie",
+      "yearAll": "Tutti gli anni"
     },
     "card": {
       "untitled": "Documento senza titolo",

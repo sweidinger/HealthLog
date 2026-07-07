@@ -8048,7 +8048,11 @@
       "typeGroup": "Type de document",
       "conditionGroup": "Affection",
       "yearGroup": "Année",
-      "clear": "Effacer les filtres"
+      "clear": "Effacer les filtres",
+      "typeAll": "Tous les types",
+      "typeCount": "{count} types",
+      "conditionAll": "Toutes les affections",
+      "yearAll": "Toutes les années"
     },
     "card": {
       "untitled": "Document sans titre",

@@ -1,30 +1,46 @@
 "use client";
 
 /**
- * The vault's sticky filter rail: debounced title/filename search, the
- * nine-kind type-chip row (multi-select, OR inside the facet), condition
- * chips (episodes that actually carry links), a year segmenter (years
- * present in the corpus), and a one-tap clear with the active-facet count.
+ * The vault's sticky filter rail: debounced title/filename search plus three
+ * compact dropdown facets — type (multi-select, OR inside the facet),
+ * condition (episodes that actually carry links, single-select), and year
+ * (years present in the corpus, single-select) — and a one-tap clear with
+ * the active-facet count.
+ *
+ * The controls sit on ONE row at every width: the search flexes and can
+ * shrink to nothing while each dropdown trigger stays a fixed compact
+ * control, so the bar never wraps to a second line and never grows a
+ * horizontal chip scroller. The content-search hint (indexed-content match
+ * + corpus backfill) rides its own helper line below, only when indexing is
+ * live.
  *
  * Purely presentational — the filter state lives in the page URL and is
  * owned by `documents-view.tsx`; this bar only renders the controls. It
  * sticks below the top edge inside the shell's scroll container (sticky,
  * translucent background, border-b — no viewport-height tricks).
  */
-import { ScanSearch, Search, X } from "lucide-react";
+import { ChevronDown, ScanSearch, Search, X } from "lucide-react";
 import type { RefObject } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import type { InboundDocumentKindValue } from "@/lib/validations/inbound-documents";
 import { DOCUMENT_KIND_ICONS, DOCUMENT_KIND_ORDER } from "./document-kind-meta";
 
-/** Shared chip chrome — mirrors the app-wide FilterBar pill vocabulary. */
-const CHIP_CLASSES =
-  "border-border bg-card text-foreground inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-sm whitespace-nowrap shadow-xs transition-colors focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none";
-const CHIP_ACTIVE_CLASSES = "border-primary/40 bg-primary/10";
+/** Active-facet tint on a dropdown trigger — mirrors the app pill vocabulary. */
+const TRIGGER_ACTIVE = "border-primary/40 bg-primary/10 text-foreground";
+/** Shared trigger chrome: compact, fixed, never shrinks below its label. */
+const TRIGGER_CLASSES = "shrink-0 gap-1.5 font-normal";
 
 export interface ConditionChip {
   episodeId: string;
@@ -73,17 +89,36 @@ export function DocumentFilterBar({
 }) {
   const { t } = useTranslations();
 
+  const kindCount = activeKinds.size;
+  const typeLabel =
+    kindCount === 0
+      ? t("documents.filter.typeAll")
+      : kindCount === 1
+        ? t(`documents.kind.${[...activeKinds][0]}`)
+        : t("documents.filter.typeCount", { count: kindCount });
+
+  const activeCondition = conditionChips.find(
+    (chip) => chip.episodeId === activeEpisodeId,
+  );
+  const conditionLabel =
+    activeCondition?.name ?? t("documents.filter.conditionAll");
+
+  const yearLabel =
+    activeYear !== undefined
+      ? String(activeYear)
+      : t("documents.filter.yearAll");
+
   return (
     <div
       data-slot="document-filter-bar"
       className="bg-background/95 border-border sticky top-0 z-10 -mx-4 border-b px-4 pt-1 pb-3 backdrop-blur md:-mx-6 md:px-6"
     >
-      {/* Search shares one row with the tag chips on desktop — it wraps to
-          its own line only on phone widths where a chip scroller plus an
-          input can't share a row. The chip scroller flexes to fill the
-          rest; the clear button pins to the trailing edge. */}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-        <div className="relative w-full shrink-0 md:w-64">
+      {/* One row at every width: the search flexes (min-w-0 → it can shrink to
+          nothing), every dropdown trigger stays a fixed compact control, and
+          the clear pins to the trailing edge. `flex-nowrap` guarantees the bar
+          never breaks to a second line. */}
+      <div className="flex flex-nowrap items-center gap-2">
+        <div className="relative min-w-0 flex-1">
           <Search
             className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
             aria-hidden
@@ -106,109 +141,139 @@ export function DocumentFilterBar({
           </kbd>
         </div>
 
-        <div
-          className="-mx-4 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
-          role="group"
-          aria-label={t("documents.filter.groupLabel")}
-        >
-          <span
-            role="group"
+        {/* Type — multi-select (OR inside the facet). Items keep the menu
+            open so several kinds can be toggled in one pass. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-slot="document-type-filter"
+              className={cn(TRIGGER_CLASSES, kindCount > 0 && TRIGGER_ACTIVE)}
+            >
+              <span className="max-w-32 truncate">{typeLabel}</span>
+              <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
             aria-label={t("documents.filter.typeGroup")}
-            className="contents"
           >
+            <DropdownMenuLabel>
+              {t("documents.filter.typeGroup")}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
             {DOCUMENT_KIND_ORDER.map((kind) => {
               const Icon = DOCUMENT_KIND_ICONS[kind];
-              const active = activeKinds.has(kind);
               return (
-                <button
+                <DropdownMenuCheckboxItem
                   key={kind}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onToggleKind(kind)}
-                  className={cn(CHIP_CLASSES, active && CHIP_ACTIVE_CLASSES)}
+                  checked={activeKinds.has(kind)}
+                  onCheckedChange={() => onToggleKind(kind)}
+                  onSelect={(event) => event.preventDefault()}
                 >
-                  <Icon className="size-3.5 shrink-0" aria-hidden />
+                  <Icon className="size-4" aria-hidden />
                   {t(`documents.kind.${kind}`)}
-                </button>
+                </DropdownMenuCheckboxItem>
               );
             })}
-          </span>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          {conditionChips.length > 0 ? (
-            <>
-              <span
-                aria-hidden
-                className="bg-border mx-1 h-5 w-px shrink-0 self-center"
-              />
-              <span
-                role="group"
-                aria-label={t("documents.filter.conditionGroup")}
-                className="contents"
+        {/* Condition — single-select; only rendered when episodes carry
+            links. Picking closes the menu (natural single-choice cadence). */}
+        {conditionChips.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-slot="document-condition-filter"
+                className={cn(
+                  TRIGGER_CLASSES,
+                  activeCondition && TRIGGER_ACTIVE,
+                )}
               >
-                {conditionChips.map((chip) => {
-                  const active = chip.episodeId === activeEpisodeId;
-                  return (
-                    <button
-                      key={chip.episodeId}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => onToggleEpisode(chip.episodeId)}
-                      className={cn(
-                        CHIP_CLASSES,
-                        active && CHIP_ACTIVE_CLASSES,
-                      )}
-                    >
-                      <span className="max-w-40 truncate">{chip.name}</span>
-                    </button>
-                  );
-                })}
-              </span>
-            </>
-          ) : null}
+                <span className="max-w-32 truncate">{conditionLabel}</span>
+                <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              aria-label={t("documents.filter.conditionGroup")}
+            >
+              <DropdownMenuLabel>
+                {t("documents.filter.conditionGroup")}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {conditionChips.map((chip) => (
+                <DropdownMenuCheckboxItem
+                  key={chip.episodeId}
+                  checked={chip.episodeId === activeEpisodeId}
+                  onCheckedChange={() => onToggleEpisode(chip.episodeId)}
+                >
+                  <span className="max-w-56 truncate">{chip.name}</span>
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
 
-          {years.length > 0 ? (
-            <>
-              <span
-                aria-hidden
-                className="bg-border mx-1 h-5 w-px shrink-0 self-center"
-              />
-              <span
-                role="group"
-                aria-label={t("documents.filter.yearGroup")}
-                className="contents"
+        {/* Year — single-select; only rendered when the corpus spans years. */}
+        {years.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-slot="document-year-filter"
+                className={cn(
+                  TRIGGER_CLASSES,
+                  "tabular-nums",
+                  activeYear !== undefined && TRIGGER_ACTIVE,
+                )}
               >
-                {years.map((year) => {
-                  const active = year === activeYear;
-                  return (
-                    <button
-                      key={year}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => onToggleYear(year)}
-                      className={cn(
-                        CHIP_CLASSES,
-                        "tabular-nums",
-                        active && CHIP_ACTIVE_CLASSES,
-                      )}
-                    >
-                      {year}
-                    </button>
-                  );
-                })}
-              </span>
-            </>
-          ) : null}
-        </div>
+                <span>{yearLabel}</span>
+                <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              aria-label={t("documents.filter.yearGroup")}
+            >
+              <DropdownMenuLabel>
+                {t("documents.filter.yearGroup")}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {years.map((year) => (
+                <DropdownMenuCheckboxItem
+                  key={year}
+                  checked={year === activeYear}
+                  onCheckedChange={() => onToggleYear(year)}
+                  className="tabular-nums"
+                >
+                  {year}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
 
         {activeCount > 0 ? (
           <Button
             variant="ghost"
             size="sm"
             onClick={onClearAll}
-            className="text-muted-foreground shrink-0 self-start md:self-auto"
+            aria-label={t("documents.filter.clear")}
+            className="text-muted-foreground shrink-0"
           >
             <X className="size-3.5" aria-hidden />
-            {t("documents.filter.clear")}
+            <span className="hidden sm:inline">
+              {t("documents.filter.clear")}
+            </span>
             {activeCount > 1 ? (
               <span className="tabular-nums">({activeCount})</span>
             ) : null}

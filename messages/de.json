@@ -8048,7 +8048,11 @@
       "typeGroup": "Dokumenttyp",
       "conditionGroup": "Erkrankung",
       "yearGroup": "Jahr",
-      "clear": "Filter zurücksetzen"
+      "clear": "Filter zurücksetzen",
+      "typeAll": "Alle Typen",
+      "typeCount": "{count} Typen",
+      "conditionAll": "Alle Erkrankungen",
+      "yearAll": "Alle Jahre"
     },
     "card": {
       "untitled": "Unbenanntes Dokument",
