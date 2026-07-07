@@ -464,15 +464,19 @@ export function DocumentsView() {
 
   // `?doc=<id>` deep link (used by the illness page's document rows): open
   // the detail sheet once per value; closing the sheet strips the param so
-  // back/forward and refresh behave. The id is shape-checked before it is
-  // interpolated into an API path.
+  // back/forward and refresh behave. Render-phase derived-state adjustment
+  // (the file's established pattern), consumed only once auth has resolved
+  // so a deep link never burns before the module flag is known. The id is
+  // shape-checked before it is interpolated into an API path.
   const docParam = searchParams.get("doc");
   const [consumedDocParam, setConsumedDocParam] = useState<string | null>(null);
-  useEffect(() => {
-    if (!moduleEnabled || !docParam || docParam === consumedDocParam) return;
+  if (!authLoading && moduleEnabled && docParam !== consumedDocParam) {
     setConsumedDocParam(docParam);
-    if (/^[a-zA-Z0-9_-]{1,40}$/.test(docParam)) openDetail(docParam);
-  }, [docParam, consumedDocParam, moduleEnabled, openDetail]);
+    if (docParam !== null && /^[a-zA-Z0-9_-]{1,40}$/.test(docParam)) {
+      setDetailId(docParam);
+      setDetailOpen(true);
+    }
+  }
 
   const handleDetailOpenChange = useCallback(
     (open: boolean) => {

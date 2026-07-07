@@ -211,24 +211,21 @@ describe("serving-posture header matrix (Class A inline vs Class B attachment)",
     ["image/png", "scan.png"],
     ["image/webp", "scan.webp"],
     ["image/gif", "anim.gif"],
-  ])(
-    "Class A %s → inline, true type, nosniff",
-    async (mime, name) => {
-      seed(mime, name);
-      const res = await callGet(makeReq("doc-m"), ctx("doc-m"));
-      expect(res.status).toBe(200);
-      expect(res.headers.get("Content-Type")).toBe(mime);
-      expect(res.headers.get("Content-Disposition")).toContain("inline");
-      expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
-      // The response CSP is owned by the proxy carve-out (`default-src
-      // 'none'; frame-ancestors 'self'`, deliberately no sandbox —
-      // Chromium force-downloads sandboxed PDFs). A route-level value
-      // would be overwritten there, so the route must not set one; see
-      // src/__tests__/proxy-document-serve-framing.test.ts for the pin.
-      expect(res.headers.get("Content-Security-Policy")).toBeNull();
-      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
-    },
-  );
+  ])("Class A %s → inline, true type, nosniff", async (mime, name) => {
+    seed(mime, name);
+    const res = await callGet(makeReq("doc-m"), ctx("doc-m"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe(mime);
+    expect(res.headers.get("Content-Disposition")).toContain("inline");
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    // The response CSP is owned by the proxy carve-out (`default-src
+    // 'none'; frame-ancestors 'self'`, deliberately no sandbox —
+    // Chromium force-downloads sandboxed PDFs). A route-level value
+    // would be overwritten there, so the route must not set one; see
+    // src/__tests__/proxy-document-serve-framing.test.ts for the pin.
+    expect(res.headers.get("Content-Security-Policy")).toBeNull();
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+  });
 
   it.each([
     [
