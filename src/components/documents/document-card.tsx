@@ -1,0 +1,249 @@
+"use client";
+
+/**
+ * One document in the vault timeline (compact-density Card) plus the two
+ * transient upload-state cards (in-flight with a live progress ring, failed
+ * with the translated §3.2 reason). All three share the card footprint so an
+ * optimistic entry morphs into the stored row without the grid jumping.
+ *
+ * Anatomy per the design standards: kind icon `text-foreground size-5`,
+ * title in foreground (`text-sm font-medium`, truncated), one muted meta
+ * line (date · size · filename), condition-tag pills, an attachment-class
+ * badge for download-only formats, and a selection checkbox that appears on
+ * hover / focus / while selected. The whole card is clickable through an
+ * invisible overlay button; the checkbox floats above it.
+ */
+import { Download, X } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
+import type { InboundDocumentDto } from "@/lib/validations/inbound-documents";
+import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
+import type { UploadQueueItem } from "./use-document-upload";
+import { documentDateKey, formatBytes } from "./vault-utils";
+
+export function DocumentCard({
+  document,
+  selected,
+  onToggleSelected,
+  onOpen,
+  highlighted,
+  onPrefetch,
+}: {
+  document: InboundDocumentDto;
+  selected: boolean;
+  onToggleSelected: (id: string) => void;
+  onOpen: (id: string) => void;
+  /** Brief ring after a duplicate upload resolved to this existing row. */
+  highlighted: boolean;
+  /** Hover/focus intent — prefetches the detail metadata (never the blob). */
+  onPrefetch?: (id: string) => void;
+}) {
+  const { t, locale } = useTranslations();
+  const format = useFormatters();
+
+  const title =
+    document.title ?? document.filename ?? t("documents.card.untitled");
+  const Icon = DOCUMENT_KIND_ICONS[document.kind];
+  const date = format.date(`${documentDateKey(document)}T12:00:00.000Z`);
+  const size = formatBytes(document.byteSize, locale);
+  const showFilename =
+    document.filename !== null && document.filename !== title;
+
+  return (
+    <Card
+      data-slot="document-card"
+      data-document-id={document.id}
+      className={cn(
+        "group relative h-full gap-2 py-3 transition-shadow md:py-4",
+        "hover:shadow-sm",
+        highlighted && "ring-primary ring-2",
+      )}
+    >
+      <CardContent className="flex h-full flex-col gap-2 px-4">
+        <div className="flex items-start gap-2">
+          <Icon
+            className="text-foreground mt-0.5 size-5 shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1 truncate text-sm font-medium">{title}</p>
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelected(document.id)}
+            aria-label={t("documents.card.selectLabel", { title })}
+            className={cn(
+              "relative z-10 shrink-0 transition-opacity",
+              "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
+              selected && "opacity-100",
+            )}
+          />
+        </div>
+        <p className="text-muted-foreground truncate text-xs">
+          {date} · {size}
+          {showFilename ? ` · ${document.filename}` : ""}
+        </p>
+        {document.conditionLinks.length > 0 ||
+        document.servingClass === "attachment" ? (
+          <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
+            {document.conditionLinks.map((link) => (
+              <span
+                key={link.episodeId}
+                className="bg-muted text-foreground inline-flex max-w-40 items-center rounded-full px-2 py-0.5 text-xs"
+              >
+                <span className="truncate">{link.name}</span>
+              </span>
+            ))}
+            {document.servingClass === "attachment" ? (
+              <Badge
+                variant="outline"
+                className="text-muted-foreground gap-1 text-xs font-normal"
+              >
+                <Download className="size-3" aria-hidden />
+                {t("documents.card.attachmentBadge")}
+              </Badge>
+            ) : null}
+          </div>
+        ) : null}
+      </CardContent>
+      {/* Whole-card click target. Painted last so it sits above the content
+          (the checkbox stays reachable via its own z-10). */}
+      <button
+        type="button"
+        onClick={() => onOpen(document.id)}
+        onMouseEnter={() => onPrefetch?.(document.id)}
+        onFocus={() => onPrefetch?.(document.id)}
+        aria-label={t("documents.card.openLabel", { title })}
+        className="focus-visible:ring-ring/50 absolute inset-0 rounded-xl focus-visible:ring-[3px] focus-visible:outline-none"
+      />
+    </Card>
+  );
+}
+
+/** SVG progress ring for the in-flight upload card (0..1). */
+function ProgressRing({ fraction }: { fraction: number }) {
+  const clamped = Math.min(1, Math.max(0, fraction));
+  const r = 13;
+  const circumference = 2 * Math.PI * r;
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className="size-8 shrink-0 -rotate-90"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(clamped * 100)}
+    >
+      <circle
+        cx="16"
+        cy="16"
+        r={r}
+        fill="none"
+        strokeWidth="3"
+        className="stroke-muted"
+      />
+      <circle
+        cx="16"
+        cy="16"
+        r={r}
+        fill="none"
+        strokeWidth="3"
+        strokeLinecap="round"
+        className="stroke-primary transition-[stroke-dashoffset] duration-200"
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - clamped)}
+      />
+    </svg>
+  );
+}
+
+/**
+ * Transient card for a queue entry: uploading (progress ring) or failed
+ * (translated reason + dismiss). Shares the DocumentCard footprint.
+ */
+export function UploadStateCard({
+  item,
+  onDismiss,
+}: {
+  item: UploadQueueItem;
+  onDismiss: (localId: string) => void;
+}) {
+  const { t, locale } = useTranslations();
+
+  const failure = item.failure;
+  let failureCopy: string | null = null;
+  if (failure) {
+    switch (failure.reason) {
+      case "fileTooLarge":
+        failureCopy = t("documents.error.fileTooLarge", {
+          maxSize: formatBytes(failure.maxFileBytes ?? 0, locale),
+        });
+        break;
+      case "quotaExceeded":
+        failureCopy = t("documents.error.quotaExceeded", {
+          used: formatBytes(failure.usedBytes ?? 0, locale),
+          quota: formatBytes(failure.quotaBytes ?? 0, locale),
+        });
+        break;
+      case "unsupportedType":
+        failureCopy = t("documents.error.unsupportedType");
+        break;
+      case "purged":
+        failureCopy = t("documents.error.purged");
+        break;
+      case "duplicateExists":
+        failureCopy = t("documents.error.duplicateExists");
+        break;
+      case "rateLimited":
+        failureCopy = t("documents.error.rateLimited");
+        break;
+      default:
+        failureCopy = t("documents.error.generic");
+    }
+  }
+
+  return (
+    <Card
+      data-slot="document-upload-card"
+      className={cn(
+        "h-full gap-2 border-dashed py-3 md:py-4",
+        item.status === "error" && "border-destructive/50",
+      )}
+    >
+      <CardContent className="flex h-full flex-col gap-2 px-4">
+        <div className="flex items-center gap-3">
+          {item.status === "uploading" ? (
+            <ProgressRing fraction={item.progress} />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{item.fileName}</p>
+            <p className="text-muted-foreground text-xs">
+              {item.status === "uploading"
+                ? t("documents.card.uploading")
+                : formatBytes(item.byteSize, locale)}
+            </p>
+          </div>
+          {item.status === "error" ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0"
+              onClick={() => onDismiss(item.localId)}
+              aria-label={t("documents.card.dismissFailed")}
+            >
+              <X className="size-4" aria-hidden />
+            </Button>
+          ) : null}
+        </div>
+        {failureCopy ? (
+          <p role="alert" className="text-destructive text-xs">
+            {failureCopy}
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
