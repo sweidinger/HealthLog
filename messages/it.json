@@ -402,7 +402,7 @@
     "heroToggleLabel": "Panoramica del giorno",
     "heroToggleDescription": "Mostra saluto, focus del giorno e anelli dei punteggi in cima alla dashboard.",
     "scoreRingsTitle": "Anelli dei punteggi",
-    "scoreRingsDescription": "Fino a tre anelli aggiuntivi accanto al punteggio di salute, ad esempio prontezza, recupero, sonno o aderenza.",
+    "scoreRingsDescription": "Fino a tre anelli aggiuntivi accanto al punteggio di salute, ad esempio prontezza, recupero, sonno o aderenza. Trascina per riordinare; il punteggio di salute è primo per impostazione predefinita.",
     "layoutReset": "Ripristina i valori predefiniti",
     "layoutSaveSuccess": "Layout della dashboard salvato",
     "layoutSaveError": "Impossibile salvare il layout",

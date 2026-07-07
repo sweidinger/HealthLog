@@ -402,7 +402,7 @@
     "heroToggleLabel": "Tagesüberblick",
     "heroToggleDescription": "Zeigt Begrüßung, Tagesfokus und Score-Ringe ganz oben auf dem Dashboard.",
     "scoreRingsTitle": "Score-Ringe",
-    "scoreRingsDescription": "Bis zu drei zusätzliche Ringe neben dem Health Score – zum Beispiel Bereitschaft, Erholung, Schlaf oder Therapietreue.",
+    "scoreRingsDescription": "Bis zu drei zusätzliche Ringe neben dem Health Score – zum Beispiel Bereitschaft, Erholung, Schlaf oder Therapietreue. Zum Umsortieren ziehen; der Health Score steht standardmäßig vorne.",
     "layoutReset": "Auf Defaults zurücksetzen",
     "layoutSaveSuccess": "Dashboard-Layout gespeichert",
     "layoutSaveError": "Layout konnte nicht gespeichert werden",

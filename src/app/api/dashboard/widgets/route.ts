@@ -139,7 +139,10 @@ const layoutSchema = z.object({
   // resolver reconciles it against the selected set on read/serialize, so a
   // stale or over-long array is clamped rather than rejected. `.max()`
   // bounds the wire length (health-score + up to three score rings).
-  heroRingOrder: z.array(z.enum(HERO_RING_IDS)).max(MAX_HERO_RING_ORDER).optional(),
+  heroRingOrder: z
+    .array(z.enum(HERO_RING_IDS))
+    .max(MAX_HERO_RING_ORDER)
+    .optional(),
 });
 
 async function buildDashboardLayout(userId: string): Promise<DashboardLayout> {
@@ -290,8 +293,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   let mergedHeroVisible: boolean | undefined = parsed.data.heroVisible;
   let mergedScoreRings: ScoreRingId[] | undefined =
     parsed.data.selectedScoreRings;
-  let mergedHeroRingOrder: HeroRingId[] | undefined =
-    parsed.data.heroRingOrder;
+  let mergedHeroRingOrder: HeroRingId[] | undefined = parsed.data.heroRingOrder;
   if (
     mergedChartOverlayPrefs === undefined ||
     mergedHeroVisible === undefined ||

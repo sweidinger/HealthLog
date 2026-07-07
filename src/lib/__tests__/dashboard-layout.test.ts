@@ -7,6 +7,8 @@ import {
   DASHBOARD_IOS_ONLY_WIDGET_IDS,
   DASHBOARD_WIDGET_CATALOGUE_IDS,
   IOS_PIN_ONLY_WIDGET_IDS,
+  DEFAULT_HERO_RING_ORDER,
+  resolveHeroRingOrder,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
 
@@ -744,5 +746,121 @@ describe("resolveDashboardLayout() — selectedScoreRings", () => {
     expect(DEFAULT_DASHBOARD_LAYOUT.selectedScoreRings).toEqual([
       "MED_COMPLIANCE",
     ]);
+  });
+});
+
+/**
+ * v1.27.27 — hero ring ORDER (`heroRingOrder`). The health-score ring is a
+ * first-class, always-present, reorderable member of the hero row that
+ * leads by default. The order rides the layout blob (no migration) and the
+ * resolver reconciles it against the selected set on every read/serialize.
+ */
+describe("resolveHeroRingOrder()", () => {
+  it("defaults a missing / malformed order to health-score-first", () => {
+    for (const bad of [undefined, null, "READINESS", 3, { a: 1 }]) {
+      expect(
+        resolveHeroRingOrder(bad, ["READINESS", "MED_COMPLIANCE"]),
+      ).toEqual(["HEALTH_SCORE", "READINESS", "MED_COMPLIANCE"]);
+    }
+  });
+
+  it("honours a stored order that moves the health-score ring off the lead", () => {
+    expect(
+      resolveHeroRingOrder(
+        ["READINESS", "HEALTH_SCORE", "MED_COMPLIANCE"],
+        ["READINESS", "MED_COMPLIANCE"],
+      ),
+    ).toEqual(["READINESS", "HEALTH_SCORE", "MED_COMPLIANCE"]);
+  });
+
+  it("drops an ordered id whose ring is no longer selected", () => {
+    expect(
+      resolveHeroRingOrder(
+        ["READINESS", "HEALTH_SCORE", "SLEEP_SCORE"],
+        ["READINESS"], // SLEEP_SCORE deselected
+      ),
+    ).toEqual(["READINESS", "HEALTH_SCORE"]);
+  });
+
+  it("appends a newly-selected ring the stored order didn't place", () => {
+    expect(
+      resolveHeroRingOrder(
+        ["HEALTH_SCORE", "READINESS"],
+        ["READINESS", "MED_COMPLIANCE"], // MED_COMPLIANCE freshly added
+      ),
+    ).toEqual(["HEALTH_SCORE", "READINESS", "MED_COMPLIANCE"]);
+  });
+
+  it("drops unknown ids and collapses duplicates, always keeping the health-score ring", () => {
+    expect(
+      resolveHeroRingOrder(
+        ["READINESS", "BOGUS", "READINESS", "HEALTH_SCORE"],
+        ["READINESS"],
+      ),
+    ).toEqual(["READINESS", "HEALTH_SCORE"]);
+  });
+
+  it("appends the health-score ring when a corrupt order omits it entirely", () => {
+    expect(resolveHeroRingOrder(["READINESS"], ["READINESS"])).toEqual([
+      "READINESS",
+      "HEALTH_SCORE",
+    ]);
+  });
+});
+
+describe("resolveDashboardLayout() / serialize — heroRingOrder", () => {
+  const base = {
+    version: 1,
+    widgets: [{ id: "weight", visible: true, tileVisible: true, order: 0 }],
+  };
+
+  it("a legacy blob (field missing) resolves to health-score-first over the selected rings", () => {
+    const resolved = resolveDashboardLayout({
+      ...base,
+      selectedScoreRings: ["READINESS", "SLEEP_SCORE"],
+    });
+    expect(resolved.heroRingOrder).toEqual([
+      "HEALTH_SCORE",
+      "READINESS",
+      "SLEEP_SCORE",
+    ]);
+  });
+
+  it("reconciles a stored order against the selected set on read", () => {
+    const resolved = resolveDashboardLayout({
+      ...base,
+      selectedScoreRings: ["READINESS", "MED_COMPLIANCE"],
+      heroRingOrder: ["MED_COMPLIANCE", "HEALTH_SCORE", "READINESS"],
+    });
+    expect(resolved.heroRingOrder).toEqual([
+      "MED_COMPLIANCE",
+      "HEALTH_SCORE",
+      "READINESS",
+    ]);
+  });
+
+  it("serialize persists a reconciled order and round-trips", () => {
+    const serialized = serializeDashboardLayout({
+      ...DEFAULT_DASHBOARD_LAYOUT,
+      selectedScoreRings: ["READINESS", "MED_COMPLIANCE"],
+      heroRingOrder: ["READINESS", "HEALTH_SCORE", "MED_COMPLIANCE"],
+    } as DashboardLayout);
+    expect(serialized.heroRingOrder).toEqual([
+      "READINESS",
+      "HEALTH_SCORE",
+      "MED_COMPLIANCE",
+    ]);
+    expect(resolveDashboardLayout(serialized).heroRingOrder).toEqual([
+      "READINESS",
+      "HEALTH_SCORE",
+      "MED_COMPLIANCE",
+    ]);
+  });
+
+  it("the default layout leads with the health-score ring", () => {
+    expect(DEFAULT_DASHBOARD_LAYOUT.heroRingOrder).toEqual(
+      DEFAULT_HERO_RING_ORDER,
+    );
+    expect(DEFAULT_HERO_RING_ORDER[0]).toBe("HEALTH_SCORE");
   });
 });

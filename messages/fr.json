@@ -402,7 +402,7 @@
     "heroToggleLabel": "Aperçu du jour",
     "heroToggleDescription": "Affiche le message d’accueil, le focus du jour et les anneaux de score tout en haut du tableau de bord.",
     "scoreRingsTitle": "Anneaux de score",
-    "scoreRingsDescription": "Jusqu’à trois anneaux supplémentaires à côté du score de santé — par exemple préparation, récupération, sommeil ou observance.",
+    "scoreRingsDescription": "Jusqu’à trois anneaux supplémentaires à côté du score de santé — par exemple préparation, récupération, sommeil ou observance. Glissez pour réordonner ; le score de santé est placé en premier par défaut.",
     "layoutReset": "Rétablir les valeurs par défaut",
     "layoutSaveSuccess": "Mise en page enregistrée",
     "layoutSaveError": "Impossible d’enregistrer la mise en page",

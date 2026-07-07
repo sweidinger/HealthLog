@@ -372,10 +372,7 @@ export const DEFAULT_SELECTED_SCORE_RINGS: ScoreRingId[] = ["MED_COMPLIANCE"];
  * rings; `HeroRingId` is the union the persisted order carries.
  */
 export const HEALTH_SCORE_RING_ID = "HEALTH_SCORE" as const;
-export const HERO_RING_IDS = [
-  HEALTH_SCORE_RING_ID,
-  ...SCORE_RING_IDS,
-] as const;
+export const HERO_RING_IDS = [HEALTH_SCORE_RING_ID, ...SCORE_RING_IDS] as const;
 export type HeroRingId = (typeof HERO_RING_IDS)[number];
 
 /** The order carries the health-score ring plus up to three score rings. */

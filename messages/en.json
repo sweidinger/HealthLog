@@ -402,7 +402,7 @@
     "heroToggleLabel": "Daily overview",
     "heroToggleDescription": "Shows your greeting, daily focus and score rings at the top of the dashboard.",
     "scoreRingsTitle": "Score rings",
-    "scoreRingsDescription": "Up to three additional rings next to the health score — for example readiness, recovery, sleep or adherence.",
+    "scoreRingsDescription": "Up to three additional rings next to the health score — for example readiness, recovery, sleep or adherence. Drag to reorder; the health score leads by default.",
     "layoutReset": "Reset to defaults",
     "layoutSaveSuccess": "Dashboard layout saved",
     "layoutSaveError": "Could not save dashboard layout",

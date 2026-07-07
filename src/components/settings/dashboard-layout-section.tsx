@@ -382,8 +382,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
     );
     // Keep an open draft's ring slice in sync so a later Save of the
     // OTHER layout edits can't revert the instantly-applied choice.
-    if (draft)
-      setDraft({ ...draft, selectedScoreRings, heroRingOrder: next });
+    if (draft) setDraft({ ...draft, selectedScoreRings, heroRingOrder: next });
     ringMutation.mutate({ selectedScoreRings, heroRingOrder: next });
   }
 

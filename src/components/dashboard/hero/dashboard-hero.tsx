@@ -362,9 +362,7 @@ export function DashboardHero({
   );
   const ringSlides: HeroRingSlide[] = heroRingOrder
     .map((id) =>
-      id === HEALTH_SCORE_RING_ID
-        ? healthScoreSlide
-        : scoreRingSlides.get(id),
+      id === HEALTH_SCORE_RING_ID ? healthScoreSlide : scoreRingSlides.get(id),
     )
     .filter((slide): slide is HeroRingSlide => slide !== undefined);
 
