@@ -1,0 +1,305 @@
+/**
+ * Pure helpers for the Dokumente vault surface: URL-facet parsing and
+ * serialisation (the page's filter state lives in the URL so every view is
+ * deep-linkable and back-button-safe), the API query-string builder, the
+ * month bucketing + row chunking the virtualized timeline renders from, the
+ * upload-response contract (including the HTTP-200 `meta.duplicate` path),
+ * and byte formatting. Kept out of the client components so they stay
+ * trivially unit-testable without a render harness.
+ */
+import {
+  DOCUMENT_LIST_DEFAULT_LIMIT,
+  INBOUND_DOCUMENT_KINDS,
+  type InboundDocumentDto,
+  type InboundDocumentKindValue,
+} from "@/lib/validations/inbound-documents";
+import type { DocumentVaultFilters } from "@/lib/query-keys/documents";
+
+const KIND_SET = new Set<string>(INBOUND_DOCUMENT_KINDS);
+
+/**
+ * Parse the vault's URL search params (`?q&kind&episode&year`) into the
+ * filter object. Unknown kinds are dropped (a hand-edited URL never 422s the
+ * page), `kind` accepts repeats AND comma-separated values, and the result is
+ * normalised (kinds sorted, empties omitted) so the same view always produces
+ * the same TanStack cache key.
+ */
+export function parseVaultSearchParams(
+  params: URLSearchParams,
+): DocumentVaultFilters {
+  const filters: DocumentVaultFilters = {};
+
+  const q = params.get("q")?.trim();
+  if (q) filters.q = q.slice(0, 100);
+
+  const kinds = params
+    .getAll("kind")
+    .flatMap((v) => v.split(","))
+    .map((v) => v.trim())
+    .filter((v): v is InboundDocumentKindValue => KIND_SET.has(v));
+  if (kinds.length > 0) filters.kinds = [...new Set(kinds)].sort();
+
+  const episode = params.get("episode")?.trim();
+  if (episode) filters.episodeId = episode.slice(0, 40);
+
+  const yearRaw = params.get("year");
+  if (yearRaw && /^\d{4}$/.test(yearRaw)) {
+    const year = Number(yearRaw);
+    if (year >= 1900 && year <= 9999) filters.year = year;
+  }
+
+  return filters;
+}
+
+/**
+ * Serialise the filter object back into the page URL's search string (no
+ * leading `?`; empty string for the default view). Inverse of
+ * `parseVaultSearchParams` — round-tripping is pinned by test so deep links
+ * from the illness page / labs (`?episode=`, `?kind=LAB_RESULT`) stay stable.
+ */
+export function vaultFiltersToSearch(filters: DocumentVaultFilters): string {
+  const sp = new URLSearchParams();
+  if (filters.q) sp.set("q", filters.q);
+  if (filters.kinds && filters.kinds.length > 0) {
+    sp.set("kind", [...filters.kinds].sort().join(","));
+  }
+  if (filters.episodeId) sp.set("episode", filters.episodeId);
+  if (filters.year !== undefined) sp.set("year", String(filters.year));
+  return sp.toString();
+}
+
+/** Count of active facets (search counts as one) for the clear-all pill. */
+export function countActiveFilters(filters: DocumentVaultFilters): number {
+  let count = 0;
+  if (filters.q) count += 1;
+  if (filters.kinds && filters.kinds.length > 0) count += filters.kinds.length;
+  if (filters.episodeId) count += 1;
+  if (filters.year !== undefined) count += 1;
+  return count;
+}
+
+/**
+ * Build the `/api/documents/inbound` query string from the active facets and
+ * a keyset cursor. The sort is pinned to the filing date, newest first — the
+ * timeline IS the sort order. The API takes `episodeId` (the page URL uses
+ * the shorter `episode`).
+ */
+export function buildVaultListApiSearch(
+  filters: DocumentVaultFilters,
+  cursor: string | null,
+  limit: number = DOCUMENT_LIST_DEFAULT_LIMIT,
+): string {
+  const sp = new URLSearchParams();
+  if (filters.q) sp.set("q", filters.q);
+  if (filters.kinds && filters.kinds.length > 0) {
+    sp.set("kind", filters.kinds.join(","));
+  }
+  if (filters.episodeId) sp.set("episodeId", filters.episodeId);
+  if (filters.year !== undefined) sp.set("year", String(filters.year));
+  sp.set("sort", "documentDate");
+  sp.set("order", "desc");
+  sp.set("limit", String(limit));
+  if (cursor) sp.set("cursor", cursor);
+  return sp.toString();
+}
+
+/** The date a document files under — its user filing date, else upload day. */
+export function documentDateKey(doc: InboundDocumentDto): string {
+  if (doc.documentDate) return doc.documentDate;
+  // createdAt is an ISO timestamp; the leading YYYY-MM-DD is the upload day.
+  return doc.createdAt.slice(0, 10);
+}
+
+/** The YYYY-MM month bucket a document files under. */
+export function documentMonthKey(doc: InboundDocumentDto): string {
+  return documentDateKey(doc).slice(0, 7);
+}
+
+/**
+ * One flat item in the virtualized timeline: a month section label or one
+ * grid row of up to `columns` documents. The virtualizer windows over this
+ * flat list so the mounted DOM stays bounded regardless of corpus size.
+ */
+export type TimelineItem =
+  | { type: "month"; key: string }
+  | { type: "row"; key: string; documents: InboundDocumentDto[] };
+
+/**
+ * Bucket an already-sorted document list into consecutive YYYY-MM sections
+ * and chunk each section into rows of `columns` documents. Order is preserved
+ * exactly as received — the server stays the single source of truth for
+ * sorting; a month opens the first time its key appears.
+ */
+export function buildTimelineItems(
+  documents: InboundDocumentDto[],
+  columns: number,
+): TimelineItem[] {
+  const cols = Math.max(1, columns);
+  const items: TimelineItem[] = [];
+  let month: string | null = null;
+  let row: InboundDocumentDto[] = [];
+
+  const flushRow = () => {
+    if (row.length > 0 && month !== null) {
+      items.push({ type: "row", key: `${month}:${row[0].id}`, documents: row });
+      row = [];
+    }
+  };
+
+  for (const doc of documents) {
+    const key = documentMonthKey(doc);
+    if (key !== month) {
+      flushRow();
+      month = key;
+      items.push({ type: "month", key });
+    }
+    row.push(doc);
+    if (row.length === cols) flushRow();
+  }
+  flushRow();
+  return items;
+}
+
+/**
+ * Format a YYYY-MM month key as a locale month label ("März 2026"). Handed
+ * over as a noon-UTC instant so the month never shifts under the display
+ * timezone.
+ */
+export function formatMonthLabel(key: string, locale: string): string {
+  if (!/^\d{4}-\d{2}$/.test(key)) return key;
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${key}-15T12:00:00.000Z`));
+}
+
+/** Locale byte formatting: 0 B / 412 KB / 1.2 MB / 2.4 GB. */
+export function formatBytes(bytes: number, locale: string): string {
+  const units = ["B", "KB", "MB", "GB"] as const;
+  let value = Math.max(0, bytes);
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const digits = unit === 0 || value >= 100 ? 0 : value >= 10 ? 1 : 1;
+  return `${new Intl.NumberFormat(locale, {
+    maximumFractionDigits: digits,
+  }).format(value)} ${units[unit]}`;
+}
+
+// ─── Upload response contract (§3.2) ───────────────────────────────────────
+
+/**
+ * The §3.2 failure reasons the upload/restore paths translate client-side,
+ * plus the transport-level fallbacks. `rateLimited` maps 429; `generic`
+ * covers everything unclassifiable (proxy-stripped bodies included).
+ */
+export type UploadFailureReason =
+  | "fileTooLarge"
+  | "quotaExceeded"
+  | "unsupportedType"
+  | "purged"
+  | "duplicateExists"
+  | "rateLimited"
+  | "generic";
+
+export interface UploadFailure {
+  ok: false;
+  reason: UploadFailureReason;
+  /** §3.2 — present on `fileTooLarge`. */
+  maxFileBytes?: number;
+  /** §3.2 — present on `quotaExceeded`. */
+  quotaBytes?: number;
+  usedBytes?: number;
+  /** §3.2 — present on `duplicateExists` (restore-conflict shape). */
+  existingId?: string;
+}
+
+export interface UploadSuccess {
+  ok: true;
+  document: InboundDocumentDto;
+  /**
+   * §3.2 — a same-user re-upload is HTTP 200 with envelope-level
+   * `meta.duplicate: true` and the EXISTING live row as `data`. Not an
+   * error: the UI toasts "already stored" and highlights that row.
+   */
+  duplicate: boolean;
+}
+
+export type UploadResult = UploadSuccess | UploadFailure;
+
+const REASONS: ReadonlySet<string> = new Set([
+  "fileTooLarge",
+  "quotaExceeded",
+  "unsupportedType",
+  "purged",
+  "duplicateExists",
+]);
+
+function numberOrUndefined(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+/** Map a `{ status, meta }` failure onto the translated-reason union. */
+export function classifyUploadFailure(
+  status: number,
+  meta: Record<string, unknown> | undefined,
+): UploadFailure {
+  const reason = typeof meta?.reason === "string" ? meta.reason : "";
+  if (REASONS.has(reason)) {
+    return {
+      ok: false,
+      reason: reason as UploadFailureReason,
+      maxFileBytes: numberOrUndefined(meta?.maxFileBytes),
+      quotaBytes: numberOrUndefined(meta?.quotaBytes),
+      usedBytes: numberOrUndefined(meta?.usedBytes),
+      existingId:
+        typeof meta?.existingId === "string" ? meta.existingId : undefined,
+    };
+  }
+  // A reverse proxy can strip the JSON body (and its `meta`); fall back to
+  // the HTTP status so size / type / rate-limit still classify.
+  if (status === 413) return { ok: false, reason: "fileTooLarge" };
+  if (status === 415) return { ok: false, reason: "unsupportedType" };
+  if (status === 429) return { ok: false, reason: "rateLimited" };
+  return { ok: false, reason: "generic" };
+}
+
+/**
+ * Parse a completed upload's raw response (status + body text) against the
+ * envelope contract. This is the ONE place the duplicate contract lives:
+ * unlike every other read (which unwraps `data` and ignores `meta`), the
+ * upload MUST also read the success envelope's `meta.duplicate` flag.
+ */
+export function parseUploadResponse(
+  status: number,
+  bodyText: string,
+): UploadResult {
+  let envelope: {
+    data?: unknown;
+    meta?: Record<string, unknown>;
+  } | null = null;
+  try {
+    const parsed: unknown = JSON.parse(bodyText);
+    if (parsed && typeof parsed === "object") {
+      envelope = parsed as { data?: unknown; meta?: Record<string, unknown> };
+    }
+  } catch {
+    envelope = null;
+  }
+
+  if (status >= 200 && status < 300) {
+    const doc = envelope?.data;
+    if (doc && typeof doc === "object" && "id" in doc) {
+      return {
+        ok: true,
+        document: doc as InboundDocumentDto,
+        duplicate: envelope?.meta?.duplicate === true,
+      };
+    }
+    return { ok: false, reason: "generic" };
+  }
+  return classifyUploadFailure(status, envelope?.meta);
+}
