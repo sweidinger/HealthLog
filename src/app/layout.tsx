@@ -7,7 +7,6 @@ import { AuthShell } from "@/components/layout/auth-shell";
 import { MonitoringBootstrap } from "@/components/monitoring/bootstrap";
 import { WebVitalsReporter } from "@/components/monitoring/web-vitals-reporter";
 import { resolveInitialLocale } from "@/lib/i18n/resolve-initial-locale";
-import { allMessages } from "@/lib/i18n/shared-resolve";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -89,13 +88,6 @@ export default async function RootLayout({
       : undefined;
 
   const initialLocale = await resolveInitialLocale();
-  // RSC handoff for the i18n bundle split: only EN ships statically in
-  // the client chunk, so a non-EN first paint needs its bundle inlined
-  // into the payload here — that is what keeps the split free of the
-  // EN→DE hydration flash. EN passes nothing (the client already holds
-  // the static fallback floor).
-  const initialMessages =
-    initialLocale === "en" ? undefined : allMessages[initialLocale];
 
   return (
     <html lang={initialLocale} suppressHydrationWarning>
@@ -105,12 +97,26 @@ export default async function RootLayout({
           nonce={nonce}
           dangerouslySetInnerHTML={{ __html: themeScript }}
         />
+        {/*
+          Locale-catalog boot script (see src/app/i18n/[locale]/route.ts).
+          Replaces the former RSC-prop handoff that inlined the whole
+          active catalog into every document's flight payload (392 KB of a
+          505 KB dashboard HTML). `defer` keeps it off the parse/paint
+          critical path while still executing before Next's hydration
+          module scripts (both ride the after-parse in-order queue, and
+          this tag comes first), so `load-locale.ts` finds `self.__HL_I18N`
+          set when the client bundle initializes — SSR text and first
+          client render stay identical. The `?v=` build-version key makes
+          the response immutable-cacheable: one catalog download per
+          deploy, then HTTP/SW cache instead of per-document payload.
+        */}
+        <script
+          src={`/i18n/${initialLocale}?v=${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}`}
+          defer
+        />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <Providers
-          initialLocale={initialLocale}
-          initialMessages={initialMessages}
-        >
+        <Providers initialLocale={initialLocale}>
           <MonitoringBootstrap />
           <WebVitalsReporter />
           {/* `DEMO_MODE` is a server-only env var; the proxy uses it to

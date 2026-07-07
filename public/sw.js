@@ -168,6 +168,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Locale-catalog boot script — cache-first. The URL is versioned
+  // (`/i18n/<locale>?v=<build>`) and served immutable, so cache-first is
+  // correct and keeps the catalog available on an offline relaunch (the
+  // cached shell HTML references the same versioned URL it was rendered
+  // with). Carries no user data — same public strings as the repository's
+  // messages/*.json.
+  if (url.pathname.startsWith("/i18n/")) {
+    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    return;
+  }
+
   // Static files (fonts, icons, images) — cache-first with long TTL
   if (/\.(png|svg|jpg|jpeg|gif|webp|ico|woff2?|ttf|eot)$/i.test(url.pathname)) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
