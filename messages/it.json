@@ -8060,7 +8060,8 @@
       "restoreFailed": "Impossibile ripristinare il documento."
     },
     "timeline": {
-      "loadingMore": "Caricamento…"
+      "loadingMore": "Caricamento…",
+      "listLabel": "Cronologia dei documenti"
     },
     "upload": {
       "zoneTitle": "Trascina i file qui o scegli dal dispositivo",

@@ -8060,7 +8060,8 @@
       "restoreFailed": "Couldn't restore the document."
     },
     "timeline": {
-      "loadingMore": "Loading more…"
+      "loadingMore": "Loading more…",
+      "listLabel": "Documents timeline"
     },
     "upload": {
       "zoneTitle": "Drop files here, or choose from your device",

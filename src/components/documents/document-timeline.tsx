@@ -17,7 +17,13 @@
  * < 100 ms after file selection, before any query settles.
  */
 import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { useTranslations } from "@/lib/i18n/context";
@@ -46,6 +52,7 @@ export function DocumentTimeline({
   selectedIds,
   onToggleSelected,
   onOpen,
+  onDelete,
   highlightId,
   onPrefetch,
 }: {
@@ -58,6 +65,8 @@ export function DocumentTimeline({
   selectedIds: ReadonlySet<string>;
   onToggleSelected: (id: string, range?: boolean) => void;
   onOpen: (id: string) => void;
+  /** Delete key on the focused card — the page owns the undo-able delete. */
+  onDelete?: (id: string) => void;
   highlightId: string | null;
   onPrefetch?: (id: string) => void;
 }) {
@@ -65,6 +74,11 @@ export function DocumentTimeline({
   const listRef = useRef<HTMLDivElement | null>(null);
   const [columns, setColumns] = useState(1);
   const [scrollMargin, setScrollMargin] = useState(0);
+
+  // Roving tabindex over the card grid: exactly one card is tabbable; the
+  // arrow keys move the active slot. Falls back to the first document when
+  // the remembered card left the corpus (filter change, deletion).
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // Measured columns — the ResizeObserver drives the row chunking.
   useEffect(() => {
@@ -117,6 +131,81 @@ export function DocumentTimeline({
 
   const virtualItems = virtualizer.getVirtualItems();
 
+  // ── Keyboard navigation (roving tabindex) ─────────────────────────────
+  // The tabbable slot: the remembered active card, else the first document.
+  const rovingId =
+    activeId !== null && documents.some((d) => d.id === activeId)
+      ? activeId
+      : (documents[0]?.id ?? null);
+
+  // Which virtual item (grid row) a document renders in — the arrow-key
+  // handler scrolls that row into the window before focusing the card.
+  const rowIndexById = useMemo(() => {
+    const map = new Map<string, number>();
+    items.forEach((item, index) => {
+      if (item.type !== "row") return;
+      for (const doc of item.documents) map.set(doc.id, index);
+    });
+    return map;
+  }, [items]);
+
+  const focusDocument = (id: string) => {
+    setActiveId(id);
+    const rowIndex = rowIndexById.get(id);
+    if (rowIndex !== undefined) {
+      virtualizer.scrollToIndex(rowIndex, { align: "auto" });
+    }
+    // The row may only mount on the next virtualizer paint — retry across
+    // a few frames, bounded.
+    let attempts = 0;
+    const tryFocus = () => {
+      const button = listRef.current?.querySelector<HTMLButtonElement>(
+        `[data-document-id="${CSS.escape(id)}"] [data-slot="document-open"]`,
+      );
+      if (button) {
+        button.focus();
+        return;
+      }
+      attempts += 1;
+      if (attempts < 20) requestAnimationFrame(tryFocus);
+    };
+    requestAnimationFrame(tryFocus);
+  };
+
+  const onGridKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (documents.length === 0) return;
+    const currentIndex = rovingId
+      ? documents.findIndex((d) => d.id === rovingId)
+      : 0;
+    let nextIndex: number | null = null;
+    switch (event.key) {
+      case "ArrowRight":
+        nextIndex = Math.min(documents.length - 1, currentIndex + 1);
+        break;
+      case "ArrowLeft":
+        nextIndex = Math.max(0, currentIndex - 1);
+        break;
+      case "ArrowDown":
+        nextIndex = Math.min(documents.length - 1, currentIndex + columns);
+        break;
+      case "ArrowUp":
+        nextIndex = Math.max(0, currentIndex - columns);
+        break;
+      case "Home":
+        nextIndex = 0;
+        break;
+      case "End":
+        nextIndex = documents.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    if (nextIndex !== currentIndex) {
+      focusDocument(documents[nextIndex].id);
+    }
+  };
+
   // Keyset infinite feed: pull the next page when the window nears the end.
   const lastIndex = virtualItems[virtualItems.length - 1]?.index ?? -1;
   useEffect(() => {
@@ -157,7 +246,18 @@ export function DocumentTimeline({
         </div>
       ) : null}
 
-      <div ref={listRef}>
+      {/* List semantics over the virtualized window: the container is one
+          list, each windowed item (month label or card row) one list item —
+          honest for a windowed structure where per-document posinset would
+          lie whenever pages are still loading. Keyboard contract on the
+          grid: arrows move the roving slot, Enter opens, Space selects,
+          Delete removes (undo-able), documented on the cards. */}
+      <div
+        ref={listRef}
+        role="list"
+        aria-label={t("documents.timeline.listLabel")}
+        onKeyDown={onGridKeyDown}
+      >
         <div
           className="relative"
           style={{ height: virtualizer.getTotalSize() }}
@@ -169,6 +269,7 @@ export function DocumentTimeline({
                 key={virtualItem.key}
                 ref={virtualizer.measureElement}
                 data-index={virtualItem.index}
+                role="listitem"
                 className="absolute inset-x-0 top-0"
                 style={{
                   transform: `translateY(${
@@ -194,7 +295,10 @@ export function DocumentTimeline({
                         selected={selectedIds.has(doc.id)}
                         onToggleSelected={onToggleSelected}
                         onOpen={onOpen}
+                        onDelete={onDelete}
                         highlighted={highlightId === doc.id}
+                        tabIndex={rovingId === doc.id ? 0 : -1}
+                        onCardFocus={setActiveId}
                         onPrefetch={onPrefetch}
                       />
                     ))}

@@ -8060,7 +8060,8 @@
       "restoreFailed": "Nie udało się przywrócić dokumentu."
     },
     "timeline": {
-      "loadingMore": "Wczytywanie…"
+      "loadingMore": "Wczytywanie…",
+      "listLabel": "Oś czasu dokumentów"
     },
     "upload": {
       "zoneTitle": "Upuść pliki tutaj lub wybierz z urządzenia",

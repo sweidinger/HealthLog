@@ -577,6 +577,7 @@ export function DocumentsView() {
           selectedIds={selectedIds}
           onToggleSelected={toggleSelected}
           onOpen={openDetail}
+          onDelete={(id) => deleteBulk([id])}
           highlightId={upload.highlightId}
           onPrefetch={prefetchDetail}
         />

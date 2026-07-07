@@ -8060,7 +8060,8 @@
       "restoreFailed": "Das Dokument konnte nicht wiederhergestellt werden."
     },
     "timeline": {
-      "loadingMore": "Mehr wird geladen…"
+      "loadingMore": "Mehr wird geladen…",
+      "listLabel": "Dokumenten-Zeitleiste"
     },
     "upload": {
       "zoneTitle": "Dateien hier ablegen oder vom Gerät auswählen",
