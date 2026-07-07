@@ -96,7 +96,26 @@ function InlinePreview({
         <iframe
           src={src}
           title={title}
-          onLoad={() => setLoaded(true)}
+          onLoad={(event) => {
+            setLoaded(true);
+            // Chromium's PDF viewer grabs focus when it initialises, which
+            // strands keyboard events inside the embedded document — Escape
+            // stops closing the sheet the moment the preview loads. The
+            // steal lands asynchronously after `load`, so watch for it over
+            // a short bounded window and hand focus back to the dialog
+            // container (tabIndex -1). A user who clicks into the PDF later
+            // re-focuses it deliberately and is left alone.
+            const frame = event.currentTarget;
+            const until = Date.now() + 1_500;
+            const reclaim = () => {
+              if (document.activeElement === frame) {
+                frame.closest<HTMLElement>('[role="dialog"]')?.focus();
+                return;
+              }
+              if (Date.now() < until) setTimeout(reclaim, 100);
+            };
+            reclaim();
+          }}
           className={cn(
             "border-border h-[55vh] w-full rounded-lg border",
             !loaded && "absolute inset-0 opacity-0",
