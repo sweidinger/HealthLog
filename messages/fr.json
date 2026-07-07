@@ -320,6 +320,10 @@
       "scoreComputing": "Calcul du score en cours …",
       "ringDoses": "Doses du jour",
       "ringDosesAria": "{taken} des {scheduled} doses prises aujourd'hui",
+      "ringCarousel": {
+        "aria": "Anneaux de bien-être",
+        "dot": "Afficher l'anneau {index} sur {total}"
+      },
       "verdict": {
         "doseOverdue": "Une dose de {name} est en retard.",
         "doseOverdueNoName": "Une dose est en retard.",

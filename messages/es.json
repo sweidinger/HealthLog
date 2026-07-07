@@ -320,6 +320,10 @@
       "scoreComputing": "Calculando la puntuación …",
       "ringDoses": "Dosis de hoy",
       "ringDosesAria": "{taken} de {scheduled} dosis tomadas hoy",
+      "ringCarousel": {
+        "aria": "Anillos de bienestar",
+        "dot": "Mostrar anillo {index} de {total}"
+      },
       "verdict": {
         "doseOverdue": "Una dosis de {name} está atrasada.",
         "doseOverdueNoName": "Una dosis está atrasada.",

@@ -320,6 +320,10 @@
       "scoreComputing": "Score wird berechnet…",
       "ringDoses": "Dosen heute",
       "ringDosesAria": "{taken} von {scheduled} Dosen heute genommen",
+      "ringCarousel": {
+        "aria": "Wellness-Ringe",
+        "dot": "Ring {index} von {total} anzeigen"
+      },
       "verdict": {
         "doseOverdue": "Eine Dosis {name} ist überfällig.",
         "doseOverdueNoName": "Eine Dosis ist überfällig.",
