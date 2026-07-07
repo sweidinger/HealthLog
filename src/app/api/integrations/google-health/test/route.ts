@@ -81,9 +81,11 @@ type ProbeResult =
       count: number;
       structure: unknown;
       /**
-       * Rollup types only: which documented dailyRollUp request shape Google
+       * Rollup types: which documented dailyRollUp request shape Google
        * accepted (`days90` standard chunking vs `days14` conservative
-       * fallback) — the live verdict on the range constraint.
+       * fallback). Daily-summary types: which `.date` filter prefix style
+       * Google accepted (`camel` worked-example vs `snake` fallback) — the
+       * live verdict on the docs' self-contradiction.
        */
       requestShape?: string;
     }
@@ -141,6 +143,11 @@ async function runStructureProbe(
           pageSize,
           maxPages: 1,
           tz,
+          // Daily-summary types report which `.date` filter prefix style
+          // Google accepted, so a live account settles the docs' conflict.
+          onDateFilterStyle: (style) => {
+            requestShape = style;
+          },
         });
       }
       results[name] = {

@@ -18,8 +18,18 @@ Each data type has THREE on-the-wire encodings, all pinned in
 `GOOGLE_HEALTH_DATA_TYPES` so a fetcher can never mix them up:
 
 - **request path** — kebab-case (`body-fat`, `daily-resting-heart-rate`).
-- **`filter` parameter** — snake_case (`body_fat.sample_time.physical_time`).
-  snake_case exists ONLY here.
+- **`filter` parameter** — snake_case (`body_fat.sample_time.physical_time`)
+  for sample / interval / session / sleep shapes. **Daily-summary `.date`
+  filters are the documented self-contradiction**: the data-types index's
+  "filter parameter" column says snake_case (`daily_heart_rate_variability`),
+  but the `dataPoints.list` reference's only worked daily example is
+  `dailyHeartRateVariability.date < "2024-08-15"` — the camelCase payload key.
+  Live, the snake form returned HTTP 200 with zero rows on accounts whose
+  companion app visibly holds daily HRV/RHR. The client sends the camelCase
+  worked-example form first and falls back to snake_case once if the first
+  page 400s; the accepted style is annotated
+  (`googleHealth.dateFilter.style`) and surfaced by the structure probe as
+  `requestShape`.
 - **response payload** — camelCase. The `DataPoint` value is a union keyed by
   the camelCase type name (`bodyFat`, `dailyRestingHeartRate`,
   `activeEnergyBurned`, …) with camelCase nested objects
@@ -27,10 +37,11 @@ Each data type has THREE on-the-wire encodings, all pinned in
 
 proto3 int64 fields arrive as JSON **strings** (`"12345"`): `steps.countSum`,
 `heartRate.beatsPerMinute`, `dailyRestingHeartRate.beatsPerMinute`,
-`dailyRespiratoryRate.dailyRespiratoryRateBpm`, `distance.millimetersSum`,
-`floors.countSum`, `exercise.metricsSummary.averageHeartRateBeatsPerMinute`, the
-sleep summary minutes. Every numeric extractor coerces numeric strings before
-the finite check.
+`height.heightMillimeters`, `distance.millimetersSum`, `floors.countSum`,
+`exercise.metricsSummary.averageHeartRateBeatsPerMinute`, the sleep summary
+minutes. Every numeric extractor coerces numeric strings before the finite
+check. (`dailyRespiratoryRate.breathsPerMinute` and the temperature / glucose
+fields are plain JSON numbers.)
 
 ## Read method
 
@@ -57,12 +68,12 @@ seconds,nanos}}`), user-local; per the documented example, the `end` bound
 Legal incremental `filter` fields are per-shape — anything else is an HTTP 400
 `INVALID_ARGUMENT`:
 
-| Shape         | Filter field                                            | Bound format                   |
-| ------------- | ------------------------------------------------------- | ------------------------------ |
-| Sample        | `{type}.sample_time.physical_time`                      | RFC-3339                       |
-| Daily summary | `{type}.date`                                           | `YYYY-MM-DD`                   |
-| Sleep         | `sleep.interval.end_time` (the ONLY legal time field)   | RFC-3339                       |
-| Session       | `{type}.interval.civil_start_time` (the ONLY legal one) | offset-less civil ISO (no `Z`) |
+| Shape         | Filter field                                                          | Bound format                   |
+| ------------- | --------------------------------------------------------------------- | ------------------------------ |
+| Sample        | `{snake_type}.sample_time.physical_time`                              | RFC-3339                       |
+| Daily summary | `{camelType}.date` (worked example), snake fallback on first-page 400 | `YYYY-MM-DD`                   |
+| Sleep         | `sleep.interval.end_time` (the ONLY legal time field)                 | RFC-3339                       |
+| Session       | `{snake_type}.interval.civil_start_time` (the ONLY legal one)         | offset-less civil ISO (no `Z`) |
 
 The exercise civil bound is derived from the watermark in the USER'S zone.
 
@@ -70,35 +81,62 @@ The exercise civil bound is derived from the watermark in the USER'S zone.
 
 Scope: `googlehealth.health_metrics_and_measurements.readonly`.
 
-| Data type (path)               | Payload value read                                                  | MeasurementType          | Unit        | fieldTag    | Grain  | Note                                                                                                                                        |
-| ------------------------------ | ------------------------------------------------------------------- | ------------------------ | ----------- | ----------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `weight`                       | `weight.weightGrams` ÷ 1000                                         | `WEIGHT`                 | kg          | `weight`    | sample | Grams on the wire. Picker ranks a real Withings scale above Google Health.                                                                  |
-| `body-fat`                     | `bodyFat.percentage`                                                | `BODY_FAT`               | %           | `body_fat`  | sample | Union key is camelCase `bodyFat`.                                                                                                           |
-| `daily-oxygen-saturation`      | `dailyOxygenSaturation.averagePercentage`                           | `OXYGEN_SATURATION`      | %           | `spo2`      | daily  | The bare `oxygen-saturation` type is per-SAMPLE and rejects a `.date` filter.                                                               |
-| `daily-heart-rate-variability` | `dailyHeartRateVariability.averageHeartRateVariabilityMilliseconds` | `HEART_RATE_VARIABILITY` | ms          | `hrv`       | daily  | **Decision:** SDNN slot (Apple-comparable), NOT `HRV_RMSSD`. The daily field is an unlabelled "average HRV ms" — re-confirm estimator live. |
-| `daily-resting-heart-rate`     | `dailyRestingHeartRate.beatsPerMinute` (int64 string)               | `RESTING_HEART_RATE`     | bpm         | `rhr`       | daily  |                                                                                                                                             |
-| `daily-respiratory-rate`       | `dailyRespiratoryRate.dailyRespiratoryRateBpm` (int64 string)       | `RESPIRATORY_RATE`       | breaths/min | `resp_rate` | daily  | `respiratory-rate` does NOT exist in the catalogue.                                                                                         |
-| `heart-rate`                   | `heartRate.beatsPerMinute` (int64 string)                           | `PULSE`                  | bpm         | `hr`        | sample | Intraday spot HR; per-minute volume — consider the 14-day-max rollup if PULSE should stay coarse.                                           |
-| `height`                       | `height.heightMeters` × 100                                         | `User.heightCm`          | cm          | —           | sample | Profile seed — written ONLY when null; never a Measurement. List order is DESCENDING → the seed picks max(sampleTime) explicitly.           |
+| Data type (path)                      | Payload value read                                                    | MeasurementType          | Unit        | fieldTag     | Grain  | Note                                                                                                                                                                             |
+| ------------------------------------- | --------------------------------------------------------------------- | ------------------------ | ----------- | ------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `weight`                              | `weight.weightGrams` ÷ 1000                                           | `WEIGHT`                 | kg          | `weight`     | sample | Grams on the wire. Picker ranks a real Withings scale above Google Health.                                                                                                       |
+| `body-fat`                            | `bodyFat.percentage`                                                  | `BODY_FAT`               | %           | `body_fat`   | sample | Union key is camelCase `bodyFat`.                                                                                                                                                |
+| `daily-oxygen-saturation`             | `dailyOxygenSaturation.averagePercentage`                             | `OXYGEN_SATURATION`      | %           | `spo2`       | daily  | The bare `oxygen-saturation` type is per-SAMPLE and rejects a `.date` filter.                                                                                                    |
+| `daily-heart-rate-variability`        | `dailyHeartRateVariability.averageHeartRateVariabilityMilliseconds`   | `HEART_RATE_VARIABILITY` | ms          | `hrv`        | daily  | **Decision:** SDNN slot (Apple-comparable), NOT `HRV_RMSSD`. The daily field is an unlabelled "average HRV ms" — re-confirm estimator live.                                      |
+| `daily-resting-heart-rate`            | `dailyRestingHeartRate.beatsPerMinute` (int64 string)                 | `RESTING_HEART_RATE`     | bpm         | `rhr`        | daily  |                                                                                                                                                                                  |
+| `daily-respiratory-rate`              | `dailyRespiratoryRate.breathsPerMinute` (number)                      | `RESPIRATORY_RATE`       | breaths/min | `resp_rate`  | daily  | `respiratory-rate` does NOT exist in the catalogue. Schema is `{date, breathsPerMinute}` — the earlier `dailyRespiratoryRateBpm` leaf never existed.                             |
+| `heart-rate`                          | `heartRate.beatsPerMinute` (int64 string)                             | `PULSE`                  | bpm         | `hr`         | sample | Intraday spot HR; per-minute volume — consider the 14-day-max rollup if PULSE should stay coarse.                                                                                |
+| `blood-glucose`                       | `bloodGlucose.bloodGlucoseMilligramsPerDeciliter` (number)            | `BLOOD_GLUCOSE`          | mg/dL       | `glucose`    | sample | Already in the canonical mg/dL storage unit. Meal/timing/specimen enums not stored.                                                                                              |
+| `core-body-temperature`               | `coreBodyTemperature.temperatureCelsius` (number)                     | `BODY_TEMPERATURE`       | celsius     | `core_temp`  | sample | Core slot — distinct from SKIN_TEMPERATURE / WRIST_TEMPERATURE.                                                                                                                  |
+| `daily-sleep-temperature-derivations` | `dailySleepTemperatureDerivations.nightlyTemperatureCelsius` (number) | `WRIST_TEMPERATURE`      | celsius     | `wrist_temp` | daily  | ABSOLUTE nightly skin temperature (mean over the night's samples) — the schema refutes the earlier "deviation-only" premise. Baseline/stddev derivations not stored.             |
+| `height`                              | `height.heightMillimeters` (int64 string) ÷ 10                        | `User.heightCm`          | cm          | —            | sample | Profile seed — written ONLY when null; never a Measurement. List order is DESCENDING → the seed picks max(sampleTime) explicitly. The earlier `heightMeters` leaf never existed. |
 
 Daily-summary `date` fields are `{year,month,day}` objects, anchored at
 UTC-midday so a timezone shift can't roll the civil day. Every value passes a
-finite + strictly-positive guard (the launch metrics are all positive — a
-zero/NaN is a garbage/empty reading and is dropped).
+finite + strictly-positive guard (the metric-bundle readings are all positive —
+a zero/NaN is a garbage/empty reading and is dropped).
 
-Skin temperature (`daily-sleep-temperature-derivations`) is intentionally **not**
-in the launch set — see **Deferred** below.
+## Documented skips (full-catalogue reconciliation, 2026-07-07)
 
-## Deferred (Google Health Q3-2026 roadmap — slots exist, NOT in launch set)
+Every remaining catalogue type, with the reason it is NOT fetched:
 
-`blood-glucose` → `BLOOD_GLUCOSE`, `blood-pressure` → `BLOOD_PRESSURE_SYS`+`_DIA`,
-`basal-body-temperature` → `BODY_TEMPERATURE`, `electrocardiogram` (ECG) and
-`irregular-rhythm-notification`. Skin-temperature deviation
-(`daily-sleep-temperature-derivations`) also sits here: Google reports a signed
-nightly delta from baseline, not an absolute reading, so it needs a signed-delta
-model before it can land — mapping it into `WRIST_TEMPERATURE` would store a delta
-as an absolute temperature. ECG/IRN light up when Google ships the data types and
-a reader is added together with its Restricted scopes.
+- `oxygen-saturation`, `heart-rate-variability` (per-sample) — the daily grain
+  is the chosen product surface (`daily-oxygen-saturation` /
+  `daily-heart-rate-variability`); a second per-sample reader would double the
+  same nights. The per-sample HRV type carries explicit RMSSD + SDNN fields —
+  the reference if the daily "average HRV ms" estimator ever needs re-checking.
+- `respiratory-rate-sleep-summary` — per-sleep-stage breathing statistics;
+  `daily-respiratory-rate` already fills `RESPIRATORY_RATE`.
+- `run-vo2-max` — per-run sample; `daily-vo2-max` already fills `VO2_MAX`
+  (a second writer would double the same day).
+- `active-minutes`, `active-zone-minutes`, `time-in-heart-rate-zone`,
+  `daily-heart-rate-zones`, `calories-in-heart-rate-zone` — no HealthLog
+  zone-minutes concept; not inventing a MeasurementType without a product
+  surface.
+- `total-calories` — folds BMR into the total; HealthLog stores the ACTIVE
+  portion (`active-energy-burned`). No total-energy bucket
+  (`ENERGY_EXPENDITURE_KJ` is WHOOP-native and stays vendor-scoped).
+- `activity-level`, `sedentary-period` — interval classifications with no
+  HealthLog concept.
+- `altitude` — elevation gain; `floors` already covers the climbed signal.
+- `swim-lengths-data` — per-interval stroke data; swims land as `exercise`
+  sessions (Workout rows).
+- `hydration-log` — fluid INTAKE; `TOTAL_BODY_WATER` is body composition, not
+  intake. No intake module.
+- `nutrition-log`, `food`, `food-measurement-unit` — no nutrition module.
+- `electrocardiogram`, `irregular-rhythm-notification` — deliberate scope
+  policy: the ECG/IRN Restricted scopes are only added together with a real
+  reader (see `resolveGoogleHealthScopes`).
+
+## Deferred (Google Health Q3-2026 roadmap — slots exist, NOT in catalogue yet)
+
+`blood-pressure` → `BLOOD_PRESSURE_SYS`+`_DIA` and `basal-body-temperature` →
+`BODY_TEMPERATURE` are roadmap items without catalogue entries today. ECG/IRN
+light up when a reader is added together with its Restricted scopes.
 
 ## Activity bundle — daily cumulative (dailyRollUp)
 
