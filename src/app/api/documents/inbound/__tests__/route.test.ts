@@ -357,7 +357,9 @@ describe("GET /api/documents/inbound (list)", () => {
     expect(where.OR).toEqual([
       { title: { contains: "panel", mode: "insensitive" } },
       { filename: { contains: "panel", mode: "insensitive" } },
-      { contentIndex: { is: { searchTokens: { hasSome: expect.any(Array) } } } },
+      {
+        contentIndex: { is: { searchTokens: { hasSome: expect.any(Array) } } },
+      },
     ]);
     // limit+1 fetched for the has-more probe.
     expect(arg.take).toBe(11);
