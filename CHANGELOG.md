@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.27.20] — 2026-07-07 — Coach and cycle toggle from the modules hub
+
+### Changed
+
+- The Coach and cycle-tracking rows under Settings → Modules now carry a real on/off switch, like every other module, instead of only a "manage in …" link. The switch drives the same underlying setting the dedicated page does, and a "manage" link stays beside it for the settings those pages carry beyond on/off. When the operator has turned a module off server-wide, its switch shows as disabled with a note rather than a control that can't take effect.
+
 ## [1.27.19] — 2026-07-07 — Vault page polish
 
 ### Changed
