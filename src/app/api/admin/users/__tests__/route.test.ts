@@ -67,6 +67,8 @@ describe("GET /api/admin/users", () => {
         email: "alice@example.com",
         role: "ADMIN",
         createdAt: created,
+        mfaEnforced: true,
+        documentQuotaBytes: BigInt(2_147_483_648),
         _count: { passkeys: 2 },
       },
       {
@@ -75,6 +77,8 @@ describe("GET /api/admin/users", () => {
         email: null,
         role: "USER",
         createdAt: created,
+        mfaEnforced: false,
+        documentQuotaBytes: null,
         _count: { passkeys: 0 },
       },
     ] as never);
@@ -91,10 +95,15 @@ describe("GET /api/admin/users", () => {
       email: "alice@example.com",
       role: "ADMIN",
       createdAt: created.toISOString(),
+      mfaEnforced: true,
+      // BigInt in Prisma, plain number on the wire.
+      documentQuotaBytes: 2_147_483_648,
       passkeyCount: 2,
     });
     expect(body.data[1].passkeyCount).toBe(0);
     expect(body.data[1].email).toBeNull();
+    // No override → explicit null (the instance default applies).
+    expect(body.data[1].documentQuotaBytes).toBeNull();
   });
 
   it("queries Prisma with the safe select shape (no password / sensitive cols)", async () => {
@@ -112,6 +121,7 @@ describe("GET /api/admin/users", () => {
       role: true,
       createdAt: true,
       mfaEnforced: true,
+      documentQuotaBytes: true,
       _count: { select: { passkeys: true } },
     });
     expect(args.select).not.toHaveProperty("passwordHash");

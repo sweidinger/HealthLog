@@ -28,6 +28,9 @@ export interface AdminUser {
   createdAt: string;
   // v1.23 — per-user "require a second factor" override.
   mfaEnforced: boolean;
+  // Document vault — per-user storage-quota override in bytes; null means
+  // the instance-wide default applies.
+  documentQuotaBytes: number | null;
   passkeyCount: number;
 }
 
@@ -88,6 +91,11 @@ export interface AdminSettings {
   // v1.4.25 W7 — null means "fall back to Europe/Berlin in the resolver".
   defaultUserTimezone: string | null;
   moodLogGlobal?: boolean;
+  // Document vault — the two admin-tunable limits (bytes on the wire; the
+  // UI edits them as MB / GB). The per-file cap clamps to the hard 100 MiB
+  // ceiling server-side.
+  documentMaxFileBytes: number;
+  documentQuotaBytes: number;
 }
 
 export interface AdminAuditEntry {

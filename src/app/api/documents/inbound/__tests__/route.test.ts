@@ -1,30 +1,59 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * v1.25 — documents library: store-only upload + browsable list.
+ * Document vault: store-only upload + browsable list.
  *
- * Pins the store-first inversion: a file uploads + persists as a STORED row
- * with NO provider / consent / budget call on the path (a self-hoster with no
- * document-scan provider can still file documents), and the list honours the
- * `q` / `kind` filters with keyset pagination.
+ * Pins the vault upload contract: a file persists as a STORED row with the
+ * binary codec + plaintext sha256 and NO provider / consent / budget call on
+ * the path, the policy-layer error contract (413 fileTooLarge / quotaExceeded
+ * with limits in `meta`, 415 unsupportedType), the duplicate short-circuit
+ * (200 + `meta.duplicate`, no second row), and — hardening — that the list
+ * query NEVER selects the encrypted blob column.
  */
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
-    inboundDocument: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-    },
-    extractedFact: {
-      groupBy: vi.fn(),
-    },
-  },
+process.env.ENCRYPTION_KEY ??=
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+const { txQueryRaw, txCreate, txCreateMany } = vi.hoisted(() => ({
+  txQueryRaw: vi.fn(),
+  txCreate: vi.fn(),
+  txCreateMany: vi.fn(),
 }));
 
-vi.mock("@/lib/crypto", () => ({
-  encrypt: vi.fn((s: string) => `v1.${s}`),
-  decrypt: vi.fn((s: string) => s.replace(/^v1\./u, "")),
-}));
+vi.mock("@/lib/db", () => {
+  const tx = {
+    $queryRaw: txQueryRaw,
+    inboundDocument: { create: txCreate },
+    documentConditionLink: { createMany: txCreateMany },
+  };
+  return {
+    prisma: {
+      inboundDocument: {
+        create: vi.fn(),
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+      extractedFact: {
+        groupBy: vi.fn(),
+      },
+      documentConditionLink: {
+        findMany: vi.fn(),
+      },
+      illnessEpisode: {
+        findMany: vi.fn(),
+      },
+      appSettings: {
+        findUnique: vi.fn(),
+      },
+      user: {
+        findUnique: vi.fn(),
+      },
+      $transaction: vi.fn(async (cb: (t: unknown) => Promise<unknown>) =>
+        cb(tx),
+      ),
+    },
+  };
+});
 
 vi.mock("@/lib/modules/gate", () => ({
   requireModuleEnabled: vi.fn().mockResolvedValue({ enabled: true }),
@@ -56,6 +85,8 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+import { createHash } from "node:crypto";
+
 import { POST, GET } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
@@ -71,18 +102,23 @@ const SESSION_OK = {
 
 const ONE_BY_ONE_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABXvMqOgAAAABJRU5ErkJggg==";
+const PNG_BYTES = Buffer.from(ONE_BY_ONE_PNG_BASE64, "base64");
+const PNG_SHA256 = createHash("sha256").update(PNG_BYTES).digest("hex");
 
-function mkUpload(fields: Record<string, string> = {}) {
-  const body = Buffer.from(ONE_BY_ONE_PNG_BASE64, "base64");
-  const blobBytes = new Uint8Array(body.byteLength);
-  blobBytes.set(body);
+function mkUpload(
+  fields: Record<string, string | string[]> = {},
+  bytes: Buffer = PNG_BYTES,
+  filename = "x.png",
+) {
+  const blobBytes = new Uint8Array(bytes.byteLength);
+  blobBytes.set(bytes);
   const formData = new FormData();
-  formData.append(
-    "file",
-    new Blob([blobBytes], { type: "image/png" }),
-    "x.png",
-  );
-  for (const [k, v] of Object.entries(fields)) formData.append(k, v);
+  formData.append("file", new Blob([blobBytes]), filename);
+  for (const [k, v] of Object.entries(fields)) {
+    for (const item of Array.isArray(v) ? v : [v]) {
+      formData.append(k, item);
+    }
+  }
   return new Request("http://localhost/api/documents/inbound", {
     method: "POST",
     body: formData,
@@ -103,6 +139,8 @@ function docRow(over: Record<string, unknown> = {}) {
     reportDate: null,
     documentDate: null,
     errorReason: null,
+    contentSha256: PNG_SHA256,
+    contentCodec: "binary2",
     createdAt: new Date("2026-06-01T00:00:00.000Z"),
     updatedAt: new Date("2026-06-01T00:00:00.000Z"),
     ...over,
@@ -114,11 +152,21 @@ beforeEach(() => {
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true } as never);
   vi.mocked(prisma.extractedFact.groupBy).mockResolvedValue([] as never);
+  vi.mocked(prisma.documentConditionLink.findMany).mockResolvedValue(
+    [] as never,
+  );
+  vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue(null as never);
+  // No settings row / no user override → policy defaults (25 MiB / 1 GiB).
+  vi.mocked(prisma.appSettings.findUnique).mockResolvedValue(null as never);
+  vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
+  txQueryRaw.mockResolvedValue([{ used: BigInt(0) }]);
+  txCreate.mockResolvedValue(docRow() as never);
+  txCreateMany.mockResolvedValue({ count: 0 } as never);
 });
 
-describe("POST /api/documents/inbound (store-only)", () => {
-  it("stores a file as STORED with no provider call and returns 201", async () => {
-    vi.mocked(prisma.inboundDocument.create).mockResolvedValue(
+describe("POST /api/documents/inbound (vault upload)", () => {
+  it("stores a file binary-codec encrypted with its plaintext sha256", async () => {
+    txCreate.mockResolvedValue(
       docRow({ kind: "LAB_RESULT", title: "Blood panel" }) as never,
     );
 
@@ -132,47 +180,151 @@ describe("POST /api/documents/inbound (store-only)", () => {
     expect(body.data.status).toBe("STORED");
     expect(body.data.kind).toBe("LAB_RESULT");
     expect(body.data.title).toBe("Blood panel");
+    expect(body.data.servingClass).toBe("inline");
+    expect(body.data.conditionLinks).toEqual([]);
 
-    // The row is created with status STORED, no provider, userId from session.
-    const arg = vi.mocked(prisma.inboundDocument.create).mock.calls[0]![0]!;
+    // The row is created with status STORED, no provider, userId from the
+    // session, the ACTIVE binary codec, and the plaintext sha256.
+    const arg = txCreate.mock.calls[0]![0]!;
     expect(arg.data.status).toBe("STORED");
     expect(arg.data.userId).toBe("user-1");
     expect(arg.data.kind).toBe("LAB_RESULT");
+    expect(arg.data.contentCodec).toBe("binary2");
+    expect(arg.data.contentSha256).toBe(PNG_SHA256);
     expect("providerType" in arg.data).toBe(false);
-    // No userId smuggled from the form is honoured — it comes from the session.
-    expect(arg.data.userId).toBe("user-1");
+    // The persisted blob is ciphertext, never the plaintext bytes.
+    const stored = Buffer.from(arg.data.contentEncrypted as Uint8Array);
+    expect(stored.equals(PNG_BYTES)).toBe(false);
+    // The create never round-trips the blob back out.
+    expect(arg.omit).toEqual({ contentEncrypted: true });
   });
 
-  it("rejects a non-image/pdf payload with 415", async () => {
-    const formData = new FormData();
-    formData.append("file", new Blob([new Uint8Array([1, 2, 3, 4])]), "x.bin");
-    const req = new Request("http://localhost/api/documents/inbound", {
-      method: "POST",
-      body: formData,
-    });
-    const res = await post(req);
+  it("rejects an unidentifiable payload with 415 + reason unsupportedType", async () => {
+    const res = await post(
+      mkUpload({}, Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]), "x.bin"),
+    );
     expect(res.status).toBe(415);
-    expect(prisma.inboundDocument.create).not.toHaveBeenCalled();
+    const body = await res.json();
+    expect(body.meta.reason).toBe("unsupportedType");
+    expect(txCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an over-cap file with 413 + the configured limit", async () => {
+    // Admin capped uploads below the PNG's 70 bytes (clamped ≥ 1 in the
+    // resolver); the file itself trips the per-file check.
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      documentMaxFileBytes: 16,
+      documentQuotaBytes: BigInt(1_073_741_824),
+    } as never);
+
+    const res = await post(mkUpload());
+    expect(res.status).toBe(413);
+    const body = await res.json();
+    expect(body.meta.reason).toBe("fileTooLarge");
+    expect(body.meta.maxFileBytes).toBe(16);
+    expect(txCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an upload past the quota with 413 + quota figures", async () => {
+    // Per-user override of 100 bytes; 60 already used; the 70-byte PNG tips it.
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      documentQuotaBytes: BigInt(100),
+    } as never);
+    txQueryRaw.mockResolvedValue([{ used: BigInt(60) }]);
+
+    const res = await post(mkUpload());
+    expect(res.status).toBe(413);
+    const body = await res.json();
+    expect(body.meta.reason).toBe("quotaExceeded");
+    expect(body.meta.quotaBytes).toBe(100);
+    expect(body.meta.usedBytes).toBe(60);
+    expect(txCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns the existing live row with meta.duplicate on a re-upload", async () => {
+    vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue(
+      docRow({ id: "doc-existing" }) as never,
+    );
+
+    const res = await post(mkUpload());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.meta.duplicate).toBe(true);
+    expect(body.data.id).toBe("doc-existing");
+    // The duplicate lookup is scoped to the caller's LIVE rows by sha256.
+    const where = vi.mocked(prisma.inboundDocument.findFirst).mock.calls[0]![0]!
+      .where!;
+    expect(where.userId).toBe("user-1");
+    expect(where.contentSha256).toBe(PNG_SHA256);
+    expect(where.deletedAt).toBeNull();
+    expect(txCreate).not.toHaveBeenCalled();
+  });
+
+  it("pre-links the caller's episodes and refuses a foreign episode id", async () => {
+    // Owned episode → link rows land in the same transaction.
+    vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([
+      { id: "ep-1" },
+    ] as never);
+    let res = await post(mkUpload({ episodeIds: ["ep-1"] }));
+    expect(res.status).toBe(201);
+    expect(txCreateMany).toHaveBeenCalledWith({
+      data: [{ documentId: "doc-1", episodeId: "ep-1", userId: "user-1" }],
+    });
+
+    // Foreign/unknown episode id → 404-shaped refusal, nothing persisted.
+    vi.clearAllMocks();
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(requireModuleEnabled).mockResolvedValue({
+      enabled: true,
+    } as never);
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue(
+      null as never,
+    );
+    vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([] as never);
+    res = await post(mkUpload({ episodeIds: ["ep-foreign"] }));
+    expect(res.status).toBe(404);
+    expect(txCreate).not.toHaveBeenCalled();
   });
 });
 
 describe("GET /api/documents/inbound (list)", () => {
-  it("applies q + kind filters and returns a keyset page with grouped counts", async () => {
+  it("never selects the encrypted blob column (omit hardening)", async () => {
+    vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([] as never);
+
+    const res = await get(
+      new Request("http://localhost/api/documents/inbound"),
+    );
+    expect(res.status).toBe(200);
+
+    const arg = vi.mocked(prisma.inboundDocument.findMany).mock.calls[0]![0]!;
+    expect(arg.omit).toEqual({ contentEncrypted: true });
+    expect(arg.select).toBeUndefined();
+    expect(arg.include).toBeUndefined();
+  });
+
+  it("applies q + multi-kind + episode filters and returns grouped counts", async () => {
     vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([
       docRow({ id: "d1" }),
       docRow({ id: "d2" }),
     ] as never);
-    // factCount excludes REJECTED; pendingCount is the PENDING subset. The
-    // counts come from a single grouped query, not from materialised fact rows.
     vi.mocked(prisma.extractedFact.groupBy).mockResolvedValue([
       { documentId: "d2", status: "PENDING", _count: { _all: 1 } },
       { documentId: "d2", status: "APPROVED", _count: { _all: 1 } },
       { documentId: "d2", status: "REJECTED", _count: { _all: 3 } },
     ] as never);
+    vi.mocked(prisma.documentConditionLink.findMany).mockResolvedValue([
+      {
+        documentId: "d1",
+        episodeId: "ep-1",
+        episode: { label: "Knie" },
+      },
+    ] as never);
 
     const res = await get(
       new Request(
-        "http://localhost/api/documents/inbound?q=panel&kind=LAB_RESULT&sort=createdAt&order=desc&limit=10",
+        "http://localhost/api/documents/inbound?q=panel&kind=LAB_RESULT&kind=IMAGING&episodeId=ep-1&sort=createdAt&order=desc&limit=10",
       ),
     );
     expect(res.status).toBe(200);
@@ -180,11 +332,11 @@ describe("GET /api/documents/inbound (list)", () => {
     expect(body.data.documents).toHaveLength(2);
     expect(body.data.nextCursor).toBeNull();
 
-    // d1 has no facts; d2 has 1 pending + 1 approved + 3 rejected → factCount 2
-    // (rejected excluded), pendingCount 1.
+    // d1 carries its condition link; d2 has 1 pending + 1 approved +
+    // 3 rejected → factCount 2 (rejected excluded), pendingCount 1.
     const [d1, d2] = body.data.documents;
+    expect(d1.conditionLinks).toEqual([{ episodeId: "ep-1", name: "Knie" }]);
     expect(d1.factCount).toBe(0);
-    expect(d1.pendingCount).toBe(0);
     expect(d2.factCount).toBe(2);
     expect(d2.pendingCount).toBe(1);
 
@@ -192,23 +344,32 @@ describe("GET /api/documents/inbound (list)", () => {
     const where = arg.where!;
     expect(where.userId).toBe("user-1");
     expect(where.deletedAt).toBeNull();
-    expect(where.kind).toBe("LAB_RESULT");
+    expect(where.kind).toEqual({ in: ["LAB_RESULT", "IMAGING"] });
+    expect(where.conditionLinks).toEqual({ some: { episodeId: "ep-1" } });
     expect(where.OR).toEqual([
       { title: { contains: "panel", mode: "insensitive" } },
       { filename: { contains: "panel", mode: "insensitive" } },
     ]);
-    // No fact rows are materialised in the page query — counts come from groupBy.
-    expect(arg.include).toBeUndefined();
     // limit+1 fetched for the has-more probe.
     expect(arg.take).toBe(11);
   });
 
+  it("maps the year filter to a UTC calendar-year documentDate range", async () => {
+    vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([] as never);
+    const res = await get(
+      new Request("http://localhost/api/documents/inbound?year=2025"),
+    );
+    expect(res.status).toBe(200);
+    const where = vi.mocked(prisma.inboundDocument.findMany).mock.calls[0]![0]!
+      .where!;
+    expect(where.documentDate).toEqual({
+      gte: new Date(Date.UTC(2025, 0, 1)),
+      lt: new Date(Date.UTC(2026, 0, 1)),
+    });
+  });
+
   it("emits nextCursor when a full page+1 is returned", async () => {
-    const rows = Array.from({ length: 3 }, (_, i) => ({
-      ...docRow({ id: `d${i}` }),
-      _count: { facts: 0 },
-      facts: [],
-    }));
+    const rows = Array.from({ length: 3 }, (_, i) => docRow({ id: `d${i}` }));
     vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue(rows as never);
 
     const res = await get(

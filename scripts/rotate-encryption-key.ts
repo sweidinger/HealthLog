@@ -24,6 +24,10 @@ import { Buffer } from "node:buffer";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { decrypt, encrypt, extractKeyId, getActiveKeyId } from "@/lib/crypto";
+import {
+  rotateColumn,
+  type CorpusClient,
+} from "@/lib/crypto/encryption-corpus";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -484,17 +488,31 @@ async function main() {
     ),
   );
 
-  // ───── v1.25 (W-DOCS-IN) inbound clinical document (Bytes column) ─────
-  // The raw uploaded doctor report / discharge letter (base64-of-binary →
-  // AES-256-GCM string → UTF-8 bytes). Always encrypted on write (NOT NULL),
-  // so every row rotates.
-  results.push(
-    await rotateBytesColumn(
-      "InboundDocument",
-      "contentEncrypted",
-      prisma.inboundDocument,
-    ),
-  );
+  // ───── Inbound clinical document (Bytes column, codec-dispatched) ─────
+  // The raw uploaded document. Two layouts recorded per row in
+  // `contentCodec` ("base64v1" string codec | "binary2" binary codec), so
+  // rotation goes through the shared codec-aware corpus walk: bounded
+  // id-cursor batches (rows are up to cap-sized blobs — never an unbounded
+  // findMany) re-encrypted under each row's OWN codec. Idempotent, so an
+  // interrupted run resumes on re-invocation.
+  {
+    const docResult = await rotateColumn(
+      { inboundDocument: prisma.inboundDocument } as unknown as CorpusClient,
+      {
+        model: "InboundDocument",
+        field: "contentEncrypted",
+        kind: "bytes",
+        codecField: "contentCodec",
+      },
+    );
+    results.push({
+      table: docResult.model,
+      field: docResult.field,
+      scanned: docResult.scanned,
+      rotated: docResult.rotated,
+      errors: docResult.errors,
+    });
+  }
   // The staged extracted-fact payloads: the FHIR-staged clinical values and the
   // verbatim source-span provenance. Both NOT NULL, so every staged row rotates.
   results.push(

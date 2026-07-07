@@ -4,7 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Pencil, Plus, ScanLine, Wrench } from "lucide-react";
+import {
+  ArrowRight,
+  FolderOpen,
+  Loader2,
+  Pencil,
+  Plus,
+  ScanLine,
+  Wrench,
+} from "lucide-react";
 
 import { LabForm } from "@/components/labs/lab-form";
 import { LabList } from "@/components/labs/lab-list";
@@ -27,7 +35,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
 export default function LabsPage() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const mounted = useMounted();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -127,6 +135,20 @@ export default function LabsPage() {
           </>
         }
       />
+
+      {/* Entry point into the document vault, pre-filtered to lab-result
+          documents (the original report PDFs behind these values). Only
+          rendered when the documents module is enabled for this account. */}
+      {user?.modules?.inboundDocuments ? (
+        <Link
+          href="/documents?kind=LAB_RESULT"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md text-sm transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
+        >
+          <FolderOpen className="size-4" aria-hidden />
+          {t("labs.documentsLink")}
+          <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
+      ) : null}
 
       <ResponsiveSheet
         open={dialogOpen}

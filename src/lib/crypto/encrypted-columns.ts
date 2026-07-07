@@ -34,6 +34,15 @@ export interface EncryptedColumn {
   /** Prisma field name (camelCase, as declared in schema.prisma). */
   readonly field: string;
   readonly kind: EncryptedColumnKind;
+  /**
+   * Present when the column's ciphertext layout is dispatched by a sibling
+   * codec column (the document vault's `contentCodec`: "base64v1" = the
+   * `encrypt()`-string-as-UTF-8 shape every other Bytes column uses,
+   * "binary2" = the binary `encryptBytes()` layout). A codec-dispatched
+   * column also rotates in bounded id-cursor batches — its rows are
+   * multi-megabyte blobs, so an unbounded `findMany` would balloon memory.
+   */
+  readonly codecField?: string;
 }
 
 /**
@@ -179,11 +188,19 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   { model: "Allergy", field: "notesEncrypted", kind: "bytes" },
   { model: "FamilyHistoryEntry", field: "notesEncrypted", kind: "bytes" },
 
-  // ───── v1.25 (W-DOCS-IN) inbound clinical document (Bytes column) ─────
-  // The raw uploaded doctor report / discharge letter, base64-of-binary →
-  // AES-256-GCM string → UTF-8 bytes. The most sensitive blob in the wave
-  // (a full clinical document); never logged, never in wide-event meta.
-  { model: "InboundDocument", field: "contentEncrypted", kind: "bytes" },
+  // ───── Inbound clinical document (Bytes column, codec-dispatched) ─────
+  // The raw uploaded document (the most sensitive blob in the corpus; never
+  // logged, never in wide-event meta). Two layouts, recorded per row in
+  // `contentCodec`: "base64v1" (pre-vault rows — base64-of-binary →
+  // AES-256-GCM string → UTF-8 bytes) and "binary2" (vault uploads — the
+  // binary `encryptBytes()` layout). Rotation walks this column in bounded
+  // id-cursor batches and re-encrypts under the row's own codec.
+  {
+    model: "InboundDocument",
+    field: "contentEncrypted",
+    kind: "bytes",
+    codecField: "contentCodec",
+  },
   // The staged extracted-fact payloads: the FHIR-staged clinical values
   // (diagnosis text / lab values / medication names / stated codes) and the
   // verbatim source-span provenance. Both are PHI transcribed from the source

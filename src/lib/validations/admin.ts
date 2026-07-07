@@ -67,6 +67,23 @@ export const adminSettingsSchema = z
     reminderLateMinutes: z.number().int().min(15).max(480).optional(),
     reminderMissedMinutes: z.number().int().min(30).max(720).optional(),
     moodLogGlobal: z.boolean().optional(),
+    // Document vault — the two admin-tunable limits. The per-file cap is
+    // bounded by the hard 100 MiB ceiling (single-shot GCM + bounded
+    // in-memory reads are load-bearing past that; the runtime resolver
+    // clamps again as defence-in-depth). The quota accepts up to 1 TiB —
+    // BYTEA rides pg_dump, so anything larger is an operator error.
+    documentMaxFileBytes: z
+      .number()
+      .int()
+      .min(1_048_576)
+      .max(104_857_600)
+      .optional(),
+    documentQuotaBytes: z
+      .number()
+      .int()
+      .min(10_485_760)
+      .max(1_099_511_627_776)
+      .optional(),
     // v1.4.25 W7 — server-wide default timezone for new signups
     // that don't carry a browser-detected zone. The route validates
     // against Intl.supportedValuesOf at runtime; this schema just

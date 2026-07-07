@@ -1,13 +1,28 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Settings } from "lucide-react";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
+import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { SettingsToggle, useAdminSettings, useUpdateSettings } from "./_shared";
 import { listSupportedTimezones } from "@/lib/tz/format";
+
+// Document-vault limits: bytes on the wire, MB / GB in the UI. The bounds
+// mirror the server-side schema (per-file cap hard-clamped to 100 MiB —
+// single-shot GCM + bounded in-memory reads are load-bearing past that).
+const MIB = 1_048_576;
+const GIB = 1_073_741_824;
+const MAX_FILE_MB_MIN = 1;
+const MAX_FILE_MB_MAX = 100;
+const QUOTA_GB_MIN = 0.1;
+const QUOTA_GB_MAX = 1024;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 // v1.4.27 MB7 / CF-52 — the in-file `NATIVE_SELECT_CLASS` constant
 // retired; the shared `<NativeSelect>` primitive owns the visual
@@ -25,6 +40,43 @@ export function GeneralSettingsSection() {
   const zones = useMemo(() => listSupportedTimezones(), []);
 
   const currentDefaultTz = settings?.defaultUserTimezone ?? "";
+
+  // Draft-while-editing pattern for the two limit inputs: null = not
+  // editing (show the stored value), string = the in-progress draft.
+  // Commit clamps to the schema bounds and converts to bytes.
+  const [maxFileDraft, setMaxFileDraft] = useState<string | null>(null);
+  const [quotaDraft, setQuotaDraft] = useState<string | null>(null);
+
+  const storedMaxFileMb =
+    settings?.documentMaxFileBytes != null
+      ? String(Math.round(settings.documentMaxFileBytes / MIB))
+      : "";
+  const storedQuotaGb =
+    settings?.documentQuotaBytes != null
+      ? String(Math.round((settings.documentQuotaBytes / GIB) * 10) / 10)
+      : "";
+
+  const commitMaxFile = () => {
+    if (maxFileDraft === null) return;
+    const parsed = Number(maxFileDraft);
+    setMaxFileDraft(null);
+    if (!Number.isFinite(parsed) || maxFileDraft.trim() === "") return;
+    const mb = clamp(Math.round(parsed), MAX_FILE_MB_MIN, MAX_FILE_MB_MAX);
+    const bytes = mb * MIB;
+    if (bytes === settings?.documentMaxFileBytes) return;
+    updateSettings.mutate({ documentMaxFileBytes: bytes });
+  };
+
+  const commitQuota = () => {
+    if (quotaDraft === null) return;
+    const parsed = Number(quotaDraft);
+    setQuotaDraft(null);
+    if (!Number.isFinite(parsed) || quotaDraft.trim() === "") return;
+    const gb = clamp(parsed, QUOTA_GB_MIN, QUOTA_GB_MAX);
+    const bytes = Math.round(gb * GIB);
+    if (bytes === settings?.documentQuotaBytes) return;
+    updateSettings.mutate({ documentQuotaBytes: bytes });
+  };
 
   return (
     <SettingsCard>
@@ -116,6 +168,65 @@ export function GeneralSettingsSection() {
               </option>
             ))}
           </NativeSelect>
+        </div>
+
+        {/* Document vault — the two admin-tunable limits (per-file cap +
+            per-user storage quota). Everything else about the vault is
+            committed behaviour; these are deliberately the only knobs. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{t("admin.documentMaxFile")}</p>
+            <p className="text-muted-foreground text-xs">
+              {t("admin.documentMaxFileDescription")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={MAX_FILE_MB_MIN}
+              max={MAX_FILE_MB_MAX}
+              step={1}
+              className="w-24 text-right tabular-nums"
+              aria-label={t("admin.documentMaxFile")}
+              value={maxFileDraft ?? storedMaxFileMb}
+              onChange={(e) => setMaxFileDraft(e.target.value)}
+              onBlur={commitMaxFile}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitMaxFile();
+              }}
+              disabled={updateSettings.isPending || settings == null}
+            />
+            <span className="text-muted-foreground text-xs">MB</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{t("admin.documentQuota")}</p>
+            <p className="text-muted-foreground text-xs">
+              {t("admin.documentQuotaDescription")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={QUOTA_GB_MIN}
+              max={QUOTA_GB_MAX}
+              step={0.1}
+              className="w-24 text-right tabular-nums"
+              aria-label={t("admin.documentQuota")}
+              value={quotaDraft ?? storedQuotaGb}
+              onChange={(e) => setQuotaDraft(e.target.value)}
+              onBlur={commitQuota}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitQuota();
+              }}
+              disabled={updateSettings.isPending || settings == null}
+            />
+            <span className="text-muted-foreground text-xs">GB</span>
+          </div>
         </div>
       </div>
     </SettingsCard>

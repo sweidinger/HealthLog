@@ -537,6 +537,12 @@ model User {
   // `GET /api/auth/me` as a `modules: { <key>: boolean }` map.
   modulePreferencesJson Json? @map("module_preferences_json")
 
+  // Document vault — per-user storage-quota override in bytes. NULL = the
+  // instance default (`AppSettings.documentQuotaBytes`) applies. Admin-set
+  // only (the admin user PUT); resolved by
+  // `resolveDocumentLimits()` in `src/lib/documents/upload-policy.ts`.
+  documentQuotaBytes BigInt? @map("document_quota_bytes")
+
   // v1.18.6 (CCH-03) — "Coach last seen" stamp powering the unread dot
   // on the Coach FAB. The proactive nudge now lands as an ASSISTANT
   // message in the conversation rail (CCH-02); the FAB shows a discreet
@@ -777,6 +783,7 @@ model User {
   // approval. Opt-in module, off by default.
   inboundDocuments            InboundDocument[]
   extractedFacts              ExtractedFact[]
+  documentConditionLinks      DocumentConditionLink[]
   // v1.19.0 — full Withings ECG waveform recordings (encrypted at rest).
   // The paired AFib verdict still lands as an IRREGULAR_RHYTHM_NOTIFICATION
   // Measurement EVENT row (v1.18.11); this holds the raw signal samples.
@@ -3767,6 +3774,16 @@ model AppSettings {
   // never be disabled. Resolved in `src/lib/modules/gate.ts`.
   moduleAvailabilityJson Json? @map("module_availability_json")
 
+  // Document vault — the two admin-tunable limits (the only knobs beside the
+  // module key). `documentMaxFileBytes` is the per-file upload cap, default
+  // 25 MiB, clamped at runtime to the hard 100 MiB ceiling (single-shot GCM +
+  // bounded in-memory reads are load-bearing past that). `documentQuotaBytes`
+  // is the instance-wide per-user storage quota, default 1 GiB; a per-user
+  // override lives on `User.documentQuotaBytes`. Usage counts every
+  // non-purged row (tombstones still hold TOAST bytes).
+  documentMaxFileBytes Int    @default(26214400) @map("document_max_file_bytes")
+  documentQuotaBytes   BigInt @default(1073741824) @map("document_quota_bytes")
+
   @@map("app_settings")
 }
 
@@ -5400,11 +5417,12 @@ model IllnessEpisode {
   /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
   deletedAt         DateTime?        @map("deleted_at")
 
-  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Parent condition for a flare/recurrence (self-relation).
-  parent  IllnessEpisode?  @relation("IllnessFlares", fields: [parentConditionId], references: [id], onDelete: SetNull)
-  flares  IllnessEpisode[] @relation("IllnessFlares")
-  dayLogs IllnessDayLog[]
+  parent        IllnessEpisode?         @relation("IllnessFlares", fields: [parentConditionId], references: [id], onDelete: SetNull)
+  flares        IllnessEpisode[]        @relation("IllnessFlares")
+  dayLogs       IllnessDayLog[]
+  documentLinks DocumentConditionLink[]
 
   @@index([userId, deletedAt])
   @@index([userId, onsetAt])
@@ -5693,6 +5711,9 @@ enum InboundDocumentKind {
   LAB_RESULT
   IMAGING
   PRESCRIPTION
+  /// Überweisung / referral letter — a common German artefact with a clean
+  /// LOINC (57133-1) / ePA (ANF) mapping. Added with the document vault.
+  REFERRAL
   INSURANCE
   VACCINATION
   OTHER
@@ -5760,6 +5781,21 @@ model InboundDocument {
   /// shared with the note columns. The original is sensitive and never
   /// stored in the clear or logged.
   contentEncrypted Bytes                 @map("content_encrypted")
+  /// Lowercase-hex SHA-256 of the PLAINTEXT document bytes, computed at
+  /// upload for same-user duplicate detection. Nullable: rows stored before
+  /// the vault release are not backfilled (only new uploads dedupe). A
+  /// partial unique index (raw SQL in migration 0227, not expressible in
+  /// Prisma) enforces at most one LIVE row per (user_id, content_sha256):
+  ///   CREATE UNIQUE INDEX inbound_documents_user_sha_live
+  ///     ON inbound_documents (user_id, content_sha256)
+  ///     WHERE deleted_at IS NULL AND content_sha256 IS NOT NULL;
+  contentSha256    String?               @map("content_sha256") @db.VarChar(64)
+  /// Storage codec of `contentEncrypted`. "base64v1" = legacy string path
+  /// (base64-of-binary → `encrypt()` string → UTF-8 bytes); "binary2" = the
+  /// binary AES-256-GCM layout written by `encryptBytes()` (no base64
+  /// detour). Explicit column, never header-sniffed; the default keeps every
+  /// pre-existing row correct.
+  contentCodec     String                @default("base64v1") @map("content_codec")
   status           InboundDocumentStatus @default(STORED)
   /// Provider type that ran the extraction (e.g. "anthropic", "openai",
   /// "local"). Diagnostic only. Null on a store-only document.
@@ -5777,7 +5813,8 @@ model InboundDocument {
   /// Failure reason when status = FAILED (a short code, never the document).
   errorReason      String?               @map("error_reason")
 
-  facts ExtractedFact[]
+  facts          ExtractedFact[]
+  conditionLinks DocumentConditionLink[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -5840,4 +5877,26 @@ model ExtractedFact {
   @@index([documentId])
   @@index([userId])
   @@map("extracted_facts")
+}
+
+/// m:n join between a stored document and an illness/condition episode
+/// (a discharge letter legitimately touches two conditions). Never
+/// mandatory at upload; both sides cascade so a deleted document or
+/// episode takes its links with it. `userId` is denormalised for the
+/// owner-scoped queries the vault list runs.
+model DocumentConditionLink {
+  id         String   @id @default(cuid())
+  documentId String   @map("document_id")
+  episodeId  String   @map("episode_id")
+  userId     String   @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  document InboundDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  episode  IllnessEpisode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, episodeId])
+  @@index([episodeId])
+  @@index([userId])
+  @@map("document_condition_links")
 }
