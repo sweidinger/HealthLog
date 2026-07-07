@@ -254,11 +254,13 @@ export function DashboardHero({
         "min-h-[8.75rem] p-4 md:min-h-[9.5rem] md:p-6",
       )}
     >
-      {/* Vertical rhythm: the section gap (greeting/ring row → briefing)
-          reads one step larger than the intra-block spacing so the two
-          zones separate cleanly; the card's own padding stays symmetric. */}
-      <div className="flex h-full flex-col gap-4 md:gap-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      {/* Vertical rhythm: greeting/ring row and the briefing sit one
+          spacing step apart — tight enough that the briefing doesn't feel
+          adrift below a floating greeting. The top row aligns to its start
+          on desktop so the greeting anchors to the top edge instead of
+          drifting to the vertical centre of the taller ring column. */}
+      <div className="flex h-full flex-col gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 flex-1 space-y-3">
             {/* Greeting leads the typographic hierarchy: larger + heavier
               than the verdict so the personalised line reads first.
