@@ -254,7 +254,10 @@ export function DashboardHero({
         "min-h-[8.75rem] p-4 md:min-h-[9.5rem] md:p-6",
       )}
     >
-      <div className="flex h-full flex-col gap-4">
+      {/* Vertical rhythm: the section gap (greeting/ring row → briefing)
+          reads one step larger than the intra-block spacing so the two
+          zones separate cleanly; the card's own padding stays symmetric. */}
+      <div className="flex h-full flex-col gap-4 md:gap-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 flex-1 space-y-3">
             {/* Greeting leads the typographic hierarchy: larger + heavier
@@ -320,7 +323,7 @@ export function DashboardHero({
             collapses; missing selected rings render nothing. */}
           <div
             data-slot="dashboard-hero-rings"
-            className="flex shrink-0 flex-wrap items-center justify-center gap-3 md:justify-end"
+            className="flex shrink-0 flex-wrap items-center justify-center gap-4 md:justify-end md:gap-6"
           >
             {scoreRings.map((ring) => (
               <div
