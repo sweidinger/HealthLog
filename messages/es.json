@@ -8067,11 +8067,14 @@
     "filter": {
       "searchLabel": "Buscar documentos",
       "searchPlaceholder": "Buscar por título o nombre de archivo…",
-      "groupLabel": "Filtrar documentos",
       "typeGroup": "Tipo de documento",
       "conditionGroup": "Afección",
       "yearGroup": "Año",
-      "clear": "Borrar filtros"
+      "clear": "Borrar filtros",
+      "typeAll": "Todos los tipos",
+      "typeCount": "{count} tipos",
+      "conditionAll": "Todas las afecciones",
+      "yearAll": "Todos los años"
     },
     "card": {
       "untitled": "Documento sin título",

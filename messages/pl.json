@@ -8067,11 +8067,14 @@
     "filter": {
       "searchLabel": "Szukaj dokumentów",
       "searchPlaceholder": "Szukaj tytułu lub nazwy pliku…",
-      "groupLabel": "Filtruj dokumenty",
       "typeGroup": "Typ dokumentu",
       "conditionGroup": "Schorzenie",
       "yearGroup": "Rok",
-      "clear": "Wyczyść filtry"
+      "clear": "Wyczyść filtry",
+      "typeAll": "Wszystkie typy",
+      "typeCount": "{count} typy",
+      "conditionAll": "Wszystkie schorzenia",
+      "yearAll": "Wszystkie lata"
     },
     "card": {
       "untitled": "Dokument bez tytułu",
