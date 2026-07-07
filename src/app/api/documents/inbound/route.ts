@@ -261,6 +261,18 @@ async function postUpload(request: Request): Promise<Response> {
   let document: SerialisableDocument;
   try {
     document = await prisma.$transaction(async (tx) => {
+      // Serialise the quota gate per user: without this, N concurrent
+      // uploads all read the same SUM before any of them commits and the
+      // quota can be overshot by up to N × cap in one burst. The advisory
+      // lock is transaction-scoped (released on commit/rollback) and keyed
+      // on the user id, so uploads by different users never queue on each
+      // other.
+      // (`pg_advisory_xact_lock` returns void, which the client cannot
+      // deserialize as a column — selecting FROM it yields a plain int row.)
+      await tx.$queryRaw`
+        SELECT 1 AS locked
+        FROM pg_advisory_xact_lock(hashtextextended('documents-quota:' || ${user.id}, 0))
+      `;
       const rows = await tx.$queryRaw<Array<{ used: bigint }>>`
         SELECT COALESCE(SUM(byte_size), 0)::bigint AS used
         FROM inbound_documents

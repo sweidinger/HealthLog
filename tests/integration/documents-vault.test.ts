@@ -176,7 +176,11 @@ describe("document vault — upload + serve round-trip", () => {
     expect(orig.headers.get("Content-Type")).toBe("image/png");
     expect(orig.headers.get("Content-Disposition")).toContain("inline");
     expect(orig.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    expect(orig.headers.get("Content-Security-Policy")).toBe("sandbox");
+    // The response CSP is owned by the proxy's serve-route carve-out
+    // (`default-src 'none'; frame-ancestors 'self'` — middleware headers win
+    // over route headers), so the route itself sets none. Pinned by
+    // `src/__tests__/proxy-document-serve-framing.test.ts`.
+    expect(orig.headers.get("Content-Security-Policy")).toBeNull();
     const served = Buffer.from(await orig.arrayBuffer());
     expect(served.equals(PNG_1X1)).toBe(true);
   });
@@ -263,6 +267,37 @@ describe("document vault — policy error contract", () => {
     expect(body.meta.usedBytes).toBe(PNG_1X1.byteLength);
     expect(body.meta.quotaBytes).toBe(PNG_1X1.byteLength + 10);
   });
+
+  it("cannot be overshot by concurrent uploads racing the quota gate", async () => {
+    // Four DISTINCT same-sized files fired in parallel against a quota that
+    // fits exactly two. Without the per-user advisory lock in the upload
+    // transaction every request reads the same pre-insert SUM and all four
+    // land — a burst could overshoot the quota by rate-limit × cap.
+    const user = await seedVaultUser("vault-quota-race");
+    const files = Array.from({ length: 4 }, (_, i) => {
+      const filler = Buffer.alloc(2048, i + 1);
+      return Buffer.concat([Buffer.from("%PDF-1.7\n"), filler]);
+    });
+    const size = files[0].byteLength;
+    await getPrismaClient().user.update({
+      where: { id: user.id },
+      data: { documentQuotaBytes: BigInt(size * 2 + 10) },
+    });
+    const { post } = await routes();
+
+    const results = await Promise.all(
+      files.map((bytes, i) => post(uploadRequest(bytes, `race-${i}.pdf`))),
+    );
+    const statuses = results.map((r) => r.status).sort();
+    expect(statuses).toEqual([201, 201, 413, 413]);
+
+    const rows = await getPrismaClient().inboundDocument.findMany({
+      where: { userId: user.id },
+      select: { byteSize: true },
+    });
+    const stored = rows.reduce((sum, r) => sum + r.byteSize, 0);
+    expect(stored).toBeLessThanOrEqual(size * 2 + 10);
+  });
 });
 
 describe("document vault — dedupe + idempotency", () => {
@@ -279,6 +314,28 @@ describe("document vault — dedupe + idempotency", () => {
     const body = await second.json();
     expect(body.meta.duplicate).toBe(true);
     expect(body.data.id).toBe(firstId);
+    expect(await getPrismaClient().inboundDocument.count()).toBe(1);
+  });
+
+  it("collapses two racing identical uploads onto one row", async () => {
+    // Same bytes fired twice in parallel: the fast-path dedupe check misses
+    // (neither row exists yet), so the partial unique index must close the
+    // race — one 201, one 200 + meta.duplicate pointing at the winner.
+    await seedVaultUser("vault-dedupe-race");
+    const { post } = await routes();
+
+    const [a, b] = await Promise.all([
+      post(uploadRequest(PNG_1X1, "race-a.png")),
+      post(uploadRequest(PNG_1X1, "race-b.png")),
+    ]);
+    const statuses = [a.status, b.status].sort();
+    expect(statuses).toEqual([200, 201]);
+    const bodies = await Promise.all([a.json(), b.json()]);
+    const winner = bodies.find((x) => x.meta?.duplicate !== true);
+    const loser = bodies.find((x) => x.meta?.duplicate === true);
+    expect(winner).toBeDefined();
+    expect(loser).toBeDefined();
+    expect(loser!.data.id).toBe(winner!.data.id);
     expect(await getPrismaClient().inboundDocument.count()).toBe(1);
   });
 
