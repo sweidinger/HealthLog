@@ -60,7 +60,10 @@ describe("stripImageMetadata — JPEG", () => {
     Buffer.from("GPSLatitude=48.137 GPSLongitude=11.575"),
   ]);
   const app1 = jpegSegment(0xe1, exifPayload);
-  const iccPayload = Buffer.concat([Buffer.from("ICC_PROFILE\0"), Buffer.from([1, 2, 3, 4])]);
+  const iccPayload = Buffer.concat([
+    Buffer.from("ICC_PROFILE\0"),
+    Buffer.from([1, 2, 3, 4]),
+  ]);
   const app2 = jpegSegment(0xe2, iccPayload);
   const com = jpegSegment(0xfe, Buffer.from("private comment"));
   const dqt = jpegSegment(0xdb, Buffer.from([0x00, 0x01, 0x02, 0x03]));
@@ -95,12 +98,23 @@ describe("stripImageMetadata — JPEG", () => {
 describe("stripImageMetadata — PNG", () => {
   const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   function pngChunk(type: string, data: Buffer): Buffer {
-    return Buffer.concat([u32be(data.length), Buffer.from(type, "ascii"), data, u32be(0)]);
+    return Buffer.concat([
+      u32be(data.length),
+      Buffer.from(type, "ascii"),
+      data,
+      u32be(0),
+    ]);
   }
-  const ihdr = pngChunk("IHDR", Buffer.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0]));
+  const ihdr = pngChunk(
+    "IHDR",
+    Buffer.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0]),
+  );
   const exif = pngChunk("eXIf", Buffer.from("GPSInfo private-location"));
   const text = pngChunk("tEXt", Buffer.from("Comment\0secret note"));
-  const itxt = pngChunk("iTXt", Buffer.from("XML:com.adobe.xmp\0\0\0\0\0<x:xmpmeta/>"));
+  const itxt = pngChunk(
+    "iTXt",
+    Buffer.from("XML:com.adobe.xmp\0\0\0\0\0<x:xmpmeta/>"),
+  );
   const gama = pngChunk("gAMA", Buffer.from([0, 0, 0x8a, 0x3d]));
   const idat = pngChunk("IDAT", Buffer.from([0x78, 0x9c, 0x01, 0x00]));
   const iend = pngChunk("IEND", Buffer.alloc(0));
@@ -125,8 +139,13 @@ describe("stripImageMetadata — PNG", () => {
 
 describe("stripImageMetadata — WebP", () => {
   function webpChunk(fourcc: string, data: Buffer): Buffer {
-    const padded = data.length % 2 === 1 ? Buffer.concat([data, Buffer.from([0])]) : data;
-    return Buffer.concat([Buffer.from(fourcc, "ascii"), u32le(data.length), padded]);
+    const padded =
+      data.length % 2 === 1 ? Buffer.concat([data, Buffer.from([0])]) : data;
+    return Buffer.concat([
+      Buffer.from(fourcc, "ascii"),
+      u32le(data.length),
+      padded,
+    ]);
   }
   // VP8X with EXIF (0x08) + XMP (0x04) flags set, an image chunk, plus EXIF/XMP.
   const vp8xFlags = Buffer.from([0x08 | 0x04, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
