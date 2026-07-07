@@ -23,7 +23,13 @@
  * same date and link. `seedNamespaceDocs` adds disposable per-test
  * namespaces (bulk flows) that never collide with the doctor-flow corpus.
  */
-import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import {
+  createCipheriv,
+  createHash,
+  createHmac,
+  hkdfSync,
+  randomBytes,
+} from "node:crypto";
 
 import pg from "pg";
 
@@ -68,6 +74,68 @@ function encryptBinary2(plaintext: Buffer): Buffer {
   ]);
 }
 
+/**
+ * Encrypt a plaintext string into the `encrypt()`-string-as-UTF-8 Bytes shape
+ * the content index stores `text_encrypted` in (`<keyId>.<base64(iv|tag|ct)>`
+ * → UTF-8 bytes). Mirrors src/lib/crypto.ts `encrypt` + the coach bytes codec.
+ */
+function encryptStringToBytes(plaintext: string): Buffer {
+  const { id, key } = resolveActiveKey();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const enc = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const payload = Buffer.concat([iv, tag, enc]).toString("base64");
+  return Buffer.from(`${id}.${payload}`, "utf8");
+}
+
+// ─── Blind content-index tokens (mirrors src/lib/documents/content-index) ────
+//
+// HKDF-derived index subkey off the ACTIVE encryption key + domain label, then
+// each normalised token HMAC-SHA256'd and truncated to a 16-char hex tag. The
+// server hashes a search query the same way, so a body-only word seeded here is
+// findable through the real GIN union without ever storing the word in clear.
+
+const CONTENT_INDEX_INFO = "healthlog:document-content-index:v1";
+
+function indexSubkey(): Buffer {
+  const { key } = resolveActiveKey();
+  return Buffer.from(
+    hkdfSync("sha256", key, new Uint8Array(0), CONTENT_INDEX_INFO, 32),
+  );
+}
+
+/** Tokenise like the server: NFKD de-accent, lowercase, alnum runs, len 3..64.
+ *  The seeded words are deliberately non-stopwords, so the stopword drop the
+ *  server also applies is a no-op here and the tag sets match exactly. */
+function tokenise(text: string): string[] {
+  const normalised = text
+    .normalize("NFKD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+  const seen = new Set<string>();
+  for (const raw of normalised.split(/[^\p{L}\p{N}]+/u)) {
+    const token = raw.trim();
+    if (token.length < 3 || token.length > 64) continue;
+    seen.add(token);
+  }
+  return [...seen];
+}
+
+function tokeniseAndHash(text: string): string[] {
+  const subkey = indexSubkey();
+  const hashes = new Set<string>();
+  for (const token of tokenise(text)) {
+    hashes.add(
+      createHmac("sha256", subkey)
+        .update(token, "utf8")
+        .digest("hex")
+        .slice(0, 16),
+    );
+  }
+  return [...hashes];
+}
+
 // ─── Deterministic tiny documents ───────────────────────────────────────────
 
 /** Minimal single-page PDF; `marker` lands in a comment so every doc's bytes
@@ -96,6 +164,15 @@ function tinyPng(marker: string): Buffer {
 
 export const KNIE_EPISODE_ID = "e2evaultknie000000000001";
 export const MRT_DOC_ID = "e2evaultmrt0000000000001";
+/** A stored PDF the AI-assist specs drive (mocked provider); title/kind are
+ *  bland so an applied suggestion is visibly different. */
+export const AI_PROBE_DOC_ID = "e2evaultaiprobe000000001";
+/** A stored document whose searchable body word lives ONLY in its content
+ *  index — never in the title or filename — so content search is the only
+ *  route to it. */
+export const CONTENT_DOC_ID = "e2evaultcontent00000001";
+/** The whole word that appears only in `CONTENT_DOC_ID`'s indexed body. */
+export const CONTENT_BODY_WORD = "pneumothorax";
 /** Filing date of the MRT report — "last autumn" relative to the fixture. */
 const MRT_DOC_DATE = "2025-10-14";
 
@@ -258,6 +335,69 @@ export async function ensureVaultFixture(): Promise<void> {
         [`e2evaultlink00000000000${i + 1}`, docId, KNIE_EPISODE_ID, userId],
       );
     }
+  } finally {
+    await pool.end();
+  }
+}
+
+/**
+ * Seed the P2 AI-assist + content-search fixtures:
+ *   - a bland PDF the assist / summary specs drive against a mocked provider;
+ *   - a document whose only searchable word (`CONTENT_BODY_WORD`) lives in its
+ *     blind content index, not its title/filename, so content search is the
+ *     sole route to it — exercising the real GIN token union end-to-end.
+ * Idempotent (fixed ids upserted); safe to call from every spec's beforeAll.
+ */
+export async function ensureVaultAiFixture(): Promise<void> {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("[vault-fixture] DATABASE_URL is not set");
+  const pool = new pg.Pool({ connectionString: url });
+  try {
+    const userId = await getUserId(pool);
+
+    await upsertDocs(pool, userId, [
+      {
+        id: AI_PROBE_DOC_ID,
+        kind: "OTHER",
+        title: "AI probe report",
+        filename: "ai-probe-report.pdf",
+        mimeType: "application/pdf",
+        documentDate: "2026-04-02",
+        bytes: tinyPdf(AI_PROBE_DOC_ID),
+      },
+      {
+        // Title + filename deliberately omit CONTENT_BODY_WORD.
+        id: CONTENT_DOC_ID,
+        kind: "DOCTOR_REPORT",
+        title: "Radiology note",
+        filename: "radiology-note.pdf",
+        mimeType: "application/pdf",
+        documentDate: "2026-03-10",
+        bytes: tinyPdf(CONTENT_DOC_ID),
+      },
+    ]);
+
+    // Seed CONTENT_DOC_ID's blind content index: the body word is only findable
+    // via the token union. The plaintext text is stored encrypted (never read
+    // by the search path) purely to mirror a real index row.
+    const body = `Chest imaging report. Findings consistent with ${CONTENT_BODY_WORD}. No pleural effusion noted.`;
+    await pool.query(
+      `INSERT INTO document_content_index
+        (id, document_id, user_id, text_encrypted, search_tokens, source,
+         provider_type, tokenizer_version, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, 'vision', NULL, '1', NOW(), NOW())
+       ON CONFLICT (document_id) DO UPDATE SET
+         text_encrypted = EXCLUDED.text_encrypted,
+         search_tokens = EXCLUDED.search_tokens,
+         updated_at = NOW()`,
+      [
+        "e2evaultcidx0000000000001",
+        CONTENT_DOC_ID,
+        userId,
+        encryptStringToBytes(body),
+        tokeniseAndHash(body),
+      ],
+    );
   } finally {
     await pool.end();
   }
