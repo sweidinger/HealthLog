@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.27.18] — 2026-07-07 — Late doses no longer jump the evening slot
+
+### Fixed
+
+- Recording a dose late — after its catch-up window has closed, when the card has already advanced to the next scheduled time — no longer binds the intake to that later slot. Previously a morning dose taken in the early afternoon could be recorded against the evening slot, which then made the evening dose look already taken, dropped it from the day, and pushed the next reminder to tomorrow. A late intake now records on its own, leaving both the missed and the upcoming slot intact, and the taken-count reflects only real intakes. The same guard applies to the bulk-intake path.
+
 ## [1.27.17] — 2026-07-07 — The document vault
 
 ### Added

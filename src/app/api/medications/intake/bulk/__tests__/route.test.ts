@@ -476,26 +476,16 @@ describe("POST /api/medications/intake/bulk — v1.15.19 resolver-null convergen
     vi.useRealTimers();
   });
 
-  it("converges an early taken-write onto the pre-minted pending REMINDER row instead of inserting a sibling", async () => {
-    // Source-agnostic probe finds the live REMINDER row on the incoming
-    // instant…
-    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValueOnce({
-      id: "row-reminder",
-    } as never);
-    // …and the shared slot upsert re-reads + updates it in place.
-    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
-      {
-        id: "row-reminder",
-        takenAt: null,
-        skipped: false,
-        idempotencyKey: null,
-        scheduledFor: new Date("2026-06-15T05:00:00Z"),
-        source: "REMINDER",
-        createdAt: new Date("2026-06-15T00:00:00Z"),
-      },
-    ] as never);
-    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
-      id: "row-reminder",
+  it("records an early taken-write standalone; it does NOT snap forward onto the future slot's pending row", async () => {
+    // Dose-safety invariant: a taken dose must never be attributed to a slot
+    // whose anchor is still in the future (a late-morning take must not
+    // consume the evening slot just because the card / client supplied it as
+    // `scheduledFor`). Band attribution already refused this off-window take
+    // (resolver null); the convergence probe must honour the same
+    // `mayConvergeOntoSuppliedSlot` guard rather than re-binding the take
+    // forward onto the pre-minted REMINDER row. It records standalone instead.
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValueOnce({
+      id: "row-standalone",
     } as never);
 
     const res = await POST(
@@ -517,14 +507,22 @@ describe("POST /api/medications/intake/bulk — v1.15.19 resolver-null convergen
         entries: Array<{ status: string; id?: string }>;
       };
     };
-    // The slot did NOT fork into a second live event.
-    expect(body.data.updated).toBe(1);
-    expect(body.data.inserted).toBe(0);
-    expect(body.data.entries[0].status).toBe("updated");
-    expect(body.data.entries[0].id).toBe("row-reminder");
-    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
-    expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "row-reminder" } }),
+    // Records as a fresh ad-hoc row — the future slot is left untouched.
+    expect(body.data.inserted).toBe(1);
+    expect(body.data.updated).toBe(0);
+    expect(body.data.entries[0].status).toBe("inserted");
+    // The guard short-circuits the convergence probe (no findFirst) and the
+    // future pending row is never updated.
+    expect(prisma.medicationIntakeEvent.findFirst).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
+    // Ad-hoc contract: the row anchors on its own intake instant.
+    expect(prisma.medicationIntakeEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          scheduledFor: new Date("2026-06-15T00:30:00.000Z"),
+          takenAt: new Date("2026-06-15T00:30:00.000Z"),
+        }),
+      }),
     );
   });
 
