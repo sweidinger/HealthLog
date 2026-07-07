@@ -51,6 +51,13 @@ export const GET = apiHandler(async () => {
     reminderLateMinutes: settings?.reminderLateMinutes ?? 120,
     reminderMissedMinutes: settings?.reminderMissedMinutes ?? 240,
     moodLogGlobal: settings?.moodLogGlobal ?? true,
+    // Document vault limits (per-file cap + per-user quota default). BigInt
+    // column → Number for the JSON envelope (values are far below 2^53).
+    documentMaxFileBytes: settings?.documentMaxFileBytes ?? 26_214_400,
+    documentQuotaBytes:
+      settings?.documentQuotaBytes !== undefined
+        ? Number(settings.documentQuotaBytes)
+        : 1_073_741_824,
     // v1.4.25 W7 — null means "fall back to Europe/Berlin in the
     // resolver"; surfacing the raw value lets the admin UI render
     // an empty picker placeholder until they opt in.
@@ -176,6 +183,17 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     auditDetails.reminderMissedMinutes = data.reminderMissedMinutes;
   }
 
+  // Document vault limits (schema already bounds both; the upload-time
+  // resolver clamps the cap to the hard ceiling again as defence-in-depth).
+  if (data.documentMaxFileBytes !== undefined) {
+    updates.documentMaxFileBytes = data.documentMaxFileBytes;
+    auditDetails.documentMaxFileBytes = data.documentMaxFileBytes;
+  }
+  if (data.documentQuotaBytes !== undefined) {
+    updates.documentQuotaBytes = BigInt(data.documentQuotaBytes);
+    auditDetails.documentQuotaBytes = data.documentQuotaBytes;
+  }
+
   // v1.4.25 W7 — server-default timezone for new signups.
   // Empty string clears the override (resolver falls back to
   // Europe/Berlin); a non-empty string must pass Intl validation
@@ -240,6 +258,8 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     reminderLateMinutes: settings.reminderLateMinutes,
     reminderMissedMinutes: settings.reminderMissedMinutes,
     moodLogGlobal: settings.moodLogGlobal,
+    documentMaxFileBytes: settings.documentMaxFileBytes,
+    documentQuotaBytes: Number(settings.documentQuotaBytes),
     defaultUserTimezone: settings.defaultUserTimezone,
   });
 });

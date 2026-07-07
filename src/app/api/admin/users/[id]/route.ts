@@ -19,6 +19,16 @@ const updateUserSchema = z.object({
   // v1.23 — per-user "require a second factor" override. Effective requirement
   // is the OR of this and the instance-wide AppSettings.mfaRequired policy.
   mfaEnforced: z.boolean().optional(),
+  // Document vault — per-user storage-quota override in bytes. Null clears
+  // the override (the instance default applies again). Same bounds as the
+  // instance-wide setting.
+  documentQuotaBytes: z
+    .number()
+    .int()
+    .min(10_485_760)
+    .max(1_099_511_627_776)
+    .nullable()
+    .optional(),
 });
 
 export const PUT = apiHandler(
@@ -70,6 +80,12 @@ export const PUT = apiHandler(
         ...(parsed.data.mfaEnforced !== undefined && {
           mfaEnforced: parsed.data.mfaEnforced,
         }),
+        ...(parsed.data.documentQuotaBytes !== undefined && {
+          documentQuotaBytes:
+            parsed.data.documentQuotaBytes === null
+              ? null
+              : BigInt(parsed.data.documentQuotaBytes),
+        }),
       },
       select: {
         id: true,
@@ -78,6 +94,7 @@ export const PUT = apiHandler(
         role: true,
         createdAt: true,
         mfaEnforced: true,
+        documentQuotaBytes: true,
       },
     });
 
@@ -87,6 +104,13 @@ export const PUT = apiHandler(
       details: { targetUserId: id, changes: parsed.data },
     });
 
-    return apiSuccess(updatedUser);
+    return apiSuccess({
+      ...updatedUser,
+      // BigInt → Number for the JSON envelope; null = no override.
+      documentQuotaBytes:
+        updatedUser.documentQuotaBytes === null
+          ? null
+          : Number(updatedUser.documentQuotaBytes),
+    });
   },
 );
