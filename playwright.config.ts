@@ -88,5 +88,17 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
         stdout: "ignore",
         stderr: "pipe",
+        env: {
+          ...process.env,
+          // The dashboard RSC wrapper server-prefetches the snapshot into
+          // the first HTML (HydrationBoundary). Playwright's route mocks
+          // only see CLIENT fetches, so an SSR-embedded snapshot would
+          // bypass `mockDashboardSnapshot` and every dashboard spec would
+          // assert against the seeded account instead of its fixture.
+          // Disable the prefetch for the e2e server — the suite keeps the
+          // deterministic client-fetch path; the SSR fast path is
+          // verified by Lighthouse/manual passes.
+          DASHBOARD_SSR_PREFETCH: "false",
+        },
       },
 });

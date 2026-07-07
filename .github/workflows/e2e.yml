@@ -71,6 +71,14 @@ jobs:
 
       - run: pnpm exec next build
 
+      # Client-bundle budget gate — rides this job because it is the one
+      # place CI already has a production build on disk. Catches the
+      # regressions the dead webpack-era tooling (ANALYZE=1, the old
+      # bundle-report) let through: a statically imported message catalog
+      # (~100 KB gz on every route) or a chart import bypassing the shared
+      # chart-runtime boundary (a duplicated ~92 KB gz recharts chunk).
+      - run: pnpm bundle-check
+
       - run: pnpm exec playwright test
         env:
           E2E_BASE_URL: http://localhost:3000

@@ -19,7 +19,7 @@ import { join } from "node:path";
  *     layout toggle) the header takes it back behind `showGreeting`,
  *     fed from the page's hero gate — the greeting never disappears.
  */
-const PAGE_PATH = join(process.cwd(), "src/app/page.tsx");
+const PAGE_PATH = join(process.cwd(), "src/app/page-client.tsx");
 const HEADER_PATH = join(
   process.cwd(),
   "src/components/dashboard/dashboard-header.tsx",

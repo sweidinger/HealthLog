@@ -34,7 +34,7 @@ import {
 import { TrendCardSkeleton } from "@/components/charts/trend-card-skeleton";
 import { I18nProvider } from "@/lib/i18n/context";
 
-const PAGE_PATH = join(process.cwd(), "src/app/page.tsx");
+const PAGE_PATH = join(process.cwd(), "src/app/page-client.tsx");
 
 describe("resolveChartRevealState", () => {
   it("stays hidden while the gate is not armed (no visible charts yet)", () => {
