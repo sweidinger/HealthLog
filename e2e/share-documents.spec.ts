@@ -136,6 +136,11 @@ test.describe("clinician document sharing", () => {
     page,
     browser,
   }) => {
+    // A full lifecycle across two browser contexts (owner create + picker,
+    // recipient unlock, several document serves, revoke): legitimately heavy,
+    // so it earns the tripled timeout rather than racing the default 30s on a
+    // loaded CI runner.
+    test.slow();
     const share = await createShareWithDocs(page);
     const clinician = await openUnlockedClinician(browser, share);
 
