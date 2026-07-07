@@ -8035,6 +8035,7 @@
       "LAB_RESULT": "Laborbefund",
       "IMAGING": "Bildgebung",
       "PRESCRIPTION": "Rezept",
+      "REFERRAL": "Überweisung",
       "INSURANCE": "Versicherung",
       "VACCINATION": "Impfung"
     },

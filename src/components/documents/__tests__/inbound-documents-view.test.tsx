@@ -59,6 +59,8 @@ function doc(
     errorReason: null,
     factCount: 0,
     pendingCount: 0,
+    conditionLinks: [],
+    servingClass: "inline",
     createdAt: "2026-06-20T08:00:00.000Z",
     updatedAt: "2026-06-20T08:00:00.000Z",
     ...over,

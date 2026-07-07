@@ -46,7 +46,7 @@ import {
   type InboundExtractionResult,
 } from "@/lib/documents/extract";
 import {
-  decryptDocumentFromBytes,
+  decryptDocumentContent,
   encryptFactData,
   encryptFactProvenance,
   serialiseDocumentDetail,
@@ -75,6 +75,7 @@ type LoadedDocument = {
   id: string;
   kind: string;
   contentEncrypted: Uint8Array;
+  contentCodec: string;
   mimeType: string;
   status: string;
 };
@@ -135,6 +136,7 @@ export const POST = apiHandler(
         id: true,
         kind: true,
         contentEncrypted: true,
+        contentCodec: true,
         mimeType: true,
         status: true,
       },
@@ -324,7 +326,10 @@ async function handleVisionExtract(
   // trust a stored label for the provider call).
   let buffer: Buffer;
   try {
-    buffer = decryptDocumentFromBytes(document.contentEncrypted);
+    buffer = decryptDocumentContent(
+      document.contentEncrypted,
+      document.contentCodec,
+    );
   } catch {
     return apiError("Couldn't read the stored document.", 422, {
       errorCode: "documents.inbound.extractFailed",

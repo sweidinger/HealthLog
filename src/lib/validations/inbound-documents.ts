@@ -52,6 +52,7 @@ export const INBOUND_DOCUMENT_KINDS = [
   "LAB_RESULT",
   "IMAGING",
   "PRESCRIPTION",
+  "REFERRAL",
   "INSURANCE",
   "VACCINATION",
   "OTHER",
@@ -196,6 +197,13 @@ export interface ExtractedFactDto {
   committedRecordType: string | null;
 }
 
+/** One condition link on a document DTO (chip → `/illness/[id]`). */
+export interface DocumentConditionLinkDto {
+  episodeId: string;
+  /** The episode's user-facing label. */
+  name: string;
+}
+
 /** The document DTO (list + detail). */
 export interface InboundDocumentDto {
   id: string;
@@ -216,6 +224,10 @@ export interface InboundDocumentDto {
   factCount: number;
   /** Count of staged facts still PENDING review. */
   pendingCount: number;
+  /** Linked illness/condition episodes (empty when unlinked). */
+  conditionLinks: DocumentConditionLinkDto[];
+  /** How the serve route delivers the original: render inline or download. */
+  servingClass: "inline" | "attachment";
   createdAt: string;
   updatedAt: string;
 }
@@ -343,16 +355,26 @@ const isoDateString = z
 
 export const DOCUMENT_TITLE_MAX = 200;
 
+/** Max condition links a single document may carry / receive per request. */
+export const DOCUMENT_MAX_EPISODE_LINKS = 20;
+
+const episodeIdList = z
+  .array(z.string().trim().min(1).max(40))
+  .max(DOCUMENT_MAX_EPISODE_LINKS);
+
 /**
  * The store-only upload metadata (the multipart form fields beside the file).
  * Every field is optional — a bare file upload is valid and lands as a STORED
- * document with no title / category / filing date. No `userId` field; it is
- * always narrowed from the session.
+ * document with no title / category / filing date. `episodeIds` pre-links the
+ * document to the caller's illness/condition episodes (repeated `episodeIds`
+ * form fields; ownership is re-checked in the route). No `userId` field; it
+ * is always narrowed from the session.
  */
 export const documentCreateSchema = z.object({
   title: z.string().trim().min(1).max(DOCUMENT_TITLE_MAX).optional(),
   kind: z.enum(INBOUND_DOCUMENT_KINDS).optional(),
   documentDate: isoDateString.optional(),
+  episodeIds: episodeIdList.optional(),
 });
 
 export type DocumentCreateInput = z.infer<typeof documentCreateSchema>;
@@ -374,12 +396,19 @@ export const documentUpdateSchema = z
       .transform((v) => (v === "" ? null : v)),
     kind: z.enum(INBOUND_DOCUMENT_KINDS).optional(),
     documentDate: isoDateString.nullable().optional(),
+    /**
+     * Replace-set condition links: the document's links become exactly this
+     * set (an empty array unlinks everything). Ownership of every episode id
+     * is re-checked in the route against the caller's episodes.
+     */
+    episodeIds: episodeIdList.optional(),
   })
   .refine(
     (d) =>
       d.title !== undefined ||
       d.kind !== undefined ||
-      d.documentDate !== undefined,
+      d.documentDate !== undefined ||
+      d.episodeIds !== undefined,
     { message: "Provide at least one field to update" },
   );
 
@@ -403,7 +432,15 @@ export const DOCUMENT_LIST_DEFAULT_LIMIT = 50;
  */
 export const documentListQuerySchema = z.object({
   q: z.string().trim().max(100).optional(),
-  kind: z.enum(INBOUND_DOCUMENT_KINDS).optional(),
+  /**
+   * Category filter — OR inside the facet. Repeated `kind` params or a
+   * comma-separated value; the route normalises to an array before parsing.
+   */
+  kind: z.array(z.enum(INBOUND_DOCUMENT_KINDS)).max(16).optional(),
+  /** Only documents linked to this illness/condition episode. */
+  episodeId: z.string().trim().min(1).max(40).optional(),
+  /** Only documents whose filing date falls in this calendar year (UTC). */
+  year: z.coerce.number().int().min(1900).max(9999).optional(),
   from: isoDateString.optional(),
   to: isoDateString.optional(),
   sort: z.enum(DOCUMENT_LIST_SORTS).default("documentDate"),
@@ -418,3 +455,66 @@ export const documentListQuerySchema = z.object({
 });
 
 export type DocumentListQuery = z.infer<typeof documentListQuerySchema>;
+
+// ─── Vault: bulk actions ───────────────────────────────────────────────────
+
+/** Max document ids one bulk request may touch. */
+export const DOCUMENT_BULK_MAX_IDS = 100;
+
+export const DOCUMENT_BULK_ACTIONS = [
+  "setKind",
+  "linkEpisode",
+  "unlinkEpisode",
+  "delete",
+  "restore",
+] as const;
+export type DocumentBulkAction = (typeof DOCUMENT_BULK_ACTIONS)[number];
+
+/**
+ * One bulk action over up to 100 owner-scoped documents. `setKind` requires
+ * `kind`; `linkEpisode` / `unlinkEpisode` require `episodeId` (ownership
+ * re-checked in the route). Per-id outcomes ride the response so a partial
+ * failure never aborts the batch. No `userId` field — narrowed from the
+ * session.
+ */
+export const documentBulkSchema = z
+  .object({
+    ids: z
+      .array(z.string().trim().min(1).max(40))
+      .min(1)
+      .max(DOCUMENT_BULK_MAX_IDS),
+    action: z.enum(DOCUMENT_BULK_ACTIONS),
+    kind: z.enum(INBOUND_DOCUMENT_KINDS).optional(),
+    episodeId: z.string().trim().min(1).max(40).optional(),
+  })
+  .refine((d) => d.action !== "setKind" || d.kind !== undefined, {
+    message: "Action 'setKind' requires a kind",
+    path: ["kind"],
+  })
+  .refine(
+    (d) =>
+      (d.action !== "linkEpisode" && d.action !== "unlinkEpisode") ||
+      d.episodeId !== undefined,
+    {
+      message: "Episode actions require an episodeId",
+      path: ["episodeId"],
+    },
+  );
+
+export type DocumentBulkInput = z.infer<typeof documentBulkSchema>;
+
+/** Per-id outcome in the bulk response. */
+export interface DocumentBulkResultDto {
+  id: string;
+  ok: boolean;
+  /** Short machine reason when `ok` is false (e.g. "notFound", "conflict"). */
+  error: string | null;
+}
+
+/** The usage endpoint payload the UI reads before offering an upload. */
+export interface DocumentUsageDto {
+  usedBytes: number;
+  quotaBytes: number;
+  maxFileBytes: number;
+  acceptedExtensions: string[];
+}
