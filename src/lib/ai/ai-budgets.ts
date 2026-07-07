@@ -161,4 +161,28 @@ export const AI_BUDGETS = {
    * envelope. Temperature 0 — faithful structuring, not generation.
    */
   ocrExtractText: { temperature: 0, maxTokens: 1500 },
+
+  /**
+   * v1.27.22 (Document vault P2) — filing-metadata assist. ONE call proposes a
+   * short `{ title, kind, documentDate }` draft for a stored document. A tiny
+   * JSON envelope, so 400 tokens is ample; temperature 0 — a neutral filing
+   * label is a transcription task, not generation.
+   */
+  documentAssist: { temperature: 0, maxTokens: 400 },
+
+  /**
+   * v1.27.22 — on-demand, session-only plain-language document summary. A short
+   * descriptive paragraph (what kind of document, what it is about), never a
+   * diagnosis. 600 tokens covers 2-4 sentences plus headroom; a touch of
+   * temperature for readable prose without drift.
+   */
+  documentSummary: { temperature: 0.3, maxTokens: 600 },
+
+  /**
+   * v1.27.22 — raw verbatim transcription of a document's text. Feeds the
+   * session-only "extracted text" view AND the content-search index build. A
+   * dense multi-page report runs long, so 4000 tokens matches the vision-OCR
+   * ceiling; temperature 0 — faithful transcription, not generation.
+   */
+  documentTranscribe: { temperature: 0, maxTokens: 4000 },
 } as const satisfies Record<string, AiBudget>;

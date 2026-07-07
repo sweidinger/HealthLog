@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.27.22] — 2026-07-07 — Document assist and content search
+
+### Added
+
+- The document vault gains an optional AI layer that only runs with a configured AI provider (bring-your-own-key or local) and your consent — nothing runs automatically, nothing is interpreted, and nothing is saved without an explicit action.
+  - **Suggest details** proposes a filing title, type, and date for a stored document. Suggestions are drafts: the title seeds the editable field, type and date apply only on an explicit tap, and nothing is written until you act.
+  - **Summarise / show extracted text** returns a short plain-language description or the raw transcribed text, shown once for that view only — never saved into the coach, snapshots, records, or the search index, and never a diagnosis.
+  - **Content search** now matches whole words inside a document's body, not just its title and filename. The extracted text is stored encrypted at rest and turned into a blind, one-way keyed token index — no readable text and no readable word is ever stored; a search matches hashes. Whole-word only (substring matching stays on title and filename). Index one document at a time or run a bounded background backfill over the rest.
+
 ## [1.27.21] — 2026-07-07 — Hero spacing and one green
 
 ### Changed

@@ -56,6 +56,7 @@ import { DocumentDetailSheet } from "./document-detail-sheet";
 import { DocumentFilterBar, type ConditionChip } from "./document-filter-bar";
 import { DocumentTimeline } from "./document-timeline";
 import { UploadZone } from "./upload-zone";
+import { useReindexAll } from "./use-content-index";
 import { useDocumentUpload } from "./use-document-upload";
 import { usePageFileDrop } from "./use-page-file-drop";
 import {
@@ -243,6 +244,34 @@ export function DocumentsView() {
   const { dropActive } = usePageFileDrop(enqueueFiles);
 
   const episodes = useIllnessEpisodes(true);
+
+  // Content-search coverage: fire the corpus backfill when indexing is
+  // available and some documents are not yet searchable. The list search
+  // already unions content matches server-side — this only surfaces the hint
+  // and the "index all" affordance from the usage gauge.
+  const reindexAll = useReindexAll();
+  const contentIndex = usage.data?.contentIndex;
+  const canIndexContent = contentIndex?.enabled ?? false;
+  const showIndexAll =
+    canIndexContent &&
+    contentIndex !== undefined &&
+    contentIndex.totalCount > 0 &&
+    contentIndex.indexedCount < contentIndex.totalCount;
+  const contentSearchActive =
+    canIndexContent && (contentIndex?.indexedCount ?? 0) > 0;
+  const handleIndexAll = useCallback(() => {
+    reindexAll.mutate(undefined, {
+      onSuccess: (result) =>
+        toast.success(
+          result.enqueued > 0
+            ? t("documents.contentIndex.indexAllQueued", {
+                count: result.enqueued,
+              })
+            : t("documents.contentIndex.indexAllNothing"),
+        ),
+      onError: () => toast.error(t("documents.contentIndex.indexAllError")),
+    });
+  }, [reindexAll, t]);
 
   // Condition chips: every episode carrying at least one live document
   // link, served by the usage endpoint (NOT derived from the loaded corpus
@@ -557,6 +586,10 @@ export function DocumentsView() {
         onToggleYear={toggleYear}
         activeCount={activeCount}
         onClearAll={clearFilters}
+        contentSearchActive={contentSearchActive}
+        showIndexAll={showIndexAll}
+        indexAllPending={reindexAll.isPending}
+        onIndexAll={handleIndexAll}
       />
 
       {list.isPending ? (
@@ -618,6 +651,8 @@ export function DocumentsView() {
         documentId={detailId}
         open={detailOpen}
         onOpenChange={handleDetailOpenChange}
+        assistAvailable={usage.data?.assistAvailable}
+        contentIndexEnabled={usage.data?.contentIndex.enabled}
       />
 
       {selectedIds.size > 0 ? (

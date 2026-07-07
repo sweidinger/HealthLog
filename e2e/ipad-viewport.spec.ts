@@ -39,6 +39,25 @@ test.describe("iPad portrait layout (768x1024)", () => {
       await page.goto(route, { waitUntil: "domcontentloaded" });
       await page.waitForLoadState("networkidle");
 
+      // The sidebar collapses to the icon rail only on the first client
+      // render after hydration settles (mounted-gated to avoid a React #418
+      // mismatch — SSR and the hydration frame both paint the expanded
+      // 256 px shell, leaving `<main>` at 512 px). On a loaded CI runner that
+      // settle can land just after `networkidle`, so measuring immediately
+      // catches the mid-hydration frame. Wait for the content column to reach
+      // its resolved width first. A genuine regression — the rail never
+      // engaging — still fails: the wait times out and the assertion below
+      // reports the actual (too-narrow) width.
+      await page
+        .waitForFunction(
+          () =>
+            (document.querySelector("main")?.getBoundingClientRect().width ??
+              0) >= 690,
+          undefined,
+          { timeout: 10_000 },
+        )
+        .catch(() => {});
+
       const dims = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         bodyScrollWidth: document.body.scrollWidth,

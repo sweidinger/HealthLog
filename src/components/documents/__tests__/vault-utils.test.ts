@@ -32,6 +32,7 @@ function doc(overrides: Partial<InboundDocumentDto> = {}): InboundDocumentDto {
     pendingCount: 0,
     conditionLinks: [],
     servingClass: "inline",
+    hasContentIndex: false,
     createdAt: "2026-03-11T08:00:00.000Z",
     updatedAt: "2026-03-11T08:00:00.000Z",
     ...overrides,

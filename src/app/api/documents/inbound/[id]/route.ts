@@ -76,7 +76,13 @@ export const GET = apiHandler(
       });
     }
 
-    const links = await loadConditionLinks(user.id, [document.id]);
+    const [links, contentIndex] = await Promise.all([
+      loadConditionLinks(user.id, [document.id]),
+      prisma.documentContentIndex.findUnique({
+        where: { documentId: document.id },
+        select: { id: true },
+      }),
+    ]);
 
     annotate({
       action: { name: "documents.inbound.get" },
@@ -88,6 +94,7 @@ export const GET = apiHandler(
         document,
         document.facts,
         links.get(document.id) ?? [],
+        contentIndex !== null,
       ),
     );
   },

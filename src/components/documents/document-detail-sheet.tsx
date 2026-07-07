@@ -52,10 +52,21 @@ import { invalidateKeys, queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import {
   INBOUND_DOCUMENT_KINDS,
+  type DocumentSuggestionDto,
+  type DocumentSummaryMode,
   type InboundDocumentDetailDto,
   type InboundDocumentKindValue,
 } from "@/lib/validations/inbound-documents";
+import { DocumentAiSection } from "./document-ai-section";
+import type { DocumentAiTarget } from "./document-ai-transport";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
+import { useIndexDocument } from "./use-content-index";
+import {
+  documentAiErrorKey,
+  useDocumentAiCapability,
+  useDocumentSummary,
+  useSuggestDetails,
+} from "./use-document-assist";
 import { formatBytes } from "./vault-utils";
 
 type PatchInput = {
@@ -173,10 +184,20 @@ export function DocumentDetailSheet({
   documentId,
   open,
   onOpenChange,
+  assistAvailable,
+  contentIndexEnabled,
 }: {
   documentId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Whether the AI "Suggest details" / summary actions can run (from
+   * `usage.assistAvailable`). When false the AI area shows a calm pointer to
+   * the AI settings instead of an error — the manual form stays fully usable.
+   */
+  assistAvailable?: boolean;
+  /** Whether content indexing is available (from `usage.contentIndex.enabled`). */
+  contentIndexEnabled?: boolean;
 }) {
   const { t, locale } = useTranslations();
   const format = useFormatters();
@@ -192,18 +213,50 @@ export function DocumentDetailSheet({
 
   const episodes = useIllnessEpisodes(true);
 
+  // AI layer — capability drives the vision/text transport; the mutations run
+  // the review-first assist, the session-only summary, and content indexing.
+  // The affordance itself is gated on `assistAvailable` (from usage); the
+  // probe only resolves the transport mode + the actionable unavailable reason.
+  const capability = useDocumentAiCapability(open && documentId !== null);
+  const suggest = useSuggestDetails();
+  const summary = useDocumentSummary();
+  const indexDoc = useIndexDocument();
+
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+  const [suggestion, setSuggestion] = useState<DocumentSuggestionDto | null>(
+    null,
+  );
+  const [appliedFields, setAppliedFields] = useState({
+    title: false,
+    kind: false,
+    date: false,
+  });
+  const [summaryOutput, setSummaryOutput] =
+    useState<DocumentSummaryMode | null>(null);
 
-  // Reset transient edit state whenever another document opens —
+  // Reset transient edit + AI state whenever another document opens —
   // render-phase derived-state adjustment, not an effect.
   const [lastDocumentId, setLastDocumentId] = useState(documentId);
   if (lastDocumentId !== documentId) {
     setLastDocumentId(documentId);
     setEditingTitle(false);
     setMutationError(null);
+    setSuggestion(null);
+    setAppliedFields({ title: false, kind: false, date: false });
+    setSummaryOutput(null);
   }
+
+  // Clear stale mutation state (a prior document's assist error / summary)
+  // when the sheet switches documents or closes — the mutation stores live
+  // outside render, so they reset in an effect rather than during render.
+  useEffect(() => {
+    suggest.reset();
+    summary.reset();
+    indexDoc.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId]);
 
   const patch = useMutation({
     mutationFn: (input: PatchInput) =>
@@ -271,6 +324,75 @@ export function DocumentDetailSheet({
       : [...current, episodeId];
     patch.mutate({ episodeIds: next });
   };
+
+  // The affordance gate falls back to the capability probe when the sheet is
+  // rendered without the usage-derived props (deep link before usage loads).
+  const aiEnabled = assistAvailable ?? capability.data?.available ?? false;
+  const indexEnabled =
+    contentIndexEnabled ?? capability.data?.available ?? false;
+  const aiMode = capability.data?.mode === "text" ? "text" : "vision";
+  const aiTarget: DocumentAiTarget | null = doc
+    ? {
+        documentId: doc.id,
+        mimeType: doc.mimeType,
+        filename: doc.filename,
+        servingClass: doc.servingClass,
+      }
+    : null;
+
+  const runSuggest = () => {
+    if (!aiTarget) return;
+    setAppliedFields({ title: false, kind: false, date: false });
+    suggest.mutate(
+      { mode: aiMode, target: aiTarget },
+      { onSuccess: (result) => setSuggestion(result) },
+    );
+  };
+
+  const runSummary = (output: DocumentSummaryMode) => {
+    if (!aiTarget) return;
+    summary.reset();
+    setSummaryOutput(output);
+    summary.mutate({ mode: aiMode, target: aiTarget, output });
+  };
+
+  const runIndex = () => {
+    if (!aiTarget) return;
+    indexDoc.mutate(
+      { mode: aiMode, target: aiTarget },
+      {
+        onSuccess: () => toast.success(t("documents.contentIndex.indexed")),
+        onError: (error) => toast.error(t(documentAiErrorKey(error))),
+      },
+    );
+  };
+
+  // Review-first apply: the title lands in the EDITABLE field (the user still
+  // saves it via blur/Enter — the existing commit path); type and date each
+  // commit that single field on an explicit tap. Never automatic.
+  const applyTitle = () => {
+    if (!suggestion?.title) return;
+    setTitleDraft(suggestion.title);
+    setEditingTitle(true);
+    setAppliedFields((prev) => ({ ...prev, title: true }));
+  };
+  const applyKind = () => {
+    if (!suggestion?.kind) return;
+    patch.mutate({ kind: suggestion.kind });
+    setAppliedFields((prev) => ({ ...prev, kind: true }));
+  };
+  const applyDate = () => {
+    if (!suggestion?.documentDate) return;
+    patch.mutate({ documentDate: suggestion.documentDate });
+    setAppliedFields((prev) => ({ ...prev, date: true }));
+  };
+
+  const suggestionKindLabel = suggestion?.kind
+    ? t(`documents.kind.${suggestion.kind}`)
+    : null;
+  const suggestionDateLabel = suggestion?.documentDate
+    ? format.date(`${suggestion.documentDate}T12:00:00.000Z`)
+    : null;
 
   const title = doc?.title ?? doc?.filename ?? t("documents.card.untitled");
   const Icon = doc ? DOCUMENT_KIND_ICONS[doc.kind] : null;
@@ -351,6 +473,40 @@ export function DocumentDetailSheet({
               </Button>
             </div>
           )}
+
+          <DocumentAiSection
+            aiEnabled={aiEnabled}
+            indexEnabled={indexEnabled}
+            unavailableReason={capability.data?.reason ?? null}
+            actionsDisabled={capability.isPending}
+            onSuggest={runSuggest}
+            suggestPending={suggest.isPending}
+            suggestErrorKey={
+              suggest.isError ? documentAiErrorKey(suggest.error) : null
+            }
+            onSummarise={runSummary}
+            summaryPending={summary.isPending}
+            suggestion={suggestion}
+            suggestionKindLabel={suggestionKindLabel}
+            suggestionDateLabel={suggestionDateLabel}
+            appliedFields={appliedFields}
+            onUseTitle={applyTitle}
+            onUseKind={applyKind}
+            onUseDate={applyDate}
+            onDismissSuggestion={() => setSuggestion(null)}
+            summaryOutput={summaryOutput}
+            summaryResult={summary.data ?? null}
+            summaryErrorKey={
+              summary.isError ? documentAiErrorKey(summary.error) : null
+            }
+            onCloseSummary={() => {
+              setSummaryOutput(null);
+              summary.reset();
+            }}
+            hasContentIndex={doc.hasContentIndex}
+            indexPending={indexDoc.isPending}
+            onIndex={runIndex}
+          />
 
           {mutationError ? (
             <p role="alert" className="text-destructive text-sm">

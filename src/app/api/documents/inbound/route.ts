@@ -31,6 +31,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiError, apiSuccess, getClientIp } from "@/lib/api-response";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
+import { hashQueryTokens } from "@/lib/documents/content-index";
 import {
   loadConditionLinks,
   narrowOwnedEpisodeIds,
@@ -419,10 +420,22 @@ export const GET = apiHandler(async (request: Request) => {
     };
   }
   if (q) {
-    where.OR = [
+    // Substring match on the short plaintext fields …
+    const or: Prisma.InboundDocumentWhereInput[] = [
       { title: { contains: q, mode: "insensitive" } },
       { filename: { contains: q, mode: "insensitive" } },
     ];
+    // … unioned with a WHOLE-WORD content match over the blind token index.
+    // The query is tokenised + HMAC'd the same way the index was built, then
+    // matched with a GIN-accelerated array-overlap (`hasSome` → `&&`). The
+    // list still never selects the encrypted text — only the opaque hashes are
+    // touched, in the related table. Degrades silently to title/filename when
+    // the caller has no indexed documents (no rows overlap).
+    const hashes = hashQueryTokens(q);
+    if (hashes.length > 0) {
+      or.push({ contentIndex: { is: { searchTokens: { hasSome: hashes } } } });
+    }
+    where.OR = or;
   }
 
   // Keyset pagination on the sort column + a stable `id` tiebreak; nullable
@@ -485,6 +498,17 @@ export const GET = apiHandler(async (request: Request) => {
     page.map((d) => d.id),
   );
 
+  // Which of the page's documents have a content index (drives `hasContentIndex`
+  // + the re-index affordance). One indexed grouped query; never the ciphertext.
+  const indexedIds = new Set<string>();
+  if (page.length > 0) {
+    const indexed = await prisma.documentContentIndex.findMany({
+      where: { userId: user.id, documentId: { in: page.map((d) => d.id) } },
+      select: { documentId: true },
+    });
+    for (const row of indexed) indexedIds.add(row.documentId);
+  }
+
   annotate({
     action: { name: "documents.inbound.list" },
     meta: {
@@ -501,6 +525,7 @@ export const GET = apiHandler(async (request: Request) => {
         doc,
         factCounts.get(doc.id) ?? { factCount: 0, pendingCount: 0 },
         linkMap.get(doc.id) ?? [],
+        indexedIds.has(doc.id),
       ),
     ),
     nextCursor,

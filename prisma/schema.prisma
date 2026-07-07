@@ -784,6 +784,7 @@ model User {
   inboundDocuments            InboundDocument[]
   extractedFacts              ExtractedFact[]
   documentConditionLinks      DocumentConditionLink[]
+  documentContentIndexes      DocumentContentIndex[]
   // v1.19.0 — full Withings ECG waveform recordings (encrypted at rest).
   // The paired AFib verdict still lands as an IRREGULAR_RHYTHM_NOTIFICATION
   // Measurement EVENT row (v1.18.11); this holds the raw signal samples.
@@ -5815,6 +5816,9 @@ model InboundDocument {
 
   facts          ExtractedFact[]
   conditionLinks DocumentConditionLink[]
+  /// 1:1 blind content-search index (encrypted extracted text + HMAC token
+  /// array). Absent until the document is indexed; cascades on delete.
+  contentIndex   DocumentContentIndex?
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -5899,4 +5903,51 @@ model DocumentConditionLink {
   @@index([episodeId])
   @@index([userId])
   @@map("document_condition_links")
+}
+
+/// v1.27.22 (Document vault P2) — the blind content-search index for one stored
+/// document (1:1). Content search matches INSIDE a document without ever
+/// storing its body in the clear: the extracted text is kept AES-256-GCM at
+/// rest (`textEncrypted`, the same `*Encrypted` Bytes convention as every other
+/// PHI column) and, separately, tokenised into deterministic HMAC-SHA256 hashes
+/// (`searchTokens`) under an HKDF-derived index subkey. A query is tokenised +
+/// hashed the same way and matched with a GIN-accelerated array-overlap — so
+/// the corpus is searchable at SQL speed while nothing readable sits at rest.
+/// Honest limit: the hash index does whole-token equality only (no substring /
+/// prefix / fuzzy); the vault list still ILIKEs the short title/filename for
+/// substring and unions the two result sets. Both artefacts cascade with the
+/// document. `tokenizerVersion` lets a future tokenizer change be re-indexed
+/// unambiguously; the index subkey is HKDF-derived at runtime from the active
+/// versioned key (no schema column), and key rotation re-tokenises from the
+/// decrypted `textEncrypted`.
+model DocumentContentIndex {
+  id               String   @id @default(cuid())
+  documentId       String   @unique @map("document_id")
+  userId           String   @map("user_id")
+  /// AES-256-GCM ciphertext of the normalised extracted text (capped, first
+  /// ~64 KiB), stored as the `encrypt()`-string-as-UTF-8 Bytes shape shared
+  /// with the Coach columns. The plaintext is recoverable server-side so
+  /// rotation can re-tokenise; the list query never selects it.
+  textEncrypted    Bytes    @map("text_encrypted")
+  /// Deduped HMAC-SHA256 (truncated hex) of the normalised tokens — the blind
+  /// index. One-way: opaque without the server-held index subkey. GIN-indexed
+  /// (raw SQL in the migration; Prisma cannot express a GIN index).
+  searchTokens     String[] @default([]) @map("search_tokens")
+  /// Provenance of the indexed text: "vision" (provider transcription of the
+  /// stored original) or "text-ocr" (browser-OCR text posted by the client).
+  source           String
+  /// Provider type that produced the text (diagnostic only), or null on the
+  /// text-ocr path.
+  providerType     String?  @map("provider_type")
+  /// Tokeniser algorithm version — bump to force a re-index on a scheme change.
+  tokenizerVersion String   @map("tokenizer_version")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  document InboundDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("document_content_index")
 }

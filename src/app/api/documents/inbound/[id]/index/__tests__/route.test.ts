@@ -1,0 +1,177 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+
+/**
+ * Content-index route (Document vault P2). Pins: vision path transcribes then
+ * upserts the index; text path indexes posted OCR text with no provider;
+ * provider-gated on vision; only the index sibling is written (never facts).
+ */
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    inboundDocument: { findFirst: vi.fn(), update: vi.fn() },
+    extractedFact: { create: vi.fn() },
+    documentContentIndex: { upsert: vi.fn() },
+    user: { findUnique: vi.fn() },
+  },
+}));
+
+vi.mock("@/lib/documents/store", () => ({
+  decryptDocumentContent: vi.fn(() => Buffer.from([1, 2, 3])),
+}));
+vi.mock("@/lib/labs/ocr-upload", () => ({
+  detectOcrMimeType: vi.fn(() => "image/png"),
+}));
+vi.mock("@/lib/documents/describe", () => ({
+  transcribeDocument: vi.fn(),
+  DocumentDescribeError: class DocumentDescribeError extends Error {},
+}));
+vi.mock("@/lib/documents/content-index", () => ({
+  upsertContentIndex: vi.fn().mockResolvedValue({ tokenCount: 7 }),
+}));
+vi.mock("@/lib/labs/ocr-capability", () => ({
+  resolveVisionProvider: vi.fn(),
+}));
+vi.mock("@/lib/ai/consent-guard", () => ({
+  assertConsentForChain: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/ai/coach/budget", () => ({
+  buildDateKey: vi.fn(() => "2026-07-07"),
+  reserveBudget: vi.fn().mockResolvedValue({ allowed: true, reserved: 1 }),
+  reconcileSpend: vi.fn().mockResolvedValue(undefined),
+  resolveDailyCap: vi.fn(() => 1000),
+}));
+vi.mock("@/lib/modules/gate", () => ({
+  requireModuleEnabled: vi.fn().mockResolvedValue({ enabled: true }),
+}));
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+  rateLimitHeaders: () => ({}),
+}));
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/auth/audit", () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => ({ get: () => null })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
+}));
+
+import { POST } from "../route";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth/session";
+import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
+import { transcribeDocument } from "@/lib/documents/describe";
+import { upsertContentIndex } from "@/lib/documents/content-index";
+
+const SESSION_OK = {
+  session: { id: "s1", expiresAt: new Date(Date.now() + 3_600_000) },
+  user: { id: "user-1", username: "tester", role: "USER" as const },
+};
+const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
+const visionReq = (id: string) =>
+  new NextRequest(
+    new URL(`http://localhost/api/documents/inbound/${id}/index`),
+    {
+      method: "POST",
+    },
+  );
+const textReq = (id: string, text: string) =>
+  new NextRequest(
+    new URL(`http://localhost/api/documents/inbound/${id}/index`),
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "text", text }),
+    },
+  );
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue({
+    id: "doc-1",
+    kind: "OTHER",
+    contentEncrypted: new Uint8Array([1, 2, 3]),
+    contentCodec: "binary2",
+    mimeType: "image/png",
+    status: "STORED",
+  } as never);
+});
+
+describe("POST /api/documents/inbound/[id]/index", () => {
+  it("vision: transcribes then upserts the index, never facts", async () => {
+    vi.mocked(resolveVisionProvider).mockResolvedValue({
+      chain: [{ providerType: "anthropic", instance: {} }],
+      pick: {
+        entry: { providerType: "anthropic", instance: {} },
+        providerType: "anthropic",
+        pdfSupported: true,
+      },
+    } as never);
+    vi.mocked(transcribeDocument).mockResolvedValue({
+      text: "hemoglobin 14.2 leukocytes normal",
+    } as never);
+
+    const res = await POST(visionReq("doc-1") as never, ctx("doc-1") as never);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toMatchObject({
+      documentId: "doc-1",
+      indexed: true,
+      tokenCount: 7,
+    });
+    expect(upsertContentIndex).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "vision", documentId: "doc-1" }),
+    );
+    expect(prisma.extractedFact.create).not.toHaveBeenCalled();
+    expect(prisma.inboundDocument.update).not.toHaveBeenCalled();
+  });
+
+  it("vision: 422 without a provider", async () => {
+    vi.mocked(resolveVisionProvider).mockResolvedValue({
+      chain: [],
+      pick: null,
+    } as never);
+    const res = await POST(visionReq("doc-1") as never, ctx("doc-1") as never);
+    expect(res.status).toBe(422);
+    expect(upsertContentIndex).not.toHaveBeenCalled();
+  });
+
+  it("text: indexes posted OCR text with no provider egress", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      labsLocalOcrEnabled: true,
+    } as never);
+
+    const res = await POST(
+      textReq("doc-1", "cholesterol total 190 mg dl") as never,
+      ctx("doc-1") as never,
+    );
+    expect(res.status).toBe(200);
+    expect(upsertContentIndex).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "text-ocr", providerType: null }),
+    );
+    // No provider was resolved on the text path.
+    expect(resolveVisionProvider).not.toHaveBeenCalled();
+  });
+
+  it("text: 422 when local OCR is not enabled", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      labsLocalOcrEnabled: false,
+    } as never);
+    const res = await POST(
+      textReq("doc-1", "some text") as never,
+      ctx("doc-1") as never,
+    );
+    expect(res.status).toBe(422);
+    expect(upsertContentIndex).not.toHaveBeenCalled();
+  });
+});

@@ -31,6 +31,7 @@ function doc(overrides: Partial<InboundDocumentDto> = {}): InboundDocumentDto {
     pendingCount: 0,
     conditionLinks: [{ episodeId: "ep-knee", name: "Knie" }],
     servingClass: "inline",
+    hasContentIndex: false,
     createdAt: "2025-10-05T08:00:00.000Z",
     updatedAt: "2025-10-05T08:00:00.000Z",
     ...overrides,
@@ -67,6 +68,7 @@ describe("<DocumentCard>", () => {
       <DocumentCard
         document={doc({
           servingClass: "attachment",
+          hasContentIndex: false,
           mimeType: "application/octet-stream",
           filename: "befund.docx",
           title: null,
@@ -80,6 +82,33 @@ describe("<DocumentCard>", () => {
     expect(html).toContain("Download only");
     // Title falls back to the filename.
     expect(html).toContain("befund.docx");
+  });
+
+  it("marks a content-indexed document as searchable", () => {
+    const html = render(
+      <DocumentCard
+        document={doc({ hasContentIndex: true })}
+        selected={false}
+        onToggleSelected={noop}
+        onOpen={noop}
+        highlighted={false}
+      />,
+    );
+    expect(html).toContain('data-slot="document-searchable"');
+    expect(html).toContain("Contents searchable");
+  });
+
+  it("shows no searchable marker when the document is not indexed", () => {
+    const html = render(
+      <DocumentCard
+        document={doc({ hasContentIndex: false, conditionLinks: [] })}
+        selected={false}
+        onToggleSelected={noop}
+        onOpen={noop}
+        highlighted={false}
+      />,
+    );
+    expect(html).not.toContain('data-slot="document-searchable"');
   });
 
   it("falls back to the untitled label and rings when highlighted", () => {

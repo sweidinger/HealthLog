@@ -13,7 +13,7 @@
  * hover / focus / while selected. The whole card is clickable through an
  * invisible overlay button; the checkbox floats above it.
  */
-import { Download, X } from "lucide-react";
+import { Download, ScanSearch, X } from "lucide-react";
 import { useRef } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -119,7 +119,8 @@ export function DocumentCard({
           {showFilename ? ` · ${document.filename}` : ""}
         </p>
         {document.conditionLinks.length > 0 ||
-        document.servingClass === "attachment" ? (
+        document.servingClass === "attachment" ||
+        document.hasContentIndex ? (
           <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
             {document.conditionLinks.map((link) => (
               <span
@@ -137,6 +138,20 @@ export function DocumentCard({
                 <Download className="size-3" aria-hidden />
                 {t("documents.card.attachmentBadge")}
               </Badge>
+            ) : null}
+            {document.hasContentIndex ? (
+              // Subtle "contents searchable" marker — icon-only to keep the
+              // row calm; the label rides an accessible name.
+              <span
+                data-slot="document-searchable"
+                className="text-muted-foreground inline-flex items-center"
+                title={t("documents.card.searchableBadge")}
+              >
+                <ScanSearch className="size-3.5" aria-hidden />
+                <span className="sr-only">
+                  {t("documents.card.searchableBadge")}
+                </span>
+              </span>
             ) : null}
           </div>
         ) : null}

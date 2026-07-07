@@ -28,6 +28,7 @@ import {
   rotateColumn,
   type CorpusClient,
 } from "@/lib/crypto/encryption-corpus";
+import { tokeniseAndHash } from "@/lib/documents/content-index";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -529,6 +530,65 @@ async function main() {
       prisma.extractedFact,
     ),
   );
+
+  // ───── v1.27.22 document content-search index (Bytes text + re-tokenise) ─────
+  // The blind content index carries TWO coupled artefacts under the index key
+  // story: `text_encrypted` (the `encrypt()`-string-as-UTF-8 Bytes shape) AND
+  // `search_tokens` (HMAC-SHA256 under an HKDF subkey derived from the ACTIVE
+  // key). Rotating the master key changes that subkey, so a plain Bytes rotation
+  // of the text alone would leave the tokens hashed under the OLD subkey and
+  // search would silently miss the row. This dedicated block re-encrypts the
+  // text AND re-tokenises from the decrypted plaintext under the NEW subkey in
+  // the same update (P2-D7). Bounded id-cursor batches — the text is capped but
+  // still a blob, so an unbounded findMany is avoided. Idempotent: rows already
+  // on the active key are skipped, so an interrupted run resumes safely.
+  {
+    const result: RotationResult = {
+      table: "DocumentContentIndex",
+      field: "textEncrypted",
+      scanned: 0,
+      rotated: 0,
+      errors: 0,
+    };
+    let cursor: string | null = null;
+    for (;;) {
+      const rows = await prisma.documentContentIndex.findMany({
+        select: { id: true, textEncrypted: true },
+        orderBy: { id: "asc" },
+        take: 100,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+      if (rows.length === 0) break;
+      for (const row of rows) {
+        result.scanned++;
+        const buf = row.textEncrypted as Uint8Array | null;
+        if (!buf || buf.byteLength === 0) continue;
+        const asString = Buffer.from(buf).toString("utf8");
+        if (!shouldRotate(asString)) continue;
+        try {
+          const plaintext = decrypt(asString);
+          const reEnc = encrypt(plaintext);
+          const encoded = Buffer.from(reEnc, "utf8");
+          const nextBytes = new Uint8Array(new ArrayBuffer(encoded.byteLength));
+          nextBytes.set(encoded);
+          const searchTokens = tokeniseAndHash(plaintext);
+          await prisma.documentContentIndex.update({
+            where: { id: row.id },
+            data: { textEncrypted: nextBytes, searchTokens },
+          });
+          result.rotated++;
+        } catch (err) {
+          result.errors++;
+          console.error(
+            `[DocumentContentIndex.textEncrypted] row ${row.id}: ${(err as Error).message}`,
+          );
+        }
+      }
+      cursor = rows[rows.length - 1]!.id;
+      if (rows.length < 100) break;
+    }
+    results.push(result);
+  }
 
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;

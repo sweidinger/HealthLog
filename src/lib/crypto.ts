@@ -19,8 +19,10 @@ import {
   createCipheriv,
   createDecipheriv,
   createHash,
+  hkdfSync,
   randomBytes,
 } from "node:crypto";
+import { Buffer } from "node:buffer";
 import { getEvent } from "@/lib/logging/context";
 
 const ALGORITHM = "aes-256-gcm";
@@ -361,6 +363,29 @@ export function extractKeyIdFromBytes(payload: Buffer): string | null {
 /** Re-encrypt a binary2 payload with the active key. Used by rotation. */
 export function reencryptBytesToActive(payload: Buffer): Buffer {
   return encryptBytes(decryptBytes(payload));
+}
+
+// ─── HKDF subkey derivation ──────────────────────────────────────────────────
+//
+// A purpose-bound key derived from the master key material via HKDF-SHA256.
+// Used where a deterministic secondary key is needed that must NEVER be the raw
+// master key, the HMAC auth key, or a stored column — the document vault's blind
+// content-search index derives its HMAC token subkey this way (P2-D7). The
+// derivation follows the ACTIVE key: rotating the master key changes the subkey,
+// which is why the index rotation re-tokenises from the stored ciphertext.
+
+/**
+ * Derive a 32-byte purpose-bound subkey from the ACTIVE encryption key using
+ * HKDF-SHA256 with `info` as the domain-separation label. Deterministic for a
+ * given (active key, info) pair; opaque without the master key. The returned
+ * bytes are secret — never persist or log them.
+ */
+export function deriveSubkey(info: string): Buffer {
+  const { key } = getActiveKey();
+  // Empty salt: HKDF-Extract uses a zero salt (RFC 5869 §2.2). Domain
+  // separation lives entirely in `info`, so two purposes never collide.
+  const derived = hkdfSync("sha256", key, new Uint8Array(0), info, 32);
+  return Buffer.from(derived);
 }
 
 /** Returns the key id portion of a versioned ciphertext, or null for legacy. */
