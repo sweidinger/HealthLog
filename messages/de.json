@@ -7412,7 +7412,7 @@
     },
     "inboundDocuments": {
       "label": "Dokumente",
-      "description": "Speichere deine medizinischen Dokumente; optional ihre Angaben auslesen und prüfen, bevor sie gespeichert werden. Standardmäßig aus."
+      "description": "Bewahre jedes medizinische Schreiben, jeden Befund und Scan an einem verschlüsselten, durchsuchbaren Ort auf — verknüpft mit deinen Erkrankungen. Standardmäßig aus."
     },
     "mentalHealth": {
       "label": "Seelisches Wohlbefinden",

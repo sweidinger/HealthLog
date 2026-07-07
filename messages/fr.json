@@ -7412,7 +7412,7 @@
     },
     "inboundDocuments": {
       "label": "Documents",
-      "description": "Conservez vos documents médicaux ; extrayez et vérifiez éventuellement leurs éléments avant l'enregistrement. Désactivé par défaut."
+      "description": "Conservez chaque courrier médical, compte rendu et scan dans un espace chiffré et consultable — lié à vos affections. Désactivé par défaut."
     },
     "mentalHealth": {
       "label": "Bien-être mental",

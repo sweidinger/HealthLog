@@ -7412,7 +7412,7 @@
     },
     "inboundDocuments": {
       "label": "Documents",
-      "description": "Store your clinical documents; optionally extract and review their facts before they're saved. Off by default."
+      "description": "Keep every medical letter, report, and scan in one encrypted, searchable place — linked to your conditions. Off by default."
     },
     "mentalHealth": {
       "label": "Mental wellbeing",

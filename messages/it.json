@@ -7412,7 +7412,7 @@
     },
     "inboundDocuments": {
       "label": "Documenti",
-      "description": "Conserva i tuoi documenti clinici; facoltativamente estrai e rivedi i loro dati prima del salvataggio. Disattivato di default."
+      "description": "Conserva ogni lettera medica, referto e scansione in un unico archivio cifrato e ricercabile — collegato alle tue patologie. Disattivato di default."
     },
     "mentalHealth": {
       "label": "Benessere mentale",
@@ -8118,7 +8118,7 @@
     "bulk": {
       "barLabel": "Azioni per i documenti selezionati",
       "setKind": "Cambia tipo",
-      "linkCondition": "Collega condizione",
+      "linkCondition": "Collega patologia",
       "delete": "Elimina",
       "updated": "{count} documenti aggiornati",
       "deleted": "{count} documenti eliminati",
@@ -8131,12 +8131,12 @@
       "link": "Collega",
       "upload": "Carica",
       "viewAll": "Mostra tutti",
-      "emptyLine": "Nessun documento ancora collegato a questa condizione.",
+      "emptyLine": "Nessun documento ancora collegato a questa patologia.",
       "loadError": "Impossibile caricare i documenti collegati"
     },
     "linkPicker": {
       "title": "Collega documenti",
-      "description": "Scegli i documenti del tuo archivio che riguardano questa condizione.",
+      "description": "Scegli i documenti del tuo archivio che riguardano questa patologia.",
       "searchPlaceholder": "Cerca per titolo o nome del file",
       "empty": "Nessun documento trovato."
     }

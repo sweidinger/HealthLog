@@ -7412,7 +7412,7 @@
     },
     "inboundDocuments": {
       "label": "Dokumenty",
-      "description": "Przechowuj swoje dokumenty medyczne; opcjonalnie wyodrębniaj i przeglądaj ich fakty przed zapisaniem. Domyślnie wyłączone."
+      "description": "Przechowuj każde pismo lekarskie, wynik i skan w jednym zaszyfrowanym, przeszukiwalnym miejscu — powiązane z Twoimi schorzeniami. Domyślnie wyłączone."
     },
     "mentalHealth": {
       "label": "Dobrostan psychiczny",
@@ -8118,7 +8118,7 @@
     "bulk": {
       "barLabel": "Akcje dla zaznaczonych dokumentów",
       "setKind": "Zmień typ",
-      "linkCondition": "Połącz ze schorzeniem",
+      "linkCondition": "Powiąż ze schorzeniem",
       "delete": "Usuń",
       "updated": "Zaktualizowano dokumenty: {count}",
       "deleted": "Usunięto dokumenty: {count}",
@@ -8128,14 +8128,14 @@
     },
     "episodeCard": {
       "title": "Dokumenty",
-      "link": "Połącz",
+      "link": "Powiąż",
       "upload": "Prześlij",
       "viewAll": "Pokaż wszystkie",
-      "emptyLine": "Brak dokumentów połączonych z tym schorzeniem.",
+      "emptyLine": "Brak dokumentów powiązanych z tym schorzeniem.",
       "loadError": "Nie udało się wczytać połączonych dokumentów"
     },
     "linkPicker": {
-      "title": "Połącz dokumenty",
+      "title": "Powiąż dokumenty",
       "description": "Wybierz dokumenty z archiwum, które dotyczą tego schorzenia.",
       "searchPlaceholder": "Szukaj po tytule lub nazwie pliku",
       "empty": "Nie znaleziono dokumentów."

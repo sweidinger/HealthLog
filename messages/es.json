@@ -7412,7 +7412,7 @@
     },
     "inboundDocuments": {
       "label": "Documentos",
-      "description": "Guarda tus documentos clínicos; opcionalmente extrae y revisa sus datos antes de guardarlos. Desactivado por defecto."
+      "description": "Guarda cada carta médica, informe y escaneo en un solo lugar cifrado y con búsqueda — vinculado a tus afecciones. Desactivado por defecto."
     },
     "mentalHealth": {
       "label": "Bienestar mental",
