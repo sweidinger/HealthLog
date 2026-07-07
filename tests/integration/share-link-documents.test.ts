@@ -192,7 +192,7 @@ describe("share-link documents — end-to-end", () => {
 
   it("refuses a share create referencing a document the caller does not own", async () => {
     // Owner A uploads a document.
-    const _a = await seedVaultUser("share-a");
+    await seedVaultUser("share-a");
     const { upload, createShare } = await routes();
     const up = await upload(uploadRequest(PDF_SMALL, "a.pdf"));
     const aDocId = (await up.json()).data.id as string;
