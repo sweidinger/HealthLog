@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.27.26] — 2026-07-08 — Hero and wellbeing card polish
+
+### Changed
+
+- The dashboard hero tightens the gap between the ring row and the briefing another step, and each ring is now a link to its detail — readiness / recovery / sleep open their Insights score view, the dose ring opens medications, the health-score ring opens the Insights overview. On a phone the carousel keeps swiping; a tap navigates.
+- The mental-wellbeing surface is titled "Mental wellbeing" (was a longer check-in phrase) and its instrument cards follow the medication-card anatomy. The questionnaire source/licence note moves out from under the Start button into a discreet info control in the card header, so the Start button stands alone.
+
 ## [1.27.25] — 2026-07-08 — Documents filter dropdowns
 
 ### Changed

@@ -316,6 +316,7 @@
     "welcomeBackWithName": "{greeting} {name}, willkommen zurück.",
     "hero": {
       "scoreLabel": "Health Score",
+      "ringLink": "{metric}-Details öffnen",
       "scoreProvisional": "Noch nicht genug Daten",
       "scoreComputing": "Score wird berechnet…",
       "ringDoses": "Dosen heute",
@@ -7704,9 +7705,10 @@
     }
   },
   "mentalHealth": {
-    "pageTitle": "Check-in zum seelischen Wohlbefinden",
+    "pageTitle": "Seelisches Wohlbefinden",
     "pageDescription": "Vier validierte, freiwillige Selbsttests — PHQ-9 (Stimmung), GAD-7 (Sorgen), WHO-5 (Wohlbefinden) und SCI (Schlaf) — ergänzend zu deinem Stimmungstagebuch. Aussagekräftig ist der Verlauf über die Zeit, nicht ein einzelner Wert.",
     "attributionLabel": "Quelle",
+    "attributionShow": "Quelle und Lizenz für {instrument}",
     "choosePrompt": "Check-in auswählen",
     "start": "Starten",
     "back": "Zurück",

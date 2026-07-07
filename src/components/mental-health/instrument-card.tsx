@@ -12,17 +12,33 @@
  * through discreet text only, never a card wash).
  *
  * v1.27.9 — the card generalises over the four-instrument registry and
- * carries the instrument's required attribution/licence line as a small
- * factual footer (WHO CC BY-NC-SA citation for the WHO-5, the Sleepio
- * CC BY-NC citation for the SCI, the Pfizer grant for PHQ/GAD). A locale
- * without validated item wording additionally gets the honest
- * "validated in English" note. The card BODY (header + last-result block)
- * opens the per-instrument detail — the Vorsorge-/med-card interaction —
- * while the bottom-pinned Start button stays a separate, non-overlapping
- * action.
+ * carries the instrument's required attribution/licence line (WHO
+ * CC BY-NC-SA citation for the WHO-5, the Sleepio CC BY-NC citation for
+ * the SCI, the Pfizer grant for PHQ/GAD). A locale without validated item
+ * wording additionally gets the honest "validated in English" note. The
+ * card BODY (header + last-result block) opens the per-instrument detail —
+ * the Vorsorge-/med-card interaction — while the bottom-pinned Start
+ * button stays a separate, non-overlapping action.
+ *
+ * v1.27.24 — the attribution left the space UNDER the Start button (which
+ * crowded the action) for a discreet info affordance at the top-right of
+ * the card header, at the heading's height. A single icon button opens a
+ * popover carrying the verbatim citation (+ the "validated in English"
+ * note where it applies), so the Start button stands alone with clean
+ * space below it. The citation still renders verbatim in full view on the
+ * result and detail surfaces; here it is one tap away. The trigger is a
+ * sibling of the detail-open button (never nested inside it) so the two
+ * actions never collide.
  */
+import { Info } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { MedicationCardHeader } from "@/components/medications/medication-card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { relativeCalendarDate } from "@/lib/i18n/relative-time";
@@ -56,10 +72,48 @@ export function InstrumentCard({
   const title = t(`mentalHealth.instrument.${key}`);
 
   return (
-    <Card className="h-full gap-3 md:gap-3" data-slot="instrument-card">
+    <Card
+      className="relative h-full gap-3 md:gap-3"
+      data-slot="instrument-card"
+    >
+      {/* Source / licence — a discreet info control at the top-right of the
+          header, at the heading's height. A sibling of the detail-open
+          button (never nested), so a tap opens the citation popover without
+          also opening the detail. */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            data-slot="instrument-card-attribution-trigger"
+            aria-label={t("mentalHealth.attributionShow", {
+              instrument: title,
+            })}
+            className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring absolute top-4 right-4 z-10 flex size-8 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none md:top-6 md:right-6"
+          >
+            <Info className="size-4" aria-hidden="true" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="max-w-xs">
+          <p className="text-foreground text-xs font-medium">
+            {t("mentalHealth.attributionLabel")}
+          </p>
+          <p
+            className="text-muted-foreground mt-1 text-xs leading-snug"
+            data-slot="instrument-card-attribution"
+          >
+            {!hasValidatedItems(instrument, locale) && (
+              <>{t("mentalHealth.validatedInEnglishNote")} </>
+            )}
+            {def.attribution}
+          </p>
+        </PopoverContent>
+      </Popover>
+
       {/* Body is the detail target: clicking the header / last-result block
           opens this instrument's detail (chart + dated history), like a
-          medication card. The Start button below stays a separate action. */}
+          medication card. The Start button below stays a separate action.
+          The short instrument titles clear the top-right info control that
+          floats over the header's right padding. */}
       <button
         type="button"
         onClick={onOpenDetail}
@@ -108,22 +162,13 @@ export function InstrumentCard({
       </button>
 
       <CardContent className="flex h-full flex-col">
-        {/* Bottom-pinned single primary action — the med-/Vorsorge card slot. */}
-        <div className="mt-auto space-y-2 pt-0">
+        {/* Bottom-pinned single primary action — the med-/Vorsorge card slot.
+            Nothing sits below it now: the attribution moved to the header's
+            info control, so the Start button stands alone with clean space. */}
+        <div className="mt-auto pt-0">
           <Button type="button" className="min-h-11 w-full" onClick={onStart}>
             {t("mentalHealth.start")}
           </Button>
-          {/* Required attribution — factual and unobtrusive; identical slot on
-              every card so the grid stays symmetric. */}
-          <p
-            className="text-muted-foreground text-xs leading-snug"
-            data-slot="instrument-card-attribution"
-          >
-            {!hasValidatedItems(instrument, locale) && (
-              <>{t("mentalHealth.validatedInEnglishNote")} </>
-            )}
-            {def.attribution}
-          </p>
         </div>
       </CardContent>
     </Card>

@@ -316,6 +316,7 @@
     "welcomeBackWithName": "{greeting} {name}, bentornato.",
     "hero": {
       "scoreLabel": "Health Score",
+      "ringLink": "Apri i dettagli di {metric}",
       "scoreProvisional": "Dati ancora insufficienti",
       "scoreComputing": "Calcolo del punteggio in corso …",
       "ringDoses": "Dosi di oggi",
@@ -7704,9 +7705,10 @@
     }
   },
   "mentalHealth": {
-    "pageTitle": "Check-in sul benessere mentale",
+    "pageTitle": "Benessere mentale",
     "pageDescription": "Quattro autovalutazioni validate e facoltative — PHQ-9 (umore), GAD-7 (preoccupazione), WHO-5 (benessere) e SCI (sonno) — accanto al tuo diario dell'umore. Ciò che conta è l'andamento nel tempo, non un singolo numero.",
     "attributionLabel": "Fonte",
+    "attributionShow": "Fonte e licenza di {instrument}",
     "choosePrompt": "Scegli un check-in",
     "start": "Inizia",
     "back": "Indietro",
