@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.27.24] — 2026-07-07 — Share documents
+
+### Added
+
+- A share link can now carry a hand-picked set of your stored documents, so a clinician can open your reports and letters at the public `/c/<token>` view without an account. Pick up to 50 documents when you create a link; the set is frozen at creation (revoke and re-share to change it).
+- The share-create screen shows a prominent QR code that encodes the link and its passphrase together — a clinician scans it to open the shared record and its documents on their own device in one step (still shown only once, alongside the link and passphrase text).
+- Recipients see the documents as a metadata list: images and PDFs preview inline, other formats download. Only the exact documents attached to that link are reachable, each fetch re-checks the link's live state, and revoking or expiring a link cuts off access to the documents immediately.
+
+### Security
+
+- Shared JPEG, PNG, and WebP images are stripped of embedded camera metadata (EXIF, XMP, GPS) on the way out; the stored original is untouched. PDF, TIFF, HEIC, and Office documents pass through as stored — a documented limit.
+- The public document route is token-scoped to the link's frozen set, re-validates revocation and the passphrase before any decrypt, serves non-previewable types as opaque downloads, and carries its own strict framing policy.
+
 ## [1.27.23] — 2026-07-07 — Dashboard hero polish
 
 ### Changed
