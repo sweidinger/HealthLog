@@ -283,9 +283,11 @@
   --ring-strain-from: #e06aa8;
   --ring-strain-to: #ea74b1;
   --tile-strain: #ff79c6;
-  /* Band fallback (anatomy detail view, no per-metric hue). */
-  --ring-green-from: #3fb868;
-  --ring-green-to: #48c473;
+  /* Band fallback (anatomy detail view, no per-metric hue). Lands on the
+     app-wide --success green (#50fa7b) so a "green" ring matches the green
+     of every positive signal / trend delta beside it. */
+  --ring-green-from: #35d76a;
+  --ring-green-to: #50fa7b;
   --ring-yellow-from: #e0a050;
   --ring-yellow-to: #e8ab5c;
   --ring-red-from: #e0594a;
@@ -409,8 +411,10 @@
   --ring-strain-from: #b62478;
   --ring-strain-to: #bd2a7e;
   --tile-strain: #b0277d;
-  --ring-green-from: #138043;
-  --ring-green-to: #168a48;
+  /* Light: lands on the light-theme --success (#14720a) so ring green
+     matches every positive signal beside it. */
+  --ring-green-from: #12760f;
+  --ring-green-to: #14720a;
   --ring-yellow-from: #b27018;
   --ring-yellow-to: #bd7a1e;
   --ring-red-from: #b22e20;
