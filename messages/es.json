@@ -8073,8 +8073,6 @@
       "listLabel": "Cronología de documentos"
     },
     "upload": {
-      "zoneTitle": "Suelta archivos aquí o elige desde tu dispositivo",
-      "zoneHint": "PDF, fotos y archivos de Office de hasta {maxSize} cada uno",
       "browse": "Elegir archivos",
       "quotaAlmostFull": "Almacenamiento casi lleno",
       "quotaUsed": "{used} de {quota} usados",

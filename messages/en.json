@@ -8073,8 +8073,6 @@
       "listLabel": "Documents timeline"
     },
     "upload": {
-      "zoneTitle": "Drop files here, or choose from your device",
-      "zoneHint": "PDF, photos, and office files up to {maxSize} each",
       "browse": "Choose files",
       "quotaAlmostFull": "Storage almost full",
       "quotaUsed": "{used} of {quota} used",

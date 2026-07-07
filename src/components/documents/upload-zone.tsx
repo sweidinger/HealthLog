@@ -1,23 +1,23 @@
 "use client";
 
 /**
- * The vault's upload entry: a dashed drop-target card with a file button.
+ * The vault's upload plumbing: the hidden file input the page header's
+ * Upload button opens, plus a quota bar that appears only above 80 %
+ * usage. There is no standing drop-target card — it took a full band of
+ * vertical space on every visit for an affordance the header button and
+ * the page-wide drag-and-drop overlay already cover. Dropping a file
+ * anywhere on the page is caught by that overlay; the header button opens
+ * this input.
+ *
  * The `accept` list comes verbatim from the usage endpoint (HEIC is
  * deliberately absent so the iOS picker transcodes camera photos to JPEG),
  * `multiple` is on, and there is NO `capture` attribute — mobile Safari
- * then offers camera AND library. Dropping files onto the card feeds the
- * same queue as the picker.
- *
- * The quota bar renders only above 80 % usage — a calm surface until
- * storage actually becomes a topic.
+ * then offers camera AND library.
  */
-import { UploadCloud } from "lucide-react";
-import { useRef, useState, type RefObject } from "react";
+import { type RefObject } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useTranslations } from "@/lib/i18n/context";
-import { cn } from "@/lib/utils";
 import type { DocumentUsageDto } from "@/lib/validations/inbound-documents";
 import { formatBytes } from "./vault-utils";
 
@@ -36,8 +36,6 @@ export function UploadZone({
   inputRef: RefObject<HTMLInputElement | null>;
 }) {
   const { t, locale } = useTranslations();
-  const [dragOver, setDragOver] = useState(false);
-  const dragDepth = useRef(0);
 
   const accept = usage?.acceptedExtensions.join(",");
   const usedFraction =
@@ -49,71 +47,20 @@ export function UploadZone({
   };
 
   return (
-    <div data-slot="document-upload-zone" className="space-y-2">
-      <div
-        onDragEnter={(e) => {
-          e.preventDefault();
-          dragDepth.current += 1;
-          setDragOver(true);
+    <div data-slot="document-upload-zone">
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={accept}
+        className="sr-only"
+        aria-label={t("documents.upload.browse")}
+        onChange={(e) => {
+          pickFiles(e.target.files);
+          // Allow re-selecting the same file (duplicate flow) immediately.
+          e.target.value = "";
         }}
-        onDragOver={(e) => e.preventDefault()}
-        onDragLeave={() => {
-          dragDepth.current = Math.max(0, dragDepth.current - 1);
-          if (dragDepth.current === 0) setDragOver(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          dragDepth.current = 0;
-          setDragOver(false);
-          pickFiles(e.dataTransfer.files);
-        }}
-        className={cn(
-          "border-border rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors",
-          dragOver && "border-primary bg-primary/5",
-        )}
-      >
-        <div className="flex flex-col items-center gap-2">
-          <UploadCloud
-            className={cn(
-              "text-muted-foreground size-6",
-              dragOver && "text-primary",
-            )}
-            aria-hidden
-          />
-          <p className="text-sm font-medium">
-            {t("documents.upload.zoneTitle")}
-          </p>
-          {usage ? (
-            <p className="text-muted-foreground text-xs">
-              {t("documents.upload.zoneHint", {
-                maxSize: formatBytes(usage.maxFileBytes, locale),
-              })}
-            </p>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-1"
-            onClick={() => inputRef.current?.click()}
-          >
-            {t("documents.upload.browse")}
-          </Button>
-        </div>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept={accept}
-          className="sr-only"
-          aria-label={t("documents.upload.browse")}
-          onChange={(e) => {
-            pickFiles(e.target.files);
-            // Allow re-selecting the same file (duplicate flow) immediately.
-            e.target.value = "";
-          }}
-        />
-      </div>
+      />
 
       {usage && usedFraction >= QUOTA_BAR_THRESHOLD ? (
         <div data-slot="document-quota-bar" className="space-y-1">

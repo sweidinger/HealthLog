@@ -68,8 +68,12 @@ export function DocumentFilterBar({
       data-slot="document-filter-bar"
       className="bg-background/95 border-border sticky top-0 z-10 -mx-4 border-b px-4 pt-1 pb-3 backdrop-blur md:-mx-6 md:px-6"
     >
-      <div className="flex items-center gap-3">
-        <div className="relative w-full max-w-md">
+      {/* Search shares one row with the tag chips on desktop — it wraps to
+          its own line only on phone widths where a chip scroller plus an
+          input can't share a row. The chip scroller flexes to fill the
+          rest; the clear button pins to the trailing edge. */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+        <div className="relative w-full shrink-0 md:w-64">
           <Search
             className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
             aria-hidden
@@ -91,12 +95,107 @@ export function DocumentFilterBar({
             /
           </kbd>
         </div>
+
+        <div
+          className="-mx-4 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
+          role="group"
+          aria-label={t("documents.filter.groupLabel")}
+        >
+          <span
+            role="group"
+            aria-label={t("documents.filter.typeGroup")}
+            className="contents"
+          >
+            {DOCUMENT_KIND_ORDER.map((kind) => {
+              const Icon = DOCUMENT_KIND_ICONS[kind];
+              const active = activeKinds.has(kind);
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onToggleKind(kind)}
+                  className={cn(CHIP_CLASSES, active && CHIP_ACTIVE_CLASSES)}
+                >
+                  <Icon className="size-3.5 shrink-0" aria-hidden />
+                  {t(`documents.kind.${kind}`)}
+                </button>
+              );
+            })}
+          </span>
+
+          {conditionChips.length > 0 ? (
+            <>
+              <span
+                aria-hidden
+                className="bg-border mx-1 h-5 w-px shrink-0 self-center"
+              />
+              <span
+                role="group"
+                aria-label={t("documents.filter.conditionGroup")}
+                className="contents"
+              >
+                {conditionChips.map((chip) => {
+                  const active = chip.episodeId === activeEpisodeId;
+                  return (
+                    <button
+                      key={chip.episodeId}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => onToggleEpisode(chip.episodeId)}
+                      className={cn(
+                        CHIP_CLASSES,
+                        active && CHIP_ACTIVE_CLASSES,
+                      )}
+                    >
+                      <span className="max-w-40 truncate">{chip.name}</span>
+                    </button>
+                  );
+                })}
+              </span>
+            </>
+          ) : null}
+
+          {years.length > 0 ? (
+            <>
+              <span
+                aria-hidden
+                className="bg-border mx-1 h-5 w-px shrink-0 self-center"
+              />
+              <span
+                role="group"
+                aria-label={t("documents.filter.yearGroup")}
+                className="contents"
+              >
+                {years.map((year) => {
+                  const active = year === activeYear;
+                  return (
+                    <button
+                      key={year}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => onToggleYear(year)}
+                      className={cn(
+                        CHIP_CLASSES,
+                        "tabular-nums",
+                        active && CHIP_ACTIVE_CLASSES,
+                      )}
+                    >
+                      {year}
+                    </button>
+                  );
+                })}
+              </span>
+            </>
+          ) : null}
+        </div>
+
         {activeCount > 0 ? (
           <Button
             variant="ghost"
             size="sm"
             onClick={onClearAll}
-            className="text-muted-foreground shrink-0"
+            className="text-muted-foreground shrink-0 self-start md:self-auto"
           >
             <X className="size-3.5" aria-hidden />
             {t("documents.filter.clear")}
@@ -104,97 +203,6 @@ export function DocumentFilterBar({
               <span className="tabular-nums">({activeCount})</span>
             ) : null}
           </Button>
-        ) : null}
-      </div>
-
-      <div
-        className="-mx-4 mt-3 flex [scrollbar-width:none] items-center gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
-        role="group"
-        aria-label={t("documents.filter.groupLabel")}
-      >
-        <span
-          role="group"
-          aria-label={t("documents.filter.typeGroup")}
-          className="contents"
-        >
-          {DOCUMENT_KIND_ORDER.map((kind) => {
-            const Icon = DOCUMENT_KIND_ICONS[kind];
-            const active = activeKinds.has(kind);
-            return (
-              <button
-                key={kind}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onToggleKind(kind)}
-                className={cn(CHIP_CLASSES, active && CHIP_ACTIVE_CLASSES)}
-              >
-                <Icon className="size-3.5 shrink-0" aria-hidden />
-                {t(`documents.kind.${kind}`)}
-              </button>
-            );
-          })}
-        </span>
-
-        {conditionChips.length > 0 ? (
-          <>
-            <span
-              aria-hidden
-              className="bg-border mx-1 h-5 w-px shrink-0 self-center"
-            />
-            <span
-              role="group"
-              aria-label={t("documents.filter.conditionGroup")}
-              className="contents"
-            >
-              {conditionChips.map((chip) => {
-                const active = chip.episodeId === activeEpisodeId;
-                return (
-                  <button
-                    key={chip.episodeId}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => onToggleEpisode(chip.episodeId)}
-                    className={cn(CHIP_CLASSES, active && CHIP_ACTIVE_CLASSES)}
-                  >
-                    <span className="max-w-40 truncate">{chip.name}</span>
-                  </button>
-                );
-              })}
-            </span>
-          </>
-        ) : null}
-
-        {years.length > 0 ? (
-          <>
-            <span
-              aria-hidden
-              className="bg-border mx-1 h-5 w-px shrink-0 self-center"
-            />
-            <span
-              role="group"
-              aria-label={t("documents.filter.yearGroup")}
-              className="contents"
-            >
-              {years.map((year) => {
-                const active = year === activeYear;
-                return (
-                  <button
-                    key={year}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => onToggleYear(year)}
-                    className={cn(
-                      CHIP_CLASSES,
-                      "tabular-nums",
-                      active && CHIP_ACTIVE_CLASSES,
-                    )}
-                  >
-                    {year}
-                  </button>
-                );
-              })}
-            </span>
-          </>
         ) : null}
       </div>
     </div>
