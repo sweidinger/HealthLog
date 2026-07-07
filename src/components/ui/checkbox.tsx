@@ -25,7 +25,14 @@ function Checkbox({
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "peer border-border/70 size-4 shrink-0 rounded border",
+        // The visual box stays 16×16, but the effective touch target is
+        // 32×32 via the switch's `::before` hit-area trick (v1.4.43 W5-H1):
+        // `relative` + an absolutely positioned 8 px halo that receives
+        // pointer events without disturbing layout. 16 px alone sits below
+        // the WCAG 2.5.8 24 px floor on the measurement/mood row selectors;
+        // 32 px clears it with margin while staying small enough not to
+        // blanket neighbouring controls in dense table rows.
+        "peer border-border/70 relative size-4 shrink-0 rounded border before:absolute before:inset-[-8px] before:content-['']",
         "data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-background",
         "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-50",
