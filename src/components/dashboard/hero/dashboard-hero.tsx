@@ -63,7 +63,12 @@ import {
   type DashboardVerdictVariant,
 } from "@/lib/dashboard/verdict";
 import type { DashboardSnapshot } from "@/lib/dashboard/snapshot";
-import type { ScoreRingId } from "@/lib/dashboard-layout";
+import {
+  HEALTH_SCORE_RING_ID,
+  resolveHeroRingOrder,
+  type ScoreRingId,
+  type HeroRingId,
+} from "@/lib/dashboard-layout";
 import type { QuickEntryDialog } from "@/components/dashboard/quick-entry-sheets";
 import { useTranslations, useTimeFormatPreference } from "@/lib/i18n/context";
 import { makeFormatters } from "@/lib/format-locale";
@@ -269,78 +274,99 @@ export function DashboardHero({
   // contract), so an older cached snapshot renders the health ring alone.
   const scoreRings = snapshot.scoreRings ?? [];
 
-  // Unified slide set — selected rings in selection order, then the
-  // health-score ring on the trailing edge. Feeds the carousel on mobile
-  // and the inline row on desktop from a SINGLE render of each ring node.
-  const ringSlides: HeroRingSlide[] = [
-    ...scoreRings.map((ring) => ({
-      key: ring.id,
-      ringId: ring.id,
-      // Each ring links to its natural existing detail surface; a real
-      // <Link> (in the carousel) keeps tap-vs-drag native on mobile.
-      href: RING_HREF[ring.id],
-      linkLabel: t("dashboard.hero.ringLink", {
-        metric: t(RING_LABEL_KEY[ring.id]),
-      }),
-      node:
-        // Dose ring — today's tally ("1/3") over the constant med-family
-        // arc (`hue="meds"` = --primary, the tone every medication surface
-        // in Insights paints); the arc still sweeps on the 0..100 progress
-        // `score`. `band="green"` stays as the stable data-band anchor — a
-        // pending morning dose is not an alert state — while the hue owns
-        // the paint. Falls through to the score render when a cached
-        // pre-doses snapshot carries no tally.
-        ring.id === "MED_COMPLIANCE" && ring.doses ? (
-          <ScoreRing
-            score={ring.score}
-            band="green"
-            hue="meds"
-            valueText={`${ring.doses.taken}/${ring.doses.scheduled}`}
-            ariaLabel={t("dashboard.hero.ringDosesAria", {
-              taken: ring.doses.taken,
-              scheduled: ring.doses.scheduled,
-            })}
-            size="sm"
-            flat
-            label={t(RING_LABEL_KEY[ring.id])}
-          />
-        ) : (
-          <ScoreRing
-            score={ring.score}
-            band={ring.band}
-            size="sm"
-            flat
-            hue={RING_HUE_BY_ID[ring.id]}
-            label={t(RING_LABEL_KEY[ring.id])}
-          />
-        ),
-    })),
-    {
-      key: "health-score",
-      // The health-score ring opens the Insights overview — the same
-      // destination the health-score card links (why the hero verdict
-      // dropped its redundant "open Insights" button).
-      href: "/insights",
-      linkLabel: t("dashboard.hero.ringLink", {
-        metric: t("dashboard.hero.scoreLabel"),
-      }),
-      node: (
-        <ScoreRing
-          score={snapshot.healthScore?.score ?? null}
-          band={snapshot.healthScore?.band}
-          size="sm"
-          flat
-          label={
-            snapshot.healthScore
-              ? t("dashboard.hero.scoreLabel")
-              : hasScoreInputs
-                ? t("dashboard.hero.scoreComputing")
-                : t("dashboard.hero.scoreProvisional")
-          }
-        />
-      ),
-    },
-  ];
+  // One slide per ring, keyed by its `HeroRingId`. Each score ring links
+  // to its natural existing detail surface; a real <Link> (in the
+  // carousel) keeps tap-vs-drag native on mobile.
+  const scoreRingSlides = new Map<HeroRingId, HeroRingSlide>(
+    scoreRings.map((ring) => [
+      ring.id,
+      {
+        key: ring.id,
+        ringId: ring.id,
+        href: RING_HREF[ring.id],
+        linkLabel: t("dashboard.hero.ringLink", {
+          metric: t(RING_LABEL_KEY[ring.id]),
+        }),
+        node:
+          // Dose ring — today's tally ("1/3") over the constant med-family
+          // arc (`hue="meds"` = --primary, the tone every medication surface
+          // in Insights paints); the arc still sweeps on the 0..100 progress
+          // `score`. `band="green"` stays as the stable data-band anchor — a
+          // pending morning dose is not an alert state — while the hue owns
+          // the paint. Falls through to the score render when a cached
+          // pre-doses snapshot carries no tally.
+          ring.id === "MED_COMPLIANCE" && ring.doses ? (
+            <ScoreRing
+              score={ring.score}
+              band="green"
+              hue="meds"
+              valueText={`${ring.doses.taken}/${ring.doses.scheduled}`}
+              ariaLabel={t("dashboard.hero.ringDosesAria", {
+                taken: ring.doses.taken,
+                scheduled: ring.doses.scheduled,
+              })}
+              size="sm"
+              flat
+              label={t(RING_LABEL_KEY[ring.id])}
+            />
+          ) : (
+            <ScoreRing
+              score={ring.score}
+              band={ring.band}
+              size="sm"
+              flat
+              hue={RING_HUE_BY_ID[ring.id]}
+              label={t(RING_LABEL_KEY[ring.id])}
+            />
+          ),
+      },
+    ]),
+  );
+
+  const healthScoreSlide: HeroRingSlide = {
+    key: "health-score",
+    // The health-score ring opens the Insights overview — the same
+    // destination the health-score card links (why the hero verdict
+    // dropped its redundant "open Insights" button).
+    href: "/insights",
+    linkLabel: t("dashboard.hero.ringLink", {
+      metric: t("dashboard.hero.scoreLabel"),
+    }),
+    node: (
+      <ScoreRing
+        score={snapshot.healthScore?.score ?? null}
+        band={snapshot.healthScore?.band}
+        size="sm"
+        flat
+        label={
+          snapshot.healthScore
+            ? t("dashboard.hero.scoreLabel")
+            : hasScoreInputs
+              ? t("dashboard.hero.scoreComputing")
+              : t("dashboard.hero.scoreProvisional")
+        }
+      />
+    ),
+  };
+
+  // v1.27.27 — the hero ring sequence honours the persisted order (health
+  // score + selected rings). The reconciler defaults to health-score-first
+  // when the user hasn't customised, drops any ordered id whose ring isn't
+  // rendered (no data / disabled module), and appends a rendered ring the
+  // order omits — so the order can never hide or duplicate a slide. Feeds
+  // the carousel on mobile and the inline row on desktop from a SINGLE
+  // render of each ring node.
+  const heroRingOrder = resolveHeroRingOrder(
+    snapshot.layout?.heroRingOrder,
+    scoreRings.map((ring) => ring.id),
+  );
+  const ringSlides: HeroRingSlide[] = heroRingOrder
+    .map((id) =>
+      id === HEALTH_SCORE_RING_ID
+        ? healthScoreSlide
+        : scoreRingSlides.get(id),
+    )
+    .filter((slide): slide is HeroRingSlide => slide !== undefined);
 
   return (
     <section

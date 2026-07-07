@@ -24,9 +24,12 @@ import {
   CHART_OVERLAY_KEYS,
   SCORE_RING_IDS,
   MAX_SELECTED_SCORE_RINGS,
+  HERO_RING_IDS,
+  MAX_HERO_RING_ORDER,
   type ChartOverlayPrefsMap,
   type DashboardLayout,
   type ScoreRingId,
+  type HeroRingId,
 } from "@/lib/dashboard-layout";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod/v4";
@@ -131,6 +134,12 @@ const layoutSchema = z.object({
     .array(z.enum(SCORE_RING_IDS))
     .max(MAX_SELECTED_SCORE_RINGS)
     .optional(),
+  // v1.27.27 — hero ring display order (health-score ring + selected score
+  // rings). Optional with the same preserve-when-absent contract; the
+  // resolver reconciles it against the selected set on read/serialize, so a
+  // stale or over-long array is clamped rather than rejected. `.max()`
+  // bounds the wire length (health-score + up to three score rings).
+  heroRingOrder: z.array(z.enum(HERO_RING_IDS)).max(MAX_HERO_RING_ORDER).optional(),
 });
 
 async function buildDashboardLayout(userId: string): Promise<DashboardLayout> {
@@ -281,10 +290,13 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   let mergedHeroVisible: boolean | undefined = parsed.data.heroVisible;
   let mergedScoreRings: ScoreRingId[] | undefined =
     parsed.data.selectedScoreRings;
+  let mergedHeroRingOrder: HeroRingId[] | undefined =
+    parsed.data.heroRingOrder;
   if (
     mergedChartOverlayPrefs === undefined ||
     mergedHeroVisible === undefined ||
-    mergedScoreRings === undefined
+    mergedScoreRings === undefined ||
+    mergedHeroRingOrder === undefined
   ) {
     const existing = await prisma.user.findUnique({
       where: { id: user.id },
@@ -302,12 +314,16 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     if (mergedScoreRings === undefined) {
       mergedScoreRings = existingLayout.selectedScoreRings;
     }
+    if (mergedHeroRingOrder === undefined) {
+      mergedHeroRingOrder = existingLayout.heroRingOrder;
+    }
   }
   const normalized = serializeDashboardLayout({
     ...parsed.data,
     chartOverlayPrefs: mergedChartOverlayPrefs,
     heroVisible: mergedHeroVisible,
     selectedScoreRings: mergedScoreRings,
+    heroRingOrder: mergedHeroRingOrder,
   } as DashboardLayout);
 
   await prisma.user.update({

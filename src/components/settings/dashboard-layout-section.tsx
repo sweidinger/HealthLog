@@ -37,6 +37,7 @@ import {
   type DashboardWidgetId,
   type ComparisonBaseline,
   type ScoreRingId,
+  type HeroRingId,
   COMPARISON_BASELINES,
   DEFAULT_DASHBOARD_LAYOUT,
   DASHBOARD_WIDGET_IDS,
@@ -44,6 +45,8 @@ import {
   SCORE_RING_IDS,
   SCORE_RING_MODULE,
   MAX_SELECTED_SCORE_RINGS,
+  HEALTH_SCORE_RING_ID,
+  resolveHeroRingOrder,
 } from "@/lib/dashboard-layout";
 import {
   Select,
@@ -167,6 +170,16 @@ const SCORE_RING_LABEL_KEYS: Record<ScoreRingId, string> = {
   RECOVERY_SCORE: "insights.derived.scores.recovery",
   SLEEP_SCORE: "insights.derived.composite.SLEEP_SCORE.title",
   MED_COMPLIANCE: "dashboard.hero.ringDoses",
+};
+
+/**
+ * v1.27.27 — label key for any hero ring id, including the always-present
+ * health-score anchor ring. Reuses the hero's own "Health Score" label so
+ * the picker row and the hero ring name match verbatim.
+ */
+const HERO_RING_LABEL_KEYS: Record<HeroRingId, string> = {
+  [HEALTH_SCORE_RING_ID]: "dashboard.hero.scoreLabel",
+  ...SCORE_RING_LABEL_KEYS,
 };
 
 export function DashboardLayoutSection({ id }: { id: string }) {
@@ -312,11 +325,15 @@ export function DashboardLayoutSection({ id }: { id: string }) {
    * settle so the hero reflects the choice on the next visit.
    */
   const ringMutation = useMutation({
-    mutationFn: async (next: ScoreRingId[]) => {
+    mutationFn: async (next: {
+      selectedScoreRings: ScoreRingId[];
+      heroRingOrder: HeroRingId[];
+    }) => {
       if (!remote) throw new Error("layout not loaded");
       return apiPut<DashboardLayout>("/api/dashboard/widgets", {
         ...remote,
-        selectedScoreRings: next,
+        selectedScoreRings: next.selectedScoreRings,
+        heroRingOrder: next.heroRingOrder,
       });
     },
     onMutate: async (next) => {
@@ -329,7 +346,8 @@ export function DashboardLayoutSection({ id }: { id: string }) {
       if (previous) {
         queryClient.setQueryData(queryKeys.dashboardWidgets(), {
           ...previous,
-          selectedScoreRings: next,
+          selectedScoreRings: next.selectedScoreRings,
+          heroRingOrder: next.heroRingOrder,
         });
       }
       return { previous };
@@ -351,60 +369,80 @@ export function DashboardLayoutSection({ id }: { id: string }) {
     },
   });
 
-  /** Apply a new ring selection/order instantly (see `ringMutation`). */
-  function applyScoreRings(next: ScoreRingId[]) {
+  /**
+   * v1.27.27 — apply a new hero ring ORDER instantly (see `ringMutation`).
+   * The order is the single source of truth: `selectedScoreRings` is
+   * derived from it (order minus the always-present health-score ring) so
+   * the server resolver and the hero read one consistent sequence.
+   */
+  function applyHeroRingOrder(next: HeroRingId[]) {
     if (!remote) return;
+    const selectedScoreRings = next.filter(
+      (id): id is ScoreRingId => id !== HEALTH_SCORE_RING_ID,
+    );
     // Keep an open draft's ring slice in sync so a later Save of the
     // OTHER layout edits can't revert the instantly-applied choice.
-    if (draft) setDraft({ ...draft, selectedScoreRings: next });
-    ringMutation.mutate(next);
+    if (draft)
+      setDraft({ ...draft, selectedScoreRings, heroRingOrder: next });
+    ringMutation.mutate({ selectedScoreRings, heroRingOrder: next });
+  }
+
+  /** The reconciled hero ring order (health-score anchor + selected rings). */
+  function currentHeroOrder(l: DashboardLayout): HeroRingId[] {
+    return resolveHeroRingOrder(l.heroRingOrder, l.selectedScoreRings ?? []);
   }
 
   /**
-   * v1.27.7 — toggle one hero score ring. Selection order is preserved
-   * (a newly-enabled ring appends), the count is capped at
-   * `MAX_SELECTED_SCORE_RINGS` (the remaining switches disable at the
-   * cap). v1.27.8 — applies instantly via `applyScoreRings`.
+   * v1.27.7 — toggle one hero score ring on/off. Enabling appends to the
+   * order (capped at `MAX_SELECTED_SCORE_RINGS`; the remaining switches
+   * disable at the cap); disabling drops it from the order. The
+   * health-score ring has no toggle — it is the always-present anchor.
+   * v1.27.8 / v1.27.27 — applies instantly via `applyHeroRingOrder`.
    */
   function toggleScoreRing(ringId: ScoreRingId, enabled: boolean) {
     if (!layout) return;
-    const current = layout.selectedScoreRings ?? [];
-    const next = enabled
-      ? current.includes(ringId)
-        ? current
-        : [...current, ringId].slice(0, MAX_SELECTED_SCORE_RINGS)
-      : current.filter((id) => id !== ringId);
-    applyScoreRings(next);
+    const order = currentHeroOrder(layout);
+    if (enabled) {
+      if (order.includes(ringId)) return;
+      const selectedCount = order.filter(
+        (id) => id !== HEALTH_SCORE_RING_ID,
+      ).length;
+      if (selectedCount >= MAX_SELECTED_SCORE_RINGS) return;
+      applyHeroRingOrder([...order, ringId]);
+    } else {
+      applyHeroRingOrder(order.filter((id) => id !== ringId));
+    }
   }
 
   /**
-   * v1.27.8 — reorder the selected rings (the array order IS the render
-   * order on the hero; the server preserves it). Same interaction pair
-   * as the widget rows below: drag handle + arrow buttons.
+   * v1.27.8 / v1.27.27 — reorder the hero rings (the array order IS the
+   * render order on the hero; the health-score anchor moves like any other
+   * ring). Same interaction pair as the widget rows below: drag handle +
+   * arrow buttons.
    */
-  function moveScoreRing(ringId: ScoreRingId, delta: -1 | 1) {
+  function moveHeroRing(ringId: HeroRingId, delta: -1 | 1) {
     if (!layout) return;
-    const current = layout.selectedScoreRings ?? [];
-    const idx = current.indexOf(ringId);
+    const order = currentHeroOrder(layout);
+    const idx = order.indexOf(ringId);
     const target = idx + delta;
-    if (idx < 0 || target < 0 || target >= current.length) return;
-    const next = [...current];
+    if (idx < 0 || target < 0 || target >= order.length) return;
+    const next = [...order];
     [next[idx], next[target]] = [next[target], next[idx]];
-    applyScoreRings(next);
+    applyHeroRingOrder(next);
   }
 
   function handleRingDragEnd(event: DragEndEvent) {
     if (!layout) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const current = layout.selectedScoreRings ?? [];
-    const from = current.indexOf(active.id as ScoreRingId);
-    const to = current.indexOf(over.id as ScoreRingId);
+    const order = currentHeroOrder(layout);
+    const from = order.indexOf(active.id as HeroRingId);
+    const to = order.indexOf(over.id as HeroRingId);
     if (from < 0 || to < 0) return;
-    const next = [...current];
+    const next = [...order];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
-    applyScoreRings(next);
+    applyHeroRingOrder(next);
   }
 
   /**
@@ -596,8 +634,17 @@ export function DashboardLayoutSection({ id }: { id: string }) {
             const selected = (layout.selectedScoreRings ?? []).filter(
               (ringId) => available.includes(ringId),
             );
+            // v1.27.27 — the reorderable list is the health-score anchor
+            // ring plus the selected score rings, in the persisted order
+            // (health-score first by default). The health-score row has no
+            // on/off switch — it is always present — but drags/moves like
+            // any other ring.
+            const heroOrder = resolveHeroRingOrder(
+              layout.heroRingOrder,
+              selected,
+            );
             const unselected = available.filter(
-              (ringId) => !selected.includes(ringId),
+              (ringId) => !heroOrder.includes(ringId),
             );
             const atCap = selected.length >= MAX_SELECTED_SCORE_RINGS;
             const busy = ringMutation.isPending;
@@ -609,23 +656,25 @@ export function DashboardLayoutSection({ id }: { id: string }) {
                   onDragEnd={handleRingDragEnd}
                 >
                   <SortableContext
-                    items={selected}
+                    items={heroOrder}
                     strategy={verticalListSortingStrategy}
                   >
-                    {selected.map((ringId, index) => (
+                    {heroOrder.map((ringId, index) => (
                       <SortableRingRow
                         key={ringId}
                         ringId={ringId}
-                        label={t(SCORE_RING_LABEL_KEYS[ringId])}
+                        label={t(HERO_RING_LABEL_KEYS[ringId])}
                         index={index}
-                        total={selected.length}
+                        total={heroOrder.length}
                         dragHintId={dragHintId}
                         disabled={busy}
+                        // The health-score ring is the anchor — no toggle.
+                        pinned={ringId === HEALTH_SCORE_RING_ID}
                         moveUpLabel={t("dashboard.moveUp")}
                         moveDownLabel={t("dashboard.moveDown")}
                         dragHandleLabel={t("dashboard.dragHandle")}
                         onToggle={toggleScoreRing}
-                        onMove={moveScoreRing}
+                        onMove={moveHeroRing}
                       />
                     ))}
                   </SortableContext>
@@ -979,23 +1028,30 @@ function SortableRingRow({
   total,
   dragHintId,
   disabled,
+  pinned = false,
   moveUpLabel,
   moveDownLabel,
   dragHandleLabel,
   onToggle,
   onMove,
 }: {
-  ringId: ScoreRingId;
+  ringId: HeroRingId;
   label: string;
   index: number;
   total: number;
   dragHintId: string;
   disabled: boolean;
+  /**
+   * v1.27.27 — the health-score anchor ring: always present, no on/off
+   * switch (a disabled, checked switch communicates the locked-on state),
+   * but reorderable like any other ring.
+   */
+  pinned?: boolean;
   moveUpLabel: string;
   moveDownLabel: string;
   dragHandleLabel: string;
   onToggle: (id: ScoreRingId, value: boolean) => void;
-  onMove: (id: ScoreRingId, delta: -1 | 1) => void;
+  onMove: (id: HeroRingId, delta: -1 | 1) => void;
 }) {
   const {
     attributes,
@@ -1040,8 +1096,12 @@ function SortableRingRow({
       </span>
       <Switch
         checked
-        onCheckedChange={(v) => onToggle(ringId, v)}
-        disabled={disabled}
+        onCheckedChange={
+          pinned ? undefined : (v) => onToggle(ringId as ScoreRingId, v)
+        }
+        // The health-score anchor cannot be switched off — a disabled,
+        // checked switch reads as "always on, locked".
+        disabled={disabled || pinned}
         aria-label={label}
         data-slot="score-ring-switch"
         data-ring={ringId}
