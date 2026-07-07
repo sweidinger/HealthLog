@@ -53,6 +53,7 @@ import {
 import {
   applyCanonicalSlotWrite,
   findPinConflict,
+  mayConvergeOntoSuppliedSlot,
   resolveForcedSlotForWrite,
   resolveSlotForWriteByBand,
   resolveSlotInstantForWrite,
@@ -487,8 +488,21 @@ async function postBulk(request: NextRequest): Promise<Response> {
         // Only an explicit client `scheduledFor` names a slot a row could
         // already sit on; a defaulted anchor (takenAt / now) never does, so
         // the probe is skipped on that path.
+        //
+        // Dose-safety guard: a TAKEN entry must not converge onto a slot
+        // whose anchor is in the future relative to the take. The resolver's
+        // forward guard already refused to snap a late take onto a future
+        // slot; the probe must honour the same invariant rather than binding
+        // the take forward onto that slot's pending REMINDER row (a
+        // late-morning dose consuming the evening slot). It records
+        // standalone (ad-hoc) instead.
         const existingSlotRow =
-          entry.scheduledFor !== undefined
+          entry.scheduledFor !== undefined &&
+          mayConvergeOntoSuppliedSlot({
+            skipped: entry.skipped,
+            takenAt: entry.takenAt ?? null,
+            suppliedSlot: incomingScheduledFor,
+          })
             ? await prisma.medicationIntakeEvent.findFirst({
                 where: {
                   userId: user.id,

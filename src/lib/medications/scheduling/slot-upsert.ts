@@ -115,6 +115,47 @@ const SLOT_ROW_SELECT = {
 } as const;
 
 /**
+ * Forward grace a TAKEN write may still snap onto a slot whose anchor sits
+ * ahead of the take — the same clock-skew / early-dose margin the resolver's
+ * `TAKEN_FORWARD_GRACE_MS` uses.
+ */
+export const TAKEN_SLOT_FORWARD_GRACE_MS = 5 * 60 * 1000;
+
+/**
+ * Whether a write may converge onto a live row already sitting on the
+ * client-supplied `scheduledFor` slot (the intake routes' "ad-hoc / off-slot"
+ * fallback probe, after band/canonical attribution returned null).
+ *
+ * A TAKEN dose must never fill a slot whose anchor is meaningfully in the
+ * FUTURE relative to when it was taken. The medication card shows the next
+ * open slot as its display-due; once a morning slot's catch-up window has
+ * lapsed the card advances to the EVENING slot, and a "Genommen" tap then
+ * posts `scheduledFor = <evening slot>` with `takenAt = now`. Band attribution
+ * correctly refuses that late-morning take (it lands in no window), but the
+ * source-agnostic convergence probe would otherwise bind it to the evening
+ * slot's pending REMINDER row — recording the take as the evening dose and
+ * silently consuming a slot the user has not reached. This is the exact
+ * "late morning dose snapping forward onto the evening slot" failure the band
+ * model and the resolver's forward guard already forbid; the probe must honour
+ * the same invariant.
+ *
+ * Skips and pending echoes (no `takenAt`) name their slot deliberately — a
+ * deliberate future skip or an offline sync echo legitimately targets a
+ * future slot — so they are unaffected.
+ */
+export function mayConvergeOntoSuppliedSlot(input: {
+  skipped: boolean;
+  takenAt: Date | null;
+  suppliedSlot: Date;
+}): boolean {
+  if (input.skipped || input.takenAt === null) return true;
+  return (
+    input.suppliedSlot.getTime() <=
+    input.takenAt.getTime() + TAKEN_SLOT_FORWARD_GRACE_MS
+  );
+}
+
+/**
  * Deterministically pick the slot row a write should converge onto when
  * the canonical instant carries more than one live row (pre-existing
  * same-slot duplicates that differ only by `source`).
