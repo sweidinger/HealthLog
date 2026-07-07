@@ -87,10 +87,15 @@ function InlinePreview({
         />
       ) : null}
       {isPdf ? (
+        // No `sandbox` attribute by design: Chromium force-downloads PDFs
+        // in sandboxed frames instead of rendering them. The serve
+        // response itself carries `default-src 'none'` +
+        // `frame-ancestors 'self'` + true Content-Type + nosniff, and the
+        // upload policy denies every format whose inline render could
+        // execute script.
         <iframe
           src={src}
           title={title}
-          sandbox=""
           onLoad={() => setLoaded(true)}
           className={cn(
             "border-border h-[55vh] w-full rounded-lg border",
