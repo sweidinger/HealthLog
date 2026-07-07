@@ -296,6 +296,13 @@ describe("Coach disable cascade invariant", () => {
     // the nudges. Server-side cron, not a render path — the cascade
     // fixture cannot mount it, so the allowlist entry is the pin.
     "src/lib/jobs/coach-nudge.ts",
+    // The Modules hub renders a live Coach on/off switch. It reads
+    // `flags.coach` (the operator assistant master flag) so the switch goes
+    // disabled + "disabled server-wide" when the operator killed Coach — a
+    // per-user toggle cannot re-enable it. Distinct from the render-path
+    // gates above: here the flag drives the switch's disabled state, not a
+    // null-return.
+    "src/components/settings/modules-section.tsx",
   ];
 
   /**

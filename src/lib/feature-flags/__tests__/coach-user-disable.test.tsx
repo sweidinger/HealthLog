@@ -335,6 +335,13 @@ describe("Coach per-user disableCoach invariant", () => {
     // second copy in `modulePreferencesJson`. Covered by the coach-
     // delegation cases in `src/lib/modules/__tests__/gate.test.ts`.
     "src/lib/modules/gate.ts",
+    // The Modules hub Coach row renders a live switch bound to the SAME
+    // `user.disableCoach` source of truth: `checked` is `!disableCoach` and a
+    // flip writes the inverted flag via `PATCH /api/auth/me/disable-coach`.
+    // Reads the flag off `useAuth().user` (no second copy). Covered by the
+    // delegated-coach cases in
+    // `src/components/settings/__tests__/modules-section.test.tsx`.
+    "src/components/settings/modules-section.tsx",
   ];
 
   /**
