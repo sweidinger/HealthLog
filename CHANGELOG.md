@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.27.14] — 2026-07-07 — Cross-device dose sync and phone-width polish
+
+### Fixed
+
+- Marking a dose on one device now wakes the others within seconds: every intake mutation — logging, editing, undoing, bulk actions, imports — dispatches a silent sync push to the user's other iPhones, so a lock-screen Live Activity no longer keeps counting down after the dose was taken on the web. Rapid mutations coalesce into one ping (a five-dose bulk action sends one push, not five), the originating device is skipped, and the payload carries no health data — previously it leaked the medication id, and five of the seven mutation routes sent nothing at all.
+- On phone widths, the dashboard's briefing-signal rows and the health-score delta stack vertically instead of squeezing a wrapping headline beside its value — a signal headline measured seven lines tall at a third of the tile width before, and on narrow phones the delta spilled past the tile edge. A permanent guard test now pins zero horizontal overflow and no element escaping its tile on the dashboard and insights at 390 px and 360 px widths.
+
 ## [1.27.13] — 2026-07-07 — Assessments that interpret
 
 ### Changed
