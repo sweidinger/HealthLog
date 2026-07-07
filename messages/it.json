@@ -8116,6 +8116,20 @@
       "restored": "{count} documenti ripristinati",
       "partialFailure": "Impossibile aggiornare {failed} su {total}",
       "failed": "Impossibile completare l'azione"
+    },
+    "episodeCard": {
+      "title": "Documenti",
+      "link": "Collega",
+      "upload": "Carica",
+      "viewAll": "Mostra tutti",
+      "emptyLine": "Nessun documento ancora collegato a questa condizione.",
+      "loadError": "Impossibile caricare i documenti collegati"
+    },
+    "linkPicker": {
+      "title": "Collega documenti",
+      "description": "Scegli i documenti del tuo archivio che riguardano questa condizione.",
+      "searchPlaceholder": "Cerca per titolo o nome del file",
+      "empty": "Nessun documento trovato."
     }
   },
   "selfDescription": {

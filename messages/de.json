@@ -8116,6 +8116,20 @@
       "restored": "{count} Dokument(e) wiederhergestellt",
       "partialFailure": "{failed} von {total} konnten nicht aktualisiert werden",
       "failed": "Die Aktion konnte nicht ausgeführt werden"
+    },
+    "episodeCard": {
+      "title": "Dokumente",
+      "link": "Verknüpfen",
+      "upload": "Hochladen",
+      "viewAll": "Alle anzeigen",
+      "emptyLine": "Noch keine Dokumente mit dieser Erkrankung verknüpft.",
+      "loadError": "Verknüpfte Dokumente konnten nicht geladen werden"
+    },
+    "linkPicker": {
+      "title": "Dokumente verknüpfen",
+      "description": "Wähle Dokumente aus deinem Bestand, die zu dieser Erkrankung gehören.",
+      "searchPlaceholder": "Nach Titel oder Dateiname suchen",
+      "empty": "Keine Dokumente gefunden."
     }
   },
   "selfDescription": {

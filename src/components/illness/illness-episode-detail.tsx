@@ -10,6 +10,7 @@
  */
 import { useState } from "react";
 
+import { EpisodeDocumentsCard } from "@/components/documents/episode-documents-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -142,6 +143,11 @@ export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
       ) : (
         <IllnessCorrelationCard episodeId={episodeId} />
       )}
+
+      {/* Condition ⇄ documents linking, condition side: the episode's
+          linked documents plus link/upload entries into the vault. Renders
+          nothing when the documents module is off for this account. */}
+      {episode ? <EpisodeDocumentsCard episodeId={episode.id} /> : null}
 
       {episode ? (
         <>

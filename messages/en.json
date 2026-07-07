@@ -8116,6 +8116,20 @@
       "restored": "{count} document(s) restored",
       "partialFailure": "{failed} of {total} could not be updated",
       "failed": "The action could not be completed"
+    },
+    "episodeCard": {
+      "title": "Documents",
+      "link": "Link",
+      "upload": "Upload",
+      "viewAll": "Show all",
+      "emptyLine": "No documents linked to this condition yet.",
+      "loadError": "Could not load the linked documents"
+    },
+    "linkPicker": {
+      "title": "Link documents",
+      "description": "Pick documents from your vault that belong to this condition.",
+      "searchPlaceholder": "Search by title or filename",
+      "empty": "No documents found."
     }
   },
   "selfDescription": {

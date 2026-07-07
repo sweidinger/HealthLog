@@ -8116,6 +8116,20 @@
       "restored": "Przywrócono dokumenty: {count}",
       "partialFailure": "Nie udało się zaktualizować {failed} z {total}",
       "failed": "Nie udało się wykonać akcji"
+    },
+    "episodeCard": {
+      "title": "Dokumenty",
+      "link": "Połącz",
+      "upload": "Prześlij",
+      "viewAll": "Pokaż wszystkie",
+      "emptyLine": "Brak dokumentów połączonych z tym schorzeniem.",
+      "loadError": "Nie udało się wczytać połączonych dokumentów"
+    },
+    "linkPicker": {
+      "title": "Połącz dokumenty",
+      "description": "Wybierz dokumenty z archiwum, które dotyczą tego schorzenia.",
+      "searchPlaceholder": "Szukaj po tytule lub nazwie pliku",
+      "empty": "Nie znaleziono dokumentów."
     }
   },
   "selfDescription": {

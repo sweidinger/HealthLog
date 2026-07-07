@@ -462,6 +462,33 @@ export function DocumentsView() {
     setDetailOpen(true);
   }, []);
 
+  // `?doc=<id>` deep link (used by the illness page's document rows): open
+  // the detail sheet once per value; closing the sheet strips the param so
+  // back/forward and refresh behave. The id is shape-checked before it is
+  // interpolated into an API path.
+  const docParam = searchParams.get("doc");
+  const [consumedDocParam, setConsumedDocParam] = useState<string | null>(null);
+  useEffect(() => {
+    if (!moduleEnabled || !docParam || docParam === consumedDocParam) return;
+    setConsumedDocParam(docParam);
+    if (/^[a-zA-Z0-9_-]{1,40}$/.test(docParam)) openDetail(docParam);
+  }, [docParam, consumedDocParam, moduleEnabled, openDetail]);
+
+  const handleDetailOpenChange = useCallback(
+    (open: boolean) => {
+      setDetailOpen(open);
+      if (!open && searchParams.get("doc")) {
+        const sp = new URLSearchParams(searchParams.toString());
+        sp.delete("doc");
+        const search = sp.toString();
+        router.replace(search ? `${pathname}?${search}` : pathname, {
+          scroll: false,
+        });
+      }
+    },
+    [pathname, router, searchParams],
+  );
+
   // Hover/focus intent prefetches the detail METADATA (never the blob —
   // the blob fetch starts when the sheet mounts its preview element).
   const prefetchDetail = useCallback(
@@ -586,7 +613,7 @@ export function DocumentsView() {
       <DocumentDetailSheet
         documentId={detailId}
         open={detailOpen}
-        onOpenChange={setDetailOpen}
+        onOpenChange={handleDetailOpenChange}
       />
 
       {selectedIds.size > 0 ? (

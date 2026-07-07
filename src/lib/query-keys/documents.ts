@@ -39,6 +39,20 @@ export const documentKeys = {
     ["documents", "inbound", "list", filters] as const,
   inboundDocument: (id: string) => ["documents", "inbound", id] as const,
   /**
+   * The illness-episode detail's compact document preview (single page,
+   * small limit). Deliberately NOT `inboundDocumentList({ episodeId })` —
+   * that key belongs to the vault's `useInfiniteQuery` and a plain query
+   * under the same key would poison the cache with a different shape.
+   */
+  inboundDocumentEpisodePreview: (episodeId: string) =>
+    ["documents", "inbound", "episode-preview", episodeId] as const,
+  /**
+   * The link-existing-documents picker (searchable single page). Own key
+   * for the same shape-collision reason as the episode preview.
+   */
+  inboundDocumentPicker: (q: string) =>
+    ["documents", "inbound", "picker", q] as const,
+  /**
    * Storage usage + effective limits (`GET /api/documents/inbound/usage`).
    * Invalidated through the `["documents"]` prefix after every upload /
    * delete so the quota bar tracks reality.

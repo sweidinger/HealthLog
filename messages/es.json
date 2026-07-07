@@ -8116,6 +8116,20 @@
       "restored": "{count} documento(s) restaurados",
       "partialFailure": "No se pudieron actualizar {failed} de {total}",
       "failed": "No se pudo completar la acción"
+    },
+    "episodeCard": {
+      "title": "Documentos",
+      "link": "Vincular",
+      "upload": "Subir",
+      "viewAll": "Ver todos",
+      "emptyLine": "Aún no hay documentos vinculados a esta afección.",
+      "loadError": "No se pudieron cargar los documentos vinculados"
+    },
+    "linkPicker": {
+      "title": "Vincular documentos",
+      "description": "Elige documentos de tu archivo que pertenezcan a esta afección.",
+      "searchPlaceholder": "Buscar por título o nombre de archivo",
+      "empty": "No se encontraron documentos."
     }
   },
   "selfDescription": {
