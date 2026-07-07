@@ -91,7 +91,15 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+// (#22) — silent cross-device intake sync. Mocked so the route test can
+// assert the hook fires without reaching the APNs senders or the
+// coalescing timers.
+vi.mock("@/lib/notifications/medication-intake-sync", () => ({
+  queueMedicationIntakeSync: vi.fn(),
+}));
+
 import { GET, POST } from "../route";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 
@@ -362,6 +370,14 @@ describe("POST /api/medications/[id]/intake — one-shot lifecycle", () => {
     expect(prisma.medication.updateMany).toHaveBeenCalledWith({
       where: { id: "med-1", userId: "user-1", oneShot: true },
       data: { active: false },
+    });
+
+    // (#22) — the logged dose queues exactly one cross-device sync
+    // fan-out; the web caller carries no X-Device-Id.
+    expect(queueMedicationIntakeSync).toHaveBeenCalledTimes(1);
+    expect(queueMedicationIntakeSync).toHaveBeenCalledWith({
+      userId: "user-1",
+      originDeviceToken: null,
     });
   });
 });

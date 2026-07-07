@@ -49,7 +49,7 @@ import {
   injectionSiteEnum,
   type InjectionSiteValue,
 } from "@/lib/validations/medication";
-import { dispatchMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { dispatchMedicationIntakeWebClear } from "@/lib/notifications/web-push-clear";
 import { countOutstandingDosesToday } from "@/lib/medications/outstanding-doses";
 
@@ -522,14 +522,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // v1.17.1 (#22) — silent cross-device intake sync. Wake the user's OTHER
   // iOS devices so a running Live Activity / Home-Screen widget reconciles
-  // the dose state changed here. APNs-only, best-effort, fire-and-forget:
+  // the dose state changed here. APNs-only, best-effort, coalesced per user:
   // the canonical row is already persisted, so a sync-push miss never
   // affects the response. The originating device (the one that POSTed) is
   // excluded via its `X-Device-Id` (= registered `Device.token`).
-  void dispatchMedicationIntakeSync({
+  queueMedicationIntakeSync({
     userId: user.id,
-    medicationId: existing.medicationId,
-    scheduledFor: (movedTo ?? existing.scheduledFor).toISOString(),
     originDeviceToken: request.headers.get("x-device-id"),
   });
 

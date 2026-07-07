@@ -18,6 +18,7 @@ import {
   recomputeMedicationComplianceForDay,
 } from "@/lib/rollups/medication-compliance-rollups";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -195,6 +196,15 @@ export const POST = apiHandler(
     });
 
     invalidateUserMedications(user.id, { evict: true });
+
+    // (#22) — silent cross-device intake sync: removed doses change the
+    // widget tally and any pending Live Activity on the user's other iOS
+    // devices. Coalesced per user, best-effort — never affects the
+    // response.
+    queueMedicationIntakeSync({
+      userId: user.id,
+      originDeviceToken: request.headers.get("x-device-id"),
+    });
 
     return apiSuccess({ deleted: count });
   },

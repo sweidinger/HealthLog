@@ -54,10 +54,10 @@ vi.mock("@/lib/medications/inventory/consumption", () => ({
 }));
 
 // v1.17.1 (#22) — silent cross-device intake sync. Mocked so the route
-// test asserts the wiring (called with the right slot + origin token)
-// without reaching the APNs senders.
+// test asserts the wiring (queued with the right origin token) without
+// reaching the APNs senders or the coalescing timers.
 vi.mock("@/lib/notifications/medication-intake-sync", () => ({
-  dispatchMedicationIntakeSync: vi.fn().mockResolvedValue(undefined),
+  queueMedicationIntakeSync: vi.fn(),
 }));
 
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
@@ -82,7 +82,7 @@ import {
   consumeForIntake,
   restoreForIntake,
 } from "@/lib/medications/inventory/consumption";
-import { dispatchMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
 
 const SESSION_OK = {
@@ -425,11 +425,9 @@ describe("POST /api/medications/intake", () => {
     const res = await POST(r);
     expect(res.status).toBe(200);
 
-    expect(dispatchMedicationIntakeSync).toHaveBeenCalledTimes(1);
-    expect(dispatchMedicationIntakeSync).toHaveBeenCalledWith({
+    expect(queueMedicationIntakeSync).toHaveBeenCalledTimes(1);
+    expect(queueMedicationIntakeSync).toHaveBeenCalledWith({
       userId: "user-1",
-      medicationId: "m1",
-      scheduledFor: "2026-05-18T10:00:00.000Z",
       originDeviceToken: "origin-device-token",
     });
   });

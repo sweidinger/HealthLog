@@ -45,7 +45,15 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+// (#22) — silent cross-device intake sync. Mocked so the route test can
+// assert the hook without reaching the APNs senders or the coalescing
+// timers.
+vi.mock("@/lib/notifications/medication-intake-sync", () => ({
+  queueMedicationIntakeSync: vi.fn(),
+}));
+
 import { DELETE } from "../route";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
@@ -88,6 +96,9 @@ describe("DELETE /api/medications/[id]/intake/purge", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data).toEqual({ purged: true, count: 7 });
+
+    // (#22) — the purge queues exactly ONE cross-device sync fan-out.
+    expect(queueMedicationIntakeSync).toHaveBeenCalledTimes(1);
   });
 
   it("invalidates the user medication caches on success (F-1 C-3)", async () => {

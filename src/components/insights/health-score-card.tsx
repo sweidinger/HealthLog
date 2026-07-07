@@ -407,41 +407,52 @@ export function HealthScoreCard({
             on phone-class viewports. The explainer only mounts when
             a numeric delta is available; the "no history yet"
             branch keeps the existing single-line caption. */}
-        <p
+        {/* The delta digit and the explainer caption stack — the caption
+            is a multi-sentence read, and rendering it INSIDE the delta's
+            inline-flex row squeezed the short delta line into a narrow
+            multi-line column beside it on every viewport. The delta line
+            keeps its icon row; the caption sits below at full width. */}
+        <div
           data-slot="health-score-card-delta"
-          className="text-muted-foreground inline-flex items-center gap-1 text-xs"
+          className="text-muted-foreground space-y-1 text-xs"
         >
           {delta === null ? (
-            <span>{t("insights.healthScore.deltaUnavailable")}</span>
+            <p>{t("insights.healthScore.deltaUnavailable")}</p>
           ) : (
             <>
-              {delta > 0 && (
-                <ArrowUp className="text-success h-3 w-3" aria-hidden="true" />
-              )}
-              {delta < 0 && (
-                <ArrowDown
-                  className="text-destructive h-3 w-3"
-                  aria-hidden="true"
-                />
-              )}
-              {delta === 0 && (
-                <Minus
-                  className="text-muted-foreground h-3 w-3"
-                  aria-hidden="true"
-                />
-              )}
-              <span aria-describedby={deltaExplainerId}>
-                {t("insights.healthScore.deltaVsLastWeek", {
-                  delta: delta > 0 ? `+${delta}` : `${delta}`,
-                })}
-              </span>
+              <p className="flex items-center gap-1">
+                {delta > 0 && (
+                  <ArrowUp
+                    className="text-success h-3 w-3"
+                    aria-hidden="true"
+                  />
+                )}
+                {delta < 0 && (
+                  <ArrowDown
+                    className="text-destructive h-3 w-3"
+                    aria-hidden="true"
+                  />
+                )}
+                {delta === 0 && (
+                  <Minus
+                    className="text-muted-foreground h-3 w-3"
+                    aria-hidden="true"
+                  />
+                )}
+                <span aria-describedby={deltaExplainerId}>
+                  {t("insights.healthScore.deltaVsLastWeek", {
+                    delta: delta > 0 ? `+${delta}` : `${delta}`,
+                  })}
+                </span>
+              </p>
               <HealthScoreDeltaExplainer
+                className="block"
                 delta={delta}
                 bodyId={deltaExplainerId}
               />
             </>
           )}
-        </p>
+        </div>
 
         {/* v1.18.6 — Rest Mode legibility. While an illness episode is
             active the server suppresses (never penalises) the score, so

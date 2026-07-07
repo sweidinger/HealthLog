@@ -157,6 +157,31 @@ describe("<HealthScoreCard>", () => {
     );
   });
 
+  it("stacks the explainer caption BELOW the delta line, not beside it", () => {
+    // The caption is a multi-sentence read; rendering it inside the
+    // delta's inline-flex row squeezed the short delta into a narrow
+    // multi-line column on every viewport. The wrapper stacks instead.
+    const html = ssr(
+      <HealthScoreCard
+        score={64}
+        band="yellow"
+        components={baseComponents}
+        delta={-3}
+      />,
+    );
+    const wrapper = html.match(
+      /data-slot="health-score-card-delta"[^>]*class="([^"]*)"/,
+    );
+    expect(wrapper).not.toBeNull();
+    expect(wrapper?.[1]).toContain("space-y-1");
+    expect(wrapper?.[1]).not.toContain("inline-flex");
+    // The delta line's <p> closes before the explainer body opens —
+    // the caption is a sibling below, never a flex neighbour.
+    expect(html).toMatch(
+      /vs last week[^<]*<\/span><\/p><span[^>]*data-slot="health-score-delta-explainer-body"/,
+    );
+  });
+
   it("renders four component rows with their values", () => {
     const html = ssr(
       <HealthScoreCard

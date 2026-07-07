@@ -5,6 +5,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, getClientIp } from "@/lib/api-response";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -65,6 +66,14 @@ export const DELETE = apiHandler(
     // TTL of each cache. Matches the sibling routes (POST intake,
     // PUT medication, bulk-delete) that all fire this bundle.
     invalidateUserMedications(user.id, { evict: true });
+
+    // (#22) — silent cross-device intake sync: a purged history changes
+    // the intake state the user's other iOS devices render. Coalesced
+    // per user, best-effort — never affects the response.
+    queueMedicationIntakeSync({
+      userId: user.id,
+      originDeviceToken: request.headers.get("x-device-id"),
+    });
 
     return apiSuccess({ purged: true, count });
   },
