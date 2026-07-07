@@ -5077,7 +5077,8 @@
       "error": "Échec de l’export ({code}).",
       "labs": "Résultats d'analyses",
       "allergies": "Allergies et intolérances",
-      "familyHistory": "Antécédents familiaux"
+      "familyHistory": "Antécédents familiaux",
+      "documentsLink": "Documents de la période"
     },
     "globalExcludedInjectionSitesLabel": "Sites d'injection exclus globalement",
     "globalExcludedInjectionSitesHint": "Les sites listés ici ne sont proposés pour aucun médicament et sont refusés lors de l'enregistrement d'une dose, même si un médicament les privilégie.",
@@ -7338,7 +7339,8 @@
       "extractFailed": "Impossible de lire le compte rendu. Essayez une photo plus nette.",
       "pdfNeedsAnthropic": "Le scan PDF nécessite un fournisseur de vision Claude ; importez plutôt une photo."
     },
-    "loadMoreReadings": "Charger plus de mesures"
+    "loadMoreReadings": "Charger plus de mesures",
+    "documentsLink": "Documents de résultats"
   },
   "modules": {
     "cycle": {

@@ -5077,7 +5077,8 @@
       "error": "Eksport nie powiódł się ({code}).",
       "labs": "Wyniki badań",
       "allergies": "Alergie i nietolerancje",
-      "familyHistory": "Wywiad rodzinny"
+      "familyHistory": "Wywiad rodzinny",
+      "documentsLink": "Dokumenty z tego okresu"
     },
     "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
     "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje.",
@@ -7338,7 +7339,8 @@
       "extractFailed": "Nie udało się odczytać wyniku. Spróbuj wyraźniejszego zdjęcia.",
       "pdfNeedsAnthropic": "Skanowanie PDF wymaga dostawcy wizji Claude; prześlij zamiast tego zdjęcie."
     },
-    "loadMoreReadings": "Wczytaj więcej pomiarów"
+    "loadMoreReadings": "Wczytaj więcej pomiarów",
+    "documentsLink": "Dokumenty wyników badań"
   },
   "modules": {
     "cycle": {

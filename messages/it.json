@@ -5077,7 +5077,8 @@
       "error": "Esportazione non riuscita ({code}).",
       "labs": "Risultati degli esami",
       "allergies": "Allergie e intolleranze",
-      "familyHistory": "Anamnesi familiare"
+      "familyHistory": "Anamnesi familiare",
+      "documentsLink": "Documenti del periodo"
     },
     "globalExcludedInjectionSitesLabel": "Siti di iniezione esclusi globalmente",
     "globalExcludedInjectionSitesHint": "I siti elencati qui non vengono proposti per alcun farmaco e vengono rifiutati al momento della registrazione di una dose, anche se un farmaco li preferisce.",
@@ -7338,7 +7339,8 @@
       "extractFailed": "Impossibile leggere il referto. Prova con una foto più nitida.",
       "pdfNeedsAnthropic": "La scansione PDF richiede un provider di visione Claude; carica invece una foto."
     },
-    "loadMoreReadings": "Carica altre misurazioni"
+    "loadMoreReadings": "Carica altre misurazioni",
+    "documentsLink": "Documenti dei referti"
   },
   "modules": {
     "cycle": {
