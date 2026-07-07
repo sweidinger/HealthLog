@@ -4,6 +4,8 @@ import {
   DASHBOARD_WIDGET_CATALOGUE_IDS,
   DEFAULT_DASHBOARD_LAYOUT,
 } from "@/lib/dashboard-layout";
+import type { DailyBriefing } from "@/lib/ai/schema";
+import type { DashboardScoreRing } from "@/lib/dashboard/score-rings";
 import type { DataSummary } from "@/lib/analytics/trends";
 import type {
   DashboardSnapshot,
@@ -172,6 +174,54 @@ function buildLayoutCatalogue(): DashboardLayoutCatalogueEntry[] {
   }));
 }
 
+/**
+ * Long-headline briefing fixture for the hero density guard: every
+ * signal pairs a wrapping German headline with a wide delta string —
+ * the exact shape that squeezed the spotlight rows on phone widths.
+ */
+export const LONG_HEADLINE_BRIEFING: DailyBriefing = {
+  paragraph:
+    "Dein systolischer Blutdruck liegt heute deutlich unter deinem Monatsmittel, während die Schlafdauer stabil bleibt.",
+  signalsOfDay: [
+    {
+      sourceMetric: "bp",
+      tone: "watch",
+      headline:
+        "Systolischer Blutdruck deutlich unter deinem Monatsmittel gemessen",
+      nudge: "Miss heute Abend erneut, um den Wert einzuordnen.",
+      delta: "−12 mmHg vs. 30-Tage-Mittel",
+    },
+    {
+      sourceMetric: "sleep",
+      tone: "info",
+      headline:
+        "Schlafdauer in den letzten sieben Nächten etwa eine Stunde kürzer als üblich",
+      nudge: "Plane heute eine frühere Nachtruhe ein.",
+      delta: "−58 min",
+    },
+    {
+      sourceMetric: "compliance",
+      tone: "good",
+      headline: "Alle geplanten Dosen der Woche bisher vollständig eingenommen",
+      nudge: "Weiter so — die Abenddosis steht um 20:00 an.",
+      delta: "7/7 Tage",
+    },
+  ],
+  keyFindings: [],
+};
+
+/** Three-ring hero row fixture (max the hero renders beside the score). */
+export const MOCK_SCORE_RINGS: DashboardScoreRing[] = [
+  { id: "READINESS", score: 82, band: "green" },
+  { id: "RECOVERY_SCORE", score: 74, band: "yellow" },
+  {
+    id: "MED_COMPLIANCE",
+    score: 33,
+    band: "yellow",
+    doses: { taken: 1, scheduled: 3 },
+  },
+];
+
 export interface MockSnapshotOptions {
   /**
    * Tile summaries keyed by `MeasurementType`. Defaults to the
@@ -181,6 +231,12 @@ export interface MockSnapshotOptions {
   summaries?: Record<string, DataSummary>;
   /** Artificial latency in ms before the route fulfils (race specs). */
   delayMs?: number;
+  /** Render the dashboard hero band (`layout.heroVisible` opt-in). */
+  heroVisible?: boolean;
+  /** Fresh (`ready`, non-stale) briefing for the hero spotlight rows. */
+  briefing?: DailyBriefing;
+  /** Selected hero score rings (renders beside the health-score ring). */
+  scoreRings?: DashboardScoreRing[];
 }
 
 /** Assemble a fully-typed snapshot body from the requested tile data. */
@@ -207,7 +263,9 @@ export function buildMockSnapshot(
       onboardingTourCompleted: true,
       greetingHour: 9,
     },
-    layout: DEFAULT_DASHBOARD_LAYOUT,
+    layout: options.heroVisible
+      ? { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true }
+      : DEFAULT_DASHBOARD_LAYOUT,
     layoutCatalogue: buildLayoutCatalogue(),
     metricStates: {},
     targetBands: mockTargetBands(),
@@ -226,10 +284,13 @@ export function buildMockSnapshot(
       nextDueOverdue: false,
       nextDueMedicationName: null,
     },
-    healthScore: null,
-    briefing: null,
-    briefingState: "preparing",
-    briefingUpdatedAt: null,
+    healthScore: options.briefing
+      ? { score: 84, band: "green", delta: -2, restMode: null }
+      : null,
+    scoreRings: options.scoreRings,
+    briefing: options.briefing ?? null,
+    briefingState: options.briefing ? "ready" : "preparing",
+    briefingUpdatedAt: options.briefing ? now : null,
     briefingStale: false,
     generatedAt: now,
   };
