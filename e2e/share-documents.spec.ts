@@ -1,0 +1,259 @@
+/**
+ * v1.28 (document vault, Phase 3) — clinician document-sharing lifecycle e2e.
+ *
+ * Drives the whole public-surface path against the production server + a real
+ * Postgres (migrations 0228 + 0229): the owner picks documents into a new share
+ * link through the Settings picker, a recipient unlocks the link with the
+ * passphrase and pulls each blob through the public `/c/<token>/d/<id>` serve
+ * route, and a revoke closes it. The load-bearing assertions:
+ *
+ *   - the serve route confines to the link's FROZEN set — an owned document NOT
+ *     attached to the link 404s (token-scoped, never a global document fetch);
+ *   - the serving posture matches the owner route — Class A (PDF/JPEG) inline
+ *     with its true type + nosniff + no-store, Class B (text) opaque
+ *     `application/octet-stream` attachment;
+ *   - EXIF/GPS is stripped from the shared JPEG on egress (the served bytes
+ *     drop the marker the stored bytes still carry);
+ *   - revocation is enforced at serve time — a revoked link serves nothing;
+ *   - the clinician view renders inline previews (img/iframe) for Class A and a
+ *     download-only affordance for Class B;
+ *   - the create reveal promotes a scannable QR (runs under the 390px mobile
+ *     project too).
+ *
+ * The share fixtures (`ensureShareDocFixture`) seed the attached trio; the
+ * broader corpus (`ensureVaultFixture`) supplies the ≥50 documents the picker
+ * cap test and the not-attached foreign-id probe need.
+ */
+import { expect, test, type Browser, type Page } from "@playwright/test";
+
+import { STORAGE_STATE_PATH } from "./setup/global-setup";
+import {
+  ensureShareDocFixture,
+  ensureVaultFixture,
+  SHARE_DOC_PREFIX,
+  SHARE_JPEG_DOC_ID,
+  SHARE_PDF_DOC_ID,
+  SHARE_TEXT_DOC_ID,
+} from "./setup/vault-fixture";
+
+const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+
+/** An owned document from the broad corpus that is NEVER attached to the link
+ *  under test — the foreign-id probe against the frozen-set confinement. */
+const UNATTACHED_OWNED_DOC_ID = "e2evaultdoc000000000000";
+
+interface CreatedShare {
+  token: string;
+  passphrase: string;
+  label: string;
+}
+
+/**
+ * Drive the owner create flow: open the picker, isolate the share-fixture trio
+ * by search, select all three, create the link, and read the one-time token +
+ * passphrase off the reveal card. Also asserts the QR promotion.
+ */
+async function createShareWithDocs(page: Page): Promise<CreatedShare> {
+  const label = `${SHARE_DOC_PREFIX} ${Date.now()}`;
+
+  await page.goto("/settings/sharing");
+  await page.locator("#share-label").fill(label);
+
+  // Open the document picker and isolate the seeded trio.
+  await page.getByTestId("share-attach-open").click();
+  const search = page.getByPlaceholder("Search documents");
+  await search.fill(SHARE_DOC_PREFIX);
+  const list = page.getByTestId("share-doc-picker-list");
+  await expect(list).toBeVisible();
+  // Exactly the three share-fixture documents match the prefix.
+  const rows = list.getByRole("button");
+  await expect(rows).toHaveCount(3);
+  for (let i = 0; i < 3; i++) await rows.nth(i).click();
+  await page.getByRole("button", { name: "Done" }).click();
+
+  // Three chips staged before create.
+  await expect(
+    page.getByTestId("share-attached-chips").getByRole("listitem"),
+  ).toHaveCount(3);
+
+  await page.getByRole("button", { name: "Create link" }).click();
+
+  const reveal = page.getByTestId("share-token-reveal");
+  await expect(reveal).toBeVisible();
+  await expect(page.getByTestId("share-created-doc-count")).toContainText("3");
+
+  // QR promotion — present and rendered at a scannable size (the UI wave
+  // promoted it as the primary mobile affordance; runs under the 390px project).
+  const qrBlock = page.getByTestId("share-qr-block");
+  await expect(qrBlock).toBeVisible();
+  const qrImg = qrBlock.getByRole("img");
+  await expect(qrImg).toBeVisible();
+  const box = await qrImg.boundingBox();
+  expect(box, "QR image has a rendered box").not.toBeNull();
+  expect(box!.width).toBeGreaterThanOrEqual(160);
+
+  // The one-time secrets: token from the share URL, passphrase from its cell.
+  const shareUrl = (await reveal.locator("code").first().innerText()).trim();
+  const token = shareUrl.split("/c/")[1];
+  expect(token, "token parsed from share URL").toMatch(/^hls_[0-9a-f]{48}$/);
+  const passphrase = (
+    await page.getByTestId("share-passphrase").innerText()
+  ).trim();
+  expect(passphrase.length).toBeGreaterThan(0);
+
+  return { token, passphrase, label };
+}
+
+/** A recipient browser context (no owner session) that has unlocked `token`
+ *  by following the `#k=<passphrase>` deep link the QR encodes. */
+async function openUnlockedClinician(
+  browser: Browser,
+  share: CreatedShare,
+): Promise<Page> {
+  const ctx = await browser.newContext({
+    baseURL: BASE,
+    serviceWorkers: "block",
+  });
+  const page = await ctx.newPage();
+  // The gate reads `#k=` from the fragment, POSTs the unlock, and reloads with
+  // the record — exactly what a clinician scanning the QR would trigger.
+  await page.goto(`${BASE}/c/${share.token}#${"k"}=${share.passphrase}`);
+  await expect(
+    page.getByRole("heading", { name: "Shared health record" }),
+  ).toBeVisible({ timeout: 15_000 });
+  return page;
+}
+
+test.describe("clinician document sharing", () => {
+  test.use({ storageState: STORAGE_STATE_PATH });
+
+  test.beforeAll(async () => {
+    await ensureVaultFixture();
+    await ensureShareDocFixture();
+  });
+
+  test("share → unlock → serve (posture + EXIF strip) → revoke → 404", async ({
+    page,
+    browser,
+  }) => {
+    // A full lifecycle across two browser contexts (owner create + picker,
+    // recipient unlock, several document serves, revoke): legitimately heavy,
+    // so it earns the tripled timeout rather than racing the default 30s on a
+    // loaded CI runner.
+    test.slow();
+    const share = await createShareWithDocs(page);
+    const clinician = await openUnlockedClinician(browser, share);
+
+    // ── The clinician view lists the documents with the right affordances ──
+    await expect(
+      clinician.getByRole("heading", { name: "Documents" }),
+    ).toBeVisible();
+    // Class A image → inline <img> at the token-scoped serve route.
+    await expect(
+      clinician.locator(`img[src*="/d/${SHARE_JPEG_DOC_ID}"]`),
+    ).toBeVisible();
+    // Class A PDF → inline <iframe> at the same route family.
+    await expect(
+      clinician.locator(`iframe[src*="/d/${SHARE_PDF_DOC_ID}"]`),
+    ).toHaveCount(1);
+    // Class B text → NO inline frame; the download-only hint is shown.
+    await expect(
+      clinician.locator(`iframe[src*="/d/${SHARE_TEXT_DOC_ID}"]`),
+    ).toHaveCount(0);
+    await expect(
+      clinician.getByText("This file downloads to your device"),
+    ).toBeVisible();
+
+    const serve = (id: string) => `${BASE}/c/${share.token}/d/${id}`;
+
+    // ── Class A PDF: inline, true type, nosniff, no-store ──
+    const pdf = await clinician.request.get(serve(SHARE_PDF_DOC_ID));
+    expect(pdf.status()).toBe(200);
+    expect(pdf.headers()["content-type"]).toBe("application/pdf");
+    expect(pdf.headers()["content-disposition"]).toContain("inline");
+    expect(pdf.headers()["x-content-type-options"]).toBe("nosniff");
+    // The proxy's `/c/` edge block wins over the route header (middleware
+    // headers override route headers), yielding a stricter no-store posture.
+    expect(pdf.headers()["cache-control"]).toContain("no-store");
+    // The proxy owns the CSP for this path (SAMEORIGIN framing + document CSP).
+    expect(pdf.headers()["content-security-policy"]).toContain(
+      "frame-ancestors 'self'",
+    );
+    expect(pdf.headers()["x-frame-options"]).toBe("SAMEORIGIN");
+
+    // ── Class A JPEG: inline image, EXIF/GPS stripped on egress ──
+    const jpeg = await clinician.request.get(serve(SHARE_JPEG_DOC_ID));
+    expect(jpeg.status()).toBe(200);
+    expect(jpeg.headers()["content-type"]).toBe("image/jpeg");
+    expect(jpeg.headers()["content-disposition"]).toContain("inline");
+    const jpegBody = await jpeg.body();
+    expect(
+      jpegBody.includes(Buffer.from("GPSLatitude")),
+      "served JPEG must not carry the stored GPS marker",
+    ).toBe(false);
+
+    // ── Class B text: opaque octet-stream attachment (never inline) ──
+    const txt = await clinician.request.get(serve(SHARE_TEXT_DOC_ID));
+    expect(txt.status()).toBe(200);
+    expect(txt.headers()["content-type"]).toBe("application/octet-stream");
+    expect(txt.headers()["content-disposition"]).toContain("attachment");
+    expect(txt.headers()["x-content-type-options"]).toBe("nosniff");
+
+    // ── Frozen-set confinement: an OWNED but un-attached document 404s ──
+    const foreign = await clinician.request.get(serve(UNATTACHED_OWNED_DOC_ID));
+    expect(foreign.status()).toBe(404);
+    // A syntactically-plausible but unknown id also 404s (same blunt miss).
+    const guessed = await clinician.request.get(
+      serve("e2edoesnotexist00000001"),
+    );
+    expect(guessed.status()).toBe(404);
+
+    // ── Revoke through the owner UI, then the serve route stops cold ──
+    await page.reload();
+    const activeItem = page
+      .getByTestId("share-active-list")
+      .getByRole("listitem")
+      .filter({ hasText: share.label })
+      .first();
+    await expect(activeItem).toBeVisible();
+    await activeItem.getByRole("button", { name: "Revoke" }).click();
+    // Confirm in the alert dialog.
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Revoke" })
+      .click();
+
+    // The already-unlocked recipient can no longer pull any blob — revocation
+    // is re-enforced at serve time, before any decrypt.
+    await expect(async () => {
+      const afterRevoke = await clinician.request.get(serve(SHARE_PDF_DOC_ID));
+      expect(afterRevoke.status()).toBe(404);
+    }).toPass({ timeout: 10_000 });
+
+    await clinician.context().close();
+  });
+
+  test("picker enforces the document cap at the limit", async ({ page }) => {
+    await page.goto("/settings/sharing");
+    await page.locator("#share-label").fill(`${SHARE_DOC_PREFIX} cap`);
+    await page.getByTestId("share-attach-open").click();
+
+    const list = page.getByTestId("share-doc-picker-list");
+    await expect(list).toBeVisible();
+    // The picker loads one page (server `limit=50`), which equals the cap; the
+    // corpus fixture guarantees a full page.
+    const rows = list.getByRole("button");
+    const count = await rows.count();
+    expect(count).toBeGreaterThanOrEqual(50);
+
+    // Select up to the cap. Each click below the cap is enabled; the click that
+    // reaches the cap flips `atCap`, after which the max-reached banner shows.
+    for (let i = 0; i < 50; i++) await rows.nth(i).click();
+
+    await expect(
+      page.getByText("You've reached the maximum of 50"),
+    ).toBeVisible();
+    // The footer count is pinned at the cap ("50 of 50 selected").
+    await expect(page.getByText("50 of 50 selected").first()).toBeVisible();
+  });
+});

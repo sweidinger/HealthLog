@@ -5123,7 +5123,23 @@
       "passphraseHint": "Le destinataire a besoin du lien et de cette phrase secrète. Le code QR contient les deux.",
       "copyLink": "Copier le lien",
       "copyPassphrase": "Copier la phrase secrète",
-      "protected": "Phrase secrète"
+      "protected": "Phrase secrète",
+      "attachTitle": "Joindre des documents",
+      "attachButton": "Choisir des documents",
+      "attachCount": "{count} sur {max} sélectionnés",
+      "attachFrozen": "La sélection de documents est figée à la création du lien — impossible d'ajouter ou de retirer des documents ensuite.",
+      "attachRemove": "Retirer {title}",
+      "exifNote": "Les métadonnées de l'appareil photo (EXIF/GPS) sont supprimées des images JPEG, PNG et WebP lors du partage. Les fichiers PDF, TIFF, HEIC et Office sont transmis tels quels.",
+      "documentCount": "Documents joints : {count}",
+      "qrScanTitle": "Scannez pour ouvrir sur un autre appareil",
+      "qrScanHint": "Pointez l'appareil photo d'un téléphone vers le code pour ouvrir le dossier partagé — la phrase secrète est déjà incluse.",
+      "pickerTitle": "Joindre des documents",
+      "pickerDescription": "Recherchez dans votre coffre et sélectionnez les documents à partager. Jusqu'à {max}.",
+      "pickerSearch": "Rechercher des documents",
+      "pickerEmpty": "Aucun document trouvé.",
+      "pickerDone": "Terminé",
+      "pickerSelectedCount": "{count} sur {max} sélectionnés",
+      "pickerMaxReached": "Vous avez atteint le maximum de {max} documents."
     },
     "genderOther": "Autre",
     "cycleTracking": {
@@ -6595,6 +6611,13 @@
       "title": "Impossible de charger cette vue partagée",
       "description": "Une erreur s'est produite lors de l'ouverture de ce dossier de santé partagé. Le lien a peut-être expiré, ou un problème temporaire est survenu. Réessayez ou demandez un nouveau lien à la personne qui l'a partagé.",
       "retry": "Réessayer"
+    },
+    "documents": {
+      "title": "Documents",
+      "untitled": "Document sans titre",
+      "download": "Télécharger",
+      "attachmentHint": "Ce fichier se télécharge sur votre appareil (pas d'aperçu dans la page).",
+      "exifNote": "Les métadonnées de l'appareil photo (EXIF/GPS) ont été supprimées des images JPEG, PNG et WebP partagées."
     }
   },
   "cycle": {

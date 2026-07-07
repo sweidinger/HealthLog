@@ -313,12 +313,23 @@ export function proxy(request: NextRequest) {
   const isDocumentServeRoute =
     /^\/api\/documents\/inbound\/[^/]+\/original$/.test(pathname);
 
+  // v1.28 — the public share-scoped document serve route at
+  // `/c/<token>/d/<id>` is the share analogue of the owner `/original` route:
+  // it decrypts and serves a user-uploaded document that the clinician view
+  // (`/c/<token>`) frames same-origin (an <iframe> for inline-class PDFs). It
+  // needs the SAME narrow posture — SAMEORIGIN framing + a document CSP — and
+  // NOT the `/c/` page CSP, which pins `frame-ancestors 'none'` and would
+  // refuse the preview embed. Anchored to EXACTLY two dynamic segments so a
+  // `/c/<token>` page, a `/c/<token>/d/<id>/extra`, or a `/c/<token>/dx/<id>`
+  // lookalike never inherits the carve-out.
+  const isShareDocumentServeRoute = /^\/c\/[^/]+\/d\/[^/]+$/.test(pathname);
+
+  // Both serve routes take the narrow, document-only header posture.
+  const isServeRoute = isDocumentServeRoute || isShareDocumentServeRoute;
+
   // Security headers
   response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set(
-    "X-Frame-Options",
-    isDocumentServeRoute ? "SAMEORIGIN" : "DENY",
-  );
+  response.headers.set("X-Frame-Options", isServeRoute ? "SAMEORIGIN" : "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Permissions-Policy",
@@ -405,8 +416,9 @@ export function proxy(request: NextRequest) {
   // page-load. Avatars now live on the User row and serve from
   // same-origin `/api/user/avatar/{id}`, so `img-src 'self'` covers
   // them.
-  const csp = isDocumentServeRoute
-    ? // Vault serve route (see the X-Frame-Options note above): the
+  const csp = isServeRoute
+    ? // Vault serve route (owner `/original` OR share `/c/<token>/d/<id>`; see
+      // the X-Frame-Options note above): the
       // response is a user-uploaded document, not an app page.
       // `default-src 'none'` — a served document may load nothing as if
       // it were a page — and `frame-ancestors 'self'` permits exactly the

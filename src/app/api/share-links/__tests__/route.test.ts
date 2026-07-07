@@ -15,6 +15,9 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn(),
       updateMany: vi.fn(),
     },
+    inboundDocument: {
+      findMany: vi.fn(),
+    },
     auditLog: { create: vi.fn() },
   },
 }));
@@ -81,6 +84,7 @@ function storedRow(overrides: Record<string, unknown> = {}) {
     revokedAt: null,
     lastAccessAt: null,
     accessCount: 0,
+    _count: { documents: 0 },
     ...overrides,
   };
 }
@@ -177,6 +181,84 @@ describe("POST /api/share-links — create", () => {
     const res = await POST(postReq(validBody({ userId: "attacker" })));
     expect(res.status).toBe(422);
     expect(prisma.clinicianShareLink.create).not.toHaveBeenCalled();
+  });
+
+  it("attaches own live documents in the create transaction (frozen write-once)", async () => {
+    // The ownership probe returns exactly the requested (deduped) ids as live.
+    vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([
+      { id: "doc-a" },
+      { id: "doc-b" },
+    ] as never);
+    vi.mocked(prisma.clinicianShareLink.create).mockResolvedValue(
+      storedRow({ _count: { documents: 2 } }) as never,
+    );
+
+    const res = await POST(
+      postReq(validBody({ documentIds: ["doc-a", "doc-b", "doc-a"] })),
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { data: { documentCount: number } };
+    expect(body.data.documentCount).toBe(2);
+
+    // Ownership was checked against the caller's own LIVE documents.
+    const probeArg = vi.mocked(prisma.inboundDocument.findMany).mock
+      .calls[0][0];
+    expect(probeArg!.where).toEqual({
+      id: { in: ["doc-a", "doc-b"] }, // deduped
+      userId: "user-1",
+      deletedAt: null,
+    });
+
+    // Membership rows are created NESTED in the same create call (one txn),
+    // deduped, never widened afterwards.
+    const createArg = vi.mocked(prisma.clinicianShareLink.create).mock
+      .calls[0][0];
+    expect(createArg.data.documents).toEqual({
+      create: [{ documentId: "doc-a" }, { documentId: "doc-b" }],
+    });
+  });
+
+  it("rejects a foreign / deleted document id at create (422, no link minted)", async () => {
+    // Only one of the two requested ids resolves as the caller's own live doc.
+    vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([
+      { id: "doc-a" },
+    ] as never);
+
+    const res = await POST(
+      postReq(validBody({ documentIds: ["doc-a", "not-mine"] })),
+    );
+    expect(res.status).toBe(422);
+    // No share is ever minted with a document the caller does not own (B5).
+    expect(prisma.clinicianShareLink.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects more than the document cap via strict schema (422)", async () => {
+    const tooMany = Array.from({ length: 51 }, (_, i) => `doc-${i}`);
+    const res = await POST(postReq(validBody({ documentIds: tooMany })));
+    expect(res.status).toBe(422);
+    expect(prisma.inboundDocument.findMany).not.toHaveBeenCalled();
+    expect(prisma.clinicianShareLink.create).not.toHaveBeenCalled();
+  });
+
+  it("allows a documents-only share (empty report sections)", async () => {
+    vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([
+      { id: "doc-a" },
+    ] as never);
+    vi.mocked(prisma.clinicianShareLink.create).mockResolvedValue(
+      storedRow({ resourceTypes: [], _count: { documents: 1 } }) as never,
+    );
+    const res = await POST(
+      postReq(
+        validBody({
+          resourceTypes: [],
+          allowFhirApi: false,
+          documentIds: ["doc-a"],
+        }),
+      ),
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { data: { documentCount: number } };
+    expect(body.data.documentCount).toBe(1);
   });
 });
 

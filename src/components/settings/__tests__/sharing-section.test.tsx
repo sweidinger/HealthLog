@@ -35,6 +35,7 @@ const FIXTURE_LINKS = [
     rangeEnd: null,
     resourceTypes: ["Patient", "Observation"],
     allowFhirApi: true,
+    documentCount: 2,
     expiresAt: "2099-01-01T00:00:00.000Z",
     createdAt: "2026-06-01T00:00:00.000Z",
     revokedAt: null,
@@ -49,6 +50,7 @@ const FIXTURE_LINKS = [
     rangeEnd: null,
     resourceTypes: [],
     allowFhirApi: false,
+    documentCount: 0,
     expiresAt: "2099-01-01T00:00:00.000Z",
     createdAt: "2026-05-01T00:00:00.000Z",
     revokedAt: "2026-05-15T00:00:00.000Z",
@@ -121,5 +123,29 @@ describe("<SharingSection> — owner share-link surface (C7)", () => {
   it("renders localized section copy", () => {
     const html = render("de");
     expect(html).toContain("Neuer Freigabe-Link");
+  });
+
+  it("offers the document picker trigger and surfaces the ≤50 cap", () => {
+    const html = render();
+    // The attach-documents affordance is present on the create form.
+    expect(html).toContain('data-testid="share-attach-open"');
+    expect(html).toContain("Attach documents");
+    // The cap the picker enforces client-side is surfaced in the count copy.
+    expect(html).toContain("of 50 selected");
+  });
+
+  it("surfaces the frozen-set warning so the write-once contract is explicit", () => {
+    const html = render();
+    // The set cannot be edited after creation — the UI must say so.
+    expect(html).toContain("fixed once you create the link");
+  });
+
+  it("shows a document-count badge on a link that carries documents", () => {
+    const html = render();
+    expect(html).toContain('data-testid="share-doc-count-badge"');
+    // The active fixture carries two documents.
+    const activeStart = html.indexOf('data-testid="share-active-list"');
+    const activeSlice = html.slice(activeStart);
+    expect(activeSlice).toContain('data-testid="share-doc-count-badge"');
   });
 });

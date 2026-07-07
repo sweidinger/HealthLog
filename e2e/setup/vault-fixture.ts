@@ -160,6 +160,30 @@ function tinyPng(marker: string): Buffer {
   return Buffer.concat([PNG_1X1, Buffer.from(marker, "utf8")]);
 }
 
+/**
+ * A minimal JPEG carrying a GPS marker inside an APP1 (Exif) segment so the
+ * share serve route's egress EXIF strip is observable end-to-end: the stored
+ * bytes contain `GPSLatitude`, the served bytes must not. SOI → APP1(Exif) →
+ * SOS(+entropy). Not a decodable photo — the serve route sniffs the STORED
+ * mime type, never re-decodes pixels, so this is enough to exercise the strip.
+ */
+function jpegWithGps(marker: string): Buffer {
+  const payload = Buffer.concat([
+    Buffer.from("Exif\0\0"),
+    Buffer.from(`GPSLatitude=48.137 ${marker}`),
+  ]);
+  const lenField = Buffer.alloc(2);
+  lenField.writeUInt16BE(payload.length + 2);
+  const app1 = Buffer.concat([Buffer.from([0xff, 0xe1]), lenField, payload]);
+  const sos = Buffer.concat([
+    Buffer.from([0xff, 0xda]),
+    Buffer.from([0x00, 0x08]),
+    Buffer.from([0x01, 0x01, 0x00, 0x3f, 0x00, 0x00]),
+    Buffer.from([0xaa, 0xbb]),
+  ]);
+  return Buffer.concat([Buffer.from([0xff, 0xd8]), app1, sos]);
+}
+
 // ─── Fixture identity ───────────────────────────────────────────────────────
 
 export const KNIE_EPISODE_ID = "e2evaultknie000000000001";
@@ -173,6 +197,21 @@ export const AI_PROBE_DOC_ID = "e2evaultaiprobe000000001";
 export const CONTENT_DOC_ID = "e2evaultcontent00000001";
 /** The whole word that appears only in `CONTENT_DOC_ID`'s indexed body. */
 export const CONTENT_BODY_WORD = "pneumothorax";
+
+/**
+ * v1.28 (Phase 3) — a fixed trio the clinician-share e2e attaches to a link and
+ * serves through the public `/c/<token>/d/<id>` route:
+ *   - a PDF (Class A, inline preview via <iframe>),
+ *   - a JPEG carrying an Exif GPS marker (Class A image, inline <img>; the
+ *     serve route strips the marker on egress — the stored bytes keep it),
+ *   - a text/plain document (Class B, download-only opaque attachment).
+ * Titles carry the `Share e2e` prefix so the owner picker's search isolates
+ * exactly this set. Idempotent (fixed ids upserted).
+ */
+export const SHARE_PDF_DOC_ID = "e2eshare0000000000000pdf";
+export const SHARE_JPEG_DOC_ID = "e2eshare000000000000jpeg";
+export const SHARE_TEXT_DOC_ID = "e2eshare000000000000text";
+export const SHARE_DOC_PREFIX = "Share e2e";
 /** Filing date of the MRT report — "last autumn" relative to the fixture. */
 const MRT_DOC_DATE = "2025-10-14";
 
@@ -435,6 +474,60 @@ export async function seedNamespaceDocs(
       });
     }
     await upsertDocs(pool, userId, docs);
+  } finally {
+    await pool.end();
+  }
+}
+
+/**
+ * v1.28 — seed the clinician-share document trio (see the `SHARE_*_DOC_ID`
+ * constants). Enables the vault module for the e2e user and upserts one
+ * inline-PDF, one Exif/GPS-bearing JPEG, and one download-only text document,
+ * all owned by the seeded account. Idempotent; safe from a spec `beforeAll`.
+ */
+export async function ensureShareDocFixture(): Promise<void> {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("[vault-fixture] DATABASE_URL is not set");
+  const pool = new pg.Pool({ connectionString: url });
+  try {
+    const userId = await getUserId(pool);
+    await pool.query(
+      `UPDATE users
+       SET module_preferences_json =
+         COALESCE(module_preferences_json, '{}'::jsonb)
+         || '{"inboundDocuments": true}'::jsonb
+       WHERE id = $1`,
+      [userId],
+    );
+    await upsertDocs(pool, userId, [
+      {
+        id: SHARE_PDF_DOC_ID,
+        kind: "DOCTOR_REPORT",
+        title: `${SHARE_DOC_PREFIX} report`,
+        filename: "share-report.pdf",
+        mimeType: "application/pdf",
+        documentDate: "2026-05-20",
+        bytes: tinyPdf(SHARE_PDF_DOC_ID),
+      },
+      {
+        id: SHARE_JPEG_DOC_ID,
+        kind: "IMAGING",
+        title: `${SHARE_DOC_PREFIX} scan`,
+        filename: "share-scan.jpg",
+        mimeType: "image/jpeg",
+        documentDate: "2026-05-21",
+        bytes: jpegWithGps(SHARE_JPEG_DOC_ID),
+      },
+      {
+        id: SHARE_TEXT_DOC_ID,
+        kind: "OTHER",
+        title: `${SHARE_DOC_PREFIX} notes`,
+        filename: "share-notes.txt",
+        mimeType: "text/plain",
+        documentDate: "2026-05-22",
+        bytes: Buffer.from(`share e2e class-B payload ${SHARE_TEXT_DOC_ID}`),
+      },
+    ]);
   } finally {
     await pool.end();
   }

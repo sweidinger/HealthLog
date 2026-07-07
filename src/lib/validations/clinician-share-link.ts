@@ -34,9 +34,21 @@ export const shareLinkResourceTypeEnum = z.enum(SHARE_LINK_RESOURCE_TYPES);
 const MAX_FUTURE_MS = SHARE_LINK_MAX_DAYS * 24 * 60 * 60 * 1000;
 
 /**
+ * v1.28 — the most documents a single share may carry. A share is a hand-picked
+ * handover, not a bulk dump; the cap bounds the create-time ownership check and
+ * the public view's per-blob fetch fan-out. The ids are validated as the
+ * caller's own LIVE documents in the route (a schema can only bound the shape).
+ */
+export const SHARE_LINK_MAX_DOCUMENTS = 50;
+
+/**
  * Create payload. `expiresAt` is an absolute ISO instant, must be in the
  * future, and at most `SHARE_LINK_MAX_DAYS` ahead of now. `rangeStart` /
  * `rangeEnd` are the frozen reporting window (rangeEnd null = rolling).
+ * `documentIds` (optional) is the hand-picked document set, frozen write-once
+ * at create; each id is ownership-checked in the route before any row is
+ * written. A documents-only share (empty report sections + a non-empty
+ * `documentIds`) is valid.
  */
 export const createShareLinkSchema = z
   .object({
@@ -46,6 +58,10 @@ export const createShareLinkSchema = z
     sections: exportSectionsSchema.optional(),
     resourceTypes: z.array(shareLinkResourceTypeEnum).max(8).optional(),
     allowFhirApi: z.boolean().optional(),
+    documentIds: z
+      .array(z.string().trim().min(1).max(64))
+      .max(SHARE_LINK_MAX_DOCUMENTS)
+      .optional(),
     expiresAt: z.iso
       .datetime({ offset: true })
       .refine((v) => new Date(v).getTime() > Date.now(), {

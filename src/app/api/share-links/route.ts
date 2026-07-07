@@ -54,6 +54,27 @@ function resolveOrigin(request: NextRequest): string {
   return `${proto}://${host}`;
 }
 
+/**
+ * The row selection every owner-facing projection reads. `_count.documents`
+ * surfaces the size of the frozen document set without ever loading the ids
+ * (let alone the blobs) — the metadata-only discipline (P3-D5).
+ */
+const shareLinkSummarySelect = {
+  id: true,
+  label: true,
+  rangeStart: true,
+  rangeEnd: true,
+  resourceTypes: true,
+  allowFhirApi: true,
+  passphraseHash: true,
+  expiresAt: true,
+  createdAt: true,
+  revokedAt: true,
+  lastAccessAt: true,
+  accessCount: true,
+  _count: { select: { documents: true } },
+} as const;
+
 /** Project a stored row to the safe owner-facing shape (never the token). */
 function toSummary(row: {
   id: string;
@@ -68,6 +89,7 @@ function toSummary(row: {
   revokedAt: Date | null;
   lastAccessAt: Date | null;
   accessCount: number;
+  _count: { documents: number };
 }) {
   return {
     id: row.id,
@@ -79,6 +101,9 @@ function toSummary(row: {
     // v1.18.7 — surface only WHETHER a passphrase guards the link, never the
     // hash itself. Legacy (null-hash) links read `false` and stay ungated.
     protected: row.passphraseHash !== null,
+    // v1.28 — how many documents this share carries (never the ids, never the
+    // bytes; the serve route is the only decrypt path).
+    documentCount: row._count.documents,
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
@@ -120,6 +145,26 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const rawPassphrase = generatePassphrase();
   const passphraseHash = hashPassphrase(normalisePassphrase(rawPassphrase)!);
 
+  // v1.28 — resolve the frozen document set. The ids are deduped (a client
+  // could repeat one, which the unique membership index would otherwise
+  // reject) and then validated as the caller's OWN live documents. A single
+  // foreign / deleted / unknown id seals the whole create as 422 — no share is
+  // ever minted with a document the caller does not own (B5). The rows are
+  // created in the SAME transaction as the link (nested create), so the
+  // membership is frozen write-once atomically with the scope columns.
+  const documentIds = Array.from(new Set(input.documentIds ?? []));
+  if (documentIds.length > 0) {
+    const owned = await prisma.inboundDocument.findMany({
+      where: { id: { in: documentIds }, userId: user.id, deletedAt: null },
+      select: { id: true },
+    });
+    if (owned.length !== documentIds.length) {
+      return apiError("One or more documents are not available to share", 422, {
+        errorCode: "share-link.documents.invalid",
+      });
+    }
+  }
+
   // Field-by-field build — no mass assignment. Scope columns are written
   // exactly once here and never updated.
   const created = await prisma.clinicianShareLink.create({
@@ -134,21 +179,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
       resourceTypes: input.resourceTypes ?? [],
       allowFhirApi: input.allowFhirApi ?? false,
       expiresAt: new Date(input.expiresAt),
+      documents:
+        documentIds.length > 0
+          ? { create: documentIds.map((documentId) => ({ documentId })) }
+          : undefined,
     },
-    select: {
-      id: true,
-      label: true,
-      rangeStart: true,
-      rangeEnd: true,
-      resourceTypes: true,
-      allowFhirApi: true,
-      passphraseHash: true,
-      expiresAt: true,
-      createdAt: true,
-      revokedAt: true,
-      lastAccessAt: true,
-      accessCount: true,
-    },
+    select: shareLinkSummarySelect,
   });
 
   await auditLog("share-link.create", {
@@ -158,6 +194,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       shareLinkId: created.id,
       resourceTypes: created.resourceTypes,
       allowFhirApi: created.allowFhirApi,
+      documentCount: created._count.documents,
       expiresAt: created.expiresAt.toISOString(),
     },
   });
@@ -188,20 +225,7 @@ export const GET = apiHandler(async () => {
   const rows = await prisma.clinicianShareLink.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      label: true,
-      rangeStart: true,
-      rangeEnd: true,
-      resourceTypes: true,
-      allowFhirApi: true,
-      passphraseHash: true,
-      expiresAt: true,
-      createdAt: true,
-      revokedAt: true,
-      lastAccessAt: true,
-      accessCount: true,
-    },
+    select: shareLinkSummarySelect,
   });
 
   return apiSuccess({ shareLinks: rows.map(toSummary) });

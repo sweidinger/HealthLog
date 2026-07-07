@@ -29,6 +29,10 @@ test.describe("medication wizard — daily", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
   test("creates a daily medication end-to-end", async ({ page }) => {
+    // Multi-step wizard with per-step validation gating the Next button;
+    // under a loaded CI runner the validation settle can lag the default
+    // 30s, so this legitimately-long flow earns the tripled timeout.
+    test.slow();
     await stubDashboardAnalytics(page);
     const capture = mockMedicationsApi(page, {
       id: STUB_MEDICATION_ID,
