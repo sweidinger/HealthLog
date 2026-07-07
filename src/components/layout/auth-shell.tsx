@@ -36,6 +36,13 @@ const PUBLIC_PATHS = [
   "/c/",
 ];
 
+// Routes that opt into the wide content container (`max-w-screen-2xl`
+// instead of the standard `max-w-screen-xl`). The shell stays the single
+// owner of the page frame — a wide page never re-implements paddings or
+// margins; it is listed here instead. Currently: the Dokumente vault,
+// whose multi-column document timeline earns the extra width.
+const WIDE_CONTENT_PATHS = ["/documents"];
+
 export function AuthShell({
   children,
   demoMode = false,
@@ -69,6 +76,9 @@ export function AuthShell({
     pathname.startsWith("/about") ||
     pathname.startsWith("/c/");
   const isAdminPage = pathname.startsWith("/admin");
+  const isWidePage = WIDE_CONTENT_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
   const isOnboardingPage = pathname === "/onboarding";
   const showUnlockNotifier = isAuthenticated && !isPublicPage && !!user?.id;
 
@@ -315,7 +325,13 @@ export function AuthShell({
               the desktop bottom-6 anchor), so the last line of content
               can always scroll out from under the floating button.
             */}
-            <div className="mx-auto max-w-screen-xl px-4 pt-6 pb-20 md:px-6">
+            <div
+              className={
+                isWidePage
+                  ? "mx-auto max-w-screen-2xl px-4 pt-6 pb-20 md:px-6"
+                  : "mx-auto max-w-screen-xl px-4 pt-6 pb-20 md:px-6"
+              }
+            >
               {children}
             </div>
           </main>

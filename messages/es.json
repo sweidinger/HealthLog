@@ -8015,19 +8015,8 @@
   },
   "documents": {
     "title": "Documentos",
-    "subtitle": "Guarda tus documentos clínicos y revisa lo que dicen.",
-    "upload": {
-      "label": "Añadir un documento",
-      "kindLabel": "Categoría",
-      "button": "Subir",
-      "uploading": "Subiendo…",
-      "fileLabel": "Archivo (obligatorio)",
-      "titleLabel": "Título (opcional)",
-      "titlePlaceholder": "p. ej. Informe de cardiología",
-      "dateLabel": "Fecha del documento (opcional)",
-      "fileRequired": "Elige un archivo para subir.",
-      "accepts": "JPEG, PNG, WebP o PDF · hasta 12 MB"
-    },
+    "subtitle": "Cada carta, informe y escaneo en un solo lugar con búsqueda — cifrado en reposo.",
+    "pageUpload": "Subir",
     "kind": {
       "DOCTOR_REPORT": "Informe médico",
       "DISCHARGE_LETTER": "Informe de alta",
@@ -8039,121 +8028,77 @@
       "INSURANCE": "Seguro",
       "VACCINATION": "Vacunación"
     },
-    "list": {
-      "empty": "Aún no hay documentos.",
-      "noResults": "Ningún documento coincide con tus filtros.",
-      "loadMore": "Cargar más",
-      "loadingMore": "Cargando…",
-      "pending": "{count} por revisar",
-      "facts": "{count} datos",
-      "clearFilters": "Borrar filtros",
-      "loadError": "No se pudieron cargar tus documentos."
+    "filter": {
+      "searchLabel": "Buscar documentos",
+      "searchPlaceholder": "Buscar por título o nombre de archivo…",
+      "groupLabel": "Filtrar documentos",
+      "typeGroup": "Tipo de documento",
+      "conditionGroup": "Afección",
+      "yearGroup": "Año",
+      "clear": "Borrar filtros"
     },
-    "status": {
-      "EXTRACTING": "Leyendo",
-      "EXTRACTED": "Listo para revisar",
-      "FAILED": "No se pudo leer",
-      "CONFIRMED": "Revisado",
-      "DISCARDED": "Descartado",
-      "STORED": "Guardado"
+    "card": {
+      "untitled": "Documento sin título",
+      "selectLabel": "Seleccionar {title}",
+      "openLabel": "Abrir {title}",
+      "attachmentBadge": "Solo descarga",
+      "uploading": "Subiendo…",
+      "dismissFailed": "Descartar subida fallida"
     },
-    "review": {
-      "title": "Revisar datos extraídos",
-      "confirm": "Guardar datos aprobados",
-      "confirming": "Guardando…",
-      "needsReview": "Requiere revisión",
-      "approve": "Aprobar",
-      "reject": "Rechazar",
-      "edit": "Editar",
-      "cancel": "Cancelar",
-      "save": "Guardar",
-      "needsReviewHint": "Edita este dato para poder aprobarlo.",
-      "confidenceLabel": "Confianza de la extracción",
-      "commitError": {
-        "unitMismatch": "la unidad no coincide con la guardada",
-        "unitRequired": "un valor numérico necesita una unidad",
-        "generic": "no se pudo guardar"
-      }
-    },
-    "empty": {
-      "noFacts": "Nada más que revisar."
-    },
-    "factType": {
-      "CONDITION": "Diagnóstico",
-      "OBSERVATION": "Valor",
-      "MEDICATION_STATEMENT": "Medicación"
-    },
-    "fields": {
-      "label": "Nombre",
-      "value": "Valor",
-      "unit": "Unidad",
-      "date": "Fecha",
-      "dose": "Dosis"
+    "error": {
+      "fileTooLarge": "Este archivo supera el límite de {maxSize}.",
+      "quotaExceeded": "El almacenamiento está lleno — {used} de {quota} usados.",
+      "unsupportedType": "Este tipo de archivo no es compatible.",
+      "purged": "Este documento se eliminó definitivamente y no se puede restaurar.",
+      "duplicateExists": "Ya hay guardado un documento idéntico.",
+      "rateLimited": "Demasiadas subidas — inténtalo de nuevo en unos minutos.",
+      "generic": "La subida falló. Inténtalo de nuevo."
     },
     "toast": {
-      "uploaded": "Documento guardado.",
-      "uploadFailed": "No se pudo guardar el documento.",
-      "confirmed": "Datos aprobados guardados.",
-      "confirmedPartial": "Guardado, pero {count} no se pudieron guardar: {reason}.",
-      "confirmFailed": "No se pudieron guardar tus decisiones.",
-      "saved": "Dato actualizado.",
-      "discarded": "Documento descartado.",
-      "extracted": "Datos extraídos. Revísalos abajo.",
-      "extractFailed": "No se pudieron extraer los datos.",
-      "localOcrDisabled": "Activa el OCR local en los ajustes para leer este documento en el dispositivo.",
-      "updated": "Documento actualizado.",
-      "updateFailed": "No se pudo actualizar el documento.",
-      "discardFailed": "No se pudo descartar el documento.",
-      "uploadTooLarge": "El archivo es demasiado grande (máx. 12 MB).",
-      "uploadFileType": "Sube un archivo JPEG, PNG, WebP o PDF.",
-      "uploadRateLimited": "Demasiadas subidas. Inténtalo de nuevo más tarde.",
-      "uploadInvalidMetadata": "Revisa el título, la categoría o la fecha e inténtalo de nuevo."
+      "duplicate": "Ya estaba guardado — se resalta el documento existente.",
+      "deleted": "Documento eliminado.",
+      "restoreFailed": "No se pudo restaurar el documento."
     },
-    "toolbar": {
-      "searchLabel": "Buscar",
-      "searchPlaceholder": "Título o nombre de archivo",
-      "kindFilterLabel": "Categoría",
-      "allKinds": "Todas las categorías",
-      "sortLabel": "Ordenar por",
-      "sort": {
-        "documentDate": "Fecha del documento",
-        "createdAt": "Fecha de adición",
-        "title": "Título"
-      },
-      "orderAsc": "Ascendente",
-      "orderDesc": "Descendente",
-      "fromLabel": "Desde",
-      "toLabel": "Hasta"
+    "timeline": {
+      "loadingMore": "Cargando más…"
+    },
+    "upload": {
+      "zoneTitle": "Suelta archivos aquí o elige desde tu dispositivo",
+      "zoneHint": "PDF, fotos y archivos de Office de hasta {maxSize} cada uno",
+      "browse": "Elegir archivos",
+      "quotaAlmostFull": "Almacenamiento casi lleno",
+      "quotaUsed": "{used} de {quota} usados"
+    },
+    "selection": {
+      "count": "{count} seleccionados",
+      "clear": "Borrar selección"
+    },
+    "list": {
+      "loadError": "No se pudieron cargar tus documentos."
+    },
+    "empty": {
+      "title": "Tu archivo de documentos está vacío",
+      "description": "Guarda cartas médicas, resultados de laboratorio, imágenes, recetas y certificados de vacunación — cifrados y con búsqueda por tipo, afección y año.",
+      "action": "Subir un primer documento",
+      "noMatchesTitle": "No hay documentos coincidentes",
+      "noMatchesDescription": "Nada coincide con la búsqueda y los filtros actuales."
     },
     "detail": {
-      "viewOriginal": "Ver original",
-      "edit": "Editar",
-      "extract": "Extraer datos",
-      "extracting": "Extrayendo…",
-      "discard": "Descartar",
-      "notExtracted": "Aún no se han extraído datos. Usa Extraer datos para leer este documento.",
-      "viewOriginalNewTab": "(se abre en una pestaña nueva)",
-      "discardConfirmTitle": "¿Descartar este documento?",
-      "discardConfirmBody": "Esto elimina de forma permanente el documento, su archivo original y los datos preparados. No se puede deshacer.",
-      "discardConfirmAction": "Descartar",
-      "discardCancel": "Cancelar"
-    },
-    "edit": {
-      "title": "Editar documento",
-      "subtitle": "Renombra, recategoriza o fija la fecha del documento.",
+      "title": "Detalles del documento",
+      "loadError": "No se pudo cargar este documento.",
+      "saveError": "No se pudo guardar el cambio.",
+      "deleteError": "No se pudo eliminar el documento.",
+      "download": "Descargar",
+      "delete": "Eliminar",
       "titleLabel": "Título",
-      "kindLabel": "Categoría",
+      "titlePlaceholder": "Añadir un título",
+      "kindLabel": "Tipo",
       "dateLabel": "Fecha del documento",
-      "save": "Guardar",
-      "saving": "Guardando…",
-      "cancel": "Cancelar"
-    },
-    "note": {
-      "providerUnsupported": "Configura un proveedor de escaneo de documentos en los ajustes de IA para extraer datos automáticamente.",
-      "alreadyConfirmed": "Este documento ya se ha revisado, por lo que no se puede volver a extraer."
-    },
-    "committed": {
-      "title": "Aprobado de este documento"
+      "conditionsLabel": "Afecciones vinculadas",
+      "linkCondition": "Vincular",
+      "noConditions": "Sin vincular a una afección",
+      "previewUnavailable": "Sin vista previa integrada para este tipo de archivo",
+      "uploadedMeta": "Añadido el {date} · {size}"
     }
   },
   "selfDescription": {

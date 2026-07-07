@@ -8015,19 +8015,8 @@
   },
   "documents": {
     "title": "Dokumente",
-    "subtitle": "Speichere deine medizinischen Dokumente und prüfe, was darin steht.",
-    "upload": {
-      "label": "Dokument hinzufügen",
-      "kindLabel": "Kategorie",
-      "button": "Hochladen",
-      "uploading": "Wird hochgeladen…",
-      "fileLabel": "Datei (erforderlich)",
-      "titleLabel": "Titel (optional)",
-      "titlePlaceholder": "z. B. Kardiologie-Bericht",
-      "dateLabel": "Dokumentdatum (optional)",
-      "fileRequired": "Wähle eine Datei zum Hochladen.",
-      "accepts": "JPEG, PNG, WebP oder PDF · bis 12 MB"
-    },
+    "subtitle": "Jeder Brief, Befund und Scan an einem durchsuchbaren Ort — verschlüsselt gespeichert.",
+    "pageUpload": "Hochladen",
     "kind": {
       "DOCTOR_REPORT": "Arztbericht",
       "DISCHARGE_LETTER": "Entlassungsbrief",
@@ -8039,121 +8028,77 @@
       "INSURANCE": "Versicherung",
       "VACCINATION": "Impfung"
     },
-    "list": {
-      "empty": "Noch keine Dokumente.",
-      "noResults": "Keine Dokumente passen zu deinen Filtern.",
-      "loadMore": "Mehr laden",
-      "loadingMore": "Wird geladen…",
-      "pending": "{count} zu prüfen",
-      "facts": "{count} Angaben",
-      "clearFilters": "Filter zurücksetzen",
-      "loadError": "Deine Dokumente konnten nicht geladen werden."
+    "filter": {
+      "searchLabel": "Dokumente durchsuchen",
+      "searchPlaceholder": "Titel oder Dateiname suchen…",
+      "groupLabel": "Dokumente filtern",
+      "typeGroup": "Dokumenttyp",
+      "conditionGroup": "Erkrankung",
+      "yearGroup": "Jahr",
+      "clear": "Filter zurücksetzen"
     },
-    "status": {
-      "EXTRACTING": "Wird gelesen",
-      "EXTRACTED": "Bereit zur Prüfung",
-      "FAILED": "Konnte nicht gelesen werden",
-      "CONFIRMED": "Geprüft",
-      "DISCARDED": "Verworfen",
-      "STORED": "Gespeichert"
+    "card": {
+      "untitled": "Unbenanntes Dokument",
+      "selectLabel": "{title} auswählen",
+      "openLabel": "{title} öffnen",
+      "attachmentBadge": "Nur Download",
+      "uploading": "Wird hochgeladen…",
+      "dismissFailed": "Fehlgeschlagenen Upload ausblenden"
     },
-    "review": {
-      "title": "Erkannte Angaben prüfen",
-      "confirm": "Bestätigte Angaben speichern",
-      "confirming": "Wird gespeichert…",
-      "needsReview": "Prüfung nötig",
-      "approve": "Übernehmen",
-      "reject": "Ablehnen",
-      "edit": "Bearbeiten",
-      "cancel": "Abbrechen",
-      "save": "Speichern",
-      "needsReviewHint": "Bearbeite diese Angabe, um sie zu übernehmen.",
-      "confidenceLabel": "Erkennungssicherheit",
-      "commitError": {
-        "unitMismatch": "die Einheit stimmt nicht mit der gespeicherten überein",
-        "unitRequired": "ein Zahlenwert braucht eine Einheit",
-        "generic": "es konnte nicht gespeichert werden"
-      }
-    },
-    "empty": {
-      "noFacts": "Nichts mehr zu prüfen."
-    },
-    "factType": {
-      "CONDITION": "Diagnose",
-      "OBSERVATION": "Wert",
-      "MEDICATION_STATEMENT": "Medikament"
-    },
-    "fields": {
-      "label": "Name",
-      "value": "Wert",
-      "unit": "Einheit",
-      "date": "Datum",
-      "dose": "Dosis"
+    "error": {
+      "fileTooLarge": "Diese Datei ist größer als das Limit von {maxSize}.",
+      "quotaExceeded": "Der Speicher ist voll — {used} von {quota} belegt.",
+      "unsupportedType": "Dieser Dateityp wird nicht unterstützt.",
+      "purged": "Dieses Dokument wurde endgültig entfernt und kann nicht wiederhergestellt werden.",
+      "duplicateExists": "Ein identisches Dokument ist bereits gespeichert.",
+      "rateLimited": "Zu viele Uploads — versuche es in ein paar Minuten erneut.",
+      "generic": "Upload fehlgeschlagen. Bitte erneut versuchen."
     },
     "toast": {
-      "uploaded": "Dokument gespeichert.",
-      "uploadFailed": "Dokument konnte nicht gespeichert werden.",
-      "confirmed": "Bestätigte Angaben gespeichert.",
-      "confirmedPartial": "Gespeichert, aber {count} konnten nicht gespeichert werden — {reason}.",
-      "confirmFailed": "Deine Entscheidungen konnten nicht gespeichert werden.",
-      "saved": "Angabe aktualisiert.",
-      "discarded": "Dokument verworfen.",
-      "extracted": "Angaben ausgelesen. Prüfe sie unten.",
-      "extractFailed": "Angaben konnten nicht ausgelesen werden.",
-      "localOcrDisabled": "Aktiviere lokale OCR in den Einstellungen, um dieses Dokument auf dem Gerät zu lesen.",
-      "updated": "Dokument aktualisiert.",
-      "updateFailed": "Dokument konnte nicht aktualisiert werden.",
-      "discardFailed": "Dokument konnte nicht verworfen werden.",
-      "uploadTooLarge": "Datei ist zu groß (max. 12 MB).",
-      "uploadFileType": "Lade eine JPEG-, PNG-, WebP- oder PDF-Datei hoch.",
-      "uploadRateLimited": "Zu viele Uploads. Versuch es später erneut.",
-      "uploadInvalidMetadata": "Prüfe Titel, Kategorie oder Datum und versuch es erneut."
+      "duplicate": "Bereits gespeichert — das vorhandene Dokument wird hervorgehoben.",
+      "deleted": "Dokument gelöscht.",
+      "restoreFailed": "Das Dokument konnte nicht wiederhergestellt werden."
     },
-    "toolbar": {
-      "searchLabel": "Suche",
-      "searchPlaceholder": "Titel oder Dateiname",
-      "kindFilterLabel": "Kategorie",
-      "allKinds": "Alle Kategorien",
-      "sortLabel": "Sortieren nach",
-      "sort": {
-        "documentDate": "Dokumentdatum",
-        "createdAt": "Hinzugefügt am",
-        "title": "Titel"
-      },
-      "orderAsc": "Aufsteigend",
-      "orderDesc": "Absteigend",
-      "fromLabel": "Von",
-      "toLabel": "Bis"
+    "timeline": {
+      "loadingMore": "Mehr wird geladen…"
+    },
+    "upload": {
+      "zoneTitle": "Dateien hier ablegen oder vom Gerät auswählen",
+      "zoneHint": "PDF, Fotos und Office-Dateien bis je {maxSize}",
+      "browse": "Dateien auswählen",
+      "quotaAlmostFull": "Speicher fast voll",
+      "quotaUsed": "{used} von {quota} belegt"
+    },
+    "selection": {
+      "count": "{count} ausgewählt",
+      "clear": "Auswahl aufheben"
+    },
+    "list": {
+      "loadError": "Deine Dokumente konnten nicht geladen werden."
+    },
+    "empty": {
+      "title": "Dein Dokumenten-Tresor ist leer",
+      "description": "Bewahre Arztbriefe, Laborbefunde, Bildgebung, Rezepte und Impfnachweise auf — verschlüsselt und durchsuchbar nach Typ, Erkrankung und Jahr.",
+      "action": "Erstes Dokument hochladen",
+      "noMatchesTitle": "Keine passenden Dokumente",
+      "noMatchesDescription": "Nichts entspricht der aktuellen Suche und den Filtern."
     },
     "detail": {
-      "viewOriginal": "Original ansehen",
-      "edit": "Bearbeiten",
-      "extract": "Angaben auslesen",
-      "extracting": "Wird ausgelesen…",
-      "discard": "Verwerfen",
-      "notExtracted": "Noch keine Angaben ausgelesen. Nutze „Angaben auslesen“, um dieses Dokument zu lesen.",
-      "viewOriginalNewTab": "(öffnet in einem neuen Tab)",
-      "discardConfirmTitle": "Dieses Dokument verwerfen?",
-      "discardConfirmBody": "Das löscht das Dokument, die Originaldatei und alle vorbereiteten Angaben dauerhaft. Das lässt sich nicht rückgängig machen.",
-      "discardConfirmAction": "Verwerfen",
-      "discardCancel": "Abbrechen"
-    },
-    "edit": {
-      "title": "Dokument bearbeiten",
-      "subtitle": "Umbenennen, neu kategorisieren oder das Dokumentdatum setzen.",
+      "title": "Dokumentdetails",
+      "loadError": "Dieses Dokument konnte nicht geladen werden.",
+      "saveError": "Die Änderung konnte nicht gespeichert werden.",
+      "deleteError": "Das Dokument konnte nicht gelöscht werden.",
+      "download": "Herunterladen",
+      "delete": "Löschen",
       "titleLabel": "Titel",
-      "kindLabel": "Kategorie",
+      "titlePlaceholder": "Titel hinzufügen",
+      "kindLabel": "Typ",
       "dateLabel": "Dokumentdatum",
-      "save": "Speichern",
-      "saving": "Wird gespeichert…",
-      "cancel": "Abbrechen"
-    },
-    "note": {
-      "providerUnsupported": "Richte in den KI-Einstellungen einen Anbieter für Dokumentenscans ein, um Angaben automatisch auszulesen.",
-      "alreadyConfirmed": "Dieses Dokument wurde bereits geprüft und kann nicht erneut ausgelesen werden."
-    },
-    "committed": {
-      "title": "Aus diesem Dokument übernommen"
+      "conditionsLabel": "Verknüpfte Erkrankungen",
+      "linkCondition": "Verknüpfen",
+      "noConditions": "Mit keiner Erkrankung verknüpft",
+      "previewUnavailable": "Keine Inline-Vorschau für diesen Dateityp",
+      "uploadedMeta": "Hinzugefügt am {date} · {size}"
     }
   },
   "selfDescription": {

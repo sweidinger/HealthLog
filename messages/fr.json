@@ -8015,19 +8015,8 @@
   },
   "documents": {
     "title": "Documents",
-    "subtitle": "Conservez vos documents médicaux et vérifiez ce qu'ils contiennent.",
-    "upload": {
-      "label": "Ajouter un document",
-      "kindLabel": "Catégorie",
-      "button": "Téléverser",
-      "uploading": "Téléversement…",
-      "fileLabel": "Fichier (requis)",
-      "titleLabel": "Titre (facultatif)",
-      "titlePlaceholder": "p. ex. Compte rendu de cardiologie",
-      "dateLabel": "Date du document (facultatif)",
-      "fileRequired": "Choisissez un fichier à téléverser.",
-      "accepts": "JPEG, PNG, WebP ou PDF · jusqu'à 12 Mo"
-    },
+    "subtitle": "Chaque courrier, compte rendu et scan au même endroit, consultable — chiffré au repos.",
+    "pageUpload": "Téléverser",
     "kind": {
       "DOCTOR_REPORT": "Compte rendu médical",
       "DISCHARGE_LETTER": "Lettre de sortie",
@@ -8039,121 +8028,77 @@
       "INSURANCE": "Assurance",
       "VACCINATION": "Vaccination"
     },
-    "list": {
-      "empty": "Aucun document pour l'instant.",
-      "noResults": "Aucun document ne correspond à vos filtres.",
-      "loadMore": "Charger plus",
-      "loadingMore": "Chargement…",
-      "pending": "{count} à vérifier",
-      "facts": "{count} éléments",
-      "clearFilters": "Effacer les filtres",
-      "loadError": "Impossible de charger vos documents."
+    "filter": {
+      "searchLabel": "Rechercher des documents",
+      "searchPlaceholder": "Rechercher un titre ou un nom de fichier…",
+      "groupLabel": "Filtrer les documents",
+      "typeGroup": "Type de document",
+      "conditionGroup": "Affection",
+      "yearGroup": "Année",
+      "clear": "Effacer les filtres"
     },
-    "status": {
-      "EXTRACTING": "Lecture",
-      "EXTRACTED": "Prêt à vérifier",
-      "FAILED": "Lecture impossible",
-      "CONFIRMED": "Vérifié",
-      "DISCARDED": "Écarté",
-      "STORED": "Conservé"
+    "card": {
+      "untitled": "Document sans titre",
+      "selectLabel": "Sélectionner {title}",
+      "openLabel": "Ouvrir {title}",
+      "attachmentBadge": "Téléchargement uniquement",
+      "uploading": "Téléversement…",
+      "dismissFailed": "Ignorer le téléversement échoué"
     },
-    "review": {
-      "title": "Vérifier les données extraites",
-      "confirm": "Enregistrer les données approuvées",
-      "confirming": "Enregistrement…",
-      "needsReview": "À vérifier",
-      "approve": "Approuver",
-      "reject": "Rejeter",
-      "edit": "Modifier",
-      "cancel": "Annuler",
-      "save": "Enregistrer",
-      "needsReviewHint": "Modifie cette donnée pour pouvoir la valider.",
-      "confidenceLabel": "Confiance d'extraction",
-      "commitError": {
-        "unitMismatch": "l'unité ne correspond pas à celle enregistrée",
-        "unitRequired": "une valeur numérique nécessite une unité",
-        "generic": "il n'a pas pu être enregistré"
-      }
-    },
-    "empty": {
-      "noFacts": "Plus rien à vérifier."
-    },
-    "factType": {
-      "CONDITION": "Diagnostic",
-      "OBSERVATION": "Valeur",
-      "MEDICATION_STATEMENT": "Médicament"
-    },
-    "fields": {
-      "label": "Nom",
-      "value": "Valeur",
-      "unit": "Unité",
-      "date": "Date",
-      "dose": "Dose"
+    "error": {
+      "fileTooLarge": "Ce fichier dépasse la limite de {maxSize}.",
+      "quotaExceeded": "Le stockage est plein — {used} sur {quota} utilisés.",
+      "unsupportedType": "Ce type de fichier n'est pas pris en charge.",
+      "purged": "Ce document a été définitivement supprimé et ne peut pas être restauré.",
+      "duplicateExists": "Un document identique est déjà enregistré.",
+      "rateLimited": "Trop de téléversements — réessayez dans quelques minutes.",
+      "generic": "Le téléversement a échoué. Veuillez réessayer."
     },
     "toast": {
-      "uploaded": "Document enregistré.",
-      "uploadFailed": "Impossible d'enregistrer le document.",
-      "confirmed": "Données approuvées enregistrées.",
-      "confirmedPartial": "Enregistré, mais {count} n'ont pas pu être enregistrés — {reason}.",
-      "confirmFailed": "Impossible d'enregistrer vos décisions.",
-      "saved": "Donnée mise à jour.",
-      "discarded": "Document écarté.",
-      "extracted": "Éléments extraits. Vérifiez-les ci-dessous.",
-      "extractFailed": "Impossible d'extraire les éléments.",
-      "localOcrDisabled": "Activez l'OCR local dans les paramètres pour lire ce document sur l'appareil.",
-      "updated": "Document mis à jour.",
-      "updateFailed": "Impossible de mettre à jour le document.",
-      "discardFailed": "Impossible de supprimer le document.",
-      "uploadTooLarge": "Le fichier est trop volumineux (max. 12 Mo).",
-      "uploadFileType": "Importe un fichier JPEG, PNG, WebP ou PDF.",
-      "uploadRateLimited": "Trop d'envois. Réessaie plus tard.",
-      "uploadInvalidMetadata": "Vérifie le titre, la catégorie ou la date, puis réessaie."
+      "duplicate": "Déjà enregistré — le document existant est mis en évidence.",
+      "deleted": "Document supprimé.",
+      "restoreFailed": "Impossible de restaurer le document."
     },
-    "toolbar": {
-      "searchLabel": "Rechercher",
-      "searchPlaceholder": "Titre ou nom de fichier",
-      "kindFilterLabel": "Catégorie",
-      "allKinds": "Toutes les catégories",
-      "sortLabel": "Trier par",
-      "sort": {
-        "documentDate": "Date du document",
-        "createdAt": "Date d'ajout",
-        "title": "Titre"
-      },
-      "orderAsc": "Croissant",
-      "orderDesc": "Décroissant",
-      "fromLabel": "Du",
-      "toLabel": "Au"
+    "timeline": {
+      "loadingMore": "Chargement…"
+    },
+    "upload": {
+      "zoneTitle": "Déposez des fichiers ici ou choisissez depuis votre appareil",
+      "zoneHint": "PDF, photos et fichiers Office jusqu'à {maxSize} chacun",
+      "browse": "Choisir des fichiers",
+      "quotaAlmostFull": "Stockage presque plein",
+      "quotaUsed": "{used} sur {quota} utilisés"
+    },
+    "selection": {
+      "count": "{count} sélectionnés",
+      "clear": "Effacer la sélection"
+    },
+    "list": {
+      "loadError": "Impossible de charger vos documents."
+    },
+    "empty": {
+      "title": "Votre coffre à documents est vide",
+      "description": "Conservez courriers médicaux, résultats de laboratoire, imagerie, ordonnances et carnets de vaccination — chiffrés et consultables par type, affection et année.",
+      "action": "Téléverser un premier document",
+      "noMatchesTitle": "Aucun document correspondant",
+      "noMatchesDescription": "Rien ne correspond à la recherche et aux filtres actuels."
     },
     "detail": {
-      "viewOriginal": "Voir l'original",
-      "edit": "Modifier",
-      "extract": "Extraire les éléments",
-      "extracting": "Extraction…",
-      "discard": "Écarter",
-      "notExtracted": "Aucun élément extrait pour l'instant. Utilisez Extraire les éléments pour lire ce document.",
-      "viewOriginalNewTab": "(s'ouvre dans un nouvel onglet)",
-      "discardConfirmTitle": "Supprimer ce document ?",
-      "discardConfirmBody": "Cela supprime définitivement le document, son fichier d'origine et les données préparées. Cette action est irréversible.",
-      "discardConfirmAction": "Supprimer",
-      "discardCancel": "Annuler"
-    },
-    "edit": {
-      "title": "Modifier le document",
-      "subtitle": "Renommez, recatégorisez ou définissez la date du document.",
+      "title": "Détails du document",
+      "loadError": "Impossible de charger ce document.",
+      "saveError": "Impossible d'enregistrer la modification.",
+      "deleteError": "Impossible de supprimer le document.",
+      "download": "Télécharger",
+      "delete": "Supprimer",
       "titleLabel": "Titre",
-      "kindLabel": "Catégorie",
+      "titlePlaceholder": "Ajouter un titre",
+      "kindLabel": "Type",
       "dateLabel": "Date du document",
-      "save": "Enregistrer",
-      "saving": "Enregistrement…",
-      "cancel": "Annuler"
-    },
-    "note": {
-      "providerUnsupported": "Configurez un fournisseur d'analyse de documents dans les paramètres d'IA pour extraire les éléments automatiquement.",
-      "alreadyConfirmed": "Ce document a déjà été vérifié ; il ne peut pas être extrait à nouveau."
-    },
-    "committed": {
-      "title": "Validé depuis ce document"
+      "conditionsLabel": "Affections liées",
+      "linkCondition": "Lier",
+      "noConditions": "Lié à aucune affection",
+      "previewUnavailable": "Pas d'aperçu intégré pour ce type de fichier",
+      "uploadedMeta": "Ajouté le {date} · {size}"
     }
   },
   "selfDescription": {

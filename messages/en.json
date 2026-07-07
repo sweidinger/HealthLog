@@ -8015,19 +8015,8 @@
   },
   "documents": {
     "title": "Documents",
-    "subtitle": "Store your clinical documents and review what they say.",
-    "upload": {
-      "label": "Add a document",
-      "kindLabel": "Category",
-      "button": "Upload",
-      "uploading": "Uploading…",
-      "fileLabel": "File (required)",
-      "titleLabel": "Title (optional)",
-      "titlePlaceholder": "e.g. Cardiology report",
-      "dateLabel": "Document date (optional)",
-      "fileRequired": "Choose a file to upload.",
-      "accepts": "JPEG, PNG, WebP or PDF · up to 12 MB"
-    },
+    "subtitle": "Every letter, report, and scan in one searchable place — encrypted at rest.",
+    "pageUpload": "Upload",
     "kind": {
       "DOCTOR_REPORT": "Doctor report",
       "DISCHARGE_LETTER": "Discharge letter",
@@ -8039,121 +8028,77 @@
       "INSURANCE": "Insurance",
       "VACCINATION": "Vaccination"
     },
-    "list": {
-      "empty": "No documents yet.",
-      "noResults": "No documents match your filters.",
-      "loadMore": "Load more",
-      "loadingMore": "Loading…",
-      "pending": "{count} to review",
-      "facts": "{count} facts",
-      "clearFilters": "Clear filters",
-      "loadError": "Couldn't load your documents."
+    "filter": {
+      "searchLabel": "Search documents",
+      "searchPlaceholder": "Search title or filename…",
+      "groupLabel": "Filter documents",
+      "typeGroup": "Document type",
+      "conditionGroup": "Condition",
+      "yearGroup": "Year",
+      "clear": "Clear filters"
     },
-    "status": {
-      "EXTRACTING": "Reading",
-      "EXTRACTED": "Ready to review",
-      "FAILED": "Couldn't read",
-      "CONFIRMED": "Reviewed",
-      "DISCARDED": "Discarded",
-      "STORED": "Stored"
+    "card": {
+      "untitled": "Untitled document",
+      "selectLabel": "Select {title}",
+      "openLabel": "Open {title}",
+      "attachmentBadge": "Download only",
+      "uploading": "Uploading…",
+      "dismissFailed": "Dismiss failed upload"
     },
-    "review": {
-      "title": "Review extracted facts",
-      "confirm": "Save approved facts",
-      "confirming": "Saving…",
-      "needsReview": "Needs review",
-      "approve": "Approve",
-      "reject": "Reject",
-      "edit": "Edit",
-      "cancel": "Cancel",
-      "save": "Save",
-      "needsReviewHint": "Edit this fact to approve it.",
-      "confidenceLabel": "Extraction confidence",
-      "commitError": {
-        "unitMismatch": "the unit doesn't match the saved one",
-        "unitRequired": "a numeric value needs a unit",
-        "generic": "it couldn't be saved"
-      }
-    },
-    "empty": {
-      "noFacts": "Nothing left to review."
-    },
-    "factType": {
-      "CONDITION": "Diagnosis",
-      "OBSERVATION": "Value",
-      "MEDICATION_STATEMENT": "Medication"
-    },
-    "fields": {
-      "label": "Name",
-      "value": "Value",
-      "unit": "Unit",
-      "date": "Date",
-      "dose": "Dose"
+    "error": {
+      "fileTooLarge": "This file is larger than the {maxSize} limit.",
+      "quotaExceeded": "Storage is full — {used} of {quota} used.",
+      "unsupportedType": "This file type is not supported.",
+      "purged": "This document was permanently removed and cannot be restored.",
+      "duplicateExists": "An identical document is already stored.",
+      "rateLimited": "Too many uploads right now — try again in a few minutes.",
+      "generic": "Upload failed. Please try again."
     },
     "toast": {
-      "uploaded": "Document stored.",
-      "uploadFailed": "Couldn't store the document.",
-      "confirmed": "Approved facts saved.",
-      "confirmedPartial": "Saved, but {count} couldn't be saved — {reason}.",
-      "confirmFailed": "Couldn't save your decisions.",
-      "saved": "Fact updated.",
-      "discarded": "Document discarded.",
-      "extracted": "Facts extracted. Review them below.",
-      "extractFailed": "Couldn't extract facts.",
-      "localOcrDisabled": "Enable local OCR in settings to read this document on-device.",
-      "updated": "Document updated.",
-      "updateFailed": "Couldn't update the document.",
-      "discardFailed": "Couldn't discard the document.",
-      "uploadTooLarge": "File is too large (max 12 MB).",
-      "uploadFileType": "Upload a JPEG, PNG, WebP, or PDF.",
-      "uploadRateLimited": "Too many uploads. Try again later.",
-      "uploadInvalidMetadata": "Check the title, category, or date and try again."
+      "duplicate": "Already stored — highlighting the existing document.",
+      "deleted": "Document deleted.",
+      "restoreFailed": "Couldn't restore the document."
     },
-    "toolbar": {
-      "searchLabel": "Search",
-      "searchPlaceholder": "Title or filename",
-      "kindFilterLabel": "Category",
-      "allKinds": "All categories",
-      "sortLabel": "Sort by",
-      "sort": {
-        "documentDate": "Document date",
-        "createdAt": "Date added",
-        "title": "Title"
-      },
-      "orderAsc": "Ascending",
-      "orderDesc": "Descending",
-      "fromLabel": "From",
-      "toLabel": "To"
+    "timeline": {
+      "loadingMore": "Loading more…"
+    },
+    "upload": {
+      "zoneTitle": "Drop files here, or choose from your device",
+      "zoneHint": "PDF, photos, and office files up to {maxSize} each",
+      "browse": "Choose files",
+      "quotaAlmostFull": "Storage almost full",
+      "quotaUsed": "{used} of {quota} used"
+    },
+    "selection": {
+      "count": "{count} selected",
+      "clear": "Clear selection"
+    },
+    "list": {
+      "loadError": "Couldn't load your documents."
+    },
+    "empty": {
+      "title": "Your document vault is empty",
+      "description": "Store doctor letters, lab reports, imaging, prescriptions, and vaccination records — encrypted, and searchable by type, condition, and year.",
+      "action": "Upload a first document",
+      "noMatchesTitle": "No matching documents",
+      "noMatchesDescription": "Nothing matches the current search and filters."
     },
     "detail": {
-      "viewOriginal": "View original",
-      "edit": "Edit",
-      "extract": "Extract facts",
-      "extracting": "Extracting…",
-      "discard": "Discard",
-      "notExtracted": "No facts extracted yet. Use Extract facts to read this document.",
-      "viewOriginalNewTab": "(opens in a new tab)",
-      "discardConfirmTitle": "Discard this document?",
-      "discardConfirmBody": "This permanently deletes the document, its original file, and any staged facts. This can't be undone.",
-      "discardConfirmAction": "Discard",
-      "discardCancel": "Cancel"
-    },
-    "edit": {
-      "title": "Edit document",
-      "subtitle": "Rename, recategorise, or set the document date.",
+      "title": "Document details",
+      "loadError": "Couldn't load this document.",
+      "saveError": "Couldn't save the change.",
+      "deleteError": "Couldn't delete the document.",
+      "download": "Download",
+      "delete": "Delete",
       "titleLabel": "Title",
-      "kindLabel": "Category",
+      "titlePlaceholder": "Add a title",
+      "kindLabel": "Type",
       "dateLabel": "Document date",
-      "save": "Save",
-      "saving": "Saving…",
-      "cancel": "Cancel"
-    },
-    "note": {
-      "providerUnsupported": "Configure a document-scan provider in AI settings to extract facts automatically.",
-      "alreadyConfirmed": "This document has already been reviewed, so it can't be extracted again."
-    },
-    "committed": {
-      "title": "Approved from this document"
+      "conditionsLabel": "Linked conditions",
+      "linkCondition": "Link",
+      "noConditions": "Not linked to a condition",
+      "previewUnavailable": "No inline preview for this file type",
+      "uploadedMeta": "Added {date} · {size}"
     }
   },
   "selfDescription": {
