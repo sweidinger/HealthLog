@@ -79,10 +79,13 @@ export interface ModuleDefinition {
    */
   optIn?: boolean;
   /**
-   * For delegated modules only: where the real on/off control lives, so the
-   * Modules hub can render a read-only "managed in X" row that deep-links to
-   * the canonical control instead of a dead toggle. `href` is the in-app
-   * link; `labelKey` names the destination ("Account", "Coach settings").
+   * For delegated modules only: where the canonical settings surface lives.
+   * The Modules hub renders a LIVE switch for these keys (driving the real
+   * column — coach → `User.disableCoach`, cycle → `cycleTrackingEnabled`) and
+   * keeps this as a small "manage" deep-link beside the switch, because that
+   * surface carries more than on/off (Coach cadence/memory; cycle
+   * goal/predictions/lengths). `href` is the in-app link; `labelKey` names the
+   * destination ("Account", "Coach settings").
    */
   managedAt?: { href: string; labelKey: string };
 }
@@ -193,7 +196,8 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       descriptionKey: "modules.cycle.description",
       category: "tracking",
       delegatesTo: "cycle",
-      // The real on/off lives in the Account section's cycle-tracking card.
+      // The hub switch drives `cycleTrackingEnabled`; the fuller cycle-tracking
+      // card (goal, predictions, cycle lengths) lives in the Account section.
       managedAt: {
         href: "/settings/account#cycle-tracking",
         labelKey: "settings.sections.account.title",
@@ -253,7 +257,8 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       descriptionKey: "modules.coach.description",
       category: "intelligence",
       delegatesTo: "coach",
-      // The real on/off lives in the dedicated Coach settings section.
+      // The hub switch drives `User.disableCoach`; the dedicated Coach settings
+      // section carries the rest (cadence, memory, activation copy).
       managedAt: {
         href: "/settings/coach",
         labelKey: "settings.sections.coach.title",

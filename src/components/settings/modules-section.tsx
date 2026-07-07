@@ -6,10 +6,21 @@
  * The one place a user decides which secondary domains HealthLog surfaces.
  * Each toggleable module (mood, sleep, glucose, workouts, recovery, labs,
  * achievements, coach, insights, doctor report, cycle) gets a row with an
- * icon, label, one-line description, and a `<Switch>`. Flipping a switch
- * PATCHes `/api/auth/me/modules` (a DISABLED allowlist; the endpoint refuses
- * core keys) and then invalidates the `authMe()` query so the nav, Insights
- * pills, and dashboard tiles re-gate live off `useAuth().user.modules`.
+ * icon, label, one-line description, and a live `<Switch>`. For most modules
+ * the switch PATCHes `/api/auth/me/modules` (a DISABLED allowlist; the
+ * endpoint refuses core keys). The two delegated modules drive their
+ * canonical column instead — coach → `PATCH /api/auth/me/disable-coach`
+ * (`User.disableCoach`, inverted), cycle → `PATCH /api/auth/me/cycle-prefs`
+ * (`cycleTrackingEnabled`) — so there is exactly one source of truth, and
+ * keep a small "manage" deep-link to the fuller settings surface beside the
+ * switch. Every path then invalidates `authMe()` (delegated cycle also evicts
+ * its own reads) so the nav, Insights pills, and dashboard tiles re-gate live
+ * off `useAuth().user.modules`.
+ *
+ * Operator precedence stays honest: a module the operator turned off
+ * server-wide (the module-availability blob, plus the assistant master flag
+ * `flags.coach` for the coach row) renders a disabled switch + a
+ * "disabled server-wide" hint — a per-user toggle could not re-enable it.
  *
  * The three CORE domains (weight, blood pressure, pulse) render as a
  * separate read-only "always on" group — locked switches with a short note —
@@ -50,6 +61,7 @@ import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { ModuleToggleRow } from "@/components/settings/module-toggle-row";
 import { useAuth } from "@/hooks/use-auth";
+import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiPatch } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
@@ -89,6 +101,7 @@ const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
 export function ModulesSection() {
   const { t } = useTranslations();
   const { user } = useAuth();
+  const flags = useFeatureFlags();
   const queryClient = useQueryClient();
 
   const modules = user?.modules ?? {};
@@ -98,16 +111,36 @@ export function ModulesSection() {
     // Factory-routed; the in-repo eslint rule forbids a bare literal here.
     mutationKey: queryKeys.modulesPrefs(),
     mutationFn: async (vars: { key: ModuleKey; enabled: boolean }) => {
+      // The delegated modules keep a single source of truth: their switch
+      // drives the canonical column, not the `modulePreferencesJson`
+      // allowlist (the gate ignores the blob for these two keys). Reuse the
+      // existing per-column endpoints rather than inventing a new one.
+      const delegate = moduleDelegatesTo(vars.key);
+      if (delegate === "coach") {
+        // The stored column is `disableCoach` — the inverse of "on".
+        return apiPatch("/api/auth/me/disable-coach", {
+          disableCoach: !vars.enabled,
+        });
+      }
+      if (delegate === "cycle") {
+        // `enabled` maps straight onto `cycleTrackingEnabled`.
+        return apiPatch("/api/auth/me/cycle-prefs", { enabled: vars.enabled });
+      }
       // DISABLED allowlist: send only the single key the user flipped.
-      // Delegated keys (cycle/coach) never reach here — they render as
-      // read-only deep-link rows, so the PATCH only ever carries a
-      // directly-owned key.
       return apiPatch("/api/auth/me/modules", { [vars.key]: vars.enabled });
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       // Re-gate every surface that reads the module map off /auth/me: nav,
-      // Insights pills, dashboard tiles, quick-add, search.
+      // Insights pills, dashboard tiles, quick-add, search. The two delegated
+      // keys also feed dedicated settings surfaces, so evict their reads too
+      // (mirrors the canonical Coach / cycle cards' own invalidation).
       void queryClient.invalidateQueries({ queryKey: queryKeys.authMe() });
+      if (moduleDelegatesTo(vars.key) === "cycle") {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.cyclePrefs(),
+        });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.cycle() });
+      }
       toast.success(t("settings.sections.modules.saved"));
     },
     onError: () => {
@@ -136,16 +169,49 @@ export function ModulesSection() {
           .filter((key) => !isCodeDisabledModule(key))
           .map((key) => {
             const def = MODULE_REGISTRY[key];
-            // Default-on: a module is enabled unless explicitly `false`.
-            const enabled = modules[key] !== false;
-            // Delegated modules (cycle/coach) are owned elsewhere — never a
-            // live toggle here; deep-link to their real control instead.
-            const delegated = moduleDelegatesTo(key) !== undefined;
-            // Operator turned this module off server-wide: no per-user
-            // toggle can re-enable it, so show a read-only note. Delegated
-            // rows already deep-link, so this only matters for owned keys.
-            const operatorDisabled =
-              !delegated && moduleAvailability[key] === false;
+            const delegate = moduleDelegatesTo(key);
+
+            // Enabled-state per key. Delegated modules read their canonical
+            // per-user state, NOT the `modulePreferencesJson` allowlist the
+            // gate ignores for them: coach ← `!disableCoach`, cycle ← the
+            // resolved `cycleTrackingEnabled`. Every other module is
+            // default-on unless explicitly `false`.
+            let enabled: boolean;
+            if (delegate === "coach") {
+              enabled = !(user?.disableCoach ?? false);
+            } else if (delegate === "cycle") {
+              enabled = user?.cycleTrackingEnabled ?? false;
+            } else {
+              enabled = modules[key] !== false;
+            }
+
+            // Operator precedence. A per-user toggle can never re-enable a
+            // module the operator turned off server-wide, so the switch goes
+            // disabled + hint. For coach the operator layer is BOTH the
+            // module-availability blob AND the assistant master flag
+            // (`flags.coach`, already master-composed); for cycle and the
+            // owned modules it is the module-availability blob alone.
+            const operatorAvailable =
+              delegate === "coach"
+                ? moduleAvailability[key] !== false && flags.coach
+                : moduleAvailability[key] !== false;
+            const disabledReason = operatorAvailable
+              ? undefined
+              : t("settings.sections.modules.operatorDisabled");
+
+            // Delegated modules carry more than on/off at their canonical
+            // surface (Coach cadence/memory; cycle goal/predictions/lengths),
+            // so keep a small deep-link to it beside the live switch.
+            const manageLink =
+              delegate !== undefined && def.managedAt
+                ? {
+                    href: def.managedAt.href,
+                    label: t("settings.sections.modules.manageIn", {
+                      section: t(def.managedAt.labelKey),
+                    }),
+                  }
+                : undefined;
+
             return (
               <ModuleToggleRow
                 key={key}
@@ -155,23 +221,8 @@ export function ModulesSection() {
                 description={t(def.descriptionKey)}
                 enabled={enabled}
                 pending={toggle.isPending}
-                managedAt={
-                  delegated && def.managedAt
-                    ? {
-                        href: def.managedAt.href,
-                        label: t(def.managedAt.labelKey),
-                      }
-                    : undefined
-                }
-                manageLinkLabel={
-                  delegated && def.managedAt
-                    ? t("settings.sections.modules.manageIn", {
-                        section: t(def.managedAt.labelKey),
-                      })
-                    : undefined
-                }
-                operatorDisabled={operatorDisabled}
-                operatorNote={t("settings.sections.modules.operatorDisabled")}
+                manageLink={manageLink}
+                disabledReason={disabledReason}
                 onToggle={(next) => toggle.mutate({ key, enabled: next })}
               />
             );
