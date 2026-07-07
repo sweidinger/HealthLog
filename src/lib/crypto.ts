@@ -264,6 +264,105 @@ export function reencryptToActive(encoded: string): string {
   return encrypt(decrypt(encoded));
 }
 
+// ─── Binary codec ("binary2") ────────────────────────────────────────────────
+//
+// AES-256-GCM over raw bytes, skipping the base64 detour the string codec
+// takes (−33 % at rest, one fewer full copy in memory). Written for large
+// binary payloads (the document vault's `contentEncrypted`); the consumer
+// records which codec a row uses in an explicit column — the layout is never
+// header-sniffed against the string codec.
+//
+// Layout: [version 0x02][keyIdLen u8][keyId ascii][iv 12][tag 16][ciphertext]
+//
+// Same versioned-key discipline as the string codec: encrypt always writes
+// the active key id, decrypt is fail-closed on an unknown version, a
+// malformed header, or an unconfigured key id.
+
+/** Version byte identifying the binary2 layout. */
+const BYTES_CODEC_VERSION = 0x02;
+
+/** Encrypt raw bytes with the active key into the binary2 layout. */
+export function encryptBytes(plaintext: Buffer): Buffer {
+  const { id, key } = getActiveKey();
+  const keyId = Buffer.from(id, "ascii");
+  if (keyId.byteLength < 1 || keyId.byteLength > 32) {
+    // loadKeys() already constrains ids to [A-Za-z0-9_-]{1,32}; belt-and-braces.
+    throw new Error(`Encryption key id '${id}' is not header-encodable`);
+  }
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const ct = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const header = Buffer.from([BYTES_CODEC_VERSION, keyId.byteLength]);
+  return Buffer.concat([header, keyId, iv, tag, ct]);
+}
+
+/** Parse a binary2 header. Throws on any malformation (fail-closed). */
+function parseBytesHeader(payload: Buffer): {
+  keyId: string;
+  iv: Buffer;
+  tag: Buffer;
+  ct: Buffer;
+} {
+  if (payload.byteLength < 2) {
+    throw new Error("binary2 payload is truncated (no header)");
+  }
+  if (payload[0] !== BYTES_CODEC_VERSION) {
+    throw new Error(
+      `Unknown binary ciphertext version ${payload[0]} (expected ${BYTES_CODEC_VERSION})`,
+    );
+  }
+  const keyIdLen = payload[1];
+  if (keyIdLen < 1 || keyIdLen > 32) {
+    throw new Error("binary2 payload has an invalid key-id length");
+  }
+  const fixed = 2 + keyIdLen + IV_LENGTH + AUTH_TAG_LENGTH;
+  if (payload.byteLength < fixed) {
+    throw new Error("binary2 payload is truncated");
+  }
+  const keyId = payload.subarray(2, 2 + keyIdLen).toString("ascii");
+  if (!/^[A-Za-z0-9_-]{1,32}$/.test(keyId)) {
+    throw new Error("binary2 payload carries a malformed key id");
+  }
+  const iv = payload.subarray(2 + keyIdLen, 2 + keyIdLen + IV_LENGTH);
+  const tag = payload.subarray(2 + keyIdLen + IV_LENGTH, fixed);
+  const ct = payload.subarray(fixed);
+  return { keyId, iv, tag, ct };
+}
+
+/**
+ * Decrypt a binary2 payload back to its raw bytes. Fail-closed: an unknown
+ * version, a malformed header, or an unconfigured key id throws — the caller
+ * must treat a throw as "cannot serve", never fall back to the ciphertext.
+ */
+export function decryptBytes(payload: Buffer): Buffer {
+  const { keyId, iv, tag, ct } = parseBytesHeader(payload);
+  const key = getKeyById(keyId);
+  if (!key) {
+    throw new Error(
+      `Encryption key id '${keyId}' is not configured. Add it to ` +
+        `ENCRYPTION_KEYS before decrypting rows written under that key.`,
+    );
+  }
+  const dec = createDecipheriv(ALGORITHM, key, iv);
+  dec.setAuthTag(tag);
+  return Buffer.concat([dec.update(ct), dec.final()]);
+}
+
+/** The key id a binary2 payload was written under, or null when unparsable. */
+export function extractKeyIdFromBytes(payload: Buffer): string | null {
+  try {
+    return parseBytesHeader(payload).keyId;
+  } catch {
+    return null;
+  }
+}
+
+/** Re-encrypt a binary2 payload with the active key. Used by rotation. */
+export function reencryptBytesToActive(payload: Buffer): Buffer {
+  return encryptBytes(decryptBytes(payload));
+}
+
 /** Returns the key id portion of a versioned ciphertext, or null for legacy. */
 export function extractKeyId(encoded: string): string | null {
   const dot = encoded.indexOf(".");

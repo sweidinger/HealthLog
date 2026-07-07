@@ -9,14 +9,16 @@
 import { Buffer } from "node:buffer";
 
 import { decryptFromBytes, encryptToBytes } from "@/lib/ai/coach/bytes-codec";
-import { decrypt, encrypt } from "@/lib/crypto";
+import { decrypt, decryptBytes, encrypt, encryptBytes } from "@/lib/crypto";
 import type {
   ExtractedFact,
   ExtractedFactStatus,
   InboundDocument,
   InboundDocumentStatus,
 } from "@/generated/prisma/client";
+import { servingClassFor } from "@/lib/documents/upload-policy";
 import type {
+  DocumentConditionLinkDto,
   ExtractedFactDto,
   FactData,
   FactProvenance,
@@ -25,6 +27,20 @@ import type {
   InboundDocumentKindValue,
   InboundFactType,
 } from "@/lib/validations/inbound-documents";
+
+/**
+ * The two storage codecs `InboundDocument.contentEncrypted` may carry,
+ * recorded per row in the explicit `contentCodec` column (never sniffed):
+ *   - "base64v1" — the legacy string path (base64-of-binary → `encrypt()`
+ *     string → UTF-8 bytes). Pre-vault rows only; kept read-compatible.
+ *   - "binary2"  — the binary AES-256-GCM layout (`encryptBytes()`), no
+ *     base64 detour. Every new upload writes this.
+ */
+export const DOCUMENT_CONTENT_CODECS = ["base64v1", "binary2"] as const;
+export type DocumentContentCodec = (typeof DOCUMENT_CONTENT_CODECS)[number];
+
+/** The codec every NEW upload is written with. */
+export const ACTIVE_DOCUMENT_CODEC: DocumentContentCodec = "binary2";
 
 /** Encrypt the raw document bytes into the `Bytes` payload the schema stores. */
 export function encryptDocumentToBytes(bytes: Buffer): Uint8Array<ArrayBuffer> {
@@ -47,6 +63,31 @@ export function encryptDocumentToBytes(bytes: Buffer): Uint8Array<ArrayBuffer> {
 export function decryptDocumentFromBytes(buf: Uint8Array): Buffer {
   const base64 = decrypt(Buffer.from(buf).toString("utf8"));
   return Buffer.from(base64, "base64");
+}
+
+/**
+ * Encrypt raw document bytes with the ACTIVE codec (binary2). Returns the
+ * `Bytes` payload plus the codec label the row must persist alongside it.
+ */
+export function encryptDocumentContent(bytes: Buffer): {
+  content: Uint8Array<ArrayBuffer>;
+  codec: DocumentContentCodec;
+} {
+  const encrypted = encryptBytes(bytes);
+  const out = new Uint8Array(new ArrayBuffer(encrypted.byteLength));
+  out.set(encrypted);
+  return { content: out, codec: ACTIVE_DOCUMENT_CODEC };
+}
+
+/**
+ * Decrypt a stored document's payload, dispatching on the row's persisted
+ * codec. Fail-closed: an unknown codec value throws — a silent fallback to
+ * either codec would either return garbage or mask data corruption.
+ */
+export function decryptDocumentContent(buf: Uint8Array, codec: string): Buffer {
+  if (codec === "base64v1") return decryptDocumentFromBytes(buf);
+  if (codec === "binary2") return decryptBytes(Buffer.from(buf));
+  throw new Error(`Unknown document content codec '${codec}'`);
 }
 
 /**
@@ -80,10 +121,19 @@ export function decryptFactProvenance(buf: Uint8Array): FactProvenance {
   return JSON.parse(decryptFromBytes(buf)) as FactProvenance;
 }
 
-/** Map a persisted document row (+ counts) to the list/detail DTO. */
+/**
+ * The row fields the serialisers read. Deliberately WITHOUT
+ * `contentEncrypted`: the list path must never select the blob column
+ * (hardening — see the list route's `omit`), so the DTO mappers cannot
+ * require it either.
+ */
+export type SerialisableDocument = Omit<InboundDocument, "contentEncrypted">;
+
+/** Map a persisted document row (+ counts + links) to the list/detail DTO. */
 export function serialiseDocument(
-  doc: InboundDocument,
+  doc: SerialisableDocument,
   counts: { factCount: number; pendingCount: number },
+  conditionLinks: DocumentConditionLinkDto[] = [],
 ): InboundDocumentDto {
   return {
     id: doc.id,
@@ -103,6 +153,8 @@ export function serialiseDocument(
     errorReason: doc.errorReason,
     factCount: counts.factCount,
     pendingCount: counts.pendingCount,
+    conditionLinks,
+    servingClass: servingClassFor(doc.mimeType),
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
@@ -123,17 +175,18 @@ export function serialiseFact(fact: ExtractedFact): ExtractedFactDto {
   };
 }
 
-/** Assemble the detail DTO (document + its staged facts). */
+/** Assemble the detail DTO (document + its staged facts + links). */
 export function serialiseDocumentDetail(
-  doc: InboundDocument,
+  doc: SerialisableDocument,
   facts: ExtractedFact[],
+  conditionLinks: DocumentConditionLinkDto[] = [],
 ): InboundDocumentDetailDto {
   const pendingCount = facts.filter((f) => f.status === "PENDING").length;
   // `factCount` excludes REJECTED facts (a rejected fact is discarded, not part
   // of the document's tally) so the badge matches the list query.
   const factCount = facts.filter((f) => f.status !== "REJECTED").length;
   return {
-    ...serialiseDocument(doc, { factCount, pendingCount }),
+    ...serialiseDocument(doc, { factCount, pendingCount }, conditionLinks),
     facts: facts.map(serialiseFact),
   };
 }
