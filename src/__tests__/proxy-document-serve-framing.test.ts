@@ -86,3 +86,42 @@ describe("proxy.ts document serve-route framing carve-out", () => {
     );
   });
 });
+
+describe("proxy.ts share document serve-route framing carve-out", () => {
+  const shareToken = "hls_000000000000000000000000000000000000000000000000";
+
+  it("allows same-origin framing on the /c/<token>/d/<id> serve path", () => {
+    const res = proxy(makeRequest(`/c/${shareToken}/d/doc123`));
+    expect(res.headers.get("x-frame-options")).toBe("SAMEORIGIN");
+    const csp = res.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("frame-ancestors 'self'");
+    expect(csp).toContain("default-src 'none'");
+    // No sandbox (Chromium downloads sandboxed PDFs) and no script sources.
+    expect(csp).not.toMatch(/sandbox/);
+    expect(csp).not.toMatch(/script-src/);
+  });
+
+  it("keeps the DENY + page-CSP posture on the /c/<token> view page itself", () => {
+    const res = proxy(makeRequest(`/c/${shareToken}`));
+    // The clinician view is a PAGE — it must not be framable and keeps the
+    // page CSP; only the blob subresource under it takes the serve posture.
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("content-security-policy") ?? "").toContain(
+      "frame-ancestors 'none'",
+    );
+  });
+
+  it("does not match nested, suffixed, or lookalike share serve paths", () => {
+    for (const path of [
+      `/c/${shareToken}/d/doc123/extra`, // extra trailing segment
+      `/c/${shareToken}/d/doc123x/more/deep`, // deep suffix
+      `/c/${shareToken}/dx/doc123`, // wrong segment name
+      `/c/${shareToken}/d`, // missing id
+      `/c/${shareToken}/d/`, // empty id
+      "/c//d/doc123", // empty token (traversal-ish)
+    ]) {
+      const res = proxy(makeRequest(path));
+      expect(res.headers.get("x-frame-options"), path).toBe("DENY");
+    }
+  });
+});

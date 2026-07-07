@@ -5123,7 +5123,23 @@
       "passphraseHint": "El destinatario necesita el enlace y esta frase de acceso. El código QR contiene ambos.",
       "copyLink": "Copiar enlace",
       "copyPassphrase": "Copiar frase de acceso",
-      "protected": "Frase de acceso"
+      "protected": "Frase de acceso",
+      "attachTitle": "Adjuntar documentos",
+      "attachButton": "Elegir documentos",
+      "attachCount": "{count} de {max} seleccionados",
+      "attachFrozen": "El conjunto de documentos queda fijo al crear el enlace: después no se pueden añadir ni quitar documentos.",
+      "attachRemove": "Quitar {title}",
+      "exifNote": "Los metadatos de la cámara (EXIF/GPS) se eliminan de las imágenes JPEG, PNG y WebP al compartir. Los archivos PDF, TIFF, HEIC y Office se comparten sin cambios.",
+      "documentCount": "Documentos adjuntos: {count}",
+      "qrScanTitle": "Escanéalo para abrirlo en otro dispositivo",
+      "qrScanHint": "Apunta la cámara del teléfono al código para abrir el registro compartido: la frase de acceso ya está incluida.",
+      "pickerTitle": "Adjuntar documentos",
+      "pickerDescription": "Busca en tu archivo y selecciona documentos para compartir. Hasta {max}.",
+      "pickerSearch": "Buscar documentos",
+      "pickerEmpty": "No se encontraron documentos.",
+      "pickerDone": "Listo",
+      "pickerSelectedCount": "{count} de {max} seleccionados",
+      "pickerMaxReached": "Has alcanzado el máximo de {max} documentos."
     },
     "genderOther": "Otro",
     "cycleTracking": {
@@ -6595,6 +6611,13 @@
       "title": "No se pudo cargar esta vista compartida",
       "description": "Se produjo un error al abrir este registro de salud compartido. Puede que el enlace haya caducado o que haya habido un problema temporal. Inténtalo de nuevo o pide un enlace nuevo a la persona que lo compartió.",
       "retry": "Intentar de nuevo"
+    },
+    "documents": {
+      "title": "Documentos",
+      "untitled": "Documento sin título",
+      "download": "Descargar",
+      "attachmentHint": "Este archivo se descarga en tu dispositivo (sin vista previa en la página).",
+      "exifNote": "Los metadatos de la cámara (EXIF/GPS) se han eliminado de las imágenes JPEG, PNG y WebP compartidas."
     }
   },
   "cycle": {

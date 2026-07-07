@@ -5123,7 +5123,23 @@
       "passphraseHint": "Il destinatario ha bisogno del link e di questa passphrase. Il codice QR contiene entrambi.",
       "copyLink": "Copia link",
       "copyPassphrase": "Copia passphrase",
-      "protected": "Passphrase"
+      "protected": "Passphrase",
+      "attachTitle": "Allega documenti",
+      "attachButton": "Scegli documenti",
+      "attachCount": "{count} di {max} selezionati",
+      "attachFrozen": "La selezione dei documenti è fissata alla creazione del link: dopo non è possibile aggiungere o rimuovere documenti.",
+      "attachRemove": "Rimuovi {title}",
+      "exifNote": "I metadati della fotocamera (EXIF/GPS) vengono rimossi dalle immagini JPEG, PNG e WebP durante la condivisione. I file PDF, TIFF, HEIC e Office vengono condivisi invariati.",
+      "documentCount": "Documenti allegati: {count}",
+      "qrScanTitle": "Scansiona per aprire su un altro dispositivo",
+      "qrScanHint": "Inquadra il codice con la fotocamera del telefono per aprire la cartella condivisa: la passphrase è già inclusa.",
+      "pickerTitle": "Allega documenti",
+      "pickerDescription": "Cerca nel tuo archivio e seleziona i documenti da condividere. Fino a {max}.",
+      "pickerSearch": "Cerca documenti",
+      "pickerEmpty": "Nessun documento trovato.",
+      "pickerDone": "Fatto",
+      "pickerSelectedCount": "{count} di {max} selezionati",
+      "pickerMaxReached": "Hai raggiunto il massimo di {max} documenti."
     },
     "genderOther": "Altro",
     "cycleTracking": {
@@ -6595,6 +6611,13 @@
       "title": "Impossibile caricare questa vista condivisa",
       "description": "Si è verificato un errore durante l'apertura di questo referto sanitario condiviso. Il link potrebbe essere scaduto oppure si è verificato un problema temporaneo. Riprova o chiedi un nuovo link alla persona che lo ha condiviso.",
       "retry": "Riprova"
+    },
+    "documents": {
+      "title": "Documenti",
+      "untitled": "Documento senza titolo",
+      "download": "Scarica",
+      "attachmentHint": "Questo file viene scaricato sul tuo dispositivo (nessuna anteprima nella pagina).",
+      "exifNote": "I metadati della fotocamera (EXIF/GPS) sono stati rimossi dalle immagini JPEG, PNG e WebP condivise."
     }
   },
   "cycle": {

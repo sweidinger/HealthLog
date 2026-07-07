@@ -16,12 +16,21 @@ vi.mock("@/lib/doctor-report-data", () => ({
 vi.mock("@/lib/validations/doctor-report-prefs", () => ({
   parseDoctorReportPrefs: vi.fn((s: unknown) => s ?? {}),
 }));
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    clinicianShareLinkDocument: { findMany: vi.fn() },
+  },
+}));
 
 import { loadShareViewData } from "../share-view-data";
 import { collectDoctorReportData } from "@/lib/doctor-report-data";
+import { prisma } from "@/lib/db";
 import type { ShareContext } from "../resolve-share-token";
 
 const collect = collectDoctorReportData as ReturnType<typeof vi.fn>;
+const findDocs = prisma.clinicianShareLinkDocument.findMany as ReturnType<
+  typeof vi.fn
+>;
 
 function ctx(overrides: Partial<ShareContext> = {}): ShareContext {
   return {
@@ -44,6 +53,7 @@ describe("loadShareViewData — KVNR default OFF", () => {
     collect.mockResolvedValue({
       patient: { displayName: "Shared record" },
     });
+    findDocs.mockResolvedValue([]);
   });
 
   it("scopes the aggregator to the OWNER from the share context, never the wire", async () => {
@@ -69,6 +79,65 @@ describe("loadShareViewData — KVNR default OFF", () => {
     const patient = (report as { patient?: Record<string, unknown> }).patient;
     expect(patient).not.toHaveProperty("insuranceNumber");
     expect(patient).not.toHaveProperty("kvnr");
+  });
+
+  it("lists the frozen document set as metadata only (never bytes)", async () => {
+    findDocs.mockResolvedValue([
+      {
+        document: {
+          id: "doc-a",
+          title: "Blood panel",
+          kind: "LAB_REPORT",
+          documentDate: new Date("2026-01-15T00:00:00Z"),
+          byteSize: 12345,
+          mimeType: "application/pdf",
+        },
+      },
+      {
+        document: {
+          id: "doc-b",
+          title: null,
+          kind: "OTHER",
+          documentDate: null,
+          byteSize: 6789,
+          mimeType: "application/msword",
+        },
+      },
+    ]);
+
+    const { documents } = await loadShareViewData(ctx());
+
+    // Scoped to THIS link + owner + live rows; the blob column is never named.
+    const arg = findDocs.mock.calls[0]![0] as {
+      where: Record<string, unknown>;
+      select: { document: { select: Record<string, boolean> } };
+    };
+    expect(arg.where).toEqual({
+      shareLinkId: "link-1",
+      document: { userId: "owner-1", deletedAt: null },
+    });
+    expect(arg.select.document.select).not.toHaveProperty("contentEncrypted");
+
+    expect(documents).toEqual([
+      {
+        id: "doc-a",
+        title: "Blood panel",
+        kind: "LAB_REPORT",
+        documentDate: "2026-01-15",
+        byteSize: 12345,
+        mimeType: "application/pdf",
+        servingClass: "inline",
+      },
+      {
+        id: "doc-b",
+        title: null,
+        kind: "OTHER",
+        documentDate: null,
+        byteSize: 6789,
+        mimeType: "application/msword",
+        servingClass: "attachment",
+      },
+    ]);
   });
 
   it("uses the frozen rangeStart and resolves a rolling rangeEnd to now", async () => {

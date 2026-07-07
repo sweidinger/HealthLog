@@ -5,6 +5,7 @@
  * carries the descriptive "not a clinical assessment / not a diagnosis"
  * disclaimer, the provenance header renders, and the view holds no app chrome.
  */
+import type React from "react";
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -59,7 +60,15 @@ function makeReport(
   } as DoctorReportData;
 }
 
-function render(report: DoctorReportData) {
+function render(
+  report: DoctorReportData,
+  extra?: Partial<
+    Pick<
+      React.ComponentProps<typeof ClinicianView>,
+      "documents" | "token" | "locale"
+    >
+  >,
+) {
   const { t } = getServerTranslator("en");
   return renderToStaticMarkup(
     <ClinicianView
@@ -68,6 +77,7 @@ function render(report: DoctorReportData) {
       expiresAt="2026-03-01T00:00:00.000Z"
       report={report}
       sections={{ ...DEFAULT_DOCTOR_REPORT_PREFS }}
+      {...extra}
     />,
   );
 }
@@ -106,5 +116,71 @@ describe("<ClinicianView>", () => {
     const html = render(makeReport());
     expect(html).not.toContain('data-slot="sidebar"');
     expect(html).not.toContain("coach");
+  });
+
+  it("renders no document section when the frozen set is empty", () => {
+    const html = render(makeReport(), { documents: [], token: "hls_abc" });
+    expect(html).not.toContain("Documents</h2>");
+  });
+
+  it("renders Class A inline: image → <img>, PDF → <iframe>, both at the serve route", () => {
+    const html = render(makeReport(), {
+      token: "hls_tok",
+      documents: [
+        {
+          id: "img-1",
+          title: "Skin photo",
+          kind: "IMAGING",
+          documentDate: "2026-01-10",
+          byteSize: 20480,
+          mimeType: "image/jpeg",
+          servingClass: "inline",
+        },
+        {
+          id: "pdf-1",
+          title: "Blood panel",
+          kind: "LAB_RESULT",
+          documentDate: "2026-01-12",
+          byteSize: 51200,
+          mimeType: "application/pdf",
+          servingClass: "inline",
+        },
+      ],
+    });
+    // Section header present.
+    expect(html).toContain("Documents");
+    // Image → <img> pointed at the token-scoped serve route.
+    expect(html).toContain('src="/c/hls_tok/d/img-1"');
+    expect(html).toContain("<img");
+    // PDF → <iframe> pointed at the same route family.
+    expect(html).toContain('src="/c/hls_tok/d/pdf-1"');
+    expect(html).toContain("<iframe");
+    // Titles render as escaped text.
+    expect(html).toContain("Skin photo");
+    expect(html).toContain("Blood panel");
+  });
+
+  it("renders Class B as a download link with no inline preview frame", () => {
+    const html = render(makeReport(), {
+      token: "hls_tok",
+      documents: [
+        {
+          id: "doc-b",
+          title: "Referral letter",
+          kind: "REFERRAL",
+          documentDate: null,
+          byteSize: 8192,
+          mimeType: "application/msword",
+          servingClass: "attachment",
+        },
+      ],
+    });
+    // A download anchor at the serve route.
+    expect(html).toContain('href="/c/hls_tok/d/doc-b"');
+    expect(html).toContain("Download");
+    // No inline preview for an attachment-class document.
+    expect(html).not.toContain("<iframe");
+    expect(html).not.toContain('<img src="/c/hls_tok/d/doc-b"');
+    expect(html).toContain("Referral letter");
   });
 });

@@ -23,7 +23,16 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, KeyRound, Loader2, Share2, Trash2 } from "lucide-react";
+import {
+  Copy,
+  FileText,
+  KeyRound,
+  Loader2,
+  ScanLine,
+  Share2,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -44,6 +53,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import {
+  ShareDocumentPicker,
+  type PickedDocument,
+} from "@/components/settings/share-document-picker";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
@@ -63,6 +76,14 @@ type ResourceType = (typeof RESOURCE_TYPES)[number];
 const MAX_DAYS = 90;
 const DEFAULT_DAYS = 30;
 
+/**
+ * Maximum documents per share — mirrors `SHARE_LINK_MAX_DOCUMENTS` on the
+ * server. Kept as a local literal (not imported from the validations module)
+ * because that module pulls the Prisma client into scope and would drag the DB
+ * into the client bundle; the server re-enforces the cap on create regardless.
+ */
+const MAX_DOCUMENTS = 50;
+
 /** Owner-facing shape returned by `GET /api/share-links` (never the token). */
 interface ShareLinkSummary {
   id: string;
@@ -73,6 +94,8 @@ interface ShareLinkSummary {
   allowFhirApi: boolean;
   /** v1.18.7 — whether a passphrase second factor guards this link. */
   protected: boolean;
+  /** v1.28 — size of the frozen document set (never the ids, never bytes). */
+  documentCount: number;
   expiresAt: string;
   createdAt: string;
   revokedAt: string | null;
@@ -120,6 +143,8 @@ function ShareLinksCard() {
     "Patient",
     "Observation",
   ]);
+  const [selectedDocs, setSelectedDocs] = useState<PickedDocument[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [created, setCreated] = useState<ShareLinkCreated | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState<"link" | "passphrase" | null>(null);
@@ -140,7 +165,9 @@ function ShareLinksCard() {
     // needs to ship eagerly.
     import("qrcode")
       .then(({ default: QRCode }) =>
-        QRCode.toDataURL(qrUrl, { margin: 1, width: 220 }),
+        // Render at a high pixel density (the display size is capped in CSS) so
+        // the code stays crisp when scaled up for on-the-spot phone scanning.
+        QRCode.toDataURL(qrUrl, { margin: 2, width: 512 }),
       )
       .then((url) => {
         if (!cancelled) setQrDataUrl(url);
@@ -177,6 +204,13 @@ function ShareLinksCard() {
         rangeEnd: null,
         resourceTypes,
         allowFhirApi,
+        // v1.28 — the hand-picked, frozen-at-create document set. Omit the key
+        // entirely when nothing is attached (a documents-less share stays the
+        // default). The server re-validates each id as the caller's own live
+        // document before minting the link.
+        ...(selectedDocs.length > 0
+          ? { documentIds: selectedDocs.map((d) => d.id) }
+          : {}),
         expiresAt: isoDaysFromNow(expiryDays),
       });
     },
@@ -186,6 +220,9 @@ function ShareLinksCard() {
       setCreated(result);
       setCopied(null);
       setLabel("");
+      // The document set is frozen onto the link now — reset the picker so the
+      // next link starts clean.
+      setSelectedDocs([]);
       setFormError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.shareLinks() });
     },
@@ -333,6 +370,72 @@ function ShareLinksCard() {
           </fieldset>
         )}
 
+        {/* ── Attach documents ─────────────────────────────────────── */}
+        <div className="border-border space-y-2 rounded-lg border p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">
+                {t("settings.sharing.attachTitle")}
+              </Label>
+              <p className="text-muted-foreground text-[11px]">
+                {t("settings.sharing.attachCount", {
+                  count: selectedDocs.length,
+                  max: MAX_DOCUMENTS,
+                })}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-11 shrink-0 sm:min-h-9"
+              onClick={() => setPickerOpen(true)}
+              data-testid="share-attach-open"
+            >
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
+              {t("settings.sharing.attachButton")}
+            </Button>
+          </div>
+
+          {selectedDocs.length > 0 ? (
+            <ul
+              className="flex flex-wrap gap-1.5"
+              data-testid="share-attached-chips"
+            >
+              {selectedDocs.map((doc) => (
+                <li key={doc.id}>
+                  <span className="bg-muted inline-flex max-w-full items-center gap-1 rounded-full py-1 pr-1 pl-2.5 text-xs">
+                    <span className="max-w-[12rem] truncate">{doc.title}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedDocs((prev) =>
+                          prev.filter((d) => d.id !== doc.id),
+                        )
+                      }
+                      className="hover:bg-background/80 focus-visible:ring-ring/50 flex size-5 shrink-0 items-center justify-center rounded-full focus-visible:ring-[3px] focus-visible:outline-none"
+                      aria-label={t("settings.sharing.attachRemove", {
+                        title: doc.title,
+                      })}
+                    >
+                      <X className="size-3" aria-hidden />
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          <p className="text-muted-foreground text-[11px]">
+            {t("settings.sharing.attachFrozen")}
+          </p>
+          {selectedDocs.length > 0 ? (
+            <p className="text-muted-foreground text-[11px]">
+              {t("settings.sharing.exifNote")}
+            </p>
+          ) : null}
+        </div>
+
         {formError && (
           <p role="alert" className="text-destructive text-sm">
             {formError}
@@ -351,6 +454,14 @@ function ShareLinksCard() {
         </Button>
       </form>
 
+      <ShareDocumentPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        selected={selectedDocs}
+        onSelectedChange={setSelectedDocs}
+        max={MAX_DOCUMENTS}
+      />
+
       {created && (
         <div
           className="bg-success/10 space-y-3 rounded-lg p-3 text-sm"
@@ -359,26 +470,49 @@ function ShareLinksCard() {
           <p className="text-success font-medium">
             {t("settings.sharing.tokenCreated")}
           </p>
+          {created.documentCount > 0 && (
+            <p
+              className="text-foreground text-xs font-medium"
+              data-testid="share-created-doc-count"
+            >
+              {t("settings.sharing.documentCount", {
+                count: created.documentCount,
+              })}
+            </p>
+          )}
           <p className="text-muted-foreground text-[11px]">
             {t("settings.sharing.shownOnce")}
           </p>
 
           {/* QR — carries the passphrase in the URL fragment, so scanning it
-              opens the record. Shown exactly once with the passphrase text. */}
+              opens the record (and its shared documents). Promoted as the
+              primary mobile affordance: a clinician scans it on the spot to
+              open the record on their own device. Shown exactly once. The
+              white quiet-zone is the documented QR exemption (UI-STANDARDS §4)
+              so the code stays scannable in the dark theme too. */}
           {qrDataUrl && (
-            <div className="space-y-1">
-              <p className="text-foreground text-[11px] font-medium">
-                {t("settings.sharing.qrLabel")}
-              </p>
+            <div
+              className="border-border bg-background flex flex-col items-center gap-2 rounded-lg border p-4 text-center"
+              data-testid="share-qr-block"
+            >
+              <div className="flex items-center gap-1.5">
+                <ScanLine className="text-foreground size-4" aria-hidden />
+                <p className="text-foreground text-sm font-medium">
+                  {t("settings.sharing.qrScanTitle")}
+                </p>
+              </div>
               {/* The QR is a transient secret render, not stored content. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrDataUrl}
                 alt={t("settings.sharing.qrAlt")}
-                width={220}
-                height={220}
-                className="bg-background rounded border p-2"
+                width={512}
+                height={512}
+                className="h-auto w-full max-w-[15rem] rounded-md border bg-white p-2 sm:max-w-[13rem]"
               />
+              <p className="text-muted-foreground max-w-xs text-xs">
+                {t("settings.sharing.qrScanHint")}
+              </p>
             </div>
           )}
 
@@ -479,6 +613,19 @@ function ShareLinksCard() {
                       >
                         <KeyRound className="h-2.5 w-2.5" />
                         {t("settings.sharing.protected")}
+                      </Badge>
+                    )}
+                    {link.documentCount > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="gap-1 text-[10px]"
+                        data-testid="share-doc-count-badge"
+                        aria-label={t("settings.sharing.documentCount", {
+                          count: link.documentCount,
+                        })}
+                      >
+                        <FileText className="h-2.5 w-2.5" />
+                        {link.documentCount}
                       </Badge>
                     )}
                     {link.allowFhirApi && (
