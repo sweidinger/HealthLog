@@ -320,6 +320,10 @@
       "scoreComputing": "Trwa obliczanie wyniku …",
       "ringDoses": "Dzisiejsze dawki",
       "ringDosesAria": "Przyjęto {taken} z {scheduled} dawek dzisiaj",
+      "ringCarousel": {
+        "aria": "Pierścienie dobrostanu",
+        "dot": "Pokaż pierścień {index} z {total}"
+      },
       "verdict": {
         "doseOverdue": "Dawka {name} jest zaległa.",
         "doseOverdueNoName": "Dawka jest zaległa.",

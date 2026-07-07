@@ -53,6 +53,10 @@ import { ScoreRing } from "@/components/insights/derived/score-ring";
 import type { RingHue } from "@/components/insights/derived/ring-hues";
 import { RestModeBanner } from "@/components/insights/rest-mode-banner";
 import { BriefingSpotlight } from "@/components/dashboard/hero/briefing-spotlight";
+import {
+  HeroRingCarousel,
+  type HeroRingSlide,
+} from "@/components/dashboard/hero/hero-ring-carousel";
 import { METRIC_HREF } from "@/components/insights/daily-briefing";
 import {
   resolveDashboardVerdict,
@@ -242,6 +246,66 @@ export function DashboardHero({
   // contract), so an older cached snapshot renders the health ring alone.
   const scoreRings = snapshot.scoreRings ?? [];
 
+  // Unified slide set — selected rings in selection order, then the
+  // health-score ring on the trailing edge. Feeds the carousel on mobile
+  // and the inline row on desktop from a SINGLE render of each ring node.
+  const ringSlides: HeroRingSlide[] = [
+    ...scoreRings.map((ring) => ({
+      key: ring.id,
+      ringId: ring.id,
+      node:
+        // Dose ring — today's tally ("1/3") over the constant med-family
+        // arc (`hue="meds"` = --primary, the tone every medication surface
+        // in Insights paints); the arc still sweeps on the 0..100 progress
+        // `score`. `band="green"` stays as the stable data-band anchor — a
+        // pending morning dose is not an alert state — while the hue owns
+        // the paint. Falls through to the score render when a cached
+        // pre-doses snapshot carries no tally.
+        ring.id === "MED_COMPLIANCE" && ring.doses ? (
+          <ScoreRing
+            score={ring.score}
+            band="green"
+            hue="meds"
+            valueText={`${ring.doses.taken}/${ring.doses.scheduled}`}
+            ariaLabel={t("dashboard.hero.ringDosesAria", {
+              taken: ring.doses.taken,
+              scheduled: ring.doses.scheduled,
+            })}
+            size="sm"
+            flat
+            label={t(RING_LABEL_KEY[ring.id])}
+          />
+        ) : (
+          <ScoreRing
+            score={ring.score}
+            band={ring.band}
+            size="sm"
+            flat
+            hue={RING_HUE_BY_ID[ring.id]}
+            label={t(RING_LABEL_KEY[ring.id])}
+          />
+        ),
+    })),
+    {
+      key: "health-score",
+      node: (
+        <ScoreRing
+          score={snapshot.healthScore?.score ?? null}
+          band={snapshot.healthScore?.band}
+          size="sm"
+          flat
+          label={
+            snapshot.healthScore
+              ? t("dashboard.hero.scoreLabel")
+              : hasScoreInputs
+                ? t("dashboard.hero.scoreComputing")
+                : t("dashboard.hero.scoreProvisional")
+          }
+        />
+      ),
+    },
+  ];
+
   return (
     <section
       data-slot="dashboard-hero"
@@ -259,7 +323,7 @@ export function DashboardHero({
           adrift below a floating greeting. The top row aligns to its start
           on desktop so the greeting anchors to the top edge instead of
           drifting to the vertical centre of the taller ring column. */}
-      <div className="flex h-full flex-col gap-4">
+      <div className="flex h-full flex-col gap-4 md:gap-3">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 flex-1 space-y-3">
             {/* Greeting leads the typographic hierarchy: larger + heavier
@@ -317,82 +381,16 @@ export function DashboardHero({
               ) : null}
             </div>
           </div>
-          {/* Ring row — the selected score rings (max 3, each at the
+          {/* Ring carousel — the selected score rings (max 3, each at the
             fixed 120 px sm footprint, flat) lead into the health-score
-            ring on the trailing edge. A null health score renders the
+            ring on the trailing edge. On mobile they ride a one-ring
+            scroll-snap carousel with dot indicators (calmer than the old
+            wrap-to-grid row); at `md` and up the SAME nodes revert to the
+            right-aligned inline row. A null health score renders the
             ring's provisional state (aria announces "not enough data",
             never 0) at identical geometry, so the column NEVER
             collapses; missing selected rings render nothing. */}
-          <div
-            data-slot="dashboard-hero-rings"
-            className={cn(
-              // Mobile: the rings stack under the greeting as a full-width
-              // row that wraps to a 2-up grid at four rings. `justify-evenly`
-              // spreads them with equal space before / between / after so
-              // the block reads symmetric edge-to-edge instead of a centred
-              // cluster with dead outer margin; `gap-y-6` gives the wrapped
-              // rows the same breathing room as the horizontal spread.
-              // Desktop: back to a right-aligned inline row beside the copy.
-              "flex w-full flex-wrap items-center justify-evenly gap-x-3 gap-y-6",
-              "md:w-auto md:shrink-0 md:justify-end md:gap-6",
-            )}
-          >
-            {scoreRings.map((ring) => (
-              <div
-                key={ring.id}
-                data-slot="dashboard-hero-ring"
-                data-ring={ring.id}
-                className="flex shrink-0 items-center"
-              >
-                {/* Dose ring — today's tally ("1/3") over the constant
-                    med-family arc (`hue="meds"` = --primary, the tone
-                    every medication surface in Insights paints); the arc
-                    still sweeps on the 0..100 progress `score`.
-                    `band="green"` stays as the stable data-band anchor —
-                    a pending morning dose is not an alert state — while
-                    the hue owns the paint. Falls through to the score
-                    render when a cached pre-doses snapshot carries no
-                    tally. */}
-                {ring.id === "MED_COMPLIANCE" && ring.doses ? (
-                  <ScoreRing
-                    score={ring.score}
-                    band="green"
-                    hue="meds"
-                    valueText={`${ring.doses.taken}/${ring.doses.scheduled}`}
-                    ariaLabel={t("dashboard.hero.ringDosesAria", {
-                      taken: ring.doses.taken,
-                      scheduled: ring.doses.scheduled,
-                    })}
-                    size="sm"
-                    flat
-                    label={t(RING_LABEL_KEY[ring.id])}
-                  />
-                ) : (
-                  <ScoreRing
-                    score={ring.score}
-                    band={ring.band}
-                    size="sm"
-                    flat
-                    hue={RING_HUE_BY_ID[ring.id]}
-                    label={t(RING_LABEL_KEY[ring.id])}
-                  />
-                )}
-              </div>
-            ))}
-            <ScoreRing
-              score={snapshot.healthScore?.score ?? null}
-              band={snapshot.healthScore?.band}
-              size="sm"
-              flat
-              label={
-                snapshot.healthScore
-                  ? t("dashboard.hero.scoreLabel")
-                  : hasScoreInputs
-                    ? t("dashboard.hero.scoreComputing")
-                    : t("dashboard.hero.scoreProvisional")
-              }
-            />
-          </div>
+          <HeroRingCarousel slides={ringSlides} />
         </div>
         {/* v1.18.1 — Rest Mode cue beneath the verdict/score row. Self-gating
             (renders nothing unless an episode is active), value-free, and
