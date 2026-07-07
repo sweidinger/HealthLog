@@ -17,12 +17,28 @@ vi.mock("@/lib/db", () => ({
       update: vi.fn(),
       findFirstOrThrow: vi.fn(),
     },
+    documentConditionLink: {
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+      createMany: vi.fn(),
+    },
+    illnessEpisode: {
+      findMany: vi.fn(),
+    },
+    appSettings: {
+      findUnique: vi.fn(),
+    },
+    user: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
 vi.mock("@/lib/crypto", () => ({
   encrypt: vi.fn((s: string) => `v1.${s}`),
   decrypt: vi.fn((s: string) => s.replace(/^v1\./u, "")),
+  encryptBytes: vi.fn((b: Buffer) => b),
+  decryptBytes: vi.fn((b: Buffer) => b),
 }));
 
 vi.mock("@/lib/ai/coach/bytes-codec", () => ({
@@ -106,6 +122,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true } as never);
+  vi.mocked(prisma.documentConditionLink.findMany).mockResolvedValue(
+    [] as never,
+  );
+  vi.mocked(prisma.documentConditionLink.deleteMany).mockResolvedValue({
+    count: 0,
+  } as never);
+  vi.mocked(prisma.documentConditionLink.createMany).mockResolvedValue({
+    count: 0,
+  } as never);
 });
 
 describe("PATCH /api/documents/inbound/[id]", () => {
@@ -157,5 +182,58 @@ describe("PATCH /api/documents/inbound/[id]", () => {
     const res = await PATCH(mkReq("doc-1", {}) as never, ctx("doc-1") as never);
     expect(res.status).toBe(422);
     expect(prisma.inboundDocument.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("replace-sets condition links from episodeIds", async () => {
+    vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue({
+      id: "doc-1",
+    } as never);
+    vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([
+      { id: "ep-1" },
+      { id: "ep-2" },
+    ] as never);
+    vi.mocked(prisma.inboundDocument.findFirstOrThrow).mockResolvedValue(
+      docRow() as never,
+    );
+
+    const res = await PATCH(
+      mkReq("doc-1", { episodeIds: ["ep-1", "ep-2"] }) as never,
+      ctx("doc-1") as never,
+    );
+    expect(res.status).toBe(200);
+
+    // Replace-set: everything outside the set is deleted, the set is upserted.
+    expect(prisma.documentConditionLink.deleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        documentId: "doc-1",
+        episodeId: { notIn: ["ep-1", "ep-2"] },
+      },
+    });
+    expect(prisma.documentConditionLink.createMany).toHaveBeenCalledWith({
+      data: [
+        { documentId: "doc-1", episodeId: "ep-1", userId: "user-1" },
+        { documentId: "doc-1", episodeId: "ep-2", userId: "user-1" },
+      ],
+      skipDuplicates: true,
+    });
+    // A links-only PATCH does not touch the metadata columns.
+    expect(prisma.inboundDocument.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses a foreign episodeId with a 404-shaped response", async () => {
+    vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue({
+      id: "doc-1",
+    } as never);
+    // The owner-narrowed lookup misses the foreign id.
+    vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([] as never);
+
+    const res = await PATCH(
+      mkReq("doc-1", { episodeIds: ["ep-foreign"] }) as never,
+      ctx("doc-1") as never,
+    );
+    expect(res.status).toBe(404);
+    expect(prisma.documentConditionLink.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.documentConditionLink.createMany).not.toHaveBeenCalled();
   });
 });

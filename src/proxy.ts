@@ -301,9 +301,24 @@ export function proxy(request: NextRequest) {
   // Request ID for log correlation
   response.headers.set("x-request-id", requestId);
 
+  // The document vault's decrypt-and-serve route is framed SAME-ORIGIN by
+  // the document detail preview (an <iframe> for inline-class PDFs). The
+  // blanket `X-Frame-Options: DENY` + `frame-ancestors 'none'` below would
+  // refuse that embed, and the blanket page CSP would clobber the route's
+  // own `Content-Security-Policy: sandbox` (middleware headers win over
+  // route headers). Scope: exactly the `/original` path — list/detail API
+  // routes keep the full DENY posture. The replacement CSP keeps the
+  // sandbox (the served bytes are user-uploaded and must never script in
+  // the app origin) and narrows framing to 'self' instead of dropping it.
+  const isDocumentServeRoute =
+    /^\/api\/documents\/inbound\/[^/]+\/original$/.test(pathname);
+
   // Security headers
   response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set(
+    "X-Frame-Options",
+    isDocumentServeRoute ? "SAMEORIGIN" : "DENY",
+  );
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Permissions-Policy",
@@ -390,9 +405,23 @@ export function proxy(request: NextRequest) {
   // page-load. Avatars now live on the User row and serve from
   // same-origin `/api/user/avatar/{id}`, so `img-src 'self'` covers
   // them.
-  const csp = isDev
-    ? `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self';`
-    : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'${aiConnectSrc}${withingsConnectSrc}${whoopConnectSrc}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
+  const csp = isDocumentServeRoute
+    ? // Vault serve route (see the X-Frame-Options note above): the
+      // response is a user-uploaded document, not an app page.
+      // `default-src 'none'` — a served document may load nothing as if
+      // it were a page — and `frame-ancestors 'self'` permits exactly the
+      // same-origin preview iframe. Deliberately NO `sandbox` directive:
+      // Chromium refuses to render PDFs in sandboxed documents (it
+      // force-downloads them), which would kill the inline preview
+      // outright. The load-bearing boundaries for user-uploaded bytes
+      // stay: magic-byte classification at upload, true Content-Type +
+      // `nosniff` at serve (a PDF can never be reinterpreted as HTML),
+      // HTML/SVG denied entirely, and attachment-only posture for every
+      // non-passive format.
+      `default-src 'none'; frame-ancestors 'self';`
+    : isDev
+      ? `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self';`
+      : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'${aiConnectSrc}${withingsConnectSrc}${whoopConnectSrc}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
   response.headers.set("Content-Security-Policy", csp);
 
   // Production-only headers. HSTS carries `preload` so the domain stays

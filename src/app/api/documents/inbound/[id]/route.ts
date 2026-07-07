@@ -18,6 +18,11 @@ import {
 } from "@/lib/api-response";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
+import {
+  loadConditionLinks,
+  narrowOwnedEpisodeIds,
+  replaceConditionLinks,
+} from "@/lib/documents/links";
 import { serialiseDocumentDetail } from "@/lib/documents/store";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
@@ -62,6 +67,7 @@ export const GET = apiHandler(
     const { id } = await params;
     const document = await prisma.inboundDocument.findFirst({
       where: { id, userId: user.id, deletedAt: null },
+      omit: { contentEncrypted: true },
       include: { facts: { orderBy: { createdAt: "asc" } } },
     });
     if (!document) {
@@ -70,12 +76,20 @@ export const GET = apiHandler(
       });
     }
 
+    const links = await loadConditionLinks(user.id, [document.id]);
+
     annotate({
       action: { name: "documents.inbound.get" },
       meta: { documentId: id, facts: document.facts.length },
     });
 
-    return apiSuccess(serialiseDocumentDetail(document, document.facts));
+    return apiSuccess(
+      serialiseDocumentDetail(
+        document,
+        document.facts,
+        links.get(document.id) ?? [],
+      ),
+    );
   },
 );
 
@@ -110,6 +124,22 @@ export const PATCH = apiHandler(
       });
     }
 
+    // Replace-set condition links: every episode id must be a LIVE episode
+    // of the caller — a foreign/unknown id gets a 404-shaped refusal.
+    let nextEpisodeIds: string[] | undefined;
+    if (parsed.data.episodeIds !== undefined) {
+      const narrowed = await narrowOwnedEpisodeIds(
+        user.id,
+        parsed.data.episodeIds,
+      );
+      if (narrowed === null) {
+        return apiError("Episode not found", 404, {
+          errorCode: "documents.inbound.episodeNotFound",
+        });
+      }
+      nextEpisodeIds = narrowed;
+    }
+
     // No mass assignment — each editable column is set explicitly only when
     // the client sent it. `userId` is never a body field.
     const data: Prisma.InboundDocumentUpdateInput = {};
@@ -121,31 +151,49 @@ export const PATCH = apiHandler(
         : null;
     }
 
-    await prisma.inboundDocument.update({
-      where: { id: existing.id },
-      data,
-    });
+    if (Object.keys(data).length > 0) {
+      await prisma.inboundDocument.update({
+        where: { id: existing.id },
+        data,
+      });
+    }
+    if (nextEpisodeIds !== undefined) {
+      await replaceConditionLinks(prisma, user.id, existing.id, nextEpisodeIds);
+    }
 
     const document = await prisma.inboundDocument.findFirstOrThrow({
       where: { id: existing.id },
+      omit: { contentEncrypted: true },
       include: { facts: { orderBy: { createdAt: "asc" } } },
     });
+    const links = await loadConditionLinks(user.id, [document.id]);
+
+    const touched = [
+      ...Object.keys(data),
+      ...(nextEpisodeIds !== undefined ? ["episodeIds"] : []),
+    ];
 
     await auditLog("documents.inbound.update", {
       userId: user.id,
       ipAddress: getClientIp(request),
       details: {
         documentId: existing.id,
-        fields: Object.keys(data),
+        fields: touched,
       },
     });
 
     annotate({
       action: { name: "documents.inbound.update" },
-      meta: { documentId: existing.id, fields: Object.keys(data).join(",") },
+      meta: { documentId: existing.id, fields: touched.join(",") },
     });
 
-    return apiSuccess(serialiseDocumentDetail(document, document.facts));
+    return apiSuccess(
+      serialiseDocumentDetail(
+        document,
+        document.facts,
+        links.get(document.id) ?? [],
+      ),
+    );
   },
 );
 

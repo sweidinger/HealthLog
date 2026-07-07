@@ -338,12 +338,12 @@ export function isModuleKey(key: string): key is ModuleKey {
  * migration) stays intact — re-enabling the module is a one-line removal
  * from this list once the rebuild lands.
  *
- * v1.25.3 — `inboundDocuments` is parked here: the inbound-documents surface
- * is withdrawn from this release and returns later with more depth. Its
- * registry entry, `optIn` marker, routes, view, and migration 0222 are all
- * preserved; only the user-reachable switches are removed.
+ * Currently empty. `inboundDocuments` was parked here from v1.25.3 until the
+ * document vault re-enabled it (per-user opt-in + operator availability
+ * resume their normal two-layer resolution; the module still ships dark by
+ * default via `optIn`).
  */
-export const CODE_DISABLED_MODULE_KEYS = ["inboundDocuments"] as const;
+export const CODE_DISABLED_MODULE_KEYS = [] as const;
 
 const CODE_DISABLED_MODULE_SET: ReadonlySet<string> = new Set(
   CODE_DISABLED_MODULE_KEYS,

@@ -1,23 +1,38 @@
 /**
- * v1.25.1 (W-DOCS-IN) — view / download the original uploaded document.
+ * Document vault: view / download the original uploaded document.
  *
- * The raw doctor report / discharge letter is stored encrypted at rest
- * (`InboundDocument.contentEncrypted`, AES-256-GCM). This route is the ONLY
- * path that decrypts and serves it, so the user can re-read the source the
- * extracted facts came from. Owner-scoped + module-gated; the bytes are PHI:
- * never logged, never served cross-user, fail-closed on a decrypt error.
+ * The raw document is stored encrypted at rest
+ * (`InboundDocument.contentEncrypted`, AES-256-GCM, codec per row). This
+ * route is the ONLY path that decrypts and serves it. Owner-scoped +
+ * module-gated; the bytes are PHI: never logged, never served cross-user,
+ * fail-closed on a decrypt error.
  *
- * The response carries the stored `mimeType`. Uploads are constrained at the
- * store path to the inline-safe set (JPEG / PNG / WebP / PDF, magic-byte
- * sniffed), so the document is always served `Content-Disposition: inline` for
- * in-tab rendering. The filename is sanitised before it reaches the header.
+ * Serving posture IS the security boundary (upload policy §N1): the serving
+ * class derives from the stored MIME type via `servingClassFor` —
+ *
+ *   - inline (Class A: PDF/JPEG/PNG/WebP/GIF): true Content-Type,
+ *     `Content-Disposition: inline`, `X-Content-Type-Options: nosniff`,
+ *     `Cache-Control: private, no-store`.
+ *   - attachment (Class B: Office/text/TIFF/HEIC/XML/JSON): ALWAYS
+ *     `Content-Disposition: attachment` with `Content-Type:
+ *     application/octet-stream` + `nosniff` — never inline, regardless of
+ *     the stored type, so a misclassified file cannot execute in-origin.
+ *
+ * The response CSP is owned by the proxy, not this route: `src/proxy.ts`
+ * carves out exactly this path with `default-src 'none'; frame-ancestors
+ * 'self'` (middleware headers win over route headers, so anything set here
+ * would be dead weight). Deliberately no `sandbox` directive anywhere —
+ * Chromium force-downloads PDFs framed in sandboxed documents instead of
+ * rendering them, which would break the inline preview.
+ * `src/__tests__/proxy-document-serve-framing.test.ts` pins that posture.
  */
 import { NextResponse } from "next/server";
 
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiError } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
-import { decryptDocumentFromBytes } from "@/lib/documents/store";
+import { decryptDocumentContent } from "@/lib/documents/store";
+import { servingClassFor } from "@/lib/documents/upload-policy";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
@@ -40,6 +55,22 @@ const MIME_EXTENSION: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
+  "image/gif": "gif",
+  "image/tiff": "tif",
+  "image/heic": "heic",
+  "application/msword": "doc",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    "docx",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+    "pptx",
+  "text/plain": "txt",
+  "text/csv": "csv",
+  "application/rtf": "rtf",
+  "application/xml": "xml",
+  "application/json": "json",
 };
 
 /**
@@ -109,6 +140,7 @@ export const GET = apiHandler(
         filename: true,
         mimeType: true,
         contentEncrypted: true,
+        contentCodec: true,
       },
     });
     if (!document) {
@@ -119,10 +151,14 @@ export const GET = apiHandler(
 
     let bytes: Buffer;
     try {
-      bytes = decryptDocumentFromBytes(document.contentEncrypted);
+      bytes = decryptDocumentContent(
+        document.contentEncrypted,
+        document.contentCodec,
+      );
     } catch {
       // Fail closed — never fall back to the raw ciphertext. The error reason
-      // (bad / missing key id) is logged by the annotation, never the bytes.
+      // (bad / missing key id, unknown codec) is logged by the annotation,
+      // never the bytes.
       annotate({
         action: { name: "documents.inbound.original.decryptFailed" },
         meta: { documentId: document.id },
@@ -132,16 +168,18 @@ export const GET = apiHandler(
       });
     }
 
+    const servingClass = servingClassFor(document.mimeType);
     const downloadName = safeDownloadName(
       document.filename,
       document.id,
       document.mimeType,
     );
-    // ASCII fallback for the bare `filename=` (replace any non-ASCII byte) plus
-    // an RFC 5987 `filename*` that carries the real UTF-8 name to compliant
-    // clients. The stored set is inline-safe by construction, so always inline.
+    // ASCII fallback for the bare `filename=` (replace any non-ASCII byte)
+    // plus an RFC 5987 `filename*` that carries the real UTF-8 name to
+    // compliant clients.
     const asciiName = downloadName.replace(/[^ -~]/g, "_");
-    const disposition = `inline; filename="${asciiName}"; filename*=UTF-8''${encodeRfc5987(downloadName)}`;
+    const dispositionType = servingClass === "inline" ? "inline" : "attachment";
+    const disposition = `${dispositionType}; filename="${asciiName}"; filename*=UTF-8''${encodeRfc5987(downloadName)}`;
 
     annotate({
       action: { name: "documents.inbound.original.get" },
@@ -149,19 +187,32 @@ export const GET = apiHandler(
         documentId: document.id,
         mimeType: document.mimeType,
         bytes: bytes.byteLength,
-        disposition: "inline",
+        disposition: dispositionType,
       },
     });
 
+    const headers: Record<string, string> = {
+      // Class B leaves the origin ONLY as an opaque download — the true
+      // stored type is deliberately not surfaced on the wire.
+      "Content-Type":
+        servingClass === "inline"
+          ? document.mimeType
+          : "application/octet-stream",
+      "Content-Length": String(bytes.byteLength),
+      "Content-Disposition": disposition,
+      // The disposition/type pair is authoritative — never MIME-sniffed.
+      "X-Content-Type-Options": "nosniff",
+      // Private PHI — never cache in a shared / disk cache.
+      "Cache-Control": "private, no-store",
+      // No Content-Security-Policy here: the proxy's serve-route carve-out
+      // owns it (`default-src 'none'; frame-ancestors 'self'`, no sandbox —
+      // Chromium force-downloads sandboxed PDFs). A route-level CSP would be
+      // silently overwritten by the middleware header pass.
+    };
+
     return new NextResponse(bytes as unknown as BodyInit, {
       status: 200,
-      headers: {
-        "Content-Type": document.mimeType,
-        "Content-Length": String(bytes.byteLength),
-        "Content-Disposition": disposition,
-        // Private PHI — never cache in a shared / disk cache.
-        "Cache-Control": "private, no-store",
-      },
+      headers,
     });
   },
 );

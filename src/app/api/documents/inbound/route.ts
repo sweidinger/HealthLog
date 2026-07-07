@@ -1,39 +1,54 @@
 /**
- * v1.25 — documents library: store-first upload + browsable list.
+ * Document vault: store-first upload + browsable list.
  *
- * POST is STORE-ONLY and provider-free. A self-hoster uploads any clinical
- * document; it is stored ENCRYPTED at rest with `status: STORED` and NO
- * extraction run. There is no provider resolution, no AI consent guard, no
- * budget, and NO egress on this path — a file can always be filed, even on an
- * account with no document-scan provider configured. Optional AI extraction is
- * a separate, user-triggered action (`POST /api/documents/inbound/[id]/extract`).
+ * POST is STORE-ONLY and provider-free. A self-hoster uploads any accepted
+ * document; it is stored ENCRYPTED at rest (binary codec) with
+ * `status: STORED` and NO extraction run. There is no provider resolution, no
+ * AI consent guard, no budget, and NO egress on this path — a file can always
+ * be filed, even on an account with no document-scan provider configured.
  *
- * GET lists the caller's documents with title/filename search, a category
- * filter, a `documentDate` range, sort, and keyset pagination — all through the
- * parameter-bound Prisma query builder (no raw SQL).
+ * The upload path enforces the vault policy layer
+ * (`src/lib/documents/upload-policy.ts`): magic-byte classification (the wire
+ * Content-Type is never trusted), the admin-tunable per-file cap (bounded
+ * read aborts at the cap), the per-user quota (checked in the same
+ * transaction as the insert, tombstone-inclusive), sha256 duplicate detection
+ * (a same-user re-upload returns the existing live row, never a second copy),
+ * an honoured `Idempotency-Key`, and optional `episodeIds[]` pre-linking.
+ *
+ * GET lists the caller's documents with title/filename search, kind /
+ * episode / year / date-range filters, sort, and keyset pagination — and
+ * NEVER selects the encrypted blob column (`omit: { contentEncrypted: true }`).
  *
  * The document is UNTRUSTED (prompt-injection): the server never acts on an
- * instruction inside it. Storing it does nothing with its contents; the later
- * review-then-confirm step is the safety boundary for any extracted facts.
+ * instruction inside it. Storing it does nothing with its contents.
  */
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
+
+import { NextResponse } from "next/server";
 
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiError, apiSuccess, getClientIp } from "@/lib/api-response";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import {
-  encryptDocumentToBytes,
+  loadConditionLinks,
+  narrowOwnedEpisodeIds,
+} from "@/lib/documents/links";
+import {
+  encryptDocumentContent,
   serialiseDocument,
+  type SerialisableDocument,
 } from "@/lib/documents/store";
 import {
-  BodyTooLargeError,
-  detectOcrMimeType,
-  OCR_MAX_BYTES,
-  readBoundedBody,
-} from "@/lib/labs/ocr-upload";
+  detectDocumentType,
+  resolveDocumentLimits,
+} from "@/lib/documents/upload-policy";
+import { withIdempotency } from "@/lib/idempotency";
+import { BodyTooLargeError, readBoundedBody } from "@/lib/labs/ocr-upload";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { isP2002 } from "@/lib/prisma-errors";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import {
   documentCreateSchema,
@@ -50,13 +65,78 @@ export const dynamic = "force-dynamic";
 const UPLOAD_LIMIT_PER_HOUR = 60;
 const UPLOAD_WINDOW_MS = 60 * 60 * 1000;
 
+/**
+ * Multipart envelope allowance on top of the per-file cap: boundaries plus
+ * the small metadata fields (title / kind / documentDate / episodeIds). The
+ * exact per-file cap is re-enforced on the extracted file bytes below.
+ */
+const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
+
 /** Parse a YYYY-MM-DD form field into a UTC midnight Date. */
 function isoDateToUtc(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
+/** §3.2 — 413 fileTooLarge with the configured limit in `meta`. */
+function fileTooLarge(maxFileBytes: number): NextResponse {
+  return apiError("File is too large.", 413, {
+    errorCode: "documents.inbound.fileTooLarge",
+    reason: "fileTooLarge",
+    maxFileBytes,
+  });
+}
+
+/** Internal signal: the quota gate inside the insert transaction tripped. */
+class QuotaExceededError extends Error {
+  constructor(public readonly usedBytes: number) {
+    super("Document quota exceeded");
+    this.name = "QuotaExceededError";
+  }
+}
+
+/**
+ * §3.2 — a duplicate upload is NOT an error: return the existing live row
+ * with `meta.duplicate: true` at the envelope level (the UI toasts "already
+ * stored" and highlights the row).
+ */
+async function duplicateResponse(
+  userId: string,
+  existing: SerialisableDocument,
+): Promise<NextResponse> {
+  const [links, groups] = await Promise.all([
+    loadConditionLinks(userId, [existing.id]),
+    prisma.extractedFact.groupBy({
+      by: ["status"],
+      where: { userId, documentId: existing.id },
+      _count: { _all: true },
+    }),
+  ]);
+  let factCount = 0;
+  let pendingCount = 0;
+  for (const g of groups) {
+    if (g.status !== "REJECTED") factCount += g._count._all;
+    if (g.status === "PENDING") pendingCount += g._count._all;
+  }
+  annotate({
+    action: { name: "documents.vault.upload" },
+    meta: { documentId: existing.id, duplicate: true },
+  });
+  return NextResponse.json(
+    {
+      data: serialiseDocument(
+        existing,
+        { factCount, pendingCount },
+        links.get(existing.id) ?? [],
+      ),
+      error: null,
+      meta: { duplicate: true },
+    },
+    { status: 200 },
+  );
+}
+
 /** POST — store an uploaded document encrypted at rest. No extraction. */
-export const POST = apiHandler(async (request: Request) => {
+async function postUpload(request: Request): Promise<Response> {
   const { user } = await requireAuth();
 
   // Opt-in module gate — even a valid Bearer token is refused when the surface
@@ -79,24 +159,25 @@ export const POST = apiHandler(async (request: Request) => {
     return response;
   }
 
+  const limits = await resolveDocumentLimits(user.id);
+  const bodyCap = limits.maxFileBytes + MULTIPART_OVERHEAD_BYTES;
+
+  // Instant rejection on a declared oversize (a CD/ISO-sized upload never
+  // allocates); the bounded read below covers chunked/undeclared bodies.
   const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (contentLength > OCR_MAX_BYTES) {
-    return apiError("File is too large (max 12 MB).", 413, {
-      errorCode: "documents.inbound.fileTooLarge",
-    });
+  if (contentLength > bodyCap) {
+    return fileTooLarge(limits.maxFileBytes);
   }
 
   let formData: FormData;
   try {
-    const bytes = await readBoundedBody(request.body, OCR_MAX_BYTES);
+    const bytes = await readBoundedBody(request.body, bodyCap);
     formData = await new Response(new Blob([bytes]), {
       headers: { "content-type": request.headers.get("content-type") ?? "" },
     }).formData();
   } catch (err) {
     if (err instanceof BodyTooLargeError) {
-      return apiError("File is too large (max 12 MB).", 413, {
-        errorCode: "documents.inbound.fileTooLarge",
-      });
+      return fileTooLarge(limits.maxFileBytes);
     }
     return apiError("Invalid multipart body", 400);
   }
@@ -106,12 +187,17 @@ export const POST = apiHandler(async (request: Request) => {
     return apiError("Field 'file' must be a file", 422);
   }
 
-  // Optional metadata (title / kind / documentDate). The file is read
-  // separately; these are the form fields beside it.
+  // Optional metadata (title / kind / documentDate / episodeIds). The file is
+  // read separately; these are the form fields beside it. `episodeIds` may be
+  // repeated.
+  const rawEpisodeIds = formData
+    .getAll("episodeIds")
+    .filter((v): v is string => typeof v === "string");
   const parsed = documentCreateSchema.safeParse({
     title: formData.get("title") ?? undefined,
     kind: formData.get("kind") ?? undefined,
     documentDate: formData.get("documentDate") ?? undefined,
+    episodeIds: rawEpisodeIds.length > 0 ? rawEpisodeIds : undefined,
   });
   if (!parsed.success) {
     return apiError("Invalid document metadata", 422, {
@@ -125,63 +211,167 @@ export const POST = apiHandler(async (request: Request) => {
   } catch {
     return apiError("Failed to read uploaded file", 400);
   }
-
-  const mime = detectOcrMimeType(buffer);
-  if (!mime) {
-    return apiError("Upload a JPEG, PNG, WebP, or PDF.", 415, {
-      errorCode: "documents.inbound.fileType",
+  if (buffer.byteLength > limits.maxFileBytes) {
+    return fileTooLarge(limits.maxFileBytes);
+  }
+  if (buffer.byteLength === 0) {
+    return apiError("Uploaded file is empty", 422, {
+      errorCode: "documents.inbound.invalidMetadata",
     });
   }
 
-  // No mass assignment — every column is set field-by-field; `userId` comes
-  // from the session, never the body. `status` is STORED (the library default);
-  // no provider / consent / budget call runs here.
-  //
-  // `documentDate` is the effective filing date the library sorts, groups, and
-  // range-filters on. When the user does not supply one at upload, default it to
-  // the upload day (now) — the same effective date the UI shows — so the column
-  // is never NULL on a stored row. This keeps display == sort == filter: an
-  // undated upload no longer sinks below older dated rows under `nulls: "last"`,
-  // and a "this month" range filter sees it. (At store time `reportDate` is
-  // still null; it only exists after an extraction, so the default resolves to
-  // the upload day.) The date stays user-editable via PATCH, which still allows
-  // clearing it back to NULL.
-  const document = await prisma.inboundDocument.create({
-    data: {
-      userId: user.id,
-      kind: parsed.data.kind ?? "OTHER",
-      // Stored plaintext on purpose (mirrors `filename`) so the list can
-      // ILIKE-search + ORDER BY it. It MAY hold PHI the user types; that is the
-      // accepted tradeoff for server-side search/sort — the document body stays
-      // encrypted.
-      title: parsed.data.title ?? null,
-      filename: typeof file.name === "string" ? file.name.slice(0, 255) : null,
-      mimeType: mime,
-      byteSize: buffer.byteLength,
-      contentEncrypted: encryptDocumentToBytes(buffer),
-      status: "STORED",
-      documentDate: parsed.data.documentDate
-        ? isoDateToUtc(parsed.data.documentDate)
-        : new Date(),
-    },
+  // §3.1 — magic-byte classification; the wire Content-Type is never trusted.
+  const detected = detectDocumentType(
+    buffer,
+    typeof file.name === "string" ? file.name : null,
+  );
+  if (!detected) {
+    return apiError("This file type is not supported.", 415, {
+      errorCode: "documents.inbound.fileType",
+      reason: "unsupportedType",
+    });
+  }
+
+  // Pre-linking: every episode id must be a LIVE episode of the caller.
+  const episodeIds = await narrowOwnedEpisodeIds(
+    user.id,
+    parsed.data.episodeIds ?? [],
+  );
+  if (episodeIds === null) {
+    return apiError("Episode not found", 404, {
+      errorCode: "documents.inbound.episodeNotFound",
+    });
+  }
+
+  // sha256 of the PLAINTEXT for same-user duplicate detection.
+  const contentSha256 = createHash("sha256").update(buffer).digest("hex");
+
+  // Fast-path dedupe check; the partial unique index closes the race below.
+  const existing = await prisma.inboundDocument.findFirst({
+    where: { userId: user.id, contentSha256, deletedAt: null },
+    omit: { contentEncrypted: true },
   });
+  if (existing) {
+    return duplicateResponse(user.id, existing);
+  }
+
+  // Quota gate + insert + pre-links in ONE transaction. Usage counts every
+  // non-purged row — tombstones still hold TOAST bytes, so "deleted" bytes
+  // are never invisible weight (undo-delete never changes usage).
+  let document: SerialisableDocument;
+  try {
+    document = await prisma.$transaction(async (tx) => {
+      // Serialise the quota gate per user: without this, N concurrent
+      // uploads all read the same SUM before any of them commits and the
+      // quota can be overshot by up to N × cap in one burst. The advisory
+      // lock is transaction-scoped (released on commit/rollback) and keyed
+      // on the user id, so uploads by different users never queue on each
+      // other.
+      // (`pg_advisory_xact_lock` returns void, which the client cannot
+      // deserialize as a column — selecting FROM it yields a plain int row.)
+      await tx.$queryRaw`
+        SELECT 1 AS locked
+        FROM pg_advisory_xact_lock(hashtextextended('documents-quota:' || ${user.id}, 0))
+      `;
+      const rows = await tx.$queryRaw<Array<{ used: bigint }>>`
+        SELECT COALESCE(SUM(byte_size), 0)::bigint AS used
+        FROM inbound_documents
+        WHERE user_id = ${user.id}
+      `;
+      const usedBytes = Number(rows[0]?.used ?? 0);
+      if (usedBytes + buffer.byteLength > limits.quotaBytes) {
+        throw new QuotaExceededError(usedBytes);
+      }
+
+      const { content, codec } = encryptDocumentContent(buffer);
+
+      // No mass assignment — every column is set field-by-field; `userId`
+      // comes from the session, never the body. `documentDate` defaults to
+      // the upload day so display == sort == filter (user-editable later).
+      const created = await tx.inboundDocument.create({
+        data: {
+          userId: user.id,
+          kind: parsed.data.kind ?? "OTHER",
+          // Stored plaintext on purpose (mirrors `filename`) so the list can
+          // ILIKE-search + ORDER BY it. It MAY hold PHI the user types; that
+          // is the accepted tradeoff for server-side search/sort — the
+          // document body stays encrypted.
+          title: parsed.data.title ?? null,
+          filename:
+            typeof file.name === "string" ? file.name.slice(0, 255) : null,
+          mimeType: detected.mimeType,
+          byteSize: buffer.byteLength,
+          contentEncrypted: content,
+          contentCodec: codec,
+          contentSha256,
+          status: "STORED",
+          documentDate: parsed.data.documentDate
+            ? isoDateToUtc(parsed.data.documentDate)
+            : new Date(),
+        },
+        omit: { contentEncrypted: true },
+      });
+
+      if (episodeIds.length > 0) {
+        await tx.documentConditionLink.createMany({
+          data: episodeIds.map((episodeId) => ({
+            documentId: created.id,
+            episodeId,
+            userId: user.id,
+          })),
+        });
+      }
+      return created;
+    });
+  } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      return apiError("Storage quota exceeded.", 413, {
+        errorCode: "documents.inbound.quotaExceeded",
+        reason: "quotaExceeded",
+        quotaBytes: limits.quotaBytes,
+        usedBytes: err.usedBytes,
+      });
+    }
+    if (isP2002(err)) {
+      // A racing upload of the same bytes won the partial unique index.
+      // Surface the winner as the duplicate — same outcome as the fast path.
+      const winner = await prisma.inboundDocument.findFirst({
+        where: { userId: user.id, contentSha256, deletedAt: null },
+        omit: { contentEncrypted: true },
+      });
+      if (winner) return duplicateResponse(user.id, winner);
+    }
+    throw err;
+  }
 
   await auditLog("documents.inbound.store", {
     userId: user.id,
     ipAddress: getClientIp(request),
-    details: { documentId: document.id, mime },
+    details: { documentId: document.id, mime: detected.mimeType },
   });
 
   annotate({
-    action: { name: "documents.inbound.store" },
-    meta: { documentId: document.id, byteSize: document.byteSize },
+    action: { name: "documents.vault.upload" },
+    meta: {
+      documentId: document.id,
+      byteSize: document.byteSize,
+      servingClass: detected.servingClass,
+      linked: episodeIds.length,
+    },
   });
 
+  const links = await loadConditionLinks(user.id, [document.id]);
   return apiSuccess(
-    serialiseDocument(document, { factCount: 0, pendingCount: 0 }),
+    serialiseDocument(
+      document,
+      { factCount: 0, pendingCount: 0 },
+      links.get(document.id) ?? [],
+    ),
     201,
   );
-});
+}
+
+export const POST = apiHandler(withIdempotency<[Request]>(postUpload));
 
 /** GET — list the caller's documents (search / filter / sort / paginate). */
 export const GET = apiHandler(async (request: Request) => {
@@ -191,22 +381,37 @@ export const GET = apiHandler(async (request: Request) => {
   if (!gate.enabled) return gate.response;
 
   const url = new URL(request.url);
-  const parsed = documentListQuerySchema.safeParse(
-    Object.fromEntries(url.searchParams),
-  );
+  // `kind` is a multi-value facet: repeated params and/or comma-separated.
+  const kinds = url.searchParams
+    .getAll("kind")
+    .flatMap((v) => v.split(","))
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
+  const single = Object.fromEntries(url.searchParams);
+  const parsed = documentListQuerySchema.safeParse({
+    ...single,
+    kind: kinds.length > 0 ? kinds : undefined,
+  });
   if (!parsed.success) {
     return apiError("Invalid list query", 422, {
       errorCode: "documents.inbound.invalidQuery",
     });
   }
-  const { q, kind, from, to, sort, order, cursor, limit } = parsed.data;
+  const { q, kind, episodeId, year, from, to, sort, order, cursor, limit } =
+    parsed.data;
 
   const where: Prisma.InboundDocumentWhereInput = {
     userId: user.id,
     deletedAt: null,
   };
-  if (kind) where.kind = kind;
-  if (from || to) {
+  if (kind && kind.length > 0) where.kind = { in: kind };
+  if (episodeId) where.conditionLinks = { some: { episodeId } };
+  if (year !== undefined) {
+    where.documentDate = {
+      gte: new Date(Date.UTC(year, 0, 1)),
+      lt: new Date(Date.UTC(year + 1, 0, 1)),
+    };
+  } else if (from || to) {
     where.documentDate = {
       ...(from ? { gte: isoDateToUtc(from) } : {}),
       // inclusive end-of-day for the `to` bound
@@ -234,8 +439,11 @@ export const GET = apiHandler(async (request: Request) => {
     { id: order },
   ];
 
+  // Hardening: the list NEVER fetches the encrypted blob column — a page of
+  // 50 rows would otherwise drag up to 50 × cap ciphertext bytes per request.
   const rows = await prisma.inboundDocument.findMany({
     where,
+    omit: { contentEncrypted: true },
     orderBy,
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -247,8 +455,8 @@ export const GET = apiHandler(async (request: Request) => {
 
   // Fact tallies for the whole page in ONE grouped count — no per-document
   // fan-out and no materialising fact-id rows. `factCount` counts every
-  // non-REJECTED fact (a rejected fact is discarded, not part of the document's
-  // tally), `pendingCount` the PENDING subset still awaiting review.
+  // non-REJECTED fact (a rejected fact is discarded, not part of the
+  // document's tally), `pendingCount` the PENDING subset awaiting review.
   const factCounts = new Map<
     string,
     { factCount: number; pendingCount: number }
@@ -271,9 +479,20 @@ export const GET = apiHandler(async (request: Request) => {
     }
   }
 
+  // Condition links for the page in ONE grouped query (no N+1).
+  const linkMap = await loadConditionLinks(
+    user.id,
+    page.map((d) => d.id),
+  );
+
   annotate({
     action: { name: "documents.inbound.list" },
-    meta: { count: page.length, sort, order, filtered: Boolean(q || kind) },
+    meta: {
+      count: page.length,
+      sort,
+      order,
+      filtered: Boolean(q || (kind && kind.length > 0) || episodeId || year),
+    },
   });
 
   return apiSuccess({
@@ -281,6 +500,7 @@ export const GET = apiHandler(async (request: Request) => {
       serialiseDocument(
         doc,
         factCounts.get(doc.id) ?? { factCount: 0, pendingCount: 0 },
+        linkMap.get(doc.id) ?? [],
       ),
     ),
     nextCursor,

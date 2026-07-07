@@ -30,7 +30,14 @@
  *    protects against dropping a legacy key too early.
  */
 import { Buffer } from "node:buffer";
-import { decrypt, encrypt, extractKeyId, getActiveKeyId } from "@/lib/crypto";
+import {
+  decrypt,
+  encrypt,
+  extractKeyId,
+  extractKeyIdFromBytes,
+  getActiveKeyId,
+  reencryptBytesToActive,
+} from "@/lib/crypto";
 import {
   ENCRYPTED_COLUMNS,
   encryptedColumnKey,
@@ -40,10 +47,21 @@ import {
 /** Sentinel bucket for legacy (unversioned) ciphertext under `byKeyId`. */
 export const LEGACY_BUCKET = "legacy";
 
+/**
+ * Batch size for codec-dispatched blob columns (`codecField` present). The
+ * document vault's rows are up to cap-sized ciphertexts, so the walk is
+ * id-cursor paginated — at most this many blobs are in memory at once.
+ */
+export const BLOB_ROTATION_BATCH_SIZE = 25;
+
 /** Minimal Prisma delegate shape this module needs. */
 interface ColumnDelegate {
   findMany: (args: {
     select: Record<string, true>;
+    orderBy?: Record<string, "asc" | "desc">;
+    take?: number;
+    cursor?: Record<string, unknown>;
+    skip?: number;
   }) => Promise<Array<Record<string, unknown>>>;
   update: (args: {
     where: { id: string };
@@ -98,6 +116,78 @@ function shouldRotate(ciphertext: string): boolean {
   return extractKeyId(ciphertext) !== getActiveKeyId();
 }
 
+// ─── Codec-dispatched blob columns (document vault) ─────────────────────────
+
+/**
+ * The key id a codec-dispatched blob row was written under, or null when
+ * legacy/unparsable. "binary2" parses the binary header; every other codec
+ * value (notably "base64v1") is the `encrypt()`-string-as-UTF-8 shape.
+ */
+function blobKeyId(value: Uint8Array, codec: string): string | null {
+  const buf = Buffer.from(value);
+  if (codec === "binary2") return extractKeyIdFromBytes(buf);
+  return extractKeyId(buf.toString("utf8"));
+}
+
+/** Re-encrypt one codec-dispatched blob under its OWN codec (never converts). */
+function reencryptBlob(value: Uint8Array, codec: string): Uint8Array {
+  const buf = Buffer.from(value);
+  if (codec === "binary2") {
+    const rotated = reencryptBytesToActive(buf);
+    const next = new Uint8Array(new ArrayBuffer(rotated.byteLength));
+    next.set(rotated);
+    return next;
+  }
+  if (codec === "base64v1") {
+    const rotated = encrypt(decrypt(buf.toString("utf8")));
+    const encoded = Buffer.from(rotated, "utf8");
+    const next = new Uint8Array(new ArrayBuffer(encoded.byteLength));
+    next.set(encoded);
+    return next;
+  }
+  // FAIL-CLOSED: an unknown codec is counted as an error and left untouched.
+  throw new Error(`Unknown content codec '${codec}'`);
+}
+
+/**
+ * Walk a codec-dispatched blob column in bounded id-cursor batches, invoking
+ * `onRow` per non-empty row. At most `BLOB_ROTATION_BATCH_SIZE` blobs are in
+ * memory per step; an interrupted run resumes safely on re-invocation because
+ * processing is idempotent (already-active rows are skipped by the callers).
+ */
+async function walkBlobColumn(
+  delegate: ColumnDelegate,
+  col: EncryptedColumn,
+  onRow: (row: {
+    id: string;
+    value: Uint8Array;
+    codec: string;
+  }) => Promise<void> | void,
+): Promise<void> {
+  const codecField = col.codecField!;
+  let cursor: string | null = null;
+  for (;;) {
+    const rows = await delegate.findMany({
+      select: { id: true, [col.field]: true, [codecField]: true },
+      orderBy: { id: "asc" },
+      take: BLOB_ROTATION_BATCH_SIZE,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      const value = row[col.field] as Uint8Array | null;
+      if (!value || value.byteLength === 0) continue;
+      await onRow({
+        id: row.id as string,
+        value,
+        codec: String(row[codecField] ?? ""),
+      });
+    }
+    cursor = rows[rows.length - 1]!.id as string;
+    if (rows.length < BLOB_ROTATION_BATCH_SIZE) break;
+  }
+}
+
 export interface ColumnScan {
   model: string;
   field: string;
@@ -116,17 +206,27 @@ export async function scanColumn(
   col: EncryptedColumn,
 ): Promise<ColumnScan> {
   const delegate = getDelegate(client, col.model);
-  const rows = await delegate.findMany({
-    select: { id: true, [col.field]: true },
-  });
   const byKeyId: Record<string, number> = {};
   let total = 0;
-  for (const row of rows) {
-    const ciphertext = toCiphertext(row[col.field], col.kind);
-    if (ciphertext == null) continue;
-    total += 1;
-    const id = extractKeyId(ciphertext) ?? LEGACY_BUCKET;
-    byKeyId[id] = (byKeyId[id] ?? 0) + 1;
+
+  if (col.codecField) {
+    // Codec-dispatched blob column: bounded batches, per-row codec.
+    await walkBlobColumn(delegate, col, ({ value, codec }) => {
+      total += 1;
+      const id = blobKeyId(value, codec) ?? LEGACY_BUCKET;
+      byKeyId[id] = (byKeyId[id] ?? 0) + 1;
+    });
+  } else {
+    const rows = await delegate.findMany({
+      select: { id: true, [col.field]: true },
+    });
+    for (const row of rows) {
+      const ciphertext = toCiphertext(row[col.field], col.kind);
+      if (ciphertext == null) continue;
+      total += 1;
+      const id = extractKeyId(ciphertext) ?? LEGACY_BUCKET;
+      byKeyId[id] = (byKeyId[id] ?? 0) + 1;
+    }
   }
   return {
     model: col.model,
@@ -192,16 +292,41 @@ export async function rotateColumn(
   col: EncryptedColumn,
 ): Promise<RotationResult> {
   const delegate = getDelegate(client, col.model);
-  const rows = await delegate.findMany({
-    select: { id: true, [col.field]: true },
-  });
   const result: RotationResult = {
     model: col.model,
     field: col.field,
-    scanned: rows.length,
+    scanned: 0,
     rotated: 0,
     errors: 0,
   };
+
+  if (col.codecField) {
+    // Codec-dispatched blob column: bounded id-cursor batches (never an
+    // unbounded blob findMany), re-encrypted under each row's OWN codec.
+    // Idempotent — rows already on the active key are skipped, so an
+    // interrupted run resumes cleanly on the next invocation.
+    await walkBlobColumn(delegate, col, async ({ id, value, codec }) => {
+      result.scanned += 1;
+      if (blobKeyId(value, codec) === getActiveKeyId()) return;
+      try {
+        await delegate.update({
+          where: { id },
+          data: { [col.field]: reencryptBlob(value, codec) },
+        });
+        result.rotated += 1;
+      } catch {
+        // FAIL-CLOSED: unknown codec or a no-longer-configured key throws;
+        // count it and leave the row untouched rather than dropping data.
+        result.errors += 1;
+      }
+    });
+    return result;
+  }
+
+  const rows = await delegate.findMany({
+    select: { id: true, [col.field]: true },
+  });
+  result.scanned = rows.length;
   for (const row of rows) {
     const ciphertext = toCiphertext(row[col.field], col.kind);
     if (ciphertext == null || !shouldRotate(ciphertext)) continue;

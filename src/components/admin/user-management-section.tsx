@@ -55,6 +55,9 @@ export function UserManagementSection() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [editUsername, setEditUsername] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  // Document vault — per-user storage-quota override, edited in GB.
+  // Empty string = no override (the instance default applies).
+  const [editQuotaGb, setEditQuotaGb] = useState("");
   const [resetUser, setResetUser] = useState<AdminUser | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [resetMsg, setResetMsg] = useState<string | null>(null);
@@ -142,6 +145,11 @@ export function UserManagementSection() {
     setEditingUser(u);
     setEditUsername(u.username);
     setEditEmail(u.email ?? "");
+    setEditQuotaGb(
+      u.documentQuotaBytes === null
+        ? ""
+        : String(Math.round((u.documentQuotaBytes / 1_073_741_824) * 10) / 10),
+    );
   }
 
   function startReset(u: AdminUser) {
@@ -448,11 +456,22 @@ export function UserManagementSection() {
             onSubmit={(e) => {
               e.preventDefault();
               if (updateUser.isPending) return;
+              const quotaTrimmed = editQuotaGb.trim();
+              const quotaParsed = Number(quotaTrimmed);
               updateUser.mutate({
                 id: editingUser.id,
                 data: {
                   username: editUsername,
                   email: editEmail || null,
+                  // Empty clears the override; a value clamps to the same
+                  // bounds the server schema enforces (0.1–1024 GB).
+                  documentQuotaBytes:
+                    quotaTrimmed === "" || !Number.isFinite(quotaParsed)
+                      ? null
+                      : Math.round(
+                          Math.min(1024, Math.max(0.1, quotaParsed)) *
+                            1_073_741_824,
+                        ),
                 },
               });
             }}
@@ -480,6 +499,32 @@ export function UserManagementSection() {
                 data-lpignore="true"
                 data-1p-ignore="true"
               />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-document-quota">
+                {t("admin.userDocumentQuota")}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="edit-document-quota"
+                  type="number"
+                  inputMode="decimal"
+                  min={0.1}
+                  max={1024}
+                  step={0.1}
+                  className="w-28 text-right tabular-nums"
+                  value={editQuotaGb}
+                  onChange={(e) => setEditQuotaGb(e.target.value)}
+                  placeholder={t("admin.userDocumentQuotaDefault")}
+                  autoComplete="off"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                />
+                <span className="text-muted-foreground text-xs">GB</span>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                {t("admin.userDocumentQuotaHint")}
+              </p>
             </div>
             <div className="flex gap-2">
               <Button

@@ -5077,7 +5077,8 @@
       "error": "Eksport nie powiódł się ({code}).",
       "labs": "Wyniki badań",
       "allergies": "Alergie i nietolerancje",
-      "familyHistory": "Wywiad rodzinny"
+      "familyHistory": "Wywiad rodzinny",
+      "documentsLink": "Dokumenty z tego okresu"
     },
     "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
     "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje.",
@@ -5935,7 +5936,14 @@
     "mfaEnforcedOffHint": "Wymagaj drugiego składnika dla tego użytkownika.",
     "copyIp": "Kopiuj adres IP",
     "ipCopied": "Skopiowano adres IP",
-    "copyFailed": "Nie udało się skopiować."
+    "copyFailed": "Nie udało się skopiować.",
+    "documentMaxFile": "Limit przesyłania dokumentów",
+    "documentMaxFileDescription": "Maksymalny rozmiar pliku w archiwum dokumentów (1–100 MB).",
+    "documentQuota": "Limit miejsca na dokumenty",
+    "documentQuotaDescription": "Domyślne miejsce na dokumenty na konto (0,1–1024 GB).",
+    "userDocumentQuota": "Indywidualny limit dokumentów",
+    "userDocumentQuotaDefault": "Domyślny",
+    "userDocumentQuotaHint": "Pozostaw puste, aby użyć domyślnego limitu instancji."
   },
   "achievements": {
     "title": "Osiągnięcia",
@@ -7338,7 +7346,8 @@
       "extractFailed": "Nie udało się odczytać wyniku. Spróbuj wyraźniejszego zdjęcia.",
       "pdfNeedsAnthropic": "Skanowanie PDF wymaga dostawcy wizji Claude; prześlij zamiast tego zdjęcie."
     },
-    "loadMoreReadings": "Wczytaj więcej pomiarów"
+    "loadMoreReadings": "Wczytaj więcej pomiarów",
+    "documentsLink": "Dokumenty wyników badań"
   },
   "modules": {
     "cycle": {
@@ -7403,7 +7412,7 @@
     },
     "inboundDocuments": {
       "label": "Dokumenty",
-      "description": "Przechowuj swoje dokumenty medyczne; opcjonalnie wyodrębniaj i przeglądaj ich fakty przed zapisaniem. Domyślnie wyłączone."
+      "description": "Przechowuj każde pismo lekarskie, wynik i skan w jednym zaszyfrowanym, przeszukiwalnym miejscu — powiązane z Twoimi schorzeniami. Domyślnie wyłączone."
     },
     "mentalHealth": {
       "label": "Dobrostan psychiczny",
@@ -8015,19 +8024,8 @@
   },
   "documents": {
     "title": "Dokumenty",
-    "subtitle": "Przechowuj swoje dokumenty medyczne i sprawdzaj, co zawierają.",
-    "upload": {
-      "label": "Dodaj dokument",
-      "kindLabel": "Kategoria",
-      "button": "Prześlij",
-      "uploading": "Przesyłanie…",
-      "fileLabel": "Plik (wymagany)",
-      "titleLabel": "Tytuł (opcjonalnie)",
-      "titlePlaceholder": "np. Raport kardiologiczny",
-      "dateLabel": "Data dokumentu (opcjonalnie)",
-      "fileRequired": "Wybierz plik do przesłania.",
-      "accepts": "JPEG, PNG, WebP lub PDF · do 12 MB"
-    },
+    "subtitle": "Każde pismo, wynik i skan w jednym przeszukiwalnym miejscu — zaszyfrowane w spoczynku.",
+    "pageUpload": "Prześlij",
     "kind": {
       "DOCTOR_REPORT": "Raport lekarski",
       "DISCHARGE_LETTER": "Wypis ze szpitala",
@@ -8035,124 +8033,112 @@
       "LAB_RESULT": "Wynik laboratoryjny",
       "IMAGING": "Obrazowanie",
       "PRESCRIPTION": "Recepta",
+      "REFERRAL": "Skierowanie",
       "INSURANCE": "Ubezpieczenie",
       "VACCINATION": "Szczepienie"
     },
-    "list": {
-      "empty": "Brak dokumentów.",
-      "noResults": "Żaden dokument nie pasuje do filtrów.",
-      "loadMore": "Załaduj więcej",
-      "loadingMore": "Ładowanie…",
-      "pending": "{count} do przeglądu",
-      "facts": "{count} faktów",
-      "clearFilters": "Wyczyść filtry",
-      "loadError": "Nie udało się wczytać Twoich dokumentów."
+    "filter": {
+      "searchLabel": "Szukaj dokumentów",
+      "searchPlaceholder": "Szukaj tytułu lub nazwy pliku…",
+      "groupLabel": "Filtruj dokumenty",
+      "typeGroup": "Typ dokumentu",
+      "conditionGroup": "Schorzenie",
+      "yearGroup": "Rok",
+      "clear": "Wyczyść filtry"
     },
-    "status": {
-      "EXTRACTING": "Odczyt",
-      "EXTRACTED": "Gotowy do przeglądu",
-      "FAILED": "Nie udało się odczytać",
-      "CONFIRMED": "Przejrzany",
-      "DISCARDED": "Odrzucony",
-      "STORED": "Zapisany"
+    "card": {
+      "untitled": "Dokument bez tytułu",
+      "selectLabel": "Zaznacz {title}",
+      "openLabel": "Otwórz {title}",
+      "attachmentBadge": "Tylko do pobrania",
+      "uploading": "Przesyłanie…",
+      "dismissFailed": "Odrzuć nieudane przesyłanie"
     },
-    "review": {
-      "title": "Przejrzyj wyodrębnione dane",
-      "confirm": "Zapisz zatwierdzone dane",
-      "confirming": "Zapisywanie…",
-      "needsReview": "Wymaga przeglądu",
-      "approve": "Zatwierdź",
-      "reject": "Odrzuć",
-      "edit": "Edytuj",
-      "cancel": "Anuluj",
-      "save": "Zapisz",
-      "needsReviewHint": "Edytuj tę pozycję, aby ją zatwierdzić.",
-      "confidenceLabel": "Pewność rozpoznania",
-      "commitError": {
-        "unitMismatch": "jednostka nie zgadza się z zapisaną",
-        "unitRequired": "wartość liczbowa wymaga jednostki",
-        "generic": "nie udało się zapisać"
-      }
-    },
-    "empty": {
-      "noFacts": "Nic więcej do przejrzenia."
-    },
-    "factType": {
-      "CONDITION": "Diagnoza",
-      "OBSERVATION": "Wartość",
-      "MEDICATION_STATEMENT": "Lek"
-    },
-    "fields": {
-      "label": "Nazwa",
-      "value": "Wartość",
-      "unit": "Jednostka",
-      "date": "Data",
-      "dose": "Dawka"
+    "error": {
+      "fileTooLarge": "Ten plik przekracza limit {maxSize}.",
+      "quotaExceeded": "Miejsce jest pełne — użyto {used} z {quota}.",
+      "unsupportedType": "Ten typ pliku nie jest obsługiwany.",
+      "purged": "Ten dokument został trwale usunięty i nie można go przywrócić.",
+      "duplicateExists": "Identyczny dokument jest już zapisany.",
+      "rateLimited": "Zbyt wiele przesyłań — spróbuj ponownie za kilka minut.",
+      "generic": "Przesyłanie nie powiodło się. Spróbuj ponownie."
     },
     "toast": {
-      "uploaded": "Dokument zapisany.",
-      "uploadFailed": "Nie udało się zapisać dokumentu.",
-      "confirmed": "Zatwierdzone dane zapisane.",
-      "confirmedPartial": "Zapisano, ale {count} nie udało się zapisać — {reason}.",
-      "confirmFailed": "Nie udało się zapisać Twoich decyzji.",
-      "saved": "Dane zaktualizowane.",
-      "discarded": "Dokument odrzucony.",
-      "extracted": "Fakty wyodrębnione. Przejrzyj je poniżej.",
-      "extractFailed": "Nie udało się wyodrębnić faktów.",
-      "localOcrDisabled": "Włącz lokalne OCR w ustawieniach, aby odczytać ten dokument na urządzeniu.",
-      "updated": "Dokument zaktualizowany.",
-      "updateFailed": "Nie udało się zaktualizować dokumentu.",
-      "discardFailed": "Nie udało się odrzucić dokumentu.",
-      "uploadTooLarge": "Plik jest za duży (maks. 12 MB).",
-      "uploadFileType": "Prześlij plik JPEG, PNG, WebP lub PDF.",
-      "uploadRateLimited": "Zbyt wiele przesłań. Spróbuj ponownie później.",
-      "uploadInvalidMetadata": "Sprawdź tytuł, kategorię lub datę i spróbuj ponownie."
+      "duplicate": "Już zapisano — istniejący dokument został wyróżniony.",
+      "deleted": "Dokument usunięty.",
+      "restoreFailed": "Nie udało się przywrócić dokumentu."
     },
-    "toolbar": {
-      "searchLabel": "Szukaj",
-      "searchPlaceholder": "Tytuł lub nazwa pliku",
-      "kindFilterLabel": "Kategoria",
-      "allKinds": "Wszystkie kategorie",
-      "sortLabel": "Sortuj według",
-      "sort": {
-        "documentDate": "Data dokumentu",
-        "createdAt": "Data dodania",
-        "title": "Tytuł"
-      },
-      "orderAsc": "Rosnąco",
-      "orderDesc": "Malejąco",
-      "fromLabel": "Od",
-      "toLabel": "Do"
+    "timeline": {
+      "loadingMore": "Wczytywanie…",
+      "listLabel": "Oś czasu dokumentów"
+    },
+    "upload": {
+      "zoneTitle": "Upuść pliki tutaj lub wybierz z urządzenia",
+      "zoneHint": "PDF, zdjęcia i pliki Office do {maxSize} każdy",
+      "browse": "Wybierz pliki",
+      "quotaAlmostFull": "Miejsce prawie pełne",
+      "quotaUsed": "Użyto {used} z {quota}",
+      "queuedAnnouncement": "Dodano pliki do kolejki przesyłania: {count}"
+    },
+    "selection": {
+      "count": "Zaznaczono: {count}",
+      "clear": "Wyczyść zaznaczenie"
+    },
+    "list": {
+      "loadError": "Nie udało się wczytać Twoich dokumentów."
+    },
+    "empty": {
+      "title": "Twój sejf dokumentów jest pusty",
+      "description": "Przechowuj pisma lekarskie, wyniki laboratoryjne, obrazowanie, recepty i zaświadczenia o szczepieniach — zaszyfrowane i przeszukiwalne według typu, schorzenia i roku.",
+      "action": "Prześlij pierwszy dokument",
+      "noMatchesTitle": "Brak pasujących dokumentów",
+      "noMatchesDescription": "Nic nie pasuje do bieżącego wyszukiwania i filtrów."
     },
     "detail": {
-      "viewOriginal": "Zobacz oryginał",
-      "edit": "Edytuj",
-      "extract": "Wyodrębnij fakty",
-      "extracting": "Wyodrębnianie…",
-      "discard": "Odrzuć",
-      "notExtracted": "Nie wyodrębniono jeszcze faktów. Użyj Wyodrębnij fakty, aby odczytać ten dokument.",
-      "viewOriginalNewTab": "(otwiera się w nowej karcie)",
-      "discardConfirmTitle": "Odrzucić ten dokument?",
-      "discardConfirmBody": "Spowoduje to trwałe usunięcie dokumentu, oryginalnego pliku i przygotowanych danych. Tej operacji nie można cofnąć.",
-      "discardConfirmAction": "Odrzuć",
-      "discardCancel": "Anuluj"
-    },
-    "edit": {
-      "title": "Edytuj dokument",
-      "subtitle": "Zmień nazwę, kategorię lub ustaw datę dokumentu.",
+      "title": "Szczegóły dokumentu",
+      "loadError": "Nie udało się wczytać tego dokumentu.",
+      "saveError": "Nie udało się zapisać zmiany.",
+      "deleteError": "Nie udało się usunąć dokumentu.",
+      "download": "Pobierz",
+      "delete": "Usuń",
       "titleLabel": "Tytuł",
-      "kindLabel": "Kategoria",
+      "titlePlaceholder": "Dodaj tytuł",
+      "kindLabel": "Typ",
       "dateLabel": "Data dokumentu",
-      "save": "Zapisz",
-      "saving": "Zapisywanie…",
-      "cancel": "Anuluj"
+      "conditionsLabel": "Powiązane schorzenia",
+      "linkCondition": "Powiąż",
+      "noConditions": "Niepowiązany ze schorzeniem",
+      "previewUnavailable": "Brak podglądu dla tego typu pliku",
+      "uploadedMeta": "Dodano {date} · {size}"
     },
-    "note": {
-      "providerUnsupported": "Skonfiguruj dostawcę skanowania dokumentów w ustawieniach AI, aby automatycznie wyodrębniać fakty.",
-      "alreadyConfirmed": "Ten dokument został już sprawdzony, więc nie można go ponownie wyodrębnić."
+    "dropOverlay": {
+      "title": "Upuść pliki, aby je przesłać",
+      "hint": "Są zapisywane w Twoich dokumentach w postaci zaszyfrowanej"
     },
-    "committed": {
-      "title": "Zatwierdzone z tego dokumentu"
+    "bulk": {
+      "barLabel": "Akcje dla zaznaczonych dokumentów",
+      "setKind": "Zmień typ",
+      "linkCondition": "Powiąż ze schorzeniem",
+      "delete": "Usuń",
+      "updated": "Zaktualizowano dokumenty: {count}",
+      "deleted": "Usunięto dokumenty: {count}",
+      "restored": "Przywrócono dokumenty: {count}",
+      "partialFailure": "Nie udało się zaktualizować {failed} z {total}",
+      "failed": "Nie udało się wykonać akcji"
+    },
+    "episodeCard": {
+      "title": "Dokumenty",
+      "link": "Powiąż",
+      "upload": "Prześlij",
+      "viewAll": "Pokaż wszystkie",
+      "emptyLine": "Brak dokumentów powiązanych z tym schorzeniem.",
+      "loadError": "Nie udało się wczytać połączonych dokumentów"
+    },
+    "linkPicker": {
+      "title": "Powiąż dokumenty",
+      "description": "Wybierz dokumenty z archiwum, które dotyczą tego schorzenia.",
+      "searchPlaceholder": "Szukaj po tytule lub nazwie pliku",
+      "empty": "Nie znaleziono dokumentów."
     }
   },
   "selfDescription": {

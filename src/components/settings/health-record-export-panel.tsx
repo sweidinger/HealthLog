@@ -20,8 +20,15 @@
  * compact instead of as a long always-expanded checklist.
  */
 
+import Link from "next/link";
 import { useId, useState } from "react";
-import { ChevronDown, Download, FileText, Loader2 } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  FileText,
+  FolderOpen,
+  Loader2,
+} from "lucide-react";
 
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
@@ -32,6 +39,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
 import { apiFetchRaw } from "@/lib/api/api-fetch";
+import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +125,7 @@ function buildSelectionSections(s: SectionState) {
 
 export function HealthRecordExportPanel() {
   const { t, locale } = useTranslations();
+  const { user } = useAuth();
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [days, setDays] = useState<number>(90);
   const [practiceName, setPracticeName] = useState("");
@@ -250,6 +259,20 @@ export function HealthRecordExportPanel() {
               <option value="180">{t("settings.healthRecord.range180")}</option>
               <option value="365">{t("settings.healthRecord.range365")}</option>
             </NativeSelect>
+            {/* Entry point into the document vault for the report period
+                (navigation only — attaching documents to the PDF is a later
+                phase). Year granularity is what the vault's URL filters
+                offer; the current year covers the bulk of any range. Only
+                rendered when the documents module is enabled. */}
+            {user?.modules?.inboundDocuments ? (
+              <Link
+                href={`/documents?year=${new Date().getFullYear()}`}
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md text-xs transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
+              >
+                <FolderOpen className="size-3.5" aria-hidden />
+                {t("settings.healthRecord.documentsLink")}
+              </Link>
+            ) : null}
           </div>
         </div>
 

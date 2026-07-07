@@ -124,6 +124,12 @@ import {
   handleMedicationInventoryExpire,
   handleIntakeAutoSkip,
 } from "./medication-maintenance";
+import {
+  DOCUMENT_PURGE_QUEUE,
+  DOCUMENT_PURGE_CRON,
+  handleDocumentPurge,
+  type DocumentPurgePayload,
+} from "@/lib/jobs/document-purge";
 
 const DATA_BACKUP_QUEUE = "data-backup";
 
@@ -287,6 +293,11 @@ const allQueues = [
   // plaintext medication note; without this entry pg-boss never provisions the
   // queue and both the boot enqueue and the cron silently no-op.
   MED_NOTES_ENCRYPTION_BACKFILL_QUEUE,
+  // Document vault — daily physical purge for tombstones past the 30-day
+  // undo grace (returns the encrypted blob's TOAST space). Without this entry
+  // the daily schedule silently no-ops and "deleted" documents hold backup
+  // weight forever.
+  DOCUMENT_PURGE_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -352,6 +363,9 @@ const schedules: ScheduleEntry[] = [
   // fan out one per-user job per account still holding a plaintext medication
   // note.
   [MED_NOTES_ENCRYPTION_BACKFILL_QUEUE, MED_NOTES_ENCRYPTION_BACKFILL_CRON],
+  // Document vault — daily 04:10 Europe/Berlin purge for tombstoned
+  // documents past the 30-day undo grace.
+  [DOCUMENT_PURGE_QUEUE, DOCUMENT_PURGE_CRON],
 ];
 
 /**
@@ -447,6 +461,14 @@ export async function registerMaintenanceQueues(
     MCP_TOKEN_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleMcpTokenCleanup,
+  );
+  // Document vault — daily purge of tombstoned documents past the 30-day
+  // undo grace. Single-flight like every other cleanup queue; the underlying
+  // deleteMany is idempotent so a duplicate tick is a no-op.
+  await boss.work<DocumentPurgePayload>(
+    DOCUMENT_PURGE_QUEUE,
+    { localConcurrency: 1 },
+    handleDocumentPurge,
   );
   await boss.work<PrDetectionPayload>(
     PR_DETECTION_QUEUE,
