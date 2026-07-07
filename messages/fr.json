@@ -316,6 +316,7 @@
     "welcomeBackWithName": "{greeting} {name}, content de te revoir.",
     "hero": {
       "scoreLabel": "Health Score",
+      "ringLink": "Ouvrir les détails de {metric}",
       "scoreProvisional": "Pas encore assez de données",
       "scoreComputing": "Calcul du score en cours …",
       "ringDoses": "Doses du jour",
@@ -7681,9 +7682,10 @@
     }
   },
   "mentalHealth": {
-    "pageTitle": "Point sur le bien-être mental",
+    "pageTitle": "Bien-être mental",
     "pageDescription": "Quatre auto-évaluations validées et facultatives — PHQ-9 (humeur), GAD-7 (inquiétude), WHO-5 (bien-être) et SCI (sommeil) — en complément de ton suivi de l'humeur. Ce qui compte, c'est la tendance dans le temps, pas un chiffre isolé.",
     "attributionLabel": "Source",
+    "attributionShow": "Source et licence pour {instrument}",
     "choosePrompt": "Choisis un bilan",
     "start": "Commencer",
     "back": "Retour",

@@ -316,6 +316,7 @@
     "welcomeBackWithName": "{greeting} {name}, welcome back.",
     "hero": {
       "scoreLabel": "Health Score",
+      "ringLink": "Open {metric} details",
       "scoreProvisional": "Not enough data yet",
       "scoreComputing": "Calculating score…",
       "ringDoses": "Doses today",
@@ -7681,9 +7682,10 @@
     }
   },
   "mentalHealth": {
-    "pageTitle": "Mental wellbeing check-in",
+    "pageTitle": "Mental wellbeing",
     "pageDescription": "Validated, opt-in self-checks — PHQ-9 (mood), GAD-7 (worry), WHO-5 (well-being) and SCI (sleep) — that sit beside your mood tracking. The value is the trend over time, not any single number.",
     "attributionLabel": "Attribution",
+    "attributionShow": "Source and licence for {instrument}",
     "choosePrompt": "Choose a check-in",
     "start": "Start",
     "back": "Back",

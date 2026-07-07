@@ -521,6 +521,47 @@ describe("<DashboardHero> — ring row (v1.27.7)", () => {
   });
 });
 
+describe("<DashboardHero> — ring links (v1.27.24)", () => {
+  it("each ring links to its natural detail surface with an aria-label", () => {
+    const html = render(
+      baseSnapshot({
+        healthScore: { score: 82, band: "green", delta: 2 },
+        scoreRings: [
+          { id: "READINESS", score: 71, band: "green" },
+          { id: "SLEEP_SCORE", score: 66, band: "yellow" },
+          {
+            id: "MED_COMPLIANCE",
+            score: 33,
+            band: "yellow",
+            doses: { taken: 1, scheduled: 3 },
+          },
+        ],
+      }),
+    );
+    // Derived rings → their score-anatomy detail page.
+    const readiness = html.slice(
+      html.indexOf('data-ring="READINESS"'),
+      html.indexOf('data-ring="SLEEP_SCORE"'),
+    );
+    expect(readiness).toContain('data-slot="dashboard-hero-ring-link"');
+    expect(readiness).toContain('href="/insights/scores/readiness"');
+    expect(readiness).toContain("aria-label=");
+    const sleep = html.slice(
+      html.indexOf('data-ring="SLEEP_SCORE"'),
+      html.indexOf('data-ring="MED_COMPLIANCE"'),
+    );
+    expect(sleep).toContain('href="/insights/scores/sleep"');
+    // Dose ring → the medications surface.
+    const med = html.slice(html.indexOf('data-ring="MED_COMPLIANCE"'));
+    expect(med).toContain('href="/medications"');
+    // Health-score ring → the Insights overview.
+    expect(html).toContain('href="/insights"');
+    // Every ring link is keyboard-focusable (native anchor) — one per slide.
+    const links = html.match(/data-slot="dashboard-hero-ring-link"/g) ?? [];
+    expect(links).toHaveLength(4);
+  });
+});
+
 describe("<DashboardHero> — greeting", () => {
   it("personalises from the snapshot username with the server greeting hour", () => {
     const html = render(

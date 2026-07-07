@@ -316,6 +316,7 @@
     "welcomeBackWithName": "{greeting} {name}, witaj ponownie.",
     "hero": {
       "scoreLabel": "Health Score",
+      "ringLink": "Otwórz szczegóły: {metric}",
       "scoreProvisional": "Za mało danych",
       "scoreComputing": "Trwa obliczanie wyniku …",
       "ringDoses": "Dzisiejsze dawki",
@@ -7681,9 +7682,10 @@
     }
   },
   "mentalHealth": {
-    "pageTitle": "Sprawdzenie dobrostanu psychicznego",
+    "pageTitle": "Dobrostan psychiczny",
     "pageDescription": "Cztery zwalidowane, dobrowolne testy — PHQ-9 (nastrój), GAD-7 (lęk), WHO-5 (samopoczucie) i SCI (sen) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
     "attributionLabel": "Źródło",
+    "attributionShow": "Źródło i licencja: {instrument}",
     "choosePrompt": "Wybierz sprawdzenie",
     "start": "Rozpocznij",
     "back": "Wstecz",

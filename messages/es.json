@@ -316,6 +316,7 @@
     "welcomeBackWithName": "{greeting} {name}, te damos la bienvenida de nuevo.",
     "hero": {
       "scoreLabel": "Health Score",
+      "ringLink": "Abrir detalles de {metric}",
       "scoreProvisional": "Aún no hay datos suficientes",
       "scoreComputing": "Calculando la puntuación …",
       "ringDoses": "Dosis de hoy",
@@ -7681,9 +7682,10 @@
     }
   },
   "mentalHealth": {
-    "pageTitle": "Revisión de bienestar mental",
+    "pageTitle": "Bienestar mental",
     "pageDescription": "Cuatro autoevaluaciones validadas y opcionales — PHQ-9 (estado de ánimo), GAD-7 (preocupación), WHO-5 (bienestar) y SCI (sueño) — junto a tu registro de ánimo. Lo valioso es la tendencia en el tiempo, no un único número.",
     "attributionLabel": "Fuente",
+    "attributionShow": "Fuente y licencia de {instrument}",
     "choosePrompt": "Elige una revisión",
     "start": "Empezar",
     "back": "Atrás",
