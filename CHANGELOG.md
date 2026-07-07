@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.27.23] — 2026-07-07 — Dashboard hero polish
+
+### Changed
+
+- On phones, the dashboard hero's wellness rings become a swipeable carousel — one ring shown at a time, centered, with dot indicators; swipe left/right through readiness, recovery, doses, and the health score. Calmer, and no vertical space spent on a cramped row. The desktop layout keeps every ring in the row.
+- The desktop hero tightens the gap between the greeting/ring row and the briefing by one step.
+
 ## [1.27.22] — 2026-07-07 — Document assist and content search
 
 ### Added
