@@ -70,6 +70,12 @@ import {
   type MedNotesEncryptionBackfillPayload,
 } from "@/lib/jobs/med-notes-encryption-backfill";
 import {
+  CONTENT_INDEX_BACKFILL_QUEUE,
+  CONTENT_INDEX_BACKFILL_CONCURRENCY,
+  runContentIndexBackfillForUser,
+  type ContentIndexBackfillPayload,
+} from "@/lib/jobs/document-content-index-backfill";
+import {
   ENCRYPTION_KEY_ROTATE_QUEUE,
   ENCRYPTION_KEY_ROTATE_CONCURRENCY,
   handleEncryptionKeyRotate,
@@ -298,6 +304,12 @@ const allQueues = [
   // the daily schedule silently no-ops and "deleted" documents hold backup
   // weight forever.
   DOCUMENT_PURGE_QUEUE,
+  // Document vault P2 — on-demand content-search index backfill. Fired by the
+  // "index all documents" action (no cron): indexes a user's not-yet-indexed
+  // documents via one provider transcription each, consent + budget gated.
+  // Without this entry pg-boss never provisions the queue and the trigger
+  // silently no-ops.
+  CONTENT_INDEX_BACKFILL_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -631,6 +643,37 @@ export async function registerMaintenanceQueues(
           workerLog(
             "error",
             `[med-notes-encryption-backfill] user=${userId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
+  // Document vault P2 — on-demand content-search index backfill worker. The
+  // trigger endpoint sends one per-user job; this handler indexes that user's
+  // not-yet-indexed documents (consent + budget gated, bounded + resumable).
+  // Serial concurrency so the provider calls never crowd the request pool.
+  await boss.work<ContentIndexBackfillPayload>(
+    CONTENT_INDEX_BACKFILL_QUEUE,
+    { localConcurrency: CONTENT_INDEX_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        if (!userId) continue;
+        try {
+          const { indexed, reason } =
+            await runContentIndexBackfillForUser(userId);
+          workerLog(
+            "info",
+            `[document-content-index-backfill] user=${userId} indexed=${indexed} reason=${reason}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[document-content-index-backfill] user=${userId} failed`,
             err,
           );
           throw err;

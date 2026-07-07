@@ -208,6 +208,15 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   // document itself rather than persisting as plaintext JSONB.
   { model: "ExtractedFact", field: "dataEncrypted", kind: "bytes" },
   { model: "ExtractedFact", field: "provenanceEncrypted", kind: "bytes" },
+
+  // ───── v1.27.22 document content-search index (Bytes text) ─────
+  // The normalised extracted text of an indexed document, AES-256-GCM at rest
+  // in the `encrypt()`-string-as-UTF-8 Bytes shape. Rotation re-encrypts it AND
+  // re-tokenises the sibling blind token array from the decrypted text under the
+  // new active index subkey (P2-D7) — a dedicated block in the rotation script,
+  // not the generic Bytes walk. The `search_tokens` array itself is one-way
+  // (HMAC) and is not a registry column.
+  { model: "DocumentContentIndex", field: "textEncrypted", kind: "bytes" },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */

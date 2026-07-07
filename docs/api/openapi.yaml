@@ -9135,6 +9135,197 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
+  /api/documents/inbound/{id}/suggest:
+    post:
+      tags:
+        - Documents
+      summary: Suggest filing metadata (drafts only)
+      description: "Optional AI assist on an already-stored document. Runs ONE provider call over the stored original (VISION,
+        empty body) or browser-OCR'd text (TEXT, `application/json` `{ mode: \"text\", text }`, opt-in local OCR) and
+        returns a `{ title, kind, documentDate }` DRAFT for the edit form. AI-consent / rate / budget gated (shares the
+        6/hour extract bucket). WRITES NOTHING — never stages facts, never flips status; the user reviews and saves. 422
+        (`documents.inbound.providerUnsupported`) with no provider configured. Never interprets or diagnoses; the title
+        is a neutral filing label."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  const: text
+                text:
+                  type: string
+                kind:
+                  type: string
+                  enum:
+                    - DOCTOR_REPORT
+                    - DISCHARGE_LETTER
+                    - LAB_RESULT
+                    - IMAGING
+                    - PRESCRIPTION
+                    - REFERRAL
+                    - INSURANCE
+                    - VACCINATION
+                    - OTHER
+              required:
+                - mode
+                - text
+      responses:
+        "200":
+          description: The filing-metadata suggestion (drafts).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSuggestEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}/summary:
+    post:
+      tags:
+        - Documents
+      summary: Summarise or transcribe a document (session-only)
+      description: 'On-demand, SESSION-ONLY description of a stored document. `?mode=summary` (default) returns a short
+        plain-language summary of WHAT the document is; `?mode=text` returns its raw transcribed text. The result is
+        transient — nothing is persisted except the AI-budget ledger + audit log; it never reaches coach memory,
+        snapshots, the structured stores, or the search index. The summary is descriptive only and never a diagnosis.
+        Same VISION (empty body) / TEXT (`application/json` `{ mode: "text", text }`, opt-in local OCR) dispatch as
+        extract. AI-consent / rate / budget gated. 422 with no provider.'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - summary
+              - text
+            default: summary
+          description: "`summary` (plain-language description) or `text` (raw)."
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  const: text
+                text:
+                  type: string
+                kind:
+                  type: string
+                  enum:
+                    - DOCTOR_REPORT
+                    - DISCHARGE_LETTER
+                    - LAB_RESULT
+                    - IMAGING
+                    - PRESCRIPTION
+                    - REFERRAL
+                    - INSURANCE
+                    - VACCINATION
+                    - OTHER
+              required:
+                - mode
+                - text
+      responses:
+        "200":
+          description: The session-only summary (`{ summary }`) or extracted text (`{ text }`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSummaryEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}/index:
+    post:
+      tags:
+        - Documents
+      summary: Build / refresh the content-search index
+      description: "Populates or refreshes one document's content-search index so search matches INSIDE its body. VISION
+        (empty body) decrypts the stored original and runs one provider transcription (AI-consent / rate / budget
+        gated); TEXT (`application/json` `{ mode: \"text\", text }`, opt-in local OCR) indexes browser-OCR'd text with
+        no provider egress. Persists ONLY AES-256-GCM ciphertext of the text plus opaque HMAC token hashes — no
+        plaintext body, no plaintext token. Gated on the existing AI consent (no separate per-user toggle). Idempotent;
+        re-indexing overwrites in place."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  const: text
+                text:
+                  type: string
+                kind:
+                  type: string
+                  enum:
+                    - DOCTOR_REPORT
+                    - DISCHARGE_LETTER
+                    - LAB_RESULT
+                    - IMAGING
+                    - PRESCRIPTION
+                    - REFERRAL
+                    - INSURANCE
+                    - VACCINATION
+                    - OTHER
+              required:
+                - mode
+                - text
+      responses:
+        "200":
+          description: The document was indexed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentIndexEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/reindex:
+    post:
+      tags:
+        - Documents
+      summary: Index all documents for content search
+      description: Enqueues a background job that content-indexes the caller's not-yet-indexed documents (one provider
+        transcription each, bounded + resumable). Gated on the module, a configured vision provider (422
+        `documents.inbound.providerUnsupported` otherwise), and the existing AI consent (403 otherwise). Returns
+        immediately; the work runs off-request on the queue.
+      responses:
+        "200":
+          description: Whether a backfill job was enqueued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentReindexEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/documents/inbound/{id}/facts/{factId}:
     patch:
       tags:
@@ -25933,6 +26124,8 @@ components:
           enum:
             - inline
             - attachment
+        hasContentIndex:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
@@ -25953,6 +26146,7 @@ components:
         - pendingCount
         - conditionLinks
         - servingClass
+        - hasContentIndex
         - createdAt
         - updatedAt
       additionalProperties: false
@@ -25960,7 +26154,8 @@ components:
         staging summary. `status` is STORED for a freshly uploaded file (no extraction run). `title` is the user label
         (plaintext); `documentDate` is the user filing date; `reportDate` is the model-transcribed date (null until
         extraction runs). `servingClass` says how `/original` delivers the file — render inline (`inline`) or
-        download-only (`attachment`); render/download by it, never by MIME guess. Treat an unknown `kind` value as OTHER
+        download-only (`attachment`); render/download by it, never by MIME guess. `hasContentIndex` is true when the
+        document has a content-search index (drives the re-index affordance). Treat an unknown `kind` value as OTHER
         when decoding.
     DocumentConditionLink:
       type: object
@@ -26034,12 +26229,30 @@ components:
               - episodeId
               - name
             additionalProperties: false
+        assistAvailable:
+          type: boolean
+        contentIndex:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            indexedCount:
+              type: number
+            totalCount:
+              type: number
+          required:
+            - enabled
+            - indexedCount
+            - totalCount
+          additionalProperties: false
       required:
         - usedBytes
         - quotaBytes
         - maxFileBytes
         - acceptedExtensions
         - linkedEpisodes
+        - assistAvailable
+        - contentIndex
       additionalProperties: false
     DocumentBulkEnvelope:
       type: object
@@ -26166,6 +26379,8 @@ components:
           enum:
             - inline
             - attachment
+        hasContentIndex:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
@@ -26190,6 +26405,7 @@ components:
         - pendingCount
         - conditionLinks
         - servingClass
+        - hasContentIndex
         - createdAt
         - updatedAt
         - facts
@@ -26335,6 +26551,140 @@ components:
       required:
         - data
         - error
+      additionalProperties: false
+    DocumentSuggestEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DocumentSuggestResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DocumentSuggestResponse:
+      type: object
+      properties:
+        suggestions:
+          type: object
+          properties:
+            title:
+              anyOf:
+                - type: string
+                - type: "null"
+            kind:
+              anyOf:
+                - type: string
+                  enum:
+                    - DOCTOR_REPORT
+                    - DISCHARGE_LETTER
+                    - LAB_RESULT
+                    - IMAGING
+                    - PRESCRIPTION
+                    - REFERRAL
+                    - INSURANCE
+                    - VACCINATION
+                    - OTHER
+                - type: "null"
+            documentDate:
+              anyOf:
+                - type: string
+                - type: "null"
+          required:
+            - title
+            - kind
+            - documentDate
+          additionalProperties: false
+      required:
+        - suggestions
+      additionalProperties: false
+    DocumentSummaryEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DocumentSummaryResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DocumentSummaryResponse:
+      type: object
+      properties:
+        summary:
+          type: string
+        text:
+          type: string
+      additionalProperties: false
+    DocumentIndexEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DocumentIndexResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DocumentIndexResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+        indexed:
+          type: boolean
+        tokenCount:
+          type: number
+      required:
+        - documentId
+        - indexed
+        - tokenCount
+      additionalProperties: false
+    DocumentReindexEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DocumentReindexResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DocumentReindexResponse:
+      type: object
+      properties:
+        enqueued:
+          type: boolean
+      required:
+        - enqueued
       additionalProperties: false
     ExtractedFactEnvelope:
       type: object

@@ -107,13 +107,14 @@ const inboundDocument = z
     pendingCount: z.number(),
     conditionLinks: z.array(conditionLink),
     servingClass: z.enum(["inline", "attachment"]),
+    hasContentIndex: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
   .meta({
     id: "InboundDocument",
     description:
-      "A stored document. The raw bytes are stored encrypted at rest and never returned; this is the metadata + staging summary. `status` is STORED for a freshly uploaded file (no extraction run). `title` is the user label (plaintext); `documentDate` is the user filing date; `reportDate` is the model-transcribed date (null until extraction runs). `servingClass` says how `/original` delivers the file — render inline (`inline`) or download-only (`attachment`); render/download by it, never by MIME guess. Treat an unknown `kind` value as OTHER when decoding.",
+      "A stored document. The raw bytes are stored encrypted at rest and never returned; this is the metadata + staging summary. `status` is STORED for a freshly uploaded file (no extraction run). `title` is the user label (plaintext); `documentDate` is the user filing date; `reportDate` is the model-transcribed date (null until extraction runs). `servingClass` says how `/original` delivers the file — render inline (`inline`) or download-only (`attachment`); render/download by it, never by MIME guess. `hasContentIndex` is true when the document has a content-search index (drives the re-index affordance). Treat an unknown `kind` value as OTHER when decoding.",
   });
 
 const inboundDocumentDetail = inboundDocument
@@ -354,6 +355,12 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                         name: z.string(),
                       }),
                     ),
+                    assistAvailable: z.boolean(),
+                    contentIndex: z.object({
+                      enabled: z.boolean(),
+                      indexedCount: z.number(),
+                      totalCount: z.number(),
+                    }),
                   })
                   .meta({ id: "DocumentUsage" }),
                 "DocumentUsageEnvelope",
@@ -604,6 +611,172 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description:
             "Re-extraction refused: at least one fact on this document is already APPROVED. `meta.errorCode` = `documents.inbound.alreadyPartlyConfirmed`. Re-extracting would sever committed-record provenance and duplicate committed records, so the user must finish reviewing or discard the document first.",
           content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/documents/inbound/{id}/suggest": {
+    post: {
+      tags: ["Documents"],
+      summary: "Suggest filing metadata (drafts only)",
+      description:
+        "Optional AI assist on an already-stored document. Runs ONE provider call over the stored original (VISION, empty body) or browser-OCR'd text (TEXT, `application/json` `{ mode: \"text\", text }`, opt-in local OCR) and returns a `{ title, kind, documentDate }` DRAFT for the edit form. AI-consent / rate / budget gated (shares the 6/hour extract bucket). WRITES NOTHING — never stages facts, never flips status; the user reviews and saves. 422 (`documents.inbound.providerUnsupported`) with no provider configured. Never interprets or diagnoses; the title is a neutral filing label.",
+      parameters: [
+        { name: "id", in: "path", required: true, schema: { type: "string" } },
+      ],
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: z.object({
+              mode: z.literal("text"),
+              text: z.string(),
+              kind: kindEnum.optional(),
+            }),
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The filing-metadata suggestion (drafts).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z
+                  .object({
+                    suggestions: z.object({
+                      title: z.string().nullable(),
+                      kind: kindEnum.nullable(),
+                      documentDate: z.string().nullable(),
+                    }),
+                  })
+                  .meta({ id: "DocumentSuggestResponse" }),
+                "DocumentSuggestEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/documents/inbound/{id}/summary": {
+    post: {
+      tags: ["Documents"],
+      summary: "Summarise or transcribe a document (session-only)",
+      description:
+        "On-demand, SESSION-ONLY description of a stored document. `?mode=summary` (default) returns a short plain-language summary of WHAT the document is; `?mode=text` returns its raw transcribed text. The result is transient — nothing is persisted except the AI-budget ledger + audit log; it never reaches coach memory, snapshots, the structured stores, or the search index. The summary is descriptive only and never a diagnosis. Same VISION (empty body) / TEXT (`application/json` `{ mode: \"text\", text }`, opt-in local OCR) dispatch as extract. AI-consent / rate / budget gated. 422 with no provider.",
+      parameters: [
+        { name: "id", in: "path", required: true, schema: { type: "string" } },
+        {
+          name: "mode",
+          in: "query",
+          required: false,
+          schema: {
+            type: "string",
+            enum: ["summary", "text"],
+            default: "summary",
+          },
+          description: "`summary` (plain-language description) or `text` (raw).",
+        },
+      ],
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: z.object({
+              mode: z.literal("text"),
+              text: z.string(),
+              kind: kindEnum.optional(),
+            }),
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "The session-only summary (`{ summary }`) or extracted text (`{ text }`).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z
+                  .object({
+                    summary: z.string().optional(),
+                    text: z.string().optional(),
+                  })
+                  .meta({ id: "DocumentSummaryResponse" }),
+                "DocumentSummaryEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/documents/inbound/{id}/index": {
+    post: {
+      tags: ["Documents"],
+      summary: "Build / refresh the content-search index",
+      description:
+        "Populates or refreshes one document's content-search index so search matches INSIDE its body. VISION (empty body) decrypts the stored original and runs one provider transcription (AI-consent / rate / budget gated); TEXT (`application/json` `{ mode: \"text\", text }`, opt-in local OCR) indexes browser-OCR'd text with no provider egress. Persists ONLY AES-256-GCM ciphertext of the text plus opaque HMAC token hashes — no plaintext body, no plaintext token. Gated on the existing AI consent (no separate per-user toggle). Idempotent; re-indexing overwrites in place.",
+      parameters: [
+        { name: "id", in: "path", required: true, schema: { type: "string" } },
+      ],
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: z.object({
+              mode: z.literal("text"),
+              text: z.string(),
+              kind: kindEnum.optional(),
+            }),
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The document was indexed.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z
+                  .object({
+                    documentId: z.string(),
+                    indexed: z.boolean(),
+                    tokenCount: z.number(),
+                  })
+                  .meta({ id: "DocumentIndexResponse" }),
+                "DocumentIndexEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/documents/inbound/reindex": {
+    post: {
+      tags: ["Documents"],
+      summary: "Index all documents for content search",
+      description:
+        "Enqueues a background job that content-indexes the caller's not-yet-indexed documents (one provider transcription each, bounded + resumable). Gated on the module, a configured vision provider (422 `documents.inbound.providerUnsupported` otherwise), and the existing AI consent (403 otherwise). Returns immediately; the work runs off-request on the queue.",
+      responses: {
+        "200": {
+          description: "Whether a backfill job was enqueued.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z
+                  .object({ enqueued: z.boolean() })
+                  .meta({ id: "DocumentReindexResponse" }),
+                "DocumentReindexEnvelope",
+              ),
+            },
+          },
         },
         ...stdResponses,
       },
