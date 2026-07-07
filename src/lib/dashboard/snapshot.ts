@@ -408,8 +408,9 @@ export interface DashboardSnapshot {
   /**
    * v1.27.7 — the user-selected hero score rings (max 3), resolved
    * server-side: READINESS / RECOVERY_SCORE / SLEEP_SCORE through the
-   * same engines the derived batch route calls, MED_COMPLIANCE as the
-   * pooled 7-day adherence from the canonical compliance engine. Only
+   * same engines the derived batch route calls, MED_COMPLIANCE as
+   * TODAY's dose tally (taken / scheduled, from the snapshot's own
+   * medsToday block — v1.27.8; not a trailing 7-day rate). Only
    * rings with data appear (selection order preserved); module-disabled
    * and data-less selections drop out, so the hero row self-gates.
    * Optional on the type (additive contract) so older cached snapshots
