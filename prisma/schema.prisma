@@ -4852,11 +4852,39 @@ model ClinicianShareLink {
   lastAccessAt DateTime? @map("last_access_at")
   accessCount  Int       @default(0) @map("access_count")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// v1.28 — the hand-picked document set this link exposes (0..N). A relation,
+  /// not a column: frozen write-once at create, owner-checked, never widened.
+  documents ClinicianShareLinkDocument[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([expiresAt])
   @@map("clinician_share_links")
+}
+
+/// v1.28 (document vault, Phase 3) — frozen, write-once membership binding a
+/// stored document to a clinician share link. The document set a share exposes
+/// is modelled as this relation, never a mutable column: the rows are created
+/// in the same transaction as the link, each `documentId` is validated as the
+/// caller's own live document at create time, and the set is never widened
+/// afterwards. The public share serve route serves ONLY a document id present
+/// in this set for the resolved token — a guessed / foreign id is a flat 404.
+/// Both foreign keys cascade: deleting the link or the underlying document
+/// removes the membership cleanly (a shared document the owner later deletes
+/// simply disappears from the link).
+model ClinicianShareLinkDocument {
+  id          String   @id @default(cuid())
+  shareLinkId String   @map("share_link_id")
+  documentId  String   @map("document_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  shareLink ClinicianShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+  document  InboundDocument    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([shareLinkId, documentId])
+  @@index([shareLinkId])
+  @@index([documentId])
+  @@map("clinician_share_link_documents")
 }
 
 // v1.11.0 W3 — period-narrative cache (Pillar P1).
@@ -5815,6 +5843,9 @@ model InboundDocument {
 
   facts          ExtractedFact[]
   conditionLinks DocumentConditionLink[]
+  /// v1.28 — share-link memberships (m:n via `ClinicianShareLinkDocument`).
+  /// Cascades: deleting this document removes it from every share it was on.
+  shareLinks     ClinicianShareLinkDocument[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
