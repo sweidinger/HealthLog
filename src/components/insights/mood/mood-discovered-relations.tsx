@@ -90,7 +90,10 @@ export function MoodDiscoveredRelations({
     // observational disclaimer fold into the one tooltip) so the surface stops
     // spending a muted paragraph on a footnote.
     <div data-slot="mood-discovered-relations" className="space-y-1">
-      <div className="text-foreground flex items-center gap-1.5 text-sm font-medium">
+      {/* <sm stacks the caveat caption under the subheading — beside a
+          2-line heading it wrapped to 9 lines at ~58 % of the row width on
+          phone viewports. */}
+      <div className="text-foreground flex flex-col gap-1 text-sm font-medium sm:flex-row sm:items-center sm:gap-1.5">
         <span>{t("insights.mood.discovery.subheading")}</span>
         <MoodExplainerIcon
           label={t("insights.mood.discovery.explainerLabel")}
@@ -121,10 +124,11 @@ export function MoodDiscoveredRelations({
               data-direction={up ? "up" : "down"}
             >
               {/* The {n} paired days · r · q numeric detail rides an explainer
-                  icon on the same line as the finding so the list stays one
-                  row per pair. The finding itself reads in the standard
-                  foreground colour. */}
-              <span className="text-foreground flex items-center gap-1.5">
+                  caption beside the finding on ≥sm; on phone widths it stacks
+                  below the sentence instead of squeezing to a 4-line sliver
+                  at ~25 % of the row. The finding itself reads in the
+                  standard foreground colour. */}
+              <span className="text-foreground flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-1.5">
                 <span>{t(sentenceKey, { factor: factorLabel })}</span>
                 <MoodExplainerIcon
                   label={t("insights.mood.discovery.statLabel")}

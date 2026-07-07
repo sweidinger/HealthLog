@@ -105,7 +105,13 @@ function MoodCorrelationCard({
           title={t(TITLE_KEY[kind])}
           right={
             hasResult && data.result ? (
-              <div className="flex shrink-0 items-center gap-1.5">
+              // No `shrink-0` here: the slot kept its icon-era rigidity after
+              // v1.22 swapped the info glyph for an inline caption, and the
+              // unshrinkable badge+caption row escaped the card's right edge
+              // by 14–39 px on phone viewports. The caption itself moves
+              // below the title on <sm (see the sm:hidden twin under the
+              // header); only the compact badge stays pinned right.
+              <div className="flex min-w-0 items-center gap-1.5">
                 <Badge variant="outline" className="text-[10px]">
                   {t(STRENGTH_KEY[data.result.strength])}
                 </Badge>
@@ -113,6 +119,7 @@ function MoodCorrelationCard({
                     scatter as a half-empty row. Move it into an explainer icon
                     in the header so the card footprint stays tight. */}
                 <MoodExplainerIcon
+                  className="hidden whitespace-nowrap sm:inline"
                   label={t("insights.mood.correlation.sourceLabel")}
                   detail={t("insights.mood.correlation.source", {
                     n: data.n,
@@ -123,6 +130,18 @@ function MoodCorrelationCard({
             ) : undefined
           }
         />
+        {/* <sm twin of the header caption: stacked under the title so the
+            title keeps the row width and nothing can escape the tile. */}
+        {hasResult && data.result ? (
+          <MoodExplainerIcon
+            className="sm:hidden"
+            label={t("insights.mood.correlation.sourceLabel")}
+            detail={t("insights.mood.correlation.source", {
+              n: data.n,
+              r: data.result.r.toFixed(2),
+            })}
+          />
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-3">
         {hasResult && data.result ? (
