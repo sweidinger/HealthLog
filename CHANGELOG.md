@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.27.17] — 2026-07-07 — The document vault
+
+### Added
+
+- A document vault: an opt-in module (Settings → Modules) that stores the paper trail a household accumulates — doctor letters, discharge summaries, lab and imaging reports, prescriptions, referrals, insurance letters, vaccination records — encrypted at rest in one searchable timeline, with no folders to maintain.
+- Upload by drag-and-drop anywhere on the page, paste from the clipboard, or the file picker; multiple files upload in parallel with per-file progress and instant optimistic entries. Files are classified by their actual bytes, not their extension: PDFs and photos (JPEG, PNG, WebP, GIF) preview inline; Office, text, CSV, RTF, TIFF, and HEIC files are stored verbatim and served only as an opaque download; executables, HTML/SVG, and archives are refused at upload. Nothing a user uploads can execute in the app's origin.
+- Find a document in seconds: filter by type, by linked condition, or by year, or search titles and filenames — every filter lives in the URL, so a view is shareable and the back button restores it. Each document opens in a detail view with inline preview, editable title, type, and date, and links to the conditions it belongs to; the illness journal shows and links its documents both ways.
+- Bulk selection (shift-click, long-press on touch) with bulk type assignment, condition linking, and delete; delete is undo-able with a 30-day grace before a nightly job reclaims the space. Full keyboard navigation and screen-reader labelling throughout.
+- Operators tune two limits on the admin settings page: a per-file cap (default 25 MB, hard ceiling 100 MB) and a per-account quota (default 1 GB, with an optional per-user override). Documents live in Postgres, so a normal database backup includes them; the off-host JSON backup deliberately stays data-only.
+
 ## [1.27.16] — 2026-07-07 — Offline that survives, and a faster first paint
 
 ### Fixed
