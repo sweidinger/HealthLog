@@ -25,6 +25,9 @@ const shareLinkSummary = z.object({
   // v1.18.7 — whether a passphrase second factor guards this link. Always true
   // for links created on v1.18.7+; false only for legacy links.
   protected: z.boolean(),
+  // v1.28 — how many documents this share carries. Never the ids, never the
+  // bytes; the share serve route is the only decrypt path.
+  documentCount: z.number(),
   expiresAt: z.string(),
   createdAt: z.string(),
   revokedAt: z.string().nullable(),
@@ -103,7 +106,7 @@ export const healthRecordPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Export"],
       summary: "Create a clinician share link (v1.11.0)",
       description:
-        "Owner-only. Mints an `hls_` token (192-bit), stores only its HMAC hash, and returns the raw token EXACTLY ONCE in the response. v1.18.7 also mints a passphrase second factor (returned once as `passphrase`, with `shareUrl` and a `qrUrl` carrying the passphrase in the URL fragment); a leaked URL without the passphrase cannot open the record. Every scope column (window, sections, FHIR resource types, API toggle) is frozen write-once. `expiresAt` is required and capped at 90 days. Auth via cookie or Bearer; rate-limited (`share-link:<userId>`, 20/h). Strict: unknown keys 422.",
+        "Owner-only. Mints an `hls_` token (192-bit), stores only its HMAC hash, and returns the raw token EXACTLY ONCE in the response. v1.18.7 also mints a passphrase second factor (returned once as `passphrase`, with `shareUrl` and a `qrUrl` carrying the passphrase in the URL fragment); a leaked URL without the passphrase cannot open the record. Every scope column (window, sections, FHIR resource types, API toggle) is frozen write-once. v1.28 accepts an optional `documentIds` array (bounded ≤50): each id is validated as the caller's own live document and frozen onto the link at create (a foreign/deleted id → 422); the summary DTO then reports `documentCount`. A documents-only share (empty report sections + non-empty `documentIds`) is valid. `expiresAt` is required and capped at 90 days. Auth via cookie or Bearer; rate-limited (`share-link:<userId>`, 20/h). Strict: unknown keys 422.",
       requestBody: {
         required: true,
         content: {
@@ -199,6 +202,40 @@ export const healthRecordPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         ...stdResponses,
         "401": {
           description: "Invalid passphrase (blunt — no failure detail leaked).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+      },
+    },
+  },
+  "/c/{token}/d/{id}": {
+    get: {
+      tags: ["Export"],
+      summary: "Serve a shared document blob (v1.28, public)",
+      description:
+        "Anonymous, no-session share-scoped document serve route. The raw `hls_` share token in the path is the ONLY credential — never a session; it never elevates a normal authed route. Serves ONLY a document id present in the link's frozen `documentIds` set (a guessed / foreign / soft-deleted id → flat 404). A passphrase-protected link additionally requires the short-lived, token-scoped unlock cookie; revocation and expiry collapse to the same flat 404. The serving-class posture is identical to the owner `/api/documents/inbound/{id}/original` route: Class A (PDF/JPEG/PNG/WebP/GIF) inline with its true type, everything else `application/octet-stream` + `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff`; `Cache-Control: private, no-store`. Images (JPEG/PNG/WebP) are EXIF/XMP/GPS-stripped at egress (the stored original is untouched); PDF/TIFF/HEIC/Office metadata passes through. Per-link rate-limited.",
+      requestParams: {
+        path: z.object({
+          token: z.string().describe("Raw `hls_` share token."),
+          id: z.string().describe("A document id on the link's frozen set."),
+        }),
+      },
+      responses: {
+        "200": {
+          description:
+            "The document bytes. Content-Type is the true stored type for Class A (inline) or `application/octet-stream` for Class B (attachment).",
+          content: {
+            "application/octet-stream": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+          },
+        },
+        "404": {
+          description:
+            "Flat 404 for every miss class (unknown/revoked/expired token, locked passphrase gate, or an id not on the frozen set).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "429": {
+          description: "Per-link serve rate limit exceeded.",
           content: { "application/json": { schema: errorEnvelope } },
         },
       },
