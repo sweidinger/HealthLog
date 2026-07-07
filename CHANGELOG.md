@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.27.15] — 2026-07-07 — Complete Google Health coverage
+
+### Fixed
+
+- HRV, resting heart rate, SpO₂, respiratory rate, and VO₂max now import from Google Health. All five daily-summary types filtered with a field-name style the live service never matches — the requests returned 200 with zero rows while the data sat visibly in the Google app. The reference documentation contradicts itself on the style; the sync now sends the form the documentation's own worked example uses and falls back to the alternative automatically, and the connection test reports which one the service accepted.
+- Respiratory rate additionally read a response field that does not exist, and height parsed metres where the API sends millimetres — both silent zero-imports since the integration launched.
+- Workout recognition covers the full documented exercise catalogue (~35 additional activity types — trail runs, pool swims, rowing machines, and the like no longer land as "other").
+
+### Added
+
+- Three more Google Health data types import into existing measurements: blood glucose, core body temperature, and the nightly wrist temperature Fitbit bands record during sleep.
+- A full audit of all 40 API data types is documented alongside the integration — every type is now either imported or an explicitly reasoned skip.
+
 ## [1.27.14] — 2026-07-07 — Cross-device dose sync and phone-width polish
 
 ### Fixed
