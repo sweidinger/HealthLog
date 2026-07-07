@@ -196,7 +196,14 @@ export function BriefingSpotlight({
                   )}
                   aria-hidden="true"
                 />
-                <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+                {/* Phone widths stack headline over delta — a long
+                    signal headline beside a long delta squeezed the
+                    headline into a one-word-per-line column and pushed
+                    the delta past the tile edge. At `sm+` the
+                    side-by-side row returns. The headline always wraps
+                    (content is never truncated); only the delta is meta
+                    and may stay on one line. */}
+                <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                   <p className="text-foreground text-sm leading-snug font-medium">
                     {stripChartTokens(row.headline)}
                   </p>
@@ -204,7 +211,7 @@ export function BriefingSpotlight({
                     <span
                       data-slot="dashboard-briefing-spotlight-delta"
                       className={cn(
-                        "shrink-0 text-xs font-semibold tabular-nums",
+                        "self-start text-xs font-semibold tabular-nums sm:shrink-0",
                         TONE_TEXT_CLASSNAME[row.tone],
                       )}
                     >

@@ -197,7 +197,9 @@ function DeltaBadge({
     <span
       data-slot="daily-briefing-delta"
       className={cn(
-        "text-xs font-semibold tabular-nums",
+        // `self-start` keeps the badge left-aligned + content-width when
+        // the parent row stacks into a column below `sm`.
+        "self-start text-xs font-semibold tabular-nums sm:shrink-0",
         TONE_TEXT_CLASSNAME[tone],
       )}
     >
@@ -243,7 +245,11 @@ function BriefingRow({
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-start justify-between gap-3">
+        {/* Phone widths stack headline over delta (same treatment as the
+            dashboard spotlight rows): side-by-side squeezed a long
+            headline into a narrow multi-line column beside a long delta.
+            At `sm+` the row layout returns. */}
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <p className="text-sm leading-snug font-medium">
             {stripChartTokens(headline)}
           </p>

@@ -180,4 +180,34 @@ describe("<BriefingSpotlight>", () => {
     const rows = html.match(/data-slot="dashboard-briefing-spotlight-row"/g);
     expect(rows).toHaveLength(3);
   });
+
+  it("stacks headline over delta below sm and keeps the row at sm+", () => {
+    const html = render({
+      briefing: briefing({
+        signalsOfDay: [
+          {
+            sourceMetric: "bp",
+            tone: "watch",
+            headline:
+              "Systolischer Blutdruck deutlich unter deinem Monatsmittel gemessen",
+            nudge: "n",
+            delta: "−12 mmHg vs. 30-Tage-Mittel",
+          },
+        ],
+      }),
+      briefingState: "ready",
+      briefingStale: false,
+    });
+    // Phone-first column, row restored at sm+ — a wide delta must never
+    // squeeze the headline into a narrow multi-line column (or push
+    // itself past the tile edge).
+    expect(html).toMatch(
+      /class="[^"]*flex min-w-0 flex-1 flex-col gap-1 sm:flex-row[^"]*"/,
+    );
+    // The delta is left-aligned content-width in the stacked state and
+    // only refuses to shrink in the sm+ row.
+    expect(html).toMatch(
+      /data-slot="dashboard-briefing-spotlight-delta"[^>]*class="[^"]*self-start[^"]*sm:shrink-0[^"]*"/,
+    );
+  });
 });

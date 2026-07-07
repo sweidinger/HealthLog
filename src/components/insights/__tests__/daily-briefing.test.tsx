@@ -102,6 +102,20 @@ describe("<DailyBriefing>", () => {
     expect(html).toContain("+6 mmHg");
   });
 
+  it("stacks headline over delta below sm and keeps the row at sm+", () => {
+    const html = render(<DailyBriefing briefing={baseBriefing} />);
+    // Phone-first column (headline above, delta beneath), side-by-side
+    // restored at sm+ — a wide delta must never squeeze the headline
+    // into a narrow multi-line column.
+    expect(html).toMatch(
+      /class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3"/,
+    );
+    // Delta badge stays content-width + left-aligned in the stacked state.
+    expect(html).toMatch(
+      /data-slot="daily-briefing-delta"[^>]*class="[^"]*self-start[^"]*sm:shrink-0[^"]*"/,
+    );
+  });
+
   it("does NOT render a delta badge when delta is null", () => {
     const html = render(
       <DailyBriefing
