@@ -9,18 +9,22 @@
  * row is presentation-only — the parent `<ModulesSection>` owns the mutation
  * and cache invalidation, so this component stays a pure, easily-tested leaf.
  *
- * Four modes:
+ * Every module — including the two delegated ones (coach, cycle) — now
+ * renders a real Switch, so the hub reads uniformly. Four shapes ride on top
+ * of that Switch:
  *   - toggleable: the Switch is live; flipping it calls `onToggle(next)`.
+ *   - delegated (coach, cycle): the Switch is live and drives the canonical
+ *     state (coach → `User.disableCoach`; cycle → `cycleTrackingEnabled`),
+ *     plus a small `manageLink` deep-link beneath the description points at
+ *     the fuller settings surface (Coach cadence, cycle goal/predictions).
  *   - locked (core domains): the Switch is checked + disabled with a short
- *     "always on" note, so the always-on measurement engine + meds read as
+ *     "always on" note, so the always-on measurement engine reads as
  *     deliberately fixed rather than broken.
- *   - managed elsewhere (delegated modules cycle/coach): no Switch at all —
- *     the real on/off lives in another section, so the row renders a
- *     read-only deep-link ("Manage in X") rather than a dead toggle that
- *     no-ops and snaps back behind a misleading "saved" toast.
- *   - operator-disabled: the operator turned the module off server-wide, so
- *     the Switch is replaced by a read-only "disabled server-wide" note —
- *     a per-user toggle could not re-enable it anyway.
+ *   - disabled-with-reason: the operator turned the module off server-wide
+ *     (or the module is otherwise not applicable). The Switch is disabled and
+ *     a `disabledReason` hint renders beneath the description — an honest
+ *     "you can't flip this and here's why", never a toggle that no-ops and
+ *     snaps back behind a misleading "saved" toast.
  *
  * Palette stays neutral throughout — no alarming green-when-on /
  * red-when-off tint.
@@ -49,20 +53,19 @@ export interface ModuleToggleRowProps {
   /** One-line "core / always on" note, only shown when `locked`. */
   lockedNote?: string;
   /**
-   * Delegated modules (cycle/coach): the real control lives elsewhere. When
-   * set, the row renders a read-only deep-link instead of a Switch.
-   * `label` is the destination name; `href` the in-app link.
+   * Delegated modules (coach, cycle) keep a small deep-link to the fuller
+   * settings surface beside their live Switch — Coach cadence/memory, the
+   * cycle goal/prediction/length fields. `label` is the link text; `href`
+   * the in-app destination.
    */
-  managedAt?: { href: string; label: string };
-  /** Localised "Manage in {section}" link text (managed-elsewhere rows). */
-  manageLinkLabel?: string;
+  manageLink?: { href: string; label: string };
   /**
-   * Operator turned this module off server-wide. Replaces the Switch with a
-   * read-only note; a per-user toggle cannot re-enable it. `operatorNote`
-   * is the localised "disabled server-wide" copy.
+   * When set the Switch is disabled and this line renders beneath the
+   * description as an honest "why you can't flip this" hint. Used when the
+   * operator turned the module off server-wide (a per-user toggle cannot
+   * re-enable it) or the module is otherwise not applicable to the account.
    */
-  operatorDisabled?: boolean;
-  operatorNote?: string;
+  disabledReason?: string;
   /** Disable the Switch while a mutation is in flight (toggleable rows). */
   pending?: boolean;
   /** Fired with the next desired state on a user toggle (toggleable rows). */
@@ -77,18 +80,16 @@ export function ModuleToggleRow({
   enabled,
   locked = false,
   lockedNote,
-  managedAt,
-  manageLinkLabel,
-  operatorDisabled = false,
-  operatorNote,
+  manageLink,
+  disabledReason,
   pending = false,
   onToggle,
 }: ModuleToggleRowProps) {
   const inputId = `module-toggle-${moduleKey}`;
-  // A delegated module whose real control lives elsewhere, or an
-  // operator-disabled module: either way no live Switch — the per-user
-  // toggle would be a dead no-op.
-  const managed = managedAt != null;
+  // The Switch is inert when the domain is core (locked), when the operator
+  // turned it off / it is inapplicable (disabledReason), or while a mutation
+  // is in flight.
+  const interactive = !locked && disabledReason == null;
   return (
     <div className="flex items-start justify-between gap-4 py-3">
       <div className="flex min-w-0 items-start gap-3">
@@ -97,44 +98,35 @@ export function ModuleToggleRow({
           aria-hidden="true"
         />
         <div className="min-w-0 space-y-0.5">
-          {managed ? (
-            <p className="text-sm font-medium">{label}</p>
-          ) : (
-            <Label htmlFor={inputId} className="text-sm font-medium">
-              {label}
-            </Label>
-          )}
+          <Label htmlFor={inputId} className="text-sm font-medium">
+            {label}
+          </Label>
           <p className="text-muted-foreground text-xs">{description}</p>
           {locked && lockedNote ? (
             <p className="text-muted-foreground text-xs">{lockedNote}</p>
           ) : null}
+          {disabledReason ? (
+            <p className="text-muted-foreground text-xs">{disabledReason}</p>
+          ) : null}
+          {manageLink ? (
+            <Link
+              href={manageLink.href}
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
+            >
+              {manageLink.label}
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          ) : null}
         </div>
       </div>
-      {operatorDisabled ? (
-        // Operator kill-switch: read-only note, no toggle.
-        <span className="text-muted-foreground mt-0.5 shrink-0 text-xs">
-          {operatorNote}
-        </span>
-      ) : managed ? (
-        // Delegated module: deep-link to the real control instead of a
-        // dead toggle.
-        <Link
-          href={managedAt.href}
-          className="text-muted-foreground hover:text-foreground mt-0.5 inline-flex shrink-0 items-center gap-1 text-xs underline-offset-2 hover:underline"
-        >
-          {manageLinkLabel}
-          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
-      ) : (
-        <Switch
-          id={inputId}
-          checked={locked ? true : enabled}
-          disabled={locked || pending}
-          onCheckedChange={locked ? undefined : (v) => onToggle?.(v)}
-          className="mt-0.5 shrink-0"
-          aria-label={label}
-        />
-      )}
+      <Switch
+        id={inputId}
+        checked={locked ? true : enabled}
+        disabled={!interactive || pending}
+        onCheckedChange={interactive ? (v) => onToggle?.(v) : undefined}
+        className="mt-0.5 shrink-0"
+        aria-label={label}
+      />
     </div>
   );
 }

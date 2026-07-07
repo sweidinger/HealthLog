@@ -5,7 +5,10 @@
  * to the resolved module map (`useAuth().user.modules`), plus a read-only
  * "always on" group for the four core domains. Flipping a toggle PATCHes
  * `/api/auth/me/modules` (a DISABLED allowlist) and invalidates the
- * `authMe()` query so nav / pills / tiles re-gate live.
+ * `authMe()` query so nav / pills / tiles re-gate live. The two delegated
+ * modules (coach, cycle) render a live switch too, but their flip drives the
+ * canonical column (`disableCoach` / `cycleTrackingEnabled`) via the existing
+ * per-column endpoints — never the module-allowlist the gate ignores for them.
  *
  * Test strategy mirrors `advanced-research-mode.test.tsx`: mock
  * `@tanstack/react-query` so the rendered tree executes under SSR
@@ -20,18 +23,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "@/lib/i18n/context";
 import type { AuthUser } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  MODULE_KEYS,
-  isCodeDisabledModule,
-  moduleDelegatesTo,
-} from "@/lib/modules/registry";
+import { MODULE_KEYS, isCodeDisabledModule } from "@/lib/modules/registry";
 
 // Capture the latest useMutation config + a shared mutate spy so we can
 // invoke `mutationFn` / `onSuccess` by hand (the SSR pass can't fire a
 // real DOM click).
 type MutationConfig = {
   mutationFn?: (vars: unknown) => Promise<unknown>;
-  onSuccess?: (data?: unknown) => void;
+  onSuccess?: (data?: unknown, variables?: unknown) => void;
   onError?: (err?: unknown) => void;
 };
 let lastMutation: MutationConfig | null = null;
@@ -57,7 +56,28 @@ vi.mock("@/hooks/use-auth", async () => {
   return { ...actual, useAuth: () => authSpy() };
 });
 
-function buildUser(modules: AuthUser["modules"]): AuthUser {
+// The hub now renders a live coach switch, so it reads the operator assistant
+// flag matrix (`flags.coach`) to decide whether the operator killed Coach
+// server-wide. Mock the hook directly so the SSR pass doesn't need a
+// `<QueryClientProvider>`; default all-on.
+import type { AssistantFlagSet } from "@/hooks/use-feature-flags";
+const ALL_ON_FLAGS: AssistantFlagSet = {
+  enabled: true,
+  coach: true,
+  briefing: true,
+  insightStatus: true,
+  correlations: true,
+  healthScoreExplainer: true,
+};
+const flagsSpy = vi.fn<() => AssistantFlagSet>(() => ALL_ON_FLAGS);
+vi.mock("@/hooks/use-feature-flags", () => ({
+  useFeatureFlags: () => flagsSpy(),
+}));
+
+function buildUser(
+  modules: AuthUser["modules"],
+  overrides: Partial<AuthUser> = {},
+): AuthUser {
   return {
     id: "user-1",
     username: "testuser",
@@ -82,6 +102,8 @@ function buildUser(modules: AuthUser["modules"]): AuthUser {
     insuranceNumber: null,
     cycleTrackingEnabled: false,
     modules,
+    moduleAvailability: {},
+    ...overrides,
   };
 }
 
@@ -103,6 +125,7 @@ beforeEach(() => {
     user: buildUser({}),
     isAuthenticated: true,
   }));
+  flagsSpy.mockImplementation(() => ALL_ON_FLAGS);
 });
 
 afterEach(() => {
@@ -110,7 +133,7 @@ afterEach(() => {
 });
 
 describe("<ModulesSection>", () => {
-  it("renders a Switch for every non-delegated toggleable module and a managed deep-link for delegated ones", () => {
+  it("renders a live Switch for every toggleable module, including the delegated ones", () => {
     // v1.18.6 (W9) — the "Always on" core-domains card was removed (a domain
     // that can't be turned off doesn't need listing), so this section now
     // only renders the toggleable modules.
@@ -122,20 +145,21 @@ describe("<ModulesSection>", () => {
         expect(html, `code-disabled has no switch ${key}`).not.toContain(
           `id="module-toggle-${key}"`,
         );
-      } else if (moduleDelegatesTo(key) !== undefined) {
-        // Delegated modules (cycle/coach) are owned by their real control
-        // elsewhere — they render as a read-only "manage in X" deep-link,
-        // never a live Switch that would write an inert disabled-allowlist
-        // entry the gate ignores.
-        expect(html, `delegated has no switch ${key}`).not.toContain(
-          `id="module-toggle-${key}"`,
-        );
       } else {
+        // Delegated modules (coach, cycle) now render a real Switch too — it
+        // drives their canonical column — alongside a "manage" deep-link.
         expect(html, `toggleable switch ${key}`).toContain(
           `id="module-toggle-${key}"`,
         );
       }
     }
+  });
+
+  it("keeps a manage deep-link beside the delegated coach + cycle switches", () => {
+    const html = render();
+    // Coach → Coach settings; cycle → the Account cycle-tracking card.
+    expect(html).toContain('href="/settings/coach"');
+    expect(html).toContain('href="/settings/account#cycle-tracking"');
   });
 
   it("no longer renders the 'Always on' core-domains card", () => {
@@ -199,10 +223,141 @@ describe("<ModulesSection>", () => {
     render();
     expect(lastMutation?.onSuccess).toBeTypeOf("function");
 
-    lastMutation!.onSuccess!();
+    // onSuccess reads `variables.key` to decide the extra evictions; a
+    // non-delegated key only touches authMe.
+    lastMutation!.onSuccess!(undefined, { key: "glucose", enabled: false });
 
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queryKeys.authMe(),
+    });
+  });
+
+  describe("delegated coach row", () => {
+    it("reflects `!disableCoach`: checked when Coach is active, unchecked when hidden", () => {
+      authSpy.mockImplementation(() => ({
+        user: buildUser({}, { disableCoach: false }),
+        isAuthenticated: true,
+      }));
+      let coachTag = render().match(
+        /<button[^>]*id="module-toggle-coach"[^>]*>/,
+      )?.[0];
+      expect(coachTag).toMatch(/data-state="checked"/);
+
+      authSpy.mockImplementation(() => ({
+        user: buildUser({}, { disableCoach: true }),
+        isAuthenticated: true,
+      }));
+      coachTag = render().match(
+        /<button[^>]*id="module-toggle-coach"[^>]*>/,
+      )?.[0];
+      expect(coachTag).toMatch(/data-state="unchecked"/);
+    });
+
+    it("writes the inverted `disableCoach` to the canonical endpoint", async () => {
+      render();
+      const fetchSpy = vi.fn(
+        async () =>
+          new Response(JSON.stringify({ data: { disableCoach: true } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      );
+      vi.stubGlobal("fetch", fetchSpy);
+
+      // Turning the hub switch OFF (enabled:false) writes disableCoach:true.
+      await lastMutation!.mutationFn!({ key: "coach", enabled: false });
+
+      const [url, init] = fetchSpy.mock.calls[0] as unknown as [
+        string,
+        RequestInit,
+      ];
+      expect(url).toContain("/api/auth/me/disable-coach");
+      expect(init.method).toBe("PATCH");
+      expect(JSON.parse(init.body as string)).toEqual({ disableCoach: true });
+    });
+
+    it("disables the switch + shows a hint when the operator killed Coach", () => {
+      // Operator assistant master flag off → coach is unavailable server-wide.
+      flagsSpy.mockImplementation(() => ({ ...ALL_ON_FLAGS, coach: false }));
+      const html = render();
+      const coachTag = html.match(
+        /<button[^>]*id="module-toggle-coach"[^>]*>/,
+      )?.[0];
+      expect(coachTag).toMatch(/disabled/);
+      expect(html).toContain("Disabled server-wide");
+    });
+
+    it("also disables the switch when the module-availability blob kills Coach", () => {
+      authSpy.mockImplementation(() => ({
+        user: buildUser({}, { moduleAvailability: { coach: false } }),
+        isAuthenticated: true,
+      }));
+      const coachTag = render().match(
+        /<button[^>]*id="module-toggle-coach"[^>]*>/,
+      )?.[0];
+      expect(coachTag).toMatch(/disabled/);
+    });
+  });
+
+  describe("delegated cycle row", () => {
+    it("reflects the resolved `cycleTrackingEnabled`", () => {
+      authSpy.mockImplementation(() => ({
+        user: buildUser({}, { cycleTrackingEnabled: true }),
+        isAuthenticated: true,
+      }));
+      const cycleTag = render().match(
+        /<button[^>]*id="module-toggle-cycle"[^>]*>/,
+      )?.[0];
+      expect(cycleTag).toMatch(/data-state="checked"/);
+    });
+
+    it("writes `{ enabled }` to the cycle-prefs endpoint", async () => {
+      render();
+      const fetchSpy = vi.fn(
+        async () =>
+          new Response(JSON.stringify({ data: { enabled: true } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      );
+      vi.stubGlobal("fetch", fetchSpy);
+
+      await lastMutation!.mutationFn!({ key: "cycle", enabled: true });
+
+      const [url, init] = fetchSpy.mock.calls[0] as unknown as [
+        string,
+        RequestInit,
+      ];
+      expect(url).toContain("/api/auth/me/cycle-prefs");
+      expect(init.method).toBe("PATCH");
+      expect(JSON.parse(init.body as string)).toEqual({ enabled: true });
+    });
+
+    it("evicts cyclePrefs + cycle + authMe on a successful cycle toggle", () => {
+      render();
+      lastMutation!.onSuccess!(undefined, { key: "cycle", enabled: true });
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.authMe(),
+      });
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.cyclePrefs(),
+      });
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.cycle(),
+      });
+    });
+
+    it("disables the switch + shows a hint when the operator killed cycle", () => {
+      authSpy.mockImplementation(() => ({
+        user: buildUser({}, { moduleAvailability: { cycle: false } }),
+        isAuthenticated: true,
+      }));
+      const html = render();
+      const cycleTag = html.match(
+        /<button[^>]*id="module-toggle-cycle"[^>]*>/,
+      )?.[0];
+      expect(cycleTag).toMatch(/disabled/);
+      expect(html).toContain("Disabled server-wide");
     });
   });
 });
