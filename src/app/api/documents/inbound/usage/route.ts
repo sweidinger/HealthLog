@@ -49,7 +49,12 @@ export const GET = apiHandler(async () => {
       // offers what the endpoint would 422.
       resolveOcrCapability(user.id),
       // Content-index coverage: how many live documents are indexed …
-      prisma.documentContentIndex.count({ where: { userId: user.id } }),
+      // Scope the count to LIVE documents: a soft-deleted document keeps its
+      // index row (cascade fires on hard purge only), so an unscoped count
+      // would drift above `totalCount` and read the gauge past 100 %.
+      prisma.documentContentIndex.count({
+        where: { userId: user.id, document: { deletedAt: null } },
+      }),
       // … out of how many live documents there are.
       prisma.inboundDocument.count({
         where: { userId: user.id, deletedAt: null },

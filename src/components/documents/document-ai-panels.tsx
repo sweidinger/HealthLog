@@ -298,12 +298,7 @@ export function ContentIndexStatus({
       data-slot="content-index-status"
       className="flex items-center justify-between gap-2"
     >
-      <p
-        className={cn(
-          "inline-flex items-center gap-1.5 text-xs",
-          hasContentIndex ? "text-muted-foreground" : "text-muted-foreground",
-        )}
-      >
+      <p className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
         <ScanSearch className="size-3.5 shrink-0" aria-hidden />
         {hasContentIndex
           ? t("documents.contentIndex.searchable")
