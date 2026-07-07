@@ -517,4 +517,10 @@ export interface DocumentUsageDto {
   quotaBytes: number;
   maxFileBytes: number;
   acceptedExtensions: string[];
+  /**
+   * Episodes carrying at least one LIVE document link — the vault filter
+   * bar's condition chips. Sourced server-side so a chip exists even when
+   * every linked document sits pages deep in the timeline.
+   */
+  linkedEpisodes: DocumentConditionLinkDto[];
 }

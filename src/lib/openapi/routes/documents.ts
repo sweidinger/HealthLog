@@ -335,7 +335,7 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Documents"],
       summary: "Storage usage + effective limits",
       description:
-        "The caller's vault usage and effective limits: `usedBytes` (every non-purged row — tombstones inside the 30-day undo grace still count), `quotaBytes` (per-user override ?? instance default), `maxFileBytes` (admin-tunable per-file cap), and `acceptedExtensions` for picker `accept` lists. Read this before offering an upload.",
+        "The caller's vault usage and effective limits: `usedBytes` (every non-purged row — tombstones inside the 30-day undo grace still count), `quotaBytes` (per-user override ?? instance default), `maxFileBytes` (admin-tunable per-file cap), `acceptedExtensions` for picker `accept` lists, and `linkedEpisodes` (episodes carrying at least one live document link — the condition-filter chips). Read this before offering an upload.",
       responses: {
         "200": {
           description: "Usage + limits.",
@@ -348,6 +348,12 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                     quotaBytes: z.number(),
                     maxFileBytes: z.number(),
                     acceptedExtensions: z.array(z.string()),
+                    linkedEpisodes: z.array(
+                      z.object({
+                        episodeId: z.string(),
+                        name: z.string(),
+                      }),
+                    ),
                   })
                   .meta({ id: "DocumentUsage" }),
                 "DocumentUsageEnvelope",

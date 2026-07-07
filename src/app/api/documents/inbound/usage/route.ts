@@ -25,13 +25,23 @@ export const GET = apiHandler(async () => {
   const gate = await requireModuleEnabled(user.id, "inboundDocuments");
   if (!gate.enabled) return gate.response;
 
-  const [limits, rows] = await Promise.all([
+  const [limits, rows, linkRows] = await Promise.all([
     resolveDocumentLimits(user.id),
     prisma.$queryRaw<Array<{ used: bigint }>>`
       SELECT COALESCE(SUM(byte_size), 0)::bigint AS used
       FROM inbound_documents
       WHERE user_id = ${user.id}
     `,
+    // Episodes that carry at least one LIVE document link — the filter
+    // bar's condition chips. Sourced here (not from the loaded corpus) so
+    // a chip exists even when its documents sit pages deep in the
+    // timeline; one indexed grouped query, no blobs.
+    prisma.documentConditionLink.findMany({
+      where: { userId: user.id, document: { deletedAt: null } },
+      select: { episodeId: true, episode: { select: { label: true } } },
+      distinct: ["episodeId"],
+      orderBy: { episodeId: "asc" },
+    }),
   ]);
   const usedBytes = Number(rows[0]?.used ?? 0);
 
@@ -45,6 +55,10 @@ export const GET = apiHandler(async () => {
     quotaBytes: limits.quotaBytes,
     maxFileBytes: limits.maxFileBytes,
     acceptedExtensions: [...DOCUMENT_ACCEPTED_EXTENSIONS],
+    linkedEpisodes: linkRows.map((row) => ({
+      episodeId: row.episodeId,
+      name: row.episode.label,
+    })),
   };
   return apiSuccess(payload);
 });

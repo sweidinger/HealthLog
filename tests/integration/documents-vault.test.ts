@@ -682,16 +682,45 @@ describe("document vault — bulk + usage", () => {
       ctx(id),
     );
 
+    // Condition chips source: an episode linked to a LIVE document surfaces
+    // in `linkedEpisodes`; an episode whose only link sits on the tombstoned
+    // row does not.
+    const liveEpisode = await prisma.illnessEpisode.create({
+      data: {
+        userId: user.id,
+        label: "Knie",
+        type: "INJURY",
+        onsetAt: new Date("2026-01-01T00:00:00Z"),
+      },
+    });
+    const deadEpisode = await prisma.illnessEpisode.create({
+      data: {
+        userId: user.id,
+        label: "Erkältung",
+        type: "INFECTION",
+        onsetAt: new Date("2026-02-01T00:00:00Z"),
+      },
+    });
+    await post(
+      uploadRequest(PDF_SMALL, "knie.pdf", { episodeIds: [liveEpisode.id] }),
+    );
+    await prisma.documentConditionLink.create({
+      data: { documentId: id, episodeId: deadEpisode.id, userId: user.id },
+    });
+
     const res = await getUsage(
       new Request("http://localhost/api/documents/inbound/usage"),
     );
     expect(res.status).toBe(200);
     const { data } = await res.json();
     // Tombstoned bytes still count until the purge reclaims them.
-    expect(data.usedBytes).toBe(PNG_1X1.byteLength);
+    expect(data.usedBytes).toBe(PNG_1X1.byteLength + PDF_SMALL.byteLength);
     expect(data.quotaBytes).toBe(123_456_789);
     expect(data.maxFileBytes).toBe(26_214_400);
     expect(data.acceptedExtensions).toContain(".pdf");
     expect(data.acceptedExtensions).not.toContain(".heic");
+    expect(data.linkedEpisodes).toEqual([
+      { episodeId: liveEpisode.id, name: "Knie" },
+    ]);
   });
 });

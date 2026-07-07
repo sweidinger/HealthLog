@@ -244,15 +244,15 @@ export function DocumentsView() {
 
   const episodes = useIllnessEpisodes(true);
 
-  // Condition chips: the user's episodes that actually carry links in the
-  // loaded corpus — plus the actively filtered episode (a deep link must
-  // always show its own chip, even before its documents load).
+  // Condition chips: every episode carrying at least one live document
+  // link, served by the usage endpoint (NOT derived from the loaded corpus
+  // — an old linked document pages deep must still surface its chip), plus
+  // the actively filtered episode (a deep link must always show its own
+  // chip, even when its last link was just removed).
   const conditionChips = useMemo<ConditionChip[]>(() => {
     const byId = new Map<string, string>();
-    for (const doc of documents) {
-      for (const link of doc.conditionLinks) {
-        if (!byId.has(link.episodeId)) byId.set(link.episodeId, link.name);
-      }
+    for (const link of usage.data?.linkedEpisodes ?? []) {
+      byId.set(link.episodeId, link.name);
     }
     if (filters.episodeId && !byId.has(filters.episodeId)) {
       const episode = episodes.data?.find((e) => e.id === filters.episodeId);
@@ -261,7 +261,7 @@ export function DocumentsView() {
     return [...byId.entries()]
       .map(([episodeId, name]) => ({ episodeId, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [documents, filters.episodeId, episodes.data]);
+  }, [usage.data?.linkedEpisodes, filters.episodeId, episodes.data]);
 
   // Year segmenter: years present in the loaded corpus (+ the active year).
   const years = useMemo(() => {
