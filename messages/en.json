@@ -7838,48 +7838,48 @@
     },
     "validatedInEnglishNote": "This questionnaire is validated in English; the questions are shown in the original English wording.",
     "who5Options": {
-      "5": "All of the time",
-      "4": "Most of the time",
-      "3": "More than half of the time",
-      "2": "Less than half of the time",
+      "0": "At no time",
       "1": "Some of the time",
-      "0": "At no time"
+      "2": "Less than half of the time",
+      "3": "More than half of the time",
+      "4": "Most of the time",
+      "5": "All of the time"
     },
     "sciOptions": {
       "duration": {
-        "4": "0–15 min",
-        "3": "16–30 min",
-        "2": "31–45 min",
+        "0": "≥ 61 min",
         "1": "46–60 min",
-        "0": "≥ 61 min"
+        "2": "31–45 min",
+        "3": "16–30 min",
+        "4": "0–15 min"
       },
       "nights": {
-        "4": "0–1",
-        "3": "2",
-        "2": "3",
+        "0": "5–7",
         "1": "4",
-        "0": "5–7"
+        "2": "3",
+        "3": "2",
+        "4": "0–1"
       },
       "quality": {
-        "4": "Very good",
-        "3": "Good",
-        "2": "Average",
+        "0": "Very poor",
         "1": "Poor",
-        "0": "Very poor"
+        "2": "Average",
+        "3": "Good",
+        "4": "Very good"
       },
       "impact": {
-        "4": "Not at all",
-        "3": "A little",
-        "2": "Somewhat",
+        "0": "Very much",
         "1": "Much",
-        "0": "Very much"
+        "2": "Somewhat",
+        "3": "A little",
+        "4": "Not at all"
       },
       "problemDuration": {
-        "4": "I don't have a problem / < 1 month",
-        "3": "1–2 months",
-        "2": "3–6 months",
+        "0": "> 1 year",
         "1": "7–12 months",
-        "0": "> 1 year"
+        "2": "3–6 months",
+        "3": "1–2 months",
+        "4": "I don't have a problem / < 1 month"
       }
     },
     "stems": {
@@ -8052,7 +8052,8 @@
       "openLabel": "Open {title}",
       "attachmentBadge": "Download only",
       "uploading": "Uploading…",
-      "dismissFailed": "Dismiss failed upload"
+      "dismissFailed": "Dismiss failed upload",
+      "searchableBadge": "Contents searchable"
     },
     "error": {
       "fileTooLarge": "This file is larger than the {maxSize} limit.",
@@ -8137,6 +8138,55 @@
       "description": "Pick documents from your vault that belong to this condition.",
       "searchPlaceholder": "Search by title or filename",
       "empty": "No documents found."
+    },
+    "assist": {
+      "suggest": "Suggest details",
+      "suggesting": "Reading…",
+      "reviewTitle": "AI suggestion — review before saving",
+      "reviewHint": "Nothing is saved until you apply it. Suggestions can be wrong — check them.",
+      "suggestedTitle": "Suggested title",
+      "suggestedKind": "Suggested type",
+      "suggestedDate": "Suggested date",
+      "apply": "Apply",
+      "useTitle": "Use title",
+      "applied": "Applied",
+      "dismiss": "Dismiss",
+      "empty": "Nothing could be read from this document.",
+      "unavailableBody": "Set up an AI provider to suggest a title, type, and date.",
+      "unavailableLocalOcr": "Turn on local OCR in the AI settings to read images on this device.",
+      "unavailableAction": "Open AI settings",
+      "errorGeneric": "Couldn't read the document. Try again.",
+      "errorOcr": "Couldn't read text from this image.",
+      "errorRateLimited": "Too many AI requests — try again in a few minutes.",
+      "errorBudget": "Your AI budget for today is used up.",
+      "errorPdfNeedsVision": "Scanning PDFs needs a Claude vision provider.",
+      "errorFileType": "This file type can't be read.",
+      "errorLocalOcrDisabled": "Turn on local OCR in the AI settings first.",
+      "errorProvider": "No AI provider is set up for this.",
+      "errorTextImageOnly": "Local OCR reads images only — not this file."
+    },
+    "summary": {
+      "summarise": "Summarise",
+      "showText": "Show extracted text",
+      "summaryTitle": "Summary",
+      "textTitle": "Extracted text",
+      "notSaved": "Not saved · not a diagnosis. Shown once for this view only.",
+      "close": "Hide"
+    },
+    "contentIndex": {
+      "searchHint": "Search now looks inside your documents too (whole words).",
+      "indexPrompt": "Make document contents searchable.",
+      "searchable": "Contents searchable",
+      "notSearchable": "Contents not searchable yet",
+      "indexAction": "Index for search",
+      "reindexAction": "Re-index",
+      "indexing": "Indexing…",
+      "indexed": "Indexed for search.",
+      "indexAll": "Index all for search",
+      "indexAllPending": "Starting…",
+      "indexAllQueued": "Indexing {count} document(s) in the background.",
+      "indexAllNothing": "Everything is already indexed.",
+      "indexAllError": "Couldn't start indexing."
     }
   },
   "selfDescription": {

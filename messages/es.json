@@ -7838,48 +7838,48 @@
     },
     "validatedInEnglishNote": "Este cuestionario está validado en inglés; las preguntas se muestran en su versión original en inglés.",
     "who5Options": {
-      "5": "Todo el tiempo",
-      "4": "La mayor parte del tiempo",
-      "3": "Más de la mitad del tiempo",
-      "2": "Menos de la mitad del tiempo",
+      "0": "Nunca",
       "1": "De vez en cuando",
-      "0": "Nunca"
+      "2": "Menos de la mitad del tiempo",
+      "3": "Más de la mitad del tiempo",
+      "4": "La mayor parte del tiempo",
+      "5": "Todo el tiempo"
     },
     "sciOptions": {
       "duration": {
-        "4": "0–15 min",
-        "3": "16–30 min",
-        "2": "31–45 min",
+        "0": "≥ 61 min",
         "1": "46–60 min",
-        "0": "≥ 61 min"
+        "2": "31–45 min",
+        "3": "16–30 min",
+        "4": "0–15 min"
       },
       "nights": {
-        "4": "0–1",
-        "3": "2",
-        "2": "3",
+        "0": "5–7",
         "1": "4",
-        "0": "5–7"
+        "2": "3",
+        "3": "2",
+        "4": "0–1"
       },
       "quality": {
-        "4": "Very good",
-        "3": "Good",
-        "2": "Average",
+        "0": "Very poor",
         "1": "Poor",
-        "0": "Very poor"
+        "2": "Average",
+        "3": "Good",
+        "4": "Very good"
       },
       "impact": {
-        "4": "Not at all",
-        "3": "A little",
-        "2": "Somewhat",
+        "0": "Very much",
         "1": "Much",
-        "0": "Very much"
+        "2": "Somewhat",
+        "3": "A little",
+        "4": "Not at all"
       },
       "problemDuration": {
-        "4": "I don't have a problem / < 1 month",
-        "3": "1–2 months",
-        "2": "3–6 months",
+        "0": "> 1 year",
         "1": "7–12 months",
-        "0": "> 1 year"
+        "2": "3–6 months",
+        "3": "1–2 months",
+        "4": "I don't have a problem / < 1 month"
       }
     },
     "stems": {
@@ -8052,7 +8052,8 @@
       "openLabel": "Abrir {title}",
       "attachmentBadge": "Solo descarga",
       "uploading": "Subiendo…",
-      "dismissFailed": "Descartar subida fallida"
+      "dismissFailed": "Descartar subida fallida",
+      "searchableBadge": "Contenido buscable"
     },
     "error": {
       "fileTooLarge": "Este archivo supera el límite de {maxSize}.",
@@ -8137,6 +8138,55 @@
       "description": "Elige documentos de tu archivo que pertenezcan a esta afección.",
       "searchPlaceholder": "Buscar por título o nombre de archivo",
       "empty": "No se encontraron documentos."
+    },
+    "assist": {
+      "suggest": "Sugerir detalles",
+      "suggesting": "Leyendo…",
+      "reviewTitle": "Sugerencia de IA: revísala antes de guardar",
+      "reviewHint": "No se guarda nada hasta que la apliques. Las sugerencias pueden fallar: compruébalas.",
+      "suggestedTitle": "Título sugerido",
+      "suggestedKind": "Tipo sugerido",
+      "suggestedDate": "Fecha sugerida",
+      "apply": "Aplicar",
+      "useTitle": "Usar título",
+      "applied": "Aplicado",
+      "dismiss": "Descartar",
+      "empty": "No se pudo leer nada de este documento.",
+      "unavailableBody": "Configura un proveedor de IA para sugerir título, tipo y fecha.",
+      "unavailableLocalOcr": "Activa el OCR local en los ajustes de IA para leer imágenes en este dispositivo.",
+      "unavailableAction": "Abrir ajustes de IA",
+      "errorGeneric": "No se pudo leer el documento. Inténtalo de nuevo.",
+      "errorOcr": "No se pudo leer texto de esta imagen.",
+      "errorRateLimited": "Demasiadas solicitudes de IA: inténtalo en unos minutos.",
+      "errorBudget": "Tu presupuesto de IA de hoy se ha agotado.",
+      "errorPdfNeedsVision": "Escanear PDF requiere un proveedor de visión Claude.",
+      "errorFileType": "Este tipo de archivo no se puede leer.",
+      "errorLocalOcrDisabled": "Activa primero el OCR local en los ajustes de IA.",
+      "errorProvider": "No hay ningún proveedor de IA configurado para esto.",
+      "errorTextImageOnly": "El OCR local solo lee imágenes, no este archivo."
+    },
+    "summary": {
+      "summarise": "Resumir",
+      "showText": "Mostrar texto extraído",
+      "summaryTitle": "Resumen",
+      "textTitle": "Texto extraído",
+      "notSaved": "No se guarda · no es un diagnóstico. Se muestra solo una vez en esta vista.",
+      "close": "Ocultar"
+    },
+    "contentIndex": {
+      "searchHint": "La búsqueda ahora también mira dentro de tus documentos (palabras completas).",
+      "indexPrompt": "Haz que el contenido de los documentos sea buscable.",
+      "searchable": "Contenido buscable",
+      "notSearchable": "Contenido aún no buscable",
+      "indexAction": "Indexar para búsqueda",
+      "reindexAction": "Reindexar",
+      "indexing": "Indexando…",
+      "indexed": "Indexado para búsqueda.",
+      "indexAll": "Indexar todo para búsqueda",
+      "indexAllPending": "Iniciando…",
+      "indexAllQueued": "Indexando {count} documento(s) en segundo plano.",
+      "indexAllNothing": "Todo ya está indexado.",
+      "indexAllError": "No se pudo iniciar la indexación."
     }
   },
   "selfDescription": {

@@ -7838,48 +7838,48 @@
     },
     "validatedInEnglishNote": "Dieser Fragebogen ist in englischer Sprache validiert; die Fragen erscheinen im englischen Original.",
     "who5Options": {
-      "5": "Die ganze Zeit",
-      "4": "Meistens",
-      "3": "Etwas mehr als die Hälfte der Zeit",
-      "2": "Etwas weniger als die Hälfte der Zeit",
+      "0": "Zu keinem Zeitpunkt",
       "1": "Ab und zu",
-      "0": "Zu keinem Zeitpunkt"
+      "2": "Etwas weniger als die Hälfte der Zeit",
+      "3": "Etwas mehr als die Hälfte der Zeit",
+      "4": "Meistens",
+      "5": "Die ganze Zeit"
     },
     "sciOptions": {
       "duration": {
-        "4": "0–15 min",
-        "3": "16–30 min",
-        "2": "31–45 min",
+        "0": "≥ 61 min",
         "1": "46–60 min",
-        "0": "≥ 61 min"
+        "2": "31–45 min",
+        "3": "16–30 min",
+        "4": "0–15 min"
       },
       "nights": {
-        "4": "0–1",
-        "3": "2",
-        "2": "3",
+        "0": "5–7",
         "1": "4",
-        "0": "5–7"
+        "2": "3",
+        "3": "2",
+        "4": "0–1"
       },
       "quality": {
-        "4": "Very good",
-        "3": "Good",
-        "2": "Average",
+        "0": "Very poor",
         "1": "Poor",
-        "0": "Very poor"
+        "2": "Average",
+        "3": "Good",
+        "4": "Very good"
       },
       "impact": {
-        "4": "Not at all",
-        "3": "A little",
-        "2": "Somewhat",
+        "0": "Very much",
         "1": "Much",
-        "0": "Very much"
+        "2": "Somewhat",
+        "3": "A little",
+        "4": "Not at all"
       },
       "problemDuration": {
-        "4": "I don't have a problem / < 1 month",
-        "3": "1–2 months",
-        "2": "3–6 months",
+        "0": "> 1 year",
         "1": "7–12 months",
-        "0": "> 1 year"
+        "2": "3–6 months",
+        "3": "1–2 months",
+        "4": "I don't have a problem / < 1 month"
       }
     },
     "stems": {
@@ -8052,7 +8052,8 @@
       "openLabel": "{title} öffnen",
       "attachmentBadge": "Nur Download",
       "uploading": "Wird hochgeladen…",
-      "dismissFailed": "Fehlgeschlagenen Upload ausblenden"
+      "dismissFailed": "Fehlgeschlagenen Upload ausblenden",
+      "searchableBadge": "Inhalt durchsuchbar"
     },
     "error": {
       "fileTooLarge": "Diese Datei ist größer als das Limit von {maxSize}.",
@@ -8137,6 +8138,55 @@
       "description": "Wähle Dokumente aus deinem Bestand, die zu dieser Erkrankung gehören.",
       "searchPlaceholder": "Nach Titel oder Dateiname suchen",
       "empty": "Keine Dokumente gefunden."
+    },
+    "assist": {
+      "suggest": "Details vorschlagen",
+      "suggesting": "Wird gelesen…",
+      "reviewTitle": "KI-Vorschlag — vor dem Speichern prüfen",
+      "reviewHint": "Es wird nichts gespeichert, bis du es übernimmst. Vorschläge können falsch sein — prüfe sie.",
+      "suggestedTitle": "Vorgeschlagener Titel",
+      "suggestedKind": "Vorgeschlagener Typ",
+      "suggestedDate": "Vorgeschlagenes Datum",
+      "apply": "Übernehmen",
+      "useTitle": "Titel übernehmen",
+      "applied": "Übernommen",
+      "dismiss": "Verwerfen",
+      "empty": "Aus diesem Dokument konnte nichts gelesen werden.",
+      "unavailableBody": "Richte einen KI-Anbieter ein, um Titel, Typ und Datum vorzuschlagen.",
+      "unavailableLocalOcr": "Aktiviere lokale Texterkennung in den KI-Einstellungen, um Bilder auf diesem Gerät zu lesen.",
+      "unavailableAction": "KI-Einstellungen öffnen",
+      "errorGeneric": "Dokument konnte nicht gelesen werden. Bitte erneut versuchen.",
+      "errorOcr": "Aus diesem Bild konnte kein Text gelesen werden.",
+      "errorRateLimited": "Zu viele KI-Anfragen — bitte in ein paar Minuten erneut versuchen.",
+      "errorBudget": "Dein KI-Budget für heute ist aufgebraucht.",
+      "errorPdfNeedsVision": "Zum Scannen von PDFs wird ein Claude-Vision-Anbieter benötigt.",
+      "errorFileType": "Dieser Dateityp kann nicht gelesen werden.",
+      "errorLocalOcrDisabled": "Aktiviere zuerst die lokale Texterkennung in den KI-Einstellungen.",
+      "errorProvider": "Dafür ist kein KI-Anbieter eingerichtet.",
+      "errorTextImageOnly": "Lokale Texterkennung liest nur Bilder — nicht diese Datei."
+    },
+    "summary": {
+      "summarise": "Zusammenfassen",
+      "showText": "Erkannten Text anzeigen",
+      "summaryTitle": "Zusammenfassung",
+      "textTitle": "Erkannter Text",
+      "notSaved": "Nicht gespeichert · keine Diagnose. Nur einmalig für diese Ansicht angezeigt.",
+      "close": "Ausblenden"
+    },
+    "contentIndex": {
+      "searchHint": "Die Suche durchsucht jetzt auch den Inhalt deiner Dokumente (ganze Wörter).",
+      "indexPrompt": "Dokumentinhalte durchsuchbar machen.",
+      "searchable": "Inhalt durchsuchbar",
+      "notSearchable": "Inhalt noch nicht durchsuchbar",
+      "indexAction": "Für Suche indizieren",
+      "reindexAction": "Neu indizieren",
+      "indexing": "Wird indiziert…",
+      "indexed": "Für die Suche indiziert.",
+      "indexAll": "Alle für Suche indizieren",
+      "indexAllPending": "Wird gestartet…",
+      "indexAllQueued": "{count} Dokument(e) werden im Hintergrund indiziert.",
+      "indexAllNothing": "Alles ist bereits indiziert.",
+      "indexAllError": "Indizierung konnte nicht gestartet werden."
     }
   },
   "selfDescription": {
