@@ -25,9 +25,11 @@ import { SleepDurationChart } from "./sleep-duration-chart";
 // matches the card the bar paints so the layout stays stable.
 const SleepStageStackedBarLazy = dynamic(
   () =>
-    importWithRetry(() => import("@/components/charts/chart-runtime")).then((mod) => ({
-      default: mod.SleepStageStackedBar,
-    })),
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
+      (mod) => ({
+        default: mod.SleepStageStackedBar,
+      }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 function SleepStageStackedBar(

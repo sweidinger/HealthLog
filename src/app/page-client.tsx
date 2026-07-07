@@ -93,9 +93,9 @@ const MoodChart = (props: React.ComponentProps<typeof MoodChartLazy>) => (
 );
 const MedicationComplianceChartLazy = dynamic(
   () =>
-    importWithRetry(
-      () => import("@/components/charts/chart-runtime"),
-    ).then((mod) => ({ default: mod.MedicationComplianceChart })),
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
+      (mod) => ({ default: mod.MedicationComplianceChart }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 const MedicationComplianceChart = (
