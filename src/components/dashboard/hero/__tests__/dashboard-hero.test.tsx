@@ -412,6 +412,66 @@ describe("<DashboardHero> — ring row (v1.27.7)", () => {
     expect(html).not.toContain("var(--ring-yellow-from)");
   });
 
+  it("mobile carousel: one scroll-snap track holds a slide per ring + a dot per slide", () => {
+    const html = render(
+      baseSnapshot({
+        healthScore: { score: 82, band: "green", delta: 2 },
+        scoreRings: [
+          { id: "READINESS", score: 71, band: "green" },
+          { id: "RECOVERY_SCORE", score: 74, band: "yellow" },
+          {
+            id: "MED_COMPLIANCE",
+            score: 33,
+            band: "yellow",
+            doses: { taken: 1, scheduled: 3 },
+          },
+        ],
+      }),
+    );
+    // Exactly one snap track, one dots row.
+    expect(html.match(/data-slot="dashboard-hero-ring-track"/g)).toHaveLength(
+      1,
+    );
+    expect(html.match(/data-slot="dashboard-hero-ring-dots"/g)).toHaveLength(1);
+    // A slide per ring: 3 selected + the health-score ring = 4 slides = 4 dots.
+    expect(html.match(/data-carousel-slide=""/g)).toHaveLength(4);
+    expect(html.match(/data-slot="dashboard-hero-ring-dot"/g)).toHaveLength(4);
+    // Track is a labelled, focusable scroll region that snaps.
+    const track = html.match(
+      /<div[^>]*data-slot="dashboard-hero-ring-track"[^>]*>/,
+    );
+    expect(track).not.toBeNull();
+    expect(track![0]).toContain("snap-x");
+    expect(track![0]).toContain("overflow-x-auto");
+    expect(track![0]).toContain('tabindex="0"');
+    // The desktop row is preserved: the track reverts to the inline
+    // right-aligned row (md:justify-end) with the dots hidden (md:hidden).
+    expect(track![0]).toContain("md:justify-end");
+    expect(track![0]).toContain("md:overflow-x-visible");
+    const dots = html.match(
+      /<div[^>]*data-slot="dashboard-hero-ring-dots"[^>]*>/,
+    );
+    expect(dots![0]).toContain("md:hidden");
+    // The first dot is current on the server render (active slide 0).
+    const firstDot = html.match(
+      /<button[^>]*data-slot="dashboard-hero-ring-dot"[^>]*>/,
+    );
+    expect(firstDot![0]).toContain('aria-current="true"');
+  });
+
+  it("a single slide (health ring only) renders no dots — not a carousel", () => {
+    const html = render(
+      baseSnapshot({ healthScore: { score: 60, band: "yellow", delta: 0 } }),
+    );
+    expect(html.match(/data-carousel-slide=""/g)).toHaveLength(1);
+    expect(html).not.toContain('data-slot="dashboard-hero-ring-dots"');
+    // A lone slide is not focusable (no scroll affordance to reach).
+    const track = html.match(
+      /<div[^>]*data-slot="dashboard-hero-ring-track"[^>]*>/,
+    );
+    expect(track![0]).not.toContain("tabindex");
+  });
+
   it("no dose text row renders anymore — the ring row carries the slot", () => {
     const html = render(
       baseSnapshot({
