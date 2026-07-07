@@ -25,7 +25,7 @@ import { MoodExplainerIcon } from "./mood-explainer-icon";
 
 const ScatterCorrelationChart = dynamic(
   () =>
-    import("@/components/charts/scatter-correlation-chart").then((mod) => ({
+    import("@/components/charts/chart-runtime").then((mod) => ({
       default: mod.ScatterCorrelationChart,
     })),
   {

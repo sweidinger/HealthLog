@@ -47,10 +47,12 @@ vi.mock("next/dynamic", async () => {
   const mood = await import("@/components/charts/mood-chart");
   return {
     default: (loader: unknown) => {
-      // Identify which chart the loader targets by its source text.
+      // Identify which chart the loader targets by its source text. Every
+      // loader now resolves the shared chart-runtime boundary and picks a
+      // named export off it, so the export name is the discriminator.
       const src = String(loader);
       const Comp = (
-        src.includes("mood-chart") ? mood.MoodChart : health.HealthChart
+        src.includes("MoodChart") ? mood.MoodChart : health.HealthChart
       ) as React.ComponentType<Record<string, unknown>>;
       return (props: Record<string, unknown>) => <Comp {...props} />;
     },

@@ -1,8 +1,7 @@
 "use client";
 
-import { useId } from "react";
+import dynamic from "next/dynamic";
 import { ArrowDown, ArrowRight, ArrowUp, Minus } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
@@ -27,6 +26,19 @@ import {
  *  - stale (`staleDays`): "last value Xd ago" caption, value kept visible
  * Fixed footprint so a tile never reflows its neighbours.
  */
+
+// The recharts sparkline body loads through the shared chart-runtime
+// boundary so this tile (statically imported by the vitals dashboard)
+// carries no recharts in its own chunk group. The tile owns the fixed
+// 40 px container, so the async gap is an identically-sized empty band —
+// no layout shift, no skeleton needed.
+const DeltaSparkline = dynamic(
+  () =>
+    import("@/components/charts/chart-runtime").then((mod) => ({
+      default: mod.DeltaSparkline,
+    })),
+  { ssr: false, loading: () => null },
+);
 
 export interface SparklineDeltaTileProps {
   label: string;
@@ -88,10 +100,6 @@ export function SparklineDeltaTile({
 }: SparklineDeltaTileProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
-  // A stable per-instance id for the gradient <defs>. Deriving it from the
-  // label slug collides when two tiles share a localized label (the gradient
-  // fill on the second tile would not resolve); useId() is collision-free.
-  const fillId = useId();
 
   const arrowSentiment = getTrendSentiment(delta ?? null, directionSentiment);
   const trendColor = sentimentColorClass(arrowSentiment);
@@ -190,29 +198,7 @@ export function SparklineDeltaTile({
           className="mt-3 h-10 w-full"
           data-slot="sparkline-delta-tile-spark"
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={sparkData}
-              margin={{ top: 2, right: 0, bottom: 2, left: 0 }}
-            >
-              <defs>
-                <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={strokeVar} stopOpacity={0.28} />
-                  <stop offset="100%" stopColor={strokeVar} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <YAxis hide domain={["dataMin", "dataMax"]} />
-              <Area
-                type="monotone"
-                dataKey="v"
-                stroke={strokeVar}
-                strokeWidth={1.5}
-                fill={`url(#${fillId})`}
-                isAnimationActive={false}
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <DeltaSparkline data={sparkData} strokeVar={strokeVar} />
         </div>
       ) : null}
 

@@ -51,7 +51,7 @@ import type {
 // loading shell matches the in-card chart footprint so the layout is stable.
 const LabBiomarkerChartLazy = dynamic(
   () =>
-    importWithRetry(() => import("./lab-biomarker-chart")).then((mod) => ({
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then((mod) => ({
       default: mod.LabBiomarkerChart,
     })),
   { ssr: false, loading: () => <ChartSkeleton /> },

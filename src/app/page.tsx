@@ -81,7 +81,7 @@ const BATCH_COVERAGE_DAYS = 31;
 // to ONE error card instead of bubbling to the route-level `error.tsx`.
 const MoodChartLazy = dynamic(
   () =>
-    importWithRetry(() => import("@/components/charts/mood-chart")).then(
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
       (mod) => ({ default: mod.MoodChart }),
     ),
   { ssr: false, loading: () => <ChartSkeleton /> },
@@ -94,7 +94,7 @@ const MoodChart = (props: React.ComponentProps<typeof MoodChartLazy>) => (
 const MedicationComplianceChartLazy = dynamic(
   () =>
     importWithRetry(
-      () => import("@/components/charts/medication-compliance-chart"),
+      () => import("@/components/charts/chart-runtime"),
     ).then((mod) => ({ default: mod.MedicationComplianceChart })),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
