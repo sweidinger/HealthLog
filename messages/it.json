@@ -5936,7 +5936,14 @@
     "mfaEnforcedOffHint": "Richiedi un secondo fattore per questo utente.",
     "copyIp": "Copia indirizzo IP",
     "ipCopied": "Indirizzo IP copiato",
-    "copyFailed": "Impossibile copiare."
+    "copyFailed": "Impossibile copiare.",
+    "documentMaxFile": "Limite di caricamento documenti",
+    "documentMaxFileDescription": "Dimensione massima per file nell'archivio documenti (1–100 MB).",
+    "documentQuota": "Quota di archiviazione documenti",
+    "documentQuotaDescription": "Spazio documenti predefinito per account (0,1–1024 GB).",
+    "userDocumentQuota": "Quota documenti personalizzata",
+    "userDocumentQuotaDefault": "Predefinito",
+    "userDocumentQuotaHint": "Lascia vuoto per usare il valore predefinito dell'istanza."
   },
   "achievements": {
     "title": "Obiettivi",

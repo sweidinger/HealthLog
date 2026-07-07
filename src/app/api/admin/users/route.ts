@@ -17,6 +17,7 @@ export const GET = apiHandler(async () => {
       role: true,
       createdAt: true,
       mfaEnforced: true,
+      documentQuotaBytes: true,
       _count: { select: { passkeys: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -32,6 +33,11 @@ export const GET = apiHandler(async () => {
       // v1.23 — per-user "require a second factor" override. The effective
       // requirement is the OR of this and the instance-wide policy.
       mfaEnforced: u.mfaEnforced,
+      // Document vault — per-user storage-quota override. Null = the
+      // instance default applies. BigInt in Prisma, number on the wire
+      // (max override 1 TiB, comfortably inside Number's safe range).
+      documentQuotaBytes:
+        u.documentQuotaBytes === null ? null : Number(u.documentQuotaBytes),
       passkeyCount: u._count.passkeys,
     })),
   );

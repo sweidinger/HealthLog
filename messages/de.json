@@ -5936,7 +5936,14 @@
     "mfaEnforcedOffHint": "Einen zweiten Faktor für diesen Nutzer verlangen.",
     "copyIp": "IP-Adresse kopieren",
     "ipCopied": "IP-Adresse kopiert",
-    "copyFailed": "Kopieren fehlgeschlagen."
+    "copyFailed": "Kopieren fehlgeschlagen.",
+    "documentMaxFile": "Upload-Limit für Dokumente",
+    "documentMaxFileDescription": "Maximale Dateigröße im Dokumenten-Bestand (1–100 MB).",
+    "documentQuota": "Speicherkontingent für Dokumente",
+    "documentQuotaDescription": "Standard-Speicherplatz pro Konto für Dokumente (0,1–1024 GB).",
+    "userDocumentQuota": "Abweichendes Dokumenten-Kontingent",
+    "userDocumentQuotaDefault": "Standard",
+    "userDocumentQuotaHint": "Leer lassen, um den Instanz-Standard zu verwenden."
   },
   "achievements": {
     "title": "Erfolge",

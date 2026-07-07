@@ -5936,7 +5936,14 @@
     "mfaEnforcedOffHint": "Exigir un segundo factor a este usuario.",
     "copyIp": "Copiar dirección IP",
     "ipCopied": "Dirección IP copiada",
-    "copyFailed": "No se pudo copiar."
+    "copyFailed": "No se pudo copiar.",
+    "documentMaxFile": "Límite de subida de documentos",
+    "documentMaxFileDescription": "Tamaño máximo por archivo en el archivo de documentos (1–100 MB).",
+    "documentQuota": "Cuota de almacenamiento de documentos",
+    "documentQuotaDescription": "Almacenamiento de documentos por cuenta por defecto (0,1–1024 GB).",
+    "userDocumentQuota": "Cuota de documentos personalizada",
+    "userDocumentQuotaDefault": "Predeterminado",
+    "userDocumentQuotaHint": "Déjalo vacío para usar el valor predeterminado de la instancia."
   },
   "achievements": {
     "title": "Logros",

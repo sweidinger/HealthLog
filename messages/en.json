@@ -5936,7 +5936,14 @@
     "mfaEnforcedOffHint": "Require a second factor for this user.",
     "copyIp": "Copy IP address",
     "ipCopied": "IP address copied",
-    "copyFailed": "Could not copy."
+    "copyFailed": "Could not copy.",
+    "documentMaxFile": "Document upload limit",
+    "documentMaxFileDescription": "Per-file size cap for the document vault (1–100 MB).",
+    "documentQuota": "Document storage quota",
+    "documentQuotaDescription": "Default per-account document storage (0.1–1024 GB).",
+    "userDocumentQuota": "Document quota override",
+    "userDocumentQuotaDefault": "Default",
+    "userDocumentQuotaHint": "Leave empty to use the instance default."
   },
   "achievements": {
     "title": "Achievements",

@@ -5936,7 +5936,14 @@
     "mfaEnforcedOffHint": "Wymagaj drugiego składnika dla tego użytkownika.",
     "copyIp": "Kopiuj adres IP",
     "ipCopied": "Skopiowano adres IP",
-    "copyFailed": "Nie udało się skopiować."
+    "copyFailed": "Nie udało się skopiować.",
+    "documentMaxFile": "Limit przesyłania dokumentów",
+    "documentMaxFileDescription": "Maksymalny rozmiar pliku w archiwum dokumentów (1–100 MB).",
+    "documentQuota": "Limit miejsca na dokumenty",
+    "documentQuotaDescription": "Domyślne miejsce na dokumenty na konto (0,1–1024 GB).",
+    "userDocumentQuota": "Indywidualny limit dokumentów",
+    "userDocumentQuotaDefault": "Domyślny",
+    "userDocumentQuotaHint": "Pozostaw puste, aby użyć domyślnego limitu instancji."
   },
   "achievements": {
     "title": "Osiągnięcia",
