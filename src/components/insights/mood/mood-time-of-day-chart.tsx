@@ -90,19 +90,19 @@ export function MoodTimeOfDayChart({
             <XAxis
               dataKey="label"
               tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              stroke="var(--dracula-comment)"
+              stroke="var(--muted-foreground)"
               interval={0}
             />
             <YAxis
               domain={[1, 5]}
               ticks={[1, 2, 3, 4, 5]}
               tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              stroke="var(--dracula-comment)"
+              stroke="var(--muted-foreground)"
               width={24}
             />
             <ReferenceLine
               y={3.5}
-              stroke="var(--dracula-comment)"
+              stroke="var(--muted-foreground)"
               strokeDasharray="3 3"
               strokeOpacity={0.6}
             />
@@ -114,8 +114,8 @@ export function MoodTimeOfDayChart({
                 borderRadius: "0.5rem",
                 fontSize: "0.75rem",
               }}
-              itemStyle={{ color: "var(--dracula-fg)" }}
-              labelStyle={{ color: "var(--dracula-fg)" }}
+              itemStyle={{ color: "var(--foreground)" }}
+              labelStyle={{ color: "var(--foreground)" }}
               formatter={(_value, _name, item) => {
                 const payload = item?.payload as
                   { avgScore: number | null; count: number } | undefined;

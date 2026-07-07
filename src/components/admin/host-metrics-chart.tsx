@@ -267,8 +267,8 @@ export function HostMetricsChart() {
                 borderRadius: "0.5rem",
                 fontSize: "0.75rem",
               }}
-              labelStyle={{ color: "var(--dracula-fg)" }}
-              itemStyle={{ color: "var(--dracula-fg)" }}
+              labelStyle={{ color: "var(--foreground)" }}
+              itemStyle={{ color: "var(--foreground)" }}
               formatter={(value, name) => {
                 if (typeof value !== "number") return [String(value), name];
                 if (name === t("admin.hostMetrics.load1")) {
