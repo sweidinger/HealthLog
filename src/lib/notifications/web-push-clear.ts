@@ -3,7 +3,7 @@
  *
  * A self-hoster on the installed PWA with no Apple Developer account has no
  * Live Activity / Home-Screen widget to reconcile when a dose is logged on
- * another tab/device. The native path (`dispatchMedicationIntakeSync`) ends
+ * another tab/device. The native path (`queueMedicationIntakeSync`) ends
  * the Live Activity over APNs; this module is the PWA-only equivalent: it
  * pushes a `{ type: "clear", tag }` payload to the user's Web Push
  * subscriptions so the service worker closes the still-pending dose-due

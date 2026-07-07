@@ -63,11 +63,19 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+// (#22) — silent cross-device intake sync. Mocked so the route test can
+// assert the batch queues exactly ONE fan-out without reaching the APNs
+// senders or the coalescing timers.
+vi.mock("@/lib/notifications/medication-intake-sync", () => ({
+  queueMedicationIntakeSync: vi.fn(),
+}));
+
 import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import {
   consumeForIntake,
   restoreForIntake,
@@ -310,6 +318,61 @@ describe("POST /api/medications/intake/bulk — v1.8.2 reconcile", () => {
     // dose, never the pre-write stale payload.
     expect(invalidateUserMedications).toHaveBeenCalledWith("user-1", {
       evict: true,
+    });
+  });
+
+  it("queues exactly ONE intake-sync fan-out for a multi-entry batch", async () => {
+    // Two pending rows at the day's two slots; the batch resolves both.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      {
+        id: "row-am",
+        takenAt: null,
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T05:00:00Z"),
+        source: "REMINDER",
+        createdAt: new Date("2026-06-15T00:00:00Z"),
+      },
+      {
+        id: "row-pm",
+        takenAt: null,
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T17:00:00Z"),
+        source: "REMINDER",
+        createdAt: new Date("2026-06-15T00:00:00Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update)
+      .mockResolvedValueOnce({ id: "row-am" } as never)
+      .mockResolvedValueOnce({ id: "row-pm" } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T05:00:30.000Z",
+            takenAt: "2026-06-15T05:02:00.000Z",
+          },
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T17:00:30.000Z",
+            takenAt: "2026-06-15T17:02:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { updated: number } };
+    expect(body.data.updated).toBe(2);
+
+    // The whole batch produces ONE queued fan-out, not one per dose; the
+    // web caller carries no X-Device-Id, so no origin is excluded.
+    expect(queueMedicationIntakeSync).toHaveBeenCalledTimes(1);
+    expect(queueMedicationIntakeSync).toHaveBeenCalledWith({
+      userId: "user-1",
+      originDeviceToken: null,
     });
   });
 

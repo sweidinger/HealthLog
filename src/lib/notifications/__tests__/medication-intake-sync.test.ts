@@ -5,15 +5,21 @@
  *   1. Silent background push to the user's OTHER devices (origin skip).
  *   2. APNs-only: the dispatch never reaches the dispatcher cascade, so
  *      Telegram / ntfy / Web Push senders are never imported here.
- *   3. Live Activity end push only when a `liveActivityPushToken` is stored.
- *   4. Bulk de-dup: one silent push per device per distinct slot.
- *   5. Explicit APNS-channel opt-out suppresses the fan-out.
+ *   3. Payload hygiene: the silent push is a pure sync trigger — event
+ *      type + timestamp, no medication id / name / dose instant.
+ *   4. Coalescing: the first mutation in a burst dispatches immediately,
+ *      everything else folds into ONE trailing dispatch per user.
+ *   5. Live Activity end push only when a `liveActivityPushToken` is stored.
+ *   6. Explicit APNS-channel opt-out suppresses the fan-out.
+ *   7. Failure isolation: a broken flush never throws into the caller.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const rawSendMock = vi.fn();
 const loadConfigMock = vi.fn();
 const recordPushAttemptMock = vi.fn();
+const annotateMock = vi.fn();
+const addWarningMock = vi.fn();
 
 vi.mock("@/lib/notifications/senders/apns", () => ({
   loadApnsConfig: () => loadConfigMock(),
@@ -25,7 +31,8 @@ vi.mock("@/lib/notifications/senders/push-attempt-record", () => ({
 }));
 
 vi.mock("@/lib/logging/context", () => ({
-  getEvent: () => ({ addWarning: vi.fn(), addMeta: vi.fn() }),
+  annotate: (...args: unknown[]) => annotateMock(...args),
+  getEvent: () => ({ addWarning: addWarningMock, addMeta: vi.fn() }),
 }));
 
 const deviceFindMany = vi.fn();
@@ -44,46 +51,61 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import {
-  dispatchMedicationIntakeSync,
-  dispatchMedicationIntakeSyncBulk,
-} from "@/lib/notifications/medication-intake-sync";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 
 const APNS_CONFIG = { bundleId: "test.healthlog.ios" };
 
+/**
+ * The queue's fan-out is fire-and-forget; drain the microtask queue so
+ * the leading / trailing flush promise chains settle before asserting.
+ * (Fake timers do not fake microtasks, so plain awaits drain them.)
+ */
+async function drainFlush(): Promise<void> {
+  for (let i = 0; i < 20; i += 1) await Promise.resolve();
+}
+
+/** Unique per-test user id so per-user coalescing windows never leak
+ *  across tests (the window map is module state by design). */
+let userSeq = 0;
+function nextUserId(): string {
+  userSeq += 1;
+  return `u-${userSeq}`;
+}
+
+function device(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "d-other",
+    token: "other-token",
+    apnsToken: "bbbb2222",
+    apnsEnvironment: "sandbox",
+    liveActivityPushToken: null,
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers();
   loadConfigMock.mockReturnValue(APNS_CONFIG);
   channelFindUnique.mockResolvedValue({ enabled: true, preferences: [] });
   rawSendMock.mockResolvedValue({ ok: true, status: 200 });
   deviceDeleteMany.mockResolvedValue({ count: 0 });
 });
 
-describe("dispatchMedicationIntakeSync — origin skip + other-devices-only", () => {
-  it("sends a silent background push to every device EXCEPT the origin", async () => {
-    deviceFindMany.mockResolvedValue([
-      {
-        id: "d-origin",
-        token: "origin-token",
-        apnsToken: "aaaa1111",
-        apnsEnvironment: "production",
-        liveActivityPushToken: null,
-      },
-      {
-        id: "d-other",
-        token: "other-token",
-        apnsToken: "bbbb2222",
-        apnsEnvironment: "sandbox",
-        liveActivityPushToken: null,
-      },
-    ]);
+afterEach(() => {
+  vi.useRealTimers();
+});
 
-    await dispatchMedicationIntakeSync({
-      userId: "u1",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
-      originDeviceToken: "origin-token",
-    });
+describe("queueMedicationIntakeSync — origin skip + other-devices-only", () => {
+  it("dispatches immediately to every device EXCEPT the origin", async () => {
+    deviceFindMany.mockResolvedValue([
+      device({ id: "d-origin", token: "origin-token", apnsToken: "aaaa1111" }),
+      device(),
+    ]);
+    const userId = nextUserId();
+
+    queueMedicationIntakeSync({ userId, originDeviceToken: "origin-token" });
+    await drainFlush();
 
     // Exactly one push — to the non-origin device, silent background.
     expect(rawSendMock).toHaveBeenCalledTimes(1);
@@ -94,31 +116,25 @@ describe("dispatchMedicationIntakeSync — origin skip + other-devices-only", ()
     expect(call.payload).toMatchObject({
       aps: { "content-available": 1 },
       eventType: "MEDICATION_INTAKE_SYNC",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
     });
-    // No alert/sound/badge keys in the silent payload.
+    expect(typeof call.payload.syncedAt).toBe("string");
+    // Pure sync trigger — no health data, no alert/sound/badge keys.
+    expect(call.payload.medicationId).toBeUndefined();
+    expect(call.payload.scheduledFor).toBeUndefined();
     expect(call.payload.aps.alert).toBeUndefined();
     expect(call.payload.aps.sound).toBeUndefined();
   });
 
   it("skips nothing when the origin token has no matching device (web caller)", async () => {
     deviceFindMany.mockResolvedValue([
-      {
-        id: "d1",
-        token: "tok-1",
-        apnsToken: "aaaa1111",
-        apnsEnvironment: "sandbox",
-        liveActivityPushToken: null,
-      },
+      device({ id: "d1", token: "tok-1", apnsToken: "aaaa1111" }),
     ]);
 
-    await dispatchMedicationIntakeSync({
-      userId: "u1",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
+    queueMedicationIntakeSync({
+      userId: nextUserId(),
       originDeviceToken: "no-such-token",
     });
+    await drainFlush();
 
     expect(rawSendMock).toHaveBeenCalledTimes(1);
     expect(rawSendMock.mock.calls[0][0].deviceToken).toBe("aaaa1111");
@@ -126,21 +142,12 @@ describe("dispatchMedicationIntakeSync — origin skip + other-devices-only", ()
 
   it("records a skipped attempt when only the origin device exists", async () => {
     deviceFindMany.mockResolvedValue([
-      {
-        id: "d-origin",
-        token: "origin-token",
-        apnsToken: "aaaa1111",
-        apnsEnvironment: "sandbox",
-        liveActivityPushToken: null,
-      },
+      device({ id: "d-origin", token: "origin-token", apnsToken: "aaaa1111" }),
     ]);
+    const userId = nextUserId();
 
-    await dispatchMedicationIntakeSync({
-      userId: "u1",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
-      originDeviceToken: "origin-token",
-    });
+    queueMedicationIntakeSync({ userId, originDeviceToken: "origin-token" });
+    await drainFlush();
 
     expect(rawSendMock).not.toHaveBeenCalled();
     expect(recordPushAttemptMock).toHaveBeenCalledWith(
@@ -154,23 +161,142 @@ describe("dispatchMedicationIntakeSync — origin skip + other-devices-only", ()
   });
 });
 
-describe("dispatchMedicationIntakeSync — Live Activity push", () => {
+describe("queueMedicationIntakeSync — coalescing", () => {
+  it("folds a rapid burst into ONE leading + ONE trailing fan-out", async () => {
+    deviceFindMany.mockResolvedValue([device()]);
+    const userId = nextUserId();
+
+    queueMedicationIntakeSync({ userId, originDeviceToken: null });
+    queueMedicationIntakeSync({ userId, originDeviceToken: null });
+    queueMedicationIntakeSync({ userId, originDeviceToken: null });
+    await drainFlush();
+
+    // Leading fan-out only — the burst is still inside the window.
+    expect(rawSendMock).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(2_000);
+    await drainFlush();
+
+    // Trailing fan-out covering the two coalesced mutations.
+    expect(rawSendMock).toHaveBeenCalledTimes(2);
+    expect(recordPushAttemptMock).toHaveBeenCalledTimes(2);
+    expect(annotateMock).toHaveBeenLastCalledWith({
+      meta: {
+        medication_intake_sync_devices: 1,
+        medication_intake_sync_coalesced: 2,
+      },
+    });
+  });
+
+  it("a single queue call (bulk route) produces exactly ONE fan-out", async () => {
+    deviceFindMany.mockResolvedValue([device()]);
+    const userId = nextUserId();
+
+    queueMedicationIntakeSync({ userId, originDeviceToken: null });
+    await drainFlush();
+    vi.advanceTimersByTime(5_000);
+    await drainFlush();
+
+    expect(rawSendMock).toHaveBeenCalledTimes(1);
+    expect(annotateMock).toHaveBeenCalledWith({
+      meta: {
+        medication_intake_sync_devices: 1,
+        medication_intake_sync_coalesced: 0,
+      },
+    });
+  });
+
+  it("does not coalesce across users", async () => {
+    deviceFindMany.mockResolvedValue([device()]);
+
+    queueMedicationIntakeSync({
+      userId: nextUserId(),
+      originDeviceToken: null,
+    });
+    queueMedicationIntakeSync({
+      userId: nextUserId(),
+      originDeviceToken: null,
+    });
+    await drainFlush();
+
+    expect(rawSendMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("trailing flush keeps the origin skip when the burst has ONE origin", async () => {
+    deviceFindMany.mockResolvedValue([
+      device({ id: "d-origin", token: "origin-token", apnsToken: "aaaa1111" }),
+      device(),
+    ]);
+    const userId = nextUserId();
+
+    queueMedicationIntakeSync({ userId, originDeviceToken: "origin-token" });
+    queueMedicationIntakeSync({ userId, originDeviceToken: "origin-token" });
+    await drainFlush();
+    vi.advanceTimersByTime(2_000);
+    await drainFlush();
+
+    // Leading + trailing, and neither ever pushed to the origin device.
+    expect(rawSendMock).toHaveBeenCalledTimes(2);
+    const targets = rawSendMock.mock.calls.map((c) => c[0].deviceToken);
+    expect(targets).toEqual(["bbbb2222", "bbbb2222"]);
+  });
+
+  it("trailing flush wakes EVERY device when the coalesced mutations mix origins", async () => {
+    deviceFindMany.mockResolvedValue([
+      device({ id: "d-a", token: "origin-a", apnsToken: "aaaa1111" }),
+      device({ id: "d-b", token: "origin-b", apnsToken: "bbbb2222" }),
+    ]);
+    const userId = nextUserId();
+
+    queueMedicationIntakeSync({ userId, originDeviceToken: "origin-a" });
+    queueMedicationIntakeSync({ userId, originDeviceToken: "origin-b" });
+    queueMedicationIntakeSync({ userId, originDeviceToken: "origin-a" });
+    await drainFlush();
+    vi.advanceTimersByTime(2_000);
+    await drainFlush();
+
+    // Leading: excludes origin-a. Trailing covers mutations from BOTH
+    // devices, so neither is skipped — each still has to learn about the
+    // other's change.
+    const targets = rawSendMock.mock.calls.map((c) => c[0].deviceToken);
+    expect(targets).toEqual(["bbbb2222", "aaaa1111", "bbbb2222"]);
+  });
+
+  it("trailing flush excludes the origin when ONLY that device queued mutations", async () => {
+    deviceFindMany.mockResolvedValue([
+      device({ id: "d-a", token: "origin-a", apnsToken: "aaaa1111" }),
+      device({ id: "d-b", token: "origin-b", apnsToken: "bbbb2222" }),
+    ]);
+    const userId = nextUserId();
+
+    queueMedicationIntakeSync({ userId, originDeviceToken: "origin-a" });
+    queueMedicationIntakeSync({ userId, originDeviceToken: "origin-b" });
+    await drainFlush();
+    vi.advanceTimersByTime(2_000);
+    await drainFlush();
+
+    // Leading (origin-a) → d-b. Trailing covers ONLY origin-b's
+    // mutation, so it wakes just d-a: origin-b already holds its own
+    // state and the leading flush already synced d-b.
+    const targets = rawSendMock.mock.calls.map((c) => c[0].deviceToken);
+    expect(targets).toEqual(["bbbb2222", "aaaa1111"]);
+  });
+});
+
+describe("queueMedicationIntakeSync — Live Activity push", () => {
   it("sends a liveactivity end push only for devices with a stored token", async () => {
     deviceFindMany.mockResolvedValue([
-      {
+      device({
         id: "d1",
         token: "tok-1",
         apnsToken: "aaaa1111",
         apnsEnvironment: "production",
         liveActivityPushToken: "la-token-1",
-      },
+      }),
     ]);
 
-    await dispatchMedicationIntakeSync({
-      userId: "u1",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
-    });
+    queueMedicationIntakeSync({ userId: nextUserId() });
+    await drainFlush();
 
     // One silent + one liveactivity push.
     expect(rawSendMock).toHaveBeenCalledTimes(2);
@@ -183,39 +309,30 @@ describe("dispatchMedicationIntakeSync — Live Activity push", () => {
     expect(la.deviceToken).toBe("la-token-1");
     expect(la.topic).toBe("test.healthlog.ios.push-type.liveactivity");
     expect(la.payload.aps.event).toBe("end");
+    // ActivityKit envelope only — no health data rides along.
+    expect(la.payload.medicationId).toBeUndefined();
+    expect(la.payload.scheduledFor).toBeUndefined();
   });
 
   it("sends no liveactivity push when no token is stored", async () => {
     deviceFindMany.mockResolvedValue([
-      {
-        id: "d1",
-        token: "tok-1",
-        apnsToken: "aaaa1111",
-        apnsEnvironment: "sandbox",
-        liveActivityPushToken: null,
-      },
+      device({ id: "d1", token: "tok-1", apnsToken: "aaaa1111" }),
     ]);
 
-    await dispatchMedicationIntakeSync({
-      userId: "u1",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
-    });
+    queueMedicationIntakeSync({ userId: nextUserId() });
+    await drainFlush();
 
     expect(rawSendMock).toHaveBeenCalledTimes(1);
     expect(rawSendMock.mock.calls[0][0].pushType).toBe("background");
   });
 });
 
-describe("dispatchMedicationIntakeSync — gating", () => {
+describe("queueMedicationIntakeSync — gating + failure isolation", () => {
   it("no-ops silently when APNs is not configured", async () => {
     loadConfigMock.mockReturnValue(null);
 
-    await dispatchMedicationIntakeSync({
-      userId: "u1",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
-    });
+    queueMedicationIntakeSync({ userId: nextUserId() });
+    await drainFlush();
 
     expect(deviceFindMany).not.toHaveBeenCalled();
     expect(rawSendMock).not.toHaveBeenCalled();
@@ -228,11 +345,8 @@ describe("dispatchMedicationIntakeSync — gating", () => {
       preferences: [{ enabled: false }],
     });
 
-    await dispatchMedicationIntakeSync({
-      userId: "u1",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
-    });
+    queueMedicationIntakeSync({ userId: nextUserId() });
+    await drainFlush();
 
     expect(deviceFindMany).not.toHaveBeenCalled();
     expect(rawSendMock).not.toHaveBeenCalled();
@@ -247,24 +361,15 @@ describe("dispatchMedicationIntakeSync — gating", () => {
   it("suppresses when the APNS channel row itself is disabled", async () => {
     channelFindUnique.mockResolvedValue({ enabled: false, preferences: [] });
 
-    await dispatchMedicationIntakeSync({
-      userId: "u1",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
-    });
+    queueMedicationIntakeSync({ userId: nextUserId() });
+    await drainFlush();
 
     expect(rawSendMock).not.toHaveBeenCalled();
   });
 
   it("reaps devices APNs reports as permanently dead", async () => {
     deviceFindMany.mockResolvedValue([
-      {
-        id: "d-dead",
-        token: "tok-1",
-        apnsToken: "aaaa1111",
-        apnsEnvironment: "sandbox",
-        liveActivityPushToken: null,
-      },
+      device({ id: "d-dead", token: "tok-1", apnsToken: "aaaa1111" }),
     ]);
     rawSendMock.mockResolvedValue({
       ok: false,
@@ -272,11 +377,8 @@ describe("dispatchMedicationIntakeSync — gating", () => {
       shouldDisable: true,
     });
 
-    await dispatchMedicationIntakeSync({
-      userId: "u1",
-      medicationId: "m1",
-      scheduledFor: "2026-06-14T07:00:00.000Z",
-    });
+    queueMedicationIntakeSync({ userId: nextUserId() });
+    await drainFlush();
 
     expect(deviceDeleteMany).toHaveBeenCalledWith({
       where: { id: { in: ["d-dead"] } },
@@ -285,42 +387,18 @@ describe("dispatchMedicationIntakeSync — gating", () => {
       expect.objectContaining({ result: "error" }),
     );
   });
-});
 
-describe("dispatchMedicationIntakeSyncBulk — slot de-dup", () => {
-  it("fires one silent push per device per DISTINCT slot, not per row", async () => {
-    deviceFindMany.mockResolvedValue([
-      {
-        id: "d-other",
-        token: "other-token",
-        apnsToken: "bbbb2222",
-        apnsEnvironment: "sandbox",
-        liveActivityPushToken: null,
-      },
-    ]);
+  it("never throws into the caller when the flush blows up", async () => {
+    channelFindUnique.mockRejectedValue(new Error("db down"));
 
-    await dispatchMedicationIntakeSyncBulk({
-      userId: "u1",
-      originDeviceToken: "origin-token",
-      slots: [
-        { medicationId: "m1", scheduledFor: "2026-06-14T07:00:00.000Z" },
-        // duplicate of the first — must collapse
-        { medicationId: "m1", scheduledFor: "2026-06-14T07:00:00.000Z" },
-        { medicationId: "m1", scheduledFor: "2026-06-14T19:00:00.000Z" },
-        { medicationId: "m2", scheduledFor: "2026-06-14T07:00:00.000Z" },
-      ],
-    });
+    expect(() =>
+      queueMedicationIntakeSync({ userId: nextUserId() }),
+    ).not.toThrow();
+    await drainFlush();
 
-    // 3 distinct slots × 1 recipient device = 3 silent pushes.
-    expect(rawSendMock).toHaveBeenCalledTimes(3);
-    const slots = rawSendMock.mock.calls.map((c) => [
-      c[0].payload.medicationId,
-      c[0].payload.scheduledFor,
-    ]);
-    expect(slots).toEqual([
-      ["m1", "2026-06-14T07:00:00.000Z"],
-      ["m1", "2026-06-14T19:00:00.000Z"],
-      ["m2", "2026-06-14T07:00:00.000Z"],
-    ]);
+    expect(rawSendMock).not.toHaveBeenCalled();
+    expect(addWarningMock).toHaveBeenCalledWith(
+      expect.stringContaining("medication_intake_sync_dispatch_failed"),
+    );
   });
 });

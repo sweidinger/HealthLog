@@ -68,7 +68,7 @@ import {
   type InjectionSiteValue,
 } from "@/lib/validations/medication";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
-import { dispatchMedicationIntakeSyncBulk } from "@/lib/notifications/medication-intake-sync";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { dispatchMedicationIntakeWebClearBulk } from "@/lib/notifications/web-push-clear";
 import { countOutstandingDosesToday } from "@/lib/medications/outstanding-doses";
 
@@ -702,15 +702,15 @@ async function postBulk(request: NextRequest): Promise<Response> {
     }
   }
 
-  // v1.17.1 (#22) — silent cross-device intake sync. One push per device
-  // per distinct affected slot (the map de-dupes), excluding the
-  // originating device (`X-Device-Id` = registered `Device.token`).
-  // APNs-only, best-effort, fire-and-forget: the canonical rows are already
+  // v1.17.1 (#22) — silent cross-device intake sync. ONE queued fan-out
+  // for the whole batch regardless of how many slots it touched (the
+  // per-user coalescer folds bursts further), excluding the originating
+  // device (`X-Device-Id` = registered `Device.token`). APNs-only,
+  // best-effort, fire-and-forget: the canonical rows are already
   // persisted, so a sync-push miss never affects the batch response.
   if (syncSlots.size > 0) {
-    void dispatchMedicationIntakeSyncBulk({
+    queueMedicationIntakeSync({
       userId: user.id,
-      slots: Array.from(syncSlots.values()),
       originDeviceToken: request.headers.get("x-device-id"),
     });
 
