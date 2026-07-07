@@ -108,10 +108,12 @@ export function DocumentBulkBar({
           </DropdownMenu>
         ) : null}
 
+        {/* Solid destructive (matching the detail sheet's Delete) — the
+            outline variant's destructive text on the card surface fails the
+            WCAG contrast gate. */}
         <Button
-          variant="outline"
+          variant="destructive"
           size="sm"
-          className="text-destructive hover:text-destructive"
           disabled={busy}
           onClick={onDelete}
         >
