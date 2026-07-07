@@ -104,6 +104,7 @@ describe("GET /api/documents/inbound/[id]/original", () => {
       id: "doc-1",
       filename: "report.pdf",
       mimeType: "application/pdf",
+      contentCodec: "base64v1",
       contentEncrypted: encryptDocumentToBytes(PDF_BYTES),
     } as never);
 
@@ -130,6 +131,7 @@ describe("GET /api/documents/inbound/[id]/original", () => {
       id: "doc-2",
       filename: null,
       mimeType: "image/png",
+      contentCodec: "base64v1",
       contentEncrypted: encryptDocumentToBytes(Buffer.from("png bytes")),
     } as never);
 
@@ -147,6 +149,7 @@ describe("GET /api/documents/inbound/[id]/original", () => {
       id: "doc-4",
       filename: "Müller-Bericht.pdf",
       mimeType: "application/pdf",
+      contentCodec: "base64v1",
       contentEncrypted: encryptDocumentToBytes(PDF_BYTES),
     } as never);
 
@@ -176,6 +179,7 @@ describe("GET /api/documents/inbound/[id]/original", () => {
       id: "doc-3",
       filename: "report.pdf",
       mimeType: "application/pdf",
+      contentCodec: "base64v1",
       contentEncrypted: encryptDocumentToBytes(PDF_BYTES),
     } as never);
     decryptMock.mockImplementation(() => {
@@ -188,4 +192,67 @@ describe("GET /api/documents/inbound/[id]/original", () => {
     const body = (await res.json()) as { error: string };
     expect(body.error).toBeTruthy();
   });
+});
+
+describe("serving-posture header matrix (Class A inline vs Class B attachment)", () => {
+  function seed(mimeType: string, filename: string) {
+    vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue({
+      id: "doc-m",
+      filename,
+      mimeType,
+      contentCodec: "base64v1",
+      contentEncrypted: encryptDocumentToBytes(Buffer.from("payload")),
+    } as never);
+  }
+
+  it.each([
+    ["application/pdf", "scan.pdf"],
+    ["image/jpeg", "photo.jpg"],
+    ["image/png", "scan.png"],
+    ["image/webp", "scan.webp"],
+    ["image/gif", "anim.gif"],
+  ])(
+    "Class A %s → inline, true type, nosniff, CSP sandbox",
+    async (mime, name) => {
+      seed(mime, name);
+      const res = await callGet(makeReq("doc-m"), ctx("doc-m"));
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe(mime);
+      expect(res.headers.get("Content-Disposition")).toContain("inline");
+      expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(res.headers.get("Content-Security-Policy")).toBe("sandbox");
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    },
+  );
+
+  it.each([
+    [
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "letter.docx",
+    ],
+    ["application/msword", "letter.doc"],
+    ["text/plain", "befund.txt"],
+    ["text/csv", "werte.csv"],
+    ["application/rtf", "note.rtf"],
+    ["image/tiff", "scan.tif"],
+    ["image/heic", "photo.heic"],
+    ["application/xml", "export.xml"],
+    ["application/json", "export.json"],
+  ])(
+    "Class B %s → attachment + octet-stream, never inline",
+    async (mime, name) => {
+      seed(mime, name);
+      const res = await callGet(makeReq("doc-m"), ctx("doc-m"));
+      expect(res.status).toBe(200);
+      // The true stored type is deliberately NOT surfaced on the wire.
+      expect(res.headers.get("Content-Type")).toBe("application/octet-stream");
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      expect(disposition.startsWith("attachment;")).toBe(true);
+      expect(disposition).toContain(name);
+      expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      // No render context → no sandbox header needed on a pure download.
+      expect(res.headers.get("Content-Security-Policy")).toBeNull();
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    },
+  );
 });
