@@ -8067,7 +8067,8 @@
       "zoneHint": "PDF, zdjęcia i pliki Office do {maxSize} każdy",
       "browse": "Wybierz pliki",
       "quotaAlmostFull": "Miejsce prawie pełne",
-      "quotaUsed": "Użyto {used} z {quota}"
+      "quotaUsed": "Użyto {used} z {quota}",
+      "queuedAnnouncement": "Dodano pliki do kolejki przesyłania: {count}"
     },
     "selection": {
       "count": "Zaznaczono: {count}",
@@ -8099,6 +8100,10 @@
       "noConditions": "Niepowiązany ze schorzeniem",
       "previewUnavailable": "Brak podglądu dla tego typu pliku",
       "uploadedMeta": "Dodano {date} · {size}"
+    },
+    "dropOverlay": {
+      "title": "Upuść pliki, aby je przesłać",
+      "hint": "Są zapisywane w Twoich dokumentach w postaci zaszyfrowanej"
     }
   },
   "selfDescription": {

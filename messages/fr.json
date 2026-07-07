@@ -8067,7 +8067,8 @@
       "zoneHint": "PDF, photos et fichiers Office jusqu'à {maxSize} chacun",
       "browse": "Choisir des fichiers",
       "quotaAlmostFull": "Stockage presque plein",
-      "quotaUsed": "{used} sur {quota} utilisés"
+      "quotaUsed": "{used} sur {quota} utilisés",
+      "queuedAnnouncement": "{count} fichier(s) ajoutés à la file de téléversement"
     },
     "selection": {
       "count": "{count} sélectionnés",
@@ -8099,6 +8100,10 @@
       "noConditions": "Lié à aucune affection",
       "previewUnavailable": "Pas d'aperçu intégré pour ce type de fichier",
       "uploadedMeta": "Ajouté le {date} · {size}"
+    },
+    "dropOverlay": {
+      "title": "Déposez les fichiers pour les téléverser",
+      "hint": "Ils sont enregistrés chiffrés dans vos documents"
     }
   },
   "selfDescription": {

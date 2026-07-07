@@ -8067,7 +8067,8 @@
       "zoneHint": "PDF, photos, and office files up to {maxSize} each",
       "browse": "Choose files",
       "quotaAlmostFull": "Storage almost full",
-      "quotaUsed": "{used} of {quota} used"
+      "quotaUsed": "{used} of {quota} used",
+      "queuedAnnouncement": "{count} file(s) added to the upload queue"
     },
     "selection": {
       "count": "{count} selected",
@@ -8099,6 +8100,10 @@
       "noConditions": "Not linked to a condition",
       "previewUnavailable": "No inline preview for this file type",
       "uploadedMeta": "Added {date} · {size}"
+    },
+    "dropOverlay": {
+      "title": "Drop files to upload",
+      "hint": "They are stored encrypted in your document vault"
     }
   },
   "selfDescription": {

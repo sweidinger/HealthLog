@@ -8067,7 +8067,8 @@
       "zoneHint": "PDF, foto e file Office fino a {maxSize} ciascuno",
       "browse": "Scegli file",
       "quotaAlmostFull": "Spazio quasi pieno",
-      "quotaUsed": "{used} di {quota} usati"
+      "quotaUsed": "{used} di {quota} usati",
+      "queuedAnnouncement": "{count} file aggiunti alla coda di caricamento"
     },
     "selection": {
       "count": "{count} selezionati",
@@ -8099,6 +8100,10 @@
       "noConditions": "Non collegato a una patologia",
       "previewUnavailable": "Nessuna anteprima integrata per questo tipo di file",
       "uploadedMeta": "Aggiunto il {date} · {size}"
+    },
+    "dropOverlay": {
+      "title": "Rilascia i file per caricarli",
+      "hint": "Vengono salvati cifrati nei tuoi documenti"
     }
   },
   "selfDescription": {

@@ -19,7 +19,14 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { FolderOpen, Loader2, SearchX, Upload, X } from "lucide-react";
+import {
+  FolderOpen,
+  Loader2,
+  SearchX,
+  Upload,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -45,6 +52,7 @@ import { DocumentFilterBar, type ConditionChip } from "./document-filter-bar";
 import { DocumentTimeline } from "./document-timeline";
 import { UploadZone } from "./upload-zone";
 import { useDocumentUpload } from "./use-document-upload";
+import { usePageFileDrop } from "./use-page-file-drop";
 import {
   buildVaultListApiSearch,
   countActiveFilters,
@@ -207,6 +215,27 @@ export function DocumentsView() {
   );
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
+  // One intake path for every source (picker, zone drop, page-wide drop,
+  // clipboard paste): pre-links to the active episode filter and feeds the
+  // sr-only live region — the drop overlay itself is decorative.
+  const [uploadAnnouncement, setUploadAnnouncement] = useState("");
+  const enqueueRef = useRef(upload.enqueue);
+  useEffect(() => {
+    enqueueRef.current = upload.enqueue;
+  }, [upload.enqueue]);
+  const episodeIdFilter = filters.episodeId;
+  const enqueueFiles = useCallback(
+    (files: File[]) => {
+      if (files.length === 0) return;
+      enqueueRef.current(files, { episodeId: episodeIdFilter });
+      setUploadAnnouncement(
+        t("documents.upload.queuedAnnouncement", { count: files.length }),
+      );
+    },
+    [episodeIdFilter, t],
+  );
+  const { dropActive } = usePageFileDrop(enqueueFiles);
+
   const episodes = useIllnessEpisodes(true);
 
   // Condition chips: the user's episodes that actually carry links in the
@@ -309,9 +338,7 @@ export function DocumentsView() {
       <UploadZone
         usage={usage.data}
         inputRef={uploadInputRef}
-        onFiles={(files) =>
-          upload.enqueue(files, { episodeId: filters.episodeId })
-        }
+        onFiles={enqueueFiles}
       />
 
       <DocumentFilterBar
@@ -409,6 +436,31 @@ export function DocumentsView() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
+
+      {/* Page-wide drop overlay — pure decoration (aria-hidden); the intake
+          itself announces through the live region below. */}
+      {dropActive ? (
+        <div
+          aria-hidden
+          data-slot="document-drop-overlay"
+          className="bg-background/80 fixed inset-0 z-50 p-4 backdrop-blur-sm md:p-8"
+        >
+          <div className="border-primary bg-primary/5 flex h-full items-center justify-center rounded-xl border-2 border-dashed">
+            <div className="flex flex-col items-center gap-2 px-4 text-center">
+              <UploadCloud className="text-primary size-8" aria-hidden />
+              <p className="text-base font-medium">
+                {t("documents.dropOverlay.title")}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {t("documents.dropOverlay.hint")}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <p aria-live="polite" role="status" className="sr-only">
+        {uploadAnnouncement}
+      </p>
     </div>
   );
 }

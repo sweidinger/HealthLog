@@ -8067,7 +8067,8 @@
       "zoneHint": "PDF, fotos y archivos de Office de hasta {maxSize} cada uno",
       "browse": "Elegir archivos",
       "quotaAlmostFull": "Almacenamiento casi lleno",
-      "quotaUsed": "{used} de {quota} usados"
+      "quotaUsed": "{used} de {quota} usados",
+      "queuedAnnouncement": "{count} archivo(s) añadidos a la cola de subida"
     },
     "selection": {
       "count": "{count} seleccionados",
@@ -8099,6 +8100,10 @@
       "noConditions": "Sin vincular a una afección",
       "previewUnavailable": "Sin vista previa integrada para este tipo de archivo",
       "uploadedMeta": "Añadido el {date} · {size}"
+    },
+    "dropOverlay": {
+      "title": "Suelta los archivos para subirlos",
+      "hint": "Se guardan cifrados en tu archivo de documentos"
     }
   },
   "selfDescription": {

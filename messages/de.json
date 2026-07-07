@@ -8067,7 +8067,8 @@
       "zoneHint": "PDF, Fotos und Office-Dateien bis je {maxSize}",
       "browse": "Dateien auswählen",
       "quotaAlmostFull": "Speicher fast voll",
-      "quotaUsed": "{used} von {quota} belegt"
+      "quotaUsed": "{used} von {quota} belegt",
+      "queuedAnnouncement": "{count} Datei(en) zur Upload-Warteschlange hinzugefügt"
     },
     "selection": {
       "count": "{count} ausgewählt",
@@ -8099,6 +8100,10 @@
       "noConditions": "Mit keiner Erkrankung verknüpft",
       "previewUnavailable": "Keine Inline-Vorschau für diesen Dateityp",
       "uploadedMeta": "Hinzugefügt am {date} · {size}"
+    },
+    "dropOverlay": {
+      "title": "Zum Hochladen ablegen",
+      "hint": "Deine Dateien werden verschlüsselt in deinen Dokumenten gespeichert"
     }
   },
   "selfDescription": {
