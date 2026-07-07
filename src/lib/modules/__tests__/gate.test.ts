@@ -374,22 +374,21 @@ describe("registry — opt-in marker", () => {
   });
 });
 
-describe("resolveModuleEnabled — inboundDocuments module (disabled in code)", () => {
-  // v1.25.3 — `inboundDocuments` is switched off in code pending a rebuild
-  // (`CODE_DISABLED_MODULE_KEYS`). It is hard-off ahead of both the operator
-  // and the per-user layer: no stored preference or availability blob can
-  // re-surface it. The registry entry + `optIn` marker stay intact.
-  it("is flagged as code-disabled in the registry", () => {
-    expect(isCodeDisabledModule("inboundDocuments")).toBe(true);
+describe("resolveModuleEnabled — inboundDocuments module (document vault)", () => {
+  // Parked in code from v1.25.3; the document vault re-enabled it. Normal
+  // two-layer opt-in resolution applies again: dark by default, ON only on
+  // an explicit per-user opt-in, and an operator `false` still wins.
+  it("is no longer flagged as code-disabled in the registry", () => {
+    expect(isCodeDisabledModule("inboundDocuments")).toBe(false);
   });
 
-  it("is OFF when no preference is recorded", () => {
+  it("is OFF when no preference is recorded (opt-in ships dark)", () => {
     expect(
       resolveModuleEnabled("inboundDocuments", inputs(), false, ALL_AVAILABLE),
     ).toBe(false);
   });
 
-  it("stays OFF even when the user opted in (the in-code switch wins)", () => {
+  it("is ON when the user opted in", () => {
     expect(
       resolveModuleEnabled(
         "inboundDocuments",
@@ -397,16 +396,16 @@ describe("resolveModuleEnabled — inboundDocuments module (disabled in code)", 
         false,
         ALL_AVAILABLE,
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it("stays OFF when the user opted in and the operator left it available", () => {
+  it("stays OFF when the operator disabled it, even with a user opt-in", () => {
     expect(
       resolveModuleEnabled(
         "inboundDocuments",
         inputs({ modulePreferences: { inboundDocuments: true } }),
         false,
-        operator({ inboundDocuments: true }),
+        operator({ inboundDocuments: false }),
       ),
     ).toBe(false);
   });
