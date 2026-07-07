@@ -8073,8 +8073,6 @@
       "listLabel": "Dokumenten-Zeitleiste"
     },
     "upload": {
-      "zoneTitle": "Dateien hier ablegen oder vom Gerät auswählen",
-      "zoneHint": "PDF, Fotos und Office-Dateien bis je {maxSize}",
       "browse": "Dateien auswählen",
       "quotaAlmostFull": "Speicher fast voll",
       "quotaUsed": "{used} von {quota} belegt",

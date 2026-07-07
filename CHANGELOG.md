@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.27.19] — 2026-07-07 — Vault page polish
+
+### Changed
+
+- The Documents page now uses the standard content width like every other page instead of a wider container.
+- The standing dashed drop-zone is gone: the header Upload button and page-wide drag-and-drop already cover uploading, so the zone no longer takes a band of space on every visit (the quota bar still appears above 80% usage).
+- Search shares one row with the type tags on desktop instead of sitting on its own line above them.
+- In a document's detail view, Delete moved to the bottom-left as a quiet text button — the bottom-right slot reads as the primary action, so a destructive control no longer sits there; Download keeps the trailing edge.
+
 ## [1.27.18] — 2026-07-07 — Late doses no longer jump the evening slot
 
 ### Fixed

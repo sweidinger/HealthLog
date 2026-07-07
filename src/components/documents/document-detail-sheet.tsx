@@ -285,22 +285,27 @@ export function DocumentDetailSheet({
       contentWidth="3xl"
       footer={
         doc ? (
-          <>
-            <Button variant="outline" asChild data-slot="document-download">
-              <a href={originalHref} download={doc.filename ?? undefined}>
-                <Download className="size-4" aria-hidden />
-                {t("documents.detail.download")}
-              </a>
-            </Button>
+          // Delete sits bottom-LEFT, quieted to a text button: the
+          // bottom-right slot reads as the primary/confirm action, and a
+          // destructive control there is a footgun. Download — the safe,
+          // expected action — keeps the trailing edge.
+          <div className="flex w-full items-center justify-between">
             <Button
-              variant="destructive"
+              variant="ghost"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
               onClick={() => remove.mutate(doc.id)}
               disabled={remove.isPending}
             >
               <Trash2 className="size-4" aria-hidden />
               {t("documents.detail.delete")}
             </Button>
-          </>
+            <Button variant="outline" asChild data-slot="document-download">
+              <a href={originalHref} download={doc.filename ?? undefined}>
+                <Download className="size-4" aria-hidden />
+                {t("documents.detail.download")}
+              </a>
+            </Button>
+          </div>
         ) : undefined
       }
     >

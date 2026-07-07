@@ -8073,8 +8073,6 @@
       "listLabel": "Oś czasu dokumentów"
     },
     "upload": {
-      "zoneTitle": "Upuść pliki tutaj lub wybierz z urządzenia",
-      "zoneHint": "PDF, zdjęcia i pliki Office do {maxSize} każdy",
       "browse": "Wybierz pliki",
       "quotaAlmostFull": "Miejsce prawie pełne",
       "quotaUsed": "Użyto {used} z {quota}",
