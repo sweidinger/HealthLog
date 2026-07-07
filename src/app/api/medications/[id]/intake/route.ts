@@ -29,6 +29,7 @@ import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-
 import {
   applyCanonicalSlotWrite,
   findPinConflict,
+  mayConvergeOntoSuppliedSlot,
   resolveForcedSlotForWrite,
   resolveSlotForWriteByBand,
   resolveSlotInstantForWrite,
@@ -344,8 +345,22 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     // index carries `source` and cannot catch it — inflating the
     // compliance rollup's scheduled count. A defaulted anchor (takenAt /
     // now) never names a slot, so the probe is skipped on that hot path.
+    //
+    // Dose-safety guard: a TAKEN write must not converge onto a slot whose
+    // anchor is in the future relative to the take. The card advances its
+    // display-due to the evening slot once the morning slot's catch-up
+    // window lapses, so a late-morning "Genommen" posts the evening slot as
+    // `scheduledFor`; band attribution already rejected the take, and the
+    // probe must not re-bind it forward onto the evening pending row (a
+    // late-morning dose silently consuming the 21:00 slot). It records
+    // standalone (ad-hoc) instead.
     const existingSlotRow =
-      scheduledFor !== undefined
+      scheduledFor !== undefined &&
+      mayConvergeOntoSuppliedSlot({
+        skipped,
+        takenAt: resolvedTakenAt,
+        suppliedSlot: incomingScheduledFor,
+      })
         ? await prisma.medicationIntakeEvent.findFirst({
             where: {
               userId: user.id,
