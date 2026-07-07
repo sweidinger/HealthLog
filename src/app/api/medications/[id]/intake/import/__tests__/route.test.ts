@@ -47,7 +47,15 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+// (#22) — silent cross-device intake sync. Mocked so the route test can
+// assert the hook without reaching the APNs senders or the coalescing
+// timers.
+vi.mock("@/lib/notifications/medication-intake-sync", () => ({
+  queueMedicationIntakeSync: vi.fn(),
+}));
+
 import { POST } from "../route";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { consumeForIntake } from "@/lib/medications/inventory/consumption";
@@ -191,6 +199,10 @@ describe("POST /api/medications/[id]/intake/import — inventory consumption", (
     expect(call?.medicationId).toBe("m1");
     expect(call?.userId).toBe("user-1");
     expect(call?.eventId).toBe("evt-1");
+
+    // (#22) — the whole import queues exactly ONE cross-device sync
+    // fan-out, not one per imported row.
+    expect(queueMedicationIntakeSync).toHaveBeenCalledTimes(1);
   });
 
   it("does not consume for duplicate (already-imported) rows", async () => {

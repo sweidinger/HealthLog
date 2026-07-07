@@ -82,7 +82,15 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+// (#22) — silent cross-device intake sync. Mocked so the route test can
+// assert the hook without reaching the APNs senders or the coalescing
+// timers.
+vi.mock("@/lib/notifications/medication-intake-sync", () => ({
+  queueMedicationIntakeSync: vi.fn(),
+}));
+
 import { POST } from "../route";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
@@ -165,6 +173,8 @@ describe("POST /api/medications/[id]/intake/bulk-delete", () => {
     expect(json.data).toEqual({ deleted: 0 });
     expect(prisma.medicationIntakeEvent.updateMany).not.toHaveBeenCalled();
     expect(recomputeMedicationComplianceForDay).not.toHaveBeenCalled();
+    // (#22) — a no-op delete queues no cross-device sync fan-out.
+    expect(queueMedicationIntakeSync).not.toHaveBeenCalled();
   });
 
   it("recomputes the rollup once per unique dayKey", async () => {
@@ -190,6 +200,10 @@ describe("POST /api/medications/[id]/intake/bulk-delete", () => {
     expect(dayKeyForScheduledFor).toHaveBeenCalledTimes(3);
     // Three rows, two unique dayKeys → two recompute calls.
     expect(recomputeMedicationComplianceForDay).toHaveBeenCalledTimes(2);
+
+    // (#22) — the whole bulk delete queues exactly ONE cross-device
+    // sync fan-out, not one per removed row.
+    expect(queueMedicationIntakeSync).toHaveBeenCalledTimes(1);
   });
 
   it("soft-deletes scoped by userId + medicationId + deletedAt:null", async () => {

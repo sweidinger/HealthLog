@@ -24,6 +24,7 @@ import {
 import { reconcileOneShotState } from "@/lib/medications/lifecycle";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 import {
   applyCanonicalSlotWrite,
@@ -488,6 +489,14 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
   if (reconcileAction !== "noop") {
     invalidateUserMedications(user.id, { evict: true });
   }
+
+  // (#22) — silent cross-device intake sync: wake the user's OTHER iOS
+  // devices so a running Live Activity / widget reconciles this dose.
+  // Coalesced per user, best-effort — never affects the response.
+  queueMedicationIntakeSync({
+    userId: user.id,
+    originDeviceToken: request.headers.get("x-device-id"),
+  });
 
   return apiSuccess(event, 201);
 }

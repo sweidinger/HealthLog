@@ -17,6 +17,7 @@ import {
 } from "@/lib/medications/inventory/consumption";
 import { reconcileOneShotState } from "@/lib/medications/lifecycle";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 import { dayKeyForUserTz } from "@/lib/measurements/consolidation-tz";
 import {
@@ -379,6 +380,14 @@ export const PUT = apiHandler(
     // deactivate again. No-op for non-one-shot medications.
     await reconcileOneShotState(prisma, id, user.id);
 
+    // (#22) — silent cross-device intake sync: an edited dose must
+    // reconcile on the user's other iOS devices too. Coalesced per user,
+    // best-effort — never affects the response.
+    queueMedicationIntakeSync({
+      userId: user.id,
+      originDeviceToken: request.headers.get("x-device-id"),
+    });
+
     return apiSuccess(updated);
   },
 );
@@ -456,6 +465,15 @@ export const DELETE = apiHandler(
     // the dashboard / lists / worker pick it back up. No-op for
     // non-one-shot medications.
     await reconcileOneShotState(prisma, id, user.id);
+
+    // (#22) — silent cross-device intake sync: an undone dose must
+    // reconcile on the user's other iOS devices (the widget count and a
+    // pending Live Activity both change). Coalesced per user,
+    // best-effort — never affects the response.
+    queueMedicationIntakeSync({
+      userId: user.id,
+      originDeviceToken: request.headers.get("x-device-id"),
+    });
 
     return apiSuccess({ deleted: true });
   },

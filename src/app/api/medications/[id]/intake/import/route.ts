@@ -12,6 +12,7 @@ import {
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { consumeForIntake } from "@/lib/medications/inventory/consumption";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import {
   recomputeMedicationComplianceForDay,
   dayKeyForScheduledFor,
@@ -205,6 +206,16 @@ export const POST = apiHandler(
         total: entries.length,
       },
     });
+
+    // (#22) — silent cross-device intake sync: imported rows change the
+    // intake state the user's other iOS devices render. Coalesced per
+    // user, best-effort — never affects the response.
+    if (imported > 0) {
+      queueMedicationIntakeSync({
+        userId: user.id,
+        originDeviceToken: request.headers.get("x-device-id"),
+      });
+    }
 
     return apiSuccess({ imported, skippedDuplicates, skippedInvalid }, 201);
   },

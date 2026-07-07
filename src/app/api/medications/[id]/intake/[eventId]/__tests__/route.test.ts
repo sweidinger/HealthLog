@@ -53,7 +53,15 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+// (#22) — silent cross-device intake sync. Mocked so the route test can
+// assert the hook fires on edit + undo without reaching the APNs senders
+// or the coalescing timers.
+vi.mock("@/lib/notifications/medication-intake-sync", () => ({
+  queueMedicationIntakeSync: vi.fn(),
+}));
+
 import { PUT, DELETE } from "../route";
+import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
@@ -209,6 +217,14 @@ describe("DELETE /api/medications/[id]/intake/[eventId] — one-shot reconcile",
     });
     const calls = vi.mocked(auditLog).mock.calls.map((c) => c[0]);
     expect(calls).toContain("medication.oneShot.reconciled");
+
+    // (#22) — the undo queues exactly one cross-device sync fan-out so
+    // the user's other iOS devices reconcile the restored dose state.
+    expect(queueMedicationIntakeSync).toHaveBeenCalledTimes(1);
+    expect(queueMedicationIntakeSync).toHaveBeenCalledWith({
+      userId: "user-1",
+      originDeviceToken: null,
+    });
   });
 
   it("is idempotent on a non-one-shot medication", async () => {
