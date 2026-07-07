@@ -136,10 +136,11 @@ describe("mapRestingHeartRate — int64-string coercion", () => {
 });
 
 describe("mapRespiratoryRate — daily-respiratory-rate summary", () => {
-  it("coerces the dailyRespiratoryRateBpm int64 JSON string", () => {
+  it("reads the documented breathsPerMinute number", () => {
+    // Documented schema: `{ date, breathsPerMinute }` — a plain number.
     const rows = mapRespiratoryRate({
       dailyRespiratoryRate: {
-        dailyRespiratoryRateBpm: "14",
+        breathsPerMinute: 14.2,
         date: { year: 2026, month: 6, day: 1 },
       },
     });
@@ -147,9 +148,20 @@ describe("mapRespiratoryRate — daily-respiratory-rate summary", () => {
     expect(rows[0]).toMatchObject({
       type: "RESPIRATORY_RATE",
       unit: "breaths/min",
-      value: 14,
+      value: 14.2,
       fieldTag: "2026-06-01:resp_rate",
     });
+  });
+
+  it("returns nothing for the leaf name that does not exist in the schema", () => {
+    expect(
+      mapRespiratoryRate({
+        dailyRespiratoryRate: {
+          dailyRespiratoryRateBpm: "14",
+          date: { year: 2026, month: 6, day: 1 },
+        },
+      }),
+    ).toEqual([]);
   });
 });
 
@@ -172,10 +184,11 @@ describe("mapHeartRate — intraday spot sample", () => {
 });
 
 describe("mapHeight — profile seed", () => {
-  it("converts heightMeters to cm and surfaces the sample instant", () => {
+  it("converts the heightMillimeters int64 string to cm and surfaces the sample instant", () => {
+    // Documented field: `heightMillimeters` (string, int64) — millimetres.
     const sample = mapHeight({
       height: {
-        heightMeters: 1.82,
+        heightMillimeters: "1820",
         sampleTime: { physicalTime: "2026-06-01T08:00:00.000Z" },
       },
     });
@@ -184,8 +197,9 @@ describe("mapHeight — profile seed", () => {
     expect(sample!.sampledAt?.toISOString()).toBe("2026-06-01T08:00:00.000Z");
   });
 
-  it("returns null when no value parses", () => {
+  it("returns null when no value parses (incl. the nonexistent heightMeters leaf)", () => {
     expect(mapHeight({ height: {} })).toBeNull();
+    expect(mapHeight({ height: { heightMeters: 1.82 } })).toBeNull();
   });
 });
 
@@ -424,6 +438,26 @@ describe("mapWorkout — exercise session", () => {
     expect(mapGoogleHealthSportType("KITESURFING")).toBe("other");
     expect(mapGoogleHealthSportType("")).toBe("other");
   });
+
+  it("resolves the documented multi-word ExerciseType values (catalogue audit)", () => {
+    // Values verbatim from the Exercise.ExerciseType enum in the v4 reference.
+    expect(mapGoogleHealthSportType("MOUNTAIN_BIKE")).toBe("cycling");
+    expect(mapGoogleHealthSportType("STATIONARY_BIKE")).toBe("cycling");
+    expect(mapGoogleHealthSportType("TRAIL_RUN")).toBe("running");
+    expect(mapGoogleHealthSportType("TREADMILL_WALK")).toBe("walking");
+    expect(mapGoogleHealthSportType("NORDIC_WALKING")).toBe("walking");
+    expect(mapGoogleHealthSportType("SWIMMING_POOL")).toBe("swimming");
+    expect(mapGoogleHealthSportType("SWIMMING_OPEN_WATER")).toBe("swimming");
+    expect(mapGoogleHealthSportType("ROWING_MACHINE")).toBe("rowing");
+    expect(mapGoogleHealthSportType("FREE_WEIGHTS")).toBe("strength");
+    expect(mapGoogleHealthSportType("FUNCTIONAL_STRENGTH_TRAINING")).toBe(
+      "strength",
+    );
+    expect(mapGoogleHealthSportType("CROSSFIT")).toBe("crossTraining");
+    expect(mapGoogleHealthSportType("CARDIO_WORKOUT")).toBe("mixedCardio");
+    expect(mapGoogleHealthSportType("TABATA_WORKOUT")).toBe("hiit");
+    expect(mapGoogleHealthSportType("TAI_CHI")).toBe("mindAndBody");
+  });
 });
 
 describe("incrementalFilter — per-shape filter grammar", () => {
@@ -436,11 +470,34 @@ describe("incrementalFilter — per-shape filter grammar", () => {
     });
   });
 
-  it("filters daily summaries on .date (YYYY-MM-DD)", () => {
+  it("filters daily summaries on .date (YYYY-MM-DD) with the camelCase worked-example prefix", () => {
+    // The list reference's only worked daily example is
+    // `dailyHeartRateVariability.date < "2024-08-15"` — camelCase, unlike the
+    // snake_case sample/session prefixes. Camel is the default.
     expect(
       incrementalFilter(GOOGLE_HEALTH_DATA_TYPES.oxygenSaturation, start),
     ).toEqual({
-      field: "daily_oxygen_saturation.date",
+      field: "dailyOxygenSaturation.date",
+      bound: "2026-06-01",
+    });
+    expect(
+      incrementalFilter(GOOGLE_HEALTH_DATA_TYPES.heartRateVariability, start),
+    ).toEqual({
+      field: "dailyHeartRateVariability.date",
+      bound: "2026-06-01",
+    });
+  });
+
+  it("builds the snake_case daily prefix for the fallback style", () => {
+    expect(
+      incrementalFilter(
+        GOOGLE_HEALTH_DATA_TYPES.restingHeartRate,
+        start,
+        undefined,
+        "snake",
+      ),
+    ).toEqual({
+      field: "daily_resting_heart_rate.date",
       bound: "2026-06-01",
     });
   });
