@@ -31,6 +31,7 @@ function doc(overrides: Partial<InboundDocumentDto> = {}): InboundDocumentDto {
     pendingCount: 0,
     conditionLinks: [{ episodeId: "ep-knee", name: "Knie" }],
     servingClass: "inline",
+    hasContentIndex: false,
     createdAt: "2025-10-05T08:00:00.000Z",
     updatedAt: "2025-10-05T08:00:00.000Z",
     ...overrides,
@@ -67,6 +68,7 @@ describe("<DocumentCard>", () => {
       <DocumentCard
         document={doc({
           servingClass: "attachment",
+    hasContentIndex: false,
           mimeType: "application/octet-stream",
           filename: "befund.docx",
           title: null,

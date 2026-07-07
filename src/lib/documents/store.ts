@@ -134,6 +134,7 @@ export function serialiseDocument(
   doc: SerialisableDocument,
   counts: { factCount: number; pendingCount: number },
   conditionLinks: DocumentConditionLinkDto[] = [],
+  hasContentIndex = false,
 ): InboundDocumentDto {
   return {
     id: doc.id,
@@ -155,6 +156,7 @@ export function serialiseDocument(
     pendingCount: counts.pendingCount,
     conditionLinks,
     servingClass: servingClassFor(doc.mimeType),
+    hasContentIndex,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
@@ -180,13 +182,19 @@ export function serialiseDocumentDetail(
   doc: SerialisableDocument,
   facts: ExtractedFact[],
   conditionLinks: DocumentConditionLinkDto[] = [],
+  hasContentIndex = false,
 ): InboundDocumentDetailDto {
   const pendingCount = facts.filter((f) => f.status === "PENDING").length;
   // `factCount` excludes REJECTED facts (a rejected fact is discarded, not part
   // of the document's tally) so the badge matches the list query.
   const factCount = facts.filter((f) => f.status !== "REJECTED").length;
   return {
-    ...serialiseDocument(doc, { factCount, pendingCount }, conditionLinks),
+    ...serialiseDocument(
+      doc,
+      { factCount, pendingCount },
+      conditionLinks,
+      hasContentIndex,
+    ),
     facts: facts.map(serialiseFact),
   };
 }

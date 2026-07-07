@@ -14,6 +14,7 @@ import {
   DOCUMENT_ACCEPTED_EXTENSIONS,
   resolveDocumentLimits,
 } from "@/lib/documents/upload-policy";
+import { resolveOcrCapability } from "@/lib/labs/ocr-capability";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import type { DocumentUsageDto } from "@/lib/validations/inbound-documents";
@@ -25,9 +26,10 @@ export const GET = apiHandler(async () => {
   const gate = await requireModuleEnabled(user.id, "inboundDocuments");
   if (!gate.enabled) return gate.response;
 
-  const [limits, rows, linkRows] = await Promise.all([
-    resolveDocumentLimits(user.id),
-    prisma.$queryRaw<Array<{ used: bigint }>>`
+  const [limits, rows, linkRows, capability, indexedCount, totalCount] =
+    await Promise.all([
+      resolveDocumentLimits(user.id),
+      prisma.$queryRaw<Array<{ used: bigint }>>`
       SELECT COALESCE(SUM(byte_size), 0)::bigint AS used
       FROM inbound_documents
       WHERE user_id = ${user.id}
@@ -36,13 +38,23 @@ export const GET = apiHandler(async () => {
     // bar's condition chips. Sourced here (not from the loaded corpus) so
     // a chip exists even when its documents sit pages deep in the
     // timeline; one indexed grouped query, no blobs.
-    prisma.documentConditionLink.findMany({
-      where: { userId: user.id, document: { deletedAt: null } },
-      select: { episodeId: true, episode: { select: { label: true } } },
-      distinct: ["episodeId"],
-      orderBy: { episodeId: "asc" },
-    }),
-  ]);
+      prisma.documentConditionLink.findMany({
+        where: { userId: user.id, document: { deletedAt: null } },
+        select: { episodeId: true, episode: { select: { label: true } } },
+        distinct: ["episodeId"],
+        orderBy: { episodeId: "asc" },
+      }),
+      // Whether an AI action can run for this caller (assist + indexing share
+      // the same provider precondition). Honest availability so the UI never
+      // offers what the endpoint would 422.
+      resolveOcrCapability(user.id),
+      // Content-index coverage: how many live documents are indexed …
+      prisma.documentContentIndex.count({ where: { userId: user.id } }),
+      // … out of how many live documents there are.
+      prisma.inboundDocument.count({
+        where: { userId: user.id, deletedAt: null },
+      }),
+    ]);
   const usedBytes = Number(rows[0]?.used ?? 0);
 
   annotate({
@@ -59,6 +71,12 @@ export const GET = apiHandler(async () => {
       episodeId: row.episodeId,
       name: row.episode.label,
     })),
+    assistAvailable: capability.available,
+    contentIndex: {
+      enabled: capability.available,
+      indexedCount,
+      totalCount,
+    },
   };
   return apiSuccess(payload);
 });

@@ -228,6 +228,12 @@ export interface InboundDocumentDto {
   conditionLinks: DocumentConditionLinkDto[];
   /** How the serve route delivers the original: render inline or download. */
   servingClass: "inline" | "attachment";
+  /**
+   * Whether the document has a content-search index (encrypted extracted text +
+   * blind token array). Drives the "index for search" / re-index affordances;
+   * `false` until the document is indexed.
+   */
+  hasContentIndex: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -523,4 +529,39 @@ export interface DocumentUsageDto {
    * every linked document sits pages deep in the timeline.
    */
   linkedEpisodes: DocumentConditionLinkDto[];
+  /**
+   * Whether the AI "Suggest details" action can run for this caller — true when
+   * a provider (vision, or text + local OCR) is configured. The UI hides the
+   * action when false so it never offers what the endpoint would 422.
+   */
+  assistAvailable: boolean;
+  /**
+   * Content-search index state: whether indexing is available to the caller
+   * (`enabled`, same provider precondition as assist), how many live documents
+   * are indexed, and the live-document total — so the UI can gauge coverage and
+   * offer the "index all documents" backfill.
+   */
+  contentIndex: {
+    enabled: boolean;
+    indexedCount: number;
+    totalCount: number;
+  };
 }
+
+// ─── AI assist / summary / index (Document vault P2) ────────────────────────
+
+/**
+ * The filing-metadata suggestion the assist endpoint returns. Drafts ONLY — the
+ * client prefills the edit form and the user saves; nothing is written by the
+ * suggest call. Every field is nullable (the model leaves it null when it
+ * cannot read it confidently).
+ */
+export interface DocumentSuggestionDto {
+  title: string | null;
+  kind: InboundDocumentKindValue | null;
+  documentDate: string | null;
+}
+
+/** The session-only summary/extracted-text mode the summary route serves. */
+export const DOCUMENT_SUMMARY_MODES = ["summary", "text"] as const;
+export type DocumentSummaryMode = (typeof DOCUMENT_SUMMARY_MODES)[number];
