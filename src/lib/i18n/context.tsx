@@ -22,8 +22,8 @@ import { readStoredTimeFormat, subscribeTimeFormat } from "../time-format";
 import { readStoredDateFormat, subscribeDateFormat } from "../date-format";
 import { resolveKey } from "./resolve-key";
 import {
-  fallbackMessages,
   getCachedMessages,
+  getFallbackMessages,
   loadMessages,
   primeMessages,
   type MessageBundle,
@@ -117,12 +117,13 @@ export function I18nProvider({
   children: ReactNode;
   initialLocale?: Locale;
   /**
-   * The active locale's message bundle, resolved server-side by the
-   * root layout and passed through the RSC payload. This is what keeps
-   * the client chunk free of every non-EN bundle WITHOUT reintroducing
-   * the EN→DE hydration flash: the first client render already holds
-   * the right strings, no async fetch on first paint. Only EN ships
-   * statically (the synchronous fallback floor of the t() chain).
+   * Optional pre-resolved bundle for standalone mounts (tests, embedded
+   * providers). The APP no longer passes this: the active bundle reaches
+   * the provider through the `load-locale` cache — seeded server-side from
+   * the full catalog map during SSR and client-side by the layout's
+   * versioned `/i18n/<locale>` boot script — so the catalog is never
+   * serialized into the RSC flight payload (it used to be 392 KB of every
+   * dashboard document).
    */
   initialMessages?: MessageBundle;
 }) {
@@ -146,10 +147,25 @@ export function I18nProvider({
       primeMessages(locale, initialMessages);
       return { locale, messages: initialMessages };
     }
-    return { locale, messages: getCachedMessages(locale) ?? fallbackMessages };
+    // Cache miss on every ladder rung (boot script failed AND the locale
+    // isn't EN-cached): render with an empty bundle for one frame — the
+    // backfill effect below dynamic-imports the bundle and flips state.
+    // In the app this only happens when the boot script is unreachable
+    // (evicted HTTP cache offline); keys render raw briefly rather than
+    // in the wrong language.
+    return {
+      locale,
+      messages: getCachedMessages(locale) ?? getFallbackMessages() ?? {},
+    };
   });
   const { locale, messages } = active;
   const [pendingLocale, setPendingLocale] = useState<Locale | null>(null);
+  // Bumped when the lazily-loaded EN fallback bundle lands so every t()
+  // consumer re-renders with the fallback floor in place. The EN catalog is
+  // no longer a static import (it cost ~106 KB gz on every route); it loads
+  // on demand the first time a key actually misses the active bundle.
+  const [, setFallbackTick] = useState(0);
+  const fallbackRequestedRef = useRef(false);
   // Tracks the most recent switch request so a slow bundle load can't
   // clobber a newer one (last click wins).
   const requestedLocaleRef = useRef<Locale | null>(null);
@@ -228,7 +244,22 @@ export function I18nProvider({
 
       // Fallback to English if key missing in current locale
       if (value === undefined && locale !== "en") {
-        value = resolveKey(fallbackMessages, key);
+        const fallback = getFallbackMessages();
+        if (fallback) {
+          value = resolveKey(fallback, key);
+        } else if (!fallbackRequestedRef.current) {
+          // First miss without the EN floor in hand: fetch it once, then
+          // re-render so this key (and any sibling misses) resolve. The
+          // locale-integrity guard keeps every locale key-complete, so in
+          // practice this path only runs against a drifted cached bundle.
+          fallbackRequestedRef.current = true;
+          void loadMessages("en")
+            .then(() => setFallbackTick((n) => n + 1))
+            .catch(() => {
+              // Leave the ref set — retrying every render would hammer a
+              // dead network; the raw key remains the last resort.
+            });
+        }
       }
 
       // Fallback to key itself

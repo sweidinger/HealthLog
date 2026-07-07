@@ -6,7 +6,7 @@ import {
   resolveChartRowPlaceholderCount,
   resolveConfiguredTileCount,
   resolveDashboardFirstPaintGate,
-} from "../page";
+} from "../page-client";
 import {
   DEFAULT_DASHBOARD_LAYOUT,
   type DashboardLayout,
@@ -33,7 +33,7 @@ import {
  * snapshot fetch. The pure `resolveDashboardFirstPaintGate` carries the
  * behaviour; textual pins keep the wiring honest.
  */
-const PAGE_PATH = join(process.cwd(), "src/app/page.tsx");
+const PAGE_PATH = join(process.cwd(), "src/app/page-client.tsx");
 
 describe("resolveDashboardFirstPaintGate", () => {
   const base = {

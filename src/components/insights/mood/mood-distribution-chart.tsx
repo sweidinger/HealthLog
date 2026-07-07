@@ -71,7 +71,7 @@ export function MoodDistributionChart({
             // unchanged. The mood-hue bar Cells stay on `--dracula-*` — only the
             // axis text legibility changes here.
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-            stroke="var(--dracula-comment)"
+            stroke="var(--muted-foreground)"
             interval={0}
           />
           <YAxis
@@ -83,7 +83,7 @@ export function MoodDistributionChart({
             // unchanged. The mood-hue bar Cells stay on `--dracula-*` — only the
             // axis text legibility changes here.
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-            stroke="var(--dracula-comment)"
+            stroke="var(--muted-foreground)"
             width={28}
           />
           <Tooltip
@@ -94,8 +94,8 @@ export function MoodDistributionChart({
               borderRadius: "0.5rem",
               fontSize: "0.75rem",
             }}
-            itemStyle={{ color: "var(--dracula-fg)" }}
-            labelStyle={{ color: "var(--dracula-fg)" }}
+            itemStyle={{ color: "var(--foreground)" }}
+            labelStyle={{ color: "var(--foreground)" }}
             formatter={(value) =>
               [
                 `${value ?? 0} ${t("insights.mood.distributionDaysUnit")}`,

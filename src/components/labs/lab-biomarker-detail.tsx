@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -27,7 +27,11 @@ import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 import { summarize, type DataSummary } from "@/lib/analytics/trends";
 import { BIOMARKER_CATALOG } from "@/lib/labs/biomarker-catalog";
 import { useTranslations } from "@/lib/i18n/context";
-import { fallbackMessages } from "@/lib/i18n/load-locale";
+import {
+  getFallbackMessages,
+  loadMessages,
+  type MessageBundle,
+} from "@/lib/i18n/load-locale";
 import { resolveKey } from "@/lib/i18n/resolve-key";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -51,9 +55,11 @@ import type {
 // loading shell matches the in-card chart footprint so the layout is stable.
 const LabBiomarkerChartLazy = dynamic(
   () =>
-    importWithRetry(() => import("./lab-biomarker-chart")).then((mod) => ({
-      default: mod.LabBiomarkerChart,
-    })),
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
+      (mod) => ({
+        default: mod.LabBiomarkerChart,
+      }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 function LabBiomarkerChart(
@@ -92,23 +98,42 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
   // marker minted under the English default and then viewed in another locale
   // never matched a map built only from the current locale's names — the rich
   // description silently fell through to the generic line. The English bundle
-  // is always in the client chunk (`fallbackMessages`), so adding its names
-  // makes resolution independent of the locale the marker was created in.
+  // resolves through `getFallbackMessages()` (already in hand on the server
+  // and for EN sessions; lazily fetched below otherwise — the EN catalog is
+  // no longer a static every-route import), so adding its names makes
+  // resolution independent of the locale the marker was created in.
+  const [enBundle, setEnBundle] = useState<MessageBundle | undefined>(
+    getFallbackMessages,
+  );
+  useEffect(() => {
+    if (enBundle) return;
+    let cancelled = false;
+    void loadMessages("en")
+      .then((loaded) => {
+        if (!cancelled) setEnBundle(loaded);
+      })
+      .catch(() => {
+        // Offline — the current-locale names still resolve; only markers
+        // minted under another locale keep the generic description.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enBundle]);
   const slugByName = useMemo(() => {
     const map = new Map<string, string>();
     for (const seed of BIOMARKER_CATALOG) {
       const localized = t(`labs.catalog.${seed.slug}`).trim().toLowerCase();
       if (localized) map.set(localized, seed.slug);
-      const canonical = resolveKey(
-        fallbackMessages,
-        `labs.catalog.${seed.slug}`,
-      )
-        ?.trim()
-        .toLowerCase();
+      const canonical = enBundle
+        ? resolveKey(enBundle, `labs.catalog.${seed.slug}`)
+            ?.trim()
+            .toLowerCase()
+        : undefined;
       if (canonical && !map.has(canonical)) map.set(canonical, seed.slug);
     }
     return map;
-  }, [t]);
+  }, [t, enBundle]);
   const [addOpen, setAddOpen] = useState(false);
   // Sticky-footer slot for the add-value sheet (the form portals here).
   const [addFooterEl, setAddFooterEl] = useState<HTMLDivElement | null>(null);

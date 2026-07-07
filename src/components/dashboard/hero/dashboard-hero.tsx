@@ -254,7 +254,10 @@ export function DashboardHero({
         "min-h-[8.75rem] p-4 md:min-h-[9.5rem] md:p-6",
       )}
     >
-      <div className="flex h-full flex-col gap-4">
+      {/* Vertical rhythm: the section gap (greeting/ring row → briefing)
+          reads one step larger than the intra-block spacing so the two
+          zones separate cleanly; the card's own padding stays symmetric. */}
+      <div className="flex h-full flex-col gap-4 md:gap-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 flex-1 space-y-3">
             {/* Greeting leads the typographic hierarchy: larger + heavier
@@ -320,7 +323,17 @@ export function DashboardHero({
             collapses; missing selected rings render nothing. */}
           <div
             data-slot="dashboard-hero-rings"
-            className="flex shrink-0 flex-wrap items-center justify-center gap-3 md:justify-end"
+            className={cn(
+              // Mobile: the rings stack under the greeting as a full-width
+              // row that wraps to a 2-up grid at four rings. `justify-evenly`
+              // spreads them with equal space before / between / after so
+              // the block reads symmetric edge-to-edge instead of a centred
+              // cluster with dead outer margin; `gap-y-6` gives the wrapped
+              // rows the same breathing room as the horizontal spread.
+              // Desktop: back to a right-aligned inline row beside the copy.
+              "flex w-full flex-wrap items-center justify-evenly gap-x-3 gap-y-6",
+              "md:w-auto md:shrink-0 md:justify-end md:gap-6",
+            )}
           >
             {scoreRings.map((ring) => (
               <div

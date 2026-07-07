@@ -128,12 +128,12 @@ export function ScatterCorrelationChart<T extends Record<string, number>>({
             type="number"
             name={xAxis.name}
             unit={xAxis.unit}
-            tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
+            tick={{ fontSize: 12, fill: "var(--foreground)" }}
             tickMargin={8}
             height={52}
             interval="preserveStartEnd"
             padding={{ left: 8, right: 8 }}
-            stroke="var(--dracula-comment)"
+            stroke="var(--muted-foreground)"
             domain={xAxis.domain}
             ticks={xAxis.ticks}
             tickFormatter={xAxis.tickFormatter}
@@ -143,7 +143,7 @@ export function ScatterCorrelationChart<T extends Record<string, number>>({
                     value: xAxis.label,
                     position: "bottom",
                     fontSize: 12,
-                    fill: "var(--dracula-comment)",
+                    fill: "var(--muted-foreground)",
                   }
                 : undefined
             }
@@ -153,8 +153,8 @@ export function ScatterCorrelationChart<T extends Record<string, number>>({
             type="number"
             name={yAxis.name}
             unit={yAxis.unit}
-            tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-            stroke="var(--dracula-comment)"
+            tick={{ fontSize: 12, fill: "var(--foreground)" }}
+            stroke="var(--muted-foreground)"
             domain={yAxis.domain}
             ticks={yAxis.ticks}
             tickFormatter={yAxis.tickFormatter}
@@ -166,8 +166,8 @@ export function ScatterCorrelationChart<T extends Record<string, number>>({
               borderRadius: "0.5rem",
               fontSize: "0.75rem",
             }}
-            itemStyle={{ color: "var(--dracula-fg)" }}
-            labelStyle={{ color: "var(--dracula-fg)" }}
+            itemStyle={{ color: "var(--foreground)" }}
+            labelStyle={{ color: "var(--foreground)" }}
             formatter={tooltipFormatter}
           />
           <Scatter data={data} fill={fill} opacity={0.8} />

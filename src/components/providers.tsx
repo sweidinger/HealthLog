@@ -182,12 +182,9 @@ function QueryPersistenceBridge() {
 export function Providers({
   children,
   initialLocale,
-  initialMessages,
 }: {
   children: ReactNode;
   initialLocale?: Locale;
-  /** Active locale's bundle, server-resolved by the root layout (RSC handoff). */
-  initialMessages?: Record<string, unknown>;
 }) {
   const [queryClient] = useState(
     () =>
@@ -206,10 +203,7 @@ export function Providers({
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <I18nProvider
-          initialLocale={initialLocale}
-          initialMessages={initialMessages}
-        >
+        <I18nProvider initialLocale={initialLocale}>
           <QueryPersistenceBridge />
           <DashboardSnapshotPreloader />
           {children}

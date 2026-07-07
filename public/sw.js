@@ -36,7 +36,7 @@ try {
 // v1.4.38.4 → v1.4.42. Do not hand-edit; bump `package.json` and rebuild.
 const CACHE_VERSION =
   (typeof self !== "undefined" && self.__APP_VERSION__) ||
-  /* @sw-version-fallback */ "v1.27.15";
+  /* @sw-version-fallback */ "v1.27.16";
 const STATIC_CACHE = `healthlog-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `healthlog-pages-${CACHE_VERSION}`;
 // v1.18.6 — read-only data cache for a curated allowlist of safe GET `/api/*`
@@ -164,6 +164,17 @@ self.addEventListener("fetch", (event) => {
 
   // Next.js static assets — cache-first (immutable hashed filenames)
   if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    return;
+  }
+
+  // Locale-catalog boot script — cache-first. The URL is versioned
+  // (`/i18n/<locale>?v=<build>`) and served immutable, so cache-first is
+  // correct and keeps the catalog available on an offline relaunch (the
+  // cached shell HTML references the same versioned URL it was rendered
+  // with). Carries no user data — same public strings as the repository's
+  // messages/*.json.
+  if (url.pathname.startsWith("/i18n/")) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;
   }

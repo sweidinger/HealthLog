@@ -1,17 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { CycleRing } from "./cycle-ring";
-import { BbtChart } from "./bbt-chart";
 import { CycleCalendar } from "./cycle-calendar";
 import { CycleHistoryChart } from "./cycle-history-chart";
 import { LogDaySheet } from "./log-day-sheet";
@@ -54,6 +55,33 @@ function shiftToday(days: number): string {
 
 /** The four cycle tabs, in render order. The deep-link value is validated
  *  against this set so a junk `?tab=` falls back to the calendar tab. */
+// The BBT chart is the only recharts consumer on /cycle — load it through
+// the shared chart-runtime boundary so the route stops carrying its own
+// copy of the recharts module graph. The loading shell mirrors the card
+// the chart paints (header row + caption + 210 px chart band inside the
+// standard card chrome) so the tab layout holds still while the shared
+// chunk streams.
+const BbtChart = dynamic(
+  () =>
+    import("@/components/charts/chart-runtime").then((mod) => ({
+      default: mod.BbtChart,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-card border-border rounded-xl border py-6">
+        <div className="px-6">
+          <Skeleton className="h-5 w-44" />
+        </div>
+        <div className="mt-6 px-6">
+          <Skeleton className="mb-2 h-4 w-64" />
+          <Skeleton className="h-[210px] w-full rounded-md" />
+        </div>
+      </div>
+    ),
+  },
+);
+
 const CYCLE_TABS = ["calendar", "predictions", "insights", "settings"] as const;
 type CycleTab = (typeof CYCLE_TABS)[number];
 

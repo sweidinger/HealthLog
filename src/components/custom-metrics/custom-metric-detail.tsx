@@ -42,9 +42,11 @@ import type {
 // off the detail page's first-load JS; the skeleton shell holds the layout.
 const CustomMetricChartLazy = dynamic(
   () =>
-    importWithRetry(() => import("./custom-metric-chart")).then((mod) => ({
-      default: mod.CustomMetricChart,
-    })),
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
+      (mod) => ({
+        default: mod.CustomMetricChart,
+      }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 function CustomMetricChart(

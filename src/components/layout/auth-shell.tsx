@@ -48,7 +48,7 @@ export function AuthShell({
    */
   demoMode?: boolean;
 }) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isAuthUnknown, isLoading } = useAuth();
   const { t } = useTranslations();
   const pathname = usePathname();
   const router = useRouter();
@@ -129,17 +129,35 @@ export function AuthShell({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isPublicPage) {
-      // Session END (expired / invalidated cookie → `/api/auth/me` 401). Wipe
-      // the in-memory query cache (the cross-user guard — the QueryClient
-      // outlives the navigation on this SPA and the health-data families are
-      // not user-scoped) plus the persisted IndexedDB + SW caches, so nothing
-      // leaks to the next account on a shared browser. Logout does the same
-      // from `useLogout`; this covers the expiry path logout never runs
-      // through. Best-effort; the redirect proceeds regardless.
-      clearCachesForSessionEnd(queryClient);
+      // Session END (expired / invalidated cookie → `/api/auth/me` 401/403).
+      // Wipe the in-memory query cache (the cross-user guard — the
+      // QueryClient outlives the navigation on this SPA and the health-data
+      // families are not user-scoped) plus the persisted IndexedDB + SW
+      // caches, so nothing leaks to the next account on a shared browser.
+      // Logout does the same from `useLogout`; this covers the expiry path
+      // logout never runs through. Best-effort; the redirect proceeds
+      // regardless.
+      //
+      // `isAuthUnknown` = the auth probe failed WITHOUT a session verdict
+      // (offline relaunch, network blip, 5xx) and no prior-session marker
+      // exists. Nothing to protect and nothing to render — send the visitor
+      // to the login gate, but never run the wipe off a non-verdict: the
+      // wipe on a network failure is exactly what used to destroy the
+      // offline caches. (With the marker present, `isAuthenticated` holds
+      // the last-known state and this branch never runs.)
+      if (!isAuthUnknown) {
+        clearCachesForSessionEnd(queryClient);
+      }
       router.replace("/auth/login");
     }
-  }, [isLoading, isAuthenticated, isPublicPage, router, queryClient]);
+  }, [
+    isLoading,
+    isAuthenticated,
+    isAuthUnknown,
+    isPublicPage,
+    router,
+    queryClient,
+  ]);
 
   // Redirect non-admins away from /admin
   useEffect(() => {

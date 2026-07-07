@@ -27,7 +27,7 @@ import { join } from "node:path";
  * holds; the matchers only relaxed to tolerate the `enabled` arg.
  */
 const ROOT = join(__dirname, "../../..");
-const PAGE_PATH = join(ROOT, "src/app/page.tsx");
+const PAGE_PATH = join(ROOT, "src/app/page-client.tsx");
 
 function load(path: string): string {
   return readFileSync(path, "utf8");

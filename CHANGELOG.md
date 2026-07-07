@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.27.16] — 2026-07-07 — Offline that survives, and a faster first paint
+
+### Fixed
+
+- The installable app now survives being offline. A network failure on the auth probe was treated as a logged-out session — it wiped the offline caches and redirected to the login page, defeating the entire offline layer. Offline relaunches now render the dashboard from cache with the offline banner; only a real 401/403 or an explicit logout clears anything.
+- Chart text is readable in the light theme again — 23 chart surfaces drew their ticks and axis text in colours measuring near-invisible contrast; they now use the semantic text tokens (measured 13.2:1 in light, dark byte-identical).
+- On the mood insights page, correlation captions no longer escape their tiles on phone widths; the density guard now covers that route too. Row checkboxes gained a 32 px touch target at unchanged visual size.
+- The dashboard hero breathes: the score rings space at 24 px on desktop, on phones the four rings spread evenly across the full width instead of clustering in the centre, and the briefing section separates from the greeting row at the same rhythm as the card padding.
+
+### Changed
+
+- Every page sheds roughly 100 KB of compressed JavaScript: the translation catalog no longer ships twice (once per route bundle, once inlined into the page document — the dashboard document alone shrinks from 139 KB to 25 KB compressed); catalogs now load once as a cached static asset. All sixteen charts share a single chart runtime chunk instead of up to eight copies.
+- The dashboard's first paint carries real tile values straight from the server (measured −25 % largest-contentful-paint), and a new bundle-size budget gate in CI keeps route weights from regressing silently.
+
 ## [1.27.15] — 2026-07-07 — Complete Google Health coverage
 
 ### Fixed

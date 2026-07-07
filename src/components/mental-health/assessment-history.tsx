@@ -38,9 +38,11 @@ import type { AssessmentRow, CrisisSet, InstrumentId } from "./types";
 // holds the layout.
 const AssessmentHistoryChartLazy = dynamic(
   () =>
-    importWithRetry(() => import("./assessment-history-chart")).then((mod) => ({
-      default: mod.AssessmentHistoryChart,
-    })),
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
+      (mod) => ({
+        default: mod.AssessmentHistoryChart,
+      }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 function AssessmentHistoryChart(

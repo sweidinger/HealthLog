@@ -323,11 +323,12 @@ describe("Coach per-user disableCoach invariant", () => {
     // v1.7.0 W6 — the unified dashboard snapshot builder reads
     // `user.disableCoach` to gate the embedded daily briefing to
     // `briefingState: "disabled"`. Covered by the briefingState matrix
-    // in `src/lib/dashboard/__tests__/snapshot.test.ts`. The route is
-    // a thin pass-through of the resolved session user into the
-    // builder.
+    // in `src/lib/dashboard/__tests__/snapshot.test.ts`. The shared
+    // cached-read helper (used by BOTH the API route and the dashboard
+    // RSC prefetch) maps the session user's flag into the builder
+    // input; the route itself no longer touches the flag.
     "src/lib/dashboard/snapshot.ts",
-    "src/app/api/dashboard/snapshot/route.ts",
+    "src/lib/dashboard/snapshot-read.ts",
     // v1.18.0 — the module enable/disable gate delegates the `coach`
     // module to the SAME two-layer source of truth (`user.disableCoach`
     // AND the operator assistant master flag) rather than owning a

@@ -9,7 +9,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
-import { apiGet, apiFetchRaw } from "@/lib/api/api-fetch";
+import { apiGet, apiFetchRaw, ApiError } from "@/lib/api/api-fetch";
 import { retryOnceOnTransientError } from "@/lib/queries/retry-transient";
 import { useTranslations } from "@/lib/i18n/context";
 import type {
@@ -149,6 +149,64 @@ export interface AuthUser {
   moduleAvailability?: Partial<Record<ModuleKey, boolean>>;
 }
 
+/**
+ * Non-sensitive "a session existed here" marker (localStorage boolean, no
+ * identity data). A cold offline launch cannot reach `/api/auth/me`, so the
+ * auth query errors without ever answering the session question — the marker
+ * is the last-known state that lets the shell render the cached app chrome
+ * instead of bouncing to the login gate and wiping the offline caches. Set on
+ * every successful `/api/auth/me`, cleared on every session END (logout and
+ * true 401/403).
+ */
+const WAS_AUTHENTICATED_KEY = "healthlog-was-authenticated";
+
+export function readWasAuthenticated(): boolean {
+  try {
+    return localStorage.getItem(WAS_AUTHENTICATED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function storeWasAuthenticated(): void {
+  try {
+    localStorage.setItem(WAS_AUTHENTICATED_KEY, "1");
+  } catch {
+    /* storage unavailable — the marker is best-effort */
+  }
+}
+
+function clearWasAuthenticated(): void {
+  try {
+    localStorage.removeItem(WAS_AUTHENTICATED_KEY);
+  } catch {
+    /* best effort */
+  }
+}
+
+/**
+ * True when an `/api/auth/me` failure carries NO verdict on the session —
+ * a network-level failure (fetch `TypeError` offline, abort/timeout), the
+ * service worker's synthetic 503 offline envelope (`meta.offline`), the
+ * browser reporting itself offline, or a server-side 5xx. None of these mean
+ * "logged out"; only an explicit 401/403 does. Treating them as session end
+ * used to redirect an offline relaunch to /auth/login and wipe the offline
+ * caches — destroying exactly the installed-PWA-opened-offline scenario the
+ * SW + query persister exist for.
+ */
+export function isAuthVerdictUnknown(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    // 5xx (incl. the SW's synthetic 503 with `meta.offline: true`) and any
+    // other non-auth status: the server never ruled on the session. Only an
+    // explicit 401/403 is a verdict.
+    return error.status !== 401 && error.status !== 403;
+  }
+  // Everything below the HTTP layer is transport-level by construction:
+  // fetch `TypeError` (offline / DNS / connection refused), `AbortError` /
+  // `TimeoutError` DOMException from the 15 s default signal.
+  return true;
+}
+
 async function fetchMe(): Promise<AuthUser> {
   // v1.16.4 — routed through the typed wrapper; a non-OK /me (401)
   // throws `ApiError`, which `useAuth` treats as "not authenticated"
@@ -183,6 +241,8 @@ async function fetchMe(): Promise<AuthUser> {
     ? data.dateFormat
     : "AUTO";
   storeDateFormat(dateFormat);
+  // A confirmed session: refresh the non-sensitive offline-relaunch marker.
+  storeWasAuthenticated();
   return {
     ...(data as AuthUser),
     disableCoach: data.disableCoach ?? false,
@@ -227,10 +287,30 @@ export function useAuth() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // v1.27.x offline fix — classify a failed `/api/auth/me` before acting on
+  // it. Only an explicit 401/403 means "session ended"; a network-level
+  // failure (offline relaunch, SW 503 offline envelope, timeout) or a 5xx
+  // carries no verdict, so the hook holds the LAST-KNOWN auth state (the
+  // localStorage marker) instead of flipping to unauthenticated. Pre-fix, an
+  // airplane-mode relaunch read as a logout: the shell redirected to
+  // /auth/login and wiped every offline cache (data 7→0 entries, pages 1→0
+  // in the audit measurement), making the whole offline story unreachable.
+  const verdictUnknown = query.isError && isAuthVerdictUnknown(query.error);
+  const isAuthenticated =
+    !!query.data || (verdictUnknown && readWasAuthenticated());
+
   return {
     user: query.data ?? null,
     isLoading: query.isLoading,
-    isAuthenticated: !!query.data,
+    isAuthenticated,
+    /**
+     * True while the session question is genuinely unanswered — the auth
+     * probe failed at the transport level (or 5xx) and no cached `/me`
+     * payload exists. The shell uses it to suppress the session-end cache
+     * wipe: a wipe without a 401/403 verdict would destroy the offline
+     * caches on every network blip.
+     */
+    isAuthUnknown: !query.data && verdictUnknown,
     error: query.error,
     refetch: query.refetch,
   };
@@ -257,6 +337,10 @@ export function useAuth() {
  */
 export function clearCachesForSessionEnd(queryClient: QueryClient): void {
   queryClient.clear();
+  // The offline-relaunch marker is session state too: after a real session
+  // end the next cold offline launch must land on the login gate, not the
+  // cached shell.
+  clearWasAuthenticated();
   void clearOfflineCachesForSessionEnd();
 }
 

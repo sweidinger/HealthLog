@@ -35,7 +35,7 @@ import { ConfidenceMeter } from "./confidence-meter";
  */
 const HealthChartLazy = dynamic(
   () =>
-    importWithRetry(() => import("@/components/charts/health-chart")).then(
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
       (mod) => ({ default: mod.HealthChart }),
     ),
   { ssr: false, loading: () => <ChartSkeleton mini /> },
@@ -48,7 +48,7 @@ const HealthChart = (props: ComponentProps<typeof HealthChartLazy>) => (
 
 const MoodChartLazy = dynamic(
   () =>
-    importWithRetry(() => import("@/components/charts/mood-chart")).then(
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
       (mod) => ({ default: mod.MoodChart }),
     ),
   { ssr: false, loading: () => <ChartSkeleton mini /> },

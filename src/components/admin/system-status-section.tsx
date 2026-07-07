@@ -32,7 +32,7 @@ import { StatusItem, usePublicVersion, useSystemStatus } from "./_shared";
 // working — same pattern the insights page uses for the scatter chart.
 const HostMetricsChart = dynamic(
   () =>
-    import("./host-metrics-chart").then((mod) => ({
+    import("@/components/charts/chart-runtime").then((mod) => ({
       default: mod.HostMetricsChart,
     })),
   {

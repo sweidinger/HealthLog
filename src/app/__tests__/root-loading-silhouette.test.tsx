@@ -86,7 +86,10 @@ describe("RootLoading — single skeleton source (wiring pins)", () => {
     join(process.cwd(), "src/app/loading.tsx"),
     "utf8",
   );
-  const pageSrc = readFileSync(join(process.cwd(), "src/app/page.tsx"), "utf8");
+  const pageSrc = readFileSync(
+    join(process.cwd(), "src/app/page-client.tsx"),
+    "utf8",
+  );
 
   it("imports the same silhouette components the page's loading phase uses", () => {
     expect(loadingSrc).toContain(

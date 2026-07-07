@@ -54,6 +54,10 @@ const PUBLIC_PATHS = [
   // and is not an enumeration oracle — so it must reach the page without
   // an auth gate, like the `/auth/` register surface it forwards to.
   "/invite/",
+  // Locale-catalog boot script (`/i18n/<locale>?v=…`). The login page loads
+  // it pre-auth, and the body is the same public catalog JSON that ships in
+  // the repository — no tenant data, no secrets. Immutable-cacheable.
+  "/i18n/",
   // `/onboarding` itself + its subroutes are matched exactly via
   // `isPublicPath()` so we don't admit `/onboarding-export` etc.
   "/robots.txt",

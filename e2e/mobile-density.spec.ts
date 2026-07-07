@@ -7,6 +7,7 @@ import {
   mockDashboardSnapshot,
   POPULATED_SUMMARIES,
 } from "./utils/mock-dashboard-snapshot";
+import { mockMoodInsights } from "./utils/mock-mood-insights";
 
 /**
  * Phone-width density guard (390×844 iPhone class, 360×780 small
@@ -36,7 +37,7 @@ const VIEWPORTS = [
   { width: 360, height: 780 },
 ] as const;
 
-const ROUTES = ["/", "/insights"] as const;
+const ROUTES = ["/", "/insights", "/insights/mood"] as const;
 
 interface TileEscape {
   tile: string;
@@ -116,6 +117,9 @@ test.describe("phone-width density guard", () => {
           briefing: LONG_HEADLINE_BRIEFING,
           scoreRings: MOCK_SCORE_RINGS,
         });
+        if (route === "/insights/mood") {
+          await mockMoodInsights(page);
+        }
         await page.goto(route, { waitUntil: "domcontentloaded" });
         await page.waitForLoadState("networkidle");
 
@@ -128,6 +132,19 @@ test.describe("phone-width density guard", () => {
           await expect(
             page.locator('[data-slot="dashboard-briefing-spotlight-row"]'),
           ).toHaveCount(3);
+        }
+
+        if (route === "/insights/mood") {
+          // Non-vacuous: the five populated correlation cards and the
+          // discovered-relations list — the audit's only user-facing
+          // tile-escape cluster — must actually render before the guard
+          // sweeps them.
+          await expect(
+            page.locator('[data-slot="mood-correlation-card"]'),
+          ).toHaveCount(5);
+          await expect(
+            page.locator('[data-slot="mood-discovered-relations"]'),
+          ).toBeVisible();
         }
 
         const dims = await page.evaluate(() => ({

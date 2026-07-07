@@ -69,7 +69,19 @@ jobs:
 
       - run: pnpm exec playwright install --with-deps chromium
 
-      - run: pnpm exec next build
+      # `pnpm build` (not bare `next build`): the prebuild hook generates
+      # the versioned service-worker stamp AND the static i18n catalog
+      # assets (public/i18n/<locale>.js) the client boots from — without
+      # them every UI interaction waits on missing catalogs.
+      - run: pnpm build
+
+      # Client-bundle budget gate — rides this job because it is the one
+      # place CI already has a production build on disk. Catches the
+      # regressions the dead webpack-era tooling (ANALYZE=1, the old
+      # bundle-report) let through: a statically imported message catalog
+      # (~100 KB gz on every route) or a chart import bypassing the shared
+      # chart-runtime boundary (a duplicated ~92 KB gz recharts chunk).
+      - run: pnpm bundle-check
 
       - run: pnpm exec playwright test
         env:

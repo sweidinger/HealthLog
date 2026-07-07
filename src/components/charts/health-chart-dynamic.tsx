@@ -14,7 +14,7 @@ import { importWithRetry } from "@/lib/retry-import";
  * Pre-fix, eight call sites (`src/app/page.tsx`, five insights
  * sub-pages, `sleep-duration-chart.tsx`, `trends-row.tsx`, and
  * `vo2-max-chart-row.tsx`) duplicated the same
- * `dynamic(() => import("@/components/charts/health-chart"), { ... })`
+ * `dynamic(() => import("@/components/charts/chart-runtime"), { ... })`
  * incantation. The duplication meant the loading skeleton + `ssr: false`
  * flag had to be re-wired on every caller.
  *
@@ -31,7 +31,7 @@ import { importWithRetry } from "@/lib/retry-import";
  */
 const HealthChartLazy = dynamic(
   () =>
-    importWithRetry(() => import("@/components/charts/health-chart")).then(
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
       (mod) => ({ default: mod.HealthChart }),
     ),
   { ssr: false, loading: () => <ChartSkeleton /> },
@@ -59,7 +59,7 @@ export function HealthChartDynamic(
  */
 const HealthChartLazyMini = dynamic(
   () =>
-    importWithRetry(() => import("@/components/charts/health-chart")).then(
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
       (mod) => ({ default: mod.HealthChart }),
     ),
   { ssr: false, loading: () => <ChartSkeleton mini /> },

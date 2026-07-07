@@ -89,14 +89,14 @@ import type { ComplianceDisplay } from "@/lib/analytics/compliance";
 // shared chart skeleton standing in while the chunk streams.
 const DrugLevelChart = dynamic(
   () =>
-    import("@/components/medications/drug-level-chart").then((mod) => ({
+    import("@/components/charts/chart-runtime").then((mod) => ({
       default: mod.DrugLevelChart,
     })),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 const DoseStrengthCurve = dynamic(
   () =>
-    import("@/components/medications/dose-strength-curve").then((mod) => ({
+    import("@/components/charts/chart-runtime").then((mod) => ({
       default: mod.DoseStrengthCurve,
     })),
   { ssr: false, loading: () => <ChartSkeleton /> },

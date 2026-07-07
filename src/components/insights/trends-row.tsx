@@ -58,7 +58,7 @@ import {
 
 const MoodChart = dynamic(
   () =>
-    import("@/components/charts/mood-chart").then((mod) => ({
+    import("@/components/charts/chart-runtime").then((mod) => ({
       default: mod.MoodChart,
     })),
   { ssr: false, loading: () => <ChartSkeleton mini /> },
