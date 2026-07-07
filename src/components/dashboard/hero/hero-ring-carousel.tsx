@@ -27,6 +27,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "@/lib/i18n/context";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import type { ScoreRingId } from "@/lib/dashboard-layout";
@@ -41,6 +42,13 @@ export interface HeroRingSlide {
   ringId?: ScoreRingId;
   /** The rendered `<ScoreRing>` node. */
   node: React.ReactNode;
+  /** Optional detail destination — wraps the ring in a focusable link so a
+   *  tap opens the metric's detail. A real anchor keeps tap-vs-drag native
+   *  on the mobile carousel: a swipe scrolls the track, only a tap fires
+   *  navigation. Omit to leave the ring non-interactive. */
+  href?: string;
+  /** aria-label for the ring link ("Open {metric} details"). */
+  linkLabel?: string;
 }
 
 export function HeroRingCarousel({ slides }: { slides: HeroRingSlide[] }) {
@@ -122,7 +130,21 @@ export function HeroRingCarousel({ slides }: { slides: HeroRingSlide[] }) {
               "md:w-auto",
             )}
           >
-            {slide.node}
+            {slide.href ? (
+              // A real anchor sized to the ring: a tap navigates, a
+              // horizontal drag scrolls the track (native tap-vs-drag), and
+              // it is keyboard-focusable with a rounded focus ring.
+              <Link
+                href={slide.href}
+                aria-label={slide.linkLabel}
+                data-slot="dashboard-hero-ring-link"
+                className="focus-visible:ring-ring/50 rounded-full focus-visible:ring-2 focus-visible:outline-none"
+              >
+                {slide.node}
+              </Link>
+            ) : (
+              slide.node
+            )}
           </div>
         ))}
       </div>

@@ -128,6 +128,29 @@ const RING_LABEL_KEY: Record<ScoreRingId, string> = {
   MED_COMPLIANCE: "dashboard.hero.ringDoses",
 };
 
+/**
+ * v1.27.24 — per-ring detail destination. Each hero ring links to the
+ * SAME surface its sibling already owns elsewhere in the app, so tapping
+ * a ring opens the natural deeper view rather than inventing one:
+ *
+ *   - the three derived rings route to their score-anatomy detail page
+ *     (`/insights/scores/<slug>`) — exactly where the /insights wellness
+ *     strip links each ring;
+ *   - the dose ring routes to the medications surface (`/medications`) —
+ *     the today/intake destination the dashboard dose CTA already uses.
+ *
+ * The health-score ring is wired separately to the Insights overview
+ * (`/insights`, the destination the health-score card carries). A ring
+ * with no sensible destination would be left non-interactive; every id
+ * in the closed set has one, so the map is total.
+ */
+const RING_HREF: Record<ScoreRingId, string> = {
+  READINESS: "/insights/scores/readiness",
+  RECOVERY_SCORE: "/insights/scores/recovery",
+  SLEEP_SCORE: "/insights/scores/sleep",
+  MED_COMPLIANCE: "/medications",
+};
+
 export function DashboardHero({
   snapshot,
   onQuickEntry,
@@ -253,6 +276,12 @@ export function DashboardHero({
     ...scoreRings.map((ring) => ({
       key: ring.id,
       ringId: ring.id,
+      // Each ring links to its natural existing detail surface; a real
+      // <Link> (in the carousel) keeps tap-vs-drag native on mobile.
+      href: RING_HREF[ring.id],
+      linkLabel: t("dashboard.hero.ringLink", {
+        metric: t(RING_LABEL_KEY[ring.id]),
+      }),
       node:
         // Dose ring — today's tally ("1/3") over the constant med-family
         // arc (`hue="meds"` = --primary, the tone every medication surface
@@ -288,6 +317,13 @@ export function DashboardHero({
     })),
     {
       key: "health-score",
+      // The health-score ring opens the Insights overview — the same
+      // destination the health-score card links (why the hero verdict
+      // dropped its redundant "open Insights" button).
+      href: "/insights",
+      linkLabel: t("dashboard.hero.ringLink", {
+        metric: t("dashboard.hero.scoreLabel"),
+      }),
       node: (
         <ScoreRing
           score={snapshot.healthScore?.score ?? null}
@@ -318,12 +354,13 @@ export function DashboardHero({
         "min-h-[8.75rem] p-4 md:min-h-[9.5rem] md:p-6",
       )}
     >
-      {/* Vertical rhythm: greeting/ring row and the briefing sit one
-          spacing step apart — tight enough that the briefing doesn't feel
-          adrift below a floating greeting. The top row aligns to its start
-          on desktop so the greeting anchors to the top edge instead of
+      {/* Vertical rhythm: greeting/ring row and the briefing sit one tight
+          spacing step apart on desktop (md:gap-2) so the briefing hugs the
+          ring row instead of drifting below a floating greeting; mobile
+          keeps the roomier gap-4. The top row aligns to its start on
+          desktop so the greeting anchors to the top edge instead of
           drifting to the vertical centre of the taller ring column. */}
-      <div className="flex h-full flex-col gap-4 md:gap-3">
+      <div className="flex h-full flex-col gap-4 md:gap-2">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 flex-1 space-y-3">
             {/* Greeting leads the typographic hierarchy: larger + heavier

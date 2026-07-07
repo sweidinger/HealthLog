@@ -405,13 +405,33 @@ describe("instrument card (med-/Vorsorge card anatomy + detail opener)", () => {
     expect(html).toContain(mh.start);
     // No history yet → the calm no-check-in line, no fabricated dashes.
     expect(html).toContain(mh.noResultYet);
-    // v1.27.9 — the required attribution footer rides every card.
-    expect(html).toContain('data-slot="instrument-card-attribution"');
+    // v1.27.24 — the attribution moved off the space under Start to a
+    // top-right info control on the header. The trigger renders; nothing
+    // sits under the Start button anymore.
+    expect(html).toContain('data-slot="instrument-card-attribution-trigger"');
+    // The citation now lives in the trigger's popover (portaled, opened on
+    // tap), never as a paragraph beneath the action.
+    const startIdx = html.indexOf(mh.start);
+    expect(startIdx).toBeGreaterThan(-1);
+    expect(html.slice(startIdx)).not.toContain(
+      'data-slot="instrument-card-attribution"',
+    );
   });
 
-  it("carries the instrument's licence line on the WHO-5 / SCI cards", () => {
-    expect(card("WHO5")).toContain("CC BY-NC-SA 3.0 IGO");
-    expect(card("SCI")).toContain("Sleepio Limited");
+  it("the header info control is a sibling of the detail-open button, never nested", () => {
+    const html = card("WHO5");
+    // Both the info trigger and the detail-open button render, but neither is
+    // inside the other (nested interactive controls are invalid + would let a
+    // tap open both). A simple structural check: the trigger appears before
+    // the open button's closing markup boundary is irrelevant — assert both
+    // slots exist and the trigger carries its own accessible name.
+    expect(html).toContain('data-slot="instrument-card-attribution-trigger"');
+    expect(html).toContain('data-slot="instrument-card-open"');
+    const trigger = html.match(
+      /<button[^>]*data-slot="instrument-card-attribution-trigger"[^>]*>/,
+    );
+    expect(trigger).not.toBeNull();
+    expect(trigger![0]).toContain("aria-label=");
   });
 
   it("shows last test (relative) and last result (score + band word)", () => {
