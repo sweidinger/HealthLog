@@ -62,7 +62,6 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiDelete, apiGet, apiPost } from "@/lib/api/api-fetch";
-import { SHARE_LINK_MAX_DOCUMENTS } from "@/lib/validations/clinician-share-link";
 
 /** The FHIR resource types a share link may serve — mirrors C4's enum. */
 const RESOURCE_TYPES = [
@@ -76,6 +75,14 @@ type ResourceType = (typeof RESOURCE_TYPES)[number];
 /** Maximum lifetime, in days — mirrors `SHARE_LINK_MAX_DAYS` on the server. */
 const MAX_DAYS = 90;
 const DEFAULT_DAYS = 30;
+
+/**
+ * Maximum documents per share — mirrors `SHARE_LINK_MAX_DOCUMENTS` on the
+ * server. Kept as a local literal (not imported from the validations module)
+ * because that module pulls the Prisma client into scope and would drag the DB
+ * into the client bundle; the server re-enforces the cap on create regardless.
+ */
+const MAX_DOCUMENTS = 50;
 
 /** Owner-facing shape returned by `GET /api/share-links` (never the token). */
 interface ShareLinkSummary {
@@ -373,7 +380,7 @@ function ShareLinksCard() {
               <p className="text-muted-foreground text-[11px]">
                 {t("settings.sharing.attachCount", {
                   count: selectedDocs.length,
-                  max: SHARE_LINK_MAX_DOCUMENTS,
+                  max: MAX_DOCUMENTS,
                 })}
               </p>
             </div>
@@ -452,7 +459,7 @@ function ShareLinksCard() {
         onOpenChange={setPickerOpen}
         selected={selectedDocs}
         onSelectedChange={setSelectedDocs}
-        max={SHARE_LINK_MAX_DOCUMENTS}
+        max={MAX_DOCUMENTS}
       />
 
       {created && (
