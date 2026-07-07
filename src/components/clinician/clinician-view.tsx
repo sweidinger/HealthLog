@@ -114,10 +114,9 @@ function DocumentEntry({
   const title = doc.title ?? t("clinicianView.documents.untitled");
   const Icon =
     DOCUMENT_KIND_ICONS[doc.kind as InboundDocumentKindValue] ?? undefined;
-  const meta = [
-    doc.documentDate,
-    formatBytes(doc.byteSize, locale),
-  ].filter(Boolean) as string[];
+  const meta = [doc.documentDate, formatBytes(doc.byteSize, locale)].filter(
+    Boolean,
+  ) as string[];
   const isImage = doc.mimeType.startsWith("image/");
   const isInline = doc.servingClass === "inline";
 
