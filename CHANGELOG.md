@@ -9,7 +9,7 @@
 - The installable app now survives being offline. A network failure on the auth probe was treated as a logged-out session — it wiped the offline caches and redirected to the login page, defeating the entire offline layer. Offline relaunches now render the dashboard from cache with the offline banner; only a real 401/403 or an explicit logout clears anything.
 - Chart text is readable in the light theme again — 23 chart surfaces drew their ticks and axis text in colours measuring near-invisible contrast; they now use the semantic text tokens (measured 13.2:1 in light, dark byte-identical).
 - On the mood insights page, correlation captions no longer escape their tiles on phone widths; the density guard now covers that route too. Row checkboxes gained a 32 px touch target at unchanged visual size.
-- The dashboard hero breathes: the score rings space at 24 px on desktop and the briefing section separates from the greeting row at the same rhythm as the card padding.
+- The dashboard hero breathes: the score rings space at 24 px on desktop, on phones the four rings spread evenly across the full width instead of clustering in the centre, and the briefing section separates from the greeting row at the same rhythm as the card padding.
 
 ### Changed
 

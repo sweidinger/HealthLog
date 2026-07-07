@@ -323,7 +323,17 @@ export function DashboardHero({
             collapses; missing selected rings render nothing. */}
           <div
             data-slot="dashboard-hero-rings"
-            className="flex shrink-0 flex-wrap items-center justify-center gap-4 md:justify-end md:gap-6"
+            className={cn(
+              // Mobile: the rings stack under the greeting as a full-width
+              // row that wraps to a 2-up grid at four rings. `justify-evenly`
+              // spreads them with equal space before / between / after so
+              // the block reads symmetric edge-to-edge instead of a centred
+              // cluster with dead outer margin; `gap-y-6` gives the wrapped
+              // rows the same breathing room as the horizontal spread.
+              // Desktop: back to a right-aligned inline row beside the copy.
+              "flex w-full flex-wrap items-center justify-evenly gap-x-3 gap-y-6",
+              "md:w-auto md:shrink-0 md:justify-end md:gap-6",
+            )}
           >
             {scoreRings.map((ring) => (
               <div
