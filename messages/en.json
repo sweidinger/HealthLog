@@ -8067,11 +8067,14 @@
     "filter": {
       "searchLabel": "Search documents",
       "searchPlaceholder": "Search title or filename…",
-      "groupLabel": "Filter documents",
       "typeGroup": "Document type",
       "conditionGroup": "Condition",
       "yearGroup": "Year",
-      "clear": "Clear filters"
+      "clear": "Clear filters",
+      "typeAll": "All types",
+      "typeCount": "{count} types",
+      "conditionAll": "All conditions",
+      "yearAll": "All years"
     },
     "card": {
       "untitled": "Untitled document",

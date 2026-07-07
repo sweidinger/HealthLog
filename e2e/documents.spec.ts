@@ -108,7 +108,7 @@ test.describe("document vault", () => {
 
   // ── §1A — the 30-second doctor flow, three independent routes ─────────
 
-  test("doctor flow A: the type chip reaches the MRT report", async ({
+  test("doctor flow A: the type filter reaches the MRT report", async ({
     page,
   }) => {
     await page.goto("/documents");
@@ -116,7 +116,11 @@ test.describe("document vault", () => {
       page.getByRole("heading", { name: "Documents" }),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Imaging", exact: true }).click();
+    // Open the type dropdown, tick Imaging (multi-select stays open), then
+    // dismiss the menu.
+    await page.getByRole("button", { name: "All types" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Imaging" }).click();
+    await page.keyboard.press("Escape");
     // Autumn 2025 sits below the newest sections — scroll the window down.
     await scrollUntilVisible(page, openButton(page, "MRT Knie"));
     await openButton(page, "MRT Knie").click();
@@ -128,13 +132,15 @@ test.describe("document vault", () => {
     await expect(sheet.locator("iframe")).toBeVisible({ timeout: 5_000 });
   });
 
-  test("doctor flow B: the condition chip reaches the MRT report", async ({
+  test("doctor flow B: the condition filter reaches the MRT report", async ({
     page,
   }) => {
     await page.goto("/documents");
+    // Open the condition dropdown and pick the linked episode (single-select
+    // → the menu closes on choice).
+    await page.locator('[data-slot="document-condition-filter"]').click();
     await page
-      .locator('[data-slot="document-filter-bar"]')
-      .getByRole("button", { name: "Knie", exact: true })
+      .getByRole("menuitemcheckbox", { name: "Knie", exact: true })
       .click();
 
     // The Knie filter narrows the corpus to the linked MRT trio.
@@ -162,12 +168,13 @@ test.describe("document vault", () => {
     page,
   }) => {
     await page.goto("/documents?kind=IMAGING&year=2025");
+    // A deep-linked facet surfaces on its dropdown trigger label.
     await expect(
-      page.getByRole("button", { name: "Imaging", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+      page.locator('[data-slot="document-type-filter"]'),
+    ).toContainText("Imaging");
     await expect(
-      page.getByRole("button", { name: "2025", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+      page.locator('[data-slot="document-year-filter"]'),
+    ).toContainText("2025");
     await scrollUntilVisible(page, openButton(page, "MRT Knie"));
 
     await page.goto(`/documents?episode=${KNIE_EPISODE_ID}`);
@@ -345,7 +352,7 @@ test.describe("document vault", () => {
     await expect(openButton(page, "MRT Knie")).toBeVisible();
 
     // Tab from the search into the grid's single roving slot (bounded walk
-    // across the chip rail), then arrows move the active card.
+    // across the filter dropdowns), then arrows move the active card.
     let reachedGrid = false;
     for (let i = 0; i < 40; i++) {
       await page.keyboard.press("Tab");

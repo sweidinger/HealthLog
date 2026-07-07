@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.27.25] — 2026-07-08 — Documents filter dropdowns
+
+### Changed
+
+- The Documents page filters (type, condition, year) move from an inline chip row into compact dropdowns beside the search field, so the filter bar stays on a single line at every width — on a phone the dropdowns collapse to icons rather than wrapping or scrolling. Selection behaviour is unchanged (type is multi-select; condition and year pick one).
+
 ## [1.27.24] — 2026-07-07 — Share documents
 
 ### Added

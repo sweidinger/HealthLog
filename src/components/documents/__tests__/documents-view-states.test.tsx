@@ -80,6 +80,27 @@ describe("<DocumentsView> states", () => {
     expect(html).not.toContain("Your document vault is empty");
   });
 
+  it("filter bar: type facet is a compact dropdown, not an inline chip row", () => {
+    const html = render("");
+    // The type facet renders as a single dropdown trigger labelled by the
+    // active selection ("All types" while nothing is picked)…
+    expect(html).toContain('data-slot="document-type-filter"');
+    expect(html).toContain("All types");
+    // …and the controls share ONE row — the container never wraps.
+    expect(html).toContain("flex-nowrap");
+    // The old horizontal chip scroller is gone.
+    expect(html).not.toContain("overflow-x-auto");
+  });
+
+  it("filter bar: an active type selection labels the dropdown trigger", () => {
+    const html = render("kind=IMAGING", { kinds: ["IMAGING"] });
+    // Selection flows into the URL (→ the list query) AND surfaces on the
+    // trigger label rather than a pressed chip.
+    expect(html).toContain('data-slot="document-type-filter"');
+    expect(html).toContain(">Imaging<");
+    expect(html).not.toContain("All types");
+  });
+
   it("empty unfiltered corpus: the teaching empty state with an upload CTA", () => {
     const html = render("", {});
     expect(html).toContain('data-slot="empty-state"');
