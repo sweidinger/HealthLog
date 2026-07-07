@@ -402,7 +402,11 @@ export function resolveGoogleHealthUserId(
 // Casing gotcha (three encodings per type, all pinned in
 // `GOOGLE_HEALTH_DATA_TYPES` so a fetcher can never mix them up):
 //   - request path:      kebab-case  (`body-fat`)
-//   - `filter` predicate: snake_case (`body_fat.sample_time.physical_time`)
+//   - `filter` predicate: snake_case (`body_fat.sample_time.physical_time`) —
+//     EXCEPT daily-summary `.date` filters, where the docs contradict
+//     themselves and the worked example uses the camelCase payload key; the
+//     client sends camel first and falls back to snake on a first-page 400
+//     (see `GoogleHealthDateFilterStyle`).
 //   - response payload:   camelCase — the `DataPoint` value is a union keyed by
 //     the camelCase type name (`bodyFat`, `dailyRestingHeartRate`, …) with
 //     camelCase nested objects (`sampleTime.physicalTime`,
@@ -515,10 +519,29 @@ export const GOOGLE_HEALTH_DATA_TYPES = {
     key: "height",
     timeField: "sample",
   },
-  // Skin temperature (`daily-sleep-temperature-derivations`) is intentionally
-  // OMITTED: Google surfaces a nightly signed DEVIATION from baseline, not an
-  // absolute reading — a future enhancement needing a signed-delta model, not an
-  // absolute WRIST_TEMPERATURE row.
+  bloodGlucose: {
+    path: "blood-glucose",
+    filter: "blood_glucose",
+    key: "bloodGlucose",
+    timeField: "sample",
+  },
+  coreBodyTemperature: {
+    path: "core-body-temperature",
+    filter: "core_body_temperature",
+    key: "coreBodyTemperature",
+    timeField: "sample",
+  },
+  // Nightly sleep skin temperature. The documented `nightlyTemperatureCelsius`
+  // is an ABSOLUTE reading ("the mean of skin temperature samples taken from
+  // the user's sleep"), alongside a separate `baselineTemperatureCelsius` — so
+  // it maps cleanly onto the absolute WRIST_TEMPERATURE slot. (An earlier note
+  // claimed Google only ships a signed deviation; the schema refutes that.)
+  sleepTemperature: {
+    path: "daily-sleep-temperature-derivations",
+    filter: "daily_sleep_temperature_derivations",
+    key: "dailySleepTemperatureDerivations",
+    timeField: "date",
+  },
   // ── Activity bundle — daily cumulative totals ──────────────────
   // Scope: `googlehealth.activity_and_fitness.readonly`. Read through
   // `POST :dailyRollUp` with `windowSizeDays: 1`: the `list` surface returns
@@ -601,6 +624,12 @@ interface DataPointQuery {
    * zone). Omitted → the bound forms in UTC.
    */
   tz?: string;
+  /**
+   * Observes which daily-summary `.date` filter prefix style the walk settled
+   * on (`camel` worked-example vs `snake` fallback) — the structure probe
+   * surfaces it so a live account reports which grammar Google accepted.
+   */
+  onDateFilterStyle?: (style: GoogleHealthDateFilterStyle) => void;
 }
 
 const pad2 = (n: number): string => String(n).padStart(2, "0");
@@ -618,11 +647,30 @@ export function formatCivilBound(instant: Date, tz?: string): string {
 }
 
 /**
+ * The daily-summary `.date` filter prefix style. The official docs contradict
+ * themselves on this one point:
+ *   - The data-types index states "In a filter parameter … the data type name
+ *     must be in snake case, such as `body_fat`" and its per-type "filter
+ *     parameter" column lists `daily_heart_rate_variability` etc.
+ *   - The `dataPoints.list` reference's ONLY worked daily-summary example is
+ *     `dailyHeartRateVariability.date < "2024-08-15"` — the camelCase payload
+ *     union key, NOT snake_case.
+ * Live behaviour: the snake_case daily filter is accepted (HTTP 200) but has
+ * returned zero rows on accounts whose companion app visibly holds daily HRV /
+ * RHR — consistent with a vacuously-unmatched predicate. The client therefore
+ * sends the worked-example camelCase form first and falls back to snake_case
+ * once if the very first page is rejected with a 400 (see `fetchDataPoints`).
+ */
+export type GoogleHealthDateFilterStyle = "camel" | "snake";
+
+/**
  * Build the incremental `filter` field + bound for one list-read data type.
  * Centralised so the predicate and the read-time anchor resolution can never
  * drift. The legal filter fields are per-shape (anything else 400s):
  *   - `sample`     → `{filter}.sample_time.physical_time` (RFC-3339).
- *   - `date`       → `{filter}.date` (`YYYY-MM-DD`).
+ *   - `date`       → `{key|filter}.date` (`YYYY-MM-DD`) — prefix style per
+ *     `GoogleHealthDateFilterStyle` (docs conflict; camel is the worked
+ *     example, snake the fallback).
  *   - `sessionEnd` → sleep only: `{filter}.interval.end_time` (RFC-3339) — the
  *     ONLY filterable time field on sleep; watermark semantics improve too (a
  *     night is fetched when it ENDS after the cursor).
@@ -634,6 +682,7 @@ export function incrementalFilter(
   dataType: GoogleHealthDataType,
   start: Date,
   tz?: string,
+  dateStyle: GoogleHealthDateFilterStyle = "camel",
 ): { field: string; bound: string } {
   switch (dataType.timeField) {
     case "sample":
@@ -653,7 +702,7 @@ export function incrementalFilter(
       };
     case "date":
       return {
-        field: `${dataType.filter}.date`,
+        field: `${dateStyle === "camel" ? dataType.key : dataType.filter}.date`,
         bound: start.toISOString().slice(0, 10),
       };
     case "rollup":
@@ -739,9 +788,19 @@ export function extractGoogleApiErrorDetail(json: unknown): string | undefined {
 /**
  * Walk every `DataPoint` for one data type since the incremental cursor via
  * `dataPoints.list` with `nextPageToken` pagination. The data-type id is
- * kebab-cased in the path; the `filter` predicate is built from the snake_case
- * form against the type's time anchor. `rollup` types refuse — they read via
+ * kebab-cased in the path; the `filter` predicate is built per-shape against
+ * the type's time anchor. `rollup` types refuse — they read via
  * `fetchDailyRollUp`.
+ *
+ * DAILY-SUMMARY FILTER FALLBACK: the docs contradict themselves on the `.date`
+ * filter's type-name prefix (the index's "filter parameter" column says
+ * snake_case; the list reference's only worked example says camelCase — see
+ * `GoogleHealthDateFilterStyle`). The walk sends the camelCase worked-example
+ * form first; if the VERY FIRST request of the walk is rejected with a 400,
+ * the whole walk retries once with the snake_case form. The style that
+ * succeeded is annotated as `googleHealth.dateFilter.style` so live behaviour
+ * reports which grammar Google actually accepts. Any other failure, or a 400
+ * past the first request, propagates.
  */
 export async function fetchDataPoints(
   dataType: GoogleHealthDataType,
@@ -749,68 +808,102 @@ export async function fetchDataPoints(
   verb: string,
   query: DataPointQuery = {},
 ): Promise<GoogleHealthDataPoint[]> {
-  const points: GoogleHealthDataPoint[] = [];
-  let pageToken: string | null | undefined;
-  let pageCount = 0;
   const maxPages = query.maxPages ?? 1000;
   const pageSize = query.pageSize ?? GOOGLE_HEALTH_PAGE_SIZE;
 
-  do {
-    const params = new URLSearchParams({ pageSize: String(pageSize) });
-    if (query.start) {
-      const { field, bound } = incrementalFilter(
-        dataType,
-        query.start,
-        query.tz,
+  let requestCount = 0;
+
+  const walk = async (
+    dateStyle: GoogleHealthDateFilterStyle,
+  ): Promise<GoogleHealthDataPoint[]> => {
+    const points: GoogleHealthDataPoint[] = [];
+    let pageToken: string | null | undefined;
+    let pageCount = 0;
+
+    do {
+      const params = new URLSearchParams({ pageSize: String(pageSize) });
+      if (query.start) {
+        const { field, bound } = incrementalFilter(
+          dataType,
+          query.start,
+          query.tz,
+          dateStyle,
+        );
+        params.set("filter", `${field} >= "${bound}"`);
+      }
+      if (pageToken) params.set("pageToken", pageToken);
+
+      requestCount += 1;
+      const pageStart = performance.now();
+      const res = await safeFetch(
+        `${GOOGLE_HEALTH_API_BASE}/users/me/dataTypes/${dataType.path}/dataPoints?${params}`,
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
       );
-      params.set("filter", `${field} >= "${bound}"`);
-    }
-    if (pageToken) params.set("pageToken", pageToken);
 
-    const pageStart = performance.now();
-    const res = await safeFetch(
-      `${GOOGLE_HEALTH_API_BASE}/users/me/dataTypes/${dataType.path}/dataPoints?${params}`,
-      {
-        method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      },
-    );
-
-    const json = (await res
-      .json()
-      .catch(() => null)) as GoogleHealthDataPointPage | null;
-    const verdict = classifyGoogleHealthResponse(res.status);
-    const apiErrorDetail =
-      verdict.classification === "success"
-        ? undefined
-        : extractGoogleApiErrorDetail(json);
-    getEvent()?.addExternalCall({
-      service: "google-health",
-      method: `${verb}(page=${pageCount})`,
-      duration_ms: Math.round(performance.now() - pageStart),
-      status: res.status,
-      error:
+      const json = (await res
+        .json()
+        .catch(() => null)) as GoogleHealthDataPointPage | null;
+      const verdict = classifyGoogleHealthResponse(res.status);
+      const apiErrorDetail =
         verdict.classification === "success"
           ? undefined
-          : apiErrorDetail
-            ? `${verdict.reason} ${apiErrorDetail}`
-            : verdict.reason,
-    });
-    if (verdict.classification !== "success") {
-      throw new GoogleHealthApiError({
-        verb,
-        classification: verdict.classification,
-        httpStatus: verdict.httpStatus,
-        reason: verdict.reason,
-        upstreamError: apiErrorDetail,
+          : extractGoogleApiErrorDetail(json);
+      getEvent()?.addExternalCall({
+        service: "google-health",
+        method: `${verb}(page=${pageCount})`,
+        duration_ms: Math.round(performance.now() - pageStart),
+        status: res.status,
+        error:
+          verdict.classification === "success"
+            ? undefined
+            : apiErrorDetail
+              ? `${verdict.reason} ${apiErrorDetail}`
+              : verdict.reason,
       });
-    }
+      if (verdict.classification !== "success") {
+        throw new GoogleHealthApiError({
+          verb,
+          classification: verdict.classification,
+          httpStatus: verdict.httpStatus,
+          reason: verdict.reason,
+          upstreamError: apiErrorDetail,
+        });
+      }
 
-    for (const p of json?.dataPoints ?? []) points.push(p);
-    pageToken = json?.nextPageToken ?? null;
-    pageCount += 1;
-  } while (pageToken && pageCount < maxPages);
+      for (const p of json?.dataPoints ?? []) points.push(p);
+      pageToken = json?.nextPageToken ?? null;
+      pageCount += 1;
+    } while (pageToken && pageCount < maxPages);
 
+    return points;
+  };
+
+  // The fallback only exists for filtered daily-summary reads — every other
+  // shape has one documented, doc-consistent filter field.
+  const canFallBack =
+    dataType.timeField === "date" && query.start !== undefined;
+
+  let style: GoogleHealthDateFilterStyle = "camel";
+  let points: GoogleHealthDataPoint[];
+  try {
+    points = await walk("camel");
+  } catch (err) {
+    const firstRequestRejected =
+      canFallBack &&
+      requestCount === 1 &&
+      err instanceof GoogleHealthApiError &&
+      err.httpStatus === 400;
+    if (!firstRequestRejected) throw err;
+    style = "snake";
+    points = await walk("snake");
+  }
+  if (canFallBack) {
+    annotate({ meta: { "googleHealth.dateFilter.style": style } });
+    query.onDateFilterStyle?.(style);
+  }
   return points;
 }
 
@@ -1090,8 +1183,8 @@ export async function fetchDailyRollUp(
 // The single source of truth is `mapping.md` — keep both in sync when adding
 // entries.
 
-/** Metres → centimetres (Google `height` → `User.heightCm`). */
-const M_TO_CM = 100;
+/** Millimetres → centimetres (Google `height.heightMillimeters` → `User.heightCm`). */
+const MM_TO_CM = 0.1;
 
 function round2(n: number): number {
   return parseFloat(n.toFixed(2));
@@ -1393,12 +1486,60 @@ export function mapRespiratoryRate(
   point: GoogleHealthDataPoint,
 ): GoogleHealthMappedMeasurement[] {
   const dt = GOOGLE_HEALTH_DATA_TYPES.respiratoryRate;
-  // `dailyRespiratoryRateBpm` is an int64 JSON string.
+  // Documented schema: `{ date, breathsPerMinute }` — `breathsPerMinute` is a
+  // plain number ("The average number of breaths taken per minute"). The
+  // earlier `dailyRespiratoryRateBpm` leaf does not exist and never parsed.
   return mapSimple(point, dt, {
     type: "RESPIRATORY_RATE",
     unit: "breaths/min",
     fieldTag: "resp_rate",
-    valuePaths: [`${dt.key}.dailyRespiratoryRateBpm`],
+    valuePaths: [`${dt.key}.breathsPerMinute`],
+  });
+}
+
+export function mapBloodGlucose(
+  point: GoogleHealthDataPoint,
+): GoogleHealthMappedMeasurement[] {
+  const dt = GOOGLE_HEALTH_DATA_TYPES.bloodGlucose;
+  // Documented field `bloodGlucoseMilligramsPerDeciliter` (number) — already in
+  // HealthLog's canonical mg/dL storage unit, no conversion.
+  return mapSimple(point, dt, {
+    type: "BLOOD_GLUCOSE",
+    unit: "mg/dL",
+    fieldTag: "glucose",
+    valuePaths: [`${dt.key}.bloodGlucoseMilligramsPerDeciliter`],
+  });
+}
+
+export function mapCoreBodyTemperature(
+  point: GoogleHealthDataPoint,
+): GoogleHealthMappedMeasurement[] {
+  const dt = GOOGLE_HEALTH_DATA_TYPES.coreBodyTemperature;
+  // Documented field `temperatureCelsius` (number) → the core BODY_TEMPERATURE
+  // slot (distinct from SKIN_TEMPERATURE / WRIST_TEMPERATURE surface readings).
+  return mapSimple(point, dt, {
+    type: "BODY_TEMPERATURE",
+    unit: "celsius",
+    fieldTag: "core_temp",
+    valuePaths: [`${dt.key}.temperatureCelsius`],
+  });
+}
+
+export function mapWristTemperature(
+  point: GoogleHealthDataPoint,
+): GoogleHealthMappedMeasurement[] {
+  const dt = GOOGLE_HEALTH_DATA_TYPES.sleepTemperature;
+  // `nightlyTemperatureCelsius` is the ABSOLUTE nightly skin temperature ("the
+  // mean of skin temperature samples taken from the user's sleep") → the
+  // WRIST_TEMPERATURE slot, mirroring the Apple sleeping-wrist-temperature
+  // absolute-reading convention. The sibling `baselineTemperatureCelsius` /
+  // `relativeNightlyStddev30dCelsius` derivations are not stored — the user's
+  // own series carries the baseline.
+  return mapSimple(point, dt, {
+    type: "WRIST_TEMPERATURE",
+    unit: "celsius",
+    fieldTag: "wrist_temp",
+    valuePaths: [`${dt.key}.nightlyTemperatureCelsius`],
   });
 }
 
@@ -1425,19 +1566,20 @@ export interface GoogleHealthHeightSample {
  * Extract the profile height from a Google `height` data point, or null when
  * nothing parses. Height is a one-time `User.heightCm` profile seed (written
  * only when the user has no height yet) — NOT a Measurement. The documented
- * field is `heightMeters` (metres) → cm. `sampledAt` lets the caller pick the
- * LATEST sample explicitly — list responses are ordered DESCENDING, so
- * "last row wins" would pick the OLDEST.
+ * field is `heightMillimeters` (int64 JSON string, millimetres) → cm ÷ 10.
+ * (The earlier `heightMeters` leaf does not exist and never parsed.)
+ * `sampledAt` lets the caller pick the LATEST sample explicitly — list
+ * responses are ordered DESCENDING, so "last row wins" would pick the OLDEST.
  */
 export function mapHeight(
   point: GoogleHealthDataPoint,
 ): GoogleHealthHeightSample | null {
   const dt = GOOGLE_HEALTH_DATA_TYPES.height;
-  const m = firstNumber(point, [`${dt.key}.heightMeters`]);
-  if (m === null) return null;
+  const mm = firstNumber(point, [`${dt.key}.heightMillimeters`]);
+  if (mm === null) return null;
   const t = readPath(point, `${dt.key}.sampleTime.physicalTime`);
   const sampledAt = typeof t === "string" ? parseLocalInstant(t) : null;
-  return { cm: round2(m * M_TO_CM), sampledAt };
+  return { cm: round2(mm * MM_TO_CM), sampledAt };
 }
 
 // ─── Activity mappers: daily roll-up totals ────────────────────
@@ -1745,34 +1887,64 @@ export function mapSleepSession(
 const GOOGLE_HEALTH_EXERCISE_TYPE_MAP: Record<string, string> = {
   walk: "walking",
   walking: "walking",
+  treadmill_walk: "walking",
+  incline_walk: "walking",
+  power_walking: "walking",
+  nordic_walking: "walking",
+  stroller_walk: "walking",
+  walk_with_weights: "walking",
   run: "running",
   running: "running",
   treadmill: "running",
   treadmill_running: "running",
+  trail_run: "running",
+  incline_run: "running",
   bike: "cycling",
   biking: "cycling",
   cycling: "cycling",
   spinning: "cycling",
   mountain_biking: "cycling",
+  mountain_bike: "cycling",
+  outdoor_bike: "cycling",
+  stationary_bike: "cycling",
+  electric_bike: "cycling",
+  assault_bike: "cycling",
   hike: "hiking",
   hiking: "hiking",
+  backpacking: "hiking",
+  rucking: "hiking",
   swim: "swimming",
   swimming: "swimming",
+  swimming_pool: "swimming",
+  swimming_open_water: "swimming",
   rowing: "rowing",
+  rowing_machine: "rowing",
   elliptical: "elliptical",
   stairclimber: "stairClimber",
   stair_climbing: "stairClimber",
+  step_training: "stairClimber",
   yoga: "yoga",
   pilates: "mindAndBody",
+  meditate: "mindAndBody",
+  tai_chi: "mindAndBody",
+  stretching: "mindAndBody",
   weights: "strength",
   strength: "strength",
   strength_training: "strength",
+  functional_strength_training: "strength",
   weightlifting: "strength",
+  powerlifting: "strength",
+  free_weights: "strength",
+  body_weight: "strength",
+  resistance_bands: "strength",
+  calisthenics: "strength",
+  core_training: "strength",
   workout: "strength",
   hiit: "hiit",
   high_intensity_interval_training: "hiit",
   interval_workout: "hiit",
   interval_training: "hiit",
+  tabata_workout: "hiit",
   dance: "dance",
   dancing: "dance",
   golf: "golf",
@@ -1782,6 +1954,11 @@ const GOOGLE_HEALTH_EXERCISE_TYPE_MAP: Record<string, string> = {
   football: "soccer",
   bootcamp: "crossTraining",
   circuit_training: "crossTraining",
+  crossfit: "crossTraining",
+  cross_training: "crossTraining",
+  aerobic_workout: "mixedCardio",
+  cardio_workout: "mixedCardio",
+  cardio_sculpt: "mixedCardio",
   sport: "mixedCardio",
 } as const;
 
