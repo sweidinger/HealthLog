@@ -36,9 +36,9 @@ interface MockQueryState {
 }
 let queryState: MockQueryState;
 vi.mock("@tanstack/react-query", async () => {
-  const actual = await vi.importActual<
-    typeof import("@tanstack/react-query")
-  >("@tanstack/react-query");
+  const actual = await vi.importActual<typeof import("@tanstack/react-query")>(
+    "@tanstack/react-query",
+  );
   return {
     ...actual,
     useQuery: () => ({ ...queryState, refetch: vi.fn() }),
@@ -59,7 +59,12 @@ import {
 const store = new Map<string, string>();
 beforeEach(() => {
   store.clear();
-  queryState = { data: undefined, isError: false, error: null, isLoading: false };
+  queryState = {
+    data: undefined,
+    isError: false,
+    error: null,
+    isLoading: false,
+  };
   vi.stubGlobal("localStorage", {
     getItem: (k: string) => store.get(k) ?? null,
     setItem: (k: string, v: string) => void store.set(k, v),

@@ -113,7 +113,10 @@ export async function mockMoodInsights(page: Page): Promise<void> {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ data: CORRELATION_DISCOVERY_PAYLOAD, error: null }),
+      body: JSON.stringify({
+        data: CORRELATION_DISCOVERY_PAYLOAD,
+        error: null,
+      }),
     });
   });
 }

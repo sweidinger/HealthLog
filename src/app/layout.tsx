@@ -98,7 +98,8 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: themeScript }}
         />
         {/*
-          Locale-catalog boot script (see src/app/i18n/[locale]/route.ts).
+          Locale-catalog boot script (generated into public/i18n/ by
+          scripts/generate-i18n-boot.mjs, a prebuild/predev step).
           Replaces the former RSC-prop handoff that inlined the whole
           active catalog into every document's flight payload (392 KB of a
           505 KB dashboard HTML). `defer` keeps it off the parse/paint
@@ -106,12 +107,12 @@ export default async function RootLayout({
           module scripts (both ride the after-parse in-order queue, and
           this tag comes first), so `load-locale.ts` finds `self.__HL_I18N`
           set when the client bundle initializes — SSR text and first
-          client render stay identical. The `?v=` build-version key makes
-          the response immutable-cacheable: one catalog download per
-          deploy, then HTTP/SW cache instead of per-document payload.
+          client render stay identical. Served as a static asset: ETag
+          revalidation (304 on repeat loads) + SW cache-first on the
+          versioned URL replace the per-document payload.
         */}
         <script
-          src={`/i18n/${initialLocale}?v=${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}`}
+          src={`/i18n/${initialLocale}.js?v=${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}`}
           defer
         />
       </head>

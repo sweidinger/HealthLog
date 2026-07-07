@@ -54,6 +54,7 @@ next-env.d.ts
 # scripts/generate-sw-version.mjs; loaded by public/sw.js to key
 # the cache-version baseline.
 /public/sw-version.js
+/public/i18n/
 
 # v1.4.27 B3 — MaxMind GeoLite2 databases are fetched at build time
 # via `scripts/fetch-geolite2.sh`. Too large for git; license key

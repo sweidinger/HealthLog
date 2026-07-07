@@ -59,8 +59,8 @@ function initialCache(): Partial<Record<Locale, MessageBundle>> {
     // where a bare require of a TS module throws) — there the cache starts
     // empty and `vitest.setup.ts` primes every bundle up front.
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { allMessages } =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("./shared-resolve") as typeof import("./shared-resolve");
       return { ...allMessages };
     } catch {

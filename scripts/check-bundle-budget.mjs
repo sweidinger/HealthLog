@@ -150,7 +150,9 @@ const budget = existsSync(BUDGET_PATH)
 
 console.log(`shared baseline (rootMainFiles): ${fmt(rootGz)} gz`);
 console.log(`all client chunks:               ${fmt(totalGz)} gz`);
-console.log(`largest chunk:                   ${fmt(largest.gz)} gz  ${largest.file}`);
+console.log(
+  `largest chunk:                   ${fmt(largest.gz)} gz  ${largest.file}`,
+);
 console.log(`recharts-fingerprint chunks:     ${rechartsChunks}`);
 console.log("");
 

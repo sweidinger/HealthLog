@@ -55,9 +55,11 @@ import type {
 // loading shell matches the in-card chart footprint so the layout is stable.
 const LabBiomarkerChartLazy = dynamic(
   () =>
-    importWithRetry(() => import("@/components/charts/chart-runtime")).then((mod) => ({
-      default: mod.LabBiomarkerChart,
-    })),
+    importWithRetry(() => import("@/components/charts/chart-runtime")).then(
+      (mod) => ({
+        default: mod.LabBiomarkerChart,
+      }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 function LabBiomarkerChart(
@@ -124,7 +126,9 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
       const localized = t(`labs.catalog.${seed.slug}`).trim().toLowerCase();
       if (localized) map.set(localized, seed.slug);
       const canonical = enBundle
-        ? resolveKey(enBundle, `labs.catalog.${seed.slug}`)?.trim().toLowerCase()
+        ? resolveKey(enBundle, `labs.catalog.${seed.slug}`)
+            ?.trim()
+            .toLowerCase()
         : undefined;
       if (canonical && !map.has(canonical)) map.set(canonical, seed.slug);
     }
