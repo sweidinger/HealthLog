@@ -18,7 +18,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Download, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useIllnessEpisodes } from "@/components/illness/use-illness";
@@ -78,6 +78,40 @@ function InlinePreview({
   const [loaded, setLoaded] = useState(false);
   const src = `/api/documents/inbound/${documentId}/original`;
   const isPdf = mimeType === "application/pdf";
+  // Chromium's PDF viewer grabs focus while it initialises — BEFORE the
+  // frame's `load` event — stranding keyboard events inside the embedded
+  // document, so Escape stops closing the sheet the moment a PDF preview
+  // opens. While the guard window is open (armed at mount, extended at
+  // load, ended early by a deliberate pointer interaction with the
+  // preview), any focus landing on the frame bounces straight back to the
+  // dialog container; a user who clicks into the PDF is left alone.
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const stealGuardUntil = useRef(0);
+  const reclaimFocus = (frame: HTMLIFrameElement) => {
+    if (
+      Date.now() < stealGuardUntil.current &&
+      document.activeElement === frame
+    ) {
+      frame.closest<HTMLElement>('[role="dialog"]')?.focus();
+    }
+  };
+  useEffect(() => {
+    // Arm at mount, then run a frame-by-frame sweep for the steal variants
+    // that never dispatch a focus event on the frame element.
+    // Self-terminates with the guard.
+    stealGuardUntil.current = Date.now() + 3_000;
+    let raf = 0;
+    const sweep = () => {
+      const frame = frameRef.current;
+      if (!frame || Date.now() >= stealGuardUntil.current) return;
+      if (document.activeElement === frame) {
+        frame.closest<HTMLElement>('[role="dialog"]')?.focus();
+      }
+      raf = requestAnimationFrame(sweep);
+    };
+    raf = requestAnimationFrame(sweep);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   return (
     <div className="relative max-h-[55vh] overflow-auto overscroll-contain rounded-lg">
@@ -94,27 +128,23 @@ function InlinePreview({
         // upload policy denies every format whose inline render could
         // execute script.
         <iframe
+          ref={frameRef}
           src={src}
           title={title}
           onLoad={(event) => {
             setLoaded(true);
-            // Chromium's PDF viewer grabs focus when it initialises, which
-            // strands keyboard events inside the embedded document — Escape
-            // stops closing the sheet the moment the preview loads. The
-            // steal lands asynchronously after `load`, so watch for it over
-            // a short bounded window and hand focus back to the dialog
-            // container (tabIndex -1). A user who clicks into the PDF later
-            // re-focuses it deliberately and is left alone.
-            const frame = event.currentTarget;
-            const until = Date.now() + 1_500;
-            const reclaim = () => {
-              if (document.activeElement === frame) {
-                frame.closest<HTMLElement>('[role="dialog"]')?.focus();
-                return;
-              }
-              if (Date.now() < until) setTimeout(reclaim, 100);
-            };
-            reclaim();
+            // The viewer may still initialise (and steal focus) after
+            // `load` — keep the guard open a little longer.
+            stealGuardUntil.current = Math.max(
+              stealGuardUntil.current,
+              Date.now() + 2_000,
+            );
+            reclaimFocus(event.currentTarget);
+          }}
+          onFocus={(event) => reclaimFocus(event.currentTarget)}
+          onPointerDown={() => {
+            // Deliberate interaction with the preview ends the guard.
+            stealGuardUntil.current = 0;
           }}
           className={cn(
             "border-border h-[55vh] w-full rounded-lg border",
