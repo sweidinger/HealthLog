@@ -29,11 +29,15 @@ describe("deriveSubkey", () => {
   });
 
   it("is deterministic under a fixed active key", () => {
-    expect(deriveSubkey("healthlog:test")).toEqual(deriveSubkey("healthlog:test"));
+    expect(deriveSubkey("healthlog:test")).toEqual(
+      deriveSubkey("healthlog:test"),
+    );
   });
 
   it("is domain-separated by info", () => {
-    expect(deriveSubkey("healthlog:a")).not.toEqual(deriveSubkey("healthlog:b"));
+    expect(deriveSubkey("healthlog:a")).not.toEqual(
+      deriveSubkey("healthlog:b"),
+    );
   });
 
   it("is never the raw master key", () => {

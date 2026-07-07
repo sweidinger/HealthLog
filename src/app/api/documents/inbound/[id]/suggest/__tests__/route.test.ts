@@ -76,9 +76,12 @@ const SESSION_OK = {
 };
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const visionReq = (id: string) =>
-  new NextRequest(new URL(`http://localhost/api/documents/inbound/${id}/suggest`), {
-    method: "POST",
-  });
+  new NextRequest(
+    new URL(`http://localhost/api/documents/inbound/${id}/suggest`),
+    {
+      method: "POST",
+    },
+  );
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -141,7 +144,9 @@ describe("POST /api/documents/inbound/[id]/suggest", () => {
   });
 
   it("404s an unknown document", async () => {
-    vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue(null as never);
+    vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue(
+      null as never,
+    );
     const res = await POST(visionReq("nope") as never, ctx("nope") as never);
     expect(res.status).toBe(404);
   });

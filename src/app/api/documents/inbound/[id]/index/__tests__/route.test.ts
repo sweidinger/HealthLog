@@ -78,15 +78,21 @@ const SESSION_OK = {
 };
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const visionReq = (id: string) =>
-  new NextRequest(new URL(`http://localhost/api/documents/inbound/${id}/index`), {
-    method: "POST",
-  });
+  new NextRequest(
+    new URL(`http://localhost/api/documents/inbound/${id}/index`),
+    {
+      method: "POST",
+    },
+  );
 const textReq = (id: string, text: string) =>
-  new NextRequest(new URL(`http://localhost/api/documents/inbound/${id}/index`), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ mode: "text", text }),
-  });
+  new NextRequest(
+    new URL(`http://localhost/api/documents/inbound/${id}/index`),
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "text", text }),
+    },
+  );
 
 beforeEach(() => {
   vi.clearAllMocks();

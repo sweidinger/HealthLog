@@ -39,6 +39,9 @@ vi.mock("@/lib/db", () => {
       documentConditionLink: {
         findMany: vi.fn(),
       },
+      documentContentIndex: {
+        findMany: vi.fn(),
+      },
       illnessEpisode: {
         findMany: vi.fn(),
       },
@@ -153,6 +156,9 @@ beforeEach(() => {
   vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true } as never);
   vi.mocked(prisma.extractedFact.groupBy).mockResolvedValue([] as never);
   vi.mocked(prisma.documentConditionLink.findMany).mockResolvedValue(
+    [] as never,
+  );
+  vi.mocked(prisma.documentContentIndex.findMany).mockResolvedValue(
     [] as never,
   );
   vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue(null as never);
@@ -346,9 +352,12 @@ describe("GET /api/documents/inbound (list)", () => {
     expect(where.deletedAt).toBeNull();
     expect(where.kind).toEqual({ in: ["LAB_RESULT", "IMAGING"] });
     expect(where.conditionLinks).toEqual({ some: { episodeId: "ep-1" } });
+    // Title/filename substring branches, unioned with the blind content-token
+    // overlap (the third branch carries the HMAC'd query tokens for "panel").
     expect(where.OR).toEqual([
       { title: { contains: "panel", mode: "insensitive" } },
       { filename: { contains: "panel", mode: "insensitive" } },
+      { contentIndex: { is: { searchTokens: { hasSome: expect.any(Array) } } } },
     ]);
     // limit+1 fetched for the has-more probe.
     expect(arg.take).toBe(11);

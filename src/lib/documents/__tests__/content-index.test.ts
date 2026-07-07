@@ -87,7 +87,9 @@ describe("tokeniseAndHash (blind index)", () => {
   });
 
   it("is deterministic under a fixed key", () => {
-    expect(tokeniseAndHash("creatinine")).toEqual(tokeniseAndHash("creatinine"));
+    expect(tokeniseAndHash("creatinine")).toEqual(
+      tokeniseAndHash("creatinine"),
+    );
   });
 
   it("a query word hashes to the same tag as the body word (whole-word hit)", () => {

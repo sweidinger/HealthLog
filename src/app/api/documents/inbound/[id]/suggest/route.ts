@@ -179,7 +179,12 @@ async function handleTextSuggest(
       providerType: pick.providerType,
       ocrText: parsed.data.text,
     });
-    await reconcileSpend(userId, reservation.reserved, reservation.reserved, dateKey);
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      reservation.reserved,
+      dateKey,
+    );
     return finishSuggest(request, userId, document.id, "text", suggestion);
   } catch (err) {
     await reconcileSpend(userId, reservation.reserved, 0, dateKey);
@@ -261,7 +266,12 @@ async function handleVisionSuggest(
       images: vision.images,
       documents: vision.documents,
     });
-    await reconcileSpend(userId, reservation.reserved, reservation.reserved, dateKey);
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      reservation.reserved,
+      dateKey,
+    );
     return finishSuggest(request, userId, document.id, "vision", suggestion);
   } catch (err) {
     await reconcileSpend(userId, reservation.reserved, 0, dateKey);

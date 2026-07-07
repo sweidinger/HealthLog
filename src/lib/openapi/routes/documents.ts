@@ -621,7 +621,7 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Documents"],
       summary: "Suggest filing metadata (drafts only)",
       description:
-        "Optional AI assist on an already-stored document. Runs ONE provider call over the stored original (VISION, empty body) or browser-OCR'd text (TEXT, `application/json` `{ mode: \"text\", text }`, opt-in local OCR) and returns a `{ title, kind, documentDate }` DRAFT for the edit form. AI-consent / rate / budget gated (shares the 6/hour extract bucket). WRITES NOTHING — never stages facts, never flips status; the user reviews and saves. 422 (`documents.inbound.providerUnsupported`) with no provider configured. Never interprets or diagnoses; the title is a neutral filing label.",
+        'Optional AI assist on an already-stored document. Runs ONE provider call over the stored original (VISION, empty body) or browser-OCR\'d text (TEXT, `application/json` `{ mode: "text", text }`, opt-in local OCR) and returns a `{ title, kind, documentDate }` DRAFT for the edit form. AI-consent / rate / budget gated (shares the 6/hour extract bucket). WRITES NOTHING — never stages facts, never flips status; the user reviews and saves. 422 (`documents.inbound.providerUnsupported`) with no provider configured. Never interprets or diagnoses; the title is a neutral filing label.',
       parameters: [
         { name: "id", in: "path", required: true, schema: { type: "string" } },
       ],
@@ -666,7 +666,7 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Documents"],
       summary: "Summarise or transcribe a document (session-only)",
       description:
-        "On-demand, SESSION-ONLY description of a stored document. `?mode=summary` (default) returns a short plain-language summary of WHAT the document is; `?mode=text` returns its raw transcribed text. The result is transient — nothing is persisted except the AI-budget ledger + audit log; it never reaches coach memory, snapshots, the structured stores, or the search index. The summary is descriptive only and never a diagnosis. Same VISION (empty body) / TEXT (`application/json` `{ mode: \"text\", text }`, opt-in local OCR) dispatch as extract. AI-consent / rate / budget gated. 422 with no provider.",
+        'On-demand, SESSION-ONLY description of a stored document. `?mode=summary` (default) returns a short plain-language summary of WHAT the document is; `?mode=text` returns its raw transcribed text. The result is transient — nothing is persisted except the AI-budget ledger + audit log; it never reaches coach memory, snapshots, the structured stores, or the search index. The summary is descriptive only and never a diagnosis. Same VISION (empty body) / TEXT (`application/json` `{ mode: "text", text }`, opt-in local OCR) dispatch as extract. AI-consent / rate / budget gated. 422 with no provider.',
       parameters: [
         { name: "id", in: "path", required: true, schema: { type: "string" } },
         {
@@ -678,7 +678,8 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             enum: ["summary", "text"],
             default: "summary",
           },
-          description: "`summary` (plain-language description) or `text` (raw).",
+          description:
+            "`summary` (plain-language description) or `text` (raw).",
         },
       ],
       requestBody: {

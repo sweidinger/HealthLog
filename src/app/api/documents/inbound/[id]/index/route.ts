@@ -220,7 +220,12 @@ async function handleVisionIndex(
       images: vision.images,
       documents: vision.documents,
     });
-    await reconcileSpend(userId, reservation.reserved, reservation.reserved, dateKey);
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      reservation.reserved,
+      dateKey,
+    );
     const { tokenCount } = await upsertContentIndex({
       userId,
       documentId: document.id,

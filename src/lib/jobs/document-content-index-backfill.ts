@@ -23,7 +23,10 @@
  * (`src/lib/jobs/reminder/register-maintenance.ts`) so pg-boss provisions it.
  */
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
-import { assertConsentForChain, ConsentRequiredError } from "@/lib/ai/consent-guard";
+import {
+  assertConsentForChain,
+  ConsentRequiredError,
+} from "@/lib/ai/consent-guard";
 import {
   buildDateKey,
   reconcileSpend,
@@ -144,7 +147,12 @@ export async function runContentIndexBackfillForUser(
           images: vision.images,
           documents: vision.documents,
         });
-        await reconcileSpend(userId, reservation.reserved, reservation.reserved, dateKey);
+        await reconcileSpend(
+          userId,
+          reservation.reserved,
+          reservation.reserved,
+          dateKey,
+        );
         await upsertContentIndex({
           userId,
           documentId: document.id,

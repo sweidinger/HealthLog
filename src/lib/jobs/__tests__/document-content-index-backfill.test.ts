@@ -43,7 +43,10 @@ vi.mock("@/lib/jobs/boss-instance", () => ({ getGlobalBoss: vi.fn() }));
 import { runContentIndexBackfillForUser } from "../document-content-index-backfill";
 import { prisma } from "@/lib/db";
 import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
-import { assertConsentForChain, ConsentRequiredError } from "@/lib/ai/consent-guard";
+import {
+  assertConsentForChain,
+  ConsentRequiredError,
+} from "@/lib/ai/consent-guard";
 import { reserveBudget } from "@/lib/ai/coach/budget";
 import { upsertContentIndex } from "@/lib/documents/content-index";
 
@@ -67,10 +70,13 @@ const doc = (id: string) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(reserveBudget).mockResolvedValue({ allowed: true, reserved: 1 } as never);
-  vi.mocked(prisma.inboundDocument.findFirst).mockImplementation(
-    async ({ where }: never) => doc((where as { id: string }).id) as never,
-  );
+  vi.mocked(reserveBudget).mockResolvedValue({
+    allowed: true,
+    reserved: 1,
+  } as never);
+  vi.mocked(prisma.inboundDocument.findFirst).mockImplementation(((args: {
+    where: { id: string };
+  }) => Promise.resolve(doc(args.where.id))) as never);
 });
 
 describe("runContentIndexBackfillForUser", () => {

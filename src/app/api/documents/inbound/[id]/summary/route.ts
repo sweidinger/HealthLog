@@ -215,7 +215,12 @@ async function handleTextSummary(
       providerType: pick.providerType,
       ocrText: parsed.data.text,
     });
-    await reconcileSpend(userId, reservation.reserved, reservation.reserved, dateKey);
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      reservation.reserved,
+      dateKey,
+    );
     return finishSummary(request, userId, document.id, "text", mode, result);
   } catch (err) {
     await reconcileSpend(userId, reservation.reserved, 0, dateKey);
@@ -286,7 +291,12 @@ async function handleVisionSummary(
       images: vision.images,
       documents: vision.documents,
     });
-    await reconcileSpend(userId, reservation.reserved, reservation.reserved, dateKey);
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      reservation.reserved,
+      dateKey,
+    );
     return finishSummary(request, userId, document.id, "vision", mode, result);
   } catch (err) {
     await reconcileSpend(userId, reservation.reserved, 0, dateKey);

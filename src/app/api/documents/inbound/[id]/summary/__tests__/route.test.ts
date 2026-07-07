@@ -69,7 +69,10 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
 import { auditLog } from "@/lib/auth/audit";
-import { runDocumentSummary, transcribeDocument } from "@/lib/documents/describe";
+import {
+  runDocumentSummary,
+  transcribeDocument,
+} from "@/lib/documents/describe";
 
 const SESSION_OK = {
   session: { id: "s1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -118,7 +121,10 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
       summary: "A blood panel from a lab.",
     } as never);
 
-    const res = await POST(req("doc-1", "summary") as never, ctx("doc-1") as never);
+    const res = await POST(
+      req("doc-1", "summary") as never,
+      ctx("doc-1") as never,
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toEqual({ summary: "A blood panel from a lab." });
@@ -134,7 +140,10 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
       text: "raw transcribed body",
     } as never);
 
-    const res = await POST(req("doc-1", "text") as never, ctx("doc-1") as never);
+    const res = await POST(
+      req("doc-1", "text") as never,
+      ctx("doc-1") as never,
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toEqual({ text: "raw transcribed body" });
@@ -146,7 +155,10 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
       chain: [],
       pick: null,
     } as never);
-    const res = await POST(req("doc-1", "summary") as never, ctx("doc-1") as never);
+    const res = await POST(
+      req("doc-1", "summary") as never,
+      ctx("doc-1") as never,
+    );
     expect(res.status).toBe(422);
     assertNoPersistence();
   });

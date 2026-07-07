@@ -34,10 +34,10 @@ export const GET = apiHandler(async () => {
       FROM inbound_documents
       WHERE user_id = ${user.id}
     `,
-    // Episodes that carry at least one LIVE document link — the filter
-    // bar's condition chips. Sourced here (not from the loaded corpus) so
-    // a chip exists even when its documents sit pages deep in the
-    // timeline; one indexed grouped query, no blobs.
+      // Episodes that carry at least one LIVE document link — the filter
+      // bar's condition chips. Sourced here (not from the loaded corpus) so
+      // a chip exists even when its documents sit pages deep in the
+      // timeline; one indexed grouped query, no blobs.
       prisma.documentConditionLink.findMany({
         where: { userId: user.id, document: { deletedAt: null } },
         select: { episodeId: true, episode: { select: { label: true } } },

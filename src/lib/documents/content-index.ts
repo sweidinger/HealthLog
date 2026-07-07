@@ -64,16 +64,89 @@ const MAX_QUERY_TOKENS = 24;
  */
 const STOPWORDS: ReadonlySet<string> = new Set([
   // English
-  "the", "and", "for", "are", "was", "with", "that", "this", "have", "has",
-  "not", "from", "you", "your", "his", "her", "she", "him", "they", "them",
-  "were", "which", "who", "whom", "what", "when", "where", "will", "would",
-  "there", "their", "been", "than", "then", "into", "out", "off", "per",
+  "the",
+  "and",
+  "for",
+  "are",
+  "was",
+  "with",
+  "that",
+  "this",
+  "have",
+  "has",
+  "not",
+  "from",
+  "you",
+  "your",
+  "his",
+  "her",
+  "she",
+  "him",
+  "they",
+  "them",
+  "were",
+  "which",
+  "who",
+  "whom",
+  "what",
+  "when",
+  "where",
+  "will",
+  "would",
+  "there",
+  "their",
+  "been",
+  "than",
+  "then",
+  "into",
+  "out",
+  "off",
+  "per",
   // German
-  "und", "der", "die", "das", "den", "dem", "des", "ein", "eine", "einer",
-  "eines", "einem", "einen", "ist", "sind", "war", "waren", "wird", "werden",
-  "nicht", "auch", "auf", "aus", "bei", "mit", "nach", "von", "vom", "zur",
-  "zum", "für", "durch", "oder", "aber", "dass", "wie", "wenn", "sich", "als",
-  "sowie", "wurde", "wurden", "bzw", "ggf",
+  "und",
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einer",
+  "eines",
+  "einem",
+  "einen",
+  "ist",
+  "sind",
+  "war",
+  "waren",
+  "wird",
+  "werden",
+  "nicht",
+  "auch",
+  "auf",
+  "aus",
+  "bei",
+  "mit",
+  "nach",
+  "von",
+  "vom",
+  "zur",
+  "zum",
+  "für",
+  "durch",
+  "oder",
+  "aber",
+  "dass",
+  "wie",
+  "wenn",
+  "sich",
+  "als",
+  "sowie",
+  "wurde",
+  "wurden",
+  "bzw",
+  "ggf",
 ]);
 
 /**
@@ -88,7 +161,8 @@ export function normaliseIndexText(raw: string): string {
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase();
   // Byte-bounded truncation — slice by chars until the UTF-8 length fits.
-  if (Buffer.byteLength(lowered, "utf8") <= MAX_INDEX_TEXT_BYTES) return lowered;
+  if (Buffer.byteLength(lowered, "utf8") <= MAX_INDEX_TEXT_BYTES)
+    return lowered;
   let out = lowered.slice(0, MAX_INDEX_TEXT_BYTES);
   while (Buffer.byteLength(out, "utf8") > MAX_INDEX_TEXT_BYTES) {
     out = out.slice(0, -256);
@@ -124,7 +198,10 @@ function indexSubkey(): Buffer {
 
 /** HMAC-SHA256 one token under the index subkey; truncated to a 16-char hex tag. */
 function hashToken(token: string, subkey: Buffer): string {
-  return createHmac("sha256", subkey).update(token, "utf8").digest("hex").slice(0, 16);
+  return createHmac("sha256", subkey)
+    .update(token, "utf8")
+    .digest("hex")
+    .slice(0, 16);
 }
 
 /**

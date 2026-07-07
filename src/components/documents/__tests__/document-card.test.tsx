@@ -68,7 +68,7 @@ describe("<DocumentCard>", () => {
       <DocumentCard
         document={doc({
           servingClass: "attachment",
-    hasContentIndex: false,
+          hasContentIndex: false,
           mimeType: "application/octet-stream",
           filename: "befund.docx",
           title: null,
