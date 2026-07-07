@@ -14,6 +14,7 @@
  * invisible overlay button; the checkbox floats above it.
  */
 import { Download, X } from "lucide-react";
+import { useRef } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,25 +27,49 @@ import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
 import type { UploadQueueItem } from "./use-document-upload";
 import { documentDateKey, formatBytes } from "./vault-utils";
 
+/** Press-and-hold duration that flips a touch press into "select" mode. */
+const LONG_PRESS_MS = 500;
+
 export function DocumentCard({
   document,
   selected,
   onToggleSelected,
   onOpen,
+  onDelete,
   highlighted,
+  tabIndex = 0,
+  onCardFocus,
   onPrefetch,
 }: {
   document: InboundDocumentDto;
   selected: boolean;
-  onToggleSelected: (id: string) => void;
+  /** `range` = extend the selection from the last anchor (shift-click). */
+  onToggleSelected: (id: string, range?: boolean) => void;
   onOpen: (id: string) => void;
+  /** Delete key on the focused card — undo-able delete owned by the page. */
+  onDelete?: (id: string) => void;
   /** Brief ring after a duplicate upload resolved to this existing row. */
   highlighted: boolean;
+  /** Roving-tabindex slot from the timeline (0 = the one tabbable card). */
+  tabIndex?: number;
+  /** The open-button gained focus (keyboard/roving bookkeeping). */
+  onCardFocus?: (id: string) => void;
   /** Hover/focus intent — prefetches the detail metadata (never the blob). */
   onPrefetch?: (id: string) => void;
 }) {
   const { t, locale } = useTranslations();
   const format = useFormatters();
+
+  // Touch long-press selects instead of opening; the click that the
+  // browser fires after the release is swallowed once.
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
 
   const title =
     document.title ?? document.filename ?? t("documents.card.untitled");
@@ -73,7 +98,14 @@ export function DocumentCard({
           <p className="min-w-0 flex-1 truncate text-sm font-medium">{title}</p>
           <Checkbox
             checked={selected}
-            onCheckedChange={() => onToggleSelected(document.id)}
+            // Explicit click handling instead of onCheckedChange: the mouse
+            // event carries `shiftKey` for file-manager range selection.
+            // preventDefault stops Radix's internal toggle (state is fully
+            // controlled by the page's selection set anyway).
+            onClick={(e) => {
+              e.preventDefault();
+              onToggleSelected(document.id, e.shiftKey);
+            }}
             aria-label={t("documents.card.selectLabel", { title })}
             className={cn(
               "relative z-10 shrink-0 transition-opacity",
@@ -110,12 +142,46 @@ export function DocumentCard({
         ) : null}
       </CardContent>
       {/* Whole-card click target. Painted last so it sits above the content
-          (the checkbox stays reachable via its own z-10). */}
+          (the checkbox stays reachable via its own z-10). Keyboard contract
+          (roving tabindex owned by the timeline): Enter opens (native
+          click), Space toggles selection, Delete removes with undo. Touch:
+          press-and-hold selects instead of opening. */}
       <button
         type="button"
-        onClick={() => onOpen(document.id)}
+        data-slot="document-open"
+        tabIndex={tabIndex}
+        onClick={() => {
+          if (longPressFired.current) {
+            longPressFired.current = false;
+            return;
+          }
+          onOpen(document.id);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === " ") {
+            e.preventDefault();
+            onToggleSelected(document.id, e.shiftKey);
+          } else if (e.key === "Delete" || e.key === "Backspace") {
+            e.preventDefault();
+            onDelete?.(document.id);
+          }
+        }}
+        onTouchStart={() => {
+          longPressFired.current = false;
+          cancelLongPress();
+          longPressTimer.current = setTimeout(() => {
+            longPressFired.current = true;
+            onToggleSelected(document.id);
+          }, LONG_PRESS_MS);
+        }}
+        onTouchMove={cancelLongPress}
+        onTouchEnd={cancelLongPress}
+        onTouchCancel={cancelLongPress}
         onMouseEnter={() => onPrefetch?.(document.id)}
-        onFocus={() => onPrefetch?.(document.id)}
+        onFocus={() => {
+          onCardFocus?.(document.id);
+          onPrefetch?.(document.id);
+        }}
         aria-label={t("documents.card.openLabel", { title })}
         className="focus-visible:ring-ring/50 absolute inset-0 rounded-xl focus-visible:ring-[3px] focus-visible:outline-none"
       />

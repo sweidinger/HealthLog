@@ -16,6 +16,7 @@
  */
 import {
   useInfiniteQuery,
+  useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -25,10 +26,10 @@ import {
   SearchX,
   Upload,
   UploadCloud,
-  X,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { useIllnessEpisodes } from "@/components/illness/use-illness";
 import { Button } from "@/components/ui/button";
@@ -37,16 +38,20 @@ import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
-import { apiGet } from "@/lib/api/api-fetch";
+import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
-import { queryKeys } from "@/lib/query-keys";
+import { invalidateKeys, queryKeys } from "@/lib/query-keys";
 import type { DocumentVaultFilters } from "@/lib/query-keys/documents";
-import type {
-  DocumentUsageDto,
-  InboundDocumentDetailDto,
-  InboundDocumentDto,
-  InboundDocumentKindValue,
+import {
+  DOCUMENT_BULK_MAX_IDS,
+  type DocumentBulkAction,
+  type DocumentBulkResultDto,
+  type DocumentUsageDto,
+  type InboundDocumentDetailDto,
+  type InboundDocumentDto,
+  type InboundDocumentKindValue,
 } from "@/lib/validations/inbound-documents";
+import { DocumentBulkBar } from "./document-bulk-bar";
 import { DocumentDetailSheet } from "./document-detail-sheet";
 import { DocumentFilterBar, type ConditionChip } from "./document-filter-bar";
 import { DocumentTimeline } from "./document-timeline";
@@ -57,6 +62,7 @@ import {
   buildVaultListApiSearch,
   countActiveFilters,
   documentDateKey,
+  expandRangeSelection,
   parseVaultSearchParams,
   vaultFiltersToSearch,
 } from "./vault-utils";
@@ -267,21 +273,186 @@ export function DocumentsView() {
     return [...set].sort((a, b) => b - a);
   }, [documents, filters.year]);
 
-  // ── Selection (bulk actions attach to this in a follow-up) ───────────
+  // ── Selection + bulk actions ──────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
     new Set(),
   );
-  const toggleSelected = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+  // Anchor for shift-click ranges: the last plainly-toggled id.
+  const rangeAnchorRef = useRef<string | null>(null);
+  const toggleSelected = useCallback(
+    (id: string, range?: boolean) => {
+      setSelectedIds((prev) => {
+        if (range) {
+          return expandRangeSelection(
+            documents.map((d) => d.id),
+            prev,
+            rangeAnchorRef.current,
+            id,
+          );
+        }
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      });
+      if (!range) rangeAnchorRef.current = id;
+    },
+    [documents],
+  );
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    rangeAnchorRef.current = null;
   }, []);
+
+  // Escape clears the selection — unless a dialog/popover owns the key.
+  useEffect(() => {
+    if (selectedIds.size === 0) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[role="dialog"],[role="menu"]')) return;
+      clearSelection();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedIds.size, clearSelection]);
+
+  /**
+   * One bulk POST per ≤100-id chunk (the endpoint's cap); per-id results
+   * are merged so a partial failure in any chunk surfaces once. The
+   * endpoint is no-op-success on already-in-state rows, so an undo toast
+   * firing twice is safe by contract.
+   */
+  const bulk = useMutation({
+    mutationFn: async (input: {
+      ids: string[];
+      action: DocumentBulkAction;
+      kind?: InboundDocumentKindValue;
+      episodeId?: string;
+    }) => {
+      const results: DocumentBulkResultDto[] = [];
+      for (let i = 0; i < input.ids.length; i += DOCUMENT_BULK_MAX_IDS) {
+        const chunk = input.ids.slice(i, i + DOCUMENT_BULK_MAX_IDS);
+        const page = await apiPost<{ results: DocumentBulkResultDto[] }>(
+          "/api/documents/inbound/bulk",
+          {
+            ids: chunk,
+            action: input.action,
+            ...(input.kind !== undefined && { kind: input.kind }),
+            ...(input.episodeId !== undefined && {
+              episodeId: input.episodeId,
+            }),
+          },
+        );
+        results.push(...page.results);
+      }
+      return results;
+    },
+    onSettled: () => {
+      void invalidateKeys(queryClient, [queryKeys.documents()]);
+    },
+  });
+
+  const reportBulkOutcome = useCallback(
+    (results: DocumentBulkResultDto[], successMessage: string) => {
+      const failed = results.filter((r) => !r.ok).length;
+      if (failed > 0) {
+        toast.error(
+          t("documents.bulk.partialFailure", {
+            failed,
+            total: results.length,
+          }),
+        );
+      } else {
+        toast.success(successMessage);
+      }
+    },
+    [t],
+  );
+
+  const runBulk = useCallback(
+    (
+      action: Exclude<DocumentBulkAction, "delete" | "restore">,
+      extra: { kind?: InboundDocumentKindValue; episodeId?: string },
+    ) => {
+      const ids = [...selectedIds];
+      bulk.mutate(
+        { ids, action, ...extra },
+        {
+          onSuccess: (results) => {
+            reportBulkOutcome(
+              results,
+              t("documents.bulk.updated", {
+                count: results.filter((r) => r.ok).length,
+              }),
+            );
+            clearSelection();
+          },
+          onError: () => toast.error(t("documents.bulk.failed")),
+        },
+      );
+    },
+    [selectedIds, bulk, reportBulkOutcome, clearSelection, t],
+  );
+
+  const restoreBulk = useCallback(
+    (ids: string[]) => {
+      bulk.mutate(
+        { ids, action: "restore" },
+        {
+          onSuccess: (results) =>
+            reportBulkOutcome(
+              results,
+              t("documents.bulk.restored", {
+                count: results.filter((r) => r.ok).length,
+              }),
+            ),
+          onError: () => toast.error(t("documents.toast.restoreFailed")),
+        },
+      );
+    },
+    [bulk, reportBulkOutcome, t],
+  );
+
+  const deleteBulk = useCallback(
+    (ids: string[]) => {
+      bulk.mutate(
+        { ids, action: "delete" },
+        {
+          onSuccess: (results) => {
+            const okIds = results.filter((r) => r.ok).map((r) => r.id);
+            const failed = results.length - okIds.length;
+            if (failed > 0) {
+              toast.error(
+                t("documents.bulk.partialFailure", {
+                  failed,
+                  total: results.length,
+                }),
+              );
+            }
+            if (okIds.length > 0) {
+              // ONE aggregate undo for the whole batch (bulk restore).
+              toast.success(
+                t("documents.bulk.deleted", { count: okIds.length }),
+                {
+                  action: {
+                    label: t("common.undo"),
+                    onClick: () => restoreBulk(okIds),
+                  },
+                },
+              );
+            }
+            clearSelection();
+          },
+          onError: () => toast.error(t("documents.bulk.failed")),
+        },
+      );
+    },
+    [bulk, clearSelection, restoreBulk, t],
+  );
 
   // ── Detail sheet ──────────────────────────────────────────────────────
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -357,26 +528,6 @@ export function DocumentsView() {
         onClearAll={clearFilters}
       />
 
-      {selectedIds.size > 0 ? (
-        <div
-          data-slot="document-selection-bar"
-          className="flex items-center justify-between gap-3"
-        >
-          <p className="text-sm font-medium">
-            {t("documents.selection.count", { count: selectedIds.size })}
-          </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-            onClick={() => setSelectedIds(new Set())}
-          >
-            <X className="size-3.5" aria-hidden />
-            {t("documents.selection.clear")}
-          </Button>
-        </div>
-      ) : null}
-
       {list.isPending ? (
         <div
           data-slot="documents-loading"
@@ -436,6 +587,21 @@ export function DocumentsView() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
+
+      {selectedIds.size > 0 ? (
+        <DocumentBulkBar
+          selectedCount={selectedIds.size}
+          episodes={(episodes.data ?? []).map((e) => ({
+            id: e.id,
+            label: e.label,
+          }))}
+          busy={bulk.isPending}
+          onSetKind={(kind) => runBulk("setKind", { kind })}
+          onLinkEpisode={(episodeId) => runBulk("linkEpisode", { episodeId })}
+          onDelete={() => deleteBulk([...selectedIds])}
+          onClear={clearSelection}
+        />
+      ) : null}
 
       {/* Page-wide drop overlay — pure decoration (aria-hidden); the intake
           itself announces through the live region below. */}

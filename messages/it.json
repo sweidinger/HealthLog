@@ -8104,6 +8104,17 @@
     "dropOverlay": {
       "title": "Rilascia i file per caricarli",
       "hint": "Vengono salvati cifrati nei tuoi documenti"
+    },
+    "bulk": {
+      "barLabel": "Azioni per i documenti selezionati",
+      "setKind": "Cambia tipo",
+      "linkCondition": "Collega condizione",
+      "delete": "Elimina",
+      "updated": "{count} documenti aggiornati",
+      "deleted": "{count} documenti eliminati",
+      "restored": "{count} documenti ripristinati",
+      "partialFailure": "Impossibile aggiornare {failed} su {total}",
+      "failed": "Impossibile completare l'azione"
     }
   },
   "selfDescription": {

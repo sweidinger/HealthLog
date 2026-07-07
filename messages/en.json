@@ -8104,6 +8104,17 @@
     "dropOverlay": {
       "title": "Drop files to upload",
       "hint": "They are stored encrypted in your document vault"
+    },
+    "bulk": {
+      "barLabel": "Actions for selected documents",
+      "setKind": "Change type",
+      "linkCondition": "Link condition",
+      "delete": "Delete",
+      "updated": "{count} document(s) updated",
+      "deleted": "{count} document(s) deleted",
+      "restored": "{count} document(s) restored",
+      "partialFailure": "{failed} of {total} could not be updated",
+      "failed": "The action could not be completed"
     }
   },
   "selfDescription": {

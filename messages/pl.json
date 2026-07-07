@@ -8104,6 +8104,17 @@
     "dropOverlay": {
       "title": "Upuść pliki, aby je przesłać",
       "hint": "Są zapisywane w Twoich dokumentach w postaci zaszyfrowanej"
+    },
+    "bulk": {
+      "barLabel": "Akcje dla zaznaczonych dokumentów",
+      "setKind": "Zmień typ",
+      "linkCondition": "Połącz ze schorzeniem",
+      "delete": "Usuń",
+      "updated": "Zaktualizowano dokumenty: {count}",
+      "deleted": "Usunięto dokumenty: {count}",
+      "restored": "Przywrócono dokumenty: {count}",
+      "partialFailure": "Nie udało się zaktualizować {failed} z {total}",
+      "failed": "Nie udało się wykonać akcji"
     }
   },
   "selfDescription": {

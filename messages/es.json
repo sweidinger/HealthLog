@@ -8104,6 +8104,17 @@
     "dropOverlay": {
       "title": "Suelta los archivos para subirlos",
       "hint": "Se guardan cifrados en tu archivo de documentos"
+    },
+    "bulk": {
+      "barLabel": "Acciones para los documentos seleccionados",
+      "setKind": "Cambiar tipo",
+      "linkCondition": "Vincular afección",
+      "delete": "Eliminar",
+      "updated": "{count} documento(s) actualizados",
+      "deleted": "{count} documento(s) eliminados",
+      "restored": "{count} documento(s) restaurados",
+      "partialFailure": "No se pudieron actualizar {failed} de {total}",
+      "failed": "No se pudo completar la acción"
     }
   },
   "selfDescription": {

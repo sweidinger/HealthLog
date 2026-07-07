@@ -8104,6 +8104,17 @@
     "dropOverlay": {
       "title": "Zum Hochladen ablegen",
       "hint": "Deine Dateien werden verschlüsselt in deinen Dokumenten gespeichert"
+    },
+    "bulk": {
+      "barLabel": "Aktionen für ausgewählte Dokumente",
+      "setKind": "Typ ändern",
+      "linkCondition": "Erkrankung verknüpfen",
+      "delete": "Löschen",
+      "updated": "{count} Dokument(e) aktualisiert",
+      "deleted": "{count} Dokument(e) gelöscht",
+      "restored": "{count} Dokument(e) wiederhergestellt",
+      "partialFailure": "{failed} von {total} konnten nicht aktualisiert werden",
+      "failed": "Die Aktion konnte nicht ausgeführt werden"
     }
   },
   "selfDescription": {

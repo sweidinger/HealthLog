@@ -56,7 +56,7 @@ export function DocumentTimeline({
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
   selectedIds: ReadonlySet<string>;
-  onToggleSelected: (id: string) => void;
+  onToggleSelected: (id: string, range?: boolean) => void;
   onOpen: (id: string) => void;
   highlightId: string | null;
   onPrefetch?: (id: string) => void;

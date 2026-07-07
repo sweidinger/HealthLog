@@ -8104,6 +8104,17 @@
     "dropOverlay": {
       "title": "Déposez les fichiers pour les téléverser",
       "hint": "Ils sont enregistrés chiffrés dans vos documents"
+    },
+    "bulk": {
+      "barLabel": "Actions pour les documents sélectionnés",
+      "setKind": "Changer le type",
+      "linkCondition": "Lier une affection",
+      "delete": "Supprimer",
+      "updated": "{count} document(s) mis à jour",
+      "deleted": "{count} document(s) supprimés",
+      "restored": "{count} document(s) restaurés",
+      "partialFailure": "Impossible de mettre à jour {failed} sur {total}",
+      "failed": "L'action n'a pas pu être effectuée"
     }
   },
   "selfDescription": {

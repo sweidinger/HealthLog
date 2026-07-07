@@ -189,6 +189,40 @@ export function formatBytes(bytes: number, locale: string): string {
   }).format(value)} ${units[unit]}`;
 }
 
+/**
+ * Shift-click range selection over the timeline's visual order. Selects
+ * every id between the last plainly-toggled anchor and the target
+ * (inclusive) — ADDITIVE, matching file-manager convention (a range gesture
+ * never deselects). Falls back to a plain toggle when the anchor is gone
+ * (filtered away, deleted) or was never set.
+ */
+export function expandRangeSelection(
+  orderedIds: readonly string[],
+  selected: ReadonlySet<string>,
+  anchorId: string | null,
+  targetId: string,
+): Set<string> {
+  const next = new Set(selected);
+  const anchorIndex = anchorId === null ? -1 : orderedIds.indexOf(anchorId);
+  const targetIndex = orderedIds.indexOf(targetId);
+  if (anchorIndex === -1 || targetIndex === -1) {
+    if (next.has(targetId)) {
+      next.delete(targetId);
+    } else {
+      next.add(targetId);
+    }
+    return next;
+  }
+  const [from, to] =
+    anchorIndex <= targetIndex
+      ? [anchorIndex, targetIndex]
+      : [targetIndex, anchorIndex];
+  for (let i = from; i <= to; i += 1) {
+    next.add(orderedIds[i]);
+  }
+  return next;
+}
+
 // ─── Upload response contract (§3.2) ───────────────────────────────────────
 
 /**

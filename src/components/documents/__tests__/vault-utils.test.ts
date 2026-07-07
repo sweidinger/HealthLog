@@ -7,6 +7,7 @@ import {
   classifyUploadFailure,
   countActiveFilters,
   documentDateKey,
+  expandRangeSelection,
   formatBytes,
   formatMonthLabel,
   parseUploadResponse,
@@ -250,5 +251,33 @@ describe("upload response contract (§3.2)", () => {
       reason: "rateLimited",
     });
     expect(parseUploadResponse(500, "")).toMatchObject({ reason: "generic" });
+  });
+});
+
+describe("shift-click range selection", () => {
+  const order = ["a", "b", "c", "d", "e"];
+
+  it("selects the inclusive range between anchor and target, both ways", () => {
+    expect(
+      [...expandRangeSelection(order, new Set(["b"]), "b", "d")].sort(),
+    ).toEqual(["b", "c", "d"]);
+    expect(
+      [...expandRangeSelection(order, new Set(["d"]), "d", "b")].sort(),
+    ).toEqual(["b", "c", "d"]);
+  });
+
+  it("is additive — a range gesture never deselects", () => {
+    const next = expandRangeSelection(order, new Set(["a", "c"]), "c", "e");
+    expect([...next].sort()).toEqual(["a", "c", "d", "e"]);
+  });
+
+  it("falls back to a plain toggle without a live anchor", () => {
+    expect([...expandRangeSelection(order, new Set(), null, "c")]).toEqual([
+      "c",
+    ]);
+    // Anchor filtered out of the current order → plain toggle (deselect).
+    expect([
+      ...expandRangeSelection(order, new Set(["c"]), "gone", "c"),
+    ]).toEqual([]);
   });
 });
