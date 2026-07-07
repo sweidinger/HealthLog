@@ -12,12 +12,19 @@
  *
  *   - inline (Class A: PDF/JPEG/PNG/WebP/GIF): true Content-Type,
  *     `Content-Disposition: inline`, `X-Content-Type-Options: nosniff`,
- *     `Cache-Control: private, no-store`, plus `Content-Security-Policy:
- *     sandbox` as defence-in-depth for the PDF viewer context.
+ *     `Cache-Control: private, no-store`.
  *   - attachment (Class B: Office/text/TIFF/HEIC/XML/JSON): ALWAYS
  *     `Content-Disposition: attachment` with `Content-Type:
  *     application/octet-stream` + `nosniff` — never inline, regardless of
  *     the stored type, so a misclassified file cannot execute in-origin.
+ *
+ * The response CSP is owned by the proxy, not this route: `src/proxy.ts`
+ * carves out exactly this path with `default-src 'none'; frame-ancestors
+ * 'self'` (middleware headers win over route headers, so anything set here
+ * would be dead weight). Deliberately no `sandbox` directive anywhere —
+ * Chromium force-downloads PDFs framed in sandboxed documents instead of
+ * rendering them, which would break the inline preview.
+ * `src/__tests__/proxy-document-serve-framing.test.ts` pins that posture.
  */
 import { NextResponse } from "next/server";
 
@@ -197,12 +204,11 @@ export const GET = apiHandler(
       "X-Content-Type-Options": "nosniff",
       // Private PHI — never cache in a shared / disk cache.
       "Cache-Control": "private, no-store",
+      // No Content-Security-Policy here: the proxy's serve-route carve-out
+      // owns it (`default-src 'none'; frame-ancestors 'self'`, no sandbox —
+      // Chromium force-downloads sandboxed PDFs). A route-level CSP would be
+      // silently overwritten by the middleware header pass.
     };
-    if (servingClass === "inline") {
-      // Defence-in-depth for the in-origin render context (notably the PDF
-      // viewer): no scripts, no forms, no top-navigation from the response.
-      headers["Content-Security-Policy"] = "sandbox";
-    }
 
     return new NextResponse(bytes as unknown as BodyInit, {
       status: 200,

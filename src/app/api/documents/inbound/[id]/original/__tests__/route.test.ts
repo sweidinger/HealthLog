@@ -212,7 +212,7 @@ describe("serving-posture header matrix (Class A inline vs Class B attachment)",
     ["image/webp", "scan.webp"],
     ["image/gif", "anim.gif"],
   ])(
-    "Class A %s → inline, true type, nosniff, CSP sandbox",
+    "Class A %s → inline, true type, nosniff",
     async (mime, name) => {
       seed(mime, name);
       const res = await callGet(makeReq("doc-m"), ctx("doc-m"));
@@ -220,7 +220,12 @@ describe("serving-posture header matrix (Class A inline vs Class B attachment)",
       expect(res.headers.get("Content-Type")).toBe(mime);
       expect(res.headers.get("Content-Disposition")).toContain("inline");
       expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
-      expect(res.headers.get("Content-Security-Policy")).toBe("sandbox");
+      // The response CSP is owned by the proxy carve-out (`default-src
+      // 'none'; frame-ancestors 'self'`, deliberately no sandbox —
+      // Chromium force-downloads sandboxed PDFs). A route-level value
+      // would be overwritten there, so the route must not set one; see
+      // src/__tests__/proxy-document-serve-framing.test.ts for the pin.
+      expect(res.headers.get("Content-Security-Policy")).toBeNull();
       expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     },
   );
@@ -250,7 +255,7 @@ describe("serving-posture header matrix (Class A inline vs Class B attachment)",
       expect(disposition.startsWith("attachment;")).toBe(true);
       expect(disposition).toContain(name);
       expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
-      // No render context → no sandbox header needed on a pure download.
+      // CSP is proxy-owned on every serve response; the route sets none.
       expect(res.headers.get("Content-Security-Policy")).toBeNull();
       expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     },
