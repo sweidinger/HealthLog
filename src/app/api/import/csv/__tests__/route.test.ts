@@ -8,11 +8,23 @@ vi.mock("@/lib/api-handler", () => ({
   })),
 }));
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
-    measurement: { create: vi.fn(), upsert: vi.fn() },
-  },
-}));
+vi.mock("@/lib/db", () => {
+  const measurement = {
+    findMany: vi.fn(),
+    createMany: vi.fn(),
+    updateMany: vi.fn(),
+  };
+  return {
+    prisma: {
+      measurement,
+      // Run the batched write callback against the same measurement mock so
+      // createMany / updateMany calls are observable.
+      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
+        fn({ measurement }),
+      ),
+    },
+  };
+});
 
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(),
@@ -83,6 +95,23 @@ beforeEach(() => {
     remaining: 4,
     resetAt: new Date(Date.now() + 1000),
   } as never);
+  // Default: nothing pre-exists; the transaction runner is re-stubbed by the
+  // db mock factory (resetAllMocks clears its implementation), so restore it.
+  const measurement = prisma.measurement as unknown as {
+    findMany: ReturnType<typeof vi.fn>;
+    createMany: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
+  };
+  measurement.findMany.mockResolvedValue([]);
+  measurement.createMany.mockResolvedValue({ count: 0 });
+  measurement.updateMany.mockResolvedValue({ count: 0 });
+  (
+    prisma.$transaction as unknown as {
+      mockImplementation: (f: unknown) => void;
+    }
+  ).mockImplementation(async (fn: (tx: unknown) => unknown) =>
+    fn({ measurement }),
+  );
 });
 
 describe("POST /api/import/csv — rate limit", () => {
@@ -103,18 +132,23 @@ describe("POST /api/import/csv — rate limit", () => {
   });
 });
 
+const mMeasurement = () =>
+  prisma.measurement as unknown as {
+    findMany: ReturnType<typeof vi.fn>;
+    createMany: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
+  };
+
 describe("POST /api/import/csv — fatal header error", () => {
   it("returns 422 when a required column is missing", async () => {
     const res = await POST(csvRequest("type,value,unit\nWEIGHT,80,kg"));
     expect(res.status).toBe(422);
-    expect(vi.mocked(prisma.measurement.create)).not.toHaveBeenCalled();
+    expect(mMeasurement().createMany).not.toHaveBeenCalled();
   });
 });
 
-describe("POST /api/import/csv — write loop + per-row envelope", () => {
+describe("POST /api/import/csv — batched write + per-row envelope", () => {
   it("inserts valid rows, skips invalid ones, returns per-row status", async () => {
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
-
     const res = await POST(
       csvRequest(
         [
@@ -135,10 +169,27 @@ describe("POST /api/import/csv — write loop + per-row envelope", () => {
     const reasons = body.data?.rows.map((r) => r.reason);
     expect(reasons).toContain("unknown_type");
     expect(reasons).toContain("missing_timezone_offset");
-    // One create call for the single valid row.
-    expect(vi.mocked(prisma.measurement.create)).toHaveBeenCalledTimes(1);
+    // One bulk createMany carrying the single valid survivor.
+    expect(mMeasurement().createMany).toHaveBeenCalledTimes(1);
+    const arg = mMeasurement().createMany.mock.calls[0][0];
+    expect(arg.data).toHaveLength(1);
     // Rollup re-fold fired for the touched (type, day).
     expect(vi.mocked(recomputeBucketsForMeasurement)).toHaveBeenCalled();
+  });
+
+  it("batches many rows into a single createMany (no per-row round-trip)", async () => {
+    const rows = [HEADER];
+    for (let i = 0; i < 50; i++) {
+      const mm = String(i).padStart(2, "0"); // unique minute → unique measuredAt
+      rows.push(`WEIGHT,${80 + i * 0.1},kg,2026-05-01T08:${mm}:00Z,,,`);
+    }
+    const res = await POST(csvRequest(rows.join("\n")));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as CsvEnvelope;
+    expect(body.data?.inserted).toBe(50);
+    // 50 rows, one createMany call — the whole point of the batch.
+    expect(mMeasurement().createMany).toHaveBeenCalledTimes(1);
+    expect(mMeasurement().createMany.mock.calls[0][0].data).toHaveLength(50);
   });
 
   it("dryRun previews without writing and reports projected inserts", async () => {
@@ -153,17 +204,14 @@ describe("POST /api/import/csv — write loop + per-row envelope", () => {
     expect(body.data?.dryRun).toBe(true);
     expect(body.data?.inserted).toBe(1);
     expect(body.data?.rows[0].status).toBe("inserted");
-    expect(vi.mocked(prisma.measurement.create)).not.toHaveBeenCalled();
+    expect(mMeasurement().createMany).not.toHaveBeenCalled();
     expect(vi.mocked(recomputeBucketsForMeasurement)).not.toHaveBeenCalled();
   });
 
-  it("upserts an externalId row and surfaces it as updated when it already existed", async () => {
-    const created = new Date("2026-05-01T08:00:00Z");
-    const bumped = new Date("2026-05-02T08:00:00Z");
-    vi.mocked(prisma.measurement.upsert).mockResolvedValue({
-      createdAt: created,
-      updatedAt: bumped,
-    } as never);
+  it("surfaces an externalId row as updated when it already existed (updateMany)", async () => {
+    mMeasurement().findMany.mockResolvedValue([
+      { type: "WEIGHT", externalId: "ext-1" },
+    ]);
 
     const res = await POST(
       csvRequest(
@@ -174,13 +222,28 @@ describe("POST /api/import/csv — write loop + per-row envelope", () => {
     expect(body.data?.updated).toBe(1);
     expect(body.data?.inserted).toBe(0);
     expect(body.data?.rows[0].status).toBe("updated");
-    expect(vi.mocked(prisma.measurement.upsert)).toHaveBeenCalledTimes(1);
+    expect(mMeasurement().updateMany).toHaveBeenCalledTimes(1);
+    expect(mMeasurement().createMany).not.toHaveBeenCalled();
   });
 
-  it("counts a unique-constraint duplicate as skipped/duplicate", async () => {
-    vi.mocked(prisma.measurement.create).mockRejectedValue(
-      new Error("Unique constraint failed"),
+  it("inserts an externalId row when it does not exist yet", async () => {
+    mMeasurement().findMany.mockResolvedValue([]);
+    const res = await POST(
+      csvRequest(
+        [HEADER, "WEIGHT,80.5,kg,2026-05-01T08:00:00Z,,,ext-2"].join("\n"),
+      ),
     );
+    const body = (await res.json()) as CsvEnvelope;
+    expect(body.data?.inserted).toBe(1);
+    expect(body.data?.updated).toBe(0);
+    expect(body.data?.rows[0].status).toBe("inserted");
+    expect(mMeasurement().createMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts a pre-existing natural-key row as skipped/duplicate", async () => {
+    mMeasurement().findMany.mockResolvedValue([
+      { type: "WEIGHT", measuredAt: new Date("2026-05-01T08:00:00Z") },
+    ]);
 
     const res = await POST(
       csvRequest([HEADER, "WEIGHT,80.5,kg,2026-05-01T08:00:00Z,,,"].join("\n")),
@@ -192,5 +255,23 @@ describe("POST /api/import/csv — write loop + per-row envelope", () => {
       status: "skipped",
       reason: "duplicate",
     });
+    expect(mMeasurement().createMany).not.toHaveBeenCalled();
+  });
+
+  it("collapses an in-file duplicate (same type+measuredAt) to one insert + one duplicate", async () => {
+    const res = await POST(
+      csvRequest(
+        [
+          HEADER,
+          "WEIGHT,80.5,kg,2026-05-01T08:00:00Z,,,",
+          "WEIGHT,80.6,kg,2026-05-01T08:00:00Z,,,",
+        ].join("\n"),
+      ),
+    );
+    const body = (await res.json()) as CsvEnvelope;
+    expect(body.data?.inserted).toBe(1);
+    expect(body.data?.skipped).toBe(1);
+    // Only the first survivor reaches the bulk insert.
+    expect(mMeasurement().createMany.mock.calls[0][0].data).toHaveLength(1);
   });
 });
