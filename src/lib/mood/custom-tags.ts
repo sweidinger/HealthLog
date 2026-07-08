@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod/v4";
 
 import { encrypt, decrypt } from "@/lib/crypto";
+import { getEvent } from "@/lib/logging/context";
 import { MOOD_TAG_ICON_NAMES } from "@/lib/mood/icon-catalog";
 
 /**
@@ -77,7 +78,15 @@ export function decryptCustomLabel(encoded: string | null): string | null {
   if (!encoded) return null;
   try {
     return decrypt(encoded);
-  } catch {
+  } catch (err) {
+    // A custom label WAS stored but is undecryptable — fail soft (the caller
+    // falls back to the generic i18n label) but log it (F-CRYPTO-5) so the loss
+    // of a user-renamed tag is not entirely silent.
+    getEvent()?.addWarning(
+      `mood custom-label decrypt failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return null;
   }
 }
