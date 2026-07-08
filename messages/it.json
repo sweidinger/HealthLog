@@ -922,7 +922,6 @@
       "recentTitle": "Ultimi 30 giorni",
       "loading": "Caricamento…",
       "deleteCta": "Elimina",
-      "deleteConfirm": "Eliminare questa voce?",
       "deleteError": "Impossibile eliminare la voce",
       "errorSeverity": "La gravità deve essere tra 1 e 5",
       "errorEntry": "Scegli un sintomo",

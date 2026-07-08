@@ -922,7 +922,6 @@
       "recentTitle": "Ostatnie 30 dni",
       "loading": "Ładowanie…",
       "deleteCta": "Usuń",
-      "deleteConfirm": "Usunąć ten wpis?",
       "deleteError": "Nie udało się usunąć wpisu",
       "errorSeverity": "Nasilenie musi mieścić się w zakresie 1–5",
       "errorEntry": "Wybierz objaw",

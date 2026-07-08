@@ -922,7 +922,6 @@
       "recentTitle": "Últimos 30 días",
       "loading": "Cargando…",
       "deleteCta": "Eliminar",
-      "deleteConfirm": "¿Eliminar esta entrada?",
       "deleteError": "No se pudo eliminar la entrada",
       "errorSeverity": "La gravedad debe estar entre 1 y 5",
       "errorEntry": "Elige un síntoma",

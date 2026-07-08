@@ -922,7 +922,6 @@
       "recentTitle": "30 derniers jours",
       "loading": "Chargement…",
       "deleteCta": "Supprimer",
-      "deleteConfirm": "Supprimer cette entrée ?",
       "deleteError": "Impossible de supprimer l'entrée",
       "errorSeverity": "La sévérité doit être entre 1 et 5",
       "errorEntry": "Choisissez un symptôme",

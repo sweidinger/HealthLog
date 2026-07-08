@@ -922,7 +922,6 @@
       "recentTitle": "Last 30 days",
       "loading": "Loading…",
       "deleteCta": "Delete",
-      "deleteConfirm": "Delete this entry?",
       "deleteError": "Could not delete the entry",
       "errorSeverity": "Severity must be between 1 and 5",
       "errorEntry": "Pick a symptom",
