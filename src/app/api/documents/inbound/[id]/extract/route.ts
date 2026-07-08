@@ -31,7 +31,7 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
-import { assertConsentForChain } from "@/lib/ai/consent-guard";
+import { assertDocumentEgressConsent } from "@/lib/ai/consent-guard";
 import {
   buildDateKey,
   reconcileSpend,
@@ -52,9 +52,9 @@ import {
   serialiseDocumentDetail,
 } from "@/lib/documents/store";
 import {
-  resolveTextProvider,
-  resolveVisionProvider,
-} from "@/lib/labs/ocr-capability";
+  resolveDocumentTextProvider,
+  resolveDocumentVisionProvider,
+} from "@/lib/documents/provider-order";
 import { detectOcrMimeType } from "@/lib/labs/ocr-upload";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
@@ -200,14 +200,18 @@ async function handleTextExtract(
     });
   }
 
-  const { chain, pick } = await resolveTextProvider(userId);
+  const { pick } = await resolveDocumentTextProvider(userId);
   if (!pick) {
     return apiError("No AI provider is configured", 422, {
       errorCode: "documents.inbound.providerUnsupported",
     });
   }
 
-  await assertConsentForChain({ userId, chain, surface: "insights" });
+  await assertDocumentEgressConsent({
+    userId,
+    providerType: pick.providerType,
+    surface: "insights",
+  });
 
   const rl = await checkRateLimit(
     `documents-inbound:${userId}`,
@@ -298,14 +302,18 @@ async function handleVisionExtract(
   userId: string,
   document: LoadedDocument,
 ): Promise<Response> {
-  const { chain, pick } = await resolveVisionProvider(userId);
+  const { pick } = await resolveDocumentVisionProvider(userId);
   if (!pick) {
     return apiError("No vision-capable AI provider is configured", 422, {
       errorCode: "documents.inbound.providerUnsupported",
     });
   }
 
-  await assertConsentForChain({ userId, chain, surface: "insights" });
+  await assertDocumentEgressConsent({
+    userId,
+    providerType: pick.providerType,
+    surface: "insights",
+  });
 
   const rl = await checkRateLimit(
     `documents-inbound:${userId}`,

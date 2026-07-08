@@ -9,10 +9,10 @@
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiError, apiSuccess, getClientIp } from "@/lib/api-response";
-import { assertConsentForChain } from "@/lib/ai/consent-guard";
+import { assertDocumentEgressConsent } from "@/lib/ai/consent-guard";
 import { auditLog } from "@/lib/auth/audit";
 import { enqueueContentIndexBackfill } from "@/lib/jobs/document-content-index-backfill";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
@@ -46,13 +46,17 @@ export const POST = apiHandler(async (request) => {
 
   // Fail fast when the precondition is not met so the UI gets immediate
   // feedback rather than a silently no-op'd job.
-  const { chain, pick } = await resolveVisionProvider(user.id);
+  const { pick } = await resolveDocumentVisionProvider(user.id);
   if (!pick) {
     return apiError("No vision-capable AI provider is configured", 422, {
       errorCode: "documents.inbound.providerUnsupported",
     });
   }
-  await assertConsentForChain({ userId: user.id, chain, surface: "insights" });
+  await assertDocumentEgressConsent({
+    userId: user.id,
+    providerType: pick.providerType,
+    surface: "insights",
+  });
 
   const { enqueued } = await enqueueContentIndexBackfill(user.id);
 

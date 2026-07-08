@@ -8,9 +8,10 @@
  * indexing egresses to a provider under the user's key + budget, so it must be
  * a deliberate, consented act, exactly like the per-document index route.
  *
- * Consent: gated on the EXISTING AI consent (`assertConsentForChain`), the same
- * gate the extract / index routes use — there is no separate per-user toggle
- * (maintainer decision, 2026-07-07).
+ * Consent: gated on the document-egress consent (`assertDocumentEgressConsent`),
+ * the same gate the extract / index routes use — any external provider needs an
+ * active receipt; a local pick stays ungated. There is no separate per-user
+ * toggle (maintainer decision, 2026-07-07).
  *
  * Bounded + resumable: an id-cursor forward walk over the not-yet-indexed set,
  * capped at `MAX_DOCS_PER_RUN` provider calls per job and stopped the moment the
@@ -24,7 +25,7 @@
  */
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import {
-  assertConsentForChain,
+  assertDocumentEgressConsent,
   ConsentRequiredError,
 } from "@/lib/ai/consent-guard";
 import {
@@ -41,7 +42,7 @@ import {
 import { upsertContentIndex } from "@/lib/documents/content-index";
 import { transcribeDocument } from "@/lib/documents/describe";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 import { annotate } from "@/lib/logging/context";
 
 export const CONTENT_INDEX_BACKFILL_QUEUE = "document-content-index-backfill";
@@ -76,10 +77,14 @@ export interface ContentIndexBackfillSummary {
 export async function runContentIndexBackfillForUser(
   userId: string,
 ): Promise<ContentIndexBackfillSummary> {
-  const { chain, pick } = await resolveVisionProvider(userId);
+  const { pick } = await resolveDocumentVisionProvider(userId);
   if (!pick) return { indexed: 0, reason: "no-provider" };
   try {
-    await assertConsentForChain({ userId, chain, surface: "insights" });
+    await assertDocumentEgressConsent({
+      userId,
+      providerType: pick.providerType,
+      surface: "insights",
+    });
   } catch (err) {
     if (err instanceof ConsentRequiredError) {
       return { indexed: 0, reason: "no-consent" };
