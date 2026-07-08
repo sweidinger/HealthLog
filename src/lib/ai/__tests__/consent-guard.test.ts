@@ -7,8 +7,10 @@ vi.mock("@/lib/consent/receipts", () => ({
 import {
   ConsentRequiredError,
   assertConsentForChain,
+  assertDocumentEgressConsent,
   chainRequiresServerManagedConsent,
   hasActiveConsentForSurface,
+  isExternalDocumentEgress,
 } from "../consent-guard";
 import { latestActiveReceipt } from "@/lib/consent/receipts";
 import type { ProviderChainResolved } from "../provider-runner";
@@ -166,5 +168,69 @@ describe("assertConsentForChain", () => {
         surface: "insights",
       }),
     ).rejects.toBeInstanceOf(ConsentRequiredError);
+  });
+});
+
+describe("isExternalDocumentEgress", () => {
+  it("treats only the self-hosted local provider as non-egress", () => {
+    expect(isExternalDocumentEgress("local")).toBe(false);
+  });
+
+  it("treats every external provider as document egress", () => {
+    for (const p of ["codex", "openai", "anthropic", "admin-openai"]) {
+      expect(isExternalDocumentEgress(p)).toBe(true);
+    }
+  });
+});
+
+describe("assertDocumentEgressConsent", () => {
+  beforeEach(() => mockedLatest.mockReset());
+
+  it("never reads consent and never throws for a LOCAL document pick", async () => {
+    grant([]);
+    await expect(
+      assertDocumentEgressConsent({
+        userId: "u1",
+        providerType: "local",
+        surface: "insights",
+      }),
+    ).resolves.toBeUndefined();
+    expect(mockedLatest).not.toHaveBeenCalled();
+  });
+
+  // The live gap the governance fix closes: codex was ungated for documents.
+  it("REQUIRES a receipt to send a document to codex (the closed gap)", async () => {
+    grant([]);
+    await expect(
+      assertDocumentEgressConsent({
+        userId: "u1",
+        providerType: "codex",
+        surface: "insights",
+      }),
+    ).rejects.toBeInstanceOf(ConsentRequiredError);
+  });
+
+  it("requires a receipt for BYOK document egress too (openai / anthropic)", async () => {
+    grant([]);
+    for (const p of ["openai", "anthropic", "admin-openai"]) {
+      await expect(
+        assertDocumentEgressConsent({
+          userId: "u1",
+          providerType: p,
+          surface: "insights",
+        }),
+      ).rejects.toBeInstanceOf(ConsentRequiredError);
+    }
+  });
+
+  it("proceeds for codex WITH an active document-class receipt", async () => {
+    grant(["ai_insights_only"]);
+    await expect(
+      assertDocumentEgressConsent({
+        userId: "u1",
+        providerType: "codex",
+        surface: "insights",
+      }),
+    ).resolves.toBeUndefined();
   });
 });

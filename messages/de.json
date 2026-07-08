@@ -8173,6 +8173,9 @@
       "searchPlaceholder": "Nach Titel oder Dateiname suchen",
       "empty": "Keine Dokumente gefunden."
     },
+    "ai": {
+      "egressNotice": "Dies sendet den Inhalt des Dokuments an deinen konfigurierten KI-Anbieter — es verlässt dieses Gerät zu einem KI-Dienst eines Drittanbieters. Ist der Anbieter ein persönliches Abonnement, gelten dessen eigene Datenschutz-Einstellungen, einschließlich Modelltraining, sofern du es dort nicht deaktiviert hast."
+    },
     "assist": {
       "suggest": "Details vorschlagen",
       "suggesting": "Wird gelesen…",

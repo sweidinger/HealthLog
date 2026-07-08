@@ -23,7 +23,7 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
-import { assertConsentForChain } from "@/lib/ai/consent-guard";
+import { assertDocumentEgressConsent } from "@/lib/ai/consent-guard";
 import {
   buildDateKey,
   reconcileSpend,
@@ -47,9 +47,9 @@ import {
   type DescribeInput,
 } from "@/lib/documents/describe";
 import {
-  resolveTextProvider,
-  resolveVisionProvider,
-} from "@/lib/labs/ocr-capability";
+  resolveDocumentTextProvider,
+  resolveDocumentVisionProvider,
+} from "@/lib/documents/provider-order";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { prisma } from "@/lib/db";
@@ -188,13 +188,17 @@ async function handleTextSummary(
     return finishSummary(request, userId, document.id, "text", mode, result);
   }
 
-  const { chain, pick } = await resolveTextProvider(userId);
+  const { pick } = await resolveDocumentTextProvider(userId);
   if (!pick) {
     return apiError("No AI provider is configured", 422, {
       errorCode: "documents.inbound.providerUnsupported",
     });
   }
-  await assertConsentForChain({ userId, chain, surface: "insights" });
+  await assertDocumentEgressConsent({
+    userId,
+    providerType: pick.providerType,
+    surface: "insights",
+  });
 
   const dateKey = buildDateKey();
   const reservation = await reserveBudget(
@@ -235,13 +239,17 @@ async function handleVisionSummary(
   document: LoadedDocument,
   mode: DocumentSummaryMode,
 ): Promise<Response> {
-  const { chain, pick } = await resolveVisionProvider(userId);
+  const { pick } = await resolveDocumentVisionProvider(userId);
   if (!pick) {
     return apiError("No vision-capable AI provider is configured", 422, {
       errorCode: "documents.inbound.providerUnsupported",
     });
   }
-  await assertConsentForChain({ userId, chain, surface: "insights" });
+  await assertDocumentEgressConsent({
+    userId,
+    providerType: pick.providerType,
+    surface: "insights",
+  });
 
   const rl = await checkRateLimit(
     `${DOCUMENT_AI_BUCKET}:${userId}`,
