@@ -30,6 +30,7 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 import {
   ensureShareDocFixture,
   ensureVaultFixture,
+  MRT_DOC_ID,
   SHARE_DOC_PREFIX,
   SHARE_JPEG_DOC_ID,
   SHARE_PDF_DOC_ID,
@@ -231,6 +232,50 @@ test.describe("clinician document sharing", () => {
     }).toPass({ timeout: 10_000 });
 
     await clinician.context().close();
+  });
+
+  test("the document detail Share action opens the create flow with that document pre-attached", async ({
+    page,
+  }) => {
+    // Opens two stacked sheets (detail → share) and drives a real create with
+    // the one-time QR render — heavier than the default 30s budget on a loaded
+    // runner. Runs on the desktop and 390px mobile projects.
+    test.slow();
+
+    // Deep-link straight to the document detail sheet.
+    await page.goto(`/documents?doc=${MRT_DOC_ID}`);
+    const detail = page.getByRole("dialog").filter({ hasText: "MRT Knie" });
+    await expect(detail).toBeVisible();
+
+    // The Share action sits beside Download in the footer.
+    await detail.getByRole("button", { name: "Share" }).click();
+
+    // The share flow opens with the document already attached and its title
+    // pre-filled as the link label — no context switch to Settings.
+    const shareSheet = page
+      .getByRole("dialog")
+      .filter({ hasText: "Share this document" });
+    await expect(shareSheet).toBeVisible();
+    await expect(shareSheet.locator("#share-label")).toHaveValue("MRT Knie");
+    const chips = shareSheet
+      .getByTestId("share-attached-chips")
+      .getByRole("listitem");
+    await expect(chips).toHaveCount(1);
+    await expect(chips.first()).toContainText("MRT Knie");
+
+    // Create the link — the one-time reveal (with the scannable QR) lands in
+    // the same sheet, carrying the one attached document.
+    await shareSheet.getByRole("button", { name: "Create link" }).click();
+    const reveal = shareSheet.getByTestId("share-token-reveal");
+    await expect(reveal).toBeVisible();
+    await expect(
+      shareSheet.getByTestId("share-created-doc-count"),
+    ).toContainText("1");
+    const qrImg = shareSheet.getByTestId("share-qr-block").getByRole("img");
+    await expect(qrImg).toBeVisible();
+    const box = await qrImg.boundingBox();
+    expect(box, "QR image has a rendered box").not.toBeNull();
+    expect(box!.width).toBeGreaterThanOrEqual(160);
   });
 
   test("picker enforces the document cap at the limit", async ({ page }) => {

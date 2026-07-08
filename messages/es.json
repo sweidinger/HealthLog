@@ -8140,7 +8140,8 @@
       "linkCondition": "Vincular",
       "noConditions": "Sin vincular a una afección",
       "previewUnavailable": "Sin vista previa integrada para este tipo de archivo",
-      "uploadedMeta": "Añadido el {date} · {size}"
+      "uploadedMeta": "Añadido el {date} · {size}",
+      "share": "Compartir"
     },
     "dropOverlay": {
       "title": "Suelta los archivos para subirlos",
@@ -8219,6 +8220,10 @@
       "indexAllQueued": "Indexando {count} documento(s) en segundo plano.",
       "indexAllNothing": "Todo ya está indexado.",
       "indexAllError": "No se pudo iniciar la indexación."
+    },
+    "share": {
+      "title": "Compartir este documento",
+      "description": "Crea un enlace de solo lectura para profesionales con este documento adjunto. El enlace y su frase de contraseña aparecen una sola vez."
     }
   },
   "selfDescription": {

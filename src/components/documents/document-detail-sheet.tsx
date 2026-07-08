@@ -13,10 +13,11 @@
  * errors surface inline (`role="alert"`), never as a QueryErrorCard.
  * Delete soft-deletes with an Undo toast (restore endpoint); a restore
  * refusal maps `meta.reason` (`purged`, `duplicateExists`) to translated
- * copy. No share affordance anywhere — deliberately.
+ * copy. A Share action in the footer opens the clinician share-link create
+ * flow (shared `ShareLinkCreateForm`) with this document pre-attached.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Download, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Download, Pencil, Plus, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -59,6 +60,7 @@ import {
 } from "@/lib/validations/inbound-documents";
 import { DocumentAiSection } from "./document-ai-section";
 import type { DocumentAiTarget } from "./document-ai-transport";
+import { DocumentShareSheet } from "./document-share-sheet";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
 import { useIndexDocument } from "./use-content-index";
 import {
@@ -223,6 +225,7 @@ export function DocumentDetailSheet({
   const indexDoc = useIndexDocument();
 
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [suggestion, setSuggestion] = useState<DocumentSuggestionDto | null>(
@@ -242,6 +245,7 @@ export function DocumentDetailSheet({
   if (lastDocumentId !== documentId) {
     setLastDocumentId(documentId);
     setEditingTitle(false);
+    setShareOpen(false);
     setMutationError(null);
     setSuggestion(null);
     setAppliedFields({ title: false, kind: false, date: false });
@@ -399,280 +403,315 @@ export function DocumentDetailSheet({
   const originalHref = doc ? `/api/documents/inbound/${doc.id}/original` : "#";
 
   return (
-    <ResponsiveSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      description={t("documents.detail.title")}
-      contentWidth="3xl"
-      footer={
-        doc ? (
-          // Delete sits bottom-LEFT, quieted to a text button: the
-          // bottom-right slot reads as the primary/confirm action, and a
-          // destructive control there is a footgun. Download — the safe,
-          // expected action — keeps the trailing edge.
-          <div className="flex w-full items-center justify-between">
-            <Button
-              variant="ghost"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={() => remove.mutate(doc.id)}
-              disabled={remove.isPending}
-            >
-              <Trash2 className="size-4" aria-hidden />
-              {t("documents.detail.delete")}
-            </Button>
-            <Button variant="outline" asChild data-slot="document-download">
-              <a href={originalHref} download={doc.filename ?? undefined}>
-                <Download className="size-4" aria-hidden />
-                {t("documents.detail.download")}
-              </a>
-            </Button>
+    <>
+      <ResponsiveSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        title={title}
+        description={t("documents.detail.title")}
+        contentWidth="3xl"
+        footer={
+          doc ? (
+            // Delete sits bottom-LEFT, quieted to a text button: the
+            // bottom-right slot reads as the primary/confirm action, and a
+            // destructive control there is a footgun. Share + Download — the
+            // safe, expected actions — keep the trailing edge. On phones their
+            // labels collapse to icon-only (aria-labelled) so three controls
+            // never overflow the sheet at 360 px; the labels return at `sm+`.
+            <div className="flex w-full items-center justify-between gap-2">
+              <Button
+                variant="ghost"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => remove.mutate(doc.id)}
+                disabled={remove.isPending}
+              >
+                <Trash2 className="size-4" aria-hidden />
+                {t("documents.detail.delete")}
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShareOpen(true)}
+                  data-slot="document-share"
+                  aria-label={t("documents.detail.share")}
+                >
+                  <Share2 className="size-4" aria-hidden />
+                  <span className="hidden sm:inline">
+                    {t("documents.detail.share")}
+                  </span>
+                </Button>
+                <Button
+                  variant="outline"
+                  asChild
+                  data-slot="document-download"
+                  aria-label={t("documents.detail.download")}
+                >
+                  <a href={originalHref} download={doc.filename ?? undefined}>
+                    <Download className="size-4" aria-hidden />
+                    <span className="hidden sm:inline">
+                      {t("documents.detail.download")}
+                    </span>
+                  </a>
+                </Button>
+              </div>
+            </div>
+          ) : undefined
+        }
+      >
+        {detail.isPending && open ? (
+          <div className="space-y-3" data-slot="document-detail-loading">
+            <Skeleton className="h-48 w-full rounded-lg" />
+            <Skeleton className="h-9 w-2/3" />
+            <Skeleton className="h-9 w-1/2" />
           </div>
-        ) : undefined
-      }
-    >
-      {detail.isPending && open ? (
-        <div className="space-y-3" data-slot="document-detail-loading">
-          <Skeleton className="h-48 w-full rounded-lg" />
-          <Skeleton className="h-9 w-2/3" />
-          <Skeleton className="h-9 w-1/2" />
-        </div>
-      ) : null}
+        ) : null}
 
-      {detail.isError ? (
-        <p role="alert" className="text-destructive text-sm">
-          {t("documents.detail.loadError")}
-        </p>
-      ) : null}
+        {detail.isError ? (
+          <p role="alert" className="text-destructive text-sm">
+            {t("documents.detail.loadError")}
+          </p>
+        ) : null}
+
+        {doc ? (
+          <div className="space-y-6">
+            {doc.servingClass === "inline" ? (
+              <InlinePreview
+                documentId={doc.id}
+                mimeType={doc.mimeType}
+                title={title}
+              />
+            ) : (
+              <div className="border-border flex flex-col items-center gap-2 rounded-lg border px-4 py-8 text-center">
+                {Icon ? (
+                  <Icon className="text-muted-foreground size-8" aria-hidden />
+                ) : null}
+                <p className="max-w-full truncate text-sm font-medium">
+                  {doc.filename ?? title}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {t("documents.detail.previewUnavailable")} ·{" "}
+                  {formatBytes(doc.byteSize, locale)}
+                </p>
+                <Button asChild size="sm" className="mt-1">
+                  <a href={originalHref} download={doc.filename ?? undefined}>
+                    <Download className="size-4" aria-hidden />
+                    {t("documents.detail.download")}
+                  </a>
+                </Button>
+              </div>
+            )}
+
+            <DocumentAiSection
+              aiEnabled={aiEnabled}
+              indexEnabled={indexEnabled}
+              unavailableReason={capability.data?.reason ?? null}
+              actionsDisabled={capability.isPending}
+              onSuggest={runSuggest}
+              suggestPending={suggest.isPending}
+              suggestErrorKey={
+                suggest.isError ? documentAiErrorKey(suggest.error) : null
+              }
+              onSummarise={runSummary}
+              summaryPending={summary.isPending}
+              suggestion={suggestion}
+              suggestionKindLabel={suggestionKindLabel}
+              suggestionDateLabel={suggestionDateLabel}
+              appliedFields={appliedFields}
+              onUseTitle={applyTitle}
+              onUseKind={applyKind}
+              onUseDate={applyDate}
+              onDismissSuggestion={() => setSuggestion(null)}
+              summaryOutput={summaryOutput}
+              summaryResult={summary.data ?? null}
+              summaryErrorKey={
+                summary.isError ? documentAiErrorKey(summary.error) : null
+              }
+              onCloseSummary={() => {
+                setSummaryOutput(null);
+                summary.reset();
+              }}
+              hasContentIndex={doc.hasContentIndex}
+              indexPending={indexDoc.isPending}
+              onIndex={runIndex}
+            />
+
+            {mutationError ? (
+              <p role="alert" className="text-destructive text-sm">
+                {mutationError}
+              </p>
+            ) : null}
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="document-title-input">
+                  {t("documents.detail.titleLabel")}
+                </Label>
+                {editingTitle ? (
+                  <Input
+                    id="document-title-input"
+                    autoFocus
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    onBlur={commitTitle}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitTitle();
+                      if (e.key === "Escape") setEditingTitle(false);
+                    }}
+                    maxLength={200}
+                    placeholder={t("documents.detail.titlePlaceholder")}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    id="document-title-input"
+                    onClick={() => {
+                      setTitleDraft(doc.title ?? "");
+                      setEditingTitle(true);
+                    }}
+                    className="border-input hover:bg-muted/50 focus-visible:ring-ring/50 flex min-h-10 w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm focus-visible:ring-[3px] focus-visible:outline-none"
+                  >
+                    <span
+                      className={cn(
+                        "truncate",
+                        doc.title === null && "text-muted-foreground",
+                      )}
+                    >
+                      {doc.title ?? t("documents.detail.titlePlaceholder")}
+                    </span>
+                    <Pencil
+                      className="text-muted-foreground size-3.5 shrink-0"
+                      aria-hidden
+                    />
+                  </button>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="document-kind-select">
+                    {t("documents.detail.kindLabel")}
+                  </Label>
+                  <Select
+                    value={doc.kind}
+                    onValueChange={(value) =>
+                      patch.mutate({ kind: value as InboundDocumentKindValue })
+                    }
+                  >
+                    <SelectTrigger id="document-kind-select" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INBOUND_DOCUMENT_KINDS.map((kind) => (
+                        <SelectItem key={kind} value={kind}>
+                          {t(`documents.kind.${kind}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="document-date-field">
+                    {t("documents.detail.dateLabel")}
+                  </Label>
+                  <DateField
+                    id="document-date-field"
+                    value={doc.documentDate ?? ""}
+                    onChange={(value) =>
+                      patch.mutate({
+                        documentDate: value === "" ? null : value,
+                      })
+                    }
+                    aria-label={t("documents.detail.dateLabel")}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-sm leading-none font-medium">
+                  {t("documents.detail.conditionsLabel")}
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {doc.conditionLinks.map((link) => (
+                    <Link
+                      key={link.episodeId}
+                      href={`/illness/${link.episodeId}`}
+                      className="bg-muted text-foreground hover:bg-muted/70 focus-visible:ring-ring/50 inline-flex max-w-48 items-center rounded-full px-2.5 py-1 text-xs focus-visible:ring-[3px] focus-visible:outline-none"
+                    >
+                      <span className="truncate">{link.name}</span>
+                    </Link>
+                  ))}
+                  {doc.conditionLinks.length === 0 ? (
+                    <span className="text-muted-foreground text-xs">
+                      {t("documents.detail.noConditions")}
+                    </span>
+                  ) : null}
+                  {(episodes.data?.length ?? 0) > 0 ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 rounded-full px-2.5 text-xs"
+                        >
+                          <Plus className="size-3" aria-hidden />
+                          {t("documents.detail.linkCondition")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-64 p-2">
+                        <ul className="max-h-56 space-y-0.5 overflow-y-auto overscroll-contain">
+                          {episodes.data?.map((episode) => {
+                            const linked = doc.conditionLinks.some(
+                              (l) => l.episodeId === episode.id,
+                            );
+                            return (
+                              <li key={episode.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleEpisode(episode.id)}
+                                  className="hover:bg-muted focus-visible:ring-ring/50 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm focus-visible:ring-[3px] focus-visible:outline-none"
+                                  aria-pressed={linked}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "size-4 shrink-0",
+                                      linked ? "opacity-100" : "opacity-0",
+                                    )}
+                                    aria-hidden
+                                  />
+                                  <span className="truncate">
+                                    {episode.label}
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </PopoverContent>
+                    </Popover>
+                  ) : null}
+                </div>
+              </div>
+
+              <p className="text-muted-foreground text-xs">
+                {t("documents.detail.uploadedMeta", {
+                  date: format.date(doc.createdAt),
+                  size: formatBytes(doc.byteSize, locale),
+                })}
+                {doc.filename ? ` · ${doc.filename}` : ""}
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </ResponsiveSheet>
 
       {doc ? (
-        <div className="space-y-6">
-          {doc.servingClass === "inline" ? (
-            <InlinePreview
-              documentId={doc.id}
-              mimeType={doc.mimeType}
-              title={title}
-            />
-          ) : (
-            <div className="border-border flex flex-col items-center gap-2 rounded-lg border px-4 py-8 text-center">
-              {Icon ? (
-                <Icon className="text-muted-foreground size-8" aria-hidden />
-              ) : null}
-              <p className="max-w-full truncate text-sm font-medium">
-                {doc.filename ?? title}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {t("documents.detail.previewUnavailable")} ·{" "}
-                {formatBytes(doc.byteSize, locale)}
-              </p>
-              <Button asChild size="sm" className="mt-1">
-                <a href={originalHref} download={doc.filename ?? undefined}>
-                  <Download className="size-4" aria-hidden />
-                  {t("documents.detail.download")}
-                </a>
-              </Button>
-            </div>
-          )}
-
-          <DocumentAiSection
-            aiEnabled={aiEnabled}
-            indexEnabled={indexEnabled}
-            unavailableReason={capability.data?.reason ?? null}
-            actionsDisabled={capability.isPending}
-            onSuggest={runSuggest}
-            suggestPending={suggest.isPending}
-            suggestErrorKey={
-              suggest.isError ? documentAiErrorKey(suggest.error) : null
-            }
-            onSummarise={runSummary}
-            summaryPending={summary.isPending}
-            suggestion={suggestion}
-            suggestionKindLabel={suggestionKindLabel}
-            suggestionDateLabel={suggestionDateLabel}
-            appliedFields={appliedFields}
-            onUseTitle={applyTitle}
-            onUseKind={applyKind}
-            onUseDate={applyDate}
-            onDismissSuggestion={() => setSuggestion(null)}
-            summaryOutput={summaryOutput}
-            summaryResult={summary.data ?? null}
-            summaryErrorKey={
-              summary.isError ? documentAiErrorKey(summary.error) : null
-            }
-            onCloseSummary={() => {
-              setSummaryOutput(null);
-              summary.reset();
-            }}
-            hasContentIndex={doc.hasContentIndex}
-            indexPending={indexDoc.isPending}
-            onIndex={runIndex}
-          />
-
-          {mutationError ? (
-            <p role="alert" className="text-destructive text-sm">
-              {mutationError}
-            </p>
-          ) : null}
-
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="document-title-input">
-                {t("documents.detail.titleLabel")}
-              </Label>
-              {editingTitle ? (
-                <Input
-                  id="document-title-input"
-                  autoFocus
-                  value={titleDraft}
-                  onChange={(e) => setTitleDraft(e.target.value)}
-                  onBlur={commitTitle}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") commitTitle();
-                    if (e.key === "Escape") setEditingTitle(false);
-                  }}
-                  maxLength={200}
-                  placeholder={t("documents.detail.titlePlaceholder")}
-                />
-              ) : (
-                <button
-                  type="button"
-                  id="document-title-input"
-                  onClick={() => {
-                    setTitleDraft(doc.title ?? "");
-                    setEditingTitle(true);
-                  }}
-                  className="border-input hover:bg-muted/50 focus-visible:ring-ring/50 flex min-h-10 w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm focus-visible:ring-[3px] focus-visible:outline-none"
-                >
-                  <span
-                    className={cn(
-                      "truncate",
-                      doc.title === null && "text-muted-foreground",
-                    )}
-                  >
-                    {doc.title ?? t("documents.detail.titlePlaceholder")}
-                  </span>
-                  <Pencil
-                    className="text-muted-foreground size-3.5 shrink-0"
-                    aria-hidden
-                  />
-                </button>
-              )}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="document-kind-select">
-                  {t("documents.detail.kindLabel")}
-                </Label>
-                <Select
-                  value={doc.kind}
-                  onValueChange={(value) =>
-                    patch.mutate({ kind: value as InboundDocumentKindValue })
-                  }
-                >
-                  <SelectTrigger id="document-kind-select" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INBOUND_DOCUMENT_KINDS.map((kind) => (
-                      <SelectItem key={kind} value={kind}>
-                        {t(`documents.kind.${kind}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="document-date-field">
-                  {t("documents.detail.dateLabel")}
-                </Label>
-                <DateField
-                  id="document-date-field"
-                  value={doc.documentDate ?? ""}
-                  onChange={(value) =>
-                    patch.mutate({ documentDate: value === "" ? null : value })
-                  }
-                  aria-label={t("documents.detail.dateLabel")}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <p className="text-sm leading-none font-medium">
-                {t("documents.detail.conditionsLabel")}
-              </p>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {doc.conditionLinks.map((link) => (
-                  <Link
-                    key={link.episodeId}
-                    href={`/illness/${link.episodeId}`}
-                    className="bg-muted text-foreground hover:bg-muted/70 focus-visible:ring-ring/50 inline-flex max-w-48 items-center rounded-full px-2.5 py-1 text-xs focus-visible:ring-[3px] focus-visible:outline-none"
-                  >
-                    <span className="truncate">{link.name}</span>
-                  </Link>
-                ))}
-                {doc.conditionLinks.length === 0 ? (
-                  <span className="text-muted-foreground text-xs">
-                    {t("documents.detail.noConditions")}
-                  </span>
-                ) : null}
-                {(episodes.data?.length ?? 0) > 0 ? (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 rounded-full px-2.5 text-xs"
-                      >
-                        <Plus className="size-3" aria-hidden />
-                        {t("documents.detail.linkCondition")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-64 p-2">
-                      <ul className="max-h-56 space-y-0.5 overflow-y-auto overscroll-contain">
-                        {episodes.data?.map((episode) => {
-                          const linked = doc.conditionLinks.some(
-                            (l) => l.episodeId === episode.id,
-                          );
-                          return (
-                            <li key={episode.id}>
-                              <button
-                                type="button"
-                                onClick={() => toggleEpisode(episode.id)}
-                                className="hover:bg-muted focus-visible:ring-ring/50 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm focus-visible:ring-[3px] focus-visible:outline-none"
-                                aria-pressed={linked}
-                              >
-                                <Check
-                                  className={cn(
-                                    "size-4 shrink-0",
-                                    linked ? "opacity-100" : "opacity-0",
-                                  )}
-                                  aria-hidden
-                                />
-                                <span className="truncate">
-                                  {episode.label}
-                                </span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </PopoverContent>
-                  </Popover>
-                ) : null}
-              </div>
-            </div>
-
-            <p className="text-muted-foreground text-xs">
-              {t("documents.detail.uploadedMeta", {
-                date: format.date(doc.createdAt),
-                size: formatBytes(doc.byteSize, locale),
-              })}
-              {doc.filename ? ` · ${doc.filename}` : ""}
-            </p>
-          </div>
-        </div>
+        <DocumentShareSheet
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          documentId={doc.id}
+          documentTitle={title}
+        />
       ) : null}
-    </ResponsiveSheet>
+    </>
   );
 }
