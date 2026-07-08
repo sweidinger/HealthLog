@@ -368,10 +368,14 @@ test.describe("document vault — AI assist + content search", () => {
     await page.keyboard.press("Escape");
     const marker = page
       .locator('[data-slot="document-card"]', { hasText: "Radiology note" })
-      .locator('[data-slot="document-searchable"]');
+      .locator('[data-slot="document-searchable"]')
+      .first();
     // The card marker appears after the list query invalidates and refetches
     // the new provenance; on a loaded runner that round-trip can outlast the
-    // default 5s expect timeout, so wait explicitly for it to resolve.
+    // default 5s expect timeout, so wait explicitly for it to resolve. Scroll
+    // it into view first — the mobile timeline can render the card outside the
+    // viewport, where the attribute read intermittently misses it.
+    await marker.scrollIntoViewIfNeeded();
     await expect(marker).toHaveAttribute("data-source", "ai-read", {
       timeout: 20_000,
     });

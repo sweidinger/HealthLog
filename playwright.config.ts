@@ -19,10 +19,17 @@ export default defineConfig({
   testIgnore: ["setup/**"],
   globalSetup: "./e2e/setup/global-setup.ts",
   timeout: 30_000,
-  expect: { timeout: 5_000 },
+  expect: { timeout: 10_000 },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // Two retries on CI: under a loaded shared runner, DOM-settle-gated
+  // assertions (wizard step transitions, list refetch → card provenance,
+  // disclosure toggles) intermittently sample a mid-transition frame. A
+  // rotating single test failed each run while 211 passed; a second retry
+  // absorbs that transient contention without masking a real failure (a true
+  // break fails all three attempts). The default expect timeout is also
+  // lifted from 5s → 10s for the same settle headroom.
+  retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI
     ? [["github"], ["html", { open: "never" }]]
