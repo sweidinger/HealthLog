@@ -2080,7 +2080,7 @@
       "emptyAction": "Générer le briefing",
       "loadingLabel": "Préparation du briefing",
       "noProviderTitle": "Aucun fournisseur d'IA connecté",
-      "noProviderDescription": "Le briefing quotidien résume tes mesures en langage clair. HealthLog a besoin d'un fournisseur d'IA pour cela : utilise ta propre clé (OpenAI, Anthropic) ou un modèle local. Tes données restent chez toi.",
+      "noProviderDescription": "Faites pointer HealthLog vers un modèle local (Ollama, LM Studio — rien ne quitte votre réseau) ou utilisez votre propre clé OpenAI ou Anthropic, et le résumé quotidien transforme vos propres relevés en un résumé en langage clair — par exemple : « poids en baisse de 1,2 kg en deux semaines, pouls au repos stable à 58, tension dans la cible 6 jours sur 7 ». La configuration prend environ une minute.",
       "noProviderAction": "Ouvrir les réglages IA",
       "staleNoProviderHint": "Ce briefing ne peut pas être actualisé — aucun fournisseur d'IA n'est connecté.",
       "refreshFailedHint": "Impossible d'actualiser le briefing — affichage du précédent.",

@@ -2080,7 +2080,7 @@
       "emptyAction": "Generate briefing",
       "loadingLabel": "Synthesising today's briefing",
       "noProviderTitle": "No AI provider connected",
-      "noProviderDescription": "The daily briefing turns your readings into plain-language summary. HealthLog needs an AI provider for that — use your own key (OpenAI, Anthropic) or a local model. Your data stays with you.",
+      "noProviderDescription": "Point HealthLog at a local model (Ollama, LM Studio — nothing leaves your network) or bring your own OpenAI or Anthropic key, and the daily briefing turns your own readings into a plain-language summary — for example: “weight down 1.2 kg over two weeks, resting pulse steady at 58, blood pressure in range on 6 of 7 days.” Setup takes about a minute.",
       "noProviderAction": "Open AI settings",
       "staleNoProviderHint": "This briefing can't refresh — no AI provider is connected.",
       "refreshFailedHint": "Couldn't refresh the briefing — showing the last one.",

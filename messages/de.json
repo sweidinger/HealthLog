@@ -2080,7 +2080,7 @@
       "emptyAction": "Briefing erstellen",
       "loadingLabel": "Briefing wird zusammengestellt",
       "noProviderTitle": "Kein KI-Anbieter verbunden",
-      "noProviderDescription": "Das Tagesbriefing fasst deine Werte in Klartext zusammen. Dafür braucht HealthLog einen KI-Anbieter — nutze deinen eigenen Schlüssel (OpenAI, Anthropic) oder ein lokales Modell. Deine Daten bleiben dabei bei dir.",
+      "noProviderDescription": "Richte HealthLog auf ein lokales Modell (Ollama, LM Studio – nichts verlässt dein Netzwerk) oder hinterlege deinen eigenen OpenAI- oder Anthropic-Schlüssel, und das tägliche Briefing fasst deine eigenen Messwerte in klarer Sprache zusammen – zum Beispiel: „Gewicht in zwei Wochen um 1,2 kg gesunken, Ruhepuls stabil bei 58, Blutdruck an 6 von 7 Tagen im Zielbereich.“ Die Einrichtung dauert etwa eine Minute.",
       "noProviderAction": "Zu den KI-Einstellungen",
       "staleNoProviderHint": "Dieses Briefing kann nicht aktualisiert werden — es ist kein KI-Anbieter verbunden.",
       "refreshFailedHint": "Briefing konnte nicht aktualisiert werden — es wird das letzte angezeigt.",
