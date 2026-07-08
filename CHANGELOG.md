@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.27.29] — 2026-07-08 — Automatic document indexing and AI reading
+
+### Added
+
+- Every uploaded document is made searchable automatically — no "index" button. On upload, a background job reads the document (the upload finishes instantly and never fails because of indexing) and adds it to the private, encrypted search index. It picks the best reader: an AI provider transcribes the original (including scanned pages and photos) when one is configured and consented; otherwise HealthLog extracts a PDF's embedded text layer locally, in milliseconds, with no AI and nothing leaving the machine — so digitally-generated PDFs (lab reports, letters) become searchable even with no AI.
+- The document detail sheet gains a prominent "Read with AI" block with a status pill — Read by AI, Searchable, Making searchable…, or Not searchable yet — plus the existing suggest-details / summarise / show-text actions, consolidated. With no provider it shows a calm pointer to AI settings, and any locally-indexed document stays searchable. The old manual per-document index buttons are gone (indexing is automatic).
+
+### Fixed
+
+- An upload whose background index job failed to enqueue (a transient database hiccup) could return a 500 even though the file was stored; enqueuing is now fire-and-forget and never fails the upload.
+
 ## [1.27.28] — 2026-07-08 — Share a document from the document
 
 ### Added
