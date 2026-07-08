@@ -8140,7 +8140,8 @@
       "linkCondition": "Verknüpfen",
       "noConditions": "Mit keiner Erkrankung verknüpft",
       "previewUnavailable": "Keine Inline-Vorschau für diesen Dateityp",
-      "uploadedMeta": "Hinzugefügt am {date} · {size}"
+      "uploadedMeta": "Hinzugefügt am {date} · {size}",
+      "share": "Teilen"
     },
     "dropOverlay": {
       "title": "Zum Hochladen ablegen",
@@ -8219,6 +8220,10 @@
       "indexAllQueued": "{count} Dokument(e) werden im Hintergrund indiziert.",
       "indexAllNothing": "Alles ist bereits indiziert.",
       "indexAllError": "Indizierung konnte nicht gestartet werden."
+    },
+    "share": {
+      "title": "Dieses Dokument teilen",
+      "description": "Erstelle einen schreibgeschützten Ärzte-Link mit diesem angehängten Dokument. Link und Passphrase erscheinen nur einmal."
     }
   },
   "selfDescription": {

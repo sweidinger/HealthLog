@@ -8140,7 +8140,8 @@
       "linkCondition": "Collega",
       "noConditions": "Non collegato a una patologia",
       "previewUnavailable": "Nessuna anteprima integrata per questo tipo di file",
-      "uploadedMeta": "Aggiunto il {date} · {size}"
+      "uploadedMeta": "Aggiunto il {date} · {size}",
+      "share": "Condividi"
     },
     "dropOverlay": {
       "title": "Rilascia i file per caricarli",
@@ -8219,6 +8220,10 @@
       "indexAllQueued": "Indicizzazione di {count} documento/i in background.",
       "indexAllNothing": "Tutto è già indicizzato.",
       "indexAllError": "Impossibile avviare l'indicizzazione."
+    },
+    "share": {
+      "title": "Condividi questo documento",
+      "description": "Crea un link di sola lettura per il medico con questo documento allegato. Il link e la relativa passphrase compaiono una sola volta."
     }
   },
   "selfDescription": {

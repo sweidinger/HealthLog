@@ -8140,7 +8140,8 @@
       "linkCondition": "Link",
       "noConditions": "Not linked to a condition",
       "previewUnavailable": "No inline preview for this file type",
-      "uploadedMeta": "Added {date} · {size}"
+      "uploadedMeta": "Added {date} · {size}",
+      "share": "Share"
     },
     "dropOverlay": {
       "title": "Drop files to upload",
@@ -8219,6 +8220,10 @@
       "indexAllQueued": "Indexing {count} document(s) in the background.",
       "indexAllNothing": "Everything is already indexed.",
       "indexAllError": "Couldn't start indexing."
+    },
+    "share": {
+      "title": "Share this document",
+      "description": "Create a read-only clinician link with this document attached. The link and its passphrase appear once."
     }
   },
   "selfDescription": {

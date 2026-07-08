@@ -8140,7 +8140,8 @@
       "linkCondition": "Powiąż",
       "noConditions": "Niepowiązany ze schorzeniem",
       "previewUnavailable": "Brak podglądu dla tego typu pliku",
-      "uploadedMeta": "Dodano {date} · {size}"
+      "uploadedMeta": "Dodano {date} · {size}",
+      "share": "Udostępnij"
     },
     "dropOverlay": {
       "title": "Upuść pliki, aby je przesłać",
@@ -8219,6 +8220,10 @@
       "indexAllQueued": "Indeksowanie {count} dokumentu/ów w tle.",
       "indexAllNothing": "Wszystko jest już zindeksowane.",
       "indexAllError": "Nie udało się uruchomić indeksowania."
+    },
+    "share": {
+      "title": "Udostępnij ten dokument",
+      "description": "Utwórz link tylko do odczytu dla lekarza z dołączonym tym dokumentem. Link i hasło pojawią się tylko raz."
     }
   },
   "selfDescription": {
