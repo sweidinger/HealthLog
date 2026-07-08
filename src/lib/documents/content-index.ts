@@ -240,8 +240,16 @@ export function decryptIndexText(buf: Uint8Array): string {
   return decryptFromBytes(buf);
 }
 
-/** Provenance of the indexed text. */
-export type ContentIndexSource = "vision" | "text-ocr";
+/**
+ * Provenance of the indexed text.
+ *   - `vision`    → an AI provider transcribed the stored original (image or PDF,
+ *                   incl. scanned) — the AI-first primary path.
+ *   - `text-ocr`  → browser-OCR text posted by the client (opt-in local OCR).
+ *   - `local-pdf` → server-side text-layer extraction of a PDF (`pdf-parse`), no
+ *                   provider, no egress — the fallback when no provider is usable.
+ *   - `local-ocr` → server-side OCR of a scanned image/PDF (deferred follow-up).
+ */
+export type ContentIndexSource = "vision" | "text-ocr" | "local-pdf" | "local-ocr";
 
 export interface UpsertContentIndexArgs {
   userId: string;

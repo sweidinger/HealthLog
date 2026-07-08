@@ -242,7 +242,19 @@ const nextConfig: NextConfig = {
   // files explicitly keeps them in the runtime image alongside the
   // bundled module.
   outputFileTracingIncludes: {
-    "*": ["./src/lib/ai/prompts/safety-contracts.*.yaml"],
+    "*": [
+      "./src/lib/ai/prompts/safety-contracts.*.yaml",
+      // Document AI local text extraction runs `pdf-parse` (→ pdfjs-dist)
+      // server-side in the content-index job — the provider-free fallback that
+      // keeps content search working with no AI configured. Both are pure JS +
+      // wasm; there is NO native `.node` on the text-layer path (`@napi-rs/canvas`
+      // is only pulled for image rendering, which `getText()` never invokes).
+      // The standalone tracer can miss pdfjs-dist's wasm decoders (they resolve
+      // via `new URL(..., import.meta.url)`), so pin both packages into the
+      // runtime image explicitly. pnpm keeps pdfjs-dist unhoisted under `.pnpm`.
+      "./node_modules/.pnpm/pdf-parse@*/node_modules/pdf-parse/**",
+      "./node_modules/.pnpm/pdfjs-dist@*/node_modules/pdfjs-dist/**",
+    ],
   },
   // v1.4.34 IW-A — silence the Turbopack NFT trace warnings emitted
   // during `next build`. The tracer follows the `MAXMIND_LICENSE_KEY`

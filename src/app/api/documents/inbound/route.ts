@@ -41,6 +41,7 @@ import {
   serialiseDocument,
   type SerialisableDocument,
 } from "@/lib/documents/store";
+import { enqueueDocumentIndex } from "@/lib/jobs/document-index";
 import {
   detectDocumentType,
   resolveDocumentLimits,
@@ -360,6 +361,13 @@ async function postUpload(request: Request): Promise<Response> {
       linked: episodeIds.length,
     },
   });
+
+  // Auto-index the freshly stored document for content search: enqueue a
+  // fire-and-forget background job (provider-first, local text-layer fallback).
+  // The upload response never blocks on or fails because of indexing; a missing
+  // boss (worker not up) is a silent no-op. Only fresh inserts enqueue — a
+  // duplicate upload returns early above and never reaches here.
+  await enqueueDocumentIndex(user.id, document.id);
 
   const links = await loadConditionLinks(user.id, [document.id]);
   return apiSuccess(

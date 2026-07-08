@@ -76,6 +76,12 @@ import {
   type ContentIndexBackfillPayload,
 } from "@/lib/jobs/document-content-index-backfill";
 import {
+  DOCUMENT_INDEX_QUEUE,
+  DOCUMENT_INDEX_CONCURRENCY,
+  runDocumentIndex,
+  type DocumentIndexPayload,
+} from "@/lib/jobs/document-index";
+import {
   ENCRYPTION_KEY_ROTATE_QUEUE,
   ENCRYPTION_KEY_ROTATE_CONCURRENCY,
   handleEncryptionKeyRotate,
@@ -310,6 +316,11 @@ const allQueues = [
   // Without this entry pg-boss never provisions the queue and the trigger
   // silently no-ops.
   CONTENT_INDEX_BACKFILL_QUEUE,
+  // Document AI — automatic per-document content indexing, enqueued on upload.
+  // Provider-first (vision) when configured + consented, else local text-layer
+  // extraction. Without this entry pg-boss never provisions the queue and every
+  // upload enqueue silently no-ops.
+  DOCUMENT_INDEX_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -674,6 +685,32 @@ export async function registerMaintenanceQueues(
           workerLog(
             "error",
             `[document-content-index-backfill] user=${userId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
+  // Document AI — automatic per-document content indexing. Enqueued on upload
+  // (one job per stored document); provider-first (vision) when configured +
+  // consented, else local text-layer extraction. Serial concurrency so the
+  // provider calls + PDF parse never crowd the request pool.
+  await boss.work<DocumentIndexPayload>(
+    DOCUMENT_INDEX_QUEUE,
+    { localConcurrency: DOCUMENT_INDEX_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId, documentId } = job.data;
+        if (!userId || !documentId) continue;
+        try {
+          await runDocumentIndex(job.data);
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[document-index] user=${userId} document=${documentId} failed`,
             err,
           );
           throw err;
