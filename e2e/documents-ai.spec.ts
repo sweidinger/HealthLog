@@ -298,6 +298,73 @@ test.describe("document vault — AI assist + content search", () => {
     await expect(sheet.locator('[data-slot="assist-suggest"]')).toHaveCount(0);
   });
 
+  // ── (g) "Read with AI": the prominent action maps to the index endpoint ──
+
+  test('the "Read with AI" action reads a document and confirms', async ({
+    page,
+  }) => {
+    await mockAiEnabled(page, { mode: "vision" });
+    // AI_PROBE_DOC_ID carries no content index → the action reads "Read with AI"
+    // (not "Read again") and the status pill is the calm "not searchable yet".
+    let indexCalls = 0;
+    let indexHadJsonBody = false;
+    await page.route(
+      `**/api/documents/inbound/${AI_PROBE_DOC_ID}/index`,
+      (route) => {
+        indexCalls += 1;
+        // VISION mode posts NO JSON body — the endpoint 422s a text body without
+        // the local-OCR opt-in, so the UI must never send one on this path.
+        indexHadJsonBody = Boolean(route.request().postData());
+        return fulfilJson(route, {
+          data: { documentId: AI_PROBE_DOC_ID, indexed: true, tokenCount: 12 },
+          error: null,
+        });
+      },
+    );
+
+    await page.goto(`/documents?doc=${AI_PROBE_DOC_ID}`);
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+
+    // The prominent action is present and labelled for a first read.
+    const read = sheet.locator('[data-slot="document-read-ai"]');
+    await expect(read).toBeVisible();
+    await expect(read).toHaveText(/Read with AI/);
+
+    // The status pill starts at the calm "not searchable yet".
+    const status = sheet.locator('[data-slot="content-search-status"]');
+    await expect(status).toHaveAttribute("data-state", "none");
+
+    await read.click();
+    await expect(page.getByText("The AI read your document.")).toBeVisible();
+    expect(indexCalls).toBe(1);
+    expect(indexHadJsonBody).toBe(false);
+  });
+
+  // ── (h) Provenance: a provider-read document is marked "Read by AI" ──────
+
+  test("a vision-indexed document surfaces the AI-read provenance", async ({
+    page,
+  }) => {
+    // CONTENT_DOC_ID is seeded with source "vision" (an AI provider read it).
+    // No mocks: the real list/detail GET threads the provenance through.
+    await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+
+    // The detail status pill reflects the AI-read source.
+    const status = sheet.locator('[data-slot="content-search-status"]');
+    await expect(status).toHaveAttribute("data-state", "ai-read");
+    await expect(status).toHaveText(/Read by AI/);
+
+    // The timeline card marks the same document with the AI-read Sparkles.
+    await page.keyboard.press("Escape");
+    const marker = page
+      .locator('[data-slot="document-card"]', { hasText: "Radiology note" })
+      .locator('[data-slot="document-searchable"]');
+    await expect(marker).toHaveAttribute("data-source", "ai-read");
+  });
+
   // ── (f) Text-mode refuses a non-image before any OCR/upload ──────────────
 
   test("text-mode assist refuses a PDF client-side before any request", async ({
