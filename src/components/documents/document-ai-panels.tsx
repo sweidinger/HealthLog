@@ -6,29 +6,39 @@
  * the session-only note are pinned by static-render tests.
  *
  *   - `AiUnavailableHint` — the calm "set up an AI provider" pointer shown in
- *     place of the AI toolbar when no provider is configured (never an error).
+ *     place of the AI actions when no provider is configured (never an error).
  *   - `AssistSuggestionReview` — the reviewed DRAFT card: suggested title / type
  *     / date, each applied only by an explicit tap. Nothing is written until the
  *     user applies it (and the title lands in the editable field, not on disk).
  *   - `DocumentSummaryPanel` — the transient summary / extracted-text panel with
  *     the persistent "not saved · not a diagnosis" note.
- *   - `ContentIndexStatus` — the per-document searchable state + index action.
+ *   - `ContentSearchStatus` — the per-document searchable pill reflecting the
+ *     auto-index: "Read by AI" (provider read the original), "Searchable"
+ *     (locally indexed), "Making searchable…" (a read is running), or the calm
+ *     "not searchable yet". A STATUS, never a chore button.
  */
-import { Check, FileText, ScanSearch, Sparkles, X } from "lucide-react";
+import { Loader2, ScanSearch, Sparkles } from "lucide-react";
+import { Check, FileText, X } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-import type {
-  DocumentSuggestionDto,
-  DocumentSummaryMode,
+import {
+  isAiReadSource,
+  type DocumentContentIndexSourceValue,
+  type DocumentSuggestionDto,
+  type DocumentSummaryMode,
 } from "@/lib/validations/inbound-documents";
 
 import type { DocumentDescribeResult } from "./use-document-assist";
 
-/** Calm pointer to the AI settings, shown when assist is unavailable. */
+/**
+ * Calm pointer to the AI settings, shown when assist is unavailable. When the
+ * document is already searchable (auto-indexed locally) the copy stays honest —
+ * it is searchable, an AI provider only adds a richer read.
+ */
 export function AiUnavailableHint({
   reason,
 }: {
@@ -280,44 +290,72 @@ export function DocumentSummaryPanel({
 }
 
 /**
- * The per-document content-search state: whether the body is searchable, and an
- * explicit index / re-index action. Shown only when indexing is available.
+ * The per-document searchable status pill. Reflects the auto-index (indexing is
+ * automatic on upload, so this is a state, never a to-do): a document is "Read
+ * by AI" when a provider read the original, "Searchable" when it is only locally
+ * indexed, "Making searchable…" while a read runs, and a calm "not searchable
+ * yet" otherwise. The AI-read pill is highlighted (primary) — that read is the
+ * richer one and worth surfacing.
  */
-export function ContentIndexStatus({
+export function ContentSearchStatus({
   hasContentIndex,
+  source,
   isPending,
-  onIndex,
 }: {
   hasContentIndex: boolean;
+  source: DocumentContentIndexSourceValue | null;
+  /** A read/index is running right now. */
   isPending: boolean;
-  onIndex: () => void;
 }) {
   const { t } = useTranslations();
-  return (
-    <div
-      data-slot="content-index-status"
-      className="flex items-center justify-between gap-2"
-    >
-      <p className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
-        <ScanSearch className="size-3.5 shrink-0" aria-hidden />
-        {hasContentIndex
-          ? t("documents.contentIndex.searchable")
-          : t("documents.contentIndex.notSearchable")}
-      </p>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-7 shrink-0 px-2.5 text-xs"
-        onClick={onIndex}
-        disabled={isPending}
+
+  if (isPending) {
+    return (
+      <span
+        data-slot="content-search-status"
+        data-state="indexing"
+        className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
       >
-        {isPending
-          ? t("documents.contentIndex.indexing")
-          : hasContentIndex
-            ? t("documents.contentIndex.reindexAction")
-            : t("documents.contentIndex.indexAction")}
-      </Button>
-    </div>
+        <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
+        {t("documents.ai.statusIndexing")}
+      </span>
+    );
+  }
+
+  if (!hasContentIndex) {
+    return (
+      <span
+        data-slot="content-search-status"
+        data-state="none"
+        className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
+      >
+        <ScanSearch className="size-3.5 shrink-0" aria-hidden />
+        {t("documents.ai.statusNotYet")}
+      </span>
+    );
+  }
+
+  if (isAiReadSource(source)) {
+    return (
+      <span
+        data-slot="content-search-status"
+        data-state="ai-read"
+        className="bg-primary/10 text-primary inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+      >
+        <Sparkles className="size-3.5 shrink-0" aria-hidden />
+        {t("documents.ai.statusAiRead")}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      data-slot="content-search-status"
+      data-state="searchable"
+      className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
+    >
+      <ScanSearch className="size-3.5 shrink-0" aria-hidden />
+      {t("documents.ai.statusSearchable")}
+    </span>
   );
 }

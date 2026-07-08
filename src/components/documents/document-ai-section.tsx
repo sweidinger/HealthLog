@@ -1,29 +1,43 @@
 "use client";
 
 /**
- * v1.27.22 (Document vault P2) — the AI area of the document detail sheet,
- * lifted out of the sheet so the availability gate (toolbar vs. calm pointer)
- * and the review-first wiring render without the sheet's dialog portal and are
- * pinned by static-render tests.
+ * The "Read with AI" block of the document detail sheet — one coherent, inviting
+ * home for every AI reading action, lifted out of the sheet so the availability
+ * gate and the review-first wiring render without the sheet's dialog portal and
+ * are pinned by static-render tests.
+ *
+ * Indexing is AUTOMATIC on upload, so this block never nags a "please index"
+ * chore. It shows the document's searchable status (auto-indexed) as a pill, and
+ * offers AI reading as a capability the user reaches for when they want more:
+ *
+ *   - "Read with AI" (prominent) runs a provider read of the document — the
+ *     richer pass that also refreshes the searchable index. Labelled "Read
+ *     again" once a provider has already read it.
+ *   - "Suggest details" drafts a title / type / date to review before saving.
+ *   - "Summarise" / "Show text" surface a transient, session-only read-out.
  *
  * Presentational: the sheet owns the mutations + capability probe and passes
- * their state + handlers down. When `aiEnabled` is false the whole area is the
- * calm "set up an AI provider" pointer — never an error, and the manual form
- * below stays fully usable.
+ * their state + handlers down. When `aiEnabled` is false the actions collapse to
+ * the calm "set up an AI provider" pointer (never an error) — the searchable
+ * status pill stays, honestly reflecting any local auto-index, and the manual
+ * form below stays fully usable.
  */
-import { FileText, Sparkles } from "lucide-react";
+import { FileText, ScanText, WandSparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
-import type {
-  DocumentSuggestionDto,
-  DocumentSummaryMode,
+import { cn } from "@/lib/utils";
+import {
+  isAiReadSource,
+  type DocumentContentIndexSourceValue,
+  type DocumentSuggestionDto,
+  type DocumentSummaryMode,
 } from "@/lib/validations/inbound-documents";
 
 import {
   AiUnavailableHint,
   AssistSuggestionReview,
-  ContentIndexStatus,
+  ContentSearchStatus,
   DocumentSummaryPanel,
 } from "./document-ai-panels";
 import type { DocumentDescribeResult } from "./use-document-assist";
@@ -51,6 +65,7 @@ export function DocumentAiSection({
   summaryErrorKey,
   onCloseSummary,
   hasContentIndex,
+  contentIndexSource,
   indexPending,
   onIndex,
 }: {
@@ -77,92 +92,128 @@ export function DocumentAiSection({
   summaryErrorKey: string | null;
   onCloseSummary: () => void;
   hasContentIndex: boolean;
+  contentIndexSource: DocumentContentIndexSourceValue | null;
   indexPending: boolean;
   onIndex: () => void;
 }) {
   const { t } = useTranslations();
-
-  if (!aiEnabled) {
-    return (
-      <div className="space-y-3" data-slot="document-ai-section">
-        <AiUnavailableHint reason={unavailableReason} />
-      </div>
-    );
-  }
+  const aiRead = hasContentIndex && isAiReadSource(contentIndexSource);
+  const readLabel = indexPending
+    ? t("documents.ai.reading")
+    : aiRead
+      ? t("documents.ai.reread")
+      : t("documents.ai.read");
 
   return (
-    <div className="space-y-3" data-slot="document-ai-section">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          data-slot="assist-suggest"
-          onClick={onSuggest}
-          disabled={suggestPending || actionsDisabled}
-        >
-          <Sparkles className="size-4" aria-hidden />
-          {suggestPending
-            ? t("documents.assist.suggesting")
-            : t("documents.assist.suggest")}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onSummarise("summary")}
-          disabled={summaryPending || actionsDisabled}
-        >
-          <FileText className="size-4" aria-hidden />
-          {t("documents.summary.summarise")}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => onSummarise("text")}
-          disabled={summaryPending || actionsDisabled}
-        >
-          {t("documents.summary.showText")}
-        </Button>
+    <div
+      data-slot="document-ai-section"
+      className="border-border bg-muted/30 space-y-3 rounded-lg border p-3 md:p-4"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <WandSparkles
+            className="text-foreground size-5 shrink-0"
+            aria-hidden
+          />
+          <p className="text-sm font-semibold">
+            {t("documents.ai.blockTitle")}
+          </p>
+        </div>
+        <ContentSearchStatus
+          hasContentIndex={hasContentIndex}
+          source={contentIndexSource}
+          isPending={indexPending}
+        />
       </div>
 
-      {suggestErrorKey ? (
-        <p role="alert" className="text-destructive text-sm">
-          {t(suggestErrorKey)}
-        </p>
-      ) : null}
+      {aiEnabled ? (
+        <>
+          <p className="text-muted-foreground text-xs">
+            {t("documents.ai.available")}
+          </p>
 
-      {suggestion ? (
-        <AssistSuggestionReview
-          suggestion={suggestion}
-          kindLabel={suggestionKindLabel}
-          dateLabel={suggestionDateLabel}
-          applied={appliedFields}
-          onUseTitle={onUseTitle}
-          onUseKind={onUseKind}
-          onUseDate={onUseDate}
-          onDismiss={onDismissSuggestion}
-        />
-      ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {indexEnabled ? (
+              <Button
+                type="button"
+                size="sm"
+                data-slot="document-read-ai"
+                onClick={onIndex}
+                disabled={indexPending || actionsDisabled}
+              >
+                <ScanText
+                  className={cn("size-4", indexPending && "animate-pulse")}
+                  aria-hidden
+                />
+                {readLabel}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-slot="assist-suggest"
+              onClick={onSuggest}
+              disabled={suggestPending || actionsDisabled}
+            >
+              <WandSparkles className="size-4" aria-hidden />
+              {suggestPending
+                ? t("documents.assist.suggesting")
+                : t("documents.assist.suggest")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onSummarise("summary")}
+              disabled={summaryPending || actionsDisabled}
+            >
+              <FileText className="size-4" aria-hidden />
+              {t("documents.summary.summarise")}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onSummarise("text")}
+              disabled={summaryPending || actionsDisabled}
+            >
+              {t("documents.summary.showText")}
+            </Button>
+          </div>
 
-      {summaryOutput ? (
-        <DocumentSummaryPanel
-          output={summaryOutput}
-          result={summaryResult}
-          isPending={summaryPending}
-          errorKey={summaryErrorKey}
-          onClose={onCloseSummary}
-        />
-      ) : null}
+          {suggestErrorKey ? (
+            <p role="alert" className="text-destructive text-sm">
+              {t(suggestErrorKey)}
+            </p>
+          ) : null}
 
-      {indexEnabled ? (
-        <ContentIndexStatus
-          hasContentIndex={hasContentIndex}
-          isPending={indexPending}
-          onIndex={onIndex}
-        />
-      ) : null}
+          {suggestion ? (
+            <AssistSuggestionReview
+              suggestion={suggestion}
+              kindLabel={suggestionKindLabel}
+              dateLabel={suggestionDateLabel}
+              applied={appliedFields}
+              onUseTitle={onUseTitle}
+              onUseKind={onUseKind}
+              onUseDate={onUseDate}
+              onDismiss={onDismissSuggestion}
+            />
+          ) : null}
+
+          {summaryOutput ? (
+            <DocumentSummaryPanel
+              output={summaryOutput}
+              result={summaryResult}
+              isPending={summaryPending}
+              errorKey={summaryErrorKey}
+              onClose={onCloseSummary}
+            />
+          ) : null}
+        </>
+      ) : (
+        <AiUnavailableHint reason={unavailableReason} />
+      )}
     </div>
   );
 }

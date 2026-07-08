@@ -8085,7 +8085,8 @@
       "attachmentBadge": "Nur Download",
       "uploading": "Wird hochgeladen…",
       "dismissFailed": "Fehlgeschlagenen Upload ausblenden",
-      "searchableBadge": "Inhalt durchsuchbar"
+      "searchableBadge": "Inhalt durchsuchbar",
+      "aiReadBadge": "Von KI gelesen"
     },
     "error": {
       "fileTooLarge": "Diese Datei ist größer als das Limit von {maxSize}.",
@@ -8206,15 +8207,21 @@
       "notSaved": "Nicht gespeichert · keine Diagnose. Nur einmalig für diese Ansicht angezeigt.",
       "close": "Ausblenden"
     },
+    "ai": {
+      "blockTitle": "Mit KI auslesen",
+      "available": "Lass die KI dieses Dokument lesen — Titel, Art und Datum vorschlagen, zusammenfassen oder den ganzen Text durchsuchbar machen.",
+      "read": "Mit KI auslesen",
+      "reread": "Erneut lesen",
+      "reading": "Liest…",
+      "statusAiRead": "Von KI gelesen",
+      "statusSearchable": "Durchsuchbar",
+      "statusIndexing": "Wird durchsuchbar gemacht…",
+      "statusNotYet": "Noch nicht durchsuchbar",
+      "readDone": "Die KI hat dein Dokument gelesen."
+    },
     "contentIndex": {
       "searchHint": "Die Suche durchsucht jetzt auch den Inhalt deiner Dokumente (ganze Wörter).",
       "indexPrompt": "Dokumentinhalte durchsuchbar machen.",
-      "searchable": "Inhalt durchsuchbar",
-      "notSearchable": "Inhalt noch nicht durchsuchbar",
-      "indexAction": "Für Suche indizieren",
-      "reindexAction": "Neu indizieren",
-      "indexing": "Wird indiziert…",
-      "indexed": "Für die Suche indiziert.",
       "indexAll": "Alle für Suche indizieren",
       "indexAllPending": "Wird gestartet…",
       "indexAllQueued": "{count} Dokument(e) werden im Hintergrund indiziert.",

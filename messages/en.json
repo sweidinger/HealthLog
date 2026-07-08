@@ -8085,7 +8085,8 @@
       "attachmentBadge": "Download only",
       "uploading": "Uploading…",
       "dismissFailed": "Dismiss failed upload",
-      "searchableBadge": "Contents searchable"
+      "searchableBadge": "Contents searchable",
+      "aiReadBadge": "Read by AI"
     },
     "error": {
       "fileTooLarge": "This file is larger than the {maxSize} limit.",
@@ -8206,15 +8207,21 @@
       "notSaved": "Not saved · not a diagnosis. Shown once for this view only.",
       "close": "Hide"
     },
+    "ai": {
+      "blockTitle": "Read with AI",
+      "available": "Let the AI read this document — suggest a title, type and date, summarise it, or make its full text searchable.",
+      "read": "Read with AI",
+      "reread": "Read again",
+      "reading": "Reading…",
+      "statusAiRead": "Read by AI",
+      "statusSearchable": "Searchable",
+      "statusIndexing": "Making searchable…",
+      "statusNotYet": "Not searchable yet",
+      "readDone": "The AI read your document."
+    },
     "contentIndex": {
       "searchHint": "Search now looks inside your documents too (whole words).",
       "indexPrompt": "Make document contents searchable.",
-      "searchable": "Contents searchable",
-      "notSearchable": "Contents not searchable yet",
-      "indexAction": "Index for search",
-      "reindexAction": "Re-index",
-      "indexing": "Indexing…",
-      "indexed": "Indexed for search.",
       "indexAll": "Index all for search",
       "indexAllPending": "Starting…",
       "indexAllQueued": "Indexing {count} document(s) in the background.",
