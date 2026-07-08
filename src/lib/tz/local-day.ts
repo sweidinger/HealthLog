@@ -13,38 +13,30 @@ import { wallClockInTz } from "./wall-clock";
 /**
  * Get the start (midnight) and end (23:59:59.999) of "today" in the user's
  * timezone, returned as UTC Date objects suitable for database queries.
+ *
+ * DST-safe. Both bounds route through {@link startOfLocalDayInTz}, whose
+ * two-pass solver settles the zone offset AT the target local midnight —
+ * not at `now`. The window therefore spans the user's real local day even
+ * when it is 23 h (spring-forward) or 25 h (fall-back): the previous
+ * implementation sampled the offset at `now` and hardcoded a 24 h length,
+ * so on a fall-back day the last local hour (e.g. a 23:30 dose) fell
+ * OUTSIDE `[midnight, midnight+24h)` and on a spring-forward day the window
+ * bled one hour into the next local day.
  */
 export function getUserTodayBounds(
   now: Date,
   tz: string,
 ): { start: Date; end: Date } {
-  const parts = wallClockInTz(now, tz);
-
-  // Build a UTC date that represents the user's local midnight
-  // by computing the offset between the real UTC time and the local
-  // representation.
-  const localMidnightAsUtc = new Date(
-    Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0),
+  const start = startOfLocalDayInTz(now, tz);
+  // Start of the NEXT local day. Advancing 25 h always crosses into the next
+  // calendar day (a real day is 23–25 h, never ≤ 12.5 h, so 25 h can neither
+  // fall short of the next day nor skip past it), then floor back to that
+  // day's local midnight. `end` is the inclusive last millisecond of today.
+  const nextDayStart = startOfLocalDayInTz(
+    new Date(start.getTime() + 25 * 60 * 60 * 1000),
+    tz,
   );
-
-  // Compute offset: how far ahead (positive) or behind (negative) the tz is
-  // from UTC. localMidnightAsUtc represents "midnight in tz as if it were
-  // UTC"; we need the UTC instant that corresponds to midnight in the tz.
-  const localNowAsUtc = new Date(
-    Date.UTC(
-      parts.year,
-      parts.month - 1,
-      parts.day,
-      parts.hour,
-      parts.minute,
-      parts.second,
-    ),
-  );
-  const offsetMs =
-    Math.round((localNowAsUtc.getTime() - now.getTime()) / 60000) * 60000;
-
-  const start = new Date(localMidnightAsUtc.getTime() - offsetMs);
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const end = new Date(nextDayStart.getTime() - 1);
 
   return { start, end };
 }
