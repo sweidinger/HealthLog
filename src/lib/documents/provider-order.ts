@@ -24,7 +24,6 @@
  * keeps codex from being the silent default, the consent gate keeps any
  * external egress from happening without an active receipt.
  */
-import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
 import { isExternalDocumentEgress } from "@/lib/ai/consent-guard";
 import {
   resolveTextProvider,
