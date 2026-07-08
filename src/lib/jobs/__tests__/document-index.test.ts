@@ -43,6 +43,15 @@ describe("enqueueDocumentIndex", () => {
     const result = await enqueueDocumentIndex("user-1", "doc-1");
     expect(result).toEqual({ enqueued: false });
   });
+
+  it("swallows a boss.send failure to a no-op (never fails the upload)", async () => {
+    const send = vi.fn().mockRejectedValue(new Error("db down"));
+    vi.mocked(getGlobalBoss).mockReturnValue({ send } as never);
+    // Must resolve, never reject — the upload has already committed.
+    await expect(enqueueDocumentIndex("user-1", "doc-1")).resolves.toEqual({
+      enqueued: false,
+    });
+  });
 });
 
 describe("runDocumentIndex", () => {

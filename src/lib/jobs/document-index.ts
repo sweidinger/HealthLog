@@ -49,7 +49,10 @@ export async function runDocumentIndex(
 /**
  * Enqueue a per-document index job. Coalesced by `singletonKey` per document so
  * a duplicate/idempotent re-upload cannot pile up parallel runs. Fire-and-
- * forget — a missing boss (worker not up) is a no-op, never an upload failure.
+ * forget — a missing boss (worker not up) is a no-op, and a `boss.send` failure
+ * (a transient DB hiccup) is swallowed to a no-op too, so enqueue can NEVER fail
+ * an already-stored upload. Indexing is a background nicety; the stored document
+ * is the contract. A dropped enqueue is recoverable via the corpus backfill.
  */
 export async function enqueueDocumentIndex(
   userId: string,
@@ -62,11 +65,19 @@ export async function enqueueDocumentIndex(
     documentId,
     enqueuedAt: new Date().toISOString(),
   };
-  const jobId = await boss.send(DOCUMENT_INDEX_QUEUE, payload, {
-    retryLimit: 2,
-    retryDelay: 30,
-    retryBackoff: true,
-    singletonKey: `document-index|${documentId}`,
-  });
-  return { enqueued: Boolean(jobId) };
+  try {
+    const jobId = await boss.send(DOCUMENT_INDEX_QUEUE, payload, {
+      retryLimit: 2,
+      retryDelay: 30,
+      retryBackoff: true,
+      singletonKey: `document-index|${documentId}`,
+    });
+    return { enqueued: Boolean(jobId) };
+  } catch (err) {
+    annotate({
+      action: { name: "documents.autoIndex.enqueueFailed" },
+      meta: { documentId, reason: err instanceof Error ? err.name : "unknown" },
+    });
+    return { enqueued: false };
+  }
 }

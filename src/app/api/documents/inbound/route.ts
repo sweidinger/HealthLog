@@ -365,10 +365,11 @@ async function postUpload(request: Request): Promise<Response> {
 
   // Auto-index the freshly stored document for content search: enqueue a
   // fire-and-forget background job (provider-first, local text-layer fallback).
-  // The upload response never blocks on or fails because of indexing; a missing
-  // boss (worker not up) is a silent no-op. Only fresh inserts enqueue — a
+  // The upload response never blocks on or fails because of indexing — the
+  // enqueue is not awaited and swallows its own errors (a missing boss or a
+  // transient send failure is a silent no-op). Only fresh inserts enqueue — a
   // duplicate upload returns early above and never reaches here.
-  await enqueueDocumentIndex(user.id, document.id);
+  void enqueueDocumentIndex(user.id, document.id);
 
   const links = await loadConditionLinks(user.id, [document.id]);
   return apiSuccess(
