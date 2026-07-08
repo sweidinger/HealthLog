@@ -4055,14 +4055,17 @@
         "connectionsHeading": "Connections",
         "connectionsDescription": "Connect and manage your data sources and devices.",
         "channelsHeading": "Delivery channels",
-        "channelsDescription": "Where reminders and alerts are delivered."
+        "channelsDescription": "Where reminders and alerts are delivered.",
+        "matrixLink": "Per-channel notifications"
       },
       "notifications": {
         "title": "Notifications",
         "description": "Every reminder in one place — what gets reminded and when, and where it's delivered.",
         "subtitle": "Choose which reminders you receive and where they're delivered.",
         "remindersHeading": "Reminders",
-        "remindersDescription": "What you receive."
+        "remindersDescription": "What you receive.",
+        "matrixLink": "Per-channel notifications",
+        "channelsLink": "Delivery channels"
       },
       "layout": {
         "title": "Appearance",
@@ -6268,7 +6271,7 @@
     "eventColumn": "Event",
     "subtitle": "Choose which notifications you want to receive through which channel.",
     "loadError": "Notification preferences could not be loaded.",
-    "noChannels": "Configure a notification channel in Settings first.",
+    "noChannels": "Configure a notification channel in Settings → Integrations first.",
     "goToSettings": "Go to channel settings",
     "channelDisabled": "Disabled",
     "admin": {
@@ -6379,7 +6382,10 @@
       "newDeviceBody": "A new sign-in from {device} ({location}). If this wasn't you, change your password immediately.",
       "unknownLocation": "unknown location"
     },
-    "loginRequired": "Please sign in to manage notifications."
+    "loginRequired": "Please sign in to manage notifications.",
+    "someChannelsGloballyDisabled": "One or more channels are turned off in Settings and won’t receive notifications.",
+    "reminderSettingsLink": "Reminder settings",
+    "channelsLink": "Channels"
   },
   "i18n": {
     "maintainershipBanner": {

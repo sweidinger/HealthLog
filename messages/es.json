@@ -4055,14 +4055,17 @@
         "connectionsHeading": "Conexiones",
         "connectionsDescription": "Conecta y gestiona tus fuentes de datos y dispositivos.",
         "channelsHeading": "Canales de entrega",
-        "channelsDescription": "Dónde se entregan los recordatorios y avisos."
+        "channelsDescription": "Dónde se entregan los recordatorios y avisos.",
+        "matrixLink": "Notificaciones por canal"
       },
       "notifications": {
         "title": "Notificaciones",
         "description": "Todos los recordatorios en un solo lugar: qué se recuerda y cuándo, y dónde se entrega.",
         "subtitle": "Elige qué recordatorios recibes y dónde se entregan.",
         "remindersHeading": "Recordatorios",
-        "remindersDescription": "Lo que recibes."
+        "remindersDescription": "Lo que recibes.",
+        "matrixLink": "Notificaciones por canal",
+        "channelsLink": "Canales de entrega"
       },
       "layout": {
         "title": "Apariencia",
@@ -6268,7 +6271,7 @@
     "eventColumn": "Evento",
     "subtitle": "Elige qué notificaciones recibes y por qué canal.",
     "loadError": "No se han podido cargar los ajustes de notificación.",
-    "noChannels": "Configura primero un canal de notificación en los ajustes.",
+    "noChannels": "Configura primero un canal de notificación en Ajustes → Integraciones.",
     "goToSettings": "Ir a los ajustes del canal",
     "channelDisabled": "Desactivado",
     "admin": {
@@ -6379,7 +6382,10 @@
       "newDeviceBody": "Un nuevo inicio de sesión desde {device} ({location}). Si no fuiste tú, cambia tu contraseña de inmediato.",
       "unknownLocation": "ubicación desconocida"
     },
-    "loginRequired": "Inicia sesión para gestionar las notificaciones."
+    "loginRequired": "Inicia sesión para gestionar las notificaciones.",
+    "someChannelsGloballyDisabled": "Uno o más canales están desactivados en los ajustes y no recibirán notificaciones.",
+    "reminderSettingsLink": "Ajustes de recordatorios",
+    "channelsLink": "Canales"
   },
   "i18n": {
     "maintainershipBanner": {

@@ -4055,14 +4055,17 @@
         "connectionsHeading": "Verbindungen",
         "connectionsDescription": "Datenquellen und Geräte verbinden und verwalten.",
         "channelsHeading": "Zustellkanäle",
-        "channelsDescription": "Wohin Erinnerungen und Hinweise zugestellt werden."
+        "channelsDescription": "Wohin Erinnerungen und Hinweise zugestellt werden.",
+        "matrixLink": "Benachrichtigungen je Kanal"
       },
       "notifications": {
         "title": "Benachrichtigungen",
         "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird und wohin es zugestellt wird.",
         "subtitle": "Wähle, welche Erinnerungen du erhältst und wohin sie zugestellt werden.",
         "remindersHeading": "Erinnerungen",
-        "remindersDescription": "Was du erhältst."
+        "remindersDescription": "Was du erhältst.",
+        "matrixLink": "Benachrichtigungen je Kanal",
+        "channelsLink": "Zustellkanäle"
       },
       "layout": {
         "title": "Darstellung",
@@ -6268,7 +6271,7 @@
     "eventColumn": "Ereignis",
     "subtitle": "Wähle aus, welche Benachrichtigungen du über welchen Kanal erhalten möchtest.",
     "loadError": "Benachrichtigungseinstellungen konnten nicht geladen werden.",
-    "noChannels": "Konfiguriere zuerst einen Benachrichtigungskanal in den Einstellungen.",
+    "noChannels": "Konfiguriere zuerst einen Benachrichtigungskanal unter Einstellungen → Integrationen.",
     "goToSettings": "Zu den Kanal-Einstellungen",
     "channelDisabled": "Deaktiviert",
     "admin": {
@@ -6379,7 +6382,10 @@
       "newDeviceBody": "Eine neue Anmeldung von {device} ({location}). Falls du das nicht warst, ändere sofort dein Passwort.",
       "unknownLocation": "unbekannter Ort"
     },
-    "loginRequired": "Bitte melde dich an, um Benachrichtigungen zu verwalten."
+    "loginRequired": "Bitte melde dich an, um Benachrichtigungen zu verwalten.",
+    "someChannelsGloballyDisabled": "Ein oder mehrere Kanäle sind in den Einstellungen deaktiviert und erhalten keine Benachrichtigungen.",
+    "reminderSettingsLink": "Erinnerungseinstellungen",
+    "channelsLink": "Kanäle"
   },
   "i18n": {
     "maintainershipBanner": {

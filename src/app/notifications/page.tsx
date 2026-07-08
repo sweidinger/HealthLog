@@ -7,8 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import Link from "next/link";
-import { Bell, Loader2, Settings, AlertCircle } from "lucide-react";
+import { Bell, Settings, AlertCircle } from "lucide-react";
 import {
   EVENT_DEFAULT_ENABLED,
   type EventType,
@@ -52,7 +54,7 @@ export default function NotificationsPage() {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.notificationsPreferences(),
     queryFn: async () => {
       return apiGet<PreferencesData>("/api/notifications/preferences");
@@ -119,10 +121,50 @@ export default function NotificationsPage() {
     return EVENT_DEFAULT_ENABLED[eventType as EventType] ?? true;
   }
 
+  // Cross-links to the other two notification surfaces (reminder types +
+  // delivery channels) so the matrix never reads as the only place to manage
+  // notifications. Mirrored by back-links on those two settings screens.
+  const headerActions = (
+    <>
+      <Button asChild variant="outline" size="sm">
+        <Link href="/settings/notifications">
+          {t("notifications.reminderSettingsLink")}
+        </Link>
+      </Button>
+      <Button asChild variant="outline" size="sm">
+        <Link href="/settings/integrations#channels">
+          {t("notifications.channelsLink")}
+        </Link>
+      </Button>
+    </>
+  );
+
   if (authLoading || isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+      <div className="space-y-6">
+        <PageHeader
+          title={t("notifications.title")}
+          description={t("notifications.subtitle")}
+        />
+        {/* Skeleton mirrors the event-row matrix so the auth-resolving frame
+            reserves layout instead of flashing a lone spinner. */}
+        <div
+          data-slot="notifications-loading"
+          className="bg-card border-border overflow-hidden rounded-xl border"
+        >
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="border-border flex items-center justify-between gap-4 border-b p-4 last:border-b-0"
+            >
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-40 rounded" />
+                <Skeleton className="h-3 w-56 rounded" />
+              </div>
+              <Skeleton className="h-5 w-9 shrink-0 rounded-full" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -149,12 +191,10 @@ export default function NotificationsPage() {
           title={t("notifications.title")}
           description={t("notifications.subtitle")}
         />
-        <div
-          role="alert"
-          className="border-destructive/40 bg-destructive/10 text-destructive rounded-lg border p-4 text-sm"
-        >
-          {t("notifications.loadError")}
-        </div>
+        <QueryErrorCard
+          description={t("notifications.loadError")}
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }
@@ -166,6 +206,7 @@ export default function NotificationsPage() {
         <PageHeader
           title={t("notifications.title")}
           description={t("notifications.subtitle")}
+          actions={headerActions}
         />
         <div className="bg-card border-border max-w-2xl rounded-xl border p-6">
           <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -173,8 +214,10 @@ export default function NotificationsPage() {
             <p className="text-muted-foreground text-sm">
               {t("notifications.noChannels")}
             </p>
+            {/* Channel setup lives in Settings → Integrations since v1.25.7;
+                point the CTA at that anchor, not the reminder-types screen. */}
             <Button asChild variant="outline">
-              <Link href="/settings/notifications">
+              <Link href="/settings/integrations#channels">
                 <Settings className="h-4 w-4" />
                 {t("notifications.goToSettings")}
               </Link>
@@ -190,6 +233,7 @@ export default function NotificationsPage() {
       <PageHeader
         title={t("notifications.title")}
         description={t("notifications.subtitle")}
+        actions={headerActions}
       />
 
       {/* Desktop: table layout */}
@@ -321,12 +365,13 @@ export default function NotificationsPage() {
         })}
       </div>
 
-      {/* Info hint about disabled channels */}
+      {/* Info hint about globally-disabled channels — a full sentence that
+          explains the state, not the bare "(Disabled)" inline tag. */}
       {channels.some((ch) => !ch.globallyEnabled) && (
         <div className="flex items-start gap-2 rounded-lg p-3 text-sm">
           <AlertCircle className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
           <p className="text-muted-foreground">
-            {t("notifications.channelDisabled")}
+            {t("notifications.someChannelsGloballyDisabled")}
           </p>
         </div>
       )}

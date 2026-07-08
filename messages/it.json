@@ -4055,14 +4055,17 @@
         "connectionsHeading": "Connessioni",
         "connectionsDescription": "Collega e gestisci le tue fonti di dati e i dispositivi.",
         "channelsHeading": "Canali di recapito",
-        "channelsDescription": "Dove vengono recapitati promemoria e avvisi."
+        "channelsDescription": "Dove vengono recapitati promemoria e avvisi.",
+        "matrixLink": "Notifiche per canale"
       },
       "notifications": {
         "title": "Notifiche",
         "description": "Tutti i promemoria in un unico posto — cosa e quando, e dove vengono recapitati.",
         "subtitle": "Scegli quali promemoria ricevere e dove vengono recapitati.",
         "remindersHeading": "Promemoria",
-        "remindersDescription": "Ciò che ricevi."
+        "remindersDescription": "Ciò che ricevi.",
+        "matrixLink": "Notifiche per canale",
+        "channelsLink": "Canali di recapito"
       },
       "layout": {
         "title": "Aspetto",
@@ -6268,7 +6271,7 @@
     "eventColumn": "Evento",
     "subtitle": "Scegli quali notifiche ricevere e su quale canale.",
     "loadError": "Impossibile caricare le impostazioni di notifica.",
-    "noChannels": "Configura prima un canale di notifica nelle impostazioni.",
+    "noChannels": "Configura prima un canale di notifica in Impostazioni → Integrazioni.",
     "goToSettings": "Vai alle impostazioni del canale",
     "channelDisabled": "Disabilitato",
     "admin": {
@@ -6379,7 +6382,10 @@
       "newDeviceBody": "Un nuovo accesso da {device} ({location}). Se non sei stato tu, cambia subito la password.",
       "unknownLocation": "posizione sconosciuta"
     },
-    "loginRequired": "Accedi per gestire le notifiche."
+    "loginRequired": "Accedi per gestire le notifiche.",
+    "someChannelsGloballyDisabled": "Uno o più canali sono disattivati nelle impostazioni e non riceveranno notifiche.",
+    "reminderSettingsLink": "Impostazioni promemoria",
+    "channelsLink": "Canali"
   },
   "i18n": {
     "maintainershipBanner": {

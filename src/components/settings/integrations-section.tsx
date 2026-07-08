@@ -21,12 +21,14 @@
  * `connections-panel.tsx` so existing unit-test imports keep resolving.
  */
 
+import Link from "next/link";
 import { Link2, Send } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { ConnectionsPanel } from "@/components/settings/integrations/connections-panel";
 import { NotificationChannelsPanel } from "@/components/settings/integrations/notification-channels-panel";
+import { Button } from "@/components/ui/button";
 
 export {
   parseOAuthOutcome,
@@ -65,6 +67,15 @@ export function IntegrationsSection() {
           title={t("settings.sections.integrations.channelsHeading")}
           description={t("settings.sections.integrations.channelsDescription")}
         />
+        {/* Names the per-event notification matrix so the three notification
+            surfaces (matrix, reminder types, channels) cross-reference. */}
+        <div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/notifications">
+              {t("settings.sections.integrations.matrixLink")}
+            </Link>
+          </Button>
+        </div>
         <NotificationChannelsPanel />
       </section>
     </div>

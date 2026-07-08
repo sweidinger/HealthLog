@@ -4055,14 +4055,17 @@
         "connectionsHeading": "Connexions",
         "connectionsDescription": "Connectez et gérez vos sources de données et appareils.",
         "channelsHeading": "Canaux de diffusion",
-        "channelsDescription": "Où sont envoyés les rappels et alertes."
+        "channelsDescription": "Où sont envoyés les rappels et alertes.",
+        "matrixLink": "Notifications par canal"
       },
       "notifications": {
         "title": "Notifications",
         "description": "Tous les rappels au même endroit — quoi et quand, et où c'est envoyé.",
         "subtitle": "Choisissez les rappels que vous recevez et où ils sont envoyés.",
         "remindersHeading": "Rappels",
-        "remindersDescription": "Ce que vous recevez."
+        "remindersDescription": "Ce que vous recevez.",
+        "matrixLink": "Notifications par canal",
+        "channelsLink": "Canaux de diffusion"
       },
       "layout": {
         "title": "Apparence",
@@ -6268,7 +6271,7 @@
     "eventColumn": "Événement",
     "subtitle": "Choisis quelles notifications tu reçois et par quel canal.",
     "loadError": "Impossible de charger les paramètres de notification.",
-    "noChannels": "Configure d’abord un canal de notification dans les paramètres.",
+    "noChannels": "Configure d’abord un canal de notification dans Paramètres → Intégrations.",
     "goToSettings": "Aller aux paramètres du canal",
     "channelDisabled": "Désactivé",
     "admin": {
@@ -6379,7 +6382,10 @@
       "newDeviceBody": "Une nouvelle connexion depuis {device} ({location}). Si ce n'était pas vous, changez votre mot de passe immédiatement.",
       "unknownLocation": "lieu inconnu"
     },
-    "loginRequired": "Connecte-toi pour gérer les notifications."
+    "loginRequired": "Connecte-toi pour gérer les notifications.",
+    "someChannelsGloballyDisabled": "Un ou plusieurs canaux sont désactivés dans les paramètres et ne recevront pas de notifications.",
+    "reminderSettingsLink": "Réglages des rappels",
+    "channelsLink": "Canaux"
   },
   "i18n": {
     "maintainershipBanner": {
