@@ -191,6 +191,18 @@ export function userDayKey(date: Date, tz: string): string {
   return formatInUserTz(date, tz, "date");
 }
 
+/**
+ * Wall-clock hour (0–23) an observer in `tz` reads off the clock at
+ * `date`. Used for the time-of-day greeting so a traveller whose device
+ * clock differs from their configured HealthLog zone still sees the right
+ * salutation. Falls back to the UTC hour if the zone is unusable.
+ */
+export function hourInTz(date: Date, tz: string): number {
+  const safeTz = isValidTimezone(tz) ? tz : DEFAULT_TIMEZONE;
+  const parsed = parseInt(wallClockParts(date, safeTz).hour, 10);
+  return Number.isFinite(parsed) ? parsed % 24 : date.getUTCHours();
+}
+
 interface WallClockParts {
   year: string;
   month: string;

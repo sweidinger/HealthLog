@@ -273,7 +273,7 @@ describe("dailyComplianceRatesFromLedger — cadence-aware per-day series", () =
       (r) =>
         r.at.getTime() >= from.getTime() && r.at.getTime() <= NOW.getTime(),
     );
-    const series = dailyComplianceRatesFromLedger(windowRows);
+    const series = dailyComplianceRatesFromLedger(windowRows, TZ);
 
     // Only the Mondays in the window produce a point — Tuesday…Sunday emit
     // nothing, so a 7×-denser daily denominator can never drag the rate down.
@@ -319,7 +319,7 @@ describe("dailyComplianceRatesFromLedger — cadence-aware per-day series", () =
       (r) =>
         r.at.getTime() >= from.getTime() && r.at.getTime() <= NOW.getTime(),
     );
-    const series = dailyComplianceRatesFromLedger(windowRows);
+    const series = dailyComplianceRatesFromLedger(windowRows, TZ);
 
     // Still one point per due Monday — never a point on a non-due weekday.
     // Five Mondays in the window; the skipped take leaves one as a miss.

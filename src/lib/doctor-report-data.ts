@@ -47,6 +47,7 @@ import {
   buildComplianceMedicationContext,
   lastNonSkippedTakenAt,
   tallyComplianceFromLedger,
+  SCHEDULE_COMPLIANCE_SELECT,
   type ComplianceSchedule,
   type IntakeEvent,
   type MedicationPauseEraLike,
@@ -828,7 +829,10 @@ export async function collectDoctorReportData(
       prisma.medication.findMany({
         where: { userId, active: true },
         include: {
-          schedules: true,
+          // v1.15.20 — the shared compliance select (plus `label`, which the
+          // FHIR schedule mapping below needs) so a future engine column added
+          // to SCHEDULE_COMPLIANCE_SELECT reaches the doctor-report surface.
+          schedules: { select: { ...SCHEDULE_COMPLIANCE_SELECT, label: true } },
           // v1.17 W1a — archived schedule eras so the ledger compliance
           // builder segments expected-slot expansion against the schedule
           // that was live on each past day (matches the detail page).

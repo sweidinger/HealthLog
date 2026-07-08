@@ -52,7 +52,8 @@ import {
   type RecurrenceContext,
   type ScheduleType,
 } from "@/lib/medications/scheduling/recurrence";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { userDayKey } from "@/lib/tz/resolver";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 export interface IntakeEvent {
   takenAt: Date | null;
@@ -126,10 +127,19 @@ function parseHHmm(time: string): { hours: number; minutes: number } {
 }
 
 /**
- * Build a Date for a given "HH:mm" on a specific date.
+ * Build the UTC instant of local "HH:mm" on the calendar day `day` falls on.
+ *
+ * When `tz` is supplied the window `HH:mm` is interpreted in the user's zone
+ * (via {@link localHmAsUtc}) on the local day of `day` — so an "08:00" slot is
+ * 08:00 LOCAL, not 08:00 UTC. Without `tz` it keeps the legacy UTC anchoring
+ * (`setUTCHours`), which is only correct for a UTC user; a caller far from UTC
+ * must pass its zone or the punctuality band is offset by the zone's offset.
  */
-function toDateOnDay(time: string, day: Date): Date {
+function toDateOnDay(time: string, day: Date, tz?: string): Date {
   const { hours, minutes } = parseHHmm(time);
+  if (tz) {
+    return localHmAsUtc(day, tz, hours, minutes);
+  }
   const d = new Date(day);
   d.setUTCHours(hours, minutes, 0, 0);
   return d;
@@ -157,18 +167,21 @@ function toDateOnDay(time: string, day: Date): Date {
  * @param options.lateMinutes Width of the `late` band beyond the 3-hour
  *   on-time tolerance, in minutes. Defaults to 120. Doses past this
  *   tail land in `very_late`.
+ * @param options.tz IANA zone the window `HH:mm` is interpreted in. Supply
+ *   the user's zone so an "08:00" slot means 08:00 LOCAL; omitting it keeps
+ *   the legacy UTC interpretation (correct only for a UTC user).
  */
 export function classifyIntakeTiming(
   takenAt: Date | null,
   windowStart: string, // "HH:mm"
   windowEnd: string, // "HH:mm"
   scheduledDate: Date, // the date this was scheduled
-  options?: { lateMinutes?: number },
+  options?: { lateMinutes?: number; tz?: string },
 ): IntakeTimingClass {
   if (takenAt === null) return "missed";
 
-  const start = toDateOnDay(windowStart, scheduledDate);
-  let end = toDateOnDay(windowEnd, scheduledDate);
+  const start = toDateOnDay(windowStart, scheduledDate, options?.tz);
+  let end = toDateOnDay(windowEnd, scheduledDate, options?.tz);
 
   // Handle overnight windows (e.g. windowStart="23:00", windowEnd="01:00")
   if (end <= start) {
@@ -1967,9 +1980,16 @@ export interface DailyComplianceRate {
  * rows (the window hasn't opened) are dropped before grouping, exactly as the
  * window tally excludes them. A day whose only ledger rows are skips yields no
  * point (zero denominator) rather than a misleading 0%.
+ *
+ * Days are bucketed in the USER's timezone (`tz`). Passing the caller's real
+ * zone keeps an evening dose on the local day it was actually due: a fixed
+ * Berlin key filed a `20:00 America/Los_Angeles` dose (04:00 UTC next day)
+ * into the following Berlin day, splitting one local day's two doses across
+ * two buckets and skewing every per-day rate for non-Berlin users.
  */
 export function dailyComplianceRatesFromLedger(
   ledgerRows: DoseHistoryRow[],
+  tz: string,
 ): DailyComplianceRate[] {
   const byDay = new Map<
     string,
@@ -1987,7 +2007,7 @@ export function dailyComplianceRatesFromLedger(
     // counter — they never enter the day's denominator.
     if (!isTaken && !isMissed) continue;
 
-    const dayKey = toBerlinDayKey(row.at);
+    const dayKey = userDayKey(row.at, tz);
     const bucket = byDay.get(dayKey) ?? { taken: 0, missed: 0, date: row.at };
     if (isTaken) bucket.taken += 1;
     else bucket.missed += 1;
