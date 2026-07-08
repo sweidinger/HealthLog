@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.27.28] — 2026-07-08 — Share a document from the document
+
+### Added
+
+- A document now carries its own Share action: open a document and tap Share to create a clinician share link with that document already attached — the picker, expiry, EXIF note, and the one-time QR (with the passphrase in the link) all appear in the same sheet, so sharing no longer requires a detour through Settings. The Settings → Sharing flow is unchanged.
+
 ## [1.27.27] — 2026-07-08 — Reorderable hero rings
 
 ### Changed
