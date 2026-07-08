@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.27.30] — 2026-07-09 — Correctness and resilience sweep
+
+### Fixed
+
+- **Time zones / DST:** the "today" medication window is now DST-safe — a dose near midnight on a 23h/25h transition day no longer drops off the cards, dashboard, or PWA badge. Per-day medication compliance now buckets in the user's own time zone (was hardcoded to one zone), and the punctuality classification and the Insights greeting hour follow the user's zone too.
+- **Resilience:** background job workers now run with a statement timeout and pool cap (a heavy nightly fold can no longer wedge the worker pool). Offline mutations fail fast and surface their state instead of hanging and silently losing the write. Each sync source isolates its per-collection/per-metric-type work, so one bad response can't blank a whole integration, and a per-metric-type freshness signal distinguishes a dead pipe from a healthy-idle one. The rollup read falls back to live SQL on any read error. Undecryptable rows now log a diagnostic and, where a clinician or user reads them, surface an honest "unreadable" marker rather than a silent blank.
+
 ## [1.27.29] — 2026-07-08 — Automatic document indexing and AI reading
 
 ### Added
