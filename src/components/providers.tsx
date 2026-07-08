@@ -61,29 +61,36 @@ function applyTheme(resolved: "dark" | "light") {
   document.documentElement.classList.add(resolved);
 }
 
+function readStoredTheme(): Theme {
+  if (typeof window === "undefined") return "dark";
+  const saved = localStorage.getItem("healthlog-theme") as Theme | null;
+  // A stored "light"/"dark"/"system" choice wins. With no stored
+  // preference the app defaults to dark rather than tracking the OS.
+  if (saved === "light" || saved === "dark" || saved === "system") return saved;
+  return "dark";
+}
+
 function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "dark";
-    const saved = localStorage.getItem("healthlog-theme") as Theme | null;
-    // A stored "light"/"dark"/"system" choice wins. With no stored
-    // preference the app defaults to dark rather than tracking the OS.
-    if (saved === "light" || saved === "dark") return saved;
-    if (saved === "system") return "system";
-    return "dark";
-  });
+  // Initialize to the SSR-stable default on BOTH the server and the client's
+  // first render so the hydrated React tree matches; the persisted preference
+  // is reconciled in a mount effect below. Reading localStorage in the
+  // `useState` initializer instead diverges server ("dark") from a client that
+  // stored "light"/"system", which is the exact React #418 hydration seam this
+  // repo has hit before (the sidebar matchMedia/localStorage-in-initializer).
+  // The nonce-bound inline script in layout.tsx has already stamped the correct
+  // class on <html> pre-hydration, so there is no visual FOUC from deferring
+  // the reconcile to an effect.
+  const [theme, setThemeState] = useState<Theme>("dark");
+  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">("dark");
 
-  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">(() => {
-    if (typeof window === "undefined") return "dark";
-    const saved = localStorage.getItem("healthlog-theme") as Theme | null;
-    if (saved === "light" || saved === "dark") return saved;
-    if (saved === "system") return getSystemTheme();
-    return "dark";
-  });
-
-  // Apply theme on mount (inline script handles FOUC, this ensures classes are in sync)
+  // Reconcile the stored preference after mount + keep the class in sync (the
+  // inline script handles the pre-paint class; this keeps React state honest).
   useEffect(() => {
-    applyTheme(resolvedTheme);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const stored = readStoredTheme();
+    const resolved = stored === "system" ? getSystemTheme() : stored;
+    setThemeState(stored);
+    setResolvedTheme(resolved);
+    applyTheme(resolved);
   }, []);
 
   // Listen for OS preference changes when in system mode

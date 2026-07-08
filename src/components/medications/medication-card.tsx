@@ -10,6 +10,7 @@ import { MedicationCardBody } from "@/components/medications/card-parts/medicati
 import { useWeekdayLabel } from "@/components/medications/card-parts/medication-next-last-slot";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { formatDateTime, formatTime } from "@/lib/format";
+import { getDateTimeFormat } from "@/lib/intl/formatter-cache";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
 import { formatDose } from "@/lib/medications/format-dose";
 import {
@@ -335,7 +336,7 @@ export function MedicationCard({
     // Intentionally en-CA: gives YYYY-MM-DD which is locale-independent and
     // string-comparable for the today / yesterday / older bucketing below.
     // The actual user-facing display goes through formatTime / formatDateTime.
-    const dayFormatter = new Intl.DateTimeFormat("en-CA", {
+    const dayFormatter = getDateTimeFormat("en-CA", {
       timeZone: userTz,
       year: "numeric",
       month: "2-digit",
