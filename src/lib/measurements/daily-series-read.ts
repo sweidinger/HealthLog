@@ -76,17 +76,32 @@ export async function readDailySeries(opts: {
     (to.getTime() - from.getTime()) / 86_400_000,
   );
   if (windowDaysFull > cap) {
-    const tiered = await readTieredRollupSeries({
-      userId,
-      type,
-      // v1.26.0 SEAM-N2 — pass the resolved `[from, to]` bounds so the tier
-      // reads the REQUESTED window (which may be entirely historic), not a
-      // trailing "to now" slice. `windowDaysFull` still gates entry above and
-      // drives the tier width inside the reader.
-      from,
-      to,
-      priorityJson,
-    });
+    // A rollup-table throw here (statement_timeout, deadlock, connection reset)
+    // must not 500 the whole read — treat it as a coverage miss and fall
+    // through to the daily path (which itself falls back to live SQL).
+    let tiered: Awaited<ReturnType<typeof readTieredRollupSeries>> = null;
+    try {
+      tiered = await readTieredRollupSeries({
+        userId,
+        type,
+        // v1.26.0 SEAM-N2 — pass the resolved `[from, to]` bounds so the tier
+        // reads the REQUESTED window (which may be entirely historic), not a
+        // trailing "to now" slice. `windowDaysFull` still gates entry above and
+        // drives the tier width inside the reader.
+        from,
+        to,
+        priorityJson,
+      });
+    } catch (err) {
+      annotate({
+        meta: {
+          tiered_series_read_threw: true,
+          tiered_series_read_error:
+            err instanceof Error ? err.message : String(err),
+          type,
+        },
+      });
+    }
     if (tiered && tiered.rows.length > 0) {
       return tiered.rows;
     }
@@ -129,7 +144,25 @@ export async function readDailySeries(opts: {
       priorityJson,
     ).slice(0, cap);
 
-  const rollupRows = await readRollup();
+  // F-DB-2 — the primary rollup read is wrapped: a transient rollup-table error
+  // (statement_timeout, deadlock, connection reset) must NOT 500 the tile when
+  // the live table can still serve it. Treat a throw as a coverage miss and fall
+  // straight through to the live `date_trunc` aggregate — the same posture the
+  // batched series reader already takes, so the single-type route and the batch
+  // route no longer diverge on a rollup hiccup.
+  let rollupRows: Awaited<ReturnType<typeof readRollup>>;
+  try {
+    rollupRows = await readRollup();
+  } catch (err) {
+    annotate({
+      meta: {
+        rollup_read_threw: true,
+        rollup_read_error: err instanceof Error ? err.message : String(err),
+        type,
+      },
+    });
+    return readLiveDaily({ userId, type, from, to, cap, priorityJson });
+  }
 
   // Coverage-mismatch probe + inline fold (identical to the route).
   const windowMs = to.getTime() - from.getTime();
