@@ -13,7 +13,8 @@
  * errors surface inline (`role="alert"`), never as a QueryErrorCard.
  * Delete soft-deletes with an Undo toast (restore endpoint); a restore
  * refusal maps `meta.reason` (`purged`, `duplicateExists`) to translated
- * copy. No share affordance anywhere — deliberately.
+ * copy. A Share action in the footer opens the clinician share-link create
+ * flow (shared `ShareLinkCreateForm`) with this document pre-attached.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Download, Pencil, Plus, Share2, Trash2 } from "lucide-react";
