@@ -22,14 +22,28 @@ import { useTranslations } from "@/lib/i18n/context";
  */
 export function PasswordInput({
   className,
+  autoComplete,
   ...props
 }: React.ComponentProps<typeof Input>) {
   const [visible, setVisible] = useState(false);
   const { t } = useTranslations();
+
+  // Config/secret fields (BYOK API keys, webhook secrets, ntfy tokens) pass no
+  // `autoComplete` — they are not credentials, so a password manager offering
+  // to fill or *save* them is noise and risks clobbering the field. Suppress
+  // Bitwarden / 1Password / LastPass by default for those. Credential fields
+  // (login, register, password change) pass a real token
+  // (`current-password` / `new-password` / `username`) and keep manager
+  // integration; only an explicit `"off"` opts back into suppression.
+  const suppressManagers = autoComplete == null || autoComplete === "off";
   return (
     <div className="relative">
       <Input
         {...props}
+        autoComplete={autoComplete ?? "off"}
+        data-bwignore={suppressManagers ? "" : undefined}
+        data-1p-ignore={suppressManagers ? "" : undefined}
+        data-lpignore={suppressManagers ? "true" : undefined}
         type={visible ? "text" : "password"}
         className={cn("pr-12", className)}
       />
