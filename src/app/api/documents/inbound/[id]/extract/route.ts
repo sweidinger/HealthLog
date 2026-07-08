@@ -4,10 +4,10 @@
  * Extraction is no longer part of upload: a document is stored first
  * (provider-free), and THIS route is the explicit, user-triggered enhancement.
  * It carries the entire ingest gauntlet that upload used to run inline —
- * resolve provider → assertConsentForChain → rate-limit → reserveBudget →
- * runInboundExtraction → reconcileSpend → stage facts — but now against a row
- * that already exists. Absent a provider this 422s the ENHANCEMENT only; the
- * stored document is untouched and remains filed.
+ * resolve document provider (local-first, codex last) → assertDocumentEgressConsent
+ * → rate-limit → reserveBudget → runInboundExtraction → reconcileSpend → stage
+ * facts — but now against a row that already exists. Absent a provider this 422s
+ * the ENHANCEMENT only; the stored document is untouched and remains filed.
  *
  * Two modes, dispatched on content-type (mirroring the original upload):
  *   - VISION (no JSON body): decrypt the stored original, re-derive its MIME,
