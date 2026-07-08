@@ -19,20 +19,13 @@
  * the form state + the medication/slot pickers.
  */
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { DateTimeField } from "@/components/ui/date-time-field";
@@ -119,6 +112,7 @@ export function LogIntakeDialog({
 }: LogIntakeDialogProps) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  const formId = useId();
 
   const [medicationId, setMedicationId] = useState<string>(
     () => medications[0]?.id ?? "",
@@ -208,18 +202,39 @@ export function LogIntakeDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
-      <DialogContent data-slot="log-intake-dialog">
-        <DialogHeader>
-          <DialogTitle>{t("medications.logIntake.dialogTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("medications.logIntake.dialogDescription")}
-          </DialogDescription>
-        </DialogHeader>
-
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={(o) => !busy && onOpenChange(o)}
+      title={t("medications.logIntake.dialogTitle")}
+      description={t("medications.logIntake.dialogDescription")}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+          >
+            {t("medications.logIntake.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={busy || medications.length === 0 || !medicationId}
+            aria-busy={busy || undefined}
+          >
+            {busy && (
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+            )}
+            {t("medications.logIntake.submit")}
+          </Button>
+        </>
+      }
+    >
         {/* v1.16.4 — a real form so Enter in the dose / datetime fields
             submits; mirrors the intake-edit and dose-history-add dialogs. */}
         <form
+          id={formId}
           onSubmit={(e) => {
             e.preventDefault();
             if (busy || medications.length === 0 || !medicationId) return;
@@ -326,29 +341,7 @@ export function LogIntakeDialog({
               </label>
             </div>
           )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={busy}
-            >
-              {t("medications.logIntake.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              disabled={busy || medications.length === 0 || !medicationId}
-              aria-busy={busy || undefined}
-            >
-              {busy && (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-              )}
-              {t("medications.logIntake.submit")}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveSheet>
   );
 }

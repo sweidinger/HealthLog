@@ -4,14 +4,7 @@ import { useState } from "react";
 
 import { Loader2 } from "lucide-react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Button } from "@/components/ui/button";
 import { InjectionSitePicker } from "@/components/medications/injection-site-picker";
 import {
@@ -85,7 +78,7 @@ export function LogInjectionSiteDialog({
   }
 
   return (
-    <Dialog
+    <ResponsiveSheet
       open={open}
       onOpenChange={(next) => {
         // Hold the dialog while the PATCH is in flight so a backdrop tap /
@@ -93,18 +86,31 @@ export function LogInjectionSiteDialog({
         if (submitting) return;
         if (!next) onSkip();
       }}
+      title={t("medications.logInjectionSiteTitle")}
+      description={t("medications.logInjectionSiteDescription", {
+        name: medicationName,
+      })}
+      footer={
+        <>
+          <Button variant="outline" onClick={onSkip} disabled={submitting}>
+            {t("medications.logInjectionSiteSkip")}
+          </Button>
+          <Button
+            disabled={selected === null || submitting}
+            aria-busy={submitting || undefined}
+            onClick={() => {
+              void handleConfirm();
+            }}
+          >
+            {submitting ? (
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+            ) : null}
+            {t("medications.logInjectionSiteConfirm")}
+          </Button>
+        </>
+      }
     >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("medications.logInjectionSiteTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("medications.logInjectionSiteDescription", {
-              name: medicationName,
-            })}
-          </DialogDescription>
-        </DialogHeader>
-
-        {allowed.length === 0 ? (
+      {allowed.length === 0 ? (
           <p className="text-muted-foreground py-4 text-center text-sm">
             {t("medications.logInjectionSiteNoneAvailable")}
           </p>
@@ -161,25 +167,6 @@ export function LogInjectionSiteDialog({
             </ul>
           </>
         )}
-
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={onSkip} disabled={submitting}>
-            {t("medications.logInjectionSiteSkip")}
-          </Button>
-          <Button
-            disabled={selected === null || submitting}
-            aria-busy={submitting || undefined}
-            onClick={() => {
-              void handleConfirm();
-            }}
-          >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-            ) : null}
-            {t("medications.logInjectionSiteConfirm")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveSheet>
   );
 }

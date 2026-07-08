@@ -19,14 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CheckCheck, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatDose } from "@/lib/medications/format-dose";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
@@ -65,49 +58,17 @@ export function TakeAllDueDialog({
   }
 
   return (
-    <Dialog
+    <ResponsiveSheet
       open={open}
       onOpenChange={(next) => {
         // Refuse to close while the take loop is in flight.
         if (submitting && !next) return;
         onOpenChange(next);
       }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("medications.takeAllDue.dialogTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("medications.takeAllDue.dialogDescription")}
-          </DialogDescription>
-        </DialogHeader>
-        <ul className="space-y-2" data-testid="take-all-due-list">
-          {dueMedications.map((med) => (
-            <li
-              key={med.id}
-              className="flex items-baseline justify-between gap-3 text-sm"
-            >
-              <span className="min-w-0 truncate">
-                <span className="font-medium">{med.name}</span>
-                {med.dose ? (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    — {formatDose(med.dose, t)}
-                  </span>
-                ) : null}
-              </span>
-              {med.window ? (
-                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                  {formatTimeWindowRange(
-                    med.window.start,
-                    med.window.end,
-                    locale,
-                  )}
-                </span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-        <DialogFooter>
+      title={t("medications.takeAllDue.dialogTitle")}
+      description={t("medications.takeAllDue.dialogDescription")}
+      footer={
+        <>
           <Button
             type="button"
             variant="outline"
@@ -136,8 +97,36 @@ export function TakeAllDueDialog({
               count: dueMedications.length,
             })}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <ul className="space-y-2" data-testid="take-all-due-list">
+          {dueMedications.map((med) => (
+            <li
+              key={med.id}
+              className="flex items-baseline justify-between gap-3 text-sm"
+            >
+              <span className="min-w-0 truncate">
+                <span className="font-medium">{med.name}</span>
+                {med.dose ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    — {formatDose(med.dose, t)}
+                  </span>
+                ) : null}
+              </span>
+              {med.window ? (
+                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                  {formatTimeWindowRange(
+                    med.window.start,
+                    med.window.end,
+                    locale,
+                  )}
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+    </ResponsiveSheet>
   );
 }

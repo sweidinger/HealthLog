@@ -22,12 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, MoreHorizontal, RotateCcw, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -143,12 +138,58 @@ export function IntakeImportDialog({
   }
 
   return (
-    <Dialog open={!!medicationId} onOpenChange={() => handleClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t("medications.importIntakes")}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
+    <ResponsiveSheet
+      open={!!medicationId}
+      onOpenChange={() => handleClose()}
+      title={t("medications.importIntakes")}
+      contentWidth="lg"
+      footer={
+        <>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="mr-auto h-9 w-9"
+                disabled={importing}
+                aria-label={t("common.moreOptions")}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={resetImportForm}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {t("common.reset")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={importing}
+            className="min-h-11 sm:min-h-9"
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            onClick={handleImport}
+            disabled={importing || !jsonText.trim()}
+            aria-busy={importing || undefined}
+            className="min-h-11 sm:min-h-9"
+          >
+            {importing ? (
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <Upload className="h-4 w-4" />
+            )}
+            {t("common.import")}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
           <p className="text-muted-foreground text-sm">
             {t("medications.importDescription")}
           </p>
@@ -194,54 +235,7 @@ export function IntakeImportDialog({
               {result}
             </p>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9"
-                  disabled={importing}
-                  aria-label={t("common.moreOptions")}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={resetImportForm}>
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  {t("common.reset")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={handleClose}
-                disabled={importing}
-                className="min-h-11 sm:min-h-9"
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                onClick={handleImport}
-                disabled={importing || !jsonText.trim()}
-                aria-busy={importing || undefined}
-                className="min-h-11 sm:min-h-9"
-              >
-                {importing ? (
-                  <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-                ) : (
-                  <Upload className="h-4 w-4" />
-                )}
-                {t("common.import")}
-              </Button>
-            </div>
-          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveSheet>
   );
 }
