@@ -262,13 +262,29 @@ export function ConnectionsPanel() {
 
   return (
     <div className="space-y-6" data-slot="connections-panel">
-      <WithingsCard viewModel={withingsViewModel} />
-      <WhoopCard viewModel={whoopViewModel} />
-      <FitbitCard viewModel={fitbitViewModel} />
-      <GoogleHealthCard viewModel={googleHealthViewModel} />
-      <PolarCard enabled={isAuthenticated} viewModel={polarViewModel} />
-      <OuraCard enabled={isAuthenticated} viewModel={ouraViewModel} />
-      <NightscoutCard enabled={isAuthenticated} />
+      {/* Per-provider anchors so deep-links (onboarding "more sources" chips,
+          `/settings/integrations#oura`) scroll straight to the right card. */}
+      <div id="withings" className="scroll-mt-28">
+        <WithingsCard viewModel={withingsViewModel} />
+      </div>
+      <div id="whoop" className="scroll-mt-28">
+        <WhoopCard viewModel={whoopViewModel} />
+      </div>
+      <div id="fitbit" className="scroll-mt-28">
+        <FitbitCard viewModel={fitbitViewModel} />
+      </div>
+      <div id="google-health" className="scroll-mt-28">
+        <GoogleHealthCard viewModel={googleHealthViewModel} />
+      </div>
+      <div id="polar" className="scroll-mt-28">
+        <PolarCard enabled={isAuthenticated} viewModel={polarViewModel} />
+      </div>
+      <div id="oura" className="scroll-mt-28">
+        <OuraCard enabled={isAuthenticated} viewModel={ouraViewModel} />
+      </div>
+      <div id="nightscout" className="scroll-mt-28">
+        <NightscoutCard enabled={isAuthenticated} />
+      </div>
     </div>
   );
 }
