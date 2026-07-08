@@ -221,11 +221,15 @@ export async function expectStep(
   // stepper landed, so it is hidden on the desktop e2e viewport. Assert the
   // viewport-independent root data-attributes the dialog always carries.
   const root = page.locator('[data-slot="medication-wizard-dialog"]');
+  // Each step advance waits on per-step form validation; on a loaded CI runner
+  // that settle can exceed the default 5s expect timeout (the dialog sits at
+  // the prior step when the assertion first samples). Give the step-transition
+  // assertion room so a slow runner doesn't read a mid-transition frame.
   await expect(root).toHaveAttribute(
     "data-display-step",
     String(displayIndex),
     {
-      timeout: 5_000,
+      timeout: 20_000,
     },
   );
   if (totalSteps != null) {

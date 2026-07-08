@@ -8085,7 +8085,8 @@
       "attachmentBadge": "Solo descarga",
       "uploading": "Subiendo…",
       "dismissFailed": "Descartar subida fallida",
-      "searchableBadge": "Contenido buscable"
+      "searchableBadge": "Contenido buscable",
+      "aiReadBadge": "Leído por IA"
     },
     "error": {
       "fileTooLarge": "Este archivo supera el límite de {maxSize}.",
@@ -8206,15 +8207,21 @@
       "notSaved": "No se guarda · no es un diagnóstico. Se muestra solo una vez en esta vista.",
       "close": "Ocultar"
     },
+    "ai": {
+      "blockTitle": "Leer con IA",
+      "available": "Deja que la IA lea este documento: sugerir un título, tipo y fecha, resumirlo o hacer que todo su texto sea buscable.",
+      "read": "Leer con IA",
+      "reread": "Leer de nuevo",
+      "reading": "Leyendo…",
+      "statusAiRead": "Leído por IA",
+      "statusSearchable": "Buscable",
+      "statusIndexing": "Haciéndolo buscable…",
+      "statusNotYet": "Aún no buscable",
+      "readDone": "La IA leyó tu documento."
+    },
     "contentIndex": {
       "searchHint": "La búsqueda ahora también mira dentro de tus documentos (palabras completas).",
       "indexPrompt": "Haz que el contenido de los documentos sea buscable.",
-      "searchable": "Contenido buscable",
-      "notSearchable": "Contenido aún no buscable",
-      "indexAction": "Indexar para búsqueda",
-      "reindexAction": "Reindexar",
-      "indexing": "Indexando…",
-      "indexed": "Indexado para búsqueda.",
       "indexAll": "Indexar todo para búsqueda",
       "indexAllPending": "Iniciando…",
       "indexAllQueued": "Indexando {count} documento(s) en segundo plano.",

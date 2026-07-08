@@ -6,10 +6,11 @@ import type { DocumentSuggestionDto } from "@/lib/validations/inbound-documents"
 import { DocumentAiSection } from "../document-ai-section";
 
 /**
- * The detail sheet's AI area is availability-gated: with a provider it shows the
- * assist / summary toolbar; without one it shows ONLY the calm settings pointer
- * (never an action the endpoint would 422). The summary panel, when open, keeps
- * the session-only note visible.
+ * The detail sheet's "Read with AI" block is availability-gated: with a provider
+ * it offers the prominent "Read with AI" action alongside suggest / summary;
+ * without one the actions collapse to the calm settings pointer (never an action
+ * the endpoint would 422). The searchable status pill reflects the auto-index in
+ * both states. The summary panel, when open, keeps the session-only note visible.
  */
 
 function render(node: React.ReactNode) {
@@ -52,6 +53,7 @@ function base(
     summaryErrorKey: null,
     onCloseSummary: noop,
     hasContentIndex: false,
+    contentIndexSource: null,
     indexPending: false,
     onIndex: noop,
     ...overrides,
@@ -60,25 +62,59 @@ function base(
 }
 
 describe("<DocumentAiSection>", () => {
-  it("offers the assist + summary toolbar when a provider is available", () => {
+  it("leads with the prominent Read-with-AI action when a provider is available", () => {
     const html = render(base({ aiEnabled: true }));
+    expect(html).toContain('data-slot="document-read-ai"');
+    expect(html).toContain("Read with AI");
     expect(html).toContain('data-slot="assist-suggest"');
     expect(html).toContain("Suggest details");
     expect(html).toContain("Summarise");
     expect(html).toContain("Show extracted text");
-    // No unavailable pointer when the affordance is offered.
+    // No unavailable pointer when the actions are offered.
     expect(html).not.toContain('data-slot="assist-unavailable"');
   });
 
-  it("shows ONLY the calm settings pointer when no provider is available", () => {
+  it("labels the action as a re-read once a provider has already read it", () => {
     const html = render(
-      base({ aiEnabled: false, unavailableReason: "no-provider" }),
+      base({ hasContentIndex: true, contentIndexSource: "vision" }),
+    );
+    expect(html).toContain('data-slot="document-read-ai"');
+    expect(html).toContain("Read again");
+    // The status pill reflects the AI-read provenance.
+    expect(html).toContain('data-state="ai-read"');
+    expect(html).toContain("Read by AI");
+  });
+
+  it("shows the calm settings pointer (no 422 actions) when no provider is available", () => {
+    const html = render(
+      base({
+        aiEnabled: false,
+        indexEnabled: false,
+        unavailableReason: "no-provider",
+      }),
     );
     expect(html).toContain('data-slot="assist-unavailable"');
     expect(html).toContain('href="/settings/ai"');
-    // The assist / index actions must be absent — never a 422-guaranteed tap.
+    // Every AI action must be absent — never a 422-guaranteed tap.
     expect(html).not.toContain('data-slot="assist-suggest"');
-    expect(html).not.toContain('data-slot="content-index-status"');
+    expect(html).not.toContain('data-slot="document-read-ai"');
+    // But the searchable status pill still renders — auto-index is honest here.
+    expect(html).toContain('data-slot="content-search-status"');
+  });
+
+  it("keeps a locally-indexed document honestly searchable without a provider", () => {
+    const html = render(
+      base({
+        aiEnabled: false,
+        indexEnabled: false,
+        unavailableReason: "no-provider",
+        hasContentIndex: true,
+        contentIndexSource: "local-pdf",
+      }),
+    );
+    expect(html).toContain('data-state="searchable"');
+    expect(html).toContain("Searchable");
+    expect(html).not.toContain("Read by AI");
   });
 
   it("renders the reviewed suggestion drafts when present", () => {
@@ -106,9 +142,9 @@ describe("<DocumentAiSection>", () => {
     expect(html).toContain("Not saved");
   });
 
-  it("hides the content-index row when indexing is unavailable", () => {
+  it("hides the Read-with-AI action when indexing is unavailable but keeps suggest", () => {
     const html = render(base({ aiEnabled: true, indexEnabled: false }));
     expect(html).toContain('data-slot="assist-suggest"');
-    expect(html).not.toContain('data-slot="content-index-status"');
+    expect(html).not.toContain('data-slot="document-read-ai"');
   });
 });

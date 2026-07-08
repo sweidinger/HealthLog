@@ -13,7 +13,7 @@
  * hover / focus / while selected. The whole card is clickable through an
  * invisible overlay button; the checkbox floats above it.
  */
-import { Download, ScanSearch, X } from "lucide-react";
+import { Download, ScanSearch, Sparkles, X } from "lucide-react";
 import { useRef } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-import type { InboundDocumentDto } from "@/lib/validations/inbound-documents";
+import {
+  isAiReadSource,
+  type InboundDocumentDto,
+} from "@/lib/validations/inbound-documents";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
 import type { UploadQueueItem } from "./use-document-upload";
 import { documentDateKey, formatBytes } from "./vault-utils";
@@ -140,18 +143,35 @@ export function DocumentCard({
               </Badge>
             ) : null}
             {document.hasContentIndex ? (
-              // Subtle "contents searchable" marker — icon-only to keep the
-              // row calm; the label rides an accessible name.
-              <span
-                data-slot="document-searchable"
-                className="text-muted-foreground inline-flex items-center"
-                title={t("documents.card.searchableBadge")}
-              >
-                <ScanSearch className="size-3.5" aria-hidden />
-                <span className="sr-only">
-                  {t("documents.card.searchableBadge")}
+              // Subtle searchable marker — icon-only to keep the row calm; the
+              // label rides an accessible name. An AI-read document gets the
+              // highlighted Sparkles (primary) so the richer read is legible at
+              // a glance; a locally-indexed one keeps the quiet muted glass.
+              isAiReadSource(document.contentIndexSource) ? (
+                <span
+                  data-slot="document-searchable"
+                  data-source="ai-read"
+                  className="text-primary inline-flex items-center"
+                  title={t("documents.card.aiReadBadge")}
+                >
+                  <Sparkles className="size-3.5" aria-hidden />
+                  <span className="sr-only">
+                    {t("documents.card.aiReadBadge")}
+                  </span>
                 </span>
-              </span>
+              ) : (
+                <span
+                  data-slot="document-searchable"
+                  data-source="local"
+                  className="text-muted-foreground inline-flex items-center"
+                  title={t("documents.card.searchableBadge")}
+                >
+                  <ScanSearch className="size-3.5" aria-hidden />
+                  <span className="sr-only">
+                    {t("documents.card.searchableBadge")}
+                  </span>
+                </span>
+              )
             ) : null}
           </div>
         ) : null}

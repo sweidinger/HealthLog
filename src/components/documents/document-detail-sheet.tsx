@@ -365,7 +365,7 @@ export function DocumentDetailSheet({
     indexDoc.mutate(
       { mode: aiMode, target: aiTarget },
       {
-        onSuccess: () => toast.success(t("documents.contentIndex.indexed")),
+        onSuccess: () => toast.success(t("documents.ai.readDone")),
         onError: (error) => toast.error(t(documentAiErrorKey(error))),
       },
     );
@@ -531,6 +531,7 @@ export function DocumentDetailSheet({
                 summary.reset();
               }}
               hasContentIndex={doc.hasContentIndex}
+              contentIndexSource={doc.contentIndexSource}
               indexPending={indexDoc.isPending}
               onIndex={runIndex}
             />

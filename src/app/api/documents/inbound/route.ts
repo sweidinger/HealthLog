@@ -41,6 +41,7 @@ import {
   serialiseDocument,
   type SerialisableDocument,
 } from "@/lib/documents/store";
+import { enqueueDocumentIndex } from "@/lib/jobs/document-index";
 import {
   detectDocumentType,
   resolveDocumentLimits,
@@ -54,6 +55,7 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import {
   documentCreateSchema,
   documentListQuerySchema,
+  toContentIndexSource,
 } from "@/lib/validations/inbound-documents";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -361,6 +363,14 @@ async function postUpload(request: Request): Promise<Response> {
     },
   });
 
+  // Auto-index the freshly stored document for content search: enqueue a
+  // fire-and-forget background job (provider-first, local text-layer fallback).
+  // The upload response never blocks on or fails because of indexing — the
+  // enqueue is not awaited and swallows its own errors (a missing boss or a
+  // transient send failure is a silent no-op). Only fresh inserts enqueue — a
+  // duplicate upload returns early above and never reaches here.
+  void enqueueDocumentIndex(user.id, document.id);
+
   const links = await loadConditionLinks(user.id, [document.id]);
   return apiSuccess(
     serialiseDocument(
@@ -498,15 +508,16 @@ export const GET = apiHandler(async (request: Request) => {
     page.map((d) => d.id),
   );
 
-  // Which of the page's documents have a content index (drives `hasContentIndex`
-  // + the re-index affordance). One indexed grouped query; never the ciphertext.
-  const indexedIds = new Set<string>();
+  // Which of the page's documents have a content index (drives the searchable
+  // status + the provenance the UI reads to tell an AI-read document from a
+  // locally-indexed one). One grouped query; never the ciphertext.
+  const indexSources = new Map<string, string>();
   if (page.length > 0) {
     const indexed = await prisma.documentContentIndex.findMany({
       where: { userId: user.id, documentId: { in: page.map((d) => d.id) } },
-      select: { documentId: true },
+      select: { documentId: true, source: true },
     });
-    for (const row of indexed) indexedIds.add(row.documentId);
+    for (const row of indexed) indexSources.set(row.documentId, row.source);
   }
 
   annotate({
@@ -525,7 +536,8 @@ export const GET = apiHandler(async (request: Request) => {
         doc,
         factCounts.get(doc.id) ?? { factCount: 0, pendingCount: 0 },
         linkMap.get(doc.id) ?? [],
-        indexedIds.has(doc.id),
+        indexSources.has(doc.id),
+        toContentIndexSource(indexSources.get(doc.id)),
       ),
     ),
     nextCursor,

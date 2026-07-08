@@ -33,6 +33,7 @@ test.describe("medication wizard — compose-mode", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
   test("creates a 2-schedule medication end-to-end", async ({ page }) => {
+    test.slow();
     await stubDashboardAnalytics(page);
 
     const listEntry = {

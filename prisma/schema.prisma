@@ -5965,7 +5965,10 @@ model DocumentContentIndex {
   /// (raw SQL in the migration; Prisma cannot express a GIN index).
   searchTokens     String[] @default([]) @map("search_tokens")
   /// Provenance of the indexed text: "vision" (provider transcription of the
-  /// stored original) or "text-ocr" (browser-OCR text posted by the client).
+  /// stored original), "text-ocr" (browser-OCR text posted by the client),
+  /// "local-pdf" (server-side text-layer extraction, no provider) or "local-ocr"
+  /// (server-side OCR of a scanned document — deferred follow-up). Free String;
+  /// adding a source value needs no migration.
   source           String
   /// Provider type that produced the text (diagnostic only), or null on the
   /// text-ocr path.

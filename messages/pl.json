@@ -8085,7 +8085,8 @@
       "attachmentBadge": "Tylko do pobrania",
       "uploading": "Przesyłanie…",
       "dismissFailed": "Odrzuć nieudane przesyłanie",
-      "searchableBadge": "Treść przeszukiwalna"
+      "searchableBadge": "Treść przeszukiwalna",
+      "aiReadBadge": "Odczytane przez AI"
     },
     "error": {
       "fileTooLarge": "Ten plik przekracza limit {maxSize}.",
@@ -8206,15 +8207,21 @@
       "notSaved": "Nie zapisano · to nie diagnoza. Wyświetlane tylko raz w tym widoku.",
       "close": "Ukryj"
     },
+    "ai": {
+      "blockTitle": "Odczytaj z AI",
+      "available": "Pozwól AI odczytać ten dokument — zaproponować tytuł, typ i datę, streścić go lub udostępnić cały tekst do wyszukiwania.",
+      "read": "Odczytaj z AI",
+      "reread": "Odczytaj ponownie",
+      "reading": "Odczytywanie…",
+      "statusAiRead": "Odczytane przez AI",
+      "statusSearchable": "Wyszukiwalne",
+      "statusIndexing": "Udostępnianie do wyszukiwania…",
+      "statusNotYet": "Jeszcze nie do wyszukania",
+      "readDone": "AI odczytało Twój dokument."
+    },
     "contentIndex": {
       "searchHint": "Wyszukiwanie przeszukuje teraz także treść Twoich dokumentów (całe słowa).",
       "indexPrompt": "Udostępnij treść dokumentów do wyszukiwania.",
-      "searchable": "Treść przeszukiwalna",
-      "notSearchable": "Treść jeszcze nieprzeszukiwalna",
-      "indexAction": "Zindeksuj do wyszukiwania",
-      "reindexAction": "Zindeksuj ponownie",
-      "indexing": "Indeksowanie…",
-      "indexed": "Zindeksowano do wyszukiwania.",
       "indexAll": "Zindeksuj wszystko do wyszukiwania",
       "indexAllPending": "Uruchamianie…",
       "indexAllQueued": "Indeksowanie {count} dokumentu/ów w tle.",

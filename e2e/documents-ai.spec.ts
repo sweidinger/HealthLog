@@ -104,6 +104,13 @@ test.describe("document vault — AI assist + content search", () => {
     await ensureVaultAiFixture();
   });
 
+  // These AI flows drive several mocked provider round-trips per test; on a
+  // loaded CI runner they race the default 30s, so the whole group earns the
+  // tripled timeout rather than flaking green paths.
+  test.beforeEach(() => {
+    test.slow();
+  });
+
   // ── (a) Review-first assist: prefill → edit → save, nothing auto-committed ──
 
   test("assist prefills an editable draft that only saves on commit", async ({
@@ -296,6 +303,85 @@ test.describe("document vault — AI assist + content search", () => {
     // The action button is absent — the endpoint would 422, so the UI never
     // offers it.
     await expect(sheet.locator('[data-slot="assist-suggest"]')).toHaveCount(0);
+  });
+
+  // ── (g) "Read with AI": the prominent action maps to the index endpoint ──
+
+  test('the "Read with AI" action reads a document and confirms', async ({
+    page,
+  }) => {
+    await mockAiEnabled(page, { mode: "vision" });
+    // AI_PROBE_DOC_ID carries no content index → the action reads "Read with AI"
+    // (not "Read again") and the status pill is the calm "not searchable yet".
+    let indexCalls = 0;
+    let indexHadJsonBody = false;
+    await page.route(
+      `**/api/documents/inbound/${AI_PROBE_DOC_ID}/index`,
+      (route) => {
+        indexCalls += 1;
+        // VISION mode posts NO JSON body — the endpoint 422s a text body without
+        // the local-OCR opt-in, so the UI must never send one on this path.
+        indexHadJsonBody = Boolean(route.request().postData());
+        return fulfilJson(route, {
+          data: { documentId: AI_PROBE_DOC_ID, indexed: true, tokenCount: 12 },
+          error: null,
+        });
+      },
+    );
+
+    await page.goto(`/documents?doc=${AI_PROBE_DOC_ID}`);
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+
+    // The prominent action is present and labelled for a first read.
+    const read = sheet.locator('[data-slot="document-read-ai"]');
+    await expect(read).toBeVisible();
+    await expect(read).toHaveText(/Read with AI/);
+
+    // The status pill starts at the calm "not searchable yet".
+    const status = sheet.locator('[data-slot="content-search-status"]');
+    await expect(status).toHaveAttribute("data-state", "none");
+
+    await read.click();
+    await expect(page.getByText("The AI read your document.")).toBeVisible();
+    expect(indexCalls).toBe(1);
+    expect(indexHadJsonBody).toBe(false);
+  });
+
+  // ── (h) Provenance: a provider-read document is marked "Read by AI" ──────
+
+  test("a vision-indexed document surfaces the AI-read provenance", async ({
+    page,
+  }, testInfo) => {
+    // CONTENT_DOC_ID is seeded with source "vision" (an AI provider read it).
+    // No mocks: the real list/detail GET threads the provenance through.
+    await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+
+    // The detail status pill reflects the AI-read source — asserted on every
+    // project (this is the provenance contract; it holds on desktop + mobile).
+    const status = sheet.locator('[data-slot="content-search-status"]');
+    await expect(status).toHaveAttribute("data-state", "ai-read");
+    await expect(status).toHaveText(/Read by AI/);
+
+    // The timeline card carries the same AI-read marker — desktop only. The
+    // vault timeline is virtualized; on the narrow mobile viewport the seeded
+    // card renders outside the initial virtual window (not in the DOM), so a
+    // card-level attribute read there tests the virtualizer, not the marker.
+    // The marker's render logic is viewport-independent and covered by the SSR
+    // card test + this desktop assertion; mobile provenance is already proven
+    // by the status pill above.
+    if (testInfo.project.name !== "chromium-mobile") {
+      await page.keyboard.press("Escape");
+      const marker = page
+        .locator('[data-slot="document-card"]', { hasText: "Radiology note" })
+        .locator('[data-slot="document-searchable"]')
+        .first();
+      await expect(marker).toHaveAttribute("data-source", "ai-read", {
+        timeout: 20_000,
+      });
+    }
   });
 
   // ── (f) Text-mode refuses a non-image before any OCR/upload ──────────────

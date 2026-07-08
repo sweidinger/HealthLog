@@ -22,6 +22,9 @@ vi.mock("@/lib/db", () => ({
       deleteMany: vi.fn(),
       createMany: vi.fn(),
     },
+    documentContentIndex: {
+      findUnique: vi.fn(),
+    },
     illnessEpisode: {
       findMany: vi.fn(),
     },
@@ -131,6 +134,9 @@ beforeEach(() => {
   vi.mocked(prisma.documentConditionLink.createMany).mockResolvedValue({
     count: 0,
   } as never);
+  vi.mocked(prisma.documentContentIndex.findUnique).mockResolvedValue(
+    null as never,
+  );
 });
 
 describe("PATCH /api/documents/inbound/[id]", () => {

@@ -62,6 +62,10 @@ vi.mock("@/lib/modules/gate", () => ({
   requireModuleEnabled: vi.fn().mockResolvedValue({ enabled: true }),
 }));
 
+vi.mock("@/lib/jobs/document-index", () => ({
+  enqueueDocumentIndex: vi.fn().mockResolvedValue({ enqueued: true }),
+}));
+
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({
     allowed: true,
@@ -94,6 +98,7 @@ import { POST, GET } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { enqueueDocumentIndex } from "@/lib/jobs/document-index";
 
 const post = POST as unknown as (r: Request) => Promise<Response>;
 const get = GET as unknown as (r: Request) => Promise<Response>;
@@ -203,6 +208,9 @@ describe("POST /api/documents/inbound (vault upload)", () => {
     expect(stored.equals(PNG_BYTES)).toBe(false);
     // The create never round-trips the blob back out.
     expect(arg.omit).toEqual({ contentEncrypted: true });
+
+    // A fresh store auto-enqueues the per-document index job (owner + id).
+    expect(enqueueDocumentIndex).toHaveBeenCalledWith("user-1", "doc-1");
   });
 
   it("rejects an unidentifiable payload with 415 + reason unsupportedType", async () => {
@@ -264,6 +272,8 @@ describe("POST /api/documents/inbound (vault upload)", () => {
     expect(where.contentSha256).toBe(PNG_SHA256);
     expect(where.deletedAt).toBeNull();
     expect(txCreate).not.toHaveBeenCalled();
+    // A duplicate short-circuits before the store — no index job is enqueued.
+    expect(enqueueDocumentIndex).not.toHaveBeenCalled();
   });
 
   it("pre-links the caller's episodes and refuses a foreign episode id", async () => {

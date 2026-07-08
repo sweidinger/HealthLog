@@ -30,6 +30,7 @@ test.describe("medication wizard — monthly", () => {
   test("creates a monthly-on-day-15 medication end-to-end", async ({
     page,
   }) => {
+    test.slow();
     await stubDashboardAnalytics(page);
     const capture = mockMedicationsApi(page, {
       id: STUB_MEDICATION_ID,

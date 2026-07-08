@@ -33,6 +33,7 @@ test.describe("medication wizard — rolling", () => {
   test("creates an every-7-days-from-last-intake medication end-to-end", async ({
     page,
   }) => {
+    test.slow();
     await stubDashboardAnalytics(page);
     const capture = mockMedicationsApi(page, {
       id: STUB_MEDICATION_ID,

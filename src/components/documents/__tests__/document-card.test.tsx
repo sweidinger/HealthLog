@@ -32,6 +32,7 @@ function doc(overrides: Partial<InboundDocumentDto> = {}): InboundDocumentDto {
     conditionLinks: [{ episodeId: "ep-knee", name: "Knie" }],
     servingClass: "inline",
     hasContentIndex: false,
+    contentIndexSource: null,
     createdAt: "2025-10-05T08:00:00.000Z",
     updatedAt: "2025-10-05T08:00:00.000Z",
     ...overrides,
@@ -95,7 +96,23 @@ describe("<DocumentCard>", () => {
       />,
     );
     expect(html).toContain('data-slot="document-searchable"');
+    expect(html).toContain('data-source="local"');
     expect(html).toContain("Contents searchable");
+  });
+
+  it("marks an AI-read document with the highlighted read-by-AI badge", () => {
+    const html = render(
+      <DocumentCard
+        document={doc({ hasContentIndex: true, contentIndexSource: "vision" })}
+        selected={false}
+        onToggleSelected={noop}
+        onOpen={noop}
+        highlighted={false}
+      />,
+    );
+    expect(html).toContain('data-source="ai-read"');
+    expect(html).toContain("Read by AI");
+    expect(html).toContain("text-primary");
   });
 
   it("shows no searchable marker when the document is not indexed", () => {
