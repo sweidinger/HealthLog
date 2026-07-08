@@ -8173,9 +8173,6 @@
       "searchPlaceholder": "Szukaj po tytule lub nazwie pliku",
       "empty": "Nie znaleziono dokumentów."
     },
-    "ai": {
-      "egressNotice": "To wysyła treść dokumentu do skonfigurowanego dostawcy AI — opuszcza ona to urządzenie i trafia do zewnętrznej usługi AI. Jeśli ten dostawca to subskrypcja osobista, obowiązują jego własne ustawienia wykorzystania danych, w tym trenowanie modelu, o ile nie wyłączysz go tam."
-    },
     "assist": {
       "suggest": "Zaproponuj szczegóły",
       "suggesting": "Odczytywanie…",
@@ -8211,6 +8208,7 @@
       "close": "Ukryj"
     },
     "ai": {
+      "egressNotice": "To wysyła treść dokumentu do skonfigurowanego dostawcy AI — opuszcza ona to urządzenie i trafia do zewnętrznej usługi AI. Jeśli ten dostawca to subskrypcja osobista, obowiązują jego własne ustawienia wykorzystania danych, w tym trenowanie modelu, o ile nie wyłączysz go tam.",
       "blockTitle": "Odczytaj z AI",
       "available": "Pozwól AI odczytać ten dokument — zaproponować tytuł, typ i datę, streścić go lub udostępnić cały tekst do wyszukiwania.",
       "read": "Odczytaj z AI",

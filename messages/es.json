@@ -8173,9 +8173,6 @@
       "searchPlaceholder": "Buscar por título o nombre de archivo",
       "empty": "No se encontraron documentos."
     },
-    "ai": {
-      "egressNotice": "Esto envía el contenido del documento a tu proveedor de IA configurado — sale de esta máquina hacia un servicio de IA de terceros. Si ese proveedor es una suscripción personal, se aplican sus propios ajustes de uso de datos, incluido el entrenamiento del modelo salvo que lo hayas desactivado allí."
-    },
     "assist": {
       "suggest": "Sugerir detalles",
       "suggesting": "Leyendo…",
@@ -8211,6 +8208,7 @@
       "close": "Ocultar"
     },
     "ai": {
+      "egressNotice": "Esto envía el contenido del documento a tu proveedor de IA configurado — sale de esta máquina hacia un servicio de IA de terceros. Si ese proveedor es una suscripción personal, se aplican sus propios ajustes de uso de datos, incluido el entrenamiento del modelo salvo que lo hayas desactivado allí.",
       "blockTitle": "Leer con IA",
       "available": "Deja que la IA lea este documento: sugerir un título, tipo y fecha, resumirlo o hacer que todo su texto sea buscable.",
       "read": "Leer con IA",

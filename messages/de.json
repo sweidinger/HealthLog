@@ -8173,9 +8173,6 @@
       "searchPlaceholder": "Nach Titel oder Dateiname suchen",
       "empty": "Keine Dokumente gefunden."
     },
-    "ai": {
-      "egressNotice": "Dies sendet den Inhalt des Dokuments an deinen konfigurierten KI-Anbieter — es verlässt dieses Gerät zu einem KI-Dienst eines Drittanbieters. Ist der Anbieter ein persönliches Abonnement, gelten dessen eigene Datenschutz-Einstellungen, einschließlich Modelltraining, sofern du es dort nicht deaktiviert hast."
-    },
     "assist": {
       "suggest": "Details vorschlagen",
       "suggesting": "Wird gelesen…",
@@ -8211,6 +8208,7 @@
       "close": "Ausblenden"
     },
     "ai": {
+      "egressNotice": "Dies sendet den Inhalt des Dokuments an deinen konfigurierten KI-Anbieter — es verlässt dieses Gerät zu einem KI-Dienst eines Drittanbieters. Ist der Anbieter ein persönliches Abonnement, gelten dessen eigene Datenschutz-Einstellungen, einschließlich Modelltraining, sofern du es dort nicht deaktiviert hast.",
       "blockTitle": "Mit KI auslesen",
       "available": "Lass die KI dieses Dokument lesen — Titel, Art und Datum vorschlagen, zusammenfassen oder den ganzen Text durchsuchbar machen.",
       "read": "Mit KI auslesen",
