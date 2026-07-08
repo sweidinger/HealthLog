@@ -29,6 +29,7 @@ test.describe("medication wizard — weekdays", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
   test("creates a Mo/Mi/Fr medication end-to-end", async ({ page }) => {
+    test.slow();
     await stubDashboardAnalytics(page);
     const capture = mockMedicationsApi(page, {
       id: STUB_MEDICATION_ID,

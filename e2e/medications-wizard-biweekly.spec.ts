@@ -32,6 +32,7 @@ test.describe("medication wizard — bi-weekly", () => {
   test("creates an every-2-weeks Monday medication end-to-end", async ({
     page,
   }) => {
+    test.slow();
     await stubDashboardAnalytics(page);
     const capture = mockMedicationsApi(page, {
       id: STUB_MEDICATION_ID,

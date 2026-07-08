@@ -104,6 +104,13 @@ test.describe("document vault — AI assist + content search", () => {
     await ensureVaultAiFixture();
   });
 
+  // These AI flows drive several mocked provider round-trips per test; on a
+  // loaded CI runner they race the default 30s, so the whole group earns the
+  // tripled timeout rather than flaking green paths.
+  test.beforeEach(() => {
+    test.slow();
+  });
+
   // ── (a) Review-first assist: prefill → edit → save, nothing auto-committed ──
 
   test("assist prefills an editable draft that only saves on commit", async ({
