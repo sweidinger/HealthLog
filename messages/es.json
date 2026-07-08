@@ -7383,7 +7383,8 @@
       "pdfNeedsAnthropic": "El escaneo de PDF necesita un proveedor de visión de Claude; sube una foto en su lugar."
     },
     "loadMoreReadings": "Cargar más mediciones",
-    "documentsLink": "Documentos de resultados"
+    "documentsLink": "Documentos de resultados",
+    "notLinkedYet": "Aún no vinculado a un biomarcador"
   },
   "modules": {
     "cycle": {

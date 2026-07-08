@@ -7383,7 +7383,8 @@
       "pdfNeedsAnthropic": "Le scan PDF nécessite un fournisseur de vision Claude ; importez plutôt une photo."
     },
     "loadMoreReadings": "Charger plus de mesures",
-    "documentsLink": "Documents de résultats"
+    "documentsLink": "Documents de résultats",
+    "notLinkedYet": "Pas encore lié à un biomarqueur"
   },
   "modules": {
     "cycle": {

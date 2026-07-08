@@ -9,9 +9,17 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { FlaskConical, ListOrdered, Pencil, Plus } from "lucide-react";
+import {
+  ArrowRight,
+  FlaskConical,
+  FolderOpen,
+  ListOrdered,
+  Pencil,
+  Plus,
+} from "lucide-react";
 import { toast } from "sonner";
 
+import { useAuth } from "@/hooks/use-auth";
 import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -84,6 +92,7 @@ const READINGS_PAGE_SIZE = 200;
  * it. Mirrors the measurement-detail layout.
  */
 export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
+  const { user } = useAuth();
   const { t } = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -366,6 +375,22 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
           once above (catalog desc → user `context` → generic fallback) so a
           catalog-less marker still carries a description. */}
       <p className="text-foreground text-sm leading-relaxed">{description}</p>
+
+      {/* Bridge to the source report PDFs. There is no per-value document
+          relation in the data model yet, so this links to the vault filtered
+          to lab-result documents rather than the exact scan behind one value.
+          Only when the documents module is enabled. */}
+      {user?.modules?.inboundDocuments ? (
+        <Link
+          href="/documents?kind=LAB_RESULT"
+          data-slot="lab-biomarker-documents-link"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md text-sm transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
+        >
+          <FolderOpen className="size-4" aria-hidden="true" />
+          {t("labs.documentsLink")}
+          <ArrowRight className="size-3.5" aria-hidden="true" />
+        </Link>
+      ) : null}
 
       {isLoading ? (
         <Card>

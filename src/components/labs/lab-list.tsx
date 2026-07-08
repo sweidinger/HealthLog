@@ -230,11 +230,17 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                       <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
                     </Link>
                   ) : (
+                    // Un-linked group (not backfilled to a catalog biomarker):
+                    // render inert but say so, so it doesn't read as a broken
+                    // link next to its clickable neighbours.
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       {inner}
                       <LabTrendSparkline
                         values={group.readings.map((r) => r.value)}
                       />
+                      <span className="text-muted-foreground shrink-0 text-xs italic">
+                        {t("labs.notLinkedYet")}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -319,6 +325,14 @@ export function LabList({ onAddFirst }: { onAddFirst?: () => void } = {}) {
                     values={group.readings.map((r) => r.value)}
                   />
                 </div>
+                {/* Un-linked group: the header renders no link, so name the
+                    reason rather than leaving a card that silently does
+                    nothing on tap. */}
+                {!group.biomarkerId ? (
+                  <p className="text-muted-foreground text-xs italic">
+                    {t("labs.notLinkedYet")}
+                  </p>
+                ) : null}
               </CardContent>
             </Card>
           </li>

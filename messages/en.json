@@ -7383,7 +7383,8 @@
       "pdfNeedsAnthropic": "PDF scanning needs a Claude vision provider; upload a photo instead."
     },
     "loadMoreReadings": "Load more readings",
-    "documentsLink": "Lab report documents"
+    "documentsLink": "Lab report documents",
+    "notLinkedYet": "Not linked to a biomarker yet"
   },
   "modules": {
     "cycle": {

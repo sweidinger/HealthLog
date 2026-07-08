@@ -7383,7 +7383,8 @@
       "pdfNeedsAnthropic": "PDF-Scannen benötigt einen Claude-Bildanbieter; lade stattdessen ein Foto hoch."
     },
     "loadMoreReadings": "Weitere Werte laden",
-    "documentsLink": "Befund-Dokumente"
+    "documentsLink": "Befund-Dokumente",
+    "notLinkedYet": "Noch keinem Biomarker zugeordnet"
   },
   "modules": {
     "cycle": {

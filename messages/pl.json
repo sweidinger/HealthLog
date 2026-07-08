@@ -7383,7 +7383,8 @@
       "pdfNeedsAnthropic": "Skanowanie PDF wymaga dostawcy wizji Claude; prześlij zamiast tego zdjęcie."
     },
     "loadMoreReadings": "Wczytaj więcej pomiarów",
-    "documentsLink": "Dokumenty wyników badań"
+    "documentsLink": "Dokumenty wyników badań",
+    "notLinkedYet": "Jeszcze niepowiązane z biomarkerem"
   },
   "modules": {
     "cycle": {
