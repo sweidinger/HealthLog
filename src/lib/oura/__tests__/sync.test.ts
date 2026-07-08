@@ -338,7 +338,79 @@ describe("syncUserOura", () => {
         reason: "http_403",
       }),
     );
-    await expect(syncUserOura("u1")).rejects.toBeInstanceOf(OuraApiError);
+    // A 403 is a per-collection hard failure now (isolated, not a whole-batch
+    // reject): it records a partial failure and does NOT trigger a refresh.
+    await syncUserOura("u1");
     expect(refreshMock).not.toHaveBeenCalled();
+    expect(recordFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({ integration: "oura" }),
+    );
+    expect(recordSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("isolates one bad collection — siblings still import (F-SYNC-2)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    // Readiness endpoint is flaky (500), but sleep-score + spo2 return data.
+    fetchReadinessMock.mockRejectedValue(
+      new OuraApiError({
+        verb: "fetchReadiness",
+        classification: "transient",
+        httpStatus: 500,
+        reason: "http_500",
+      }),
+    );
+    fetchDailySleepMock.mockResolvedValue([
+      { id: "s", day: "2026-06-10", score: 80 },
+    ]);
+    fetchSpo2Mock.mockResolvedValue([
+      { id: "o", day: "2026-06-10", spo2_percentage: { average: 97 } },
+    ]);
+
+    const imported = await syncUserOura("u1");
+
+    // The healthy collections still wrote their rows — the source is not blanked.
+    expect(imported).toBe(2);
+    const written = upsertMock.mock.calls.map(
+      (c) => c[0].where.userId_type_source_externalId.type,
+    );
+    expect(written).toContain("SLEEP_SCORE");
+    expect(written).toContain("OXYGEN_SATURATION");
+    // The cycle is still marked failed (partial) so freshness stays honest.
+    expect(recordFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({ integration: "oura" }),
+    );
+    expect(recordSuccessMock).not.toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("isolates a throwing mapper — one malformed record does not blank siblings (F-SYNC-2)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    // A malformed readiness record whose mapper throws must not reject the
+    // whole batch (the old Promise.all failure mode).
+    fetchReadinessMock.mockReturnValue(
+      Promise.resolve([
+        new Proxy(
+          {},
+          {
+            get() {
+              throw new Error("malformed readiness point");
+            },
+          },
+        ),
+      ]),
+    );
+    fetchSpo2Mock.mockResolvedValue([
+      { id: "o", day: "2026-06-10", spo2_percentage: { average: 96 } },
+    ]);
+
+    const imported = await syncUserOura("u1");
+
+    expect(imported).toBe(1);
+    const written = upsertMock.mock.calls.map(
+      (c) => c[0].where.userId_type_source_externalId.type,
+    );
+    expect(written).toContain("OXYGEN_SATURATION");
+    expect(recordFailureMock).toHaveBeenCalled();
+    expect(recordSuccessMock).not.toHaveBeenCalled();
   });
 });

@@ -1627,7 +1627,11 @@ export function buildDoctorReportPdfDocument(
       t(`records.allergies.category.${al.category}`),
       t(`records.allergies.type.${al.type}`),
       al.severity ? t(`records.allergies.severity.${al.severity}`) : "—",
-      al.reaction ?? "—",
+      // A reaction that WAS recorded but could not be decrypted renders an
+      // honest marker, never a blank "—" that reads as "no reaction recorded".
+      al.reactionUnreadable
+        ? t("doctorReport.reactionUnreadable")
+        : (al.reaction ?? "—"),
       t(`records.allergies.status.${al.status}`),
     ]);
 

@@ -190,6 +190,56 @@ describe("syncUserFitbit — all-403 looks-healthy guard", () => {
   });
 });
 
+/** A resource sync that HARD-fails its collection (non-403) and, thanks to the
+ * ported ledger, records + returns 0 instead of rethrowing. */
+async function hardFail500(...args: unknown[]): Promise<number> {
+  return handleCollectionFetchError(
+    "test-resource",
+    String(args[0]),
+    new FitbitApiError({
+      verb: "fetchTest",
+      classification: "transient",
+      httpStatus: 500,
+      reason: "http_500",
+    }),
+  );
+}
+
+describe("syncUserFitbit — hard-fail ledger (F-SYNC-4)", () => {
+  it("a non-403 hard failure does NOT rethrow and keeps siblings running", async () => {
+    // Metrics hard-fails (500) but must not abort the cycle: the sibling
+    // resources still run, and the whole call resolves (no rethrow).
+    syncUserMetrics.mockImplementation(hardFail500);
+    syncUserActivity.mockResolvedValue(2);
+    syncUserSleep.mockResolvedValue(1);
+    syncUserWorkout.mockResolvedValue(0);
+
+    // Resolves (no rethrow) with the siblings' imports.
+    const total = await syncUserFitbit("user1");
+    expect(total).toBe(3);
+
+    // Every sibling resource still ran despite the metrics hard failure.
+    expect(syncUserActivity).toHaveBeenCalled();
+    expect(syncUserSleep).toHaveBeenCalled();
+    expect(syncUserWorkout).toHaveBeenCalled();
+  });
+
+  it("a hard-failed collection fails the cycle: no success stamp, no watermark", async () => {
+    syncUserMetrics.mockImplementation(hardFail500);
+    // Others import so the run is not degenerate — only the ledger keeps it honest.
+    syncUserActivity.mockResolvedValue(4);
+
+    await syncUserFitbit("user1");
+
+    // The ledger flips anyFailed → success is NOT stamped and the watermark is
+    // not advanced, so the next tick refetches the broken collection's window.
+    expect(recordSyncSuccess).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    // The hard failure was recorded on the status ledger.
+    expect(recordSyncFailure).toHaveBeenCalled();
+  });
+});
+
 describe("syncUserFitbit — single cycle-wide watermark", () => {
   it("snapshots the incremental start ONCE and threads the SAME watermark to every resource", async () => {
     syncUserMetrics.mockResolvedValue(1);

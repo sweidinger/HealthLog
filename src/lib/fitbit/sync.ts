@@ -228,11 +228,33 @@ interface RollupDeferTracker {
 const rollupDeferStorage = new AsyncLocalStorage<RollupDeferTracker>();
 
 /**
+ * Per-cycle ledger of collection fetches that HARD-failed (non-403). A hard
+ * failure on one endpoint must not abort its siblings — weight 500ing must not
+ * suppress body-fat / spo2 / hrv / rhr / respiratory in the same resource — so
+ * `handleCollectionFetchError` records the failure here and RETURNS instead of
+ * rethrowing (the old pattern that aborted every endpoint ordered after the bad
+ * one and stalled the watermark). The orchestrator reads the ledger to keep the
+ * cycle's verdict honest: any entry ⇒ the run counts as failed, so success is
+ * NOT stamped and the next tick refetches the window. Ported from Google
+ * Health's `hardFailStorage`.
+ */
+interface HardFailTracker {
+  failures: string[];
+}
+const hardFailStorage = new AsyncLocalStorage<HardFailTracker>();
+
+/**
  * Single-source the per-resource collection-fetch error handling. A 403 on one
- * data class soft-skips it (warn + return 0) so sibling resources still sync;
- * anything else records a classified sync failure and rethrows. A soft-skip
- * increments the ambient tracker so `syncUserFitbit` can refuse to stamp success
- * on an all-403 grant-revoke cycle that imported nothing.
+ * data class soft-skips it (warn + return 0) so sibling resources still sync; a
+ * soft-skip increments the ambient tracker so `syncUserFitbit` can refuse to
+ * stamp success on an all-403 grant-revoke cycle that imported nothing.
+ *
+ * Anything else records a classified sync failure, notes the collection on the
+ * ambient hard-fail ledger, and RETURNS 0 — it does NOT rethrow. Every call site
+ * sits in a per-collection catch, so returning lets the sibling endpoints in the
+ * same resource keep fetching (one 500 on weight must not kill body-fat / spo2 /
+ * hrv / rhr / respiratory), while the ledger still fails the cycle so the
+ * watermark is not stamped past the broken collection.
  */
 export async function handleCollectionFetchError(
   resource: string,
@@ -248,7 +270,10 @@ export async function handleCollectionFetchError(
     return 0;
   }
   await recordFitbitSyncFailure(userId, err);
-  throw err;
+  getEvent()?.addWarning(`fitbit ${resource} failed for ${userId}: ${err}`);
+  const hardTracker = hardFailStorage.getStore();
+  if (hardTracker) hardTracker.failures.push(resource);
+  return 0;
 }
 
 /**
@@ -640,22 +665,29 @@ export async function syncUserFitbit(
 
   const tracker: SoftSkipTracker = { count: 0 };
   const deferTracker: RollupDeferTracker = { keys: [] };
+  const hardFailTracker: HardFailTracker = { failures: [] };
   let total = 0;
   let anyFailed = false;
   await softSkipStorage.run(tracker, async () => {
-    await rollupDeferStorage.run(deferTracker, async () => {
-      for (const fn of resources) {
-        try {
-          total += await fn(userId, resourceOpts);
-        } catch (err) {
-          anyFailed = true;
-          getEvent()?.addWarning(
-            `fitbit ${fn.name} failed for ${userId}: ${err}`,
-          );
+    await hardFailStorage.run(hardFailTracker, async () => {
+      await rollupDeferStorage.run(deferTracker, async () => {
+        for (const fn of resources) {
+          try {
+            total += await fn(userId, resourceOpts);
+          } catch (err) {
+            anyFailed = true;
+            getEvent()?.addWarning(
+              `fitbit ${fn.name} failed for ${userId}: ${err}`,
+            );
+          }
         }
-      }
+      });
     });
   });
+  // A collection that hard-failed inside a resource (recorded on the ledger by
+  // `handleCollectionFetchError` without aborting its siblings) still fails the
+  // cycle: partial error, no watermark stamp.
+  if (hardFailTracker.failures.length > 0) anyFailed = true;
 
   // On a `fullSync` backfill the per-write inline rollup hook was deferred; the
   // accumulated touched type-days collapse into ONE range-recompute spanning the

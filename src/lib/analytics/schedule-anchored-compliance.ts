@@ -27,6 +27,7 @@ import {
   buildComplianceMedicationContext,
   expectedSlotCountForDay,
   lastNonSkippedTakenAt,
+  SCHEDULE_COMPLIANCE_SELECT,
 } from "@/lib/analytics/compliance";
 import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { userDayKey } from "@/lib/tz/resolver";
@@ -50,7 +51,9 @@ export async function buildScheduleAnchoredComplianceBuckets(
   const medications = await prisma.medication.findMany({
     where: { userId, active: true },
     include: {
-      schedules: true,
+      // v1.15.20 — the shared compliance select so a future engine column
+      // reaches this surface the moment it joins SCHEDULE_COMPLIANCE_SELECT.
+      schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
       // v1.16.3 — archived schedule eras for era-aware expected counts.
       scheduleRevisions: { orderBy: { validFrom: "asc" } },
       // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.

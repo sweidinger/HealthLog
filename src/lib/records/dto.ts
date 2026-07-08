@@ -8,6 +8,7 @@
  * never 500s the whole page) — the IllnessEpisode DTO precedent.
  */
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
+import { getEvent } from "@/lib/logging/context";
 import type { Allergy, FamilyHistoryEntry } from "@/generated/prisma/client";
 
 export interface AllergyDTO {
@@ -39,7 +40,14 @@ function decryptOptional(buf: Uint8Array | null): string | null {
   if (!buf || buf.byteLength === 0) return null;
   try {
     return decryptFromBytes(buf);
-  } catch {
+  } catch (err) {
+    // Undecryptable payload (key gap / corruption): fail soft to null but log
+    // it (F-CRYPTO-2) so a systemic key gap surfaces instead of reading blank.
+    getEvent()?.addWarning(
+      `records field decrypt failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return null;
   }
 }

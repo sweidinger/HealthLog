@@ -33,11 +33,13 @@ const sampleBriefing: DailyBriefingPayload = {
   keyFindings: [],
 };
 
-// `getHours()` reads from the local representation. Force a known
-// local hour by constructing from a local-time fields tuple.
-const morningLocal = new Date(2026, 4, 10, 9, 0, 0); // May 10, 09:00 local
-const afternoonLocal = new Date(2026, 4, 10, 14, 0, 0); // May 10, 14:00 local
-const eveningLocal = new Date(2026, 4, 10, 20, 0, 0); // May 10, 20:00 local
+// The greeting bucket is now computed in the user's configured zone
+// (the mocked `Europe/Berlin`), not the host's — so pin explicit UTC
+// instants and translate them to the intended Berlin wall-clock hour.
+// May 10 2026 is CEST (UTC+2), so Berlin = UTC + 2h.
+const morningLocal = new Date("2026-05-10T07:00:00Z"); // 09:00 Berlin
+const afternoonLocal = new Date("2026-05-10T12:00:00Z"); // 14:00 Berlin
+const eveningLocal = new Date("2026-05-10T18:00:00Z"); // 20:00 Berlin
 
 describe("<HeroStrip>", () => {
   it("renders the slot wrapper + Dracula gradient utility", () => {
@@ -178,9 +180,10 @@ describe("<HeroStrip>", () => {
   });
 
   it("uses the now override deterministically (smoke for greeting-bucket logic)", () => {
-    // Five different hours map to four different greeting buckets:
-    // 09:00 → morning, 14:00 → afternoon, 20:00 → evening, 02:00 → night.
-    const earlyMorning = new Date(2026, 4, 10, 2, 0, 0);
+    // Buckets are read in the mocked user's Berlin zone: 09:00 → morning,
+    // 14:00 → afternoon, 20:00 → evening, 02:00 → night. 00:00 UTC is
+    // 02:00 Berlin (CEST).
+    const earlyMorning = new Date("2026-05-10T00:00:00Z"); // 02:00 Berlin
     const html = render(<HeroStrip briefing={null} now={earlyMorning} />);
     // Night maps to "Good evening" in EN per the resolver mapping.
     expect(html).toContain("Good evening");
@@ -188,10 +191,22 @@ describe("<HeroStrip>", () => {
     expect(html).not.toContain("Good morning");
   });
 
-  it("uses the morning bucket at noon-1 (11:59 boundary)", () => {
-    const justBeforeNoon = new Date(2026, 4, 10, 11, 59, 0);
+  it("uses the morning bucket at noon-1 (11:59 Berlin boundary)", () => {
+    const justBeforeNoon = new Date("2026-05-10T09:59:00Z"); // 11:59 Berlin
     const html = render(<HeroStrip briefing={null} now={justBeforeNoon} />);
     expect(html).toContain("Good morning");
+  });
+
+  it("resolves the greeting hour in the user's stored zone, not the browser", () => {
+    // 11:30 UTC is still MORNING in UTC but 13:30 (AFTERNOON) in the mocked
+    // Berlin user's zone. The afternoon greeting proves the hour comes from
+    // the stored zone — the /insights hero used to read the browser clock.
+    const utcMorningBerlinAfternoon = new Date("2026-05-10T11:30:00Z");
+    const html = render(
+      <HeroStrip briefing={null} now={utcMorningBerlinAfternoon} />,
+    );
+    expect(html).toContain("Good afternoon");
+    expect(html).not.toContain("Good morning");
   });
 
   // ── B4 — Weekly-report banner card ─────────────────────────────────

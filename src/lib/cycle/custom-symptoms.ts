@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { encrypt, decrypt } from "@/lib/crypto";
+import { getEvent } from "@/lib/logging/context";
 
 import { CUSTOM_SYMPTOM_KEY_PREFIX } from "@/lib/cycle/custom-symptoms-shared";
 
@@ -52,7 +53,15 @@ export function decryptCustomLabel(encoded: string | null): string | null {
   if (!encoded) return null;
   try {
     return decrypt(encoded);
-  } catch {
+  } catch (err) {
+    // A custom label WAS stored but is undecryptable — fail soft (the caller
+    // falls back to the generic i18n label) but log it (F-CRYPTO-5) so the loss
+    // of a user-renamed symptom is not entirely silent.
+    getEvent()?.addWarning(
+      `cycle custom-label decrypt failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return null;
   }
 }

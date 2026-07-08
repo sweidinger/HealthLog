@@ -28,6 +28,7 @@ import type {
   MeasurementType,
 } from "@/generated/prisma/client";
 import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
+import { getEvent } from "@/lib/logging/context";
 import { readNote } from "@/lib/crypto/note-cipher";
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
@@ -47,6 +48,7 @@ import {
   buildComplianceMedicationContext,
   lastNonSkippedTakenAt,
   tallyComplianceFromLedger,
+  SCHEDULE_COMPLIANCE_SELECT,
   type ComplianceSchedule,
   type IntakeEvent,
   type MedicationPauseEraLike,
@@ -342,8 +344,15 @@ export interface DoctorReportData {
     severity: string | null;
     /** Status (ACTIVE / INACTIVE / RESOLVED). */
     status: string;
-    /** Decrypted reaction description, or null (unset or key gap). */
+    /** Decrypted reaction description, or null (genuinely unset). */
     reaction: string | null;
+    /**
+     * True when a reaction description WAS stored but could not be decrypted
+     * (a key-rotation gap / GCM corruption). Distinct from `reaction: null`
+     * (nothing recorded) so the clinician-facing report shows an honest
+     * "unreadable" marker rather than a blank that reads as "no reaction".
+     */
+    reactionUnreadable?: boolean;
   }> | null;
   /**
    * v1.27.x — structured family-history records. Reference data, not
@@ -765,6 +774,32 @@ export function buildLedgerCompliance(
 }
 
 /**
+ * Decrypt an allergy reaction envelope for a clinician-facing export, keeping
+ * "unreadable" distinct from "unset". A genuinely-empty envelope yields
+ * `{ reaction: null, reactionUnreadable: false }`; a stored-but-undecryptable
+ * one (key-rotation gap / GCM corruption) yields
+ * `{ reaction: null, reactionUnreadable: true }` so the report can render an
+ * honest marker instead of a blank that reads as "no reaction recorded". Pure
+ * (no logging) so it is unit-testable; the caller logs on the unreadable flag.
+ */
+export function decryptAllergyReaction(reactionEncrypted: Uint8Array | null): {
+  reaction: string | null;
+  reactionUnreadable: boolean;
+} {
+  if (!reactionEncrypted || reactionEncrypted.byteLength === 0) {
+    return { reaction: null, reactionUnreadable: false };
+  }
+  try {
+    return {
+      reaction: decryptFromBytes(reactionEncrypted),
+      reactionUnreadable: false,
+    };
+  } catch {
+    return { reaction: null, reactionUnreadable: true };
+  }
+}
+
+/**
  * Aggregate the doctor-report payload for a user over a `[start, end]` range.
  * Pure data assembly — no auth, no rate-limit, no audit. Idempotent.
  *
@@ -828,7 +863,10 @@ export async function collectDoctorReportData(
       prisma.medication.findMany({
         where: { userId, active: true },
         include: {
-          schedules: true,
+          // v1.15.20 — the shared compliance select (plus `label`, which the
+          // FHIR schedule mapping below needs) so a future engine column added
+          // to SCHEDULE_COMPLIANCE_SELECT reaches the doctor-report surface.
+          schedules: { select: { ...SCHEDULE_COMPLIANCE_SELECT, label: true } },
           // v1.17 W1a — archived schedule eras so the ledger compliance
           // builder segments expected-slot expansion against the schedule
           // that was live on each past day (matches the detail page).
@@ -1473,13 +1511,18 @@ export async function collectDoctorReportData(
       },
     });
     const mapped = rows.map((r) => {
-      let reaction: string | null = null;
-      if (r.reactionEncrypted && r.reactionEncrypted.byteLength > 0) {
-        try {
-          reaction = decryptFromBytes(r.reactionEncrypted);
-        } catch {
-          reaction = null;
-        }
+      const { reaction, reactionUnreadable } = decryptAllergyReaction(
+        r.reactionEncrypted,
+      );
+      if (reactionUnreadable) {
+        // A reaction WAS recorded but is undecryptable (key gap / GCM
+        // corruption). It is flagged (not silently blanked) so the PDF renders
+        // an honest "unreadable" marker; log the swallowed decrypt so a
+        // systemic key-config failure is visible rather than masquerading as
+        // "no reaction recorded" on a clinician-facing export.
+        getEvent()?.addWarning(
+          `doctor-report: allergy reaction decrypt failed for ${userId} (substance=${r.substance})`,
+        );
       }
       return {
         substance: r.substance,
@@ -1488,6 +1531,7 @@ export async function collectDoctorReportData(
         severity: r.severity,
         status: r.status,
         reaction,
+        reactionUnreadable,
       };
     });
     allergies = mapped.length > 0 ? mapped : null;

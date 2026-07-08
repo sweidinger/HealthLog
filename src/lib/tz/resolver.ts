@@ -48,6 +48,7 @@ export {
   detectBrowserTimezone,
   formatInUserTz,
   userDayKey,
+  hourInTz,
   type FormatInUserTzShape,
 } from "./format";
 

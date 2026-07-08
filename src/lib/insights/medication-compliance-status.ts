@@ -297,12 +297,13 @@ export async function prepareMedicationComplianceStatusForUser(
     // calendar day as fully dose-due — which made a weekly-cadence med's
     // per-day series contradict its own compliance30. Reusing the canonical
     // ledger fixes that by construction.
-    const perDayRecords = dailyComplianceRatesFromLedger(bundle.ledgerRows).map(
-      (day) => ({
-        measuredAt: day.date,
-        value: round(day.rate, 1),
-      }),
-    );
+    const perDayRecords = dailyComplianceRatesFromLedger(
+      bundle.ledgerRows,
+      userTz,
+    ).map((day) => ({
+      measuredAt: day.date,
+      value: round(day.rate, 1),
+    }));
 
     // `applyPayloadBudget` gives the latest-day focus; the compact
     // graded series is what reaches the prompt.

@@ -1367,6 +1367,28 @@ describe("classifyIntakeTiming", () => {
       "very_late",
     );
   });
+
+  it("interprets the window HH:mm in the supplied tz (non-UTC user)", () => {
+    // America/Los_Angeles is UTC-7 in summer. An "08:00" slot means 08:00
+    // LOCAL = 15:00 UTC on 2026-06-15; a dose taken 15 min into the window
+    // is 15:15 UTC. The slot's canonical instant is the anchor date.
+    const slotInstant = new Date("2026-06-15T15:00:00Z"); // 08:00 LA
+    const takenAt = new Date("2026-06-15T15:15:00Z"); // 08:15 LA
+
+    // With the user's zone the dose is on time.
+    expect(
+      classifyIntakeTiming(takenAt, "08:00", "09:00", slotInstant, {
+        tz: "America/Los_Angeles",
+      }),
+    ).toBe("on_time");
+
+    // Without a tz the window HH:mm is read as UTC (08:00 UTC), so the very
+    // same on-time dose reads as 7h15m off — very_late. This is the defect
+    // the achievements perfect-day check hit for users far from UTC.
+    expect(classifyIntakeTiming(takenAt, "08:00", "09:00", slotInstant)).toBe(
+      "very_late",
+    );
+  });
 });
 
 // v1.8.5 — the cadence-density rule + the per-dose uptime strip.

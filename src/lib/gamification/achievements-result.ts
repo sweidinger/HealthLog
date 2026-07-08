@@ -40,6 +40,7 @@ import {
   classifyPulse,
 } from "@/lib/analytics/classifications";
 import { classifyIntakeTiming } from "@/lib/analytics/compliance";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 
 export type AuthedUser = Awaited<ReturnType<typeof requireAuth>>["user"];
 
@@ -270,6 +271,7 @@ function getHealthGreenDaySeries(
 function getOnTimePerfectDaySeries(
   intakeEvents: IntakeEventRecord[],
   schedulesByMedicationId: Map<string, MedicationScheduleRecord[]>,
+  tz: string,
 ) {
   const eventsByDay = new Map<string, IntakeEventRecord[]>();
 
@@ -285,7 +287,6 @@ function getOnTimePerfectDaySeries(
   for (const [dayKey, events] of eventsByDay.entries()) {
     if (events.length === 0) continue;
 
-    const scheduledDate = dayKeyToDate(dayKey);
     let isPerfectDay = true;
 
     for (const event of events) {
@@ -299,9 +300,11 @@ function getOnTimePerfectDaySeries(
         continue;
       }
 
-      const eventMinutes =
-        event.scheduledFor.getUTCHours() * 60 +
-        event.scheduledFor.getUTCMinutes();
+      // The scheduled minute-of-day must be read in the user's zone: the raw
+      // `getUTCHours()` would push a non-UTC user's on-time dose past the 3h
+      // grace and misread a genuinely-perfect day as imperfect.
+      const scheduledWall = wallClockInTz(event.scheduledFor, tz);
+      const eventMinutes = scheduledWall.hour * 60 + scheduledWall.minute;
 
       let bestSchedule = schedules[0];
       let bestDistance = Infinity;
@@ -316,11 +319,15 @@ function getOnTimePerfectDaySeries(
         }
       }
 
+      // Classify punctuality against the slot's real local day: pass the
+      // canonical instant as the anchor and the user's zone so the window
+      // `HH:mm` resolves to the correct local wall time, not 08:00 UTC.
       const timing = classifyIntakeTiming(
         event.takenAt,
         bestSchedule.windowStart,
         bestSchedule.windowEnd,
-        scheduledDate,
+        event.scheduledFor,
+        { tz },
       );
 
       // v1.4.34 IW-C — `early` is also a compliant bucket (dose taken
@@ -722,6 +729,7 @@ export async function buildAchievementsResult(
   const onTimeSeries = getOnTimePerfectDaySeries(
     intakeEvents,
     schedulesByMedicationId,
+    user.timezone,
   );
   const complianceSeries = getCompliance80DaySeries(
     intakeEvents,

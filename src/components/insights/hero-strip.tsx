@@ -7,6 +7,7 @@ import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { useAuth } from "@/hooks/use-auth";
 import { useModuleEnabled } from "@/hooks/use-module-enabled";
+import { hourInTz, DEFAULT_TIMEZONE } from "@/lib/tz/format";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { cn } from "@/lib/utils";
 import {
@@ -138,8 +139,7 @@ interface HeroStripProps {
  *                        rare to see /insights at 03:00 and "Guten
  *                        Morgen" pre-5am reads odd)
  */
-function resolveGreetingKey(now: Date): string {
-  const hour = now.getHours();
+function resolveGreetingKey(hour: number): string {
   if (hour >= 5 && hour < 12) return "insights.heroGreetingMorning";
   if (hour >= 12 && hour < 18) return "insights.heroGreetingAfternoon";
   // 18:00-22:59 maps to "Good evening"; 23:00-04:59 also maps to
@@ -221,7 +221,14 @@ export function HeroStrip({
   // pillar from the number itself). SSR-safe + default-on, matching the
   // disabled-allowlist gate.
   const moodEnabled = useModuleEnabled("mood");
-  const greetingKey = resolveGreetingKey(now ?? new Date());
+  // Greeting hour in the user's configured zone, not the browser's — a
+  // traveller / VPN user / wrong device clock otherwise sees the wrong
+  // salutation. Mirrors the dashboard hero (`hourInTimezone(now, userTz)`).
+  const greetingHour = hourInTz(
+    now ?? new Date(),
+    user?.timezone ?? DEFAULT_TIMEZONE,
+  );
+  const greetingKey = resolveGreetingKey(greetingHour);
   const greetingBase = t(greetingKey);
   const greeting = userName ? `${greetingBase}, ${userName}` : greetingBase;
   const subtitle = briefing?.paragraph ?? t("insights.heroFallbackSubtitle");

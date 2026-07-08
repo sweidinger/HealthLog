@@ -49,16 +49,19 @@ describe("<OfflineBanner>", () => {
   });
 
   it("ships the EN copy for `offlineBanner.message`", () => {
+    // F-OFF-1 — the copy must not over-promise auto-save: offline mutations now
+    // fail fast (networkMode "always") rather than queue, so the banner states
+    // the honest thing.
     const en = loadMessages("en");
     expect(en.offlineBanner.message).toBe(
-      "No connection — your changes will save once you're back online.",
+      "No connection — changes can't be saved until you're back online.",
     );
   });
 
   it("ships the DE copy for `offlineBanner.message`", () => {
     const de = loadMessages("de");
     expect(de.offlineBanner.message).toBe(
-      "Keine Verbindung — Änderungen werden gespeichert, sobald du wieder online bist.",
+      "Keine Verbindung — Änderungen können erst gespeichert werden, wenn du wieder online bist.",
     );
   });
 
