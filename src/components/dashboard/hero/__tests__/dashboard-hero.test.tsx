@@ -386,10 +386,13 @@ describe("<DashboardHero> — ring row (v1.27.7)", () => {
     );
     const row = html.match(/data-slot="dashboard-hero-rings"/g) ?? [];
     expect(row).toHaveLength(1);
-    // Selection order preserved, health ring trailing (3 rings total).
+    // v1.27.27 — default order leads with the health-score ring, then the
+    // selected rings in selection order (3 rings total).
+    const healthIdx = html.indexOf('href="/insights"');
     const readinessIdx = html.indexOf('data-ring="READINESS"');
     const complianceIdx = html.indexOf('data-ring="MED_COMPLIANCE"');
-    expect(readinessIdx).toBeGreaterThan(-1);
+    expect(healthIdx).toBeGreaterThan(-1);
+    expect(readinessIdx).toBeGreaterThan(healthIdx);
     expect(complianceIdx).toBeGreaterThan(readinessIdx);
     const rings = html.match(/data-slot="score-ring"/g) ?? [];
     expect(rings).toHaveLength(3);
@@ -559,6 +562,90 @@ describe("<DashboardHero> — ring links (v1.27.24)", () => {
     // Every ring link is keyboard-focusable (native anchor) — one per slide.
     const links = html.match(/data-slot="dashboard-hero-ring-link"/g) ?? [];
     expect(links).toHaveLength(4);
+  });
+});
+
+describe("<DashboardHero> — ring order (v1.27.27)", () => {
+  const threeRings = {
+    healthScore: { score: 82, band: "green" as const, delta: 2 },
+    scoreRings: [
+      { id: "READINESS" as const, score: 71, band: "green" as const },
+      { id: "SLEEP_SCORE" as const, score: 66, band: "yellow" as const },
+      {
+        id: "MED_COMPLIANCE" as const,
+        score: 33,
+        band: "yellow" as const,
+        doses: { taken: 1, scheduled: 3 },
+      },
+    ],
+  };
+
+  it("default (no persisted order) leads with the health-score ring", () => {
+    const html = render(baseSnapshot(threeRings));
+    // The health-score slide (its /insights link) precedes every score ring.
+    const healthIdx = html.indexOf('href="/insights"');
+    const readinessIdx = html.indexOf('data-ring="READINESS"');
+    const sleepIdx = html.indexOf('data-ring="SLEEP_SCORE"');
+    const medIdx = html.indexOf('data-ring="MED_COMPLIANCE"');
+    expect(healthIdx).toBeGreaterThan(-1);
+    expect(readinessIdx).toBeGreaterThan(healthIdx);
+    expect(sleepIdx).toBeGreaterThan(readinessIdx);
+    expect(medIdx).toBeGreaterThan(sleepIdx);
+    // First carousel dot is current (slide 0 = health score).
+    const firstDot = html.match(
+      /<button[^>]*data-slot="dashboard-hero-ring-dot"[^>]*>/,
+    );
+    expect(firstDot![0]).toContain('aria-current="true"');
+  });
+
+  it("honours a persisted custom order (health score moved off the leading edge)", () => {
+    const html = render(
+      baseSnapshot({
+        ...threeRings,
+        layout: {
+          version: 1,
+          widgets: [],
+          heroRingOrder: ["READINESS", "MED_COMPLIANCE", "HEALTH_SCORE"],
+          selectedScoreRings: ["READINESS", "SLEEP_SCORE", "MED_COMPLIANCE"],
+        },
+      }),
+    );
+    const readinessIdx = html.indexOf('data-ring="READINESS"');
+    const medIdx = html.indexOf('data-ring="MED_COMPLIANCE"');
+    const healthIdx = html.indexOf('href="/insights"');
+    // READINESS first, MED_COMPLIANCE second, health score last.
+    expect(readinessIdx).toBeGreaterThan(-1);
+    expect(medIdx).toBeGreaterThan(readinessIdx);
+    expect(healthIdx).toBeGreaterThan(medIdx);
+    // A rendered ring the order omits (SLEEP_SCORE) is still drawn (appended).
+    expect(html).toContain('data-ring="SLEEP_SCORE"');
+    // Every slide still renders exactly once.
+    expect(html.match(/data-carousel-slide=""/g)).toHaveLength(4);
+  });
+
+  it("drops an ordered id whose ring isn't rendered (no data / disabled)", () => {
+    // The persisted order names RECOVERY_SCORE, but the snapshot resolved
+    // no such ring — it must not leave a gap or a phantom slide.
+    const html = render(
+      baseSnapshot({
+        healthScore: { score: 60, band: "yellow", delta: 0 },
+        scoreRings: [{ id: "READINESS", score: 71, band: "green" }],
+        layout: {
+          version: 1,
+          widgets: [],
+          heroRingOrder: ["RECOVERY_SCORE", "HEALTH_SCORE", "READINESS"],
+          selectedScoreRings: ["READINESS"],
+        },
+      }),
+    );
+    // Only the two rendered rings appear (health + readiness), in the
+    // surviving order: health score then readiness.
+    expect(html.match(/data-carousel-slide=""/g)).toHaveLength(2);
+    expect(html).not.toContain('data-ring="RECOVERY_SCORE"');
+    const healthIdx = html.indexOf('href="/insights"');
+    const readinessIdx = html.indexOf('data-ring="READINESS"');
+    expect(healthIdx).toBeGreaterThan(-1);
+    expect(readinessIdx).toBeGreaterThan(healthIdx);
   });
 });
 

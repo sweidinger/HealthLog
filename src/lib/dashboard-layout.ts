@@ -365,6 +365,87 @@ export const MAX_SELECTED_SCORE_RINGS = 3;
 export const DEFAULT_SELECTED_SCORE_RINGS: ScoreRingId[] = ["MED_COMPLIANCE"];
 
 /**
+ * v1.27.27 — hero ring ORDER. The health-score ring is a first-class,
+ * always-present member of the hero ring row that the user can position
+ * anywhere in the sequence (it has no on/off toggle — it is the anchor
+ * ring). `HERO_RING_IDS` is the health-score id plus the selectable score
+ * rings; `HeroRingId` is the union the persisted order carries.
+ */
+export const HEALTH_SCORE_RING_ID = "HEALTH_SCORE" as const;
+export const HERO_RING_IDS = [HEALTH_SCORE_RING_ID, ...SCORE_RING_IDS] as const;
+export type HeroRingId = (typeof HERO_RING_IDS)[number];
+
+/** The order carries the health-score ring plus up to three score rings. */
+export const MAX_HERO_RING_ORDER = MAX_SELECTED_SCORE_RINGS + 1;
+
+/**
+ * Default hero ring order: the health-score ring leads, then the default
+ * selected score rings in their default order. The maintainer's contract —
+ * "always start with the health score by default, but let the user
+ * reorder" — lives here: a user who never opens the picker gets the
+ * health-score ring on the leading edge.
+ */
+export const DEFAULT_HERO_RING_ORDER: HeroRingId[] = [
+  HEALTH_SCORE_RING_ID,
+  ...DEFAULT_SELECTED_SCORE_RINGS,
+];
+
+function isHeroRingId(value: unknown): value is HeroRingId {
+  return (
+    typeof value === "string" &&
+    (HERO_RING_IDS as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Reconcile the persisted hero ring order against the CURRENT available
+ * ring set (the always-present health-score ring plus the passed selected
+ * score rings). The order is the single source of truth for how the hero
+ * sequences its rings:
+ *
+ *   - a missing / malformed order → the default: health score first, then
+ *     the selected rings in selection order (the maintainer's contract);
+ *   - a stored order is filtered to the available set — deselected /
+ *     unknown ids drop, duplicates collapse;
+ *   - any available ring the stored order didn't place (a newly-selected
+ *     ring, or the health-score ring a corrupt order somehow omits) is
+ *     appended so a ring never silently vanishes.
+ *
+ * Passing the RESOLVED score rings (what actually renders) lets the hero
+ * order only the rings it draws; passing the SELECTED score rings lets the
+ * Settings picker and the layout resolver share the identical reconciler.
+ */
+export function resolveHeroRingOrder(
+  rawOrder: unknown,
+  selected: ScoreRingId[],
+): HeroRingId[] {
+  const available: HeroRingId[] = [HEALTH_SCORE_RING_ID, ...selected];
+  if (!Array.isArray(rawOrder)) {
+    // Default — health score leads, selected rings follow in order.
+    return available;
+  }
+  const availableSet = new Set<HeroRingId>(available);
+  const seen = new Set<HeroRingId>();
+  const out: HeroRingId[] = [];
+  for (const entry of rawOrder) {
+    if (!isHeroRingId(entry)) continue;
+    if (!availableSet.has(entry)) continue;
+    if (seen.has(entry)) continue;
+    out.push(entry);
+    seen.add(entry);
+  }
+  // Append available rings the stored order didn't place (new ring, or a
+  // health-score ring a corrupt order lacks), preserving `available` order.
+  for (const id of available) {
+    if (!seen.has(id)) {
+      out.push(id);
+      seen.add(id);
+    }
+  }
+  return out;
+}
+
+/**
  * Ring id → owning toggleable module. Mirrors the derived routes'
  * `DERIVED_MODULE` map for the three derived rings (READINESS rides the
  * recovery module like the recovery/strain/stress trio); MED_COMPLIANCE
@@ -428,6 +509,14 @@ export interface DashboardLayout {
    * `SCORE_RING_IDS`; the resolver clamps/dedupes/drops-unknown.
    */
   selectedScoreRings?: ScoreRingId[];
+  /**
+   * v1.27.27 — hero ring display ORDER over the health-score ring plus the
+   * selected score rings. The single source of truth for the hero ring
+   * sequence; defaults to health-score first (see `resolveHeroRingOrder` +
+   * `DEFAULT_HERO_RING_ORDER`). The resolver reconciles it against the
+   * selected set on every read.
+   */
+  heroRingOrder?: HeroRingId[];
 }
 
 const DASHBOARD_LAYOUT_VERSION = 1;
@@ -445,6 +534,9 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
   // One medication-adherence ring next to the health score by default —
   // the successor of the hero dose row's information role.
   selectedScoreRings: [...DEFAULT_SELECTED_SCORE_RINGS],
+  // v1.27.27 — the health-score ring leads the row by default; the user
+  // can reorder (see `resolveHeroRingOrder`).
+  heroRingOrder: [...DEFAULT_HERO_RING_ORDER],
   widgets: [
     { id: "weight", visible: true, tileVisible: true, order: 0 },
     { id: "bp", visible: true, tileVisible: true, order: 1 },
@@ -568,6 +660,12 @@ export function resolveDashboardLayout(raw: unknown): DashboardLayout {
     tileVisible: typeof w.tileVisible === "boolean" ? w.tileVisible : w.visible,
   }));
 
+  // Resolve the selected score rings once — the hero-ring-order reconciler
+  // below keys off the same resolved set the layout persists.
+  const resolvedSelectedScoreRings = coerceSelectedScoreRings(
+    candidate.selectedScoreRings,
+  );
+
   return {
     version: DASHBOARD_LAYOUT_VERSION,
     widgets: [...normalized, ...appended].sort((a, b) => a.order - b.order),
@@ -589,13 +687,23 @@ export function resolveDashboardLayout(raw: unknown): DashboardLayout {
     // v1.27.7 — hero score rings: unknown ids drop, duplicates collapse,
     // the list clamps to three. A legacy blob without the field gets the
     // default single MED_COMPLIANCE ring.
-    selectedScoreRings: coerceSelectedScoreRings(candidate.selectedScoreRings),
+    selectedScoreRings: resolvedSelectedScoreRings,
+    // v1.27.27 — hero ring order, reconciled against the resolved selected
+    // set. A legacy blob without the field gets the default (health-score
+    // first, then the selected rings in order).
+    heroRingOrder: resolveHeroRingOrder(
+      candidate.heroRingOrder,
+      resolvedSelectedScoreRings,
+    ),
   };
 }
 
 export function serializeDashboardLayout(
   layout: DashboardLayout,
 ): DashboardLayout {
+  const resolvedSelectedScoreRings = coerceSelectedScoreRings(
+    layout.selectedScoreRings,
+  );
   return {
     version: DASHBOARD_LAYOUT_VERSION,
     widgets: layout.widgets
@@ -622,6 +730,13 @@ export function serializeDashboardLayout(
     heroVisible: layout.heroVisible === true,
     // v1.27.7 — persist the score-ring selection through the same
     // coercion the resolver runs so the wire shape is stable.
-    selectedScoreRings: coerceSelectedScoreRings(layout.selectedScoreRings),
+    selectedScoreRings: resolvedSelectedScoreRings,
+    // v1.27.27 — persist the hero ring order, reconciled against the
+    // resolved selected set (same reconciler as the resolver) so the wire
+    // shape is stable and a deselected ring can't linger in the order.
+    heroRingOrder: resolveHeroRingOrder(
+      layout.heroRingOrder,
+      resolvedSelectedScoreRings,
+    ),
   };
 }

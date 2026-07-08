@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.27.27] — 2026-07-08 — Reorderable hero rings
+
+### Changed
+
+- The dashboard hero rings now lead with the health score by default, and the order is yours to set: drag (or use the up/down arrows) to reorder the rings in Settings → Appearance, and the order persists across the mobile carousel and the desktop row. The health score is pinned as the anchor ring — it can be repositioned but not removed.
+
 ## [1.27.26] — 2026-07-08 — Hero and wellbeing card polish
 
 ### Changed

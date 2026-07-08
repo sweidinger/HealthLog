@@ -455,8 +455,10 @@ describe("<DashboardLayoutSection> — hero score-ring picker (v1.27.7)", () => 
     queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     expect(html).toContain('data-slot="score-rings-picker"');
+    // v1.27.27 — one switch per score ring (4) plus the always-present
+    // health-score anchor row = 5.
     const switches = html.match(/data-slot="score-ring-switch"/g) ?? [];
-    expect(switches).toHaveLength(4);
+    expect(switches).toHaveLength(5);
     // The default selection (MED_COMPLIANCE) reads checked.
     const compliance = html.match(
       /<button[^>]*data-slot="score-ring-switch"[^>]*data-ring="MED_COMPLIANCE"[^>]*>/,
@@ -465,23 +467,25 @@ describe("<DashboardLayoutSection> — hero score-ring picker (v1.27.7)", () => 
     expect(compliance![0]).toContain('data-state="checked"');
   });
 
-  it("hides rings whose owning module is disabled", () => {
+  it("hides rings whose owning module is disabled (anchor stays)", () => {
     queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
     authState.modules = { recovery: false, sleep: false };
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     const switches = html.match(/data-slot="score-ring-switch"/g) ?? [];
     // READINESS + RECOVERY_SCORE (recovery) and SLEEP_SCORE (sleep) are
-    // gone; only the adherence ring remains offered.
-    expect(switches).toHaveLength(1);
+    // gone; the adherence ring plus the health-score anchor remain = 2.
+    expect(switches).toHaveLength(2);
     expect(html).toContain('data-ring="MED_COMPLIANCE"');
+    expect(html).toContain('data-ring="HEALTH_SCORE"');
   });
 
-  it("hides the derived rings when the insights module is off", () => {
+  it("hides the derived rings when the insights module is off (anchor stays)", () => {
     queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
     authState.modules = { insights: false };
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     const switches = html.match(/data-slot="score-ring-switch"/g) ?? [];
-    expect(switches).toHaveLength(1);
+    // Adherence ring + health-score anchor.
+    expect(switches).toHaveLength(2);
     expect(html).toContain('data-ring="MED_COMPLIANCE"');
   });
 
@@ -505,5 +509,91 @@ describe("<DashboardLayoutSection> — hero score-ring picker (v1.27.7)", () => 
     );
     expect(readiness).not.toBeNull();
     expect(readiness![0]).not.toContain('disabled=""');
+  });
+});
+
+/**
+ * v1.27.27 — the health-score ring is a first-class, always-present,
+ * reorderable member of the hero ring row. The picker renders it as a
+ * pinned row (no on/off toggle — a disabled, checked switch) that leads by
+ * default and reorders with the same drag-handle + arrow-button pair as the
+ * score rings and the widget list.
+ */
+describe("<DashboardLayoutSection> — health-score anchor + reorder (v1.27.27)", () => {
+  it("renders the health-score anchor as a reorderable row, leading by default", () => {
+    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    // A sortable ring row exists for the health-score anchor.
+    expect(html).toContain('data-slot="score-ring-row"');
+    const anchorRow = html.match(
+      /<div[^>]*data-slot="score-ring-row"[^>]*data-ring="HEALTH_SCORE"[^>]*>/,
+    );
+    expect(anchorRow).not.toBeNull();
+    // Default order leads with the anchor: its row precedes the adherence
+    // ring's row.
+    const anchorIdx = html.indexOf('data-ring="HEALTH_SCORE"');
+    const medIdx = html.indexOf(
+      'data-slot="score-ring-row" data-ring="MED_COMPLIANCE"',
+    );
+    expect(anchorIdx).toBeGreaterThan(-1);
+    // The anchor row appears before any selected score-ring row.
+    expect(anchorIdx).toBeLessThan(html.indexOf('data-ring="MED_COMPLIANCE"'));
+    expect(medIdx === -1 || anchorIdx < medIdx).toBe(true);
+  });
+
+  it("the anchor switch is checked and disabled (locked-on, no toggle-off)", () => {
+    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    const anchorSwitch = html.match(
+      /<button[^>]*data-slot="score-ring-switch"[^>]*data-ring="HEALTH_SCORE"[^>]*>/,
+    );
+    expect(anchorSwitch).not.toBeNull();
+    expect(anchorSwitch![0]).toContain('data-state="checked"');
+    expect(anchorSwitch![0]).toContain('disabled=""');
+  });
+
+  it("the anchor carries a drag handle + move arrows (reorderable)", () => {
+    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    // The health-score row is a full sortable row: its drag handle exists.
+    const handles = html.match(/data-slot="score-ring-drag-handle"/g) ?? [];
+    // One handle per hero-order row = anchor + default MED_COMPLIANCE = 2.
+    expect(handles.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("honours a persisted order that moves the anchor off the lead", () => {
+    queryState.layout = {
+      ...DEFAULT_DASHBOARD_LAYOUT,
+      heroVisible: true,
+      selectedScoreRings: ["READINESS", "MED_COMPLIANCE"],
+      heroRingOrder: ["READINESS", "HEALTH_SCORE", "MED_COMPLIANCE"],
+    };
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    const readinessRow = html.indexOf(
+      'data-slot="score-ring-row" data-ring="READINESS"',
+    );
+    const anchorRow = html.indexOf(
+      'data-slot="score-ring-row" data-ring="HEALTH_SCORE"',
+    );
+    const medRow = html.indexOf(
+      'data-slot="score-ring-row" data-ring="MED_COMPLIANCE"',
+    );
+    expect(readinessRow).toBeGreaterThan(-1);
+    expect(anchorRow).toBeGreaterThan(readinessRow);
+    expect(medRow).toBeGreaterThan(anchorRow);
+  });
+
+  it("the ring mutation PUTs both selectedScoreRings and heroRingOrder (source pin)", () => {
+    const src = readFileSync(
+      join(
+        process.cwd(),
+        "src/components/settings/dashboard-layout-section.tsx",
+      ),
+      "utf8",
+    );
+    expect(src).toContain("selectedScoreRings: next.selectedScoreRings");
+    expect(src).toContain("heroRingOrder: next.heroRingOrder");
+    // The order is the single source of truth: selection is derived from it.
+    expect(src).toMatch(/id !== HEALTH_SCORE_RING_ID/);
   });
 });

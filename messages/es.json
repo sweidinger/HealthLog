@@ -402,7 +402,7 @@
     "heroToggleLabel": "Resumen del día",
     "heroToggleDescription": "Muestra el saludo, el foco del día y los anillos de puntuación en la parte superior del panel.",
     "scoreRingsTitle": "Anillos de puntuación",
-    "scoreRingsDescription": "Hasta tres anillos adicionales junto a la puntuación de salud, por ejemplo preparación, recuperación, sueño o cumplimiento.",
+    "scoreRingsDescription": "Hasta tres anillos adicionales junto a la puntuación de salud, por ejemplo preparación, recuperación, sueño o cumplimiento. Arrastra para reordenar; la puntuación de salud va primero de forma predeterminada.",
     "layoutReset": "Restablecer valores por defecto",
     "layoutSaveSuccess": "Diseño del panel guardado",
     "layoutSaveError": "No se ha podido guardar el diseño",
