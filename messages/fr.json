@@ -5494,6 +5494,7 @@
     "appSettingsDescription": "Valeurs globales par défaut pour l’inscription, la langue et le fuseau horaire des nouveaux comptes.",
     "registrationEnabled": "Autoriser l'inscription",
     "registrationEnabledDescription": "Lorsque cette option est désactivée, les nouveaux utilisateurs ne peuvent pas s'inscrire.",
+    "registrationOpenHint": "L'inscription est ouverte : toute personne pouvant accéder à cette instance peut créer un compte. Fermez-la ici une fois que tout le monde a un compte.",
     "defaultLanguage": "Langue par défaut",
     "defaultLanguageDescription": "Utilisé pour les nouveaux utilisateurs et comme solution de repli.",
     "defaultUserTimezone": "Fuseau horaire par défaut pour les nouveaux comptes",

@@ -5494,6 +5494,7 @@
     "appSettingsDescription": "Globalne ustawienia domyślne rejestracji, języka i strefy czasowej nowych kont.",
     "registrationEnabled": "Zezwól na rejestrację",
     "registrationEnabledDescription": "Gdy wyłączone, nowi użytkownicy nie mogą się zarejestrować.",
+    "registrationOpenHint": "Rejestracja jest otwarta — każdy, kto ma dostęp do tej instancji, może założyć konto. Zamknij ją tutaj, gdy wszyscy będą mieć konto.",
     "defaultLanguage": "Domyślny język",
     "defaultLanguageDescription": "Używany dla nowych użytkowników i jako rozwiązanie zapasowe.",
     "defaultUserTimezone": "Domyślna strefa czasowa dla nowych kont",

@@ -101,8 +101,8 @@ After the first user lands, you can:
 > host that means strangers can still sign up. Once everyone who needs
 > an account has one, turn it off in **`/admin` → registration toggle**
 > (or keep it open and hand out invite links instead). The admin
-> dashboard shows a reminder while registration is open and you are the
-> only user.
+> settings show a reminder underneath the toggle while registration is
+> open.
 
 > **No email is configured out of the box** — a deliberate first-boot
 > simplicity win, but it also means password reset has no self-service

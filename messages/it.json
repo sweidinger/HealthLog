@@ -5494,6 +5494,7 @@
     "appSettingsDescription": "Impostazioni globali predefinite per registrazione, lingua e fuso orario dei nuovi account.",
     "registrationEnabled": "Consentire la registrazione",
     "registrationEnabledDescription": "Se disattivato, i nuovi utenti non possono registrarsi.",
+    "registrationOpenHint": "La registrazione è aperta: chiunque possa raggiungere questa istanza può creare un account. Chiudila qui quando tutti hanno un account.",
     "defaultLanguage": "Lingua predefinita",
     "defaultLanguageDescription": "Usata per i nuovi utenti e come ripiego.",
     "defaultUserTimezone": "Fuso orario predefinito per i nuovi account",

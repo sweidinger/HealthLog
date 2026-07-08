@@ -5494,6 +5494,7 @@
     "appSettingsDescription": "Global defaults for registration, language, and the timezone of new accounts.",
     "registrationEnabled": "Allow registration",
     "registrationEnabledDescription": "When disabled, new users cannot register.",
+    "registrationOpenHint": "Registration is open — anyone who can reach this instance can create an account. Close it here once everyone who needs an account has one.",
     "defaultLanguage": "Default language",
     "defaultLanguageDescription": "Used for new users and as fallback.",
     "defaultUserTimezone": "Default timezone for new accounts",

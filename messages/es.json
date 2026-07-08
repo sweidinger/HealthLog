@@ -5494,6 +5494,7 @@
     "appSettingsDescription": "Valores globales por defecto para registro, idioma y zona horaria de cuentas nuevas.",
     "registrationEnabled": "Permitir el registro",
     "registrationEnabledDescription": "Cuando está desactivado, los nuevos usuarios no pueden registrarse.",
+    "registrationOpenHint": "El registro está abierto: cualquiera que pueda acceder a esta instancia puede crear una cuenta. Ciérralo aquí cuando todos tengan una cuenta.",
     "defaultLanguage": "Idioma predeterminado",
     "defaultLanguageDescription": "Se usa para los nuevos usuarios y como reserva.",
     "defaultUserTimezone": "Zona horaria predeterminada para cuentas nuevas",

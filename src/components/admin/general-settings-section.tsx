@@ -96,6 +96,19 @@ export function GeneralSettingsSection() {
           disabled={updateSettings.isPending}
         />
 
+        {/* Honest nudge: registration stays open after the first admin so a
+            household can be invited, but on an internet-exposed instance that
+            means anyone who can reach the URL can sign up. Surface a quiet
+            reminder while it is open — no behaviour change, just a signal. */}
+        {(settings?.registrationEnabled ?? true) && (
+          <p
+            data-slot="registration-open-hint"
+            className="text-muted-foreground -mt-2 text-xs"
+          >
+            {t("admin.registrationOpenHint")}
+          </p>
+        )}
+
         {/* v1.23 — instance-wide "require a second factor" policy. Every
             account without an active factor is sent to forced enrollment after
             sign-in. This is a web-session nudge, not an API wall: direct API /
