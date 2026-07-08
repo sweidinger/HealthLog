@@ -331,6 +331,38 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       },
     },
   },
+  "/api/documents/inbound/capability": {
+    get: {
+      tags: ["Documents"],
+      summary: "Probe document-AI availability + egress",
+      description:
+        "Cheap probe (no provider call) the vault uses to decide the AI transport and whether to warn before a read leaves the machine. Resolved over the DOCUMENT provider order (local-first, ChatGPT-subscription OAuth last), so `mode` / `pdfSupported` / `egress` match exactly what the document AI routes do. `egress` is vendor-blind: `\"local\"` (a self-hosted model — the document never leaves the operator's machine) or `\"external\"` (a third-party AI service). The vault shows a per-egress notice before any external document read; sending a document to any external provider also requires an active AI-consent receipt.",
+      responses: {
+        "200": {
+          description: "Document-AI capability flags + egress class.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z
+                  .object({
+                    available: z.boolean(),
+                    mode: z.enum(["vision", "text"]).nullable(),
+                    reason: z
+                      .enum(["no-provider", "enable-local-ocr"])
+                      .nullable(),
+                    pdfSupported: z.boolean(),
+                    egress: z.enum(["local", "external"]).nullable(),
+                  })
+                  .meta({ id: "DocumentAiCapability" }),
+                "DocumentAiCapabilityEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/documents/inbound/usage": {
     get: {
       tags: ["Documents"],

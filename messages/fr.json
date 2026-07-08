@@ -8172,6 +8172,9 @@
       "searchPlaceholder": "Rechercher par titre ou nom de fichier",
       "empty": "Aucun document trouvé."
     },
+    "ai": {
+      "egressNotice": "Ceci envoie le contenu du document à votre fournisseur d'IA configuré — il quitte cette machine vers un service d'IA tiers. Si ce fournisseur est un abonnement personnel, ses propres paramètres d'utilisation des données s'appliquent, y compris l'entraînement du modèle sauf si vous l'avez désactivé là-bas."
+    },
     "assist": {
       "suggest": "Suggérer des détails",
       "suggesting": "Lecture…",

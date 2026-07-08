@@ -32,6 +32,10 @@ import {
   type ChainReorder,
   type VisionProviderPick,
 } from "@/lib/labs/ocr-capability";
+import type {
+  DocumentAiCapabilityDto,
+  DocumentEgressClass,
+} from "@/lib/validations/inbound-documents";
 
 /**
  * Preference rank for a provider when the payload is a DOCUMENT. Lower wins.
@@ -95,9 +99,6 @@ export function resolveDocumentTextProvider(userId: string) {
   });
 }
 
-/** Where a document read egresses, vendor-blind. */
-export type DocumentEgressClass = "local" | "external";
-
 /**
  * Classify a picked provider's egress for the per-egress UI notice. Vendor-blind
  * by design — "local" (stays on the machine) vs "external" (a third-party AI
@@ -105,25 +106,6 @@ export type DocumentEgressClass = "local" | "external";
  */
 export function documentEgressClass(providerType: string): DocumentEgressClass {
   return isExternalDocumentEgress(providerType) ? "external" : "local";
-}
-
-/**
- * The document-scoped capability probe. Mirrors `resolveOcrCapability` but over
- * the document provider order, and adds the `egress` class so the vault UI can
- * show the "this leaves your machine to a third-party AI" notice BEFORE a read.
- */
-export interface DocumentAiCapabilityDto {
-  available: boolean;
-  mode: "vision" | "text" | null;
-  reason: "no-provider" | "enable-local-ocr" | null;
-  pdfSupported: boolean;
-  /**
-   * Where a document read will egress with the current provider order:
-   *   - "local":    stays on the operator's machine (self-hosted model).
-   *   - "external": leaves the machine to a third-party AI service.
-   *   - null:       no read is available (see `reason`).
-   */
-  egress: DocumentEgressClass | null;
 }
 
 /**

@@ -8172,6 +8172,9 @@
       "searchPlaceholder": "Search by title or filename",
       "empty": "No documents found."
     },
+    "ai": {
+      "egressNotice": "This sends the document's contents to your configured AI provider — it leaves this machine to a third-party AI service. If that provider is a personal subscription plan, its own data-use settings apply, including model training unless you have turned it off there."
+    },
     "assist": {
       "suggest": "Suggest details",
       "suggesting": "Reading…",
