@@ -19,6 +19,7 @@ import type {
 import { servingClassFor } from "@/lib/documents/upload-policy";
 import type {
   DocumentConditionLinkDto,
+  DocumentContentIndexSourceValue,
   ExtractedFactDto,
   FactData,
   FactProvenance,
@@ -135,6 +136,7 @@ export function serialiseDocument(
   counts: { factCount: number; pendingCount: number },
   conditionLinks: DocumentConditionLinkDto[] = [],
   hasContentIndex = false,
+  contentIndexSource: DocumentContentIndexSourceValue | null = null,
 ): InboundDocumentDto {
   return {
     id: doc.id,
@@ -157,6 +159,7 @@ export function serialiseDocument(
     conditionLinks,
     servingClass: servingClassFor(doc.mimeType),
     hasContentIndex,
+    contentIndexSource: hasContentIndex ? contentIndexSource : null,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
@@ -183,6 +186,7 @@ export function serialiseDocumentDetail(
   facts: ExtractedFact[],
   conditionLinks: DocumentConditionLinkDto[] = [],
   hasContentIndex = false,
+  contentIndexSource: DocumentContentIndexSourceValue | null = null,
 ): InboundDocumentDetailDto {
   const pendingCount = facts.filter((f) => f.status === "PENDING").length;
   // `factCount` excludes REJECTED facts (a rejected fact is discarded, not part
@@ -194,6 +198,7 @@ export function serialiseDocumentDetail(
       { factCount, pendingCount },
       conditionLinks,
       hasContentIndex,
+      contentIndexSource,
     ),
     facts: facts.map(serialiseFact),
   };

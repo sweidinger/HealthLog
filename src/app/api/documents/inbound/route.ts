@@ -55,6 +55,7 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import {
   documentCreateSchema,
   documentListQuerySchema,
+  toContentIndexSource,
 } from "@/lib/validations/inbound-documents";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -506,15 +507,16 @@ export const GET = apiHandler(async (request: Request) => {
     page.map((d) => d.id),
   );
 
-  // Which of the page's documents have a content index (drives `hasContentIndex`
-  // + the re-index affordance). One indexed grouped query; never the ciphertext.
-  const indexedIds = new Set<string>();
+  // Which of the page's documents have a content index (drives the searchable
+  // status + the provenance the UI reads to tell an AI-read document from a
+  // locally-indexed one). One grouped query; never the ciphertext.
+  const indexSources = new Map<string, string>();
   if (page.length > 0) {
     const indexed = await prisma.documentContentIndex.findMany({
       where: { userId: user.id, documentId: { in: page.map((d) => d.id) } },
-      select: { documentId: true },
+      select: { documentId: true, source: true },
     });
-    for (const row of indexed) indexedIds.add(row.documentId);
+    for (const row of indexed) indexSources.set(row.documentId, row.source);
   }
 
   annotate({
@@ -533,7 +535,8 @@ export const GET = apiHandler(async (request: Request) => {
         doc,
         factCounts.get(doc.id) ?? { factCount: 0, pendingCount: 0 },
         linkMap.get(doc.id) ?? [],
-        indexedIds.has(doc.id),
+        indexSources.has(doc.id),
+        toContentIndexSource(indexSources.get(doc.id)),
       ),
     ),
     nextCursor,

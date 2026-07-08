@@ -27,7 +27,10 @@ import { serialiseDocumentDetail } from "@/lib/documents/store";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
-import { documentUpdateSchema } from "@/lib/validations/inbound-documents";
+import {
+  documentUpdateSchema,
+  toContentIndexSource,
+} from "@/lib/validations/inbound-documents";
 import type { Prisma } from "@/generated/prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -80,7 +83,7 @@ export const GET = apiHandler(
       loadConditionLinks(user.id, [document.id]),
       prisma.documentContentIndex.findUnique({
         where: { documentId: document.id },
-        select: { id: true },
+        select: { source: true },
       }),
     ]);
 
@@ -95,6 +98,7 @@ export const GET = apiHandler(
         document.facts,
         links.get(document.id) ?? [],
         contentIndex !== null,
+        toContentIndexSource(contentIndex?.source),
       ),
     );
   },
@@ -173,7 +177,13 @@ export const PATCH = apiHandler(
       omit: { contentEncrypted: true },
       include: { facts: { orderBy: { createdAt: "asc" } } },
     });
-    const links = await loadConditionLinks(user.id, [document.id]);
+    const [links, contentIndex] = await Promise.all([
+      loadConditionLinks(user.id, [document.id]),
+      prisma.documentContentIndex.findUnique({
+        where: { documentId: document.id },
+        select: { source: true },
+      }),
+    ]);
 
     const touched = [
       ...Object.keys(data),
@@ -199,6 +209,8 @@ export const PATCH = apiHandler(
         document,
         document.facts,
         links.get(document.id) ?? [],
+        contentIndex !== null,
+        toContentIndexSource(contentIndex?.source),
       ),
     );
   },

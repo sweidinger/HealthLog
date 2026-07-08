@@ -59,6 +59,45 @@ export const INBOUND_DOCUMENT_KINDS = [
 ] as const;
 export type InboundDocumentKindValue = (typeof INBOUND_DOCUMENT_KINDS)[number];
 
+/**
+ * How a document's content index was produced (mirrors the server `source`
+ * column). `vision` means an AI provider read the original (the AI-first path);
+ * every other value is a provider-free local extraction. The UI reads it to
+ * tell an AI-read document from a locally-indexed one — the former already had
+ * the richer read, the latter can still be offered "Read with AI".
+ */
+export const DOCUMENT_CONTENT_INDEX_SOURCES = [
+  "vision",
+  "text-ocr",
+  "local-pdf",
+  "local-ocr",
+] as const;
+export type DocumentContentIndexSourceValue =
+  (typeof DOCUMENT_CONTENT_INDEX_SOURCES)[number];
+
+/** True when the index was produced by an AI provider reading the original. */
+export function isAiReadSource(
+  source: DocumentContentIndexSourceValue | string | null,
+): boolean {
+  return source === "vision";
+}
+
+/**
+ * Narrow the free-String DB `source` column to the DTO union, or `null` for an
+ * absent / unrecognised value. The column is a free String server-side (adding
+ * a source needs no migration) so the read path guards it before it hits the
+ * contract.
+ */
+export function toContentIndexSource(
+  source: string | null | undefined,
+): DocumentContentIndexSourceValue | null {
+  return DOCUMENT_CONTENT_INDEX_SOURCES.includes(
+    source as DocumentContentIndexSourceValue,
+  )
+    ? (source as DocumentContentIndexSourceValue)
+    : null;
+}
+
 /** The document lifecycle states. STORED is the library default. */
 export const INBOUND_DOCUMENT_STATUSES = [
   "STORED",
@@ -230,10 +269,17 @@ export interface InboundDocumentDto {
   servingClass: "inline" | "attachment";
   /**
    * Whether the document has a content-search index (encrypted extracted text +
-   * blind token array). Drives the "index for search" / re-index affordances;
-   * `false` until the document is indexed.
+   * blind token array). `false` until the document is indexed (auto-indexed on
+   * upload; the UI reads this for the searchable status, not as a to-do).
    */
   hasContentIndex: boolean;
+  /**
+   * How that index was produced — `vision` (an AI provider read the original)
+   * vs a local extraction (`local-pdf` / `text-ocr` / `local-ocr`), or `null`
+   * when `hasContentIndex` is false. Lets the UI tell an AI-read document from
+   * a locally-indexed one and offer a richer "Read with AI" pass on the latter.
+   */
+  contentIndexSource: DocumentContentIndexSourceValue | null;
   createdAt: string;
   updatedAt: string;
 }

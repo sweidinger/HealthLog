@@ -52,6 +52,7 @@ function doc(id: string, title: string): InboundDocumentDto {
     conditionLinks: [{ episodeId: "ep1", name: "Knee" }],
     servingClass: "inline",
     hasContentIndex: false,
+    contentIndexSource: null,
     createdAt: "2025-10-05T08:00:00.000Z",
     updatedAt: "2025-10-05T08:00:00.000Z",
   };
