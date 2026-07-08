@@ -97,6 +97,10 @@ async function routes() {
       r: Request,
       c: RouteCtx,
     ) => Promise<Response>,
+    patchById: byId.PATCH as unknown as (
+      r: Request,
+      c: RouteCtx,
+    ) => Promise<Response>,
     postIndex: index.POST as unknown as (
       r: Request,
       c: RouteCtx,
@@ -189,6 +193,52 @@ describe("document vault — content index (text mode)", () => {
       indexedCount: 1,
       totalCount: 1,
     });
+  });
+
+  it("threads contentIndexSource through list + detail and preserves it across a metadata PATCH", async () => {
+    await seedVaultUser("vault-provenance");
+    const { post, get, getById, patchById, postIndex } = await routes();
+
+    const up = await post(uploadRequest(PNG_1X1, "scan.png", "Vorher"));
+    const { data: doc } = await up.json();
+
+    await postIndex(
+      textIndexRequest(doc.id, "kreatinin natrium kalium werte"),
+      ctx(doc.id),
+    );
+
+    // List surfaces the real provenance (text-ocr here — no provider).
+    const listed = await get(
+      new Request("http://localhost/api/documents/inbound"),
+    );
+    const listRow = (await listed.json()).data.documents.find(
+      (d: { id: string }) => d.id === doc.id,
+    );
+    expect(listRow.hasContentIndex).toBe(true);
+    expect(listRow.contentIndexSource).toBe("text-ocr");
+
+    // Detail agrees.
+    const detail = await getById(
+      new Request(`http://localhost/api/documents/inbound/${doc.id}`),
+      ctx(doc.id),
+    );
+    expect((await detail.json()).data.contentIndexSource).toBe("text-ocr");
+
+    // Regression (the UI wave flagged this): a metadata PATCH must return the
+    // index provenance from the freshly-read index row, not a stale null.
+    const patched = await patchById(
+      new Request(`http://localhost/api/documents/inbound/${doc.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: "Nachher" }),
+      }),
+      ctx(doc.id),
+    );
+    expect(patched.status).toBe(200);
+    const patchedBody = (await patched.json()).data;
+    expect(patchedBody.title).toBe("Nachher");
+    expect(patchedBody.hasContentIndex).toBe(true);
+    expect(patchedBody.contentIndexSource).toBe("text-ocr");
   });
 
   it("re-indexing the same document is idempotent (upsert in place)", async () => {
