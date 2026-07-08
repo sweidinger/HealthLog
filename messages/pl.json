@@ -955,7 +955,9 @@
         "gastroparesisLike": "Spowolnione opróżnianie żołądka",
         "dysgeusia": "Zmiana smaku",
         "gallbladderDiscomfort": "Dolegliwości pęcherzyka żółciowego"
-      }
+      },
+      "deleteConfirmTitle": "Usunąć ten wpis?",
+      "deleteConfirmBody": "Ten wpis o skutku ubocznym zostanie trwale usunięty."
     },
     "scheduling": {
       "naturalLanguage": {

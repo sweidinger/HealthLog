@@ -955,7 +955,9 @@
         "gastroparesisLike": "Vidange gastrique lente",
         "dysgeusia": "Altération du goût",
         "gallbladderDiscomfort": "Inconfort de la vésicule biliaire"
-      }
+      },
+      "deleteConfirmTitle": "Supprimer cette entrée ?",
+      "deleteConfirmBody": "Cette entrée d’effet secondaire sera définitivement supprimée."
     },
     "scheduling": {
       "naturalLanguage": {

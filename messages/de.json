@@ -955,7 +955,9 @@
         "gastroparesisLike": "Verlangsamte Magenentleerung",
         "dysgeusia": "Geschmacksveränderung",
         "gallbladderDiscomfort": "Gallenblasen-Beschwerden"
-      }
+      },
+      "deleteConfirmTitle": "Eintrag löschen?",
+      "deleteConfirmBody": "Dieser Nebenwirkungs-Eintrag wird dauerhaft entfernt."
     },
     "scheduling": {
       "naturalLanguage": {

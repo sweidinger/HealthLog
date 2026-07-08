@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Gauge, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -27,10 +29,11 @@ import type { CustomMetricDto, CustomMetricListResponse } from "./types";
  */
 export function CustomMetricList() {
   const { t } = useTranslations();
+  const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [addFooterEl, setAddFooterEl] = useState<HTMLDivElement | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.customMetrics(),
     queryFn: () => apiGet<CustomMetricListResponse>("/api/custom-metrics"),
   });
@@ -40,10 +43,8 @@ export function CustomMetricList() {
   function afterAdd(saved: CustomMetricDto) {
     setAddOpen(false);
     // Land the user on the new metric's detail page so the next step (logging
-    // a value) is one tap away.
-    if (typeof window !== "undefined") {
-      window.location.assign(`/custom-metrics/${saved.id}`);
-    }
+    // a value) is one tap away — client nav, not a full-page reload.
+    router.push(`/custom-metrics/${saved.id}`);
   }
 
   return (
@@ -80,9 +81,10 @@ export function CustomMetricList() {
           </CardContent>
         </Card>
       ) : isError ? (
-        <p role="alert" className="text-destructive py-4 text-center text-sm">
-          {t("customMetrics.loadError")}
-        </p>
+        <QueryErrorCard
+          description={t("customMetrics.loadError")}
+          onRetry={() => refetch()}
+        />
       ) : metrics.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-6 text-center">

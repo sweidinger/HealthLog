@@ -955,7 +955,9 @@
         "gastroparesisLike": "Slow stomach emptying",
         "dysgeusia": "Taste change",
         "gallbladderDiscomfort": "Gallbladder discomfort"
-      }
+      },
+      "deleteConfirmTitle": "Delete this entry?",
+      "deleteConfirmBody": "This side-effect entry will be permanently removed."
     },
     "scheduling": {
       "naturalLanguage": {

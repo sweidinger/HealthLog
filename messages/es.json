@@ -955,7 +955,9 @@
         "gastroparesisLike": "Vaciado gástrico lento",
         "dysgeusia": "Alteración del gusto",
         "gallbladderDiscomfort": "Molestia en la vesícula biliar"
-      }
+      },
+      "deleteConfirmTitle": "¿Eliminar esta entrada?",
+      "deleteConfirmBody": "Esta entrada de efecto secundario se eliminará de forma permanente."
     },
     "scheduling": {
       "naturalLanguage": {

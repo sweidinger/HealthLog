@@ -955,7 +955,9 @@
         "gastroparesisLike": "Svuotamento gastrico lento",
         "dysgeusia": "Alterazione del gusto",
         "gallbladderDiscomfort": "Fastidio alla cistifellea"
-      }
+      },
+      "deleteConfirmTitle": "Eliminare questa voce?",
+      "deleteConfirmBody": "Questa voce di effetto collaterale verrà rimossa definitivamente."
     },
     "scheduling": {
       "naturalLanguage": {
