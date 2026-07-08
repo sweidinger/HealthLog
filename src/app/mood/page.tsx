@@ -10,9 +10,10 @@ import { MoodForm } from "@/components/mood/mood-form";
 import { MoodList } from "@/components/mood/mood-list";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageAuthGate } from "@/components/ui/page-auth-gate";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
-import { Plus, Loader2, Wrench } from "lucide-react";
+import { Plus, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useTranslations } from "@/lib/i18n/context";
@@ -54,11 +55,7 @@ export default function MoodPage() {
   // and React logged hydration error #418 — same fix as the measurements
   // page; see `useMounted`.
   if (!mounted || isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
-      </div>
-    );
+    return <PageAuthGate label={t("common.loading")} />;
   }
 
   return (

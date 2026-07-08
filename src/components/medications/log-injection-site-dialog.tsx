@@ -111,62 +111,62 @@ export function LogInjectionSiteDialog({
       }
     >
       {allowed.length === 0 ? (
-          <p className="text-muted-foreground py-4 text-center text-sm">
-            {t("medications.logInjectionSiteNoneAvailable")}
-          </p>
-        ) : (
-          <>
-            <InjectionSitePicker
-              value={selected}
-              history={history}
-              allowed={allowed}
-              onChange={setSelected}
-            />
-            {/* Marker legend — explains the two body-map annotations so the
+        <p className="text-muted-foreground py-4 text-center text-sm">
+          {t("medications.logInjectionSiteNoneAvailable")}
+        </p>
+      ) : (
+        <>
+          <InjectionSitePicker
+            value={selected}
+            history={history}
+            allowed={allowed}
+            onChange={setSelected}
+          />
+          {/* Marker legend — explains the two body-map annotations so the
                 dashed primary ring and the amber ring read at a glance. The
                 swatches mirror the picker's own marker strokes exactly. */}
-            <ul
-              className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs"
-              aria-label={t("medications.injectionSiteLegendAriaLabel")}
-            >
-              <li className="flex items-center gap-1.5">
-                <svg
-                  viewBox="0 0 16 16"
-                  className="h-3.5 w-3.5 shrink-0"
-                  aria-hidden="true"
-                >
-                  <circle
-                    cx="8"
-                    cy="8"
-                    r="6"
-                    fill="none"
-                    className="stroke-primary"
-                    strokeWidth="1.6"
-                    strokeDasharray="3 3"
-                  />
-                </svg>
-                {t("medications.injectionSiteLegendRecommended")}
-              </li>
-              <li className="flex items-center gap-1.5">
-                <svg
-                  viewBox="0 0 16 16"
-                  className="h-3.5 w-3.5 shrink-0"
-                  aria-hidden="true"
-                >
-                  <circle
-                    cx="8"
-                    cy="8"
-                    r="6"
-                    fill="none"
-                    className="stroke-[var(--warning)]"
-                    strokeWidth="1.8"
-                  />
-                </svg>
-                {t("medications.injectionSiteLegendLastUsed")}
-              </li>
-            </ul>
-          </>
-        )}
+          <ul
+            className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs"
+            aria-label={t("medications.injectionSiteLegendAriaLabel")}
+          >
+            <li className="flex items-center gap-1.5">
+              <svg
+                viewBox="0 0 16 16"
+                className="h-3.5 w-3.5 shrink-0"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="8"
+                  cy="8"
+                  r="6"
+                  fill="none"
+                  className="stroke-primary"
+                  strokeWidth="1.6"
+                  strokeDasharray="3 3"
+                />
+              </svg>
+              {t("medications.injectionSiteLegendRecommended")}
+            </li>
+            <li className="flex items-center gap-1.5">
+              <svg
+                viewBox="0 0 16 16"
+                className="h-3.5 w-3.5 shrink-0"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="8"
+                  cy="8"
+                  r="6"
+                  fill="none"
+                  className="stroke-[var(--warning)]"
+                  strokeWidth="1.8"
+                />
+              </svg>
+              {t("medications.injectionSiteLegendLastUsed")}
+            </li>
+          </ul>
+        </>
+      )}
     </ResponsiveSheet>
   );
 }

@@ -23,7 +23,11 @@ type QueryState = {
 };
 
 let authState: AuthState = { isAuthenticated: true, isLoading: false };
-let queryState: QueryState = { data: undefined, isLoading: false, isError: false };
+let queryState: QueryState = {
+  data: undefined,
+  isLoading: false,
+  isError: false,
+};
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => authState,
@@ -120,8 +124,6 @@ describe("NotificationsPage", () => {
       eventTypes: ["MEDICATION_REMINDER"],
     };
     const html = render();
-    expect(html).toContain(
-      "won’t receive notifications",
-    );
+    expect(html).toContain("won’t receive notifications");
   });
 });

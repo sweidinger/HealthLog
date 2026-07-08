@@ -381,7 +381,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
               }}
               disabled={deleteMutation.isPending}
               aria-busy={deleteMutation.isPending || undefined}
-              className="bg-destructive dark:bg-destructive/60 text-white hover:bg-destructive/90"
+              className="bg-destructive dark:bg-destructive/60 hover:bg-destructive/90 text-white"
             >
               {t("medications.sideEffects.deleteCta")}
             </AlertDialogAction>

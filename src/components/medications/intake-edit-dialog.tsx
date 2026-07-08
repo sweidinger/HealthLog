@@ -168,64 +168,64 @@ function IntakeEditDialogBody({
         </>
       }
     >
-        {/* v1.16.4 — a real form so Enter in the datetime field submits;
+      {/* v1.16.4 — a real form so Enter in the datetime field submits;
             the buttons carry explicit types so cancel never submits. */}
-        <form
-          id={formId}
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="intake-edit-taken-at">
-                {t("medications.detail.intake.edit.takenAtLabel")}
-              </Label>
-              <DateTimeField
-                id="intake-edit-taken-at"
-                value={takenAt}
-                max={toDateTimeLocal(new Date())}
-                onChange={(value) => setTakenAt(value)}
-                disabled={skipped}
-              />
-              {scheduledFor && (
-                <p
-                  className="text-muted-foreground text-xs"
-                  data-slot="intake-edit-scheduled-hint"
-                >
-                  {t("medications.detail.intake.edit.scheduledForHint", {
-                    dateTime: fmt.dateTime(scheduledFor),
-                  })}
-                </p>
-              )}
-              {/* Non-blocking: a 48h+ gap to the slot is almost always a
+      <form
+        id={formId}
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="intake-edit-taken-at">
+              {t("medications.detail.intake.edit.takenAtLabel")}
+            </Label>
+            <DateTimeField
+              id="intake-edit-taken-at"
+              value={takenAt}
+              max={toDateTimeLocal(new Date())}
+              onChange={(value) => setTakenAt(value)}
+              disabled={skipped}
+            />
+            {scheduledFor && (
+              <p
+                className="text-muted-foreground text-xs"
+                data-slot="intake-edit-scheduled-hint"
+              >
+                {t("medications.detail.intake.edit.scheduledForHint", {
+                  dateTime: fmt.dateTime(scheduledFor),
+                })}
+              </p>
+            )}
+            {/* Non-blocking: a 48h+ gap to the slot is almost always a
                 date typo, but a deliberate far edit stays saveable. */}
-              {showFarHint && (
-                <p
-                  className="text-warning text-xs"
-                  data-slot="intake-edit-far-hint"
-                >
-                  {t("medications.detail.intake.edit.farFromScheduledWarning")}
-                </p>
-              )}
-            </div>
-            <label
-              htmlFor="intake-edit-skipped"
-              className="flex items-center justify-between gap-3"
-            >
-              <span className="text-sm font-medium">
-                {t("medications.detail.intake.edit.skippedLabel")}
-              </span>
-              <Switch
-                id="intake-edit-skipped"
-                checked={skipped}
-                onCheckedChange={(checked) => setSkipped(checked)}
-              />
-            </label>
+            {showFarHint && (
+              <p
+                className="text-warning text-xs"
+                data-slot="intake-edit-far-hint"
+              >
+                {t("medications.detail.intake.edit.farFromScheduledWarning")}
+              </p>
+            )}
           </div>
-        </form>
+          <label
+            htmlFor="intake-edit-skipped"
+            className="flex items-center justify-between gap-3"
+          >
+            <span className="text-sm font-medium">
+              {t("medications.detail.intake.edit.skippedLabel")}
+            </span>
+            <Switch
+              id="intake-edit-skipped"
+              checked={skipped}
+              onCheckedChange={(checked) => setSkipped(checked)}
+            />
+          </label>
+        </div>
+      </form>
     </ResponsiveSheet>
   );
 }

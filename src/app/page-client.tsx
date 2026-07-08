@@ -1665,7 +1665,7 @@ export default function DashboardPageClient() {
                       href={href}
                       data-slot="dashboard-tile-link"
                       data-tile-id={entry.id}
-                      className="group focus-visible:ring-ring/50 flex min-w-0 rounded-xl transition-[box-shadow] hover:ring-2 hover:ring-ring/30 focus-visible:ring-2 focus-visible:outline-none"
+                      className="group focus-visible:ring-ring/50 hover:ring-ring/30 flex min-w-0 rounded-xl transition-[box-shadow] hover:ring-2 focus-visible:ring-2 focus-visible:outline-none"
                     >
                       {cell}
                     </Link>

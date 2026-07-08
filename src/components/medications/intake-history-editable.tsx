@@ -228,7 +228,7 @@ export function IntakeHistoryEditable({
               }}
               disabled={bulkBusy}
               aria-busy={bulkBusy || undefined}
-              className="bg-destructive dark:bg-destructive/60 text-white hover:bg-destructive/90"
+              className="bg-destructive dark:bg-destructive/60 hover:bg-destructive/90 text-white"
             >
               {t("medications.detail.intake.bulkDelete.confirmAction")}
             </AlertDialogAction>
@@ -262,7 +262,7 @@ export function IntakeHistoryEditable({
               }}
               disabled={rowDeleteBusy}
               aria-busy={rowDeleteBusy || undefined}
-              className="bg-destructive dark:bg-destructive/60 text-white hover:bg-destructive/90"
+              className="bg-destructive dark:bg-destructive/60 hover:bg-destructive/90 text-white"
             >
               {t("medications.detail.intake.deleteRow.confirmAction")}
             </AlertDialogAction>

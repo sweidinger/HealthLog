@@ -13,7 +13,6 @@ import {
   Heart,
   KeyRound,
   Languages,
-  Loader2,
   Lock,
   LogIn,
   Moon,
@@ -33,6 +32,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageAuthGate } from "@/components/ui/page-auth-gate";
 import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
@@ -277,11 +277,7 @@ export default function AchievementsPage() {
   });
 
   if (authLoading || (achievementsEnabled && isLoading)) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
-      </div>
-    );
+    return <PageAuthGate label={t("common.loading")} />;
   }
 
   // v1.18.0 — module off ⇒ the surface disappears entirely. The nav entry

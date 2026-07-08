@@ -190,52 +190,52 @@ export function IntakeImportDialog({
       }
     >
       <div className="space-y-4">
-          <p className="text-muted-foreground text-sm">
-            {t("medications.importDescription")}
-          </p>
-          <div className="space-y-2">
-            <Label htmlFor="intake-import-file" className="text-xs font-medium">
-              {t("medications.importUploadFile")}
-            </Label>
-            <input
-              key={fileInputKey}
-              id="intake-import-file"
-              type="file"
-              accept="application/json,.json"
-              onChange={handleFileSelect}
-              className="border-input bg-background text-foreground file:bg-muted file:text-foreground w-full cursor-pointer rounded-md border text-sm file:mr-2 file:border-0 file:px-3 file:py-2"
-            />
-            {selectedFileName && (
-              <p className="text-muted-foreground text-xs">
-                {t("medications.importSelected", { name: selectedFileName })}
-              </p>
-            )}
-          </div>
-          <pre className="bg-muted text-muted-foreground rounded-lg p-3 text-xs">
-            {`[
-  {"datum": "2026-02-14", "uhrzeit": "10:27:43", "zaehler": 523},
-  {"datum": "2026-02-14", "uhrzeit": "23:33:42", "zaehler": 524}
-]`}
-          </pre>
-          <Textarea
-            value={jsonText}
-            onChange={(e) => setJsonText(e.target.value)}
-            placeholder={t("medications.importPaste")}
-            rows={8}
-            autoCapitalize="none"
-            spellCheck={false}
-            className="font-mono"
+        <p className="text-muted-foreground text-sm">
+          {t("medications.importDescription")}
+        </p>
+        <div className="space-y-2">
+          <Label htmlFor="intake-import-file" className="text-xs font-medium">
+            {t("medications.importUploadFile")}
+          </Label>
+          <input
+            key={fileInputKey}
+            id="intake-import-file"
+            type="file"
+            accept="application/json,.json"
+            onChange={handleFileSelect}
+            className="border-input bg-background text-foreground file:bg-muted file:text-foreground w-full cursor-pointer rounded-md border text-sm file:mr-2 file:border-0 file:px-3 file:py-2"
           />
-          {result && (
-            <p
-              className={`text-sm ${resultType === "success" ? "text-success" : "text-destructive"}`}
-              role="status"
-              aria-live="polite"
-            >
-              {result}
+          {selectedFileName && (
+            <p className="text-muted-foreground text-xs">
+              {t("medications.importSelected", { name: selectedFileName })}
             </p>
           )}
         </div>
+        <pre className="bg-muted text-muted-foreground rounded-lg p-3 text-xs">
+          {`[
+  {"datum": "2026-02-14", "uhrzeit": "10:27:43", "zaehler": 523},
+  {"datum": "2026-02-14", "uhrzeit": "23:33:42", "zaehler": 524}
+]`}
+        </pre>
+        <Textarea
+          value={jsonText}
+          onChange={(e) => setJsonText(e.target.value)}
+          placeholder={t("medications.importPaste")}
+          rows={8}
+          autoCapitalize="none"
+          spellCheck={false}
+          className="font-mono"
+        />
+        {result && (
+          <p
+            className={`text-sm ${resultType === "success" ? "text-success" : "text-destructive"}`}
+            role="status"
+            aria-live="polite"
+          >
+            {result}
+          </p>
+        )}
+      </div>
     </ResponsiveSheet>
   );
 }

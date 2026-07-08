@@ -14,9 +14,10 @@ import { CustomMetricList } from "@/components/custom-metrics/custom-metric-list
 import { MEASUREMENT_TYPE_LABEL_KEYS } from "@/components/measurements/measurement-list-meta";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageAuthGate } from "@/components/ui/page-auth-gate";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -116,11 +117,7 @@ export default function MeasurementsPage() {
   // SSR HTML when this boundary hydrates after `/api/auth/me` settled
   // (React #418 family); see `useMounted`.
   if (!mounted || isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
-      </div>
-    );
+    return <PageAuthGate label={t("common.loading")} />;
   }
 
   return (

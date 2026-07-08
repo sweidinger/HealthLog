@@ -101,32 +101,32 @@ export function TakeAllDueDialog({
       }
     >
       <ul className="space-y-2" data-testid="take-all-due-list">
-          {dueMedications.map((med) => (
-            <li
-              key={med.id}
-              className="flex items-baseline justify-between gap-3 text-sm"
-            >
-              <span className="min-w-0 truncate">
-                <span className="font-medium">{med.name}</span>
-                {med.dose ? (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    — {formatDose(med.dose, t)}
-                  </span>
-                ) : null}
-              </span>
-              {med.window ? (
-                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                  {formatTimeWindowRange(
-                    med.window.start,
-                    med.window.end,
-                    locale,
-                  )}
+        {dueMedications.map((med) => (
+          <li
+            key={med.id}
+            className="flex items-baseline justify-between gap-3 text-sm"
+          >
+            <span className="min-w-0 truncate">
+              <span className="font-medium">{med.name}</span>
+              {med.dose ? (
+                <span className="text-muted-foreground">
+                  {" "}
+                  — {formatDose(med.dose, t)}
                 </span>
               ) : null}
-            </li>
-          ))}
-        </ul>
+            </span>
+            {med.window ? (
+              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                {formatTimeWindowRange(
+                  med.window.start,
+                  med.window.end,
+                  locale,
+                )}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
     </ResponsiveSheet>
   );
 }

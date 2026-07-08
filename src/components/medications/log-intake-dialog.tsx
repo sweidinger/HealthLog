@@ -231,117 +231,117 @@ export function LogIntakeDialog({
         </>
       }
     >
-        {/* v1.16.4 — a real form so Enter in the dose / datetime fields
+      {/* v1.16.4 — a real form so Enter in the dose / datetime fields
             submits; mirrors the intake-edit and dose-history-add dialogs. */}
-        <form
-          id={formId}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (busy || medications.length === 0 || !medicationId) return;
-            void submit();
-          }}
-          className="space-y-4"
-        >
-          {medications.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-sm">
-              {t("medications.logIntake.noMedications")}
-            </p>
-          ) : (
-            <div className="space-y-3">
+      <form
+        id={formId}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (busy || medications.length === 0 || !medicationId) return;
+          void submit();
+        }}
+        className="space-y-4"
+      >
+        {medications.length === 0 ? (
+          <p className="text-muted-foreground py-4 text-sm">
+            {t("medications.logIntake.noMedications")}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="log-intake-medication">
+                {t("medications.logIntake.medicationLabel")}
+              </Label>
+              <NativeSelect
+                id="log-intake-medication"
+                value={medicationId}
+                onChange={(e) => handleMedicationChange(e.target.value)}
+              >
+                {medications.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.dose ? `${m.name} — ${formatDose(m.dose, t)}` : m.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+
+            {slotTimes.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="log-intake-medication">
-                  {t("medications.logIntake.medicationLabel")}
+                <Label htmlFor="log-intake-slot">
+                  {t("medications.logIntake.slotLabel")}
                 </Label>
                 <NativeSelect
-                  id="log-intake-medication"
-                  value={medicationId}
-                  onChange={(e) => handleMedicationChange(e.target.value)}
+                  id="log-intake-slot"
+                  value={slot}
+                  onChange={(e) => {
+                    setSlot(e.target.value);
+                    // The configured baseline tracks the slot's schedule
+                    // dose, so an untouched field re-prefills on change.
+                    setDoseOverride(null);
+                  }}
                 >
-                  {medications.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.dose ? `${m.name} — ${formatDose(m.dose, t)}` : m.name}
+                  <option value={NO_SLOT}>
+                    {t("medications.logIntake.slotNone")}
+                  </option>
+                  {slotTimes.map((time) => (
+                    <option key={time} value={time}>
+                      {time}
                     </option>
                   ))}
                 </NativeSelect>
               </div>
+            )}
 
-              {slotTimes.length > 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="log-intake-slot">
-                    {t("medications.logIntake.slotLabel")}
-                  </Label>
-                  <NativeSelect
-                    id="log-intake-slot"
-                    value={slot}
-                    onChange={(e) => {
-                      setSlot(e.target.value);
-                      // The configured baseline tracks the slot's schedule
-                      // dose, so an untouched field re-prefills on change.
-                      setDoseOverride(null);
-                    }}
-                  >
-                    <option value={NO_SLOT}>
-                      {t("medications.logIntake.slotNone")}
-                    </option>
-                    {slotTimes.map((time) => (
-                      <option key={time} value={time}>
-                        {time}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="log-intake-dose">
-                  {t("medications.logIntake.doseLabel")}
-                </Label>
-                <Input
-                  id="log-intake-dose"
-                  value={dose}
-                  maxLength={50}
-                  onChange={(e) => setDoseOverride(e.target.value)}
-                  placeholder={configuredDose}
-                  autoComplete="off"
-                  disabled={skipped}
-                />
-                <p className="text-muted-foreground text-xs">
-                  {t("medications.logIntake.doseHint")}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="log-intake-taken-at">
-                  {t("medications.logIntake.takenAtLabel")}
-                </Label>
-                <DateTimeField
-                  id="log-intake-taken-at"
-                  value={takenAt}
-                  max={toDateTimeLocal(new Date())}
-                  onChange={(value) => setTakenAt(value)}
-                  disabled={skipped}
-                />
-                <p className="text-muted-foreground text-xs">
-                  {t("medications.logIntake.takenAtHint")}
-                </p>
-              </div>
-
-              <label
-                htmlFor="log-intake-skipped"
-                className="flex items-center justify-between gap-3"
-              >
-                <span className="text-sm font-medium">
-                  {t("medications.logIntake.skippedLabel")}
-                </span>
-                <Switch
-                  id="log-intake-skipped"
-                  checked={skipped}
-                  onCheckedChange={setSkipped}
-                />
-              </label>
+            <div className="space-y-2">
+              <Label htmlFor="log-intake-dose">
+                {t("medications.logIntake.doseLabel")}
+              </Label>
+              <Input
+                id="log-intake-dose"
+                value={dose}
+                maxLength={50}
+                onChange={(e) => setDoseOverride(e.target.value)}
+                placeholder={configuredDose}
+                autoComplete="off"
+                disabled={skipped}
+              />
+              <p className="text-muted-foreground text-xs">
+                {t("medications.logIntake.doseHint")}
+              </p>
             </div>
-          )}
-        </form>
+
+            <div className="space-y-2">
+              <Label htmlFor="log-intake-taken-at">
+                {t("medications.logIntake.takenAtLabel")}
+              </Label>
+              <DateTimeField
+                id="log-intake-taken-at"
+                value={takenAt}
+                max={toDateTimeLocal(new Date())}
+                onChange={(value) => setTakenAt(value)}
+                disabled={skipped}
+              />
+              <p className="text-muted-foreground text-xs">
+                {t("medications.logIntake.takenAtHint")}
+              </p>
+            </div>
+
+            <label
+              htmlFor="log-intake-skipped"
+              className="flex items-center justify-between gap-3"
+            >
+              <span className="text-sm font-medium">
+                {t("medications.logIntake.skippedLabel")}
+              </span>
+              <Switch
+                id="log-intake-skipped"
+                checked={skipped}
+                onCheckedChange={setSkipped}
+              />
+            </label>
+          </div>
+        )}
+      </form>
     </ResponsiveSheet>
   );
 }

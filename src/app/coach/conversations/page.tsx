@@ -136,7 +136,10 @@ function CoachConversationsBody() {
             // Surface the sibling Plans ledger — otherwise it is reachable
             // only from the composer's `+` menu.
             <Button asChild variant="outline" size="sm">
-              <Link href="/coach/plans" data-slot="coach-conversations-plans-link">
+              <Link
+                href="/coach/plans"
+                data-slot="coach-conversations-plans-link"
+              >
                 <Target className="size-4" aria-hidden="true" />
                 {t("coach.plans.title")}
               </Link>

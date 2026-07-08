@@ -48,7 +48,10 @@ export function NotificationsSection() {
     <div className="space-y-10">
       {/* Cross-links to the other two notification surfaces so this screen
           names them — the per-event matrix and the delivery channels. */}
-      <div className="flex flex-wrap gap-2" data-slot="notifications-crosslinks">
+      <div
+        className="flex flex-wrap gap-2"
+        data-slot="notifications-crosslinks"
+      >
         <Button asChild variant="outline" size="sm">
           <Link href="/notifications">
             {t("settings.sections.notifications.matrixLink")}

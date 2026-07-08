@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import {
@@ -108,11 +108,10 @@ export function CycleView() {
 
   // Controlled so the header "cycle settings" wrench (parity with the
   // labs/medications/illness modules, which expose a customize glyph) can jump
-  // to the settings tab; a `?tab=` deep-link change still switches too.
+  // to the settings tab. Initialised from the `?tab=` deep-link, matching the
+  // prior uncontrolled `defaultValue` behaviour (the initial param is honoured;
+  // a later param change does not force-switch a tab the user is reading).
   const [tab, setTab] = useState<CycleTab>(initialTab);
-  useEffect(() => {
-    setTab(initialTab);
-  }, [initialTab]);
 
   const today = useMemo(() => shiftToday(0), []);
   const from = useMemo(() => shiftToday(-90), []);
