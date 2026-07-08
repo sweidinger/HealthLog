@@ -53,11 +53,14 @@ echo "API_TOKEN_HMAC_KEY=$(openssl rand -hex 32)"   >> .env
 | `ENCRYPTION_KEY`     | AES-256-GCM key for at-rest secrets (Withings tokens, AI provider keys, VAPID secrets) | Coordinated; see `docs/ops/encryption-key-rotation.md` |
 | `API_TOKEN_HMAC_KEY` | HMAC-SHA256 key for hashing Bearer API tokens before storage                           | Invalidates every issued `hlk_*` token                 |
 
-Then open `.env` and confirm `DATABASE_URL` includes the password you
-just generated. The default template (`postgresql://healthlog:CHANGE-ME@db:5432/healthlog`)
-references the literal string `CHANGE-ME`; replace it with the value
-you put in `POSTGRES_PASSWORD`, or rewrite the URL to substitute
-explicitly.
+You do **not** edit `DATABASE_URL` on the bundled `docker-compose.yml`
+stack: compose constructs the connection string inside the `app`
+service from `${POSTGRES_PASSWORD}` (its `environment:` block overrides
+any `DATABASE_URL` in `.env`), so the `openssl` line above is the only
+password step. `DATABASE_URL` only matters if you run a **bare Node**
+process (`pnpm dev` against a host Postgres) or a **custom compose** that
+does not derive it — in that case uncomment and set `DATABASE_URL`
+explicitly in `.env` (see the commented example there).
 
 ## 3. Bring the stack up
 
@@ -91,6 +94,22 @@ After the first user lands, you can:
   Push VAPID keys, AI fallback key).
 - Open `/measurements` and add a weight or blood pressure to confirm
   the data path is wired end-to-end.
+
+> **Close public registration if you expose the instance to the
+> internet.** Registration stays **open** after the first admin so you
+> can invite the rest of your household — but on a publicly reachable
+> host that means strangers can still sign up. Once everyone who needs
+> an account has one, turn it off in **`/admin` → registration toggle**
+> (or keep it open and hand out invite links instead). The admin
+> dashboard shows a reminder while registration is open and you are the
+> only user.
+
+> **No email is configured out of the box** — a deliberate first-boot
+> simplicity win, but it also means password reset has no self-service
+> path until you set SMTP (see `docs/self-hosting/notifications.md`). If
+> you are the sole admin, **save your password in a manager now**: a
+> locked-out solo admin with no SMTP recovers only via the CLI script in
+> `docs/ops/password-reset.md`.
 
 ## 5. Point the instance at a public hostname
 

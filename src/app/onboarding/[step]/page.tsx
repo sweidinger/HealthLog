@@ -13,17 +13,15 @@ import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 
 /**
- * v1.4.25 W14b — onboarding wizard step page (foundation scaffold).
+ * Onboarding wizard step page.
  *
  * Routes:
  *   /onboarding/0  welcome    → carousel / value-prop intro
  *   /onboarding/1  goals      → "what do you want to track?"
- *   /onboarding/2  source     → Withings / Apple Health / manual cards
+ *   /onboarding/2  source     → device/import source cards (see
+ *                               source-card-grid.tsx for the shipped set)
  *   /onboarding/3  baseline   → first measurement or sync confirmation
  *   /onboarding/4  done       → success screen + return to dashboard
- *
- * This page ships the scaffold only — the step body is a placeholder
- * `<div>` that the W14b-Content agent replaces with real step UI.
  *
  * Step gating:
  *   - Unauthenticated → `/auth/login` (the proxy also enforces this,
@@ -139,10 +137,12 @@ export default async function OnboardingStepPage({ params }: PageProps) {
     );
   }
 
-  // Source (step 2) — four-card grid. Manual is the implicit default;
-  // Withings opens OAuth in a new tab; Apple Health is rendered as a
-  // "coming with v1.5" announce card; Garmin is omitted per the
-  // W14b-Content brief (not on the roadmap yet).
+  // Source (step 2) — card grid. Manual is the implicit default; the
+  // connectable sources (Apple Health, WHOOP, Oura, Polar, Nightscout,
+  // Fitbit/Pixel via Google Health) live in `source-card-grid.tsx`'s
+  // SOURCE_CARDS / MORE_SOURCES lists — refer to that component for the
+  // current shipped set rather than duplicating it here. The selection
+  // is non-binding: nothing here auto-configures a sync.
   if (requested === 2) {
     return (
       <OnboardingShell step={2} userLocale={user.locale ?? null}>
