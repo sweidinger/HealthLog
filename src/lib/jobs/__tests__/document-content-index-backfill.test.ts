@@ -25,11 +25,11 @@ vi.mock("@/lib/documents/describe", () => ({
 vi.mock("@/lib/documents/content-index", () => ({
   upsertContentIndex: vi.fn().mockResolvedValue({ tokenCount: 3 }),
 }));
-vi.mock("@/lib/labs/ocr-capability", () => ({
-  resolveVisionProvider: vi.fn(),
+vi.mock("@/lib/documents/provider-order", () => ({
+  resolveDocumentVisionProvider: vi.fn(),
 }));
 vi.mock("@/lib/ai/consent-guard", () => ({
-  assertConsentForChain: vi.fn().mockResolvedValue(undefined),
+  assertDocumentEgressConsent: vi.fn().mockResolvedValue(undefined),
   ConsentRequiredError: class ConsentRequiredError extends Error {},
 }));
 vi.mock("@/lib/ai/coach/budget", () => ({
@@ -42,9 +42,9 @@ vi.mock("@/lib/jobs/boss-instance", () => ({ getGlobalBoss: vi.fn() }));
 
 import { runContentIndexBackfillForUser } from "../document-content-index-backfill";
 import { prisma } from "@/lib/db";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 import {
-  assertConsentForChain,
+  assertDocumentEgressConsent,
   ConsentRequiredError,
 } from "@/lib/ai/consent-guard";
 import { reserveBudget } from "@/lib/ai/coach/budget";
@@ -81,7 +81,7 @@ beforeEach(() => {
 
 describe("runContentIndexBackfillForUser", () => {
   it("no-ops with no provider", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue({
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
       chain: [],
       pick: null,
     } as never);
@@ -91,8 +91,8 @@ describe("runContentIndexBackfillForUser", () => {
   });
 
   it("no-ops when consent is missing", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue(PICK as never);
-    vi.mocked(assertConsentForChain).mockRejectedValueOnce(
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(PICK as never);
+    vi.mocked(assertDocumentEgressConsent).mockRejectedValueOnce(
       new ConsentRequiredError("insights" as never),
     );
     const result = await runContentIndexBackfillForUser("user-1");
@@ -101,7 +101,7 @@ describe("runContentIndexBackfillForUser", () => {
   });
 
   it("indexes the not-yet-indexed documents", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue(PICK as never);
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(PICK as never);
     // One short page (< PAGE_SIZE) — the walk breaks after it, so a single
     // findMany return is enough (a trailing once would leak to the next test).
     vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([
@@ -115,7 +115,7 @@ describe("runContentIndexBackfillForUser", () => {
   });
 
   it("stops when the daily budget is reached (resumable)", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue(PICK as never);
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(PICK as never);
     vi.mocked(prisma.inboundDocument.findMany).mockResolvedValueOnce([
       { id: "d1" },
       { id: "d2" },

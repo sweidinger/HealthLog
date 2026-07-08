@@ -27,12 +27,13 @@ vi.mock("@/lib/documents/assist", () => ({
   runDocumentAssist: vi.fn(),
   DocumentAssistError: class DocumentAssistError extends Error {},
 }));
-vi.mock("@/lib/labs/ocr-capability", () => ({
-  resolveVisionProvider: vi.fn(),
-  resolveTextProvider: vi.fn(),
+vi.mock("@/lib/documents/provider-order", () => ({
+  resolveDocumentVisionProvider: vi.fn(),
+  resolveDocumentTextProvider: vi.fn(),
 }));
 vi.mock("@/lib/ai/consent-guard", () => ({
-  assertConsentForChain: vi.fn().mockResolvedValue(undefined),
+  assertDocumentEgressConsent: vi.fn().mockResolvedValue(undefined),
+  ConsentRequiredError: class ConsentRequiredError extends Error {},
 }));
 vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(() => "2026-07-07"),
@@ -67,7 +68,7 @@ vi.mock("next/headers", () => ({
 import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 import { runDocumentAssist } from "@/lib/documents/assist";
 
 const SESSION_OK = {
@@ -98,7 +99,7 @@ beforeEach(() => {
 
 describe("POST /api/documents/inbound/[id]/suggest", () => {
   it("422s without a vision provider and writes nothing", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue({
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
       chain: [],
       pick: null,
     } as never);
@@ -113,7 +114,7 @@ describe("POST /api/documents/inbound/[id]/suggest", () => {
   });
 
   it("returns drafts and never persists them", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue({
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
       chain: [{ providerType: "anthropic", instance: {} }],
       pick: {
         entry: { providerType: "anthropic", instance: {} },

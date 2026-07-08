@@ -8210,6 +8210,7 @@
       "close": "Hide"
     },
     "ai": {
+      "egressNotice": "This sends the document's contents to your configured AI provider — it leaves this machine to a third-party AI service. If that provider is a personal subscription plan, its own data-use settings apply, including model training unless you have turned it off there.",
       "blockTitle": "Read with AI",
       "available": "Let the AI read this document — suggest a title, type and date, summarise it, or make its full text searchable.",
       "read": "Read with AI",

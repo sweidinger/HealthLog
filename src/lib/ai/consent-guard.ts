@@ -118,3 +118,50 @@ export async function assertConsentForChain(args: {
   if (await hasActiveConsentForSurface(args.userId, args.surface)) return;
   throw new ConsentRequiredError(args.surface);
 }
+
+/**
+ * The DOCUMENT-class consent gate (governance fix, oauth-investigation
+ * SYNTHESIS §2).
+ *
+ * The self-snapshot gate above leaves BYOK / codex / local UNGATED on the
+ * theory that "configuring the provider was the consent act." That theory holds
+ * for a metrics snapshot the account owner sends about themselves. It is too
+ * thin for an uploaded medical DOCUMENT: sending a scanned discharge letter to
+ * ANY third-party AI is the egress data-protection law cares about, and the
+ * codex (ChatGPT-subscription) backend trains on consumer content by default.
+ *
+ * So for the document surfaces the gate is stricter and PICK-based: the vault
+ * AI routes call the single resolved provider directly (no runner cascade), so
+ * the exact egress is the picked provider. A `local` pick never leaves the
+ * machine and stays ungated; EVERY external pick (codex, BYOK openai/anthropic,
+ * the operator's admin key) requires an active document-class consent receipt.
+ */
+const LOCAL_ONLY_PROVIDER_TYPES: ReadonlySet<string> = new Set(["local"]);
+
+/**
+ * True when reading a document through this provider egresses it OFF the machine
+ * to a third-party AI service. Only the self-hosted `local` provider keeps the
+ * document on the operator's own infrastructure.
+ */
+export function isExternalDocumentEgress(providerType: string): boolean {
+  return !LOCAL_ONLY_PROVIDER_TYPES.has(providerType);
+}
+
+/**
+ * Enforce the document-class consent precondition for the provider that will
+ * actually receive the document. No-op for a `local` pick (nothing leaves the
+ * machine); for any external pick, throw `ConsentRequiredError` unless an active
+ * receipt of the surface's mapped kind (or `ai_full`) is on file.
+ *
+ * Call this AFTER the document provider is picked and BEFORE the first
+ * `generateCompletion` on it.
+ */
+export async function assertDocumentEgressConsent(args: {
+  userId: string;
+  providerType: string;
+  surface: ConsentSurface;
+}): Promise<void> {
+  if (!isExternalDocumentEgress(args.providerType)) return;
+  if (await hasActiveConsentForSurface(args.userId, args.surface)) return;
+  throw new ConsentRequiredError(args.surface);
+}

@@ -58,4 +58,12 @@ export const documentKeys = {
    * delete so the quota bar tracks reality.
    */
   inboundDocumentUsage: () => ["documents", "inbound", "usage"] as const,
+  /**
+   * Document-scoped AI capability probe
+   * (`GET /api/documents/inbound/capability`). Distinct from the labs
+   * `ocrCapability` key because it resolves over the DOCUMENT provider order
+   * (local-first) and carries the per-egress class the vault notice reads.
+   */
+  inboundDocumentAiCapability: () =>
+    ["documents", "inbound", "ai-capability"] as const,
 };

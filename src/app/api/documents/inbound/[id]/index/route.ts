@@ -14,8 +14,9 @@
  * Decision (maintainer, 2026-07-07): content indexing is gated on the EXISTING
  * AI consent / provider gate — there is NO separate `documentsContentIndexEnabled`
  * toggle (the plan's P2-D8 opt-in was refused to avoid toggle sprawl). The vision
- * path runs `assertConsentForChain`; the text path rides the local-OCR opt-in the
- * lab / extract text mode already uses.
+ * path runs `assertDocumentEgressConsent` (any external provider needs an active
+ * receipt; a local pick stays ungated); the text path rides the local-OCR opt-in
+ * the lab / extract text mode already uses — no provider egress at all.
  *
  * Persists ONLY AES-256-GCM ciphertext text + opaque HMAC token hashes (A4).
  */
@@ -29,7 +30,7 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
-import { assertConsentForChain } from "@/lib/ai/consent-guard";
+import { assertDocumentEgressConsent } from "@/lib/ai/consent-guard";
 import {
   buildDateKey,
   reconcileSpend,
@@ -51,7 +52,7 @@ import {
   DocumentDescribeError,
   transcribeDocument,
 } from "@/lib/documents/describe";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { prisma } from "@/lib/db";
@@ -164,13 +165,17 @@ async function handleVisionIndex(
   userId: string,
   document: LoadedDocument,
 ): Promise<Response> {
-  const { chain, pick } = await resolveVisionProvider(userId);
+  const { pick } = await resolveDocumentVisionProvider(userId);
   if (!pick) {
     return apiError("No vision-capable AI provider is configured", 422, {
       errorCode: "documents.inbound.providerUnsupported",
     });
   }
-  await assertConsentForChain({ userId, chain, surface: "insights" });
+  await assertDocumentEgressConsent({
+    userId,
+    providerType: pick.providerType,
+    surface: "insights",
+  });
 
   const rl = await checkRateLimit(
     `${DOCUMENT_AI_BUCKET}:${userId}`,
