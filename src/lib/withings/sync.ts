@@ -132,6 +132,20 @@ export async function getValidToken(userId: string): Promise<{
 }
 
 /**
+ * Incremental overlap window (ms). Withings backdates some readings (a scale
+ * step syncs to the cloud minutes after the reading's timestamp), and
+ * `lastSyncedAt` advances on every success — including a healthy 200-with-0
+ * cycle (F-SYNC-1). A too-tight overlap let a reading that landed just before
+ * the next cycle's `now()` slip through the gap. 10 minutes is comfortably wider
+ * than the observed backdating skew while staying far short of a full re-scan;
+ * the upserts are idempotent, so a wider overlap only re-touches a handful of
+ * rows. (Still narrower than Google's 24h / Oura's 7-day because Withings is
+ * webhook-primary — this overlap is the poll-catch-up safety net, not the main
+ * path.)
+ */
+export const WITHINGS_INCREMENTAL_OVERLAP_MS = 10 * 60 * 1000;
+
+/**
  * Sync measurements from Withings for a given user.
  * Fetches data since last sync (or last 30 days if first sync).
  *
@@ -172,7 +186,9 @@ export async function syncUserMeasurements(
   const startDate = opts.fullSync
     ? undefined
     : connection.lastSyncedAt
-      ? new Date(connection.lastSyncedAt.getTime() - 60 * 1000) // overlap 1 min to avoid gaps
+      ? new Date(
+          connection.lastSyncedAt.getTime() - WITHINGS_INCREMENTAL_OVERLAP_MS,
+        )
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days back
 
   let measures: Awaited<ReturnType<typeof fetchMeasurements>>;
