@@ -146,17 +146,28 @@ export async function syncUserMetrics(
       continue;
     }
 
+    // The mapper runs INSIDE a per-type catch too: a single malformed point
+    // whose `resource.map(point)` throws must not escape the METRIC_RESOURCES
+    // loop and skip every metric type ordered after it (which also blocked the
+    // watermark, so the bad point refetched hourly and those types stayed dead).
+    // Route a map throw through the same ledger as a fetch failure — record it,
+    // fail the cycle, and move on to the next type.
     const readings: GoogleHealthMeasurementUpsert[] = [];
-    for (const point of points) {
-      for (const m of resource.map(point)) {
-        readings.push({
-          type: m.type,
-          value: m.value,
-          unit: m.unit,
-          measuredAt: m.measuredAt,
-          externalId: m.fieldTag,
-        });
+    try {
+      for (const point of points) {
+        for (const m of resource.map(point)) {
+          readings.push({
+            type: m.type,
+            value: m.value,
+            unit: m.unit,
+            measuredAt: m.measuredAt,
+            externalId: m.fieldTag,
+          });
+        }
       }
+    } catch (err) {
+      imported += await handleCollectionFetchError(resource.verb, userId, err);
+      continue;
     }
     imported += (
       await upsertGoogleHealthMeasurements(userId, readings, {
