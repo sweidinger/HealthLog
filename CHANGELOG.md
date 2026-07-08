@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.27.31] — 2026-07-09 — Document AI provider governance
+
+### Security
+
+- Document AI now routes through a document-scoped provider order — local extraction first, then no-training API providers (BYOK OpenAI/Anthropic), and a subscription/OAuth provider only last. Sending any document to an external provider requires explicit AI consent (a gap where the subscription path was previously ungated is closed), and a vendor-blind notice appears before a document leaves the machine. Coach and Insights provider behaviour is unchanged. (Follows a three-part investigation of the subscription/OAuth path: capable of reading documents, but the consumer-tier data policy allows training on content, so it is never the default for health documents — only an explicit, consented choice.)
+
 ## [1.27.30] — 2026-07-09 — Correctness and resilience sweep
 
 ### Fixed
