@@ -29,11 +29,12 @@ vi.mock("@/lib/documents/describe", () => ({
 vi.mock("@/lib/documents/content-index", () => ({
   upsertContentIndex: vi.fn().mockResolvedValue({ tokenCount: 7 }),
 }));
-vi.mock("@/lib/labs/ocr-capability", () => ({
-  resolveVisionProvider: vi.fn(),
+vi.mock("@/lib/documents/provider-order", () => ({
+  resolveDocumentVisionProvider: vi.fn(),
 }));
 vi.mock("@/lib/ai/consent-guard", () => ({
-  assertConsentForChain: vi.fn().mockResolvedValue(undefined),
+  assertDocumentEgressConsent: vi.fn().mockResolvedValue(undefined),
+  ConsentRequiredError: class ConsentRequiredError extends Error {},
 }));
 vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(() => "2026-07-07"),
@@ -68,7 +69,7 @@ vi.mock("next/headers", () => ({
 import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 import { transcribeDocument } from "@/lib/documents/describe";
 import { upsertContentIndex } from "@/lib/documents/content-index";
 
@@ -109,7 +110,7 @@ beforeEach(() => {
 
 describe("POST /api/documents/inbound/[id]/index", () => {
   it("vision: transcribes then upserts the index, never facts", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue({
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
       chain: [{ providerType: "anthropic", instance: {} }],
       pick: {
         entry: { providerType: "anthropic", instance: {} },
@@ -137,7 +138,7 @@ describe("POST /api/documents/inbound/[id]/index", () => {
   });
 
   it("vision: 422 without a provider", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue({
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
       chain: [],
       pick: null,
     } as never);
@@ -160,7 +161,7 @@ describe("POST /api/documents/inbound/[id]/index", () => {
       expect.objectContaining({ source: "text-ocr", providerType: null }),
     );
     // No provider was resolved on the text path.
-    expect(resolveVisionProvider).not.toHaveBeenCalled();
+    expect(resolveDocumentVisionProvider).not.toHaveBeenCalled();
   });
 
   it("text: 422 when local OCR is not enabled", async () => {

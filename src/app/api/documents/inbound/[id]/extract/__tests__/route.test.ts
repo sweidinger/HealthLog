@@ -28,12 +28,13 @@ vi.mock("@/lib/ai/coach/bytes-codec", () => ({
   decryptFromBytes: vi.fn(() => "{}"),
 }));
 
-vi.mock("@/lib/labs/ocr-capability", () => ({
-  resolveVisionProvider: vi.fn(),
-  resolveTextProvider: vi.fn(),
+vi.mock("@/lib/documents/provider-order", () => ({
+  resolveDocumentVisionProvider: vi.fn(),
+  resolveDocumentTextProvider: vi.fn(),
 }));
 vi.mock("@/lib/ai/consent-guard", () => ({
-  assertConsentForChain: vi.fn().mockResolvedValue(undefined),
+  assertDocumentEgressConsent: vi.fn().mockResolvedValue(undefined),
+  ConsentRequiredError: class ConsentRequiredError extends Error {},
 }));
 vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(() => "2026-06-27"),
@@ -76,7 +77,7 @@ import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { requireModuleEnabled } from "@/lib/modules/gate";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -109,7 +110,7 @@ beforeEach(() => {
 
 describe("POST /api/documents/inbound/[id]/extract", () => {
   it("422s without a vision provider and leaves the stored row intact", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue({
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
       chain: [],
       pick: null,
     } as never);
