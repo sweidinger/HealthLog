@@ -27,6 +27,7 @@
  * Server-only — reads `@/lib/db`.
  */
 import { prisma } from "@/lib/db";
+import { getEvent } from "@/lib/logging/context";
 import { decryptFromBytes, encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import {
   SELF_REPORT_FENCE_START,
@@ -48,9 +49,18 @@ function decryptOrNull(payload: Uint8Array | null): string | null {
   try {
     const text = decryptFromBytes(payload).trim();
     return text.length > 0 ? text : null;
-  } catch {
-    // Fail closed per field — never surface ciphertext, never throw
-    // into a prompt-assembly path.
+  } catch (err) {
+    // Fail closed per field — never surface ciphertext, never throw into a
+    // prompt-assembly path. But do NOT swallow silently: a stored-but-
+    // undecryptable safety-relevant field (allergies / conditions) that
+    // vanishes from the Coach's self-context with no signal is exactly the
+    // F-CRYPTO-4 gap. Emit a wide-event so a key-rotation gap surfaces instead
+    // of masquerading as "the user never wrote anything".
+    getEvent()?.addWarning(
+      `coach self-context: field decrypt failed (${
+        err instanceof Error ? err.message : String(err)
+      })`,
+    );
     return null;
   }
 }
@@ -83,7 +93,15 @@ export async function getSelfContextForUser(
       allergies: decryptOrNull(row?.allergiesEncrypted ?? null),
       coachFocus: decryptOrNull(row?.coachFocusEncrypted ?? null),
     };
-  } catch {
+  } catch (err) {
+    // Per-field decrypt already fails closed above; this catch is the DB-read
+    // guard. Surface it (rather than masquerading as an empty profile) so a
+    // systemic read/key-config failure is visible in wide-events.
+    getEvent()?.addWarning(
+      `coach self-context load failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return {
       aboutMe: null,
       conditions: null,
@@ -390,7 +408,15 @@ export async function getSelfContextTextForUser(
     );
     if (!selfText && !recordsText) return null;
     return [selfText, recordsText].filter(Boolean).join("\n");
-  } catch {
+  } catch (err) {
+    // Per-field decrypt fails closed inside the composer; this catch is the
+    // DB-read guard. Log it so a systemic failure surfaces rather than the
+    // Coach silently generating guidance without the user's recorded profile.
+    getEvent()?.addWarning(
+      `coach self-context text load failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return null;
   }
 }
