@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MessagesSquare, Search, Trash2 } from "lucide-react";
+import { MessagesSquare, Search, Target, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { COACH_SCROLLBAR } from "@/components/insights/coach-panel/message-thread";
 import {
   useCoachConversations,
@@ -92,7 +94,8 @@ function groupByRecency(conversations: CoachConversationDTO[]): RecencyGroup[] {
 function CoachConversationsBody() {
   const { t } = useTranslations();
   const router = useRouter();
-  const { conversations, isLoading } = useCoachConversations();
+  const { conversations, isLoading, isError, refetch } =
+    useCoachConversations();
   const deleteMutation = useDeleteCoachConversation();
   const [filter, setFilter] = useState<string>("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -129,6 +132,16 @@ function CoachConversationsBody() {
               {t("insights.coach.historyTitle")}
             </span>
           }
+          actions={
+            // Surface the sibling Plans ledger — otherwise it is reachable
+            // only from the composer's `+` menu.
+            <Button asChild variant="outline" size="sm">
+              <Link href="/coach/plans" data-slot="coach-conversations-plans-link">
+                <Target className="size-4" aria-hidden="true" />
+                {t("coach.plans.title")}
+              </Link>
+            </Button>
+          }
         />
         <div className="relative">
           <Search
@@ -160,6 +173,11 @@ function CoachConversationsBody() {
           >
             {t("common.loading")}
           </p>
+        ) : isError && conversations.length === 0 ? (
+          // A load failure must not masquerade as "no conversations yet" —
+          // that reads as a data-loss scare and offers no way back. Mirror
+          // /coach/plans and surface a retry.
+          <QueryErrorCard onRetry={() => refetch()} />
         ) : groups.length === 0 ? (
           <div
             data-slot="coach-conversations-empty"

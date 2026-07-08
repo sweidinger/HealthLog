@@ -33,6 +33,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatDate } from "@/lib/format";
@@ -271,7 +272,7 @@ export default function AchievementsPage() {
   // alongside `<RecentAchievementsCard>` and
   // `<AchievementUnlockNotifier>` so the three consumers never trigger
   // more than one network call on a cold dashboard mount.
-  const { data, isLoading } = useAchievementsQuery({
+  const { data, isLoading, isError, refetch } = useAchievementsQuery({
     enabled: isAuthenticated && achievementsEnabled,
   });
 
@@ -298,6 +299,21 @@ export default function AchievementsPage() {
           title={t("achievements.title")}
           description={t("achievements.loginRequired")}
         />
+      </div>
+    );
+  }
+
+  // A failed load must never fall through to the zeroed summary tiles + the
+  // "none unlocked yet" empty grid (UI-STANDARDS §6). Surface an honest
+  // retry instead.
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title={t("achievements.title")}
+          description={t("achievements.subtitle")}
+        />
+        <QueryErrorCard onRetry={() => refetch()} />
       </div>
     );
   }
