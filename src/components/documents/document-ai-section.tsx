@@ -142,7 +142,10 @@ export function DocumentAiSection({
                 disabled={indexPending || actionsDisabled}
               >
                 <ScanText
-                  className={cn("size-4", indexPending && "animate-pulse")}
+                  className={cn(
+                    "size-4",
+                    indexPending && "animate-pulse motion-reduce:animate-none",
+                  )}
                   aria-hidden
                 />
                 {readLabel}

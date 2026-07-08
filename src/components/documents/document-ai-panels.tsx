@@ -316,7 +316,10 @@ export function ContentSearchStatus({
         data-state="indexing"
         className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
       >
-        <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
+        <Loader2
+          className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+          aria-hidden
+        />
         {t("documents.ai.statusIndexing")}
       </span>
     );
