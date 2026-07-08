@@ -94,6 +94,22 @@ async function mockAiEnabled(
       error: null,
     }),
   );
+  // v1.27.31 — the document AI section now probes the document-scoped
+  // capability endpoint (provider order + vendor-blind egress class), not the
+  // labs OCR probe. Mirror the same availability so the AI actions render;
+  // egress-notice-specific tests override this route afterwards.
+  await page.route("**/api/documents/inbound/capability", (route) =>
+    fulfilJson(route, {
+      data: {
+        available: true,
+        mode: opts.mode,
+        reason: null,
+        pdfSupported: opts.pdfSupported ?? opts.mode === "vision",
+        egress: "external",
+      },
+      error: null,
+    }),
+  );
 }
 
 test.describe("document vault — AI assist + content search", () => {
