@@ -3,6 +3,18 @@ import type { Instrumentation } from "next";
 export async function register() {
   // Only start the worker on the Node.js server runtime (not Edge, not build)
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // First-boot readiness summary: a human-readable block on the core secrets
+    // (with the exact fix on a bad one) before any fail-closed loader throws,
+    // plus a one-glance status of the optional channels. Runs for every process
+    // type (web + worker). Never throws — the real gate stays the loaders.
+    try {
+      const { logReadinessSummary } =
+        await import("@/lib/boot/readiness-summary");
+      logReadinessSummary();
+    } catch {
+      // A readiness summary must never break boot.
+    }
+
     // Every Node process watches its own event loop — web-only
     // containers included; a stall report from the process serving
     // requests is the whole point.
