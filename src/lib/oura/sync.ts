@@ -275,7 +275,8 @@ async function fetchAll(
     rotated.refresh_token,
     refreshTokenCiphertext,
   );
-  if (!usableToken) return { readings: first.readings, failures: first.failures };
+  if (!usableToken)
+    return { readings: first.readings, failures: first.failures };
 
   const retry = await attempt(usableToken, first.failed);
   return {

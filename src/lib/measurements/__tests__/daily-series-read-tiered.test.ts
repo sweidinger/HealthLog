@@ -165,7 +165,9 @@ describe("readDailySeries — rollup read throw falls back to live SQL (F-DB-2)"
     const from = new Date(to.getTime() - 90 * DAY_MS);
 
     // The primary rollup read throws (statement_timeout / deadlock / reset).
-    mocks.findMany.mockReset().mockRejectedValue(new Error("statement timeout"));
+    mocks.findMany
+      .mockReset()
+      .mockRejectedValue(new Error("statement timeout"));
     // Live fallback serves the tile.
     mocks.queryRaw.mockResolvedValueOnce([
       {

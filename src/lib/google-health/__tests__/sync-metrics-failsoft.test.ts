@@ -52,10 +52,11 @@ beforeEach(() => {
   mapWeightMock.mockClear();
   // Weight returns one point (whose mapper throws); everything else is empty so
   // its real mapper is never exercised.
-  fetchDataPointsMock.mockReset().mockImplementation(
-    async (_dt: unknown, _token: string, verb: string) =>
+  fetchDataPointsMock
+    .mockReset()
+    .mockImplementation(async (_dt: unknown, _token: string, verb: string) =>
       verb === "fetchWeight" ? [{ any: "point" }] : [],
-  );
+    );
 });
 
 describe("syncUserMetrics — a throwing mapper never skips sibling types", () => {
