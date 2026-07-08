@@ -210,7 +210,8 @@
     "backToDashboard": "Powrót do panelu"
   },
   "offlineBanner": {
-    "message": "Brak połączenia — twoje zmiany zostaną zapisane, gdy ponownie pojawisz się online.",
+    "message": "Brak połączenia — zmian nie można zapisać, dopóki nie wrócisz online.",
+    "saveFailed": "Nie udało się zapisać — jesteś offline. Spróbuj ponownie, gdy wrócisz online.",
     "showingCached": "Wyświetlane są ostatnio zsynchronizowane dane."
   },
   "demoBanner": {

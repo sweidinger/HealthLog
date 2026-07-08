@@ -210,7 +210,8 @@
     "backToDashboard": "Torna alla dashboard"
   },
   "offlineBanner": {
-    "message": "Nessuna connessione — le tue modifiche verranno salvate appena torni online.",
+    "message": "Nessuna connessione — le modifiche non possono essere salvate finché non torni online.",
+    "saveFailed": "Impossibile salvare — sei offline. Riprova quando torni online.",
     "showingCached": "Vengono mostrati i tuoi ultimi dati sincronizzati."
   },
   "demoBanner": {
