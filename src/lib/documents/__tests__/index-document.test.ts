@@ -46,7 +46,10 @@ vi.mock("@/lib/ai/ai-budgets", () => ({
 }));
 
 import { indexDocumentContent } from "../index-document";
-import { loadOwnedDocument, prepareVisionInput } from "@/lib/documents/ai-route-support";
+import {
+  loadOwnedDocument,
+  prepareVisionInput,
+} from "@/lib/documents/ai-route-support";
 import { upsertContentIndex } from "@/lib/documents/content-index";
 import { transcribeDocument } from "@/lib/documents/describe";
 import { localExtractText } from "@/lib/documents/local-extract";

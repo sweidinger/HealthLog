@@ -249,7 +249,8 @@ export function decryptIndexText(buf: Uint8Array): string {
  *                   provider, no egress — the fallback when no provider is usable.
  *   - `local-ocr` → server-side OCR of a scanned image/PDF (deferred follow-up).
  */
-export type ContentIndexSource = "vision" | "text-ocr" | "local-pdf" | "local-ocr";
+export type ContentIndexSource =
+  "vision" | "text-ocr" | "local-pdf" | "local-ocr";
 
 export interface UpsertContentIndexArgs {
   userId: string;

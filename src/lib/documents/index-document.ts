@@ -61,10 +61,7 @@ export type IndexOutcome =
   | {
       indexed: false;
       reason:
-        | "not-found"
-        | "local-empty"
-        | "local-unsupported"
-        | "decrypt-error";
+        "not-found" | "local-empty" | "local-unsupported" | "decrypt-error";
     };
 
 /**
@@ -101,11 +98,6 @@ export async function resolveIndexProvider(
     ? resolveDailyCap([{ providerType: pick.entry.providerType }])
     : 0;
   return { chain, pick, consentOk, dailyCap };
-}
-
-/** True when the provider path can be attempted for this user. */
-export function providerUsable(provider: ResolvedIndexProvider): boolean {
-  return Boolean(provider.pick) && provider.consentOk;
 }
 
 /**

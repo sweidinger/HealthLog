@@ -68,7 +68,10 @@ describe("localExtractText", () => {
   });
 
   it("returns unsupported for images (deferred server-OCR seam)", async () => {
-    const result = await localExtractText(Buffer.from([0xff, 0xd8]), "image/jpeg");
+    const result = await localExtractText(
+      Buffer.from([0xff, 0xd8]),
+      "image/jpeg",
+    );
     expect(result).toEqual({ ok: false, reason: "unsupported" });
   });
 
