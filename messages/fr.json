@@ -8140,7 +8140,8 @@
       "linkCondition": "Lier",
       "noConditions": "Lié à aucune affection",
       "previewUnavailable": "Pas d'aperçu intégré pour ce type de fichier",
-      "uploadedMeta": "Ajouté le {date} · {size}"
+      "uploadedMeta": "Ajouté le {date} · {size}",
+      "share": "Partager"
     },
     "dropOverlay": {
       "title": "Déposez les fichiers pour les téléverser",
@@ -8219,6 +8220,10 @@
       "indexAllQueued": "Indexation de {count} document(s) en arrière-plan.",
       "indexAllNothing": "Tout est déjà indexé.",
       "indexAllError": "Impossible de démarrer l'indexation."
+    },
+    "share": {
+      "title": "Partager ce document",
+      "description": "Créez un lien clinicien en lecture seule avec ce document joint. Le lien et sa phrase secrète n’apparaissent qu’une seule fois."
     }
   },
   "selfDescription": {
