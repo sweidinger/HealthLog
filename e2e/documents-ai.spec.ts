@@ -369,7 +369,12 @@ test.describe("document vault — AI assist + content search", () => {
     const marker = page
       .locator('[data-slot="document-card"]', { hasText: "Radiology note" })
       .locator('[data-slot="document-searchable"]');
-    await expect(marker).toHaveAttribute("data-source", "ai-read");
+    // The card marker appears after the list query invalidates and refetches
+    // the new provenance; on a loaded runner that round-trip can outlast the
+    // default 5s expect timeout, so wait explicitly for it to resolve.
+    await expect(marker).toHaveAttribute("data-source", "ai-read", {
+      timeout: 20_000,
+    });
   });
 
   // ── (f) Text-mode refuses a non-image before any OCR/upload ──────────────
