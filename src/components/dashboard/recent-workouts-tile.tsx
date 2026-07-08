@@ -15,6 +15,7 @@ import {
 import { useTranslations } from "@/lib/i18n/context";
 import { useWorkouts, type WorkoutListEntry } from "@/hooks/use-workouts";
 import { cn } from "@/lib/utils";
+import { TileHeader } from "@/components/insights/tile-header";
 
 /**
  * v1.4.32 — `<RecentWorkoutsTile>`.
@@ -107,23 +108,23 @@ export function RecentWorkoutsTile() {
         "bg-card border-border space-y-3 rounded-xl border p-4 md:p-6",
       )}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Activity
-            className="text-muted-foreground size-4"
-            aria-hidden="true"
-          />
-          <h2 className="text-sm font-semibold">
-            {t("dashboard.recentWorkouts.title")}
-          </h2>
-        </div>
-        <Link
-          href="/insights/workouts"
-          className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-xs"
-        >
-          {t("dashboard.recentWorkouts.viewAll")}
-        </Link>
-      </div>
+      {/* Canonical tile header (foreground icon + title) — the same
+          `TileHeader` contract the Insights tiles use, so the dashboard
+          stops speaking a separate header language. `size="sm"` matches the
+          compact dashboard tile. */}
+      <TileHeader
+        icon={Activity}
+        size="sm"
+        title={t("dashboard.recentWorkouts.title")}
+        right={
+          <Link
+            href="/insights/workouts"
+            className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-xs"
+          >
+            {t("dashboard.recentWorkouts.viewAll")}
+          </Link>
+        }
+      />
 
       {isLoading ? (
         // v1.4.43 W11-L6 — reserve roughly the loaded tile height
