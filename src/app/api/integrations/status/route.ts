@@ -24,6 +24,10 @@ import {
   getPersistentFailureThreshold,
   type IntegrationKey,
 } from "@/lib/integrations/status";
+import {
+  getSourceMetricFreshness,
+  type MetricFreshnessEntry,
+} from "@/lib/integrations/metric-freshness";
 import { getOuraClientCredentials } from "@/lib/oura/credentials";
 import { getPolarClientCredentials } from "@/lib/polar/credentials";
 import { hasActivityScope } from "@/lib/withings/client";
@@ -131,6 +135,14 @@ export const GET = apiHandler(async () => {
     getOuraClientCredentials(user.id).then((c) => !!c),
   ]);
 
+  // F-SYNC-1 — per-metric-type last-value timestamps so the card can show that a
+  // single metric type has gone silent even while the integration reads green
+  // ("connected · 5 min ago"). Fail-soft: this is an honesty signal, never worth
+  // 500-ing the whole Settings card, so a groupBy hiccup degrades to no data.
+  const metricFreshness = await getSourceMetricFreshness(user.id).catch(
+    () => ({}) as Partial<Record<IntegrationKey, MetricFreshnessEntry[]>>,
+  );
+
   const now = Date.now();
 
   return apiSuccess({
@@ -156,6 +168,7 @@ export const GET = apiHandler(async () => {
         // Null `scope` = legacy connection that predates activity-scope reads.
         scope: withingsConn?.scope ?? null,
         hasActivityScope: hasActivityScope(withingsConn?.scope ?? null),
+        metricFreshness: metricFreshness.withings ?? [],
       } satisfies IntegrationViewModel & WithingsExtras,
       {
         ...moodLogStatus,
@@ -183,6 +196,7 @@ export const GET = apiHandler(async () => {
           ? whoopConn.tokenExpiresAt.getTime() <= now
           : null,
         backfillCompleted: whoopConn ? !!whoopConn.backfillCompletedAt : null,
+        metricFreshness: metricFreshness.whoop ?? [],
       } satisfies IntegrationViewModel & WhoopExtras,
       {
         ...fitbitStatus,
@@ -197,6 +211,7 @@ export const GET = apiHandler(async () => {
           ? fitbitConn.tokenExpiresAt.getTime() <= now
           : null,
         backfillCompleted: fitbitConn ? !!fitbitConn.backfillCompletedAt : null,
+        metricFreshness: metricFreshness.fitbit ?? [],
       } satisfies IntegrationViewModel & FitbitExtras,
       {
         ...googleHealthStatus,
@@ -218,6 +233,7 @@ export const GET = apiHandler(async () => {
         // user-revoked grant) surfaced from the connection row; the card reads it
         // to raise a distinct "Reconnect" CTA separate from parked/disconnected.
         needsReauth: googleHealthConn ? googleHealthConn.needsReauth : false,
+        metricFreshness: metricFreshness["google-health"] ?? [],
       } satisfies IntegrationViewModel & GoogleHealthExtras,
       {
         ...polarStatus,
@@ -231,6 +247,7 @@ export const GET = apiHandler(async () => {
         hasOwnCredentials:
           !!dbUser?.polarClientIdEncrypted &&
           !!dbUser?.polarClientSecretEncrypted,
+        metricFreshness: metricFreshness.polar ?? [],
       } satisfies IntegrationViewModel & OAuthProviderExtras,
       {
         ...ouraStatus,
@@ -240,6 +257,7 @@ export const GET = apiHandler(async () => {
         hasOwnCredentials:
           !!dbUser?.ouraClientIdEncrypted &&
           !!dbUser?.ouraClientSecretEncrypted,
+        metricFreshness: metricFreshness.oura ?? [],
       } satisfies IntegrationViewModel & OAuthProviderExtras,
     ],
   });
@@ -251,6 +269,13 @@ interface IntegrationViewModel {
   lastSuccessAt: string | null;
   lastAttemptAt: string | null;
   lastError: string | null;
+  /**
+   * F-SYNC-1 — per-metric-type last-value timestamps for the integration's
+   * synced measurements. Present on the measurement-backed integrations;
+   * omitted for moodLog (which writes MoodEntry rows, not Measurements). Lets
+   * the card flag a silently-dead metric the green integration state hides.
+   */
+  metricFreshness?: MetricFreshnessEntry[];
 }
 
 interface WithingsExtras {
