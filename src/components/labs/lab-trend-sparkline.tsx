@@ -54,7 +54,7 @@ export function LabTrendSparkline({
       width={width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
-      className="text-muted-foreground/70 overflow-visible"
+      className="text-muted-foreground overflow-visible"
       aria-hidden
       role="presentation"
     >

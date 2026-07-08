@@ -204,7 +204,7 @@ function ShareLinksCard() {
                         {t("common.cancel")}
                       </AlertDialogCancel>
                       <AlertDialogAction
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        className="bg-destructive dark:bg-destructive/60 text-white hover:bg-destructive/90"
                         onClick={() => revokeMutation.mutate(link.id)}
                       >
                         {t("settings.sharing.revoke")}
