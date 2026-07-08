@@ -189,6 +189,7 @@
     "illnessColOnset": "Beginn",
     "illnessColResolved": "Abgeklungen",
     "allergiesTitle": "Allergien & Unverträglichkeiten",
+    "reactionUnreadable": "Reaktion erfasst, konnte aber nicht entschlüsselt werden",
     "allergiesColSubstance": "Substanz",
     "allergiesColCategory": "Kategorie",
     "allergiesColKind": "Art",

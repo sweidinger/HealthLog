@@ -189,6 +189,7 @@
     "illnessColOnset": "Onset",
     "illnessColResolved": "Resolved",
     "allergiesTitle": "Allergies & intolerances",
+    "reactionUnreadable": "Reaction recorded but could not be decrypted",
     "allergiesColSubstance": "Substance",
     "allergiesColCategory": "Category",
     "allergiesColKind": "Kind",

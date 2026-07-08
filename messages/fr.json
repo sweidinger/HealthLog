@@ -189,6 +189,7 @@
     "illnessColOnset": "Début",
     "illnessColResolved": "Résolue",
     "allergiesTitle": "Allergies et intolérances",
+    "reactionUnreadable": "Réaction enregistrée mais impossible à déchiffrer",
     "allergiesColSubstance": "Substance",
     "allergiesColCategory": "Catégorie",
     "allergiesColKind": "Type",

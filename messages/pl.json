@@ -189,6 +189,7 @@
     "illnessColOnset": "Początek",
     "illnessColResolved": "Ustąpiła",
     "allergiesTitle": "Alergie i nietolerancje",
+    "reactionUnreadable": "Reakcja zapisana, ale nie można jej odszyfrować",
     "allergiesColSubstance": "Substancja",
     "allergiesColCategory": "Kategoria",
     "allergiesColKind": "Rodzaj",
