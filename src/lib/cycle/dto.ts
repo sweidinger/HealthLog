@@ -9,6 +9,7 @@
  * (NULL = a plain presence link).
  */
 import { decrypt } from "@/lib/crypto";
+import { getEvent } from "@/lib/logging/context";
 import type { CyclePredictionResult } from "@/lib/cycle/types";
 import type {
   CycleDayLog,
@@ -73,7 +74,16 @@ function decryptNote(notesEncrypted: string | null): string | null {
   if (!notesEncrypted) return null;
   try {
     return decrypt(notesEncrypted);
-  } catch {
+  } catch (err) {
+    // A note WAS stored but is undecryptable (key-rotation gap / corruption).
+    // Fail soft to null so one bad row never throws the day-log read, but log
+    // it (F-CRYPTO-2) so a systemic key gap surfaces instead of silently
+    // reading as an empty note.
+    getEvent()?.addWarning(
+      `cycle day-log note decrypt failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return null;
   }
 }

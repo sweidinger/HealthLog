@@ -14,8 +14,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { I18nProvider } from "@/lib/i18n/context";
+import { I18nProvider, useTranslations } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/config";
+import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { VersionPoller } from "@/components/version-poller";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
@@ -26,6 +27,7 @@ import {
   restorePersistedQueryCache,
   startPersistingQueryCache,
 } from "@/lib/pwa/query-persister";
+import { QUERY_CLIENT_DEFAULT_OPTIONS } from "@/lib/pwa/query-client-options";
 
 const SHELL_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "";
 
@@ -177,6 +179,40 @@ function QueryPersistenceBridge() {
   return null;
 }
 
+// ── Offline mutation backstop ────────────────────────
+
+/**
+ * F-OFF-1 backstop. With mutations in `always` network mode an offline write
+ * rejects immediately (rather than pausing forever), so the individual form's
+ * `onError` fires and shows its own message. This subscriber is the safety net
+ * for any mutation WITHOUT a call-site error handler: it surfaces one honest,
+ * de-duplicated toast whenever a mutation errors while the browser is offline,
+ * so a write can never vanish silently. Gated on `navigator.onLine === false`
+ * so a normal server-side error (which the form already surfaces) is never
+ * double-toasted.
+ */
+function OfflineMutationToaster() {
+  const { t } = useTranslations();
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const cache = queryClient.getMutationCache();
+    const unsubscribe = cache.subscribe((event) => {
+      if (
+        event.type === "updated" &&
+        event.action.type === "error" &&
+        typeof navigator !== "undefined" &&
+        navigator.onLine === false
+      ) {
+        toast.error(t("offlineBanner.saveFailed"), {
+          id: "offline-mutation-failed",
+        });
+      }
+    });
+    return unsubscribe;
+  }, [queryClient, t]);
+  return null;
+}
+
 // ── Root Providers ───────────────────────────────────
 
 export function Providers({
@@ -187,17 +223,7 @@ export function Providers({
   initialLocale?: Locale;
 }) {
   const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 5 * 60 * 1000,
-            gcTime: 10 * 60 * 1000,
-            refetchOnWindowFocus: false,
-            retry: 1,
-          },
-        },
-      }),
+    () => new QueryClient({ defaultOptions: QUERY_CLIENT_DEFAULT_OPTIONS }),
   );
 
   return (
@@ -206,6 +232,7 @@ export function Providers({
         <I18nProvider initialLocale={initialLocale}>
           <QueryPersistenceBridge />
           <DashboardSnapshotPreloader />
+          <OfflineMutationToaster />
           {children}
           <Toaster position="bottom-right" richColors />
           <VersionPoller />

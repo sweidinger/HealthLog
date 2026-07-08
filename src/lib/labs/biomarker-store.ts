@@ -13,6 +13,7 @@ import { Buffer } from "node:buffer";
 
 import { decrypt, encrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
+import { getEvent } from "@/lib/logging/context";
 
 /** Encrypt a UTF-8 context note into the `Bytes` payload the schema stores. */
 export function encryptContextToBytes(
@@ -40,7 +41,15 @@ export function decryptContextSoft(buf: Uint8Array | null): string | null {
   if (!buf) return null;
   try {
     return decryptContextFromBytes(buf);
-  } catch {
+  } catch (err) {
+    // Undecryptable context (key gap / corruption): fail soft to null so one
+    // bad row never 500s the catalog list, but log it (F-CRYPTO-2) so a
+    // systemic key gap surfaces instead of masking as an empty context.
+    getEvent()?.addWarning(
+      `biomarker context decrypt failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return null;
   }
 }

@@ -10,6 +10,7 @@
  * Jackson/WURSS intensity (NULL = a plain presence link).
  */
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
+import { getEvent } from "@/lib/logging/context";
 import type {
   IllnessEpisode,
   IllnessDayLog,
@@ -51,7 +52,14 @@ function decryptNote(noteEncrypted: Uint8Array | null): string | null {
   if (!noteEncrypted || noteEncrypted.byteLength === 0) return null;
   try {
     return decryptFromBytes(noteEncrypted);
-  } catch {
+  } catch (err) {
+    // Undecryptable note (key gap / corruption): fail soft to null but log it
+    // (F-CRYPTO-2) so a systemic key gap surfaces instead of reading as blank.
+    getEvent()?.addWarning(
+      `illness note decrypt failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return null;
   }
 }

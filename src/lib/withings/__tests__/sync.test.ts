@@ -1,5 +1,21 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getWithingsWebhookCallbackUrl } from "../sync";
+import {
+  getWithingsWebhookCallbackUrl,
+  WITHINGS_INCREMENTAL_OVERLAP_MS,
+} from "../sync";
+
+/**
+ * F-SYNC-5 — the incremental overlap must stay comfortably wider than the old
+ * 60s so a backdated Withings reading landing just before the next cycle's
+ * `now()` is not missed (compounded by `lastSyncedAt` advancing on a healthy
+ * 200-with-0 cycle). The upserts are idempotent, so a wider overlap is safe.
+ */
+describe("WITHINGS_INCREMENTAL_OVERLAP_MS", () => {
+  it("is at least a few minutes (not the old 60s)", () => {
+    expect(WITHINGS_INCREMENTAL_OVERLAP_MS).toBeGreaterThanOrEqual(5 * 60_000);
+    expect(WITHINGS_INCREMENTAL_OVERLAP_MS).toBeGreaterThan(60_000);
+  });
+});
 
 /**
  * v1.4.25 W17a — Withings webhook callback URL must put the shared

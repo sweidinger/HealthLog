@@ -189,6 +189,7 @@
     "illnessColOnset": "Début",
     "illnessColResolved": "Résolue",
     "allergiesTitle": "Allergies et intolérances",
+    "reactionUnreadable": "Réaction enregistrée mais impossible à déchiffrer",
     "allergiesColSubstance": "Substance",
     "allergiesColCategory": "Catégorie",
     "allergiesColKind": "Type",
@@ -209,7 +210,8 @@
     "backToDashboard": "Retour au tableau de bord"
   },
   "offlineBanner": {
-    "message": "Pas de connexion — tes modifications seront enregistrées dès que tu seras de nouveau en ligne.",
+    "message": "Pas de connexion — les modifications ne peuvent pas être enregistrées tant que tu n'es pas de nouveau en ligne.",
+    "saveFailed": "Enregistrement impossible — tu es hors ligne. Réessaie une fois de nouveau en ligne.",
     "showingCached": "Affichage de tes dernières données synchronisées."
   },
   "demoBanner": {

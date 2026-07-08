@@ -26,7 +26,7 @@
  */
 import { unlinkSync } from "node:fs";
 import { PrismaClient } from "@/generated/prisma/client";
-import { toJson } from "@/lib/db";
+import { buildSessionOptions, getPoolMax, toJson } from "@/lib/db";
 import { PrismaPg } from "@prisma/adapter-pg";
 import type { Job } from "pg-boss";
 
@@ -61,8 +61,15 @@ export interface AppleHealthImportPayload {
 let workerPrismaSingleton: PrismaClient | null = null;
 function getWorkerPrisma(): PrismaClient {
   if (!workerPrismaSingleton) {
+    // Inherit the web client's pool ceiling + per-session statement timeouts
+    // (`src/lib/db.ts`). The timeout is per-statement, not per-job, so the
+    // long-running bulk import stays safe while a single wedged UPSERT can no
+    // longer pin a worker connection indefinitely.
+    const sessionOptions = buildSessionOptions();
     const adapter = new PrismaPg({
       connectionString: process.env.DATABASE_URL!,
+      max: getPoolMax(),
+      ...(sessionOptions ? { options: sessionOptions } : {}),
     });
     workerPrismaSingleton = new PrismaClient({ adapter });
   }

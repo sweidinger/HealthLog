@@ -109,14 +109,27 @@ export async function syncUserActivity(
         forbidden = true;
         break;
       }
-      for (const m of resource.map(body)) {
-        readings.push({
-          type: m.type,
-          value: m.value,
-          unit: m.unit,
-          measuredAt: m.measuredAt,
-          externalId: externalIdFor(m),
-        });
+      try {
+        for (const m of resource.map(body)) {
+          readings.push({
+            type: m.type,
+            value: m.value,
+            unit: m.unit,
+            measuredAt: m.measuredAt,
+            externalId: externalIdFor(m),
+          });
+        }
+      } catch (err) {
+        // A malformed point whose mapper throws routes through the same ledger
+        // as a fetch failure — record it, short-circuit this resource, and let
+        // the sibling resources keep syncing.
+        imported += await handleCollectionFetchError(
+          resource.verb,
+          userId,
+          err,
+        );
+        forbidden = true;
+        break;
       }
     }
     if (forbidden) continue;

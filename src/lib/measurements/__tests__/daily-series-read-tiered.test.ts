@@ -158,3 +158,56 @@ describe("readDailySeries — long-range tier step-up", () => {
     expect(mocks.findMany).toHaveBeenCalled();
   });
 });
+
+describe("readDailySeries — rollup read throw falls back to live SQL (F-DB-2)", () => {
+  it("a rollup-table throw on a normal window degrades to the live date_trunc aggregate, not a 500", async () => {
+    const to = new Date("2026-06-21T00:00:00.000Z");
+    const from = new Date(to.getTime() - 90 * DAY_MS);
+
+    // The primary rollup read throws (statement_timeout / deadlock / reset).
+    mocks.findMany
+      .mockReset()
+      .mockRejectedValue(new Error("statement timeout"));
+    // Live fallback serves the tile.
+    mocks.queryRaw.mockResolvedValueOnce([
+      {
+        type: "WEIGHT",
+        bucket_start: new Date("2026-06-10T00:00:00.000Z"),
+        avg: 80.5,
+        cnt: 2,
+      },
+    ]);
+
+    const result = await readDailySeries({
+      userId: "u",
+      type: "WEIGHT",
+      from,
+      to,
+      priorityJson: null,
+    });
+
+    // The read did NOT throw — it fell through to live SQL and served a row.
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ type: "WEIGHT", value: 80.5, count: 2 });
+    expect(mocks.queryRaw).toHaveBeenCalled();
+  });
+
+  it("a tiered-reader throw on a long window falls through to the daily path", async () => {
+    const to = new Date("2026-06-21T00:00:00.000Z");
+    const from = new Date(to.getTime() - 3650 * DAY_MS);
+    mocks.readTieredRollupSeries.mockRejectedValueOnce(new Error("deadlock"));
+
+    const result = await readDailySeries({
+      userId: "u",
+      type: "WEIGHT",
+      from,
+      to,
+      priorityJson: null,
+    });
+
+    // The daily DAY-rollup read still ran as the fallback (the default findMany
+    // returns 3 rows), so the throw did not 500 the read.
+    expect(mocks.findMany).toHaveBeenCalled();
+    expect(result).toHaveLength(3);
+  });
+});

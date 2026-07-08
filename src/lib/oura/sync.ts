@@ -114,11 +114,42 @@ function toUpsert(
   }));
 }
 
+/** One Oura collection: its ledger name and a self-contained fetch+map closure
+ * that resolves to the collection's mapped upserts. Each closure owns its own
+ * client call and mapper so a throw is contained to this one collection. */
+interface OuraCollectionSpec {
+  name: string;
+  collect: (token: string) => Promise<OuraMeasurementUpsert[]>;
+}
+
+/** A single collection that failed to fetch/map, carried so the caller can
+ * classify + record the failure without blanking the collections that did
+ * succeed. */
+export interface OuraCollectionFailure {
+  name: string;
+  err: unknown;
+}
+
+export interface OuraFetchResult {
+  readings: OuraMeasurementUpsert[];
+  failures: OuraCollectionFailure[];
+}
+
 /**
  * Fetch every Oura daily collection for a user with a single reactive
- * refresh-on-401 retry. Returns the raw mapped readings (not yet upserted).
- * Throws a classified `OuraApiError` on a hard failure so the caller records
- * the ledger entry.
+ * refresh-on-401 retry, ISOLATED per collection. Unlike a bare `Promise.all`,
+ * one flaky endpoint or one throwing mapper no longer rejects the whole batch
+ * (which used to blank readiness, sleep, activity, spo2 all at once). Each
+ * collection is settled independently (`Promise.allSettled`); the ones that
+ * succeed import, the ones that throw are returned as `failures` for the caller
+ * to record — mirroring Google Health's / Fitbit's per-collection hard-fail
+ * ledger.
+ *
+ * The reactive refresh is preserved: because every collection shares one access
+ * token, an expired token 401s all of them together; a single refresh is done
+ * once and ONLY the failed collections are retried with the rotated token. A
+ * failed refresh (`invalid_grant`) still throws so the caller parks the whole
+ * connection at `reauth_required`.
  */
 async function fetchAll(
   userId: string,
@@ -126,72 +157,132 @@ async function fetchAll(
   refreshToken: string,
   refreshTokenCiphertext: string,
   lookbackDays: number,
-): Promise<OuraMeasurementUpsert[]> {
+): Promise<OuraFetchResult> {
   const now = new Date();
   const start = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
   const query = { startDate: ymd(start), endDate: ymd(now) };
 
-  const run = async (token: string): Promise<OuraMeasurementUpsert[]> => {
-    const [
-      readiness,
-      sleeps,
-      activities,
-      dailySleep,
-      spo2,
-      vo2max,
-      cardioAge,
-      resilience,
-    ] = await Promise.all([
-      fetchReadiness(token, query),
-      fetchSleep(token, query),
-      fetchDailyActivity(token, query),
-      fetchDailySleep(token, query),
-      fetchDailySpo2(token, query),
-      fetchVo2Max(token, query),
-      fetchCardiovascularAge(token, query),
-      fetchResilience(token, query),
-    ]);
-    const out: OuraMeasurementUpsert[] = [];
-    for (const r of readiness)
-      out.push(...toUpsert(mapReadiness(r), "readiness"));
-    for (const s of sleeps) out.push(...toUpsert(mapSleep(s), "sleep"));
-    for (const a of activities)
-      out.push(...toUpsert(mapDailyActivity(a), "activity"));
-    for (const d of dailySleep)
-      out.push(...toUpsert(mapDailySleep(d), "daily_sleep"));
-    for (const s of spo2) out.push(...toUpsert(mapDailySpo2(s), "spo2"));
-    for (const v of vo2max) out.push(...toUpsert(mapVo2Max(v), "vo2max"));
-    for (const c of cardioAge)
-      out.push(...toUpsert(mapCardiovascularAge(c), "cardio_age"));
-    for (const r of resilience)
-      out.push(...toUpsert(mapResilience(r), "resilience"));
-    return out;
+  const collections: OuraCollectionSpec[] = [
+    {
+      name: "readiness",
+      collect: async (t) =>
+        (await fetchReadiness(t, query)).flatMap((r) =>
+          toUpsert(mapReadiness(r), "readiness"),
+        ),
+    },
+    {
+      name: "sleep",
+      collect: async (t) =>
+        (await fetchSleep(t, query)).flatMap((s) =>
+          toUpsert(mapSleep(s), "sleep"),
+        ),
+    },
+    {
+      name: "activity",
+      collect: async (t) =>
+        (await fetchDailyActivity(t, query)).flatMap((a) =>
+          toUpsert(mapDailyActivity(a), "activity"),
+        ),
+    },
+    {
+      name: "daily_sleep",
+      collect: async (t) =>
+        (await fetchDailySleep(t, query)).flatMap((d) =>
+          toUpsert(mapDailySleep(d), "daily_sleep"),
+        ),
+    },
+    {
+      name: "spo2",
+      collect: async (t) =>
+        (await fetchDailySpo2(t, query)).flatMap((s) =>
+          toUpsert(mapDailySpo2(s), "spo2"),
+        ),
+    },
+    {
+      name: "vo2max",
+      collect: async (t) =>
+        (await fetchVo2Max(t, query)).flatMap((v) =>
+          toUpsert(mapVo2Max(v), "vo2max"),
+        ),
+    },
+    {
+      name: "cardio_age",
+      collect: async (t) =>
+        (await fetchCardiovascularAge(t, query)).flatMap((c) =>
+          toUpsert(mapCardiovascularAge(c), "cardio_age"),
+        ),
+    },
+    {
+      name: "resilience",
+      collect: async (t) =>
+        (await fetchResilience(t, query)).flatMap((r) =>
+          toUpsert(mapResilience(r), "resilience"),
+        ),
+    },
+  ];
+
+  // Run a set of collections isolated from one another. A rejection is captured
+  // per-collection, never propagated, so siblings still resolve.
+  const attempt = async (
+    token: string,
+    specs: OuraCollectionSpec[],
+  ): Promise<{
+    readings: OuraMeasurementUpsert[];
+    failed: OuraCollectionSpec[];
+    failures: OuraCollectionFailure[];
+    auth401: boolean;
+  }> => {
+    const settled = await Promise.allSettled(
+      specs.map((spec) => spec.collect(token)),
+    );
+    const readings: OuraMeasurementUpsert[] = [];
+    const failed: OuraCollectionSpec[] = [];
+    const failures: OuraCollectionFailure[] = [];
+    let auth401 = false;
+    settled.forEach((res, i) => {
+      const spec = specs[i]!;
+      if (res.status === "fulfilled") {
+        readings.push(...res.value);
+      } else {
+        const err = res.reason;
+        if (err instanceof OuraApiError && err.httpStatus === 401)
+          auth401 = true;
+        failed.push(spec);
+        failures.push({ name: spec.name, err });
+      }
+    });
+    return { readings, failed, failures, auth401 };
   };
 
-  try {
-    return await run(accessToken);
-  } catch (err) {
-    // Reactive refresh: a 401 means the access token expired. Refresh once
-    // (rotating both tokens) and retry. A 403 / other error is NOT a refresh
-    // case — rethrow so the caller classifies it.
-    if (!(err instanceof OuraApiError) || err.httpStatus !== 401) throw err;
-
-    const creds = await getOuraClientCredentials(userId);
-    if (!creds) throw err;
-
-    const rotated = await refreshAccessToken(refreshToken, creds);
-    // Compare-and-swap persist: on a lost race against a concurrent sync this
-    // returns the peer's freshly rotated access token rather than the (now
-    // invalidated) one we just minted, so neither sync parks the connection.
-    const usableToken = await storeOuraTokens(
-      userId,
-      rotated.access_token,
-      rotated.refresh_token,
-      refreshTokenCiphertext,
-    );
-    if (!usableToken) throw err;
-    return run(usableToken);
+  const first = await attempt(accessToken, collections);
+  if (!first.auth401) {
+    return { readings: first.readings, failures: first.failures };
   }
+
+  // Reactive refresh: the access token expired (a 401 on the shared token).
+  // Refresh once (rotating both tokens) and retry ONLY the collections that
+  // failed. A failed refresh throws so the caller parks reauth_required.
+  const creds = await getOuraClientCredentials(userId);
+  if (!creds) return { readings: first.readings, failures: first.failures };
+
+  const rotated = await refreshAccessToken(refreshToken, creds);
+  // Compare-and-swap persist: on a lost race against a concurrent sync this
+  // returns the peer's freshly rotated access token rather than the (now
+  // invalidated) one we just minted, so neither sync parks the connection.
+  const usableToken = await storeOuraTokens(
+    userId,
+    rotated.access_token,
+    rotated.refresh_token,
+    refreshTokenCiphertext,
+  );
+  if (!usableToken)
+    return { readings: first.readings, failures: first.failures };
+
+  const retry = await attempt(usableToken, first.failed);
+  return {
+    readings: [...first.readings, ...retry.readings],
+    failures: retry.failures,
+  };
 }
 
 /**
@@ -206,9 +297,9 @@ export async function syncUserOura(
   const conn = await getOuraConnection(userId);
   if (!conn) return 0;
 
-  let readings: OuraMeasurementUpsert[];
+  let result: OuraFetchResult;
   try {
-    readings = await fetchAll(
+    result = await fetchAll(
       userId,
       conn.accessToken,
       conn.refreshToken,
@@ -216,6 +307,8 @@ export async function syncUserOura(
       opts.lookbackDays ?? OURA_SYNC_LOOKBACK_DAYS,
     );
   } catch (err) {
+    // Only a whole-connection failure (a failed token refresh → reauth) reaches
+    // here now; per-collection failures are captured on `result.failures`.
     await recordSyncFailure({
       userId,
       integration: "oura",
@@ -229,7 +322,37 @@ export async function syncUserOura(
     throw err;
   }
 
-  const imported = await upsertOuraMeasurements(userId, readings);
+  // Import everything the healthy collections returned regardless of whether a
+  // sibling collection failed — one bad collection must not blank the source.
+  const imported = await upsertOuraMeasurements(userId, result.readings);
+
+  if (result.failures.length > 0) {
+    // Partial failure: keep the cycle honest. Record the failure and do NOT
+    // stamp success, so the freshness surface reflects that some collections
+    // are behind and the next tick refetches them, rather than showing green.
+    const firstErr = result.failures[0]!.err;
+    getEvent()?.addWarning(
+      `oura: ${result.failures.length} collection(s) failed for ${userId}: ${result.failures
+        .map((f) => f.name)
+        .join(", ")}`,
+    );
+    await recordSyncFailure({
+      userId,
+      integration: "oura",
+      kind: classifyOuraFailure(firstErr),
+      message: `partial sync failure (${result.failures
+        .map((f) => f.name)
+        .join(", ")}): ${
+        firstErr instanceof Error ? firstErr.message : String(firstErr)
+      }`,
+      errorCode:
+        firstErr instanceof OuraApiError && firstErr.httpStatus != null
+          ? String(firstErr.httpStatus)
+          : undefined,
+    });
+    return imported;
+  }
+
   await recordSyncSuccess(userId, "oura");
   return imported;
 }
