@@ -23,6 +23,7 @@ import {
   formatInUserTz,
   invalidateServerDefaultTimezone,
   invalidateUserTimezone,
+  hourInTz,
   isNearUtc,
   isValidTimezone,
   resolveServerDefaultTimezone,
@@ -259,6 +260,30 @@ describe("userDayKey", () => {
     const instant = new Date("2026-05-10T14:50:00Z"); // 23:50 Tokyo
     expect(userDayKey(instant, "Asia/Tokyo")).toBe("2026-05-10");
     expect(userDayKey(instant, "Pacific/Auckland")).toBe("2026-05-11");
+  });
+});
+
+describe("hourInTz", () => {
+  it("reads the wall-clock hour in the user's zone, not UTC", () => {
+    // 2026-06-15T03:00Z is 20:00 the previous day in Los Angeles (UTC-7),
+    // 05:00 in Berlin (UTC+2), 12:00 in Tokyo (UTC+9).
+    const instant = new Date("2026-06-15T03:00:00.000Z");
+    expect(hourInTz(instant, "UTC")).toBe(3);
+    expect(hourInTz(instant, "America/Los_Angeles")).toBe(20);
+    expect(hourInTz(instant, "Europe/Berlin")).toBe(5);
+    expect(hourInTz(instant, "Asia/Tokyo")).toBe(12);
+  });
+
+  it("normalises local midnight to 0, never 24", () => {
+    const instant = new Date("2026-06-14T22:00:00.000Z"); // 00:00 Berlin
+    expect(hourInTz(instant, "Europe/Berlin")).toBe(0);
+  });
+
+  it("falls back to the default zone for an unusable tz string", () => {
+    // Mirrors formatInUserTz / userDayKey: an invalid zone degrades to
+    // DEFAULT_TIMEZONE (Europe/Berlin), which is UTC+2 in summer.
+    const instant = new Date("2026-06-15T09:00:00.000Z");
+    expect(hourInTz(instant, "Mars/Olympus")).toBe(11);
   });
 });
 

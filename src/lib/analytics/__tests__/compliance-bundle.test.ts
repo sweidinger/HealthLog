@@ -23,6 +23,8 @@ import {
   tallyLedgerRows,
   type ComplianceSchedule,
 } from "../compliance";
+import type { DoseHistoryRow } from "@/lib/medications/scheduling/dose-history";
+import { zonedWallClockToUtc } from "@/lib/tz/wall-clock";
 
 const TZ = "UTC";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -333,6 +335,41 @@ describe("dailyComplianceRatesFromLedger — cadence-aware per-day series", () =
     const missed = series.reduce((sum, d) => sum + d.missed, 0);
     const aggregateRate = Math.round((taken / (taken + missed)) * 100);
     expect(aggregateRate).toBe(bundle.compliance30.rate);
+  });
+
+  it("buckets a non-Berlin user's two same-local-day doses into ONE day", () => {
+    // America/Los_Angeles user, twice-daily 08:00 + 20:00 LOCAL on the same
+    // local calendar day (2026-06-15). The 20:00 PDT dose is 03:00 UTC the
+    // NEXT day — and 05:00 the next Berlin day — so a fixed-Berlin day key
+    // splits one local day's two doses across two buckets.
+    const takenOnTime = (h: number, m: number): DoseHistoryRow => {
+      const at = zonedWallClockToUtc(
+        { year: 2026, month: 6, day: 15, hour: h, minute: m },
+        "America/Los_Angeles",
+      );
+      return {
+        kind: "slot",
+        at,
+        timeOfDay: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+        status: "taken_on_time",
+        intake: null,
+      };
+    };
+    const rows: DoseHistoryRow[] = [takenOnTime(8, 0), takenOnTime(20, 0)];
+
+    // Bucketed in the user's own zone: one local day, two taken.
+    const laSeries = dailyComplianceRatesFromLedger(
+      rows,
+      "America/Los_Angeles",
+    );
+    expect(laSeries.length).toBe(1);
+    expect(laSeries[0].taken).toBe(2);
+    expect(laSeries[0].rate).toBe(100);
+
+    // Sanity: the fixed-Berlin key (the pre-fix behaviour) would split these
+    // same two doses across two calendar buckets — the defect the fix closes.
+    const berlinSeries = dailyComplianceRatesFromLedger(rows, "Europe/Berlin");
+    expect(berlinSeries.length).toBe(2);
   });
 });
 
