@@ -8210,6 +8210,7 @@
       "close": "Masquer"
     },
     "ai": {
+      "egressNotice": "Ceci envoie le contenu du document à votre fournisseur d'IA configuré — il quitte cette machine vers un service d'IA tiers. Si ce fournisseur est un abonnement personnel, ses propres paramètres d'utilisation des données s'appliquent, y compris l'entraînement du modèle sauf si vous l'avez désactivé là-bas.",
       "blockTitle": "Lire avec l’IA",
       "available": "Laissez l’IA lire ce document — suggérer un titre, un type et une date, le résumer ou rendre tout son texte consultable.",
       "read": "Lire avec l’IA",

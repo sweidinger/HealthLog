@@ -39,6 +39,21 @@ function modelForEntry(
   return providerType === "admin-openai" ? ctx.adminModel : ctx.userModel;
 }
 
+/**
+ * A transform applied to the resolved provider chain before the vision/text
+ * pick is made. Identity by default (labs behaviour unchanged); the document
+ * class passes a reorder that demotes external/train-by-default providers below
+ * local (see `@/lib/documents/provider-order`).
+ */
+export type ChainReorder = (
+  chain: ProviderChainResolved[],
+) => ProviderChainResolved[];
+
+export interface ResolveProviderOptions {
+  /** Reorder the resolved chain before picking. Defaults to identity. */
+  reorder?: ChainReorder;
+}
+
 /** A vision-capable provider pick: its instance, logical tag, and model. */
 export interface VisionProviderPick {
   /** The full resolved chain (for `assertConsentForChain`). */
@@ -61,6 +76,7 @@ export interface VisionProviderPick {
  */
 export async function resolveVisionProvider(
   userId: string,
+  options?: ResolveProviderOptions,
 ): Promise<VisionProviderPick> {
   const userRow = await prisma.user.findUnique({
     where: { id: userId },
@@ -84,15 +100,21 @@ export async function resolveVisionProvider(
     adminModel: settings?.adminAiModel ?? null,
   };
 
-  const chain = ocr.chain;
-  if (chain.length === 0) {
+  const resolvedChain = ocr.chain;
+  if (resolvedChain.length === 0) {
     // Mirror the Coach: fall back to the legacy single-provider resolution and
     // tag it as the admin-managed entry the consent gate recognises.
     const legacy = await resolveProvider(userId);
     if (legacy.type !== "none") {
-      chain.push({ providerType: "admin-openai", instance: legacy });
+      resolvedChain.push({ providerType: "admin-openai", instance: legacy });
     }
   }
+
+  // Apply the caller's reorder (document class demotes external providers below
+  // local) before picking; labs passes no reorder → identity.
+  const chain = options?.reorder
+    ? options.reorder(resolvedChain)
+    : resolvedChain;
 
   for (const entry of chain) {
     const providerType = entry.providerType as VisionProviderType;
@@ -119,19 +141,25 @@ export async function resolveVisionProvider(
  * so this returns the whole chain plus the first entry to drive the structuring
  * call. Returns `null` when nothing is configured.
  */
-export async function resolveTextProvider(userId: string): Promise<{
+export async function resolveTextProvider(
+  userId: string,
+  options?: ResolveProviderOptions,
+): Promise<{
   chain: ProviderChainResolved[];
   pick: { entry: ProviderChainResolved; providerType: string } | null;
 }> {
   // v1.22 (#90) — use the dedicated document-scan provider when enabled, else
   // the main chain (the text-mode structuring pass needs no vision).
-  const chain = (await resolveOcrProviderChain(userId)).chain;
-  if (chain.length === 0) {
+  const resolvedChain = (await resolveOcrProviderChain(userId)).chain;
+  if (resolvedChain.length === 0) {
     const legacy = await resolveProvider(userId);
     if (legacy.type !== "none") {
-      chain.push({ providerType: "admin-openai", instance: legacy });
+      resolvedChain.push({ providerType: "admin-openai", instance: legacy });
     }
   }
+  const chain = options?.reorder
+    ? options.reorder(resolvedChain)
+    : resolvedChain;
   const entry = chain[0];
   return {
     chain,
@@ -147,8 +175,12 @@ export async function resolveTextProvider(userId: string): Promise<{
  */
 export async function resolveOcrCapability(
   userId: string,
+  options?: ResolveProviderOptions,
 ): Promise<OcrCapabilityDto> {
-  const { chain, pick, localOcrEnabled } = await resolveVisionProvider(userId);
+  const { chain, pick, localOcrEnabled } = await resolveVisionProvider(
+    userId,
+    options,
+  );
 
   // Prefer the native vision path whenever it is available — it is more
   // accurate and the client does not download the OCR WASM.

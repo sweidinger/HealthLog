@@ -594,6 +594,30 @@ export interface DocumentUsageDto {
   };
 }
 
+/** Where a document read egresses, vendor-blind. */
+export type DocumentEgressClass = "local" | "external";
+
+/**
+ * The document-scoped AI capability probe response
+ * (`GET /api/documents/inbound/capability`). Resolved over the DOCUMENT
+ * provider order (local-first, codex last), so `mode` / `pdfSupported` /
+ * `egress` match exactly what the document AI routes will do. `egress` drives
+ * the vault's per-egress "this leaves your machine to a third-party AI" notice.
+ */
+export interface DocumentAiCapabilityDto {
+  available: boolean;
+  mode: "vision" | "text" | null;
+  reason: "no-provider" | "enable-local-ocr" | null;
+  pdfSupported: boolean;
+  /**
+   * Where a document read will egress with the current provider order:
+   *   - "local":    stays on the operator's machine (self-hosted model).
+   *   - "external": leaves the machine to a third-party AI service.
+   *   - null:       no read is available (see `reason`).
+   */
+  egress: DocumentEgressClass | null;
+}
+
 // ─── AI assist / summary / index (Document vault P2) ────────────────────────
 
 /**

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.27.30
+  version: 1.27.31
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -8903,6 +8903,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/capability:
+    get:
+      tags:
+        - Documents
+      summary: Probe document-AI availability + egress
+      description: "Cheap probe (no provider call) the vault uses to decide the AI transport and whether to warn before a read
+        leaves the machine. Resolved over the DOCUMENT provider order (local-first, ChatGPT-subscription OAuth last), so
+        `mode` / `pdfSupported` / `egress` match exactly what the document AI routes do. `egress` is vendor-blind:
+        `\"local\"` (a self-hosted model — the document never leaves the operator's machine) or `\"external\"` (a
+        third-party AI service). The vault shows a per-egress notice before any external document read; sending a
+        document to any external provider also requires an active AI-consent receipt."
+      responses:
+        "200":
+          description: Document-AI capability flags + egress class.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentAiCapabilityEnvelope"
+        "401": *a1
         "422": *a3
         "429": *a4
   /api/documents/inbound/usage:
@@ -26264,6 +26285,58 @@ components:
       required:
         - data
         - error
+      additionalProperties: false
+    DocumentAiCapabilityEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DocumentAiCapability"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DocumentAiCapability:
+      type: object
+      properties:
+        available:
+          type: boolean
+        mode:
+          anyOf:
+            - type: string
+              enum:
+                - vision
+                - text
+            - type: "null"
+        reason:
+          anyOf:
+            - type: string
+              enum:
+                - no-provider
+                - enable-local-ocr
+            - type: "null"
+        pdfSupported:
+          type: boolean
+        egress:
+          anyOf:
+            - type: string
+              enum:
+                - local
+                - external
+            - type: "null"
+      required:
+        - available
+        - mode
+        - reason
+        - pdfSupported
+        - egress
       additionalProperties: false
     DocumentUsageEnvelope:
       type: object

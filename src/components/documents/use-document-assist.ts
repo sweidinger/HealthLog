@@ -17,8 +17,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { apiGet, ApiError } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
-import type { OcrCapabilityDto } from "@/lib/validations/labs-ocr";
 import type {
+  DocumentAiCapabilityDto,
   DocumentSuggestionDto,
   DocumentSummaryMode,
 } from "@/lib/validations/inbound-documents";
@@ -34,16 +34,18 @@ import {
 export type DocumentDescribeResult = { summary: string } | { text: string };
 
 /**
- * The shared OCR capability probe (`/api/labs/ocr/capability`) reused verbatim:
- * the same server resolution both the lab-OCR and the document AI routes gate
- * on, so the client picks the transport the endpoint accepts. Availability of
- * the affordance itself is gated on `usage.assistAvailable`; this read only
- * resolves the transport `mode` + PDF support.
+ * The document-scoped AI capability probe (`/api/documents/inbound/capability`).
+ * Resolved over the DOCUMENT provider order (local-first, codex last), so the
+ * transport `mode` + PDF support match what the document routes do, and it
+ * carries the vendor-blind `egress` class the detail sheet uses to warn before a
+ * read leaves the machine. Availability of the affordance itself is still gated
+ * on `usage.assistAvailable`.
  */
 export function useDocumentAiCapability(enabled: boolean) {
-  return useQuery<OcrCapabilityDto>({
-    queryKey: queryKeys.ocrCapability(),
-    queryFn: () => apiGet<OcrCapabilityDto>("/api/labs/ocr/capability"),
+  return useQuery<DocumentAiCapabilityDto>({
+    queryKey: queryKeys.inboundDocumentAiCapability(),
+    queryFn: () =>
+      apiGet<DocumentAiCapabilityDto>("/api/documents/inbound/capability"),
     enabled,
     staleTime: 60_000,
   });
