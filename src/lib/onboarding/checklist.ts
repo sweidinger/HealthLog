@@ -12,6 +12,7 @@ export const CHECKLIST_ITEM_IDS = [
   "medication",
   "dataSource",
   "notifications",
+  "insights",
 ] as const;
 
 export type ChecklistItemId = (typeof CHECKLIST_ITEM_IDS)[number];
@@ -52,14 +53,24 @@ export interface ChecklistInputs {
    * (Telegram, ntfy, or Web Push).
    */
   notificationsConfigured: boolean;
+  /**
+   * True iff any AI provider can serve this user — a personal key,
+   * a local model, an OAuth sign-in, OR the operator's shared key.
+   * Derived from `/api/user/ai-provider`'s `aiAvailable`, so the row
+   * self-satisfies the moment insights become reachable (including on a
+   * deployment that ships a shared operator key). Presence-only — it
+   * never decrypts a credential or probes liveness.
+   */
+  insightsConfigured: boolean;
   /** Dismissed item ids (per-item localStorage state). */
   dismissedIds: ReadonlySet<ChecklistItemId>;
 }
 
 /**
  * Compute the ordered checklist for the dashboard hero. Stable order:
- * profile → measurement → medication → dataSource → notifications. Each
- * item carries the deep-link the row's CTA should navigate to.
+ * profile → measurement → medication → dataSource → notifications →
+ * insights. Each item carries the deep-link the row's CTA should
+ * navigate to.
  */
 export function buildChecklist(inputs: ChecklistInputs): ChecklistItem[] {
   const profileDone = isProfileComplete(inputs.profile);
@@ -93,6 +104,12 @@ export function buildChecklist(inputs: ChecklistInputs): ChecklistItem[] {
       done: inputs.notificationsConfigured,
       href: "/settings/notifications",
       dismissed: inputs.dismissedIds.has("notifications"),
+    },
+    {
+      id: "insights",
+      done: inputs.insightsConfigured,
+      href: "/settings/ai",
+      dismissed: inputs.dismissedIds.has("insights"),
     },
   ];
   return items;

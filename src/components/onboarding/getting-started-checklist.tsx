@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   Pill,
+  Sparkles,
   User2,
   Wifi,
   X,
@@ -39,6 +40,7 @@ const ITEM_ICONS: Record<ChecklistItemId, LucideIcon> = {
   medication: Pill,
   dataSource: Wifi,
   notifications: Bell,
+  insights: Sparkles,
 };
 
 const ITEM_LABEL_KEYS: Record<
@@ -70,6 +72,11 @@ const ITEM_LABEL_KEYS: Record<
     description: "gettingStarted.items.notificationsDescription",
     cta: "gettingStarted.items.notificationsCta",
   },
+  insights: {
+    title: "gettingStarted.items.insightsTitle",
+    description: "gettingStarted.items.insightsDescription",
+    cta: "gettingStarted.items.insightsCta",
+  },
 };
 
 interface IntegrationsStatus {
@@ -83,6 +90,15 @@ interface NotificationChannel {
 
 interface NotificationsPreferences {
   channels?: NotificationChannel[];
+}
+
+interface AiProviderStatus {
+  /**
+   * True iff any provider can serve the user — personal key, local
+   * model, OAuth sign-in, or the operator's shared key. Mirrors the
+   * `insights` checklist row's `done` predicate.
+   */
+  aiAvailable?: boolean;
 }
 
 function readDismissedSet(): Set<ChecklistItemId> {
@@ -219,6 +235,20 @@ export function GettingStartedChecklist() {
     enabled: checklistRelevant,
   });
 
+  // v1.28 — the "Turn on insights" row self-satisfies from real provider
+  // state. `/api/user/ai-provider` reports `aiAvailable` presence-only
+  // (personal key OR local model OR OAuth OR the operator's shared key),
+  // so connecting a provider — or landing on a shared-key deployment —
+  // flips the row done with no client-side credential handling. Gated on
+  // `checklistRelevant` so it only fetches while the card can render.
+  const { data: aiProviderData } = useQuery<AiProviderStatus>({
+    queryKey: queryKeys.userAiProvider(),
+    queryFn: async () => {
+      return apiGet("/api/user/ai-provider");
+    },
+    enabled: checklistRelevant,
+  });
+
   // v1.5 perf audit: skip these two fetches once the user is past
   // onboarding. The checklist hides itself anyway via shouldShowChecklist
   // when onboardingCompletedAt != null AND measurementCount >= 5;
@@ -254,6 +284,7 @@ export function GettingStartedChecklist() {
   const notificationsConfigured = (notificationsData?.channels ?? []).some(
     (channel) => channel?.enabled === true,
   );
+  const insightsConfigured = aiProviderData?.aiAvailable === true;
 
   const items = useMemo(
     () =>
@@ -267,6 +298,7 @@ export function GettingStartedChecklist() {
         medicationCount,
         dataSourceConnected,
         notificationsConfigured,
+        insightsConfigured,
         dismissedIds,
       }),
     [
@@ -277,6 +309,7 @@ export function GettingStartedChecklist() {
       medicationCount,
       dataSourceConnected,
       notificationsConfigured,
+      insightsConfigured,
       dismissedIds,
     ],
   );
