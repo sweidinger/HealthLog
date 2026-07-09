@@ -198,6 +198,46 @@ The Coach drawer surfaces a "Local" badge when generation resolves
 to the local provider, so users who pinned a local endpoint can see
 at a glance that their context stayed on the host.
 
+The document vault is local-first by default: an uploaded document is
+only read by an external AI provider when you tap a per-document AI
+action, and every text-layer PDF is indexed for search locally with no
+egress at all — **unless you opt into automatic AI reading in AI
+settings** (next section).
+
+## Automatic document reading (opt-in)
+
+**Off by default.** With the switch off, nothing about the vault
+changes: a stored document is read externally only when you explicitly
+tap "Read with AI" on it, and that tap still needs an active AI-consent
+receipt for any provider that leaves the machine. Text-layer PDFs stay
+searchable through local extraction with no egress.
+
+Turn **"Read documents automatically with AI"** on (AI settings) and
+each document you upload is read, described, and indexed by your
+configured AI provider with no per-document confirmation — the
+"upload and it just gets read" flow. What that means, plainly:
+
+- **The document's contents leave this machine** to your configured
+  provider. The read happens on the server, right after upload.
+- **A subscription connection** — a signed-in AI account rather than an
+  API key — applies its own consumer data settings. **Subscription
+  providers may use the content to improve their models, and no
+  data-processing agreement covers it.** Turning the toggle on is the
+  standing consent for that trade; it is recorded in the consent audit
+  trail.
+- **A self-hosted local model never egresses.** Documents read by a
+  local provider stay on your server whether the toggle is on or off.
+- **Scanned / image-only PDFs** are rendered to page images server-side
+  so a provider that only accepts images (a subscription connection) can
+  read them too; a native-PDF provider reads the PDF directly. Only the
+  first pages of a long document are sent, to bound cost.
+
+Regulated or privacy-sensitive deployments should either leave this off
+and read documents per-document on demand, or configure a **BYOK
+no-training API key** or a **local model** as the provider — both avoid
+the subscription-training trade. The setting is per-user: in a
+multi-user deployment each account opts in for its own documents.
+
 ## What the Coach is — and isn't
 
 The Coach is an informational assistant that works from your own
