@@ -281,10 +281,6 @@ export function DocumentSummaryPanel({
           {body}
         </p>
       ) : null}
-
-      <p className="text-muted-foreground border-border/60 border-t pt-2 text-xs">
-        {t("documents.summary.notSaved")}
-      </p>
     </div>
   );
 }

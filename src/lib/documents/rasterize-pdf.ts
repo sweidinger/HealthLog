@@ -176,7 +176,13 @@ export async function rasterizePdf(buffer: Buffer): Promise<RasterResult> {
   } catch (err) {
     annotate({
       action: { name: "documents.rasterize.failed" },
-      meta: { reason: err instanceof Error ? err.name : "unknown" },
+      meta: {
+        reason: err instanceof Error ? err.name : "unknown",
+        // The message pins WHY a render failed (bundled-module mismatch, an
+        // encrypted/odd PDF, a font issue) — the name alone is opaque. Bounded
+        // so a pathological message can't bloat the wide event.
+        message: err instanceof Error ? err.message.slice(0, 300) : String(err),
+      },
     });
     return { ok: false };
   } finally {

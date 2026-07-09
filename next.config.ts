@@ -233,6 +233,18 @@ const nextConfig: NextConfig = {
     "pg-boss",
     "@prisma/adapter-pg",
     "pg",
+    // Document PDF handling MUST run the real, un-bundled modules. When
+    // Turbopack bundles pdfjs-dist into the server chunks, its runtime
+    // `require('@napi-rs/canvas')` and its NodeCanvasFactory render path break
+    // in the standalone image (a scanned PDF fails to rasterize with a bare
+    // `Error`, so the read falls back to "PDF scanning needs a Claude vision
+    // provider"), while the identical un-bundled module rasterizes the same
+    // document fine. Externalise both so the server loads the real files from
+    // node_modules; the Dockerfile hoists them to the top level so the runtime
+    // `import()` resolves in the standalone tree, and outputFileTracingIncludes
+    // still ships pdfjs's wasm decoders.
+    "pdfjs-dist",
+    "@napi-rs/canvas",
   ],
   // v1.4.25 Fix-G — `src/lib/ai/prompts/safety-contracts.ts` reads its
   // sibling YAML files at runtime via `__dirname + readFileSync`. The

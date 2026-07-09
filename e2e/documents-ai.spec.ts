@@ -196,9 +196,7 @@ test.describe("document vault — AI assist + content search", () => {
 
   // ── (b) Session-only summary: transient, note present, closing discards ──
 
-  test("summary panel is transient and labelled not-saved / not-a-diagnosis", async ({
-    page,
-  }) => {
+  test("summary panel is transient and discards on close", async ({ page }) => {
     await mockAiEnabled(page, { mode: "vision" });
     const summaryText = "A chest imaging report issued by a radiology clinic.";
     let summaryCalls = 0;
@@ -221,11 +219,6 @@ test.describe("document vault — AI assist + content search", () => {
     const panel = sheet.locator('[data-slot="document-summary-panel"]');
     await expect(panel).toBeVisible();
     await expect(panel.getByText(summaryText)).toBeVisible();
-    await expect(
-      panel.getByText(
-        "Not saved · not a diagnosis. Shown once for this view only.",
-      ),
-    ).toBeVisible();
     expect(summaryCalls).toBe(1);
 
     // Closing discards — the panel is gone and nothing lingers.

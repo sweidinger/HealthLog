@@ -106,6 +106,18 @@ RUN set -e; \
       echo "canvas hoisted for pdfjs: $CANVAS_DIR (musl=$MUSL_DIR)"; \
     else echo "WARN: @napi-rs/canvas not found; PDF rasterization will degrade to local text"; fi
 
+# pdfjs-dist is `serverExternalPackages` (NOT bundled — the bundled copy's render
+# path breaks in the standalone image), so the server does a runtime bare
+# `import('pdfjs-dist/legacy/build/pdf.mjs')`. Node resolves that up to
+# /app/node_modules, so hoist the real pnpm-store copy to the top level too.
+RUN set -e; \
+    PDFJS_DIR="$(find /app/node_modules/.pnpm -maxdepth 4 -type d -path '*pdfjs-dist@*/node_modules/pdfjs-dist' 2>/dev/null | head -1)"; \
+    if [ -n "$PDFJS_DIR" ]; then \
+      ln -sfn "$PDFJS_DIR" /app/node_modules/pdfjs-dist; \
+      chown -h nextjs:nodejs /app/node_modules/pdfjs-dist; \
+      echo "pdfjs-dist hoisted: $PDFJS_DIR"; \
+    else echo "WARN: pdfjs-dist not found; PDF rasterization will degrade to local text"; fi
+
 # Copy Prisma for migrations (schema, migration SQL, config, engines)
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
