@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+## [1.28.0] — 2026-07-09 — Document intelligence
+
+A milestone that closes the document line end to end. The vault stopped being a
+place to _store_ files and became a place to _understand_ them — read,
+searched, shared, and answered — with the privacy posture held at every step.
+The document capabilities shipped incrementally across v1.27.17–v1.27.33; this
+release marks them, together with a full correctness/resilience/quality pass, as
+one coherent whole.
+
+### The document intelligence era
+
+- **Vault** — every letter, report, and scan in one place, encrypted at rest,
+  byte-classified serving (inline vs download), opt-in.
+- **AI reading + automatic search** — documents are read and indexed
+  automatically on upload; a local reader keeps the file on the machine, an AI
+  provider reads richer (including scans) with consent. Content search matches
+  whole words _inside_ documents over an encrypted blind token index — nothing
+  readable is ever stored.
+- **Sharing** — hand a clinician a time-boxed, revocable link with a mobile QR
+  code; camera metadata (EXIF/GPS) stripped on the way out.
+- **Chat about a document** — ask a document questions in plain language,
+  grounded and cited, with a security model that treats the document as
+  untrusted: fenced as data, no tools, no health-record context, numeric-grounded,
+  never a diagnosis.
+- **AI provider governance** — for documents, a local-first / no-training-API /
+  subscription-last provider order, explicit consent for any external egress,
+  and a vendor-blind notice before a document leaves the machine.
+
+### Correctness, resilience and polish
+
+The same line carried a full audit sweep: DST-safe medication windows and
+user-timezone compliance; graceful degradation (worker timeouts, per-metric sync
+freshness, offline-write safety, per-source isolation, honest "unreadable"
+markers); no more dashboard dead-ends and honest error/empty states; accessibility
+contrast and semantics; and cold-start + performance fixes — down to the low-priority
+findings.
+
 ## [1.27.33] — 2026-07-09 — Chat about a document
 
 ### Added
