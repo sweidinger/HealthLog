@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { SUB_SHELL_GRID_FLOOR } from "@/components/layout/shell-metrics";
 import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
@@ -506,7 +507,12 @@ export function SettingsShell({
           holds across locales and however the title or subtitle wraps. No
           fixed-height spacer to guess. The `gap-6` between rows reproduces
           the `space-y-6` the heading-to-first-card gap used to carry. */}
-      <div className="grid gap-6 md:min-h-[calc(100dvh-10.5rem)] md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]">
+      <div
+        className={cn(
+          "grid gap-6 md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]",
+          SUB_SHELL_GRID_FLOOR,
+        )}
+      >
         {/* Heading — desktop only here (mobile renders it above the strip). */}
         {headingBlock ? (
           <div className="hidden md:col-start-2 md:row-start-1 md:block">
@@ -570,19 +576,18 @@ export function SettingsShell({
             still prevents the short-loading-state → long-list height jump
             the old reserve guarded, just measured against the real budget.
 
-            v1.4.33 F14 — `pb-24 md:pb-0` reserves a 96 px bottom gutter
-            on `<md` so the last form field on
-            `/settings/account` (Geschlecht / Gender) and
-            `/settings/ai` (Aktiver Provider) is not eaten by the
-            floating mobile bottom-nav. Desktop reverts to the parent's
-            own padding because the bottom-nav doesn't render on `md+`.
+            The column carries NO bottom gutter of its own. AuthShell's
+            `<main>` already reserves `pb-[calc(4rem+safe-area)]` on `<md` to
+            clear the floating bottom-nav, and its wrapper reserves `pb-20` for
+            the Coach FAB. The old `pb-24 md:pb-0` (v1.4.33 F14) double-counted
+            that same 64 px nav clearance and stacked ~96 px of dead scroll
+            below the last card on mobile — removed so the shell owns all
+            bottom-space (over-scroll class, #154 lineage).
 
             v1.16.4 — a `<div>`, not `<main>`: the surrounding AuthShell
             already provides the page's single `<main>` landmark and a
             nested second one is an a11y violation. */}
-        <div className="min-w-0 pb-24 md:col-start-2 md:row-start-2 md:pb-0">
-          {children}
-        </div>
+        <div className="min-w-0 md:col-start-2 md:row-start-2">{children}</div>
       </div>
     </div>
   );

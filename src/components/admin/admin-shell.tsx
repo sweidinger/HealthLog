@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { SUB_SHELL_GRID_FLOOR } from "@/components/layout/shell-metrics";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { isAdminSectionSlug, type AdminSectionSlug } from "./section-slugs";
@@ -304,7 +305,12 @@ export function AdminShell({ active, children }: AdminShellProps) {
           col 1, cards in row 2 / col 2. The nav's first item starts the same
           grid row as the first card, so they align by construction across
           locales and however the heading wraps — no fixed-height spacer. */}
-      <div className="grid gap-6 md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]">
+      <div
+        className={cn(
+          "grid gap-6 md:grid-cols-[220px_1fr] md:grid-rows-[auto_1fr]",
+          SUB_SHELL_GRID_FLOOR,
+        )}
+      >
         {/* Heading — desktop only (mobile renders it above the strip). */}
         <div className="hidden md:col-start-2 md:row-start-1 md:block">
           {headingBlock}
@@ -366,14 +372,14 @@ export function AdminShell({ active, children }: AdminShellProps) {
           </ul>
         </aside>
 
-        {/* Main column (cards) — row 2 / col 2. Same
-            `min-h-[calc(100dvh-12rem)]` reserve as `<SettingsShell>`
-            so navigating between admin sub-pages (e.g. system-status
-            → login-overview) does not jump the page height while the
-            new section is still fetching. */}
-        <main className="min-h-[calc(100dvh-12rem)] min-w-0 md:col-start-2 md:row-start-2">
-          {children}
-        </main>
+        {/* Main column (cards) — row 2 / col 2, the grid's `1fr` row, so it
+            stretches to fill the shared `SUB_SHELL_GRID_FLOOR` on the grid
+            (matches `<SettingsShell>`) without over-shooting. The loading-jump
+            floor lives on the GRID, not here: a column-level
+            `min-h-[calc(100dvh-12rem)]` reserve (the pre-#154 shape this used
+            to carry) over-reserves on short sections and on mobile, scrolling
+            the page into a dark band below the last card. */}
+        <main className="min-w-0 md:col-start-2 md:row-start-2">{children}</main>
       </div>
     </div>
   );
