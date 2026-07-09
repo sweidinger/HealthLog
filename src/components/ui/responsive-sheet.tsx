@@ -35,6 +35,15 @@ export interface ResponsiveSheetProps {
   /** Optional short description rendered beneath the title. */
   description?: React.ReactNode;
   /**
+   * Optional action rendered `shrink-0` at the trailing edge of the visible
+   * header row (§11 inline-action-row: title `min-w-0 flex-1`, action
+   * `shrink-0`). Use for a single quiet header control — e.g. the neutral
+   * Coach icon on the document detail sheet. Ignored when `hideHeader` is set
+   * (there is no visible header to hang it on). Sits left of the primitive's
+   * absolute close button, whose space the header already reserves.
+   */
+  headerAction?: React.ReactNode;
+  /**
    * Hide the visual header (title + description). The title remains
    * mounted in an `sr-only` block so the accessible name is still
    * announced. Use when the consumer renders its own header inside
@@ -119,6 +128,7 @@ export function ResponsiveSheet({
   onOpenChange,
   title,
   description,
+  headerAction,
   hideHeader = false,
   footer,
   className,
@@ -156,16 +166,37 @@ export function ResponsiveSheet({
           ) : (
             <SheetHeader
               data-slot="responsive-sheet-header"
-              className="border-border/70 gap-1.5 border-b p-4 pr-12"
+              className={cn(
+                "border-border/70 gap-1.5 border-b p-4 pr-12",
+                headerAction && "flex-row items-start justify-between gap-3",
+              )}
             >
-              <SheetTitle className="text-base font-semibold">
-                {title}
-              </SheetTitle>
-              {description ? (
-                <SheetDescription className="text-muted-foreground text-xs">
-                  {description}
-                </SheetDescription>
-              ) : null}
+              {headerAction ? (
+                <>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <SheetTitle className="text-base font-semibold">
+                      {title}
+                    </SheetTitle>
+                    {description ? (
+                      <SheetDescription className="text-muted-foreground text-xs">
+                        {description}
+                      </SheetDescription>
+                    ) : null}
+                  </div>
+                  <div className="shrink-0">{headerAction}</div>
+                </>
+              ) : (
+                <>
+                  <SheetTitle className="text-base font-semibold">
+                    {title}
+                  </SheetTitle>
+                  {description ? (
+                    <SheetDescription className="text-muted-foreground text-xs">
+                      {description}
+                    </SheetDescription>
+                  ) : null}
+                </>
+              )}
             </SheetHeader>
           )}
           <div
@@ -222,12 +253,29 @@ export function ResponsiveSheet({
         ) : (
           <DialogHeader
             data-slot="responsive-sheet-header"
-            className="shrink-0"
+            className={cn(
+              "shrink-0",
+              headerAction && "flex-row items-start justify-between gap-3 pr-9",
+            )}
           >
-            <DialogTitle>{title}</DialogTitle>
-            {description ? (
-              <DialogDescription>{description}</DialogDescription>
-            ) : null}
+            {headerAction ? (
+              <>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <DialogTitle>{title}</DialogTitle>
+                  {description ? (
+                    <DialogDescription>{description}</DialogDescription>
+                  ) : null}
+                </div>
+                <div className="shrink-0">{headerAction}</div>
+              </>
+            ) : (
+              <>
+                <DialogTitle>{title}</DialogTitle>
+                {description ? (
+                  <DialogDescription>{description}</DialogDescription>
+                ) : null}
+              </>
+            )}
           </DialogHeader>
         )}
         <div

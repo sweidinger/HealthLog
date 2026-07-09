@@ -123,25 +123,29 @@ test.describe("document vault — chat about a document", () => {
     );
 
     await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
-    const sheet = page.getByRole("dialog");
+    const sheet = page.locator('[data-slot="responsive-sheet-content"]');
     await expect(sheet).toBeVisible();
 
+    // The neutral Coach icon lives in the detail-sheet header; tapping it
+    // opens the doc-scoped chat drawer (a sibling overlay).
     const open = sheet.locator('[data-slot="document-chat-open"]');
     await expect(open).toBeVisible();
     await open.click();
 
+    const drawer = page.locator('[data-slot="document-chat-drawer"]');
+    await expect(drawer).toBeVisible();
     await expect(
-      sheet.locator('[data-slot="document-chat-log"]'),
+      drawer.locator('[data-slot="document-chat-log"]'),
     ).toBeVisible();
     await expect(
-      sheet.locator('[data-slot="document-chat-empty"]'),
+      drawer.locator('[data-slot="document-chat-empty"]'),
     ).toBeVisible();
     await expect(
-      sheet.locator('[data-slot="document-chat-input"]'),
+      drawer.locator('[data-slot="document-chat-input"]'),
     ).toBeVisible();
     // The always-on safety note is present.
     await expect(
-      sheet.locator('[data-slot="document-chat-safety"]'),
+      drawer.locator('[data-slot="document-chat-safety"]'),
     ).toContainText("not medical advice");
   });
 
@@ -238,16 +242,18 @@ test.describe("document vault — chat about a document", () => {
     );
 
     await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
-    const sheet = page.getByRole("dialog");
+    const sheet = page.locator('[data-slot="responsive-sheet-content"]');
     await expect(sheet).toBeVisible();
 
     await sheet.locator('[data-slot="document-chat-open"]').click();
-    const input = sheet.locator('[data-slot="document-chat-input"]');
+    const drawer = page.locator('[data-slot="document-chat-drawer"]');
+    await expect(drawer).toBeVisible();
+    const input = drawer.locator('[data-slot="document-chat-input"]');
     await input.fill(QUESTION);
-    await sheet.locator('[data-slot="document-chat-send"]').click();
+    await drawer.locator('[data-slot="document-chat-send"]').click();
 
     // The user's question and the streamed/settled reply both land in the log.
-    const log = sheet.locator('[data-slot="document-chat-log"]');
+    const log = drawer.locator('[data-slot="document-chat-log"]');
     await expect(log.getByText(QUESTION)).toBeVisible();
     await expect(log.getByText(/findings are unremarkable/)).toBeVisible();
     // The reply settled to a single assistant bubble (no duplicate).
@@ -354,15 +360,17 @@ test.describe("document vault — chat about a document", () => {
     );
 
     await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
-    const sheet = page.getByRole("dialog");
+    const sheet = page.locator('[data-slot="responsive-sheet-content"]');
     await expect(sheet).toBeVisible();
 
     await sheet.locator('[data-slot="document-chat-open"]').click();
-    const input = sheet.locator('[data-slot="document-chat-input"]');
+    const drawer = page.locator('[data-slot="document-chat-drawer"]');
+    await expect(drawer).toBeVisible();
+    const input = drawer.locator('[data-slot="document-chat-input"]');
     await input.fill(QUESTION);
-    await sheet.locator('[data-slot="document-chat-send"]').click();
+    await drawer.locator('[data-slot="document-chat-send"]').click();
 
-    const log = sheet.locator('[data-slot="document-chat-log"]');
+    const log = drawer.locator('[data-slot="document-chat-log"]');
     // The describe-only answer lands; the panel renders the model's <script>
     // payload as literal text (proof it is a React text child, not HTML).
     await expect(log.getByText(/treat it as document content/)).toBeVisible();
@@ -387,18 +395,27 @@ test.describe("document vault — chat about a document", () => {
     // AI_PROBE_DOC_ID carries no content index (hasContentIndex === false).
     await mockAiEnabled(page);
     await page.goto(`/documents?doc=${AI_PROBE_DOC_ID}`);
-    const sheet = page.getByRole("dialog");
+    const sheet = page.locator('[data-slot="responsive-sheet-content"]');
     await expect(sheet).toBeVisible();
 
+    // A provider is available, so the Coach entry still shows — it opens the
+    // drawer, whose body carries the calm read-it-first hint (never an error)
+    // and no composer, because there is nothing indexed to ground on yet.
+    const open = sheet.locator('[data-slot="document-chat-open"]');
+    await expect(open).toBeVisible();
+    await open.click();
+
+    const drawer = page.locator('[data-slot="document-chat-drawer"]');
+    await expect(drawer).toBeVisible();
     await expect(
-      sheet.locator('[data-slot="document-chat-not-indexed"]'),
+      drawer.locator('[data-slot="document-chat-not-indexed"]'),
     ).toBeVisible();
-    // No chat entry, and no error styling.
-    await expect(sheet.locator('[data-slot="document-chat-open"]')).toHaveCount(
-      0,
-    );
+    // No composer, and no error styling.
     await expect(
-      sheet.locator('[data-slot="document-chat"] [role="alert"]'),
+      drawer.locator('[data-slot="document-chat-input"]'),
+    ).toHaveCount(0);
+    await expect(
+      drawer.locator('[data-slot="document-chat"] [role="alert"]'),
     ).toHaveCount(0);
   });
 
@@ -410,7 +427,7 @@ test.describe("document vault — chat about a document", () => {
     // No mocks — the seeded demo user has no AI provider configured, so the AI
     // area collapses to the calm pointer and the chat slot never renders.
     await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
-    const sheet = page.getByRole("dialog");
+    const sheet = page.locator('[data-slot="responsive-sheet-content"]');
     await expect(sheet).toBeVisible();
 
     await expect(
@@ -419,6 +436,13 @@ test.describe("document vault — chat about a document", () => {
     await expect(
       sheet.getByRole("link", { name: "Open AI settings" }),
     ).toBeVisible();
-    await expect(sheet.locator('[data-slot="document-chat"]')).toHaveCount(0);
+    // No provider → no Coach entry in the header and no chat drawer mounted.
+    await expect(sheet.locator('[data-slot="document-chat-open"]')).toHaveCount(
+      0,
+    );
+    await expect(
+      page.locator('[data-slot="document-chat-drawer"]'),
+    ).toHaveCount(0);
+    await expect(page.locator('[data-slot="document-chat"]')).toHaveCount(0);
   });
 });

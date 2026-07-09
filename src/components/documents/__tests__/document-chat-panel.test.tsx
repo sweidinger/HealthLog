@@ -1,40 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { I18nProvider } from "@/lib/i18n/context";
 import {
   DocumentChatConversation,
-  DocumentChatPanel,
   documentChatErrorKey,
 } from "../document-chat-panel";
 import type { DocumentChatMessage } from "../use-document-chat";
 
 /**
- * The scoped "chat about this document" panel:
+ * The scoped "chat about this document" surface:
  *   - the OPEN conversation body renders a plain-text message log + composer +
  *     an always-on safety note; assistant/user prose is XSS-safe React text
  *     (raw HTML in a turn is escaped, never injected);
- *   - the container gates on indexing: a content-indexed document offers the
- *     chat entry, a non-indexed one shows a calm read-it-first hint (never an
- *     error);
  *   - error codes map to calm translation keys, never a raw provider string.
+ *
+ * The stateful container + indexing gate live in `document-chat-drawer.tsx`
+ * (Coach-drawer chrome scoped to one document); its open/not-indexed branches
+ * ride the Radix Sheet portal, so they are pinned by the e2e suite rather than
+ * a static render here.
  */
 
 function renderPure(node: React.ReactNode) {
   return renderToStaticMarkup(
     <I18nProvider initialLocale="en">{node}</I18nProvider>,
-  );
-}
-
-function renderContainer(node: React.ReactNode) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return renderToStaticMarkup(
-    <QueryClientProvider client={queryClient}>
-      <I18nProvider initialLocale="en">{node}</I18nProvider>
-    </QueryClientProvider>,
   );
 }
 
@@ -151,27 +140,6 @@ describe("<DocumentChatConversation> (open body)", () => {
     );
     expect(html).toContain('role="alert"');
     expect(html).toContain("Too many messages");
-  });
-});
-
-describe("<DocumentChatPanel> (gating)", () => {
-  it("offers the chat entry when the document is content-indexed", () => {
-    const html = renderContainer(
-      <DocumentChatPanel documentId="doc1" indexed />,
-    );
-    expect(html).toContain('data-slot="document-chat-open"');
-    expect(html).toContain("Chat about this document");
-    // Not the not-indexed hint.
-    expect(html).not.toContain('data-slot="document-chat-not-indexed"');
-  });
-
-  it("shows a calm read-it-first hint (never an error) when not indexed", () => {
-    const html = renderContainer(
-      <DocumentChatPanel documentId="doc1" indexed={false} />,
-    );
-    expect(html).toContain('data-slot="document-chat-not-indexed"');
-    expect(html).not.toContain('data-slot="document-chat-open"');
-    expect(html).not.toContain('role="alert"');
   });
 });
 

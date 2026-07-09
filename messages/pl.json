@@ -8283,7 +8283,6 @@
     },
     "chat": {
       "title": "Porozmawiaj o tym dokumencie",
-      "open": "Porozmawiaj o tym dokumencie",
       "notIndexed": "Najpierw przeczytaj ten dokument z pomocą AI, aby o nim porozmawiać.",
       "empty": "Zadaj pytanie o ten dokument, aby zacząć.",
       "placeholder": "Zapytaj o ten dokument…",
@@ -8298,7 +8297,9 @@
       "errorBudget": "Osiągnięto dzienny limit AI. Spróbuj ponownie jutro.",
       "errorCredential": "Dostawcę AI trzeba ponownie połączyć w ustawieniach.",
       "errorConsent": "Włącz zgodę na AI w ustawieniach, aby porozmawiać o tym dokumencie.",
-      "errorNetwork": "Wygląda na to, że jesteś offline. Sprawdź połączenie i spróbuj ponownie."
+      "errorNetwork": "Wygląda na to, że jesteś offline. Sprawdź połączenie i spróbuj ponownie.",
+      "openAria": "Porozmawiaj o tym dokumencie",
+      "scopeBadge": "Rozmowa o: {title}"
     }
   },
   "selfDescription": {

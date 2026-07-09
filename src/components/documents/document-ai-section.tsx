@@ -23,7 +23,6 @@
  * form below stays fully usable.
  */
 import { FileText, ScanText, WandSparkles } from "lucide-react";
-import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
@@ -70,7 +69,6 @@ export function DocumentAiSection({
   contentIndexSource,
   indexPending,
   onIndex,
-  chatSlot,
 }: {
   aiEnabled: boolean;
   /**
@@ -106,14 +104,6 @@ export function DocumentAiSection({
   contentIndexSource: DocumentContentIndexSourceValue | null;
   indexPending: boolean;
   onIndex: () => void;
-  /**
-   * The scoped "chat about this document" panel, rendered inside the AI area
-   * beneath the reading actions. Only supplied (and only meaningful) when a
-   * provider is available — the panel itself gates on whether the document is
-   * indexed. A pure slot so this section stays presentational + statically
-   * renderable (the stateful, query-driven panel lives in the sheet).
-   */
-  chatSlot?: ReactNode;
 }) {
   const { t } = useTranslations();
   const aiRead = hasContentIndex && isAiReadSource(contentIndexSource);
@@ -231,8 +221,6 @@ export function DocumentAiSection({
               onClose={onCloseSummary}
             />
           ) : null}
-
-          {chatSlot}
         </>
       ) : (
         <AiUnavailableHint reason={unavailableReason} />
