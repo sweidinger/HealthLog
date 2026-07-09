@@ -20,7 +20,10 @@ import {
 } from "@/lib/doctor-report-data";
 import { servingClassFor } from "@/lib/documents/upload-policy";
 import type { DocumentServingClass } from "@/lib/documents/upload-policy";
-import { parseDoctorReportPrefs } from "@/lib/validations/doctor-report-prefs";
+import {
+  hasAnyReportSection,
+  parseDoctorReportPrefs,
+} from "@/lib/validations/doctor-report-prefs";
 import type { ShareContext } from "@/lib/clinician-share/resolve-share-token";
 
 /**
@@ -47,12 +50,23 @@ export interface ShareViewDocument {
 }
 
 export interface ShareViewData {
-  /** The aggregated, owner-scoped report payload over the frozen window. */
-  report: DoctorReportData;
+  /**
+   * The aggregated, owner-scoped report payload over the frozen window, or
+   * `null` for a documents-only share. `null` is the load-bearing privacy
+   * state: the aggregator is NEVER called, so no health data leaves the DB —
+   * the recipient sees only the attached documents.
+   */
+  report: DoctorReportData | null;
   /** The resolved section toggles (mood opt-in, defaults otherwise). */
   sections: ReturnType<typeof parseDoctorReportPrefs>;
   /** v1.28 — the hand-picked documents on this link (metadata only). */
   documents: ShareViewDocument[];
+  /**
+   * v1.28.13 — whether this link carries ONLY documents (no report section
+   * enabled). The public view reads it to render a documents-only surface with
+   * no health-record chrome.
+   */
+  documentOnly: boolean;
 }
 
 /**
@@ -81,12 +95,19 @@ export async function loadShareViewData(
   const sections = parseDoctorReportPrefs(context.sectionsJson);
   const range = frozenRange(context);
 
+  // A share with NO report section enabled is a documents-only share: never
+  // aggregate — no health metric is read from the DB, let alone served. This is
+  // the load-bearing guarantee behind "share this document, not the record".
+  const documentOnly = !hasAnyReportSection(sections);
+
   const [report, documents] = await Promise.all([
-    collectDoctorReportData(context.ownerUserId, range, { sections }),
+    documentOnly
+      ? Promise.resolve(null)
+      : collectDoctorReportData(context.ownerUserId, range, { sections }),
     loadShareDocuments(context),
   ]);
 
-  return { report, sections, documents };
+  return { report, sections, documents, documentOnly };
 }
 
 /**

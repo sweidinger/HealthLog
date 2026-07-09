@@ -41,6 +41,7 @@ vi.mock("next/headers", () => ({
 
 import { POST, GET } from "../route";
 import { DELETE } from "../[id]/route";
+import { EMPTY_DOCTOR_REPORT_PREFS } from "@/lib/validations/doctor-report-prefs";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -259,6 +260,50 @@ describe("POST /api/share-links — create", () => {
     expect(res.status).toBe(201);
     const body = (await res.json()) as { data: { documentCount: number } };
     expect(body.data.documentCount).toBe(1);
+  });
+
+  it("documentOnly FORCES an empty report scope even when the body smuggles one", async () => {
+    vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([
+      { id: "doc-a" },
+    ] as never);
+    vi.mocked(prisma.clinicianShareLink.create).mockResolvedValue(
+      storedRow({ resourceTypes: [], _count: { documents: 1 } }) as never,
+    );
+
+    // A hostile / stale client tries to widen a document link into a record
+    // share: FHIR on, resource types set, sections requested. The server must
+    // ignore every one of them.
+    const res = await POST(
+      postReq(
+        validBody({
+          documentOnly: true,
+          allowFhirApi: true,
+          resourceTypes: ["Observation", "Patient"],
+          sections: { vitals: { bp: true }, labs: true },
+          documentIds: ["doc-a"],
+        }),
+      ),
+    );
+    expect(res.status).toBe(201);
+
+    const createArg = vi.mocked(prisma.clinicianShareLink.create).mock
+      .calls[0][0];
+    // Empty FHIR scope, FHIR API off — no health surface at all.
+    expect(createArg.data.resourceTypes).toEqual([]);
+    expect(createArg.data.allowFhirApi).toBe(false);
+    // Sections persist as an explicit all-OFF blob (distinct from `{}` = full
+    // record defaults). The clinician view reads this as "no report".
+    expect(createArg.data.sectionsJson).toEqual(EMPTY_DOCTOR_REPORT_PREFS);
+    // The picked document still rides along.
+    expect(createArg.data.documents).toEqual({
+      create: [{ documentId: "doc-a" }],
+    });
+  });
+
+  it("rejects a documentOnly share with no documents (422)", async () => {
+    const res = await POST(postReq(validBody({ documentOnly: true })));
+    expect(res.status).toBe(422);
+    expect(prisma.clinicianShareLink.create).not.toHaveBeenCalled();
   });
 });
 

@@ -94,11 +94,80 @@ function isoDaysFromNow(days: number): string {
   return new Date(Date.now() + days * 86_400_000).toISOString();
 }
 
+/** The create body posted to `POST /api/share-links`. */
+export interface ShareLinkCreatePayload {
+  label: string;
+  rangeStart: string;
+  rangeEnd: null;
+  resourceTypes: ResourceType[];
+  allowFhirApi: boolean;
+  documentIds?: string[];
+  documentOnly?: boolean;
+  expiresAt: string;
+}
+
+/**
+ * Build the create payload from the resolved form state. Extracted as a pure
+ * function so the two surfaces' scope contract is unit-testable without a DOM.
+ *
+ * The `documentOnly` branch is the privacy-load-bearing one: a document-launched
+ * share posts an EMPTY report scope (`resourceTypes: []`, no `sections`, FHIR
+ * off) plus `documentOnly: true`, and ALWAYS carries the picked document ids —
+ * so the created link serves the document(s) and nothing else. The record share
+ * (Settings → Sharing) keeps its full scope and only attaches documents when
+ * the owner picked some.
+ */
+export function buildShareLinkCreatePayload(input: {
+  label: string;
+  rangeDays: number;
+  expiryDays: number;
+  allowFhirApi: boolean;
+  resourceTypes: ResourceType[];
+  documentIds: string[];
+  documentOnly: boolean;
+}): ShareLinkCreatePayload {
+  const base = {
+    label: input.label.trim(),
+    rangeStart: isoDaysFromNow(-input.rangeDays),
+    rangeEnd: null as null,
+    expiresAt: isoDaysFromNow(input.expiryDays),
+  };
+  if (input.documentOnly) {
+    return {
+      ...base,
+      resourceTypes: [],
+      allowFhirApi: false,
+      documentOnly: true,
+      // The launched document(s) always ride along — a documents-only share
+      // with no document would be meaningless (the server 422s it).
+      documentIds: input.documentIds,
+    };
+  }
+  return {
+    ...base,
+    resourceTypes: input.resourceTypes,
+    allowFhirApi: input.allowFhirApi,
+    // Omit the key entirely when nothing is attached (a documents-less record
+    // share stays the default). The server re-validates each id as the caller's
+    // own live document before minting the link.
+    ...(input.documentIds.length > 0 ? { documentIds: input.documentIds } : {}),
+  };
+}
+
 export function ShareLinkCreateForm({
+  documentOnly = false,
   initialDocuments,
   initialLabel,
   onCreated,
 }: {
+  /**
+   * Documents-only mode (the document-launched flow). Hides the record-scope
+   * controls — FHIR API toggle, FHIR resource-type checkboxes, and the
+   * history-range selector — and posts an empty report scope so the minted
+   * link serves ONLY the attached document(s). Keeps the document picker,
+   * label, expiry, and one-time passphrase reveal.
+   */
+  documentOnly?: boolean;
   /** Documents to pre-attach — the document-launched flow seeds the one doc. */
   initialDocuments?: PickedDocument[];
   /** Optional pre-filled label (e.g. the document title). */
@@ -158,27 +227,23 @@ export function ShareLinkCreateForm({
 
   const createMutation = useMutation({
     mutationFn: () => {
-      const trimmed = label.trim();
       // Surface the same expiry-bound the server enforces before the round
       // trip, so the validation feedback is immediate.
       if (expiryDays < 1 || expiryDays > MAX_DAYS) {
         return Promise.reject(new Error("EXPIRY_RANGE"));
       }
-      return apiPost<ShareLinkCreated>("/api/share-links", {
-        label: trimmed,
-        rangeStart: isoDaysFromNow(-rangeDays),
-        rangeEnd: null,
-        resourceTypes,
-        allowFhirApi,
-        // v1.28 — the hand-picked, frozen-at-create document set. Omit the key
-        // entirely when nothing is attached (a documents-less share stays the
-        // default). The server re-validates each id as the caller's own live
-        // document before minting the link.
-        ...(selectedDocs.length > 0
-          ? { documentIds: selectedDocs.map((d) => d.id) }
-          : {}),
-        expiresAt: isoDaysFromNow(expiryDays),
-      });
+      return apiPost<ShareLinkCreated>(
+        "/api/share-links",
+        buildShareLinkCreatePayload({
+          label,
+          rangeDays,
+          expiryDays,
+          allowFhirApi,
+          resourceTypes,
+          documentIds: selectedDocs.map((d) => d.id),
+          documentOnly,
+        }),
+      );
     },
     onSuccess: (result) => {
       // Clear any stale QR before the effect renders the new one.
@@ -240,22 +305,26 @@ export function ShareLinkCreateForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="share-range">{t("settings.sharing.range")}</Label>
-            <Input
-              id="share-range"
-              type="number"
-              min={1}
-              max={3650}
-              value={rangeDays}
-              onChange={(e) =>
-                setRangeDays(Math.max(1, Number(e.target.value) || 1))
-              }
-            />
-            <p className="text-muted-foreground text-[11px]">
-              {t("settings.sharing.rangeHint")}
-            </p>
-          </div>
+          {/* The history-range window only scopes the report — meaningless for
+              a documents-only share, so it is hidden there. */}
+          {!documentOnly ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="share-range">{t("settings.sharing.range")}</Label>
+              <Input
+                id="share-range"
+                type="number"
+                min={1}
+                max={3650}
+                value={rangeDays}
+                onChange={(e) =>
+                  setRangeDays(Math.max(1, Number(e.target.value) || 1))
+                }
+              />
+              <p className="text-muted-foreground text-[11px]">
+                {t("settings.sharing.rangeHint")}
+              </p>
+            </div>
+          ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="share-expiry">{t("settings.sharing.expiry")}</Label>
             <Input
@@ -275,23 +344,28 @@ export function ShareLinkCreateForm({
           </div>
         </div>
 
-        <div className="border-border flex items-center justify-between rounded-lg border p-3">
-          <div className="space-y-0.5 pr-3">
-            <Label htmlFor="share-fhir" className="text-sm font-medium">
-              {t("settings.sharing.fhirApi")}
-            </Label>
-            <p className="text-muted-foreground text-[11px]">
-              {t("settings.sharing.fhirApiHint")}
-            </p>
+        {/* The FHIR API + its resource-type scope expose the health RECORD.
+            A documents-only link serves no record, so both are hidden and the
+            posted scope is forced empty server-side regardless. */}
+        {!documentOnly ? (
+          <div className="border-border flex items-center justify-between rounded-lg border p-3">
+            <div className="space-y-0.5 pr-3">
+              <Label htmlFor="share-fhir" className="text-sm font-medium">
+                {t("settings.sharing.fhirApi")}
+              </Label>
+              <p className="text-muted-foreground text-[11px]">
+                {t("settings.sharing.fhirApiHint")}
+              </p>
+            </div>
+            <Switch
+              id="share-fhir"
+              checked={allowFhirApi}
+              onCheckedChange={setAllowFhirApi}
+            />
           </div>
-          <Switch
-            id="share-fhir"
-            checked={allowFhirApi}
-            onCheckedChange={setAllowFhirApi}
-          />
-        </div>
+        ) : null}
 
-        {allowFhirApi && (
+        {!documentOnly && allowFhirApi && (
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">
               {t("settings.sharing.resourceTypes")}

@@ -29,6 +29,7 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 import { createShareLinkSchema } from "@/lib/validations/clinician-share-link";
+import { EMPTY_DOCTOR_REPORT_PREFS } from "@/lib/validations/doctor-report-prefs";
 import {
   generatePassphrase,
   hashPassphrase,
@@ -134,6 +135,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
   const input = parsed.data;
 
+  // v1.28.13 — a documents-only share carries NO report scope. Force the scope
+  // columns to empty here (not just at the client) so a document link can never
+  // serve a single health metric, whatever the body tried to smuggle: no
+  // sections (an explicit all-OFF prefs blob, distinct from the `{}` that means
+  // "full record defaults"), no FHIR resource types, FHIR API off. "Share this
+  // document" means the document, not the whole record.
+  const documentOnly = input.documentOnly === true;
+  const sectionsJson = documentOnly
+    ? EMPTY_DOCTOR_REPORT_PREFS
+    : (input.sections ?? {});
+  const resourceTypes = documentOnly ? [] : (input.resourceTypes ?? []);
+  const allowFhirApi = documentOnly ? false : (input.allowFhirApi ?? false);
+  annotate({ meta: { documentOnly } });
+
   // Mint the 192-bit raw token, store only its HMAC hash.
   const rawToken = `hls_${randomBytes(24).toString("hex")}`;
   const tokenHash = hashToken(rawToken);
@@ -175,9 +190,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
       label: input.label,
       rangeStart: new Date(input.rangeStart),
       rangeEnd: input.rangeEnd ? new Date(input.rangeEnd) : null,
-      sectionsJson: (input.sections ?? {}) as Prisma.InputJsonValue,
-      resourceTypes: input.resourceTypes ?? [],
-      allowFhirApi: input.allowFhirApi ?? false,
+      sectionsJson: sectionsJson as Prisma.InputJsonValue,
+      resourceTypes,
+      allowFhirApi,
       expiresAt: new Date(input.expiresAt),
       documents:
         documentIds.length > 0

@@ -40,6 +40,7 @@ export function DocumentShareSheet({
     >
       {open ? (
         <ShareLinkCreateForm
+          documentOnly
           initialDocuments={[{ id: documentId, title: documentTitle }]}
           initialLabel={documentTitle}
         />
