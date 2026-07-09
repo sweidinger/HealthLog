@@ -4775,18 +4775,6 @@
       "responseTimeoutLabel": "Antwort-Timeout (Sekunden)",
       "responseTimeoutPlaceholder": "Standard (~120)",
       "responseTimeoutInvalid": "Gib eine Zahl zwischen 10 und 600 Sekunden ein.",
-      "ocrHeading": "Dokumentenscan (Laborberichte)",
-      "ocrBody": "Verwende einen eigenen Anbieter zum Auslesen hochgeladener Laborberichte. Ist die Option aus, nutzt der Scan deinen Hauptanbieter.",
-      "ocrEnableLabel": "Eigenen Anbieter für den Dokumentenscan aktivieren",
-      "ocrProviderLabel": "Scan-Anbieter",
-      "ocrProviderOption": {
-        "OPENAI": "OpenAI (dein API-Key)",
-        "ANTHROPIC": "Anthropic (Claude)",
-        "LOCAL": "Lokales Modell (OpenAI-kompatibel)"
-      },
-      "ocrModelPlaceholder": "z. B. gpt-4o",
-      "ocrVisionHint": "Dieses Modell kann möglicherweise keine Bilder lesen. Wähle für den Dokumentenscan ein Modell mit Bildverständnis.",
-      "ocrKeyLabel": "API-Key",
       "autoRead": {
         "title": "Dokumente automatisch mit KI lesen",
         "subLabel": "Neu hochgeladene Dokumente werden von deinem konfigurierten KI-Anbieter gelesen und indiziert, ohne dass du jedes Dokument einzeln bestätigen musst.",

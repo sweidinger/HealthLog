@@ -4775,18 +4775,6 @@
       "responseTimeoutLabel": "Délai de réponse (secondes)",
       "responseTimeoutPlaceholder": "Par défaut (~120)",
       "responseTimeoutInvalid": "Saisissez un nombre entre 10 et 600 secondes.",
-      "ocrHeading": "Numérisation de documents (comptes rendus de laboratoire)",
-      "ocrBody": "Utilisez un fournisseur dédié pour lire les comptes rendus de laboratoire importés. Désactivé, la numérisation utilise votre fournisseur principal.",
-      "ocrEnableLabel": "Activer un fournisseur dédié à la numérisation de documents",
-      "ocrProviderLabel": "Fournisseur de numérisation",
-      "ocrProviderOption": {
-        "OPENAI": "OpenAI (votre clé API)",
-        "ANTHROPIC": "Anthropic (Claude)",
-        "LOCAL": "Modèle local (compatible OpenAI)"
-      },
-      "ocrModelPlaceholder": "p. ex. gpt-4o",
-      "ocrVisionHint": "Ce modèle ne peut peut-être pas lire les images. Choisissez un modèle capable de vision pour la numérisation de documents.",
-      "ocrKeyLabel": "Clé API",
       "autoRead": {
         "title": "Lire les documents automatiquement avec l'IA",
         "subLabel": "Les documents nouvellement téléversés sont lus et indexés par votre fournisseur d'IA configuré, sans validation document par document.",

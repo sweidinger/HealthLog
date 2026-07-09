@@ -104,7 +104,6 @@ const LEGIT_IDENTICAL = new Set<string>([
   "insights.healthScore.provenance.sources.appleHealth",
   "measurements.sourceAppleHealth",
   "onboarding.source.more.appleHealth",
-  "settings.ai.ocrProviderOption.ANTHROPIC",
   "settings.ai.providerChain.types.anthropic",
   "settings.ai.providerChain.types.codex",
   "settings.ai.providerSelect.anthropic",

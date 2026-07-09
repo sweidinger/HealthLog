@@ -38,6 +38,7 @@ import {
   resolveDailyCap,
 } from "@/lib/ai/coach/budget";
 import { prisma } from "@/lib/db";
+import { rasterizePdf } from "@/lib/documents/rasterize-pdf";
 import {
   resolveTextProvider,
   resolveVisionProvider,
@@ -323,27 +324,52 @@ async function handleVisionExtract(
       });
     }
 
-    // 7. PDF gate — only Anthropic reads a native document block in v1.
-    if (mime === "application/pdf" && !pick.pdfSupported) {
-      annotate({
-        action: { name: "labs.ocr.fileRejected" },
-        meta: { reason: "pdf_provider_unsupported" },
-      });
-      await reconcileSpend(userId, reservation.reserved, 0, dateKey);
-      return apiError(
-        "PDF scanning needs a Claude vision provider; upload a photo instead.",
-        422,
-        { errorCode: "labs.ocr.pdfNeedsAnthropic" },
-      );
-    }
+    // 7. PDF handling — mirror the document vault's `prepareVisionInput`
+    // (`src/lib/documents/ai-route-support.ts`) exactly:
+    //   - Anthropic (`pick.pdfSupported`) reads the native `document` block at
+    //     highest fidelity;
+    //   - every other vision provider (codex / any image-only wire) reads the
+    //     PDF via `rasterizePdf`, which renders the pages to JPEG `input_image`
+    //     parts the provider already handles. Rendering is pure local compute
+    //     (no egress). `rasterizePdf` never throws: a malformed / encrypted /
+    //     unrenderable PDF returns `{ ok: false }`, and we keep the shipped
+    //     `pdfNeedsAnthropic` reject as the graceful fallback.
+    let images: {
+      mediaType: "image/jpeg" | "image/png" | "image/webp";
+      dataBase64: string;
+    }[];
+    let documents: { mediaType: "application/pdf"; dataBase64: string }[];
 
-    const dataBase64 = buffer.toString("base64");
-    const images =
-      mime === "application/pdf" ? [] : [{ mediaType: mime, dataBase64 }];
-    const documents =
-      mime === "application/pdf"
-        ? [{ mediaType: "application/pdf" as const, dataBase64 }]
-        : [];
+    if (mime === "application/pdf") {
+      if (pick.pdfSupported) {
+        images = [];
+        documents = [
+          {
+            mediaType: "application/pdf",
+            dataBase64: buffer.toString("base64"),
+          },
+        ];
+      } else {
+        const raster = await rasterizePdf(buffer);
+        if (!raster.ok) {
+          annotate({
+            action: { name: "labs.ocr.fileRejected" },
+            meta: { reason: "pdf_rasterize_failed" },
+          });
+          await reconcileSpend(userId, reservation.reserved, 0, dateKey);
+          return apiError(
+            "Couldn't read this PDF; upload a photo instead.",
+            422,
+            { errorCode: "labs.ocr.pdfNeedsAnthropic" },
+          );
+        }
+        images = raster.images;
+        documents = [];
+      }
+    } else {
+      images = [{ mediaType: mime, dataBase64: buffer.toString("base64") }];
+      documents = [];
+    }
 
     // 8. Run the extraction. The actual token spend reconciles the reservation.
     let actualTokens = 0;

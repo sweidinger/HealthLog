@@ -29,17 +29,7 @@ export interface UserAIProvider {
   openaiKeyPreview: string | null;
   // v1.22 (#89) — per-user response timeout, in seconds (null = default).
   responseTimeoutSeconds: number | null;
-  // v1.22 (#90) — dedicated document-scan (Lab-OCR) provider config.
-  ocrEnabled: boolean;
-  ocrProvider: string | null;
-  ocrModel: string | null;
-  ocrBaseUrl: string | null;
-  hasOcrKey: boolean;
-  ocrKeyPreview: string | null;
 }
-
-/** v1.22 (#90) — providers the dedicated document-scan path accepts. */
-export const OCR_PROVIDER_TYPES = ["OPENAI", "ANTHROPIC", "LOCAL"] as const;
 
 /**
  * v1.4.16 phase B2 — provider tags exposed to the UI. Mirrors

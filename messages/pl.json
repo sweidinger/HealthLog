@@ -4775,18 +4775,6 @@
       "responseTimeoutLabel": "Limit czasu odpowiedzi (sekundy)",
       "responseTimeoutPlaceholder": "Domyślnie (~120)",
       "responseTimeoutInvalid": "Podaj liczbę od 10 do 600 sekund.",
-      "ocrHeading": "Skanowanie dokumentów (wyniki badań)",
-      "ocrBody": "Użyj dedykowanego dostawcy do odczytu przesłanych wyników badań. Gdy wyłączone, skanowanie używa Twojego głównego dostawcy.",
-      "ocrEnableLabel": "Włącz dedykowanego dostawcę do skanowania dokumentów",
-      "ocrProviderLabel": "Dostawca skanowania",
-      "ocrProviderOption": {
-        "OPENAI": "OpenAI (Twój klucz API)",
-        "ANTHROPIC": "Anthropic (Claude)",
-        "LOCAL": "Model lokalny (zgodny z OpenAI)"
-      },
-      "ocrModelPlaceholder": "np. gpt-4o",
-      "ocrVisionHint": "Ten model może nie odczytywać obrazów. Wybierz model obsługujący obraz do skanowania dokumentów.",
-      "ocrKeyLabel": "Klucz API",
       "autoRead": {
         "title": "Automatyczne czytanie dokumentów przez AI",
         "subLabel": "Nowo przesłane dokumenty są czytane i indeksowane przez skonfigurowanego dostawcę AI bez potwierdzania każdego dokumentu.",

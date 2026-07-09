@@ -30,6 +30,9 @@ vi.mock("@/lib/labs/ocr-capability", () => ({
   resolveTextProvider: vi.fn(),
   resolveVisionProvider: vi.fn(),
 }));
+vi.mock("@/lib/documents/rasterize-pdf", () => ({
+  rasterizePdf: vi.fn(),
+}));
 vi.mock("@/lib/ai/consent-guard", () => ({
   assertConsentForChain: vi.fn().mockResolvedValue(undefined),
 }));
@@ -54,7 +57,11 @@ import { POST } from "../route";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import { requireAuth } from "@/lib/api-handler";
 import { prisma } from "@/lib/db";
-import { resolveTextProvider } from "@/lib/labs/ocr-capability";
+import {
+  resolveTextProvider,
+  resolveVisionProvider,
+} from "@/lib/labs/ocr-capability";
+import { rasterizePdf } from "@/lib/documents/rasterize-pdf";
 import { reserveBudget, reconcileSpend } from "@/lib/ai/coach/budget";
 import { OcrExtractError, runOcrExtraction } from "@/lib/labs/ocr-extract";
 
@@ -125,6 +132,81 @@ describe("POST /api/labs/ocr/extract — text mode budget", () => {
     expect(reconcileSpend).toHaveBeenCalledWith(
       "user-1",
       AI_BUDGETS.ocrExtractText.maxTokens,
+      0,
+      "2026-06-26",
+    );
+  });
+});
+
+describe("POST /api/labs/ocr/extract — vision PDF rasterization", () => {
+  function pdfReq(): Request {
+    // A minimal `%PDF-` header is all `detectOcrMimeType` needs to sniff a PDF.
+    const bytes = new Uint8Array([
+      0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x0a, 0x25, 0xe2, 0xe3,
+      0xcf, 0xd3, 0x0a,
+    ]);
+    const file = new File([bytes], "report.pdf", {
+      type: "application/pdf",
+    });
+    const form = new FormData();
+    form.append("file", file);
+    return new Request("http://localhost/api/labs/ocr/extract", {
+      method: "POST",
+      body: form,
+    });
+  }
+
+  beforeEach(() => {
+    // A non-Anthropic vision provider (codex): no native PDF block, so the
+    // route must rasterize.
+    vi.mocked(resolveVisionProvider).mockResolvedValue({
+      chain: [{ providerType: "codex", instance: {} as never }],
+      localOcrEnabled: false,
+      pick: {
+        entry: { providerType: "codex", instance: {} as never },
+        providerType: "codex",
+        pdfSupported: false,
+      },
+    } as never);
+    vi.mocked(reserveBudget).mockResolvedValue({
+      allowed: true,
+      reserved: AI_BUDGETS.ocrExtract.maxTokens ?? 0,
+      totalAfter: AI_BUDGETS.ocrExtract.maxTokens ?? 0,
+    } as never);
+  });
+
+  it("rasterizes a PDF for a non-Anthropic vision provider and sends the page images", async () => {
+    vi.mocked(rasterizePdf).mockResolvedValue({
+      ok: true,
+      images: [{ mediaType: "image/jpeg", dataBase64: "cGFnZQ==" }],
+    });
+    vi.mocked(runOcrExtraction).mockResolvedValue({ rows: [] } as never);
+
+    const res = await POST(pdfReq());
+    expect(res.status).toBe(200);
+    expect(rasterizePdf).toHaveBeenCalledOnce();
+    // The rendered page images flow through as `input_image`s; no native PDF
+    // document block is sent for a non-Anthropic provider.
+    expect(runOcrExtraction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        images: [{ mediaType: "image/jpeg", dataBase64: "cGFnZQ==" }],
+        documents: [],
+      }),
+    );
+  });
+
+  it("falls back to pdfNeedsAnthropic when rasterization fails", async () => {
+    vi.mocked(rasterizePdf).mockResolvedValue({ ok: false });
+
+    const res = await POST(pdfReq());
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { error: string | null };
+    expect(body.error).toBeTruthy();
+    // A failed render never reaches the provider — and refunds the reservation.
+    expect(runOcrExtraction).not.toHaveBeenCalled();
+    expect(reconcileSpend).toHaveBeenCalledWith(
+      "user-1",
+      AI_BUDGETS.ocrExtract.maxTokens,
       0,
       "2026-06-26",
     );
