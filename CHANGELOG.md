@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.28.8] — 2026-07-09 — Documents: automatic when set, cleaner when not
+
+With automatic AI reading turned on, a document is read on upload — so the
+per-document AI action buttons no longer appear (nothing to press). They return
+when automatic reading is off, for manual per-document control. The AI-suggestion
+review also drops its heading and grey sub-caption — just the fields to review
+and apply.
+
 ## [1.28.7] — 2026-07-09 — Scanned-PDF reading actually works
 
 The prior fix made the PDF image library loadable, but the page renderer was
