@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.27.33] — 2026-07-09 — Chat about a document
+
+### Added
+
+- Open a document and ask about it in plain language — a short, grounded conversation about that one document's text ("What does the Impression say?", "Which medications are listed?"). Answers cite where in the document each statement comes from and say plainly when the document doesn't contain the answer.
+
+### Security
+
+- The feature is built so a hostile document is harmless: the document text is fenced as data (never instructions — a document that says "ignore your instructions" is treated as content, not obeyed, and embedded fence markers are scrubbed); the chat has **no tools** (nothing an injected instruction could do); **no health snapshot** is ever sent (the only context is that one document — your health record can't leak, even if asked); fabricated numbers are stripped so only figures present in the document appear; and replies render as plain text (no markup a reply could contain is executed). It never diagnoses — it describes the document and defers clinical decisions.
+- Available for indexed documents only, using your configured AI provider (local-first, keeping the document on your machine; any external provider requires explicit AI consent and shows the egress notice). Document chats are kept separate from the Coach and encrypted at rest. Migration 0230.
+
 ## [1.27.32] — 2026-07-09 — Quality-of-life, accessibility, cold-start and performance polish
 
 ### Changed
