@@ -12,3 +12,12 @@
 # Node base image ships an npm build whose bundled picomatch is >= 4.0.4,
 # then drop this entry.
 CVE-2026-33671
+
+# CVE-2026-48815 (sigstore certificate-OID verification, HIGH) — flagged only
+# in the npm CLI's OWN bundled copy inside the Node base image
+# (usr/local/lib/node_modules/npm/node_modules/sigstore, v3.1.0). npm uses
+# sigstore for publish provenance at image-build time only; it is not in our
+# application dependency tree at all (`pnpm why sigstore` is empty) and is
+# never reachable at runtime. Re-check when the Node base image ships an npm
+# build whose bundled sigstore is >= 4.1.1, then drop this entry.
+CVE-2026-48815
