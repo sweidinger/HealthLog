@@ -257,8 +257,6 @@ export function DocumentsView() {
     contentIndex !== undefined &&
     contentIndex.totalCount > 0 &&
     contentIndex.indexedCount < contentIndex.totalCount;
-  const contentSearchActive =
-    canIndexContent && (contentIndex?.indexedCount ?? 0) > 0;
   const handleIndexAll = useCallback(() => {
     reindexAll.mutate(undefined, {
       onSuccess: (result) =>
@@ -586,7 +584,6 @@ export function DocumentsView() {
         onToggleYear={toggleYear}
         activeCount={activeCount}
         onClearAll={clearFilters}
-        contentSearchActive={contentSearchActive}
         showIndexAll={showIndexAll}
         indexAllPending={reindexAll.isPending}
         onIndexAll={handleIndexAll}

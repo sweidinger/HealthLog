@@ -8198,9 +8198,7 @@
       "openLabel": "Open {title}",
       "attachmentBadge": "Download only",
       "uploading": "Uploading…",
-      "dismissFailed": "Dismiss failed upload",
-      "searchableBadge": "Contents searchable",
-      "aiReadBadge": "Read by AI"
+      "dismissFailed": "Dismiss failed upload"
     },
     "error": {
       "fileTooLarge": "This file is larger than the {maxSize} limit.",
@@ -8330,7 +8328,6 @@
       "readDone": "The AI read your document."
     },
     "contentIndex": {
-      "searchHint": "Search now looks inside your documents too (whole words).",
       "indexPrompt": "Make document contents searchable.",
       "indexAll": "Index all for search",
       "indexAllPending": "Starting…",

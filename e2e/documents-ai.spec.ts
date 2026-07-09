@@ -250,12 +250,6 @@ test.describe("document vault — AI assist + content search", () => {
     await expect(card).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(new RegExp(`q=${CONTENT_BODY_WORD}`));
 
-    // The matched card advertises its searchable body.
-    const searchable = page
-      .locator('[data-slot="document-card"]', { hasText: "Radiology note" })
-      .locator('[data-slot="document-searchable"]');
-    await expect(searchable).toBeVisible();
-
     // Sanity: the word really is absent from the short fields (server-side
     // confirmation the union — not an ILIKE — did the work).
     const viaApi = await page.request.get(
@@ -365,7 +359,7 @@ test.describe("document vault — AI assist + content search", () => {
 
   test("a vision-indexed document surfaces the AI-read provenance", async ({
     page,
-  }, testInfo) => {
+  }) => {
     // CONTENT_DOC_ID is seeded with source "vision" (an AI provider read it).
     // No mocks: the real list/detail GET threads the provenance through.
     await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
@@ -377,24 +371,6 @@ test.describe("document vault — AI assist + content search", () => {
     const status = sheet.locator('[data-slot="content-search-status"]');
     await expect(status).toHaveAttribute("data-state", "ai-read");
     await expect(status).toHaveText(/Read by AI/);
-
-    // The timeline card carries the same AI-read marker — desktop only. The
-    // vault timeline is virtualized; on the narrow mobile viewport the seeded
-    // card renders outside the initial virtual window (not in the DOM), so a
-    // card-level attribute read there tests the virtualizer, not the marker.
-    // The marker's render logic is viewport-independent and covered by the SSR
-    // card test + this desktop assertion; mobile provenance is already proven
-    // by the status pill above.
-    if (testInfo.project.name !== "chromium-mobile") {
-      await page.keyboard.press("Escape");
-      const marker = page
-        .locator('[data-slot="document-card"]', { hasText: "Radiology note" })
-        .locator('[data-slot="document-searchable"]')
-        .first();
-      await expect(marker).toHaveAttribute("data-source", "ai-read", {
-        timeout: 20_000,
-      });
-    }
   });
 
   // ── (f) Text-mode refuses a non-image before any OCR/upload ──────────────

@@ -42,6 +42,9 @@ vi.mock("@/lib/db", () => {
       documentContentIndex: {
         findMany: vi.fn(),
       },
+      documentThumbnail: {
+        findMany: vi.fn(),
+      },
       illnessEpisode: {
         findMany: vi.fn(),
       },
@@ -64,6 +67,10 @@ vi.mock("@/lib/modules/gate", () => ({
 
 vi.mock("@/lib/jobs/document-index", () => ({
   enqueueDocumentIndex: vi.fn().mockResolvedValue({ enqueued: true }),
+}));
+
+vi.mock("@/lib/jobs/document-thumbnail", () => ({
+  enqueueDocumentThumbnail: vi.fn().mockResolvedValue({ enqueued: true }),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -163,6 +170,7 @@ beforeEach(() => {
   vi.mocked(prisma.documentConditionLink.findMany).mockResolvedValue(
     [] as never,
   );
+  vi.mocked(prisma.documentThumbnail.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.documentContentIndex.findMany).mockResolvedValue(
     [] as never,
   );

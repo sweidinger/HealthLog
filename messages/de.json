@@ -8198,9 +8198,7 @@
       "openLabel": "{title} öffnen",
       "attachmentBadge": "Nur Download",
       "uploading": "Wird hochgeladen…",
-      "dismissFailed": "Fehlgeschlagenen Upload ausblenden",
-      "searchableBadge": "Inhalt durchsuchbar",
-      "aiReadBadge": "Von KI gelesen"
+      "dismissFailed": "Fehlgeschlagenen Upload ausblenden"
     },
     "error": {
       "fileTooLarge": "Diese Datei ist größer als das Limit von {maxSize}.",
@@ -8330,7 +8328,6 @@
       "readDone": "Die KI hat dein Dokument gelesen."
     },
     "contentIndex": {
-      "searchHint": "Die Suche durchsucht jetzt auch den Inhalt deiner Dokumente (ganze Wörter).",
       "indexPrompt": "Dokumentinhalte durchsuchbar machen.",
       "indexAll": "Alle für Suche indizieren",
       "indexAllPending": "Wird gestartet…",

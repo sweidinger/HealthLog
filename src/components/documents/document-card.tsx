@@ -6,15 +6,17 @@
  * with the translated §3.2 reason). All three share the card footprint so an
  * optimistic entry morphs into the stored row without the grid jumping.
  *
- * Anatomy per the design standards: kind icon `text-foreground size-5`,
- * title in foreground (`text-sm font-medium`, truncated), one muted meta
- * line (date · size · filename), condition-tag pills, an attachment-class
- * badge for download-only formats, and a selection checkbox that appears on
- * hover / focus / while selected. The whole card is clickable through an
- * invisible overlay button; the checkbox floats above it.
+ * Anatomy per the design standards: a leading edge that shows a small preview
+ * thumbnail tile when one has been rendered (`hasThumbnail`) and otherwise the
+ * kind icon `text-foreground size-5`, title in foreground (`text-sm
+ * font-medium`, truncated), one muted meta line (date · size · filename),
+ * condition-tag pills, an attachment-class badge for download-only formats,
+ * and a selection checkbox that appears on hover / focus / while selected. The
+ * whole card is clickable through an invisible overlay button; the checkbox
+ * floats above it.
  */
-import { Download, ScanSearch, Sparkles, X } from "lucide-react";
-import { useRef } from "react";
+import { Download, X } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,10 +24,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-import {
-  isAiReadSource,
-  type InboundDocumentDto,
-} from "@/lib/validations/inbound-documents";
+import type { InboundDocumentDto } from "@/lib/validations/inbound-documents";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
 import type { UploadQueueItem } from "./use-document-upload";
 import { documentDateKey, formatBytes } from "./vault-utils";
@@ -63,6 +62,10 @@ export function DocumentCard({
   const { t, locale } = useTranslations();
   const format = useFormatters();
 
+  // A preview thumbnail that fails to load (still rendering, decrypt error,
+  // 404) falls back to the kind icon — never a broken image.
+  const [thumbFailed, setThumbFailed] = useState(false);
+
   // Touch long-press selects instead of opening; the click that the
   // browser fires after the release is swallowed once.
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,10 +97,35 @@ export function DocumentCard({
     >
       <CardContent className="flex h-full flex-col gap-2 px-4">
         <div className="flex items-start gap-2">
-          <Icon
-            className="text-foreground mt-0.5 size-5 shrink-0"
-            aria-hidden
-          />
+          {document.hasThumbnail && !thumbFailed ? (
+            // Leading-edge preview tile. `loading="lazy"` + the timeline's
+            // virtualization means only cards near the viewport fetch their
+            // thumbnail. Decorative (alt="") — the title beside it names the
+            // document; an authed same-origin subresource, never cached
+            // cross-user. onError falls back to the kind icon.
+            <span
+              data-slot="document-thumbnail"
+              className="bg-muted mt-0.5 block size-12 shrink-0 overflow-hidden rounded-md"
+            >
+              {/* Authed, private (no-store) same-origin subresource — next/image
+                  would try to proxy/optimize it, which is wrong for a PHI blob
+                  we deliberately never cache. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/documents/inbound/${document.id}/thumbnail`}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={() => setThumbFailed(true)}
+                className="size-full object-cover"
+              />
+            </span>
+          ) : (
+            <Icon
+              className="text-foreground mt-0.5 size-5 shrink-0"
+              aria-hidden
+            />
+          )}
           <p className="min-w-0 flex-1 truncate text-sm font-medium">{title}</p>
           <Checkbox
             checked={selected}
@@ -122,8 +150,7 @@ export function DocumentCard({
           {showFilename ? ` · ${document.filename}` : ""}
         </p>
         {document.conditionLinks.length > 0 ||
-        document.servingClass === "attachment" ||
-        document.hasContentIndex ? (
+        document.servingClass === "attachment" ? (
           <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
             {document.conditionLinks.map((link) => (
               <span
@@ -141,37 +168,6 @@ export function DocumentCard({
                 <Download className="size-3" aria-hidden />
                 {t("documents.card.attachmentBadge")}
               </Badge>
-            ) : null}
-            {document.hasContentIndex ? (
-              // Subtle searchable marker — icon-only to keep the row calm; the
-              // label rides an accessible name. An AI-read document gets the
-              // highlighted Sparkles (primary) so the richer read is legible at
-              // a glance; a locally-indexed one keeps the quiet muted glass.
-              isAiReadSource(document.contentIndexSource) ? (
-                <span
-                  data-slot="document-searchable"
-                  data-source="ai-read"
-                  className="text-primary inline-flex items-center"
-                  title={t("documents.card.aiReadBadge")}
-                >
-                  <Sparkles className="size-3.5" aria-hidden />
-                  <span className="sr-only">
-                    {t("documents.card.aiReadBadge")}
-                  </span>
-                </span>
-              ) : (
-                <span
-                  data-slot="document-searchable"
-                  data-source="local"
-                  className="text-muted-foreground inline-flex items-center"
-                  title={t("documents.card.searchableBadge")}
-                >
-                  <ScanSearch className="size-3.5" aria-hidden />
-                  <span className="sr-only">
-                    {t("documents.card.searchableBadge")}
-                  </span>
-                </span>
-              )
             ) : null}
           </div>
         ) : null}

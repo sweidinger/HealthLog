@@ -280,6 +280,12 @@ export interface InboundDocumentDto {
    * a locally-indexed one and offer a richer "Read with AI" pass on the latter.
    */
   contentIndexSource: DocumentContentIndexSourceValue | null;
+  /**
+   * Whether the document has an encrypted preview thumbnail (rendered in the
+   * background after upload). Gates the card's `<img>`: when false the card
+   * shows its kind icon instead of fetching a thumbnail that 404s.
+   */
+  hasThumbnail: boolean;
   createdAt: string;
   updatedAt: string;
 }

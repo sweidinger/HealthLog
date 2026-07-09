@@ -92,6 +92,13 @@ describe("rasterizePdf", () => {
     expect(result.images).toHaveLength(RASTER_MAX_PAGES);
   });
 
+  it("honours a caller maxPages bound (thumbnail path renders page 1 only)", async () => {
+    const result = await rasterizePdf(buildPdf(5, true), 1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.images).toHaveLength(1);
+  });
+
   it("returns { ok: false } and never throws on malformed input", async () => {
     await expect(
       rasterizePdf(Buffer.from("this is not a pdf")),

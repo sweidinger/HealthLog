@@ -814,6 +814,7 @@ model User {
   extractedFacts              ExtractedFact[]
   documentConditionLinks      DocumentConditionLink[]
   documentContentIndexes      DocumentContentIndex[]
+  documentThumbnails          DocumentThumbnail[]
   // v1.19.0 — full Withings ECG waveform recordings (encrypted at rest).
   // The paired AFib verdict still lands as an IRREGULAR_RHYTHM_NOTIFICATION
   // Measurement EVENT row (v1.18.11); this holds the raw signal samples.
@@ -5950,6 +5951,11 @@ model InboundDocument {
   /// 1:1 blind content-search index (encrypted extracted text + HMAC token
   /// array). Absent until the document is indexed; cascades on delete.
   contentIndex   DocumentContentIndex?
+  /// 1:1 encrypted preview thumbnail (small JPEG, AES-256-GCM at rest).
+  /// Absent until the background thumbnail job runs; a side table (not a
+  /// column) so the list/detail `omit: { contentEncrypted }` queries never
+  /// drag the blob into the SELECT. Cascades on delete.
+  thumbnail      DocumentThumbnail?
   /// v1.27.33 (Document vault P4) — "chat about a document" threads. Each is a
   /// `CoachConversation` with `documentId` set to this document; cascades on
   /// delete so a discarded document takes its chats with it.
@@ -6100,4 +6106,41 @@ model DocumentContentIndex {
 
   @@index([userId])
   @@map("document_content_index")
+}
+
+/// 1:1 encrypted preview thumbnail for a stored document. A small JPEG
+/// (~320px long edge, q70) rendered in the background from the original —
+/// images are decoded + downscaled, a PDF's first page is rasterised — then
+/// stored encrypted at rest. Held in a side table (not a column on
+/// `InboundDocument`) so the list/detail queries that `omit` the original
+/// blob never drag this blob either. The re-encode strips EXIF/GPS from the
+/// source, so the preview is metadata-free by construction. Owner-scoped
+/// serve route only; cascades on delete.
+model DocumentThumbnail {
+  id                 String   @id @default(cuid())
+  documentId         String   @unique @map("document_id")
+  userId             String   @map("user_id")
+  /// AES-256-GCM ciphertext of the JPEG preview, stored as the
+  /// `encrypt()`-string-as-UTF-8 Bytes shape (base64 of the JPEG), the same
+  /// codec `DocumentContentIndex.textEncrypted` uses so the standard
+  /// key-rotation walk covers it. A scanned medical preview is PHI — never
+  /// stored in the clear or logged. The list query never selects it.
+  thumbnailEncrypted Bytes    @map("thumbnail_encrypted")
+  /// Decoded thumbnail dimensions (px) — diagnostic + lets a future consumer
+  /// size the tile without decoding the blob.
+  width              Int
+  height             Int
+  /// Plaintext byte length of the JPEG (pre-encryption), for `Content-Length`.
+  byteSize           Int      @map("byte_size")
+  /// Source MIME the preview was rendered from (diagnostic only).
+  sourceMime         String   @map("source_mime")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  document InboundDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("document_thumbnails")
 }
