@@ -106,6 +106,25 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
     field: "webPushVapidPrivateKeyEncrypted",
     kind: "string",
   },
+  // Operator-shared central Codex (ChatGPT subscription) OAuth credential — the
+  // access token, the rotating refresh token, and the mandatory
+  // `ChatGPT-Account-ID` claim, each AES-256-GCM at rest like the per-user
+  // `codex*Encrypted` columns.
+  {
+    model: "AppSettings",
+    field: "adminCodexAccessTokenEncrypted",
+    kind: "string",
+  },
+  {
+    model: "AppSettings",
+    field: "adminCodexRefreshTokenEncrypted",
+    kind: "string",
+  },
+  {
+    model: "AppSettings",
+    field: "adminCodexAccountIdEncrypted",
+    kind: "string",
+  },
 
   // ───── Custom labels (mood + cycle) ─────
   { model: "MoodTag", field: "labelEncrypted", kind: "string" },

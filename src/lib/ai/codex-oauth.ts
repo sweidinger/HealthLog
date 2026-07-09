@@ -350,3 +350,55 @@ export function decryptCodexCreds(encrypted: {
     expiresAt: new Date(parsed.expiresAt),
   };
 }
+
+// ─── Operator-shared central-codex storage codec (AppSettings) ───────
+//
+// The operator-level central Codex credential lives on `AppSettings` in three
+// dedicated encrypted columns plus a plaintext expiry `DateTime`, rather than
+// the per-user packed JSON blob. Three separate columns keep each token piece
+// independently rotatable and make the `ChatGPT-Account-ID` claim an explicit,
+// registered encrypted column (`admin_codex_account_id_encrypted`).
+
+export interface EncryptedAdminCodexCreds {
+  accessEncrypted: string;
+  refreshEncrypted: string;
+  accountIdEncrypted: string;
+  expiresAt: Date;
+}
+
+export function encryptAdminCodexCreds(
+  creds: CodexCreds,
+): EncryptedAdminCodexCreds {
+  return {
+    accessEncrypted: encrypt(creds.accessToken),
+    refreshEncrypted: encrypt(creds.refreshToken),
+    accountIdEncrypted: encrypt(creds.accountId),
+    expiresAt: creds.expiresAt,
+  };
+}
+
+export function decryptAdminCodexCreds(encrypted: {
+  accessEncrypted: string;
+  refreshEncrypted: string;
+  accountIdEncrypted: string;
+  expiresAt: Date | null;
+}): CodexCreds | null {
+  try {
+    const accessToken = decrypt(encrypted.accessEncrypted);
+    const refreshToken = decrypt(encrypted.refreshEncrypted);
+    const accountId = decrypt(encrypted.accountIdEncrypted);
+    if (!accessToken || !refreshToken || !accountId) return null;
+    return {
+      accessToken,
+      refreshToken,
+      accountId,
+      // A missing expiry column (shouldn't happen once connected) is treated as
+      // already expired so the caller proactively refreshes before first use.
+      expiresAt: encrypted.expiresAt ?? new Date(0),
+    };
+  } catch {
+    // Fail closed: a decrypt failure (missing / rotated-out key) surfaces as a
+    // corrupt connection the operator must re-link, never as plaintext.
+    return null;
+  }
+}

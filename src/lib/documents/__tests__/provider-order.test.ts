@@ -60,6 +60,19 @@ describe("reorderChainForDocumentClass", () => {
     expect(order([entry("codex"), entry("local")])).toEqual(["local", "codex"]);
   });
 
+  it("demotes the shared central codex (admin-codex) to the subscription tier (rank 3)", () => {
+    // Same train-by-default subscription tier as `codex` — behind local, BYOK,
+    // and the operator's no-train admin key.
+    expect(
+      order([
+        entry("admin-codex"),
+        entry("local"),
+        entry("openai"),
+        entry("admin-openai"),
+      ]),
+    ).toEqual(["local", "openai", "admin-openai", "admin-codex"]);
+  });
+
   it("is stable within a rank tier (preserves user order for BYOK keys)", () => {
     expect(order([entry("anthropic"), entry("openai")])).toEqual([
       "anthropic",
@@ -85,6 +98,7 @@ describe("documentEgressClass", () => {
     expect(documentEgressClass("openai")).toBe("external");
     expect(documentEgressClass("anthropic")).toBe("external");
     expect(documentEgressClass("admin-openai")).toBe("external");
+    expect(documentEgressClass("admin-codex")).toBe("external");
   });
 });
 

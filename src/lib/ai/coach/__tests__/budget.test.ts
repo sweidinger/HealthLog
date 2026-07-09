@@ -120,6 +120,14 @@ describe("resolveDailyCap (F1 — provider-aware cap)", () => {
     );
   });
 
+  it("applies the operator-cost cap to the shared central-codex (admin-codex) primary", () => {
+    // The operator's shared ChatGPT-subscription account drains the operator's
+    // allowance, so it is billed against the operator cap, not the user plan.
+    expect(resolveDailyCap([{ providerType: "admin-codex" }])).toBe(
+      OPERATOR_COST_CAP,
+    );
+  });
+
   it("applies the generous user-plan cap to a ChatGPT-OAuth (codex) primary", () => {
     expect(resolveDailyCap([{ providerType: "codex" }])).toBe(USER_PLAN_CAP);
   });

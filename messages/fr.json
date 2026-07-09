@@ -4781,6 +4781,13 @@
         "honesty": "Lorsque cette option est activée, chaque document que vous téléversez est envoyé à votre fournisseur d'IA configuré pour être lu, décrit et indexé pour la recherche, sans confirmation par document. Cela se produit sur le serveur et le contenu du document quitte cette machine vers ce fournisseur. Si votre fournisseur configuré est une connexion par abonnement (un compte d'IA connecté plutôt qu'une clé API), ses propres paramètres de données s'appliquent : les fournisseurs par abonnement peuvent utiliser le contenu pour améliorer leurs modèles, et aucun accord de traitement des données ne le couvre. Les documents lus par un modèle local auto-hébergé ne quittent jamais votre serveur. Désactivé par défaut ; activez-le uniquement si vous acceptez ce compromis pour les documents que vous téléversez.",
         "confirm": "Je comprends — activer la lecture automatique par l'IA",
         "cancel": "Annuler"
+      },
+      "centralCodex": {
+        "title": "Utiliser l'accès IA partagé du serveur",
+        "subLabel": "Acheminez les requêtes IA via la connexion que l'opérateur a configurée pour ce serveur, en complément de vos propres fournisseurs comme solution de repli.",
+        "honesty": "L'accès partagé est un unique compte IA connecté que l'opérateur a relié pour tout le monde sur ce serveur, et non votre propre clé. Les requêtes que vous y faites servent par défaut à entraîner les modèles du fournisseur et aucun accord de traitement des données ne les couvre, les limites horaires et hebdomadaires du compte sont partagées avec tous les autres qui ont accepté, et vos propres fournisseurs sont essayés en premier. Ne l'activez que si vous acceptez ce compromis.",
+        "confirm": "J'ai compris — utiliser la connexion partagée",
+        "cancel": "Annuler"
       }
     },
     "dashboard": {
@@ -6053,7 +6060,21 @@
     "documentQuotaDescription": "Stockage de documents par compte par défaut (0,1–1024 Go).",
     "userDocumentQuota": "Quota de documents personnalisé",
     "userDocumentQuotaDefault": "Par défaut",
-    "userDocumentQuotaHint": "Laisser vide pour utiliser la valeur par défaut de l'instance."
+    "userDocumentQuotaHint": "Laisser vide pour utiliser la valeur par défaut de l'instance.",
+    "centralCodex": {
+      "title": "Connexion IA partagée",
+      "description": "Reliez un compte ChatGPT connecté que chaque utilisateur de ce serveur peut activer pour les fonctions IA.",
+      "honesty": "Il s'agit d'un unique compte IA partagé et connecté, pas d'une clé d'API. Chaque personne qui l'active envoie ses requêtes par ce biais : les limites horaires et hebdomadaires du compte sont donc partagées entre elles, et ces mêmes limites alimentent déjà le Coach. Les fournisseurs par abonnement peuvent utiliser le contenu pour améliorer leurs modèles et aucun accord de traitement des données ne le couvre — ce n'est donc jamais l'option par défaut et cela reste après les fournisseurs sans entraînement pour la lecture de documents. Ne reliez qu'un compte que vous êtes prêt à partager ainsi.",
+      "statusConnected": "Connecté",
+      "statusDisconnected": "Non connecté",
+      "statusExpired": "Expiré",
+      "connectButton": "Relier un compte ChatGPT",
+      "disconnectButton": "Déconnecter",
+      "connectedSince": "Connecté depuis le {when}",
+      "connected": "Connexion IA partagée reliée",
+      "disconnected": "Connexion IA partagée supprimée",
+      "error": "Une erreur s'est produite — veuillez réessayer"
+    }
   },
   "achievements": {
     "title": "Réussites",

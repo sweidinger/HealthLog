@@ -4781,6 +4781,13 @@
         "honesty": "When on, each document you upload is sent to your configured AI provider to be read, described, and indexed for search — with no per-document confirmation. This happens on the server and the document's contents leave this machine to that provider. If your configured provider is a subscription connection (a signed-in AI account rather than an API key), that provider's own data settings apply — subscription providers may use the content to improve their models, and no data-processing agreement covers it. Documents read by a self-hosted local model never leave your server. Off by default; turn it on only if you accept this trade for the documents you upload.",
         "confirm": "I understand — turn on automatic AI reading",
         "cancel": "Cancel"
+      },
+      "centralCodex": {
+        "title": "Use the server's shared AI access",
+        "subLabel": "Route AI requests through the connection the operator set up for this server, alongside your own providers as a fallback.",
+        "honesty": "The shared access is a single signed-in AI account the operator connected for everyone on this server — not your own key. Requests you make on it are trained on by the provider by default and no data-processing agreement covers them, the account's hourly and weekly limits are shared with every other user who opted in, and your own configured providers are still tried first. Turn it on only if you accept this trade.",
+        "confirm": "I understand — use the shared connection",
+        "cancel": "Cancel"
       }
     },
     "dashboard": {
@@ -6053,7 +6060,21 @@
     "documentQuotaDescription": "Default per-account document storage (0.1–1024 GB).",
     "userDocumentQuota": "Document quota override",
     "userDocumentQuotaDefault": "Default",
-    "userDocumentQuotaHint": "Leave empty to use the instance default."
+    "userDocumentQuotaHint": "Leave empty to use the instance default.",
+    "centralCodex": {
+      "title": "Shared AI connection",
+      "description": "Connect one signed-in ChatGPT account that any user on this server can opt into for AI features.",
+      "honesty": "This is a single shared, signed-in AI account — not an API key. Every user who opts in sends requests through it, so the account's hourly and weekly limits are shared across all of them, and the same limits already feed the Coach. Subscription providers may use the content to improve their models and no data-processing agreement covers it, so it is never the default and stays below no-training providers for document reads. Only connect an account you are comfortable sharing this way.",
+      "statusConnected": "Connected",
+      "statusDisconnected": "Not connected",
+      "statusExpired": "Expired",
+      "connectButton": "Connect a ChatGPT account",
+      "disconnectButton": "Disconnect",
+      "connectedSince": "Connected since {when}",
+      "connected": "Shared AI connection linked",
+      "disconnected": "Shared AI connection removed",
+      "error": "Something went wrong — please try again"
+    }
   },
   "achievements": {
     "title": "Achievements",

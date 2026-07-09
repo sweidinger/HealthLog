@@ -14,6 +14,11 @@ export interface InsightsSettings {
    *  false to avoid the v1.4.2 dead-end where the click bounced the
    *  user to chatgpt.com without any OAuth flow. */
   codexOauthConfigured?: boolean;
+  /** True when the operator has connected the shared central Codex. Drives
+   *  whether the per-user "use the server's shared AI access" switch shows. */
+  centralCodexAvailable?: boolean;
+  /** The user's own opt-in to the operator's shared central Codex. */
+  useCentralCodex?: boolean;
   privacyMode: string;
   lastInsightAt: string | null;
 }
