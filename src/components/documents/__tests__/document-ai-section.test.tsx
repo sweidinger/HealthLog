@@ -34,7 +34,6 @@ function base(
     aiEnabled: true,
     indexEnabled: true,
     unavailableReason: null,
-    egressExternal: false,
     actionsDisabled: false,
     onSuggest: noop,
     suggestPending: false,
@@ -143,20 +142,14 @@ describe("<DocumentAiSection>", () => {
     expect(html).toContain("Not saved");
   });
 
-  it("shows the vendor-blind egress notice before an external document read", () => {
-    const html = render(base({ aiEnabled: true, egressExternal: true }));
-    expect(html).toContain('data-slot="document-ai-egress-notice"');
-    expect(html).toContain("third-party AI service");
-    // Vendor-blind: never names a specific AI vendor in the document surface.
-    expect(html).not.toContain("OpenAI");
-    expect(html).not.toContain("ChatGPT");
-    // The actions are still offered — the notice informs, it does not block.
-    expect(html).toContain('data-slot="assist-suggest"');
-  });
-
-  it("omits the egress notice when the read stays on the local machine", () => {
-    const html = render(base({ aiEnabled: true, egressExternal: false }));
+  it("renders no per-document egress notice — the settings confirm covers it", () => {
+    // The per-document egress notice was retired; the settings-toggle honesty
+    // confirm is now the single place the egress trade is stated.
+    const html = render(base({ aiEnabled: true }));
     expect(html).not.toContain('data-slot="document-ai-egress-notice"');
+    // The actions are still offered.
+    expect(html).toContain('data-slot="assist-suggest"');
+    expect(html).toContain('data-slot="document-read-ai"');
   });
 
   it("hides the Read-with-AI action when indexing is unavailable but keeps suggest", () => {

@@ -8226,9 +8226,7 @@
       "close": "Nascondi"
     },
     "ai": {
-      "egressNotice": "Questo invia il contenuto del documento al provider IA configurato — lascia questa macchina verso un servizio IA di terze parti. Se quel provider è un abbonamento personale, si applicano le sue impostazioni sull'uso dei dati, incluso l'addestramento del modello a meno che tu non l'abbia disattivato lì.",
       "blockTitle": "Leggi con l’IA",
-      "available": "Lascia che l’IA legga questo documento: suggerire un titolo, un tipo e una data, riassumerlo o rendere ricercabile tutto il testo.",
       "read": "Leggi con l’IA",
       "reread": "Leggi di nuovo",
       "reading": "Lettura…",

@@ -22,7 +22,7 @@
  * status pill stays, honestly reflecting any local auto-index, and the manual
  * form below stays fully usable.
  */
-import { FileText, ScanText, ShieldAlert, WandSparkles } from "lucide-react";
+import { FileText, ScanText, WandSparkles } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,6 @@ export function DocumentAiSection({
   aiEnabled,
   indexEnabled,
   unavailableReason,
-  egressExternal,
   actionsDisabled,
   onSuggest,
   suggestPending,
@@ -75,12 +74,6 @@ export function DocumentAiSection({
   aiEnabled: boolean;
   indexEnabled: boolean;
   unavailableReason: "no-provider" | "enable-local-ocr" | null;
-  /**
-   * True when a document read will egress to a third-party AI service (any
-   * provider other than a self-hosted local model). Drives the vendor-blind
-   * "this leaves your machine" notice shown before the AI actions.
-   */
-  egressExternal: boolean;
   /** Capability still resolving — the transport mode isn't known yet. */
   actionsDisabled: boolean;
   onSuggest: () => void;
@@ -143,23 +136,8 @@ export function DocumentAiSection({
         />
       </div>
 
-      {egressExternal ? (
-        <div
-          data-slot="document-ai-egress-notice"
-          role="note"
-          className="border-border text-muted-foreground flex items-start gap-2 rounded-lg border border-dashed px-3 py-2.5 text-xs"
-        >
-          <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          <p className="min-w-0">{t("documents.ai.egressNotice")}</p>
-        </div>
-      ) : null}
-
       {aiEnabled ? (
         <>
-          <p className="text-muted-foreground text-xs">
-            {t("documents.ai.available")}
-          </p>
-
           <div className="flex flex-wrap items-center gap-2">
             {indexEnabled ? (
               <Button

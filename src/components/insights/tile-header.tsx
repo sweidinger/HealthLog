@@ -51,6 +51,14 @@ interface TileHeaderProps {
   titleClassName?: string;
   /** Optional id on the `CardTitle`, e.g. for an `aria-labelledby` link. */
   id?: string;
+  /**
+   * Render the title as a real heading element (e.g. `"h2"`) instead of the
+   * default presentational `CardTitle` div, keeping the identical CardTitle
+   * styling. Use only where the tile owns the ONLY heading on its subpage
+   * branch (the recovery blocks) so the `h1 → h2` outline stays nested with no
+   * skipped level. Default (unset) keeps every other tile a plain CardTitle.
+   */
+  titleAs?: "h2";
 }
 
 export function TileHeader({
@@ -61,7 +69,12 @@ export function TileHeader({
   className,
   titleClassName,
   id,
+  titleAs,
 }: TileHeaderProps) {
+  const titleClassNames = cn(
+    size === "sm" ? "text-sm" : "text-base",
+    titleClassName,
+  );
   return (
     <div
       data-slot="tile-header"
@@ -78,12 +91,21 @@ export function TileHeader({
           aria-hidden="true"
         />
       ) : null}
-      <CardTitle
-        id={id}
-        className={cn(size === "sm" ? "text-sm" : "text-base", titleClassName)}
-      >
-        {title}
-      </CardTitle>
+      {titleAs === "h2" ? (
+        // Heading semantics with the exact CardTitle visual treatment so the
+        // tile can carry a real `<h2>` where it owns the subpage's heading.
+        <h2
+          id={id}
+          data-slot="card-title"
+          className={cn("leading-none font-semibold", titleClassNames)}
+        >
+          {title}
+        </h2>
+      ) : (
+        <CardTitle id={id} className={titleClassNames}>
+          {title}
+        </CardTitle>
+      )}
       {right ? <div className="ml-auto flex items-center">{right}</div> : null}
     </div>
   );
