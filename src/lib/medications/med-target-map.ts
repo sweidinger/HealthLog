@@ -158,3 +158,202 @@ export function inferMedTargetClass(
   }
   return null;
 }
+
+// ─── v1.28 efficacy resolver (extends the closed map above) ───────────
+//
+// The efficacy view ("Wirkung" tab + the Insights summary) needs a target
+// resolver that (a) can point at LAB analytes (statin→LDL, thyroid→TSH,
+// supplements→their marker) — the documented follow-on the v1.22 map left
+// out — and (b) consults the WHO ATC class prefix on `Medication.atcCode`
+// before falling back to name inference. It is ADDITIVE: the metric-only
+// `MED_TARGET_MAP` / `inferMedTargetClass` / `primaryTargetForClass` above
+// stay byte-identical so the adherence-storyline safety path is untouched.
+//
+// Same discipline as the map above: closed tables, whole-word / fixed-prefix
+// matching, conservative-fail to an EMPTY target list (never a guess). The
+// clinical association ("this class is prescribed to move this outcome") is
+// documented, guideline-cited and vendor-blind in the external knowledge base
+// (`medications/drug-class-targets.md`); this code is its mechanical mirror.
+// No efficacy claim is encoded here — only what a class is prescribed to move.
+
+/**
+ * A resolved target: either a first-class measurement series or a lab analyte.
+ * The lab variant carries a `contains`-match needle (matched against a
+ * `LabResult.analyte` or the linked `Biomarker.name`, exactly as
+ * `getLabHistory` matches) plus a human label for the DTO / UI.
+ */
+export type MedTarget =
+  | { kind: "metric"; measurementType: MeasurementType }
+  | { kind: "lab"; analyte: string; label: string };
+
+/**
+ * The wider class set the efficacy resolver reasons about: the three
+ * metric classes above plus the lab-analyte classes (statin→LDL,
+ * thyroid→TSH) and the two supplement markers named in the plan.
+ */
+export type EfficacyMedClass =
+  | MedTargetClass
+  | "statin"
+  | "thyroid"
+  | "vitamin_d"
+  | "iron";
+
+/** Class → its ordered target list (primary first). Closed + conservative. */
+const EFFICACY_TARGETS: Readonly<
+  Record<EfficacyMedClass, readonly MedTarget[]>
+> = {
+  antihypertensive: [
+    { kind: "metric", measurementType: "BLOOD_PRESSURE_SYS" },
+    { kind: "metric", measurementType: "BLOOD_PRESSURE_DIA" },
+  ],
+  antidiabetic: [{ kind: "metric", measurementType: "BLOOD_GLUCOSE" }],
+  glp1: [
+    { kind: "metric", measurementType: "WEIGHT" },
+    { kind: "metric", measurementType: "BLOOD_GLUCOSE" },
+  ],
+  // Lipid-modifiers (statins et al.) are monitored on LDL — a lab analyte.
+  statin: [{ kind: "lab", analyte: "LDL", label: "LDL cholesterol" }],
+  // Thyroid therapy is titrated against TSH — a lab analyte.
+  thyroid: [{ kind: "lab", analyte: "TSH", label: "TSH" }],
+  // Supplements are tracked against their own marker.
+  vitamin_d: [
+    { kind: "lab", analyte: "Vitamin D", label: "Vitamin D (25-OH)" },
+  ],
+  iron: [{ kind: "lab", analyte: "Ferritin", label: "Ferritin" }],
+} as const;
+
+/**
+ * WHO ATC class-prefix → efficacy class. Prefix-level ONLY (the class the
+ * substance belongs to), never a specific-product claim. Longer prefixes are
+ * tested first so `A10BJ` (GLP-1/GIP agonists) wins over the `A10` fallback.
+ * The prefix is upper-cased + validated against the `atcCode` shape before use.
+ */
+const ATC_PREFIX_CLASS: ReadonlyArray<readonly [string, EfficacyMedClass]> = [
+  // Antidiabetics: GLP-1 / GIP agonists move glucose AND weight; the rest of
+  // A10 (metformin, sulfonylureas, SGLT2, DPP-4, insulin) move glucose.
+  ["A10BJ", "glp1"],
+  ["A10", "antidiabetic"],
+  // Cardiovascular: antihypertensives (C02 other, C03 diuretics, C07 beta
+  // blockers, C08 CCB, C09 ACE/ARB) → blood pressure.
+  ["C02", "antihypertensive"],
+  ["C03", "antihypertensive"],
+  ["C07", "antihypertensive"],
+  ["C08", "antihypertensive"],
+  ["C09", "antihypertensive"],
+  // Lipid-modifying agents → LDL.
+  ["C10", "statin"],
+  // Thyroid therapy → TSH.
+  ["H03A", "thyroid"],
+  // Vitamin D / analogues (A11CC) and vitamin-D-only combos (A11CB).
+  ["A11CC", "vitamin_d"],
+  ["A11CB", "vitamin_d"],
+  // Iron preparations (oral B03AA/AB/AD/AE, parenteral B03AC).
+  ["B03A", "iron"],
+];
+
+const ATC_CODE_RE = /^[A-Z]\d{2}[A-Z]{2}\d{2}$/;
+
+/** Whole-word name needles for the lab classes (metric classes stay above). */
+const STATIN_NEEDLES: readonly string[] = [
+  "atorvastatin",
+  "simvastatin",
+  "rosuvastatin",
+  "pravastatin",
+  "fluvastatin",
+  "lovastatin",
+  "pitavastatin",
+  "ezetimibe",
+];
+const THYROID_NEEDLES: readonly string[] = [
+  "levothyroxine",
+  "liothyronine",
+  "thyroxine",
+  "euthyrox",
+];
+const VITAMIN_D_NEEDLES: readonly string[] = [
+  "cholecalciferol",
+  "colecalciferol",
+  "ergocalciferol",
+  "calcifediol",
+  "calcitriol",
+];
+const IRON_NEEDLES: readonly string[] = [
+  "ferrous",
+  "ferric",
+  "iron bisglycinate",
+];
+
+/** Resolve a med's efficacy class from its ATC prefix, or `null`. */
+function classFromAtc(
+  atcCode: string | null | undefined,
+): EfficacyMedClass | null {
+  if (!atcCode) return null;
+  const code = atcCode.trim().toUpperCase();
+  if (!ATC_CODE_RE.test(code)) return null;
+  for (const [prefix, cls] of ATC_PREFIX_CLASS) {
+    if (code.startsWith(prefix)) return cls;
+  }
+  return null;
+}
+
+/** Resolve a med's efficacy class from its name (metric + lab needles). */
+function classFromName(
+  name: string,
+  treatmentClass?: string | null,
+): EfficacyMedClass | null {
+  // Metric classes stay authoritative through the existing inferer.
+  const metricClass = inferMedTargetClass(name, treatmentClass);
+  if (metricClass) return metricClass;
+
+  const normalised = normaliseName(name);
+  if (!normalised) return null;
+  if (STATIN_NEEDLES.some((n) => containsWord(normalised, n))) return "statin";
+  if (THYROID_NEEDLES.some((n) => containsWord(normalised, n))) return "thyroid";
+  if (VITAMIN_D_NEEDLES.some((n) => containsWord(normalised, n))) {
+    return "vitamin_d";
+  }
+  if (IRON_NEEDLES.some((n) => containsWord(normalised, n))) return "iron";
+  return null;
+}
+
+/** The tier a target list was resolved through (provenance for the DTO/UI). */
+export type MedTargetTier = "atc" | "name";
+
+export interface ResolvedMedTargets {
+  cls: EfficacyMedClass;
+  tier: MedTargetTier;
+  targets: readonly MedTarget[];
+}
+
+/**
+ * Resolve the derived (non-override) efficacy targets for a medication:
+ * ATC class-prefix FIRST (the guideline-native class key), then whole-word
+ * name inference. Returns `null` when no class is confidently known — the
+ * caller then falls back to the user's own explicit pick (tier 1, persisted)
+ * or the "track this against…" chooser. Never guesses a target.
+ *
+ * Tier 1 (user override) is NOT resolved here — it is persisted and applied by
+ * the server efficacy builder, which layers it on top of this derived result.
+ */
+export function resolveMedicationTargets(med: {
+  name: string;
+  treatmentClass?: string | null;
+  atcCode?: string | null;
+}): ResolvedMedTargets | null {
+  const viaAtc = classFromAtc(med.atcCode);
+  if (viaAtc) {
+    return { cls: viaAtc, tier: "atc", targets: EFFICACY_TARGETS[viaAtc] };
+  }
+  const viaName = classFromName(med.name, med.treatmentClass);
+  if (viaName) {
+    return { cls: viaName, tier: "name", targets: EFFICACY_TARGETS[viaName] };
+  }
+  return null;
+}
+
+/** The ordered target list for an efficacy class (primary first). */
+export function targetsForEfficacyClass(
+  cls: EfficacyMedClass,
+): readonly MedTarget[] {
+  return EFFICACY_TARGETS[cls];
+}
