@@ -51,6 +51,27 @@ export function useDocumentAiCapability(enabled: boolean) {
   });
 }
 
+/** The per-user "read documents automatically with AI" opt-in. */
+export interface DocumentsAutoAiReadPref {
+  documentsAutoAiRead: boolean;
+}
+
+/**
+ * Read the per-user auto-AI-read flag (`GET /api/auth/me/documents-auto-ai-read`).
+ * Shares the cache key with the AI-settings toggle, so a flip there and this
+ * read stay in lockstep. When ON, reading happens automatically on upload and
+ * the detail sheet drops the manual per-document AI action row.
+ */
+export function useDocumentsAutoAiRead(enabled: boolean) {
+  return useQuery<DocumentsAutoAiReadPref>({
+    queryKey: queryKeys.documentsAutoAiRead(),
+    queryFn: () =>
+      apiGet<DocumentsAutoAiReadPref>("/api/auth/me/documents-auto-ai-read"),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 /**
  * Suggest filing metadata for a stored document. Returns DRAFTS only — the
  * detail sheet prefills its edit fields and the user saves; this call writes

@@ -45,6 +45,7 @@ import type { DocumentDescribeResult } from "./use-document-assist";
 
 export function DocumentAiSection({
   aiEnabled,
+  autoReadEnabled = false,
   indexEnabled,
   unavailableReason,
   actionsDisabled,
@@ -72,6 +73,14 @@ export function DocumentAiSection({
   chatSlot,
 }: {
   aiEnabled: boolean;
+  /**
+   * Whether "read documents automatically with AI" is ON. When true, reading +
+   * indexing happen on upload, so the manual per-document action row (Read /
+   * Suggest / Summarise) is hidden — only the header + searchable status +
+   * content-search chat remain. Defaults to false so an omitting caller keeps
+   * the manual controls.
+   */
+  autoReadEnabled?: boolean;
   indexEnabled: boolean;
   unavailableReason: "no-provider" | "enable-local-ocr" | null;
   /** Capability still resolving — the transport mode isn't known yet. */
@@ -138,58 +147,61 @@ export function DocumentAiSection({
 
       {aiEnabled ? (
         <>
-          <div className="flex flex-wrap items-center gap-2">
-            {indexEnabled ? (
+          {!autoReadEnabled ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {indexEnabled ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  data-slot="document-read-ai"
+                  onClick={onIndex}
+                  disabled={indexPending || actionsDisabled}
+                >
+                  <ScanText
+                    className={cn(
+                      "size-4",
+                      indexPending &&
+                        "animate-pulse motion-reduce:animate-none",
+                    )}
+                    aria-hidden
+                  />
+                  {readLabel}
+                </Button>
+              ) : null}
               <Button
                 type="button"
+                variant="outline"
                 size="sm"
-                data-slot="document-read-ai"
-                onClick={onIndex}
-                disabled={indexPending || actionsDisabled}
+                data-slot="assist-suggest"
+                onClick={onSuggest}
+                disabled={suggestPending || actionsDisabled}
               >
-                <ScanText
-                  className={cn(
-                    "size-4",
-                    indexPending && "animate-pulse motion-reduce:animate-none",
-                  )}
-                  aria-hidden
-                />
-                {readLabel}
+                <WandSparkles className="size-4" aria-hidden />
+                {suggestPending
+                  ? t("documents.assist.suggesting")
+                  : t("documents.assist.suggest")}
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              data-slot="assist-suggest"
-              onClick={onSuggest}
-              disabled={suggestPending || actionsDisabled}
-            >
-              <WandSparkles className="size-4" aria-hidden />
-              {suggestPending
-                ? t("documents.assist.suggesting")
-                : t("documents.assist.suggest")}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onSummarise("summary")}
-              disabled={summaryPending || actionsDisabled}
-            >
-              <FileText className="size-4" aria-hidden />
-              {t("documents.summary.summarise")}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onSummarise("text")}
-              disabled={summaryPending || actionsDisabled}
-            >
-              {t("documents.summary.showText")}
-            </Button>
-          </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onSummarise("summary")}
+                disabled={summaryPending || actionsDisabled}
+              >
+                <FileText className="size-4" aria-hidden />
+                {t("documents.summary.summarise")}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onSummarise("text")}
+                disabled={summaryPending || actionsDisabled}
+              >
+                {t("documents.summary.showText")}
+              </Button>
+            </div>
+          ) : null}
 
           {suggestErrorKey ? (
             <p role="alert" className="text-destructive text-sm">

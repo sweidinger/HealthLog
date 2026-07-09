@@ -8229,8 +8229,6 @@
     "assist": {
       "suggest": "Details vorschlagen",
       "suggesting": "Wird gelesen…",
-      "reviewTitle": "KI-Vorschlag — vor dem Speichern prüfen",
-      "reviewHint": "Es wird nichts gespeichert, bis du es übernimmst. Vorschläge können falsch sein — prüfe sie.",
       "suggestedTitle": "Vorgeschlagener Titel",
       "suggestedKind": "Vorgeschlagener Typ",
       "suggestedDate": "Vorgeschlagenes Datum",

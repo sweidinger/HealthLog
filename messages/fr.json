@@ -8229,8 +8229,6 @@
     "assist": {
       "suggest": "Suggérer des détails",
       "suggesting": "Lecture…",
-      "reviewTitle": "Suggestion IA — à vérifier avant d'enregistrer",
-      "reviewHint": "Rien n'est enregistré tant que vous ne l'appliquez pas. Les suggestions peuvent être erronées — vérifiez-les.",
       "suggestedTitle": "Titre suggéré",
       "suggestedKind": "Type suggéré",
       "suggestedDate": "Date suggérée",

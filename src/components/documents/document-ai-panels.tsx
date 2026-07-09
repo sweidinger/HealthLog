@@ -148,21 +148,7 @@ export function AssistSuggestionReview({
       data-slot="assist-suggestion-review"
       className="border-primary/30 bg-primary/5 space-y-3 rounded-lg border p-3"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2">
-          <Sparkles
-            className="text-primary mt-0.5 size-4 shrink-0"
-            aria-hidden
-          />
-          <div>
-            <p className="text-sm font-medium">
-              {t("documents.assist.reviewTitle")}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {t("documents.assist.reviewHint")}
-            </p>
-          </div>
-        </div>
+      <div className="flex justify-end">
         <Button
           type="button"
           variant="ghost"

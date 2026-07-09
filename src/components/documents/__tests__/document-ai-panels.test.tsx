@@ -14,8 +14,8 @@ import {
  * The AI panels' render contract:
  *   - the unavailable state is a CALM pointer to the AI settings, never an
  *     error, and adapts its copy to the actionable reason;
- *   - the suggestion card carries the review-first affordance ("review before
- *     saving") and applies nothing on its own — every value has its own tap;
+ *   - the suggestion card is review-first: it applies nothing on its own —
+ *     every value has its own explicit apply tap, and a dismiss control;
  *   - the summary panel ALWAYS carries the "not saved · not a diagnosis" note,
  *     even while loading, so the session-only contract is never off-screen.
  */
@@ -55,7 +55,7 @@ describe("<AiUnavailableHint>", () => {
 });
 
 describe("<AssistSuggestionReview>", () => {
-  it("presents drafts behind an explicit review-before-saving affordance", () => {
+  it("presents drafts as reviewable fields with explicit apply controls", () => {
     const html = render(
       <AssistSuggestionReview
         suggestion={suggestion()}
@@ -69,8 +69,10 @@ describe("<AssistSuggestionReview>", () => {
       />,
     );
     expect(html).toContain('data-slot="assist-suggestion-review"');
-    expect(html).toContain("AI suggestion — review before saving");
-    expect(html).toContain("Nothing is saved until you apply it");
+    // The heading + grey sub-caption were retired — the panel leads straight
+    // with the reviewable draft fields.
+    expect(html).not.toContain("review before saving");
+    expect(html).not.toContain("Nothing is saved until you apply it");
     // The suggested values are shown as reviewable drafts.
     expect(html).toContain("Blood panel — March 2026");
     expect(html).toContain("Lab result");
