@@ -275,10 +275,14 @@ export function useSendDocumentChatMessage(documentId: string) {
 
       if (resolvedConversationId) {
         // Reload the encrypted-on-disk thread (canonical ids + any outbound
-        // editorialisation). The persisted twin replaces the optimistic bubble.
+        // editorialisation), then clear the live tail + optimistic bubble so the
+        // persisted turns are the single source — the refetch is awaited, so the
+        // canonical messages are in cache before the streamed copy is dropped
+        // (no gap, no duplicate assistant bubble).
         await queryClient.invalidateQueries({
           queryKey: queryKeys.inboundDocumentChat(documentId),
         });
+        setStreaming(EMPTY_STREAMING);
         setOptimisticUser(null);
       }
       return resolvedConversationId;
