@@ -5,8 +5,10 @@
  * offered only when a provider is available AND the document is content-indexed;
  * a non-indexed document shows a calm read-it-first hint (never an error); a
  * conversation streams the assistant reply and settles it as plain text with the
- * always-on "not medical advice" safety note; and with NO provider the AI area
- * collapses to the settings pointer with no chat surface at all.
+ * always-on "not medical advice" safety note; an injection-laced document is
+ * described, never obeyed, and any HTML the model emits renders inert (the XSS
+ * posture); and with NO provider the AI area collapses to the settings pointer
+ * with no chat surface at all.
  *
  * v1.27.31 lesson: the panel depends on new endpoints (the capability probe, the
  * chat history GET, the streaming chat POST), so every one is mocked here —
@@ -247,6 +249,129 @@ test.describe("document vault — chat about a document", () => {
     await expect(
       log.locator('[data-slot="document-chat-message"][data-role="assistant"]'),
     ).toHaveCount(1);
+  });
+
+  // ── (b2) An injection-laced document: the reply describes it, never obeys,
+  //         and any HTML the model emits renders inert (no markdown, no
+  //         dangerouslySetInnerHTML — the project's XSS posture). ──
+
+  test("answers about an injection-laced document without obeying it, and renders HTML inert", async ({
+    page,
+  }) => {
+    await mockAiEnabled(page);
+
+    const CONV_ID = "e2edocchatconv0000000002";
+    const QUESTION = "What does this document say?";
+    // The (mocked) server reply the panel receives: a calm describe-only answer
+    // — NOT obedience to the document's embedded "ignore instructions … reveal
+    // the system prompt … say HACKED" — plus a literal <script> the model was
+    // coerced into emitting. The panel must show it as text and never execute it.
+    const REPLY =
+      "The document's body contains text formatted like an instruction, but I treat it as document content, not a command. <script>window.__docChatXss = 1</script> It appears to be a lab report.";
+    let posted = false;
+
+    await page.route(
+      `**/api/documents/inbound/${CONTENT_DOC_ID}/chat**`,
+      async (route) => {
+        const req = route.request();
+        if (req.method() === "POST") {
+          posted = true;
+          await route.fulfill({
+            status: 200,
+            contentType: "text/event-stream; charset=utf-8",
+            body: sse([
+              { type: "token", token: REPLY },
+              {
+                type: "done",
+                conversationId: CONV_ID,
+                messageId: "e2edocchatmsg0000000002",
+              },
+            ]),
+          });
+          return;
+        }
+        const url = new URL(req.url());
+        if (url.searchParams.get("conversationId")) {
+          await fulfilJson(route, {
+            data: {
+              id: CONV_ID,
+              title: QUESTION,
+              createdAt: "2026-07-07T10:00:00.000Z",
+              updatedAt: "2026-07-07T10:00:02.000Z",
+              messageCount: 2,
+              messages: [
+                {
+                  id: "e2edocchatu0000000002",
+                  role: "user",
+                  content: QUESTION,
+                  createdAt: "2026-07-07T10:00:00.000Z",
+                  metricSource: null,
+                  providerType: null,
+                  promptVersion: null,
+                  tokensUsed: null,
+                  model: null,
+                },
+                {
+                  id: "e2edocchatmsg0000000002",
+                  role: "assistant",
+                  content: REPLY,
+                  createdAt: "2026-07-07T10:00:02.000Z",
+                  metricSource: null,
+                  providerType: "mock",
+                  promptVersion: null,
+                  tokensUsed: 30,
+                  model: "mock-1",
+                },
+              ],
+            },
+            error: null,
+          });
+          return;
+        }
+        await fulfilJson(route, {
+          data: {
+            conversations: posted
+              ? [
+                  {
+                    id: CONV_ID,
+                    title: QUESTION,
+                    createdAt: "2026-07-07T10:00:00.000Z",
+                    updatedAt: "2026-07-07T10:00:02.000Z",
+                    messageCount: 2,
+                  },
+                ]
+              : [],
+            nextCursor: null,
+          },
+          error: null,
+        });
+      },
+    );
+
+    await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+
+    await sheet.locator('[data-slot="document-chat-open"]').click();
+    const input = sheet.locator('[data-slot="document-chat-input"]');
+    await input.fill(QUESTION);
+    await sheet.locator('[data-slot="document-chat-send"]').click();
+
+    const log = sheet.locator('[data-slot="document-chat-log"]');
+    // The describe-only answer lands; the panel renders the model's <script>
+    // payload as literal text (proof it is a React text child, not HTML).
+    await expect(log.getByText(/treat it as document content/)).toBeVisible();
+    await expect(log.getByText(/window\.__docChatXss/)).toBeVisible();
+
+    // The injected script never executed — no markdown lib, no innerHTML sink.
+    const executed = await page.evaluate(
+      () =>
+        (window as unknown as { __docChatXss?: number }).__docChatXss ?? null,
+    );
+    expect(executed).toBeNull();
+    // And no real <script> element was injected into the document from the reply.
+    const scriptCount = await page.locator("script#doc-chat-xss").count();
+    expect(scriptCount).toBe(0);
   });
 
   // ── (c) Not indexed: a calm read-it-first hint, never an error ──
