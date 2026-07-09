@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { getNumberFormat, getDateTimeFormat } from "@/lib/intl/formatter-cache";
 import { useTranslations, useTimeFormatPreference } from "@/lib/i18n/context";
 import {
   hourCycleOptions,
@@ -68,14 +69,14 @@ function formatDuration(seconds: number): string {
 
 function formatDistanceKm(meters: number, locale: string): string {
   const km = meters / 1000;
-  return new Intl.NumberFormat(locale, {
+  return getNumberFormat(locale, {
     maximumFractionDigits: 2,
     minimumFractionDigits: km < 10 ? 2 : 1,
   }).format(km);
 }
 
 function formatEnergy(kcal: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
+  return getNumberFormat(locale, {
     maximumFractionDigits: 0,
   }).format(Math.round(kcal));
 }
@@ -86,7 +87,7 @@ function formatDate(
   timeFormat: TimeFormatPreference,
 ): string {
   const d = new Date(iso);
-  return new Intl.DateTimeFormat(locale, {
+  return getDateTimeFormat(locale, {
     weekday: "short",
     day: "2-digit",
     month: "short",

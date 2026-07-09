@@ -15,6 +15,7 @@ import {
 import { useTranslations } from "@/lib/i18n/context";
 import { useWorkouts, type WorkoutListEntry } from "@/hooks/use-workouts";
 import { cn } from "@/lib/utils";
+import { getDateTimeFormat } from "@/lib/intl/formatter-cache";
 
 /**
  * v1.4.32 — `<RecentWorkoutsTile>`.
@@ -70,7 +71,7 @@ function formatDuration(seconds: number): string {
 
 function formatDayLabel(iso: string, locale: string): string {
   const d = new Date(iso);
-  return new Intl.DateTimeFormat(locale, {
+  return getDateTimeFormat(locale, {
     weekday: "short",
     day: "2-digit",
     month: "short",

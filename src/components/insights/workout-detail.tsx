@@ -17,6 +17,7 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { getNumberFormat, getDateTimeFormat } from "@/lib/intl/formatter-cache";
 import { useTranslations, useTimeFormatPreference } from "@/lib/i18n/context";
 import {
   hourCycleOptions,
@@ -73,7 +74,7 @@ function formatDuration(seconds: number): string {
 
 function formatDistanceKm(meters: number, locale: string): string {
   const km = meters / 1000;
-  return new Intl.NumberFormat(locale, {
+  return getNumberFormat(locale, {
     maximumFractionDigits: 2,
     minimumFractionDigits: km < 10 ? 2 : 1,
   }).format(km);
@@ -84,7 +85,7 @@ function formatNumber(
   locale: string,
   fractionDigits = 0,
 ): string {
-  return new Intl.NumberFormat(locale, {
+  return getNumberFormat(locale, {
     maximumFractionDigits: fractionDigits,
     minimumFractionDigits: fractionDigits,
   }).format(value);
@@ -111,13 +112,13 @@ function formatDateRange(
 ): string {
   const start = new Date(startedAt);
   const end = new Date(endedAt);
-  const dateFmt = new Intl.DateTimeFormat(locale, {
+  const dateFmt = getDateTimeFormat(locale, {
     weekday: "long",
     day: "2-digit",
     month: "long",
     year: "numeric",
   });
-  const timeFmt = new Intl.DateTimeFormat(locale, {
+  const timeFmt = getDateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
     ...hourCycleOptions(timeFormat),

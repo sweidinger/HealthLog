@@ -279,16 +279,70 @@ export async function runOffhostBackup(
           where: { userId: user.id },
           include: { schedules: true },
         }),
-        prisma.medicationIntakeEvent.findMany({ where: { userId: user.id } }),
-        prisma.moodEntry.findMany({ where: { userId: user.id } }),
+        // The intake / mood / cycle tables scale with history depth the same
+        // way measurements do (multiple intakes + a mood + a cycle-day-log per
+        // day over years), so they get the same keyset-paged read: at most one
+        // page is resident per round-trip instead of the entire table landing
+        // in one array alongside the giant JSON.stringify below. The projection
+        // keeps the full row (no select), so payload bytes are identical to the
+        // prior default findMany — only peak heap during the read is bounded.
+        collectPagedMeasurements({
+          fetchPage: (afterId, take) =>
+            prisma.medicationIntakeEvent.findMany({
+              where: {
+                userId: user.id,
+                ...(afterId ? { id: { gt: afterId } } : {}),
+              },
+              orderBy: { id: "asc" },
+              take,
+            }),
+          project: (row) => row,
+          pageSize: MEASUREMENT_BACKUP_PAGE_SIZE,
+        }),
+        collectPagedMeasurements({
+          fetchPage: (afterId, take) =>
+            prisma.moodEntry.findMany({
+              where: {
+                userId: user.id,
+                ...(afterId ? { id: { gt: afterId } } : {}),
+              },
+              orderBy: { id: "asc" },
+              take,
+            }),
+          project: (row) => row,
+          pageSize: MEASUREMENT_BACKUP_PAGE_SIZE,
+        }),
         // v1.15.0 — cycle tables in the DR snapshot. Raw rows (this is a
         // disaster-recovery dump, not the canonical user-facing backup);
-        // `notesEncrypted` stays ciphertext.
+        // `notesEncrypted` stays ciphertext. The profile is a single row, so it
+        // stays a direct read; the cycle + day-log tables are paged.
         prisma.cycleProfile.findUnique({ where: { userId: user.id } }),
-        prisma.menstrualCycle.findMany({ where: { userId: user.id } }),
-        prisma.cycleDayLog.findMany({
-          where: { userId: user.id },
-          include: { symptomLinks: true },
+        collectPagedMeasurements({
+          fetchPage: (afterId, take) =>
+            prisma.menstrualCycle.findMany({
+              where: {
+                userId: user.id,
+                ...(afterId ? { id: { gt: afterId } } : {}),
+              },
+              orderBy: { id: "asc" },
+              take,
+            }),
+          project: (row) => row,
+          pageSize: MEASUREMENT_BACKUP_PAGE_SIZE,
+        }),
+        collectPagedMeasurements({
+          fetchPage: (afterId, take) =>
+            prisma.cycleDayLog.findMany({
+              where: {
+                userId: user.id,
+                ...(afterId ? { id: { gt: afterId } } : {}),
+              },
+              include: { symptomLinks: true },
+              orderBy: { id: "asc" },
+              take,
+            }),
+          project: (row) => row,
+          pageSize: MEASUREMENT_BACKUP_PAGE_SIZE,
         }),
       ]);
 

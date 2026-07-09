@@ -27,6 +27,8 @@ import {
 } from "@/lib/auth/native-client";
 import { issueAccessAndRefresh } from "@/lib/auth/refresh-token";
 import { recordSignInDevice } from "@/lib/auth/login-alert";
+import { detectInsecureCookieTransport } from "@/lib/auth/secure-cookie";
+import { annotate } from "@/lib/logging/context";
 import type { User } from "@/generated/prisma/client";
 
 export interface FinishLoginParams {
@@ -116,8 +118,20 @@ export async function finishLogin(
     });
   }
 
-  // Browser path — session cookie. `createSession` anchors the onboarding
-  // cookie itself; thread the user's onboarding state through.
+  // Browser path — session cookie. Before minting it, surface the single
+  // most common self-host snag: a Secure cookie about to be set on a plain-HTTP
+  // request drops silently and loops the login. Warn-log + wide-event so an
+  // operator sees the cause; the login still completes.
+  const transportWarning = detectInsecureCookieTransport(request);
+  if (transportWarning) {
+    console.warn(
+      `[auth] session-cookie transport mismatch: ${transportWarning}`,
+    );
+    annotate({ meta: { session_cookie_secure_transport_mismatch: true } });
+  }
+
+  // `createSession` anchors the onboarding cookie itself; thread the user's
+  // onboarding state through.
   await createSession(
     user.id,
     user.onboardingCompletedAt == null,

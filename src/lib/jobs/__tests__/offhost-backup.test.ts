@@ -6,6 +6,7 @@ import {
   runOffhostBackup,
   runOffhostRoundtripTest,
 } from "../offhost-backup";
+import { MEASUREMENT_BACKUP_PAGE_SIZE } from "../backup/measurement-page";
 
 const ENC_KEY =
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -136,6 +137,56 @@ describe("runOffhostBackup", () => {
     const decoded = decryptBackup(ct, Buffer.from(ENC_KEY, "hex"));
     const parsed = JSON.parse(decoded);
     expect(parsed.userId).toBe("u1");
+  });
+
+  it("keyset-pages the intake/mood/cycle tables across multiple pages", async () => {
+    const s3 = makeS3Mock();
+    // A full first page (=== page size) followed by a short page proves the
+    // reader walks the id cursor instead of one unbounded findMany.
+    const fullPage = Array.from(
+      { length: MEASUREMENT_BACKUP_PAGE_SIZE },
+      (_, i) => ({
+        id: `e${String(i).padStart(5, "0")}`,
+        userId: "u1",
+        takenAt: new Date("2026-05-01T00:00:00Z"),
+      }),
+    );
+    const tailPage = [
+      { id: "z9999", userId: "u1", takenAt: new Date("2026-05-02T00:00:00Z") },
+    ];
+    const intakeFindMany = vi.fn(
+      async (args: { where?: { id?: { gt?: string } } }) =>
+        args?.where?.id?.gt ? tailPage : fullPage,
+    );
+
+    const prisma = {
+      user: { findMany: vi.fn().mockResolvedValue([{ id: "u1" }]) },
+      measurement: { findMany: vi.fn().mockResolvedValue([]) },
+      medication: { findMany: vi.fn().mockResolvedValue([]) },
+      medicationIntakeEvent: { findMany: intakeFindMany },
+      moodEntry: { findMany: vi.fn().mockResolvedValue([]) },
+      cycleProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+      menstrualCycle: { findMany: vi.fn().mockResolvedValue([]) },
+      cycleDayLog: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+
+    const report = await runOffhostBackup(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma as any,
+      s3,
+      new Date("2026-05-08T00:00:00Z"),
+    );
+    expect(report.uploaded).toBe(1);
+    // Two round-trips: the full page, then the short tail that ends the walk.
+    expect(intakeFindMany).toHaveBeenCalledTimes(2);
+    expect(intakeFindMany.mock.calls[0][0]).toMatchObject({
+      orderBy: { id: "asc" },
+      take: MEASUREMENT_BACKUP_PAGE_SIZE,
+    });
+    // Every paged row lands in the decrypted payload — no rows dropped.
+    const ct = s3.store.get("2026-05-08/user-u1.json.enc")!;
+    const parsed = JSON.parse(decryptBackup(ct, Buffer.from(ENC_KEY, "hex")));
+    expect(parsed.intakeEvents).toHaveLength(MEASUREMENT_BACKUP_PAGE_SIZE + 1);
   });
 
   it("counts per-user failures without aborting the whole run", async () => {
