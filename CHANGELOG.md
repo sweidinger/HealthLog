@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.28.5] — 2026-07-09 — Read documents with a subscription AI, cleaner surfaces
+
+Documents can now be read by a signed-in (subscription) AI provider — the
+capability check no longer wrongly treats those models as unable to see images,
+so "read with AI" works on that path instead of erroring. Scanned PDFs and
+photos are read the same way. Two now-redundant blurbs are gone from the document
+panel, and on the recovery insights page each metric shows its explanation inside
+its own card instead of repeating the heading above it.
+
 ## [1.28.4] — 2026-07-09 — Medication efficacy
 
 A per-medication "effect" view: see whether a medication is moving the outcome
