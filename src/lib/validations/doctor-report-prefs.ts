@@ -88,6 +88,38 @@ export const DEFAULT_DOCTOR_REPORT_PREFS: DoctorReportPrefs = {
 };
 
 /**
+ * The "no section" shape — every toggle OFF. A share link that carries ONLY
+ * documents (the "share this document, not the whole record" flow) persists
+ * this so the clinician view resolves to an empty report scope and NO health
+ * data is ever aggregated for it. Distinct from the null / `{}` case, which
+ * resolves to {@link DEFAULT_DOCTOR_REPORT_PREFS} (a full record share).
+ */
+export const EMPTY_DOCTOR_REPORT_PREFS: DoctorReportPrefs = {
+  bp: false,
+  weight: false,
+  pulse: false,
+  bmi: false,
+  mood: false,
+  compliance: false,
+  sleep: false,
+  cycle: false,
+  labs: false,
+  allergies: false,
+  familyHistory: false,
+};
+
+/**
+ * Whether any report section is enabled. A resolved prefs object with every
+ * flag OFF means "no health report" — the load-bearing signal a documents-only
+ * share reads to serve zero metrics. The clinician-view data loader gates the
+ * whole doctor-report aggregation on this: false ⇒ never touch the DB for
+ * health data.
+ */
+export function hasAnyReportSection(prefs: DoctorReportPrefs): boolean {
+  return Object.values(prefs).some(Boolean);
+}
+
+/**
  * Parse a row's `doctorReportPrefsJson` Json blob into a typed
  * `DoctorReportPrefs`, falling back to the documented defaults when the
  * row is null OR the persisted shape has drifted (a forward-compat field

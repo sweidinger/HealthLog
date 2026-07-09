@@ -31,8 +31,19 @@ interface ClinicianViewProps {
   label: string;
   /** ISO expiry instant — surfaced so the clinician knows the link lifetime. */
   expiresAt: string;
-  report: DoctorReportData;
+  /**
+   * The owner-scoped report payload, or `null` for a documents-only share
+   * (no report section enabled). When `null` NO health metric is rendered —
+   * only the header, disclaimer, and the attached documents.
+   */
+  report: DoctorReportData | null;
   sections: DoctorReportPrefs;
+  /**
+   * v1.28.13 — a documents-only link. Hides the reporting-period line (there is
+   * no report) and, together with a `null` report, keeps every health section
+   * off the page. "Share this document" means the document, not the record.
+   */
+  documentOnly?: boolean;
   /**
    * The frozen document set on this link (metadata only — never bytes). Each
    * entry points at the token-scoped serve route (`/c/<token>/d/<id>`), the
@@ -183,23 +194,28 @@ export function ClinicianView({
   report,
   sections,
   documents = [],
+  documentOnly = false,
   token = "",
   locale = "en",
 }: ClinicianViewProps) {
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString();
   const fmtNum = (n: number) => Math.round(n * 100) / 100;
 
-  // Measurement series with at least one stat, mapped to their stats row.
-  const measurementEntries = Object.entries(report.stats).filter(
-    ([, s]) => s.count > 0,
-  );
-  const glucoseEntries = Object.entries(report.glucoseStats).filter(
-    ([, s]) => s.count > 0,
-  );
-  const complianceEntries = sections.compliance
-    ? Object.entries(report.compliance).filter(([, c]) => c.total > 0)
+  // A documents-only share carries no report — the aggregator is never called
+  // server-side, so `report` is null. Every health-derived list below stays
+  // empty by construction and only the attached documents render.
+  const measurementEntries = report
+    ? Object.entries(report.stats).filter(([, s]) => s.count > 0)
     : [];
-  const wellness = report.wellnessScores?.filter((s) => s.count > 0) ?? [];
+  const glucoseEntries = report
+    ? Object.entries(report.glucoseStats).filter(([, s]) => s.count > 0)
+    : [];
+  const complianceEntries =
+    report && sections.compliance
+      ? Object.entries(report.compliance).filter(([, c]) => c.total > 0)
+      : [];
+  const wellness = report?.wellnessScores?.filter((s) => s.count > 0) ?? [];
+  const medications = report?.medications ?? [];
 
   return (
     <main
@@ -214,12 +230,14 @@ export function ClinicianView({
         {label ? (
           <p className="text-muted-foreground mt-1 text-sm">{label}</p>
         ) : null}
-        <p className="text-muted-foreground mt-3 text-sm">
-          {t("clinicianView.period", {
-            start: fmtDate(report.period.start),
-            end: fmtDate(report.period.end),
-          })}
-        </p>
+        {report && !documentOnly ? (
+          <p className="text-muted-foreground mt-3 text-sm">
+            {t("clinicianView.period", {
+              start: fmtDate(report.period.start),
+              end: fmtDate(report.period.end),
+            })}
+          </p>
+        ) : null}
         <p className="text-muted-foreground mt-1 text-xs">
           {t("clinicianView.expires", { date: fmtDate(expiresAt) })}
         </p>
@@ -244,7 +262,10 @@ export function ClinicianView({
                 })}
               />
             ))}
-            {report.bmi !== null && report.bmi !== undefined && sections.bmi ? (
+            {report &&
+            report.bmi !== null &&
+            report.bmi !== undefined &&
+            sections.bmi ? (
               <StatRow
                 label={t("clinicianView.bmi")}
                 value={String(fmtNum(report.bmi))}
@@ -272,10 +293,10 @@ export function ClinicianView({
         ) : null}
 
         {/* ── Medications + adherence ─────────────────────────────── */}
-        {report.medications.length > 0 ? (
+        {medications.length > 0 ? (
           <Section title={t("clinicianView.medications")}>
-            {report.medications.map((med) => {
-              const comp = report.compliance[med.name];
+            {medications.map((med) => {
+              const comp = report?.compliance[med.name];
               const rate =
                 sections.compliance && comp && comp.total > 0
                   ? `${Math.round((comp.taken / comp.total) * 100)}%`
@@ -293,9 +314,7 @@ export function ClinicianView({
               );
             })}
             {complianceEntries
-              .filter(
-                ([name]) => !report.medications.some((m) => m.name === name),
-              )
+              .filter(([name]) => !medications.some((m) => m.name === name))
               .map(([name, c]) => (
                 <StatRow
                   key={name}
