@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.13
+  version: 1.28.15
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -9368,6 +9368,34 @@ paths:
                 type: string
                 format: binary
             application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/documents/inbound/{id}/thumbnail:
+    get:
+      tags:
+        - Documents
+      summary: View the document preview thumbnail
+      description: "Decrypts and serves the document's small JPEG preview thumbnail (~320px long edge), rendered in the
+        background from the original and stored encrypted at rest under `DocumentThumbnail.thumbnailEncrypted`.
+        Owner-scoped + gated on the opt-in `inboundDocuments` module. Always `Content-Type: image/jpeg` + `nosniff` +
+        `Cache-Control: private, no-store`; loaded as an `<img>` subresource. 404 when no thumbnail exists yet (freshly
+        uploaded / still rendering / unsupported type) — the caller shows a placeholder. Fails closed (500) on a decrypt
+        error — it never returns the ciphertext."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The decrypted JPEG preview thumbnail bytes.
+          content:
+            image/jpeg:
               schema:
                 type: string
                 format: binary
@@ -26923,6 +26951,8 @@ components:
                 - local-pdf
                 - local-ocr
             - type: "null"
+        hasThumbnail:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
@@ -26945,6 +26975,7 @@ components:
         - servingClass
         - hasContentIndex
         - contentIndexSource
+        - hasThumbnail
         - createdAt
         - updatedAt
       additionalProperties: false
@@ -26955,8 +26986,9 @@ components:
         download-only (`attachment`); render/download by it, never by MIME guess. `hasContentIndex` is true when the
         document has a content-search index (auto-indexed on upload); `contentIndexSource` says how that index was
         produced — `vision` means an AI provider read the original, the other values are provider-free local
-        extractions, and it is null when `hasContentIndex` is false. Treat an unknown `kind` value as OTHER when
-        decoding.
+        extractions, and it is null when `hasContentIndex` is false. `hasThumbnail` is true when a preview thumbnail has
+        been rendered in the background (fetch it from `/api/documents/inbound/{id}/thumbnail`); false means no preview
+        yet or an unsupported type — show a placeholder. Treat an unknown `kind` value as OTHER when decoding.
     DocumentConditionLink:
       type: object
       properties:
@@ -27242,6 +27274,8 @@ components:
                 - local-pdf
                 - local-ocr
             - type: "null"
+        hasThumbnail:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
@@ -27268,6 +27302,7 @@ components:
         - servingClass
         - hasContentIndex
         - contentIndexSource
+        - hasThumbnail
         - createdAt
         - updatedAt
         - facts

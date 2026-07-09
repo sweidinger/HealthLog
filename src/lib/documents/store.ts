@@ -92,6 +92,28 @@ export function decryptDocumentContent(buf: Uint8Array, codec: string): Buffer {
 }
 
 /**
+ * Encrypt a JPEG preview thumbnail into the `Bytes` payload the schema stores
+ * (`DocumentThumbnail.thumbnailEncrypted`). Uses the shared AES-256-GCM string
+ * codec (base64 of the binary → `encrypt()` string → UTF-8 bytes), the same
+ * `encrypt()`-string-as-bytes shape `DocumentContentIndex.textEncrypted` uses —
+ * so the standard key-rotation walk (`rotateBytesColumn`) and corpus scan cover
+ * it with no binary-codec special-casing. A scanned medical preview is PHI,
+ * same posture (versioned key id, fail-closed decrypt) as every other column.
+ */
+export function encryptThumbnail(jpeg: Buffer): Uint8Array<ArrayBuffer> {
+  return encryptToBytes(jpeg.toString("base64"));
+}
+
+/**
+ * Decrypt a stored thumbnail's `Bytes` payload back to the JPEG. Fail-closed:
+ * a bad / missing key id throws — the serve route treats a throw as "cannot
+ * serve" and never falls back to the ciphertext.
+ */
+export function decryptThumbnail(buf: Uint8Array): Buffer {
+  return Buffer.from(decryptFromBytes(buf), "base64");
+}
+
+/**
  * Encrypt a staged fact's FHIR-staged payload into the `Bytes` column the
  * schema stores. The structured clinical values (diagnosis text, lab values,
  * medication names, stated codes) are PHI, so they ride the shared AES-256-GCM
@@ -137,6 +159,7 @@ export function serialiseDocument(
   conditionLinks: DocumentConditionLinkDto[] = [],
   hasContentIndex = false,
   contentIndexSource: DocumentContentIndexSourceValue | null = null,
+  hasThumbnail = false,
 ): InboundDocumentDto {
   return {
     id: doc.id,
@@ -160,6 +183,7 @@ export function serialiseDocument(
     servingClass: servingClassFor(doc.mimeType),
     hasContentIndex,
     contentIndexSource: hasContentIndex ? contentIndexSource : null,
+    hasThumbnail,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
@@ -187,6 +211,7 @@ export function serialiseDocumentDetail(
   conditionLinks: DocumentConditionLinkDto[] = [],
   hasContentIndex = false,
   contentIndexSource: DocumentContentIndexSourceValue | null = null,
+  hasThumbnail = false,
 ): InboundDocumentDetailDto {
   const pendingCount = facts.filter((f) => f.status === "PENDING").length;
   // `factCount` excludes REJECTED facts (a rejected fact is discarded, not part
@@ -199,6 +224,7 @@ export function serialiseDocumentDetail(
       conditionLinks,
       hasContentIndex,
       contentIndexSource,
+      hasThumbnail,
     ),
     facts: facts.map(serialiseFact),
   };

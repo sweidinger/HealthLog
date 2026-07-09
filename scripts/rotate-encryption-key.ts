@@ -619,6 +619,19 @@ async function main() {
     results.push(result);
   }
 
+  // ───── Document preview thumbnails (Bytes column) ─────
+  // The small JPEG preview, stored as the `encrypt()`-string-as-UTF-8 Bytes
+  // shape (base64 of the JPEG) — the same codec as the content index — so the
+  // shared Bytes walk re-encrypts it under the active key. NOT NULL, so every
+  // thumbnail row rotates.
+  results.push(
+    await rotateBytesColumn(
+      "DocumentThumbnail",
+      "thumbnailEncrypted",
+      prisma.documentThumbnail,
+    ),
+  );
+
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
   let totalErrors = 0;

@@ -8198,9 +8198,7 @@
       "openLabel": "Abrir {title}",
       "attachmentBadge": "Solo descarga",
       "uploading": "Subiendo…",
-      "dismissFailed": "Descartar subida fallida",
-      "searchableBadge": "Contenido buscable",
-      "aiReadBadge": "Leído por IA"
+      "dismissFailed": "Descartar subida fallida"
     },
     "error": {
       "fileTooLarge": "Este archivo supera el límite de {maxSize}.",
@@ -8330,7 +8328,6 @@
       "readDone": "La IA leyó tu documento."
     },
     "contentIndex": {
-      "searchHint": "La búsqueda ahora también mira dentro de tus documentos (palabras completas).",
       "indexPrompt": "Haz que el contenido de los documentos sea buscable.",
       "indexAll": "Indexar todo para búsqueda",
       "indexAllPending": "Iniciando…",

@@ -79,11 +79,15 @@ export const GET = apiHandler(
       });
     }
 
-    const [links, contentIndex] = await Promise.all([
+    const [links, contentIndex, thumbnail] = await Promise.all([
       loadConditionLinks(user.id, [document.id]),
       prisma.documentContentIndex.findUnique({
         where: { documentId: document.id },
         select: { source: true },
+      }),
+      prisma.documentThumbnail.findUnique({
+        where: { documentId: document.id },
+        select: { id: true },
       }),
     ]);
 
@@ -99,6 +103,7 @@ export const GET = apiHandler(
         links.get(document.id) ?? [],
         contentIndex !== null,
         toContentIndexSource(contentIndex?.source),
+        thumbnail !== null,
       ),
     );
   },
@@ -177,11 +182,15 @@ export const PATCH = apiHandler(
       omit: { contentEncrypted: true },
       include: { facts: { orderBy: { createdAt: "asc" } } },
     });
-    const [links, contentIndex] = await Promise.all([
+    const [links, contentIndex, thumbnail] = await Promise.all([
       loadConditionLinks(user.id, [document.id]),
       prisma.documentContentIndex.findUnique({
         where: { documentId: document.id },
         select: { source: true },
+      }),
+      prisma.documentThumbnail.findUnique({
+        where: { documentId: document.id },
+        select: { id: true },
       }),
     ]);
 
@@ -211,6 +220,7 @@ export const PATCH = apiHandler(
         links.get(document.id) ?? [],
         contentIndex !== null,
         toContentIndexSource(contentIndex?.source),
+        thumbnail !== null,
       ),
     );
   },

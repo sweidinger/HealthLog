@@ -10,9 +10,8 @@
  * The controls sit on ONE row at every width: the search flexes and can
  * shrink to nothing while each dropdown trigger stays a fixed compact
  * control, so the bar never wraps to a second line and never grows a
- * horizontal chip scroller. The content-search hint (indexed-content match
- * + corpus backfill) rides its own helper line below, only when indexing is
- * live.
+ * horizontal chip scroller. The corpus-backfill prompt rides its own helper
+ * line below, only while some documents remain un-indexed.
  *
  * Purely presentational — the filter state lives in the page URL and is
  * owned by `documents-view.tsx`; this bar only renders the controls. It
@@ -82,7 +81,6 @@ export function DocumentFilterBar({
   onToggleYear,
   activeCount,
   onClearAll,
-  contentSearchActive = false,
   showIndexAll = false,
   indexAllPending = false,
   onIndexAll,
@@ -101,8 +99,6 @@ export function DocumentFilterBar({
   onToggleYear: (year: number) => void;
   activeCount: number;
   onClearAll: () => void;
-  /** Search already matches indexed document CONTENT (whole words). */
-  contentSearchActive?: boolean;
   /** Some documents are not yet indexed — offer the corpus backfill. */
   showIndexAll?: boolean;
   indexAllPending?: boolean;
@@ -323,32 +319,28 @@ export function DocumentFilterBar({
         ) : null}
       </div>
 
-      {contentSearchActive || showIndexAll ? (
+      {showIndexAll ? (
         <div
           data-slot="content-search-hint"
           className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
         >
           <span className="inline-flex items-center gap-1.5">
             <ScanSearch className="size-3.5 shrink-0" aria-hidden />
-            {contentSearchActive
-              ? t("documents.contentIndex.searchHint")
-              : t("documents.contentIndex.indexPrompt")}
+            {t("documents.contentIndex.indexPrompt")}
           </span>
-          {showIndexAll ? (
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              data-slot="content-index-all"
-              onClick={onIndexAll}
-              disabled={indexAllPending}
-              className="text-primary h-auto p-0 text-xs"
-            >
-              {indexAllPending
-                ? t("documents.contentIndex.indexAllPending")
-                : t("documents.contentIndex.indexAll")}
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            data-slot="content-index-all"
+            onClick={onIndexAll}
+            disabled={indexAllPending}
+            className="text-primary h-auto p-0 text-xs"
+          >
+            {indexAllPending
+              ? t("documents.contentIndex.indexAllPending")
+              : t("documents.contentIndex.indexAll")}
+          </Button>
         </div>
       ) : null}
     </div>

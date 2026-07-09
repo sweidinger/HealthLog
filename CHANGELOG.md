@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.28.15] — 2026-07-10 — Document thumbnails; admin-shared AI access
+
+The documents library now shows a thumbnail for each file — a small preview
+rendered on the server, downscaled and re-encoded so location and camera
+metadata are dropped, and served only to the file's owner over an authenticated
+request. Files that cannot be previewed keep their type icon, and a file that
+fails to render simply shows the icon rather than an error.
+
+An administrator can connect one central AI access on the server and offer it to
+the people who use it: each user decides in their own settings whether to use the
+shared access or keep their own provider. It is set up in the admin area and
+stays off until an admin turns it on, so anyone already using their own key is
+unaffected.
+
+Also trims two now-redundant pieces of the documents view: the caption noting
+that search covers file contents, and the per-file searchable/read badges. The
+same actions remain available without the extra chrome.
+
 ## [1.28.13] — 2026-07-10 — Sharing a document shares only the document
 
 Fixes a scope bug: a link created from a document carried the full health record
