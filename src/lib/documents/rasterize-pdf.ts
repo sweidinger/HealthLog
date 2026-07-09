@@ -112,12 +112,16 @@ interface PdfjsModule {
 }
 
 /**
- * Render the first `RASTER_MAX_PAGES` pages of a PDF to bounded JPEG images.
- * Returns `{ ok: false }` on any failure (malformed PDF, render throw, missing
- * binary, or zero renderable pages) — the caller degrades to local text or
- * un-indexed. Never throws.
+ * Render the first `RASTER_MAX_PAGES` pages of a PDF to bounded JPEG images
+ * (or fewer when `maxPages` is passed — the thumbnail path renders page 1
+ * only). Returns `{ ok: false }` on any failure (malformed PDF, render throw,
+ * missing binary, or zero renderable pages) — the caller degrades to local
+ * text or un-indexed. Never throws.
  */
-export async function rasterizePdf(buffer: Buffer): Promise<RasterResult> {
+export async function rasterizePdf(
+  buffer: Buffer,
+  maxPages: number = RASTER_MAX_PAGES,
+): Promise<RasterResult> {
   let doc: PdfDocument | null = null;
   try {
     // Lazy import: keeps pdfjs (DOMMatrix) + @napi-rs/canvas out of the eager
@@ -133,7 +137,9 @@ export async function rasterizePdf(buffer: Buffer): Promise<RasterResult> {
     });
     doc = await task.promise;
 
-    const pageCount = Math.min(doc.numPages, RASTER_MAX_PAGES);
+    // Never exceed the standing DoS ceiling, even if a caller asks for more.
+    const cap = Math.min(Math.max(1, maxPages), RASTER_MAX_PAGES);
+    const pageCount = Math.min(doc.numPages, cap);
     const images: RasterImage[] = [];
 
     for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {

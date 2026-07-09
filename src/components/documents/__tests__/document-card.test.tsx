@@ -33,6 +33,7 @@ function doc(overrides: Partial<InboundDocumentDto> = {}): InboundDocumentDto {
     servingClass: "inline",
     hasContentIndex: false,
     contentIndexSource: null,
+    hasThumbnail: false,
     createdAt: "2025-10-05T08:00:00.000Z",
     updatedAt: "2025-10-05T08:00:00.000Z",
     ...overrides,
@@ -85,47 +86,33 @@ describe("<DocumentCard>", () => {
     expect(html).toContain("befund.docx");
   });
 
-  it("marks a content-indexed document as searchable", () => {
+  it("renders the preview thumbnail image when hasThumbnail is set", () => {
     const html = render(
       <DocumentCard
-        document={doc({ hasContentIndex: true })}
+        document={doc({ hasThumbnail: true })}
         selected={false}
         onToggleSelected={noop}
         onOpen={noop}
         highlighted={false}
       />,
     );
-    expect(html).toContain('data-slot="document-searchable"');
-    expect(html).toContain('data-source="local"');
-    expect(html).toContain("Contents searchable");
+    expect(html).toContain('data-slot="document-thumbnail"');
+    expect(html).toContain('src="/api/documents/inbound/doc-1/thumbnail"');
+    expect(html).toContain('loading="lazy"');
   });
 
-  it("marks an AI-read document with the highlighted read-by-AI badge", () => {
+  it("shows the kind icon (no thumbnail image) when hasThumbnail is false", () => {
     const html = render(
       <DocumentCard
-        document={doc({ hasContentIndex: true, contentIndexSource: "vision" })}
+        document={doc({ hasThumbnail: false })}
         selected={false}
         onToggleSelected={noop}
         onOpen={noop}
         highlighted={false}
       />,
     );
-    expect(html).toContain('data-source="ai-read"');
-    expect(html).toContain("Read by AI");
-    expect(html).toContain("text-primary");
-  });
-
-  it("shows no searchable marker when the document is not indexed", () => {
-    const html = render(
-      <DocumentCard
-        document={doc({ hasContentIndex: false, conditionLinks: [] })}
-        selected={false}
-        onToggleSelected={noop}
-        onOpen={noop}
-        highlighted={false}
-      />,
-    );
-    expect(html).not.toContain('data-slot="document-searchable"');
+    expect(html).not.toContain('data-slot="document-thumbnail"');
+    expect(html).not.toContain("/thumbnail");
   });
 
   it("falls back to the untitled label and rings when highlighted", () => {

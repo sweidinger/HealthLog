@@ -82,6 +82,19 @@ import {
   type DocumentIndexPayload,
 } from "@/lib/jobs/document-index";
 import {
+  DOCUMENT_THUMBNAIL_QUEUE,
+  DOCUMENT_THUMBNAIL_CONCURRENCY,
+  runDocumentThumbnail,
+  type DocumentThumbnailPayload,
+} from "@/lib/jobs/document-thumbnail";
+import {
+  DOCUMENT_THUMBNAIL_BACKFILL_QUEUE,
+  DOCUMENT_THUMBNAIL_BACKFILL_CONCURRENCY,
+  runThumbnailBackfillForUser,
+  enqueueBootTimeThumbnailBackfill,
+  type ThumbnailBackfillPayload,
+} from "@/lib/jobs/document-thumbnail-backfill";
+import {
   ENCRYPTION_KEY_ROTATE_QUEUE,
   ENCRYPTION_KEY_ROTATE_CONCURRENCY,
   handleEncryptionKeyRotate,
@@ -321,6 +334,16 @@ const allQueues = [
   // extraction. Without this entry pg-boss never provisions the queue and every
   // upload enqueue silently no-ops.
   DOCUMENT_INDEX_QUEUE,
+  // Document vault — automatic per-document preview thumbnail, enqueued on
+  // upload. Pure local compute (canvas/pdfjs downscale), no egress. Without
+  // this entry pg-boss never provisions the queue and every upload enqueue
+  // silently no-ops.
+  DOCUMENT_THUMBNAIL_QUEUE,
+  // Document vault — boot-time preview-thumbnail backfill. Discovers accounts
+  // holding thumbnailable documents without a preview and fans out per-document
+  // thumbnail jobs. Without this entry pg-boss never provisions the queue and
+  // the boot discovery silently no-ops.
+  DOCUMENT_THUMBNAIL_BACKFILL_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -719,6 +742,62 @@ export async function registerMaintenanceQueues(
     },
   );
 
+  // Document vault — automatic per-document preview thumbnail. Enqueued on
+  // upload (one job per stored document); decodes + downscales the original to
+  // a small encrypted JPEG. Pure local compute; serial concurrency so the
+  // canvas/pdfjs decode never crowds the request pool.
+  await boss.work<DocumentThumbnailPayload>(
+    DOCUMENT_THUMBNAIL_QUEUE,
+    { localConcurrency: DOCUMENT_THUMBNAIL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId, documentId } = job.data;
+        if (!userId || !documentId) continue;
+        try {
+          await runDocumentThumbnail(job.data);
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[document-thumbnail] user=${userId} document=${documentId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
+  // Document vault — boot-time preview-thumbnail backfill worker. The boot
+  // discovery sends one per-user job; this handler fans out per-document
+  // thumbnail jobs for that user's not-yet-thumbnailed documents. Serial
+  // concurrency; cheap discovery + enqueue only.
+  await boss.work<ThumbnailBackfillPayload>(
+    DOCUMENT_THUMBNAIL_BACKFILL_QUEUE,
+    { localConcurrency: DOCUMENT_THUMBNAIL_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        if (!userId) continue;
+        try {
+          const { enqueued } = await runThumbnailBackfillForUser(userId);
+          workerLog(
+            "info",
+            `[document-thumbnail-backfill] user=${userId} enqueued=${enqueued}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[document-thumbnail-backfill] user=${userId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
   // v1.25 (W-ENV) — nightly environment fetch. The daily discovery tick (empty
   // payload) fans out one per-user job per opted-in account; the queue also
   // serves the on-demand backfill payloads from the settings surface. Serial
@@ -819,6 +898,24 @@ export async function enqueueMaintenanceBootDiscovery(): Promise<void> {
     workerLog(
       "error",
       "[med-notes-encryption-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // Document vault — preview-thumbnail backfill. Finds every account holding a
+  // thumbnailable document (image or PDF) without a preview and enqueues one
+  // per-user backfill pass. Idempotent across reboots: a rendered thumbnail
+  // drops its document off the discovery predicate.
+  try {
+    const { enqueued } = await enqueueBootTimeThumbnailBackfill();
+    workerLog(
+      "info",
+      `[document-thumbnail-backfill] boot discovery: enqueued=${enqueued}`,
+    );
+  } catch (err) {
+    workerLog(
+      "error",
+      "[document-thumbnail-backfill] boot discovery threw an unexpected error",
       err,
     );
   }

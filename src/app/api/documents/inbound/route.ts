@@ -42,6 +42,7 @@ import {
   type SerialisableDocument,
 } from "@/lib/documents/store";
 import { enqueueDocumentIndex } from "@/lib/jobs/document-index";
+import { enqueueDocumentThumbnail } from "@/lib/jobs/document-thumbnail";
 import {
   detectDocumentType,
   resolveDocumentLimits,
@@ -371,6 +372,12 @@ async function postUpload(request: Request): Promise<Response> {
   // duplicate upload returns early above and never reaches here.
   void enqueueDocumentIndex(user.id, document.id);
 
+  // Render a preview thumbnail in the background too (pure local compute — no
+  // egress). Same fire-and-forget contract: the upload never blocks on or fails
+  // because of it, and a dropped enqueue is recoverable via the boot backfill.
+  // Only fresh inserts reach here (a duplicate returns early above).
+  void enqueueDocumentThumbnail(user.id, document.id);
+
   const links = await loadConditionLinks(user.id, [document.id]);
   return apiSuccess(
     serialiseDocument(
@@ -520,6 +527,17 @@ export const GET = apiHandler(async (request: Request) => {
     for (const row of indexed) indexSources.set(row.documentId, row.source);
   }
 
+  // Which of the page's documents have a preview thumbnail (gates the card's
+  // <img>). One grouped query on the 1:1 side table; never the blob column.
+  const thumbnailIds = new Set<string>();
+  if (page.length > 0) {
+    const thumbs = await prisma.documentThumbnail.findMany({
+      where: { userId: user.id, documentId: { in: page.map((d) => d.id) } },
+      select: { documentId: true },
+    });
+    for (const row of thumbs) thumbnailIds.add(row.documentId);
+  }
+
   annotate({
     action: { name: "documents.inbound.list" },
     meta: {
@@ -538,6 +556,7 @@ export const GET = apiHandler(async (request: Request) => {
         linkMap.get(doc.id) ?? [],
         indexSources.has(doc.id),
         toContentIndexSource(indexSources.get(doc.id)),
+        thumbnailIds.has(doc.id),
       ),
     ),
     nextCursor,

@@ -25,6 +25,9 @@ vi.mock("@/lib/db", () => ({
     documentContentIndex: {
       findUnique: vi.fn(),
     },
+    documentThumbnail: {
+      findUnique: vi.fn(),
+    },
     illnessEpisode: {
       findMany: vi.fn(),
     },
@@ -135,6 +138,9 @@ beforeEach(() => {
     count: 0,
   } as never);
   vi.mocked(prisma.documentContentIndex.findUnique).mockResolvedValue(
+    null as never,
+  );
+  vi.mocked(prisma.documentThumbnail.findUnique).mockResolvedValue(
     null as never,
   );
 });

@@ -8177,9 +8177,7 @@
       "openLabel": "Apri {title}",
       "attachmentBadge": "Solo download",
       "uploading": "Caricamento…",
-      "dismissFailed": "Ignora caricamento non riuscito",
-      "searchableBadge": "Contenuto ricercabile",
-      "aiReadBadge": "Letto dall’IA"
+      "dismissFailed": "Ignora caricamento non riuscito"
     },
     "error": {
       "fileTooLarge": "Questo file supera il limite di {maxSize}.",
@@ -8309,7 +8307,6 @@
       "readDone": "L’IA ha letto il tuo documento."
     },
     "contentIndex": {
-      "searchHint": "La ricerca ora esamina anche il contenuto dei tuoi documenti (parole intere).",
       "indexPrompt": "Rendi ricercabile il contenuto dei documenti.",
       "indexAll": "Indicizza tutto per la ricerca",
       "indexAllPending": "Avvio…",

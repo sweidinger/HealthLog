@@ -150,13 +150,14 @@ const inboundDocument = z
     contentIndexSource: z
       .enum(["vision", "text-ocr", "local-pdf", "local-ocr"])
       .nullable(),
+    hasThumbnail: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
   .meta({
     id: "InboundDocument",
     description:
-      "A stored document. The raw bytes are stored encrypted at rest and never returned; this is the metadata + staging summary. `status` is STORED for a freshly uploaded file (no extraction run). `title` is the user label (plaintext); `documentDate` is the user filing date; `reportDate` is the model-transcribed date (null until extraction runs). `servingClass` says how `/original` delivers the file — render inline (`inline`) or download-only (`attachment`); render/download by it, never by MIME guess. `hasContentIndex` is true when the document has a content-search index (auto-indexed on upload); `contentIndexSource` says how that index was produced — `vision` means an AI provider read the original, the other values are provider-free local extractions, and it is null when `hasContentIndex` is false. Treat an unknown `kind` value as OTHER when decoding.",
+      "A stored document. The raw bytes are stored encrypted at rest and never returned; this is the metadata + staging summary. `status` is STORED for a freshly uploaded file (no extraction run). `title` is the user label (plaintext); `documentDate` is the user filing date; `reportDate` is the model-transcribed date (null until extraction runs). `servingClass` says how `/original` delivers the file — render inline (`inline`) or download-only (`attachment`); render/download by it, never by MIME guess. `hasContentIndex` is true when the document has a content-search index (auto-indexed on upload); `contentIndexSource` says how that index was produced — `vision` means an AI provider read the original, the other values are provider-free local extractions, and it is null when `hasContentIndex` is false. `hasThumbnail` is true when a preview thumbnail has been rendered in the background (fetch it from `/api/documents/inbound/{id}/thumbnail`); false means no preview yet or an unsupported type — show a placeholder. Treat an unknown `kind` value as OTHER when decoding.",
   });
 
 const inboundDocumentDetail = inboundDocument
@@ -633,6 +634,33 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: { type: "string", format: "binary" },
             },
             "application/octet-stream": {
+              schema: { type: "string", format: "binary" },
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/documents/inbound/{id}/thumbnail": {
+    get: {
+      tags: ["Documents"],
+      summary: "View the document preview thumbnail",
+      description:
+        "Decrypts and serves the document's small JPEG preview thumbnail (~320px long edge), rendered in the background from the original and stored encrypted at rest under `DocumentThumbnail.thumbnailEncrypted`. Owner-scoped + gated on the opt-in `inboundDocuments` module. Always `Content-Type: image/jpeg` + `nosniff` + `Cache-Control: private, no-store`; loaded as an `<img>` subresource. 404 when no thumbnail exists yet (freshly uploaded / still rendering / unsupported type) — the caller shows a placeholder. Fails closed (500) on a decrypt error — it never returns the ciphertext.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "The decrypted JPEG preview thumbnail bytes.",
+          content: {
+            "image/jpeg": {
               schema: { type: "string", format: "binary" },
             },
           },

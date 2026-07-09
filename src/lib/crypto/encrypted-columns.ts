@@ -229,6 +229,11 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
     field: "verbatimTextEncrypted",
     kind: "bytes",
   },
+  // Document vault — the small JPEG preview thumbnail. Stored as the
+  // `encrypt()`-string-as-UTF-8 Bytes shape (base64 of the JPEG), the same
+  // codec `DocumentContentIndex.textEncrypted` uses. A scanned medical preview
+  // is PHI; rotation re-encrypts it on the standard Bytes walk.
+  { model: "DocumentThumbnail", field: "thumbnailEncrypted", kind: "bytes" },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */
