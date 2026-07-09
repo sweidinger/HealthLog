@@ -30,6 +30,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
+      '@napi-rs/canvas':
+        specifier: 0.1.80
+        version: 0.1.80
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.0.2
@@ -217,6 +220,9 @@ importers:
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5
+      pdfjs-dist:
+        specifier: 5.4.296
+        version: 5.4.296
       pg:
         specifier: ^8.22.0
         version: 8.22.0

@@ -302,6 +302,18 @@ model User {
   aiOcrBaseUrl      String? @map("ai_ocr_base_url") // LOCAL OCR provider only
   aiOcrKeyEncrypted String? @map("ai_ocr_key_encrypted")
 
+  // Automatic AI reading of uploaded vault documents. OFF by default: the vault
+  // stays local-first — a newly stored document is only read externally when the
+  // user explicitly taps a per-document AI action (which still needs an active
+  // consent receipt). When `true`, the auto-index job may read a freshly
+  // uploaded document through the user's configured external provider with no
+  // per-document tap: the toggle IS the standing consent (the write that flips
+  // it on also mints an `ai_full` receipt for the audit trail). Mirrors
+  // `labsLocalOcrEnabled`; all AI provider config is per-user, so the operator
+  // flips it for their own account. Default `false` is the entire privacy
+  // contract for every other self-hoster.
+  documentsAutoAiRead Boolean @default(false) @map("documents_auto_ai_read")
+
   // Onboarding
   onboardingCompletedAt   DateTime? @map("onboarding_completed_at")
   // v1.4.25 W14b — last persisted onboarding wizard step.

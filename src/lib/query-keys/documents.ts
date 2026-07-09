@@ -76,4 +76,10 @@ export const documentKeys = {
    */
   inboundDocumentChat: (documentId: string) =>
     ["documents", "inbound", documentId, "chat"] as const,
+  /**
+   * The per-user "read documents automatically with AI" opt-in
+   * (`GET/PATCH /api/auth/me/documents-auto-ai-read`). Drives the AI-settings
+   * toggle; a flip invalidates the document AI capability probe.
+   */
+  documentsAutoAiRead: () => ["documents", "auto-ai-read"] as const,
 };

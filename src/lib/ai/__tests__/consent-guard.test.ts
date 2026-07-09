@@ -3,6 +3,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/consent/receipts", () => ({
   latestActiveReceipt: vi.fn(),
 }));
+vi.mock("@/lib/documents/document-settings", () => ({
+  documentAutoReadEnabled: vi.fn().mockResolvedValue(false),
+}));
 
 import {
   ConsentRequiredError,
@@ -13,10 +16,12 @@ import {
   isExternalDocumentEgress,
 } from "../consent-guard";
 import { latestActiveReceipt } from "@/lib/consent/receipts";
+import { documentAutoReadEnabled } from "@/lib/documents/document-settings";
 import type { ProviderChainResolved } from "../provider-runner";
 import type { ConsentKind } from "@/lib/validations/consent";
 
 const mockedLatest = vi.mocked(latestActiveReceipt);
+const mockedAutoRead = vi.mocked(documentAutoReadEnabled);
 
 /** Minimal chain entry — the gate only inspects `providerType`. */
 function entry(providerType: string): ProviderChainResolved {
@@ -184,7 +189,12 @@ describe("isExternalDocumentEgress", () => {
 });
 
 describe("assertDocumentEgressConsent", () => {
-  beforeEach(() => mockedLatest.mockReset());
+  beforeEach(() => {
+    mockedLatest.mockReset();
+    mockedAutoRead.mockReset();
+    // Default: the auto-read toggle is OFF (the shipped privacy posture).
+    mockedAutoRead.mockResolvedValue(false);
+  });
 
   it("never reads consent and never throws for a LOCAL document pick", async () => {
     grant([]);
@@ -196,6 +206,8 @@ describe("assertDocumentEgressConsent", () => {
       }),
     ).resolves.toBeUndefined();
     expect(mockedLatest).not.toHaveBeenCalled();
+    // A local pick short-circuits before the toggle is even consulted.
+    expect(mockedAutoRead).not.toHaveBeenCalled();
   });
 
   // The live gap the governance fix closes: codex was ungated for documents.
@@ -232,5 +244,47 @@ describe("assertDocumentEgressConsent", () => {
         surface: "insights",
       }),
     ).resolves.toBeUndefined();
+  });
+
+  // Gate A: the documentsAutoAiRead opt-in short-circuits an external pick.
+  it("proceeds for an external pick when documentsAutoAiRead is ON, without a receipt", async () => {
+    grant([]);
+    mockedAutoRead.mockResolvedValue(true);
+    for (const p of ["codex", "openai", "anthropic", "admin-openai"]) {
+      await expect(
+        assertDocumentEgressConsent({
+          userId: "u1",
+          providerType: p,
+          surface: "insights",
+        }),
+      ).resolves.toBeUndefined();
+    }
+    // The toggle short-circuits BEFORE the receipt read.
+    expect(mockedLatest).not.toHaveBeenCalled();
+  });
+
+  it("STILL requires a receipt for an external pick when documentsAutoAiRead is OFF", async () => {
+    grant([]);
+    mockedAutoRead.mockResolvedValue(false);
+    await expect(
+      assertDocumentEgressConsent({
+        userId: "u1",
+        providerType: "codex",
+        surface: "insights",
+      }),
+    ).rejects.toBeInstanceOf(ConsentRequiredError);
+  });
+
+  it("does NOT consult the toggle for a LOCAL pick even when it would be ON", async () => {
+    grant([]);
+    mockedAutoRead.mockResolvedValue(true);
+    await expect(
+      assertDocumentEgressConsent({
+        userId: "u1",
+        providerType: "local",
+        surface: "insights",
+      }),
+    ).resolves.toBeUndefined();
+    expect(mockedAutoRead).not.toHaveBeenCalled();
   });
 });

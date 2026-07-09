@@ -28,6 +28,7 @@
  * mapped kind OR the superset `ai_full` grant satisfies the gate.
  */
 import { latestActiveReceipt } from "@/lib/consent/receipts";
+import { documentAutoReadEnabled } from "@/lib/documents/document-settings";
 import type { ConsentKind } from "@/lib/validations/consent";
 import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
 
@@ -153,6 +154,16 @@ export function isExternalDocumentEgress(providerType: string): boolean {
  * machine); for any external pick, throw `ConsentRequiredError` unless an active
  * receipt of the surface's mapped kind (or `ai_full`) is on file.
  *
+ * ONE relaxation: the per-user `documentsAutoAiRead` opt-in. Flipping it ON is
+ * itself the standing consent act (the toggle write also mints an `ai_full`
+ * receipt for the audit trail), so the gate short-circuits an external pick when
+ * it is ON — that is what removes the per-document friction ("upload and the AI
+ * just reads it, no 80 switches"). When it is OFF the branch is inert and the
+ * gate behaves exactly as shipped: no external egress without an explicit
+ * receipt. The short-circuit is checked BEFORE the receipt read and ONLY for an
+ * external pick — a `local` pick is already ungated above, so the toggle can
+ * never widen egress that was not already external.
+ *
  * Call this AFTER the document provider is picked and BEFORE the first
  * `generateCompletion` on it.
  */
@@ -162,6 +173,7 @@ export async function assertDocumentEgressConsent(args: {
   surface: ConsentSurface;
 }): Promise<void> {
   if (!isExternalDocumentEgress(args.providerType)) return;
+  if (await documentAutoReadEnabled(args.userId)) return;
   if (await hasActiveConsentForSurface(args.userId, args.surface)) return;
   throw new ConsentRequiredError(args.surface);
 }

@@ -4731,7 +4731,14 @@
       },
       "ocrModelPlaceholder": "np. gpt-4o",
       "ocrVisionHint": "Ten model może nie odczytywać obrazów. Wybierz model obsługujący obraz do skanowania dokumentów.",
-      "ocrKeyLabel": "Klucz API"
+      "ocrKeyLabel": "Klucz API",
+      "autoRead": {
+        "title": "Automatyczne czytanie dokumentów przez AI",
+        "subLabel": "Nowo przesłane dokumenty są czytane i indeksowane przez skonfigurowanego dostawcę AI bez potwierdzania każdego dokumentu.",
+        "honesty": "Po włączeniu każdy przesłany dokument jest wysyłany do skonfigurowanego dostawcy AI, aby go odczytać, opisać i zaindeksować do wyszukiwania — bez potwierdzania każdego dokumentu. Dzieje się to na serwerze, a treść dokumentu opuszcza to urządzenie i trafia do tego dostawcy. Jeśli skonfigurowany dostawca to połączenie subskrypcyjne (zalogowane konto AI zamiast klucza API), obowiązują jego własne ustawienia danych — dostawcy subskrypcyjni mogą wykorzystywać treść do ulepszania swoich modeli i nie obejmuje tego żadna umowa powierzenia przetwarzania danych. Dokumenty odczytywane przez samodzielnie hostowany model lokalny nigdy nie opuszczają Twojego serwera. Domyślnie wyłączone; włącz je tylko wtedy, gdy akceptujesz ten kompromis dla przesyłanych dokumentów.",
+        "confirm": "Rozumiem — włącz automatyczne czytanie przez AI",
+        "cancel": "Anuluj"
+      }
     },
     "dashboard": {
       "units": {

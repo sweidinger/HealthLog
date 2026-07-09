@@ -4731,7 +4731,14 @@
       },
       "ocrModelPlaceholder": "e.g. gpt-4o",
       "ocrVisionHint": "This model may not be able to read images. Choose a vision-capable model for document scanning.",
-      "ocrKeyLabel": "API key"
+      "ocrKeyLabel": "API key",
+      "autoRead": {
+        "title": "Read documents automatically with AI",
+        "subLabel": "Newly uploaded documents are read and indexed by your configured AI provider without a per-document tap.",
+        "honesty": "When on, each document you upload is sent to your configured AI provider to be read, described, and indexed for search — with no per-document confirmation. This happens on the server and the document's contents leave this machine to that provider. If your configured provider is a subscription connection (a signed-in AI account rather than an API key), that provider's own data settings apply — subscription providers may use the content to improve their models, and no data-processing agreement covers it. Documents read by a self-hosted local model never leave your server. Off by default; turn it on only if you accept this trade for the documents you upload.",
+        "confirm": "I understand — turn on automatic AI reading",
+        "cancel": "Cancel"
+      }
     },
     "dashboard": {
       "units": {
