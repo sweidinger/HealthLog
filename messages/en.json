@@ -1593,7 +1593,8 @@
         "verlauf": "History",
         "injektion": "Injection",
         "api": "API",
-        "erweitert": "Advanced"
+        "erweitert": "Advanced",
+        "wirkung": "Effect"
       },
       "shell": {
         "loadFailed": "This medication could not be loaded.",
@@ -1791,7 +1792,41 @@
     "reorderDescription": "Set the order of your medications – it applies to both the card and the table view.",
     "reorderSaved": "Order saved",
     "reorderSaveFailed": "Order could not be saved",
-    "customize": "Customize medications"
+    "customize": "Customize medications",
+    "efficacy": {
+      "title": "Effect",
+      "intro": "How the measurements this medication is meant to influence have moved around the time you started it. It shows what lines up in time — an association, not a cause — and never advice about your treatment or dose.",
+      "notEligible": "There is no outcome to relate this medication to.",
+      "startFallback": "No start date is set, so the comparison uses your first recorded reading as the reference point.",
+      "noStart": "Set a start date for this medication to compare the readings before and after it began.",
+      "disclaimer": "Association only: these figures show what changed over the same period, not that the medication caused the change. Discuss any decision about your treatment with your doctor.",
+      "primaryBadge": "Main target",
+      "noSeries": "No readings recorded for this target yet.",
+      "startMarker": "Start",
+      "adherenceLane": "Adherence",
+      "typicalRange": "Typical range",
+      "levelShift": "A shift in the level was detected around {date}.",
+      "retarget": {
+        "label": "Not the right measurement?",
+        "placeholder": "Track against…",
+        "apply": "Apply",
+        "reset": "Reset to default"
+      },
+      "beforeAfter": {
+        "summary": "Ø {before} before → Ø {after} since — a change of {delta}.",
+        "counts": "Based on {beforeCount} readings before and {afterCount} since.",
+        "needBefore": "Not enough readings before the start yet — about {weeks} weeks are needed before and after to compare.",
+        "needAfter": "Not enough readings since the start yet — about {weeks} weeks are needed before and after to compare.",
+        "needStart": "Set a start date to compare the readings before and after it began.",
+        "needData": "Not enough readings yet — about {weeks} weeks are needed before and after the start to compare."
+      },
+      "insights": {
+        "title": "Medication effect",
+        "subtitle": "What lines up with the measurements your medications target — association only, never a verdict.",
+        "link": "Open the effect view",
+        "empty": "Not enough data yet to relate your medications to their target measurements."
+      }
+    }
   },
   "charts": {
     "loadingLabel": "Loading chart…",

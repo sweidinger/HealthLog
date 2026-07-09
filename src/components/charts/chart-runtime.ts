@@ -40,4 +40,5 @@ export { SleepStageStackedBar } from "@/components/insights/sleep-stage-stacked-
 export { LabBiomarkerChart } from "@/components/labs/lab-biomarker-chart";
 export { DoseStrengthCurve } from "@/components/medications/dose-strength-curve";
 export { DrugLevelChart } from "@/components/medications/drug-level-chart";
+export { EfficacyChart } from "@/components/medications/detail/efficacy/efficacy-chart";
 export { AssessmentHistoryChart } from "@/components/mental-health/assessment-history-chart";

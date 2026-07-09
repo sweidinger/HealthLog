@@ -1593,7 +1593,8 @@
         "verlauf": "Cronologia",
         "injektion": "Iniezione",
         "api": "API",
-        "erweitert": "Avanzate"
+        "erweitert": "Avanzate",
+        "wirkung": "Effetto"
       },
       "shell": {
         "loadFailed": "Impossibile caricare questo farmaco.",
@@ -1791,7 +1792,41 @@
     "reorderDescription": "Imposta l'ordine dei tuoi farmaci: vale per la vista a schede e per la tabella.",
     "reorderSaved": "Ordine salvato",
     "reorderSaveFailed": "Impossibile salvare l’ordine",
-    "customize": "Personalizza i farmaci"
+    "customize": "Personalizza i farmaci",
+    "efficacy": {
+      "title": "Effetto",
+      "intro": "Come sono cambiate le misurazioni su cui agisce questo farmaco intorno al momento in cui hai iniziato a prenderlo. Mostra ciò che coincide nel tempo: un'associazione, non una causa, e mai un consiglio sul trattamento o sulla dose.",
+      "notEligible": "Non c'è alcuna misurazione da collegare a questo farmaco.",
+      "startFallback": "Non è impostata una data di inizio, quindi il confronto usa la tua prima misurazione registrata come riferimento.",
+      "noStart": "Imposta una data di inizio per confrontare le misurazioni prima e dopo l'avvio.",
+      "disclaimer": "Solo associazione: questi numeri mostrano ciò che è cambiato nello stesso periodo, non che il farmaco abbia causato il cambiamento. Discuti ogni decisione sul tuo trattamento con il medico.",
+      "primaryBadge": "Obiettivo principale",
+      "noSeries": "Nessuna misurazione registrata per questo obiettivo.",
+      "startMarker": "Inizio",
+      "adherenceLane": "Aderenza",
+      "typicalRange": "Intervallo abituale",
+      "levelShift": "È stato rilevato un cambio di livello intorno al {date}.",
+      "retarget": {
+        "label": "Non è la misurazione giusta?",
+        "placeholder": "Monitora in base a…",
+        "apply": "Applica",
+        "reset": "Ripristina predefinito"
+      },
+      "beforeAfter": {
+        "summary": "Ø {before} prima → Ø {after} da allora — una variazione di {delta}.",
+        "counts": "In base a {beforeCount} misurazioni prima e {afterCount} da allora.",
+        "needBefore": "Ancora troppe poche misurazioni prima dell'inizio: servono circa {weeks} settimane prima e dopo per confrontare.",
+        "needAfter": "Ancora troppe poche misurazioni dall'inizio: servono circa {weeks} settimane prima e dopo per confrontare.",
+        "needStart": "Imposta una data di inizio per confrontare le misurazioni prima e dopo l'avvio.",
+        "needData": "Ancora troppe poche misurazioni: servono circa {weeks} settimane prima e dopo l'inizio per confrontare."
+      },
+      "insights": {
+        "title": "Effetto dei farmaci",
+        "subtitle": "Ciò che coincide con le misurazioni a cui mirano i tuoi farmaci: solo associazione, mai un verdetto.",
+        "link": "Apri la vista Effetto",
+        "empty": "Ancora non ci sono dati sufficienti per collegare i tuoi farmaci alle loro misurazioni obiettivo."
+      }
+    }
   },
   "charts": {
     "loadingLabel": "Caricamento del grafico…",

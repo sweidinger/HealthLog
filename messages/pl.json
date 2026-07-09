@@ -1593,7 +1593,8 @@
         "verlauf": "Historia",
         "injektion": "Iniekcja",
         "api": "API",
-        "erweitert": "Zaawansowane"
+        "erweitert": "Zaawansowane",
+        "wirkung": "Działanie"
       },
       "shell": {
         "loadFailed": "Nie udało się załadować tego leku.",
@@ -1791,7 +1792,41 @@
     "reorderDescription": "Ustal kolejność swoich leków – obowiązuje w widoku kart i w tabeli.",
     "reorderSaved": "Kolejność zapisana",
     "reorderSaveFailed": "Nie udało się zapisać kolejności",
-    "customize": "Dostosuj leki"
+    "customize": "Dostosuj leki",
+    "efficacy": {
+      "title": "Działanie",
+      "intro": "Jak zmieniały się pomiary, na które ma wpływać ten lek, w okolicach rozpoczęcia jego przyjmowania. Pokazuje to, co zbiega się w czasie — powiązanie, nie przyczynę — i nigdy porady dotyczącej leczenia ani dawki.",
+      "notEligible": "Brak pomiaru, który można powiązać z tym lekiem.",
+      "startFallback": "Nie ustawiono daty rozpoczęcia, więc porównanie używa pierwszego zapisanego pomiaru jako punktu odniesienia.",
+      "noStart": "Ustaw datę rozpoczęcia, aby porównać pomiary sprzed i po rozpoczęciu.",
+      "disclaimer": "Tylko powiązanie: te liczby pokazują, co zmieniło się w tym samym okresie, a nie że lek spowodował tę zmianę. Wszelkie decyzje dotyczące leczenia omów z lekarzem.",
+      "primaryBadge": "Główny cel",
+      "noSeries": "Brak zapisanych pomiarów dla tego celu.",
+      "startMarker": "Początek",
+      "adherenceLane": "Regularność",
+      "typicalRange": "Typowy zakres",
+      "levelShift": "Wykryto zmianę poziomu w okolicach {date}.",
+      "retarget": {
+        "label": "To nie ten pomiar?",
+        "placeholder": "Śledź według…",
+        "apply": "Zastosuj",
+        "reset": "Przywróć domyślne"
+      },
+      "beforeAfter": {
+        "summary": "Ø {before} przedtem → Ø {after} od tego czasu — zmiana o {delta}.",
+        "counts": "Na podstawie {beforeCount} pomiarów przedtem i {afterCount} od tego czasu.",
+        "needBefore": "Za mało pomiarów przed rozpoczęciem — do porównania potrzeba około {weeks} tygodni przed i po.",
+        "needAfter": "Za mało pomiarów od rozpoczęcia — do porównania potrzeba około {weeks} tygodni przed i po.",
+        "needStart": "Ustaw datę rozpoczęcia, aby porównać pomiary sprzed i po rozpoczęciu.",
+        "needData": "Za mało pomiarów — do porównania potrzeba około {weeks} tygodni przed i po rozpoczęciu."
+      },
+      "insights": {
+        "title": "Działanie leków",
+        "subtitle": "Co zbiega się w czasie z pomiarami, na które celują Twoje leki — tylko powiązanie, nigdy werdykt.",
+        "link": "Otwórz widok działania",
+        "empty": "Za mało danych, aby powiązać Twoje leki z docelowymi pomiarami."
+      }
+    }
   },
   "charts": {
     "loadingLabel": "Ładowanie wykresu…",

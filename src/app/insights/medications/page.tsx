@@ -17,6 +17,7 @@ import { ComplianceHeatmap } from "@/components/charts/compliance-heatmap";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
+import { MedicationEfficacySummary } from "@/components/insights/medication-efficacy-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { TileHeader } from "@/components/insights/tile-header";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -279,6 +280,13 @@ export default function InsightsMedikamentePage() {
           );
         })}
       </div>
+
+      {/* v1.28 — compact efficacy summary: reuses the same server-computed
+          efficacy DTO the detail-page "Wirkung" tab reads (never a second
+          computation), association-only, linking through to the full view. */}
+      <MedicationEfficacySummary
+        medications={medications.map((m) => ({ id: m.id, name: m.name }))}
+      />
 
       <MetricTargetSummary slug="medications" />
 
