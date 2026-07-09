@@ -19,7 +19,9 @@ import { prisma } from "@/lib/db";
  * A missing row (deleted account raced against a job) resolves to `false` —
  * fail-closed to the local-first posture, never to external egress.
  */
-export async function documentAutoReadEnabled(userId: string): Promise<boolean> {
+export async function documentAutoReadEnabled(
+  userId: string,
+): Promise<boolean> {
   const row = await prisma.user.findUnique({
     where: { id: userId },
     select: { documentsAutoAiRead: true },
