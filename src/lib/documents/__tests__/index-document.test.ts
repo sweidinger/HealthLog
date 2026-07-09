@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The AI-first / local-fallback content-index decision tree. Pins: a usable
- * provider takes the vision path; a text-layer PDF the provider cannot read
- * falls through to local; no provider / no consent / budget-out / provider
- * error all fall through to the free local path; decrypt + not-found fail
- * closed. No plaintext is asserted at the upsert boundary (source + ciphertext
- * path is the content-index module's concern, mocked here).
+ * The AI-first / local-fallback content-index decision tree. Pins: the DOCUMENT
+ * provider order drives the pick; a LOCAL pick is always eligible; an EXTERNAL
+ * pick is eligible only when the `documentsAutoAiRead` toggle is ON (OFF → the
+ * job stays strictly local, never egresses on upload); a text-layer PDF the
+ * provider cannot read falls through to local; no provider / budget-out /
+ * provider error all fall through to the free local path; decrypt + not-found
+ * fail closed. No plaintext is asserted at the upsert boundary (source +
+ * ciphertext path is the content-index module's concern, mocked here).
  */
 
 vi.mock("@/lib/documents/ai-route-support", () => ({
@@ -28,12 +30,15 @@ vi.mock("@/lib/documents/store", () => ({
 vi.mock("@/lib/labs/ocr-upload", () => ({
   detectOcrMimeType: vi.fn(() => "application/pdf"),
 }));
-vi.mock("@/lib/labs/ocr-capability", () => ({
-  resolveVisionProvider: vi.fn(),
+vi.mock("@/lib/documents/provider-order", () => ({
+  resolveDocumentVisionProvider: vi.fn(),
 }));
+vi.mock("@/lib/documents/document-settings", () => ({
+  documentAutoReadEnabled: vi.fn(),
+}));
+// Use the real egress classification — only "local" is non-egress.
 vi.mock("@/lib/ai/consent-guard", () => ({
-  assertConsentForChain: vi.fn().mockResolvedValue(undefined),
-  ConsentRequiredError: class ConsentRequiredError extends Error {},
+  isExternalDocumentEgress: (providerType: string) => providerType !== "local",
 }));
 vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(() => "2026-07-07"),
@@ -52,13 +57,10 @@ import {
 } from "@/lib/documents/ai-route-support";
 import { upsertContentIndex } from "@/lib/documents/content-index";
 import { transcribeDocument } from "@/lib/documents/describe";
+import { documentAutoReadEnabled } from "@/lib/documents/document-settings";
 import { localExtractText } from "@/lib/documents/local-extract";
 import { decryptDocumentContent } from "@/lib/documents/store";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
-import {
-  assertConsentForChain,
-  ConsentRequiredError,
-} from "@/lib/ai/consent-guard";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 import { reserveBudget, reconcileSpend } from "@/lib/ai/coach/budget";
 
 const DOC = {
@@ -70,12 +72,23 @@ const DOC = {
   status: "STORED",
 };
 
+/** An EXTERNAL (Anthropic) document pick — egress, so toggle-gated. */
 const PICK = {
   chain: [{ providerType: "anthropic", instance: {} }],
   pick: {
     entry: { providerType: "anthropic", instance: {} },
     providerType: "anthropic",
     pdfSupported: true,
+  },
+};
+
+/** A LOCAL (self-hosted) document pick — never egresses, toggle-independent. */
+const LOCAL_PICK = {
+  chain: [{ providerType: "local", instance: {} }],
+  pick: {
+    entry: { providerType: "local", instance: {} },
+    providerType: "local",
+    pdfSupported: false,
   },
 };
 
@@ -99,11 +112,14 @@ beforeEach(() => {
     text: "glucose fasting creatinine values report",
     source: "local-pdf",
   } as never);
+  // Default: the auto-read toggle is ON (so the external-pick provider path is
+  // exercised); the OFF-specific tests override this explicitly.
+  vi.mocked(documentAutoReadEnabled).mockResolvedValue(true);
 });
 
 describe("indexDocumentContent — provider-first path", () => {
-  it("indexes via the provider (vision) when configured + consented", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue(PICK as never);
+  it("indexes via an external provider (vision) when configured + toggle ON", async () => {
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(PICK as never);
     visionOk();
     vi.mocked(transcribeDocument).mockResolvedValue({
       text: "haemoglobin 14.2 cholesterol 190",
@@ -120,11 +136,30 @@ describe("indexDocumentContent — provider-first path", () => {
     // The local path is never touched when the provider succeeds.
     expect(localExtractText).not.toHaveBeenCalled();
   });
+
+  it("runs a LOCAL vision pick even when the toggle is OFF (no egress)", async () => {
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(
+      LOCAL_PICK as never,
+    );
+    vi.mocked(documentAutoReadEnabled).mockResolvedValue(false);
+    visionOk();
+    vi.mocked(transcribeDocument).mockResolvedValue({
+      text: "haemoglobin 14.2 cholesterol 190",
+    } as never);
+
+    const outcome = await indexDocumentContent("user-1", "doc-1");
+    expect(outcome).toEqual({ indexed: true, source: "vision", tokenCount: 5 });
+    expect(transcribeDocument).toHaveBeenCalledTimes(1);
+    expect(upsertContentIndex).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "vision", providerType: "local" }),
+    );
+    expect(localExtractText).not.toHaveBeenCalled();
+  });
 });
 
 describe("indexDocumentContent — local fallback path", () => {
   it("falls back to local when NO provider is configured", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue({
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
       chain: [],
       pick: null,
     } as never);
@@ -141,19 +176,20 @@ describe("indexDocumentContent — local fallback path", () => {
     );
   });
 
-  it("falls back to local when consent is not granted", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue(PICK as never);
-    vi.mocked(assertConsentForChain).mockRejectedValueOnce(
-      new ConsentRequiredError("insights" as never),
-    );
+  it("stays LOCAL for an external pick when the toggle is OFF (never egresses)", async () => {
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(PICK as never);
+    vi.mocked(documentAutoReadEnabled).mockResolvedValue(false);
 
     const outcome = await indexDocumentContent("user-1", "doc-1");
     expect(outcome).toMatchObject({ indexed: true, source: "local-pdf" });
+    // No egress, no budget reservation, no provider call on the OFF path.
+    expect(prepareVisionInput).not.toHaveBeenCalled();
+    expect(reserveBudget).not.toHaveBeenCalled();
     expect(transcribeDocument).not.toHaveBeenCalled();
   });
 
   it("falls back to local when the provider cannot read the PDF", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue(PICK as never);
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(PICK as never);
     vi.mocked(prepareVisionInput).mockReturnValue({
       ok: false,
       reason: "pdfNeedsAnthropic",
@@ -166,7 +202,7 @@ describe("indexDocumentContent — local fallback path", () => {
   });
 
   it("falls back to local when the daily budget is exhausted", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue(PICK as never);
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(PICK as never);
     visionOk();
     vi.mocked(reserveBudget).mockResolvedValue({
       allowed: false,
@@ -179,7 +215,7 @@ describe("indexDocumentContent — local fallback path", () => {
   });
 
   it("refunds and falls back to local when the provider call throws", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue(PICK as never);
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(PICK as never);
     visionOk();
     vi.mocked(transcribeDocument).mockRejectedValueOnce(new Error("boom"));
 
@@ -191,7 +227,7 @@ describe("indexDocumentContent — local fallback path", () => {
   });
 
   it("reports local-empty for a scanned PDF with no usable provider", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue({
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
       chain: [],
       pick: null,
     } as never);
@@ -211,11 +247,11 @@ describe("indexDocumentContent — fail-closed", () => {
     vi.mocked(loadOwnedDocument).mockResolvedValue(null as never);
     const outcome = await indexDocumentContent("user-1", "missing");
     expect(outcome).toEqual({ indexed: false, reason: "not-found" });
-    expect(resolveVisionProvider).not.toHaveBeenCalled();
+    expect(resolveDocumentVisionProvider).not.toHaveBeenCalled();
   });
 
   it("fails closed to decrypt-error when local decryption throws", async () => {
-    vi.mocked(resolveVisionProvider).mockResolvedValue({
+    vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
       chain: [],
       pick: null,
     } as never);

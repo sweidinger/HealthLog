@@ -2,19 +2,26 @@
  * Content-index ONE stored document — the shared, AI-first decision tree behind
  * both the per-document auto-index-on-upload job and the corpus backfill.
  *
- * Ordering (maintainer, 2026-07-07 — AI-first, local as fallback):
- *   1. PROVIDER (primary). When a vision-capable AI provider is configured AND
- *      the user has consented, decrypt the stored original and run ONE provider
- *      transcription — rich, handles scanned PDFs + images via vision. Budget-
- *      reserved + reconciled exactly like the interactive index route; owner-
- *      scoped throughout. Codex-over-OAuth is subscription-covered, so this
- *      path carries no per-token API bill (see the research note).
- *   2. LOCAL (fallback). When no provider is usable — none configured, consent
- *      not granted, the provider can't read this file (e.g. a text-layer PDF on
- *      a non-Anthropic account), the daily budget is reached, or the provider
- *      call fails — fall back to server-side text-layer extraction (`pdf-parse`,
- *      no egress, milliseconds). So content search works at a baseline even with
- *      no AI, and every text-layer PDF is searchable regardless of provider.
+ * Provider resolution follows the DOCUMENT order (local-first, codex last —
+ * `resolveDocumentVisionProvider`), NOT the cost-first app-wide chain, and the
+ * external egress is governed by the per-user `documentsAutoAiRead` opt-in:
+ *
+ *   1. LOCAL PROVIDER (a self-hosted vision model) — never egresses, so it runs
+ *      whenever it is the document-order pick, toggle-independent.
+ *   2. EXTERNAL PROVIDER (codex / BYOK openai|anthropic / admin key) — reads a
+ *      document off the machine, so the auto-index job only uses it when the
+ *      operator opted into `documentsAutoAiRead`. OFF → the job is strictly
+ *      local (never egresses on upload, even if an unrelated consent receipt
+ *      exists); ON → the document-order external pick reads the original (rich,
+ *      handles scanned PDFs + images). Budget-reserved + reconciled exactly like
+ *      the interactive index route; owner-scoped throughout.
+ *   3. LOCAL TEXT-LAYER (fallback). When no provider is usable — none
+ *      configured, the toggle is OFF for an external pick, the provider can't
+ *      read this file (e.g. a text-layer PDF on a non-Anthropic account), the
+ *      daily budget is reached, or the provider call fails — fall back to
+ *      server-side text-layer extraction (`pdf-parse`, no egress, milliseconds).
+ *      So content search works at a baseline even with no AI, and every
+ *      text-layer PDF is searchable regardless of provider.
  *
  * Both paths write the SAME blind, encrypted index via `upsertContentIndex`
  * (AES-256-GCM text + opaque HMAC token tags) — nothing readable at rest. The
@@ -24,10 +31,7 @@
 import { Buffer } from "node:buffer";
 
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
-import {
-  assertConsentForChain,
-  ConsentRequiredError,
-} from "@/lib/ai/consent-guard";
+import { isExternalDocumentEgress } from "@/lib/ai/consent-guard";
 import {
   buildDateKey,
   reconcileSpend,
@@ -44,11 +48,12 @@ import {
   type ContentIndexSource,
 } from "@/lib/documents/content-index";
 import { transcribeDocument } from "@/lib/documents/describe";
+import { documentAutoReadEnabled } from "@/lib/documents/document-settings";
 import { localExtractText } from "@/lib/documents/local-extract";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 import { decryptDocumentContent } from "@/lib/documents/store";
 import { detectOcrMimeType } from "@/lib/labs/ocr-upload";
 import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
-import { resolveVisionProvider } from "@/lib/labs/ocr-capability";
 
 /**
  * Outcome of one document's index attempt. A provider that is not usable (none
@@ -71,32 +76,41 @@ export type IndexOutcome =
  */
 export interface ResolvedIndexProvider {
   chain: ProviderChainResolved[];
-  pick: Awaited<ReturnType<typeof resolveVisionProvider>>["pick"];
+  pick: Awaited<ReturnType<typeof resolveDocumentVisionProvider>>["pick"];
   consentOk: boolean;
   dailyCap: number;
 }
 
 /**
- * Resolve the user's vision provider and pre-check consent once. A missing pick
- * or an un-granted consent both yield an unusable context — the caller then
- * falls straight to the local path. A NON-consent error propagates.
+ * Resolve the DOCUMENT-order vision provider and decide egress eligibility once.
+ * A local pick is always eligible (it never leaves the machine). An external
+ * pick is eligible ONLY when the operator opted into `documentsAutoAiRead` — so
+ * the auto-index job never silently egresses a freshly uploaded document unless
+ * that toggle is ON. A missing pick or an ineligible external pick both yield an
+ * unusable context, and the caller falls straight to the local text-layer path.
  */
 export async function resolveIndexProvider(
   userId: string,
 ): Promise<ResolvedIndexProvider> {
-  const { chain, pick } = await resolveVisionProvider(userId);
+  const { chain, pick } = await resolveDocumentVisionProvider(userId);
   let consentOk = false;
   if (pick) {
-    try {
-      await assertConsentForChain({ userId, chain, surface: "insights" });
+    if (!isExternalDocumentEgress(pick.providerType)) {
+      // A local (self-hosted) vision pick never egresses — always eligible,
+      // toggle-independent.
       consentOk = true;
-    } catch (err) {
-      if (!(err instanceof ConsentRequiredError)) throw err;
+    } else {
+      // An external pick reads the document off the machine. The auto-index job
+      // only egresses on upload when the operator opted in; the toggle IS the
+      // standing consent (the document consent gate short-circuits on it). OFF
+      // → local-only, even if an unrelated receipt exists.
+      consentOk = await documentAutoReadEnabled(userId);
     }
   }
-  const dailyCap = pick
-    ? resolveDailyCap([{ providerType: pick.entry.providerType }])
-    : 0;
+  const dailyCap =
+    pick && consentOk
+      ? resolveDailyCap([{ providerType: pick.entry.providerType }])
+      : 0;
   return { chain, pick, consentOk, dailyCap };
 }
 
