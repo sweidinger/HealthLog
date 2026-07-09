@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.27.32] — 2026-07-09 — Quality-of-life, accessibility, cold-start and performance polish
+
+### Changed
+
+- **No more dead-ends:** the dashboard metric tiles (weight, blood pressure, pulse, glucose, mood, sleep, steps, VO₂max) now link to their Insights detail; the daily-briefing finding rows are tappable again; the "no notification channels" prompt points to where channels actually live now; and Coach Plans are reachable from the conversations header.
+- **Honest states:** the Achievements, Coach-conversations, Notifications, custom-metrics and Insights surfaces render a retryable error card on a failed load instead of a confident empty state, and auth-gated pages show a layout-reserving skeleton instead of a bare spinner.
+- **Medication dialogs** move to the bottom-sheet pattern on phones (consistent with the rest of the app), and secret/config inputs suppress password-manager autofill.
+
+### Accessibility
+
+- Fixed several contrast shortfalls (muted text/icons below AA, phantom colour utilities that emitted no rule), added an accessible name to the admin toggle, and `aria-pressed` to the chart range switches.
+
+### Fixed
+
+- Documentation now matches the actual compose contract for `DATABASE_URL`; a `SESSION_COOKIE_SECURE` transport mismatch is diagnosed (was a silent login loop); a boot readiness summary prints per-secret status before fail-closed loaders throw; and a nudge appears while public registration is open.
+- CSV import batches its writes; the off-host backup pages its large reads; the theme provider closes a hydration seam; and hot per-row Intl formatters are cached.
+
 ## [1.27.31] — 2026-07-09 — Document AI provider governance
 
 ### Security
