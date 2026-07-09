@@ -31,6 +31,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 import { AdminOpenAIProviderForm } from "./admin-openai-provider-form";
 import { AnthropicProviderForm } from "./anthropic-provider-form";
+import { AutoReadCard } from "./auto-read-card";
 import { CodexProviderForm } from "./codex-provider-form";
 import { DocumentScanCard } from "./document-scan-card";
 import { FallbackChainCard } from "./fallback-chain-card";
@@ -180,6 +181,9 @@ export function AiInsightsCard({
 
         {/* v1.22 (#90) — dedicated document-scan (Lab-OCR) provider. */}
         <DocumentScanCard userProvider={userProvider} />
+
+        {/* Read uploaded vault documents automatically with AI (opt-in). */}
+        <AutoReadCard />
 
         <RuntimeActionsRow
           provider={selectedProvider}

@@ -4731,7 +4731,14 @@
       },
       "ocrModelPlaceholder": "z. B. gpt-4o",
       "ocrVisionHint": "Dieses Modell kann möglicherweise keine Bilder lesen. Wähle für den Dokumentenscan ein Modell mit Bildverständnis.",
-      "ocrKeyLabel": "API-Key"
+      "ocrKeyLabel": "API-Key",
+      "autoRead": {
+        "title": "Dokumente automatisch mit KI lesen",
+        "subLabel": "Neu hochgeladene Dokumente werden von deinem konfigurierten KI-Anbieter gelesen und indiziert, ohne dass du jedes Dokument einzeln bestätigen musst.",
+        "honesty": "Wenn aktiviert, wird jedes hochgeladene Dokument an deinen konfigurierten KI-Anbieter gesendet, um gelesen, beschrieben und für die Suche indiziert zu werden – ohne Bestätigung pro Dokument. Das geschieht auf dem Server, und der Inhalt des Dokuments verlässt dabei diese Maschine in Richtung dieses Anbieters. Wenn dein konfigurierter Anbieter eine Abo-Verbindung ist (ein angemeldetes KI-Konto statt eines API-Schlüssels), gelten dessen eigene Datenschutzeinstellungen – Abo-Anbieter dürfen den Inhalt zur Verbesserung ihrer Modelle verwenden, und kein Auftragsverarbeitungsvertrag deckt das ab. Dokumente, die von einem selbst gehosteten lokalen Modell gelesen werden, verlassen deinen Server nie. Standardmäßig aus; aktiviere es nur, wenn du diesen Kompromiss für die von dir hochgeladenen Dokumente akzeptierst.",
+        "confirm": "Ich verstehe – automatisches KI-Lesen aktivieren",
+        "cancel": "Abbrechen"
+      }
     },
     "dashboard": {
       "units": {

@@ -4731,7 +4731,14 @@
       },
       "ocrModelPlaceholder": "es. gpt-4o",
       "ocrVisionHint": "Questo modello potrebbe non essere in grado di leggere le immagini. Scegli un modello con capacità di visione per la scansione dei documenti.",
-      "ocrKeyLabel": "Chiave API"
+      "ocrKeyLabel": "Chiave API",
+      "autoRead": {
+        "title": "Leggi i documenti automaticamente con l'IA",
+        "subLabel": "I documenti appena caricati vengono letti e indicizzati dal provider di IA configurato, senza confermare ogni documento.",
+        "honesty": "Quando è attivo, ogni documento che carichi viene inviato al provider di IA configurato per essere letto, descritto e indicizzato per la ricerca, senza conferma per singolo documento. Questo avviene sul server e il contenuto del documento lascia questa macchina verso quel provider. Se il provider configurato è una connessione in abbonamento (un account IA con accesso effettuato anziché una chiave API), si applicano le sue impostazioni sui dati: i provider in abbonamento possono usare il contenuto per migliorare i propri modelli e nessun accordo sul trattamento dei dati lo copre. I documenti letti da un modello locale self-hosted non lasciano mai il tuo server. Disattivato per impostazione predefinita; attivalo solo se accetti questo compromesso per i documenti che carichi.",
+        "confirm": "Ho capito: attiva la lettura automatica con l'IA",
+        "cancel": "Annulla"
+      }
     },
     "dashboard": {
       "units": {

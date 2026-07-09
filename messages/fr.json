@@ -4731,7 +4731,14 @@
       },
       "ocrModelPlaceholder": "p. ex. gpt-4o",
       "ocrVisionHint": "Ce modèle ne peut peut-être pas lire les images. Choisissez un modèle capable de vision pour la numérisation de documents.",
-      "ocrKeyLabel": "Clé API"
+      "ocrKeyLabel": "Clé API",
+      "autoRead": {
+        "title": "Lire les documents automatiquement avec l'IA",
+        "subLabel": "Les documents nouvellement téléversés sont lus et indexés par votre fournisseur d'IA configuré, sans validation document par document.",
+        "honesty": "Lorsque cette option est activée, chaque document que vous téléversez est envoyé à votre fournisseur d'IA configuré pour être lu, décrit et indexé pour la recherche, sans confirmation par document. Cela se produit sur le serveur et le contenu du document quitte cette machine vers ce fournisseur. Si votre fournisseur configuré est une connexion par abonnement (un compte d'IA connecté plutôt qu'une clé API), ses propres paramètres de données s'appliquent : les fournisseurs par abonnement peuvent utiliser le contenu pour améliorer leurs modèles, et aucun accord de traitement des données ne le couvre. Les documents lus par un modèle local auto-hébergé ne quittent jamais votre serveur. Désactivé par défaut ; activez-le uniquement si vous acceptez ce compromis pour les documents que vous téléversez.",
+        "confirm": "Je comprends — activer la lecture automatique par l'IA",
+        "cancel": "Annuler"
+      }
     },
     "dashboard": {
       "units": {
