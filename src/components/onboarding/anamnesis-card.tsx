@@ -81,7 +81,7 @@ export function AnamnesisCard({
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className="flex w-full items-center gap-3 rounded-xl p-5 text-left"
+        className="flex w-full items-center gap-3 rounded-xl p-4 text-left md:p-6"
       >
         <span
           aria-hidden="true"
@@ -107,7 +107,7 @@ export function AnamnesisCard({
       </button>
 
       {expanded ? (
-        <div id={panelId} className="space-y-5 px-5 pb-5">
+        <div id={panelId} className="space-y-4 px-4 pb-4 md:px-6 md:pb-6">
           <p className="text-muted-foreground text-xs leading-relaxed">
             {t("onboarding.anamnesis.intro")}
           </p>

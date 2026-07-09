@@ -643,8 +643,8 @@ export function OnboardingTour({
               // centred above the bottom edge on wide ones (`mx-auto` +
               // `max-w`). Used on EVERY viewport when no anchored
               // placement keeps the footer buttons inside the viewport.
-              "bg-card border-border pointer-events-auto absolute inset-x-2 bottom-2 mx-auto max-h-[70vh] max-w-[22rem] overflow-x-hidden overflow-y-auto rounded-xl border p-5 shadow-2xl"
-            : "bg-card border-border pointer-events-auto absolute max-w-[22rem] overflow-x-hidden overflow-y-auto rounded-xl border p-5 shadow-2xl"
+              "bg-card border-border pointer-events-auto absolute inset-x-2 bottom-2 mx-auto max-h-[70vh] max-w-[22rem] overflow-x-hidden overflow-y-auto rounded-xl border p-4 shadow-2xl md:p-6"
+            : "bg-card border-border pointer-events-auto absolute max-w-[22rem] overflow-x-hidden overflow-y-auto rounded-xl border p-4 shadow-2xl md:p-6"
         }
         style={
           asSheet

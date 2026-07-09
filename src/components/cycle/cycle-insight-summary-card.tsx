@@ -114,7 +114,7 @@ export function CycleInsightSummaryCard() {
           data-slot="cycle-insight-summary"
           data-phase={phase ?? "none"}
           style={{ "--tile-hue": hue } as React.CSSProperties}
-          className="wellness-tile wellness-tile-rise rounded-xl px-5 py-5"
+          className="wellness-tile wellness-tile-rise rounded-xl p-4 md:p-6"
         >
           {/* Zone 1 — the current phase / cycle-day read. */}
           <div className="min-w-0">
