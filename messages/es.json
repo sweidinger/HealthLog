@@ -1593,7 +1593,8 @@
         "verlauf": "Historial",
         "injektion": "Inyección",
         "api": "API",
-        "erweitert": "Avanzado"
+        "erweitert": "Avanzado",
+        "wirkung": "Efecto"
       },
       "shell": {
         "loadFailed": "No se pudo cargar este medicamento.",
@@ -1791,7 +1792,41 @@
     "reorderDescription": "Define el orden de tus medicamentos: se aplica a la vista de tarjetas y a la de tabla.",
     "reorderSaved": "Orden guardado",
     "reorderSaveFailed": "No se pudo guardar el orden",
-    "customize": "Personalizar medicamentos"
+    "customize": "Personalizar medicamentos",
+    "efficacy": {
+      "title": "Efecto",
+      "intro": "Cómo han evolucionado las mediciones sobre las que actúa este medicamento en torno al momento en que empezaste a tomarlo. Muestra lo que coincide en el tiempo: una asociación, no una causa, y nunca un consejo sobre tu tratamiento o dosis.",
+      "notEligible": "No hay ninguna medición que relacionar con este medicamento.",
+      "startFallback": "No hay fecha de inicio, así que la comparación usa tu primera lectura registrada como referencia.",
+      "noStart": "Añade una fecha de inicio para comparar las lecturas antes y después de empezar.",
+      "disclaimer": "Solo asociación: estas cifras muestran lo que cambió en el mismo periodo, no que el medicamento causara el cambio. Consulta cualquier decisión sobre tu tratamiento con tu médico.",
+      "primaryBadge": "Objetivo principal",
+      "noSeries": "Aún no hay mediciones registradas para este objetivo.",
+      "startMarker": "Inicio",
+      "adherenceLane": "Adherencia",
+      "typicalRange": "Rango habitual",
+      "levelShift": "Se detectó un cambio de nivel en torno a {date}.",
+      "retarget": {
+        "label": "¿No es la medición correcta?",
+        "placeholder": "Seguir según…",
+        "apply": "Aplicar",
+        "reset": "Restablecer al valor predeterminado"
+      },
+      "beforeAfter": {
+        "summary": "Ø {before} antes → Ø {after} desde entonces: un cambio de {delta}.",
+        "counts": "Basado en {beforeCount} lecturas antes y {afterCount} desde entonces.",
+        "needBefore": "Aún no hay suficientes lecturas antes del inicio: se necesitan unas {weeks} semanas antes y después para comparar.",
+        "needAfter": "Aún no hay suficientes lecturas desde el inicio: se necesitan unas {weeks} semanas antes y después para comparar.",
+        "needStart": "Añade una fecha de inicio para comparar las lecturas antes y después de empezar.",
+        "needData": "Aún no hay suficientes lecturas: se necesitan unas {weeks} semanas antes y después del inicio para comparar."
+      },
+      "insights": {
+        "title": "Efecto de la medicación",
+        "subtitle": "Lo que coincide con las mediciones que persiguen tus medicamentos: solo asociación, nunca un veredicto.",
+        "link": "Abrir la vista de efecto",
+        "empty": "Aún no hay suficientes datos para relacionar tus medicamentos con sus mediciones objetivo."
+      }
+    }
   },
   "charts": {
     "loadingLabel": "Cargando la gráfica…",

@@ -1593,7 +1593,8 @@
         "verlauf": "Verlauf",
         "injektion": "Injektion",
         "api": "API",
-        "erweitert": "Erweitert"
+        "erweitert": "Erweitert",
+        "wirkung": "Wirkung"
       },
       "shell": {
         "loadFailed": "Dieses Medikament konnte nicht geladen werden.",
@@ -1791,7 +1792,41 @@
     "reorderDescription": "Bestimme die Reihenfolge deiner Medikamente – sie gilt für die Karten- und die Tabellenansicht.",
     "reorderSaved": "Reihenfolge gespeichert",
     "reorderSaveFailed": "Reihenfolge konnte nicht gespeichert werden",
-    "customize": "Medikamente anpassen"
+    "customize": "Medikamente anpassen",
+    "efficacy": {
+      "title": "Wirkung",
+      "intro": "Wie sich die Messwerte, die dieses Medikament beeinflussen soll, rund um den Beginn der Einnahme entwickelt haben. Es zeigt den zeitlichen Zusammenhang – eine Assoziation, keine Ursache – und keine Empfehlung zu Behandlung oder Dosis.",
+      "notEligible": "Für dieses Medikament gibt es keinen zugehörigen Messwert.",
+      "startFallback": "Es ist kein Startdatum hinterlegt, daher dient der erste erfasste Wert als Bezugspunkt.",
+      "noStart": "Hinterlege ein Startdatum, um die Werte vor und nach Beginn zu vergleichen.",
+      "disclaimer": "Nur ein Zusammenhang: Die Zahlen zeigen, was sich im selben Zeitraum verändert hat, nicht dass das Medikament die Veränderung verursacht hat. Besprich Entscheidungen zu deiner Behandlung mit deiner Ärztin oder deinem Arzt.",
+      "primaryBadge": "Hauptziel",
+      "noSeries": "Für diesen Zielwert sind noch keine Messungen erfasst.",
+      "startMarker": "Beginn",
+      "adherenceLane": "Einnahmetreue",
+      "typicalRange": "Üblicher Bereich",
+      "levelShift": "Um {date} wurde eine Verschiebung des Niveaus erkannt.",
+      "retarget": {
+        "label": "Nicht der richtige Messwert?",
+        "placeholder": "Verfolgen anhand…",
+        "apply": "Übernehmen",
+        "reset": "Auf Standard zurücksetzen"
+      },
+      "beforeAfter": {
+        "summary": "Ø {before} davor → Ø {after} seitdem – eine Veränderung von {delta}.",
+        "counts": "Basierend auf {beforeCount} Werten davor und {afterCount} seitdem.",
+        "needBefore": "Noch zu wenige Werte vor dem Beginn – für einen Vergleich werden etwa {weeks} Wochen davor und danach benötigt.",
+        "needAfter": "Noch zu wenige Werte seit dem Beginn – für einen Vergleich werden etwa {weeks} Wochen davor und danach benötigt.",
+        "needStart": "Hinterlege ein Startdatum, um die Werte vor und nach Beginn zu vergleichen.",
+        "needData": "Noch zu wenige Werte – für einen Vergleich werden etwa {weeks} Wochen vor und nach dem Beginn benötigt."
+      },
+      "insights": {
+        "title": "Medikamenten-Wirkung",
+        "subtitle": "Was mit den Zielwerten deiner Medikamente zeitlich zusammenfällt – nur ein Zusammenhang, kein Urteil.",
+        "link": "Wirkung öffnen",
+        "empty": "Noch nicht genug Daten, um deine Medikamente mit ihren Zielwerten in Beziehung zu setzen."
+      }
+    }
   },
   "charts": {
     "loadingLabel": "Diagramm wird geladen…",

@@ -138,4 +138,13 @@ export const medicationKeys = {
    */
   medicationApiEndpoint: (medicationId: string) =>
     ["medications", medicationId, "api-endpoint"] as const,
+  /**
+   * v1.28 — per-medication efficacy view ("Wirkung")
+   * (`GET /api/medications/[id]/efficacy`), consumed by the detail page's
+   * Wirkung tab and the Insights medication summary. Rides under the
+   * `["medications", id, …]` prefix so an intake mutation (which moves the
+   * adherence lane) reaches it through `medicationDependentKeys`.
+   */
+  medicationEfficacy: (medicationId: string) =>
+    ["medications", medicationId, "efficacy"] as const,
 };

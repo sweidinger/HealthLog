@@ -46,6 +46,8 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MedicationDetailSummary } from "@/components/medications/medication-detail-summary";
+import { EfficacyTab } from "@/components/medications/detail/efficacy/efficacy-tab";
+import { resolveMedicationTargets } from "@/lib/medications/med-target-map";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
 import { DoseHistoryLedger } from "@/components/medications/dose-history-ledger";
@@ -157,6 +159,7 @@ export interface MedicationDetailSnapshot {
 // the tab strip render and the `?tab=` round-trip validation.
 const TAB_SLUGS = [
   "uebersicht",
+  "wirkung",
   "zeitplan",
   "bestand",
   "verlauf",
@@ -236,6 +239,21 @@ export function MedicationDetailTabs({
   const isGlp1 = !oneShot && medication.treatmentClass === "GLP1";
   const isInjectable = medication.deliveryForm === "INJECTION";
 
+  // v1.28 — the "Wirkung" tab appears only when the medication resolves to a
+  // known outcome target (ATC class prefix → whole-word name inference) and is
+  // not a single-dose med. Same pure resolver the server efficacy builder's
+  // derived tier uses, so the tab's presence agrees with the DTO's eligibility.
+  const hasEfficacyTarget = useMemo(
+    () =>
+      !oneShot &&
+      resolveMedicationTargets({
+        name: medication.name,
+        treatmentClass: medication.treatmentClass,
+        atcCode: medication.atcCode,
+      }) !== null,
+    [oneShot, medication.name, medication.treatmentClass, medication.atcCode],
+  );
+
   const payload = useMemo(
     () => snapshotToWizardPayload(medication),
     [medication],
@@ -254,9 +272,10 @@ export function MedicationDetailTabs({
       TAB_SLUGS.filter(
         (slug) =>
           (slug !== "injektion" || isInjectable) &&
-          (slug !== "zeitplan" || !asNeeded),
+          (slug !== "zeitplan" || !asNeeded) &&
+          (slug !== "wirkung" || hasEfficacyTarget),
       ),
-    [isInjectable, asNeeded],
+    [isInjectable, asNeeded, hasEfficacyTarget],
   );
 
   const requestedRaw = searchParams?.get("tab");
@@ -534,6 +553,16 @@ export function MedicationDetailTabs({
             </MedicationDetailSection>
           )}
         </TabsContent>
+
+        {/* WIRKUNG — the per-medication efficacy view: the outcome metric(s)/
+            lab(s) the drug's class targets, over the span around its start,
+            with a before/after comparison + adherence lane. Strictly
+            descriptive; hidden for one-shot + no-target medications. */}
+        {hasEfficacyTarget && (
+          <TabsContent value="wirkung" className="space-y-6 pt-2">
+            <EfficacyTab medicationId={id} active={activeTab === "wirkung"} />
+          </TabsContent>
+        )}
 
         {/* ZEITPLAN — inline edit of the everyday levers: dose times +
             each dose's on-time window, then the Erinnerung card (the

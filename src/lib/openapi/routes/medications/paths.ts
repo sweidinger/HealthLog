@@ -17,7 +17,23 @@ import {
   scheduleRevisionCreateSchema,
   scheduleRevisionUpdateSchema,
 } from "@/lib/validations/schedule-revision";
+import {
+  efficacyTargetOverrideSchema,
+  medicationEfficacyResponseSchema,
+} from "@/lib/validations/medication-efficacy";
 import { dataEnvelope, errorEnvelope, stdResponses } from "../shared";
+
+efficacyTargetOverrideSchema.meta({
+  id: "SetMedicationEfficacyTargetRequest",
+  description:
+    "Set or clear the user's explicit efficacy-target override for a medication. `clear:true` removes the override so the resolver reverts to the derived (ATC class prefix → name inference) target; otherwise pin exactly ONE of `measurementType` (a metric series) / `biomarkerId` (a lab analyte). `userId` is never a field — ownership is narrowed through the medication (and the biomarker for a lab target).",
+});
+
+medicationEfficacyResponseSchema.meta({
+  id: "MedicationEfficacyResponse",
+  description:
+    "Server-authoritative, strictly-descriptive efficacy view relating a medication to the outcome metric(s)/lab(s) its class is prescribed to move, around its start. Carries the resolved target(s) with their series, the start/dose-change/pause markers, a before/after-start comparison (honest `{present:false}` below the per-side data floor), an adherence lane (cadence-aware per-day rate, never recomputed), an optional conservative level-shift note, and the retarget options. There is NO verdict / score / assessment field by construction — the client renders numbers and neutral connective phrasing only, never a causal or dose-advice claim.",
+});
 import {
   medicationListEntry,
   medicationDetailEntry,
@@ -533,6 +549,73 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         },
         "404": {
           description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/efficacy": {
+    get: {
+      tags: ["Medications"],
+      summary: 'Efficacy view for a medication ("Wirkung")',
+      description:
+        "Returns the resolved, strictly-descriptive efficacy DTO: the outcome metric(s)/lab(s) the medication's class targets, the target series with start/dose-change/pause markers, a before/after-start comparison, the cadence-aware adherence lane, an optional conservative level-shift note, the data-floor state, and the retarget options. Association-only — there is no verdict / score field. `eligible:false` (with `reason`) marks a one-shot or no-target medication whose tab is hidden.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      responses: {
+        "200": {
+          description: "Efficacy view.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationEfficacyResponseSchema,
+                "GetMedicationEfficacyResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/efficacy/target": {
+    put: {
+      tags: ["Medications"],
+      summary: "Set or clear the efficacy-target override",
+      description:
+        "Persists the user's explicit efficacy target for a medication (the only thing the view stores; everything else is derived each read). Pin exactly one of `measurementType` / `biomarkerId`, or pass `clear:true` to revert to the derived target.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: efficacyTargetOverrideSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Override set or cleared.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  ok: z.boolean().optional(),
+                  cleared: z.boolean().optional(),
+                }),
+                "SetMedicationEfficacyTargetResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication or biomarker not found.",
           content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
