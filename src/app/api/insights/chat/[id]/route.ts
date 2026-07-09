@@ -33,7 +33,11 @@ export const GET = apiHandler(async (_request: NextRequest, ctx: RouteCtx) => {
   const { id } = await ctx.params;
   if (!id) return apiError("coach.conversation.notFound", 404);
 
-  const detail = await fetchConversationWithMessages(auth.user.id, id);
+  // v1.27.33 — Coach detail is scoped to health threads (documentId null); a
+  // document chat is read through its own document-scoped route, not here.
+  const detail = await fetchConversationWithMessages(auth.user.id, id, {
+    documentId: null,
+  });
   if (!detail) {
     return apiError("coach.conversation.notFound", 404);
   }

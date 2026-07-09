@@ -21,6 +21,17 @@ export const DOCUMENT_AI_BUCKET = "documents-inbound";
 /** Cap on a browser-OCR text body (mirrors the extract text mode). */
 export const DOCUMENT_AI_TEXT_BODY_MAX_BYTES = 512 * 1024;
 
+/**
+ * v1.27.33 (Document vault P4 — chat about a document) — the per-user request-
+ * rate bucket for the document chat. Layered in front of the daily AI budget:
+ * the budget catches the cost dimension, this catches the request-rate one (a
+ * tight loop or a stolen session). 20 / minute mirrors the Coach chat bucket —
+ * well outside any interactive use.
+ */
+export const DOCUMENT_CHAT_BUCKET = "document-chat";
+export const DOCUMENT_CHAT_LIMIT_PER_MINUTE = 20;
+export const DOCUMENT_CHAT_WINDOW_MS = 60 * 1000;
+
 /** A loaded, owner-scoped, live document row with its encrypted content. */
 export interface LoadedDocument {
   id: string;
