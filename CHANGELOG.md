@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.28.10] — 2026-07-09 — Onboarding shows the AI value early
+
+New accounts now meet the AI value up front instead of discovering it as a cold
+"no provider connected" error. The finish screen shows a clearly-labelled sample
+briefing — a static example, nothing is sent anywhere — and lays out the setup
+choices local-first (a local model, your own API key, or a signed-in account),
+with a plain reminder that the app is fully useful without AI. The getting-started
+checklist gains a matching step that satisfies itself once a provider is
+connected (or when the operator has configured a shared one).
+
 ## [1.28.9] — 2026-07-09 — Document chat in the coach dialog
 
 Chatting about a document now opens the coach chat dialog, scoped to that
