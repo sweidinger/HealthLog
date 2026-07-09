@@ -1106,6 +1106,8 @@ paths:
                     type: string
                     minLength: 1
                     maxLength: 64
+                documentOnly:
+                  type: boolean
                 expiresAt:
                   type: string
                   format: date-time

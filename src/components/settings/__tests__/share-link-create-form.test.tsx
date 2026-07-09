@@ -25,11 +25,15 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
-import { ShareLinkCreateForm } from "../share-link-create-form";
+import {
+  ShareLinkCreateForm,
+  buildShareLinkCreatePayload,
+} from "../share-link-create-form";
 import type { PickedDocument } from "../share-document-picker";
 
 function render(
   props: {
+    documentOnly?: boolean;
     initialDocuments?: PickedDocument[];
     initialLabel?: string;
   } = {},
@@ -80,5 +84,75 @@ describe("<ShareLinkCreateForm> — shared create flow", () => {
     expect(html).toContain("1 of 50 selected");
     // A seeded set surfaces the EXIF note the picker path also shows.
     expect(html).toContain("Camera metadata");
+  });
+
+  it("document-only mode hides every record-scope control but keeps expiry + the doc", () => {
+    const html = render({
+      documentOnly: true,
+      initialDocuments: [{ id: "doc-1", title: "Blood panel 2026" }],
+      initialLabel: "Blood panel 2026",
+    });
+    // No record-scope UI: no FHIR toggle, no FHIR resource-type checkboxes, no
+    // history-range selector — none of those apply to a document link.
+    expect(html).not.toContain('id="share-fhir"');
+    expect(html).not.toContain('id="share-range"');
+    expect(html).not.toContain('id="share-rt-Observation"');
+    // Expiry, label, and the pre-attached document all stay.
+    expect(html).toContain('id="share-expiry"');
+    expect(html).toContain('value="Blood panel 2026"');
+    expect(html).toContain('data-testid="share-attached-chips"');
+    expect(html).toContain("1 of 50 selected");
+  });
+});
+
+describe("buildShareLinkCreatePayload — scope contract", () => {
+  const common = {
+    label: "  Blood panel 2026  ",
+    rangeDays: 30,
+    expiryDays: 30,
+  };
+
+  it("document-only: empty report scope, FHIR off, and the launched doc always rides along", () => {
+    const payload = buildShareLinkCreatePayload({
+      ...common,
+      // Even if the caller state still holds record-scope values, they must be
+      // dropped: a document link never carries a health scope.
+      allowFhirApi: true,
+      resourceTypes: ["Patient", "Observation"],
+      documentIds: ["doc-1"],
+      documentOnly: true,
+    });
+    expect(payload.resourceTypes).toEqual([]);
+    expect(payload.allowFhirApi).toBe(false);
+    expect(payload.documentOnly).toBe(true);
+    // No report sections are ever sent for a document link.
+    expect(payload).not.toHaveProperty("sections");
+    // The launched document is always in the created link (pre-attach fix).
+    expect(payload.documentIds).toEqual(["doc-1"]);
+    expect(payload.label).toBe("Blood panel 2026");
+  });
+
+  it("record share: keeps the full scope and omits documentIds when none picked", () => {
+    const payload = buildShareLinkCreatePayload({
+      ...common,
+      allowFhirApi: false,
+      resourceTypes: ["Patient", "Observation"],
+      documentIds: [],
+      documentOnly: false,
+    });
+    expect(payload.resourceTypes).toEqual(["Patient", "Observation"]);
+    expect(payload).not.toHaveProperty("documentIds");
+    expect(payload).not.toHaveProperty("documentOnly");
+  });
+
+  it("record share: attaches the picked documents when the owner chose some", () => {
+    const payload = buildShareLinkCreatePayload({
+      ...common,
+      allowFhirApi: false,
+      resourceTypes: ["Patient", "Observation"],
+      documentIds: ["a", "b"],
+      documentOnly: false,
+    });
+    expect(payload.documentIds).toEqual(["a", "b"]);
   });
 });

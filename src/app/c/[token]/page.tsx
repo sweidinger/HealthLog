@@ -103,10 +103,8 @@ export default async function ClinicianSharePage({
   const context = await resolveShareToken(token);
   if (!context) notFound();
 
-  const [{ report, sections, documents }, locale] = await Promise.all([
-    loadShareViewData(context),
-    resolveLocale(),
-  ]);
+  const [{ report, sections, documents, documentOnly }, locale] =
+    await Promise.all([loadShareViewData(context), resolveLocale()]);
   const { t } = getServerTranslator(locale);
 
   return (
@@ -117,6 +115,7 @@ export default async function ClinicianSharePage({
       report={report}
       sections={sections}
       documents={documents}
+      documentOnly={documentOnly}
       token={token}
       locale={locale}
     />

@@ -13,9 +13,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/doctor-report-data", () => ({
   collectDoctorReportData: vi.fn(),
 }));
-vi.mock("@/lib/validations/doctor-report-prefs", () => ({
-  parseDoctorReportPrefs: vi.fn((s: unknown) => s ?? {}),
-}));
+// The real prefs parser is used so the "no section enabled ⇒ documents-only"
+// signal is exercised end to end (a stubbed parser would let the test lie
+// about which sectionsJson resolves to an empty report scope).
 vi.mock("@/lib/db", () => ({
   prisma: {
     clinicianShareLinkDocument: { findMany: vi.fn() },
@@ -24,6 +24,7 @@ vi.mock("@/lib/db", () => ({
 
 import { loadShareViewData } from "../share-view-data";
 import { collectDoctorReportData } from "@/lib/doctor-report-data";
+import { EMPTY_DOCTOR_REPORT_PREFS } from "@/lib/validations/doctor-report-prefs";
 import { prisma } from "@/lib/db";
 import type { ShareContext } from "../resolve-share-token";
 
@@ -152,5 +153,70 @@ describe("loadShareViewData — KVNR default OFF", () => {
     // Rolling end materialises near "now", never before the frozen start.
     expect(range.end.getTime()).toBeGreaterThanOrEqual(now - 5_000);
     expect(range.days).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The load-bearing privacy guarantee: a documents-only share (every report
+ * section OFF) serves ZERO health metrics. The doctor-report aggregator is
+ * never called, so no vital / lab / medication / wellness figure ever leaves
+ * the database — the recipient sees only the attached document(s). "Share this
+ * document" means the document, not the whole record.
+ */
+describe("loadShareViewData — documents-only share exposes no health data", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    collect.mockResolvedValue({ patient: { displayName: "Shared record" } });
+    findDocs.mockResolvedValue([]);
+  });
+
+  it("never aggregates a report and returns report=null when no section is enabled", async () => {
+    findDocs.mockResolvedValue([
+      {
+        document: {
+          id: "doc-a",
+          title: "Blood panel",
+          kind: "LAB_REPORT",
+          documentDate: new Date("2026-01-15T00:00:00Z"),
+          byteSize: 12345,
+          mimeType: "application/pdf",
+        },
+      },
+    ]);
+
+    const { report, documentOnly, documents } = await loadShareViewData(
+      ctx({ sectionsJson: EMPTY_DOCTOR_REPORT_PREFS }),
+    );
+
+    // The one guarantee: the aggregator is NEVER invoked — no health data is
+    // read from the DB, let alone served.
+    expect(collect).not.toHaveBeenCalled();
+    expect(report).toBeNull();
+    expect(documentOnly).toBe(true);
+
+    // The attached document is still surfaced (metadata only, never bytes).
+    expect(documents).toEqual([
+      {
+        id: "doc-a",
+        title: "Blood panel",
+        kind: "LAB_REPORT",
+        documentDate: "2026-01-15",
+        byteSize: 12345,
+        mimeType: "application/pdf",
+        servingClass: "inline",
+      },
+    ]);
+  });
+
+  it("still aggregates for a record share (defaults resolve to an enabled scope)", async () => {
+    // `{}` / null sections resolve to the documented defaults (a full record
+    // share), so the aggregator DOES run — the empty-scope short-circuit must
+    // not swallow a normal record share.
+    const { report, documentOnly } = await loadShareViewData(
+      ctx({ sectionsJson: {} }),
+    );
+    expect(collect).toHaveBeenCalledTimes(1);
+    expect(documentOnly).toBe(false);
+    expect(report).not.toBeNull();
   });
 });

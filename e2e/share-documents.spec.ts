@@ -234,12 +234,14 @@ test.describe("clinician document sharing", () => {
     await clinician.context().close();
   });
 
-  test("the document detail Share action opens the create flow with that document pre-attached", async ({
+  test("the document Share action mints a DOCUMENT-ONLY link — the document, never the record", async ({
     page,
+    browser,
   }) => {
-    // Opens two stacked sheets (detail → share) and drives a real create with
-    // the one-time QR render — heavier than the default 30s budget on a loaded
-    // runner. Runs on the desktop and 390px mobile projects.
+    // Opens two stacked sheets (detail → share), drives a real create with the
+    // one-time QR render, then unlocks the link as a recipient to prove the
+    // served view carries the document and ZERO health metrics. Heavier than
+    // the default 30s budget. Runs on the desktop and 390px mobile projects.
     test.slow();
 
     // Deep-link straight to the document detail sheet.
@@ -263,6 +265,13 @@ test.describe("clinician document sharing", () => {
     await expect(chips).toHaveCount(1);
     await expect(chips.first()).toContainText("MRT Knie");
 
+    // Document-only mode hides every record-scope control: no FHIR API toggle,
+    // no FHIR resource-type checkboxes, no history-range selector. Only the
+    // document, label, and expiry remain.
+    await expect(shareSheet.locator("#share-fhir")).toHaveCount(0);
+    await expect(shareSheet.locator("#share-range")).toHaveCount(0);
+    await expect(shareSheet.locator("#share-expiry")).toHaveCount(1);
+
     // Create the link — the one-time reveal (with the scannable QR) lands in
     // the same sheet, carrying the one attached document.
     await shareSheet.getByRole("button", { name: "Create link" }).click();
@@ -276,6 +285,46 @@ test.describe("clinician document sharing", () => {
     const box = await qrImg.boundingBox();
     expect(box, "QR image has a rendered box").not.toBeNull();
     expect(box!.width).toBeGreaterThanOrEqual(160);
+
+    // Read the one-time secrets off the reveal and unlock the link as a
+    // recipient (no owner session).
+    const shareUrl = (await reveal.locator("code").first().innerText()).trim();
+    const token = shareUrl.split("/c/")[1];
+    expect(token, "token parsed from share URL").toMatch(/^hls_[0-9a-f]{48}$/);
+    const passphrase = (
+      await shareSheet.getByTestId("share-passphrase").innerText()
+    ).trim();
+    const clinician = await openUnlockedClinician(browser, {
+      token,
+      passphrase,
+      label: "MRT Knie",
+    });
+
+    // The served view lists the attached document…
+    await expect(
+      clinician.getByRole("heading", { name: "Documents" }),
+    ).toBeVisible();
+    await expect(
+      clinician.locator(
+        `iframe[src*="/d/${MRT_DOC_ID}"], img[src*="/d/${MRT_DOC_ID}"]`,
+      ),
+    ).toHaveCount(1);
+
+    // …and NOTHING from the health record: no vitals, no labs, no medications,
+    // no reporting-period line. This is the privacy guarantee — sharing a
+    // document must never expose a single metric.
+    await expect(
+      clinician.getByRole("heading", { name: "Vital signs" }),
+    ).toHaveCount(0);
+    await expect(
+      clinician.getByRole("heading", { name: "Lab values" }),
+    ).toHaveCount(0);
+    await expect(
+      clinician.getByRole("heading", { name: "Medications & adherence" }),
+    ).toHaveCount(0);
+    await expect(clinician.getByText("Reporting period:")).toHaveCount(0);
+
+    await clinician.context().close();
   });
 
   test("picker enforces the document cap at the limit", async ({ page }) => {

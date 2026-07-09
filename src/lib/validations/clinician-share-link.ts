@@ -62,6 +62,16 @@ export const createShareLinkSchema = z
       .array(z.string().trim().min(1).max(64))
       .max(SHARE_LINK_MAX_DOCUMENTS)
       .optional(),
+    /**
+     * v1.28.13 — a documents-only share. When true the server FORCES an empty
+     * report scope (no sections, no FHIR resource types, FHIR API off) and
+     * mints a link that serves ONLY the attached documents — never a health
+     * metric. "Share this document" means the document, not the whole record.
+     * A documents-only share MUST carry at least one `documentId` (enforced
+     * below). Any `sections` / `resourceTypes` / `allowFhirApi` sent alongside
+     * are ignored server-side so a document link can never widen into a record.
+     */
+    documentOnly: z.boolean().optional(),
     expiresAt: z.iso
       .datetime({ offset: true })
       .refine((v) => new Date(v).getTime() > Date.now(), {
@@ -77,7 +87,11 @@ export const createShareLinkSchema = z
       v.rangeEnd == null ||
       new Date(v.rangeEnd).getTime() >= new Date(v.rangeStart).getTime(),
     { message: "rangeEnd must not precede rangeStart", path: ["rangeEnd"] },
-  );
+  )
+  .refine((v) => !v.documentOnly || (v.documentIds?.length ?? 0) > 0, {
+    message: "A documents-only share must carry at least one document",
+    path: ["documentIds"],
+  });
 
 export type CreateShareLinkInput = z.infer<typeof createShareLinkSchema>;
 
