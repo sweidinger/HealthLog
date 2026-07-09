@@ -1,0 +1,197 @@
+/**
+ * First-boot readiness summary.
+ *
+ * The bundled image promises "single `docker compose up`", but the reality is
+ * three hand-generated secrets plus a handful of optional subsystems — and the
+ * crypto loader is fail-closed, so a missing/short `ENCRYPTION_KEY` throws a
+ * stack trace on first use rather than a sentence an operator can act on. This
+ * module inspects the environment ONCE at boot and prints a compact,
+ * human-readable readiness block: a clear line per core secret (with the exact
+ * `openssl` fix on a bad one) before anything throws, plus a one-glance status
+ * of the optional channels.
+ *
+ * It NEVER logs a secret value — only presence + shape validity. It never
+ * throws: the fail-closed loaders remain the real gate; this is a friendlier
+ * signpost in front of them.
+ */
+
+export interface ReadinessLine {
+  /** Short label, e.g. "ENCRYPTION_KEY". */
+  label: string;
+  /** ok = green, warn = optional-not-configured, error = missing/invalid core. */
+  status: "ok" | "warn" | "error";
+  /** One-line human detail (no secret material). */
+  detail: string;
+}
+
+export interface ReadinessReport {
+  lines: ReadinessLine[];
+  /** True when at least one core secret is missing or malformed. */
+  hasBlocker: boolean;
+}
+
+type Env = Record<string, string | undefined>;
+
+/** A 64-char hex string (= 32 bytes) or a base64 string that decodes to 32 bytes. */
+function isValid32ByteKey(raw: string | undefined): boolean {
+  if (!raw) return false;
+  const v = raw.trim();
+  if (/^[0-9a-fA-F]{64}$/.test(v)) return true;
+  if (/^[A-Za-z0-9+/=]+$/.test(v)) {
+    try {
+      return Buffer.from(v, "base64").length === 32;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+function allSet(env: Env, keys: string[]): boolean {
+  return keys.every((k) => (env[k] ?? "").trim().length > 0);
+}
+
+function anySet(env: Env, keys: string[]): boolean {
+  return keys.some((k) => (env[k] ?? "").trim().length > 0);
+}
+
+/** Inspect the environment and build the readiness report. Pure + side-effect free. */
+export function collectReadiness(env: Env = process.env): ReadinessReport {
+  const lines: ReadinessLine[] = [];
+
+  // --- Core secrets (boot blockers) ---------------------------------------
+  // Encryption: the map form (ENCRYPTION_KEYS) supersedes the single key.
+  const keysMap = (env.ENCRYPTION_KEYS ?? "").trim();
+  let encryptionOk = false;
+  if (keysMap) {
+    try {
+      const parsed = JSON.parse(keysMap) as Record<string, string>;
+      const entries = Object.values(parsed ?? {});
+      encryptionOk =
+        entries.length > 0 && entries.every((v) => isValid32ByteKey(v));
+    } catch {
+      encryptionOk = false;
+    }
+    lines.push({
+      label: "ENCRYPTION_KEYS",
+      status: encryptionOk ? "ok" : "error",
+      detail: encryptionOk
+        ? "key-rotation map present and valid"
+        : "ENCRYPTION_KEYS is not a JSON map of valid 32-byte keys",
+    });
+  } else {
+    encryptionOk = isValid32ByteKey(env.ENCRYPTION_KEY);
+    lines.push({
+      label: "ENCRYPTION_KEY",
+      status: encryptionOk ? "ok" : "error",
+      detail: encryptionOk
+        ? "present (64 hex chars)"
+        : "missing or not 64 hex chars — generate with: openssl rand -hex 32",
+    });
+  }
+
+  const hmacOk = isValid32ByteKey(env.API_TOKEN_HMAC_KEY);
+  lines.push({
+    label: "API_TOKEN_HMAC_KEY",
+    status: hmacOk ? "ok" : "error",
+    detail: hmacOk
+      ? "present (64 hex chars)"
+      : "missing or not 64 hex chars — generate with: openssl rand -hex 32",
+  });
+
+  const dbOk = (env.DATABASE_URL ?? "").trim().length > 0;
+  lines.push({
+    label: "DATABASE_URL",
+    status: dbOk ? "ok" : "error",
+    detail: dbOk
+      ? "present"
+      : "missing — the bundled compose derives it from POSTGRES_PASSWORD",
+  });
+
+  // --- Transport hint (a warning, never a blocker) ------------------------
+  const secureOverride = (env.SESSION_COOKIE_SECURE ?? "").trim().toLowerCase();
+  const secureFlagOn =
+    secureOverride === "true" ||
+    (secureOverride !== "false" && env.NODE_ENV === "production");
+  lines.push({
+    label: "SESSION_COOKIE_SECURE",
+    status: "ok",
+    detail: secureFlagOn
+      ? "Secure cookie flag ON — serve HTTPS, or set SESSION_COOKIE_SECURE=false for a plain-HTTP LAN host"
+      : "Secure cookie flag OFF — fine for plain-HTTP LAN; do NOT expose plain HTTP to the internet",
+  });
+
+  // --- Optional subsystems (informational) --------------------------------
+  const optional: Array<[string, boolean]> = [
+    ["SMTP (email)", allSet(env, ["SMTP_HOST", "SMTP_PORT", "SMTP_FROM"])],
+    [
+      "Off-host backup",
+      allSet(env, [
+        "BACKUP_S3_ENDPOINT",
+        "BACKUP_S3_BUCKET",
+        "BACKUP_S3_ACCESS_KEY",
+        "BACKUP_S3_SECRET_KEY",
+        "BACKUP_ENCRYPTION_KEY",
+      ]),
+    ],
+    [
+      "APNs (native iOS push)",
+      allSet(env, ["APNS_KEY_ID", "APNS_TEAM_ID", "APNS_BUNDLE_ID"]) &&
+        anySet(env, ["APNS_KEY_B64", "APNS_KEY", "APNS_KEY_FILE"]),
+    ],
+    [
+      "Web Push (VAPID env)",
+      allSet(env, ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]),
+    ],
+  ];
+  for (const [label, configured] of optional) {
+    lines.push({
+      label,
+      status: configured ? "ok" : "warn",
+      detail: configured ? "configured" : "not configured (optional)",
+    });
+  }
+
+  const hasBlocker = lines.some((l) => l.status === "error");
+  return { lines, hasBlocker };
+}
+
+const GLYPH: Record<ReadinessLine["status"], string> = {
+  ok: "✓",
+  warn: "·",
+  error: "✗",
+};
+
+/** Render the report as a compact multi-line block. */
+export function formatReadiness(report: ReadinessReport): string {
+  const body = report.lines
+    .map((l) => `  ${GLYPH[l.status]} ${l.label}: ${l.detail}`)
+    .join("\n");
+  const header = report.hasBlocker
+    ? "HealthLog boot readiness — CORE SECRET MISSING/INVALID (see ✗ below):"
+    : "HealthLog boot readiness:";
+  return `${header}\n${body}`;
+}
+
+/**
+ * Collect + print the readiness summary. Blockers go to stderr (they precede a
+ * fail-closed throw), the healthy summary to stdout. Never throws.
+ */
+export function logReadinessSummary(
+  env: Env = process.env,
+  log: Pick<Console, "log" | "error"> = console,
+): ReadinessReport {
+  try {
+    const report = collectReadiness(env);
+    const text = formatReadiness(report);
+    if (report.hasBlocker) {
+      log.error(text);
+    } else {
+      log.log(text);
+    }
+    return report;
+  } catch {
+    // A readiness summary must never be the thing that breaks boot.
+    return { lines: [], hasBlocker: false };
+  }
+}

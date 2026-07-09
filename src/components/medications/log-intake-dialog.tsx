@@ -19,20 +19,13 @@
  * the form state + the medication/slot pickers.
  */
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { DateTimeField } from "@/components/ui/date-time-field";
@@ -119,6 +112,7 @@ export function LogIntakeDialog({
 }: LogIntakeDialogProps) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  const formId = useId();
 
   const [medicationId, setMedicationId] = useState<string>(
     () => medications[0]?.id ?? "",
@@ -208,147 +202,146 @@ export function LogIntakeDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
-      <DialogContent data-slot="log-intake-dialog">
-        <DialogHeader>
-          <DialogTitle>{t("medications.logIntake.dialogTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("medications.logIntake.dialogDescription")}
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* v1.16.4 — a real form so Enter in the dose / datetime fields
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={(o) => !busy && onOpenChange(o)}
+      title={t("medications.logIntake.dialogTitle")}
+      description={t("medications.logIntake.dialogDescription")}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+          >
+            {t("medications.logIntake.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={busy || medications.length === 0 || !medicationId}
+            aria-busy={busy || undefined}
+          >
+            {busy && (
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+            )}
+            {t("medications.logIntake.submit")}
+          </Button>
+        </>
+      }
+    >
+      {/* v1.16.4 — a real form so Enter in the dose / datetime fields
             submits; mirrors the intake-edit and dose-history-add dialogs. */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (busy || medications.length === 0 || !medicationId) return;
-            void submit();
-          }}
-          className="space-y-4"
-        >
-          {medications.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-sm">
-              {t("medications.logIntake.noMedications")}
-            </p>
-          ) : (
-            <div className="space-y-3">
+      <form
+        id={formId}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (busy || medications.length === 0 || !medicationId) return;
+          void submit();
+        }}
+        className="space-y-4"
+      >
+        {medications.length === 0 ? (
+          <p className="text-muted-foreground py-4 text-sm">
+            {t("medications.logIntake.noMedications")}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="log-intake-medication">
+                {t("medications.logIntake.medicationLabel")}
+              </Label>
+              <NativeSelect
+                id="log-intake-medication"
+                value={medicationId}
+                onChange={(e) => handleMedicationChange(e.target.value)}
+              >
+                {medications.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.dose ? `${m.name} — ${formatDose(m.dose, t)}` : m.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+
+            {slotTimes.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="log-intake-medication">
-                  {t("medications.logIntake.medicationLabel")}
+                <Label htmlFor="log-intake-slot">
+                  {t("medications.logIntake.slotLabel")}
                 </Label>
                 <NativeSelect
-                  id="log-intake-medication"
-                  value={medicationId}
-                  onChange={(e) => handleMedicationChange(e.target.value)}
+                  id="log-intake-slot"
+                  value={slot}
+                  onChange={(e) => {
+                    setSlot(e.target.value);
+                    // The configured baseline tracks the slot's schedule
+                    // dose, so an untouched field re-prefills on change.
+                    setDoseOverride(null);
+                  }}
                 >
-                  {medications.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.dose ? `${m.name} — ${formatDose(m.dose, t)}` : m.name}
+                  <option value={NO_SLOT}>
+                    {t("medications.logIntake.slotNone")}
+                  </option>
+                  {slotTimes.map((time) => (
+                    <option key={time} value={time}>
+                      {time}
                     </option>
                   ))}
                 </NativeSelect>
               </div>
+            )}
 
-              {slotTimes.length > 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="log-intake-slot">
-                    {t("medications.logIntake.slotLabel")}
-                  </Label>
-                  <NativeSelect
-                    id="log-intake-slot"
-                    value={slot}
-                    onChange={(e) => {
-                      setSlot(e.target.value);
-                      // The configured baseline tracks the slot's schedule
-                      // dose, so an untouched field re-prefills on change.
-                      setDoseOverride(null);
-                    }}
-                  >
-                    <option value={NO_SLOT}>
-                      {t("medications.logIntake.slotNone")}
-                    </option>
-                    {slotTimes.map((time) => (
-                      <option key={time} value={time}>
-                        {time}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="log-intake-dose">
-                  {t("medications.logIntake.doseLabel")}
-                </Label>
-                <Input
-                  id="log-intake-dose"
-                  value={dose}
-                  maxLength={50}
-                  onChange={(e) => setDoseOverride(e.target.value)}
-                  placeholder={configuredDose}
-                  autoComplete="off"
-                  disabled={skipped}
-                />
-                <p className="text-muted-foreground text-xs">
-                  {t("medications.logIntake.doseHint")}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="log-intake-taken-at">
-                  {t("medications.logIntake.takenAtLabel")}
-                </Label>
-                <DateTimeField
-                  id="log-intake-taken-at"
-                  value={takenAt}
-                  max={toDateTimeLocal(new Date())}
-                  onChange={(value) => setTakenAt(value)}
-                  disabled={skipped}
-                />
-                <p className="text-muted-foreground text-xs">
-                  {t("medications.logIntake.takenAtHint")}
-                </p>
-              </div>
-
-              <label
-                htmlFor="log-intake-skipped"
-                className="flex items-center justify-between gap-3"
-              >
-                <span className="text-sm font-medium">
-                  {t("medications.logIntake.skippedLabel")}
-                </span>
-                <Switch
-                  id="log-intake-skipped"
-                  checked={skipped}
-                  onCheckedChange={setSkipped}
-                />
-              </label>
+            <div className="space-y-2">
+              <Label htmlFor="log-intake-dose">
+                {t("medications.logIntake.doseLabel")}
+              </Label>
+              <Input
+                id="log-intake-dose"
+                value={dose}
+                maxLength={50}
+                onChange={(e) => setDoseOverride(e.target.value)}
+                placeholder={configuredDose}
+                autoComplete="off"
+                disabled={skipped}
+              />
+              <p className="text-muted-foreground text-xs">
+                {t("medications.logIntake.doseHint")}
+              </p>
             </div>
-          )}
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={busy}
+            <div className="space-y-2">
+              <Label htmlFor="log-intake-taken-at">
+                {t("medications.logIntake.takenAtLabel")}
+              </Label>
+              <DateTimeField
+                id="log-intake-taken-at"
+                value={takenAt}
+                max={toDateTimeLocal(new Date())}
+                onChange={(value) => setTakenAt(value)}
+                disabled={skipped}
+              />
+              <p className="text-muted-foreground text-xs">
+                {t("medications.logIntake.takenAtHint")}
+              </p>
+            </div>
+
+            <label
+              htmlFor="log-intake-skipped"
+              className="flex items-center justify-between gap-3"
             >
-              {t("medications.logIntake.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              disabled={busy || medications.length === 0 || !medicationId}
-              aria-busy={busy || undefined}
-            >
-              {busy && (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-              )}
-              {t("medications.logIntake.submit")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <span className="text-sm font-medium">
+                {t("medications.logIntake.skippedLabel")}
+              </span>
+              <Switch
+                id="log-intake-skipped"
+                checked={skipped}
+                onCheckedChange={setSkipped}
+              />
+            </label>
+          </div>
+        )}
+      </form>
+    </ResponsiveSheet>
   );
 }

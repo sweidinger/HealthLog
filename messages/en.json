@@ -924,7 +924,6 @@
       "recentTitle": "Last 30 days",
       "loading": "Loading…",
       "deleteCta": "Delete",
-      "deleteConfirm": "Delete this entry?",
       "deleteError": "Could not delete the entry",
       "errorSeverity": "Severity must be between 1 and 5",
       "errorEntry": "Pick a symptom",
@@ -957,7 +956,9 @@
         "gastroparesisLike": "Slow stomach emptying",
         "dysgeusia": "Taste change",
         "gallbladderDiscomfort": "Gallbladder discomfort"
-      }
+      },
+      "deleteConfirmTitle": "Delete this entry?",
+      "deleteConfirmBody": "This side-effect entry will be permanently removed."
     },
     "scheduling": {
       "naturalLanguage": {
@@ -2082,7 +2083,7 @@
       "emptyAction": "Generate briefing",
       "loadingLabel": "Synthesising today's briefing",
       "noProviderTitle": "No AI provider connected",
-      "noProviderDescription": "The daily briefing turns your readings into plain-language summary. HealthLog needs an AI provider for that — use your own key (OpenAI, Anthropic) or a local model. Your data stays with you.",
+      "noProviderDescription": "Point HealthLog at a local model (Ollama, LM Studio — nothing leaves your network) or bring your own OpenAI or Anthropic key, and the daily briefing turns your own readings into a plain-language summary — for example: “weight down 1.2 kg over two weeks, resting pulse steady at 58, blood pressure in range on 6 of 7 days.” Setup takes about a minute.",
       "noProviderAction": "Open AI settings",
       "staleNoProviderHint": "This briefing can't refresh — no AI provider is connected.",
       "refreshFailedHint": "Couldn't refresh the briefing — showing the last one.",
@@ -4057,14 +4058,17 @@
         "connectionsHeading": "Connections",
         "connectionsDescription": "Connect and manage your data sources and devices.",
         "channelsHeading": "Delivery channels",
-        "channelsDescription": "Where reminders and alerts are delivered."
+        "channelsDescription": "Where reminders and alerts are delivered.",
+        "matrixLink": "Per-channel notifications"
       },
       "notifications": {
         "title": "Notifications",
         "description": "Every reminder in one place — what gets reminded and when, and where it's delivered.",
         "subtitle": "Choose which reminders you receive and where they're delivered.",
         "remindersHeading": "Reminders",
-        "remindersDescription": "What you receive."
+        "remindersDescription": "What you receive.",
+        "matrixLink": "Per-channel notifications",
+        "channelsLink": "Delivery channels"
       },
       "layout": {
         "title": "Appearance",
@@ -5496,6 +5500,7 @@
     "appSettingsDescription": "Global defaults for registration, language, and the timezone of new accounts.",
     "registrationEnabled": "Allow registration",
     "registrationEnabledDescription": "When disabled, new users cannot register.",
+    "registrationOpenHint": "Registration is open — anyone who can reach this instance can create an account. Close it here once everyone who needs an account has one.",
     "defaultLanguage": "Default language",
     "defaultLanguageDescription": "Used for new users and as fallback.",
     "defaultUserTimezone": "Default timezone for new accounts",
@@ -6270,7 +6275,7 @@
     "eventColumn": "Event",
     "subtitle": "Choose which notifications you want to receive through which channel.",
     "loadError": "Notification preferences could not be loaded.",
-    "noChannels": "Configure a notification channel in Settings first.",
+    "noChannels": "Configure a notification channel in Settings → Integrations first.",
     "goToSettings": "Go to channel settings",
     "channelDisabled": "Disabled",
     "admin": {
@@ -6381,7 +6386,10 @@
       "newDeviceBody": "A new sign-in from {device} ({location}). If this wasn't you, change your password immediately.",
       "unknownLocation": "unknown location"
     },
-    "loginRequired": "Please sign in to manage notifications."
+    "loginRequired": "Please sign in to manage notifications.",
+    "someChannelsGloballyDisabled": "One or more channels are turned off in Settings and won’t receive notifications.",
+    "reminderSettingsLink": "Reminder settings",
+    "channelsLink": "Channels"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -7377,7 +7385,8 @@
       "pdfNeedsAnthropic": "PDF scanning needs a Claude vision provider; upload a photo instead."
     },
     "loadMoreReadings": "Load more readings",
-    "documentsLink": "Lab report documents"
+    "documentsLink": "Lab report documents",
+    "notLinkedYet": "Not linked to a biomarker yet"
   },
   "modules": {
     "cycle": {

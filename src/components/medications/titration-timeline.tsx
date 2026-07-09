@@ -183,7 +183,7 @@ export function TitrationTimeline({
                         ? "border-primary bg-primary/15 text-primary"
                         : step.isPast
                           ? "border-border bg-muted text-muted-foreground"
-                          : "border-border/60 text-muted-foreground/70 border-dashed",
+                          : "border-border text-muted-foreground border-dashed",
                     )}
                     aria-hidden="true"
                   >

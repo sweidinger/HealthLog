@@ -170,7 +170,15 @@ export function SourceCardGrid() {
             <li key={item.slug}>
               <Button asChild variant="outline" size="sm" className="min-h-9">
                 <Link
-                  href="/settings/integrations"
+                  // Anchor each chip to its provider card so the tap lands on
+                  // the card, not the top of the generic Integrations page.
+                  // Apple Health has no web card (it syncs from the iOS app),
+                  // so its chip stays on the page root.
+                  href={
+                    item.slug === "apple-health"
+                      ? "/settings/integrations"
+                      : `/settings/integrations#${item.slug}`
+                  }
                   data-testid={`source-more-${item.slug}`}
                 >
                   {t(item.labelKey)}

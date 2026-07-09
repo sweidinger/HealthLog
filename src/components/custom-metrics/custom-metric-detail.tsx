@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { DeleteButton } from "@/components/data-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -178,23 +179,13 @@ export function CustomMetricDetail({
             {description}
           </p>
         </header>
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-            <p className="text-destructive text-sm">
-              {t("customMetrics.loadError")}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (metricError) void refetchMetric();
-                if (listError) void refetchList();
-              }}
-            >
-              {t("common.retry")}
-            </Button>
-          </CardContent>
-        </Card>
+        <QueryErrorCard
+          description={t("customMetrics.loadError")}
+          onRetry={() => {
+            if (metricError) void refetchMetric();
+            if (listError) void refetchList();
+          }}
+        />
       </div>
     );
   }

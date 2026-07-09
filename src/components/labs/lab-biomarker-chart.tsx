@@ -115,6 +115,7 @@ export function LabBiomarkerChart({
             key={r.key}
             size="sm"
             variant={range === r.key ? "secondary" : "ghost"}
+            aria-pressed={range === r.key}
             className="h-7 px-2 text-xs"
             onClick={() => setRange(r.key)}
           >

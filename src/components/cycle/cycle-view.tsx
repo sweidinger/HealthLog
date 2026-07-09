@@ -3,7 +3,13 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  RefreshCw,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -100,6 +106,13 @@ export function CycleView() {
       : "calendar";
   }, [searchParams]);
 
+  // Controlled so the header "cycle settings" wrench (parity with the
+  // labs/medications/illness modules, which expose a customize glyph) can jump
+  // to the settings tab. Initialised from the `?tab=` deep-link, matching the
+  // prior uncontrolled `defaultValue` behaviour (the initial param is honoured;
+  // a later param change does not force-switch a tab the user is reading).
+  const [tab, setTab] = useState<CycleTab>(initialTab);
+
   const today = useMemo(() => shiftToday(0), []);
   const from = useMemo(() => shiftToday(-90), []);
   const to = useMemo(() => shiftToday(180), []);
@@ -158,13 +171,26 @@ export function CycleView() {
         title={<span data-tour-id="cycle-hero">{t("cycle.title")}</span>}
         description={t("cycle.subtitle")}
         actions={
-          <Button
-            onClick={() => openSheet(today)}
-            className="min-h-11 sm:min-h-9"
-          >
-            <Plus className="h-4 w-4" />
-            {t("cycle.logToday")}
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+              aria-label={t("cycle.tabs.settings")}
+              title={t("cycle.tabs.settings")}
+              data-slot="cycle-settings-wrench"
+              onClick={() => setTab("settings")}
+            >
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button
+              onClick={() => openSheet(today)}
+              className="min-h-11 sm:min-h-9"
+            >
+              <Plus className="h-4 w-4" />
+              {t("cycle.logToday")}
+            </Button>
+          </>
         }
       />
 
@@ -266,7 +292,7 @@ export function CycleView() {
           ) : null}
         </div>
 
-        <Tabs defaultValue={initialTab}>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as CycleTab)}>
           {/* v1.15.10 — the four German labels (Kalender/Prognosen/
               Erkenntnisse/Einstellungen) overflowed the `flex-1` equal-width
               cells at 375 px and forced a horizontal scroll. Below `sm` the

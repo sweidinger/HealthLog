@@ -1,6 +1,13 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 
-import { shouldEmitSecureCookie } from "../secure-cookie";
+import {
+  shouldEmitSecureCookie,
+  detectInsecureCookieTransport,
+} from "../secure-cookie";
+
+function req(headers: Record<string, string>, url = "http://10.0.0.5:3000/x") {
+  return { headers: new Headers(headers), url };
+}
 
 describe("shouldEmitSecureCookie", () => {
   afterEach(() => {
@@ -45,5 +52,58 @@ describe("shouldEmitSecureCookie", () => {
     expect(shouldEmitSecureCookie()).toBe(true);
     vi.stubEnv("NODE_ENV", "development");
     expect(shouldEmitSecureCookie()).toBe(false);
+  });
+});
+
+describe("detectInsecureCookieTransport", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns null when the Secure flag is off (SESSION_COOKIE_SECURE=false)", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SESSION_COOKIE_SECURE", "false");
+    expect(detectInsecureCookieTransport(req({}))).toBeNull();
+  });
+
+  it("warns when a Secure cookie will be set on a plain-HTTP request (no proxy)", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SESSION_COOKIE_SECURE", "");
+    const msg = detectInsecureCookieTransport(req({}));
+    expect(msg).toContain("SESSION_COOKIE_SECURE=false");
+  });
+
+  it("returns null behind a TLS proxy that forwards X-Forwarded-Proto: https", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SESSION_COOKIE_SECURE", "");
+    expect(
+      detectInsecureCookieTransport(req({ "x-forwarded-proto": "https" })),
+    ).toBeNull();
+  });
+
+  it("reads the left-most entry of a comma-separated proto chain", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SESSION_COOKIE_SECURE", "");
+    expect(
+      detectInsecureCookieTransport(
+        req({ "x-forwarded-proto": "https, http" }),
+      ),
+    ).toBeNull();
+  });
+
+  it("warns when the proxy forwards X-Forwarded-Proto: http explicitly", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SESSION_COOKIE_SECURE", "");
+    expect(
+      detectInsecureCookieTransport(req({ "x-forwarded-proto": "http" })),
+    ).not.toBeNull();
+  });
+
+  it("returns null when the request URL is already https", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SESSION_COOKIE_SECURE", "");
+    expect(
+      detectInsecureCookieTransport(req({}, "https://healthlog.example.com/x")),
+    ).toBeNull();
   });
 });

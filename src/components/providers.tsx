@@ -12,6 +12,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { I18nProvider, useTranslations } from "@/lib/i18n/context";
@@ -63,59 +64,91 @@ function applyTheme(resolved: "dark" | "light") {
   document.documentElement.classList.add(resolved);
 }
 
+// ── Theme as an external store ───────────────────────
+//
+// The stored preference lives in localStorage, and the OS preference in
+// matchMedia — both browser-only values that must NOT be read in a `useState`
+// initializer (server renders "dark", a client with a stored "light"/"system"
+// initializes differently → the React #418 hydration seam this repo already
+// hit with the sidebar). `useSyncExternalStore` is the sanctioned fix: it reads
+// the value with an SSR-stable server snapshot ("dark") and reconciles to the
+// real value after hydration without a setState-in-effect. The nonce-bound
+// inline script in layout.tsx stamps the correct class pre-paint, so there is
+// no visual FOUC while React reconciles.
+
+const THEME_STORAGE_KEY = "healthlog-theme";
+const themeListeners = new Set<() => void>();
+
+function notifyThemeListeners() {
+  for (const cb of themeListeners) cb();
+}
+
+function subscribeStoredTheme(onChange: () => void): () => void {
+  themeListeners.add(onChange);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === THEME_STORAGE_KEY) onChange();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    themeListeners.delete(onChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function getStoredThemeSnapshot(): Theme {
+  const saved = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
+  // A stored "light"/"dark"/"system" choice wins. With no stored preference the
+  // app defaults to dark rather than tracking the OS.
+  if (saved === "light" || saved === "dark" || saved === "system") return saved;
+  return "dark";
+}
+
+function getServerThemeSnapshot(): Theme {
+  return "dark";
+}
+
+function subscribeSystemTheme(onChange: () => void): () => void {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+function getSystemThemeSnapshot(): "dark" | "light" {
+  return getSystemTheme();
+}
+
+function getServerSystemSnapshot(): "dark" | "light" {
+  return "dark";
+}
+
 function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "dark";
-    const saved = localStorage.getItem("healthlog-theme") as Theme | null;
-    // A stored "light"/"dark"/"system" choice wins. With no stored
-    // preference the app defaults to dark rather than tracking the OS.
-    if (saved === "light" || saved === "dark") return saved;
-    if (saved === "system") return "system";
-    return "dark";
-  });
+  const theme = useSyncExternalStore(
+    subscribeStoredTheme,
+    getStoredThemeSnapshot,
+    getServerThemeSnapshot,
+  );
+  const systemTheme = useSyncExternalStore(
+    subscribeSystemTheme,
+    getSystemThemeSnapshot,
+    getServerSystemSnapshot,
+  );
+  const resolvedTheme = theme === "system" ? systemTheme : theme;
 
-  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">(() => {
-    if (typeof window === "undefined") return "dark";
-    const saved = localStorage.getItem("healthlog-theme") as Theme | null;
-    if (saved === "light" || saved === "dark") return saved;
-    if (saved === "system") return getSystemTheme();
-    return "dark";
-  });
-
-  // Apply theme on mount (inline script handles FOUC, this ensures classes are in sync)
+  // Keep the <html> class in sync with the resolved theme. This is a DOM write,
+  // not a setState — it runs on mount (reconciling the class the inline script
+  // set to any stored preference) and whenever the resolved theme changes.
   useEffect(() => {
     applyTheme(resolvedTheme);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Listen for OS preference changes when in system mode
-  useEffect(() => {
-    if (theme !== "system") return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => {
-      const resolved = e.matches ? "dark" : "light";
-      setResolvedTheme(resolved);
-      applyTheme(resolved);
-    };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, [theme]);
+  }, [resolvedTheme]);
 
   const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
     // Persist every explicit choice, including "system" — the absence of a
-    // stored value is reserved for a fresh visitor and now defaults to dark.
+    // stored value is reserved for a fresh visitor and defaults to dark.
     // Storing "system" verbatim keeps an explicit OS-tracking choice
-    // distinguishable from "never chose", so a reload honours it.
-    localStorage.setItem("healthlog-theme", next);
-    if (next === "system") {
-      const resolved = getSystemTheme();
-      setResolvedTheme(resolved);
-      applyTheme(resolved);
-    } else {
-      setResolvedTheme(next);
-      applyTheme(next);
-    }
+    // distinguishable from "never chose", so a reload honours it. The write +
+    // notify re-reads the external store; the effect above applies the class.
+    localStorage.setItem(THEME_STORAGE_KEY, next);
+    notifyThemeListeners();
   }, []);
 
   return (

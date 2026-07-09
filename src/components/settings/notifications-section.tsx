@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Bell } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -7,6 +8,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { LowStockCard } from "@/components/settings/low-stock-card";
 import { MoodReminderCard } from "@/components/settings/mood-reminder-card";
+import { Button } from "@/components/ui/button";
 
 /**
  * `<NotificationsSection>` — Settings → Notifications ("Benachrichtigungen").
@@ -44,6 +46,24 @@ export function NotificationsSection() {
 
   return (
     <div className="space-y-10">
+      {/* Cross-links to the other two notification surfaces so this screen
+          names them — the per-event matrix and the delivery channels. */}
+      <div
+        className="flex flex-wrap gap-2"
+        data-slot="notifications-crosslinks"
+      >
+        <Button asChild variant="outline" size="sm">
+          <Link href="/notifications">
+            {t("settings.sections.notifications.matrixLink")}
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/settings/integrations#channels">
+            {t("settings.sections.notifications.channelsLink")}
+          </Link>
+        </Button>
+      </div>
+
       {/* Group 1 — Reminders ("what you receive"). Rendered only when at
           least one reminder-type card is visible, so a fully-disabled
           account never shows an empty heading. */}

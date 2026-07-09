@@ -8,6 +8,16 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -113,6 +123,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
   // into the `<ResponsiveSheet>` footer slot. The submit button keeps
   // its `<form>` association via the HTML `form` attribute.
   const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const formId = useId();
 
   const listKey = queryKeys.medicationSideEffects(medicationId);
@@ -330,14 +341,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
                   size="icon"
                   className="text-muted-foreground hover:text-destructive size-11 shrink-0"
                   aria-label={t("medications.sideEffects.deleteCta")}
-                  onClick={() => {
-                    if (
-                      typeof window === "undefined" ||
-                      window.confirm(t("medications.sideEffects.deleteConfirm"))
-                    ) {
-                      deleteMutation.mutate(row.id);
-                    }
-                  }}
+                  onClick={() => setPendingDeleteId(row.id)}
                   disabled={deleteMutation.isPending}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -347,6 +351,43 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
           </ul>
         </div>
       )}
+
+      {/* Themed confirm — replaces the native window.confirm so the delete
+          gate matches every other destructive action in the app. */}
+      <AlertDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(o) => {
+          if (!o) setPendingDeleteId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("medications.sideEffects.deleteConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("medications.sideEffects.deleteConfirmBody")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (pendingDeleteId) deleteMutation.mutate(pendingDeleteId);
+                setPendingDeleteId(null);
+              }}
+              disabled={deleteMutation.isPending}
+              aria-busy={deleteMutation.isPending || undefined}
+              className="bg-destructive dark:bg-destructive/60 hover:bg-destructive/90 text-white"
+            >
+              {t("medications.sideEffects.deleteCta")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ResponsiveSheet
         open={open}

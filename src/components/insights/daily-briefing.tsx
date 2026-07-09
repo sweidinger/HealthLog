@@ -53,28 +53,28 @@ export const METRIC_HREF: Record<
   pulse: "/insights/pulse",
   mood: "/insights/mood",
   compliance: "/insights/medications",
-  // Apple Health / GLP-1 additive metrics — no dedicated sub-page yet.
-  // They render as static rows; v1.4.28 can wire each as they ship.
-  hrv: null,
+  // Apple Health / GLP-1 additive metrics — each now routes to its
+  // dedicated sub-page that shipped since the original map was written.
+  hrv: "/insights/hrv",
   sleep: "/insights/sleep",
-  resting_hr: null,
+  resting_hr: "/insights/resting-pulse",
   // v1.12.4 — steps has no dedicated metric sub-page, so it routes to the
   // generic readings view keyed to its `MeasurementType` (the same target
   // the category pages use to drill into a single type). Every other
   // briefing finding with a real destination is already tappable; steps
   // was the lone static row.
   steps: "/insights/steps",
-  active_energy: null,
-  flights: null,
-  distance: null,
+  active_energy: "/insights/active-energy",
+  flights: "/insights/flights-climbed",
+  distance: "/insights/walking-distance",
   vo2_max: "/insights/pulse",
-  body_temp: null,
+  body_temp: "/insights/body-temperature",
   glp1_plateau: "/insights/medications",
   // ── v1.10.0 derived-wellness additive ──
-  // Readiness has a score-anatomy detail page; recovery is a read-only
-  // ring with no dedicated sub-page yet (renders as a static row).
+  // Readiness has a score-anatomy detail page; recovery has its own
+  // read-only sub-page.
   readiness: "/insights/scores/readiness",
-  recovery: null,
+  recovery: "/insights/recovery",
 };
 
 /**

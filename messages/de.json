@@ -924,7 +924,6 @@
       "recentTitle": "Letzte 30 Tage",
       "loading": "Wird geladen…",
       "deleteCta": "Löschen",
-      "deleteConfirm": "Eintrag löschen?",
       "deleteError": "Eintrag konnte nicht gelöscht werden",
       "errorSeverity": "Schweregrad muss zwischen 1 und 5 liegen",
       "errorEntry": "Bitte ein Symptom auswählen",
@@ -957,7 +956,9 @@
         "gastroparesisLike": "Verlangsamte Magenentleerung",
         "dysgeusia": "Geschmacksveränderung",
         "gallbladderDiscomfort": "Gallenblasen-Beschwerden"
-      }
+      },
+      "deleteConfirmTitle": "Eintrag löschen?",
+      "deleteConfirmBody": "Dieser Nebenwirkungs-Eintrag wird dauerhaft entfernt."
     },
     "scheduling": {
       "naturalLanguage": {
@@ -2082,7 +2083,7 @@
       "emptyAction": "Briefing erstellen",
       "loadingLabel": "Briefing wird zusammengestellt",
       "noProviderTitle": "Kein KI-Anbieter verbunden",
-      "noProviderDescription": "Das Tagesbriefing fasst deine Werte in Klartext zusammen. Dafür braucht HealthLog einen KI-Anbieter — nutze deinen eigenen Schlüssel (OpenAI, Anthropic) oder ein lokales Modell. Deine Daten bleiben dabei bei dir.",
+      "noProviderDescription": "Richte HealthLog auf ein lokales Modell (Ollama, LM Studio – nichts verlässt dein Netzwerk) oder hinterlege deinen eigenen OpenAI- oder Anthropic-Schlüssel, und das tägliche Briefing fasst deine eigenen Messwerte in klarer Sprache zusammen – zum Beispiel: „Gewicht in zwei Wochen um 1,2 kg gesunken, Ruhepuls stabil bei 58, Blutdruck an 6 von 7 Tagen im Zielbereich.“ Die Einrichtung dauert etwa eine Minute.",
       "noProviderAction": "Zu den KI-Einstellungen",
       "staleNoProviderHint": "Dieses Briefing kann nicht aktualisiert werden — es ist kein KI-Anbieter verbunden.",
       "refreshFailedHint": "Briefing konnte nicht aktualisiert werden — es wird das letzte angezeigt.",
@@ -4057,14 +4058,17 @@
         "connectionsHeading": "Verbindungen",
         "connectionsDescription": "Datenquellen und Geräte verbinden und verwalten.",
         "channelsHeading": "Zustellkanäle",
-        "channelsDescription": "Wohin Erinnerungen und Hinweise zugestellt werden."
+        "channelsDescription": "Wohin Erinnerungen und Hinweise zugestellt werden.",
+        "matrixLink": "Benachrichtigungen je Kanal"
       },
       "notifications": {
         "title": "Benachrichtigungen",
         "description": "Alle Erinnerungen an einem Ort — was wann erinnert wird und wohin es zugestellt wird.",
         "subtitle": "Wähle, welche Erinnerungen du erhältst und wohin sie zugestellt werden.",
         "remindersHeading": "Erinnerungen",
-        "remindersDescription": "Was du erhältst."
+        "remindersDescription": "Was du erhältst.",
+        "matrixLink": "Benachrichtigungen je Kanal",
+        "channelsLink": "Zustellkanäle"
       },
       "layout": {
         "title": "Darstellung",
@@ -5496,6 +5500,7 @@
     "appSettingsDescription": "Globale Standardwerte für Registrierung, Sprache und Zeitzone neuer Konten.",
     "registrationEnabled": "Registrierung erlauben",
     "registrationEnabledDescription": "Wenn deaktiviert, können sich keine neuen Nutzer registrieren.",
+    "registrationOpenHint": "Die Registrierung ist offen — jeder, der diese Instanz erreichen kann, kann ein Konto anlegen. Schließe sie hier, sobald alle ein Konto haben.",
     "defaultLanguage": "Standard-Sprache",
     "defaultLanguageDescription": "Wird für neue Nutzer und als Fallback verwendet.",
     "defaultUserTimezone": "Standard-Zeitzone für neue Konten",
@@ -6270,7 +6275,7 @@
     "eventColumn": "Ereignis",
     "subtitle": "Wähle aus, welche Benachrichtigungen du über welchen Kanal erhalten möchtest.",
     "loadError": "Benachrichtigungseinstellungen konnten nicht geladen werden.",
-    "noChannels": "Konfiguriere zuerst einen Benachrichtigungskanal in den Einstellungen.",
+    "noChannels": "Konfiguriere zuerst einen Benachrichtigungskanal unter Einstellungen → Integrationen.",
     "goToSettings": "Zu den Kanal-Einstellungen",
     "channelDisabled": "Deaktiviert",
     "admin": {
@@ -6381,7 +6386,10 @@
       "newDeviceBody": "Eine neue Anmeldung von {device} ({location}). Falls du das nicht warst, ändere sofort dein Passwort.",
       "unknownLocation": "unbekannter Ort"
     },
-    "loginRequired": "Bitte melde dich an, um Benachrichtigungen zu verwalten."
+    "loginRequired": "Bitte melde dich an, um Benachrichtigungen zu verwalten.",
+    "someChannelsGloballyDisabled": "Ein oder mehrere Kanäle sind in den Einstellungen deaktiviert und erhalten keine Benachrichtigungen.",
+    "reminderSettingsLink": "Erinnerungseinstellungen",
+    "channelsLink": "Kanäle"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -7377,7 +7385,8 @@
       "pdfNeedsAnthropic": "PDF-Scannen benötigt einen Claude-Bildanbieter; lade stattdessen ein Foto hoch."
     },
     "loadMoreReadings": "Weitere Werte laden",
-    "documentsLink": "Befund-Dokumente"
+    "documentsLink": "Befund-Dokumente",
+    "notLinkedYet": "Noch keinem Biomarker zugeordnet"
   },
   "modules": {
     "cycle": {

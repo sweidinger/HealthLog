@@ -9,7 +9,7 @@
  */
 import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { PageAuthGate } from "@/components/ui/page-auth-gate";
 
 import { IllnessEpisodeDetail } from "@/components/illness/illness-episode-detail";
 import { BackLink } from "@/components/ui/back-link";
@@ -40,11 +40,7 @@ export default function IllnessEpisodePage({
   }, [isLoading, isAuthenticated, enabled, router]);
 
   if (!mounted || isLoading || !isAuthenticated || !enabled) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
-      </div>
-    );
+    return <PageAuthGate label={t("common.loading")} />;
   }
 
   return (

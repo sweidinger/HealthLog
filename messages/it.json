@@ -924,7 +924,6 @@
       "recentTitle": "Ultimi 30 giorni",
       "loading": "Caricamento…",
       "deleteCta": "Elimina",
-      "deleteConfirm": "Eliminare questa voce?",
       "deleteError": "Impossibile eliminare la voce",
       "errorSeverity": "La gravità deve essere tra 1 e 5",
       "errorEntry": "Scegli un sintomo",
@@ -957,7 +956,9 @@
         "gastroparesisLike": "Svuotamento gastrico lento",
         "dysgeusia": "Alterazione del gusto",
         "gallbladderDiscomfort": "Fastidio alla cistifellea"
-      }
+      },
+      "deleteConfirmTitle": "Eliminare questa voce?",
+      "deleteConfirmBody": "Questa voce di effetto collaterale verrà rimossa definitivamente."
     },
     "scheduling": {
       "naturalLanguage": {
@@ -2082,7 +2083,7 @@
       "emptyAction": "Genera briefing",
       "loadingLabel": "Preparazione del briefing",
       "noProviderTitle": "Nessun provider IA collegato",
-      "noProviderDescription": "Il briefing giornaliero riassume le tue misurazioni in linguaggio chiaro. HealthLog ha bisogno di un provider IA per questo: usa la tua chiave (OpenAI, Anthropic) o un modello locale. I tuoi dati restano tuoi.",
+      "noProviderDescription": "Punta HealthLog verso un modello locale (Ollama, LM Studio: nulla lascia la tua rete) o usa la tua chiave OpenAI o Anthropic, e il riepilogo quotidiano trasforma le tue misurazioni in un riassunto in linguaggio chiaro, ad esempio: «peso in calo di 1,2 kg in due settimane, battito a riposo stabile a 58, pressione nel range 6 giorni su 7». La configurazione richiede circa un minuto.",
       "noProviderAction": "Apri impostazioni IA",
       "staleNoProviderHint": "Questo briefing non può aggiornarsi: nessun provider IA è collegato.",
       "refreshFailedHint": "Impossibile aggiornare il briefing: viene mostrato l'ultimo.",
@@ -4057,14 +4058,17 @@
         "connectionsHeading": "Connessioni",
         "connectionsDescription": "Collega e gestisci le tue fonti di dati e i dispositivi.",
         "channelsHeading": "Canali di recapito",
-        "channelsDescription": "Dove vengono recapitati promemoria e avvisi."
+        "channelsDescription": "Dove vengono recapitati promemoria e avvisi.",
+        "matrixLink": "Notifiche per canale"
       },
       "notifications": {
         "title": "Notifiche",
         "description": "Tutti i promemoria in un unico posto — cosa e quando, e dove vengono recapitati.",
         "subtitle": "Scegli quali promemoria ricevere e dove vengono recapitati.",
         "remindersHeading": "Promemoria",
-        "remindersDescription": "Ciò che ricevi."
+        "remindersDescription": "Ciò che ricevi.",
+        "matrixLink": "Notifiche per canale",
+        "channelsLink": "Canali di recapito"
       },
       "layout": {
         "title": "Aspetto",
@@ -5496,6 +5500,7 @@
     "appSettingsDescription": "Impostazioni globali predefinite per registrazione, lingua e fuso orario dei nuovi account.",
     "registrationEnabled": "Consentire la registrazione",
     "registrationEnabledDescription": "Se disattivato, i nuovi utenti non possono registrarsi.",
+    "registrationOpenHint": "La registrazione è aperta: chiunque possa raggiungere questa istanza può creare un account. Chiudila qui quando tutti hanno un account.",
     "defaultLanguage": "Lingua predefinita",
     "defaultLanguageDescription": "Usata per i nuovi utenti e come ripiego.",
     "defaultUserTimezone": "Fuso orario predefinito per i nuovi account",
@@ -6270,7 +6275,7 @@
     "eventColumn": "Evento",
     "subtitle": "Scegli quali notifiche ricevere e su quale canale.",
     "loadError": "Impossibile caricare le impostazioni di notifica.",
-    "noChannels": "Configura prima un canale di notifica nelle impostazioni.",
+    "noChannels": "Configura prima un canale di notifica in Impostazioni → Integrazioni.",
     "goToSettings": "Vai alle impostazioni del canale",
     "channelDisabled": "Disabilitato",
     "admin": {
@@ -6381,7 +6386,10 @@
       "newDeviceBody": "Un nuovo accesso da {device} ({location}). Se non sei stato tu, cambia subito la password.",
       "unknownLocation": "posizione sconosciuta"
     },
-    "loginRequired": "Accedi per gestire le notifiche."
+    "loginRequired": "Accedi per gestire le notifiche.",
+    "someChannelsGloballyDisabled": "Uno o più canali sono disattivati nelle impostazioni e non riceveranno notifiche.",
+    "reminderSettingsLink": "Impostazioni promemoria",
+    "channelsLink": "Canali"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -7377,7 +7385,8 @@
       "pdfNeedsAnthropic": "La scansione PDF richiede un provider di visione Claude; carica invece una foto."
     },
     "loadMoreReadings": "Carica altre misurazioni",
-    "documentsLink": "Documenti dei referti"
+    "documentsLink": "Documenti dei referti",
+    "notLinkedYet": "Non ancora collegato a un biomarcatore"
   },
   "modules": {
     "cycle": {

@@ -15,7 +15,7 @@
 import { use, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { PageAuthGate } from "@/components/ui/page-auth-gate";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
@@ -68,19 +68,7 @@ export default function MedicationDetailPage({
   });
 
   if (authLoading || isLoading || !isAuthenticated) {
-    return (
-      <div
-        className="flex h-64 items-center justify-center"
-        role="status"
-        aria-busy="true"
-        aria-live="polite"
-      >
-        <Loader2
-          aria-hidden="true"
-          className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none"
-        />
-      </div>
-    );
+    return <PageAuthGate label={t("common.loading")} />;
   }
 
   if (isError || !medication) {

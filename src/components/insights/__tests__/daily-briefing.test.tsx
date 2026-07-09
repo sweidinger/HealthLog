@@ -95,6 +95,36 @@ describe("<DailyBriefing>", () => {
     expect(html).toContain("Weight down 30 d");
   });
 
+  it("links the key-finding rows for metrics whose Insights sub-page exists", () => {
+    // Regression guard for the stale METRIC_HREF map: hrv / resting_hr /
+    // active_energy / flights / distance / body_temp / recovery all have
+    // dedicated Insights sub-pages now, so their briefing rows must be
+    // tappable `<a>` links, not inert rows.
+    const html = render(
+      <DailyBriefing
+        briefing={{
+          ...baseBriefing,
+          keyFindings: [
+            { ...baseBriefing.keyFindings[2], sourceMetric: "hrv" },
+            { ...baseBriefing.keyFindings[2], sourceMetric: "resting_hr" },
+            { ...baseBriefing.keyFindings[2], sourceMetric: "active_energy" },
+            { ...baseBriefing.keyFindings[2], sourceMetric: "flights" },
+            { ...baseBriefing.keyFindings[2], sourceMetric: "distance" },
+            { ...baseBriefing.keyFindings[2], sourceMetric: "body_temp" },
+            { ...baseBriefing.keyFindings[2], sourceMetric: "recovery" },
+          ],
+        }}
+      />,
+    );
+    expect(html).toContain('href="/insights/hrv"');
+    expect(html).toContain('href="/insights/resting-pulse"');
+    expect(html).toContain('href="/insights/active-energy"');
+    expect(html).toContain('href="/insights/flights-climbed"');
+    expect(html).toContain('href="/insights/walking-distance"');
+    expect(html).toContain('href="/insights/body-temperature"');
+    expect(html).toContain('href="/insights/recovery"');
+  });
+
   it("renders the delta string when supplied", () => {
     const html = render(<DailyBriefing briefing={baseBriefing} />);
     expect(html).toMatch(/data-slot="daily-briefing-delta"/);

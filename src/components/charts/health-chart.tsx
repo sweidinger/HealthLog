@@ -1666,6 +1666,7 @@ export function HealthChart({
               <Button
                 key={r.labelKey}
                 variant={rangePoints === r.points ? "default" : "ghost"}
+                aria-pressed={rangePoints === r.points}
                 size="sm"
                 className="min-h-11 px-2 text-xs sm:px-3"
                 onClick={() => {

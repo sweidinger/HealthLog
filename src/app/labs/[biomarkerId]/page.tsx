@@ -9,7 +9,7 @@
  */
 import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { PageAuthGate } from "@/components/ui/page-auth-gate";
 
 import { LabBiomarkerDetail } from "@/components/labs/lab-biomarker-detail";
 import { BackLink } from "@/components/ui/back-link";
@@ -35,11 +35,7 @@ export default function LabBiomarkerDetailPage({
   }, [isLoading, isAuthenticated, router]);
 
   if (!mounted || isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
-      </div>
-    );
+    return <PageAuthGate label={t("common.loading")} />;
   }
 
   return (
