@@ -62,7 +62,8 @@
     "shadcn",
     "tailwindcss",
     "testcontainers",
-    "tw-animate-css"
+    "tw-animate-css",
+    "@napi-rs/canvas"
   ],
   "ignoreBinaries": ["docker", "docker-compose", "pg_isready", "tsx", "cosign"],
   "ignoreExportsUsedInFile": true,

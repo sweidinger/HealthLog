@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.28.2] — 2026-07-09 — Automatic AI document reading (opt-in)
+
+One opt-in in AI settings: read every uploaded document automatically with your
+configured AI provider — no per-document tap, the same way a lab photo is read.
+Off by default; the vault stays local-first for everyone who does not turn it
+on. When on, scanned PDFs and photos are read too — a PDF's pages are rendered
+to images so a provider that only accepts images can still read them — and the
+turn-on records a standing consent entry. The background indexer now follows the
+same opt-in, so nothing leaves the machine automatically unless you enable it.
+
 ## [1.28.1] — 2026-07-09 — Document vault load fix
 
 Fixes documents failing to load — old and newly uploaded alike — on
