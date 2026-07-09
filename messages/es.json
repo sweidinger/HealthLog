@@ -5458,6 +5458,38 @@
       "connectionRevoke": "Desconectar",
       "connectionRevokeDescription": "Esto finaliza el acceso del asistente de inmediato e impide su renovación. Será necesario autorizarlo de nuevo para volver a conectarlo.",
       "connectionRevokeFailed": "No se pudo desconectar el asistente."
+    },
+    "strava": "Strava",
+    "stravaDescription": "Conecta tu cuenta de Strava para sincronizar tus actividades con tu historial de entrenamientos.",
+    "stravaDescriptionSecondary": "Las actividades llegan a tu panel en segundo plano. ¿Nuevo en la configuración? Sigue la",
+    "stravaViewData": "Ver tus entrenamientos",
+    "stravaCredentials": "Credenciales de API",
+    "stravaClientId": "ID de cliente",
+    "stravaClientSecret": "Secreto de cliente",
+    "stravaCredentialsSaved": "Credenciales guardadas",
+    "stravaCredentialsSavedPlaceholder": "Guardadas — introduce nuevas para reemplazar",
+    "stravaSaveCredentials": "Guardar",
+    "stravaUnavailable": "Strava no está configurado en este servidor. Añade arriba tus propias credenciales de API de Strava o pide a tu administrador que configure la app compartida.",
+    "stravaConnect": "Conectar Strava",
+    "stravaDisconnect": "Desconectar",
+    "stravaDisconnectTitle": "¿Desconectar Strava?",
+    "stravaDisconnectDescription": "Las sincronizaciones futuras se detienen. Las actividades ya importadas permanecen en tu historial.",
+    "stravaOauthConnected": "Strava conectado: la primera sincronización comienza en segundo plano.",
+    "stravaOauthFailed": "La conexión con Strava falló",
+    "stravaOauthError": {
+      "csrf1": "La comprobación de seguridad falló porque faltaba la cookie del navegador. Inicia la conexión de nuevo en el mismo navegador.",
+      "state": "La respuesta de Strava no coincidió con ninguna solicitud de conexión abierta. Inicia la conexión de nuevo.",
+      "cross_user": "La respuesta pertenece a una solicitud de otra cuenta. Reinicia la conexión desde tu propia cuenta.",
+      "nocode": "Strava no devolvió un código de autorización. Inténtalo de nuevo y permite el acceso en el diálogo de Strava.",
+      "nocreds": "Strava no está configurado en este servidor. Pide a tu administrador que añada las credenciales de API de Strava.",
+      "token": "El intercambio de tokens con Strava falló. Inicia la conexión de nuevo.",
+      "rate_limited": "Demasiados intentos de conexión. Espera un momento e inténtalo de nuevo.",
+      "generic": "Error desconocido al conectar. Inicia la conexión de nuevo."
+    },
+    "garminInfo": {
+      "title": "Garmin",
+      "body": "Garmin no tiene conexión directa aquí. Conéctalo a través de Apple Health (iOS) o Google Health Connect (Android). Las métricas propias de Garmin — Body Battery, Training Load, estado de HRV, VO₂ máx.— no las comparte Garmin con ninguna de las dos plataformas.",
+      "docsLink": "Leer la guía"
     }
   },
   "admin": {

@@ -95,6 +95,20 @@ test.describe("/settings/integrations Pixel-5 layout", () => {
                 webhookSecret: "ml_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                 entryCount: 42,
               },
+              // v1.28.x — Strava OAuth card reads off this consolidated
+              // envelope; without a `strava` entry the new card's query key
+              // never resolves and the integrations page hangs.
+              {
+                integration: "strava",
+                state: "disconnected",
+                lastSuccessAt: null,
+                lastAttemptAt: null,
+                lastError: null,
+                connected: false,
+                configured: false,
+                available: false,
+                hasOwnCredentials: false,
+              },
             ],
           },
           error: null,
@@ -143,9 +157,10 @@ test.describe("/settings/integrations Pixel-5 layout", () => {
 
     // Wait for the pills to mount (queries resolve after first paint).
     // One pill per card: Withings, WHOOP, Fitbit, Google Health, Polar,
-    // Oura, Nightscout.
+    // Oura, Strava, Nightscout. (The Garmin info note is not an OAuth card and
+    // carries no pill.)
     const pills = page.locator('[data-testid="integration-status-pill"]');
-    await expect(pills).toHaveCount(7, { timeout: 10_000 });
+    await expect(pills).toHaveCount(8, { timeout: 10_000 });
 
     // Withings is connected in this fixture; WHOOP is a BYO-keys card that
     // stays dormant until an operator adds credentials, so assert the one

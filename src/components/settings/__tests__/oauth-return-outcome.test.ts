@@ -11,7 +11,7 @@ import { parseOAuthOutcome, oauthReasonKey } from "../integrations-section";
 
 describe("parseOAuthOutcome", () => {
   it("reads a connected outcome for every OAuth provider", () => {
-    for (const p of ["polar", "oura", "whoop", "fitbit"] as const) {
+    for (const p of ["polar", "oura", "whoop", "fitbit", "strava"] as const) {
       expect(parseOAuthOutcome(`?${p}=connected`)).toEqual({
         provider: p,
         kind: "connected",
@@ -24,6 +24,11 @@ describe("parseOAuthOutcome", () => {
       provider: "whoop",
       kind: "error",
       reason: "token",
+    });
+    expect(parseOAuthOutcome("?strava=error&reason=cross_user")).toEqual({
+      provider: "strava",
+      kind: "error",
+      reason: "cross_user",
     });
     expect(parseOAuthOutcome("?fitbit=error&reason=expired")).toEqual({
       provider: "fitbit",

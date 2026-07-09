@@ -99,6 +99,12 @@ export const DEFAULT_WORKOUT_SOURCE_PRIORITY: readonly MeasurementSource[] = [
   // session.
   "FITBIT",
   "WITHINGS",
+  // v1.28.x — Strava ranks below the device-native captures (Apple/WHOOP/
+  // Fitbit/Withings on-wrist HR) but above MANUAL/IMPORT: a Strava activity is
+  // often itself a re-upload of an Apple/Garmin recording, so its HR/calories
+  // are lower-fidelity or absent on the summary. A user who records primarily
+  // on Strava (phone GPS) can promote it in Settings → Sources.
+  "STRAVA",
   "MANUAL",
   "IMPORT",
 ] as const;

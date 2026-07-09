@@ -17,11 +17,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { FitbitCard } from "@/components/settings/integrations/fitbit-card";
+import { GarminInfoNote } from "@/components/settings/integrations/garmin-info-note";
 import { GoogleHealthCard } from "@/components/settings/integrations/google-health-card";
 import { NightscoutCard } from "@/components/settings/integrations/nightscout-card";
 import type { OAuthProviderStatus } from "@/components/settings/integrations/oauth-provider-card";
 import { OuraCard } from "@/components/settings/integrations/oura-card";
 import { PolarCard } from "@/components/settings/integrations/polar-card";
+import { StravaCard } from "@/components/settings/integrations/strava-card";
 import {
   pickStatus,
   useIntegrationStatuses,
@@ -71,6 +73,8 @@ const OAUTH_OUTCOME_PROVIDERS = [
   "whoop",
   "fitbit",
   "googleHealth",
+  // v1.28.x — Strava callback redirects with `?strava=connected|error&reason=…`.
+  "strava",
 ] as const;
 type OAuthOutcomeProvider = (typeof OAUTH_OUTCOME_PROVIDERS)[number];
 
@@ -83,6 +87,7 @@ const OAUTH_OUTCOME_KEYS: Record<
   whoop: queryKeys.whoop,
   fitbit: queryKeys.fitbit,
   googleHealth: queryKeys.googleHealth,
+  strava: queryKeys.strava,
 };
 
 /**
@@ -259,6 +264,10 @@ export function ConnectionsPanel() {
   // no longer fire their own /api/<provider>/status round-trip.
   const polarViewModel = toOAuthStatus(pickStatus(integrationStatus, "polar"));
   const ouraViewModel = toOAuthStatus(pickStatus(integrationStatus, "oura"));
+  // v1.28.x — Strava reads off the same consolidated envelope.
+  const stravaViewModel = toOAuthStatus(
+    pickStatus(integrationStatus, "strava"),
+  );
 
   return (
     <div className="space-y-6" data-slot="connections-panel">
@@ -282,8 +291,17 @@ export function ConnectionsPanel() {
       <div id="oura" className="scroll-mt-28">
         <OuraCard enabled={isAuthenticated} viewModel={ouraViewModel} />
       </div>
+      <div id="strava" className="scroll-mt-28">
+        <StravaCard enabled={isAuthenticated} viewModel={stravaViewModel} />
+      </div>
       <div id="nightscout" className="scroll-mt-28">
         <NightscoutCard enabled={isAuthenticated} />
+      </div>
+      {/* Garmin: no direct connector (business-partner-only). A quiet
+          non-connector note pointing to the Apple Health / Health Connect
+          path — not an OAuthProviderCard (nothing to connect). */}
+      <div id="garmin" className="scroll-mt-28">
+        <GarminInfoNote />
       </div>
     </div>
   );

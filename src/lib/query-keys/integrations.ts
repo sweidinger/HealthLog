@@ -57,6 +57,13 @@ export const integrationKeys = {
   oura: () => ["oura"] as const,
   ouraStatus: () => ["oura", "status"] as const,
 
+  // v1.28.x — Strava OAuth integration card. Reads status off the consolidated
+  // /api/integrations/status envelope (like WHOOP/Fitbit/Polar/Oura); the
+  // connect/disconnect/credentials mutations invalidate this key so the card
+  // repaints.
+  strava: () => ["strava"] as const,
+  stravaStatus: () => ["strava", "status"] as const,
+
   moodlogStatus: () => ["moodlog-status"] as const,
   integrationsStatus: () => ["integrations", "status"] as const,
 
