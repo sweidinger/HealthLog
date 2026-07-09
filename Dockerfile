@@ -82,18 +82,29 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # @napi-rs/canvas (document PDF rasterization): Next's file tracer copies the
-# native binary's package into the standalone tree but NOT the pnpm symlink that
-# @napi-rs/canvas's loader resolves it through, so at runtime it fails with
-# "Failed to load native binding" and rasterization silently degrades. Copy the
-# prebuilt .node into the canvas package dir itself so the loader's built-in
-# local-file fallback (`require('./skia.<triple>.node')`) resolves it. Per-arch
-# buildx installs only the matching musl triple, so the find is arch-correct.
-RUN CANVAS_DIR="$(find ./node_modules/.pnpm -maxdepth 4 -type d -path '*@napi-rs+canvas@*/node_modules/@napi-rs/canvas' 2>/dev/null | head -1)"; \
-    NODE_BIN="$(find ./node_modules/.pnpm -maxdepth 5 -name 'skia.linux-*-musl.node' 2>/dev/null | head -1)"; \
-    if [ -n "$CANVAS_DIR" ] && [ -n "$NODE_BIN" ]; then \
-      cp "$NODE_BIN" "$CANVAS_DIR/" && chown nextjs:nodejs "$CANVAS_DIR/$(basename "$NODE_BIN")" && \
-      echo "canvas native binding staged: $(basename "$NODE_BIN") -> $CANVAS_DIR"; \
-    else echo "WARN: canvas native binding not found; PDF rasterization will degrade to local text"; fi
+# native binary's package into the standalone tree but NOT the pnpm symlinks that
+# resolve it, so at runtime nothing can `require('@napi-rs/canvas')`. TWO
+# resolutions must work: (1) pdfjs-dist does a bare `require('@napi-rs/canvas')`
+# from its OWN dir — Node walks up to /app/node_modules, so the package must be
+# HOISTED to the top level there (verified: without it pdfjs logs "Cannot load
+# @napi-rs/canvas" → "Cannot polyfill DOMMatrix" → rasterize ReferenceError);
+# (2) @napi-rs/canvas's own loader then resolves its platform binary. Hoist BOTH
+# the canvas package and the musl binary package to /app/node_modules/@napi-rs
+# via symlink into the .pnpm store, and also drop the prebuilt .node into the
+# canvas dir so the loader's local-file fallback (`require('./skia.<triple>.node')`)
+# is belt-and-suspenders. Per-arch buildx installs only the matching musl triple.
+RUN set -e; \
+    CANVAS_DIR="$(find /app/node_modules/.pnpm -maxdepth 4 -type d -path '*@napi-rs+canvas@*/node_modules/@napi-rs/canvas' 2>/dev/null | head -1)"; \
+    MUSL_DIR="$(find /app/node_modules/.pnpm -maxdepth 4 -type d -path '*@napi-rs+canvas-linux-*-musl@*/node_modules/@napi-rs/canvas-linux-*-musl' 2>/dev/null | head -1)"; \
+    NODE_BIN="$(find /app/node_modules/.pnpm -maxdepth 5 -name 'skia.linux-*-musl.node' 2>/dev/null | head -1)"; \
+    if [ -n "$CANVAS_DIR" ]; then \
+      mkdir -p /app/node_modules/@napi-rs; \
+      ln -sfn "$CANVAS_DIR" /app/node_modules/@napi-rs/canvas; \
+      [ -n "$MUSL_DIR" ] && ln -sfn "$MUSL_DIR" "/app/node_modules/@napi-rs/$(basename "$MUSL_DIR")"; \
+      [ -n "$NODE_BIN" ] && cp "$NODE_BIN" "$CANVAS_DIR/"; \
+      chown -R nextjs:nodejs /app/node_modules/@napi-rs; \
+      echo "canvas hoisted for pdfjs: $CANVAS_DIR (musl=$MUSL_DIR)"; \
+    else echo "WARN: @napi-rs/canvas not found; PDF rasterization will degrade to local text"; fi
 
 # Copy Prisma for migrations (schema, migration SQL, config, engines)
 COPY --from=builder /app/prisma ./prisma

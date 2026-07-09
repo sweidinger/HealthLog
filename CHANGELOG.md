@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.28.6] — 2026-07-09 — Fix scanned-PDF reading in the container
+
+Reading a scanned PDF with a non-Anthropic AI provider (a signed-in subscription
+model or a local vision model) failed with "PDF scanning needs a Claude vision
+provider" because the PDF page renderer could not load its image library inside
+the standalone container image. The library is now resolvable where the renderer
+looks for it, so a scanned PDF is rendered to images and read as intended.
+
 ## [1.28.5] — 2026-07-09 — Read documents with a subscription AI, cleaner surfaces
 
 Documents can now be read by a signed-in (subscription) AI provider — the
