@@ -218,10 +218,13 @@ export function SubPageShell({
       <div data-slot="insights-subpage" className="space-y-3 md:space-y-4">
         {/* v1.8.7.1 — back-nav leads the page, above the heading. */}
         {backLink}
-        {/* The heading + explainer indent to the cards' inner text edge
-            (`px-6`, the Card content padding), so the page head reads as
-            part of the card column instead of hanging outside it. */}
-        <header className="space-y-1.5 px-6">
+        {/* The heading + explainer indent to the cards' inner text edge so
+            the page head reads as part of the card column instead of hanging
+            outside it. Track the card slot inset EXACTLY (`px-4 md:px-6`) —
+            never a flat `px-6`, which sat 8 px right of every card body on
+            mobile and reopened the heading-vs-body step (insights left-edge
+            rule: one reading edge across breakpoints). */}
+        <header className="space-y-1.5 px-4 md:px-6">
           {/* v1.8.6 — the heading row pins the Coach icon top-right while the
             title / nudge / badge wrap together on the left.
 

@@ -10,6 +10,7 @@ import type {
   DerivedCoverage,
   DerivedProvenance,
 } from "@/lib/insights/derived/types";
+import { TileHeader } from "@/components/insights/tile-header";
 import { ScoreRing } from "./score-ring";
 import { CoverageMeter } from "./coverage-meter";
 import {
@@ -126,20 +127,19 @@ export function ScoreAnatomyView({
           : undefined
       }
       className={cn(
-        "flex flex-col gap-5 rounded-xl border p-5",
+        "flex flex-col gap-4 rounded-xl border p-4 md:p-6",
         hue ? "wellness-detail-card" : "border-border bg-card",
         className,
       )}
       aria-label={typeof title === "string" ? title : undefined}
     >
-      {/* Hero: title + ring + caption */}
+      {/* Left-aligned canonical tile header — sits on the same reading edge as
+          the sibling assessment card that stacks beneath it on a score
+          sub-page, instead of the old centred uppercase title that floated
+          toward the middle and shared no left line with any card. */}
+      <TileHeader title={title} />
+      {/* Hero: ring + caption — a centred identity block below the header. */}
       <div className="flex flex-col items-center gap-3 text-center">
-        <h2
-          data-slot="score-anatomy-title"
-          className="text-foreground text-sm font-semibold tracking-wide uppercase"
-        >
-          {title}
-        </h2>
         {/* v1.15.12 F2 — vertical breathing room so the ring's bloom/glow is
             never clipped top/bottom by the hero container. */}
         <div className="py-2">
@@ -176,7 +176,7 @@ export function ScoreAnatomyView({
         />
       ) : (
         <div data-slot="score-anatomy-contributors" className="space-y-3">
-          <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+          <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             {t("insights.derived.anatomy.contributorsLabel")}
           </p>
           <ul className="space-y-2.5">

@@ -4,15 +4,10 @@ import { ShieldCheck } from "lucide-react";
 
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LearningGate } from "@/components/ui/learning-gate";
 import { LearnMoreLink } from "@/components/ui/learn-more-link";
+import { TileHeader } from "@/components/insights/tile-header";
 
 /**
  * v1.19.2 — calm readout for Oura's daily resilience level.
@@ -96,21 +91,25 @@ export function ResilienceTile() {
   return (
     <Card data-slot="resilience-tile" data-metric="RESILIENCE">
       <CardHeader>
-        <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
-          <ShieldCheck
-            className="text-muted-foreground h-4 w-4 shrink-0"
-            aria-hidden="true"
-          />
-          <span className="truncate">{t("measurements.typeResilience")}</span>
-        </CardTitle>
-        {bandKey != null ? (
-          <CardAction
-            data-slot="resilience-band"
-            className="text-foreground self-baseline text-lg font-semibold"
-          >
-            {t(bandKey)}
-          </CardAction>
-        ) : null}
+        {/* Canonical compact tile header — foreground `h-4` icon + `text-sm`
+            title; the current band rides the `right` slot. */}
+        <TileHeader
+          size="sm"
+          icon={ShieldCheck}
+          title={t("measurements.typeResilience")}
+          className="min-w-0"
+          titleClassName="min-w-0 truncate"
+          right={
+            bandKey != null ? (
+              <span
+                data-slot="resilience-band"
+                className="text-foreground text-lg font-semibold"
+              >
+                {t(bandKey)}
+              </span>
+            ) : undefined
+          }
+        />
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-foreground text-sm leading-relaxed">
