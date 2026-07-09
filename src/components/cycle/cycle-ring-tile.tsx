@@ -109,7 +109,7 @@ export function CycleRingTile({ className }: { className?: string }) {
         // per-phase hue arc inside the ring is the only saturated thing.
         style={{ "--tile-hue": hue } as React.CSSProperties}
         className={cn(
-          "wellness-tile focus-visible:ring-ring flex flex-col gap-4 rounded-xl p-5 focus-visible:ring-2 focus-visible:outline-none",
+          "wellness-tile focus-visible:ring-ring flex flex-col gap-4 rounded-xl p-4 focus-visible:ring-2 focus-visible:outline-none md:p-6",
           play && "wellness-tile-rise",
           className,
         )}

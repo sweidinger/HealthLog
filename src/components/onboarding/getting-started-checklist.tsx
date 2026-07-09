@@ -311,7 +311,7 @@ export function GettingStartedChecklist() {
     <section
       data-testid="onboarding-card"
       aria-labelledby="getting-started-title"
-      className="bg-card border-border space-y-4 rounded-2xl border p-5 sm:p-6"
+      className="bg-card border-border space-y-4 rounded-xl border p-4 md:p-6"
     >
       {/* v1.4.27 MB7 / CF-44 — `flex-wrap` on the header lets the
           dismiss button drop to its own row when the German title +

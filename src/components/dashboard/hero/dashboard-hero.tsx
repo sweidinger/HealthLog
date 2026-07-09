@@ -386,7 +386,7 @@ export function DashboardHero({
           drifting to the vertical centre of the taller ring column. */}
       <div className="flex h-full flex-col gap-4 md:gap-2">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 flex-1 space-y-3">
+          <div className="min-w-0 flex-1 space-y-2">
             {/* Greeting leads the typographic hierarchy: larger + heavier
               than the verdict so the personalised line reads first.
               The verdict keeps its medium weight one step down — still
@@ -399,13 +399,17 @@ export function DashboardHero({
             >
               {welcomeText}
             </p>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {/* Text left, action right, one row — the PageHeader/TileHeader
+              inline-action pattern. The sentence takes the available width and
+              wraps internally (`min-w-0 flex-1`); the button never wraps to its
+              own line (`shrink-0`), so the action stays beside the text. */}
+            <div className="flex items-start justify-between gap-3">
               {sentenceHref ? (
                 <Link
                   href={sentenceHref}
                   data-slot="dashboard-hero-verdict"
                   data-verdict-variant={verdict.variant}
-                  className="text-foreground/90 hover:text-foreground text-base font-medium transition-colors"
+                  className="text-foreground/90 hover:text-foreground min-w-0 flex-1 text-base font-medium transition-colors"
                 >
                   {sentence}
                 </Link>
@@ -413,7 +417,7 @@ export function DashboardHero({
                 <p
                   data-slot="dashboard-hero-verdict"
                   data-verdict-variant={verdict.variant}
-                  className="text-foreground/90 text-base font-medium"
+                  className="text-foreground/90 min-w-0 flex-1 text-base font-medium"
                 >
                   {sentence}
                 </p>
@@ -424,7 +428,7 @@ export function DashboardHero({
                     asChild
                     size="default"
                     variant="outline"
-                    className="min-h-11 sm:min-h-9"
+                    className="min-h-11 shrink-0 sm:min-h-9"
                     data-slot="dashboard-hero-cta"
                   >
                     <Link href={cta.href}>{t(ctaLabelKey)}</Link>
@@ -432,7 +436,7 @@ export function DashboardHero({
                 ) : (
                   <Button
                     size="default"
-                    className="min-h-11 sm:min-h-9"
+                    className="min-h-11 shrink-0 sm:min-h-9"
                     data-slot="dashboard-hero-cta"
                     onClick={() => onQuickEntry(cta.target)}
                   >

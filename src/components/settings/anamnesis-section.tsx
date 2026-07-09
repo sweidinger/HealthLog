@@ -18,13 +18,10 @@
  * record where it belongs.
  */
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { HeartPulse, ShieldAlert, Users } from "lucide-react";
+
+import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { useModuleEnabled } from "@/hooks/use-module-enabled";
 
@@ -38,42 +35,33 @@ export function AnamnesisSection() {
   return (
     <div className="space-y-6">
       {coachEnabled && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("records.conditions.cardTitle")}</CardTitle>
-            <CardDescription>
-              {t("records.conditions.cardDescription")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ConditionsManager />
-          </CardContent>
-        </Card>
+        <SettingsCard className="space-y-4">
+          <SettingsCardHeader
+            icon={HeartPulse}
+            title={t("records.conditions.cardTitle")}
+            description={t("records.conditions.cardDescription")}
+          />
+          <ConditionsManager />
+        </SettingsCard>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("records.allergies.cardTitle")}</CardTitle>
-          <CardDescription>
-            {t("records.allergies.cardDescription")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AllergyManager />
-        </CardContent>
-      </Card>
+      <SettingsCard className="space-y-4">
+        <SettingsCardHeader
+          icon={ShieldAlert}
+          title={t("records.allergies.cardTitle")}
+          description={t("records.allergies.cardDescription")}
+        />
+        <AllergyManager />
+      </SettingsCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("records.family.cardTitle")}</CardTitle>
-          <CardDescription>
-            {t("records.family.cardDescription")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FamilyHistoryManager />
-        </CardContent>
-      </Card>
+      <SettingsCard className="space-y-4">
+        <SettingsCardHeader
+          icon={Users}
+          title={t("records.family.cardTitle")}
+          description={t("records.family.cardDescription")}
+        />
+        <FamilyHistoryManager />
+      </SettingsCard>
 
       <p className="text-muted-foreground text-xs">{t("records.disclaimer")}</p>
     </div>

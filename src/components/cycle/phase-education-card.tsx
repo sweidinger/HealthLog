@@ -119,7 +119,7 @@ export function PhaseEducationCard({
         aria-label={t("cycle.phaseEducation.title")}
         style={{ "--tile-hue": hue } as React.CSSProperties}
         className={cn(
-          "wellness-tile rounded-xl px-5 py-5",
+          "wellness-tile rounded-xl p-4 md:p-6",
           animate && "wellness-tile-rise",
           className,
         )}
@@ -127,8 +127,7 @@ export function PhaseEducationCard({
         {/* Zone 1 — eyebrow + phase name with a hue dot (never colour-only). */}
         <div className="flex items-center gap-2">
           <Sparkles
-            className="h-4 w-4 shrink-0"
-            style={{ color: hue }}
+            className="text-foreground h-4 w-4 shrink-0"
             aria-hidden="true"
           />
           <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">

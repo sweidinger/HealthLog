@@ -219,13 +219,13 @@ export function CycleView() {
                   : undefined
               }
               className={cn(
-                "wellness-tile flex flex-col items-center gap-3 rounded-xl px-5 py-5",
+                "wellness-tile flex flex-col items-center gap-3 rounded-xl p-4 md:p-6",
                 play && "wellness-tile-rise",
               )}
             >
               {loading ? (
                 <div className="flex h-[220px] items-center justify-center">
-                  <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="text-muted-foreground h-8 w-8 animate-spin motion-reduce:animate-none" />
                 </div>
               ) : calendarError ? (
                 <div className="flex h-[220px] flex-col items-center justify-center gap-3 text-center">
@@ -347,7 +347,7 @@ export function CycleView() {
                         className="text-muted-foreground bg-muted/40 mb-3 flex items-start gap-2 rounded-lg p-3 text-sm"
                       >
                         <Sparkles
-                          className="text-primary mt-0.5 h-4 w-4 shrink-0"
+                          className="text-foreground mt-0.5 h-4 w-4 shrink-0"
                           aria-hidden="true"
                         />
                         <span>{t("cycle.calendar.learning")}</span>
@@ -429,7 +429,7 @@ export function CycleView() {
               </Card>
             ) : profileQuery.isLoading ? (
               <div className="flex h-32 items-center justify-center">
-                <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="text-muted-foreground h-6 w-6 animate-spin motion-reduce:animate-none" />
               </div>
             ) : profileQuery.data ? (
               <CycleSettings

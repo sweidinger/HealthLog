@@ -133,7 +133,7 @@ function RingTile({
         } as React.CSSProperties
       }
       className={cn(
-        "wellness-tile focus-visible:ring-ring flex flex-col gap-4 rounded-xl p-5 focus-visible:ring-2 focus-visible:outline-none",
+        "wellness-tile focus-visible:ring-ring flex flex-col gap-4 rounded-xl p-4 focus-visible:ring-2 focus-visible:outline-none md:p-6",
         animate && "wellness-tile-rise",
       )}
     >

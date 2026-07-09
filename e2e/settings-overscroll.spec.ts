@@ -13,18 +13,28 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  * the shell's own budget and reopens the dark-band-below-the-last-card
  * bug.
  *
- * The assertion: `main.scrollHeight` ≤ bottom edge of the lowest content
- * element + the shell-owned padding + tolerance. Runs across the
- * settings routes (short hub, long sortable-list subpages, long form
- * section) at desktop AND phone-shaped viewports, because the two shell
+ * The assertion: `main.scrollHeight` ≤ bottom edge of the lowest real
+ * content element + the shell-owned padding + tolerance. "Real content"
+ * is measured against each element's CONTENT-box bottom, not its padding-
+ * box: a sub-shell column that re-declares its own bottom gutter (`pb-*`)
+ * no longer folds that gutter into `contentBottom`, so a redundant reserve
+ * FAILS the assertion instead of being absorbed by it. Runs across both
+ * two-column sub-shells — Settings AND Admin (they share the grid-floor
+ * source) — at desktop AND phone-shaped viewports, because the two shell
  * paddings differ per breakpoint.
  */
 const ROUTES = [
+  // Settings sub-shell — short hub, long sortable-list subpages, long form.
   "/settings/layout",
   "/settings/layout/dashboard",
   "/settings/layout/insights",
   "/settings/account",
   "/settings/notifications",
+  // Admin sub-shell — short overview + a longer list page. Guards that the
+  // pre-#154 column reserve stays retired on every admin breakpoint.
+  "/admin",
+  "/admin/login-overview",
+  "/admin/system-status",
 ] as const;
 
 const VIEWPORTS = [
@@ -32,7 +42,7 @@ const VIEWPORTS = [
   { name: "phone", width: 390, height: 844, expectedPad: 144 }, // pb-20 + main pb-16
 ] as const;
 
-test.describe("settings vertical over-scroll guard", () => {
+test.describe("settings + admin vertical over-scroll guard", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
   test.beforeEach(({}, testInfo) => {
@@ -56,11 +66,17 @@ test.describe("settings vertical over-scroll guard", () => {
           if (!main) return null;
           const wrapper = main.firstElementChild as HTMLElement | null;
           if (!wrapper) return null;
-          // Lowest content edge: max bottom over the wrapper's visible,
-          // non-fixed descendants, in the scroll container's coordinate
-          // space. Elements inside nested scroll containers are clipped
-          // by their own overflow and never add page scroll height, so
-          // skip anything whose scrollable ancestor is not `main`.
+          // Lowest content edge: max CONTENT-box bottom over the wrapper's
+          // visible, non-fixed descendants, in the scroll container's
+          // coordinate space. Using the content box (padding-box bottom
+          // minus the element's own bottom padding + border) means a
+          // layout column's own `pb-*` gutter is NOT counted — its last
+          // real child (a card) is still measured through the column's
+          // content box, so a redundant sub-shell bottom gutter shows up
+          // as pure over-scroll instead of inflating the allowed budget.
+          // Elements inside nested scroll containers are clipped by their
+          // own overflow and never add page scroll height, so skip
+          // anything whose scrollable ancestor is not `main`.
           let maxBottom = 0;
           const mainTop = main.getBoundingClientRect().top;
           for (const el of wrapper.querySelectorAll<HTMLElement>("*")) {
@@ -84,7 +100,10 @@ test.describe("settings vertical over-scroll guard", () => {
               p = p.parentElement;
             }
             if (inner) continue;
-            const bottom = rect.bottom + main.scrollTop - mainTop;
+            const padBottom = parseFloat(cs.paddingBottom) || 0;
+            const borderBottom = parseFloat(cs.borderBottomWidth) || 0;
+            const bottom =
+              rect.bottom - padBottom - borderBottom + main.scrollTop - mainTop;
             if (bottom > maxBottom) maxBottom = bottom;
           }
           return {

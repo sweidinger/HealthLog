@@ -9,6 +9,7 @@ import {
   sentimentColorClass,
   type TrendDirectionSentiment,
 } from "@/lib/insights/trend-sentiment";
+import { TileHeader } from "@/components/insights/tile-header";
 
 /**
  * v1.10.0 — the Apple-Health-Highlights grid tile.
@@ -138,27 +139,26 @@ export function SparklineDeltaTile({
         className,
       )}
     >
-      {/* Header row matches the canonical TileHeader language: a leading
-          foreground icon + a foreground `CardTitle`-weight heading — never
-          the old muted-uppercase caption. Kept on one line for the dense
-          grid; provenance trails to the right edge. */}
-      <div className="flex min-w-0 items-center gap-2">
-        <Icon className="text-foreground h-5 w-5 shrink-0" aria-hidden="true" />
-        <span
-          className="text-foreground min-w-0 flex-1 truncate text-base leading-none font-semibold whitespace-nowrap"
-          data-slot="sparkline-delta-tile-label"
-        >
-          {label}
-        </span>
-        {provenance ? (
-          <span
-            data-slot="sparkline-delta-tile-provenance"
-            className="ml-auto shrink-0"
-          >
-            {provenance}
-          </span>
-        ) : null}
-      </div>
+      {/* The canonical tile-header primitive (was a hand-rolled copy of it):
+          leading foreground icon + foreground `CardTitle` heading, provenance
+          in the `right` slot. Routing through the primitive keeps this dense
+          grid tile from drifting out of the header contract. */}
+      <TileHeader
+        icon={Icon}
+        title={label}
+        className="min-w-0"
+        titleClassName="min-w-0 truncate whitespace-nowrap"
+        right={
+          provenance ? (
+            <span
+              data-slot="sparkline-delta-tile-provenance"
+              className="shrink-0"
+            >
+              {provenance}
+            </span>
+          ) : undefined
+        }
+      />
 
       <div
         className="mt-2 flex flex-wrap items-baseline gap-x-1.5"

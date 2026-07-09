@@ -167,7 +167,7 @@ export function BaselineForm() {
         </p>
       </header>
 
-      <fieldset className="bg-card border-border space-y-5 rounded-xl border p-5">
+      <fieldset className="bg-card border-border space-y-4 rounded-xl border p-4 md:p-6">
         <legend className="sr-only">{t("onboarding.baseline.title")}</legend>
 
         <FieldGroup

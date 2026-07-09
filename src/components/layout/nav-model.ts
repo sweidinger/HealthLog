@@ -300,26 +300,22 @@ export interface MobileMoreHubEntry {
 
 /**
  * The ordered "More" hub for the mobile bottom-nav: every visible feature
- * destination that isn't a primary slot, in model order, followed by the
- * shared utility tail (Settings, Notifications). The desktop sidebar renders
- * the same feature list inline and consumes the same utility tail in its
- * footer + avatar menu, so the two bars cannot drift into two hand-curated
- * lists.
+ * destination that isn't a primary slot, in model order. Feature destinations
+ * only — the account utilities (Settings, Notifications) are NOT appended here.
+ * They live solely in the user/avatar menu (mobile top-bar dropdown; desktop
+ * sidebar avatar menu + footer), so surfacing them in the More hub too would
+ * duplicate a utility across two menus reachable from the same screen. The
+ * desktop sidebar renders the same feature list inline, so the two bars cannot
+ * drift into two hand-curated feature lists.
  */
 export function mobileMoreHubDestinations(opts: {
   modules: ModuleVisibilityMap | undefined;
   /** Hydration gate — see `isNavDestinationVisible`. Defaults to mounted. */
   mounted?: boolean;
 }): MobileMoreHubEntry[] {
-  const features = visibleNavDestinations(opts.modules, opts.mounted ?? true)
+  return visibleNavDestinations(opts.modules, opts.mounted ?? true)
     .filter((d) => !BOTTOM_NAV_PRIMARY_SLOT_HREFS.includes(d.href))
     .map((d) => ({ href: d.href, tKey: d.tKey, icon: d.icon }));
-  const tail = visibleUtilityDestinations().map((d) => ({
-    href: d.href,
-    tKey: d.tKey,
-    icon: d.icon,
-  }));
-  return [...features, ...tail];
 }
 
 /**

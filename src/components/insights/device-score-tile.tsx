@@ -6,16 +6,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import type { DataSummary } from "@/lib/analytics/trends";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LearningGate } from "@/components/ui/learning-gate";
 import { HealthChartDynamicMini } from "@/components/charts/health-chart-dynamic";
 import { SectionHeading } from "@/components/insights/section-heading";
+import { TileHeader } from "@/components/insights/tile-header";
 
 /**
  * v1.17.1 — calm, data-gated readout for a device-native score that has no
@@ -100,26 +95,31 @@ export function DeviceScoreTile({
       className={className}
     >
       <CardHeader>
-        <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
-          <Icon
-            className="text-muted-foreground h-4 w-4 shrink-0"
-            aria-hidden="true"
-          />
-          <span className="truncate">{title}</span>
-        </CardTitle>
-        {latest != null ? (
-          <CardAction
-            data-slot="device-score-latest"
-            className="text-foreground self-baseline text-lg font-semibold tabular-nums"
-          >
-            {fmt(latest)}
-            {unit ? (
-              <span className="text-muted-foreground ml-1 text-xs font-normal">
-                {unit}
+        {/* Canonical compact tile header — foreground `h-4` icon + `text-sm`
+            title on the shared inset; the latest reading rides the `right`
+            slot so it stays pinned to the row's right edge. */}
+        <TileHeader
+          size="sm"
+          icon={Icon}
+          title={title}
+          className="min-w-0"
+          titleClassName="min-w-0 truncate"
+          right={
+            latest != null ? (
+              <span
+                data-slot="device-score-latest"
+                className="text-foreground text-lg font-semibold tabular-nums"
+              >
+                {fmt(latest)}
+                {unit ? (
+                  <span className="text-muted-foreground ml-1 text-xs font-normal">
+                    {unit}
+                  </span>
+                ) : null}
               </span>
-            ) : null}
-          </CardAction>
-        ) : null}
+            ) : undefined
+          }
+        />
       </CardHeader>
       <CardContent className="space-y-3">
         {isLearning ? (
