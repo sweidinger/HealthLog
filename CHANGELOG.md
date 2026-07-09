@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.28.13] — 2026-07-10 — Sharing a document shares only the document
+
+Fixes a scope bug: a link created from a document carried the full health record
+(vital signs, labs, medications) because an empty report scope was read as "all
+sections". A document share is now document-only — it serves the attached
+document and no health data — while sharing from Settings keeps the full record
+form. NOTE: revoke and re-create any document link made before this release; an
+earlier link cannot be narrowed retroactively.
+
 ## [1.28.12] — 2026-07-09 — Lab scans use your AI provider; tidier dashboard
 
 Scanning a lab report now uses the AI provider you already configured — including
