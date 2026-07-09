@@ -76,6 +76,13 @@ model User {
   codexTokenExpiresAt        DateTime? @map("codex_token_expires_at")
   codexConnectedAt           DateTime? @map("codex_connected_at")
   codexConnectionStatus      String    @default("disconnected") @map("codex_connection_status")
+  // Per-user opt-in to the operator's shared central Codex (ChatGPT
+  // subscription) connection stored on `AppSettings.adminCodex*`. OFF by
+  // default; only takes effect when the operator has actually connected the
+  // central Codex. Routing through it is external egress on a shared,
+  // train-by-default account bound by the operator's rate limits — consent-gated
+  // exactly like any other server-managed egress.
+  useCentralCodex            Boolean   @default(false) @map("use_central_codex")
   insightsPrivacyMode        String    @default("aggregated") @map("insights_privacy_mode") // "aggregated" | "raw"
   insightsCachedAt           DateTime? @map("insights_cached_at")
   insightsCachedText         String?   @map("insights_cached_text") // cached JSON output
@@ -3781,6 +3788,21 @@ model AppSettings {
   adminAiKeyEncrypted String? @map("admin_ai_key_encrypted")
   adminAiModel        String  @default("gpt-4o-mini") @map("admin_ai_model")
   adminAiBaseUrl      String  @default("https://api.openai.com/v1") @map("admin_ai_base_url")
+
+  // Operator-shared central Codex (ChatGPT subscription) OAuth credential. The
+  // operator connects ONE signed-in ChatGPT account here (device-code flow, same
+  // mechanism as the per-user `codex*Encrypted` columns) and any user who flips
+  // the per-user `useCentralCodex` opt-in routes their AI egress through it. The
+  // three token pieces (access, refresh, and the mandatory `ChatGPT-Account-ID`
+  // claim) are each AES-256-GCM encrypted at rest. OFF until the operator
+  // connects it; the shared account's rate limits + training-by-default caveat
+  // apply to every opted-in user (see the admin connect UI's honesty copy).
+  adminCodexAccessTokenEncrypted  String?   @map("admin_codex_access_token_encrypted")
+  adminCodexRefreshTokenEncrypted String?   @map("admin_codex_refresh_token_encrypted")
+  adminCodexAccountIdEncrypted    String?   @map("admin_codex_account_id_encrypted")
+  adminCodexTokenExpiresAt        DateTime? @map("admin_codex_token_expires_at")
+  adminCodexConnectedAt           DateTime? @map("admin_codex_connected_at")
+  adminCodexConnectionStatus      String    @default("disconnected") @map("admin_codex_connection_status")
 
   // v1.4.16 phase B5e — daily-aggregated rec-feedback summary written
   // by `feedback-aggregator.ts`. Shape:

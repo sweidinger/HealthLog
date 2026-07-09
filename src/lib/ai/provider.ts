@@ -9,6 +9,8 @@ import {
   refreshDeviceTokens,
   encryptCodexCreds,
   decryptCodexCreds,
+  encryptAdminCodexCreds,
+  decryptAdminCodexCreds,
 } from "./codex-oauth";
 import { isPublicUrl } from "@/lib/validations/notifications";
 import { isLocalAiHostAllowed } from "./local-host-allowlist";
@@ -218,6 +220,130 @@ async function resolveCodexProvider(
 }
 
 /**
+ * Operator-shared central Codex provider — the `admin-codex` chain entry.
+ *
+ * Mirrors `resolveCodexProvider` but reads the operator's singleton credential
+ * from `AppSettings.adminCodex*` (three dedicated encrypted columns) instead of
+ * the per-user `codex*Encrypted` columns, and writes any refreshed tokens back
+ * to the same singleton row. Returns null unless the operator has actually
+ * connected the central Codex (`adminCodexConnectionStatus === "connected"` with
+ * all three token columns present) — the per-user `useCentralCodex` opt-in is
+ * enforced by the caller before this is ever invoked.
+ *
+ * Never called with any user identity: the credential and every token refresh
+ * belong to the operator's account, so cost + rate limits land on the operator
+ * (billed against the operator cap, not the user plan).
+ */
+async function resolveAdminCodexProvider(): Promise<AIProvider | null> {
+  const settings = await prisma.appSettings.findUnique({
+    where: { id: "singleton" },
+    select: {
+      adminCodexConnectionStatus: true,
+      adminCodexAccessTokenEncrypted: true,
+      adminCodexRefreshTokenEncrypted: true,
+      adminCodexAccountIdEncrypted: true,
+      adminCodexTokenExpiresAt: true,
+    },
+  });
+
+  if (
+    settings?.adminCodexConnectionStatus !== "connected" ||
+    !settings.adminCodexAccessTokenEncrypted ||
+    !settings.adminCodexRefreshTokenEncrypted ||
+    !settings.adminCodexAccountIdEncrypted
+  ) {
+    return null;
+  }
+
+  const stored = decryptAdminCodexCreds({
+    accessEncrypted: settings.adminCodexAccessTokenEncrypted,
+    refreshEncrypted: settings.adminCodexRefreshTokenEncrypted,
+    accountIdEncrypted: settings.adminCodexAccountIdEncrypted,
+    expiresAt: settings.adminCodexTokenExpiresAt,
+  });
+  if (!stored) {
+    // Corrupt / undecryptable credential (e.g. a rotated-out key) — mark the
+    // singleton expired so the admin UI prompts a re-link. Never plaintext.
+    await prisma.appSettings.update({
+      where: { id: "singleton" },
+      data: { adminCodexConnectionStatus: "expired" },
+    });
+    return null;
+  }
+
+  let active = stored;
+
+  if (stored.expiresAt.getTime() < Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+    try {
+      const fresh = await refreshDeviceTokens(stored.refreshToken);
+      active = fresh;
+      const enc = encryptAdminCodexCreds(fresh);
+      await prisma.appSettings.update({
+        where: { id: "singleton" },
+        data: {
+          adminCodexAccessTokenEncrypted: enc.accessEncrypted,
+          adminCodexRefreshTokenEncrypted: enc.refreshEncrypted,
+          adminCodexAccountIdEncrypted: enc.accountIdEncrypted,
+          adminCodexTokenExpiresAt: enc.expiresAt,
+        },
+      });
+    } catch {
+      // Fall through — CodexClient triggers an on-401 refresh and persists via
+      // the callback below.
+    }
+  }
+
+  return new CodexClient({
+    accessToken: active.accessToken,
+    accountId: active.accountId,
+    onTokenRefresh: async () => {
+      const fresh = await prisma.appSettings.findUnique({
+        where: { id: "singleton" },
+        select: {
+          adminCodexAccessTokenEncrypted: true,
+          adminCodexRefreshTokenEncrypted: true,
+          adminCodexAccountIdEncrypted: true,
+          adminCodexTokenExpiresAt: true,
+        },
+      });
+      if (
+        !fresh?.adminCodexAccessTokenEncrypted ||
+        !fresh.adminCodexRefreshTokenEncrypted ||
+        !fresh.adminCodexAccountIdEncrypted
+      ) {
+        throw new Error("No central-codex refresh token available");
+      }
+      const decoded = decryptAdminCodexCreds({
+        accessEncrypted: fresh.adminCodexAccessTokenEncrypted,
+        refreshEncrypted: fresh.adminCodexRefreshTokenEncrypted,
+        accountIdEncrypted: fresh.adminCodexAccountIdEncrypted,
+        expiresAt: fresh.adminCodexTokenExpiresAt,
+      });
+      if (!decoded) {
+        throw new Error(
+          "Central-codex token storage corrupt; re-link required",
+        );
+      }
+      const refreshed = await refreshDeviceTokens(decoded.refreshToken);
+      const enc = encryptAdminCodexCreds(refreshed);
+      await prisma.appSettings.update({
+        where: { id: "singleton" },
+        data: {
+          adminCodexAccessTokenEncrypted: enc.accessEncrypted,
+          adminCodexRefreshTokenEncrypted: enc.refreshEncrypted,
+          adminCodexAccountIdEncrypted: enc.accountIdEncrypted,
+          adminCodexTokenExpiresAt: enc.expiresAt,
+        },
+      });
+      return {
+        accessToken: refreshed.accessToken,
+        accountId: refreshed.accountId,
+      };
+    },
+  });
+}
+
+/**
  * Resolve the AI provider for a given user.
  *
  * Priority:
@@ -295,6 +421,7 @@ export async function resolveProviderChain(
       aiLocalKeyEncrypted: true,
       aiOpenaiKeyEncrypted: true,
       aiProviderChain: true,
+      useCentralCodex: true,
     },
   });
 
@@ -311,6 +438,20 @@ export async function resolveProviderChain(
       resolved.push({ providerType: entry.providerType, instance });
     }
   }
+
+  // Operator-shared central Codex — appended LAST, and ONLY when the user opted
+  // in AND the operator has connected it. It is never part of the persisted
+  // chain (a persisted `admin-codex` entry resolves to null above), so this is
+  // the single place the opt-in gate is enforced. As a trailing fallback the
+  // user's own providers are tried first; a user with no personal provider
+  // resolves to `[admin-codex]` and is billed against the operator cap.
+  if (userRow?.useCentralCodex) {
+    const centralCodex = await resolveAdminCodexProvider();
+    if (centralCodex) {
+      resolved.push({ providerType: "admin-codex", instance: centralCodex });
+    }
+  }
+
   return resolved;
 }
 
@@ -411,14 +552,46 @@ export async function hasAnyConfiguredProvider(
       codexConnectionStatus: true,
       codexAccessTokenEncrypted: true,
       codexRefreshTokenEncrypted: true,
+      useCentralCodex: true,
     },
   });
   if (!userRow) return false;
   const settings = await prisma.appSettings.findUnique({
     where: { id: "singleton" },
-    select: { adminAiKeyEncrypted: true },
+    select: {
+      adminAiKeyEncrypted: true,
+      adminCodexConnectionStatus: true,
+      adminCodexAccessTokenEncrypted: true,
+      adminCodexRefreshTokenEncrypted: true,
+      adminCodexAccountIdEncrypted: true,
+    },
   });
-  return userRowHasProviderCredential(userRow, !!settings?.adminAiKeyEncrypted);
+  if (userRowHasProviderCredential(userRow, !!settings?.adminAiKeyEncrypted)) {
+    return true;
+  }
+  // A user with no personal provider can still be served by the operator's
+  // shared central Codex when they opted in and the operator connected it.
+  return userRow.useCentralCodex && appSettingsCentralCodexConnected(settings);
+}
+
+/**
+ * Presence-only check that the operator's central Codex is connected, over an
+ * already-loaded `AppSettings` subset. No decrypt, no network.
+ */
+function appSettingsCentralCodexConnected(
+  settings: {
+    adminCodexConnectionStatus: string | null;
+    adminCodexAccessTokenEncrypted: string | null;
+    adminCodexRefreshTokenEncrypted: string | null;
+    adminCodexAccountIdEncrypted: string | null;
+  } | null,
+): boolean {
+  return (
+    settings?.adminCodexConnectionStatus === "connected" &&
+    !!settings.adminCodexAccessTokenEncrypted &&
+    !!settings.adminCodexRefreshTokenEncrypted &&
+    !!settings.adminCodexAccountIdEncrypted
+  );
 }
 
 /**
@@ -502,18 +675,30 @@ export async function resolveProviderAvailability(
       codexConnectionStatus: true,
       codexAccessTokenEncrypted: true,
       codexRefreshTokenEncrypted: true,
+      useCentralCodex: true,
     },
   });
   if (!userRow) return { aiAvailable: false, managedBy: null };
   const settings = await prisma.appSettings.findUnique({
     where: { id: "singleton" },
-    select: { adminAiKeyEncrypted: true },
+    select: {
+      adminAiKeyEncrypted: true,
+      adminCodexConnectionStatus: true,
+      adminCodexAccessTokenEncrypted: true,
+      adminCodexRefreshTokenEncrypted: true,
+      adminCodexAccountIdEncrypted: true,
+    },
   });
   const managedBy = resolveManagedByFromRow(
     userRow,
     !!settings?.adminAiKeyEncrypted,
   );
-  return { aiAvailable: managedBy !== null, managedBy };
+  if (managedBy !== null) return { aiAvailable: true, managedBy };
+  // The operator's shared central Codex is operator-managed egress ("server").
+  if (userRow.useCentralCodex && appSettingsCentralCodexConnected(settings)) {
+    return { aiAvailable: true, managedBy: "server" };
+  }
+  return { aiAvailable: false, managedBy: null };
 }
 
 /**
@@ -568,6 +753,12 @@ async function resolveProviderForType(
       const admin = await resolveAdminProvider();
       return admin.type === "none" ? null : admin;
     }
+    case "admin-codex":
+      // Never resolved from a persisted chain entry — the operator-shared
+      // central Codex is appended in `resolveProviderChain` ONLY behind the
+      // per-user `useCentralCodex` opt-in. Returning null here keeps a
+      // hand-crafted `admin-codex` chain entry from bypassing that gate.
+      return null;
     default:
       return null;
   }

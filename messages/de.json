@@ -4781,6 +4781,13 @@
         "honesty": "Wenn aktiviert, wird jedes hochgeladene Dokument an deinen konfigurierten KI-Anbieter gesendet, um gelesen, beschrieben und für die Suche indiziert zu werden – ohne Bestätigung pro Dokument. Das geschieht auf dem Server, und der Inhalt des Dokuments verlässt dabei diese Maschine in Richtung dieses Anbieters. Wenn dein konfigurierter Anbieter eine Abo-Verbindung ist (ein angemeldetes KI-Konto statt eines API-Schlüssels), gelten dessen eigene Datenschutzeinstellungen – Abo-Anbieter dürfen den Inhalt zur Verbesserung ihrer Modelle verwenden, und kein Auftragsverarbeitungsvertrag deckt das ab. Dokumente, die von einem selbst gehosteten lokalen Modell gelesen werden, verlassen deinen Server nie. Standardmäßig aus; aktiviere es nur, wenn du diesen Kompromiss für die von dir hochgeladenen Dokumente akzeptierst.",
         "confirm": "Ich verstehe – automatisches KI-Lesen aktivieren",
         "cancel": "Abbrechen"
+      },
+      "centralCodex": {
+        "title": "Gemeinsamen KI-Zugang des Servers nutzen",
+        "subLabel": "Leite KI-Anfragen über die vom Betreiber für diesen Server eingerichtete Verbindung — zusätzlich zu deinen eigenen Anbietern als Rückfallebene.",
+        "honesty": "Der gemeinsame Zugang ist ein einzelnes angemeldetes KI-Konto, das der Betreiber für alle auf diesem Server verbunden hat — nicht dein eigener Schlüssel. Anfragen darüber werden vom Anbieter standardmäßig zum Training genutzt und von keiner Auftragsverarbeitungsvereinbarung gedeckt, die Stunden- und Wochenlimits des Kontos teilst du dir mit allen anderen, die zugestimmt haben, und deine eigenen Anbieter werden weiterhin zuerst versucht. Aktiviere es nur, wenn du diesen Kompromiss akzeptierst.",
+        "confirm": "Verstanden — gemeinsame Verbindung nutzen",
+        "cancel": "Abbrechen"
       }
     },
     "dashboard": {
@@ -6053,7 +6060,21 @@
     "documentQuotaDescription": "Standard-Speicherplatz pro Konto für Dokumente (0,1–1024 GB).",
     "userDocumentQuota": "Abweichendes Dokumenten-Kontingent",
     "userDocumentQuotaDefault": "Standard",
-    "userDocumentQuotaHint": "Leer lassen, um den Instanz-Standard zu verwenden."
+    "userDocumentQuotaHint": "Leer lassen, um den Instanz-Standard zu verwenden.",
+    "centralCodex": {
+      "title": "Gemeinsame KI-Verbindung",
+      "description": "Verbinde ein angemeldetes ChatGPT-Konto, das jede Nutzerin und jeder Nutzer dieses Servers für KI-Funktionen aktivieren kann.",
+      "honesty": "Dies ist ein einzelnes gemeinsames, angemeldetes KI-Konto — kein API-Schlüssel. Alle, die zustimmen, senden Anfragen darüber, sodass die Stunden- und Wochenlimits des Kontos unter ihnen geteilt werden; dieselben Limits speisen bereits den Coach. Abo-Anbieter dürfen die Inhalte zur Verbesserung ihrer Modelle verwenden, und keine Auftragsverarbeitungsvereinbarung deckt dies ab — daher ist es nie Standard und steht beim Lesen von Dokumenten hinter Anbietern ohne Training. Verbinde nur ein Konto, das du auf diese Weise teilen möchtest.",
+      "statusConnected": "Verbunden",
+      "statusDisconnected": "Nicht verbunden",
+      "statusExpired": "Abgelaufen",
+      "connectButton": "ChatGPT-Konto verbinden",
+      "disconnectButton": "Trennen",
+      "connectedSince": "Verbunden seit {when}",
+      "connected": "Gemeinsame KI-Verbindung verknüpft",
+      "disconnected": "Gemeinsame KI-Verbindung entfernt",
+      "error": "Etwas ist schiefgelaufen — bitte erneut versuchen"
+    }
   },
   "achievements": {
     "title": "Erfolge",

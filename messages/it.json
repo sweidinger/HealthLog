@@ -4781,6 +4781,13 @@
         "honesty": "Quando è attivo, ogni documento che carichi viene inviato al provider di IA configurato per essere letto, descritto e indicizzato per la ricerca, senza conferma per singolo documento. Questo avviene sul server e il contenuto del documento lascia questa macchina verso quel provider. Se il provider configurato è una connessione in abbonamento (un account IA con accesso effettuato anziché una chiave API), si applicano le sue impostazioni sui dati: i provider in abbonamento possono usare il contenuto per migliorare i propri modelli e nessun accordo sul trattamento dei dati lo copre. I documenti letti da un modello locale self-hosted non lasciano mai il tuo server. Disattivato per impostazione predefinita; attivalo solo se accetti questo compromesso per i documenti che carichi.",
         "confirm": "Ho capito: attiva la lettura automatica con l'IA",
         "cancel": "Annulla"
+      },
+      "centralCodex": {
+        "title": "Usa l'accesso IA condiviso del server",
+        "subLabel": "Instrada le richieste IA attraverso la connessione che l'operatore ha configurato per questo server, insieme ai tuoi provider come ripiego.",
+        "honesty": "L'accesso condiviso è un unico account IA con accesso eseguito che l'operatore ha collegato per tutti su questo server, non la tua chiave. Le richieste che vi effettui vengono usate per impostazione predefinita per addestrare i modelli del provider e nessun accordo sul trattamento dei dati le copre, i limiti orari e settimanali dell'account sono condivisi con tutti gli altri che hanno aderito, e i tuoi provider vengono comunque provati per primi. Attivalo solo se accetti questo compromesso.",
+        "confirm": "Ho capito — usa la connessione condivisa",
+        "cancel": "Annulla"
       }
     },
     "dashboard": {
@@ -6053,7 +6060,21 @@
     "documentQuotaDescription": "Spazio documenti predefinito per account (0,1–1024 GB).",
     "userDocumentQuota": "Quota documenti personalizzata",
     "userDocumentQuotaDefault": "Predefinito",
-    "userDocumentQuotaHint": "Lascia vuoto per usare il valore predefinito dell'istanza."
+    "userDocumentQuotaHint": "Lascia vuoto per usare il valore predefinito dell'istanza.",
+    "centralCodex": {
+      "title": "Connessione IA condivisa",
+      "description": "Collega un account ChatGPT con accesso eseguito che qualsiasi utente di questo server può attivare per le funzioni IA.",
+      "honesty": "È un unico account IA condiviso con accesso eseguito, non una chiave API. Tutti coloro che aderiscono inviano richieste attraverso di esso, quindi i limiti orari e settimanali dell'account sono condivisi tra loro, e gli stessi limiti alimentano già il Coach. I provider in abbonamento possono usare i contenuti per migliorare i loro modelli e nessun accordo sul trattamento dei dati lo copre, perciò non è mai l'opzione predefinita e resta dopo i provider senza addestramento nella lettura dei documenti. Collega solo un account che sei disposto a condividere in questo modo.",
+      "statusConnected": "Connesso",
+      "statusDisconnected": "Non connesso",
+      "statusExpired": "Scaduto",
+      "connectButton": "Collega un account ChatGPT",
+      "disconnectButton": "Disconnetti",
+      "connectedSince": "Connesso dal {when}",
+      "connected": "Connessione IA condivisa collegata",
+      "disconnected": "Connessione IA condivisa rimossa",
+      "error": "Qualcosa è andato storto — riprova"
+    }
   },
   "achievements": {
     "title": "Obiettivi",

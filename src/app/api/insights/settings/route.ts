@@ -13,6 +13,7 @@ export const GET = apiHandler(async () => {
     select: {
       codexConnectionStatus: true,
       codexConnectedAt: true,
+      useCentralCodex: true,
       insightsPrivacyMode: true,
       insightsCachedAt: true,
     },
@@ -20,8 +21,23 @@ export const GET = apiHandler(async () => {
 
   const settings = await prisma.appSettings.findUnique({
     where: { id: "singleton" },
-    select: { adminAiKeyEncrypted: true },
+    select: {
+      adminAiKeyEncrypted: true,
+      adminCodexConnectionStatus: true,
+      adminCodexAccessTokenEncrypted: true,
+      adminCodexRefreshTokenEncrypted: true,
+      adminCodexAccountIdEncrypted: true,
+    },
   });
+
+  // Presence-only: whether the operator has connected the shared central Codex.
+  // The encrypted tokens themselves are NEVER returned to a non-admin client —
+  // only this boolean and the user's own opt-in flag leave the server.
+  const centralCodexAvailable =
+    settings?.adminCodexConnectionStatus === "connected" &&
+    !!settings.adminCodexAccessTokenEncrypted &&
+    !!settings.adminCodexRefreshTokenEncrypted &&
+    !!settings.adminCodexAccountIdEncrypted;
 
   annotate({ action: { name: "insights.settings.get" } });
 
@@ -34,6 +50,10 @@ export const GET = apiHandler(async () => {
     // the UI hides the button instead of redirecting to a chatgpt.com
     // login the user can never complete.
     codexOauthConfigured: isCodexOAuthConfigured(),
+    // Operator-shared central Codex — only surfaced so the per-user opt-in
+    // switch shows when the operator connected it. OFF everywhere by default.
+    centralCodexAvailable,
+    useCentralCodex: dbUser?.useCentralCodex ?? false,
     privacyMode: dbUser?.insightsPrivacyMode ?? "aggregated",
     lastInsightAt: dbUser?.insightsCachedAt ?? null,
   });

@@ -33,6 +33,18 @@ describe("parseProviderChain", () => {
     expect(out.map((e) => e.providerType)).toEqual(["codex", "openai"]);
   });
 
+  it("recognises admin-codex as a valid type but excludes it from the default", () => {
+    // The operator-shared central Codex is a known chain type (so an appended
+    // entry typechecks), but it is opt-in only and never part of the default.
+    expect(PROVIDER_CHAIN_DEFAULT.map((e) => e.providerType)).not.toContain(
+      "admin-codex",
+    );
+    const out = parseProviderChain([
+      { providerType: "admin-codex", priority: 1, enabled: true },
+    ]);
+    expect(out.map((e) => e.providerType)).toEqual(["admin-codex"]);
+  });
+
   it("sorts by priority ascending (lowest priority value first)", () => {
     const input: ProviderChainEntry[] = [
       { providerType: "openai", priority: 5, enabled: true },

@@ -35,8 +35,11 @@ function modelForEntry(
 ): string | null {
   // Codex resolves its working slug at request time from the OAuth slug
   // fallback chain — NOT from the user's `aiModel`. Use the cached/chain-head
-  // slug so the codex vision gate tests the model that actually runs.
-  if (providerType === "codex") return resolveCodexVisionSlug();
+  // slug so the codex vision gate tests the model that actually runs. The
+  // operator-shared central Codex (`admin-codex`) rides the same slug chain.
+  if (providerType === "codex" || providerType === "admin-codex") {
+    return resolveCodexVisionSlug();
+  }
   return providerType === "admin-openai" ? ctx.adminModel : ctx.userModel;
 }
 

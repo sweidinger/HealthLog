@@ -32,6 +32,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { AdminOpenAIProviderForm } from "./admin-openai-provider-form";
 import { AnthropicProviderForm } from "./anthropic-provider-form";
 import { AutoReadCard } from "./auto-read-card";
+import { CentralCodexSwitch } from "./central-codex-switch";
 import { CodexProviderForm } from "./codex-provider-form";
 import { FallbackChainCard } from "./fallback-chain-card";
 import { LocalProviderForm } from "./local-provider-form";
@@ -180,6 +181,10 @@ export function AiInsightsCard({
 
         {/* Read uploaded vault documents automatically with AI (opt-in). */}
         <AutoReadCard />
+
+        {/* Use the operator's shared central Codex connection (opt-in; only
+            renders when the operator has connected it). */}
+        <CentralCodexSwitch settings={insightsSettings} />
 
         <RuntimeActionsRow
           provider={selectedProvider}

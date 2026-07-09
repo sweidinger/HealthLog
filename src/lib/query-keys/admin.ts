@@ -16,6 +16,12 @@ export const adminKeys = {
    * `insightsSettings.hasAdminKey` flag mirrors the configured state.
    */
   adminAiServerKey: () => ["admin", "ai-server-key"] as const,
+  /**
+   * Operator-shared central Codex (ChatGPT subscription) connection status.
+   * Read/write via `/api/admin/central-codex`; the user-facing
+   * `insightsSettings.centralCodexAvailable` flag mirrors the connected state.
+   */
+  adminCentralCodex: () => ["admin", "central-codex"] as const,
   adminAppLogs: (
     traceId: string | undefined,
     action: string | undefined,

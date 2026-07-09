@@ -41,8 +41,9 @@ import type {
  * Preference rank for a provider when the payload is a DOCUMENT. Lower wins.
  * Local keeps the document on the machine (rank 0); BYOK no-train API keys are
  * next (rank 1); the operator's shared no-train key follows (rank 2); the
- * ChatGPT-subscription OAuth path (`codex`) is LAST (rank 3) because it trains
- * on consumer content by default and cannot be verified opted-out from here.
+ * ChatGPT-subscription OAuth paths are LAST (rank 3) — the user's own `codex`
+ * AND the operator's shared `admin-codex`, both train on consumer content by
+ * default and cannot be verified opted-out from here.
  */
 function documentProviderRank(providerType: string): number {
   switch (providerType) {
@@ -55,6 +56,7 @@ function documentProviderRank(providerType: string): number {
     case "admin-openai":
       return 2;
     case "codex":
+    case "admin-codex":
       return 3;
     default:
       return 2;
