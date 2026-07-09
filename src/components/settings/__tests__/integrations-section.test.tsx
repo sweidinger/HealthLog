@@ -131,10 +131,11 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     });
 
     const html = render();
-    // Exactly one pill per card → 7 pills total (Withings, WHOOP, Fitbit,
-    // Google Health, Polar, Oura, Nightscout). The moodLog integration was
-    // removed; Polar + Oura (F4) were added in v1.17.0; Google Health in v1.27.0.
-    expect(count(html, 'data-testid="integration-status-pill"')).toBe(7);
+    // Exactly one pill per card → 8 pills total (Withings, WHOOP, Fitbit,
+    // Google Health, Polar, Oura, Strava, Nightscout). The moodLog integration
+    // was removed; Polar + Oura (F4) were added in v1.17.0; Google Health in
+    // v1.27.0; Strava in v1.28.x. (The Garmin info note carries no pill.)
+    expect(count(html, 'data-testid="integration-status-pill"')).toBe(8);
     // The redundant banner from v1.4.15 is gone.
     expect(html).not.toContain('data-testid="integration-status-banner"');
     // Card-body "letzter Sync" repetition is gone — no
@@ -326,8 +327,9 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     });
 
     const html = render();
-    // One setup-guide link per card → seven providers.
-    expect(count(html, 'data-slot="integration-setup-guide"')).toBe(7);
+    // One setup-guide link per card → eight providers (the Garmin info note is
+    // not an OAuth card and carries its own docs link, not a setup-guide).
+    expect(count(html, 'data-slot="integration-setup-guide"')).toBe(8);
     for (const provider of [
       "withings",
       "whoop",
@@ -335,6 +337,7 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
       "google-health",
       "polar",
       "oura",
+      "strava",
       "nightscout",
     ]) {
       expect(html).toContain(`data-testid="${provider}-setup-guide"`);

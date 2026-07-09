@@ -131,6 +131,15 @@ services:
       OURA_CLIENT_ID: "${OURA_CLIENT_ID:-}"
       OURA_CLIENT_SECRET: "${OURA_CLIENT_SECRET:-}"
       OURA_REDIRECT_URI: "${OURA_REDIRECT_URI:-}"
+      # v1.28.x — Strava OAuth (shared app from env; per-user BYO keys override).
+      # Both together enable the connect button; an unset pair leaves it
+      # disabled. STRAVA_REDIRECT_URI overrides the derived
+      # `${NEXT_PUBLIC_APP_URL}/api/strava/callback`. Listed here so operator
+      # values in .env reach the container (the `environment:` block is a
+      # whitelist).
+      STRAVA_CLIENT_ID: "${STRAVA_CLIENT_ID:-}"
+      STRAVA_CLIENT_SECRET: "${STRAVA_CLIENT_SECRET:-}"
+      STRAVA_REDIRECT_URI: "${STRAVA_REDIRECT_URI:-}"
       # Deploy-result webhook (optional). DEPLOY_WEBHOOK_SECRET authenticates
       # POST /api/internal/deploy-webhook; DEPLOY_LOGS_URL is the
       # deployment-dashboard URL (e.g. the Coolify UI) linked in

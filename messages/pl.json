@@ -5478,6 +5478,38 @@
       "connectionRevoke": "Rozłącz",
       "connectionRevokeDescription": "To natychmiast kończy dostęp asystenta i uniemożliwia odnawianie. Ponowne połączenie będzie wymagać nowej autoryzacji.",
       "connectionRevokeFailed": "Nie udało się rozłączyć asystenta."
+    },
+    "strava": "Strava",
+    "stravaDescription": "Połącz konto Strava, aby synchronizować aktywności z historią treningów.",
+    "stravaDescriptionSecondary": "Aktywności trafiają na pulpit w tle. Nowy w konfiguracji? Skorzystaj z",
+    "stravaViewData": "Zobacz treningi",
+    "stravaCredentials": "Dane API",
+    "stravaClientId": "Identyfikator klienta",
+    "stravaClientSecret": "Sekret klienta",
+    "stravaCredentialsSaved": "Dane zapisane",
+    "stravaCredentialsSavedPlaceholder": "Zapisane — wpisz nowe, aby zastąpić",
+    "stravaSaveCredentials": "Zapisz",
+    "stravaUnavailable": "Strava nie jest skonfigurowana na tym serwerze. Dodaj powyżej własne dane API Strava lub poproś administratora o skonfigurowanie wspólnej aplikacji.",
+    "stravaConnect": "Połącz Strava",
+    "stravaDisconnect": "Rozłącz",
+    "stravaDisconnectTitle": "Rozłączyć Strava?",
+    "stravaDisconnectDescription": "Przyszłe synchronizacje zostaną zatrzymane. Już zaimportowane aktywności pozostaną w historii.",
+    "stravaOauthConnected": "Strava połączona — pierwsza synchronizacja rusza w tle.",
+    "stravaOauthFailed": "Połączenie ze Strava nie powiodło się",
+    "stravaOauthError": {
+      "csrf1": "Kontrola bezpieczeństwa nie powiodła się, ponieważ brakowało pliku cookie przeglądarki. Rozpocznij połączenie ponownie w tej samej przeglądarce.",
+      "state": "Odpowiedź ze Strava nie pasowała do żadnego otwartego żądania połączenia. Rozpocznij połączenie ponownie.",
+      "cross_user": "Odpowiedź należy do żądania z innego konta. Rozpocznij połączenie ponownie z własnego konta.",
+      "nocode": "Strava nie zwróciła kodu autoryzacji. Spróbuj ponownie i zezwól na dostęp w oknie Strava.",
+      "nocreds": "Strava nie jest skonfigurowana na tym serwerze. Poproś administratora o dodanie danych API Strava.",
+      "token": "Wymiana tokenu ze Strava nie powiodła się. Rozpocznij połączenie ponownie.",
+      "rate_limited": "Zbyt wiele prób połączenia. Poczekaj chwilę i spróbuj ponownie.",
+      "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
+    },
+    "garminInfo": {
+      "title": "Garmin",
+      "body": "Garmin nie ma tutaj bezpośredniego połączenia. Połącz przez Apple Health (iOS) lub Google Health Connect (Android). Zastrzeżone wskaźniki Garmina — Body Battery, Training Load, status HRV, VO₂ max — nie są udostępniane przez Garmina żadnej z tych platform.",
+      "docsLink": "Przeczytaj przewodnik"
     }
   },
   "admin": {

@@ -36,6 +36,13 @@ import {
   type GoogleHealthBackfillPayload,
 } from "@/lib/jobs/google-health-backfill";
 import {
+  STRAVA_BACKFILL_QUEUE,
+  STRAVA_BACKFILL_CONCURRENCY,
+  runStravaBackfillForUser,
+  enqueueBootTimeStravaBackfill,
+  type StravaBackfillPayload,
+} from "@/lib/jobs/strava-backfill";
+import {
   SLEEP_TIMELINE_BACKFILL_QUEUE,
   SLEEP_TIMELINE_BACKFILL_CONCURRENCY,
   runSleepTimelineBackfillForUser,
@@ -76,6 +83,7 @@ import {
 import { NightscoutSyncPayload, handleNightscoutSync } from "./nightscout-sync";
 import { PolarSyncPayload, handlePolarSync } from "./polar-sync";
 import { OuraSyncPayload, handleOuraSync } from "./oura-sync";
+import { StravaSyncPayload, handleStravaSync } from "./strava-sync";
 import {
   FitbitSyncPayload,
   handleFitbitSync,
@@ -197,6 +205,13 @@ const POLAR_SYNC_QUEUE = "polar-sync";
 const POLAR_SYNC_CRON = "13 * * * *"; // every hour at :13
 const OURA_SYNC_QUEUE = "oura-sync";
 const OURA_SYNC_CRON = "15 * * * *"; // every hour at :15
+// v1.28.x — Strava OAuth poll sync. Poll-only (webhook deferred): one hourly
+// tick re-walks every connected user. :17 staggers off the Polar (:13) / Oura
+// (:15) ticks so the polls don't pile up on one boss poll. The queue MUST be
+// registered in `allQueues` below or pg-boss never provisions it and the
+// schedule silently no-ops (the v1.4.37 dead-queue class).
+const STRAVA_SYNC_QUEUE = "strava-sync";
+const STRAVA_SYNC_CRON = "17 * * * *"; // every hour at :17
 
 // pg-boss v12 requires explicit queue creation before scheduling. Every queue
 // MUST be registered here or pg-boss never provisions it and both the webhook
@@ -244,6 +259,9 @@ const allQueues = [
   // v1.17.0 (F4) — Polar + Oura OAuth poll sync.
   POLAR_SYNC_QUEUE,
   OURA_SYNC_QUEUE,
+  // v1.28.x — Strava OAuth poll sync + self-converging boot backfill.
+  STRAVA_SYNC_QUEUE,
+  STRAVA_BACKFILL_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -279,6 +297,8 @@ const schedules: ScheduleEntry[] = [
   // v1.17.0 (F4) — hourly Polar (:13) + Oura (:15) OAuth polls.
   [POLAR_SYNC_QUEUE, POLAR_SYNC_CRON],
   [OURA_SYNC_QUEUE, OURA_SYNC_CRON],
+  // v1.28.x — hourly Strava (:17) OAuth poll.
+  [STRAVA_SYNC_QUEUE, STRAVA_SYNC_CRON],
 ];
 
 /**
@@ -475,6 +495,31 @@ export async function registerIntegrationSyncQueues(
     { localConcurrency: 1 },
     handleOuraSync,
   );
+  // v1.28.x — Strava OAuth poll-cohort sync (poll-only; webhook deferred). The
+  // hourly cron tick (no `userId`) re-walks every connected user; one user's
+  // revoked grant is warned, not fatal.
+  await boss.work<StravaSyncPayload>(
+    STRAVA_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleStravaSync,
+  );
+  // v1.28.x — self-converging Strava backfill. The boot enqueue below sends one
+  // full-history sync per un-backfilled connection; this handler runs it and
+  // stamps `stravaBackfillCompletedAt` so the discovery query drops the account.
+  await boss.work<StravaBackfillPayload>(
+    STRAVA_BACKFILL_QUEUE,
+    { localConcurrency: STRAVA_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const { imported } = await runStravaBackfillForUser(userId);
+        workerLog(
+          "info",
+          `[strava-backfill] user=${userId} imported=${imported}`,
+        );
+      }
+    },
+  );
   await boss.work<MoodLogSyncPayload>(
     MOODLOG_SYNC_QUEUE,
     { localConcurrency: 1 },
@@ -576,6 +621,26 @@ export async function enqueueIntegrationSyncBootDiscovery(): Promise<void> {
     workerLog(
       "error",
       "[sleep-timeline-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.28.x — Strava backfill. Finds every Strava connection not yet
+  // backfilled and enqueues one full-history sync per account.
+  try {
+    const { enqueued, skipped, error } = await enqueueBootTimeStravaBackfill();
+    if (error) {
+      workerLog("error", `[strava-backfill] boot discovery failed: ${error}`);
+    } else {
+      workerLog(
+        "info",
+        `[strava-backfill] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[strava-backfill] boot discovery threw an unexpected error",
       err,
     );
   }

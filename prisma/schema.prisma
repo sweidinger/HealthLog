@@ -187,6 +187,29 @@ model User {
   ouraClientIdEncrypted     String? @map("oura_client_id_encrypted")
   ouraClientSecretEncrypted String? @map("oura_client_secret_encrypted")
 
+  // v1.28.x — Strava OAuth credentials (per-user BYO-app, encrypted at app
+  // level). Strava caps every newly-created API app at single-player mode
+  // (athlete capacity 1), so a single shared app cannot serve many
+  // self-hosters — each registers their own Strava app and pastes the client
+  // id/secret into Settings, mirroring the WHOOP/Oura/Polar posture. Strava
+  // rotates its refresh token on EVERY refresh, so both tokens are persisted
+  // (Oura's reactive-refresh + compare-and-set model, no token-expiry column —
+  // the sync refreshes reactively on a 401).
+  stravaClientIdEncrypted     String?   @map("strava_client_id_encrypted")
+  stravaClientSecretEncrypted String?   @map("strava_client_secret_encrypted")
+  stravaAccessTokenEncrypted  String?   @map("strava_access_token_encrypted")
+  stravaRefreshTokenEncrypted String?   @map("strava_refresh_token_encrypted")
+  // Strava's numeric athlete id (plaintext opaque id): pins the granted
+  // account so a cross-account re-auth can be rejected, and is the fan-out key
+  // if webhooks are added later. Mirrors polarUserId / fitbitUserId intent.
+  stravaAthleteId             String?   @map("strava_athlete_id")
+  // Incremental-sync cursor: the start instant of the newest activity already
+  // imported. The poll walks `/athlete/activities?after=<epoch>` from here.
+  stravaLastActivityAt        DateTime? @map("strava_last_activity_at")
+  // First-connect full-history backfill marker (self-converging discovery
+  // predicate `strava_backfill_completed_at IS NULL`), mirroring WHOOP/Fitbit.
+  stravaBackfillCompletedAt   DateTime? @map("strava_backfill_completed_at")
+
   // moodLog integration (per-user, encrypted)
   moodLogUrlEncrypted    String?   @map("mood_log_url_encrypted")
   moodLogApiKeyEncrypted String?   @map("mood_log_api_key_encrypted")
@@ -1504,6 +1527,12 @@ enum MeasurementSource {
   // path); rejected on batch + single POST like WITHINGS/WHOOP/FITBIT. iOS DTO
   // mirrors this exact spelling so /api/sync/changes decodes the rows.
   GOOGLE_HEALTH
+  // v1.28.x — Strava OAuth integration. Native Strava activities ingest
+  // server-side as `source = STRAVA` Workout rows (no client write path);
+  // rejected on the batch + single POST like WITHINGS/WHOOP/FITBIT. iOS DTO
+  // mirrors this exact spelling so the `/api/sync/changes` delta feed decodes
+  // the rows. Feeds Workout rows only — Strava exposes no daily metrics.
+  STRAVA
 
   @@map("measurement_source")
 }

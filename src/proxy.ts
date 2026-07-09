@@ -410,6 +410,15 @@ export function proxy(request: NextRequest) {
     pathname.startsWith("/settings/integrations/whoop") ||
     pathname.startsWith("/api/whoop/");
   const whoopConnectSrc = isWhoopRoute ? " https://api.prod.whoop.com" : "";
+  // v1.28.x — `www.strava.com` gated to the Strava settings surface +
+  // `/api/strava/*`, mirroring the WHOOP gating shape. The Strava data client
+  // lives server-side and the OAuth handshake is a browser redirect (not a
+  // fetch), so this is belt-and-suspenders parity — no other surface ever needs
+  // to reach the Strava host from the browser.
+  const isStravaRoute =
+    pathname.startsWith("/settings/integrations/strava") ||
+    pathname.startsWith("/api/strava/");
+  const stravaConnectSrc = isStravaRoute ? " https://www.strava.com" : "";
   // v1.5.5 — Gravatar host removed from `img-src`. The /me payload
   // used to return `gravatarUrl: https://www.gravatar.com/avatar/<sha256(email)>`,
   // which leaked the email digest to Automattic on every authenticated
@@ -433,7 +442,7 @@ export function proxy(request: NextRequest) {
       `default-src 'none'; frame-ancestors 'self';`
     : isDev
       ? `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self';`
-      : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'${aiConnectSrc}${withingsConnectSrc}${whoopConnectSrc}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
+      : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'${aiConnectSrc}${withingsConnectSrc}${whoopConnectSrc}${stravaConnectSrc}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
   response.headers.set("Content-Security-Policy", csp);
 
   // Production-only headers. HSTS carries `preload` so the domain stays
