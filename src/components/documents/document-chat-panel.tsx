@@ -19,12 +19,17 @@
  * the model emits ("per the report's Impression…") is just text. A one-line
  * safety note states answers describe the document and are not medical advice,
  * consistent with the summary panel's "not a diagnosis".
+ *
+ * Split: a stateful container (`DocumentChatPanel`) owns the hooks + open/gate
+ * state; the pure `DocumentChatConversation` renders the open body (log + input
+ * + safety note) from props, so the conversation surface is statically
+ * renderable and pinned by tests without a query client.
  */
 import { MessageSquare, Send } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
-import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { StreamedProse } from "@/components/insights/coach-panel/streamed-prose";
+import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,7 +43,7 @@ import {
 } from "./use-document-chat";
 
 /** Map a server / client error code to a calm translation key. */
-function documentChatErrorKey(code: string | null): string {
+export function documentChatErrorKey(code: string | null): string {
   switch (code) {
     case "documents.chat.provider.rate_limited":
     case "documents.inbound.rateLimited":
@@ -85,6 +90,198 @@ function ChatTurn({ message }: { message: DocumentChatMessage }) {
   );
 }
 
+/**
+ * The open conversation body — pure (props in, markup out). Renders the message
+ * log (persisted + optimistic + streaming tail), the composer, the always-on
+ * safety note, and a close control. No hooks that need a query client, so it is
+ * statically renderable and unit-pinned.
+ */
+export function DocumentChatConversation({
+  messages,
+  optimisticContent,
+  streamingContent,
+  isStreaming,
+  streamErrorKey,
+  historyPending,
+  historyError,
+  draft,
+  onDraftChange,
+  onSubmit,
+  onClose,
+  logRef,
+}: {
+  messages: DocumentChatMessage[];
+  /** The optimistic user turn to render, or null when none is pending. */
+  optimisticContent: string | null;
+  /** Concatenated streamed assistant tokens so far (empty until the first). */
+  streamingContent: string;
+  isStreaming: boolean;
+  /** Translation key for a stream error, or null. */
+  streamErrorKey: string | null;
+  historyPending: boolean;
+  historyError: boolean;
+  draft: string;
+  onDraftChange: (value: string) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+  logRef?: RefObject<HTMLDivElement | null>;
+}) {
+  const { t } = useTranslations();
+  const isEmpty =
+    !historyPending &&
+    messages.length === 0 &&
+    optimisticContent === null &&
+    !isStreaming &&
+    streamingContent.length === 0;
+
+  return (
+    <div
+      data-slot="document-chat"
+      data-state="open"
+      className="border-border/60 space-y-3 border-t pt-3"
+    >
+      <div className="flex items-center gap-2">
+        <MessageSquare
+          className="text-foreground size-4 shrink-0"
+          aria-hidden
+        />
+        <p className="text-sm font-semibold">{t("documents.chat.title")}</p>
+      </div>
+
+      <div
+        ref={logRef}
+        data-slot="document-chat-log"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        aria-label={t("documents.chat.title")}
+        className="max-h-72 space-y-3 overflow-y-auto overscroll-contain"
+      >
+        {historyPending ? (
+          <div className="space-y-2" data-slot="document-chat-loading">
+            <Skeleton className="ml-auto h-8 w-2/3 rounded-xl" />
+            <Skeleton className="h-12 w-4/5 rounded-xl" />
+          </div>
+        ) : null}
+
+        {isEmpty ? (
+          <p
+            data-slot="document-chat-empty"
+            className="text-muted-foreground text-xs"
+          >
+            {t("documents.chat.empty")}
+          </p>
+        ) : null}
+
+        {messages.map((m) => (
+          <ChatTurn key={m.id} message={m} />
+        ))}
+
+        {optimisticContent !== null ? (
+          <ChatTurn
+            message={{
+              id: "optimistic",
+              role: "user",
+              content: optimisticContent,
+              createdAt: "",
+            }}
+          />
+        ) : null}
+
+        {isStreaming && streamingContent.length === 0 && !streamErrorKey ? (
+          <p
+            data-slot="document-chat-thinking"
+            className="text-muted-foreground text-xs"
+          >
+            {t("documents.chat.thinking")}
+          </p>
+        ) : null}
+
+        {streamingContent.length > 0 ? (
+          <div
+            data-slot="document-chat-message"
+            data-role="assistant"
+            className="flex justify-start"
+          >
+            <div className="bg-card border-border text-foreground max-w-[85%] rounded-xl rounded-tl-sm border px-3 py-2 text-sm">
+              <StreamedProse
+                content={streamingContent}
+                streaming={isStreaming}
+              />
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {streamErrorKey ? (
+        <p role="alert" className="text-destructive text-sm">
+          {t(streamErrorKey)}
+        </p>
+      ) : null}
+
+      {historyError ? (
+        <p role="alert" className="text-destructive text-sm">
+          {t("documents.chat.errorHistory")}
+        </p>
+      ) : null}
+
+      <form
+        className="flex items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}
+      >
+        <Input
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          placeholder={t("documents.chat.placeholder")}
+          aria-label={t("documents.chat.inputLabel")}
+          maxLength={4000}
+          disabled={isStreaming}
+          data-slot="document-chat-input"
+          autoComplete="off"
+        />
+        <Button
+          type="submit"
+          size="icon"
+          data-slot="document-chat-send"
+          disabled={isStreaming || draft.trim().length === 0}
+          aria-label={t("documents.chat.send")}
+        >
+          <Send className="size-4" aria-hidden />
+        </Button>
+      </form>
+
+      {/* Safety-visible: answers describe the document, not medical advice —
+          consistent with the summary panel's "not a diagnosis". */}
+      <p
+        data-slot="document-chat-safety"
+        className="text-muted-foreground text-xs"
+      >
+        {t("documents.chat.safety")}
+      </p>
+
+      {/* Retiring the panel discards the live stream state (the persisted
+          history stays on disk and reloads next open). */}
+      <button
+        type="button"
+        data-slot="document-chat-close"
+        onClick={onClose}
+        className={cn(
+          "text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline",
+        )}
+      >
+        {t("documents.chat.close")}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The stateful container: owns the open/gate state + the history / streaming
+ * hooks, and delegates the open body to `DocumentChatConversation`.
+ */
 export function DocumentChatPanel({
   documentId,
   indexed,
@@ -96,7 +293,7 @@ export function DocumentChatPanel({
   const { t, locale } = useTranslations();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const listRef = useRef<HTMLDivElement | null>(null);
+  const logRef = useRef<HTMLDivElement | null>(null);
 
   const thread = useDocumentChatThread(documentId, open && indexed);
   const { streaming, isStreaming, optimisticUser, send, reset } =
@@ -113,7 +310,7 @@ export function DocumentChatPanel({
 
   // Keep the newest turn in view as messages / tokens land.
   useEffect(() => {
-    const el = listRef.current;
+    const el = logRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, streaming.content, showOptimistic, isStreaming]);
 
@@ -171,159 +368,25 @@ export function DocumentChatPanel({
     );
   }
 
-  const streamErrorKey = streaming.errorCode
-    ? documentChatErrorKey(streaming.errorCode)
-    : null;
-  const isEmpty =
-    !thread.isPending &&
-    messages.length === 0 &&
-    !showOptimistic &&
-    !isStreaming &&
-    streaming.content.length === 0;
-
   return (
-    <div
-      data-slot="document-chat"
-      data-state="open"
-      className="border-border/60 space-y-3 border-t pt-3"
-    >
-      <div className="flex items-center gap-2">
-        <MessageSquare
-          className="text-foreground size-4 shrink-0"
-          aria-hidden
-        />
-        <p className="text-sm font-semibold">{t("documents.chat.title")}</p>
-      </div>
-
-      <div
-        ref={listRef}
-        data-slot="document-chat-log"
-        role="log"
-        aria-live="polite"
-        aria-relevant="additions text"
-        aria-label={t("documents.chat.title")}
-        className="max-h-72 space-y-3 overflow-y-auto overscroll-contain"
-      >
-        {thread.isPending ? (
-          <div className="space-y-2" data-slot="document-chat-loading">
-            <Skeleton className="ml-auto h-8 w-2/3 rounded-xl" />
-            <Skeleton className="h-12 w-4/5 rounded-xl" />
-          </div>
-        ) : null}
-
-        {isEmpty ? (
-          <p
-            data-slot="document-chat-empty"
-            className="text-muted-foreground text-xs"
-          >
-            {t("documents.chat.empty")}
-          </p>
-        ) : null}
-
-        {messages.map((m) => (
-          <ChatTurn key={m.id} message={m} />
-        ))}
-
-        {showOptimistic ? (
-          <ChatTurn
-            message={{
-              id: "optimistic",
-              role: "user",
-              content: optimisticUser,
-              createdAt: "",
-            }}
-          />
-        ) : null}
-
-        {isStreaming && streaming.content.length === 0 && !streamErrorKey ? (
-          <p
-            data-slot="document-chat-thinking"
-            className="text-muted-foreground text-xs"
-          >
-            {t("documents.chat.thinking")}
-          </p>
-        ) : null}
-
-        {streaming.content.length > 0 ? (
-          <div
-            data-slot="document-chat-message"
-            data-role="assistant"
-            className="flex justify-start"
-          >
-            <div className="bg-card border-border text-foreground max-w-[85%] rounded-xl rounded-tl-sm border px-3 py-2 text-sm">
-              <StreamedProse
-                content={streaming.content}
-                streaming={isStreaming}
-              />
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      {streamErrorKey ? (
-        <p role="alert" className="text-destructive text-sm">
-          {t(streamErrorKey)}
-        </p>
-      ) : null}
-
-      {thread.isError ? (
-        <p role="alert" className="text-destructive text-sm">
-          {t("documents.chat.errorHistory")}
-        </p>
-      ) : null}
-
-      <form
-        className="flex items-end gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-      >
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={t("documents.chat.placeholder")}
-          aria-label={t("documents.chat.inputLabel")}
-          maxLength={4000}
-          disabled={isStreaming}
-          data-slot="document-chat-input"
-          autoComplete="off"
-        />
-        <Button
-          type="submit"
-          size="icon"
-          data-slot="document-chat-send"
-          disabled={isStreaming || draft.trim().length === 0}
-          aria-label={t("documents.chat.send")}
-        >
-          <Send className="size-4" aria-hidden />
-        </Button>
-      </form>
-
-      {/* Safety-visible: answers describe the document, not medical advice —
-          consistent with the summary panel's "not a diagnosis". */}
-      <p
-        data-slot="document-chat-safety"
-        className="text-muted-foreground text-xs"
-      >
-        {t("documents.chat.safety")}
-      </p>
-
-      {/* Retiring the panel discards the live stream state (the persisted
-          history stays on disk and reloads next open). */}
-      <button
-        type="button"
-        data-slot="document-chat-close"
-        onClick={() => {
-          reset();
-          setOpen(false);
-        }}
-        className={cn(
-          "text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline",
-        )}
-      >
-        {t("documents.chat.close")}
-      </button>
-    </div>
+    <DocumentChatConversation
+      messages={messages}
+      optimisticContent={showOptimistic ? optimisticUser : null}
+      streamingContent={streaming.content}
+      isStreaming={isStreaming}
+      streamErrorKey={
+        streaming.errorCode ? documentChatErrorKey(streaming.errorCode) : null
+      }
+      historyPending={thread.isPending}
+      historyError={thread.isError}
+      draft={draft}
+      onDraftChange={setDraft}
+      onSubmit={submit}
+      onClose={() => {
+        reset();
+        setOpen(false);
+      }}
+      logRef={logRef}
+    />
   );
 }

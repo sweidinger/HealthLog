@@ -164,4 +164,23 @@ describe("<DocumentAiSection>", () => {
     expect(html).toContain('data-slot="assist-suggest"');
     expect(html).not.toContain('data-slot="document-read-ai"');
   });
+
+  it("renders the chat slot inside the AI area only when a provider is available", () => {
+    const chat = <div data-slot="chat-probe">chat here</div>;
+    const enabled = render(base({ aiEnabled: true, chatSlot: chat }));
+    expect(enabled).toContain('data-slot="chat-probe"');
+
+    // No provider → the whole block collapses to the calm pointer; the chat
+    // slot (provider-only affordance) must not render.
+    const disabled = render(
+      base({
+        aiEnabled: false,
+        indexEnabled: false,
+        unavailableReason: "no-provider",
+        chatSlot: chat,
+      }),
+    );
+    expect(disabled).not.toContain('data-slot="chat-probe"');
+    expect(disabled).toContain('data-slot="assist-unavailable"');
+  });
 });
