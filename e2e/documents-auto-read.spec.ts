@@ -35,18 +35,45 @@ async function fulfilJson(
   });
 }
 
-/** Mock the document capability probe so the vault AI section renders. */
+/**
+ * Mock the FULL AI-availability surface the vault section probes so the read
+ * action renders AND is enabled: `usage` (assist + content-index flags — this is
+ * what un-disables the action), the labs OCR capability, and the document-scoped
+ * capability (provider order + vendor-blind egress class). Mirrors
+ * `mockAiEnabled` in documents-ai.spec.ts; egress-specific tests set the class.
+ */
 async function mockDocumentCapability(
   page: Page,
   opts: { egress: "local" | "external"; pdfSupported?: boolean },
 ): Promise<void> {
+  const pdfSupported = opts.pdfSupported ?? true;
+  await page.route("**/api/documents/inbound/usage", (route) =>
+    fulfilJson(route, {
+      data: {
+        usedBytes: 4096,
+        quotaBytes: 1_073_741_824,
+        maxFileBytes: 26_214_400,
+        acceptedExtensions: [".pdf", ".png", ".jpg", ".jpeg", ".webp"],
+        linkedEpisodes: [],
+        assistAvailable: true,
+        contentIndex: { enabled: true, indexedCount: 0, totalCount: 1 },
+      },
+      error: null,
+    }),
+  );
+  await page.route("**/api/labs/ocr/capability", (route) =>
+    fulfilJson(route, {
+      data: { available: true, mode: "vision", reason: null, pdfSupported },
+      error: null,
+    }),
+  );
   await page.route("**/api/documents/inbound/capability", (route) =>
     fulfilJson(route, {
       data: {
         available: true,
         mode: "vision",
         reason: null,
-        pdfSupported: opts.pdfSupported ?? true,
+        pdfSupported,
         egress: opts.egress,
       },
       error: null,
