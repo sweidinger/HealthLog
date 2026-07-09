@@ -23,6 +23,7 @@ function inputs(overrides: Partial<Parameters<typeof buildChecklist>[0]> = {}) {
     medicationCount: 0,
     dataSourceConnected: false,
     notificationsConfigured: false,
+    insightsConfigured: false,
     dismissedIds: new Set<ChecklistItemId>(),
     ...overrides,
   };
@@ -43,7 +44,7 @@ describe("isProfileComplete", () => {
 });
 
 describe("buildChecklist", () => {
-  it("emits the five canonical items in stable order", () => {
+  it("emits the six canonical items in stable order", () => {
     const items = buildChecklist(inputs());
     expect(items.map((i) => i.id)).toEqual([
       "profile",
@@ -51,7 +52,18 @@ describe("buildChecklist", () => {
       "medication",
       "dataSource",
       "notifications",
+      "insights",
     ]);
+  });
+
+  it("flags insights done once any provider can serve the user", () => {
+    const off = buildChecklist(inputs({ insightsConfigured: false }));
+    expect(off.find((i) => i.id === "insights")?.done).toBe(false);
+    // `insightsConfigured` is derived from aiAvailable, which is true for a
+    // personal key, a local model, an OAuth sign-in, OR the operator's
+    // shared key — any one flips the row done.
+    const on = buildChecklist(inputs({ insightsConfigured: true }));
+    expect(on.find((i) => i.id === "insights")?.done).toBe(true);
   });
 
   it("marks profile done when all three fields set", () => {
@@ -97,6 +109,7 @@ describe("buildChecklist", () => {
     expect(hrefs.medication).toBe("/medications");
     expect(hrefs.dataSource).toBe("/settings/integrations");
     expect(hrefs.notifications).toBe("/settings/notifications");
+    expect(hrefs.insights).toBe("/settings/ai");
   });
 });
 
@@ -114,8 +127,12 @@ describe("visibleChecklist + checklistProgress", () => {
       inputs({
         measurementCount: 3,
         medicationCount: 1,
-        // dismiss the only one not done so percent jumps to 100
-        dismissedIds: new Set<ChecklistItemId>(["dataSource", "notifications"]),
+        // dismiss the ones not done so percent jumps to 100
+        dismissedIds: new Set<ChecklistItemId>([
+          "dataSource",
+          "notifications",
+          "insights",
+        ]),
       }),
     );
     const progress = checklistProgress(items);
@@ -132,6 +149,7 @@ describe("visibleChecklist + checklistProgress", () => {
       medicationCount: 0,
       dataSourceConnected: false,
       notificationsConfigured: false,
+      insightsConfigured: false,
       dismissedIds: new Set(),
     });
     const progress = checklistProgress(items);
@@ -196,6 +214,7 @@ describe("shouldShowChecklist", () => {
         medicationCount: 1,
         dataSourceConnected: true,
         notificationsConfigured: true,
+        insightsConfigured: true,
       }),
     );
     expect(

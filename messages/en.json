@@ -3988,10 +3988,7 @@
       "learning": "Some insights — glucose, sleep rhythm, blood-pressure trends, cycle — sharpen over the first week or two as your data builds up. Empty tiles now just mean we're still learning your baseline.",
       "connectCta": "Connect a device",
       "logCta": "Log your first measurement",
-      "importCta": "Import existing history",
-      "aiTitle": "Turn on AI Insights (optional)",
-      "aiBody": "Coach, the daily briefing and assessments turn your readings into plain language. For that you connect your own AI key (OpenAI, Anthropic) or a local model — your data stays with you.",
-      "aiCta": "Connect an AI provider"
+      "importCta": "Import existing history"
     },
     "welcomeBack": {
       "title": "Welcome back",
@@ -4033,6 +4030,26 @@
       "allergiesLabel": "Allergies or intolerances",
       "allergiesPlaceholder": "e.g. penicillin, lactose",
       "privacyNote": "Stored encrypted and used only to give you better context. We don't ask for your medications here — add those anytime from the Medications page."
+    },
+    "ai": {
+      "panelTitle": "See what insights look like",
+      "panelIntro": "Coach, the daily briefing and the per-metric reads turn your own numbers into plain language. Here's the shape of it — before you connect anything.",
+      "showSample": "See a sample briefing",
+      "sampleTitle": "Daily Briefing",
+      "sampleTag": "Example",
+      "sampleAriaLabel": "Example daily briefing",
+      "sampleBody": "Weight down 1.2 kg over two weeks. Resting pulse steady at 58 bpm. Blood pressure in range on 6 of 7 days — the one high reading followed a late, salty dinner.",
+      "sampleCaption": "Example only — not your own data. This is what a briefing reads like once insights are on.",
+      "ladderTitle": "Three ways to turn it on",
+      "ladderLocalTitle": "Local model — nothing leaves your network",
+      "ladderLocalBody": "Point HealthLog at Ollama or LM Studio on your own machine. Free and fully private — the calm default.",
+      "ladderByokTitle": "Bring your own key",
+      "ladderByokBody": "Use your own OpenAI or Anthropic key. It runs under your account and billing, and the API tier keeps your data out of training by default.",
+      "ladderOauthTitle": "Sign in with a subscription",
+      "ladderOauthBody": "Connect a ChatGPT account — no per-token cost, but the consumer tier's terms may use content for training, so it's a deliberate choice, never the default for your health data.",
+      "keylessLine": "HealthLog is fully useful without AI. Your tiles, charts, trends and exports all work — AI only adds the plain-language read on top.",
+      "setupCta": "Set it up (about a minute)",
+      "sharedKeyNote": "This instance already provides a shared AI provider, so insights work for you right now — no setup needed."
     }
   },
   "gettingStarted": {
@@ -4056,7 +4073,10 @@
       "dataSourceCta": "Connect",
       "notificationsTitle": "Configure notifications",
       "notificationsDescription": "Choose how HealthLog should remind you — Telegram, ntfy or Web Push.",
-      "notificationsCta": "Open notifications"
+      "notificationsCta": "Open notifications",
+      "insightsTitle": "Turn on insights (optional)",
+      "insightsDescription": "Add a local model or your own AI key to unlock the daily briefing and Coach.",
+      "insightsCta": "Turn on insights"
     }
   },
   "trendHints": {

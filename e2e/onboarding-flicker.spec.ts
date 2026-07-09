@@ -242,6 +242,20 @@ test.describe("dashboard onboarding card flicker guard", () => {
         body: JSON.stringify({ data: { channels: [] }, error: null }),
       }),
     );
+    // v1.28 — the checklist's "Turn on insights" row self-satisfies from
+    // `/api/user/ai-provider` (`aiAvailable` presence-only). Stub it so the
+    // row renders deterministically as not-done and no real request fires
+    // while the card mounts.
+    await page.route("**/api/user/ai-provider", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { aiAvailable: false, managedBy: null },
+          error: null,
+        }),
+      }),
+    );
     // v1.4.16 Wave-C — the dashboard added `/api/dashboard/widgets`
     // (A5 tile-strip persistence) since this spec was written. Without
     // a stub the unauthenticated layout query 500s in CI and React

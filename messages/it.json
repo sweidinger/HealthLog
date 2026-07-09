@@ -3988,10 +3988,7 @@
       "learning": "Alcune analisi — glicemia, ritmo del sonno, tendenze della pressione, ciclo — si affinano nella prima settimana o due man mano che i tuoi dati si accumulano. Le caselle vuote ora indicano solo che stiamo ancora imparando il tuo riferimento.",
       "connectCta": "Collega un dispositivo",
       "logCta": "Registra la tua prima misurazione",
-      "importCta": "Importa la cronologia esistente",
-      "aiTitle": "Attiva gli Insight IA (facoltativo)",
-      "aiBody": "Il coach, il briefing giornaliero e le valutazioni trasformano le tue misurazioni in linguaggio chiaro. Per farlo colleghi la tua chiave IA (OpenAI, Anthropic) o un modello locale: i tuoi dati restano tuoi.",
-      "aiCta": "Collega un provider IA"
+      "importCta": "Importa la cronologia esistente"
     },
     "welcomeBack": {
       "title": "Bentornato",
@@ -4033,6 +4030,26 @@
       "allergiesLabel": "Allergie o intolleranze",
       "allergiesPlaceholder": "es. penicillina, lattosio",
       "privacyNote": "Memorizzato cifrato e usato solo per darti un contesto migliore. Qui non chiediamo i tuoi farmaci: aggiungili quando vuoi dalla pagina Farmaci."
+    },
+    "ai": {
+      "panelTitle": "Guarda come sono gli insight",
+      "panelIntro": "Coach, il briefing quotidiano e le letture per metrica traducono i tuoi numeri in linguaggio chiaro. Ecco com'è, prima di collegare qualsiasi cosa.",
+      "showSample": "Vedi un briefing di esempio",
+      "sampleTitle": "Briefing quotidiano",
+      "sampleTag": "Esempio",
+      "sampleAriaLabel": "Briefing quotidiano di esempio",
+      "sampleBody": "Peso in calo di 1,2 kg in due settimane. Battito a riposo stabile a 58 bpm. Pressione nel range in 6 giorni su 7 — l'unico valore alto è arrivato dopo una cena tardiva e salata.",
+      "sampleCaption": "Solo un esempio — non i tuoi dati. Ecco come si legge un briefing quando gli insight sono attivi.",
+      "ladderTitle": "Tre modi per attivarlo",
+      "ladderLocalTitle": "Modello locale — nulla lascia la tua rete",
+      "ladderLocalBody": "Punta HealthLog su Ollama o LM Studio sulla tua macchina. Gratis e del tutto privato — la scelta tranquilla di default.",
+      "ladderByokTitle": "Usa la tua chiave",
+      "ladderByokBody": "Usa la tua chiave OpenAI o Anthropic. Gira sul tuo account e sulla tua fatturazione, e il piano API tiene i tuoi dati fuori dall'addestramento in modo predefinito.",
+      "ladderOauthTitle": "Accedi con un abbonamento",
+      "ladderOauthBody": "Collega un account ChatGPT — nessun costo per token, ma i termini del piano consumer possono usare i contenuti per l'addestramento, quindi è una scelta deliberata, mai l'impostazione predefinita per i tuoi dati sanitari.",
+      "keylessLine": "HealthLog è pienamente utile anche senza IA. Le tue schede, i grafici, i trend e le esportazioni funzionano tutti — l'IA aggiunge solo la lettura in linguaggio chiaro.",
+      "setupCta": "Configuralo (circa un minuto)",
+      "sharedKeyNote": "Questa istanza fornisce già un provider IA condiviso, quindi gli insight funzionano per te fin da subito — nessuna configurazione necessaria."
     }
   },
   "gettingStarted": {
@@ -4056,7 +4073,10 @@
       "dataSourceCta": "Collega",
       "notificationsTitle": "Configura le notifiche",
       "notificationsDescription": "Scegli come HealthLog ti ricorda — Telegram, ntfy o Web Push.",
-      "notificationsCta": "Apri notifiche"
+      "notificationsCta": "Apri notifiche",
+      "insightsTitle": "Attiva gli insight (facoltativo)",
+      "insightsDescription": "Aggiungi un modello locale o la tua chiave IA per sbloccare il briefing quotidiano e Coach.",
+      "insightsCta": "Attiva gli insight"
     }
   },
   "trendHints": {

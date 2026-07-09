@@ -3988,10 +3988,7 @@
       "learning": "Certaines analyses — glycémie, rythme de sommeil, tendances de tension, cycle — s'affinent au cours de la première semaine ou deux à mesure que vos données s'accumulent. Des tuiles vides signifient simplement que nous apprenons encore votre référence.",
       "connectCta": "Connecter un appareil",
       "logCta": "Enregistrez votre première mesure",
-      "importCta": "Importer un historique existant",
-      "aiTitle": "Activer les Insights IA (facultatif)",
-      "aiBody": "Le coach, le briefing quotidien et les évaluations traduisent tes mesures en langage clair. Pour cela, connecte ta propre clé IA (OpenAI, Anthropic) ou un modèle local — tes données restent chez toi.",
-      "aiCta": "Connecter un fournisseur d'IA"
+      "importCta": "Importer un historique existant"
     },
     "welcomeBack": {
       "title": "Bon retour",
@@ -4033,6 +4030,26 @@
       "allergiesLabel": "Allergies ou intolérances",
       "allergiesPlaceholder": "p. ex. pénicilline, lactose",
       "privacyNote": "Stocké chiffré et utilisé uniquement pour un meilleur contexte. Nous ne demandons pas vos médicaments ici — ajoutez-les quand vous voulez depuis la page Médicaments."
+    },
+    "ai": {
+      "panelTitle": "Voyez à quoi ressemblent les insights",
+      "panelIntro": "Coach, le briefing quotidien et les lectures par mesure traduisent vos propres chiffres en langage clair. Voici l'idée, avant de connecter quoi que ce soit.",
+      "showSample": "Voir un exemple de briefing",
+      "sampleTitle": "Briefing quotidien",
+      "sampleTag": "Exemple",
+      "sampleAriaLabel": "Exemple de briefing quotidien",
+      "sampleBody": "Poids en baisse de 1,2 kg en deux semaines. Pouls au repos stable à 58 bpm. Tension dans la plage 6 jours sur 7 — la seule valeur élevée a suivi un dîner tardif et salé.",
+      "sampleCaption": "Exemple uniquement — pas vos données. Voilà à quoi ressemble un briefing une fois les insights activés.",
+      "ladderTitle": "Trois façons de l'activer",
+      "ladderLocalTitle": "Modèle local — rien ne quitte votre réseau",
+      "ladderLocalBody": "Pointez HealthLog vers Ollama ou LM Studio sur votre propre machine. Gratuit et totalement privé — le choix calme par défaut.",
+      "ladderByokTitle": "Apportez votre clé",
+      "ladderByokBody": "Utilisez votre propre clé OpenAI ou Anthropic. Elle fonctionne avec votre compte et votre facturation, et le niveau API exclut vos données de l'entraînement par défaut.",
+      "ladderOauthTitle": "Connectez-vous avec un abonnement",
+      "ladderOauthBody": "Reliez un compte ChatGPT — sans coût par jeton, mais les conditions du niveau grand public peuvent utiliser le contenu pour l'entraînement : c'est donc un choix délibéré, jamais l'option par défaut pour vos données de santé.",
+      "keylessLine": "HealthLog est pleinement utile sans IA. Vos tuiles, graphiques, tendances et exports fonctionnent tous — l'IA n'ajoute que la lecture en langage clair par-dessus.",
+      "setupCta": "Configurez-le (environ une minute)",
+      "sharedKeyNote": "Cette instance fournit déjà un fournisseur d'IA partagé : les insights fonctionnent pour vous dès maintenant — aucune configuration nécessaire."
     }
   },
   "gettingStarted": {
@@ -4056,7 +4073,10 @@
       "dataSourceCta": "Connecter",
       "notificationsTitle": "Configurer les notifications",
       "notificationsDescription": "Choisis comment HealthLog te prévient — Telegram, ntfy ou Web Push.",
-      "notificationsCta": "Ouvrir les notifications"
+      "notificationsCta": "Ouvrir les notifications",
+      "insightsTitle": "Activer les insights (facultatif)",
+      "insightsDescription": "Ajoutez un modèle local ou votre propre clé IA pour débloquer le briefing quotidien et Coach.",
+      "insightsCta": "Activer les insights"
     }
   },
   "trendHints": {
