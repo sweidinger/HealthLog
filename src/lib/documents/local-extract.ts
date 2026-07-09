@@ -20,7 +20,16 @@
  */
 import { Buffer } from "node:buffer";
 
-import { PDFParse } from "pdf-parse";
+// `pdf-parse` pulls in pdfjs, whose module top-level references the browser-only
+// `DOMMatrix` global. A STATIC import makes the Turbopack server chunk evaluate
+// that reference at instantiation and throw `DOMMatrix is not defined`, taking
+// down every route/worker that shares the chunk (the document routes among
+// them). The value is therefore loaded lazily inside `extractPdfText` via a
+// runtime `import()`, which lets pdf-parse initialise pdfjs on its own terms and
+// never touches DOMMatrix at load — verified to extract a real text layer under
+// plain Node. Keep the surface type as a type-only import (fully erased at
+// build, no runtime module evaluation).
+import type { PDFParse } from "pdf-parse";
 
 import { annotate } from "@/lib/logging/context";
 
@@ -61,6 +70,9 @@ export async function extractPdfText(
 ): Promise<LocalExtractResult> {
   let parser: PDFParse | null = null;
   try {
+    // Lazy load: keeps pdfjs/DOMMatrix out of the eager server chunk (see the
+    // import-site note). Resolved at first PDF extraction, then module-cached.
+    const { PDFParse } = await import("pdf-parse");
     parser = new PDFParse({ data: new Uint8Array(buffer) });
     const result = await parser.getText({
       // Bound the page walk and drop the default "-- N of M --" page markers so
