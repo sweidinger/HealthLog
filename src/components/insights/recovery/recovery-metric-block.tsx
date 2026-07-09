@@ -71,28 +71,20 @@ export function RecoveryMetricBlock({
 
   return (
     <section data-slot={`recovery-block-${type}`} className="space-y-3">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Icon
-            className="text-muted-foreground size-4 shrink-0"
-            aria-hidden="true"
-          />
-          {/* v1.18.6 — block title is an `<h2>` (at `text-base`): the per-group
-              sub-headings were removed, so each block now sits directly under
-              the page `<h1>` from `SubPageShell`. Promoting it from `<h3>` keeps
-              the recovery page's heading outline strictly nested (h1 → h2)
-              with no skipped level. */}
-          <h2 className="text-base font-semibold">{title}</h2>
-        </div>
-        <p className="text-foreground text-sm leading-relaxed">{explainer}</p>
-      </div>
-
+      {/* v1.28.4 — the block no longer wraps the tile in an outer `<h2>` +
+          explainer that the stat-strip's own `TileHeader` then repeated. The
+          tile owns the single heading: `seriesLabel` becomes the block's `<h2>`
+          (via `titleAs`, preserving the h1 → h2 nesting under `SubPageShell`)
+          and the explainer renders inside the tile beneath it as `description`.
+          The chart tile keeps its own canonical `TileHeader` naming itself. */}
       <MetricStatStrip
         summary={summary}
         unit={unit}
         fractionDigits={fractionDigits}
         seriesLabel={title}
         icon={Icon}
+        titleAs="h2"
+        description={explainer}
         windowStats={statsByType?.[type] ?? null}
       />
 

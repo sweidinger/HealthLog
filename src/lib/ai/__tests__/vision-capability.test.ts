@@ -71,7 +71,7 @@ describe("supportsVisionForConfig", () => {
     expect(supportsVisionForConfig("local", null)).toBe(true);
   });
 
-  it("reports vision for codex only on multimodal slugs", () => {
+  it("reports vision for codex on multimodal slugs, including -codex", () => {
     for (const model of [
       "gpt-5.5",
       "gpt-5.4",
@@ -79,6 +79,13 @@ describe("supportsVisionForConfig", () => {
       "gpt-4o",
       "gpt-4.1",
       "o1",
+      // The GPT-5.x `-codex` specialists are vision-capable: the wire reads
+      // an `input_image` block on these slugs (docs/codex-protocol-spec.md +
+      // OpenAI's current model lineup). The old "-codex is text-only"
+      // exclusion was stale.
+      "gpt-5-codex",
+      "gpt-5.3-codex",
+      "gpt-5.1-codex-mini",
     ]) {
       expect(supportsVisionForConfig("codex", model)).toBe(true);
     }
@@ -86,9 +93,6 @@ describe("supportsVisionForConfig", () => {
     expect(supportsVisionForConfig("codex", "gpt-4")).toBe(false);
     expect(supportsVisionForConfig("codex", "gpt-3.5-turbo")).toBe(false);
     expect(supportsVisionForConfig("codex", null)).toBe(false);
-    // The `-codex` specialist slugs are text-only despite the gpt-5 prefix.
-    expect(supportsVisionForConfig("codex", "gpt-5-codex")).toBe(false);
-    expect(supportsVisionForConfig("codex", "gpt-5.1-codex-mini")).toBe(false);
     // Text-only o-series variants are excluded for codex too.
     expect(supportsVisionForConfig("codex", "o1-mini")).toBe(false);
     expect(supportsVisionForConfig("codex", "o3-mini")).toBe(false);
