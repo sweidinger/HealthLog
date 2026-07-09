@@ -130,7 +130,7 @@ describe("<DocumentAiSection>", () => {
     expect(html).toContain("review before saving");
   });
 
-  it("renders the transient summary panel with the session-only note", () => {
+  it("renders the transient summary panel", () => {
     const html = render(
       base({
         summaryOutput: "summary",
@@ -139,7 +139,6 @@ describe("<DocumentAiSection>", () => {
     );
     expect(html).toContain('data-slot="document-summary-panel"');
     expect(html).toContain("An MRI report of the left knee.");
-    expect(html).toContain("Not saved");
   });
 
   it("renders no per-document egress notice — the settings confirm covers it", () => {

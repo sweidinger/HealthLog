@@ -126,11 +126,9 @@ describe("<DocumentSummaryPanel>", () => {
     );
     expect(html).toContain('data-slot="document-summary-panel"');
     expect(html).toContain('data-slot="document-summary-loading"');
-    expect(html).toContain("Not saved");
-    expect(html).toContain("not a diagnosis");
   });
 
-  it("renders the summary body and the persistent note", () => {
+  it("renders the summary body", () => {
     const html = render(
       <DocumentSummaryPanel
         output="summary"
@@ -141,7 +139,6 @@ describe("<DocumentSummaryPanel>", () => {
       />,
     );
     expect(html).toContain("A lipid panel dated 1 March 2026.");
-    expect(html).toContain("Not saved");
   });
 
   it("renders extracted text in a monospace block", () => {
@@ -159,7 +156,7 @@ describe("<DocumentSummaryPanel>", () => {
     expect(html).toContain("font-mono");
   });
 
-  it("surfaces an error via role=alert but keeps the note", () => {
+  it("surfaces an error via role=alert", () => {
     const html = render(
       <DocumentSummaryPanel
         output="summary"
@@ -171,7 +168,6 @@ describe("<DocumentSummaryPanel>", () => {
     );
     expect(html).toContain('role="alert"');
     expect(html).toContain("read the document");
-    expect(html).toContain("Not saved");
   });
 });
 

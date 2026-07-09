@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.28.7] — 2026-07-09 — Scanned-PDF reading actually works
+
+The prior fix made the PDF image library loadable, but the page renderer was
+still a bundled copy that failed on a real document with a bare error, so reading
+a scanned PDF on a non-Anthropic provider still fell back to "PDF scanning needs
+a Claude vision provider". The renderer now runs the real, un-bundled module —
+the same one that renders these documents correctly in isolation — so scanned
+PDFs are read on a subscription or local vision provider. Also drops a redundant
+per-view note from the document summary panel.
+
 ## [1.28.6] — 2026-07-09 — Fix scanned-PDF reading in the container
 
 Reading a scanned PDF with a non-Anthropic AI provider (a signed-in subscription
