@@ -1,13 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, FileUp, PlusCircle, Plug, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { MedicalDisclaimer } from "@/components/common/medical-disclaimer";
+import { SampleBriefingCard } from "@/components/onboarding/sample-briefing-card";
 import { useAuth } from "@/hooks/use-auth";
 import { setTourReferrer } from "@/components/onboarding/tour-launcher";
+import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
+
+interface AiProviderStatus {
+  /** Origin of the provider that would serve this user, if any. */
+  managedBy?: "user" | "local" | "server" | null;
+}
 
 /**
  * v1.4.25 W14b-Content — onboarding step 4 (done).
@@ -32,10 +42,24 @@ import { useTranslations } from "@/lib/i18n/context";
 export function DoneScreen() {
   const { t } = useTranslations();
   const { user } = useAuth();
+  const [sampleOpen, setSampleOpen] = useState(false);
 
   useEffect(() => {
     if (user?.id) setTourReferrer(user.id);
   }, [user?.id]);
+
+  // The shared-key note is the ONLY honest divergence in the panel: on a
+  // deployment that ships an operator key, insights already work for the
+  // user, so we say so plainly instead of pushing a BYOK/local setup they
+  // don't need. Presence-only read; no key material is exposed.
+  const { data: aiProvider } = useQuery<AiProviderStatus>({
+    queryKey: queryKeys.userAiProvider(),
+    queryFn: async () => {
+      return apiGet("/api/user/ai-provider");
+    },
+    enabled: !!user,
+  });
+  const sharedKeyServes = aiProvider?.managedBy === "server";
 
   return (
     <section
@@ -65,32 +89,115 @@ export function DoneScreen() {
         </p>
       </header>
 
-      {/* v1.18.6 — surface the AI Insights / Coach / briefing setup at
-          the highest-intent moment. The flagship feature needs a BYOK or
-          local provider that the rest of onboarding never mentions, so a
-          fresh user otherwise discovers it as a cold error. This card is
-          skippable by construction — it is an optional deep-link, not a
-          gate. */}
-      <div className="border-border/60 bg-muted/30 mx-auto flex w-full max-w-md flex-col items-center gap-2 rounded-lg border p-4 text-center">
-        <span
-          aria-hidden="true"
-          className="from-primary to-brand-pink flex size-9 items-center justify-center rounded-full bg-gradient-to-br"
+      {/* v1.28 — the flagship AI value, made reachable at the one screen
+          every fresh user passes through. The daily briefing / Coach need
+          a provider the rest of onboarding never provisions, so this
+          leads with the payoff (a static, clearly-labelled SAMPLE
+          briefing — no model call, no egress, no consent), then the
+          honest local-first ladder and the "useful without AI" release
+          valve. Value-first, never a gate: the three exits below stay,
+          and setup is a single optional deep-link. */}
+      <section
+        aria-labelledby="onboarding-ai-panel-title"
+        data-slot="onboarding-ai-panel"
+        className="border-border bg-card mx-auto flex w-full max-w-md flex-col gap-4 rounded-xl border p-5 text-left"
+      >
+        <header className="flex items-start gap-3">
+          <span
+            aria-hidden="true"
+            className="from-primary to-brand-pink flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br"
+          >
+            <Sparkles className="text-background size-4" />
+          </span>
+          <div className="space-y-1">
+            <h2
+              id="onboarding-ai-panel-title"
+              className="text-foreground text-base font-semibold tracking-tight"
+            >
+              {t("onboarding.ai.panelTitle")}
+            </h2>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {t("onboarding.ai.panelIntro")}
+            </p>
+          </div>
+        </header>
+
+        {sampleOpen ? (
+          <SampleBriefingCard />
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            data-slot="onboarding-ai-show-sample"
+            onClick={() => setSampleOpen(true)}
+          >
+            {t("onboarding.ai.showSample")}
+          </Button>
+        )}
+
+        {sharedKeyServes ? (
+          <p
+            data-slot="onboarding-ai-shared-key"
+            className="text-foreground bg-primary/5 border-primary/20 rounded-lg border px-3 py-2 text-sm leading-relaxed"
+          >
+            {t("onboarding.ai.sharedKeyNote")}
+          </p>
+        ) : null}
+
+        <div className="space-y-2.5">
+          <p className="text-foreground text-sm font-medium">
+            {t("onboarding.ai.ladderTitle")}
+          </p>
+          <ul className="space-y-2.5">
+            {/* Local first — the calm, private default — then BYOK, then
+                the subscription/OAuth path with its training caveat. Same
+                ordering + vendor-blind framing as the shipped document-
+                provider governance. */}
+            <li className="space-y-0.5">
+              <p className="text-foreground text-sm font-medium">
+                {t("onboarding.ai.ladderLocalTitle")}
+              </p>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {t("onboarding.ai.ladderLocalBody")}
+              </p>
+            </li>
+            <li className="space-y-0.5">
+              <p className="text-foreground text-sm font-medium">
+                {t("onboarding.ai.ladderByokTitle")}
+              </p>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {t("onboarding.ai.ladderByokBody")}
+              </p>
+            </li>
+            <li className="space-y-0.5">
+              <p className="text-foreground text-sm font-medium">
+                {t("onboarding.ai.ladderOauthTitle")}
+              </p>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {t("onboarding.ai.ladderOauthBody")}
+              </p>
+            </li>
+          </ul>
+        </div>
+
+        <p
+          data-slot="onboarding-ai-keyless"
+          className="text-foreground text-sm leading-relaxed"
         >
-          <Sparkles className="text-background size-4" />
-        </span>
-        <p className="text-foreground text-sm font-medium">
-          {t("onboarding.done.aiTitle")}
+          {t("onboarding.ai.keylessLine")}
         </p>
-        <p className="text-foreground text-sm leading-relaxed">
-          {t("onboarding.done.aiBody")}
-        </p>
+
+        <MedicalDisclaimer variant="dataPosture" />
+
         <Link
           href="/settings/ai"
           className="text-primary text-sm font-medium underline-offset-4 hover:underline"
         >
-          {t("onboarding.done.aiCta")}
+          {t("onboarding.ai.setupCta")}
         </Link>
-      </div>
+      </section>
 
       <div className="flex w-full max-w-xs flex-col gap-2">
         <Button asChild size="lg">
