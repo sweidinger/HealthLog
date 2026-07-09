@@ -160,8 +160,8 @@ describe("visibleNavDestinations module gate", () => {
   });
 });
 
-describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
-  it("is exactly the visible feature destinations minus the primary slots, then the utility tail", () => {
+describe("mobileMoreHubDestinations — the F-1 mobile invariant (feature-only hub, N-2)", () => {
+  it("is exactly the visible feature destinations minus the primary slots (no utility tail)", () => {
     const opts = {
       modules: { cycle: false } as const,
     };
@@ -170,9 +170,9 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
     const expectedFeatures = visibleNavDestinations(opts.modules)
       .map((d) => d.href)
       .filter((href) => !BOTTOM_NAV_PRIMARY_SLOT_HREFS.includes(href));
-    const expectedTail = visibleUtilityDestinations().map((d) => d.href);
 
-    expect(hub).toEqual([...expectedFeatures, ...expectedTail]);
+    // Feature destinations only — the account utilities never ride the hub.
+    expect(hub).toEqual(expectedFeatures);
   });
 
   it("never contains a primary slot (Home / Meds / Insights)", () => {
@@ -184,7 +184,7 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
     }
   });
 
-  it("keeps the feature destinations and the utility tail reachable in the hub", () => {
+  it("keeps the feature destinations reachable but excludes the account utilities", () => {
     const hub = mobileMoreHubDestinations({
       modules: { cycle: false },
     }).map((d) => d.href);
@@ -192,9 +192,10 @@ describe("mobileMoreHubDestinations — the F-1 mobile invariant (N-2)", () => {
     expect(hub).toContain("/measurements");
     expect(hub).toContain("/mood");
     expect(hub).toContain("/checkups");
-    // The shared utility tail rides at the end.
-    expect(hub).toContain("/settings/account");
-    expect(hub).toContain("/notifications");
+    // Settings + Notifications are account utilities — they live ONLY in the
+    // user/avatar menu, never duplicated into the mobile More hub.
+    expect(hub).not.toContain("/settings/account");
+    expect(hub).not.toContain("/notifications");
   });
 
   it("gates Cycle by the module map, same as the sidebar", () => {
