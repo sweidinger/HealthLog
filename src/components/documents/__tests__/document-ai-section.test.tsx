@@ -156,20 +156,18 @@ describe("<DocumentAiSection>", () => {
     expect(html).not.toContain('data-slot="document-read-ai"');
   });
 
-  it("hides the manual AI action row when auto-read is on, keeping status + chat", () => {
-    const chat = <div data-slot="chat-probe">chat here</div>;
-    const html = render(
-      base({ aiEnabled: true, autoReadEnabled: true, chatSlot: chat }),
-    );
+  it("hides the manual AI action row when auto-read is on, keeping status", () => {
+    const html = render(base({ aiEnabled: true, autoReadEnabled: true }));
     // Auto-read reads on upload — the manual per-document actions are gone.
     expect(html).not.toContain('data-slot="document-read-ai"');
     expect(html).not.toContain('data-slot="assist-suggest"');
     expect(html).not.toContain("Summarise");
     expect(html).not.toContain("Show extracted text");
-    // The header, the searchable status pill, and content-search chat stay.
+    // The header and the searchable status pill stay. The scoped chat entry
+    // now lives in the detail-sheet header (a neutral Coach icon), not in this
+    // section, so this block no longer owns a chat slot.
     expect(html).toContain('data-slot="document-ai-section"');
     expect(html).toContain('data-slot="content-search-status"');
-    expect(html).toContain('data-slot="chat-probe"');
   });
 
   it("shows the manual AI action row when auto-read is off", () => {
@@ -177,24 +175,5 @@ describe("<DocumentAiSection>", () => {
     expect(html).toContain('data-slot="document-read-ai"');
     expect(html).toContain('data-slot="assist-suggest"');
     expect(html).toContain("Summarise");
-  });
-
-  it("renders the chat slot inside the AI area only when a provider is available", () => {
-    const chat = <div data-slot="chat-probe">chat here</div>;
-    const enabled = render(base({ aiEnabled: true, chatSlot: chat }));
-    expect(enabled).toContain('data-slot="chat-probe"');
-
-    // No provider → the whole block collapses to the calm pointer; the chat
-    // slot (provider-only affordance) must not render.
-    const disabled = render(
-      base({
-        aiEnabled: false,
-        indexEnabled: false,
-        unavailableReason: "no-provider",
-        chatSlot: chat,
-      }),
-    );
-    expect(disabled).not.toContain('data-slot="chat-probe"');
-    expect(disabled).toContain('data-slot="assist-unavailable"');
   });
 });

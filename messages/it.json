@@ -8283,7 +8283,6 @@
     },
     "chat": {
       "title": "Chatta su questo documento",
-      "open": "Chatta su questo documento",
       "notIndexed": "Leggi prima questo documento con l'IA per poterne parlare.",
       "empty": "Fai una domanda su questo documento per iniziare.",
       "placeholder": "Una domanda su questo documento…",
@@ -8298,7 +8297,9 @@
       "errorBudget": "Limite giornaliero di IA raggiunto. Riprova domani.",
       "errorCredential": "Il provider IA va ricollegato nelle impostazioni.",
       "errorConsent": "Attiva il consenso all'IA nelle impostazioni per chattare su questo documento.",
-      "errorNetwork": "Sembri offline. Controlla la connessione e riprova."
+      "errorNetwork": "Sembri offline. Controlla la connessione e riprova.",
+      "openAria": "Chatta su questo documento",
+      "scopeBadge": "Stai chattando su: {title}"
     }
   },
   "selfDescription": {

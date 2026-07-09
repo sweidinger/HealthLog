@@ -20,13 +20,16 @@
  * safety note states answers describe the document and are not medical advice,
  * consistent with the summary panel's "not a diagnosis".
  *
- * Split: a stateful container (`DocumentChatPanel`) owns the hooks + open/gate
- * state; the pure `DocumentChatConversation` renders the open body (log + input
- * + safety note) from props, so the conversation surface is statically
- * renderable and pinned by tests without a query client.
+ * This module owns the PURE surface: `DocumentChatConversation` renders the
+ * open body (log + input + safety note) from props, so the conversation is
+ * statically renderable and pinned by tests without a query client, and
+ * `documentChatErrorKey` maps a server / client code to a calm copy key. The
+ * stateful container (hooks + open/gate state) lives in
+ * `document-chat-drawer.tsx`, which presents this body in the Coach drawer
+ * chrome scoped to a single document.
  */
 import { MessageSquare, Send } from "lucide-react";
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { type RefObject } from "react";
 
 import { StreamedProse } from "@/components/insights/coach-panel/streamed-prose";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
@@ -36,11 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
-import {
-  useDocumentChatThread,
-  useSendDocumentChatMessage,
-  type DocumentChatMessage,
-} from "./use-document-chat";
+import { type DocumentChatMessage } from "./use-document-chat";
 
 /** Map a server / client error code to a calm translation key. */
 export function documentChatErrorKey(code: string | null): string {
@@ -275,118 +274,5 @@ export function DocumentChatConversation({
         {t("documents.chat.close")}
       </button>
     </div>
-  );
-}
-
-/**
- * The stateful container: owns the open/gate state + the history / streaming
- * hooks, and delegates the open body to `DocumentChatConversation`.
- */
-export function DocumentChatPanel({
-  documentId,
-  indexed,
-}: {
-  documentId: string;
-  /** True when the document has a content index (its text grounds the chat). */
-  indexed: boolean;
-}) {
-  const { t, locale } = useTranslations();
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState("");
-  const logRef = useRef<HTMLDivElement | null>(null);
-
-  const thread = useDocumentChatThread(documentId, open && indexed);
-  const { streaming, isStreaming, optimisticUser, send, reset } =
-    useSendDocumentChatMessage(documentId);
-
-  const messages = thread.data?.messages ?? [];
-  const conversationId = thread.data?.conversationId ?? undefined;
-
-  // The optimistic bubble is dropped once its persisted twin lands (matched by
-  // content on the freshest user turn), so the user never sees it twice.
-  const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  const showOptimistic =
-    optimisticUser !== null && lastUser?.content !== optimisticUser;
-
-  // Keep the newest turn in view as messages / tokens land.
-  useEffect(() => {
-    const el = logRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, streaming.content, showOptimistic, isStreaming]);
-
-  const chatLocale = locale === "de" ? "de" : "en";
-
-  const submit = () => {
-    const message = draft.trim();
-    if (!message || isStreaming) return;
-    setDraft("");
-    void send({ conversationId, message, locale: chatLocale });
-  };
-
-  // ── Not indexed: calm pointer to the read action above (never an error) ──
-  if (!indexed) {
-    return (
-      <div
-        data-slot="document-chat"
-        className="border-border/60 space-y-2 border-t pt-3"
-      >
-        <div className="flex items-center gap-2">
-          <MessageSquare
-            className="text-foreground size-4 shrink-0"
-            aria-hidden
-          />
-          <p className="text-sm font-semibold">{t("documents.chat.title")}</p>
-        </div>
-        <p
-          data-slot="document-chat-not-indexed"
-          className="text-muted-foreground text-xs"
-        >
-          {t("documents.chat.notIndexed")}
-        </p>
-      </div>
-    );
-  }
-
-  // ── Collapsed entry: available, opens the scoped chat on tap ──
-  if (!open) {
-    return (
-      <div
-        data-slot="document-chat"
-        className="border-border/60 space-y-2 border-t pt-3"
-      >
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          data-slot="document-chat-open"
-          onClick={() => setOpen(true)}
-        >
-          <MessageSquare className="size-4" aria-hidden />
-          {t("documents.chat.open")}
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <DocumentChatConversation
-      messages={messages}
-      optimisticContent={showOptimistic ? optimisticUser : null}
-      streamingContent={streaming.content}
-      isStreaming={isStreaming}
-      streamErrorKey={
-        streaming.errorCode ? documentChatErrorKey(streaming.errorCode) : null
-      }
-      historyPending={thread.isPending}
-      historyError={thread.isError}
-      draft={draft}
-      onDraftChange={setDraft}
-      onSubmit={submit}
-      onClose={() => {
-        reset();
-        setOpen(false);
-      }}
-      logRef={logRef}
-    />
   );
 }

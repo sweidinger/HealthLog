@@ -8283,7 +8283,6 @@
     },
     "chat": {
       "title": "Chat about this document",
-      "open": "Chat about this document",
       "notIndexed": "Read this document with AI first to chat about it.",
       "empty": "Ask a question about this document to get started.",
       "placeholder": "Ask about this document…",
@@ -8298,7 +8297,9 @@
       "errorBudget": "The daily AI limit has been reached. Try again tomorrow.",
       "errorCredential": "The AI provider needs reconnecting in settings.",
       "errorConsent": "Turn on AI consent in settings to chat about this document.",
-      "errorNetwork": "You appear to be offline. Check your connection and try again."
+      "errorNetwork": "You appear to be offline. Check your connection and try again.",
+      "openAria": "Chat about this document",
+      "scopeBadge": "Chatting about: {title}"
     }
   },
   "selfDescription": {

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.28.9] — 2026-07-09 — Document chat in the coach dialog
+
+Chatting about a document now opens the coach chat dialog, scoped to that
+document ("Chatting about: …"), instead of a separate inline panel. The entry
+is a neutral icon in the top-right of the document, matching the insights
+surface. The document chat keeps its stricter footing unchanged — it reads only
+the one document, carries no health-record context, uses no tools, and renders
+as plain text.
+
 ## [1.28.8] — 2026-07-09 — Documents: automatic when set, cleaner when not
 
 With automatic AI reading turned on, a document is read on upload — so the
