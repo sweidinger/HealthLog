@@ -128,7 +128,7 @@ async function tryProviderIndex(
   const { pick } = provider;
   if (!pick || !provider.consentOk) return null;
 
-  const vision = prepareVisionInput(document, pick.pdfSupported);
+  const vision = await prepareVisionInput(document, pick.pdfSupported);
   if (!vision.ok) {
     // A decrypt failure is terminal (local would fail the same way); anything
     // else (fileType / pdfNeedsAnthropic) falls through to the local path — a

@@ -137,7 +137,7 @@ export async function runContentIndexBackfillForUser(
         await reconcileSpend(userId, reservation.reserved, 0, dateKey);
         continue;
       }
-      const vision = prepareVisionInput(document, pick.pdfSupported);
+      const vision = await prepareVisionInput(document, pick.pdfSupported);
       if (!vision.ok) {
         // Not vision-indexable (should be filtered by MIME, but guard) — refund
         // and move the cursor past it so the walk keeps converging.

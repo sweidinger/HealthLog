@@ -233,7 +233,7 @@ async function handleVisionSuggest(
   );
   if (!rl.allowed) return rateLimited(rl);
 
-  const vision = prepareVisionInput(document, pick.pdfSupported);
+  const vision = await prepareVisionInput(document, pick.pdfSupported);
   if (!vision.ok) {
     if (vision.reason === "pdfNeedsAnthropic") {
       return apiError(

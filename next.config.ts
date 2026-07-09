@@ -254,6 +254,18 @@ const nextConfig: NextConfig = {
       // runtime image explicitly. pnpm keeps pdfjs-dist unhoisted under `.pnpm`.
       "./node_modules/.pnpm/pdf-parse@*/node_modules/pdf-parse/**",
       "./node_modules/.pnpm/pdfjs-dist@*/node_modules/pdfjs-dist/**",
+      // Document AI rasterization (`src/lib/documents/rasterize-pdf.ts`) renders
+      // a scanned/image-only PDF page to a JPEG via `@napi-rs/canvas` so an
+      // image-only-wire provider (codex/OAuth) can read it — the ambient
+      // auto-read path. `@napi-rs/canvas` loads a native `.node` binary that the
+      // Turbopack NFT tracer resolves dynamically and therefore misses, so pin
+      // the JS loader AND the two musl prebuilts (the Alpine runtime image is
+      // amd64 + arm64) into the standalone image explicitly. pnpm keeps them
+      // unhoisted under `.pnpm`. No cairo/pango apk is needed — the prebuilt
+      // `.node` is self-contained.
+      "./node_modules/.pnpm/@napi-rs+canvas@*/node_modules/@napi-rs/canvas/**",
+      "./node_modules/.pnpm/@napi-rs+canvas-linux-x64-musl@*/node_modules/@napi-rs/canvas-linux-x64-musl/**",
+      "./node_modules/.pnpm/@napi-rs+canvas-linux-arm64-musl@*/node_modules/@napi-rs/canvas-linux-arm64-musl/**",
     ],
   },
   // v1.4.34 IW-A — silence the Turbopack NFT trace warnings emitted

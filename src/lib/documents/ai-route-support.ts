@@ -10,6 +10,7 @@
 import { Buffer } from "node:buffer";
 
 import { prisma } from "@/lib/db";
+import { rasterizePdf } from "@/lib/documents/rasterize-pdf";
 import { decryptDocumentContent } from "@/lib/documents/store";
 import { detectOcrMimeType } from "@/lib/labs/ocr-upload";
 
@@ -75,13 +76,24 @@ export type VisionInput =
 /**
  * Decrypt the stored original, re-derive its MIME from the bytes (never trust
  * the stored label for a provider call), and split it into the images/documents
- * arrays a vision call takes. Fails closed on a decrypt error and rejects a PDF
- * on a provider that cannot read PDFs natively.
+ * arrays a vision call takes. Fails closed on a decrypt error.
+ *
+ * PDF handling by provider capability:
+ *   - `pdfSupported` (Anthropic) → native `document` block, highest fidelity.
+ *   - otherwise (codex / any image-only-wire provider) → rasterize the pages to
+ *     JPEG `input_image` parts so the provider can still read the PDF. Egress is
+ *     already authorised upstream (the consent gate / the `documentsAutoAiRead`
+ *     toggle) before this is reached. If rasterization fails (malformed /
+ *     encrypted / unrenderable), fall back to the shipped `pdfNeedsAnthropic`
+ *     outcome so the job degrades to the local text-layer path and an
+ *     interactive route surfaces the same actionable error.
+ *
+ * Images (jpg/png/webp) flow straight to `input_image`, unchanged.
  */
-export function prepareVisionInput(
+export async function prepareVisionInput(
   document: LoadedDocument,
   pdfSupported: boolean,
-): VisionInput {
+): Promise<VisionInput> {
   let buffer: Buffer;
   try {
     buffer = decryptDocumentContent(
@@ -94,17 +106,31 @@ export function prepareVisionInput(
 
   const mime = detectOcrMimeType(buffer);
   if (!mime) return { ok: false, reason: "fileType" };
-  if (mime === "application/pdf" && !pdfSupported) {
+
+  if (mime === "application/pdf") {
+    if (pdfSupported) {
+      return {
+        ok: true,
+        images: [],
+        documents: [
+          {
+            mediaType: "application/pdf",
+            dataBase64: buffer.toString("base64"),
+          },
+        ],
+      };
+    }
+    // Non-Anthropic vision provider — render the PDF pages to images it can read.
+    const raster = await rasterizePdf(buffer);
+    if (raster.ok) {
+      return { ok: true, images: raster.images, documents: [] };
+    }
     return { ok: false, reason: "pdfNeedsAnthropic" };
   }
 
-  const dataBase64 = buffer.toString("base64");
-  if (mime === "application/pdf") {
-    return {
-      ok: true,
-      images: [],
-      documents: [{ mediaType: "application/pdf", dataBase64 }],
-    };
-  }
-  return { ok: true, images: [{ mediaType: mime, dataBase64 }], documents: [] };
+  return {
+    ok: true,
+    images: [{ mediaType: mime, dataBase64: buffer.toString("base64") }],
+    documents: [],
+  };
 }

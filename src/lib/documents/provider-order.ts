@@ -25,6 +25,7 @@
  * external egress from happening without an active receipt.
  */
 import { isExternalDocumentEgress } from "@/lib/ai/consent-guard";
+import { RASTERIZATION_AVAILABLE } from "@/lib/documents/rasterize-pdf";
 import {
   resolveTextProvider,
   resolveVisionProvider,
@@ -119,13 +120,16 @@ export async function resolveDocumentAiCapability(
     await resolveDocumentVisionProvider(userId);
 
   // A vision-capable provider is available — the read runs directly over the
-  // stored original. Egress follows the picked provider.
+  // stored original. Egress follows the picked provider. PDFs are readable
+  // whenever the picked provider natively supports them (Anthropic) OR the
+  // server-side rasterizer is available (every other vision provider reads a
+  // PDF via rasterized page images), so the UI offers a PDF read on codex too.
   if (pick) {
     return {
       available: true,
       mode: "vision",
       reason: null,
-      pdfSupported: pick.pdfSupported,
+      pdfSupported: pick.pdfSupported || RASTERIZATION_AVAILABLE,
       egress: documentEgressClass(pick.providerType),
     };
   }
