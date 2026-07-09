@@ -199,3 +199,10 @@ The wide-event log line `import.apple-health.kickoff` (or
 `import.apple-health.kickoff.denied` on failure) captures every
 attempt with the upload size, SHA-256, and the resolved `ImportJob`
 id for debugging.
+
+## Garmin owners
+
+Garmin has no direct connector for a self-hosted instance. Garmin Connect writes
+to Apple Health automatically, so the import path on this page is how Garmin data
+reaches HealthLog on iOS. See [garmin.md](./garmin.md) for what comes through and
+what Garmin withholds.

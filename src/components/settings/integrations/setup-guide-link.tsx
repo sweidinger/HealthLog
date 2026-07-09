@@ -30,7 +30,9 @@ export type IntegrationDocsProvider =
   | "oura"
   | "nightscout"
   // v1.27.0 — Google Health runbook (docs.healthlog.dev/integrations/google-health).
-  | "google-health";
+  | "google-health"
+  // v1.28.x — Strava runbook (docs.healthlog.dev/integrations/strava).
+  | "strava";
 
 export function integrationDocsHref(provider: IntegrationDocsProvider): string {
   return `${INTEGRATION_DOCS_BASE}/${provider}`;

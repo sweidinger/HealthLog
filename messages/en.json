@@ -5478,6 +5478,38 @@
       "connectionRevoke": "Disconnect",
       "connectionRevokeDescription": "This ends the assistant's access immediately and stops it from renewing. It will need to be re-authorized to reconnect.",
       "connectionRevokeFailed": "Could not disconnect the assistant."
+    },
+    "strava": "Strava",
+    "stravaDescription": "Connect your Strava account to sync your activities into your workout history.",
+    "stravaDescriptionSecondary": "Activities flow into your dashboard in the background. New to the setup? Follow the",
+    "stravaViewData": "View your workouts",
+    "stravaCredentials": "API Credentials",
+    "stravaClientId": "Client ID",
+    "stravaClientSecret": "Client Secret",
+    "stravaCredentialsSaved": "Credentials saved",
+    "stravaCredentialsSavedPlaceholder": "Saved — enter new to replace",
+    "stravaSaveCredentials": "Save",
+    "stravaUnavailable": "Strava is not configured on this server. Add your own Strava API credentials above, or ask your administrator to configure the shared app.",
+    "stravaConnect": "Connect Strava",
+    "stravaDisconnect": "Disconnect",
+    "stravaDisconnectTitle": "Disconnect Strava?",
+    "stravaDisconnectDescription": "Future syncs stop. Activities already imported stay in your history.",
+    "stravaOauthConnected": "Strava connected — the first sync starts in the background.",
+    "stravaOauthFailed": "Strava connection failed",
+    "stravaOauthError": {
+      "csrf1": "The security check failed because the browser cookie was missing. Please start the connection again in the same browser.",
+      "state": "The response from Strava did not match any open connection request. Please start the connection again.",
+      "cross_user": "The response belongs to a request from a different account. Please restart the connection from your own account.",
+      "nocode": "Strava did not return an authorization code. Try again and allow access in the Strava dialog.",
+      "nocreds": "Strava is not configured on this server. Ask your administrator to add the Strava API credentials.",
+      "token": "The token exchange with Strava failed. Please start the connection again.",
+      "rate_limited": "Too many connection attempts. Wait a moment and try again.",
+      "generic": "Unknown error while connecting. Please start the connection again."
+    },
+    "garminInfo": {
+      "title": "Garmin",
+      "body": "Garmin has no direct connection here. Connect via Apple Health (iOS) or Google Health Connect (Android). Garmin's proprietary scores — Body Battery, Training Load, HRV Status, VO₂ max — are not shared by Garmin to either platform.",
+      "docsLink": "Read the guide"
     }
   },
   "admin": {

@@ -89,7 +89,7 @@ function pillStateFor(
 
 export interface OAuthProviderCardProps {
   /** Lower-case provider key, used for routes + query keys + testids. */
-  provider: "polar" | "oura";
+  provider: "polar" | "oura" | "strava";
   /** The query-key array shared by the status read + the invalidations. */
   statusQueryKey: readonly unknown[];
   /** i18n key prefix (e.g. `settings.polar`). */

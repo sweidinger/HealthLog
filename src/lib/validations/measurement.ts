@@ -215,6 +215,13 @@ export const measurementSourceEnum = z.enum([
   // deliberately absent from `WRITABLE_MEASUREMENT_SOURCES` + the batch
   // allowlist so a client can never forge a GOOGLE_HEALTH-attributed row.
   "GOOGLE_HEALTH",
+  // v1.28.x — Strava OAuth integration. Native Strava activities ingest
+  // server-side as `source = STRAVA` Workout rows (no client write path),
+  // exactly like WHOOP/FITBIT. Part of this enum so the read/response shapes
+  // (and the iOS decoder) can decode the rows it surfaces; deliberately absent
+  // from `WRITABLE_MEASUREMENT_SOURCES` + the batch allowlist so a client can
+  // never forge a STRAVA-attributed row.
+  "STRAVA",
 ]);
 
 /**

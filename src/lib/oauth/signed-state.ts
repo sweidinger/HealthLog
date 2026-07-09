@@ -32,7 +32,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 /** Providers that share this signed-state machinery. */
-export type OAuthStateProvider = "polar" | "oura";
+export type OAuthStateProvider = "polar" | "oura" | "strava";
 
 /** 10-minute TTL — long enough to approve a consent screen, short enough that
  * an abandoned handshake's token is useless within the hour. Mirrors the

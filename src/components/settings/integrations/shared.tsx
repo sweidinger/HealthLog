@@ -26,7 +26,9 @@ export type IntegrationKey =
   | "polar"
   | "oura"
   // v1.27.0 — Google Health (Fitbit + Pixel Watch + Fitbit Air).
-  | "google-health";
+  | "google-health"
+  // v1.28.x — Strava OAuth workout source.
+  | "strava";
 export type IntegrationState =
   "connected" | "error_transient" | "error_reauth" | "disconnected" | "parked";
 

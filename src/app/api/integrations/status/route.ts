@@ -30,6 +30,7 @@ import {
 } from "@/lib/integrations/metric-freshness";
 import { getOuraClientCredentials } from "@/lib/oura/credentials";
 import { getPolarClientCredentials } from "@/lib/polar/credentials";
+import { getStravaClientCredentials } from "@/lib/strava/credentials";
 import { hasActivityScope } from "@/lib/withings/client";
 import { readMoodLogSecret } from "@/lib/moodlog-secret";
 
@@ -47,6 +48,7 @@ export const GET = apiHandler(async () => {
     googleHealthStatus,
     polarStatus,
     ouraStatus,
+    stravaStatus,
     dbUser,
     withingsConn,
     whoopConn,
@@ -58,6 +60,7 @@ export const GET = apiHandler(async () => {
     // /api/<provider>/status the consolidated envelope now replaces.
     polarAvailable,
     ouraAvailable,
+    stravaAvailable,
   ] = await Promise.all([
     getIntegrationStatus(user.id, "withings"),
     getIntegrationStatus(user.id, "moodlog"),
@@ -66,6 +69,7 @@ export const GET = apiHandler(async () => {
     getIntegrationStatus(user.id, "google-health"),
     getIntegrationStatus(user.id, "polar"),
     getIntegrationStatus(user.id, "oura"),
+    getIntegrationStatus(user.id, "strava"),
     prisma.user.findUnique({
       where: { id: user.id },
       select: {
@@ -83,6 +87,9 @@ export const GET = apiHandler(async () => {
         ouraAccessTokenEncrypted: true,
         ouraClientIdEncrypted: true,
         ouraClientSecretEncrypted: true,
+        stravaAccessTokenEncrypted: true,
+        stravaClientIdEncrypted: true,
+        stravaClientSecretEncrypted: true,
         moodLogUrlEncrypted: true,
         moodLogApiKeyEncrypted: true,
         moodLogEnabled: true,
@@ -133,6 +140,7 @@ export const GET = apiHandler(async () => {
     }),
     getPolarClientCredentials(user.id).then((c) => !!c),
     getOuraClientCredentials(user.id).then((c) => !!c),
+    getStravaClientCredentials(user.id).then((c) => !!c),
   ]);
 
   // F-SYNC-1 — per-metric-type last-value timestamps so the card can show that a
@@ -258,6 +266,18 @@ export const GET = apiHandler(async () => {
           !!dbUser?.ouraClientIdEncrypted &&
           !!dbUser?.ouraClientSecretEncrypted,
         metricFreshness: metricFreshness.oura ?? [],
+      } satisfies IntegrationViewModel & OAuthProviderExtras,
+      {
+        ...stravaStatus,
+        connected: !!dbUser?.stravaAccessTokenEncrypted,
+        configured: !!dbUser?.stravaAccessTokenEncrypted,
+        available: stravaAvailable,
+        hasOwnCredentials:
+          !!dbUser?.stravaClientIdEncrypted &&
+          !!dbUser?.stravaClientSecretEncrypted,
+        // Strava writes Workout rows, not Measurements, so it has no
+        // per-metric measurement freshness (like moodLog).
+        metricFreshness: metricFreshness.strava ?? [],
       } satisfies IntegrationViewModel & OAuthProviderExtras,
     ],
   });

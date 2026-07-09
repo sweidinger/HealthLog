@@ -141,3 +141,10 @@ per metric.
 
 The Settings **Disconnect** button removes the connection and its stored tokens.
 Previously synced measurements stay in the database.
+
+## Garmin owners
+
+Garmin has no direct connector for a self-hosted instance. Since Garmin Connect
+5.14.1 (July 2025) the app writes to Google Health Connect, so this integration
+is how Garmin data reaches HealthLog on Android. See [garmin.md](./garmin.md) for
+what comes through and what Garmin withholds.

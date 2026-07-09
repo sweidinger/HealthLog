@@ -52,6 +52,8 @@ export type IntegrationKey =
   // successor Google Health API. Separate connection from the classic
   // `fitbit` transport, which sunsets Sept 2026.
   | "google-health"
+  // v1.28.x — Strava OAuth workout source.
+  | "strava"
   | "moodlog";
 
 /**
@@ -814,6 +816,7 @@ const INTEGRATION_LABELS: Record<IntegrationKey, string> = {
   polar: "Polar",
   oura: "Oura",
   "google-health": "Google Health",
+  strava: "Strava",
   moodlog: "moodLog",
 };
 

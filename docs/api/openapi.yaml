@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.10
+  version: 1.28.11
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -2243,6 +2243,7 @@ paths:
               - TELEGRAM
               - MCP
               - GOOGLE_HEALTH
+              - STRAVA
         - in: query
           name: valueMin
           schema:
@@ -4016,6 +4017,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -4035,6 +4037,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -4054,6 +4057,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -4073,6 +4077,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 sleep:
                   maxItems: 8
                   type: array
@@ -4092,6 +4097,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 weight:
                   maxItems: 8
                   type: array
@@ -4111,6 +4117,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -4130,6 +4137,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 pulse:
                   maxItems: 8
                   type: array
@@ -4149,6 +4157,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -4168,6 +4177,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -4187,6 +4197,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 spo2:
                   maxItems: 8
                   type: array
@@ -4206,6 +4217,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 hrv:
                   maxItems: 8
                   type: array
@@ -4225,6 +4237,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -4244,6 +4257,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -4263,6 +4277,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -4282,6 +4297,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -4301,6 +4317,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 recovery:
                   maxItems: 8
                   type: array
@@ -4320,6 +4337,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 stress:
                   maxItems: 8
                   type: array
@@ -4339,6 +4357,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 sleepDebt:
                   maxItems: 8
                   type: array
@@ -4358,6 +4377,7 @@ paths:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 metricPriority:
                   type: object
                   properties:
@@ -4380,6 +4400,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     activeEnergy:
                       maxItems: 8
                       type: array
@@ -4399,6 +4420,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     walkingRunningDistance:
                       maxItems: 8
                       type: array
@@ -4418,6 +4440,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     flightsClimbed:
                       maxItems: 8
                       type: array
@@ -4437,6 +4460,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     sleep:
                       maxItems: 8
                       type: array
@@ -4456,6 +4480,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     weight:
                       maxItems: 8
                       type: array
@@ -4475,6 +4500,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     bloodPressure:
                       maxItems: 8
                       type: array
@@ -4494,6 +4520,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     pulse:
                       maxItems: 8
                       type: array
@@ -4513,6 +4540,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     bodyFat:
                       maxItems: 8
                       type: array
@@ -4532,6 +4560,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     bodyTemperature:
                       maxItems: 8
                       type: array
@@ -4551,6 +4580,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     spo2:
                       maxItems: 8
                       type: array
@@ -4570,6 +4600,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     hrv:
                       maxItems: 8
                       type: array
@@ -4589,6 +4620,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     restingHeartRate:
                       maxItems: 8
                       type: array
@@ -4608,6 +4640,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     vo2Max:
                       maxItems: 8
                       type: array
@@ -4627,6 +4660,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     skinTemperature:
                       maxItems: 8
                       type: array
@@ -4646,6 +4680,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     respiratoryRate:
                       maxItems: 8
                       type: array
@@ -4665,6 +4700,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     recovery:
                       maxItems: 8
                       type: array
@@ -4684,6 +4720,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     stress:
                       maxItems: 8
                       type: array
@@ -4703,6 +4740,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                     sleepDebt:
                       maxItems: 8
                       type: array
@@ -4722,6 +4760,7 @@ paths:
                           - TELEGRAM
                           - MCP
                           - GOOGLE_HEALTH
+                          - STRAVA
                 deviceTypePriority:
                   type: object
                   properties:
@@ -14677,6 +14716,7 @@ components:
             - TELEGRAM
             - MCP
             - GOOGLE_HEALTH
+            - STRAVA
         notes:
           anyOf:
             - type: string
@@ -15434,6 +15474,7 @@ components:
             - TELEGRAM
             - MCP
             - GOOGLE_HEALTH
+            - STRAVA
         notes:
           anyOf:
             - type: string
@@ -15679,6 +15720,7 @@ components:
                         - TELEGRAM
                         - MCP
                         - GOOGLE_HEALTH
+                        - STRAVA
                     - type: "null"
                 start:
                   type: string
@@ -15808,6 +15850,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                   - type: "null"
               start:
                 type: string
@@ -15988,6 +16031,7 @@ components:
                 - TELEGRAM
                 - MCP
                 - GOOGLE_HEALTH
+                - STRAVA
               description: v1.25.0 — the active source the debt is resolved FROM, picked off the user's `sleepDebt` source ladder.
                 `COMPUTED` is HealthLog's own rolling-balance estimate (the only producer today); a provider value would
                 be a device-native debt. Clients explain the figure when it is `COMPUTED`.
@@ -16203,6 +16247,7 @@ components:
             - TELEGRAM
             - MCP
             - GOOGLE_HEALTH
+            - STRAVA
         externalId:
           anyOf:
             - type: string
@@ -16314,6 +16359,7 @@ components:
             - TELEGRAM
             - MCP
             - GOOGLE_HEALTH
+            - STRAVA
         externalId:
           anyOf:
             - type: string
@@ -18931,6 +18977,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             activeEnergy:
               maxItems: 8
               type: array
@@ -18950,6 +18997,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -18969,6 +19017,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             flightsClimbed:
               maxItems: 8
               type: array
@@ -18988,6 +19037,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             sleep:
               maxItems: 8
               type: array
@@ -19007,6 +19057,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             weight:
               maxItems: 8
               type: array
@@ -19026,6 +19077,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             bloodPressure:
               maxItems: 8
               type: array
@@ -19045,6 +19097,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             pulse:
               maxItems: 8
               type: array
@@ -19064,6 +19117,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             bodyFat:
               maxItems: 8
               type: array
@@ -19083,6 +19137,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             bodyTemperature:
               maxItems: 8
               type: array
@@ -19102,6 +19157,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             spo2:
               maxItems: 8
               type: array
@@ -19121,6 +19177,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             hrv:
               maxItems: 8
               type: array
@@ -19140,6 +19197,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             restingHeartRate:
               maxItems: 8
               type: array
@@ -19159,6 +19217,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             vo2Max:
               maxItems: 8
               type: array
@@ -19178,6 +19237,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             skinTemperature:
               maxItems: 8
               type: array
@@ -19197,6 +19257,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             respiratoryRate:
               maxItems: 8
               type: array
@@ -19216,6 +19277,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             recovery:
               maxItems: 8
               type: array
@@ -19235,6 +19297,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             stress:
               maxItems: 8
               type: array
@@ -19254,6 +19317,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             sleepDebt:
               maxItems: 8
               type: array
@@ -19273,6 +19337,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             metricPriority:
               type: object
               properties:
@@ -19295,6 +19360,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -19314,6 +19380,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -19333,6 +19400,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -19352,6 +19420,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 sleep:
                   maxItems: 8
                   type: array
@@ -19371,6 +19440,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 weight:
                   maxItems: 8
                   type: array
@@ -19390,6 +19460,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -19409,6 +19480,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 pulse:
                   maxItems: 8
                   type: array
@@ -19428,6 +19500,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -19447,6 +19520,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -19466,6 +19540,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 spo2:
                   maxItems: 8
                   type: array
@@ -19485,6 +19560,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 hrv:
                   maxItems: 8
                   type: array
@@ -19504,6 +19580,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -19523,6 +19600,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -19542,6 +19620,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -19561,6 +19640,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -19580,6 +19660,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 recovery:
                   maxItems: 8
                   type: array
@@ -19599,6 +19680,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 stress:
                   maxItems: 8
                   type: array
@@ -19618,6 +19700,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 sleepDebt:
                   maxItems: 8
                   type: array
@@ -19637,6 +19720,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
               additionalProperties: false
             deviceTypePriority:
               type: object
@@ -19705,6 +19789,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             activeEnergy:
               maxItems: 8
               type: array
@@ -19724,6 +19809,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -19743,6 +19829,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             flightsClimbed:
               maxItems: 8
               type: array
@@ -19762,6 +19849,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             sleep:
               maxItems: 8
               type: array
@@ -19781,6 +19869,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             weight:
               maxItems: 8
               type: array
@@ -19800,6 +19889,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             bloodPressure:
               maxItems: 8
               type: array
@@ -19819,6 +19909,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             pulse:
               maxItems: 8
               type: array
@@ -19838,6 +19929,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             bodyFat:
               maxItems: 8
               type: array
@@ -19857,6 +19949,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             bodyTemperature:
               maxItems: 8
               type: array
@@ -19876,6 +19969,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             spo2:
               maxItems: 8
               type: array
@@ -19895,6 +19989,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             hrv:
               maxItems: 8
               type: array
@@ -19914,6 +20009,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             restingHeartRate:
               maxItems: 8
               type: array
@@ -19933,6 +20029,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             vo2Max:
               maxItems: 8
               type: array
@@ -19952,6 +20049,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             skinTemperature:
               maxItems: 8
               type: array
@@ -19971,6 +20069,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             respiratoryRate:
               maxItems: 8
               type: array
@@ -19990,6 +20089,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             recovery:
               maxItems: 8
               type: array
@@ -20009,6 +20109,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             stress:
               maxItems: 8
               type: array
@@ -20028,6 +20129,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             sleepDebt:
               maxItems: 8
               type: array
@@ -20047,6 +20149,7 @@ components:
                   - TELEGRAM
                   - MCP
                   - GOOGLE_HEALTH
+                  - STRAVA
             metricPriority:
               type: object
               properties:
@@ -20069,6 +20172,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -20088,6 +20192,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -20107,6 +20212,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -20126,6 +20232,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 sleep:
                   maxItems: 8
                   type: array
@@ -20145,6 +20252,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 weight:
                   maxItems: 8
                   type: array
@@ -20164,6 +20272,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -20183,6 +20292,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 pulse:
                   maxItems: 8
                   type: array
@@ -20202,6 +20312,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -20221,6 +20332,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -20240,6 +20352,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 spo2:
                   maxItems: 8
                   type: array
@@ -20259,6 +20372,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 hrv:
                   maxItems: 8
                   type: array
@@ -20278,6 +20392,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -20297,6 +20412,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -20316,6 +20432,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -20335,6 +20452,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -20354,6 +20472,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 recovery:
                   maxItems: 8
                   type: array
@@ -20373,6 +20492,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 stress:
                   maxItems: 8
                   type: array
@@ -20392,6 +20512,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
                 sleepDebt:
                   maxItems: 8
                   type: array
@@ -20411,6 +20532,7 @@ components:
                       - TELEGRAM
                       - MCP
                       - GOOGLE_HEALTH
+                      - STRAVA
               additionalProperties: false
             deviceTypePriority:
               type: object

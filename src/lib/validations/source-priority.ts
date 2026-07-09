@@ -238,6 +238,11 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // successor API to the classic Fitbit Web API); it rides in the same
   // wrist-wearable class as FITBIT and ranks immediately below it in every
   // device ladder, above OURA/POLAR and MANUAL.
+  // v1.28.x — the `steps` ladder is also the ladder the cross-source WORKOUT
+  // picker (`pickCanonicalWorkoutRows`) resolves against. STRAVA slots below the
+  // device-native wearables and above MANUAL so an Apple-Watch + Strava twin of
+  // the same run collapses onto the richer device row, while a Strava-only run
+  // still survives.
   steps: [
     "APPLE_HEALTH",
     "WITHINGS",
@@ -245,6 +250,7 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
     "GOOGLE_HEALTH",
     "OURA",
     "POLAR",
+    "STRAVA",
     "MANUAL",
   ],
   activeEnergy: [

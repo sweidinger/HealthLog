@@ -168,7 +168,9 @@ async function main() {
   // "polarUserIdEncrypted" "polarClientIdEncrypted"
   // "polarClientSecretEncrypted" "ouraAccessTokenEncrypted"
   // "ouraRefreshTokenEncrypted" "ouraClientIdEncrypted"
-  // "ouraClientSecretEncrypted" "aiAnthropicKeyEncrypted"
+  // "ouraClientSecretEncrypted" "stravaClientIdEncrypted"
+  // "stravaClientSecretEncrypted" "stravaAccessTokenEncrypted"
+  // "stravaRefreshTokenEncrypted" "aiAnthropicKeyEncrypted"
   // "aiLocalKeyEncrypted" "aiOpenaiKeyEncrypted" "insuranceNumberEncrypted"
   const userFields = [
     "codexAccessTokenEncrypted",
@@ -195,6 +197,10 @@ async function main() {
     "ouraRefreshTokenEncrypted",
     "ouraClientIdEncrypted",
     "ouraClientSecretEncrypted",
+    "stravaClientIdEncrypted",
+    "stravaClientSecretEncrypted",
+    "stravaAccessTokenEncrypted",
+    "stravaRefreshTokenEncrypted",
     "aiAnthropicKeyEncrypted",
     "aiLocalKeyEncrypted",
     "aiOpenaiKeyEncrypted",

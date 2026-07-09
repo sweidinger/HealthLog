@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.28.11] — 2026-07-09 — Strava workouts + Garmin guidance
+
+Connect Strava to bring your activities in as workouts. Like the other wearable
+connections, you register your own Strava application and paste its keys, so no
+shared account is involved. A run that also arrives through Apple Health is not
+double-counted — the existing source-priority picker collapses the duplicate.
+Strava is a workout source only (no sleep, recovery, or body metrics). Also adds
+a Garmin page and an in-app note: Garmin has no direct connection, but its data
+flows in through Apple Health or Google Health Connect.
+
 ## [1.28.10] — 2026-07-09 — Onboarding shows the AI value early
 
 New accounts now meet the AI value up front instead of discovering it as a cold

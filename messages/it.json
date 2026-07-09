@@ -5478,6 +5478,38 @@
       "connectionRevoke": "Disconnetti",
       "connectionRevokeDescription": "Questo termina immediatamente l'accesso dell'assistente e ne impedisce il rinnovo. Per riconnetterlo sarà necessaria una nuova autorizzazione.",
       "connectionRevokeFailed": "Impossibile disconnettere l'assistente."
+    },
+    "strava": "Strava",
+    "stravaDescription": "Collega il tuo account Strava per sincronizzare le tue attività con la cronologia degli allenamenti.",
+    "stravaDescriptionSecondary": "Le attività arrivano nella tua dashboard in background. Nuovo alla configurazione? Segui la",
+    "stravaViewData": "Vedi i tuoi allenamenti",
+    "stravaCredentials": "Credenziali API",
+    "stravaClientId": "ID client",
+    "stravaClientSecret": "Secret client",
+    "stravaCredentialsSaved": "Credenziali salvate",
+    "stravaCredentialsSavedPlaceholder": "Salvate — inseriscine di nuove per sostituirle",
+    "stravaSaveCredentials": "Salva",
+    "stravaUnavailable": "Strava non è configurato su questo server. Aggiungi sopra le tue credenziali API di Strava o chiedi al tuo amministratore di configurare l'app condivisa.",
+    "stravaConnect": "Collega Strava",
+    "stravaDisconnect": "Disconnetti",
+    "stravaDisconnectTitle": "Disconnettere Strava?",
+    "stravaDisconnectDescription": "Le sincronizzazioni future si interrompono. Le attività già importate restano nella cronologia.",
+    "stravaOauthConnected": "Strava collegato — la prima sincronizzazione parte in background.",
+    "stravaOauthFailed": "Connessione a Strava non riuscita",
+    "stravaOauthError": {
+      "csrf1": "Il controllo di sicurezza non è riuscito perché mancava il cookie del browser. Riavvia la connessione nello stesso browser.",
+      "state": "La risposta di Strava non corrispondeva ad alcuna richiesta di connessione aperta. Riavvia la connessione.",
+      "cross_user": "La risposta appartiene a una richiesta di un altro account. Riavvia la connessione dal tuo account.",
+      "nocode": "Strava non ha restituito un codice di autorizzazione. Riprova e consenti l'accesso nella finestra di Strava.",
+      "nocreds": "Strava non è configurato su questo server. Chiedi al tuo amministratore di aggiungere le credenziali API di Strava.",
+      "token": "Lo scambio del token con Strava non è riuscito. Riavvia la connessione.",
+      "rate_limited": "Troppi tentativi di connessione. Attendi un momento e riprova.",
+      "generic": "Errore sconosciuto durante la connessione. Riavvia la connessione."
+    },
+    "garminInfo": {
+      "title": "Garmin",
+      "body": "Garmin non ha una connessione diretta qui. Collegalo tramite Apple Health (iOS) o Google Health Connect (Android). I punteggi proprietari di Garmin — Body Battery, Training Load, stato HRV, VO₂ max — non vengono condivisi da Garmin con nessuna delle due piattaforme.",
+      "docsLink": "Leggi la guida"
     }
   },
   "admin": {
