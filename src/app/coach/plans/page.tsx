@@ -1,12 +1,22 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Target, Trash2, X } from "lucide-react";
+import {
+  Check,
+  Loader2,
+  MessagesSquare,
+  Target,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorCard } from "@/components/ui/query-error-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { COACH_SCROLLBAR } from "@/components/insights/coach-panel/message-thread";
 import {
   useCoachPlans,
@@ -204,6 +214,17 @@ function CoachPlansBody() {
           <span data-slot="coach-plans-heading">{t("coach.plans.title")}</span>
         }
         description={t("coach.plans.pageDescription")}
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link
+              href="/coach/conversations"
+              data-slot="coach-plans-conversations-link"
+            >
+              <MessagesSquare className="size-4" aria-hidden="true" />
+              {t("insights.coach.historyTitle")}
+            </Link>
+          </Button>
+        }
       />
 
       <div
@@ -216,23 +237,22 @@ function CoachPlansBody() {
         {query.isError ? (
           <QueryErrorCard onRetry={() => query.refetch()} />
         ) : query.isLoading ? (
-          <p
-            data-slot="coach-plans-loading"
-            className="text-muted-foreground px-1 py-3 text-sm"
-          >
-            {t("common.loading")}
-          </p>
-        ) : groups.length === 0 ? (
           <div
-            data-slot="coach-plans-empty"
-            className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center"
+            data-slot="coach-plans-loading"
+            className="flex flex-col gap-2"
+            aria-hidden="true"
           >
-            <span className="bg-muted/40 text-muted-foreground flex size-12 items-center justify-center rounded-full">
-              <Target className="size-6" aria-hidden="true" />
-            </span>
-            <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
-              {t("coach.plans.empty")}
-            </p>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : groups.length === 0 ? (
+          <div data-slot="coach-plans-empty">
+            <EmptyState
+              variant="plain"
+              icon={<Target className="size-6" />}
+              title={t("coach.plans.empty")}
+            />
           </div>
         ) : (
           groups.map((group) => (

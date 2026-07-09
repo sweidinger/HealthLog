@@ -56,7 +56,7 @@ export function ChartEmptyState({
       style={height === undefined ? undefined : { height }}
     >
       <LineChartIcon
-        className="text-muted-foreground/60 h-8 w-8"
+        className="text-muted-foreground h-8 w-8"
         aria-hidden="true"
       />
       <p className="text-sm font-medium">{title}</p>

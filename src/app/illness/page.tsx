@@ -2,9 +2,9 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { PageAuthGate } from "@/components/ui/page-auth-gate";
 import { IllnessView } from "@/components/illness/illness-view";
 
 /**
@@ -35,11 +35,7 @@ export default function IllnessPage() {
   }, [isLoading, isAuthenticated, enabled, router]);
 
   if (isLoading || !isAuthenticated || !enabled) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
-      </div>
-    );
+    return <PageAuthGate />;
   }
 
   return <IllnessView />;

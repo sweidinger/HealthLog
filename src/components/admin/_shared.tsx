@@ -192,6 +192,11 @@ export function SettingsToggle({
         </div>
       </div>
       <Switch
+        // The visible label is a sibling `<p>` with no association to the
+        // Radix switch button, so a screen reader would announce a bare
+        // "switch, on/off". Name it explicitly — one fix covers every admin
+        // toggle that mounts this shared component.
+        aria-label={label}
         checked={checked}
         onCheckedChange={onCheckedChange}
         disabled={disabled}

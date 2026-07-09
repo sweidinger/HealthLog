@@ -17,20 +17,13 @@
  * ad-hoc (no `scheduledFor`); an exact slot match pins directly with no nudge.
  */
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Label } from "@/components/ui/label";
 import { DateTimeField } from "@/components/ui/date-time-field";
 import { Switch } from "@/components/ui/switch";
@@ -135,6 +128,7 @@ export function LedgerAddDialog({
 }: LedgerAddDialogProps) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  const formId = useId();
 
   const [takenAt, setTakenAt] = useState(() => toDateTimeLocal(new Date()));
   const [skipped, setSkipped] = useState(false);
@@ -200,136 +194,127 @@ export function LedgerAddDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
-      <DialogContent data-slot="ledger-add-dialog">
-        <DialogHeader>
-          <DialogTitle>
-            {t("medications.detail.verlauf.addDialog.title")}
-          </DialogTitle>
-          <DialogDescription>
-            {t("medications.detail.verlauf.addDialog.description")}
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* v1.16.4 — a real form so Enter in the datetime field submits;
-            the buttons carry explicit types so cancel never submits. The
-            nested nudge dialog renders through a portal, so its buttons
-            never land inside this form. */}
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit();
-          }}
-        >
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="ledger-add-taken-at">
-                {t("medications.detail.verlauf.addDialog.takenAtLabel")}
-              </Label>
-              <DateTimeField
-                id="ledger-add-taken-at"
-                value={takenAt}
-                max={toDateTimeLocal(new Date())}
-                onChange={(value) => setTakenAt(value)}
-                disabled={skipped}
-              />
-            </div>
-
-            <label
-              htmlFor="ledger-add-skipped"
-              className="flex items-center justify-between gap-3"
-            >
-              <span className="text-sm font-medium">
-                {t("medications.detail.verlauf.addDialog.skippedLabel")}
-              </span>
-              <Switch
-                id="ledger-add-skipped"
-                checked={skipped}
-                onCheckedChange={setSkipped}
-              />
-            </label>
-
-            {/* A near-miss take previews where it will land before the user
-              commits — calm, not alarming. */}
-            {!skipped && classification === "nudge" && nearest && (
-              <p
-                className="text-muted-foreground text-xs"
-                data-slot="ledger-add-nudge-hint"
-              >
-                {t("medications.detail.verlauf.addDialog.nudgeHint", {
-                  slot: nearest.slotHm,
-                })}
-              </p>
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={(o) => !busy && onOpenChange(o)}
+      title={t("medications.detail.verlauf.addDialog.title")}
+      description={t("medications.detail.verlauf.addDialog.description")}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+          >
+            {t("medications.detail.verlauf.addDialog.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={busy}
+            aria-busy={busy || undefined}
+            data-slot="ledger-add-submit"
+          >
+            {busy && (
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             )}
+            {t("medications.detail.verlauf.addDialog.submit")}
+          </Button>
+        </>
+      }
+    >
+      {/* v1.16.4 — a real form so Enter in the datetime field submits;
+            the buttons carry explicit types so cancel never submits. */}
+      <form
+        id={formId}
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="ledger-add-taken-at">
+              {t("medications.detail.verlauf.addDialog.takenAtLabel")}
+            </Label>
+            <DateTimeField
+              id="ledger-add-taken-at"
+              value={takenAt}
+              max={toDateTimeLocal(new Date())}
+              onChange={(value) => setTakenAt(value)}
+              disabled={skipped}
+            />
           </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={busy}
-            >
-              {t("medications.detail.verlauf.addDialog.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              disabled={busy}
-              aria-busy={busy || undefined}
-              data-slot="ledger-add-submit"
-            >
-              {busy && (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-              )}
-              {t("medications.detail.verlauf.addDialog.submit")}
-            </Button>
-          </DialogFooter>
-        </form>
-
-        {/* The "diesem Slot zuordnen?" nudge — pin onto the slot, or keep the
-            take as a standalone ad-hoc entry. */}
-        {nudgeOpen && nearest && (
-          <Dialog
-            open={nudgeOpen}
-            onOpenChange={(o) => !busy && setNudgeOpen(o)}
+          <label
+            htmlFor="ledger-add-skipped"
+            className="flex items-center justify-between gap-3"
           >
-            <DialogContent data-slot="ledger-add-nudge-dialog">
-              <DialogHeader>
-                <DialogTitle>
-                  {t("medications.detail.verlauf.nudge.title")}
-                </DialogTitle>
-                <DialogDescription>
-                  {t("medications.detail.verlauf.nudge.body", {
-                    slot: nearest.slotHm,
-                  })}
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => void write(false)}
-                  disabled={busy}
-                  data-slot="ledger-add-nudge-adhoc"
-                >
-                  {t("medications.detail.verlauf.nudge.keepAdHoc")}
-                </Button>
-                <Button
-                  onClick={() => void write(true)}
-                  disabled={busy}
-                  aria-busy={busy || undefined}
-                  data-slot="ledger-add-nudge-pin"
-                >
-                  {busy && (
-                    <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-                  )}
-                  {t("medications.detail.verlauf.nudge.pin")}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
-      </DialogContent>
-    </Dialog>
+            <span className="text-sm font-medium">
+              {t("medications.detail.verlauf.addDialog.skippedLabel")}
+            </span>
+            <Switch
+              id="ledger-add-skipped"
+              checked={skipped}
+              onCheckedChange={setSkipped}
+            />
+          </label>
+
+          {/* A near-miss take previews where it will land before the user
+              commits — calm, not alarming. */}
+          {!skipped && classification === "nudge" && nearest && (
+            <p
+              className="text-muted-foreground text-xs"
+              data-slot="ledger-add-nudge-hint"
+            >
+              {t("medications.detail.verlauf.addDialog.nudgeHint", {
+                slot: nearest.slotHm,
+              })}
+            </p>
+          )}
+        </div>
+      </form>
+
+      {/* The "diesem Slot zuordnen?" nudge — pin onto the slot, or keep the
+            take as a standalone ad-hoc entry. */}
+      {nudgeOpen && nearest && (
+        <ResponsiveSheet
+          open={nudgeOpen}
+          onOpenChange={(o) => !busy && setNudgeOpen(o)}
+          title={t("medications.detail.verlauf.nudge.title")}
+          footer={
+            <>
+              <Button
+                variant="outline"
+                onClick={() => void write(false)}
+                disabled={busy}
+                data-slot="ledger-add-nudge-adhoc"
+              >
+                {t("medications.detail.verlauf.nudge.keepAdHoc")}
+              </Button>
+              <Button
+                onClick={() => void write(true)}
+                disabled={busy}
+                aria-busy={busy || undefined}
+                data-slot="ledger-add-nudge-pin"
+              >
+                {busy && (
+                  <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                )}
+                {t("medications.detail.verlauf.nudge.pin")}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-muted-foreground text-sm">
+            {t("medications.detail.verlauf.nudge.body", {
+              slot: nearest.slotHm,
+            })}
+          </p>
+        </ResponsiveSheet>
+      )}
+    </ResponsiveSheet>
   );
 }

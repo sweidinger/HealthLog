@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCheck,
@@ -426,20 +427,11 @@ export default function MedicationsPage() {
           )}
         </div>
       ) : isError ? (
-        <div className="bg-card border-border flex h-64 items-center justify-center rounded-xl border">
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-muted-foreground text-sm">
-              {t("medications.loadFailed")}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void refetchMedications()}
-            >
-              {t("medications.retryLoad")}
-            </Button>
-          </div>
-        </div>
+        <QueryErrorCard
+          description={t("medications.loadFailed")}
+          retryLabel={t("medications.retryLoad")}
+          onRetry={() => void refetchMedications()}
+        />
       ) : !medications?.length ? (
         // v1.4.15 phase-C5: refactor the inline icon+text+button block
         // to the shared EmptyState primitive so the empty path matches

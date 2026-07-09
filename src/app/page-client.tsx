@@ -25,6 +25,7 @@ import {
 } from "@/lib/dashboard-layout";
 import type { DashboardAnalyticsData as AnalyticsData } from "@/types/analytics";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChartErrorBoundary } from "@/components/charts/chart-error-state";
@@ -130,6 +131,30 @@ import {
   resolveConfiguredTileCount,
   resolveChartRowPlaceholderCount,
 } from "@/components/dashboard/dashboard-gates";
+
+/**
+ * Dashboard metric tiles are no longer dead-ends: each tile links to its
+ * Insights detail page (bands, correlations, history). Keyed by the stable
+ * tile `id` used in the `trendCards` builder; glucose contexts share one
+ * blood-glucose destination via the `glucose-` prefix. Tiles with no
+ * dedicated sub-page (body fat %) stay un-linked rather than misroute.
+ */
+const TILE_INSIGHT_HREF: Record<string, string> = {
+  weight: "/insights/weight",
+  "bp-sys": "/insights/blood-pressure",
+  "bp-dia": "/insights/blood-pressure",
+  bpInTarget: "/insights/blood-pressure",
+  pulse: "/insights/pulse",
+  mood: "/insights/mood",
+  sleep: "/insights/sleep",
+  steps: "/insights/steps",
+  vo2Max: "/insights/cardio-fitness",
+};
+
+function tileInsightHref(id: string): string | null {
+  if (id.startsWith("glucose-")) return "/insights/blood-glucose";
+  return TILE_INSIGHT_HREF[id] ?? null;
+}
 
 export default function DashboardPageClient() {
   const { isAuthenticated, user } = useAuth();
@@ -1611,27 +1636,45 @@ export default function DashboardPageClient() {
                 data-tour-id="dashboard-tile-strip"
                 data-tile-count={trendCards.length}
               >
-                {trendCards.map((entry) => (
-                  <div key={entry.id} className="flex min-w-0">
-                    {/*
-                     * Per-tile `<Suspense>` boundary with a layout-stable
-                     * placeholder that mirrors the trend-card chrome. Tile
-                     * bodies are synchronous today so the fallback rarely
-                     * paints, but a future RSC hoist of any tile slot
-                     * would otherwise leave the grid track empty and
-                     * trigger CLS as the cell paints in.
-                     *
-                     * v1.4.40 W-RSC — boundary added; v1.4.41 W-FRONTEND-FACTORY — fallback hoisted to layout-stable placeholder.
-                     */}
-                    {/* v1.16.0 — the fallback is the same structured
-                        silhouette the tile-strip skeleton paints, so a
-                        suspending tile slot previews the final shape
-                        instead of an empty card. */}
+                {trendCards.map((entry) => {
+                  /*
+                   * Per-tile `<Suspense>` boundary with a layout-stable
+                   * placeholder that mirrors the trend-card chrome. Tile
+                   * bodies are synchronous today so the fallback rarely
+                   * paints, but a future RSC hoist of any tile slot
+                   * would otherwise leave the grid track empty and
+                   * trigger CLS as the cell paints in.
+                   *
+                   * v1.16.0 — the fallback is the same structured
+                   * silhouette the tile-strip skeleton paints, so a
+                   * suspending tile slot previews the final shape
+                   * instead of an empty card.
+                   */
+                  const cell = (
                     <Suspense fallback={<TrendCardSkeleton />}>
                       {entry.node}
                     </Suspense>
-                  </div>
-                ))}
+                  );
+                  // A tile is no longer a dead-end: it links to its Insights
+                  // detail page. The link fills the grid cell and paints a
+                  // ring on hover / focus so the whole tile reads as tappable.
+                  const href = tileInsightHref(entry.id);
+                  return href ? (
+                    <Link
+                      key={entry.id}
+                      href={href}
+                      data-slot="dashboard-tile-link"
+                      data-tile-id={entry.id}
+                      className="group focus-visible:ring-ring/50 hover:ring-ring/30 flex min-w-0 rounded-xl transition-[box-shadow] hover:ring-2 focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                      {cell}
+                    </Link>
+                  ) : (
+                    <div key={entry.id} className="flex min-w-0">
+                      {cell}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {charts.map((entry) => (

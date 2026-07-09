@@ -21,19 +21,13 @@
  * persisted it (audit LOW-10), so the dialog no longer pretends.
  */
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { DateTimeField } from "@/components/ui/date-time-field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -107,6 +101,7 @@ function IntakeEditDialogBody({
   const { t } = useTranslations();
   const fmt = useFormatters();
   const queryClient = useQueryClient();
+  const formId = useId();
   const [takenAt, setTakenAt] = useState(() =>
     toDateTimeLocal(event?.takenAt ?? null),
   );
@@ -145,87 +140,92 @@ function IntakeEditDialogBody({
   }
 
   return (
-    <Dialog open={!!event} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent data-slot="intake-edit-dialog">
-        <DialogHeader>
-          <DialogTitle>
-            {t("medications.detail.intake.edit.dialogTitle")}
-          </DialogTitle>
-        </DialogHeader>
-        {/* v1.16.4 — a real form so Enter in the datetime field submits;
+    <ResponsiveSheet
+      open={!!event}
+      onOpenChange={(open) => !open && onClose()}
+      title={t("medications.detail.intake.edit.dialogTitle")}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={busy}
+          >
+            {t("medications.detail.intake.edit.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={busy}
+            aria-busy={busy || undefined}
+          >
+            {busy && (
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+            )}
+            {t("medications.detail.intake.edit.save")}
+          </Button>
+        </>
+      }
+    >
+      {/* v1.16.4 — a real form so Enter in the datetime field submits;
             the buttons carry explicit types so cancel never submits. */}
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="intake-edit-taken-at">
-                {t("medications.detail.intake.edit.takenAtLabel")}
-              </Label>
-              <DateTimeField
-                id="intake-edit-taken-at"
-                value={takenAt}
-                max={toDateTimeLocal(new Date())}
-                onChange={(value) => setTakenAt(value)}
-                disabled={skipped}
-              />
-              {scheduledFor && (
-                <p
-                  className="text-muted-foreground text-xs"
-                  data-slot="intake-edit-scheduled-hint"
-                >
-                  {t("medications.detail.intake.edit.scheduledForHint", {
-                    dateTime: fmt.dateTime(scheduledFor),
-                  })}
-                </p>
-              )}
-              {/* Non-blocking: a 48h+ gap to the slot is almost always a
+      <form
+        id={formId}
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="intake-edit-taken-at">
+              {t("medications.detail.intake.edit.takenAtLabel")}
+            </Label>
+            <DateTimeField
+              id="intake-edit-taken-at"
+              value={takenAt}
+              max={toDateTimeLocal(new Date())}
+              onChange={(value) => setTakenAt(value)}
+              disabled={skipped}
+            />
+            {scheduledFor && (
+              <p
+                className="text-muted-foreground text-xs"
+                data-slot="intake-edit-scheduled-hint"
+              >
+                {t("medications.detail.intake.edit.scheduledForHint", {
+                  dateTime: fmt.dateTime(scheduledFor),
+                })}
+              </p>
+            )}
+            {/* Non-blocking: a 48h+ gap to the slot is almost always a
                 date typo, but a deliberate far edit stays saveable. */}
-              {showFarHint && (
-                <p
-                  className="text-warning text-xs"
-                  data-slot="intake-edit-far-hint"
-                >
-                  {t("medications.detail.intake.edit.farFromScheduledWarning")}
-                </p>
-              )}
-            </div>
-            <label
-              htmlFor="intake-edit-skipped"
-              className="flex items-center justify-between gap-3"
-            >
-              <span className="text-sm font-medium">
-                {t("medications.detail.intake.edit.skippedLabel")}
-              </span>
-              <Switch
-                id="intake-edit-skipped"
-                checked={skipped}
-                onCheckedChange={(checked) => setSkipped(checked)}
-              />
-            </label>
+            {showFarHint && (
+              <p
+                className="text-warning text-xs"
+                data-slot="intake-edit-far-hint"
+              >
+                {t("medications.detail.intake.edit.farFromScheduledWarning")}
+              </p>
+            )}
           </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={busy}
-            >
-              {t("medications.detail.intake.edit.cancel")}
-            </Button>
-            <Button type="submit" disabled={busy} aria-busy={busy || undefined}>
-              {busy && (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-              )}
-              {t("medications.detail.intake.edit.save")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <label
+            htmlFor="intake-edit-skipped"
+            className="flex items-center justify-between gap-3"
+          >
+            <span className="text-sm font-medium">
+              {t("medications.detail.intake.edit.skippedLabel")}
+            </span>
+            <Switch
+              id="intake-edit-skipped"
+              checked={skipped}
+              onCheckedChange={(checked) => setSkipped(checked)}
+            />
+          </label>
+        </div>
+      </form>
+    </ResponsiveSheet>
   );
 }

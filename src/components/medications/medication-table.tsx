@@ -327,7 +327,7 @@ export function MedicationTable({
                       )
                     ) : (
                       <ChevronsUpDown
-                        className="text-muted-foreground/60 size-3.5"
+                        className="text-muted-foreground size-3.5"
                         aria-hidden="true"
                       />
                     )}

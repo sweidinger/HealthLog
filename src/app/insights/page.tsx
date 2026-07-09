@@ -4,7 +4,7 @@ import { Fragment, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { RefreshCw, SlidersHorizontal, TrendingUp } from "lucide-react";
+import { SlidersHorizontal, TrendingUp } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -20,6 +20,7 @@ import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { HeroStrip } from "@/components/insights/hero-strip";
@@ -340,23 +341,11 @@ export default function InsightsPage() {
   // mirroring the <VitalsDashboard> error pattern.
   if (isError) {
     return (
-      <div
-        data-slot="insights-overview-error"
-        role="alert"
-        className="bg-card border-border text-muted-foreground flex flex-col items-start gap-3 rounded-xl border p-4 text-sm sm:flex-row sm:items-center sm:justify-between"
-      >
-        <span>{t("insights.loadError")}</span>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => refetch()}
-          data-slot="insights-overview-retry"
-          className="gap-1.5"
-        >
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{t("common.retry")}</span>
-        </Button>
+      <div data-slot="insights-overview-error">
+        <QueryErrorCard
+          description={t("insights.loadError")}
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }

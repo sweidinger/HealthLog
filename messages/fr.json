@@ -924,7 +924,6 @@
       "recentTitle": "30 derniers jours",
       "loading": "Chargement…",
       "deleteCta": "Supprimer",
-      "deleteConfirm": "Supprimer cette entrée ?",
       "deleteError": "Impossible de supprimer l'entrée",
       "errorSeverity": "La sévérité doit être entre 1 et 5",
       "errorEntry": "Choisissez un symptôme",
@@ -957,7 +956,9 @@
         "gastroparesisLike": "Vidange gastrique lente",
         "dysgeusia": "Altération du goût",
         "gallbladderDiscomfort": "Inconfort de la vésicule biliaire"
-      }
+      },
+      "deleteConfirmTitle": "Supprimer cette entrée ?",
+      "deleteConfirmBody": "Cette entrée d’effet secondaire sera définitivement supprimée."
     },
     "scheduling": {
       "naturalLanguage": {
@@ -4057,14 +4058,17 @@
         "connectionsHeading": "Connexions",
         "connectionsDescription": "Connectez et gérez vos sources de données et appareils.",
         "channelsHeading": "Canaux de diffusion",
-        "channelsDescription": "Où sont envoyés les rappels et alertes."
+        "channelsDescription": "Où sont envoyés les rappels et alertes.",
+        "matrixLink": "Notifications par canal"
       },
       "notifications": {
         "title": "Notifications",
         "description": "Tous les rappels au même endroit — quoi et quand, et où c'est envoyé.",
         "subtitle": "Choisissez les rappels que vous recevez et où ils sont envoyés.",
         "remindersHeading": "Rappels",
-        "remindersDescription": "Ce que vous recevez."
+        "remindersDescription": "Ce que vous recevez.",
+        "matrixLink": "Notifications par canal",
+        "channelsLink": "Canaux de diffusion"
       },
       "layout": {
         "title": "Apparence",
@@ -6271,7 +6275,7 @@
     "eventColumn": "Événement",
     "subtitle": "Choisis quelles notifications tu reçois et par quel canal.",
     "loadError": "Impossible de charger les paramètres de notification.",
-    "noChannels": "Configure d’abord un canal de notification dans les paramètres.",
+    "noChannels": "Configure d’abord un canal de notification dans Paramètres → Intégrations.",
     "goToSettings": "Aller aux paramètres du canal",
     "channelDisabled": "Désactivé",
     "admin": {
@@ -6382,7 +6386,10 @@
       "newDeviceBody": "Une nouvelle connexion depuis {device} ({location}). Si ce n'était pas vous, changez votre mot de passe immédiatement.",
       "unknownLocation": "lieu inconnu"
     },
-    "loginRequired": "Connecte-toi pour gérer les notifications."
+    "loginRequired": "Connecte-toi pour gérer les notifications.",
+    "someChannelsGloballyDisabled": "Un ou plusieurs canaux sont désactivés dans les paramètres et ne recevront pas de notifications.",
+    "reminderSettingsLink": "Réglages des rappels",
+    "channelsLink": "Canaux"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -7378,7 +7385,8 @@
       "pdfNeedsAnthropic": "Le scan PDF nécessite un fournisseur de vision Claude ; importez plutôt une photo."
     },
     "loadMoreReadings": "Charger plus de mesures",
-    "documentsLink": "Documents de résultats"
+    "documentsLink": "Documents de résultats",
+    "notLinkedYet": "Pas encore lié à un biomarqueur"
   },
   "modules": {
     "cycle": {

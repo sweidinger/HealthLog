@@ -90,6 +90,7 @@ export function ComplianceLineChart({
             <Button
               key={r.label}
               variant={activeRangePoints === r.points ? "default" : "ghost"}
+              aria-pressed={activeRangePoints === r.points}
               size="sm"
               className="min-h-11 px-3 text-xs"
               onClick={() => setActiveRangePoints(r.points)}

@@ -927,7 +927,7 @@ function DeleteRowConfirm({
               e.preventDefault();
               onConfirm();
             }}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-destructive dark:bg-destructive/60 hover:bg-destructive/90 text-white"
           >
             {t("medications.detail.intake.deleteRow.confirmAction")}
           </AlertDialogAction>

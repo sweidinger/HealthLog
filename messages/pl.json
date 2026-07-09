@@ -924,7 +924,6 @@
       "recentTitle": "Ostatnie 30 dni",
       "loading": "Ładowanie…",
       "deleteCta": "Usuń",
-      "deleteConfirm": "Usunąć ten wpis?",
       "deleteError": "Nie udało się usunąć wpisu",
       "errorSeverity": "Nasilenie musi mieścić się w zakresie 1–5",
       "errorEntry": "Wybierz objaw",
@@ -957,7 +956,9 @@
         "gastroparesisLike": "Spowolnione opróżnianie żołądka",
         "dysgeusia": "Zmiana smaku",
         "gallbladderDiscomfort": "Dolegliwości pęcherzyka żółciowego"
-      }
+      },
+      "deleteConfirmTitle": "Usunąć ten wpis?",
+      "deleteConfirmBody": "Ten wpis o skutku ubocznym zostanie trwale usunięty."
     },
     "scheduling": {
       "naturalLanguage": {
@@ -4057,14 +4058,17 @@
         "connectionsHeading": "Połączenia",
         "connectionsDescription": "Połącz i zarządzaj źródłami danych oraz urządzeniami.",
         "channelsHeading": "Kanały dostarczania",
-        "channelsDescription": "Gdzie dostarczane są przypomnienia i powiadomienia."
+        "channelsDescription": "Gdzie dostarczane są przypomnienia i powiadomienia.",
+        "matrixLink": "Powiadomienia wg kanału"
       },
       "notifications": {
         "title": "Powiadomienia",
         "description": "Wszystkie przypomnienia w jednym miejscu — co i kiedy oraz gdzie są dostarczane.",
         "subtitle": "Wybierz, które przypomnienia otrzymujesz i gdzie są dostarczane.",
         "remindersHeading": "Przypomnienia",
-        "remindersDescription": "Co otrzymujesz."
+        "remindersDescription": "Co otrzymujesz.",
+        "matrixLink": "Powiadomienia wg kanału",
+        "channelsLink": "Kanały dostarczania"
       },
       "layout": {
         "title": "Wygląd",
@@ -6271,7 +6275,7 @@
     "eventColumn": "Zdarzenie",
     "subtitle": "Wybierz, które powiadomienia chcesz otrzymywać i którym kanałem.",
     "loadError": "Nie udało się załadować ustawień powiadomień.",
-    "noChannels": "Najpierw skonfiguruj kanał powiadomień w ustawieniach.",
+    "noChannels": "Najpierw skonfiguruj kanał powiadomień w Ustawienia → Integracje.",
     "goToSettings": "Przejdź do ustawień kanału",
     "channelDisabled": "Wyłączone",
     "admin": {
@@ -6382,7 +6386,10 @@
       "newDeviceBody": "Nowe logowanie z {device} ({location}). Jeśli to nie Ty, natychmiast zmień hasło.",
       "unknownLocation": "nieznana lokalizacja"
     },
-    "loginRequired": "Zaloguj się, aby zarządzać powiadomieniami."
+    "loginRequired": "Zaloguj się, aby zarządzać powiadomieniami.",
+    "someChannelsGloballyDisabled": "Co najmniej jeden kanał jest wyłączony w ustawieniach i nie będzie otrzymywać powiadomień.",
+    "reminderSettingsLink": "Ustawienia przypomnień",
+    "channelsLink": "Kanały"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -7378,7 +7385,8 @@
       "pdfNeedsAnthropic": "Skanowanie PDF wymaga dostawcy wizji Claude; prześlij zamiast tego zdjęcie."
     },
     "loadMoreReadings": "Wczytaj więcej pomiarów",
-    "documentsLink": "Dokumenty wyników badań"
+    "documentsLink": "Dokumenty wyników badań",
+    "notLinkedYet": "Jeszcze niepowiązane z biomarkerem"
   },
   "modules": {
     "cycle": {

@@ -40,7 +40,7 @@ export function QueryErrorCard({
         className="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center"
       >
         <AlertTriangle
-          className="text-muted-foreground/60 h-8 w-8"
+          className="text-muted-foreground h-8 w-8"
           aria-hidden="true"
         />
         <p className="text-sm font-medium">{title ?? t("common.loadFailed")}</p>
