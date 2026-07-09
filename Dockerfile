@@ -81,6 +81,20 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# @napi-rs/canvas (document PDF rasterization): Next's file tracer copies the
+# native binary's package into the standalone tree but NOT the pnpm symlink that
+# @napi-rs/canvas's loader resolves it through, so at runtime it fails with
+# "Failed to load native binding" and rasterization silently degrades. Copy the
+# prebuilt .node into the canvas package dir itself so the loader's built-in
+# local-file fallback (`require('./skia.<triple>.node')`) resolves it. Per-arch
+# buildx installs only the matching musl triple, so the find is arch-correct.
+RUN CANVAS_DIR="$(find ./node_modules/.pnpm -maxdepth 4 -type d -path '*@napi-rs+canvas@*/node_modules/@napi-rs/canvas' 2>/dev/null | head -1)"; \
+    NODE_BIN="$(find ./node_modules/.pnpm -maxdepth 5 -name 'skia.linux-*-musl.node' 2>/dev/null | head -1)"; \
+    if [ -n "$CANVAS_DIR" ] && [ -n "$NODE_BIN" ]; then \
+      cp "$NODE_BIN" "$CANVAS_DIR/" && chown nextjs:nodejs "$CANVAS_DIR/$(basename "$NODE_BIN")" && \
+      echo "canvas native binding staged: $(basename "$NODE_BIN") -> $CANVAS_DIR"; \
+    else echo "WARN: canvas native binding not found; PDF rasterization will degrade to local text"; fi
+
 # Copy Prisma for migrations (schema, migration SQL, config, engines)
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts

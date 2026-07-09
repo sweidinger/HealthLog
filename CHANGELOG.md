@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [1.28.3] — 2026-07-09 — Consistent spacing and alignment
+
+A consistency pass across the app, driven by a layout audit. Insight cards now
+share one left edge — headings and body text line up instead of drifting from
+card to card (worst on mobile). Settings and admin pages no longer scroll past
+their content into empty space. On mobile, Settings and Notifications live only
+in the account menu instead of being duplicated in the overflow menu. The
+dashboard greeting keeps its action beside the text rather than pushing it onto
+its own line. Preventive-care, cycle, and onboarding cards adopt the shared card
+anatomy. The spacing and alignment rules behind these are written down so they
+hold going forward.
+
+Also folds in the document PDF rasterization runtime: the image renderer now
+loads in the container, so a scanned PDF is read on an image-only AI provider
+(previously it quietly fell back to text-only).
+
 ## [1.28.2] — 2026-07-09 — Automatic AI document reading (opt-in)
 
 One opt-in in AI settings: read every uploaded document automatically with your
