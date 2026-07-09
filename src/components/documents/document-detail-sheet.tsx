@@ -17,7 +17,15 @@
  * flow (shared `ShareLinkCreateForm`) with this document pre-attached.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Download, Pencil, Plus, Share2, Trash2 } from "lucide-react";
+import {
+  Check,
+  Download,
+  Pencil,
+  Plus,
+  Share2,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -42,6 +50,12 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   apiDelete,
   ApiError,
   apiGet,
@@ -59,7 +73,7 @@ import {
   type InboundDocumentKindValue,
 } from "@/lib/validations/inbound-documents";
 import { DocumentAiSection } from "./document-ai-section";
-import { DocumentChatPanel } from "./document-chat-panel";
+import { DocumentChatDrawer } from "./document-chat-drawer";
 import type { DocumentAiTarget } from "./document-ai-transport";
 import { DocumentShareSheet } from "./document-share-sheet";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
@@ -231,6 +245,9 @@ export function DocumentDetailSheet({
 
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  // The doc-scoped Coach chat drawer — opened by the neutral top-right icon in
+  // the sheet header, mounted as a sibling overlay of this detail sheet.
+  const [docChatOpen, setDocChatOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [suggestion, setSuggestion] = useState<DocumentSuggestionDto | null>(
@@ -251,6 +268,7 @@ export function DocumentDetailSheet({
     setLastDocumentId(documentId);
     setEditingTitle(false);
     setShareOpen(false);
+    setDocChatOpen(false);
     setMutationError(null);
     setSuggestion(null);
     setAppliedFields({ title: false, kind: false, date: false });
@@ -416,6 +434,33 @@ export function DocumentDetailSheet({
         title={title}
         description={t("documents.detail.title")}
         contentWidth="3xl"
+        headerAction={
+          doc && aiEnabled ? (
+            // Neutral, ghost Coach entry pinned top-right of the document —
+            // mirrors the Insights `AskCoachIconButton`. Deliberately NOT the
+            // purple FAB styling: `text-muted-foreground` only. Opens the
+            // doc-scoped chat drawer; the drawer body shows the calm
+            // read-it-first hint when the document is not yet indexed.
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    data-slot="document-chat-open"
+                    aria-label={t("documents.chat.openAria")}
+                    onClick={() => setDocChatOpen(true)}
+                    className="text-muted-foreground hover:text-foreground min-h-11 min-w-11 sm:size-8"
+                  >
+                    <Sparkles className="size-4" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("documents.chat.openAria")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : undefined
+        }
         footer={
           doc ? (
             // Delete sits bottom-LEFT, quieted to a text button: the
@@ -541,12 +586,6 @@ export function DocumentDetailSheet({
               contentIndexSource={doc.contentIndexSource}
               indexPending={indexDoc.isPending}
               onIndex={runIndex}
-              chatSlot={
-                <DocumentChatPanel
-                  documentId={doc.id}
-                  indexed={doc.hasContentIndex}
-                />
-              }
             />
 
             {mutationError ? (
@@ -723,6 +762,16 @@ export function DocumentDetailSheet({
           open={shareOpen}
           onOpenChange={setShareOpen}
           documentId={doc.id}
+          documentTitle={title}
+        />
+      ) : null}
+
+      {doc && aiEnabled ? (
+        <DocumentChatDrawer
+          open={docChatOpen}
+          onOpenChange={setDocChatOpen}
+          documentId={doc.id}
+          indexed={doc.hasContentIndex}
           documentTitle={title}
         />
       ) : null}

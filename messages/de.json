@@ -8283,7 +8283,6 @@
     },
     "chat": {
       "title": "Über dieses Dokument chatten",
-      "open": "Über dieses Dokument chatten",
       "notIndexed": "Lies das Dokument zuerst mit KI, um darüber zu chatten.",
       "empty": "Stelle eine Frage zu diesem Dokument, um zu beginnen.",
       "placeholder": "Frage zu diesem Dokument…",
@@ -8298,7 +8297,9 @@
       "errorBudget": "Das tägliche KI-Limit ist erreicht. Bitte morgen erneut versuchen.",
       "errorCredential": "Der KI-Anbieter muss in den Einstellungen neu verbunden werden.",
       "errorConsent": "Aktiviere die KI-Zustimmung in den Einstellungen, um über dieses Dokument zu chatten.",
-      "errorNetwork": "Du scheinst offline zu sein. Prüfe deine Verbindung und versuche es erneut."
+      "errorNetwork": "Du scheinst offline zu sein. Prüfe deine Verbindung und versuche es erneut.",
+      "openAria": "Über dieses Dokument chatten",
+      "scopeBadge": "Chat über: {title}"
     }
   },
   "selfDescription": {
