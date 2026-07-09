@@ -67,6 +67,7 @@ import { useIndexDocument } from "./use-content-index";
 import {
   documentAiErrorKey,
   useDocumentAiCapability,
+  useDocumentsAutoAiRead,
   useDocumentSummary,
   useSuggestDetails,
 } from "./use-document-assist";
@@ -221,6 +222,9 @@ export function DocumentDetailSheet({
   // The affordance itself is gated on `assistAvailable` (from usage); the
   // probe only resolves the transport mode + the actionable unavailable reason.
   const capability = useDocumentAiCapability(open && documentId !== null);
+  // When auto-read is ON, reading happens automatically on upload — the manual
+  // per-document AI action row is redundant and collapses away.
+  const autoRead = useDocumentsAutoAiRead(open && documentId !== null);
   const suggest = useSuggestDetails();
   const summary = useDocumentSummary();
   const indexDoc = useIndexDocument();
@@ -335,6 +339,7 @@ export function DocumentDetailSheet({
   const aiEnabled = assistAvailable ?? capability.data?.available ?? false;
   const indexEnabled =
     contentIndexEnabled ?? capability.data?.available ?? false;
+  const autoReadEnabled = autoRead.data?.documentsAutoAiRead ?? false;
   const aiMode = capability.data?.mode === "text" ? "text" : "vision";
   const aiTarget: DocumentAiTarget | null = doc
     ? {
@@ -504,6 +509,7 @@ export function DocumentDetailSheet({
 
             <DocumentAiSection
               aiEnabled={aiEnabled}
+              autoReadEnabled={autoReadEnabled}
               indexEnabled={indexEnabled}
               unavailableReason={capability.data?.reason ?? null}
               actionsDisabled={capability.isPending}

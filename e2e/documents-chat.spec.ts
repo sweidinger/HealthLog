@@ -83,6 +83,11 @@ async function mockAiEnabled(
       error: null,
     }),
   );
+  // The detail sheet reads the auto-AI-read opt-in; default it OFF so the AI
+  // section renders its full set of controls alongside the chat entry.
+  await page.route("**/api/auth/me/documents-auto-ai-read", (route) =>
+    fulfilJson(route, { data: { documentsAutoAiRead: false }, error: null }),
+  );
 }
 
 test.describe("document vault — chat about a document", () => {

@@ -110,6 +110,13 @@ async function mockAiEnabled(
       error: null,
     }),
   );
+  // The detail sheet reads the auto-AI-read opt-in to decide whether to show
+  // the manual per-document action row. Default it OFF here so the manual
+  // Read / Suggest / Summarise actions render for these assertions; an unmocked
+  // fetch would leave the sheet reading a live value.
+  await page.route("**/api/auth/me/documents-auto-ai-read", (route) =>
+    fulfilJson(route, { data: { documentsAutoAiRead: false }, error: null }),
+  );
 }
 
 test.describe("document vault — AI assist + content search", () => {
@@ -172,9 +179,6 @@ test.describe("document vault — AI assist + content search", () => {
 
     const review = sheet.locator('[data-slot="assist-suggestion-review"]');
     await expect(review).toBeVisible();
-    await expect(
-      review.getByText("AI suggestion — review before saving"),
-    ).toBeVisible();
 
     // Applying the title seeds the EDITABLE field only — no write yet.
     await review.getByRole("button", { name: "Use title" }).click();

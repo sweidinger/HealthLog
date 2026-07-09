@@ -44,9 +44,21 @@ async function fulfilJson(
  */
 async function mockDocumentCapability(
   page: Page,
-  opts: { egress: "local" | "external"; pdfSupported?: boolean },
+  opts: {
+    egress: "local" | "external";
+    pdfSupported?: boolean;
+    /** The per-user auto-AI-read opt-in. OFF keeps the manual action row. */
+    autoRead?: boolean;
+  },
 ): Promise<void> {
   const pdfSupported = opts.pdfSupported ?? true;
+  const autoRead = opts.autoRead ?? false;
+  await page.route("**/api/auth/me/documents-auto-ai-read", (route) =>
+    fulfilJson(route, {
+      data: { documentsAutoAiRead: autoRead },
+      error: null,
+    }),
+  );
   await page.route("**/api/documents/inbound/usage", (route) =>
     fulfilJson(route, {
       data: {
@@ -184,8 +196,9 @@ test.describe("automatic AI reading — vault per-document contract", () => {
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
 
-    // The per-document read is the explicit path — the action is present and the
-    // user must tap it (auto-read never removes the affordance, only the tap).
+    // With auto-read OFF the per-document read is the explicit path — the action
+    // is present and the user taps it. (When auto-read is ON the row collapses;
+    // that is covered by its own test below.)
     await expect(sheet.locator('[data-slot="document-read-ai"]')).toBeVisible();
   });
 
@@ -233,5 +246,28 @@ test.describe("automatic AI reading — vault per-document contract", () => {
     await expect(sheet).toBeVisible();
 
     await expect(sheet.locator('[data-slot="document-read-ai"]')).toBeVisible();
+  });
+
+  test("with auto-read ON the sheet drops the manual AI action row", async ({
+    page,
+  }) => {
+    // Auto-read reads every upload with no per-document tap, so the manual
+    // Read / Suggest actions are redundant and collapse away. The section
+    // header and the searchable status pill stay.
+    await mockDocumentCapability(page, { egress: "external", autoRead: true });
+
+    await page.goto(`/documents?doc=${AI_PROBE_DOC_ID}`);
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+
+    const section = sheet.locator('[data-slot="document-ai-section"]');
+    await expect(section).toBeVisible();
+    await expect(
+      section.locator('[data-slot="content-search-status"]'),
+    ).toBeVisible();
+    await expect(sheet.locator('[data-slot="document-read-ai"]')).toHaveCount(
+      0,
+    );
+    await expect(sheet.locator('[data-slot="assist-suggest"]')).toHaveCount(0);
   });
 });

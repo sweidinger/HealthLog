@@ -8229,8 +8229,6 @@
     "assist": {
       "suggest": "Sugerir detalles",
       "suggesting": "Leyendo…",
-      "reviewTitle": "Sugerencia de IA: revísala antes de guardar",
-      "reviewHint": "No se guarda nada hasta que la apliques. Las sugerencias pueden fallar: compruébalas.",
       "suggestedTitle": "Título sugerido",
       "suggestedKind": "Tipo sugerido",
       "suggestedDate": "Fecha sugerida",

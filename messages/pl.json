@@ -8229,8 +8229,6 @@
     "assist": {
       "suggest": "Zaproponuj szczegóły",
       "suggesting": "Odczytywanie…",
-      "reviewTitle": "Sugestia AI — sprawdź przed zapisaniem",
-      "reviewHint": "Nic nie zostanie zapisane, dopóki tego nie zastosujesz. Sugestie mogą być błędne — sprawdź je.",
       "suggestedTitle": "Sugerowany tytuł",
       "suggestedKind": "Sugerowany typ",
       "suggestedDate": "Sugerowana data",
