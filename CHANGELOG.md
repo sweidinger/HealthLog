@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.28.1] — 2026-07-09 — Document vault load fix
+
+Fixes documents failing to load — old and newly uploaded alike — on
+deployments where local content extraction is present. The local PDF text
+reader imported its parser at module load, which pulled a browser-only global
+into the server bundle and threw during evaluation, taking the document routes
+down with it. The parser now loads lazily on first extraction; the document
+list, upload, and content search work again, and local text extraction is
+unchanged.
+
 ## [1.28.0] — 2026-07-09 — Document intelligence
 
 A milestone that closes the document line end to end. The vault stopped being a
