@@ -201,6 +201,21 @@ export function tokenise(text: string): string[] {
   return [...seen];
 }
 
+/**
+ * v1.27.33 (Document vault P4) — byte-bound the VERBATIM text for storage,
+ * WITHOUT the normalisation `normaliseIndexText` applies. Casing, accents,
+ * section names, and units survive intact so a document chat can cite the
+ * document faithfully; only the byte length is clamped to the storage budget.
+ */
+export function captureVerbatimText(raw: string): string {
+  if (Buffer.byteLength(raw, "utf8") <= MAX_VERBATIM_TEXT_BYTES) return raw;
+  let out = raw.slice(0, MAX_VERBATIM_TEXT_BYTES);
+  while (Buffer.byteLength(out, "utf8") > MAX_VERBATIM_TEXT_BYTES) {
+    out = out.slice(0, -256);
+  }
+  return out;
+}
+
 /** The HKDF-derived HMAC subkey for the blind index. Never persisted or logged. */
 function indexSubkey(): Buffer {
   return deriveSubkey(INDEX_SUBKEY_INFO);
