@@ -127,7 +127,6 @@ describe("<DocumentAiSection>", () => {
     );
     expect(html).toContain('data-slot="assist-suggestion-review"');
     expect(html).toContain("MRI knee report");
-    expect(html).toContain("review before saving");
   });
 
   it("renders the transient summary panel", () => {
@@ -155,6 +154,29 @@ describe("<DocumentAiSection>", () => {
     const html = render(base({ aiEnabled: true, indexEnabled: false }));
     expect(html).toContain('data-slot="assist-suggest"');
     expect(html).not.toContain('data-slot="document-read-ai"');
+  });
+
+  it("hides the manual AI action row when auto-read is on, keeping status + chat", () => {
+    const chat = <div data-slot="chat-probe">chat here</div>;
+    const html = render(
+      base({ aiEnabled: true, autoReadEnabled: true, chatSlot: chat }),
+    );
+    // Auto-read reads on upload — the manual per-document actions are gone.
+    expect(html).not.toContain('data-slot="document-read-ai"');
+    expect(html).not.toContain('data-slot="assist-suggest"');
+    expect(html).not.toContain("Summarise");
+    expect(html).not.toContain("Show extracted text");
+    // The header, the searchable status pill, and content-search chat stay.
+    expect(html).toContain('data-slot="document-ai-section"');
+    expect(html).toContain('data-slot="content-search-status"');
+    expect(html).toContain('data-slot="chat-probe"');
+  });
+
+  it("shows the manual AI action row when auto-read is off", () => {
+    const html = render(base({ aiEnabled: true, autoReadEnabled: false }));
+    expect(html).toContain('data-slot="document-read-ai"');
+    expect(html).toContain('data-slot="assist-suggest"');
+    expect(html).toContain("Summarise");
   });
 
   it("renders the chat slot inside the AI area only when a provider is available", () => {

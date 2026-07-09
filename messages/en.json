@@ -8229,8 +8229,6 @@
     "assist": {
       "suggest": "Suggest details",
       "suggesting": "Reading…",
-      "reviewTitle": "AI suggestion — review before saving",
-      "reviewHint": "Nothing is saved until you apply it. Suggestions can be wrong — check them.",
       "suggestedTitle": "Suggested title",
       "suggestedKind": "Suggested type",
       "suggestedDate": "Suggested date",
