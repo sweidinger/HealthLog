@@ -656,7 +656,9 @@ export const documentChatRequestSchema = z
   })
   .meta({ id: "DocumentChatRequest" });
 
-export type DocumentChatRequestInput = z.infer<typeof documentChatRequestSchema>;
+export type DocumentChatRequestInput = z.infer<
+  typeof documentChatRequestSchema
+>;
 
 /**
  * Query for `GET /api/documents/inbound/{id}/chat`. With `conversationId`, the

@@ -24,8 +24,7 @@ import {
   upsertContentIndex,
 } from "../content-index";
 
-const KEY =
-  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -76,9 +75,9 @@ describe("upsertContentIndex writes the verbatim column", () => {
     const created = arg.create;
     // The verbatim column is present and is ciphertext (not the raw text bytes).
     expect(created.verbatimTextEncrypted).toBeDefined();
-    expect(Buffer.from(created.verbatimTextEncrypted).toString("utf8")).not.toContain(
-      "Impression",
-    );
+    expect(
+      Buffer.from(created.verbatimTextEncrypted).toString("utf8"),
+    ).not.toContain("Impression");
     // It decrypts back to the raw text with casing preserved.
     expect(decryptVerbatimText(created.verbatimTextEncrypted)).toBe(raw);
     // The normalised search text stays lowercased/de-accented (distinct column).

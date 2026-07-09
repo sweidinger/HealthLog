@@ -371,7 +371,10 @@ Reply now as the assistant, grounded ONLY in the document above, in ${
             },
           });
           if (err.primaryCredentialExpired) {
-            return { ok: false, code: "documents.chat.provider.credential_expired" };
+            return {
+              ok: false,
+              code: "documents.chat.provider.credential_expired",
+            };
           }
           return {
             ok: false,
@@ -399,7 +402,8 @@ Reply now as the assistant, grounded ONLY in the document above, in ${
       ).catch(() => {});
 
       let replyText = (result.content ?? "").trim();
-      if (!replyText) return { ok: false, code: "documents.chat.provider.empty" };
+      if (!replyText)
+        return { ok: false, code: "documents.chat.provider.empty" };
 
       // ── Outbound safety screen (dose-prescription / fabricated risk) ──
       const outbound = screenCoachReply(replyText);
@@ -411,16 +415,24 @@ Reply now as the assistant, grounded ONLY in the document above, in ${
         });
         await auditLog("documents.chat.outbound_blocked", {
           userId,
-          details: { conversationId: workingConversationId, reason: outbound.reason },
+          details: {
+            conversationId: workingConversationId,
+            reason: outbound.reason,
+          },
         });
       }
 
       // ── Numeric grounding — authoritative set = the DOCUMENT's numbers ──
       // A blocked turn already carries canned fallback prose, so skip it.
       if (!outbound.block) {
-        const unverified = findUnverifiedCoachNumbers(replyText, [context!.text]);
+        const unverified = findUnverifiedCoachNumbers(replyText, [
+          context!.text,
+        ]);
         if (unverified.length > 0) {
-          const { prose, stripped } = stripUnverifiedNumbers(replyText, unverified);
+          const { prose, stripped } = stripUnverifiedNumbers(
+            replyText,
+            unverified,
+          );
           replyText = prose;
           annotate({
             action: { name: "documents.chat.number_unverified" },
@@ -496,7 +508,11 @@ Reply now as the assistant, grounded ONLY in the document above, in ${
       if (!outcome.ok) {
         if (!controller.signal.aborted) {
           controller.enqueue(
-            encodeFrame({ type: "error", code: outcome.code, message: outcome.code }),
+            encodeFrame({
+              type: "error",
+              code: outcome.code,
+              message: outcome.code,
+            }),
           );
         }
         return;
@@ -513,7 +529,10 @@ Reply now as the assistant, grounded ONLY in the document above, in ${
           type: "done",
           conversationId: workingConversationId,
           messageId: outcome.messageId,
-          usage: { totalTokens: outcome.totalTokens || null, model: outcome.model },
+          usage: {
+            totalTokens: outcome.totalTokens || null,
+            model: outcome.model,
+          },
         }),
       );
     });

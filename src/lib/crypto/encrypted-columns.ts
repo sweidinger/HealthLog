@@ -217,6 +217,16 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   // not the generic Bytes walk. The `search_tokens` array itself is one-way
   // (HMAC) and is not a registry column.
   { model: "DocumentContentIndex", field: "textEncrypted", kind: "bytes" },
+  // v1.27.33 (Document vault P4) — the VERBATIM extracted text (raw casing/
+  // accents), stored additionally alongside `textEncrypted` for faithful
+  // citation in the document chat. Same AES-256-GCM Bytes codec; rotation
+  // re-encrypts it on the generic Bytes walk (nullable rows — indexed before P4
+  // — are skipped generically, as for every other nullable Bytes column).
+  {
+    model: "DocumentContentIndex",
+    field: "verbatimTextEncrypted",
+    kind: "bytes",
+  },
 ] as const;
 
 /** Stable `Model.field` key for a registry entry. */

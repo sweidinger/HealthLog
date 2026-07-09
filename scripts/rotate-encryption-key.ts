@@ -551,9 +551,19 @@ async function main() {
       errors: 0,
     };
     let cursor: string | null = null;
+    // v1.27.33 (Document vault P4) — re-encrypt the string-shaped BYTEA into a
+    // fresh Uint8Array under the active key. Shared by `textEncrypted` and the
+    // nullable sibling `verbatimTextEncrypted` (same codec).
+    const reEncryptBytes = (asString: string): Uint8Array => {
+      const reEnc = encrypt(decrypt(asString));
+      const encoded = Buffer.from(reEnc, "utf8");
+      const nextBytes = new Uint8Array(new ArrayBuffer(encoded.byteLength));
+      nextBytes.set(encoded);
+      return nextBytes;
+    };
     for (;;) {
       const rows = await prisma.documentContentIndex.findMany({
-        select: { id: true, textEncrypted: true },
+        select: { id: true, textEncrypted: true, verbatimTextEncrypted: true },
         orderBy: { id: "asc" },
         take: 100,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -567,14 +577,23 @@ async function main() {
         if (!shouldRotate(asString)) continue;
         try {
           const plaintext = decrypt(asString);
-          const reEnc = encrypt(plaintext);
-          const encoded = Buffer.from(reEnc, "utf8");
-          const nextBytes = new Uint8Array(new ArrayBuffer(encoded.byteLength));
-          nextBytes.set(encoded);
+          const nextBytes = reEncryptBytes(asString);
           const searchTokens = tokeniseAndHash(plaintext);
+          // The "verbatimTextEncrypted" column (nullable; written together with
+          // "textEncrypted" so it shares the same key) rotates in the same
+          // update when present.
+          const verbatimBuf = row.verbatimTextEncrypted as Uint8Array | null;
+          const verbatimNext =
+            verbatimBuf && verbatimBuf.byteLength > 0
+              ? reEncryptBytes(Buffer.from(verbatimBuf).toString("utf8"))
+              : undefined;
           await prisma.documentContentIndex.update({
             where: { id: row.id },
-            data: { textEncrypted: nextBytes, searchTokens },
+            data: {
+              textEncrypted: nextBytes,
+              searchTokens,
+              ...(verbatimNext ? { verbatimTextEncrypted: verbatimNext } : {}),
+            },
           });
           result.rotated++;
         } catch (err) {

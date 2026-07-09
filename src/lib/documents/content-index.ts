@@ -306,7 +306,10 @@ export async function loadDocumentChatText(
   });
   if (!row) return null;
   if (row.verbatimTextEncrypted && row.verbatimTextEncrypted.byteLength > 0) {
-    return { text: decryptVerbatimText(row.verbatimTextEncrypted), source: "verbatim" };
+    return {
+      text: decryptVerbatimText(row.verbatimTextEncrypted),
+      source: "verbatim",
+    };
   }
   return { text: decryptIndexText(row.textEncrypted), source: "normalised" };
 }
