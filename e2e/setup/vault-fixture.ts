@@ -235,6 +235,39 @@ interface DocRow {
   bytes: Buffer;
 }
 
+/**
+ * Advisory-lock key that serialises the vault-fixture seeders across Playwright
+ * workers. `fullyParallel: true` spreads a spec's tests across workers and each
+ * worker re-runs the file's `beforeAll`; two workers seeding at once race on the
+ * fixed-id inserts, and `ON CONFLICT` only suppresses a conflict on its named
+ * arbiter index — a concurrent duplicate on a DIFFERENT unique index (e.g. the
+ * `document_condition_links` primary key) still throws. Holding this lock for the
+ * span of a seeder makes the concurrent runs sequential, so every insert re-runs
+ * as a clean idempotent upsert.
+ */
+const VAULT_SEED_LOCK_KEY = 792244;
+
+/**
+ * Run `body` while holding the vault-seed advisory lock on a dedicated pooled
+ * connection, so concurrent workers seed one-at-a-time. The lock auto-releases
+ * if the connection drops; the explicit unlock keeps the pool clean for reuse.
+ */
+async function withVaultSeedLock(
+  pool: pg.Pool,
+  body: () => Promise<void>,
+): Promise<void> {
+  const lock = await pool.connect();
+  try {
+    await lock.query("SELECT pg_advisory_lock($1)", [VAULT_SEED_LOCK_KEY]);
+    await body();
+  } finally {
+    await lock
+      .query("SELECT pg_advisory_unlock($1)", [VAULT_SEED_LOCK_KEY])
+      .catch(() => {});
+    lock.release();
+  }
+}
+
 async function getUserId(pool: pg.Pool): Promise<string> {
   const res = await pool.query<{ id: string }>(
     "SELECT id FROM users WHERE username = $1",
@@ -298,82 +331,84 @@ export async function ensureVaultFixture(): Promise<void> {
   if (!url) throw new Error("[vault-fixture] DATABASE_URL is not set");
   const pool = new pg.Pool({ connectionString: url });
   try {
-    const userId = await getUserId(pool);
+    await withVaultSeedLock(pool, async () => {
+      const userId = await getUserId(pool);
 
-    // Opt-in module: merge, never overwrite other module preferences.
-    await pool.query(
-      `UPDATE users
+      // Opt-in module: merge, never overwrite other module preferences.
+      await pool.query(
+        `UPDATE users
        SET module_preferences_json =
          COALESCE(module_preferences_json, '{}'::jsonb)
          || '{"inboundDocuments": true}'::jsonb
        WHERE id = $1`,
-      [userId],
-    );
+        [userId],
+      );
 
-    // The "Knie" condition episode the MRT report files under.
-    await pool.query(
-      `INSERT INTO illness_episodes
+      // The "Knie" condition episode the MRT report files under.
+      await pool.query(
+        `INSERT INTO illness_episodes
         (id, user_id, label, type, lifecycle, onset_at, created_at, updated_at)
        VALUES ($1, $2, 'Knie', 'INJURY', 'ACUTE', '2025-09-01T00:00:00Z', NOW(), NOW())
        ON CONFLICT (id) DO UPDATE SET
          label = EXCLUDED.label, deleted_at = NULL, updated_at = NOW()`,
-      [KNIE_EPISODE_ID, userId],
-    );
+        [KNIE_EPISODE_ID, userId],
+      );
 
-    // 60 background documents spread over 36 months (newest ~current).
-    const docs: DocRow[] = [];
-    for (let i = 0; i < 60; i++) {
-      const monthsBack = Math.floor((i * 36) / 60);
-      const anchor = new Date(Date.UTC(2026, 5 - monthsBack, 1 + (i % 25)));
-      const id = `e2evaultdoc${String(i).padStart(12, "0")}`;
+      // 60 background documents spread over 36 months (newest ~current).
+      const docs: DocRow[] = [];
+      for (let i = 0; i < 60; i++) {
+        const monthsBack = Math.floor((i * 36) / 60);
+        const anchor = new Date(Date.UTC(2026, 5 - monthsBack, 1 + (i % 25)));
+        const id = `e2evaultdoc${String(i).padStart(12, "0")}`;
+        docs.push({
+          id,
+          kind: FIXTURE_KINDS[i % FIXTURE_KINDS.length],
+          title: `Befund ${String(i + 1).padStart(2, "0")}`,
+          filename: `befund-${i + 1}.pdf`,
+          mimeType: "application/pdf",
+          documentDate: anchor.toISOString().slice(0, 10),
+          bytes: tinyPdf(id),
+        });
+      }
+      // The MRT report + two adjacent images, same date, all linked to Knie.
       docs.push({
-        id,
-        kind: FIXTURE_KINDS[i % FIXTURE_KINDS.length],
-        title: `Befund ${String(i + 1).padStart(2, "0")}`,
-        filename: `befund-${i + 1}.pdf`,
-        mimeType: "application/pdf",
-        documentDate: anchor.toISOString().slice(0, 10),
-        bytes: tinyPdf(id),
-      });
-    }
-    // The MRT report + two adjacent images, same date, all linked to Knie.
-    docs.push({
-      id: MRT_DOC_ID,
-      kind: "IMAGING",
-      title: "MRT Knie",
-      filename: "mrt-knie.pdf",
-      mimeType: "application/pdf",
-      documentDate: MRT_DOC_DATE,
-      bytes: tinyPdf(MRT_DOC_ID),
-    });
-    for (const n of [1, 2]) {
-      docs.push({
-        id: `e2evaultimg000000000000${n}`,
+        id: MRT_DOC_ID,
         kind: "IMAGING",
-        title: `MRT Aufnahme ${n}`,
-        filename: `mrt-aufnahme-${n}.png`,
-        mimeType: "image/png",
+        title: "MRT Knie",
+        filename: "mrt-knie.pdf",
+        mimeType: "application/pdf",
         documentDate: MRT_DOC_DATE,
-        bytes: tinyPng(`e2evaultimg${n}`),
+        bytes: tinyPdf(MRT_DOC_ID),
       });
-    }
-    await upsertDocs(pool, userId, docs);
+      for (const n of [1, 2]) {
+        docs.push({
+          id: `e2evaultimg000000000000${n}`,
+          kind: "IMAGING",
+          title: `MRT Aufnahme ${n}`,
+          filename: `mrt-aufnahme-${n}.png`,
+          mimeType: "image/png",
+          documentDate: MRT_DOC_DATE,
+          bytes: tinyPng(`e2evaultimg${n}`),
+        });
+      }
+      await upsertDocs(pool, userId, docs);
 
-    // Condition links for the three MRT-day documents.
-    const linked = [
-      MRT_DOC_ID,
-      "e2evaultimg0000000000001",
-      "e2evaultimg0000000000002",
-    ];
-    for (const [i, docId] of linked.entries()) {
-      await pool.query(
-        `INSERT INTO document_condition_links
+      // Condition links for the three MRT-day documents.
+      const linked = [
+        MRT_DOC_ID,
+        "e2evaultimg0000000000001",
+        "e2evaultimg0000000000002",
+      ];
+      for (const [i, docId] of linked.entries()) {
+        await pool.query(
+          `INSERT INTO document_condition_links
           (id, document_id, episode_id, user_id, created_at)
          VALUES ($1, $2, $3, $4, NOW())
          ON CONFLICT (document_id, episode_id) DO NOTHING`,
-        [`e2evaultlink00000000000${i + 1}`, docId, KNIE_EPISODE_ID, userId],
-      );
-    }
+          [`e2evaultlink00000000000${i + 1}`, docId, KNIE_EPISODE_ID, userId],
+        );
+      }
+    });
   } finally {
     await pool.end();
   }
@@ -392,36 +427,37 @@ export async function ensureVaultAiFixture(): Promise<void> {
   if (!url) throw new Error("[vault-fixture] DATABASE_URL is not set");
   const pool = new pg.Pool({ connectionString: url });
   try {
-    const userId = await getUserId(pool);
+    await withVaultSeedLock(pool, async () => {
+      const userId = await getUserId(pool);
 
-    await upsertDocs(pool, userId, [
-      {
-        id: AI_PROBE_DOC_ID,
-        kind: "OTHER",
-        title: "AI probe report",
-        filename: "ai-probe-report.pdf",
-        mimeType: "application/pdf",
-        documentDate: "2026-04-02",
-        bytes: tinyPdf(AI_PROBE_DOC_ID),
-      },
-      {
-        // Title + filename deliberately omit CONTENT_BODY_WORD.
-        id: CONTENT_DOC_ID,
-        kind: "DOCTOR_REPORT",
-        title: "Radiology note",
-        filename: "radiology-note.pdf",
-        mimeType: "application/pdf",
-        documentDate: "2026-03-10",
-        bytes: tinyPdf(CONTENT_DOC_ID),
-      },
-    ]);
+      await upsertDocs(pool, userId, [
+        {
+          id: AI_PROBE_DOC_ID,
+          kind: "OTHER",
+          title: "AI probe report",
+          filename: "ai-probe-report.pdf",
+          mimeType: "application/pdf",
+          documentDate: "2026-04-02",
+          bytes: tinyPdf(AI_PROBE_DOC_ID),
+        },
+        {
+          // Title + filename deliberately omit CONTENT_BODY_WORD.
+          id: CONTENT_DOC_ID,
+          kind: "DOCTOR_REPORT",
+          title: "Radiology note",
+          filename: "radiology-note.pdf",
+          mimeType: "application/pdf",
+          documentDate: "2026-03-10",
+          bytes: tinyPdf(CONTENT_DOC_ID),
+        },
+      ]);
 
-    // Seed CONTENT_DOC_ID's blind content index: the body word is only findable
-    // via the token union. The plaintext text is stored encrypted (never read
-    // by the search path) purely to mirror a real index row.
-    const body = `Chest imaging report. Findings consistent with ${CONTENT_BODY_WORD}. No pleural effusion noted.`;
-    await pool.query(
-      `INSERT INTO document_content_index
+      // Seed CONTENT_DOC_ID's blind content index: the body word is only findable
+      // via the token union. The plaintext text is stored encrypted (never read
+      // by the search path) purely to mirror a real index row.
+      const body = `Chest imaging report. Findings consistent with ${CONTENT_BODY_WORD}. No pleural effusion noted.`;
+      await pool.query(
+        `INSERT INTO document_content_index
         (id, document_id, user_id, text_encrypted, search_tokens, source,
          provider_type, tokenizer_version, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, 'vision', NULL, '1', NOW(), NOW())
@@ -429,14 +465,15 @@ export async function ensureVaultAiFixture(): Promise<void> {
          text_encrypted = EXCLUDED.text_encrypted,
          search_tokens = EXCLUDED.search_tokens,
          updated_at = NOW()`,
-      [
-        "e2evaultcidx0000000000001",
-        CONTENT_DOC_ID,
-        userId,
-        encryptStringToBytes(body),
-        tokeniseAndHash(body),
-      ],
-    );
+        [
+          "e2evaultcidx0000000000001",
+          CONTENT_DOC_ID,
+          userId,
+          encryptStringToBytes(body),
+          tokeniseAndHash(body),
+        ],
+      );
+    });
   } finally {
     await pool.end();
   }

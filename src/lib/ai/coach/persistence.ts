@@ -119,6 +119,12 @@ function provenanceFromJson(raw: string | null): CoachProvenance | null {
 export interface CreateConversationParams {
   userId: string;
   title: string;
+  /**
+   * v1.27.33 (Document vault P4) — when set, scopes the conversation to a stored
+   * document (a "chat about a document" thread). Omitted / null = a normal Coach
+   * conversation (health-record surface). The two never mix.
+   */
+  documentId?: string | null;
 }
 
 export interface AppendMessageParams {
@@ -148,6 +154,7 @@ export async function createConversation(
     data: {
       userId: params.userId,
       title: summariseTitle(params.title),
+      documentId: params.documentId ?? null,
     },
   });
   return {
@@ -272,9 +279,21 @@ const CONVERSATION_MESSAGE_DETAIL_CAP = 200;
 export async function fetchConversationWithMessages(
   userId: string,
   conversationId: string,
+  /**
+   * v1.27.33 (Document vault P4) — optional surface isolation. When provided,
+   * the fetch additionally requires `documentId` to equal this value, so a Coach
+   * caller (passes `null`) can never load a document chat and the document chat
+   * route (passes the document id) can never load a Coach thread. Omitted =
+   * no `documentId` filter (unchanged behaviour).
+   */
+  opts?: { documentId?: string | null },
 ): Promise<CoachConversationDetailDTO | null> {
   const row = await prisma.coachConversation.findFirst({
-    where: { id: conversationId, userId },
+    where: {
+      id: conversationId,
+      userId,
+      ...(opts && "documentId" in opts ? { documentId: opts.documentId } : {}),
+    },
     include: {
       messages: {
         // Fetch the newest N first, then restore ascending order in code
@@ -327,6 +346,12 @@ export interface ListConversationsParams {
   userId: string;
   cursor?: string | null;
   limit?: number;
+  /**
+   * v1.27.33 (Document vault P4) — optional surface filter. The Coach rail
+   * passes `null` (only its own health threads); the document sheet passes the
+   * document id (only that document's chats). Omitted = no `documentId` filter.
+   */
+  documentId?: string | null;
 }
 
 /**
@@ -342,7 +367,10 @@ export async function listConversations(
 }> {
   const limit = Math.min(Math.max(params.limit ?? 20, 1), 50);
   const rows = await prisma.coachConversation.findMany({
-    where: { userId: params.userId },
+    where: {
+      userId: params.userId,
+      ...("documentId" in params ? { documentId: params.documentId } : {}),
+    },
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     ...(params.cursor

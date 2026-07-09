@@ -8243,6 +8243,25 @@
     "share": {
       "title": "Share this document",
       "description": "Create a read-only clinician link with this document attached. The link and its passphrase appear once."
+    },
+    "chat": {
+      "title": "Chat about this document",
+      "open": "Chat about this document",
+      "notIndexed": "Read this document with AI first to chat about it.",
+      "empty": "Ask a question about this document to get started.",
+      "placeholder": "Ask about this document…",
+      "inputLabel": "Your question about this document",
+      "send": "Send",
+      "thinking": "Reading the document…",
+      "safety": "Answers describe this document and are not medical advice.",
+      "close": "Close chat",
+      "errorHistory": "Couldn't load the conversation. Try again.",
+      "errorGeneric": "Something went wrong. Try again.",
+      "errorRateLimited": "Too many messages. Wait a moment and try again.",
+      "errorBudget": "The daily AI limit has been reached. Try again tomorrow.",
+      "errorCredential": "The AI provider needs reconnecting in settings.",
+      "errorConsent": "Turn on AI consent in settings to chat about this document.",
+      "errorNetwork": "You appear to be offline. Check your connection and try again."
     }
   },
   "selfDescription": {

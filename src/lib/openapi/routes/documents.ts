@@ -19,6 +19,7 @@ import { z } from "zod/v4";
 
 import {
   documentBulkSchema,
+  documentChatRequestSchema,
   documentUpdateSchema,
   inboundConfirmSchema,
   inboundFactEditSchema,
@@ -30,6 +31,44 @@ import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 
 const kindEnum = z.enum(INBOUND_DOCUMENT_KINDS);
 const statusEnum = z.enum(INBOUND_DOCUMENT_STATUSES);
+
+// ─── Chat about a document (P4) — response shapes ──────────────────────────
+
+const documentChatConversationSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    messageCount: z.number(),
+  })
+  .meta({ id: "DocumentChatConversation" });
+
+const documentChatMessageSchema = z
+  .object({
+    id: z.string(),
+    role: z.enum(["user", "assistant"]),
+    content: z.string(),
+    createdAt: z.string(),
+    providerType: z.string().nullable(),
+    tokensUsed: z.number().nullable(),
+    model: z.string().nullable(),
+  })
+  .meta({ id: "DocumentChatMessage" });
+
+const documentChatDetailSchema = documentChatConversationSchema
+  .extend({
+    messages: z.array(documentChatMessageSchema),
+    summary: z.string().nullable(),
+  })
+  .meta({ id: "DocumentChatDetail" });
+
+const documentChatListSchema = z
+  .object({
+    conversations: z.array(documentChatConversationSchema),
+    nextCursor: z.string().nullable(),
+  })
+  .meta({ id: "DocumentChatList" });
 
 inboundConfirmSchema.meta({
   id: "InboundConfirmRequest",
@@ -786,6 +825,90 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                   })
                   .meta({ id: "DocumentIndexResponse" }),
                 "DocumentIndexEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/documents/inbound/{id}/chat": {
+    post: {
+      tags: ["Documents"],
+      summary: "Chat about a document (streaming reply)",
+      description:
+        "v1.27.33 — sends a user turn and streams a grounded prose reply about ONE stored document as Server-Sent Events (`text/event-stream`, not JSON: one `data: <json>\\n\\n` frame per event). Frame `type` is `token` (a chunk of reply text), `done` (`{ type, conversationId, messageId, usage? }`), or `error` (`{ type, code, message }`); HTTP status is 200 even for a provider/refusal outcome (dispatch on the `error` frame). The reply is grounded ONLY in the document's indexed text — NO health snapshot, NO tools, NO other document. The document text is fenced as untrusted DATA (prompt-injection defence); the inbound message + every prior turn are injection-screened and the reply is dose/risk-screened + numerically grounded against the document's own figures. Available only for a content-indexed document (422 `documents.inbound.notIndexed` otherwise). AI-consent-gated (403 `consent.ai.required` for an external provider), budget- and rate-limited. Omitting `conversationId` starts a new thread. Renders as plain text on the client (no markdown). Auth via cookie or Bearer.",
+      parameters: [
+        { name: "id", in: "path", required: true, schema: { type: "string" } },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: documentChatRequestSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Server-Sent Events stream of `token` / `done` / `error` frames.",
+          content: {
+            "text/event-stream": {
+              schema: {
+                type: "string",
+                description:
+                  "SSE frames: `data: <json>\\n\\n`. See the operation description for the per-`type` frame shapes.",
+              },
+            },
+          },
+        },
+        "403": {
+          description:
+            "AI consent required for an external provider (`errorCode: consent.ai.required`).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    get: {
+      tags: ["Documents"],
+      summary: "Read a document's chat history",
+      description:
+        "v1.27.33 — with `conversationId`, returns that one thread's messages (decrypted server-side, oldest-first, document- and owner-scoped); without it, the paginated list of the document's chat threads for the sheet's rail. A foreign / unknown id maps to 404 (never 403). Auth via cookie or Bearer.",
+      parameters: [
+        { name: "id", in: "path", required: true, schema: { type: "string" } },
+        {
+          name: "conversationId",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+          description: "When set, returns that thread's messages.",
+        },
+        {
+          name: "cursor",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+          description: "List pagination cursor (id of the last item).",
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 50 },
+        },
+      ],
+      responses: {
+        "200": {
+          description:
+            "Either the conversation detail (with `messages`) or the paginated conversation list for the document.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z
+                  .union([documentChatDetailSchema, documentChatListSchema])
+                  .meta({ id: "DocumentChatHistoryResponse" }),
+                "DocumentChatHistoryEnvelope",
               ),
             },
           },

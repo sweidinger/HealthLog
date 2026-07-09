@@ -8243,6 +8243,25 @@
     "share": {
       "title": "Partager ce document",
       "description": "Créez un lien clinicien en lecture seule avec ce document joint. Le lien et sa phrase secrète n’apparaissent qu’une seule fois."
+    },
+    "chat": {
+      "title": "Discuter de ce document",
+      "open": "Discuter de ce document",
+      "notIndexed": "Lisez d'abord ce document avec l'IA pour pouvoir en discuter.",
+      "empty": "Posez une question sur ce document pour commencer.",
+      "placeholder": "Une question sur ce document…",
+      "inputLabel": "Votre question sur ce document",
+      "send": "Envoyer",
+      "thinking": "Lecture du document…",
+      "safety": "Les réponses décrivent ce document et ne constituent pas un avis médical.",
+      "close": "Fermer le chat",
+      "errorHistory": "Impossible de charger la conversation. Réessayez.",
+      "errorGeneric": "Une erreur s'est produite. Réessayez.",
+      "errorRateLimited": "Trop de messages. Patientez un instant et réessayez.",
+      "errorBudget": "La limite quotidienne d'IA est atteinte. Réessayez demain.",
+      "errorCredential": "Le fournisseur d'IA doit être reconnecté dans les paramètres.",
+      "errorConsent": "Activez le consentement à l'IA dans les paramètres pour discuter de ce document.",
+      "errorNetwork": "Vous semblez hors ligne. Vérifiez votre connexion et réessayez."
     }
   },
   "selfDescription": {

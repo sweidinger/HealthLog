@@ -185,4 +185,12 @@ export const AI_BUDGETS = {
    * ceiling; temperature 0 — faithful transcription, not generation.
    */
   documentTranscribe: { temperature: 0, maxTokens: 4000 },
+
+  /**
+   * v1.27.33 (Document vault P4 — chat about a document) — a grounded prose
+   * reply about ONE stored document's text. 60-180 words, no sentinel blocks,
+   * no tools. Mirrors the Coach's 600-token / temperature-0.3 shape; the low
+   * temperature keeps the reply close to the document (extractive), not creative.
+   */
+  documentChat: { temperature: 0.3, maxTokens: 600 },
 } as const satisfies Record<string, AiBudget>;

@@ -8243,6 +8243,25 @@
     "share": {
       "title": "Dieses Dokument teilen",
       "description": "Erstelle einen schreibgeschützten Ärzte-Link mit diesem angehängten Dokument. Link und Passphrase erscheinen nur einmal."
+    },
+    "chat": {
+      "title": "Über dieses Dokument chatten",
+      "open": "Über dieses Dokument chatten",
+      "notIndexed": "Lies das Dokument zuerst mit KI, um darüber zu chatten.",
+      "empty": "Stelle eine Frage zu diesem Dokument, um zu beginnen.",
+      "placeholder": "Frage zu diesem Dokument…",
+      "inputLabel": "Deine Frage zu diesem Dokument",
+      "send": "Senden",
+      "thinking": "Dokument wird gelesen…",
+      "safety": "Antworten beschreiben dieses Dokument und sind keine medizinische Beratung.",
+      "close": "Chat schließen",
+      "errorHistory": "Unterhaltung konnte nicht geladen werden. Bitte erneut versuchen.",
+      "errorGeneric": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+      "errorRateLimited": "Zu viele Nachrichten. Bitte kurz warten und erneut versuchen.",
+      "errorBudget": "Das tägliche KI-Limit ist erreicht. Bitte morgen erneut versuchen.",
+      "errorCredential": "Der KI-Anbieter muss in den Einstellungen neu verbunden werden.",
+      "errorConsent": "Aktiviere die KI-Zustimmung in den Einstellungen, um über dieses Dokument zu chatten.",
+      "errorNetwork": "Du scheinst offline zu sein. Prüfe deine Verbindung und versuche es erneut."
     }
   },
   "selfDescription": {

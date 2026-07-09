@@ -635,3 +635,42 @@ export interface DocumentSuggestionDto {
 /** The session-only summary/extracted-text mode the summary route serves. */
 export const DOCUMENT_SUMMARY_MODES = ["summary", "text"] as const;
 export type DocumentSummaryMode = (typeof DOCUMENT_SUMMARY_MODES)[number];
+
+// ─── Chat about a document (Document vault P4) ──────────────────────────────
+
+/** Max characters of a single user turn in a document chat. */
+export const DOCUMENT_CHAT_MESSAGE_MAX = 4000;
+
+/**
+ * Request body for `POST /api/documents/inbound/{id}/chat`. No `userId` and no
+ * `documentId` field — the user is narrowed from the session and the document id
+ * comes from the path. `conversationId` continues an existing thread scoped to
+ * this document; omitting it starts a new one. `locale` is the reply language
+ * (the document chat, like the Coach, replies in de/en).
+ */
+export const documentChatRequestSchema = z
+  .object({
+    conversationId: z.string().trim().min(1).max(64).optional(),
+    message: z.string().trim().min(1).max(DOCUMENT_CHAT_MESSAGE_MAX),
+    locale: z.enum(["en", "de"]).optional(),
+  })
+  .meta({ id: "DocumentChatRequest" });
+
+export type DocumentChatRequestInput = z.infer<
+  typeof documentChatRequestSchema
+>;
+
+/**
+ * Query for `GET /api/documents/inbound/{id}/chat`. With `conversationId`, the
+ * endpoint returns that one thread's messages (owner + document scoped); without
+ * it, the paginated list of the document's chat threads for the sheet's rail.
+ */
+export const documentChatHistoryQuerySchema = z.object({
+  conversationId: z.string().trim().min(1).max(64).optional(),
+  cursor: z.string().trim().min(1).max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+export type DocumentChatHistoryQuery = z.infer<
+  typeof documentChatHistoryQuerySchema
+>;

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.27.32
+  version: 1.27.33
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -9389,6 +9389,93 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/documents/inbound/{id}/chat:
+    post:
+      tags:
+        - Documents
+      summary: Chat about a document (streaming reply)
+      description: "v1.27.33 — sends a user turn and streams a grounded prose reply about ONE stored document as Server-Sent
+        Events (`text/event-stream`, not JSON: one `data: <json>\\n\\n` frame per event). Frame `type` is `token` (a
+        chunk of reply text), `done` (`{ type, conversationId, messageId, usage? }`), or `error` (`{ type, code, message
+        }`); HTTP status is 200 even for a provider/refusal outcome (dispatch on the `error` frame). The reply is
+        grounded ONLY in the document's indexed text — NO health snapshot, NO tools, NO other document. The document
+        text is fenced as untrusted DATA (prompt-injection defence); the inbound message + every prior turn are
+        injection-screened and the reply is dose/risk-screened + numerically grounded against the document's own
+        figures. Available only for a content-indexed document (422 `documents.inbound.notIndexed` otherwise).
+        AI-consent-gated (403 `consent.ai.required` for an external provider), budget- and rate-limited. Omitting
+        `conversationId` starts a new thread. Renders as plain text on the client (no markdown). Auth via cookie or
+        Bearer."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentChatRequest"
+      responses:
+        "200":
+          description: Server-Sent Events stream of `token` / `done` / `error` frames.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: "SSE frames: `data: <json>\\n\\n`. See the operation description for the per-`type` frame shapes."
+        "401": *a1
+        "403":
+          description: "AI consent required for an external provider (`errorCode: consent.ai.required`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    get:
+      tags:
+        - Documents
+      summary: Read a document's chat history
+      description: v1.27.33 — with `conversationId`, returns that one thread's messages (decrypted server-side, oldest-first,
+        document- and owner-scoped); without it, the paginated list of the document's chat threads for the sheet's rail.
+        A foreign / unknown id maps to 404 (never 403). Auth via cookie or Bearer.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: conversationId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: When set, returns that thread's messages.
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: List pagination cursor (id of the last item).
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Either the conversation detail (with `messages`) or the paginated conversation list for the document.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentChatHistoryEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/documents/inbound/reindex:
     post:
       tags:
@@ -11715,6 +11802,24 @@ components:
       required:
         - mode
         - text
+    DocumentChatRequest:
+      type: object
+      properties:
+        conversationId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        locale:
+          type: string
+          enum:
+            - en
+            - de
+      required:
+        - message
     DisclaimerAckRequest:
       type: object
       properties:
@@ -26822,6 +26927,127 @@ components:
         - documentId
         - indexed
         - tokenCount
+      additionalProperties: false
+    DocumentChatHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DocumentChatHistoryResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DocumentChatHistoryResponse:
+      anyOf:
+        - $ref: "#/components/schemas/DocumentChatDetail"
+        - $ref: "#/components/schemas/DocumentChatList"
+    DocumentChatDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        messageCount:
+          type: number
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentChatMessage"
+        summary:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - id
+        - title
+        - createdAt
+        - updatedAt
+        - messageCount
+        - messages
+        - summary
+      additionalProperties: false
+    DocumentChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+        content:
+          type: string
+        createdAt:
+          type: string
+        providerType:
+          anyOf:
+            - type: string
+            - type: "null"
+        tokensUsed:
+          anyOf:
+            - type: number
+            - type: "null"
+        model:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - id
+        - role
+        - content
+        - createdAt
+        - providerType
+        - tokensUsed
+        - model
+      additionalProperties: false
+    DocumentChatList:
+      type: object
+      properties:
+        conversations:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentChatConversation"
+        nextCursor:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - conversations
+        - nextCursor
+      additionalProperties: false
+    DocumentChatConversation:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        messageCount:
+          type: number
+      required:
+        - id
+        - title
+        - createdAt
+        - updatedAt
+        - messageCount
       additionalProperties: false
     DocumentReindexEnvelope:
       type: object

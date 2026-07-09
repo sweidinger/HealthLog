@@ -54,6 +54,16 @@ export const MAX_TOKENS_PER_DOCUMENT = 2048;
  */
 export const MAX_INDEX_TEXT_BYTES = 64 * 1024;
 
+/**
+ * v1.27.33 (Document vault P4) — cap on the VERBATIM text kept at rest per
+ * document. Held at the same ~64 KiB budget as the normalised text so the whole
+ * document still fits a mainstream chat context window when fed to the document
+ * chat (≈16–20k tokens + the system prompt + history). The verbatim text is the
+ * raw transcription (casing, accents, section names intact) so a chat can cite
+ * the document faithfully; it is byte-bounded but NEVER lowercased or de-accented.
+ */
+export const MAX_VERBATIM_TEXT_BYTES = 64 * 1024;
+
 /** Cap on query tokens hashed for a search (a search box, not a corpus). */
 const MAX_QUERY_TOKENS = 24;
 
@@ -191,6 +201,21 @@ export function tokenise(text: string): string[] {
   return [...seen];
 }
 
+/**
+ * v1.27.33 (Document vault P4) — byte-bound the VERBATIM text for storage,
+ * WITHOUT the normalisation `normaliseIndexText` applies. Casing, accents,
+ * section names, and units survive intact so a document chat can cite the
+ * document faithfully; only the byte length is clamped to the storage budget.
+ */
+export function captureVerbatimText(raw: string): string {
+  if (Buffer.byteLength(raw, "utf8") <= MAX_VERBATIM_TEXT_BYTES) return raw;
+  let out = raw.slice(0, MAX_VERBATIM_TEXT_BYTES);
+  while (Buffer.byteLength(out, "utf8") > MAX_VERBATIM_TEXT_BYTES) {
+    out = out.slice(0, -256);
+  }
+  return out;
+}
+
 /** The HKDF-derived HMAC subkey for the blind index. Never persisted or logged. */
 function indexSubkey(): Buffer {
   return deriveSubkey(INDEX_SUBKEY_INFO);
@@ -241,6 +266,55 @@ export function decryptIndexText(buf: Uint8Array): string {
 }
 
 /**
+ * v1.27.33 (Document vault P4) — encrypt the verbatim document text into the
+ * `Bytes` payload the schema stores. Same AES-256-GCM codec as the normalised
+ * index text; the only difference is the plaintext is un-normalised.
+ */
+export function encryptVerbatimText(text: string): Uint8Array<ArrayBuffer> {
+  return encryptToBytes(text);
+}
+
+/** Decrypt a stored verbatim-text payload back to its plaintext. Throws on bad key. */
+export function decryptVerbatimText(buf: Uint8Array): string {
+  return decryptFromBytes(buf);
+}
+
+/** The document text a chat grounds on, plus which artefact it came from. */
+export interface DocumentChatContext {
+  /** The decrypted document text — verbatim when available, else normalised. */
+  text: string;
+  /** `"verbatim"` = the raw-fidelity capture; `"normalised"` = pre-P4 fallback. */
+  source: "verbatim" | "normalised";
+}
+
+/**
+ * v1.27.33 (Document vault P4) — load the best available document text for the
+ * chat, owner-scoped. Prefers the verbatim capture (raw casing/accents/section
+ * names → faithful citation); falls back to the normalised search text for a
+ * row indexed before P4 that carries no verbatim column yet. Returns null when
+ * the document has no content index at all — the chat is available ONLY for an
+ * indexed document (the route maps this to a 422 "index first"). Decrypt failures
+ * throw (fail-closed), exactly like every other `*Encrypted` read.
+ */
+export async function loadDocumentChatText(
+  userId: string,
+  documentId: string,
+): Promise<DocumentChatContext | null> {
+  const row = await prisma.documentContentIndex.findFirst({
+    where: { documentId, userId },
+    select: { textEncrypted: true, verbatimTextEncrypted: true },
+  });
+  if (!row) return null;
+  if (row.verbatimTextEncrypted && row.verbatimTextEncrypted.byteLength > 0) {
+    return {
+      text: decryptVerbatimText(row.verbatimTextEncrypted),
+      source: "verbatim",
+    };
+  }
+  return { text: decryptIndexText(row.textEncrypted), source: "normalised" };
+}
+
+/**
  * Provenance of the indexed text.
  *   - `vision`    → an AI provider transcribed the stored original (image or PDF,
  *                   incl. scanned) — the AI-first primary path.
@@ -274,12 +348,19 @@ export async function upsertContentIndex(
   const normalised = normaliseIndexText(args.text);
   const textEncrypted = encryptIndexText(normalised);
   const searchTokens = tokeniseAndHash(normalised);
+  // v1.27.33 (Document vault P4) — additionally capture the VERBATIM text (raw
+  // casing/accents, byte-capped only) for faithful citation in the document
+  // chat. Derived from the same raw `text`, before normalisation.
+  const verbatimTextEncrypted = encryptVerbatimText(
+    captureVerbatimText(args.text),
+  );
   await prisma.documentContentIndex.upsert({
     where: { documentId: args.documentId },
     create: {
       documentId: args.documentId,
       userId: args.userId,
       textEncrypted,
+      verbatimTextEncrypted,
       searchTokens,
       source: args.source,
       providerType: args.providerType ?? null,
@@ -287,6 +368,7 @@ export async function upsertContentIndex(
     },
     update: {
       textEncrypted,
+      verbatimTextEncrypted,
       searchTokens,
       source: args.source,
       providerType: args.providerType ?? null,

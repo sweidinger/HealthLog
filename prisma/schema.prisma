@@ -4463,10 +4463,24 @@ model CoachConversation {
   summaryUpdatedAt DateTime? @map("summary_updated_at")
   summaryTurnCount Int       @default(0) @map("summary_turn_count")
 
-  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // v1.27.33 (Document vault P4 — chat about a document) — the discriminator
+  // that turns a Coach conversation into a DOCUMENT chat. NULL = a normal Coach
+  // conversation (health-record surface, snapshot + tools). Non-NULL = a chat
+  // scoped to exactly one stored document: its only context is that document's
+  // text, no health snapshot, no tools. The two never mix — the Coach rail
+  // filters `documentId: null` and the document sheet filters `documentId: <id>`.
+  // Cascades on document delete so a discarded document takes its chats with it.
+  documentId String? @map("document_id")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document InboundDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
   messages CoachMessage[]
 
   @@index([userId, updatedAt])
+  // v1.27.33 — the document sheet lists a document's chats newest-first; the
+  // Coach rail lists `documentId IS NULL` newest-first. This composite covers
+  // both scans without a separate index per surface.
+  @@index([userId, documentId, updatedAt])
   @@map("coach_conversations")
 }
 
@@ -5847,6 +5861,10 @@ model InboundDocument {
   /// 1:1 blind content-search index (encrypted extracted text + HMAC token
   /// array). Absent until the document is indexed; cascades on delete.
   contentIndex   DocumentContentIndex?
+  /// v1.27.33 (Document vault P4) — "chat about a document" threads. Each is a
+  /// `CoachConversation` with `documentId` set to this document; cascades on
+  /// delete so a discarded document takes its chats with it.
+  chats          CoachConversation[]
   /// share-link memberships (m:n via `ClinicianShareLinkDocument`).
   /// Cascades: deleting this document removes it from every share it was on.
   shareLinks     ClinicianShareLinkDocument[]
@@ -5960,6 +5978,15 @@ model DocumentContentIndex {
   /// with the Coach columns. The plaintext is recoverable server-side so
   /// rotation can re-tokenise; the list query never selects it.
   textEncrypted    Bytes    @map("text_encrypted")
+  /// v1.27.33 (Document vault P4 — chat about a document) — AES-256-GCM
+  /// ciphertext of the VERBATIM extracted text (byte-capped, NOT lowercased or
+  /// de-accented), stored additionally alongside `textEncrypted` so a document
+  /// chat can cite the document faithfully (exact casing, section names, units)
+  /// rather than from the normalised search text. Same `encrypt()`-string-as-
+  /// UTF-8 Bytes shape as every other PHI column. Nullable: rows indexed before
+  /// P4 carry NULL until re-indexed, and the chat route falls back to the
+  /// normalised `textEncrypted` when it is absent. The list query never selects it.
+  verbatimTextEncrypted Bytes? @map("verbatim_text_encrypted")
   /// Deduped HMAC-SHA256 (truncated hex) of the normalised tokens — the blind
   /// index. One-way: opaque without the server-held index subkey. GIN-indexed
   /// (raw SQL in the migration; Prisma cannot express a GIN index).

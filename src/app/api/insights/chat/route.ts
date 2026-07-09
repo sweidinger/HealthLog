@@ -304,9 +304,12 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   let priorSummary: string | null = null;
 
   if (conversationId) {
+    // v1.27.33 — scope to Coach threads (documentId null); a document chat can
+    // never be loaded through the Coach route.
     const existing = await fetchConversationWithMessages(
       userId,
       conversationId,
+      { documentId: null },
     );
     if (!existing) {
       // 404, not 403 — never reveal cross-user existence
@@ -1434,6 +1437,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
     userId: auth.user.id,
     cursor,
     limit: Number.isFinite(limit) ? (limit as number) : undefined,
+    // v1.27.33 — the Coach rail shows only health threads; document chats
+    // (documentId set) live on the document sheet and are filtered out here.
+    documentId: null,
   });
 
   annotate({
