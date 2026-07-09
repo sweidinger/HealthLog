@@ -82,3 +82,6 @@ next-env.d.ts
 # Per-release internal forensic notes — retained locally for
 # traceability across releases but not part of the public docs surface.
 /docs/audit/
+
+# Local screenshot/audit harnesses (repo-root for module resolution; never committed)
+.audit-*.mjs
