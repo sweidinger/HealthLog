@@ -341,27 +341,6 @@ const aiProviderResponse = z
       .describe(
         "v1.22 (#89) — per-user response timeout for AI generation, in seconds (10–600). Null = the built-in comprehensive-briefing default (~120 s). Mainly for slow local/self-hosted backends.",
       ),
-    ocrEnabled: z
-      .boolean()
-      .describe(
-        "v1.22 (#90) — whether a dedicated document-scan (Lab-OCR) provider is active. When false the OCR path uses the main provider chain.",
-      ),
-    ocrProvider: z
-      .enum(["OPENAI", "ANTHROPIC", "LOCAL"])
-      .nullable()
-      .describe("The dedicated document-scan provider, or null when unset."),
-    ocrModel: z.string().nullable(),
-    ocrBaseUrl: z
-      .string()
-      .nullable()
-      .describe("Custom base URL (LOCAL OCR provider only); null otherwise."),
-    hasOcrKey: z.boolean(),
-    ocrKeyPreview: z
-      .string()
-      .nullable()
-      .describe(
-        "`...` + last 4 chars of the stored document-scan provider key, or null.",
-      ),
   })
   .meta({
     id: "AiProviderResponse",

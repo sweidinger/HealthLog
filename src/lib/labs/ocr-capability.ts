@@ -10,8 +10,9 @@
  * vision allowlist.
  */
 import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
-import { resolveProvider, resolveOcrProviderChain } from "@/lib/ai/provider";
+import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
 import { resolveCodexVisionSlug } from "@/lib/ai/codex-client";
+import { RASTERIZATION_AVAILABLE } from "@/lib/documents/rasterize-pdf";
 import { prisma } from "@/lib/db";
 import {
   supportsPdfForProvider,
@@ -89,18 +90,14 @@ export async function resolveVisionProvider(
 
   const localOcrEnabled = userRow?.labsLocalOcrEnabled ?? false;
 
-  // v1.22 (#90) — resolve the OCR chain: the dedicated document-scan provider
-  // when the user enabled one, else the main provider chain unchanged. When a
-  // dedicated provider is active, ITS model drives the vision allowlist.
-  const ocr = await resolveOcrProviderChain(userId);
+  // The OCR path always uses the main configured provider chain — the user's
+  // model drives the vision allowlist.
   const ctx: ModelContext = {
-    userModel: ocr.dedicated
-      ? (ocr.ocrModelOverride ?? userRow?.aiModel ?? null)
-      : (userRow?.aiModel ?? null),
+    userModel: userRow?.aiModel ?? null,
     adminModel: settings?.adminAiModel ?? null,
   };
 
-  const resolvedChain = ocr.chain;
+  const resolvedChain = await resolveProviderChain(userId);
   if (resolvedChain.length === 0) {
     // Mirror the Coach: fall back to the legacy single-provider resolution and
     // tag it as the admin-managed entry the consent gate recognises.
@@ -148,9 +145,9 @@ export async function resolveTextProvider(
   chain: ProviderChainResolved[];
   pick: { entry: ProviderChainResolved; providerType: string } | null;
 }> {
-  // v1.22 (#90) — use the dedicated document-scan provider when enabled, else
-  // the main chain (the text-mode structuring pass needs no vision).
-  const resolvedChain = (await resolveOcrProviderChain(userId)).chain;
+  // The text-mode structuring pass needs no vision — any configured provider in
+  // the main chain can structure the OCR'd text.
+  const resolvedChain = await resolveProviderChain(userId);
   if (resolvedChain.length === 0) {
     const legacy = await resolveProvider(userId);
     if (legacy.type !== "none") {
@@ -183,13 +180,18 @@ export async function resolveOcrCapability(
   );
 
   // Prefer the native vision path whenever it is available — it is more
-  // accurate and the client does not download the OCR WASM.
+  // accurate and the client does not download the OCR WASM. PDFs are readable
+  // whenever the picked provider natively supports them (Anthropic) OR the
+  // server-side rasterizer is available (every other vision provider reads a
+  // PDF via rasterized page images), so the scan-a-PDF affordance shows for a
+  // codex / OAuth provider too. The extract route keeps the native-block vs
+  // raster decision on `pick.pdfSupported` itself.
   if (pick) {
     return {
       available: true,
       mode: "vision",
       reason: null,
-      pdfSupported: pick.pdfSupported,
+      pdfSupported: pick.pdfSupported || RASTERIZATION_AVAILABLE,
     };
   }
 

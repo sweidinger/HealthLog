@@ -139,7 +139,7 @@ describe("GET /api/user/ai-provider availability", () => {
     expect(body.data.managedBy).toBeNull();
   });
 
-  it("returns the v1.22 timeout + OCR fields", async () => {
+  it("returns the v1.22 response timeout field", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       aiProvider: "OPENAI",
       aiModel: "gpt-4o",
@@ -148,11 +148,6 @@ describe("GET /api/user/ai-provider availability", () => {
       aiLocalKeyEncrypted: null,
       aiOpenaiKeyEncrypted: null,
       aiResponseTimeoutSeconds: 240,
-      aiOcrEnabled: true,
-      aiOcrProvider: "ANTHROPIC",
-      aiOcrModel: "claude-sonnet-4-6",
-      aiOcrBaseUrl: null,
-      aiOcrKeyEncrypted: "enc-ocr-1234",
     } as never);
     vi.mocked(resolveProviderAvailability).mockResolvedValue({
       aiAvailable: true,
@@ -161,21 +156,10 @@ describe("GET /api/user/ai-provider availability", () => {
 
     const res = await (GET as () => Promise<Response>)();
     const body = (await res.json()) as {
-      data: {
-        responseTimeoutSeconds: number | null;
-        ocrEnabled: boolean;
-        ocrProvider: string | null;
-        hasOcrKey: boolean;
-        ocrKeyPreview: string | null;
-      };
+      data: { responseTimeoutSeconds: number | null };
     };
 
     expect(body.data.responseTimeoutSeconds).toBe(240);
-    expect(body.data.ocrEnabled).toBe(true);
-    expect(body.data.ocrProvider).toBe("ANTHROPIC");
-    expect(body.data.hasOcrKey).toBe(true);
-    // Preview is `...` + last 4 of the decrypted value (decrypt → `dec:...`).
-    expect(body.data.ocrKeyPreview).toMatch(/^\.\.\./);
   });
 });
 
@@ -206,33 +190,5 @@ describe("PATCH /api/user/ai-provider — v1.22 fields", () => {
         data: expect.objectContaining({ aiResponseTimeoutSeconds: null }),
       }),
     );
-  });
-
-  it("persists OCR provider config and encrypts the key", async () => {
-    const res = await patch(
-      patchRequest({
-        ocrEnabled: true,
-        ocrProvider: "OPENAI",
-        ocrModel: "gpt-4o",
-        ocrKey: "sk-ocr-secret",
-      }),
-    );
-    expect(res.status).toBe(200);
-    expect(vi.mocked(prisma.user.update)).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          aiOcrEnabled: true,
-          aiOcrProvider: "OPENAI",
-          aiOcrModel: "gpt-4o",
-          aiOcrKeyEncrypted: "enc:sk-ocr-secret",
-        }),
-      }),
-    );
-  });
-
-  it("rejects an invalid OCR provider", async () => {
-    await expect(
-      patch(patchRequest({ ocrProvider: "CHATGPT_OAUTH" })),
-    ).rejects.toThrow(/Invalid OCR provider/);
   });
 });

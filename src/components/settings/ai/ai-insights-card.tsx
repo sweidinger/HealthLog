@@ -33,7 +33,6 @@ import { AdminOpenAIProviderForm } from "./admin-openai-provider-form";
 import { AnthropicProviderForm } from "./anthropic-provider-form";
 import { AutoReadCard } from "./auto-read-card";
 import { CodexProviderForm } from "./codex-provider-form";
-import { DocumentScanCard } from "./document-scan-card";
 import { FallbackChainCard } from "./fallback-chain-card";
 import { LocalProviderForm } from "./local-provider-form";
 import { OpenAIProviderForm } from "./openai-provider-form";
@@ -178,9 +177,6 @@ export function AiInsightsCard({
         {/* v1.22 (#89) — per-user response timeout (mainly for slow
             local/self-hosted backends). */}
         <ResponseTimeoutCard userProvider={userProvider} />
-
-        {/* v1.22 (#90) — dedicated document-scan (Lab-OCR) provider. */}
-        <DocumentScanCard userProvider={userProvider} />
 
         {/* Read uploaded vault documents automatically with AI (opt-in). */}
         <AutoReadCard />
