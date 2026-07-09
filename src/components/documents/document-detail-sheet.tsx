@@ -59,6 +59,7 @@ import {
   type InboundDocumentKindValue,
 } from "@/lib/validations/inbound-documents";
 import { DocumentAiSection } from "./document-ai-section";
+import { DocumentChatPanel } from "./document-chat-panel";
 import type { DocumentAiTarget } from "./document-ai-transport";
 import { DocumentShareSheet } from "./document-share-sheet";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
@@ -535,6 +536,12 @@ export function DocumentDetailSheet({
               contentIndexSource={doc.contentIndexSource}
               indexPending={indexDoc.isPending}
               onIndex={runIndex}
+              chatSlot={
+                <DocumentChatPanel
+                  documentId={doc.id}
+                  indexed={doc.hasContentIndex}
+                />
+              }
             />
 
             {mutationError ? (
