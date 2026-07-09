@@ -2244,12 +2244,48 @@ model Medication {
   /// single-pause marker the reminder/today surfaces read; the era table
   /// is the additive durable record the rate paths need.
   pauseEras         MedicationPauseEra[]
+  /// v1.28 — user-pinned efficacy target(s) for the "Wirkung" view. Rows
+  /// exist ONLY when the user explicitly overrides the derived (ATC / name)
+  /// target resolution; absence means the resolver derives the target each
+  /// read. Nothing about a class→outcome association is denormalised here.
+  efficacyTargets   MedicationEfficacyTarget[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([treatmentClass])
   @@map("medications")
+}
+
+/// v1.28 — the user's explicit override of a medication's efficacy target,
+/// the ONE thing the "Wirkung" view persists. Class→outcome resolution
+/// (ATC-prefix → name inference) is computed each read from the closed
+/// `med-target-map` table, so nothing drifts as that map improves; the only
+/// durable state is the user's own pick when they retarget a medication or
+/// choose a target for a med the resolver could not classify. Exactly one of
+/// `measurementType` (a first-class metric series) / `biomarkerId` (a lab
+/// analyte) is set per row. Cascade-deletes with the medication.
+model MedicationEfficacyTarget {
+  id              String           @id @default(cuid())
+  medicationId    String           @map("medication_id")
+  /// Metric target — one of the closed `MeasurementType` series. NULL when
+  /// this row targets a lab analyte instead.
+  measurementType MeasurementType? @map("measurement_type")
+  /// Lab target — a user-scoped Biomarker. NULL when this row targets a
+  /// metric series instead. SetNull on biomarker delete so the row survives
+  /// as an orphan the resolver then treats as "no override".
+  biomarkerId     String?          @map("biomarker_id")
+  /// The storyline-leading target when several are pinned. Default true.
+  primary         Boolean          @default(true)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  biomarker  Biomarker? @relation(fields: [biomarkerId], references: [id], onDelete: SetNull)
+
+  @@index([medicationId])
+  @@index([biomarkerId])
+  @@map("medication_efficacy_targets")
 }
 
 model MedicationSchedule {
@@ -4268,8 +4304,11 @@ model Biomarker {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  results LabResult[]
+  user            User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  results         LabResult[]
+  /// v1.28 — medications the user has pinned to this biomarker as their
+  /// efficacy target. SetNull on delete keeps the override rows as orphans.
+  efficacyTargets MedicationEfficacyTarget[]
 
   @@unique([userId, name])
   @@index([userId])

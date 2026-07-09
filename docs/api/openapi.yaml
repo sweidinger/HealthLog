@@ -3389,6 +3389,163 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
+  /api/medications/{id}/efficacy:
+    get:
+      tags:
+        - Medications
+      summary: Efficacy view for a medication ("Wirkung")
+      description: "Returns the resolved, strictly-descriptive efficacy DTO: the outcome metric(s)/lab(s) the medication's
+        class targets, the target series with start/dose-change/pause markers, a before/after-start comparison, the
+        cadence-aware adherence lane, an optional conservative level-shift note, the data-floor state, and the retarget
+        options. Association-only — there is no verdict / score field. `eligible:false` (with `reason`) marks a one-shot
+        or no-target medication whose tab is hidden."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Efficacy view.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMedicationEfficacyResponse"
+        "401": *a1
+        "404":
+          description: Medication not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/medications/{id}/efficacy/target:
+    put:
+      tags:
+        - Medications
+      summary: Set or clear the efficacy-target override
+      description: Persists the user's explicit efficacy target for a medication (the only thing the view stores; everything
+        else is derived each read). Pin exactly one of `measurementType` / `biomarkerId`, or pass `clear:true` to revert
+        to the derived target.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clear:
+                  type: boolean
+                measurementType:
+                  type: string
+                  enum:
+                    - WEIGHT
+                    - BLOOD_PRESSURE_SYS
+                    - BLOOD_PRESSURE_DIA
+                    - PULSE
+                    - BODY_FAT
+                    - SLEEP_DURATION
+                    - ACTIVITY_STEPS
+                    - BLOOD_GLUCOSE
+                    - TOTAL_BODY_WATER
+                    - BONE_MASS
+                    - OXYGEN_SATURATION
+                    - HEART_RATE_VARIABILITY
+                    - RESTING_HEART_RATE
+                    - ACTIVE_ENERGY_BURNED
+                    - FLIGHTS_CLIMBED
+                    - WALKING_RUNNING_DISTANCE
+                    - VO2_MAX
+                    - BODY_TEMPERATURE
+                    - FAT_FREE_MASS
+                    - FAT_MASS
+                    - MUSCLE_MASS
+                    - SKIN_TEMPERATURE
+                    - PULSE_WAVE_VELOCITY
+                    - VASCULAR_AGE
+                    - VISCERAL_FAT
+                    - AUDIO_EXPOSURE_ENV
+                    - AUDIO_EXPOSURE_HEADPHONE
+                    - TIME_IN_DAYLIGHT
+                    - WALKING_STEADINESS
+                    - AUDIO_EXPOSURE_EVENT
+                    - RESPIRATORY_RATE
+                    - BODY_MASS_INDEX
+                    - LEAN_BODY_MASS
+                    - WALKING_HEART_RATE_AVERAGE
+                    - WALKING_ASYMMETRY
+                    - WALKING_DOUBLE_SUPPORT
+                    - WALKING_STEP_LENGTH
+                    - WALKING_SPEED
+                    - CARDIO_RECOVERY
+                    - WRIST_TEMPERATURE
+                    - FALL_COUNT
+                    - SIX_MINUTE_WALK_DISTANCE
+                    - STAIR_ASCENT_SPEED
+                    - STAIR_DESCENT_SPEED
+                    - BREATHING_DISTURBANCES
+                    - IRREGULAR_RHYTHM_NOTIFICATION
+                    - HIGH_HEART_RATE_EVENT
+                    - LOW_HEART_RATE_EVENT
+                    - WALKING_STEADINESS_EVENT
+                    - BREATHING_DISTURBANCE_EVENT
+                    - RECOVERY_SCORE
+                    - STRESS_SCORE
+                    - STRAIN_SCORE
+                    - HRV_RMSSD
+                    - DAY_STRAIN
+                    - WORKOUT_STRAIN
+                    - SLEEP_PERFORMANCE
+                    - SLEEP_EFFICIENCY
+                    - SLEEP_CONSISTENCY
+                    - SLEEP_NEED
+                    - ENERGY_EXPENDITURE_KJ
+                    - AVERAGE_HEART_RATE
+                    - MAX_HEART_RATE
+                    - SLEEP_DISTURBANCE_COUNT
+                    - ANS_CHARGE
+                    - CARDIO_LOAD
+                    - SLEEP_SCORE
+                    - BODY_TEMPERATURE_DEVIATION
+                    - RESILIENCE
+                    - PHQ9_SCORE
+                    - GAD7_SCORE
+                    - GRIP_STRENGTH
+                    - PAIN_NRS
+                    - WAIST_CIRCUMFERENCE
+                    - WAIST_TO_HEIGHT
+                    - WHO5_SCORE
+                    - SCI_SCORE
+                biomarkerId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                primary:
+                  type: boolean
+      responses:
+        "200":
+          description: Override set or cleared.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetMedicationEfficacyTargetResponse"
+        "401": *a1
+        "404":
+          description: Medication or biomarker not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
   /api/medications/{id}/schedule-revisions:
     get:
       tags:
@@ -17712,6 +17869,354 @@ components:
         - veryLate
       additionalProperties: false
       description: Per-day compliance cell with the timing breakdown that drives the history glyph track.
+    GetMedicationEfficacyResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            medicationId:
+              type: string
+            medicationName:
+              type: string
+            eligible:
+              type: boolean
+            reason:
+              type: string
+              enum:
+                - one_shot
+                - no_target
+            startsOn:
+              anyOf:
+                - type: string
+                - type: "null"
+            resolution:
+              type: object
+              properties:
+                tier:
+                  type: string
+                  enum:
+                    - override
+                    - atc
+                    - name
+                    - none
+                cls:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+              required:
+                - tier
+                - cls
+              additionalProperties: false
+            windowDays:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            minWeeksPerSide:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            markers:
+              type: object
+              properties:
+                start:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                startSource:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - startsOn
+                        - firstReading
+                    - type: "null"
+                doseChanges:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      at:
+                        type: string
+                      label:
+                        type: string
+                    required:
+                      - at
+                      - label
+                    additionalProperties: false
+                pauses:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      from:
+                        type: string
+                      to:
+                        anyOf:
+                          - type: string
+                          - type: "null"
+                    required:
+                      - from
+                      - to
+                    additionalProperties: false
+              required:
+                - start
+                - startSource
+                - doseChanges
+                - pauses
+              additionalProperties: false
+            targets:
+              type: array
+              items:
+                type: object
+                properties:
+                  kind:
+                    type: string
+                    enum:
+                      - metric
+                      - lab
+                  key:
+                    type: string
+                  label:
+                    type: string
+                  unit:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                  primary:
+                    type: boolean
+                  referenceBand:
+                    anyOf:
+                      - type: object
+                        properties:
+                          low:
+                            type: number
+                          high:
+                            type: number
+                        required:
+                          - low
+                          - high
+                        additionalProperties: false
+                      - type: "null"
+                  series:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        t:
+                          type: string
+                        value:
+                          type: number
+                        status:
+                          type: string
+                          enum:
+                            - in-range
+                            - below
+                            - above
+                            - unknown
+                      required:
+                        - t
+                        - value
+                      additionalProperties: false
+                  beforeAfter:
+                    type: object
+                    properties:
+                      present:
+                        type: boolean
+                      reason:
+                        type: string
+                        enum:
+                          - insufficient_before
+                          - insufficient_after
+                          - no_start
+                          - no_data
+                      before:
+                        type: object
+                        properties:
+                          mean:
+                            type: number
+                          count:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          from:
+                            type: string
+                          to:
+                            type: string
+                        required:
+                          - mean
+                          - count
+                          - from
+                          - to
+                        additionalProperties: false
+                      after:
+                        type: object
+                        properties:
+                          mean:
+                            type: number
+                          count:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          from:
+                            type: string
+                          to:
+                            type: string
+                        required:
+                          - mean
+                          - count
+                          - from
+                          - to
+                        additionalProperties: false
+                      delta:
+                        anyOf:
+                          - type: object
+                            properties:
+                              mean:
+                                type: number
+                              pct:
+                                anyOf:
+                                  - type: number
+                                  - type: "null"
+                            required:
+                              - mean
+                              - pct
+                            additionalProperties: false
+                          - type: "null"
+                    required:
+                      - present
+                    additionalProperties: false
+                  levelShift:
+                    anyOf:
+                      - type: object
+                        properties:
+                          present:
+                            type: boolean
+                          at:
+                            type: string
+                          nearStart:
+                            type: boolean
+                        required:
+                          - present
+                        additionalProperties: false
+                      - type: "null"
+                required:
+                  - kind
+                  - key
+                  - label
+                  - unit
+                  - primary
+                  - referenceBand
+                  - series
+                  - beforeAfter
+                  - levelShift
+                additionalProperties: false
+            adherence:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                  rate:
+                    type: number
+                  taken:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  missed:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                required:
+                  - date
+                  - rate
+                  - taken
+                  - missed
+                additionalProperties: false
+            overrideOptions:
+              type: object
+              properties:
+                metrics:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                      label:
+                        type: string
+                    required:
+                      - key
+                      - label
+                    additionalProperties: false
+                biomarkers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      label:
+                        type: string
+                      unit:
+                        type: string
+                    required:
+                      - id
+                      - label
+                      - unit
+                    additionalProperties: false
+              required:
+                - metrics
+                - biomarkers
+              additionalProperties: false
+          required:
+            - medicationId
+            - medicationName
+            - eligible
+            - startsOn
+            - resolution
+            - windowDays
+            - minWeeksPerSide
+            - markers
+            - targets
+            - adherence
+            - overrideOptions
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SetMedicationEfficacyTargetResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            ok:
+              type: boolean
+            cleared:
+              type: boolean
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     ListScheduleRevisionsResponse:
       type: object
       properties:
