@@ -115,6 +115,7 @@ export type VisionProviderType =
   | "admin-key"
   | "local"
   | "codex"
+  | "admin-codex"
   | "none";
 
 /**
@@ -146,6 +147,9 @@ export function supportsVisionForConfig(
     case "local":
       return true;
     case "codex":
+    // The operator-shared central Codex runs the same `codex/responses` wire on
+    // a resolved GPT-5.x slug, so its vision capability is identical to `codex`.
+    case "admin-codex":
       return model ? codexSupportsVision(model) : false;
     case "none":
     default:

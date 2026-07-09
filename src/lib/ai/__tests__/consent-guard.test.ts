@@ -63,6 +63,15 @@ describe("chainRequiresServerManagedConsent", () => {
     ).toBe(true);
   });
 
+  it("is true for the operator-shared central Codex (admin-codex)", () => {
+    expect(chainRequiresServerManagedConsent([entry("admin-codex")])).toBe(
+      true,
+    );
+    expect(
+      chainRequiresServerManagedConsent([entry("codex"), entry("admin-codex")]),
+    ).toBe(true);
+  });
+
   it("is false for pure BYOK / local / codex chains", () => {
     expect(chainRequiresServerManagedConsent([entry("openai")])).toBe(false);
     expect(chainRequiresServerManagedConsent([entry("anthropic")])).toBe(false);
@@ -182,7 +191,13 @@ describe("isExternalDocumentEgress", () => {
   });
 
   it("treats every external provider as document egress", () => {
-    for (const p of ["codex", "openai", "anthropic", "admin-openai"]) {
+    for (const p of [
+      "codex",
+      "openai",
+      "anthropic",
+      "admin-openai",
+      "admin-codex",
+    ]) {
       expect(isExternalDocumentEgress(p)).toBe(true);
     }
   });

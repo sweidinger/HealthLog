@@ -21,8 +21,16 @@
 /**
  * Provider tags used in the chain. `admin-openai` is the legacy
  * `AppSettings.adminAiKeyEncrypted` fallback (so misconfigured users
- * still see insights via the operator's key); the rest map 1:1 onto
- * the per-user encrypted-credential columns.
+ * still see insights via the operator's key); `admin-codex` is the
+ * operator-shared central Codex (ChatGPT-subscription) connection a user
+ * opts into via `useCentralCodex`; the rest map 1:1 onto the per-user
+ * encrypted-credential columns.
+ *
+ * `admin-codex` is NOT part of `PROVIDER_CHAIN_DEFAULT` and is never
+ * offered in the chain editor — it is appended to a user's resolved chain
+ * at resolution time ONLY when they opted in AND the operator connected it
+ * (see `resolveProviderChain`), so a persisted `admin-codex` entry never
+ * resolves on its own.
  *
  * Distinct from `ProviderType` (in `types.ts`) because that enum tags
  * the **runtime** provider instance — which has no notion of "admin
@@ -36,6 +44,7 @@ export const PROVIDER_CHAIN_TYPES = [
   "anthropic",
   "local",
   "admin-openai",
+  "admin-codex",
 ] as const;
 
 export type ProviderChainType = (typeof PROVIDER_CHAIN_TYPES)[number];

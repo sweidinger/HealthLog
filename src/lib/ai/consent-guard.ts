@@ -38,9 +38,15 @@ import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
  */
 export type ConsentSurface = "coach" | "insights";
 
-/** Provider tags that egress via the operator's server-managed/global key. */
+/**
+ * Provider tags that egress via an operator-managed credential the user did not
+ * personally contract: the operator's global OpenAI key (`admin-openai`) and the
+ * operator's shared central Codex / ChatGPT-subscription account (`admin-codex`).
+ * Both require an active consent receipt before any PHI leaves for them.
+ */
 const SERVER_MANAGED_PROVIDER_TYPES: ReadonlySet<string> = new Set([
   "admin-openai",
+  "admin-codex",
 ]);
 
 /**

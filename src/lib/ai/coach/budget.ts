@@ -52,18 +52,21 @@ export const USER_PLAN_CAP = 2_000_000;
  * the daily cap that applies.
  *
  * The chain is a fallback list; the FIRST entry is the provider that will be
- * tried first and is the expected cost owner. Only when that primary provider
- * is `admin-openai` (the user has no personal provider and falls back to the
- * operator's key) does the operator pay — so the operator-cost cap applies.
- * Every other primary (`codex` / `openai` / `anthropic` / `local`) is the
- * user's own egress, so the generous user-plan cap applies. An empty chain
- * (no provider resolved) defaults to the operator cap — the conservative side.
+ * tried first and is the expected cost owner. The operator pays when that
+ * primary provider is `admin-openai` (the operator's shared API key) OR
+ * `admin-codex` (the operator's shared ChatGPT-subscription account) — both
+ * drain the operator's resources, so the operator-cost cap applies. Every other
+ * primary (`codex` / `openai` / `anthropic` / `local`) is the user's own
+ * egress, so the generous user-plan cap applies. An empty chain (no provider
+ * resolved) defaults to the operator cap — the conservative side.
  */
 export function resolveDailyCap(
   chain: ReadonlyArray<{ providerType: ProviderChainType }>,
 ): number {
   const primary = chain[0]?.providerType;
-  return primary === "admin-openai" || primary === undefined
+  return primary === "admin-openai" ||
+    primary === "admin-codex" ||
+    primary === undefined
     ? OPERATOR_COST_CAP
     : USER_PLAN_CAP;
 }

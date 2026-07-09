@@ -101,6 +101,16 @@ describe("supportsVisionForConfig", () => {
     expect(supportsVisionForConfig("codex", "o3")).toBe(true);
   });
 
+  it("mirrors codex vision capability for the shared central codex (admin-codex)", () => {
+    // The operator-shared central Codex runs the same wire on the same resolved
+    // slug, so its vision gate is identical to `codex`.
+    expect(supportsVisionForConfig("admin-codex", "gpt-5.5")).toBe(true);
+    expect(supportsVisionForConfig("admin-codex", "gpt-5.3-codex")).toBe(true);
+    expect(supportsVisionForConfig("admin-codex", "gpt-4")).toBe(false);
+    expect(supportsVisionForConfig("admin-codex", "o3-mini")).toBe(false);
+    expect(supportsVisionForConfig("admin-codex", null)).toBe(false);
+  });
+
   it("never reports vision for none", () => {
     expect(supportsVisionForConfig("none", "gpt-4o")).toBe(false);
   });
