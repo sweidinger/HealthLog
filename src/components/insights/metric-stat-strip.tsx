@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { Sigma } from "lucide-react";
 
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
@@ -102,6 +102,21 @@ export interface MetricStatSeries {
    * all-time central value. Omit it to keep the generic label.
    */
   medianLabel?: string;
+  /**
+   * v1.28.4 — optional descriptive line rendered INSIDE the tile, directly
+   * under the `<TileHeader>` and above the four-stat grid. Lets a metric block
+   * own its heading + blurb in a single tile rather than duplicating the
+   * heading in an outer section above it. Muted supporting copy; omit it for
+   * the numbers-only header the other subpages lead with.
+   */
+  description?: ReactNode;
+  /**
+   * Render the series' `<TileHeader>` title as a real heading element (e.g.
+   * "h2") rather than the presentational `CardTitle` div. Used where the tile
+   * carries the ONLY heading on its subpage branch (the recovery blocks) so the
+   * `h1 → h2` outline under `SubPageShell` stays nested with no skipped level.
+   */
+  titleAs?: "h2";
 }
 
 type MetricStatStripProps = Partial<MetricStatSeries> & {
@@ -140,6 +155,8 @@ function SeriesBlock({
   windowStats,
   dataKey,
   medianLabel,
+  description,
+  titleAs,
 }: MetricStatSeries) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -183,7 +200,16 @@ function SeriesBlock({
       className="space-y-2"
     >
       {seriesLabel ? (
-        <TileHeader icon={icon ?? Sigma} title={seriesLabel} />
+        <TileHeader
+          icon={icon ?? Sigma}
+          title={seriesLabel}
+          titleAs={titleAs}
+        />
+      ) : null}
+      {description ? (
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {description}
+        </p>
       ) : null}
       <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4 [&>div]:min-h-[44px]">
         {cells.map((cell) => (
@@ -215,6 +241,8 @@ export function MetricStatStrip({
   windowStats,
   dataKey,
   medianLabel,
+  description,
+  titleAs,
   series,
   groupLabel,
 }: MetricStatStripProps) {
@@ -277,6 +305,8 @@ export function MetricStatStrip({
           windowStats={windowStats}
           dataKey={dataKey}
           medianLabel={medianLabel}
+          description={description}
+          titleAs={titleAs}
         />
       </CardContent>
     </Card>

@@ -506,7 +506,6 @@ export function DocumentDetailSheet({
               aiEnabled={aiEnabled}
               indexEnabled={indexEnabled}
               unavailableReason={capability.data?.reason ?? null}
-              egressExternal={capability.data?.egress === "external"}
               actionsDisabled={capability.isPending}
               onSuggest={runSuggest}
               suggestPending={suggest.isPending}

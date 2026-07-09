@@ -171,20 +171,19 @@ test.describe("automatic AI reading — vault per-document contract", () => {
 
   test.beforeEach(() => test.slow());
 
-  test("the vault shows the per-egress notice once and the explicit read action", async ({
+  test("the vault shows the explicit read action for an external provider", async ({
     page,
   }) => {
-    // External egress (the codex/OAuth or any non-local provider case).
+    // External egress (the codex/OAuth or any non-local provider case). The
+    // per-document egress notice was retired — the settings-toggle honesty
+    // confirm already covers the egress trade — so no per-document notice
+    // renders here regardless of egress mode.
     await mockDocumentCapability(page, { egress: "external" });
 
     await page.goto(`/documents?doc=${AI_PROBE_DOC_ID}`);
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
 
-    // The vendor-blind "leaves your machine" notice is shown exactly once.
-    await expect(
-      sheet.locator('[data-slot="document-ai-egress-notice"]'),
-    ).toHaveCount(1);
     // The per-document read is the explicit path — the action is present and the
     // user must tap it (auto-read never removes the affordance, only the tap).
     await expect(sheet.locator('[data-slot="document-read-ai"]')).toBeVisible();
@@ -218,8 +217,12 @@ test.describe("automatic AI reading — vault per-document contract", () => {
     expect(indexCalls).toBe(1);
   });
 
-  test("a local-egress read shows no external notice", async ({ page }) => {
-    // A self-hosted local model never leaves the machine — no egress notice.
+  test("a local-egress provider shows the explicit read action", async ({
+    page,
+  }) => {
+    // A self-hosted local model never leaves the machine; the read action is
+    // offered the same way as for an external provider (no per-document notice
+    // in either mode after the notice was retired).
     await mockDocumentCapability(page, {
       egress: "local",
       pdfSupported: false,
@@ -229,8 +232,6 @@ test.describe("automatic AI reading — vault per-document contract", () => {
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
 
-    await expect(
-      sheet.locator('[data-slot="document-ai-egress-notice"]'),
-    ).toHaveCount(0);
+    await expect(sheet.locator('[data-slot="document-read-ai"]')).toBeVisible();
   });
 });
