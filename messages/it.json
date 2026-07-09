@@ -4775,18 +4775,6 @@
       "responseTimeoutLabel": "Timeout della risposta (secondi)",
       "responseTimeoutPlaceholder": "Predefinito (~120)",
       "responseTimeoutInvalid": "Inserisci un numero tra 10 e 600 secondi.",
-      "ocrHeading": "Scansione documenti (referti di laboratorio)",
-      "ocrBody": "Usa un provider dedicato per leggere i referti di laboratorio caricati. Se disattivato, la scansione usa il tuo provider principale.",
-      "ocrEnableLabel": "Attiva un provider dedicato per la scansione dei documenti",
-      "ocrProviderLabel": "Provider di scansione",
-      "ocrProviderOption": {
-        "OPENAI": "OpenAI (la tua chiave API)",
-        "ANTHROPIC": "Anthropic (Claude)",
-        "LOCAL": "Modello locale (compatibile con OpenAI)"
-      },
-      "ocrModelPlaceholder": "es. gpt-4o",
-      "ocrVisionHint": "Questo modello potrebbe non essere in grado di leggere le immagini. Scegli un modello con capacità di visione per la scansione dei documenti.",
-      "ocrKeyLabel": "Chiave API",
       "autoRead": {
         "title": "Leggi i documenti automaticamente con l'IA",
         "subLabel": "I documenti appena caricati vengono letti e indicizzati dal provider di IA configurato, senza confermare ogni documento.",

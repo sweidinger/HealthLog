@@ -4775,18 +4775,6 @@
       "responseTimeoutLabel": "Response timeout (seconds)",
       "responseTimeoutPlaceholder": "Default (~120)",
       "responseTimeoutInvalid": "Enter a number between 10 and 600 seconds.",
-      "ocrHeading": "Document scanning (lab reports)",
-      "ocrBody": "Use a dedicated provider for reading uploaded lab reports. When off, scanning uses your main provider.",
-      "ocrEnableLabel": "Enable a dedicated document-scanning provider",
-      "ocrProviderLabel": "Scanning provider",
-      "ocrProviderOption": {
-        "OPENAI": "OpenAI (your API key)",
-        "ANTHROPIC": "Anthropic (Claude)",
-        "LOCAL": "Local model (OpenAI-compatible)"
-      },
-      "ocrModelPlaceholder": "e.g. gpt-4o",
-      "ocrVisionHint": "This model may not be able to read images. Choose a vision-capable model for document scanning.",
-      "ocrKeyLabel": "API key",
       "autoRead": {
         "title": "Read documents automatically with AI",
         "subLabel": "Newly uploaded documents are read and indexed by your configured AI provider without a per-document tap.",

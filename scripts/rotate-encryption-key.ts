@@ -204,7 +204,6 @@ async function main() {
     "aiAnthropicKeyEncrypted",
     "aiLocalKeyEncrypted",
     "aiOpenaiKeyEncrypted",
-    "aiOcrKeyEncrypted",
     "insuranceNumberEncrypted",
     // v1.23 — TOTP shared secret (second factor).
     "totpSecretEncrypted",

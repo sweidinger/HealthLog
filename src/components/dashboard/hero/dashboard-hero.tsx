@@ -399,17 +399,18 @@ export function DashboardHero({
             >
               {welcomeText}
             </p>
-            {/* Text left, action right, one row — the PageHeader/TileHeader
-              inline-action pattern. The sentence takes the available width and
-              wraps internally (`min-w-0 flex-1`); the button never wraps to its
-              own line (`shrink-0`), so the action stays beside the text. */}
-            <div className="flex items-start justify-between gap-3">
+            {/* Sentence then action, stacked — the overdue-dose button sits
+              DIRECTLY beneath the verdict text (tight `gap-1.5`), left-aligned
+              and intrinsic width (`self-start w-auto`), on every viewport. An
+              earlier `justify-between` shoved the button to the far container
+              edge on desktop, stranding it from the sentence it acts on. */}
+            <div className="flex flex-col items-start gap-1.5">
               {sentenceHref ? (
                 <Link
                   href={sentenceHref}
                   data-slot="dashboard-hero-verdict"
                   data-verdict-variant={verdict.variant}
-                  className="text-foreground/90 hover:text-foreground min-w-0 flex-1 text-base font-medium transition-colors"
+                  className="text-foreground/90 hover:text-foreground min-w-0 text-base font-medium transition-colors"
                 >
                   {sentence}
                 </Link>
@@ -417,7 +418,7 @@ export function DashboardHero({
                 <p
                   data-slot="dashboard-hero-verdict"
                   data-verdict-variant={verdict.variant}
-                  className="text-foreground/90 min-w-0 flex-1 text-base font-medium"
+                  className="text-foreground/90 min-w-0 text-base font-medium"
                 >
                   {sentence}
                 </p>
@@ -428,7 +429,7 @@ export function DashboardHero({
                     asChild
                     size="default"
                     variant="outline"
-                    className="min-h-11 shrink-0 sm:min-h-9"
+                    className="min-h-11 w-auto self-start sm:min-h-9"
                     data-slot="dashboard-hero-cta"
                   >
                     <Link href={cta.href}>{t(ctaLabelKey)}</Link>
@@ -436,7 +437,7 @@ export function DashboardHero({
                 ) : (
                   <Button
                     size="default"
-                    className="min-h-11 shrink-0 sm:min-h-9"
+                    className="min-h-11 w-auto self-start sm:min-h-9"
                     data-slot="dashboard-hero-cta"
                     onClick={() => onQuickEntry(cta.target)}
                   >

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.28.12] — 2026-07-09 — Lab scans use your AI provider; tidier dashboard
+
+Scanning a lab report now uses the AI provider you already configured — including
+a scanned PDF, which is rendered to images the same way documents are, so a
+subscription or local vision provider reads it instead of only a Claude one. The
+separate lab-scan provider setting is gone; there is one place to configure AI.
+On the dashboard, the "log dose" action for an overdue medication now sits
+directly under its line instead of far to the right.
+
 ## [1.28.11] — 2026-07-09 — Strava workouts + Garmin guidance
 
 Connect Strava to bring your activities in as workouts. Like the other wearable
