@@ -379,7 +379,9 @@ export function AdminShell({ active, children }: AdminShellProps) {
             `min-h-[calc(100dvh-12rem)]` reserve (the pre-#154 shape this used
             to carry) over-reserves on short sections and on mobile, scrolling
             the page into a dark band below the last card. */}
-        <main className="min-w-0 md:col-start-2 md:row-start-2">{children}</main>
+        <main className="min-w-0 md:col-start-2 md:row-start-2">
+          {children}
+        </main>
       </div>
     </div>
   );
