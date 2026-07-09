@@ -558,7 +558,7 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/medications/{id}/efficacy": {
     get: {
       tags: ["Medications"],
-      summary: "Efficacy view for a medication (\"Wirkung\")",
+      summary: 'Efficacy view for a medication ("Wirkung")',
       description:
         "Returns the resolved, strictly-descriptive efficacy DTO: the outcome metric(s)/lab(s) the medication's class targets, the target series with start/dose-change/pause markers, a before/after-start comparison, the cadence-aware adherence lane, an optional conservative level-shift note, the data-floor state, and the retarget options. Association-only — there is no verdict / score field. `eligible:false` (with `reason`) marks a one-shot or no-target medication whose tab is hidden.",
       requestParams: {

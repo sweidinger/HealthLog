@@ -204,6 +204,12 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   "src/app/api/medications/[id]/schedule-revisions/[revisionId]/route.ts",
   "src/app/api/medications/[id]/side-effects/route.ts",
   "src/app/api/medications/[id]/side-effects/[logId]/route.ts",
+  // The efficacy read + user-override target share the medication data-layer
+  // reasoning: they compute over the user's own medication + metric/lab rows
+  // and persist only a per-user override. The module gate governs the Wirkung
+  // SURFACE (the detail-page tab + the insights summary), not the row store.
+  "src/app/api/medications/[id]/efficacy/route.ts",
+  "src/app/api/medications/[id]/efficacy/target/route.ts",
   // ── INFRA / UI-ONLY ───────────────────────────────────────────────
   // Static FHIR CapabilityStatement — server metadata, no user data.
   "src/app/api/fhir/metadata/route.ts",

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.28.4] — 2026-07-09 — Medication efficacy
+
+A per-medication "effect" view: see whether a medication is moving the outcome
+it targets, against your own data. The detail page gains a tab that plots the
+target metric (or lab) with the start date, dose changes, and pauses marked, a
+before/after-start comparison, and your adherence overlaid — strictly
+descriptive, never a verdict or dose advice. A compact version surfaces on the
+medication insights area. The target is resolved from the drug's class or its
+name, and you can override which metric a medication is tracked against.
+
 ## [1.28.3] — 2026-07-09 — Consistent spacing and alignment
 
 A consistency pass across the app, driven by a layout audit. Insight cards now

@@ -63,7 +63,8 @@ export interface EfficacySeriesPoint {
 export interface EfficacyBeforeAfter {
   present: boolean;
   /** Why the delta is absent — mirrors the tools' honest `{present:false}`. */
-  reason?: "insufficient_before" | "insufficient_after" | "no_start" | "no_data";
+  reason?:
+    "insufficient_before" | "insufficient_after" | "no_start" | "no_data";
   before?: { mean: number; count: number; from: string; to: string };
   after?: { mean: number; count: number; from: string; to: string };
   /** after − before; `pct` relative to before, null when before is 0. */
@@ -143,7 +144,10 @@ const OVERRIDE_METRIC_OPTIONS: { key: MeasurementType; label: string }[] = [
 
 /** Fixed reference bands for the metric targets `resolveRichMetric` omits. */
 const METRIC_META_FALLBACK: Partial<
-  Record<MeasurementType, { label: string; unit: string; band: { low: number; high: number } | null }>
+  Record<
+    MeasurementType,
+    { label: string; unit: string; band: { low: number; high: number } | null }
+  >
 > = {
   BLOOD_PRESSURE_SYS: {
     label: "Systolic blood pressure",
@@ -217,7 +221,8 @@ export function beforeAfterFromSeries(
     },
     delta: {
       mean: round1(diff),
-      pct: beforeMean !== 0 ? round1((diff / Math.abs(beforeMean)) * 100) : null,
+      pct:
+        beforeMean !== 0 ? round1((diff / Math.abs(beforeMean)) * 100) : null,
     },
   };
 }
@@ -233,20 +238,37 @@ async function buildMetricTarget(
   coverage: Awaited<ReturnType<typeof probeRollupCoverage>>,
 ): Promise<EfficacyTargetView> {
   const meta = resolveMetricMeta(mt);
-  const { points } = await readDayMeanSeries(userId, mt, windowDays, now, coverage);
+  const { points } = await readDayMeanSeries(
+    userId,
+    mt,
+    windowDays,
+    now,
+    coverage,
+  );
   const series: EfficacySeriesPoint[] = points.map((p) => ({
     t: p.day,
     value: round1(p.mean),
   }));
-  const straddle = points.map((p) => ({ at: dayToInstant(p.day), value: p.mean }));
+  const straddle = points.map((p) => ({
+    at: dayToInstant(p.day),
+    value: p.mean,
+  }));
 
   // Level-shift note — metric targets only, and only when the metric resolves
   // through the rich-read resolver (blood pressure is multi-series and does
   // not, so it carries no changepoint note by construction).
   let levelShift: EfficacyLevelShift | null = null;
   if (resolveRichMetric(mt)) {
-    const cp = await detectChangepoints(userId, { metric: mt, window: "lastYear" });
-    if (cp.present && cp.changepoints && cp.changepoints.length > 0 && pivotMs !== null) {
+    const cp = await detectChangepoints(userId, {
+      metric: mt,
+      window: "lastYear",
+    });
+    if (
+      cp.present &&
+      cp.changepoints &&
+      cp.changepoints.length > 0 &&
+      pivotMs !== null
+    ) {
       const nearest = cp.changepoints
         .map((c) => ({ at: c.at, dist: Math.abs(Date.parse(c.at) - pivotMs) }))
         .sort((a, b) => a.dist - b.dist)[0];
@@ -282,7 +304,7 @@ async function buildLabTarget(
   pivotMs: number | null,
 ): Promise<EfficacyTargetView> {
   const hist = await getLabHistory(userId, { analyte, limit: 50 });
-  const readings = (hist.present ? hist.readings ?? [] : [])
+  const readings = (hist.present ? (hist.readings ?? []) : [])
     .filter((r) => r.value !== null)
     .slice()
     // getLabHistory returns newest-first; the view + before/after want oldest-first.
@@ -293,7 +315,9 @@ async function buildLabTarget(
     (r) => r.referenceLow !== null || r.referenceHigh !== null,
   );
   const referenceBand =
-    withBounds && withBounds.referenceLow !== null && withBounds.referenceHigh !== null
+    withBounds &&
+    withBounds.referenceLow !== null &&
+    withBounds.referenceHigh !== null
       ? { low: withBounds.referenceLow, high: withBounds.referenceHigh }
       : null;
 
@@ -369,7 +393,11 @@ async function resolveEffectiveTargets(med: {
     atcCode: med.atcCode,
   });
   if (derived) {
-    return { tier: derived.tier, cls: derived.cls, targets: [...derived.targets] };
+    return {
+      tier: derived.tier,
+      cls: derived.cls,
+      targets: [...derived.targets],
+    };
   }
   return { tier: "none", cls: null, targets: [] };
 }
@@ -407,7 +435,11 @@ export async function buildMedicationEfficacy(
   // One-shot meds have a single administration and no trend to relate.
   if (med.oneShot) {
     annotate({
-      action: { name: "medication.efficacy.build", entity_type: "medication", entity_id: med.id },
+      action: {
+        name: "medication.efficacy.build",
+        entity_type: "medication",
+        entity_id: med.id,
+      },
       meta: { eligible: false, reason: "one_shot" },
     });
     return {
@@ -437,7 +469,10 @@ export async function buildMedicationEfficacy(
     select: { id: true, name: true, unit: true },
   });
   const overrideOptions = {
-    metrics: OVERRIDE_METRIC_OPTIONS.map((m) => ({ key: m.key, label: m.label })),
+    metrics: OVERRIDE_METRIC_OPTIONS.map((m) => ({
+      key: m.key,
+      label: m.label,
+    })),
     biomarkers: biomarkerRows.map((b) => ({
       id: b.id,
       label: b.name,
@@ -447,7 +482,11 @@ export async function buildMedicationEfficacy(
 
   if (resolved.targets.length === 0) {
     annotate({
-      action: { name: "medication.efficacy.build", entity_type: "medication", entity_id: med.id },
+      action: {
+        name: "medication.efficacy.build",
+        entity_type: "medication",
+        entity_id: med.id,
+      },
       meta: { eligible: false, reason: "no_target" },
     });
     return {
@@ -476,7 +515,10 @@ export async function buildMedicationEfficacy(
   const spanFromPivot = pivotMs !== null ? now.getTime() - pivotMs : 0;
   const windowDays = Math.min(
     MAX_WINDOW_DAYS,
-    Math.max(90, Math.ceil((spanFromPivot + BEFORE_WINDOW_DAYS * DAY_MS) / DAY_MS)),
+    Math.max(
+      90,
+      Math.ceil((spanFromPivot + BEFORE_WINDOW_DAYS * DAY_MS) / DAY_MS),
+    ),
   );
 
   // Build each target view. Fallback pivot uses the primary metric's first day.
@@ -550,8 +592,16 @@ export async function buildMedicationEfficacy(
     lastNonSkippedTakenAt(events),
     timezone,
   );
-  const bundle = buildMedicationComplianceBundle(events, med.schedules, ctx, now);
-  const windowFloorMs = pivotMs !== null ? pivotMs - BEFORE_WINDOW_DAYS * DAY_MS : fetchFrom.getTime();
+  const bundle = buildMedicationComplianceBundle(
+    events,
+    med.schedules,
+    ctx,
+    now,
+  );
+  const windowFloorMs =
+    pivotMs !== null
+      ? pivotMs - BEFORE_WINDOW_DAYS * DAY_MS
+      : fetchFrom.getTime();
   const adherence: EfficacyAdherencePoint[] = dailyComplianceRatesFromLedger(
     bundle.ledgerRows,
     timezone,
@@ -579,7 +629,11 @@ export async function buildMedicationEfficacy(
     }));
 
   annotate({
-    action: { name: "medication.efficacy.build", entity_type: "medication", entity_id: med.id },
+    action: {
+      name: "medication.efficacy.build",
+      entity_type: "medication",
+      entity_id: med.id,
+    },
     meta: {
       eligible: true,
       tier: resolved.tier,

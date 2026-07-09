@@ -192,11 +192,7 @@ export type MedTarget =
  * thyroid→TSH) and the two supplement markers named in the plan.
  */
 export type EfficacyMedClass =
-  | MedTargetClass
-  | "statin"
-  | "thyroid"
-  | "vitamin_d"
-  | "iron";
+  MedTargetClass | "statin" | "thyroid" | "vitamin_d" | "iron";
 
 /** Class → its ordered target list (primary first). Closed + conservative. */
 const EFFICACY_TARGETS: Readonly<
@@ -308,7 +304,8 @@ function classFromName(
   const normalised = normaliseName(name);
   if (!normalised) return null;
   if (STATIN_NEEDLES.some((n) => containsWord(normalised, n))) return "statin";
-  if (THYROID_NEEDLES.some((n) => containsWord(normalised, n))) return "thyroid";
+  if (THYROID_NEEDLES.some((n) => containsWord(normalised, n)))
+    return "thyroid";
   if (VITAMIN_D_NEEDLES.some((n) => containsWord(normalised, n))) {
     return "vitamin_d";
   }

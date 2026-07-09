@@ -87,9 +87,7 @@ const targetViewSchema = z.object({
   label: z.string(),
   unit: z.string().nullable(),
   primary: z.boolean(),
-  referenceBand: z
-    .object({ low: z.number(), high: z.number() })
-    .nullable(),
+  referenceBand: z.object({ low: z.number(), high: z.number() }).nullable(),
   series: z.array(seriesPointSchema),
   beforeAfter: beforeAfterSchema,
   levelShift: levelShiftSchema,
@@ -111,9 +109,7 @@ export const medicationEfficacyResponseSchema = z.object({
     start: z.string().nullable(),
     startSource: z.enum(["startsOn", "firstReading"]).nullable(),
     doseChanges: z.array(z.object({ at: z.string(), label: z.string() })),
-    pauses: z.array(
-      z.object({ from: z.string(), to: z.string().nullable() }),
-    ),
+    pauses: z.array(z.object({ from: z.string(), to: z.string().nullable() })),
   }),
   targets: z.array(targetViewSchema),
   adherence: z.array(
