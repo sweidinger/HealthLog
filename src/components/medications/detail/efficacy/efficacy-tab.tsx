@@ -44,12 +44,39 @@ const EfficacyChart = dynamic(
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 
+// v1.28.20 — the estimated active-substance curve (Wirkstoffverlauf) also
+// surfaces here, additive to the Injektion tab. Same self-contained chart,
+// same `next/dynamic` (client-only) load that keeps Recharts out of the
+// initial bundle.
+const DrugLevelChart = dynamic(
+  () =>
+    import("@/components/charts/chart-runtime").then((mod) => ({
+      default: mod.DrugLevelChart,
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> },
+);
+
 export function EfficacyTab({
   medicationId,
   active,
+  isGlp1 = false,
+  medicationName,
+  medicationDose,
 }: {
   medicationId: string;
   active: boolean;
+  /**
+   * True when the parent already knows the medication is a (non-one-shot)
+   * GLP-1 drug (`treatmentClass === "GLP1"`). Threaded from the detail-tabs
+   * parent because the efficacy DTO carries the target class, not the raw
+   * treatment class. Gates the estimated active-substance curve exactly the
+   * way the Injektion tab does — no Research-Mode wrapper, GLP-1 alone.
+   */
+  isGlp1?: boolean;
+  /** Brand/generic name the substance-curve chart resolves to a catalog id. */
+  medicationName?: string;
+  /** Headline dose string, the chart's per-intake dose fallback. */
+  medicationDose?: string;
 }) {
   const { t } = useTranslations();
   const { user } = useAuth();
@@ -135,6 +162,24 @@ export function EfficacyTab({
           timezone={timezone}
         />
       ))}
+
+      {/* v1.28.20 — estimated active-substance curve for GLP-1 medications,
+          mirroring the Injektion tab. The chart is self-contained (fetches
+          its own intake + dose-change data and renders its own
+          `MedicationDetailSection` card + estimate disclaimer); it slots
+          straight into the tab's `space-y-6` rhythm. Additive: no existing
+          Wirkung content changes. */}
+      {isGlp1 && medicationName != null && medicationDose != null ? (
+        <div data-slot="wirkung-drug-level-section">
+          <DrugLevelChart
+            medication={{
+              id: medicationId,
+              name: medicationName,
+              dose: medicationDose,
+            }}
+          />
+        </div>
+      ) : null}
 
       <p
         className="text-muted-foreground text-xs"
