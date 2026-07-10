@@ -377,18 +377,26 @@ export async function replaceStaleGoogleHealthSleep(
  * end (mirrors the WHOOP / Withings sync tail). Returns the count of rows
  * written plus the distinct `(type, day)` keys the write touched.
  *
- * TOMBSTONE-SAFE: the live-row probe filters `deletedAt: null`, so a row the
- * user soft-deleted (iOS LWW reconciler) is NOT matched — a fresh insert is
- * created instead of resurrecting the tombstone on the next hourly sync. The
- * partial unique index keeps the fresh insert from colliding with the live set.
+ * TOMBSTONES RESURRECT: the measurements unique index on
+ * `(userId, type, source, externalId)` is FULL — it covers soft-deleted rows
+ * too, so exactly ONE row can ever exist per key, live or tombstoned. An
+ * earlier revision assumed a partial (live-only) index and skipped tombstoned
+ * rows in the probe, expecting a fresh insert; in reality `createMany` with
+ * `skipDuplicates` then hit the tombstoned row's key and dropped the insert
+ * SILENTLY — once a Google row was soft-deleted, that key could never import
+ * again (live: a self-hoster's step days were stuck this way). The probe now
+ * matches tombstoned rows as well and the update branch clears `deletedAt`:
+ * Google remains the source of truth for its own rows, so a re-import
+ * deliberately revives a deleted one. An operator who wants Google data gone
+ * permanently disconnects the integration rather than deleting rows.
  *
  * OVERWRITE CONTRACT preserved: a re-fetched daily summary (`stats:`-keyed and
  * every other stable per-point anchor) maps to the SAME live `externalId`, so
- * the probe finds the existing live row and takes the in-place update branch.
+ * the probe finds the existing row and takes the in-place update branch.
  *
  * BATCHING: the existence probe is a single `findMany` over the batch's
  * externalIds; fresh rows go through chunked `createMany`, and only the
- * already-live rows take a per-row `update` for their differing values.
+ * already-existing rows take a per-row `update` for their differing values.
  *
  * Best-effort on the rollup fold + insight invalidate — a populator hiccup never
  * fails the user's sync.
@@ -403,31 +411,33 @@ export async function upsertGoogleHealthMeasurements(
 }> {
   if (readings.length === 0) return { imported: 0, touched: [] };
 
-  // Probe the LIVE rows (deletedAt: null) for every externalId in the batch in
-  // a single query. A tombstoned row deliberately does NOT appear here, so it is
-  // treated as absent → a fresh insert, not a resurrecting update.
+  // Probe EVERY existing row (live AND tombstoned) for the batch's externalIds
+  // in a single query. The full unique index guarantees at most one row per
+  // `(type, externalId)` key, and a tombstoned match must take the UPDATE
+  // branch (which clears `deletedAt`) — treating it as absent would plan an
+  // insert that `skipDuplicates` silently drops against the tombstone's key,
+  // permanently wedging the key (see TOMBSTONES RESURRECT above).
   const externalIds = readings.map((r) => r.externalId);
-  let liveByKey = new Map<string, { id: string }>();
+  let rowByKey = new Map<string, { id: string }>();
   try {
     const existing = await prisma.measurement.findMany({
       where: {
         userId,
         source: "GOOGLE_HEALTH",
-        deletedAt: null,
         externalId: { in: externalIds },
       },
       select: { id: true, type: true, externalId: true },
     });
-    liveByKey = new Map(
+    rowByKey = new Map(
       existing
         .filter((e) => e.externalId !== null)
         .map((e) => [`${e.type} ${e.externalId}`, { id: e.id }]),
     );
   } catch (err) {
     // A probe failure must not strand the whole batch; fall back to treating
-    // every row as fresh (the partial unique index still rejects a genuine
-    // live-row collision, which the per-create catch swallows).
-    getEvent()?.addWarning(`google-health: live-row probe failed: ${err}`);
+    // every row as fresh (`skipDuplicates` absorbs the collision on the full
+    // unique index — those rows simply retry on the next sync tick).
+    getEvent()?.addWarning(`google-health: row probe failed: ${err}`);
   }
 
   const toCreate: Array<{
@@ -447,7 +457,7 @@ export async function upsertGoogleHealthMeasurements(
   for (const r of readings) {
     const type = r.type as MeasurementType;
     const key = `${type} ${r.externalId}`;
-    const live = liveByKey.get(key);
+    const live = rowByKey.get(key);
     if (live) {
       toUpdate.push({ id: live.id, r });
     } else if (!plannedCreateKeys.has(key)) {
@@ -511,8 +521,11 @@ export async function upsertGoogleHealthMeasurements(
     }
   }
 
-  // Live-row overwrites: per-row update (differing values) on the live id, so
-  // the re-fetched daily summary overwrites in place and bumps `syncVersion`.
+  // Existing-row overwrites: per-row update (differing values) on the matched
+  // id, so the re-fetched daily summary overwrites in place and bumps
+  // `syncVersion`. `deletedAt: null` rides along unconditionally — a no-op on
+  // a live row, a deliberate RESURRECTION on a tombstoned one (Google is the
+  // source of truth for its own rows; see TOMBSTONES RESURRECT above).
   for (const { id, r } of toUpdate) {
     try {
       await prisma.measurement.update({
@@ -522,6 +535,7 @@ export async function upsertGoogleHealthMeasurements(
           unit: r.unit,
           measuredAt: r.measuredAt,
           sleepStage: r.sleepStage ?? null,
+          deletedAt: null,
           // Surface the server-side mutation to the iOS LWW reconciler.
           syncVersion: { increment: 1 },
         },
