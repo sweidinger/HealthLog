@@ -560,7 +560,13 @@ export function MedicationDetailTabs({
             descriptive; hidden for one-shot + no-target medications. */}
         {hasEfficacyTarget && (
           <TabsContent value="wirkung" className="space-y-6 pt-2">
-            <EfficacyTab medicationId={id} active={activeTab === "wirkung"} />
+            <EfficacyTab
+              medicationId={id}
+              active={activeTab === "wirkung"}
+              isGlp1={isGlp1}
+              medicationName={medication.name}
+              medicationDose={medication.dose}
+            />
           </TabsContent>
         )}
 

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.28.20] — 2026-07-10 — Estimated drug level where you read efficacy
+
+The estimated active-substance curve for a GLP-1 medication — the modelled drug
+level from your logged doses — now also appears in the efficacy view and in the
+Insights medication overview, not only under the injection tab. It is the same
+estimate shown there, surfaced next to the efficacy readouts so the drug level
+and its effect sit side by side. Non-GLP-1 medications are unaffected.
+
 ## [1.28.19] — 2026-07-10 — Document and card polish
 
 Small refinements across a few surfaces.

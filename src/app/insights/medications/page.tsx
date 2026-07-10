@@ -18,6 +18,7 @@ import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { MedicationEfficacySummary } from "@/components/insights/medication-efficacy-summary";
+import { Glp1SubstanceCurveSummary } from "@/components/insights/glp1-substance-curve-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { TileHeader } from "@/components/insights/tile-header";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -286,6 +287,16 @@ export default function InsightsMedikamentePage() {
           computation), association-only, linking through to the full view. */}
       <MedicationEfficacySummary
         medications={medications.map((m) => ({ id: m.id, name: m.name }))}
+      />
+
+      {/* v1.28.20 — estimated active-substance curve for GLP-1 medications
+          (additive; renders nothing when the user has no GLP-1 medication). */}
+      <Glp1SubstanceCurveSummary
+        medications={medications.map((m) => ({
+          id: m.id,
+          name: m.name,
+          dose: m.dose,
+        }))}
       />
 
       <MetricTargetSummary slug="medications" />
