@@ -244,6 +244,11 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   // inventory / side-effect events), and medications is a core, always-on
   // domain with no module gate. It is not an insights-module surface.
   "src/app/api/insights/glp1-timeline/route.ts",
+  // GLP-1 weight-plateau read backing the plateau note beside the drug-level
+  // curve (efficacy tab + /insights/medications) — the same MEDICATIONS-domain
+  // rationale as glp1-timeline above: a deterministic detector over weight +
+  // dose history, no AI narrative, medications is core/always-on.
+  "src/app/api/insights/glp1-plateau/route.ts",
 ];
 
 const MODULE_GATE_NEEDLE = "requireModuleEnabled(";

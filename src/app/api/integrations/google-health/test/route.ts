@@ -115,6 +115,7 @@ async function runStructureProbe(
     try {
       let points: Record<string, unknown>[];
       let requestShape: string | undefined;
+      let envelopeKeys: string[] | undefined;
       if (dataType.timeField === "rollup") {
         // One minimal dailyRollUp exercise per rollup type (7-day range) — the
         // probe reports the response skeleton AND which documented request
@@ -129,6 +130,13 @@ async function runStructureProbe(
             tz,
             onShape: (shape) => {
               requestShape = shape;
+            },
+            // Raw envelope key names of the first page (names only). When the
+            // parse yields zero points this is the one signal that separates
+            // "the service returned nothing" from "the service returned points
+            // under a key this reader does not know" — per-cohort naming drift.
+            onEnvelopeKeys: (keys) => {
+              envelopeKeys = keys;
             },
           },
         );
@@ -155,6 +163,9 @@ async function runStructureProbe(
         count: points.length,
         structure: points.length > 0 ? describeStructure(points[0]) : null,
         ...(requestShape ? { requestShape } : {}),
+        // Only meaningful when the parse came back empty — a populated parse
+        // proves the envelope key already matches.
+        ...(points.length === 0 && envelopeKeys ? { envelopeKeys } : {}),
       };
     } catch (e) {
       results[name] =

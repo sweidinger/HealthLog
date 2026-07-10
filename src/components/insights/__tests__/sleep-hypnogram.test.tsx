@@ -164,3 +164,29 @@ describe("<SleepHypnogram> — timeline bar visibility", () => {
     expect(html).toContain('data-slot="sleep-hypnogram-breakdown"');
   });
 });
+
+describe("<SleepHypnogram> — source discrepancy marker", () => {
+  const discrepancy = {
+    deltaMinutes: 160,
+    sources: [
+      { source: "WITHINGS", deviceType: null, asleepMinutes: 615 },
+      { source: "GOOGLE_HEALTH", deviceType: null, asleepMinutes: 455 },
+    ],
+  };
+
+  it("renders the discreet marker when the server flags disagreeing sources", () => {
+    const html = render({ ...baseSession, sourceDiscrepancy: discrepancy });
+    expect(html).toContain('data-slot="sleep-source-discrepancy"');
+    // Muted marker, no colour wash — the trigger stays on the muted tier.
+    expect(html).toContain("Sources disagree");
+  });
+
+  it("omits the marker when the night carries no discrepancy", () => {
+    expect(render(baseSession)).not.toContain(
+      'data-slot="sleep-source-discrepancy"',
+    );
+    expect(render({ ...baseSession, sourceDiscrepancy: null })).not.toContain(
+      'data-slot="sleep-source-discrepancy"',
+    );
+  });
+});

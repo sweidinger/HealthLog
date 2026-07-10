@@ -16,6 +16,7 @@ import {
   derivedBatchQuery,
   derivedBatchResponse,
   correlationDiscoveryResponse,
+  glp1PlateauResponse,
   insightStatusQuery,
   insightStatusResponse,
   medicationComplianceStatusResponse,
@@ -369,6 +370,28 @@ export const insightsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 derivedBatchResponse,
                 "DerivedBatchResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/glp1-plateau": {
+    get: {
+      tags: ["Insights"],
+      summary: "GLP-1 weight-plateau detection",
+      description:
+        "Deterministic (non-LLM) weight-plateau read for users on an active GLP-1 medication: flags a stable dose held for at least the trailing window with no weight loss beyond the threshold. `plateau` is null whenever the condition does not hold, so clients hide the note cleanly. Association only — no verdict, no dose advice. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description: "Plateau context (or null) plus the window length.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                glp1PlateauResponse,
+                "InsightsGlp1PlateauResponseEnvelope",
               ),
             },
           },

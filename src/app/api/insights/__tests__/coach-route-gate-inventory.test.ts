@@ -88,6 +88,9 @@ const NOT_COACH_OWNED_ROUTES: ReadonlyArray<string> = [
   // ability to dispose of stale recommendations.
   "src/app/api/insights/feedback/route.ts",
   "src/app/api/insights/glp1-timeline/route.ts",
+  // Deterministic GLP-1 plateau detector read (no assistant prose) — same
+  // medications-domain posture as glp1-timeline directly above.
+  "src/app/api/insights/glp1-plateau/route.ts",
   // v1.5.5 — per-user tile layout for the `/insights` surface. The
   // endpoint persists tile visibility + ordering only; it carries no
   // assistant prose and is the mirror of `/api/dashboard/widgets`,

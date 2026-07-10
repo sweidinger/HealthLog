@@ -88,6 +88,19 @@ function serializeSession(s: SleepSession) {
       end: seg.end.toISOString(),
       minutes: Math.round(seg.minutes),
     })),
+    // Additive, observational: two writer buckets reported clearly
+    // different asleep totals for this session. Never changes the served
+    // totals above — the UI only marks the number with a discreet hint.
+    sourceDiscrepancy: s.sourceDiscrepancy
+      ? {
+          deltaMinutes: Math.round(s.sourceDiscrepancy.deltaMinutes),
+          sources: s.sourceDiscrepancy.sources.map((b) => ({
+            source: b.source,
+            deviceType: b.deviceType,
+            asleepMinutes: Math.round(b.asleepMinutes),
+          })),
+        }
+      : null,
   };
 }
 

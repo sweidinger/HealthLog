@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.20
+  version: 1.28.21
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -6573,6 +6573,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DerivedBatchResponseEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/insights/glp1-plateau:
+    get:
+      tags:
+        - Insights
+      summary: GLP-1 weight-plateau detection
+      description: "Deterministic (non-LLM) weight-plateau read for users on an active GLP-1 medication: flags a stable dose
+        held for at least the trailing window with no weight loss beyond the threshold. `plateau` is null whenever the
+        condition does not hold, so clients hide the note cleanly. Association only — no verdict, no dose advice. Auth
+        via cookie or Bearer."
+      responses:
+        "200":
+          description: Plateau context (or null) plus the window length.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsGlp1PlateauResponseEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -15842,6 +15861,44 @@ components:
                       - end
                       - minutes
                     additionalProperties: false
+                sourceDiscrepancy:
+                  anyOf:
+                    - type: object
+                      properties:
+                        deltaMinutes:
+                          type: integer
+                          minimum: 0
+                          maximum: 9007199254740991
+                          description: Spread (max − min) of the disagreeing per-writer asleep totals, in minutes.
+                        sources:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              source:
+                                type: string
+                                description: MeasurementSource value of the writer bucket.
+                              deviceType:
+                                anyOf:
+                                  - type: string
+                                  - type: "null"
+                              asleepMinutes:
+                                type: integer
+                                minimum: 0
+                                maximum: 9007199254740991
+                            required:
+                              - source
+                              - deviceType
+                              - asleepMinutes
+                            additionalProperties: false
+                      required:
+                        - deltaMinutes
+                        - sources
+                      additionalProperties: false
+                    - type: "null"
+                  description: Non-null when two writer buckets reported clearly different asleep totals for this session (> 45 min apart
+                    and > 20% of the larger total). Observational only — the served totals stay the winning writer's;
+                    clients may show a discreet 'sources disagree' hint listing each bucket's total.
               required:
                 - night
                 - source
@@ -15854,6 +15911,7 @@ components:
                 - reconstructed
                 - stages
                 - segments
+                - sourceDiscrepancy
               additionalProperties: false
             - type: "null"
         naps:
@@ -15972,6 +16030,44 @@ components:
                     - end
                     - minutes
                   additionalProperties: false
+              sourceDiscrepancy:
+                anyOf:
+                  - type: object
+                    properties:
+                      deltaMinutes:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                        description: Spread (max − min) of the disagreeing per-writer asleep totals, in minutes.
+                      sources:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            source:
+                              type: string
+                              description: MeasurementSource value of the writer bucket.
+                            deviceType:
+                              anyOf:
+                                - type: string
+                                - type: "null"
+                            asleepMinutes:
+                              type: integer
+                              minimum: 0
+                              maximum: 9007199254740991
+                          required:
+                            - source
+                            - deviceType
+                            - asleepMinutes
+                          additionalProperties: false
+                    required:
+                      - deltaMinutes
+                      - sources
+                    additionalProperties: false
+                  - type: "null"
+                description: Non-null when two writer buckets reported clearly different asleep totals for this session (> 45 min apart
+                  and > 20% of the larger total). Observational only — the served totals stay the winning writer's;
+                  clients may show a discreet 'sources disagree' hint listing each bucket's total.
             required:
               - night
               - source
@@ -15984,6 +16080,7 @@ components:
               - reconstructed
               - stages
               - segments
+              - sourceDiscrepancy
             additionalProperties: false
       required:
         - night
@@ -23658,6 +23755,78 @@ components:
       description: Batched derived-metric values. One request resolves the whole dashboard grid (the wellness scores + the
         derived re-frames + one baseline per vital) instead of N concurrent single-metric requests sharing the Prisma
         pool. Pure compute over the rollup tier — no LLM, no narrative, no cache table.
+    InsightsGlp1PlateauResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsGlp1PlateauResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsGlp1PlateauResponse:
+      type: object
+      properties:
+        plateau:
+          anyOf:
+            - type: object
+              properties:
+                drug:
+                  type: string
+                  description: Display drug name ("Mounjaro").
+                doseValue:
+                  type: number
+                  description: Current dose value (e.g. 7.5).
+                doseUnit:
+                  type: string
+                  description: Dose unit (e.g. "mg").
+                doseSince:
+                  type: string
+                  description: ISO date (YYYY-MM-DD) the current dose started.
+                daysOnDose:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                  description: Days the user has been on the current dose.
+                weightDeltaKg:
+                  type: number
+                  description: Weight delta in kg over the trailing window (negative = loss).
+                readingsCount:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                  description: Number of weight readings considered.
+              required:
+                - drug
+                - doseValue
+                - doseUnit
+                - doseSince
+                - daysOnDose
+                - weightDeltaKg
+                - readingsCount
+              additionalProperties: false
+            - type: "null"
+          description: Null when no plateau is detected (no active GLP-1 medication, < window days on the current dose, weight
+            still dropping, or fewer than two readings).
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Trailing comparison window in days (currently 21).
+      required:
+        - plateau
+        - windowDays
+      additionalProperties: false
+      description: "Deterministic weight-plateau detection for users on an active GLP-1 medication: stable dose for ≥ the
+        window with no weight loss beyond the threshold. Association only — carries no verdict or advice."
     CorrelationDiscoveryResponseEnvelope:
       type: object
       properties:

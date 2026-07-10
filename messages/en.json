@@ -1806,6 +1806,10 @@
       "adherenceLane": "Adherence",
       "typicalRange": "Typical range",
       "levelShift": "A shift in the level was detected around {date}.",
+      "plateau": {
+        "title": "Weight plateau on the current dose",
+        "evidence": "Weight moved by {delta} kg over the last {window} days ({readings} readings) — {days} days on {dose}."
+      },
       "retarget": {
         "label": "Not the right measurement?",
         "placeholder": "Track against…",
@@ -2740,6 +2744,9 @@
         "awakenings": "{count} awakenings",
         "source": "Source: {source}",
         "estimateNote": "Stage timing is estimated — this source reports totals per stage, not a measured timeline."
+      },
+      "sourceDiscrepancy": {
+        "tooltipTitle": "Sources disagree"
       },
       "stages": {
         "deep": "Deep",

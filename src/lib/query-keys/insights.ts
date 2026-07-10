@@ -115,6 +115,12 @@ export const insightsKeys = {
   insightsProviderChain: () => ["insights", "provider-chain"] as const,
   insightsGlp1Timeline: (limit: number | string) =>
     ["insights", "glp1-timeline", limit] as const,
+  /**
+   * v1.28.21 — GLP-1 weight-plateau read (`/api/insights/glp1-plateau`).
+   * Per-user, no params; the `["insights"]` prefix keeps it inside the
+   * existing invalidation fan-out.
+   */
+  insightsGlp1Plateau: () => ["insights", "glp1-plateau"] as const,
 
   /**
    * v1.5.5 — per-user insights tile layout (mirrors

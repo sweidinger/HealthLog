@@ -324,6 +324,80 @@ function sourceOfWriterKey(key: string): string {
 }
 
 /**
+ * Thresholds for the per-session source-discrepancy annotation. Two writer
+ * buckets "clearly disagree" on a night only when the spread of their asleep
+ * totals exceeds BOTH gates — an absolute floor (small deltas are ordinary
+ * sensor variance) and a relative one (a 50-minute delta matters on a
+ * 2-hour nap, not on a 10-hour night).
+ */
+const DISCREPANCY_MIN_DELTA_MINUTES = 45;
+const DISCREPANCY_MIN_RATIO = 0.2;
+
+/**
+ * OBSERVATIONAL annotation: two writer buckets reported clearly different
+ * asleep totals for the same session. Purely additive — it never changes
+ * which writer wins the night or what total is served; it only surfaces
+ * that a non-winning bucket disagreed, so the UI can show a discreet
+ * "sources disagree" marker where the number renders.
+ */
+export interface SleepSourceDiscrepancy {
+  /** max − min asleep minutes across the disagreeing writer buckets. */
+  deltaMinutes: number;
+  /** Every writer bucket with an asleep total, most asleep minutes first. */
+  sources: {
+    source: string;
+    deviceType: string | null;
+    asleepMinutes: number;
+  }[];
+}
+
+/**
+ * Compare the per-writer asleep totals of ONE session and flag a clear
+ * disagreement. Buckets follow the same `(source, deviceType)` writer key
+ * the dedup collapse uses, and each bucket's total applies the same
+ * granular-over-bare rule as the served number, so the comparison is
+ * apples-to-apples. Source-less legacy rows are skipped (a bucket the UI
+ * cannot label is not a nameable second opinion), as are buckets with no
+ * asleep minutes at all (an IN_BED/AWAKE-only phone writer makes no claim
+ * about the asleep total). Returns null when fewer than two buckets carry
+ * an asleep total or the spread stays inside the thresholds.
+ */
+function sessionSourceDiscrepancy(
+  rows: readonly SleepStageRow[],
+): SleepSourceDiscrepancy | null {
+  const rowsByWriter = new Map<string, SleepStageRow[]>();
+  for (const r of rows) {
+    if (r.source == null) continue;
+    const key = writerKeyOf(r);
+    const list = rowsByWriter.get(key) ?? [];
+    list.push(r);
+    rowsByWriter.set(key, list);
+  }
+  if (rowsByWriter.size < 2) return null;
+  const buckets: SleepSourceDiscrepancy["sources"] = [];
+  for (const [key, writerRows] of rowsByWriter) {
+    const asleepMinutes = asleepMinutesOf(writerRows);
+    if (asleepMinutes <= 0) continue;
+    buckets.push({
+      source: sourceOfWriterKey(key),
+      deviceType: writerRows[0].deviceType ?? null,
+      asleepMinutes,
+    });
+  }
+  if (buckets.length < 2) return null;
+  buckets.sort(
+    (a, b) =>
+      b.asleepMinutes - a.asleepMinutes || (a.source < b.source ? -1 : 1),
+  );
+  const max = buckets[0].asleepMinutes;
+  const min = buckets[buckets.length - 1].asleepMinutes;
+  const delta = max - min;
+  if (delta <= DISCREPANCY_MIN_DELTA_MINUTES) return null;
+  if (delta <= max * DISCREPANCY_MIN_RATIO) return null;
+  return { deltaMinutes: delta, sources: buckets };
+}
+
+/**
  * Count of DISTINCT granular stages (CORE / DEEP / REM) in a row set — the
  * stage-richness score of a writer's night. 3 = full hypnogram, 0 = coarse
  * (bare ASLEEP / AWAKE / IN_BED only).
@@ -641,6 +715,14 @@ export interface SleepSession {
    * Fitbit) stay `false`.
    */
   reconstructed: boolean;
+  /**
+   * Non-null when two writer buckets reported clearly different asleep
+   * totals for this session (see `sessionSourceDiscrepancy`). Observational
+   * only — the served `asleepMinutes` stays the winning writer's total; the
+   * annotation lets the UI mark the number with a discreet
+   * "sources disagree" hint.
+   */
+  sourceDiscrepancy: SleepSourceDiscrepancy | null;
 }
 
 /** Resolve a stage row to its absolute span (start = end − duration). */
@@ -791,6 +873,10 @@ export function reconstructSleepSessions(
       // approximate layout; a real-series source (Apple/Withings/Fitbit) is
       // measured.
       reconstructed: RECONSTRUCTED_TIMELINE_SOURCES.has(canonicalSource),
+      // Compared across the RAW session (every writer, pre-collapse) so a
+      // losing bucket's disagreement is visible; the served totals above
+      // stay winner-only.
+      sourceDiscrepancy: sessionSourceDiscrepancy(session),
     });
   }
   return sessions.sort((a, b) => a.start.getTime() - b.start.getTime());

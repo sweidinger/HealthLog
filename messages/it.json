@@ -1806,6 +1806,10 @@
       "adherenceLane": "Aderenza",
       "typicalRange": "Intervallo abituale",
       "levelShift": "È stato rilevato un cambio di livello intorno al {date}.",
+      "plateau": {
+        "title": "Plateau del peso alla dose attuale",
+        "evidence": "Variazione di peso di {delta} kg negli ultimi {window} giorni ({readings} misurazioni) — {days} giorni con {dose}."
+      },
       "retarget": {
         "label": "Non è la misurazione giusta?",
         "placeholder": "Monitora in base a…",
@@ -2740,6 +2744,9 @@
         "awakenings": "{count} risvegli",
         "source": "Fonte: {source}",
         "estimateNote": "I tempi delle fasi sono stimati: questa sorgente riporta i totali per fase, non una cronologia misurata."
+      },
+      "sourceDiscrepancy": {
+        "tooltipTitle": "Le fonti divergono"
       },
       "stages": {
         "deep": "Profondo",
