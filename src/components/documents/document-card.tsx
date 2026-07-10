@@ -133,22 +133,22 @@ export function DocumentCard({
           )}
           <div className="flex min-w-0 flex-1 flex-col">
             <p className="truncate text-sm font-medium">{title}</p>
-            <p className="text-muted-foreground truncate text-xs">
-              {date} · {size}
-              {showFilename ? ` · ${document.filename}` : ""}
-            </p>
-            {aiRead ? (
-              // Discreet AI-read indicator — same visual as the detail sheet's
-              // ContentSearchStatus ai-read pill (bg-primary/10 text-primary,
-              // Sparkles). Kept compact for the dense grid card.
-              <span
-                data-slot="document-card-ai-read"
-                className="bg-primary/10 text-primary mt-1 inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-              >
-                <Sparkles className="size-3 shrink-0" aria-hidden />
-                {t("documents.ai.statusAiRead")}
+            <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
+              <span className="truncate">
+                {date} · {size}
+                {showFilename ? ` · ${document.filename}` : ""}
               </span>
-            ) : null}
+              {aiRead ? (
+                // AI-read marker rides INLINE on the meta row — a bare glyph,
+                // no pill line (the tag ate a whole row in the dense grid).
+                <Sparkles
+                  data-slot="document-card-ai-read"
+                  role="img"
+                  aria-label={t("documents.ai.statusAiRead")}
+                  className="text-primary size-3 shrink-0"
+                />
+              ) : null}
+            </p>
           </div>
           <Checkbox
             checked={selected}

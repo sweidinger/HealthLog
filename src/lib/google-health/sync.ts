@@ -543,7 +543,15 @@ export async function upsertGoogleHealthMeasurements(
   // of the cycle. The incremental path keeps the inline per-day hook here.
   if (opts.deferRollup) {
     const tracker = rollupDeferStorage.getStore();
-    if (tracker) tracker.keys.push(...touched);
+    // Plain loop, never `push(...touched)`: `touched` carries ONE entry PER
+    // READING, and a full-history batch on a sample-dense account (a
+    // multi-year heart-rate series is six figures of rows) blows the call
+    // stack when spread into a single call — the engine caps argument counts.
+    // The RangeError aborted the whole metrics collection on exactly the
+    // accounts with the most data.
+    if (tracker) {
+      for (const t of touched) tracker.keys.push(t);
+    }
     return { imported, touched };
   }
 

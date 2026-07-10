@@ -7,8 +7,9 @@
  * are pinned by static-render tests.
  *
  * Indexing is AUTOMATIC on upload, so this block never nags a "please index"
- * chore. It shows the document's searchable status (auto-indexed) as a pill, and
- * offers AI reading as a capability the user reaches for when they want more:
+ * chore. It carries NO header or status chrome (the AI-read provenance marker
+ * lives on the vault card's meta row) and offers AI reading as a capability the
+ * user reaches for when they want more:
  *
  *   - "Read with AI" (prominent) runs a provider read of the document — the
  *     richer pass that also refreshes the searchable index. Labelled "Read
@@ -16,11 +17,13 @@
  *   - "Suggest details" drafts a title / type / date to review before saving.
  *   - "Summarise" / "Show text" surface a transient, session-only read-out.
  *
+ * With auto-read ON and nothing pending to review the block collapses entirely —
+ * the sheet content starts straight with the document fields under the preview.
+ *
  * Presentational: the sheet owns the mutations + capability probe and passes
  * their state + handlers down. When `aiEnabled` is false the actions collapse to
- * the calm "set up an AI provider" pointer (never an error) — the searchable
- * status pill stays, honestly reflecting any local auto-index, and the manual
- * form below stays fully usable.
+ * the calm "set up an AI provider" pointer (never an error) and the manual form
+ * below stays fully usable.
  */
 import { FileText, ScanText, WandSparkles } from "lucide-react";
 
@@ -37,7 +40,6 @@ import {
 import {
   AiUnavailableHint,
   AssistSuggestionReview,
-  ContentSearchStatus,
   DocumentSummaryPanel,
 } from "./document-ai-panels";
 import type { DocumentDescribeResult } from "./use-document-assist";
@@ -113,23 +115,26 @@ export function DocumentAiSection({
       ? t("documents.ai.reread")
       : t("documents.ai.read");
 
+  // v1.28.22 — the block carries NO header/status chrome any more (the
+  // provenance pill moved to the vault card's meta row; auto-read makes an
+  // in-sheet "read by AI" banner redundant). With auto-read ON and nothing
+  // pending to review, nothing below would render — collapse the whole box so
+  // the content under the preview starts straight with the fields.
+  if (
+    aiEnabled &&
+    autoReadEnabled &&
+    !suggestErrorKey &&
+    !suggestion &&
+    !summaryOutput
+  ) {
+    return null;
+  }
+
   return (
     <div
       data-slot="document-ai-section"
       className="border-border bg-muted/30 space-y-3 rounded-lg border p-3 md:p-4"
     >
-      {/* v1.28.19 — the "read with AI" block title + wand were redundant with
-          the read-provenance pill (auto-read already surfaces "read by AI"), so
-          only the provenance pill leads the block now. The pill itself stays —
-          it is the read-state contract the recipient/owner relies on. */}
-      <div className="flex items-center justify-end">
-        <ContentSearchStatus
-          hasContentIndex={hasContentIndex}
-          source={contentIndexSource}
-          isPending={indexPending}
-        />
-      </div>
-
       {aiEnabled ? (
         <>
           {!autoReadEnabled ? (
