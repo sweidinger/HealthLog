@@ -252,19 +252,21 @@ test.describe("automatic AI reading — vault per-document contract", () => {
     page,
   }) => {
     // Auto-read reads every upload with no per-document tap, so the manual
-    // Read / Suggest actions are redundant and collapse away. The section
-    // header and the searchable status pill stay.
+    // Read / Suggest actions are redundant and the WHOLE block collapses
+    // (v1.28.22 — no status chrome; provenance lives on the vault card).
     await mockDocumentCapability(page, { egress: "external", autoRead: true });
 
     await page.goto(`/documents?doc=${AI_PROBE_DOC_ID}`);
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
 
-    const section = sheet.locator('[data-slot="document-ai-section"]');
-    await expect(section).toBeVisible();
+    // v1.28.22 — with auto-read ON and nothing pending the WHOLE block
+    // collapses (no status chrome; provenance lives on the vault card), so the
+    // sheet content starts straight with the document fields.
+    await expect(sheet.locator("form")).toBeVisible();
     await expect(
-      section.locator('[data-slot="content-search-status"]'),
-    ).toBeVisible();
+      sheet.locator('[data-slot="document-ai-section"]'),
+    ).toHaveCount(0);
     await expect(sheet.locator('[data-slot="document-read-ai"]')).toHaveCount(
       0,
     );

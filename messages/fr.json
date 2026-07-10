@@ -8325,9 +8325,6 @@
     },
     "ai": {
       "statusAiRead": "Lu par l’IA",
-      "statusSearchable": "Consultable",
-      "statusIndexing": "Rendu consultable…",
-      "statusNotYet": "Pas encore consultable",
       "readDone": "L’IA a lu votre document.",
       "read": "Lire avec l’IA",
       "reread": "Relire",

@@ -6,7 +6,6 @@ import type { DocumentSuggestionDto } from "@/lib/validations/inbound-documents"
 import {
   AiUnavailableHint,
   AssistSuggestionReview,
-  ContentSearchStatus,
   DocumentSummaryPanel,
 } from "../document-ai-panels";
 
@@ -170,50 +169,5 @@ describe("<DocumentSummaryPanel>", () => {
     );
     expect(html).toContain('role="alert"');
     expect(html).toContain("read the document");
-  });
-});
-
-describe("<ContentSearchStatus>", () => {
-  it("shows a calm not-searchable-yet pill before the auto-index lands", () => {
-    const html = render(
-      <ContentSearchStatus
-        hasContentIndex={false}
-        source={null}
-        isPending={false}
-      />,
-    );
-    expect(html).toContain('data-slot="content-search-status"');
-    expect(html).toContain('data-state="none"');
-    expect(html).toContain("Not searchable yet");
-    // A status, never a chore button.
-    expect(html).not.toContain("<button");
-  });
-
-  it("highlights an AI-read document distinctly from a locally-indexed one", () => {
-    const aiRead = render(
-      <ContentSearchStatus hasContentIndex source="vision" isPending={false} />,
-    );
-    expect(aiRead).toContain('data-state="ai-read"');
-    expect(aiRead).toContain("Read by AI");
-    expect(aiRead).toContain("text-primary");
-
-    const local = render(
-      <ContentSearchStatus
-        hasContentIndex
-        source="local-pdf"
-        isPending={false}
-      />,
-    );
-    expect(local).toContain('data-state="searchable"');
-    expect(local).toContain("Searchable");
-    expect(local).not.toContain("Read by AI");
-  });
-
-  it("reflects a running read as an indexing state", () => {
-    const html = render(
-      <ContentSearchStatus hasContentIndex={false} source={null} isPending />,
-    );
-    expect(html).toContain('data-state="indexing"');
-    expect(html).toContain("Making searchable…");
   });
 });

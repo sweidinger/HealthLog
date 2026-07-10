@@ -12,12 +12,8 @@
  *     user applies it (and the title lands in the editable field, not on disk).
  *   - `DocumentSummaryPanel` — the transient summary / extracted-text panel with
  *     the persistent "not saved · not a diagnosis" note.
- *   - `ContentSearchStatus` — the per-document searchable pill reflecting the
- *     auto-index: "Read by AI" (provider read the original), "Searchable"
- *     (locally indexed), "Making searchable…" (a read is running), or the calm
- *     "not searchable yet". A STATUS, never a chore button.
  */
-import { Loader2, ScanSearch, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Check, FileText, X } from "lucide-react";
 import Link from "next/link";
 
@@ -26,8 +22,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import {
-  isAiReadSource,
-  type DocumentContentIndexSourceValue,
   type DocumentSuggestionDto,
   type DocumentSummaryMode,
 } from "@/lib/validations/inbound-documents";
@@ -268,79 +262,5 @@ export function DocumentSummaryPanel({
         </p>
       ) : null}
     </div>
-  );
-}
-
-/**
- * The per-document searchable status pill. Reflects the auto-index (indexing is
- * automatic on upload, so this is a state, never a to-do): a document is "Read
- * by AI" when a provider read the original, "Searchable" when it is only locally
- * indexed, "Making searchable…" while a read runs, and a calm "not searchable
- * yet" otherwise. The AI-read pill is highlighted (primary) — that read is the
- * richer one and worth surfacing.
- */
-export function ContentSearchStatus({
-  hasContentIndex,
-  source,
-  isPending,
-}: {
-  hasContentIndex: boolean;
-  source: DocumentContentIndexSourceValue | null;
-  /** A read/index is running right now. */
-  isPending: boolean;
-}) {
-  const { t } = useTranslations();
-
-  if (isPending) {
-    return (
-      <span
-        data-slot="content-search-status"
-        data-state="indexing"
-        className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
-      >
-        <Loader2
-          className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
-          aria-hidden
-        />
-        {t("documents.ai.statusIndexing")}
-      </span>
-    );
-  }
-
-  if (!hasContentIndex) {
-    return (
-      <span
-        data-slot="content-search-status"
-        data-state="none"
-        className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
-      >
-        <ScanSearch className="size-3.5 shrink-0" aria-hidden />
-        {t("documents.ai.statusNotYet")}
-      </span>
-    );
-  }
-
-  if (isAiReadSource(source)) {
-    return (
-      <span
-        data-slot="content-search-status"
-        data-state="ai-read"
-        className="bg-primary/10 text-primary inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
-      >
-        <Sparkles className="size-3.5 shrink-0" aria-hidden />
-        {t("documents.ai.statusAiRead")}
-      </span>
-    );
-  }
-
-  return (
-    <span
-      data-slot="content-search-status"
-      data-state="searchable"
-      className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
-    >
-      <ScanSearch className="size-3.5 shrink-0" aria-hidden />
-      {t("documents.ai.statusSearchable")}
-    </span>
   );
 }

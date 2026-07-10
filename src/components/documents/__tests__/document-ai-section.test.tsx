@@ -80,9 +80,9 @@ describe("<DocumentAiSection>", () => {
     );
     expect(html).toContain('data-slot="document-read-ai"');
     expect(html).toContain("Read again");
-    // The status pill reflects the AI-read provenance.
-    expect(html).toContain('data-state="ai-read"');
-    expect(html).toContain("Read by AI");
+    // v1.28.22 — no status pill any more; the re-read label alone carries the
+    // provenance in this block (the marker lives on the vault card).
+    expect(html).not.toContain('data-state="ai-read"');
   });
 
   it("shows the calm settings pointer (no 422 actions) when no provider is available", () => {
@@ -98,8 +98,9 @@ describe("<DocumentAiSection>", () => {
     // Every AI action must be absent — never a 422-guaranteed tap.
     expect(html).not.toContain('data-slot="assist-suggest"');
     expect(html).not.toContain('data-slot="document-read-ai"');
-    // But the searchable status pill still renders — auto-index is honest here.
-    expect(html).toContain('data-slot="content-search-status"');
+    // v1.28.22 — the status pill is gone entirely (provenance lives on the
+    // vault card's meta row); only the calm hint renders here.
+    expect(html).not.toContain('data-slot="content-search-status"');
   });
 
   it("keeps a locally-indexed document honestly searchable without a provider", () => {
@@ -112,8 +113,10 @@ describe("<DocumentAiSection>", () => {
         contentIndexSource: "local-pdf",
       }),
     );
-    expect(html).toContain('data-state="searchable"');
-    expect(html).toContain("Searchable");
+    // v1.28.22 — the searchable pill is gone; only the calm provider hint
+    // renders for a locally-indexed document without a provider.
+    expect(html).not.toContain('data-state="searchable"');
+    expect(html).toContain('data-slot="assist-unavailable"');
     expect(html).not.toContain("Read by AI");
   });
 
@@ -163,11 +166,10 @@ describe("<DocumentAiSection>", () => {
     expect(html).not.toContain('data-slot="assist-suggest"');
     expect(html).not.toContain("Summarise");
     expect(html).not.toContain("Show extracted text");
-    // The header and the searchable status pill stay. The scoped chat entry
-    // now lives in the detail-sheet header (a neutral Coach icon), not in this
-    // section, so this block no longer owns a chat slot.
-    expect(html).toContain('data-slot="document-ai-section"');
-    expect(html).toContain('data-slot="content-search-status"');
+    // v1.28.22 — with auto-read ON and nothing pending the WHOLE block
+    // collapses: no chrome, no status pill; the sheet content starts straight
+    // with the document fields under the preview.
+    expect(html).toBe("");
   });
 
   it("shows the manual AI action row when auto-read is off", () => {

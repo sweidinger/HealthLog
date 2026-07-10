@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.28.22] — 2026-07-10 — Full sync survives dense histories; quieter document chrome
+
+A full Google Health sync no longer fails on sample-dense accounts. Collecting
+the rollup bookkeeping for a multi-year heart-rate history overflowed the call
+stack, which aborted the metrics pass mid-cycle — exactly on the accounts with
+the most data. Reported by a self-hoster whose sync log made the diagnosis
+immediate; the new sync diagnostics from the previous release confirmed every
+other read on that account healthy.
+
+The documents vault gets quieter chrome: the "read by AI" tag no longer takes
+its own line on each card — a small glyph rides inline on the date-and-size row
+instead. The document view drops the status bar under the preview entirely;
+when reading is automatic and nothing needs review, the content starts straight
+with the document's fields.
+
 ## [1.28.21] — 2026-07-10 — Sleep history heals itself; plateau context; sync diagnostics
 
 Three follow-ups to the recent sleep fix, plus better Google Health diagnostics.

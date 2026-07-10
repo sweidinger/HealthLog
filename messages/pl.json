@@ -8325,9 +8325,6 @@
     },
     "ai": {
       "statusAiRead": "Odczytane przez AI",
-      "statusSearchable": "Wyszukiwalne",
-      "statusIndexing": "Udostępnianie do wyszukiwania…",
-      "statusNotYet": "Jeszcze nie do wyszukania",
       "readDone": "AI odczytało Twój dokument.",
       "read": "Odczytaj z AI",
       "reread": "Odczytaj ponownie",

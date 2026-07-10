@@ -8325,9 +8325,6 @@
     },
     "ai": {
       "statusAiRead": "Read by AI",
-      "statusSearchable": "Searchable",
-      "statusIndexing": "Making searchable…",
-      "statusNotYet": "Not searchable yet",
       "readDone": "The AI read your document.",
       "read": "Read with AI",
       "reread": "Read again",

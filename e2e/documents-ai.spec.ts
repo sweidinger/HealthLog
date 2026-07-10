@@ -345,10 +345,6 @@ test.describe("document vault — AI assist + content search", () => {
     await expect(read).toBeVisible();
     await expect(read).toHaveText(/Read with AI/);
 
-    // The status pill starts at the calm "not searchable yet".
-    const status = sheet.locator('[data-slot="content-search-status"]');
-    await expect(status).toHaveAttribute("data-state", "none");
-
     await read.click();
     await expect(page.getByText("The AI read your document.")).toBeVisible();
     expect(indexCalls).toBe(1);
@@ -366,11 +362,13 @@ test.describe("document vault — AI assist + content search", () => {
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
 
-    // The detail status pill reflects the AI-read source — asserted on every
-    // project (this is the provenance contract; it holds on desktop + mobile).
-    const status = sheet.locator('[data-slot="content-search-status"]');
-    await expect(status).toHaveAttribute("data-state", "ai-read");
-    await expect(status).toHaveText(/Read by AI/);
+    // v1.28.22 — the provenance marker moved out of the sheet onto the vault
+    // card's meta row (an inline glyph beside date · size). The sheet carries
+    // no status chrome; the CARD is the provenance contract now.
+    const marker = page.locator(
+      `[data-document-id="${CONTENT_DOC_ID}"] [data-slot="document-card-ai-read"]`,
+    );
+    await expect(marker.first()).toBeAttached();
   });
 
   // ── (f) Text-mode refuses a non-image before any OCR/upload ──────────────
