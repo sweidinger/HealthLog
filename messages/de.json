@@ -8317,10 +8317,6 @@
       "close": "Ausblenden"
     },
     "ai": {
-      "blockTitle": "Mit KI auslesen",
-      "read": "Mit KI auslesen",
-      "reread": "Erneut lesen",
-      "reading": "Liest…",
       "statusAiRead": "Von KI gelesen",
       "statusSearchable": "Durchsuchbar",
       "statusIndexing": "Wird durchsuchbar gemacht…",
@@ -8357,6 +8353,7 @@
       "errorConsent": "Aktiviere die KI-Zustimmung in den Einstellungen, um über dieses Dokument zu chatten.",
       "errorNetwork": "Du scheinst offline zu sein. Prüfe deine Verbindung und versuche es erneut.",
       "openAria": "Über dieses Dokument chatten",
+      "openButton": "Zu diesem Dokument fragen",
       "scopeBadge": "Chat über: {title}"
     }
   },

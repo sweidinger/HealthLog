@@ -8317,10 +8317,6 @@
       "close": "Nascondi"
     },
     "ai": {
-      "blockTitle": "Leggi con l’IA",
-      "read": "Leggi con l’IA",
-      "reread": "Leggi di nuovo",
-      "reading": "Lettura…",
       "statusAiRead": "Letto dall’IA",
       "statusSearchable": "Ricercabile",
       "statusIndexing": "Rendo ricercabile…",
@@ -8357,6 +8353,7 @@
       "errorConsent": "Attiva il consenso all'IA nelle impostazioni per chattare su questo documento.",
       "errorNetwork": "Sembri offline. Controlla la connessione e riprova.",
       "openAria": "Chatta su questo documento",
+      "openButton": "Fai una domanda su questo documento",
       "scopeBadge": "Stai chattando su: {title}"
     }
   },

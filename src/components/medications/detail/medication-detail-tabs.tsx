@@ -732,8 +732,6 @@ export function MedicationDetailTabs({
           <SettingsGroup
             label={t("medications.detail.erweitert.group.externalApi")}
             dataSlot="api-group-external-api"
-            collapsible
-            defaultOpen={false}
           >
             <div className="py-3">
               <ApiTokensRow

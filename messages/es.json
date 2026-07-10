@@ -8317,10 +8317,6 @@
       "close": "Ocultar"
     },
     "ai": {
-      "blockTitle": "Leer con IA",
-      "read": "Leer con IA",
-      "reread": "Leer de nuevo",
-      "reading": "Leyendo…",
       "statusAiRead": "Leído por IA",
       "statusSearchable": "Buscable",
       "statusIndexing": "Haciéndolo buscable…",
@@ -8357,6 +8353,7 @@
       "errorConsent": "Activa el consentimiento de IA en los ajustes para chatear sobre este documento.",
       "errorNetwork": "Parece que no tienes conexión. Comprueba tu red e inténtalo de nuevo.",
       "openAria": "Chatea sobre este documento",
+      "openButton": "Pregunta sobre este documento",
       "scopeBadge": "Chateando sobre: {title}"
     }
   },

@@ -22,13 +22,11 @@
  * status pill stays, honestly reflecting any local auto-index, and the manual
  * form below stays fully usable.
  */
-import { FileText, ScanText, WandSparkles } from "lucide-react";
+import { FileText, WandSparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
-import { cn } from "@/lib/utils";
 import {
-  isAiReadSource,
   type DocumentContentIndexSourceValue,
   type DocumentSuggestionDto,
   type DocumentSummaryMode,
@@ -37,7 +35,6 @@ import {
 import {
   AiUnavailableHint,
   AssistSuggestionReview,
-  ContentSearchStatus,
   DocumentSummaryPanel,
 } from "./document-ai-panels";
 import type { DocumentDescribeResult } from "./use-document-assist";
@@ -45,7 +42,6 @@ import type { DocumentDescribeResult } from "./use-document-assist";
 export function DocumentAiSection({
   aiEnabled,
   autoReadEnabled = false,
-  indexEnabled,
   unavailableReason,
   actionsDisabled,
   onSuggest,
@@ -65,10 +61,6 @@ export function DocumentAiSection({
   summaryResult,
   summaryErrorKey,
   onCloseSummary,
-  hasContentIndex,
-  contentIndexSource,
-  indexPending,
-  onIndex,
 }: {
   aiEnabled: boolean;
   /**
@@ -106,58 +98,30 @@ export function DocumentAiSection({
   onIndex: () => void;
 }) {
   const { t } = useTranslations();
-  const aiRead = hasContentIndex && isAiReadSource(contentIndexSource);
-  const readLabel = indexPending
-    ? t("documents.ai.reading")
-    : aiRead
-      ? t("documents.ai.reread")
-      : t("documents.ai.read");
+
+  // The redundant "read with AI / read again" button + the searchable-status
+  // pill header have been removed — reading + indexing happen automatically on
+  // upload, so this block now only carries the review-first assist actions
+  // (Suggest / Summarise / Show text) and their transient panels. With
+  // auto-read ON and no active suggestion/summary there is nothing to show, so
+  // the whole block collapses rather than render an empty bordered box.
+  const hasContent =
+    !aiEnabled ||
+    !autoReadEnabled ||
+    Boolean(suggestErrorKey) ||
+    Boolean(suggestion) ||
+    Boolean(summaryOutput);
+  if (!hasContent) return null;
 
   return (
     <div
       data-slot="document-ai-section"
       className="border-border bg-muted/30 space-y-3 rounded-lg border p-3 md:p-4"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <WandSparkles
-            className="text-foreground size-5 shrink-0"
-            aria-hidden
-          />
-          <p className="text-sm font-semibold">
-            {t("documents.ai.blockTitle")}
-          </p>
-        </div>
-        <ContentSearchStatus
-          hasContentIndex={hasContentIndex}
-          source={contentIndexSource}
-          isPending={indexPending}
-        />
-      </div>
-
       {aiEnabled ? (
         <>
           {!autoReadEnabled ? (
             <div className="flex flex-wrap items-center gap-2">
-              {indexEnabled ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  data-slot="document-read-ai"
-                  onClick={onIndex}
-                  disabled={indexPending || actionsDisabled}
-                >
-                  <ScanText
-                    className={cn(
-                      "size-4",
-                      indexPending &&
-                        "animate-pulse motion-reduce:animate-none",
-                    )}
-                    aria-hidden
-                  />
-                  {readLabel}
-                </Button>
-              ) : null}
               <Button
                 type="button"
                 variant="outline"

@@ -25,6 +25,7 @@ import {
   Share2,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -49,12 +50,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   apiDelete,
   ApiError,
@@ -434,32 +429,24 @@ export function DocumentDetailSheet({
         title={title}
         description={t("documents.detail.title")}
         contentWidth="3xl"
+        showCloseButton={false}
         headerAction={
-          doc && aiEnabled ? (
-            // Neutral, ghost Coach entry pinned top-right of the document —
-            // mirrors the Insights `AskCoachIconButton`. Deliberately NOT the
-            // purple FAB styling: `text-muted-foreground` only. Opens the
-            // doc-scoped chat drawer; the drawer body shows the calm
-            // read-it-first hint when the document is not yet indexed.
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    data-slot="document-chat-open"
-                    aria-label={t("documents.chat.openAria")}
-                    onClick={() => setDocChatOpen(true)}
-                    className="text-muted-foreground hover:text-foreground min-h-11 min-w-11 sm:size-8"
-                  >
-                    <Sparkles className="size-4" aria-hidden="true" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("documents.chat.openAria")}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : undefined
+          // Enlarged close control rendered in the header's trailing slot —
+          // the sheet's own X glyph is `size-4` via the primitive; we hide it
+          // (`showCloseButton={false}`) and render this larger `size-5` X with
+          // a comfortable min tap target instead. Scoped to this sheet only,
+          // so the global primitive default is unchanged for other callers.
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            data-slot="document-detail-close"
+            aria-label={t("common.close")}
+            onClick={() => onOpenChange(false)}
+            className="text-muted-foreground hover:text-foreground min-h-11 min-w-11 sm:size-9"
+          >
+            <X className="size-5" aria-hidden="true" />
+          </Button>
         }
         footer={
           doc ? (
@@ -480,6 +467,19 @@ export function DocumentDetailSheet({
                 {t("documents.detail.delete")}
               </Button>
               <div className="flex items-center gap-2">
+                {aiEnabled ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => setDocChatOpen(true)}
+                    data-slot="document-chat-open"
+                    aria-label={t("documents.chat.openAria")}
+                  >
+                    <Sparkles className="size-4" aria-hidden />
+                    <span className="hidden sm:inline">
+                      {t("documents.chat.openButton")}
+                    </span>
+                  </Button>
+                ) : null}
                 <Button
                   variant="outline"
                   onClick={() => setShareOpen(true)}

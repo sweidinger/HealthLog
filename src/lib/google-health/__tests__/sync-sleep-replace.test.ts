@@ -9,7 +9,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { updateManyMock } = vi.hoisted(() => ({
-  updateManyMock: vi.fn(async (_args: unknown) => ({ count: 0 })),
+  updateManyMock: vi.fn(async () => ({ count: 0 })),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -53,7 +53,7 @@ describe("replaceStaleGoogleHealthSleep — bounded replace-by-window", () => {
 
     expect(removed).toBe(1);
     expect(updateManyMock).toHaveBeenCalledTimes(1);
-    const arg = updateManyMock.mock.calls[0]![0] as {
+    const arg = (updateManyMock.mock.calls[0]! as unknown[])[0] as {
       where: Record<string, unknown>;
       data: Record<string, unknown>;
     };

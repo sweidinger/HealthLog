@@ -8317,10 +8317,6 @@
       "close": "Hide"
     },
     "ai": {
-      "blockTitle": "Read with AI",
-      "read": "Read with AI",
-      "reread": "Read again",
-      "reading": "Reading…",
       "statusAiRead": "Read by AI",
       "statusSearchable": "Searchable",
       "statusIndexing": "Making searchable…",
@@ -8357,6 +8353,7 @@
       "errorConsent": "Turn on AI consent in settings to chat about this document.",
       "errorNetwork": "You appear to be offline. Check your connection and try again.",
       "openAria": "Chat about this document",
+      "openButton": "Ask about this document",
       "scopeBadge": "Chatting about: {title}"
     }
   },

@@ -8317,10 +8317,6 @@
       "close": "Ukryj"
     },
     "ai": {
-      "blockTitle": "Odczytaj z AI",
-      "read": "Odczytaj z AI",
-      "reread": "Odczytaj ponownie",
-      "reading": "Odczytywanie…",
       "statusAiRead": "Odczytane przez AI",
       "statusSearchable": "Wyszukiwalne",
       "statusIndexing": "Udostępnianie do wyszukiwania…",
@@ -8357,6 +8353,7 @@
       "errorConsent": "Włącz zgodę na AI w ustawieniach, aby porozmawiać o tym dokumencie.",
       "errorNetwork": "Wygląda na to, że jesteś offline. Sprawdź połączenie i spróbuj ponownie.",
       "openAria": "Porozmawiaj o tym dokumencie",
+      "openButton": "Zapytaj o ten dokument",
       "scopeBadge": "Rozmowa o: {title}"
     }
   },
