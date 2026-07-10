@@ -405,13 +405,84 @@ describe("mapSleepSession — per-stage segments", () => {
     expect(deep.value).toBe(45);
     expect(deep.sleepStage).toBe("DEEP");
     expect(deep.measuredAt.toISOString()).toBe("2026-06-02T02:45:00.000Z");
-    // Per-stage rows key off the session END anchor + an indexed stage tag.
-    expect(deep.fieldTag).toBe("2026-06-02T06:30:00.000Z:sleep_deep:0");
+    // Segments key off the session anchor (here the fallback session-END, since
+    // this fixture carries no resource `name`) plus the segment's own START —
+    // NOT a positional index and NOT the stage label.
+    expect(deep.fieldTag).toBe(
+      "2026-06-02T06:30:00.000Z:sleep:2026-06-02T02:00:00.000Z",
+    );
 
     const rem = rows[1]!;
     expect(rem.value).toBe(30);
     expect(rem.sleepStage).toBe("REM");
-    expect(rem.fieldTag).toBe("2026-06-02T06:30:00.000Z:sleep_rem:1");
+    expect(rem.fieldTag).toBe(
+      "2026-06-02T06:30:00.000Z:sleep:2026-06-02T03:00:00.000Z",
+    );
+  });
+
+  it("keeps stable per-segment externalIds across a re-score (anchor = resource name)", () => {
+    // Two fetches of the SAME night. Google carries a stable resource `name`
+    // and, on the re-score, refines the session END and RE-CLASSIFIES the first
+    // block (LIGHT→DEEP) while keeping the segment START instants. The stable
+    // anchor + start-keyed fieldTag must yield the SAME externalIds, so the
+    // upsert overwrites in place rather than minting parallel duplicates.
+    const name = "users/me/dataTypes/sleep/dataPoints/night-42";
+    const first = mapSleepSession({
+      name,
+      sleep: {
+        interval: {
+          startTime: "2026-06-01T22:30:00.000Z",
+          endTime: "2026-06-02T06:30:00.000Z",
+        },
+        stages: [
+          {
+            type: "LIGHT",
+            startTime: "2026-06-02T02:00:00.000Z",
+            endTime: "2026-06-02T02:45:00.000Z",
+          },
+          {
+            type: "REM",
+            startTime: "2026-06-02T03:00:00.000Z",
+            endTime: "2026-06-02T03:30:00.000Z",
+          },
+        ],
+      },
+    });
+    const rescored = mapSleepSession({
+      name,
+      sleep: {
+        interval: {
+          startTime: "2026-06-01T22:30:00.000Z",
+          // Google refined the wake instant — the OLD anchor would have shifted.
+          endTime: "2026-06-02T06:42:00.000Z",
+        },
+        stages: [
+          {
+            // Re-classified block, SAME start — must map to the same externalId.
+            type: "DEEP",
+            startTime: "2026-06-02T02:00:00.000Z",
+            endTime: "2026-06-02T02:45:00.000Z",
+          },
+          {
+            type: "REM",
+            startTime: "2026-06-02T03:00:00.000Z",
+            endTime: "2026-06-02T03:30:00.000Z",
+          },
+        ],
+      },
+    });
+
+    expect(first.map((r) => r.fieldTag)).toEqual([
+      `${name}:sleep:2026-06-02T02:00:00.000Z`,
+      `${name}:sleep:2026-06-02T03:00:00.000Z`,
+    ]);
+    // Identical externalIds across the re-score → overwrite, not duplicate.
+    expect(rescored.map((r) => r.fieldTag)).toEqual(
+      first.map((r) => r.fieldTag),
+    );
+    // The re-classification is reflected in the stage axis (in-place update).
+    expect(first[0]!.sleepStage).toBe("CORE"); // LIGHT → shallow-NREM band
+    expect(rescored[0]!.sleepStage).toBe("DEEP");
   });
 
   it("maps the documented SLEEP_STAGE_TYPE enum onto the shared bands", () => {

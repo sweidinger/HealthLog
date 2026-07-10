@@ -9,11 +9,13 @@
  * per-segment series, so the rows lay each block at its true clock time (a
  * MEASURED timeline, not reconstructed). Upserts as `source = GOOGLE_HEALTH`.
  *
- * Each segment carries the `sleepStage` axis and an indexed fieldTag so the
- * several segments of one stage stay distinct under the
- * `(userId, type, source, externalId)` dedup key. externalId =
- * `<session-anchor>:sleep_<stage>:<i>` — a re-scored night overwrites in place.
- * A 24 h overlap covers Google's after-the-fact re-score.
+ * Each segment carries the `sleepStage` axis and a fieldTag keyed on the STABLE
+ * session anchor plus the segment's own start —
+ * `<session-anchor>:sleep:<segment-start>` — so a re-scored night overwrites in
+ * place instead of minting parallel duplicate rows the night-total would then
+ * double-count. A 24 h overlap covers Google's after-the-fact re-score, and
+ * `replaceStaleGoogleHealthSleep` clears anything an earlier scoring left in the
+ * night's window before the fresh set upserts.
  *
  * A per-data-class 403 soft-skips the resource — the sleep bundle is granted
  * independently of activity / metrics in the Google consent flow.
@@ -22,14 +24,16 @@ import {
   GOOGLE_HEALTH_ACTIVITY_PAGE_SIZE,
   GOOGLE_HEALTH_DATA_TYPES,
   fetchDataPoints,
-  mapSleepSession,
+  mapSleepSessionDetailed,
 } from "./client";
 import {
   getValidToken,
   handleCollectionFetchError,
+  replaceStaleGoogleHealthSleep,
   upsertGoogleHealthMeasurements,
   type GoogleHealthMeasurementUpsert,
   type GoogleHealthResourceSyncOptions,
+  type GoogleHealthSleepReplaceWindow,
 } from "./sync";
 import { annotate } from "@/lib/logging/context";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
@@ -63,8 +67,11 @@ export async function syncUserSleep(
   }
 
   const readings: GoogleHealthMeasurementUpsert[] = [];
+  const replaceWindows: GoogleHealthSleepReplaceWindow[] = [];
   for (const point of points) {
-    for (const m of mapSleepSession(point, tz)) {
+    const session = mapSleepSessionDetailed(point, tz);
+    if (session.rows.length === 0) continue;
+    for (const m of session.rows) {
       readings.push({
         type: m.type,
         value: m.value,
@@ -74,7 +81,17 @@ export async function syncUserSleep(
         sleepStage: m.sleepStage ?? null,
       });
     }
+    // Clean any stale rows a prior re-score left in this night's window before
+    // the fresh set upserts — so a re-scored night reads its true total rather
+    // than the sum of the old and the re-scored copies.
+    replaceWindows.push({
+      windowStart: session.windowStart,
+      windowEnd: session.windowEnd,
+      keepIds: session.rows.map((m) => m.fieldTag),
+    });
   }
+
+  await replaceStaleGoogleHealthSleep(userId, replaceWindows);
 
   const imported = (
     await upsertGoogleHealthMeasurements(userId, readings, {
