@@ -2,7 +2,23 @@
 
 ## [Unreleased]
 
-## [1.28.17] — 2026-07-10 — Dashboard edits stick; share scope honoured
+## [1.28.18] — 2026-07-10 — Google Health sleep reads its true total
+
+Sleep imported from Google Health could read far too long — a night of about
+seven and a half hours showing as ten. Google re-scores a night after the fact,
+and the sync re-reads recent nights to pick that up. The re-read was landing as a
+second, parallel copy of the night rather than replacing the first, so the
+night-total added both together.
+
+Each sleep segment now keys on a stable identity (the session's own id plus the
+segment's start) instead of a value that shifted every time Google refined the
+night, so a re-read overwrites in place. And before writing a re-read night, the
+sync clears any superseded rows left in that night's window — so a re-scored
+night reads its true total, and a mere re-classification of a block (light to
+deep) updates in place instead of duplicating.
+
+Nights already stored with duplicates heal as they are re-read; operators can
+repair the full history at once with a one-shot re-sync.
 
 Fixes two bugs and hardens two edges.
 

@@ -1806,13 +1806,23 @@ function readSleepSegments(
 }
 
 /**
- * The stable session anchor for a sleep `DataPoint`'s externalId. The session
- * end (or start) ISO instant is unique per night, so per-stage rows key as
- * `<session-anchor>:sleep_<stage>` — a re-scored night overwrites in place.
- * Paths are camelCase (`sleep.interval.endTime`) — the response payload never
- * uses snake_case.
+ * The stable session anchor for a sleep `DataPoint`'s externalId.
+ *
+ * Prefers the Google resource id (`name`) — it is INVARIANT across Google's
+ * after-the-fact re-scoring of a night, so the per-segment rows keep the SAME
+ * externalId on a re-fetch and overwrite in place instead of minting parallel
+ * duplicates. This mirrors `mapWorkout`, which anchors on `name` for exactly
+ * this reason.
+ *
+ * The session interval end/start is only a FALLBACK (for a payload without a
+ * resource name): it SHIFTS whenever Google refines the wake/onset instant on a
+ * re-score, which is precisely what used to duplicate a night's rows. Paths are
+ * camelCase (`sleep.interval.endTime`) — the response payload never uses
+ * snake_case.
  */
 function sleepSessionAnchor(point: GoogleHealthDataPoint, tz?: string): string {
+  const name = readPath(point, "name");
+  if (typeof name === "string" && name !== "") return name;
   const end = readPath(point, "sleep.interval.endTime");
   if (typeof end === "string") {
     const d = parseLocalInstant(end, tz);
@@ -1827,51 +1837,86 @@ function sleepSessionAnchor(point: GoogleHealthDataPoint, tz?: string): string {
 }
 
 /**
- * Map one Google sleep session into per-SEGMENT `SLEEP_DURATION` rows. The
- * Google sleep payload carries a real per-stage segment series (each with its
- * own start/end), so one row is emitted PER SEGMENT — `measuredAt = that
- * segment's END` — rather than collapsing a stage's segments onto a single
- * lastEnd instant. The timeline is MEASURED (real onsets), so these rows are NOT
- * flagged reconstructed — unlike WHOOP, which has no onsets.
+ * One mapped Google sleep session: the stable anchor, the session's covered
+ * time window (earliest segment start → latest segment end, both UTC), and the
+ * per-segment rows. The window drives the sync's replace-by-window cleanup of
+ * stale rows a re-score orphaned; `rows` is what gets upserted.
+ */
+export interface GoogleHealthSleepSession {
+  /** Stable session anchor — also the `<anchor>:sleep:` externalId prefix. */
+  anchor: string;
+  /** Earliest segment start across the session (UTC), or null if none map. */
+  windowStart: Date | null;
+  /** Latest segment end across the session (UTC), or null if none map. */
+  windowEnd: Date | null;
+  rows: GoogleHealthMappedMeasurement[];
+}
+
+/**
+ * Map one Google sleep session into per-SEGMENT `SLEEP_DURATION` rows plus its
+ * covered window. The Google sleep payload carries a real per-stage segment
+ * series (each with its own start/end), so one row is emitted PER SEGMENT —
+ * `measuredAt = that segment's END`. The timeline is MEASURED (real onsets), so
+ * these rows are NOT flagged reconstructed — unlike WHOOP, which has no onsets.
  *
- * Each segment carries a stage-scoped, INDEXED fieldTag so the several segments
- * of one stage stay distinct under the `(userId, type, source, externalId)`
- * dedup key. Unknown stage labels are skipped; a session with no parseable
- * segment yields nothing.
+ * Each segment's fieldTag keys off the STABLE session anchor plus the segment's
+ * own START instant — `<anchor>:sleep:<segment-start>` — NOT a positional index
+ * and NOT the stage label. This is the fix for the re-score duplication: a
+ * positional index renumbered (and a stage-scoped tag changed) whenever Google
+ * re-scored a night, minting fresh externalIds so the upsert created parallel
+ * duplicate rows the night-total then double-counted. A segment's start instant
+ * is stable per block, and dropping the stage from the key means a mere
+ * re-classification (LIGHT→DEEP on the same block) UPDATES the row in place
+ * rather than orphaning it. Unknown stage labels are skipped; a session with no
+ * parseable segment yields an empty `rows` (and a null window).
  *
  * Segment timestamps can arrive OFFSET-LESS (local wall clock); `tz` (the user's
  * stored zone) anchors them to the correct UTC instant rather than the process
  * zone — without it a non-UTC user's near-midnight segment END would shift by
  * their offset. Timestamps carrying an explicit offset/`Z` are honoured as-is.
  */
-export function mapSleepSession(
+export function mapSleepSessionDetailed(
   point: GoogleHealthDataPoint,
   tz?: string,
-): GoogleHealthMappedMeasurement[] {
-  const segments = readSleepSegments(point);
-  if (segments.length === 0) return [];
-
+): GoogleHealthSleepSession {
   const anchor = sleepSessionAnchor(point, tz);
-  const out: GoogleHealthMappedMeasurement[] = [];
-  let segIndex = 0;
+  const segments = readSleepSegments(point);
+  const rows: GoogleHealthMappedMeasurement[] = [];
+  let windowStart: Date | null = null;
+  let windowEnd: Date | null = null;
+
   for (const seg of segments) {
     const stage = mapGoogleHealthSleepStage(seg.stage);
     if (!stage) continue;
     const mins = minutesBetween(seg.startTime, seg.endTime);
     if (mins === null || !(mins > 0)) continue;
+    const start = parseLocalInstant(seg.startTime as string, tz);
     const end = parseLocalInstant(seg.endTime as string, tz);
-    if (!end) continue;
-    out.push({
+    if (!start || !end) continue;
+    if (!windowStart || start < windowStart) windowStart = start;
+    if (!windowEnd || end > windowEnd) windowEnd = end;
+    rows.push({
       type: "SLEEP_DURATION",
       value: round2(mins),
       unit: "minutes",
       measuredAt: end,
-      fieldTag: `${anchor}:sleep_${stage.toLowerCase()}:${segIndex}`,
+      fieldTag: `${anchor}:sleep:${start.toISOString()}`,
       sleepStage: stage,
     });
-    segIndex += 1;
   }
-  return out;
+
+  return { anchor, windowStart, windowEnd, rows };
+}
+
+/**
+ * Flat convenience wrapper — the per-segment rows of one session, without the
+ * window metadata. Retained for callers that only need the rows.
+ */
+export function mapSleepSession(
+  point: GoogleHealthDataPoint,
+  tz?: string,
+): GoogleHealthMappedMeasurement[] {
+  return mapSleepSessionDetailed(point, tz).rows;
 }
 
 // ── Workouts (exercise sessions) ───────────────────────────────

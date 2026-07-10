@@ -314,6 +314,63 @@ export interface GoogleHealthMeasurementUpsert {
 /** Chunk size for the batched `createMany` insert of fresh readings. */
 const GOOGLE_HEALTH_CREATE_CHUNK = 500;
 
+/** One just-fetched sleep session's window + the ids that must survive it. */
+export interface GoogleHealthSleepReplaceWindow {
+  /** Earliest segment start (UTC). Null → nothing to clean for this session. */
+  windowStart: Date | null;
+  /** Latest segment end (UTC). */
+  windowEnd: Date | null;
+  /** The fresh externalIds for THIS session — never soft-deleted. */
+  keepIds: string[];
+}
+
+/**
+ * Replace-by-window cleanup for re-scored Google sleep sessions.
+ *
+ * Google re-scores a night after the fact. Before the stable-anchor fix a
+ * re-fetch minted fresh externalIds and left the prior night's rows LIVE, so the
+ * night-total silently double-counted (a 7h35 night read as 10h+). For each
+ * just-fetched session this soft-deletes any LIVE `GOOGLE_HEALTH`
+ * `SLEEP_DURATION` row whose `measuredAt` falls inside the session's
+ * `[windowStart, windowEnd]` but was NOT re-produced by this fetch (`keepIds`
+ * are this session's fresh externalIds). Sleep sessions do not overlap in time,
+ * so a scan bounded to one session's window only ever touches that session's own
+ * rows — a fresh row is protected by `keepIds`, and any leftover (old volatile
+ * key, or a segment Google dropped) is cleared. Rows OUTSIDE every returned
+ * window are never touched, so a night Google did not re-report this tick stays
+ * intact — no data loss, only stale duplicates and re-score orphans go. This is
+ * also the repair path: a full backfill re-fetches history and cleans each night
+ * as it goes. Best-effort — a cleanup failure never fails the user's sync.
+ */
+export async function replaceStaleGoogleHealthSleep(
+  userId: string,
+  sessions: GoogleHealthSleepReplaceWindow[],
+): Promise<number> {
+  let removed = 0;
+  for (const s of sessions) {
+    if (!s.windowStart || !s.windowEnd || s.keepIds.length === 0) continue;
+    try {
+      const res = await prisma.measurement.updateMany({
+        where: {
+          userId,
+          source: "GOOGLE_HEALTH",
+          type: "SLEEP_DURATION",
+          deletedAt: null,
+          measuredAt: { gte: s.windowStart, lte: s.windowEnd },
+          externalId: { notIn: s.keepIds },
+        },
+        data: { deletedAt: new Date() },
+      });
+      removed += res.count;
+    } catch (err) {
+      getEvent()?.addWarning(
+        `google-health: sleep replace-by-window failed: ${err}`,
+      );
+    }
+  }
+  return removed;
+}
+
 /**
  * Write a batch of mapped Google Health readings for one user and (unless
  * deferred) fold the rollup tier + invalidate status-insight caches once at the
