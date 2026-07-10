@@ -357,18 +357,26 @@ test.describe("document vault — AI assist + content search", () => {
     page,
   }) => {
     // CONTENT_DOC_ID is seeded with source "vision" (an AI provider read it).
-    // No mocks: the real list/detail GET threads the provenance through.
-    await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
-    const sheet = page.getByRole("dialog");
-    await expect(sheet).toBeVisible();
+    // No mocks: the real list GET threads the provenance through. v1.28.22 —
+    // the marker lives on the vault CARD's meta row (an inline glyph beside
+    // date · size), not in the sheet. Surface the card through search (the
+    // grid is virtualized, so a targeted card must be brought into view the
+    // way a user would).
+    await page.goto("/documents");
+    await expect(
+      page.getByRole("heading", { name: "Documents" }),
+    ).toBeVisible();
+    await page
+      .getByRole("searchbox", { name: "Search documents" })
+      .fill(CONTENT_BODY_WORD);
+    await expect(
+      page.getByRole("button", { name: "Open Radiology note" }),
+    ).toBeVisible({ timeout: 10_000 });
 
-    // v1.28.22 — the provenance marker moved out of the sheet onto the vault
-    // card's meta row (an inline glyph beside date · size). The sheet carries
-    // no status chrome; the CARD is the provenance contract now.
     const marker = page.locator(
       `[data-document-id="${CONTENT_DOC_ID}"] [data-slot="document-card-ai-read"]`,
     );
-    await expect(marker.first()).toBeAttached();
+    await expect(marker.first()).toBeVisible();
   });
 
   // ── (f) Text-mode refuses a non-image before any OCR/upload ──────────────

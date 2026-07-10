@@ -262,8 +262,13 @@ test.describe("automatic AI reading — vault per-document contract", () => {
 
     // v1.28.22 — with auto-read ON and nothing pending the WHOLE block
     // collapses (no status chrome; provenance lives on the vault card), so the
-    // sheet content starts straight with the document fields.
-    await expect(sheet.locator("form")).toBeVisible();
+    // sheet content starts straight with the document fields. The footer's
+    // download action is the loaded-state anchor (it renders only once the
+    // document GET resolved), so the absence checks below cannot pass
+    // vacuously against the loading skeleton.
+    await expect(
+      sheet.locator('[data-slot="document-download"]'),
+    ).toBeVisible();
     await expect(
       sheet.locator('[data-slot="document-ai-section"]'),
     ).toHaveCount(0);
