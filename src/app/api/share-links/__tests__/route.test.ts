@@ -294,6 +294,10 @@ describe("POST /api/share-links — create", () => {
     // Sections persist as an explicit all-OFF blob (distinct from `{}` = full
     // record defaults). The clinician view reads this as "no report".
     expect(createArg.data.sectionsJson).toEqual(EMPTY_DOCTOR_REPORT_PREFS);
+    // v1.28.16 — the frozen documents-only flag is persisted so the view path
+    // gates on the column, not on inferring "all sections off". This is what a
+    // future report section can never re-open.
+    expect(createArg.data.documentOnly).toBe(true);
     // The picked document still rides along.
     expect(createArg.data.documents).toEqual({
       create: [{ documentId: "doc-a" }],
