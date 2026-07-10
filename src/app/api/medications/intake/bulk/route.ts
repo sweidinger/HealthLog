@@ -20,6 +20,13 @@
  *     forceSlotInstant?,     — ISO timestamp; pins a taken entry onto a
  *                              named real scheduled slot (server-validated
  *                              against the band anchors)
+ *     source?,               — "APPLE_HEALTH" only (v1.28 HealthKit dose
+ *                              import); absent keeps the default "API".
+ *                              Requires externalId and a medication
+ *                              mirrored from Apple Health.
+ *     externalId?,           — HK dose-event UUID (max 128); drives the
+ *                              idempotent re-sync dedup (first-write-wins
+ *                              per Apple dose)
  *   }
  *
  * Response (always 200): processed / inserted / duplicates / skipped /
@@ -77,39 +84,62 @@ const MAX_ENTRIES_PER_BATCH = 500;
 const BATCH_RATE_LIMIT_MAX = 60;
 const BATCH_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
-const bulkEntrySchema = z.object({
-  medicationId: z.string().min(1),
-  scheduledFor: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .optional(),
-  // v1.16.9 — shared plausibility bounds (no future beyond clock skew,
-  // 5-year floor), matching the single-intake create + edit paths.
-  takenAt: boundedTakenAtSchema.optional(),
-  skipped: z.boolean().optional().default(false),
-  idempotencyKey: z.string().min(1).max(128).optional(),
-  // v1.8.5 — optional per-entry injection site. Validated against the
-  // medication's effective allowed set; a disallowed site marks the
-  // entry skipped (`injection_site_not_allowed`) without failing the
-  // whole batch, matching the bulk endpoint's per-entry contract.
-  injectionSite: injectionSiteEnum.optional(),
-  // v1.15.20 — late-take "attribute anyway" pin, mirroring the single
-  // intake route: pin a taken entry onto a named real scheduled slot
-  // instead of the default window-band attribution. Validated server-side
-  // against the band anchors; an instant that is not a slot marks the
-  // entry skipped (`force_slot_invalid`) per the bulk per-entry contract.
-  // Ignored on non-taken entries (a pending echo / skip carries no take
-  // to attribute).
-  forceSlotInstant: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .optional(),
-  // v1.16.4 — per-entry dose override, mirroring the single intake
-  // route: free text (max 50 chars, like `Medication.dose`), persisted
-  // only on a taken entry. Absent = the configured medication dose
-  // applies.
-  doseTaken: z.string().trim().min(1).max(50).optional(),
-});
+const bulkEntrySchema = z
+  .object({
+    medicationId: z.string().min(1),
+    scheduledFor: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional(),
+    // v1.16.9 — shared plausibility bounds (no future beyond clock skew,
+    // 5-year floor), matching the single-intake create + edit paths.
+    takenAt: boundedTakenAtSchema.optional(),
+    skipped: z.boolean().optional().default(false),
+    idempotencyKey: z.string().min(1).max(128).optional(),
+    // v1.8.5 — optional per-entry injection site. Validated against the
+    // medication's effective allowed set; a disallowed site marks the
+    // entry skipped (`injection_site_not_allowed`) without failing the
+    // whole batch, matching the bulk endpoint's per-entry contract.
+    injectionSite: injectionSiteEnum.optional(),
+    // v1.15.20 — late-take "attribute anyway" pin, mirroring the single
+    // intake route: pin a taken entry onto a named real scheduled slot
+    // instead of the default window-band attribution. Validated server-side
+    // against the band anchors; an instant that is not a slot marks the
+    // entry skipped (`force_slot_invalid`) per the bulk per-entry contract.
+    // Ignored on non-taken entries (a pending echo / skip carries no take
+    // to attribute).
+    forceSlotInstant: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional(),
+    // v1.16.4 — per-entry dose override, mirroring the single intake
+    // route: free text (max 50 chars, like `Medication.dose`), persisted
+    // only on a taken entry. Absent = the configured medication dose
+    // applies.
+    doseTaken: z.string().trim().min(1).max(50).optional(),
+    // v1.28 — Apple Health dose-event import (iOS 26+ HealthKit
+    // Medications API). Only the APPLE_HEALTH literal is accepted — the
+    // other IntakeSource values stay server-owned; absent keeps today's
+    // default ("API"). Must carry `externalId` (refine below), and may
+    // only target a medication mirrored from Apple Health (route-level
+    // 422). logStatus mapping is client-side: iOS ships taken/skipped
+    // shaped like every other entry.
+    source: z.literal("APPLE_HEALTH").optional(),
+    // v1.28 — the HealthKit `HKMedicationDoseEvent` UUID. Drives the
+    // idempotent re-sync: an entry whose `(userId, externalId)` already
+    // exists live reports `duplicate` (first-write-wins per Apple dose).
+    externalId: z.string().trim().min(1).max(128).optional(),
+  })
+  .refine(
+    // v1.28 — both-or-neither: an Apple entry without its dose-event UUID
+    // cannot dedup, and a bare externalId without the source label has no
+    // defined provenance.
+    (e) => (e.source === "APPLE_HEALTH") === (e.externalId !== undefined),
+    {
+      message: "source APPLE_HEALTH and externalId must be supplied together",
+      path: ["externalId"],
+    },
+  );
 
 const bulkPayloadSchema = z.object({
   entries: z.array(bulkEntrySchema).min(1).max(MAX_ENTRIES_PER_BATCH),
@@ -202,16 +232,69 @@ async function postBulk(request: NextRequest): Promise<Response> {
     where: { id: { in: medicationIds }, userId: user.id },
     // v1.8.5 — pull the injection-tracking fields so a per-entry
     // `injectionSite` can be resolved + validated without an extra
-    // per-entry read.
+    // per-entry read. v1.28 — `externalSource` rides along so the
+    // Apple-entry mirror gate below needs no extra read either.
     select: {
       id: true,
       deliveryForm: true,
       trackInjectionSites: true,
       allowedInjectionSites: true,
+      externalSource: true,
     },
   });
   const ownedSet = new Set(ownedMedications.map((m) => m.id));
   const medById = new Map(ownedMedications.map((m) => [m.id, m]));
+
+  // v1.28 — source-exclusive Apple-mirrored medications: an APPLE_HEALTH
+  // dose event may only attach to a medication mirrored from Apple Health
+  // (`Medication.externalSource === "APPLE_HEALTH"`). Targeting a native
+  // medication is a client contract violation (the iOS sync maps HK dose
+  // events onto the meds it mirrored itself), not a per-entry data
+  // problem, so the whole batch 422s with a stable errorCode the client
+  // can branch on. Unowned medicationIds keep the per-entry
+  // `medication_not_found` skip below.
+  const appleMismatch = entries.some(
+    (e) =>
+      e.source === "APPLE_HEALTH" &&
+      ownedSet.has(e.medicationId) &&
+      medById.get(e.medicationId)?.externalSource !== "APPLE_HEALTH",
+  );
+  if (appleMismatch) {
+    return apiError(
+      "An APPLE_HEALTH entry may only target a medication mirrored from Apple Health",
+      422,
+      { errorCode: "medications.intake.bulk.apple_health_not_mirrored" },
+    );
+  }
+
+  // v1.28 — idempotent re-sync dedup: one read collects every live row
+  // already carrying one of the batch's external dose-event UUIDs; the
+  // per-entry loop reports those entries as `duplicate` (first-write-wins
+  // per Apple dose) without touching the DB again. Fresh inserts register
+  // into the same map so an intra-batch repeat of a UUID dedups too. The
+  // partial `(user_id, external_id)` unique (migration 0239) is the race
+  // backstop.
+  const batchExternalIds = Array.from(
+    new Set(
+      entries
+        .map((e) => e.externalId)
+        .filter((id): id is string => id !== undefined),
+    ),
+  );
+  const rowIdByExternalId = new Map<string, string>();
+  if (batchExternalIds.length > 0) {
+    const existingExternalRows = await prisma.medicationIntakeEvent.findMany({
+      where: {
+        userId: user.id,
+        externalId: { in: batchExternalIds },
+        deletedAt: null,
+      },
+      select: { id: true, externalId: true },
+    });
+    for (const row of existingExternalRows) {
+      if (row.externalId) rowIdByExternalId.set(row.externalId, row.id);
+    }
+  }
 
   // v1.8.5 — the user's global exclusion deny-list, loaded once for the
   // whole batch (it is user-scoped, not per-medication). Only read when
@@ -260,6 +343,19 @@ async function postBulk(request: NextRequest): Promise<Response> {
       skipped.push({ index: i, reason });
       results.push({ index: i, status: "skipped", reason });
       continue;
+    }
+
+    // v1.28 — Apple dose-event replay: the batch pre-check found a live
+    // row already carrying this external UUID (or an earlier entry in
+    // THIS batch inserted it). First-write-wins per Apple dose — report
+    // `duplicate` with the existing row id so the sync cursor advances.
+    if (entry.externalId !== undefined) {
+      const existingRowId = rowIdByExternalId.get(entry.externalId);
+      if (existingRowId !== undefined) {
+        duplicates += 1;
+        results.push({ index: i, status: "duplicate", id: existingRowId });
+        continue;
+      }
     }
 
     try {
@@ -414,11 +510,15 @@ async function postBulk(request: NextRequest): Promise<Response> {
           isExplicitTaken,
           isExplicitSkip,
           idempotencyKey: entry.idempotencyKey ?? null,
-          createSource: "API",
+          // v1.28 — an Apple dose-event import stamps its provenance on a
+          // fresh row; every other caller keeps today's "API".
+          createSource: entry.source ?? "API",
           injectionSite: resolvedInjectionSite,
           attributionSource,
           // v1.16.4 — dose override only documents a consumed dose.
           doseTaken: (!entry.skipped && entry.doseTaken) || null,
+          // v1.28 — external dose-event UUID rides onto the landed row.
+          externalId: entry.externalId ?? null,
         });
         if (applied.noDowngradeNoOp) {
           // C2 — pending echo onto an already-actioned slot. Report it as a
@@ -524,10 +624,13 @@ async function postBulk(request: NextRequest): Promise<Response> {
             isExplicitTaken,
             isExplicitSkip,
             idempotencyKey: entry.idempotencyKey ?? null,
-            createSource: "API",
+            // v1.28 — Apple provenance on a fresh row (see above).
+            createSource: entry.source ?? "API",
             injectionSite: resolvedInjectionSite,
             attributionSource,
             doseTaken: (!entry.skipped && entry.doseTaken) || null,
+            // v1.28 — external dose-event UUID rides onto the landed row.
+            externalId: entry.externalId ?? null,
           });
           if (applied.noDowngradeNoOp) {
             duplicates += 1;
@@ -573,8 +676,15 @@ async function postBulk(request: NextRequest): Promise<Response> {
               scheduledFor: effectiveScheduledFor,
               takenAt: entry.takenAt ?? null,
               skipped: entry.skipped,
-              source: "API",
+              // v1.28 — Apple provenance on a standalone (ad-hoc) row;
+              // every other caller keeps today's "API".
+              source: entry.source ?? "API",
               idempotencyKey: entry.idempotencyKey ?? null,
+              // v1.28 — external dose-event UUID for the idempotent
+              // re-sync dedup.
+              ...(entry.externalId !== undefined && {
+                externalId: entry.externalId,
+              }),
               // v1.8.5 — site only on a resolved taken-injection entry.
               ...(resolvedInjectionSite !== null && {
                 injectionSite: resolvedInjectionSite,
@@ -612,6 +722,13 @@ async function postBulk(request: NextRequest): Promise<Response> {
       // only when the row's state actually changed (inserted / updated). A
       // pending echo, duplicate, or no-downgrade no-op leaves the visible
       // dose state untouched, so it must not wake the user's other devices.
+      // v1.28 — register the landed row under its external dose-event
+      // UUID so a repeat of the same UUID later in THIS batch dedups
+      // in-memory instead of tripping the partial unique.
+      const landed = results[results.length - 1];
+      if (entry.externalId !== undefined && landed?.id !== undefined) {
+        rowIdByExternalId.set(entry.externalId, landed.id);
+      }
       const lastStatus = results[results.length - 1]?.status;
       if (lastStatus === "inserted" || lastStatus === "updated") {
         const scheduledForIso = effectiveScheduledFor.toISOString();
@@ -638,7 +755,19 @@ async function postBulk(request: NextRequest): Promise<Response> {
               where: { idempotencyKey: entry.idempotencyKey },
               select: { id: true },
             })
-          : null;
+          : // v1.28 — an Apple entry that raced the partial
+            // `(user_id, external_id)` unique (concurrent batches syncing
+            // the same dose event) resolves to the winning live row.
+            entry.externalId
+            ? await prisma.medicationIntakeEvent.findFirst({
+                where: {
+                  userId: user.id,
+                  externalId: entry.externalId,
+                  deletedAt: null,
+                },
+                select: { id: true },
+              })
+            : null;
         duplicates += 1;
         results.push({
           index: i,

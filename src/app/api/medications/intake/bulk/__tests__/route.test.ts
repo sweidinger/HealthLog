@@ -1088,3 +1088,273 @@ describe("POST /api/medications/intake/bulk — v1.16.10 inventory consumption",
     expect(consumeForIntake).not.toHaveBeenCalled();
   });
 });
+
+// ────────────────────────────────────────────────────────────────────
+// v1.28 — Apple Health dose events (#423)
+// ────────────────────────────────────────────────────────────────────
+
+describe("POST /api/medications/intake/bulk — v1.28 Apple Health dose events", () => {
+  const MIRRORED_MED = {
+    id: "med-apple",
+    startsOn: null,
+    endsOn: null,
+    oneShot: false,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    schedules: [
+      {
+        id: "s1",
+        windowStart: "07:00",
+        windowEnd: "07:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+        reminderGraceMinutes: null,
+        rrule: null,
+        rollingIntervalDays: null,
+        scheduleType: "SCHEDULED",
+        cyclicOnWeeks: null,
+        cyclicOffWeeks: null,
+        doseWindows: null,
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    // 20:30 Berlin on 2026-06-15 — past both fixture slots for the day.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T18:30:00.000Z"));
+    // The ownership read surfaces the mirror flag for the source gate.
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      { id: "med-apple", externalSource: "APPLE_HEALTH" },
+    ] as never);
+    vi.mocked(prisma.medication.findFirst).mockResolvedValue(
+      MIRRORED_MED as never,
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("422s the batch when an APPLE_HEALTH entry targets a NON-mirrored medication", async () => {
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      { id: "med-native", externalSource: null },
+    ] as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-native",
+            takenAt: "2026-06-15T12:00:00.000Z",
+            source: "APPLE_HEALTH",
+            externalId: "hk-dose-1",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { meta?: { errorCode?: string } };
+    expect(body.meta?.errorCode).toBe(
+      "medications.intake.bulk.apple_health_not_mirrored",
+    );
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
+  });
+
+  it("422s an APPLE_HEALTH entry without externalId (both-or-neither refine)", async () => {
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-apple",
+            takenAt: "2026-06-15T12:00:00.000Z",
+            source: "APPLE_HEALTH",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { meta?: { errorCode?: string } };
+    expect(body.meta?.errorCode).toBe("medications.intake.bulk.invalid");
+  });
+
+  it("422s an externalId without source APPLE_HEALTH", async () => {
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-apple",
+            takenAt: "2026-06-15T12:00:00.000Z",
+            externalId: "hk-dose-1",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(422);
+  });
+
+  it("reports a replayed external dose-event UUID as duplicate without writing (idempotent re-sync)", async () => {
+    // The batch pre-check finds the UUID already live.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      { id: "row-existing", externalId: "hk-dose-1" },
+    ] as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-apple",
+            takenAt: "2026-06-15T12:00:00.000Z",
+            source: "APPLE_HEALTH",
+            externalId: "hk-dose-1",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        duplicates: number;
+        inserted: number;
+        entries: Array<{ status: string; id?: string }>;
+      };
+    };
+    expect(body.data.duplicates).toBe(1);
+    expect(body.data.inserted).toBe(0);
+    expect(body.data.entries[0].status).toBe("duplicate");
+    expect(body.data.entries[0].id).toBe("row-existing");
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
+    expect(consumeForIntake).not.toHaveBeenCalled();
+  });
+
+  it("inserts a fresh Apple dose with source APPLE_HEALTH + externalId stored; a same-batch repeat dedups", async () => {
+    // Dedup pre-check: nothing live for the batch's UUIDs.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce(
+      [] as never,
+    );
+    // 14:00 Berlin — off-band, so the take records standalone (ad-hoc).
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValueOnce({
+      id: "row-apple",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-apple",
+            takenAt: "2026-06-15T12:00:00.000Z",
+            source: "APPLE_HEALTH",
+            externalId: "hk-dose-2",
+          },
+          // The same dose event repeated inside ONE batch (a client-side
+          // pagination overlap) — must dedup in-memory, not double-insert.
+          {
+            medicationId: "med-apple",
+            takenAt: "2026-06-15T12:00:00.000Z",
+            source: "APPLE_HEALTH",
+            externalId: "hk-dose-2",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        inserted: number;
+        duplicates: number;
+        entries: Array<{ status: string; id?: string }>;
+      };
+    };
+    expect(body.data.inserted).toBe(1);
+    expect(body.data.duplicates).toBe(1);
+    expect(body.data.entries[0].status).toBe("inserted");
+    expect(body.data.entries[1].status).toBe("duplicate");
+    expect(body.data.entries[1].id).toBe("row-apple");
+    expect(prisma.medicationIntakeEvent.create).toHaveBeenCalledTimes(1);
+    expect(prisma.medicationIntakeEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          source: "APPLE_HEALTH",
+          externalId: "hk-dose-2",
+          takenAt: new Date("2026-06-15T12:00:00.000Z"),
+        }),
+      }),
+    );
+  });
+
+  it("stamps the externalId onto the pending slot row when the Apple dose converges by band", async () => {
+    // Dedup pre-check first (empty), then the canonical-slot find returns
+    // the worker-minted pending REMINDER row for the 19:00 slot.
+    vi.mocked(prisma.medicationIntakeEvent.findMany)
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValueOnce([
+        {
+          id: "row-evening",
+          takenAt: null,
+          skipped: false,
+          idempotencyKey: null,
+          scheduledFor: new Date("2026-06-15T17:00:00Z"),
+          source: "REMINDER",
+          createdAt: new Date("2026-06-15T00:00:00Z"),
+        },
+      ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
+      id: "row-evening",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-apple",
+            takenAt: "2026-06-15T17:30:00.000Z",
+            source: "APPLE_HEALTH",
+            externalId: "hk-dose-3",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { updated: number; entries: Array<{ status: string }> };
+    };
+    expect(body.data.updated).toBe(1);
+    expect(body.data.entries[0].status).toBe("updated");
+    expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "row-evening" },
+        data: expect.objectContaining({ externalId: "hk-dose-3" }),
+      }),
+    );
+  });
+
+  it("keeps a source-less entry byte-identical to today: source API, no externalId column", async () => {
+    // No entry carries an externalId, so the dedup pre-check must not
+    // fire a findMany at all — the hot path pays zero extra reads.
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValueOnce({
+      id: "row-adhoc",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-apple",
+            takenAt: "2026-06-15T12:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { inserted: number; entries: Array<{ status: string }> };
+    };
+    expect(body.data.inserted).toBe(1);
+    expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
+    const createArgs = vi.mocked(prisma.medicationIntakeEvent.create).mock
+      .calls[0][0] as { data: Record<string, unknown> };
+    expect(createArgs.data.source).toBe("API");
+    expect("externalId" in createArgs.data).toBe(false);
+  });
+});

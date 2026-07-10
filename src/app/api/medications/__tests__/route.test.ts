@@ -8,6 +8,8 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     medication: {
       findMany: vi.fn().mockResolvedValue([]),
+      // v1.28 — the Apple-mirror idempotency pre-query.
+      findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn(),
     },
     medicationIntakeEvent: {
@@ -495,5 +497,136 @@ describe("POST /api/medications — as-needed (v1.16.11, #316)", () => {
     expect(body.details.issues.some((i) => i.path.includes("schedules"))).toBe(
       true,
     );
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.28 — Apple Health mirrored medications (#423)
+// ────────────────────────────────────────────────────────────────────
+
+describe("POST /api/medications — Apple Health mirror (v1.28)", () => {
+  const MIRROR_BODY = {
+    name: "Ramipril",
+    dose: "5 mg",
+    externalSource: "APPLE_HEALTH",
+    externalId: "hk-concept-1",
+    schedules: [{ windowStart: "08:00", windowEnd: "09:00" }],
+  };
+
+  function lastCreateData(): Record<string, unknown> {
+    const calls = vi.mocked(prisma.medication.create).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    return (calls[calls.length - 1][0] as { data: Record<string, unknown> })
+      .data;
+  }
+
+  it("persists externalSource + externalId field-by-field on create", async () => {
+    vi.mocked(prisma.medication.findFirst).mockResolvedValue(null as never);
+    const res = await POST(postReq(MIRROR_BODY));
+    expect(res.status).toBe(201);
+    const data = lastCreateData();
+    expect(data.externalSource).toBe("APPLE_HEALTH");
+    expect(data.externalId).toBe("hk-concept-1");
+    // The pre-query probed the mirror triple, user-scoped.
+    expect(prisma.medication.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user-1",
+          externalSource: "APPLE_HEALTH",
+          externalId: "hk-concept-1",
+        },
+      }),
+    );
+  });
+
+  it("returns the EXISTING medication (200) on a re-post of the same triple — no duplicate row", async () => {
+    vi.mocked(prisma.medication.findFirst).mockResolvedValue({
+      id: "med-existing",
+      userId: "user-1",
+      name: "Ramipril",
+      dose: "5 mg",
+      unitsPerDose: 1,
+      externalSource: "APPLE_HEALTH",
+      externalId: "hk-concept-1",
+      schedules: [],
+    } as never);
+
+    const res = await POST(postReq(MIRROR_BODY));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { id: string; externalId: string; category: string };
+    };
+    expect(body.data.id).toBe("med-existing");
+    expect(body.data.externalId).toBe("hk-concept-1");
+    expect(body.data.category).toBe("OTHER");
+    // Idempotent replay: nothing written.
+    expect(prisma.medication.create).not.toHaveBeenCalled();
+  });
+
+  it("resolves a concurrent P2002 race on the mirror triple to the winning row (200)", async () => {
+    // Pre-query misses; the create then loses the race against a
+    // concurrent mirror of the same concept id.
+    vi.mocked(prisma.medication.findFirst)
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValueOnce({
+        id: "med-winner",
+        userId: "user-1",
+        name: "Ramipril",
+        dose: "5 mg",
+        unitsPerDose: 1,
+        externalSource: "APPLE_HEALTH",
+        externalId: "hk-concept-1",
+        schedules: [],
+      } as never);
+    vi.mocked(prisma.medication.create).mockRejectedValueOnce(
+      Object.assign(new Error("unique"), { code: "P2002" }),
+    );
+
+    const res = await POST(postReq(MIRROR_BODY));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { id: string } };
+    expect(body.data.id).toBe("med-winner");
+  });
+
+  it("422s when externalSource is supplied without externalId", async () => {
+    const res = await POST(postReq({ ...MIRROR_BODY, externalId: undefined }));
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      details: { issues: Array<{ path: string; message: string }> };
+    };
+    expect(
+      body.details.issues.some((i) =>
+        i.message.includes("must be supplied together"),
+      ),
+    ).toBe(true);
+    expect(prisma.medication.create).not.toHaveBeenCalled();
+  });
+
+  it("422s when externalId is supplied without externalSource", async () => {
+    const res = await POST(
+      postReq({ ...MIRROR_BODY, externalSource: undefined }),
+    );
+    expect(res.status).toBe(422);
+    expect(prisma.medication.create).not.toHaveBeenCalled();
+  });
+
+  it("422s on a non-Apple externalSource value (server-owned sources stay closed)", async () => {
+    const res = await POST(postReq({ ...MIRROR_BODY, externalSource: "WEB" }));
+    expect(res.status).toBe(422);
+    expect(prisma.medication.create).not.toHaveBeenCalled();
+  });
+
+  it("a plain create keeps today's behavior — no external columns forwarded", async () => {
+    const res = await POST(
+      postReq({
+        name: "Ramipril",
+        dose: "5 mg",
+        schedules: [{ windowStart: "08:00", windowEnd: "09:00" }],
+      }),
+    );
+    expect(res.status).toBe(201);
+    const data = lastCreateData();
+    expect("externalSource" in data).toBe(false);
+    expect("externalId" in data).toBe(false);
   });
 });

@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [1.28.23] — 2026-07-11 — Sleep disagreement visible on the dashboard; Apple Health medication groundwork
+
+When two sources disagree about last night's sleep — a sleep mat's time in bed
+against a watch's time asleep — the dashboard sleep tile now carries a small
+marker next to the value. The tooltip names each source and its total, so a
+surprising number explains itself instead of silently picking a side. The same
+marker backs the sleep panel; the shown total is unchanged either way.
+
+Groundwork for importing medications and their taken doses from Apple Health
+(iOS 26+): the server now accepts medications mirrored from an external source
+and dose events carrying a stable external identity, imported idempotently —
+re-syncs never duplicate. A mirrored medication is source-exclusive, so an
+imported dose can never double-count against a manually logged one. The
+matching client support arrives with a future app update.
+
+Hardening: the doctor-report aggregation and PDF charts now compute their
+ranges with loops instead of spread calls, so a report over a sample-dense year
+(per-beat heart rate, sensor glucose) cannot overflow the call stack — the same
+failure class fixed for the Google Health full sync.
+
 ## [1.28.22] — 2026-07-10 — Full sync survives dense histories; quieter document chrome
 
 A full Google Health sync no longer fails on sample-dense accounts. Collecting

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Activity } from "lucide-react";
 
 import { TrendCard } from "../trend-card";
+import { SleepSourceDiscrepancyMarker } from "@/components/insights/sleep-source-discrepancy-marker";
 import { I18nProvider } from "@/lib/i18n/context";
 
 /**
@@ -207,6 +208,52 @@ describe("<TrendCard> value is never truncated", () => {
     // The unit text renders in full in the markup; the truncate is a
     // density safeguard that only engages when the column is too narrow.
     expect(html).toContain("mL/(kg·min)");
+  });
+});
+
+describe("<TrendCard> valueAdornment slot", () => {
+  // v1.28.x — the dashboard sleep tile passes the discreet source-
+  // discrepancy marker into the value row when the server flagged two
+  // writers with clearly different totals for the latest night.
+  const baseProps = {
+    label: "Sleep",
+    latest: 10.25,
+    unit: "h",
+    avg7: 7.5,
+    avg30: 7.4,
+    slope30: null,
+    icon: Activity,
+  };
+
+  it("renders the sleep source-discrepancy marker next to the value when present", () => {
+    const html = render(
+      <TrendCard
+        {...baseProps}
+        valueAdornment={
+          <SleepSourceDiscrepancyMarker
+            discrepancy={{
+              deltaMinutes: 160,
+              sources: [
+                { source: "WITHINGS", deviceType: null, asleepMinutes: 615 },
+                {
+                  source: "APPLE_HEALTH",
+                  deviceType: null,
+                  asleepMinutes: 455,
+                },
+              ],
+            }}
+          />
+        }
+      />,
+    );
+    expect(html).toContain('data-slot="trend-card-value-adornment"');
+    expect(html).toContain('data-slot="sleep-source-discrepancy"');
+  });
+
+  it("renders no adornment slot when the annotation is absent", () => {
+    const html = render(<TrendCard {...baseProps} />);
+    expect(html).not.toContain('data-slot="trend-card-value-adornment"');
+    expect(html).not.toContain('data-slot="sleep-source-discrepancy"');
   });
 });
 

@@ -850,6 +850,25 @@ export const dashboardSnapshotResponse = z
           }),
         ),
       }),
+      // v1.28.x — additive: source-discrepancy annotation for the latest
+      // night behind `summaries.SLEEP_DURATION.latest`. Same shape as the
+      // per-session `sourceDiscrepancy` on the sleep-night resource.
+      sleepSourceDiscrepancy: z
+        .object({
+          deltaMinutes: z.number().int().nonnegative(),
+          sources: z.array(
+            z.object({
+              source: z.string(),
+              deviceType: z.string().nullable(),
+              asleepMinutes: z.number().int().nonnegative(),
+            }),
+          ),
+        })
+        .nullable()
+        .optional()
+        .describe(
+          "Non-null when two writer buckets reported clearly different asleep totals for the latest night's main session (> 45 min apart and > 20% of the larger total). Observational only — the served summary stays the winning writer's totals; clients may show a discreet 'sources disagree' hint next to the sleep tile's headline. Null when the writers agree or the sleep module is off; optional for older cached snapshots.",
+        ),
     }),
     extras: z
       .object({

@@ -442,7 +442,9 @@ export function collapseMeasurementsToCanonical<T extends CanonicalCollapseRow>(
         ? null
         : metricKeyForType(type as MeasurementType);
     if (!metricKey) {
-      out.push(...rows);
+      // Loop, not `push(...rows)` — a sample-dense type's window rows run to
+      // six figures and a spread call overflows the stack (v1.28.22 class).
+      for (const r of rows) out.push(r);
       continue;
     }
     const { canonicalRows } = pickCanonicalSourceRows(
@@ -457,9 +459,26 @@ export function collapseMeasurementsToCanonical<T extends CanonicalCollapseRow>(
     // `pickCanonicalSourceRows` returns the spread copies; re-key back to the
     // original rows by reference identity is unnecessary because the spread
     // preserves every field the caller reads (value / measuredAt / type).
-    out.push(...(canonicalRows as unknown as T[]));
+    for (const r of canonicalRows as unknown as T[]) out.push(r);
   }
   return out;
+}
+
+/**
+ * Loop-based min/max over a value array. NEVER `Math.min(...values)` here: the
+ * report window's per-type rows are raw measurements, and a sample-dense type
+ * (per-sample heart rate, CGM glucose) runs to six figures over a year — a
+ * spread call overflows the stack exactly on the heaviest accounts (the same
+ * failure class as the Google Health fullSync tracker, fixed v1.28.22).
+ */
+function minMaxOf(values: readonly number[]): { min: number; max: number } {
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return { min, max };
 }
 
 /**
@@ -491,8 +510,8 @@ export function summariseCanonicalRecovery(
     type: "RECOVERY_SCORE",
     latest: Math.round(latestRow.value),
     avg: Math.round(values.reduce((a, b) => a + b, 0) / values.length),
-    min: Math.round(Math.min(...values)),
-    max: Math.round(Math.max(...values)),
+    min: Math.round(minMaxOf(values).min),
+    max: Math.round(minMaxOf(values).max),
     count: values.length,
     latestAt: latestRow.measuredAt.toISOString(),
   };
@@ -1025,8 +1044,7 @@ export async function collectDoctorReportData(
     const values = entries.map((e) => e.value);
     stats[type] = {
       avg: values.reduce((a, b) => a + b, 0) / values.length,
-      min: Math.min(...values),
-      max: Math.max(...values),
+      ...minMaxOf(values),
       count: values.length,
       latest: values[values.length - 1],
     };
@@ -1164,8 +1182,8 @@ export async function collectDoctorReportData(
     moodScores.length > 0
       ? {
           avg: moodScores.reduce((a, b) => a + b, 0) / moodScores.length,
-          min: Math.min(...moodScores),
-          max: Math.max(...moodScores),
+          min: minMaxOf(moodScores).min,
+          max: minMaxOf(moodScores).max,
           count: moodScores.length,
           distribution: {
             1: moodScores.filter((s) => s === 1).length,
@@ -1207,8 +1225,7 @@ export async function collectDoctorReportData(
     const values = rows.map((r) => r.value);
     glucoseStats[ctx] = {
       avg: values.reduce((a, b) => a + b, 0) / values.length,
-      min: Math.min(...values),
-      max: Math.max(...values),
+      ...minMaxOf(values),
       count: values.length,
       latest: values[values.length - 1],
     };

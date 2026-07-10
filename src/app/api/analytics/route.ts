@@ -485,6 +485,11 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     correlations,
     healthScore,
     sleepStages,
+    // v1.28.x — the latest night's source-discrepancy annotation, computed
+    // inside the slim slice's per-night post-pass. Additive: the dashboard
+    // sleep tile marks the headline with a discreet "sources disagree"
+    // hint; clients that don't read the field stay unchanged.
+    sleepSourceDiscrepancy: slim.sleepSourceDiscrepancy,
     // v1.4.34 IW-B — per-type freshness map drives the dashboard's
     // staleness caption on each `<TrendCard>`. Additive: clients that
     // don't read the field stay unchanged.

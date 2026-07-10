@@ -55,6 +55,7 @@ import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
 import { RecentWorkoutsTile } from "@/components/dashboard/recent-workouts-tile";
+import { SleepSourceDiscrepancyMarker } from "@/components/insights/sleep-source-discrepancy-marker";
 import { VorsorgeDashboardCard } from "@/components/measurement-reminders/vorsorge-dashboard-card";
 
 // v1.4.40 W-RSC — module-scope so the option object is stable across
@@ -221,6 +222,10 @@ export default function DashboardPageClient() {
       return {
         summaries: snap.tiles.summaries,
         lastSeenByType: snap.tiles.lastSeenByType,
+        // v1.28.x — latest-night source-discrepancy annotation for the
+        // sleep tile's discreet "sources disagree" marker. Optional on
+        // the snapshot (additive contract), so `?? null` here.
+        sleepSourceDiscrepancy: snap.tiles.sleepSourceDiscrepancy ?? null,
         bpInTargetPct: snap.extras?.bpInTargetPct ?? null,
         bpInTargetPct7d: snap.extras?.bpInTargetPct7d ?? null,
         bpInTargetPct30d: snap.extras?.bpInTargetPct30d ?? null,
@@ -250,6 +255,7 @@ export default function DashboardPageClient() {
     return {
       summaries: merged.summaries,
       lastSeenByType: merged.lastSeenByType,
+      sleepSourceDiscrepancy: merged.sleepSourceDiscrepancy,
       bpInTargetPct: merged.bpInTargetPct,
       bpInTargetPct7d: merged.bpInTargetPct7d,
       bpInTargetPct30d: merged.bpInTargetPct30d,
@@ -978,6 +984,18 @@ export default function DashboardPageClient() {
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(sleepSummaryHours)}
                 staleDays={tileStaleDays("SLEEP_DURATION")}
+                // v1.28.x — discreet "sources disagree" marker next to the
+                // headline when two writers reported clearly different
+                // totals for the latest night (server-computed,
+                // observational; same marker as the hypnogram). Null on
+                // the ordinary path → no layout change.
+                valueAdornment={
+                  data?.sleepSourceDiscrepancy ? (
+                    <SleepSourceDiscrepancyMarker
+                      discrepancy={data.sleepSourceDiscrepancy}
+                    />
+                  ) : null
+                }
               />
             ),
           });

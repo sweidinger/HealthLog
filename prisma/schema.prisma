@@ -2231,6 +2231,20 @@ model Medication {
   /// `notificationPrefs.medication.reorderLeadDays` default. Additive; no
   /// backfill.
   reorderLeadDays               Int?                   @map("reorder_lead_days")
+  /// v1.28 — provenance of a MIRRORED medication. Non-NULL marks this row a
+  /// read-only mirror of an external medication list (today only
+  /// APPLE_HEALTH — the iOS 26+ HealthKit Medications sync). Source-
+  /// exclusive by policy: dose events from that source attach only to
+  /// medications mirrored from it, and the app's own dose-logging UI is
+  /// expected to stay off a mirrored medication client-side. NULL = a
+  /// native HealthLog medication.
+  externalSource                IntakeSource?          @map("external_source")
+  /// v1.28 — stable external identifier of the mirrored medication (the
+  /// HealthKit `medicationConceptIdentifier`). Paired with `externalSource`
+  /// (both set or both NULL; the create route enforces the pairing). Drives
+  /// the idempotent re-mirror on `POST /api/medications` via the
+  /// `(userId, externalSource, externalId)` unique below.
+  externalId                    String?                @map("external_id")
   createdAt                     DateTime               @default(now()) @map("created_at")
   updatedAt                     DateTime               @updatedAt @map("updated_at")
 
@@ -2276,6 +2290,13 @@ model Medication {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// v1.28 — one mirror row per external medication concept per user
+  /// (migration 0239). Postgres treats NULLs as distinct in unique
+  /// indexes, so the vast majority of rows (both columns NULL) are
+  /// unaffected; only genuinely mirrored medications occupy a slot. A
+  /// re-mirror of the same concept id returns the existing row (the
+  /// create route pre-queries the triple and catches the P2002 race).
+  @@unique([userId, externalSource, externalId])
   @@index([userId])
   @@index([treatmentClass])
   @@map("medications")
@@ -2488,6 +2509,11 @@ enum IntakeSource {
   API
   REMINDER
   IMPORT
+  /// v1.28 — Apple Health medication sync (iOS 26+ HealthKit Medications
+  /// API). Spelled exactly like `MeasurementSource.APPLE_HEALTH`; the iOS
+  /// DTO mirrors this wire spelling. Doubles as the provenance label on
+  /// `Medication.externalSource` for mirrored medications.
+  APPLE_HEALTH
 
   @@map("intake_source")
 }
@@ -2589,6 +2615,13 @@ model MedicationIntakeEvent {
   /// stamp freezes history: editing `Medication.unitsPerDose` later
   /// never changes what an already-taken dose consumed.
   inventoryConsumption Json?                   @map("inventory_consumption")
+  /// v1.28 — external dose-event identifier (the HealthKit
+  /// `HKMedicationDoseEvent` UUID). Drives idempotent re-import on the
+  /// bulk intake route: a re-synced Apple dose dedups against the live
+  /// `(userId, externalId)` unique below instead of inserting again
+  /// (first-write-wins per external dose event). NULL for every
+  /// non-mirrored row.
+  externalId           String?                 @map("external_id")
   // v1.7.0 sync — server-set mutation timestamp. The model had no
   // `updatedAt`; the offline-sync keyset feed orders on it, so it is
   // added here. `@updatedAt` makes Prisma maintain it on every write.
@@ -2624,6 +2657,16 @@ model MedicationIntakeEvent {
   /// full `@@unique` for the `userId_medicationId_scheduledFor_source`
   /// compound where-key.
   @@unique([userId, medicationId, scheduledFor, source])
+  /// v1.28 — `medication_intake_events_user_external_id_live_key` is a
+  /// partial UNIQUE index over `(user_id, external_id) WHERE external_id
+  /// IS NOT NULL AND deleted_at IS NULL` — see migration 0239. The bulk
+  /// intake route pre-checks the batch's externalIds and reports replays
+  /// as duplicates; the index is the race backstop (a concurrent insert
+  /// surfaces P2002, which the route resolves to the winning row). Prisma
+  /// can't express a partial-predicate unique (same as the live-row slot
+  /// unique above, migration 0121), so the schema keeps the full
+  /// `@@unique` for the `userId_externalId` compound where-key.
+  @@unique([userId, externalId])
   @@index([userId, medicationId, scheduledFor])
   // v1.7.0 sync — keyset support for the `/api/sync/changes` intake feed
   // (`where userId` ordered by `(updatedAt asc, id asc)`).

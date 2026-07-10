@@ -1188,3 +1188,67 @@ describe("source discrepancy annotation", () => {
     });
   });
 });
+
+describe("night-level source discrepancy (dashboard path)", () => {
+  // Same fixture as the session-level suite: granular Apple (455 asleep)
+  // next to a bare Withings aggregate claiming 615 for the same overnight
+  // session.
+  const discrepantOvernight: SleepStageRow[] = [
+    srcRow("2026-06-04T00:30:00.000Z", "CORE", 300, "APPLE_HEALTH"),
+    srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "APPLE_HEALTH"),
+    srcRow("2026-06-04T05:00:00.000Z", "REM", 65, "APPLE_HEALTH"),
+    srcRow("2026-06-04T05:30:00.000Z", "ASLEEP", 615, "WITHINGS"),
+  ];
+
+  it("carries the main session's annotation on the night without changing the served total", () => {
+    const nights = reconstructSleepNights(discrepantOvernight, "UTC");
+    expect(nights).toHaveLength(1);
+    // The served total stays the winning writer's number — the annotation
+    // observes, the writer collapse decides.
+    expect(nights[0].asleepMinutes).toBe(455);
+    expect(nights[0].sourceDiscrepancy).toEqual({
+      deltaMinutes: 160,
+      sources: [
+        { source: "WITHINGS", deviceType: null, asleepMinutes: 615 },
+        { source: "APPLE_HEALTH", deviceType: null, asleepMinutes: 455 },
+      ],
+    });
+    // The dashboard reads the night through `summarizeSleepNights`.
+    const { latestNight } = summarizeSleepNights(discrepantOvernight, "UTC");
+    expect(latestNight?.asleepMinutes).toBe(455);
+    expect(latestNight?.sourceDiscrepancy).toEqual(nights[0].sourceDiscrepancy);
+  });
+
+  it("ignores a nap-only disagreement — sessions never cross-compare", () => {
+    // Clean single-writer overnight (455 asleep), then a same-wake-day nap
+    // (> 3 h gap) where two writers clearly disagree (120 vs 200 → delta 80
+    // > 45 min and > 20 % of 200). The nap's session-level annotation must
+    // NOT leak onto the night: the night's marker reflects the MAIN
+    // (overnight) session only.
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T00:30:00.000Z", "CORE", 300, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "APPLE_HEALTH"),
+      srcRow("2026-06-04T05:00:00.000Z", "REM", 65, "APPLE_HEALTH"),
+      srcRow("2026-06-04T15:00:00.000Z", "CORE", 120, "APPLE_HEALTH"),
+      srcRow("2026-06-04T15:00:00.000Z", "ASLEEP", 200, "WITHINGS"),
+    ];
+    // Sanity: the nap session itself IS flagged at session level.
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(2);
+    expect(sessions[1].sourceDiscrepancy).not.toBeNull();
+
+    const { latestNight } = summarizeSleepNights(rows, "UTC");
+    expect(latestNight?.night).toBe("2026-06-04");
+    // Overnight (455) outweighs the nap (120) → main session is clean.
+    expect(latestNight?.sourceDiscrepancy).toBeNull();
+  });
+
+  it("stays null for a single-writer night", () => {
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T00:30:00.000Z", "CORE", 300, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "APPLE_HEALTH"),
+    ];
+    const { latestNight } = summarizeSleepNights(rows, "UTC");
+    expect(latestNight?.sourceDiscrepancy).toBeNull();
+  });
+});
