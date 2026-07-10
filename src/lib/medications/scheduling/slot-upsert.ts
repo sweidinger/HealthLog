@@ -57,9 +57,10 @@ export interface ApplyCanonicalSlotWriteInput {
    * Source to stamp on a freshly-created slot row. `REMINDER` is the
    * Telegram-webhook path — its take / skip confirmations converge onto
    * the worker-minted pending row like every other write, and a fresh
-   * create keeps the historical reminder provenance.
+   * create keeps the historical reminder provenance. `APPLE_HEALTH`
+   * (v1.28) is the bulk route's HealthKit dose-event import.
    */
-  createSource: "WEB" | "API" | "REMINDER";
+  createSource: "WEB" | "API" | "REMINDER" | "APPLE_HEALTH";
   /**
    * v1.8.5 — resolved + server-validated injection site to persist on a
    * taken write. `null` = no site (the column stays / is set NULL). Only
@@ -84,6 +85,16 @@ export interface ApplyCanonicalSlotWriteInput {
    * a recorded dose away.
    */
   doseTaken?: string | null;
+  /**
+   * v1.28 — external dose-event identifier (HealthKit
+   * `HKMedicationDoseEvent` UUID) to persist on the row. `null` / omitted
+   * = no external id (the column stays untouched on an update, NULL on a
+   * create). Like `injectionSite` / `doseTaken`, a write that carries no
+   * id never clears a previously-recorded one. The bulk route dedups the
+   * batch against the live `(userId, externalId)` unique before the
+   * upsert, so a carried id is trusted fresh here.
+   */
+  externalId?: string | null;
 }
 
 export interface ApplyCanonicalSlotWriteResult {
@@ -228,6 +239,7 @@ export async function applyCanonicalSlotWrite(
     injectionSite = null,
     attributionSource,
     doseTaken = null,
+    externalId = null,
   } = input;
 
   const rows = await findSlotRows(client, userId, medicationId, canonicalSlot);
@@ -260,6 +272,8 @@ export async function applyCanonicalSlotWrite(
         ...(attributionSource !== undefined && { attributionSource }),
         // v1.16.4 — dose override only when the write carries one.
         ...(doseTaken !== null && { doseTaken }),
+        // v1.28 — external dose-event id only when the write carries one.
+        ...(externalId !== null && { externalId }),
       },
       select: SLOT_ROW_SELECT,
     })) as SlotIntakeRow;
@@ -307,6 +321,7 @@ async function applyToExisting(
     injectionSite = null,
     attributionSource,
     doseTaken = null,
+    externalId = null,
   } = input;
 
   const existingActioned = existing.takenAt !== null || existing.skipped;
@@ -357,6 +372,10 @@ async function applyToExisting(
       // v1.16.4 — dose override only when this write carries one; never
       // clear a previously-recorded override with a null re-post.
       ...(doseTaken !== null && { doseTaken }),
+      // v1.28 — external dose-event id only when this write carries one
+      // (an Apple dose converging onto a pre-minted pending slot row);
+      // never clears a previously-recorded id.
+      ...(externalId !== null && { externalId }),
     },
     select: SLOT_ROW_SELECT,
   })) as SlotIntakeRow;

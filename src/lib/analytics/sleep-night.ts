@@ -276,6 +276,17 @@ export interface SleepNight {
   awakeMinutes: number | null;
   /** Per-stage minutes for the night (only stages the winning writer reported). */
   stages: Partial<Record<SleepStage, number>>;
+  /**
+   * Non-null when two writer buckets reported clearly different asleep
+   * totals for the night's MAIN session — the same-wake-day session with
+   * the most asleep minutes, normally the overnight block (see
+   * `sessionSourceDiscrepancy`). Sessions never cross-compare: a nap's
+   * writers are not measured against the overnight's. Observational only —
+   * the served `asleepMinutes` stays the winning writer's total; the
+   * annotation lets the UI mark the number with a discreet
+   * "sources disagree" hint.
+   */
+  sourceDiscrepancy: SleepSourceDiscrepancy | null;
 }
 
 /** Sentinel for rows that carry no source — collapses to one bucket. */
@@ -604,6 +615,15 @@ export function reconstructSleepNights(
     // edits.
     let latest = nightSessions[0].pool[0].measuredAt;
     const stages: Partial<Record<SleepStage, number>> = {};
+    // MAIN session of the night = most asleep minutes (same per-session
+    // asleep total the headline sums; tie → later wake instant, matching
+    // `pickMainNightAndNaps`). Its FULL raw row set (every writer,
+    // pre-collapse) feeds the night's source-discrepancy annotation —
+    // per session, so a nap's writers never cross-compare against the
+    // overnight block's.
+    let mainSessionRows: SleepStageRow[] | null = null;
+    let mainSessionAsleep = 0;
+    let mainSessionEnd = Number.NEGATIVE_INFINITY;
     for (const { pool: sessionRows, all } of nightSessions) {
       // In-bed: union envelope across ALL writers in the session (sessions
       // are > 3 h apart, so per-session envelopes never overlap and summing
@@ -620,10 +640,14 @@ export function reconstructSleepNights(
       const sawGranular = sawGranularStage(sessionRows);
       // Asleep total: sum per session so a granular overnight + a bare-only
       // nap both contribute (the merged-night nap under-count fix).
-      asleep += asleepMinutesOf(sessionRows);
+      const sessionAsleep = asleepMinutesOf(sessionRows);
+      asleep += sessionAsleep;
+      let sessionEnd = Number.NEGATIVE_INFINITY;
       for (const r of sessionRows) {
         const minutes = Number.isFinite(r.value) ? r.value : 0;
         if (r.measuredAt.getTime() > latest.getTime()) latest = r.measuredAt;
+        if (r.measuredAt.getTime() > sessionEnd)
+          sessionEnd = r.measuredAt.getTime();
         const stage = r.sleepStage;
         // Drop the redundant bare ASLEEP aggregate (and stage-less rows) from
         // the per-stage breakdown when this session has the granular partition,
@@ -637,6 +661,15 @@ export function reconstructSleepNights(
           sawAwake = true;
         }
       }
+      if (
+        sessionAsleep > 0 &&
+        (sessionAsleep > mainSessionAsleep ||
+          (sessionAsleep === mainSessionAsleep && sessionEnd > mainSessionEnd))
+      ) {
+        mainSessionAsleep = sessionAsleep;
+        mainSessionEnd = sessionEnd;
+        mainSessionRows = all;
+      }
     }
     nights.push({
       night,
@@ -645,6 +678,9 @@ export function reconstructSleepNights(
       inBedMinutes: sawInBed ? inBed : null,
       awakeMinutes: sawAwake ? awake : null,
       stages,
+      sourceDiscrepancy: mainSessionRows
+        ? sessionSourceDiscrepancy(mainSessionRows)
+        : null,
     });
   }
   return nights.sort((a, b) => (a.night < b.night ? -1 : 1));

@@ -401,9 +401,14 @@ function drawSparkline(
   doc.setTextColor(30, 30, 30);
   doc.text(label, x, y + labelHeight - 1.5);
 
-  const values = points.map((p) => p.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  // Loop, not `Math.min(...values)` — chart points can be sample-grain on
+  // dense accounts and a spread call overflows the stack (v1.28.22 class).
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const p of points) {
+    if (p.value < min) min = p.value;
+    if (p.value > max) max = p.value;
+  }
   const range = max - min || 1;
 
   const chartTop = y + labelHeight;

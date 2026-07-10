@@ -30,6 +30,7 @@
  * have caught the empty-object short-circuit bug.
  */
 import type { DataSummary } from "@/lib/analytics/trends";
+import type { SleepSourceDiscrepancy } from "@/lib/analytics/sleep-night";
 
 export interface AnalyticsSlimLike {
   summaries?: Record<string, DataSummary> | null;
@@ -37,6 +38,12 @@ export interface AnalyticsSlimLike {
     string,
     { lastSeenAt: string; daysAgo: number } | null
   > | null;
+  /**
+   * v1.28.x — latest-night source-discrepancy annotation, carried by
+   * both slices (the slim post-pass computes it; the thick body passes
+   * it through). Additive and null-safe.
+   */
+  sleepSourceDiscrepancy?: SleepSourceDiscrepancy | null;
 }
 
 export interface AnalyticsThickLike extends AnalyticsSlimLike {
@@ -64,6 +71,7 @@ export interface MergedDashboardAnalytics {
   bpInTargetCount90: number | null;
   bpInTargetSpanDays90: number | null;
   glucoseByContext: Record<string, unknown> | undefined;
+  sleepSourceDiscrepancy: SleepSourceDiscrepancy | null;
 }
 
 function hasContent(
@@ -117,5 +125,13 @@ export function mergeSlimAndThickAnalytics(
     bpInTargetCount90: thick?.bpInTargetCount90 ?? null,
     bpInTargetSpanDays90: thick?.bpInTargetSpanDays90 ?? null,
     glucoseByContext: thick?.glucoseByContext ?? undefined,
+    // Rides the same discriminator as `summaries`: whichever slice
+    // supplied the summaries also supplies the sleep annotation, so the
+    // marker can never point at a night the rendered headline doesn't
+    // show. `?? null` tolerates older cached payloads without the field.
+    sleepSourceDiscrepancy:
+      (slimSummariesHaveContent
+        ? slim!.sleepSourceDiscrepancy
+        : thick?.sleepSourceDiscrepancy) ?? null,
   };
 }

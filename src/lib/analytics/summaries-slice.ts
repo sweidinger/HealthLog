@@ -82,6 +82,7 @@ import {
 import { readBestGranularityRollups } from "@/lib/rollups/measurement-read-wmy";
 import {
   summarizeSleepNights,
+  type SleepSourceDiscrepancy,
   type SleepStageRow,
 } from "@/lib/analytics/sleep-night";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
@@ -247,6 +248,17 @@ export interface SummariesSlice {
     string,
     { lastSeenAt: string; daysAgo: number } | null
   >;
+  /**
+   * v1.28.x — source-discrepancy annotation for the LATEST night's main
+   * session (see `SleepNight.sourceDiscrepancy`): non-null when two writer
+   * buckets reported clearly different asleep totals for the night behind
+   * `summaries.SLEEP_DURATION.latest`. Observational only — the served
+   * summary stays the winning writer's totals; the dashboard sleep tile
+   * marks the number with a discreet "sources disagree" hint. Minutes are
+   * whole (rounded), matching the `/api/sleep/night` serialisation.
+   * Additive on the wire; every consumer must tolerate `null`.
+   */
+  sleepSourceDiscrepancy: SleepSourceDiscrepancy | null;
 }
 
 export async function computeSummariesSlice(
@@ -362,12 +374,25 @@ async function withSleepNightTotals(
     resolveUserTimezone(userId),
     loadUserSourcePriority(userId),
   ]);
-  const { summary } = summarizeSleepNights(rows, tz, priorityJson);
+  const { summary, latestNight } = summarizeSleepNights(rows, tz, priorityJson);
   // Preserve the slope tuples the night summary doesn't compute (the
   // dashboard tile reads slope30); recompute them off the night series is
   // out of scope here — the per-night `summarize()` already fills slope7 /
   // slope30 / slope90 from the night DataPoints, so use them directly.
   slice.summaries.SLEEP_DURATION = summary;
+  // Additive, observational: the latest night's main session saw two
+  // writer buckets with clearly different asleep totals. Round to whole
+  // minutes, matching the `/api/sleep/night` serialisation.
+  slice.sleepSourceDiscrepancy = latestNight?.sourceDiscrepancy
+    ? {
+        deltaMinutes: Math.round(latestNight.sourceDiscrepancy.deltaMinutes),
+        sources: latestNight.sourceDiscrepancy.sources.map((b) => ({
+          source: b.source,
+          deviceType: b.deviceType,
+          asleepMinutes: Math.round(b.asleepMinutes),
+        })),
+      }
+    : null;
   return slice;
 }
 
@@ -693,7 +718,7 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
     },
   });
 
-  return { summaries, bmi: null, lastSeenByType };
+  return { summaries, bmi: null, lastSeenByType, sleepSourceDiscrepancy: null };
 }
 
 /**
@@ -938,7 +963,7 @@ async function computeFromLiveAggregate(
     },
   });
 
-  return { summaries, bmi: null, lastSeenByType };
+  return { summaries, bmi: null, lastSeenByType, sleepSourceDiscrepancy: null };
 }
 
 /**

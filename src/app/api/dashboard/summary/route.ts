@@ -60,6 +60,7 @@ import { buildMedsTodayBlock } from "@/lib/dashboard/meds-today";
 import {
   summarizeSleepNights,
   reconstructSleepNights,
+  type SleepSourceDiscrepancy,
   type SleepStageRow,
 } from "@/lib/analytics/sleep-night";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
@@ -130,6 +131,16 @@ interface MetricCard {
    * headline `latestValue`.
    */
   sleepStages: Partial<Record<SleepStage, number>> | null;
+  /**
+   * v1.28.x — source-discrepancy annotation for the headline night's MAIN
+   * session, sleep tile only; `null` for every other kind and for a night
+   * whose writers agree. Additive (the established wire pattern for the
+   * iOS-locked shape): observational only — `latestValue` stays the
+   * winning writer's total; clients render a discreet "sources disagree"
+   * hint next to the number. Minutes are whole (rounded), matching the
+   * `/api/sleep/night` serialisation.
+   */
+  sleepSourceDiscrepancy: SleepSourceDiscrepancy | null;
   trend: "up" | "down" | "flat" | "unknown";
   sparkline: number[];
   updatedAt: string | null;
@@ -707,6 +718,7 @@ async function buildDashboardSummary(
       unitKey: METRIC_UNIT_KEYS.weight,
       unit: null,
       sleepStages: null,
+      sleepSourceDiscrepancy: null,
       trend: trendOf(spark),
       sparkline: spark,
       updatedAt: latest?.at?.toISOString() ?? meta.lastSeenAt,
@@ -747,6 +759,7 @@ async function buildDashboardSummary(
         unitKey: METRIC_UNIT_KEYS.bloodPressure,
         unit: null,
         sleepStages: null,
+        sleepSourceDiscrepancy: null,
         trend: trendOf(sysSpark),
         sparkline: sysSpark,
         updatedAt:
@@ -776,6 +789,7 @@ async function buildDashboardSummary(
         unitKey: METRIC_UNIT_KEYS.pulse,
         unit: null,
         sleepStages: null,
+        sleepSourceDiscrepancy: null,
         trend: trendOf(spark),
         sparkline: spark,
         updatedAt: latest?.at?.toISOString() ?? meta.lastSeenAt,
@@ -803,6 +817,7 @@ async function buildDashboardSummary(
         unitKey: METRIC_UNIT_KEYS.bodyFat,
         unit: null,
         sleepStages: null,
+        sleepSourceDiscrepancy: null,
         trend: trendOf(spark),
         sparkline: spark,
         updatedAt: latest?.at.toISOString() ?? meta.lastSeenAt,
@@ -862,6 +877,19 @@ async function buildDashboardSummary(
         unit: "h",
         sleepStages:
           stageHours && Object.keys(stageHours).length > 0 ? stageHours : null,
+        // Additive, observational: the headline night's MAIN session saw
+        // two writer buckets with clearly different asleep totals. Round
+        // to whole minutes, matching the `/api/sleep/night` serialisation.
+        sleepSourceDiscrepancy: night?.sourceDiscrepancy
+          ? {
+              deltaMinutes: Math.round(night.sourceDiscrepancy.deltaMinutes),
+              sources: night.sourceDiscrepancy.sources.map((b) => ({
+                source: b.source,
+                deviceType: b.deviceType,
+                asleepMinutes: Math.round(b.asleepMinutes),
+              })),
+            }
+          : null,
         trend: trendOf(nightSpark),
         sparkline: nightSpark,
         updatedAt: night?.measuredAt.toISOString() ?? meta.lastSeenAt,
@@ -881,6 +909,7 @@ async function buildDashboardSummary(
       unitKey: METRIC_UNIT_KEYS[kind],
       unit: null,
       sleepStages: null,
+      sleepSourceDiscrepancy: null,
       trend: trendOf(spark),
       sparkline: spark,
       updatedAt: latest?.at.toISOString() ?? meta.lastSeenAt,

@@ -99,6 +99,14 @@ interface TrendCardProps {
    * height.
    */
   emptyHint?: string | null;
+  /**
+   * v1.28.x — optional adornment rendered directly after the unit in the
+   * value row (before the trend-arrow slot). The dashboard sleep tile
+   * passes the discreet source-discrepancy marker here so the hint sits
+   * next to the number it annotates. Absent → the row renders exactly as
+   * before (no reserved space, no layout shift).
+   */
+  valueAdornment?: React.ReactNode;
 }
 
 export function TrendCard({
@@ -120,6 +128,7 @@ export function TrendCard({
   compareDelta = null,
   staleDays = null,
   emptyHint = null,
+  valueAdornment = null,
 }: TrendCardProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -274,6 +283,18 @@ export function TrendCard({
             <span className="text-muted-foreground min-w-0 truncate text-sm tabular-nums">
               {unit}
             </span>
+            {/* v1.28.x — optional inline adornment (e.g. the sleep tile's
+                source-discrepancy marker). `self-center` keeps the icon
+                vertically centred in the row without disturbing the
+                baseline alignment of the value + unit pair. */}
+            {valueAdornment != null ? (
+              <span
+                className="inline-flex shrink-0 self-center"
+                data-slot="trend-card-value-adornment"
+              >
+                {valueAdornment}
+              </span>
+            ) : null}
           </>
         )}
         <span

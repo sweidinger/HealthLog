@@ -572,6 +572,14 @@ describe("GET /api/dashboard/summary", () => {
           latestValue: number | null;
           unit: string | null;
           sleepStages: Record<string, number> | null;
+          sleepSourceDiscrepancy: {
+            deltaMinutes: number;
+            sources: Array<{
+              source: string;
+              deviceType: string | null;
+              asleepMinutes: number;
+            }>;
+          } | null;
         }>;
       };
     };
@@ -585,6 +593,82 @@ describe("GET /api/dashboard/summary", () => {
     expect(sleep?.sleepStages?.CORE).toBeCloseTo(4, 2);
     expect(sleep?.sleepStages?.DEEP).toBeCloseTo(1.5, 2);
     expect(sleep?.sleepStages?.REM).toBeCloseTo(80 / 60, 2);
+    // v1.28.x — the additive discrepancy field is present and null-safe:
+    // source-less single-writer rows carry no annotation.
+    expect(sleep?.sleepSourceDiscrepancy).toBeNull();
+    // Every non-sleep kind pins the additive field to null.
+    for (const m of body.data.metrics) {
+      if (m.id !== "sleep") expect(m.sleepSourceDiscrepancy).toBeNull();
+    }
+  });
+
+  it("carries the latest night's source-discrepancy annotation on the sleep tile (v1.28.x)", async () => {
+    // Two writers disagree on the night: granular Apple (410 asleep) next
+    // to a bare Withings aggregate claiming 615. Apple wins the served
+    // total; the additive annotation surfaces the disagreement.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const wake = new Date("2026-06-04T06:00:00.000Z");
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([
+      {
+        type: "SLEEP_DURATION",
+        _count: { _all: 4 },
+        _max: { measuredAt: wake },
+      },
+    ] as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        value: 240,
+        measuredAt: new Date("2026-06-04T00:00:00.000Z"),
+        sleepStage: "CORE",
+        source: "APPLE_HEALTH",
+      },
+      {
+        value: 90,
+        measuredAt: new Date("2026-06-04T02:00:00.000Z"),
+        sleepStage: "DEEP",
+        source: "APPLE_HEALTH",
+      },
+      {
+        value: 80,
+        measuredAt: new Date("2026-06-04T04:00:00.000Z"),
+        sleepStage: "REM",
+        source: "APPLE_HEALTH",
+      },
+      {
+        value: 615,
+        measuredAt: wake,
+        sleepStage: "ASLEEP",
+        source: "WITHINGS",
+      },
+    ] as never);
+    const res = await callGet(makeReq());
+    const body = (await res.json()) as {
+      data: {
+        metrics: Array<{
+          id: string;
+          latestValue: number | null;
+          sleepSourceDiscrepancy: {
+            deltaMinutes: number;
+            sources: Array<{
+              source: string;
+              deviceType: string | null;
+              asleepMinutes: number;
+            }>;
+          } | null;
+        }>;
+      };
+    };
+    const sleep = body.data.metrics.find((m) => m.id === "sleep");
+    expect(sleep, "sleep tile must be emitted").toBeDefined();
+    // Served total stays the winning writer's number (410 min → 6.83 h).
+    expect(sleep?.latestValue).toBeCloseTo(410 / 60, 2);
+    expect(sleep?.sleepSourceDiscrepancy).toEqual({
+      deltaMinutes: 205,
+      sources: [
+        { source: "WITHINGS", deviceType: null, asleepMinutes: 615 },
+        { source: "APPLE_HEALTH", deviceType: null, asleepMinutes: 410 },
+      ],
+    });
   });
 
   it("emits the sleep-rhythm DTO (sleep-debt + chronotype) computed from the foundation modules (v1.17.0)", async () => {

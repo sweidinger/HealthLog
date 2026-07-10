@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.22
+  version: 1.28.23
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -10895,6 +10895,20 @@ components:
               maxLength: 20
               pattern: ^\d+$
             - type: "null"
+        externalSource:
+          description: "Marks the medication as MIRRORED from an external medication list. Only `APPLE_HEALTH` (the iOS 26+
+            HealthKit Medications sync) is accepted. Must be supplied together with `externalId`. A mirrored medication
+            is source-exclusive: dose events from that source attach only to it, and the app's own dose-logging UI stays
+            off it."
+          type: string
+          const: APPLE_HEALTH
+        externalId:
+          description: "Stable external identifier of the mirrored medication (the HealthKit `medicationConceptIdentifier`, max
+            128 chars). Must be supplied together with `externalSource`. Idempotent: re-posting the same pair returns
+            the existing medication with status 200 instead of minting a duplicate."
+          type: string
+          minLength: 1
+          maxLength: 128
         startsOn:
           description: Date the medication course begins (ISO `YYYY-MM-DD`). Anchors RRULE BYDAY / BYMONTHDAY patterns and the
             rolling-interval countdown's first window. NULL = active from creation (the legacy implicit behaviour).
@@ -10936,7 +10950,9 @@ components:
         schedule with no `rrule`, `rollingIntervalDays`, or legacy `daysOfWeek` defaults to `rrule = "FREQ=DAILY"`; and
         `timesOfDay` is dual-written from `windowStart` when the caller omits it. v1.16.11 — `asNeeded: true` creates a
         PRN medication with ZERO schedules (`schedules` must be absent or empty, 422 otherwise); a scheduled medication
-        still requires at least one schedule entry.'
+        still requires at least one schedule entry. v1.28 — `externalSource` + `externalId` (both-or-neither) mark the
+        medication as mirrored from Apple Health; re-posting the same pair is idempotent and returns the existing
+        medication with status 200.'
     MedicationScheduleInput:
       type: object
       properties:
@@ -22621,6 +22637,44 @@ components:
                 - summary
                 - entries
               additionalProperties: false
+            sleepSourceDiscrepancy:
+              description: Non-null when two writer buckets reported clearly different asleep totals for the latest night's main
+                session (> 45 min apart and > 20% of the larger total). Observational only — the served summary stays
+                the winning writer's totals; clients may show a discreet 'sources disagree' hint next to the sleep
+                tile's headline. Null when the writers agree or the sleep module is off; optional for older cached
+                snapshots.
+              anyOf:
+                - type: object
+                  properties:
+                    deltaMinutes:
+                      type: integer
+                      minimum: 0
+                      maximum: 9007199254740991
+                    sources:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          source:
+                            type: string
+                          deviceType:
+                            anyOf:
+                              - type: string
+                              - type: "null"
+                          asleepMinutes:
+                            type: integer
+                            minimum: 0
+                            maximum: 9007199254740991
+                        required:
+                          - source
+                          - deviceType
+                          - asleepMinutes
+                        additionalProperties: false
+                  required:
+                    - deltaMinutes
+                    - sources
+                  additionalProperties: false
+                - type: "null"
           required:
             - summaries
             - lastSeenByType

@@ -34,6 +34,7 @@
  * shape loses it.
  */
 import type { DataSummary } from "@/lib/analytics/trends";
+import type { SleepSourceDiscrepancy } from "@/lib/analytics/sleep-night";
 import type { CorrelationResult } from "@/lib/insights/correlations";
 
 /** Shape consumed by every `/insights/<metric>/page.tsx`. */
@@ -107,6 +108,17 @@ export interface DashboardAnalyticsData {
     string,
     { lastSeenAt: string; daysAgo: number } | null
   >;
+  /**
+   * v1.28.x — source-discrepancy annotation for the latest night behind
+   * `summaries.SLEEP_DURATION.latest` (carried by both the slim
+   * `?slice=summaries` branch and the thick slice; the dashboard snapshot
+   * mirrors it under `tiles.sleepSourceDiscrepancy`). Non-null when two
+   * writer buckets reported clearly different asleep totals for that
+   * night's main session; the sleep tile marks the headline with a
+   * discreet "sources disagree" hint. Additive — absent/null keeps the
+   * tile rendering exactly as before.
+   */
+  sleepSourceDiscrepancy?: SleepSourceDiscrepancy | null;
 }
 
 /**

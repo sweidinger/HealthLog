@@ -162,6 +162,33 @@ export const createMedicationSchema = z
     atcCode: atcCodeField,
     /** v1.9.0 — optional RxNorm RxCUI (secondary, US). */
     rxNormCode: rxNormCodeField,
+    /**
+     * v1.28 — mirrored-medication provenance. Only APPLE_HEALTH is
+     * accepted here (the iOS 26+ HealthKit Medications sync); the other
+     * IntakeSource values stay server-owned. Both-or-neither with
+     * `externalId` (refine below).
+     */
+    externalSource: z
+      .literal("APPLE_HEALTH")
+      .optional()
+      .describe(
+        "Marks the medication as MIRRORED from an external medication list. Only `APPLE_HEALTH` (the iOS 26+ HealthKit Medications sync) is accepted. Must be supplied together with `externalId`. A mirrored medication is source-exclusive: dose events from that source attach only to it, and the app's own dose-logging UI stays off it.",
+      ),
+    /**
+     * v1.28 — the source's stable concept identifier (HealthKit
+     * `medicationConceptIdentifier`). Re-posting the same
+     * `(externalSource, externalId)` pair returns the existing
+     * medication (200) instead of creating a duplicate.
+     */
+    externalId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(128)
+      .optional()
+      .describe(
+        "Stable external identifier of the mirrored medication (the HealthKit `medicationConceptIdentifier`, max 128 chars). Must be supplied together with `externalSource`. Idempotent: re-posting the same pair returns the existing medication with status 200 instead of minting a duplicate.",
+      ),
     ...courseWindowFields,
     /**
      * v1.16.11 — optional at the type level so an `asNeeded: true`
@@ -170,6 +197,15 @@ export const createMedicationSchema = z
      */
     schedules: z.array(scheduleSchema).optional(),
   })
+  .refine(
+    // v1.28 — mirrored-medication provenance is a pair: a source without
+    // its concept id (or vice versa) can neither dedup nor mirror.
+    (b) => (b.externalSource === undefined) === (b.externalId === undefined),
+    {
+      message: "externalSource and externalId must be supplied together",
+      path: ["externalId"],
+    },
+  )
   .refine((b) => b.oneShot !== true || !!b.startsOn, {
     message: "startsOn is required when oneShot is true",
     path: ["startsOn"],
@@ -203,7 +239,7 @@ export const createMedicationSchema = z
   .meta({
     id: "CreateMedicationRequest",
     description:
-      'Create-medication body. The route enforces the v1.5 cross-field invariants on top of the per-schedule `rrule_xor_rolling` Zod refine: a `oneShot:true` medication may carry at most one schedule and that schedule must not declare a recurrence; `endsOn` is normalised to equal `startsOn` for one-shot doses; a recurring schedule with no `rrule`, `rollingIntervalDays`, or legacy `daysOfWeek` defaults to `rrule = "FREQ=DAILY"`; and `timesOfDay` is dual-written from `windowStart` when the caller omits it. v1.16.11 — `asNeeded: true` creates a PRN medication with ZERO schedules (`schedules` must be absent or empty, 422 otherwise); a scheduled medication still requires at least one schedule entry.',
+      'Create-medication body. The route enforces the v1.5 cross-field invariants on top of the per-schedule `rrule_xor_rolling` Zod refine: a `oneShot:true` medication may carry at most one schedule and that schedule must not declare a recurrence; `endsOn` is normalised to equal `startsOn` for one-shot doses; a recurring schedule with no `rrule`, `rollingIntervalDays`, or legacy `daysOfWeek` defaults to `rrule = "FREQ=DAILY"`; and `timesOfDay` is dual-written from `windowStart` when the caller omits it. v1.16.11 — `asNeeded: true` creates a PRN medication with ZERO schedules (`schedules` must be absent or empty, 422 otherwise); a scheduled medication still requires at least one schedule entry. v1.28 — `externalSource` + `externalId` (both-or-neither) mark the medication as mirrored from Apple Health; re-posting the same pair is idempotent and returns the existing medication with status 200.',
   });
 
 export const updateMedicationSchema = z

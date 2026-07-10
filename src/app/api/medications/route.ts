@@ -280,6 +280,43 @@ export const GET = apiHandler(async () => {
   return apiSuccess(result);
 });
 
+/**
+ * v1.28 — idempotent response for a re-mirrored medication. The create
+ * route returns the EXISTING row (status 200, vs 201 for a fresh create)
+ * when the caller re-posts a `(externalSource, externalId)` pair this
+ * user already mirrors — the iOS re-sync replays its full HealthKit
+ * medication list, and a replay must neither duplicate nor 500. Response
+ * shape mirrors the fresh-create envelope (schedules included, category
+ * joined, Decimal unwrapped); no audit row and no cache eviction because
+ * nothing was written.
+ */
+async function respondWithExistingMirror(
+  medication: Record<string, unknown> & { id: string; unitsPerDose: unknown },
+): Promise<Response> {
+  let category = "OTHER";
+  try {
+    const categories = await getMedicationCategories([medication.id]);
+    category = categories[medication.id] ?? "OTHER";
+  } catch {
+    getEvent()?.addWarning("Medication categories could not be loaded");
+  }
+
+  annotate({
+    action: {
+      name: "medication.create",
+      entity_type: "medication",
+      entity_id: medication.id,
+    },
+    meta: { idempotent_replay: true },
+  });
+
+  return apiSuccess({
+    ...medication,
+    unitsPerDose: Number(medication.unitsPerDose),
+    category,
+  });
+}
+
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
@@ -310,12 +347,31 @@ export const POST = apiHandler(async (request: NextRequest) => {
     criticalAlarmEnabled,
     atcCode,
     rxNormCode,
+    externalSource,
+    externalId,
     schedules,
     startsOn,
     endsOn,
     oneShot,
     asNeeded,
   } = parsed.data;
+
+  // v1.28 — idempotent mirror create. A mirrored medication (Apple
+  // Health) is keyed by the `(userId, externalSource, externalId)`
+  // unique; a re-post of the same concept id (iOS re-sync, retry after a
+  // dropped response) returns the EXISTING medication with 200 instead
+  // of minting a duplicate or 500-ing on P2002. The pre-query covers the
+  // common replay; the P2002 catch around the create below covers the
+  // concurrent race.
+  if (externalSource !== undefined && externalId !== undefined) {
+    const existing = await prisma.medication.findFirst({
+      where: { userId: user.id, externalSource, externalId },
+      include: { schedules: true },
+    });
+    if (existing) {
+      return respondWithExistingMirror(existing);
+    }
+  }
 
   // ── v1.5 route invariants for the new scheduling primitives ───────
   //
@@ -367,106 +423,138 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const normalisedEndsOn =
     oneShot === true && startsOn ? startsOn : (endsOn ?? undefined);
 
-  const medication = await prisma.medication.create({
-    data: {
-      userId: user.id,
-      name,
-      dose,
-      // v1.4.25 W4d — treatmentClass + dosesPerUnit are optional in the
-      // wire schema; Prisma fills the default GENERIC when omitted.
-      ...(treatmentClass !== undefined && { treatmentClass }),
-      ...(dosesPerUnit !== undefined && { dosesPerUnit }),
-      // v1.16.10 — units consumed per dose; Prisma defaults to 1 when omitted.
-      ...(unitsPerDose !== undefined && { unitsPerDose }),
-      // v1.17.0 — optional reorder lead override; null/omitted = inherit
-      // the user-level default in the low-stock alert.
-      ...(reorderLeadDays !== undefined && { reorderLeadDays }),
-      // v1.6.0 — route of administration; Prisma defaults to ORAL when omitted.
-      ...(deliveryForm !== undefined && { deliveryForm }),
-      // v1.8.5 — injection-site tracking opt-in + per-medication allowed
-      // sites; Prisma defaults to false / [] when omitted.
-      ...(trackInjectionSites !== undefined && { trackInjectionSites }),
-      ...(allowedInjectionSites !== undefined && { allowedInjectionSites }),
-      // v1.7.0 — iOS reminder flags; Prisma defaults both to false.
-      ...(liveActivityEnabled !== undefined && { liveActivityEnabled }),
-      ...(criticalAlarmEnabled !== undefined && { criticalAlarmEnabled }),
-      // v1.9.0 — optional drug-classification codes (ATC / RxNorm).
-      // Validated for format by Zod; stored verbatim when present.
-      ...(atcCode !== undefined && { atcCode }),
-      ...(rxNormCode !== undefined && { rxNormCode }),
-      // v1.5 — wizard's reminders toggle now ships through the create
-      // payload (was orphaned in the initial diff). Prisma defaults to
-      // true when omitted, matching the legacy form's behaviour.
-      ...(notificationsEnabled !== undefined && { notificationsEnabled }),
-      // v1.5 scheduling primitives — pass-through when supplied.
-      ...(startsOn !== undefined && { startsOn }),
-      ...(normalisedEndsOn !== undefined && { endsOn: normalisedEndsOn }),
-      ...(oneShot !== undefined && { oneShot }),
-      // v1.16.11 — as-needed flag, field-by-field. An asNeeded create
-      // carries an empty `scheduleInputs`, so the nested create below
-      // persists zero schedule rows.
-      ...(asNeeded !== undefined && { asNeeded }),
-      schedules: {
-        create: scheduleInputs.map((s) => {
-          // Invariant 2 — default to FREQ=DAILY when nothing else is set.
-          // v1.7.0 — PRN schedules carry no cadence, so never default
-          // them to FREQ=DAILY (they would otherwise project + remind).
-          const hasLegacyDays = (s.daysOfWeek?.length ?? 0) > 0;
-          const isPrn = s.scheduleType === "PRN";
-          const defaultedRrule =
-            !oneShot &&
-            !isPrn &&
-            s.rrule === undefined &&
-            s.rollingIntervalDays === undefined &&
-            !hasLegacyDays
-              ? "FREQ=DAILY"
-              : s.rrule;
+  const createMedication = () =>
+    prisma.medication.create({
+      data: {
+        userId: user.id,
+        name,
+        dose,
+        // v1.4.25 W4d — treatmentClass + dosesPerUnit are optional in the
+        // wire schema; Prisma fills the default GENERIC when omitted.
+        ...(treatmentClass !== undefined && { treatmentClass }),
+        ...(dosesPerUnit !== undefined && { dosesPerUnit }),
+        // v1.16.10 — units consumed per dose; Prisma defaults to 1 when omitted.
+        ...(unitsPerDose !== undefined && { unitsPerDose }),
+        // v1.17.0 — optional reorder lead override; null/omitted = inherit
+        // the user-level default in the low-stock alert.
+        ...(reorderLeadDays !== undefined && { reorderLeadDays }),
+        // v1.6.0 — route of administration; Prisma defaults to ORAL when omitted.
+        ...(deliveryForm !== undefined && { deliveryForm }),
+        // v1.8.5 — injection-site tracking opt-in + per-medication allowed
+        // sites; Prisma defaults to false / [] when omitted.
+        ...(trackInjectionSites !== undefined && { trackInjectionSites }),
+        ...(allowedInjectionSites !== undefined && { allowedInjectionSites }),
+        // v1.7.0 — iOS reminder flags; Prisma defaults both to false.
+        ...(liveActivityEnabled !== undefined && { liveActivityEnabled }),
+        ...(criticalAlarmEnabled !== undefined && { criticalAlarmEnabled }),
+        // v1.9.0 — optional drug-classification codes (ATC / RxNorm).
+        // Validated for format by Zod; stored verbatim when present.
+        ...(atcCode !== undefined && { atcCode }),
+        ...(rxNormCode !== undefined && { rxNormCode }),
+        // v1.28 — mirrored-medication provenance (Apple Health). Zod
+        // enforces the both-or-neither pairing; field-by-field like every
+        // other column.
+        ...(externalSource !== undefined && { externalSource }),
+        ...(externalId !== undefined && { externalId }),
+        // v1.5 — wizard's reminders toggle now ships through the create
+        // payload (was orphaned in the initial diff). Prisma defaults to
+        // true when omitted, matching the legacy form's behaviour.
+        ...(notificationsEnabled !== undefined && { notificationsEnabled }),
+        // v1.5 scheduling primitives — pass-through when supplied.
+        ...(startsOn !== undefined && { startsOn }),
+        ...(normalisedEndsOn !== undefined && { endsOn: normalisedEndsOn }),
+        ...(oneShot !== undefined && { oneShot }),
+        // v1.16.11 — as-needed flag, field-by-field. An asNeeded create
+        // carries an empty `scheduleInputs`, so the nested create below
+        // persists zero schedule rows.
+        ...(asNeeded !== undefined && { asNeeded }),
+        schedules: {
+          create: scheduleInputs.map((s) => {
+            // Invariant 2 — default to FREQ=DAILY when nothing else is set.
+            // v1.7.0 — PRN schedules carry no cadence, so never default
+            // them to FREQ=DAILY (they would otherwise project + remind).
+            const hasLegacyDays = (s.daysOfWeek?.length ?? 0) > 0;
+            const isPrn = s.scheduleType === "PRN";
+            const defaultedRrule =
+              !oneShot &&
+              !isPrn &&
+              s.rrule === undefined &&
+              s.rollingIntervalDays === undefined &&
+              !hasLegacyDays
+                ? "FREQ=DAILY"
+                : s.rrule;
 
-          // Invariant 3 — dual-write `timesOfDay` from windowStart when
-          // the legacy-shape iOS client doesn't send the new field.
-          const effectiveTimesOfDay =
-            s.timesOfDay && s.timesOfDay.length > 0
-              ? s.timesOfDay
-              : [s.windowStart];
+            // Invariant 3 — dual-write `timesOfDay` from windowStart when
+            // the legacy-shape iOS client doesn't send the new field.
+            const effectiveTimesOfDay =
+              s.timesOfDay && s.timesOfDay.length > 0
+                ? s.timesOfDay
+                : [s.windowStart];
 
-          return {
-            windowStart: s.windowStart,
-            windowEnd: s.windowEnd,
-            label: s.label ?? null,
-            dose: s.dose ?? null,
-            daysOfWeek: serializeScheduleRecurrence({
-              daysOfWeek: s.daysOfWeek ?? [],
-              intervalWeeks: s.intervalWeeks ?? 1,
-            }),
-            // v1.5 first-class times-of-day.
-            timesOfDay: effectiveTimesOfDay,
-            ...(s.reminderGraceMinutes !== undefined && {
-              reminderGraceMinutes: s.reminderGraceMinutes,
-            }),
-            ...(defaultedRrule !== undefined && { rrule: defaultedRrule }),
-            ...(s.rollingIntervalDays !== undefined && {
-              rollingIntervalDays: s.rollingIntervalDays,
-            }),
-            // v1.7.0 — schedule type + cyclic weeks, field-by-field.
-            ...(s.scheduleType !== undefined && {
-              scheduleType: s.scheduleType,
-            }),
-            ...(s.cyclicOnWeeks !== undefined && {
-              cyclicOnWeeks: s.cyclicOnWeeks,
-            }),
-            ...(s.cyclicOffWeeks !== undefined && {
-              cyclicOffWeeks: s.cyclicOffWeeks,
-            }),
-            // v1.15.18 — per-dose configurable on-time windows. Stored as the
-            // validated `{ timeOfDay, start, end }[]` JSON; absent leaves the
-            // column NULL (every slot on the default ±1h derivation).
-            ...(s.doseWindows !== undefined && { doseWindows: s.doseWindows }),
-          };
-        }),
+            return {
+              windowStart: s.windowStart,
+              windowEnd: s.windowEnd,
+              label: s.label ?? null,
+              dose: s.dose ?? null,
+              daysOfWeek: serializeScheduleRecurrence({
+                daysOfWeek: s.daysOfWeek ?? [],
+                intervalWeeks: s.intervalWeeks ?? 1,
+              }),
+              // v1.5 first-class times-of-day.
+              timesOfDay: effectiveTimesOfDay,
+              ...(s.reminderGraceMinutes !== undefined && {
+                reminderGraceMinutes: s.reminderGraceMinutes,
+              }),
+              ...(defaultedRrule !== undefined && { rrule: defaultedRrule }),
+              ...(s.rollingIntervalDays !== undefined && {
+                rollingIntervalDays: s.rollingIntervalDays,
+              }),
+              // v1.7.0 — schedule type + cyclic weeks, field-by-field.
+              ...(s.scheduleType !== undefined && {
+                scheduleType: s.scheduleType,
+              }),
+              ...(s.cyclicOnWeeks !== undefined && {
+                cyclicOnWeeks: s.cyclicOnWeeks,
+              }),
+              ...(s.cyclicOffWeeks !== undefined && {
+                cyclicOffWeeks: s.cyclicOffWeeks,
+              }),
+              // v1.15.18 — per-dose configurable on-time windows. Stored as the
+              // validated `{ timeOfDay, start, end }[]` JSON; absent leaves the
+              // column NULL (every slot on the default ±1h derivation).
+              ...(s.doseWindows !== undefined && {
+                doseWindows: s.doseWindows,
+              }),
+            };
+          }),
+        },
       },
-    },
-    include: { schedules: true },
-  });
+      include: { schedules: true },
+    });
+
+  let medication: Awaited<ReturnType<typeof createMedication>>;
+  try {
+    medication = await createMedication();
+  } catch (err: unknown) {
+    // v1.28 — P2002 on the mirror triple: a concurrent create of the
+    // same `(userId, externalSource, externalId)` won the race between
+    // the pre-query above and this insert. Resolve to the winning row
+    // and answer idempotently instead of 500-ing. Any other unique
+    // violation (there is none on this table today) rethrows.
+    const isP2002 =
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code: string }).code === "P2002";
+    if (isP2002 && externalSource !== undefined && externalId !== undefined) {
+      const winner = await prisma.medication.findFirst({
+        where: { userId: user.id, externalSource, externalId },
+        include: { schedules: true },
+      });
+      if (winner) return respondWithExistingMirror(winner);
+    }
+    throw err;
+  }
 
   const normalizedCategory = await setMedicationCategory(
     medication.id,

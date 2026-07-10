@@ -36,6 +36,7 @@
  */
 import type { PrismaClient, MeasurementType } from "@/generated/prisma/client";
 import { computeSummariesSlice } from "@/lib/analytics/summaries-slice";
+import type { SleepSourceDiscrepancy } from "@/lib/analytics/sleep-night";
 import { getUnitForType } from "@/lib/validations/measurement";
 import {
   summarize,
@@ -384,6 +385,13 @@ export interface DashboardSnapshot {
       summary: DataSummary | null;
       entries: DashboardSnapshotMoodEntry[];
     };
+    /**
+     * v1.28.x — source-discrepancy annotation for the latest night behind
+     * `summaries.SLEEP_DURATION.latest` (see `SummariesSlice`). Null when
+     * the writers agree or the sleep module is off. Optional on the type
+     * (additive contract) so older cached snapshots / fixtures stay valid.
+     */
+    sleepSourceDiscrepancy?: SleepSourceDiscrepancy | null;
   };
   /** Thick phase — null on a rollup-coverage miss. */
   extras: DashboardSnapshotExtras | null;
@@ -1233,6 +1241,10 @@ export async function buildDashboardSnapshot(
         summary: mood.entries.length > 0 ? mood.summary : null,
         entries: mood.entries,
       },
+      // v1.28.x — gated like the SLEEP_DURATION summary itself: a
+      // disabled sleep module carries no sleep annotation either.
+      sleepSourceDiscrepancy:
+        modules.sleep === false ? null : slimRaw.sleepSourceDiscrepancy,
     },
     extras: extrasResult?.extras ?? null,
     medsToday,
