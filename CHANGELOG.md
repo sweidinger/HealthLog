@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.28.16] — 2026-07-10 — Documents-only shares stay documents-only
+
+Hardens the "share a document, not the record" guarantee. A link created as
+documents-only now carries an explicit frozen flag, and the shared view reads
+that flag directly instead of inferring it from "are all report sections off?".
+The old inference would have re-opened an existing documents-only link the day a
+new report section was added — the link's frozen settings never mention the new
+section, so it would have defaulted on. The flag closes that path: a
+documents-only link can never begin serving health data later, whatever the
+report grows to include. Existing documents-only links are migrated to the flag.
+
 ## [1.28.15] — 2026-07-10 — Document thumbnails; admin-shared AI access
 
 The documents library now shows a thumbnail for each file — a small preview

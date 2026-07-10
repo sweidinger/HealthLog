@@ -95,10 +95,15 @@ export async function loadShareViewData(
   const sections = parseDoctorReportPrefs(context.sectionsJson);
   const range = frozenRange(context);
 
-  // A share with NO report section enabled is a documents-only share: never
-  // aggregate — no health metric is read from the DB, let alone served. This is
-  // the load-bearing guarantee behind "share this document, not the record".
-  const documentOnly = !hasAnyReportSection(sections);
+  // A documents-only share never aggregates — no health metric is read from the
+  // DB, let alone served. This is the load-bearing guarantee behind "share this
+  // document, not the record". v1.28.16: the frozen `documentOnly` COLUMN is
+  // authoritative; the derived all-sections-off check remains as the fallback
+  // for legacy links minted before the column (where it reads `false`). Because
+  // the column can only pin — never widen — this is strictly safer than the
+  // derived check alone: a future report section can never re-open a link the
+  // owner froze as documents-only.
+  const documentOnly = context.documentOnly || !hasAnyReportSection(sections);
 
   const [report, documents] = await Promise.all([
     documentOnly

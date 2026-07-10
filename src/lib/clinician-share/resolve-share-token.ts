@@ -52,6 +52,13 @@ export interface ShareContext {
   resourceTypes: string[];
   /** Whether the scoped FHIR API is reachable via this link at all. */
   allowFhirApi: boolean;
+  /**
+   * v1.28.16 — authoritative documents-only flag, frozen at create. When true
+   * the view loader serves ONLY documents and never aggregates a health report,
+   * regardless of `sectionsJson`. Legacy links minted before the column read
+   * `false` here and fall back to the derived all-sections-off check.
+   */
+  documentOnly: boolean;
   /** Absolute expiry instant. */
   expiresAt: Date;
 }
@@ -84,6 +91,7 @@ export async function resolveShareToken(
       sectionsJson: true,
       resourceTypes: true,
       allowFhirApi: true,
+      documentOnly: true,
       expiresAt: true,
       revokedAt: true,
     },
@@ -114,6 +122,7 @@ export async function resolveShareToken(
     sectionsJson: row.sectionsJson,
     resourceTypes: row.resourceTypes,
     allowFhirApi: row.allowFhirApi,
+    documentOnly: row.documentOnly,
     expiresAt: row.expiresAt,
   };
 }

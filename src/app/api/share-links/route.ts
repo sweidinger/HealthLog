@@ -67,6 +67,7 @@ const shareLinkSummarySelect = {
   rangeEnd: true,
   resourceTypes: true,
   allowFhirApi: true,
+  documentOnly: true,
   passphraseHash: true,
   expiresAt: true,
   createdAt: true,
@@ -84,6 +85,7 @@ function toSummary(row: {
   rangeEnd: Date | null;
   resourceTypes: string[];
   allowFhirApi: boolean;
+  documentOnly: boolean;
   passphraseHash: string | null;
   expiresAt: Date;
   createdAt: Date;
@@ -99,6 +101,9 @@ function toSummary(row: {
     rangeEnd: row.rangeEnd ? row.rangeEnd.toISOString() : null,
     resourceTypes: row.resourceTypes,
     allowFhirApi: row.allowFhirApi,
+    // v1.28.16 — the frozen documents-only flag (owner-facing; the serve path
+    // gates on the column, not on "are all sections off?").
+    documentOnly: row.documentOnly,
     // v1.18.7 — surface only WHETHER a passphrase guards the link, never the
     // hash itself. Legacy (null-hash) links read `false` and stay ungated.
     protected: row.passphraseHash !== null,
@@ -193,6 +198,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       sectionsJson: sectionsJson as Prisma.InputJsonValue,
       resourceTypes,
       allowFhirApi,
+      documentOnly,
       expiresAt: new Date(input.expiresAt),
       documents:
         documentIds.length > 0

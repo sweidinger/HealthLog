@@ -213,10 +213,50 @@ describe("loadShareViewData — documents-only share exposes no health data", ()
     // share), so the aggregator DOES run — the empty-scope short-circuit must
     // not swallow a normal record share.
     const { report, documentOnly } = await loadShareViewData(
-      ctx({ sectionsJson: {} }),
+      ctx({ sectionsJson: {}, documentOnly: false }),
     );
     expect(collect).toHaveBeenCalledTimes(1);
     expect(documentOnly).toBe(false);
     expect(report).not.toBeNull();
+  });
+});
+
+/**
+ * v1.28.16 — the frozen `documentOnly` COLUMN is authoritative. Once a link is
+ * created documents-only, it stays documents-only regardless of what the report
+ * sections resolve to — so a report section added to the prefs shape LATER can
+ * never re-open an existing documents-only link. The legacy fallback (derive
+ * from "all sections off") still holds for pre-column links where the flag is
+ * false.
+ */
+describe("loadShareViewData — documentOnly column is authoritative", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    collect.mockResolvedValue({ patient: { displayName: "Shared record" } });
+    findDocs.mockResolvedValue([]);
+  });
+
+  it("serves no report when the column is set, even if sections would aggregate", async () => {
+    // Sections that resolve to an ENABLED scope (defaults) — the derived check
+    // alone would run the aggregator. The frozen column must veto it. This is
+    // the exact future-leak the column closes: a new section defaulting on can
+    // no longer widen an old documents-only link.
+    const { report, documentOnly } = await loadShareViewData(
+      ctx({ sectionsJson: { bp: true }, documentOnly: true }),
+    );
+    expect(collect).not.toHaveBeenCalled();
+    expect(report).toBeNull();
+    expect(documentOnly).toBe(true);
+  });
+
+  it("falls back to the derived all-off check for a legacy link (column false)", async () => {
+    // A pre-column documents-only link reads `documentOnly:false` from the row
+    // but still has every section off — the derived fallback keeps it closed.
+    const { report, documentOnly } = await loadShareViewData(
+      ctx({ sectionsJson: EMPTY_DOCTOR_REPORT_PREFS, documentOnly: false }),
+    );
+    expect(collect).not.toHaveBeenCalled();
+    expect(report).toBeNull();
+    expect(documentOnly).toBe(true);
   });
 });

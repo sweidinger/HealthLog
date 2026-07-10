@@ -4947,6 +4947,15 @@ model ClinicianShareLink {
   resourceTypes String[]  @map("resource_types")
   /// Whether the FHIR API is reachable via this link at all (vs the view only).
   allowFhirApi  Boolean   @default(false) @map("allow_fhir_api")
+  /// v1.28.16 — the authoritative "documents-only" flag, frozen write-once at
+  /// create. When true the public view serves ONLY the attached documents and
+  /// the aggregator is never called, INDEPENDENT of `sectionsJson`. Decoupling
+  /// the guarantee from "are all section flags off?" means a future report
+  /// section added to the prefs shape can never silently re-open an old
+  /// documents-only link (the previous derived check would have leaked it once
+  /// the new key defaulted on). Legacy links (pre-column) keep the derived
+  /// all-off fallback in the view loader.
+  documentOnly  Boolean   @default(false) @map("document_only")
 
   /// REQUIRED — no never-expiring share (capped at `SHARE_LINK_MAX_DAYS`).
   expiresAt DateTime @map("expires_at")
