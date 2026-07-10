@@ -109,57 +109,58 @@ export function InstrumentCard({
         </PopoverContent>
       </Popover>
 
-      {/* Body is the detail target: clicking the header / last-result block
-          opens this instrument's detail (chart + dated history), like a
-          medication card. The Start button below stays a separate action.
-          The short instrument titles clear the top-right info control that
-          floats over the header's right padding. */}
+      {/* Only the HEADER region is the navigable open-target — mirrors the
+          medication card header (focus-visible ring only, NO hover background
+          wash, no whole-card click). The last-result block below is passive;
+          the Start button stays a separate action. The short instrument titles
+          clear the top-right info control that floats over the header's right
+          padding. */}
       <button
         type="button"
         onClick={onOpenDetail}
         data-slot="instrument-card-open"
         aria-label={`${title} — ${t("mentalHealth.openDetail")}`}
-        className="focus-visible:ring-ring/60 hover:bg-accent/40 flex cursor-pointer flex-col gap-3 rounded-t-xl text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        className="focus-visible:ring-ring block w-full rounded-t-xl text-left focus-visible:ring-2 focus-visible:outline-none"
       >
         <MedicationCardHeader
           name={title}
           dose=""
           categoryLabel={t(`mentalHealth.instrumentSub.${key}`)}
         />
-
-        {/* Label/value block in the Vorsorge card's next-last grammar. With
-            no history yet, one calm line replaces the pair — no dashes
-            pretending a value exists. */}
-        {last ? (
-          <div className="min-h-[2.75rem] w-full space-y-1.5 px-4 text-sm md:px-6">
-            <div className="text-muted-foreground flex items-baseline justify-between gap-3">
-              <span className="min-w-0 flex-shrink truncate font-medium">
-                {t("mentalHealth.lastResult")}
-              </span>
-              <span className="text-foreground text-right">
-                {relativeCalendarDate(last.takenAt, t, formatDate)}
-              </span>
-            </div>
-            <div className="text-muted-foreground flex items-baseline justify-between gap-3">
-              <span className="min-w-0 flex-shrink truncate font-medium">
-                {t("mentalHealth.lastScore")}
-              </span>
-              <span
-                className="text-foreground text-right"
-                data-slot="instrument-card-last-score"
-              >
-                {last.totalScore}
-                {" · "}
-                {t(`mentalHealth.band.${last.instrument}.${last.severityBand}`)}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="text-muted-foreground flex min-h-[2.75rem] items-center px-4 text-sm md:px-6">
-            {t("mentalHealth.noResultYet")}
-          </div>
-        )}
       </button>
+
+      {/* Label/value block in the Vorsorge card's next-last grammar. With
+          no history yet, one calm line replaces the pair — no dashes
+          pretending a value exists. */}
+      {last ? (
+        <div className="min-h-[2.75rem] w-full space-y-1.5 px-4 text-sm md:px-6">
+          <div className="text-muted-foreground flex items-baseline justify-between gap-3">
+            <span className="min-w-0 flex-shrink truncate font-medium">
+              {t("mentalHealth.lastResult")}
+            </span>
+            <span className="text-foreground text-right">
+              {relativeCalendarDate(last.takenAt, t, formatDate)}
+            </span>
+          </div>
+          <div className="text-muted-foreground flex items-baseline justify-between gap-3">
+            <span className="min-w-0 flex-shrink truncate font-medium">
+              {t("mentalHealth.lastScore")}
+            </span>
+            <span
+              className="text-foreground text-right"
+              data-slot="instrument-card-last-score"
+            >
+              {last.totalScore}
+              {" · "}
+              {t(`mentalHealth.band.${last.instrument}.${last.severityBand}`)}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="text-muted-foreground flex min-h-[2.75rem] items-center px-4 text-sm md:px-6">
+          {t("mentalHealth.noResultYet")}
+        </div>
+      )}
 
       <CardContent className="flex h-full flex-col">
         {/* Bottom-pinned single primary action — the med-/Vorsorge card slot.

@@ -15,7 +15,7 @@
  * whole card is clickable through an invisible overlay button; the checkbox
  * floats above it.
  */
-import { Download, X } from "lucide-react";
+import { Download, Sparkles, X } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-import type { InboundDocumentDto } from "@/lib/validations/inbound-documents";
+import {
+  isAiReadSource,
+  type InboundDocumentDto,
+} from "@/lib/validations/inbound-documents";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
 import type { UploadQueueItem } from "./use-document-upload";
 import { documentDateKey, formatBytes } from "./vault-utils";
@@ -84,6 +87,8 @@ export function DocumentCard({
   const size = formatBytes(document.byteSize, locale);
   const showFilename =
     document.filename !== null && document.filename !== title;
+  const aiRead =
+    document.hasContentIndex && isAiReadSource(document.contentIndexSource);
 
   return (
     <Card
@@ -126,7 +131,25 @@ export function DocumentCard({
               aria-hidden
             />
           )}
-          <p className="min-w-0 flex-1 truncate text-sm font-medium">{title}</p>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <p className="truncate text-sm font-medium">{title}</p>
+            <p className="text-muted-foreground truncate text-xs">
+              {date} · {size}
+              {showFilename ? ` · ${document.filename}` : ""}
+            </p>
+            {aiRead ? (
+              // Discreet AI-read indicator — same visual as the detail sheet's
+              // ContentSearchStatus ai-read pill (bg-primary/10 text-primary,
+              // Sparkles). Kept compact for the dense grid card.
+              <span
+                data-slot="document-card-ai-read"
+                className="bg-primary/10 text-primary mt-1 inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+              >
+                <Sparkles className="size-3 shrink-0" aria-hidden />
+                {t("documents.ai.statusAiRead")}
+              </span>
+            ) : null}
+          </div>
           <Checkbox
             checked={selected}
             // Explicit click handling instead of onCheckedChange: the mouse
@@ -145,10 +168,6 @@ export function DocumentCard({
             )}
           />
         </div>
-        <p className="text-muted-foreground truncate text-xs">
-          {date} · {size}
-          {showFilename ? ` · ${document.filename}` : ""}
-        </p>
         {document.conditionLinks.length > 0 ||
         document.servingClass === "attachment" ? (
           <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">

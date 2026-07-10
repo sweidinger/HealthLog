@@ -8317,15 +8317,14 @@
       "close": "Masquer"
     },
     "ai": {
-      "blockTitle": "Lire avec l’IA",
-      "read": "Lire avec l’IA",
-      "reread": "Relire",
-      "reading": "Lecture…",
       "statusAiRead": "Lu par l’IA",
       "statusSearchable": "Consultable",
       "statusIndexing": "Rendu consultable…",
       "statusNotYet": "Pas encore consultable",
-      "readDone": "L’IA a lu votre document."
+      "readDone": "L’IA a lu votre document.",
+      "read": "Lire avec l’IA",
+      "reread": "Relire",
+      "reading": "Lecture…"
     },
     "contentIndex": {
       "indexPrompt": "Rendre le contenu des documents consultable.",
@@ -8357,6 +8356,7 @@
       "errorConsent": "Activez le consentement à l'IA dans les paramètres pour discuter de ce document.",
       "errorNetwork": "Vous semblez hors ligne. Vérifiez votre connexion et réessayez.",
       "openAria": "Discuter de ce document",
+      "openButton": "Poser une question sur ce document",
       "scopeBadge": "Discussion sur : {title}"
     }
   },

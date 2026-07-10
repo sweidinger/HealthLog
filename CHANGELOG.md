@@ -2,7 +2,23 @@
 
 ## [Unreleased]
 
-## [1.28.18] — 2026-07-10 — Google Health sleep reads its true total
+## [1.28.19] — 2026-07-10 — Document and card polish
+
+Small refinements across a few surfaces.
+
+In the documents vault, each card now carries the date, size and an "read by AI"
+marker directly under the document's title, instead of the meta line sitting off
+under the thumbnail.
+
+The document view gets a larger, easier close button, drops a redundant top-right
+shortcut and the inline "read with AI" row under the preview, and gains a button
+to ask about the document right next to share and download.
+
+The mental-wellbeing cards no longer wash the whole tile on hover — only the
+title is the tap target now, matching how the medication cards behave.
+
+The medication API settings render inline instead of behind an expander that
+never had anything else beside it.
 
 Sleep imported from Google Health could read far too long — a night of about
 seven and a half hours showing as ten. Google re-scores a night after the fact,

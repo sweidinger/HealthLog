@@ -8317,15 +8317,14 @@
       "close": "Nascondi"
     },
     "ai": {
-      "blockTitle": "Leggi con l’IA",
-      "read": "Leggi con l’IA",
-      "reread": "Leggi di nuovo",
-      "reading": "Lettura…",
       "statusAiRead": "Letto dall’IA",
       "statusSearchable": "Ricercabile",
       "statusIndexing": "Rendo ricercabile…",
       "statusNotYet": "Non ancora ricercabile",
-      "readDone": "L’IA ha letto il tuo documento."
+      "readDone": "L’IA ha letto il tuo documento.",
+      "read": "Leggi con l’IA",
+      "reread": "Leggi di nuovo",
+      "reading": "Lettura…"
     },
     "contentIndex": {
       "indexPrompt": "Rendi ricercabile il contenuto dei documenti.",
@@ -8357,6 +8356,7 @@
       "errorConsent": "Attiva il consenso all'IA nelle impostazioni per chattare su questo documento.",
       "errorNetwork": "Sembri offline. Controlla la connessione e riprova.",
       "openAria": "Chatta su questo documento",
+      "openButton": "Fai una domanda su questo documento",
       "scopeBadge": "Stai chattando su: {title}"
     }
   },

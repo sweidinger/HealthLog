@@ -118,16 +118,11 @@ export function DocumentAiSection({
       data-slot="document-ai-section"
       className="border-border bg-muted/30 space-y-3 rounded-lg border p-3 md:p-4"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <WandSparkles
-            className="text-foreground size-5 shrink-0"
-            aria-hidden
-          />
-          <p className="text-sm font-semibold">
-            {t("documents.ai.blockTitle")}
-          </p>
-        </div>
+      {/* v1.28.19 — the "read with AI" block title + wand were redundant with
+          the read-provenance pill (auto-read already surfaces "read by AI"), so
+          only the provenance pill leads the block now. The pill itself stays —
+          it is the read-state contract the recipient/owner relies on. */}
+      <div className="flex items-center justify-end">
         <ContentSearchStatus
           hasContentIndex={hasContentIndex}
           source={contentIndexSource}
