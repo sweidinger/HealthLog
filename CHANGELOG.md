@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.28.24] — 2026-07-11 — A deleted Google reading no longer blocks its re-import
+
+A Google Health reading that had been soft-deleted could never be imported
+again: the sync treated the deleted row as absent and planned a fresh insert,
+but the database's uniqueness rule still saw the deleted row and silently
+dropped the insert — every sync, forever. A self-hoster's step days were stuck
+exactly this way. The sync now recognises the deleted row and revives it in
+place with the freshly fetched value: Google remains the source of truth for
+its own readings, so a re-import deliberately brings a deleted one back. To
+remove Google data permanently, disconnect the integration.
+
 ## [1.28.23] — 2026-07-11 — Sleep disagreement visible on the dashboard; Apple Health medication groundwork
 
 When two sources disagree about last night's sleep — a sleep mat's time in bed
