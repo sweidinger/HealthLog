@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.28.17] — 2026-07-10 — Dashboard edits stick; share scope honoured
+
+Fixes two bugs and hardens two edges.
+
+Dashboard layout changes now take effect immediately. Reordering or toggling
+tiles and pressing save could appear to revert to the previous selection for a
+few minutes: the saved layout was written correctly, but the home screen kept
+serving a cached snapshot that the save never evicted. The save now clears that
+snapshot, so the dashboard reflects the new layout on the next paint.
+
+A share link created with a narrowed set of report sections now serves exactly
+that set. Previously a link built with a reduced selection could fall back to the
+full default set of sections when viewed — the opposite of what the owner chose.
+The shared view now reads the frozen selection faithfully, so a section switched
+off stays off for the recipient. Documents-only shares were never affected.
+
+Hardening: the shared-document download path and the owner download path now use
+identical filename sanitising, and thumbnail generation enforces its size ceiling
+a second time after decoding, so a malformed image that slips past the up-front
+check still cannot exhaust memory.
+
 ## [1.28.16] — 2026-07-10 — Documents-only shares stay documents-only
 
 Hardens the "share a document, not the record" guarantee. A link created as

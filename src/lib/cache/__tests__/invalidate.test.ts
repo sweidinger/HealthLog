@@ -83,17 +83,25 @@ async function primeAllCaches(): Promise<void> {
   await cached(caches.dashboardWidgets, USER_B, async () => ({ d: 2 }));
 
   // v1.7.0 W6 — the unified dashboard snapshot lives under the analytics
-  // bucket keyed `${userId}|dashboard-snapshot`.
-  await cached(
-    caches.analytics,
-    dashboardSnapshotCacheKey(USER_A),
-    async () => ({ snap: 1 }),
-  );
-  await cached(
-    caches.analytics,
-    dashboardSnapshotCacheKey(USER_B),
-    async () => ({ snap: 2 }),
-  );
+  // bucket. Since v1.21.2 the real cell is keyed WITH the resolved locale
+  // (`${userId}|dashboard-snapshot|${locale}`) because the briefing prose is
+  // locale-specific. Seed the locale-suffixed cell (the production shape) so
+  // the snapshot invalidators are exercised against the key they must actually
+  // reach — a point-delete of the locale-less key silently misses it.
+  await cached(caches.analytics, snapshotCell(USER_A), async () => ({
+    snap: 1,
+  }));
+  await cached(caches.analytics, snapshotCell(USER_B), async () => ({
+    snap: 2,
+  }));
+}
+
+/**
+ * The real snapshot cache cell — the locale-less base key plus the resolved
+ * locale segment. The invalidators must sweep by prefix to reach it.
+ */
+function snapshotCell(userId: string, locale = "en"): string {
+  return `${dashboardSnapshotCacheKey(userId)}|${locale}`;
 }
 
 describe("invalidateUserMeasurements", () => {
@@ -104,15 +112,13 @@ describe("invalidateUserMeasurements", () => {
     expect(caches.analytics.get(`${USER_A}|default`)).toBeNull();
     expect(caches.analytics.get(`${USER_A}|summaries`)).toBeNull();
     // v1.7.0 W6 — the `${userId}|` prefix sweep covers the snapshot key.
-    expect(caches.analytics.get(dashboardSnapshotCacheKey(USER_A))).toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_A))).toBeNull();
     expect(caches.achievements.get(USER_A)).toBeNull();
     expect(caches.workouts.get(`${USER_A}|3|0||`)).toBeNull();
 
     // User B's caches untouched.
     expect(caches.analytics.get(`${USER_B}|default`)).not.toBeNull();
-    expect(
-      caches.analytics.get(dashboardSnapshotCacheKey(USER_B)),
-    ).not.toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_B))).not.toBeNull();
     expect(caches.achievements.get(USER_B)).not.toBeNull();
     expect(caches.workouts.get(`${USER_B}|3|0||`)).not.toBeNull();
 
@@ -132,9 +138,10 @@ describe("invalidateUserMeasurements", () => {
       value: { a: 1 },
       stale: true,
     });
-    expect(
-      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
-    ).toEqual({ value: { snap: 1 }, stale: true });
+    expect(caches.analytics.getAllowStale(snapshotCell(USER_A))).toEqual({
+      value: { snap: 1 },
+      stale: true,
+    });
   });
 
   it("hard-evicts the analytics bucket with { evict: true } — interactive write posture", async () => {
@@ -146,9 +153,7 @@ describe("invalidateUserMeasurements", () => {
     // back the pre-write payload. The evict drops the entries entirely.
     expect(caches.analytics.getAllowStale(`${USER_A}|default`)).toBeNull();
     expect(caches.analytics.getAllowStale(`${USER_A}|summaries`)).toBeNull();
-    expect(
-      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
-    ).toBeNull();
+    expect(caches.analytics.getAllowStale(snapshotCell(USER_A))).toBeNull();
 
     // User B stays warm; the non-analytics buckets evict as before.
     expect(caches.analytics.getAllowStale(`${USER_B}|default`)).not.toBeNull();
@@ -165,7 +170,7 @@ describe("invalidateUserMood", () => {
     expect(caches.moodAnalytics.get(USER_A)).toBeNull();
     expect(caches.achievements.get(USER_A)).toBeNull();
     expect(caches.analytics.get(`${USER_A}|default`)).toBeNull();
-    expect(caches.analytics.get(dashboardSnapshotCacheKey(USER_A))).toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_A))).toBeNull();
     expect(caches.moodAnalytics.get(USER_B)).not.toBeNull();
     expect(caches.analytics.get(`${USER_B}|default`)).not.toBeNull();
 
@@ -195,7 +200,7 @@ describe("invalidateUserMedications", () => {
     expect(caches.achievements.get(USER_A)).toBeNull();
     // v1.7.0 W6 — medication writes sweep the analytics bucket, which
     // covers the snapshot key.
-    expect(caches.analytics.get(dashboardSnapshotCacheKey(USER_A))).toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_A))).toBeNull();
     expect(caches.medications.get(USER_B)).not.toBeNull();
     expect(
       caches.medicationsIntake.get(`${USER_B}|compliance|30`),
@@ -232,9 +237,10 @@ describe("invalidateUserMedications", () => {
     expect(
       caches.medicationCompliance.getAllowStale(`${USER_A}|med-1|compliance`),
     ).toEqual({ value: { mc: 1 }, stale: true });
-    expect(
-      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
-    ).toEqual({ value: { snap: 1 }, stale: true });
+    expect(caches.analytics.getAllowStale(snapshotCell(USER_A))).toEqual({
+      value: { snap: 1 },
+      stale: true,
+    });
 
     // User B stays fresh.
     expect(caches.medications.getAllowStale(USER_B)).toEqual({
@@ -254,9 +260,7 @@ describe("invalidateUserMedications", () => {
     expect(
       caches.medicationCompliance.getAllowStale(`${USER_A}|med-1|compliance`),
     ).toBeNull();
-    expect(
-      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
-    ).toBeNull();
+    expect(caches.analytics.getAllowStale(snapshotCell(USER_A))).toBeNull();
 
     // User B stays warm; the non-SWR buckets evict as before.
     expect(caches.medications.getAllowStale(USER_B)).not.toBeNull();
@@ -278,11 +282,9 @@ describe("invalidateUserDashboardWidgets", () => {
     // reorder must drop the snapshot too. The widget invalidator does
     // NOT sweep the whole analytics bucket, so the slim/default cells
     // stay warm — only the point-keyed snapshot is dropped.
-    expect(caches.analytics.get(dashboardSnapshotCacheKey(USER_A))).toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_A))).toBeNull();
     expect(caches.analytics.get(`${USER_A}|default`)).not.toBeNull();
-    expect(
-      caches.analytics.get(dashboardSnapshotCacheKey(USER_B)),
-    ).not.toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_B))).not.toBeNull();
   });
 });
 
@@ -290,12 +292,10 @@ describe("invalidateUserDashboardSnapshot", () => {
   it("drops only the snapshot key, leaving the slim / default analytics cells warm", async () => {
     await primeAllCaches();
     invalidateUserDashboardSnapshot(USER_A);
-    expect(caches.analytics.get(dashboardSnapshotCacheKey(USER_A))).toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_A))).toBeNull();
     expect(caches.analytics.get(`${USER_A}|default`)).not.toBeNull();
     expect(caches.analytics.get(`${USER_A}|summaries`)).not.toBeNull();
-    expect(
-      caches.analytics.get(dashboardSnapshotCacheKey(USER_B)),
-    ).not.toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_B))).not.toBeNull();
   });
 });
 
@@ -303,10 +303,8 @@ describe("invalidateUserInsights", () => {
   it("drops the snapshot key so a fresh briefing is re-embedded", async () => {
     await primeAllCaches();
     invalidateUserInsights(USER_A);
-    expect(caches.analytics.get(dashboardSnapshotCacheKey(USER_A))).toBeNull();
-    expect(
-      caches.analytics.get(dashboardSnapshotCacheKey(USER_B)),
-    ).not.toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_A))).toBeNull();
+    expect(caches.analytics.get(snapshotCell(USER_B))).not.toBeNull();
   });
 });
 
@@ -330,9 +328,7 @@ describe("invalidateUserProfile", () => {
     expect(
       caches.insightsDerived.getAllowStale(`${USER_A}|batch|x|en`),
     ).toBeNull();
-    expect(
-      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
-    ).toBeNull();
+    expect(caches.analytics.getAllowStale(snapshotCell(USER_A))).toBeNull();
     expect(caches.analytics.getAllowStale(`${USER_A}|default`)).toBeNull();
 
     // The other user's cells stay warm.
