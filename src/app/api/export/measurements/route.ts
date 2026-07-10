@@ -23,6 +23,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { apiError, getClientIp } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { toCSV, formatMeasurementsForExport } from "@/lib/export";
+import { findMeasurementsPaged } from "@/lib/export/paged-measurements";
 import { shapeMeasurementNotes } from "@/lib/crypto/note-cipher";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
@@ -49,9 +50,24 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const [measurements, userTz, sourcePriorityJson, profile] = await Promise.all(
     [
-      prisma.measurement.findMany({
-        where,
-        orderBy: { measuredAt: "desc" },
+      // v1.28.25 — keyset-paginated read with a narrow select. The route
+      // keeps its contract (an absent `since`/`until` means the full
+      // history), but the read is now chunked so an unbounded window on a
+      // CGM / per-sample-HR account never materialises the whole table in
+      // one query. The select is exactly the formatter's `ExportMeasurement`
+      // shape + note decryption + the `id` cursor key.
+      findMeasurementsPaged(prisma, where, {
+        id: true,
+        type: true,
+        value: true,
+        unit: true,
+        measuredAt: true,
+        source: true,
+        notes: true,
+        notesEncrypted: true,
+        glucoseContext: true,
+        sleepStage: true,
+        deviceType: true,
       }),
       resolveUserTimezone(user.id),
       loadUserSourcePriority(user.id),

@@ -12,6 +12,7 @@ import {
   formatMoodEntriesForExport,
 } from "@/lib/export";
 import { shapeMeasurementNotes, shapeMoodNote } from "@/lib/crypto/note-cipher";
+import { findMeasurementsPaged } from "@/lib/export/paged-measurements";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { NextRequest, NextResponse } from "next/server";
@@ -59,13 +60,33 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const data: Record<string, unknown> = {};
 
   if (type === "measurements" || type === "all") {
-    const measurements = await prisma.measurement.findMany({
+    // v1.28.25 — keyset-paginated read with a narrow select. The legacy
+    // export has no date window, so a CGM / per-sample-HR account holds a
+    // six-figure row set; one unbounded full-width `findMany` here was the
+    // scale hazard. The select carries exactly the fields the formatter +
+    // note decryption consume (`ExportMeasurement` + `shapeMeasurementNotes`
+    // + the `id` cursor key) — no Bytes column beyond the note ciphertext
+    // the export must decrypt.
+    const measurements = await findMeasurementsPaged(
+      prisma,
       // v1.4.41 W-DELETED-2 — exclude soft-deleted measurements from
       // the legacy /api/export endpoint so CSV + JSON downloads stay
       // consistent with the live measurement reads.
-      where: { userId, deletedAt: null },
-      orderBy: { measuredAt: "desc" },
-    });
+      { userId, deletedAt: null },
+      {
+        id: true,
+        type: true,
+        value: true,
+        unit: true,
+        measuredAt: true,
+        source: true,
+        notes: true,
+        notesEncrypted: true,
+        glucoseContext: true,
+        sleepStage: true,
+        deviceType: true,
+      },
+    );
     // v1.11.5 — sleep collapses to one row per night by default (the
     // formatter's `night` granularity), matching the per-type CSV route.
     // Thread the user's source-priority so a multi-source night dedups to

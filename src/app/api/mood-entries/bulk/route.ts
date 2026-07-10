@@ -227,8 +227,27 @@ async function postBulk(request: NextRequest): Promise<Response> {
       // grows.
       const existing = await prisma.moodEntry.findUnique({
         where: probeWhere,
-        select: { id: true },
+        select: { id: true, deletedAt: true },
       });
+
+      // Tombstone suppression: a soft-deleted match stays deleted. The
+      // user-facing DELETE route flips `deletedAt` so the `/api/sync/changes`
+      // feed surfaces the deletion to paired clients offline at delete time
+      // (see the MoodEntry schema note) — an offline client's later re-post
+      // of the same entry is stale state, not a recreation, and must not
+      // resurrect the row. True no-op: no value churn, no `updatedAt` bump,
+      // no tag-link writes on the hidden row; report `duplicate` so the
+      // client checkpoints past it exactly like a live-row match.
+      if (existing?.deletedAt) {
+        duplicates += 1;
+        results.push({
+          index: i,
+          status: "duplicate",
+          id: existing.id,
+          ...(entry.externalId ? { externalId: entry.externalId } : {}),
+        });
+        continue;
+      }
 
       const result = await prisma.moodEntry.upsert({
         where: probeWhere,

@@ -72,10 +72,29 @@ type MedicationScheduleRecord = {
   daysOfWeek: string | null;
 };
 
-type MeasurementRecord = {
+/**
+ * v1.28.25 — one SQL-aggregated vitals bucket: every non-deleted, non-import
+ * row of `type` inside the Berlin-local hour `hour` of day `dayKey`, folded
+ * to a row count + value sum by the database. The vitals window is
+ * rollout-date → now and grows forever, and PULSE can be per-sample heart
+ * rate (six figures on a long-tenured wearable account) — reading raw rows
+ * here was the scale hazard. Every consumer's semantics survive the fold:
+ * green-day classification needs the per-day per-type MEAN (= Σsum / Σcount
+ * across the day's hour buckets — identical to the raw mean up to
+ * floating-point summation order), the count badges need row counts, the
+ * engagement / consistency series need day presence, and the hidden
+ * night-owl / early-bird / leap-day tallies need per-hour row counts.
+ */
+type VitalsHourBucket = {
   type: "WEIGHT" | "BLOOD_PRESSURE_SYS" | "BLOOD_PRESSURE_DIA" | "PULSE";
-  value: number;
-  measuredAt: Date;
+  /** Berlin-local YYYY-MM-DD. */
+  dayKey: string;
+  /** Berlin-local hour 0–23. */
+  hour: number;
+  /** Number of raw rows folded into this bucket. */
+  rowCount: number;
+  /** Sum of the raw rows' values (feeds the per-day mean). */
+  valueSum: number;
 };
 
 function maxDate(a: Date, b: Date): Date {
@@ -121,11 +140,6 @@ function serialToDayKey(serial: number): string {
 function dayKeyToDate(dayKey: string): Date {
   const [year, month, day] = dayKey.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-}
-
-function mean(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
 function findCountCompletionDate(dates: Date[], target: number): Date | null {
@@ -195,66 +209,64 @@ function getEventDaySeries(dates: Date[]): {
   };
 }
 
+// v1.28.25 — consumes the SQL hour buckets instead of raw rows. The per-day
+// per-type mean is Σ(valueSum) / Σ(rowCount) over the day's buckets — the
+// same mean the raw-row version computed (up to floating-point summation
+// order), feeding the identical classify → green-day → streak pipeline.
 function getHealthGreenDaySeries(
-  measurements: MeasurementRecord[],
+  buckets: VitalsHourBucket[],
   heightCm: number | null,
-  // v1.18.11 (W5 perf) — Berlin day-keys precomputed once per vitals row by
-  // the caller and passed in parallel to `measurements`. Falls back to a
-  // per-row `toBerlinDayKey` when absent so the standalone callers / tests
-  // keep working; the result is byte-identical either way.
-  dayKeys?: string[],
 ) {
+  type Acc = { sum: number; count: number };
   const dayStats = new Map<
     string,
-    {
-      weight: number[];
-      bpSys: number[];
-      bpDia: number[];
-      pulse: number[];
-    }
+    { weight: Acc; bpSys: Acc; bpDia: Acc; pulse: Acc }
   >();
 
-  for (let i = 0; i < measurements.length; i++) {
-    const measurement = measurements[i];
-    const dayKey = dayKeys?.[i] ?? toBerlinDayKey(measurement.measuredAt);
-    const bucket = dayStats.get(dayKey) ?? {
-      weight: [],
-      bpSys: [],
-      bpDia: [],
-      pulse: [],
+  for (const b of buckets) {
+    const slot = dayStats.get(b.dayKey) ?? {
+      weight: { sum: 0, count: 0 },
+      bpSys: { sum: 0, count: 0 },
+      bpDia: { sum: 0, count: 0 },
+      pulse: { sum: 0, count: 0 },
     };
-
-    if (measurement.type === "WEIGHT") bucket.weight.push(measurement.value);
-    if (measurement.type === "BLOOD_PRESSURE_SYS")
-      bucket.bpSys.push(measurement.value);
-    if (measurement.type === "BLOOD_PRESSURE_DIA")
-      bucket.bpDia.push(measurement.value);
-    if (measurement.type === "PULSE") bucket.pulse.push(measurement.value);
-
-    dayStats.set(dayKey, bucket);
+    const acc =
+      b.type === "WEIGHT"
+        ? slot.weight
+        : b.type === "BLOOD_PRESSURE_SYS"
+          ? slot.bpSys
+          : b.type === "BLOOD_PRESSURE_DIA"
+            ? slot.bpDia
+            : slot.pulse;
+    acc.sum += b.valueSum;
+    acc.count += b.rowCount;
+    dayStats.set(b.dayKey, slot);
   }
 
   const bmiGreenDays: string[] = [];
   const bpGreenDays: string[] = [];
   const pulseGreenDays: string[] = [];
 
-  for (const [dayKey, bucket] of dayStats.entries()) {
-    if (heightCm && bucket.weight.length > 0) {
-      const bmi = mean(bucket.weight) / (heightCm / 100) ** 2;
+  for (const [dayKey, slot] of dayStats.entries()) {
+    if (heightCm && slot.weight.count > 0) {
+      const bmi = slot.weight.sum / slot.weight.count / (heightCm / 100) ** 2;
       if (classifyBMI(bmi).severity === "normal") {
         bmiGreenDays.push(dayKey);
       }
     }
 
-    if (bucket.bpSys.length > 0 && bucket.bpDia.length > 0) {
-      const bpClass = classifyBP(mean(bucket.bpSys), mean(bucket.bpDia));
+    if (slot.bpSys.count > 0 && slot.bpDia.count > 0) {
+      const bpClass = classifyBP(
+        slot.bpSys.sum / slot.bpSys.count,
+        slot.bpDia.sum / slot.bpDia.count,
+      );
       if (bpClass.severity === "normal") {
         bpGreenDays.push(dayKey);
       }
     }
 
-    if (bucket.pulse.length > 0) {
-      const pulseClass = classifyPulse(mean(bucket.pulse));
+    if (slot.pulse.count > 0) {
+      const pulseClass = classifyPulse(slot.pulse.sum / slot.pulse.count);
       if (pulseClass.severity === "normal") {
         pulseGreenDays.push(dayKey);
       }
@@ -528,7 +540,7 @@ export async function buildAchievementsResult(
   const startDate = maxDate(user.createdAt, GAMIFICATION_ROLLOUT_AT);
 
   const [
-    measurements,
+    vitalsBuckets,
     intakeEvents,
     medications,
     passkeys,
@@ -538,25 +550,42 @@ export async function buildAchievementsResult(
     healthProfile,
     illnessEpisodes,
   ] = await Promise.all([
-    prisma.measurement.findMany({
-      where: {
-        userId,
-        measuredAt: { gte: startDate, lte: now },
-        source: { not: "IMPORT" },
-        type: {
-          in: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA", "PULSE"],
-        },
-        // v1.4.41 W-DELETED-2 — soft-deleted measurements are excluded
-        // from achievement progress so deleting a row immediately rolls
-        // back any streak / count badge it earned.
-        deletedAt: null,
-      },
-      select: {
-        type: true,
-        value: true,
-        measuredAt: true,
-      },
-    }),
+    // v1.28.25 — vitals folded to (type, Berlin day, Berlin hour) buckets in
+    // SQL instead of one row per sample. The window (rollout → now) grows
+    // forever and PULSE can be per-sample heart rate, so the raw read ran to
+    // six figures on long-tenured wearable accounts; the bucket set is
+    // bounded by 4 types × 24 hours × window days and every downstream
+    // metric derives exactly from (count, sum) per bucket — see the
+    // `VitalsHourBucket` doc for the semantics argument. Filters mirror the
+    // previous findMany exactly: the type allowlist is a closed literal set
+    // (never user input), source ≠ IMPORT, and soft-deleted rows stay
+    // excluded (v1.4.41 W-DELETED-2) so deleting a row immediately rolls
+    // back any streak / count badge it earned. `AT TIME ZONE 'UTC' AT TIME
+    // ZONE 'Europe/Berlin'` re-tags the naive UTC `measured_at` and converts
+    // it to the same Berlin wall clock `toBerlinDayKey` / `berlinHour`
+    // derive via Intl. Ordering pins day → hour → type for determinism.
+    prisma.$queryRaw<VitalsHourBucket[]>`
+      SELECT
+        m."type"::text AS "type",
+        to_char(
+          (m."measured_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Berlin',
+          'YYYY-MM-DD'
+        ) AS "dayKey",
+        EXTRACT(
+          HOUR FROM (m."measured_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Berlin'
+        )::int AS "hour",
+        COUNT(*)::int AS "rowCount",
+        SUM(m."value")::double precision AS "valueSum"
+      FROM "measurements" m
+      WHERE m."user_id" = ${userId}
+        AND m."measured_at" >= ${startDate}
+        AND m."measured_at" <= ${now}
+        AND m."source"::text <> 'IMPORT'
+        AND m."type"::text IN ('WEIGHT', 'BLOOD_PRESSURE_SYS', 'BLOOD_PRESSURE_DIA', 'PULSE')
+        AND m."deleted_at" IS NULL
+      GROUP BY 1, 2, 3
+      ORDER BY 2, 3, 1
+    `,
     prisma.medicationIntakeEvent.findMany({
       where: {
         userId,
@@ -711,21 +740,25 @@ export async function buildAchievementsResult(
     ...passwordLoginDates,
   ]);
 
-  // v1.18.11 (W5 perf) — the vitals array runs through several independent
-  // full-array passes, each previously re-deriving a Berlin day-key per row
-  // via `Intl.DateTimeFormat.formatToParts` (~16.8k rows × ~3 passes on a
-  // power-user account dominated the cold build). Compute each row's day-key
-  // ONCE here and thread the parallel array into every consumer; the values
-  // are identical to the per-pass derivation, so the output is byte-identical.
-  const vitalsDayKeys = (measurements as MeasurementRecord[]).map((m) =>
-    toBerlinDayKey(m.measuredAt),
-  );
+  // v1.28.25 — the buckets already carry the Berlin day-key + hour straight
+  // from SQL (superseding the v1.18.11 Intl-once optimisation: no Intl pass
+  // over the vitals remains at all). The parallel arrays thread into every
+  // consumer exactly as the per-row keys did; day-presence consumers dedup
+  // by key, so bucket-level duplicates (several hours / types on one day)
+  // are harmless.
+  const vitalsDayKeys = vitalsBuckets.map((b) => b.dayKey);
+  const vitalsHours = vitalsBuckets.map((b) => b.hour);
+  // Weighted records for the expansion metrics: one record per bucket,
+  // `count` carrying the folded row multiplicity. The `measuredAt` anchor is
+  // never read on this path (day-keys + hours ride the parallel arrays
+  // above) — it only satisfies the record shape.
+  const vitalsRecords = vitalsBuckets.map((b) => ({
+    type: b.type,
+    measuredAt: dayKeyToDate(b.dayKey),
+    count: b.rowCount,
+  }));
 
-  const healthSeries = getHealthGreenDaySeries(
-    measurements as MeasurementRecord[],
-    user.heightCm,
-    vitalsDayKeys,
-  );
+  const healthSeries = getHealthGreenDaySeries(vitalsBuckets, user.heightCm);
   const onTimeSeries = getOnTimePerfectDaySeries(
     intakeEvents,
     schedulesByMedicationId,
@@ -746,8 +779,8 @@ export async function buildAchievementsResult(
     sleepMeasurements.map((m) => m.measuredAt),
   );
   const weeklyConsistency = getWeeklyConsistency(
-    // v1.18.11 (W5 perf) — reuse the day-keys computed once above instead of
-    // a fresh per-row `toBerlinDayKey` pass over the full vitals array.
+    // Bucket day-keys — `getWeeklyConsistency` dedups to distinct days, so
+    // the per-hour multiplicity is irrelevant.
     vitalsDayKeys,
     MEASUREMENT_CONSISTENCY_MIN_DAYS_PER_WEEK,
     MEASUREMENT_CONSISTENCY_TARGET_WEEKS,
@@ -762,14 +795,15 @@ export async function buildAchievementsResult(
       : 0;
 
   const expansionValues = buildExpansionMetricValues({
-    measurements,
+    measurements: vitalsRecords,
     moodEntries,
     intakeEvents,
     auditEvents,
-    // v1.18.11 (W5 perf) — reuse the vitals day-keys computed once above so
-    // the engagement + hidden passes don't re-walk the full vitals array
-    // through `Intl.DateTimeFormat` a second and third time.
+    // The SQL-derived Berlin day-keys + hours ride in parallel to the
+    // weighted bucket records — the expansion passes never touch a bucket's
+    // representative `measuredAt`.
     measurementDayKeys: vitalsDayKeys,
+    measurementHours: vitalsHours,
   });
   const earnability = getEarnabilityFlags({
     hasMedication: medications.length > 0,

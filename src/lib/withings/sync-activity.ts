@@ -372,13 +372,23 @@ export async function syncUserActivity(
           type: { in: distinctTypes },
           measuredAt: { in: distinctMeasuredAt },
         },
-        select: { id: true, type: true, measuredAt: true, value: true },
+        select: {
+          id: true,
+          type: true,
+          measuredAt: true,
+          value: true,
+          deletedAt: true,
+        },
       });
-      const existingBySlot = new Map<string, { id: string; value: number }>();
+      const existingBySlot = new Map<
+        string,
+        { id: string; value: number; deletedAt: Date | null }
+      >();
       for (const row of existingRows) {
         existingBySlot.set(slotKey(row.type, row.measuredAt), {
           id: row.id,
           value: row.value,
+          deletedAt: row.deletedAt,
         });
       }
 
@@ -388,8 +398,11 @@ export async function syncUserActivity(
         const existing = existingBySlot.get(slotKey(p.type, p.measuredAt));
         if (existing) {
           // Only write when the value actually moved — a re-sync of an
-          // unchanged day is then a pure no-op on the write path.
-          if (existing.value !== p.value) {
+          // unchanged LIVE day is then a pure no-op on the write path. A
+          // TOMBSTONED row always writes: the update is what resurrects it
+          // (`deletedAt: null`) — Withings is the source of truth for its
+          // own rows (mirrors Google / Fitbit).
+          if (existing.value !== p.value || existing.deletedAt !== null) {
             toUpdate.push({ id: existing.id, value: p.value });
           }
         } else {
@@ -425,7 +438,9 @@ export async function syncUserActivity(
           toUpdate.map((u) =>
             prisma.measurement.update({
               where: { id: u.id },
-              data: { value: u.value },
+              // `deletedAt: null` — no-op on a live row, deliberate
+              // RESURRECTION on a tombstoned one (see the skip above).
+              data: { value: u.value, deletedAt: null },
             }),
           ),
         );

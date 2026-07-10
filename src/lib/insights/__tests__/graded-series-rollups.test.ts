@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const findMany = vi.fn();
+const queryRaw = vi.fn();
 vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: {
@@ -9,6 +10,9 @@ vi.mock("@/lib/db", () => ({
     // loadUserSourcePriority lazy-loads the source-priority blob; null
     // (default findUnique) falls back to the default ladders.
     user: { findUnique: vi.fn() },
+    // v1.28.25 — dense types (BLOOD_GLUCOSE / PULSE) day-bucket the
+    // cold-tier fallback in SQL.
+    $queryRaw: (...args: unknown[]) => queryRaw(...args),
   },
 }));
 
@@ -52,13 +56,13 @@ afterEach(() => {
 describe("buildGradedSeriesWithRollups — rollup-miss fallback", () => {
   const now = new Date("2026-05-31T12:00:00Z");
 
-  it("folds monthly/yearly from the full history when the tier has no coverage", async () => {
+  it("folds monthly/yearly from the bounded fallback when the tier has no coverage", async () => {
     // The bounded recent read (~90 d) returns only recent points; the
-    // full-history read returns 2+ years so the fold has monthly/yearly.
+    // fallback read returns 2+ years so the fold has monthly/yearly.
     findMany
       // 1st call — bounded recent read (gte: since)
       .mockResolvedValueOnce(dailyRows(80, now))
-      // 2nd call — full-history fallback read (no gte)
+      // 2nd call — bounded fallback read (gte: 1095-day horizon)
       .mockResolvedValueOnce(dailyRows(800, now));
 
     // Tier miss: no MONTH / YEAR coverage at all.
@@ -68,12 +72,51 @@ describe("buildGradedSeriesWithRollups — rollup-miss fallback", () => {
 
     // The bug: before the fix monthly/yearly were derived from the
     // bounded ~90-day read and so were always empty even when years of
-    // raw history existed. After the fix they fold from the full history.
+    // raw history existed. After the fix they fold from the fallback.
     expect(series.monthly.length).toBeGreaterThan(0);
     // 800 days of history puts at least one year into the yearly tail.
     expect(series.yearly.length).toBeGreaterThan(0);
-    // The full-history fallback read must have been issued.
+    // The fallback read must have been issued...
     expect(findMany).toHaveBeenCalledTimes(2);
+    // ...and bounded (v1.28.25): it must carry a `measuredAt.gte` floor
+    // ~1095 days back, never an unwindowed full-history walk.
+    const fallbackArgs = findMany.mock.calls[1][0] as {
+      where: { measuredAt?: { gte?: Date } };
+    };
+    const gte = fallbackArgs.where.measuredAt?.gte;
+    expect(gte).toBeInstanceOf(Date);
+    expect(gte!.getTime()).toBe(now.getTime() - 1095 * dayMs);
+  });
+
+  it("day-buckets the dense-type fallback in SQL instead of a raw walk (v1.28.25)", async () => {
+    // BLOOD_GLUCOSE on a cold tier (heavy import before the rollup
+    // backfill warms) used to findMany the entire CGM history. The
+    // fallback now runs a single day-bucket aggregate; only the bounded
+    // recent read touches findMany.
+    findMany.mockResolvedValueOnce(dailyRows(80, now)); // bounded recent
+    const bucketRows: Array<{ bucket_start: Date; mean: number }> = [];
+    for (let i = 0; i < 800; i++) {
+      bucketRows.push({
+        bucket_start: new Date(now.getTime() - i * dayMs),
+        mean: 100,
+      });
+    }
+    queryRaw.mockResolvedValueOnce(bucketRows.reverse());
+
+    readBestGranularityRollups.mockResolvedValue(null);
+
+    const series = await buildGradedSeriesWithRollups(
+      "u1",
+      "BLOOD_GLUCOSE",
+      now,
+    );
+
+    expect(series.monthly.length).toBeGreaterThan(0);
+    expect(series.yearly.length).toBeGreaterThan(0);
+    // Raw findMany ran once (the bounded recent read) — the fallback
+    // itself went through the SQL aggregate.
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(queryRaw).toHaveBeenCalledTimes(1);
   });
 
   it("reads monthly/yearly from the tier when it has coverage and skips the full read", async () => {

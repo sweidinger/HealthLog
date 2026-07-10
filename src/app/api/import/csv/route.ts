@@ -239,12 +239,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ...plainInserts.map(buildCreateData),
     ];
     const CREATE_CHUNK = 200;
+    let createdCount = 0;
     await prisma.$transaction(async (tx) => {
       for (let i = 0; i < toCreate.length; i += CREATE_CHUNK) {
-        await tx.measurement.createMany({
+        const res = await tx.measurement.createMany({
           data: toCreate.slice(i, i + CREATE_CHUNK),
           skipDuplicates: true,
         });
+        createdCount += res.count;
       }
       for (const m of extUpdates.values()) {
         await tx.measurement.updateMany({
@@ -262,10 +264,36 @@ export const POST = apiHandler(async (request: NextRequest) => {
             notesEncrypted: encryptNote(m.notes ?? null),
             glucoseContext:
               (m.glucoseContext as GlucoseContext | undefined) ?? null,
+            // No-op on a live row, a deliberate RESURRECTION on a
+            // tombstoned one — IMPORT rows are re-importable by design, so
+            // a re-imported externalId brings the row back (mirrors the
+            // source-owned sync resurrect rule).
+            deletedAt: null,
           },
         });
       }
     });
+
+    // Reconcile `inserted` against what `createMany` actually wrote
+    // (mirrors the batch route's raced-duplicate downgrade). Under
+    // `skipDuplicates` a conflicting row is silently absorbed — the key is
+    // present in the table either way, so we cannot identify the SPECIFIC
+    // raced lines; we only need the counters and per-line statuses to sum
+    // to the truth. Downgrade enough `inserted` lines to `duplicate` so
+    // the envelope matches the DB write count.
+    const racedDuplicates = toCreate.length - createdCount;
+    if (racedDuplicates > 0) {
+      let downgraded = 0;
+      for (const [line, outcome] of writeOutcome) {
+        if (downgraded >= racedDuplicates) break;
+        if (outcome === "inserted") {
+          writeOutcome.set(line, "duplicate");
+          inserted--;
+          skipped++;
+          downgraded++;
+        }
+      }
+    }
 
     // One bounded rollup re-fold per touched (type, day) — a 10 000-row CSV
     // pays at most ~N (type, day) recomputes, not 10 000 per-row hooks.

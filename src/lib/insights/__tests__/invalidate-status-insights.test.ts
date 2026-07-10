@@ -19,6 +19,7 @@ const auditFindMany = vi.fn();
 const enqueueStatusGeneration = vi.fn();
 const userFindUnique = vi.fn();
 const measurementFindMany = vi.fn();
+const measurementGroupBy = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -27,7 +28,12 @@ vi.mock("@/lib/db", () => ({
       findMany: (...a: unknown[]) => auditFindMany(...a),
     },
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
-    measurement: { findMany: (...a: unknown[]) => measurementFindMany(...a) },
+    measurement: {
+      findMany: (...a: unknown[]) => measurementFindMany(...a),
+      // v1.28.25 — type discovery runs as a server-side GROUP BY, not a
+      // client-deduped `distinct` findMany.
+      groupBy: (...a: unknown[]) => measurementGroupBy(...a),
+    },
   },
 }));
 
@@ -49,6 +55,7 @@ beforeEach(() => {
   enqueueStatusGeneration.mockResolvedValue(undefined);
   userFindUnique.mockResolvedValue({ locale: "de" });
   measurementFindMany.mockResolvedValue([]);
+  measurementGroupBy.mockResolvedValue([]);
 });
 
 /** Distinct scopes the invalidator enqueued a regenerate for. */
@@ -280,7 +287,7 @@ describe("invalidateStatusInsightsForTypes", () => {
 // ones for free — the hash baseline rows are never deleted.
 describe("enqueueStatusRefillForUser", () => {
   it("enqueues the seven specialised scopes plus the user's data-bearing generic scopes", async () => {
-    measurementFindMany.mockResolvedValue([
+    measurementGroupBy.mockResolvedValue([
       { type: "WEIGHT" }, // specialised — no generic registry entry
       { type: "BLOOD_GLUCOSE" }, // generic card
       { type: "ACTIVE_ENERGY_BURNED" }, // generic card under a remapped id
@@ -328,7 +335,7 @@ describe("enqueueStatusRefillForUser", () => {
   });
 
   it("still refills the specialised scopes when the generic-scope discovery read fails", async () => {
-    measurementFindMany.mockRejectedValue(new Error("pool exhausted"));
+    measurementGroupBy.mockRejectedValue(new Error("pool exhausted"));
     const count = await enqueueStatusRefillForUser("u1", "de");
     expect(count).toBe(7);
     expect(enqueuedScopes()).toEqual([

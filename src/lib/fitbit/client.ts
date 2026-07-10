@@ -922,14 +922,19 @@ interface FitbitSleepSession {
 }
 
 /**
- * The stable session anchor for a sleep externalId — the logId, else the end (or
- * start) instant. A re-scored night reuses the same logId → overwrites in place.
+ * The stable session anchor for a sleep externalId — the logId, else the start
+ * (or end) instant. A re-scored night reuses the same logId → overwrites in
+ * place. The fallback prefers `startTime` because it is the session's identity;
+ * `endTime` moves when Fitbit revises a night's scoring, which would mint a new
+ * externalId for the same session. Pre-existing rows keyed on the old endTime
+ * fallback are rare (logId is normally present); a changed key simply creates
+ * one fresh row.
  */
 function sleepSessionAnchor(s: FitbitSleepSession, tz?: string): string {
   if (typeof s.logId === "number" && Number.isFinite(s.logId)) {
     return String(s.logId);
   }
-  for (const t of [s.endTime, s.startTime]) {
+  for (const t of [s.startTime, s.endTime]) {
     if (typeof t === "string") {
       const d = parseLocalInstant(t, tz);
       if (d) return d.toISOString();

@@ -866,6 +866,40 @@ export async function collectDoctorReportData(
   const recoveryEnabled = moduleMap.recovery !== false;
   const workoutsEnabled = moduleMap.workouts !== false;
 
+  // v1.28.25 — push the section / module gates INTO the measurement query.
+  // `filterMeasurementKeys` below strips gated types from the returned
+  // payload anyway, so rows of a disabled section / module were fetched only
+  // to be dropped — pure dead weight, and the heaviest series (BLOOD_GLUCOSE
+  // minute-grain CGM, gated by the glucose module) is exactly the one that
+  // runs to six figures over a 730-day window. Excluding them at the query
+  // is output-identical by construction.
+  //
+  // WEIGHT is deliberately NEVER excluded: the BMI figure (gated by
+  // `sections.bmi`, not `sections.weight`) and the GLP-1 weight-delta both
+  // read the PRE-filter `byType` / `stats` maps, so weight rows must be
+  // present even when the weight section itself is toggled off. No other
+  // gated type is read before the filter (each remaining pre-filter read —
+  // sleep nights, glucose panel, recovery summary — sits behind the same
+  // gate that drives its exclusion here).
+  //
+  // NOTE a closed include-list is NOT possible here: every ungated type in
+  // the window lands in `stats` / `measurements`, which the clinician share
+  // view and the MCP doctor-visit summary iterate wholesale
+  // (`Object.entries(data.stats)`). Dense ENABLED types (BLOOD_GLUCOSE
+  // minute-grain for a glucose-module user, hourly PULSE) therefore remain a
+  // known load — the per-day bucket tier is the follow-up for that.
+  const excludedMeasurementTypes: MeasurementType[] = [];
+  if (sections.bp === false) {
+    excludedMeasurementTypes.push("BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA");
+  }
+  if (sections.pulse === false) excludedMeasurementTypes.push("PULSE");
+  if (sections.sleep === false) excludedMeasurementTypes.push("SLEEP_DURATION");
+  for (const [type, moduleKey] of Object.entries(MEASUREMENT_TYPE_MODULE)) {
+    if (moduleMap[moduleKey] === false) {
+      excludedMeasurementTypes.push(type as MeasurementType);
+    }
+  }
+
   const [measurements, medications, intakeEvents, moodEntries, userProfile] =
     await Promise.all([
       prisma.measurement.findMany({
@@ -876,8 +910,27 @@ export async function collectDoctorReportData(
           userId,
           measuredAt: { gte: start, lte: end },
           deletedAt: null,
+          ...(excludedMeasurementTypes.length > 0
+            ? { type: { notIn: excludedMeasurementTypes } }
+            : {}),
         },
         orderBy: { measuredAt: "asc" },
+        // v1.28.25 — narrow select. The collector reads exactly these seven
+        // fields (canonical-source collapse: type / value / measuredAt /
+        // source / deviceType; sleep-night reconstruction adds sleepStage;
+        // the glucose panel adds glucoseContext). The full-width read pulled
+        // every column — including the notesEncrypted Bytes — across up to
+        // 730 days of rows, which on a CGM + per-sample-HR account is the
+        // v1.28.2x six-figure-row incident class.
+        select: {
+          type: true,
+          value: true,
+          measuredAt: true,
+          source: true,
+          deviceType: true,
+          sleepStage: true,
+          glucoseContext: true,
+        },
       }),
       prisma.medication.findMany({
         where: { userId, active: true },

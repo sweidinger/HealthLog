@@ -1,13 +1,13 @@
 /**
- * Pins the tombstone-resurrect contract of `upsertGoogleHealthMeasurements`.
+ * Pins the tombstone-resurrect contract of `upsertFitbitMeasurements`.
  *
  * The measurements unique index on `(userId, type, source, externalId)` is
  * FULL — it covers soft-deleted rows — so a tombstoned row permanently owns
  * its key. The probe must therefore match tombstoned rows too and route them
  * into the UPDATE branch with `deletedAt: null`: treating them as absent plans
  * an insert that `skipDuplicates` drops SILENTLY against the tombstone's key,
- * wedging the key forever (live incident: a self-hoster's step days could
- * never re-import after their rows were soft-deleted).
+ * wedging the key forever (the same wedge shipped live on the Google
+ * transport).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,12 +40,15 @@ vi.mock("@/lib/rollups/measurement-rollups", () => ({
 vi.mock("@/lib/insights/comprehensive-generate", () => ({
   invalidateStatusInsightsForTypes: vi.fn(async () => {}),
 }));
+vi.mock("@/lib/integrations/oauth-refresh", () => ({
+  persistRotatedToken: vi.fn(async () => {}),
+}));
 vi.mock("../credentials", () => ({
-  getUserGoogleHealthCredentials: vi.fn(async () => null),
+  getUserFitbitCredentials: vi.fn(async () => null),
 }));
 vi.mock("../client", () => ({ refreshAccessToken: vi.fn() }));
 
-import { upsertGoogleHealthMeasurements } from "../sync";
+import { upsertFitbitMeasurements } from "../sync";
 
 const STEPS_READING = {
   type: "ACTIVITY_STEPS",
@@ -61,9 +64,9 @@ beforeEach(() => {
   updateMock.mockReset().mockResolvedValue({});
 });
 
-describe("upsertGoogleHealthMeasurements — tombstones resurrect", () => {
+describe("upsertFitbitMeasurements — tombstones resurrect", () => {
   it("probes WITHOUT a deletedAt filter (a tombstoned row must be matched)", async () => {
-    await upsertGoogleHealthMeasurements("user-1", [STEPS_READING], {
+    await upsertFitbitMeasurements("user-1", [STEPS_READING], {
       deferRollup: true,
     });
     const arg = (findManyMock.mock.calls[0] as unknown[])[0] as {
@@ -71,7 +74,7 @@ describe("upsertGoogleHealthMeasurements — tombstones resurrect", () => {
     };
     expect(arg.where).toEqual({
       userId: "user-1",
-      source: "GOOGLE_HEALTH",
+      source: "FITBIT",
       externalId: { in: ["stats:steps:2026-07-08"] },
     });
     expect(arg.where).not.toHaveProperty("deletedAt");
@@ -86,7 +89,7 @@ describe("upsertGoogleHealthMeasurements — tombstones resurrect", () => {
       },
     ]);
 
-    const { imported } = await upsertGoogleHealthMeasurements(
+    const { imported } = await upsertFitbitMeasurements(
       "user-1",
       [STEPS_READING],
       { deferRollup: true },
@@ -108,95 +111,13 @@ describe("upsertGoogleHealthMeasurements — tombstones resurrect", () => {
 
   it("still creates a genuinely fresh key", async () => {
     createManyMock.mockResolvedValue({ count: 1 });
-    const { imported } = await upsertGoogleHealthMeasurements(
+    const { imported } = await upsertFitbitMeasurements(
       "user-1",
       [STEPS_READING],
       { deferRollup: true },
     );
     expect(updateMock).not.toHaveBeenCalled();
     expect(createManyMock).toHaveBeenCalledTimes(1);
-    expect(imported).toBe(1);
-  });
-});
-
-describe("upsertGoogleHealthMeasurements — no-op overwrite skip", () => {
-  it("skips the update entirely for an identical LIVE row (no syncVersion churn)", async () => {
-    findManyMock.mockResolvedValue([
-      {
-        id: "row-1",
-        type: "ACTIVITY_STEPS",
-        externalId: "stats:steps:2026-07-08",
-        value: 8123,
-        unit: "steps",
-        measuredAt: new Date("2026-07-08T00:00:00.000Z"),
-        sleepStage: null,
-        deletedAt: null,
-      },
-    ]);
-
-    const { imported } = await upsertGoogleHealthMeasurements(
-      "user-1",
-      [STEPS_READING],
-      { deferRollup: true },
-    );
-
-    // The 24 h overlap re-fetches this row hourly; an unchanged live row must
-    // not be rewritten (the unconditional syncVersion bump churned the DB and
-    // every iOS delta pull).
-    expect(updateMock).not.toHaveBeenCalled();
-    expect(createManyMock).not.toHaveBeenCalled();
-    expect(imported).toBe(0);
-  });
-
-  it("still writes when any payload field differs on a live row", async () => {
-    findManyMock.mockResolvedValue([
-      {
-        id: "row-1",
-        type: "ACTIVITY_STEPS",
-        externalId: "stats:steps:2026-07-08",
-        value: 7999, // stale daily total — Google re-rolled the day upward
-        unit: "steps",
-        measuredAt: new Date("2026-07-08T00:00:00.000Z"),
-        sleepStage: null,
-        deletedAt: null,
-      },
-    ]);
-
-    const { imported } = await upsertGoogleHealthMeasurements(
-      "user-1",
-      [STEPS_READING],
-      { deferRollup: true },
-    );
-
-    expect(updateMock).toHaveBeenCalledTimes(1);
-    expect(imported).toBe(1);
-  });
-
-  it("an identical TOMBSTONED row ALWAYS updates — the write is the resurrection", async () => {
-    findManyMock.mockResolvedValue([
-      {
-        id: "row-1",
-        type: "ACTIVITY_STEPS",
-        externalId: "stats:steps:2026-07-08",
-        value: 8123,
-        unit: "steps",
-        measuredAt: new Date("2026-07-08T00:00:00.000Z"),
-        sleepStage: null,
-        deletedAt: new Date("2026-07-09T00:00:00.000Z"),
-      },
-    ]);
-
-    const { imported } = await upsertGoogleHealthMeasurements(
-      "user-1",
-      [STEPS_READING],
-      { deferRollup: true },
-    );
-
-    expect(updateMock).toHaveBeenCalledTimes(1);
-    const upd = (updateMock.mock.calls[0] as unknown[])[0] as {
-      data: Record<string, unknown>;
-    };
-    expect(upd.data.deletedAt).toBeNull();
     expect(imported).toBe(1);
   });
 });

@@ -229,10 +229,46 @@ describe("mapSleep", () => {
     const onset = new Date("2026-06-09T23:00:00.000Z").getTime();
     expect(mapped[0].measuredAt.getTime()).toBe(onset + 10 * 60_000);
     expect(mapped[1].measuredAt.getTime()).toBe(onset + 25 * 60_000);
-    // Distinct, record-scoped, segment-indexed externalIds (no collapse).
+    // Distinct, record-scoped externalIds keyed on each run's own START
+    // instant (no collapse). NOT a positional run index: a revised hypnogram
+    // re-segments the night, so an index shifted every following run onto the
+    // wrong row and left phantom tail rows the night-total double-counted.
     const ids = mapped.map((m) => m.externalId);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids[0]).toBe("sleep:rec-T:seg:0");
+    expect(ids[0]).toBe("sleep:rec-T:seg:2026-06-09T23:00:00.000Z");
+    expect(ids[1]).toBe("sleep:rec-T:seg:2026-06-09T23:10:00.000Z");
+  });
+
+  it("keeps IDENTICAL externalIds for unchanged runs across a revised hypnogram", () => {
+    // The same night re-scored: Oura re-classifies the SECOND run's digits,
+    // splitting one run into two — every later run's index would have
+    // shifted (+1) under the retired run-indexed key, minting fresh ids. The
+    // start-keyed ids of the UNCHANGED first and last runs must survive; the
+    // re-segmented middle mints new ids and the record-scoped sweep clears
+    // what the revision orphaned.
+    const base = {
+      id: "rec-T",
+      day: "2026-06-10",
+      bedtime_start: "2026-06-09T23:00:00.000Z",
+      bedtime_end: "2026-06-10T07:00:00.000Z",
+    };
+    const idsOf = (hyp: string) =>
+      mapSleep({ ...base, sleep_phase_5_min: hyp })
+        .filter((m) => m.type === "SLEEP_DURATION")
+        .map((m) => m.externalId);
+
+    const first = idsOf("1122234");
+    const revised = idsOf("1121234"); // run "222" split into "2","1","2"
+
+    // First run (digits 0-1) and the tail runs that keep their start offsets
+    // are identical across the revision.
+    expect(revised[0]).toBe(first[0]);
+    expect(revised.at(-1)).toBe(first.at(-1));
+    // The re-segmented middle mints ids keyed on the new run starts — all
+    // still under the record's `sleep:rec-T:seg:` sweep prefix.
+    expect(revised.every((id) => id!.startsWith("sleep:rec-T:seg:"))).toBe(
+      true,
+    );
   });
 
   it("ignores an empty / malformed hypnogram and uses stage totals", () => {

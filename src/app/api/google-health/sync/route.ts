@@ -55,6 +55,6 @@ export const POST = apiHandler(async (request: NextRequest) => {
     }
   }
 
-  const imported = await syncUserGoogleHealth(user.id, { fullSync });
+  const { imported } = await syncUserGoogleHealth(user.id, { fullSync });
   return apiSuccess({ imported, fullSync });
 });

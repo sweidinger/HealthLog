@@ -250,10 +250,13 @@ describe("mapSleep", () => {
     );
     expect(instants.size).toBe(3);
 
-    // Reconstructed flag + indexed externalId keep the segment rows distinct.
+    // Reconstructed flag + stage-tagged externalId keep the segment rows
+    // distinct. No positional index: an index renumbered on a re-score when a
+    // stage's duration flipped 0↔positive, minting fresh ids that inserted a
+    // duplicate night.
     expect(core.reconstructed).toBe(true);
-    expect(core.externalId).toBe("sleep:2026-06-10:seg:sleep_core:0");
-    expect(rem.externalId).toBe("sleep:2026-06-10:seg:sleep_rem:2");
+    expect(core.externalId).toBe("sleep:2026-06-10:seg:sleep_core");
+    expect(rem.externalId).toBe("sleep:2026-06-10:seg:sleep_rem");
 
     // IN_BED envelope + score stamp at the sleep END instant.
     const endMs = Date.parse("2026-06-10T07:00:00+02:00");
@@ -287,13 +290,43 @@ describe("mapSleep", () => {
     expect(awake).toBeDefined();
     expect(awake.value).toBe(15);
     expect(awake.reconstructed).toBe(true);
-    expect(awake.externalId).toBe("sleep:2026-06-10:seg:sleep_awake:0");
-    // AWAKE ends at +15m; CORE then starts there and is index 1.
+    expect(awake.externalId).toBe("sleep:2026-06-10:seg:sleep_awake");
+    // AWAKE ends at +15m; CORE then starts there.
     expect(awake.measuredAt.getTime()).toBe(onset + 15 * 60_000);
 
     const core = mapped.find((m) => m.sleepStage === "CORE")!;
-    expect(core.externalId).toBe("sleep:2026-06-10:seg:sleep_core:1");
+    expect(core.externalId).toBe("sleep:2026-06-10:seg:sleep_core");
     expect(core.measuredAt.getTime()).toBe(onset + (15 + 60) * 60_000);
+  });
+
+  it("keeps IDENTICAL externalIds across a re-score that adds an interruption block", () => {
+    // The same night scored twice: first with no interruption time, then with
+    // a positive AWAKE block. Under the retired positional index the AWAKE
+    // 0↔positive flip renumbered CORE/DEEP/REM (0,1,2 → 1,2,3), minting
+    // fresh externalIds the upsert then INSERTED next to the old rows — the
+    // night double-counted. The stage-tagged ids must be identical.
+    const night = {
+      date: "2026-06-10",
+      sleep_start_time: "2026-06-09T23:00:00+02:00",
+      sleep_end_time: "2026-06-10T07:00:00+02:00",
+      light_sleep: 3600,
+      deep_sleep: 1800,
+      rem_sleep: 5400,
+    };
+    const idsByStage = (rows: ReturnType<typeof mapSleep>) =>
+      new Map(
+        rows
+          .filter((m) => m.reconstructed)
+          .map((m) => [m.sleepStage, m.externalId]),
+      );
+    const first = idsByStage(mapSleep(night));
+    const rescored = idsByStage(
+      mapSleep({ ...night, total_interruption_duration: 900 }),
+    );
+    for (const stage of ["CORE", "DEEP", "REM"] as const) {
+      expect(rescored.get(stage)).toBe(first.get(stage));
+    }
+    expect(rescored.get("AWAKE")).toBe("sleep:2026-06-10:seg:sleep_awake");
   });
 
   it("omits AWAKE when no interruption time is reported", () => {
@@ -306,9 +339,9 @@ describe("mapSleep", () => {
       rem_sleep: 5400,
     });
     expect(mapped.find((m) => m.sleepStage === "AWAKE")).toBeUndefined();
-    // CORE stays index 0 when AWAKE is absent.
+    // CORE keeps the same stage-tagged id whether AWAKE is present or not.
     expect(mapped.find((m) => m.sleepStage === "CORE")!.externalId).toBe(
-      "sleep:2026-06-10:seg:sleep_core:0",
+      "sleep:2026-06-10:seg:sleep_core",
     );
   });
 

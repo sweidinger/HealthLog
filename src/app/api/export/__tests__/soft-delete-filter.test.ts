@@ -17,6 +17,9 @@ import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // v1.28.25 — the achievements vitals read is a raw (day, hour, type)
+    // bucket aggregation.
+    $queryRaw: vi.fn(),
     measurement: { findMany: vi.fn(), count: vi.fn() },
     medication: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn(), count: vi.fn() },
@@ -31,6 +34,14 @@ vi.mock("@/lib/db", () => ({
       createMany: vi.fn(),
     },
     auditEvent: { findMany: vi.fn() },
+    // v1.28.25 — the achievements aggregation previously aborted mid-flight
+    // on this mock (no `auditLog` model), which the old assertion masked
+    // because the vitals findMany fired before the abort. With the vitals
+    // read on `$queryRaw`, the sleep findMany the assertion now pins runs
+    // AFTER these models — mock them so the aggregation completes.
+    auditLog: { findMany: vi.fn() },
+    userHealthProfile: { findUnique: vi.fn() },
+    illnessEpisode: { findMany: vi.fn() },
   },
 }));
 
@@ -95,6 +106,7 @@ beforeEach(() => {
     remaining: 9,
     resetAt: Date.now() + 3_600_000,
   });
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.measurement.count).mockResolvedValue(0);
   vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
@@ -107,6 +119,12 @@ beforeEach(() => {
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     heightCm: null,
   } as never);
+  vi.mocked(prisma.passkey.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.auditLog.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.userHealthProfile.findUnique).mockResolvedValue(
+    null as never,
+  );
+  vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([] as never);
 });
 
 describe("v1.4.41 W-DELETED-2 — soft-delete invisibility", () => {
@@ -153,6 +171,15 @@ describe("v1.4.41 W-DELETED-2 — soft-delete invisibility", () => {
       expect(arg).toMatchObject({
         where: expect.objectContaining({ deletedAt: null }),
       });
+    }
+    // v1.28.25 — the vitals read moved to a raw (day, hour, type) bucket
+    // aggregation; the soft-delete scope must survive on that path too.
+    const rawCalls = vi.mocked(prisma.$queryRaw).mock.calls;
+    expect(rawCalls.length).toBeGreaterThan(0);
+    for (const [strings] of rawCalls) {
+      expect((strings as unknown as readonly string[]).join("?")).toContain(
+        `"deleted_at" IS NULL`,
+      );
     }
   });
 });

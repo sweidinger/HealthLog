@@ -413,3 +413,71 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     expect(json.data.entries[1].status).toBe("inserted");
   });
 });
+
+describe("POST /api/mood-entries/bulk — tombstone suppression", () => {
+  it("keeps a tombstoned match deleted: true no-op reported as duplicate", async () => {
+    // A soft-deleted row under the probe key: the sync feed already
+    // surfaced the deletion to paired clients, so a stale offline re-post
+    // must NOT resurrect it — and must not churn the hidden row either.
+    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue({
+      id: "entry-tomb",
+      deletedAt: new Date("2026-05-01T00:00:00.000Z"),
+    } as never);
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            externalId: "ios-uuid-tomb",
+            tagKeys: ["movies"],
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: {
+        inserted: number;
+        duplicates: number;
+        entries: Array<{ status: string; id?: string; externalId?: string }>;
+      };
+    };
+    expect(json.data.inserted).toBe(0);
+    expect(json.data.duplicates).toBe(1);
+    expect(json.data.entries[0].status).toBe("duplicate");
+    expect(json.data.entries[0].id).toBe("entry-tomb");
+    expect(json.data.entries[0].externalId).toBe("ios-uuid-tomb");
+    // No write at all on the hidden row: no upsert (value churn /
+    // updatedAt bump), no tag-link insert.
+    expect(prisma.moodEntry.upsert).not.toHaveBeenCalled();
+    expect(createTagLinks).not.toHaveBeenCalled();
+  });
+
+  it("still refreshes a LIVE match in place (duplicate + upsert runs)", async () => {
+    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue({
+      id: "entry-live",
+      deletedAt: null,
+    } as never);
+    vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
+      id: "entry-live",
+    } as never);
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "OKAY",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            externalId: "ios-uuid-live",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: { duplicates: number };
+    };
+    expect(json.data.duplicates).toBe(1);
+    expect(prisma.moodEntry.upsert).toHaveBeenCalledTimes(1);
+  });
+});

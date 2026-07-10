@@ -500,7 +500,8 @@ export const GOOGLE_HEALTH_DATA_TYPES = {
     timeField: "date",
   },
   // `respiratory-rate` does not exist in the catalogue; the daily summary is
-  // `daily-respiratory-rate` (`dailyRespiratoryRateBpm`).
+  // `daily-respiratory-rate`, value leaf `dailyRespiratoryRate.breathsPerMinute`
+  // (the once-assumed `dailyRespiratoryRateBpm` leaf never existed).
   respiratoryRate: {
     path: "daily-respiratory-rate",
     filter: "daily_respiratory_rate",

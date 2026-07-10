@@ -363,6 +363,10 @@ export async function upsertWhoopMeasurements(
           unit: r.unit,
           measuredAt: r.measuredAt,
           sleepStage: r.sleepStage ?? null,
+          // No-op on a live row, a deliberate RESURRECTION on a tombstoned
+          // one — WHOOP is the source of truth for its own rows, so a
+          // re-fetched reading brings the row back (mirrors Google / Fitbit).
+          deletedAt: null,
           // Surface the server-side mutation to the iOS LWW reconciler.
           syncVersion: { increment: 1 },
         },

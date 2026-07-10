@@ -167,7 +167,11 @@ export async function upsertNightscoutEntries(
         },
         // First-write-wins: a CGM sample is immutable, so a re-sync of the
         // same reading must not rewrite the stored value or measuredAt.
-        update: {},
+        // `deletedAt: null` is a no-op on a live row, a deliberate
+        // RESURRECTION on a tombstoned one — Nightscout is the source of
+        // truth for its own rows, so a re-synced reading brings the row
+        // back (mirrors Google / Fitbit).
+        update: { deletedAt: null },
       });
       touched.push({ type, measuredAt: mapped.measuredAt });
       imported++;

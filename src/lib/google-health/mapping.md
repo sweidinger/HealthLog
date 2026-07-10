@@ -172,9 +172,19 @@ RFC-3339), `sleep.type` (`CLASSIC | STAGES`), `sleep.stages[]`
 `sleep.summary` (`minutesAsleep`/`minutesAwake`, int64 strings). HealthLog
 stores one `SLEEP_DURATION` row per stage SEGMENT, `measuredAt = that segment's
 END instant`, harmonised onto the shared `SleepStage` enum the night-total +
-hypnogram readers consume. externalId = `<session-anchor>:sleep_<stage>:<i>`
-(session `interval.endTime` ISO instant + indexed segment), so a re-scored night
-overwrites in place. Stage map (`SLEEP_STAGE_TYPE` enum, lowercased):
+hypnogram readers consume. externalId = `<anchor>:sleep:<segment-start-ISO>`
+(v1.28.18): the anchor prefers the DataPoint's invariant resource `name`,
+falling back to the session `interval.endTime` (then `startTime`) parsed to a
+UTC ISO instant, and the per-segment key is the segment's own START instant —
+NOT a positional index and NOT the stage label, so a re-scored night overwrites
+in place and a mere re-classification (LIGHT→DEEP on the same block) UPDATES
+the row rather than orphaning it. After mapping, the sync runs a
+replace-by-window cleanup (`replaceStaleGoogleHealthSleep`): any LIVE
+`GOOGLE_HEALTH` `SLEEP_DURATION` row inside the session's
+`[windowStart, windowEnd]` that this fetch did NOT re-produce is soft-deleted,
+so segments an earlier scoring left behind (old volatile keys, dropped blocks)
+never double-count the night total. Stage map (`SLEEP_STAGE_TYPE` enum,
+lowercased):
 `LIGHT → CORE` ("light" ↔ Apple "core" shallow-NREM band), `DEEP → DEEP`,
 `REM → REM`, `AWAKE`/`RESTLESS → AWAKE`, classic `ASLEEP → ASLEEP`.
 `SLEEP_STAGE_TYPE_UNSPECIFIED` / unknown labels are skipped, not mis-bucketed.
@@ -203,9 +213,19 @@ source ladder.
 `(userId, type, source: "GOOGLE_HEALTH", externalId)` unique. Spot/daily metric
 rows: `externalId = <anchor>:<fieldTag>`. Daily cumulative activity rows:
 `externalId = stats:<fieldTag>:<YYYY-MM-DD>` (Apple-Health overwrite shape).
-Workouts: `(userId, source: "GOOGLE_HEALTH", externalId)` on the `Workout` table.
-A re-fetch of the same window (daily summaries re-roll after the fact, so the
-incremental overlap is 24 h) overwrites in place.
+Sleep rows: `externalId = <anchor>:sleep:<segment-start-ISO>` (see the sleep
+bundle above). Workouts: `(userId, source: "GOOGLE_HEALTH", externalId)` on the
+`Workout` table. A re-fetch of the same window (daily summaries re-roll after
+the fact, so the incremental overlap is 24 h) overwrites in place.
+
+The measurements unique index is **FULL** — it covers soft-deleted rows too, so
+exactly one row can ever exist per key, live or tombstoned. The upsert probe
+therefore matches tombstoned rows as well, and a re-import **RESURRECTS** them
+(the update branch clears `deletedAt`; v1.28.24) — Google is the source of
+truth for its own rows, and treating a tombstone as absent would plan an insert
+that `skipDuplicates` drops silently, wedging the key forever. An unchanged
+LIVE row is skipped entirely (no write, no `syncVersion` bump) so the 24 h
+overlap re-fetch doesn't churn the DB or the iOS delta pull.
 
 ## Error surfacing
 

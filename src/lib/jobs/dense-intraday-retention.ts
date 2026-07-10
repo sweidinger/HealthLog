@@ -171,7 +171,12 @@ export async function enqueueBootTimeDenseIntradayRetention(): Promise<{
       Date.now() - DENSE_INTRADAY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
     );
 
-    const users = await prisma.measurement.findMany({
+    // `groupBy` compiles to a server-side `GROUP BY` — Prisma's
+    // `distinct` dedups in the client AFTER pulling every matching row,
+    // an instance-wide scan of every out-of-window dense-tier row just
+    // to list user ids.
+    const users = await prisma.measurement.groupBy({
+      by: ["userId"],
       where: {
         source: "APPLE_HEALTH",
         type: { in: types },
@@ -179,8 +184,6 @@ export async function enqueueBootTimeDenseIntradayRetention(): Promise<{
         NOT: { externalId: { startsWith: "stats:" } },
         measuredAt: { lt: windowStart },
       },
-      select: { userId: true },
-      distinct: ["userId"],
     });
 
     if (users.length === 0) {

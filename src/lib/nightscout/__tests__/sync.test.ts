@@ -116,6 +116,10 @@ describe("syncUserNightscout", () => {
     const arg = upsertMock.mock.calls[0]![0];
     // An immutable sample: update must not carry a new value/measuredAt.
     expect(arg.update).not.toHaveProperty("value");
+    expect(arg.update).not.toHaveProperty("measuredAt");
+    // But it DOES carry the resurrection — Nightscout owns its rows, so a
+    // re-synced reading clears a tombstone (no-op on a live row).
+    expect(arg.update).toEqual({ deletedAt: null });
   });
 
   it("records sync success after a clean pass", async () => {

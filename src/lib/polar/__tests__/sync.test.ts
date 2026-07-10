@@ -8,6 +8,7 @@ const {
   fetchCardioLoadsMock,
   fetchSpo2Mock,
   upsertMock,
+  updateManyMock,
   recordSuccessMock,
   recordFailureMock,
   recomputeMock,
@@ -20,6 +21,7 @@ const {
   fetchCardioLoadsMock: vi.fn(),
   fetchSpo2Mock: vi.fn(),
   upsertMock: vi.fn(),
+  updateManyMock: vi.fn(),
   recordSuccessMock: vi.fn(),
   recordFailureMock: vi.fn(),
   recomputeMock: vi.fn(),
@@ -31,7 +33,7 @@ vi.mock("../credentials", () => ({
 }));
 
 vi.mock("@/lib/db", () => ({
-  prisma: { measurement: { upsert: upsertMock } },
+  prisma: { measurement: { upsert: upsertMock, updateMany: updateManyMock } },
 }));
 
 vi.mock("@/lib/integrations/status", async (importOriginal) => ({
@@ -75,6 +77,7 @@ beforeEach(() => {
   fetchCardioLoadsMock.mockReset();
   fetchSpo2Mock.mockReset();
   upsertMock.mockReset().mockResolvedValue({});
+  updateManyMock.mockReset().mockResolvedValue({ count: 0 });
   recordSuccessMock.mockReset().mockResolvedValue(undefined);
   recordFailureMock.mockReset().mockResolvedValue(undefined);
   recomputeMock.mockReset().mockResolvedValue(undefined);
@@ -131,7 +134,7 @@ describe("syncUserPolar", () => {
     expect(arg.create.value).toBe(123.45);
   });
 
-  it("keeps reconstructed sleep segments distinct under their indexed externalId", async () => {
+  it("keeps reconstructed sleep segments distinct under their stage-tagged externalId", async () => {
     getConnMock.mockResolvedValue(CONN);
     fetchSleepsMock.mockResolvedValue([
       {
@@ -147,10 +150,75 @@ describe("syncUserPolar", () => {
     const externalIds = upsertMock.mock.calls.map(
       (c) => c[0].where.userId_type_source_externalId.externalId,
     );
-    expect(externalIds).toContain("sleep:2026-06-10:seg:sleep_core:0");
-    expect(externalIds).toContain("sleep:2026-06-10:seg:sleep_rem:2");
+    expect(externalIds).toContain("sleep:2026-06-10:seg:sleep_core");
+    expect(externalIds).toContain("sleep:2026-06-10:seg:sleep_rem");
     // The several segment rows stay distinct (no collision).
     expect(new Set(externalIds).size).toBe(externalIds.length);
+  });
+
+  it("sweeps stale segment rows per fetched night: live-only, seg-prefixed, notIn the fresh set, soft-delete (v1.28.25)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchSleepsMock.mockResolvedValue([
+      {
+        date: "2026-06-10",
+        sleep_start_time: "2026-06-09T23:00:00+02:00",
+        sleep_end_time: "2026-06-10T07:00:00+02:00",
+        light_sleep: 3600,
+        deep_sleep: 1800,
+        rem_sleep: 5400,
+      },
+    ]);
+
+    await syncUserPolar("u1");
+
+    expect(updateManyMock).toHaveBeenCalledTimes(1);
+    const arg = updateManyMock.mock.calls[0]![0] as {
+      where: {
+        userId: string;
+        source: string;
+        type: string;
+        deletedAt: null;
+        externalId: { startsWith: string; notIn: string[] };
+      };
+      data: Record<string, unknown>;
+    };
+    expect(arg.where.userId).toBe("u1");
+    expect(arg.where.source).toBe("POLAR");
+    expect(arg.where.type).toBe("SLEEP_DURATION");
+    expect(arg.where.deletedAt).toBeNull();
+    // Bounded to THIS night's reconstructed segments. The prefix stays on
+    // `:seg:` (not the whole `sleep:<date>:` slice) because the IN_BED
+    // envelope keys on its measuredAt's UTC date, which can drift a calendar
+    // day from `date` — a broader bound could cross nights.
+    expect(arg.where.externalId.startsWith).toBe("sleep:2026-06-10:seg:");
+    // Every fresh SLEEP_DURATION id is protected (segments + IN_BED).
+    expect(arg.where.externalId.notIn.sort()).toEqual([
+      "sleep:2026-06-10:seg:sleep_core",
+      "sleep:2026-06-10:seg:sleep_deep",
+      "sleep:2026-06-10:seg:sleep_rem",
+      "sleep:2026-06-10:sleep_in_bed",
+    ]);
+    // Soft delete only.
+    expect(arg.data).toEqual({ deletedAt: expect.any(Date) });
+
+    // A legacy indexed row for this night falls inside the sweep.
+    const legacyId = "sleep:2026-06-10:seg:sleep_core:0";
+    expect(legacyId.startsWith(arg.where.externalId.startsWith)).toBe(true);
+    expect(arg.where.externalId.notIn).not.toContain(legacyId);
+
+    // Replace-then-write: the sweep runs before the first sleep upsert.
+    expect(updateManyMock.mock.invocationCallOrder[0]!).toBeLessThan(
+      upsertMock.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("never sweeps when the fetch returns no sleep records", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchRechargesMock.mockResolvedValue([
+      { date: "2026-06-10", nightly_recharge_status: 3 },
+    ]);
+    await syncUserPolar("u1");
+    expect(updateManyMock).not.toHaveBeenCalled();
   });
 
   it("is idempotent — a re-sync upserts on the same externalId", async () => {

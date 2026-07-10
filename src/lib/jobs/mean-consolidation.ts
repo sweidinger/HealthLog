@@ -106,15 +106,19 @@ export async function enqueueBootTimeMeanConsolidation(
       return { enqueued: 0, skipped: 0, error: null };
     }
 
-    const users = await prisma.measurement.findMany({
+    // `groupBy` compiles to a server-side `GROUP BY` — Prisma's
+    // `distinct` dedups in the client AFTER pulling every matching row,
+    // an instance-wide unbounded scan just to list user ids. No date
+    // bound on purpose: a fresh import of OLD per-sample rows must still
+    // surface its user here, however old the rows are.
+    const users = await prisma.measurement.groupBy({
+      by: ["userId"],
       where: {
         source: "APPLE_HEALTH",
         type: { in: types },
         deletedAt: null,
         NOT: { externalId: { startsWith: "stats:" } },
       },
-      select: { userId: true },
-      distinct: ["userId"],
     });
 
     if (users.length === 0) {

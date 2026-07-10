@@ -23,6 +23,7 @@ import {
 import {
   getValidToken,
   handleCollectionFetchError,
+  noteHardFailure,
   type GoogleHealthResourceSyncOptions,
 } from "./sync";
 import { prisma } from "@/lib/db";
@@ -102,6 +103,10 @@ export async function syncUserWorkout(
       imported++;
     } catch (err) {
       getEvent()?.addWarning(`google-health: failed to upsert workout: ${err}`);
+      // A fetched-but-unwritten session is gone once it leaves the overlap
+      // window — fail the cycle's verdict so the watermark holds and the next
+      // tick re-fetches it. No rethrow: sibling sessions keep upserting.
+      noteHardFailure("workout:upsert");
     }
   }
 

@@ -63,11 +63,16 @@ export interface ReconstructTimelineOptions {
   /** Optional IN_BED envelope row. */
   inBed?: ReconstructedInBed;
   /**
-   * Builds the indexed externalId for a laid segment so the several rows of one
-   * night stay distinct under `userId_type_source_externalId`. Called with the
-   * segment's fieldTag and its running index.
+   * Builds the externalId for a laid segment so the several rows of one night
+   * stay distinct under `userId_type_source_externalId`. Called with the
+   * segment's fieldTag ONLY — the builder emits at most one segment per stage,
+   * so the tag alone is unique within a night. A positional index was
+   * deliberately dropped from the key: it skipped zero-duration stages, so a
+   * 0↔positive flip on a vendor re-score renumbered every following stage,
+   * minted fresh externalIds, and the upsert double-counted the night instead
+   * of overwriting (the Google Health v1.28.18 bug class).
    */
-  externalIdFor: (fieldTag: string, index: number) => string;
+  externalIdFor: (fieldTag: string) => string;
 }
 
 const MS_TO_MIN = 1 / 60_000;
@@ -79,8 +84,9 @@ function round2(n: number): number {
 /**
  * Lay the asleep/awake stages contiguously from `startMs` in the given order,
  * emitting one timed `SLEEP_DURATION` row per stage (`measuredAt` = that
- * segment's END), each flagged `reconstructed: true` and keyed by an indexed
- * externalId. Appends a single IN_BED envelope row when `inBed` is provided.
+ * segment's END), each flagged `reconstructed: true` and keyed by a
+ * stage-tagged externalId. Appends a single IN_BED envelope row when `inBed`
+ * is provided.
  */
 export function reconstructContiguousSleepTimeline(
   opts: ReconstructTimelineOptions,
@@ -89,7 +95,6 @@ export function reconstructContiguousSleepTimeline(
   const out: ReconstructedSleepRow[] = [];
 
   let cursor = startMs;
-  let segIndex = 0;
   for (const { durationMs, stage, fieldTag } of stages) {
     if (
       typeof durationMs !== "number" ||
@@ -105,12 +110,11 @@ export function reconstructContiguousSleepTimeline(
       unit: "minutes",
       measuredAt: new Date(segEnd),
       fieldTag,
-      externalId: externalIdFor(fieldTag, segIndex),
+      externalId: externalIdFor(fieldTag),
       sleepStage: stage,
       reconstructed: true,
     });
     cursor = segEnd;
-    segIndex += 1;
   }
 
   if (

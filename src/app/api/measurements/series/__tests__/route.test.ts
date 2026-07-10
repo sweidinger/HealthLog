@@ -6,6 +6,9 @@ vi.mock("@/lib/db", () => ({
     measurement: { findMany: vi.fn() },
     user: { findUnique: vi.fn() },
     auditLog: { create: vi.fn() },
+    // v1.28.25 — dense kinds (glucose / pulse) day-bucket in SQL for
+    // windows beyond the 90-day raw cap.
+    $queryRaw: vi.fn(),
   },
 }));
 
@@ -65,6 +68,7 @@ function req(query: string): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
   vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     glucoseUnit: "mg/dL",
@@ -120,6 +124,48 @@ describe("GET /api/measurements/series", () => {
     expect(body.data.points[0].value).toBe(126);
     expect(body.data.points[0].secondary).toBe(82);
     expect(body.data.stats.count).toBe(1);
+  });
+
+  it("pairs BP via the sorted two-pointer merge exactly like the old scan (v1.28.25)", async () => {
+    // Pins the O(sys + dia) merge against the previous per-systolic full
+    // rescan: nearest diastolic within ±5 min wins, a tie keeps the
+    // EARLIER diastolic row, an out-of-window systolic pairs null.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const at = (iso: string) => new Date(iso);
+    const findManyMock = vi.mocked(prisma.measurement.findMany);
+    findManyMock.mockImplementation(((args: unknown) => {
+      const a = args as { where: { type: string } };
+      if (a.where.type === "BLOOD_PRESSURE_SYS") {
+        return Promise.resolve([
+          { id: "s1", value: 120, measuredAt: at("2026-05-01T10:00:00Z") },
+          // Equidistant (±2 min) between the 10:03 and 10:07 dia rows.
+          { id: "s2", value: 124, measuredAt: at("2026-05-01T10:05:00Z") },
+          { id: "s3", value: 130, measuredAt: at("2026-05-01T10:10:00Z") },
+          // > 5 min from every diastolic row — stays unpaired.
+          { id: "s4", value: 140, measuredAt: at("2026-05-01T11:00:00Z") },
+        ]) as never;
+      }
+      if (a.where.type === "BLOOD_PRESSURE_DIA") {
+        return Promise.resolve([
+          { id: "d1", value: 80, measuredAt: at("2026-05-01T10:01:00Z") },
+          { id: "d2", value: 82, measuredAt: at("2026-05-01T10:03:00Z") },
+          { id: "d3", value: 84, measuredAt: at("2026-05-01T10:07:00Z") },
+          { id: "d4", value: 86, measuredAt: at("2026-05-01T10:11:00Z") },
+        ]) as never;
+      }
+      return Promise.resolve([]) as never;
+    }) as never);
+    const res = await GET(req("kind=bloodPressure&days=30"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { points: Array<{ id: string; secondary: number | null }> };
+    };
+    expect(body.data.points.map((p) => [p.id, p.secondary])).toEqual([
+      ["s1", 80], // nearest is d1 (1 min)
+      ["s2", 82], // d2/d3 tie at 2 min — earlier row wins
+      ["s3", 86], // nearest is d4 (1 min)
+      ["s4", null], // nothing within ±5 min
+    ]);
   });
 
   it("returns single-value series for kind=weight", async () => {
@@ -375,6 +421,184 @@ describe("GET /api/measurements/series", () => {
       expect(body.data.kind).toBe(kind);
     },
   );
+});
+
+describe("GET /api/measurements/series — dense-kind day-bucketing (v1.28.25)", () => {
+  it("day-buckets glucose in SQL beyond the 90-day raw window", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.$queryRaw)
+      // 1st query — day buckets.
+      .mockResolvedValueOnce([
+        {
+          bucket_start: new Date("2025-01-01T00:00:00Z"),
+          mean: 100,
+          min_value: 70,
+          max_value: 180,
+        },
+        {
+          bucket_start: new Date("2025-01-02T00:00:00Z"),
+          mean: 126,
+          min_value: 80,
+          max_value: 200,
+        },
+      ] as never)
+      // 2nd query — raw-row aggregate for the stats strip.
+      .mockResolvedValueOnce([
+        { n: 576, mean: 113.04, min: 70, max: 200, sd: 22.34 },
+      ] as never);
+
+    const res = await GET(req("kind=glucose&days=365"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        unit: string;
+        points: Array<{
+          id: string;
+          at: string;
+          value: number;
+          secondary: number | null;
+        }>;
+        stats: {
+          mean: number;
+          min: number;
+          max: number;
+          stdDev: number;
+          count: number;
+        };
+      };
+    };
+    // No raw row walk — the read is SQL-aggregate only.
+    expect(prisma.measurement.findMany).not.toHaveBeenCalled();
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(body.data.unit).toBe("mg/dL");
+    expect(body.data.points).toEqual([
+      {
+        id: "day:2025-01-01",
+        at: "2025-01-01T00:00:00.000Z",
+        value: 100,
+        secondary: null,
+      },
+      {
+        id: "day:2025-01-02",
+        at: "2025-01-02T00:00:00.000Z",
+        value: 126,
+        secondary: null,
+      },
+    ]);
+    // Stats come from the RAW-row aggregate (count = raw samples, not
+    // day buckets), matching the raw path's mg/dL parity convention.
+    expect(body.data.stats).toEqual({
+      mean: 113,
+      min: 70,
+      max: 200,
+      stdDev: 22,
+      count: 576,
+    });
+  });
+
+  it("converts day-bucketed glucose for a mmol/L-preference user", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      glucoseUnit: "mmol/L",
+    } as never);
+    vi.mocked(prisma.$queryRaw)
+      .mockResolvedValueOnce([
+        {
+          bucket_start: new Date("2025-01-01T00:00:00Z"),
+          mean: 100,
+          min_value: 70,
+          max_value: 180,
+        },
+      ] as never)
+      .mockResolvedValueOnce([
+        { n: 288, mean: 100, min: 70, max: 180, sd: 18 },
+      ] as never);
+
+    const res = await GET(req("kind=glucose&days=3650"));
+    const body = (await res.json()) as {
+      data: {
+        unit: string;
+        points: Array<{ value: number }>;
+        stats: { mean: number };
+      };
+    };
+    expect(body.data.unit).toBe("mmol/L");
+    expect(body.data.points[0].value).toBe(5.5); // 100 mg/dL → 5.5 mmol/L
+    expect(body.data.stats.mean).toBe(5.5);
+  });
+
+  it("day-buckets pulse beyond 90 days with the day's min/max band", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.$queryRaw)
+      .mockResolvedValueOnce([
+        {
+          bucket_start: new Date("2025-06-01T00:00:00Z"),
+          mean: 71.666,
+          min_value: 52,
+          max_value: 143,
+        },
+      ] as never)
+      .mockResolvedValueOnce([
+        { n: 24, mean: 71.666, min: 58, max: 132, sd: 9.876 },
+      ] as never);
+
+    const res = await GET(req("kind=pulse&days=365"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        points: Array<{
+          id: string;
+          value: number;
+          valueMin: number | null;
+          valueMax: number | null;
+        }>;
+        stats: { mean: number; stdDev: number; count: number };
+      };
+    };
+    expect(prisma.measurement.findMany).not.toHaveBeenCalled();
+    expect(body.data.points).toEqual([
+      {
+        id: "day:2025-06-01",
+        at: "2025-06-01T00:00:00.000Z",
+        value: 71.67,
+        secondary: null,
+        valueMin: 52,
+        valueMax: 143,
+      },
+    ]);
+    expect(body.data.stats.mean).toBe(71.67);
+    expect(body.data.stats.stdDev).toBe(9.88);
+    expect(body.data.stats.count).toBe(24);
+  });
+
+  it("keeps the 90-day window on the raw path (byte-identical short ranges)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "g1", value: 100, measuredAt: new Date("2026-06-01T08:00:00Z") },
+    ] as never);
+    const res = await GET(req("kind=glucose&days=90"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { points: Array<{ id: string }> };
+    };
+    // Raw read, individual row ids — the SQL bucket path never fires.
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    expect(body.data.points[0].id).toBe("g1");
+  });
+
+  it("keeps sparse kinds raw even on the ten-year window", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "w1", value: 78.4, measuredAt: new Date() },
+    ] as never);
+    const res = await GET(req("kind=weight&days=3650"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { points: Array<{ id: string }> };
+    };
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    expect(body.data.points[0].id).toBe("w1");
+  });
 });
 
 describe("GET /api/measurements/series — 422 multi-issue (v1.4.43 W6)", () => {

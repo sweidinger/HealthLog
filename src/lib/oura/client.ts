@@ -548,7 +548,6 @@ function mapSleepTimeline(s: OuraSleep): MappedMeasurement[] | null {
   if (Number.isNaN(onset.getTime())) return null;
 
   const out: MappedMeasurement[] = [];
-  let segIndex = 0;
   let i = 0;
   while (i < hyp.length) {
     const digit = hyp[i];
@@ -559,7 +558,15 @@ function mapSleepTimeline(s: OuraSleep): MappedMeasurement[] | null {
     if (stage) {
       const segStartMs = onset.getTime() + i * HYPNOGRAM_INTERVAL_MS;
       const segEndMs = segStartMs + run * HYPNOGRAM_INTERVAL_MS;
-      const fieldTag = `seg:${segIndex}`;
+      // Keyed by the run's own START instant, NOT a positional run index. A
+      // revised hypnogram re-segments the night (runs merge/split), so an
+      // index shifted every following run onto the wrong row — wrong
+      // boundaries updated in place plus phantom tail rows the night-total
+      // double-counted. A run's start instant is a stable coordinate: an
+      // unchanged run keeps its id (re-classification overwrites in place),
+      // and whatever the revision orphaned is swept by the record-scoped
+      // cleanup in the sync (which also clears legacy `seg:<i>` rows).
+      const fieldTag = `seg:${new Date(segStartMs).toISOString()}`;
       out.push({
         type: "SLEEP_DURATION",
         value: round2(run * HYPNOGRAM_INTERVAL_MIN),
@@ -567,11 +574,10 @@ function mapSleepTimeline(s: OuraSleep): MappedMeasurement[] | null {
         measuredAt: new Date(segEndMs),
         fieldTag,
         sleepStage: stage,
-        // Record-scoped + segment-indexed so a nap's segments never collide
-        // with the main sleep's and a re-fetch overwrites in place.
+        // Record-scoped so a nap's segments never collide with the main
+        // sleep's and a re-fetch overwrites in place.
         externalId: `sleep:${s.id}:${fieldTag}`,
       });
-      segIndex += 1;
     }
     i += run;
   }

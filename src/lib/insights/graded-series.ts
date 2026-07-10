@@ -72,6 +72,29 @@ const WEEKLY_WINDOW_MS = (RECENT_DAYS + WEEKLY_WEEKS * 7) * MS_PER_DAY;
 // yearly buckets.
 const MONTHLY_WINDOW_MS = WEEKLY_WINDOW_MS + MONTHLY_MONTHS * 30 * MS_PER_DAY;
 
+/**
+ * v1.28.25 — bound on the cold-tier fallback read. The coverage-miss
+ * fallback used to `findMany` the FULL raw history with no window or
+ * take; on a CGM / per-sample-pulse account that had just imported years
+ * of data (exactly the state where the rollup tier is still cold) it
+ * pulled six-figure row sets into JS on a request path. 1095 days
+ * matches the yearly rollup router window below, so the cold path now
+ * covers the same horizon the warm path serves.
+ */
+const COLD_FALLBACK_WINDOW_DAYS = 1095;
+
+/**
+ * Sample-dense types whose cold-tier fallback is day-bucketed in SQL
+ * (one AVG row per day) instead of read raw — same dense set the series
+ * route caps (CGM glucose ~288 rows/day, PULSE per-sample / hourly).
+ * The fold's output shape is unchanged; on the cold path only, a dense
+ * type's monthly/yearly min/max/n derive from day means rather than
+ * individual samples — the warm rollup tier restores sample-exact
+ * figures as soon as the backfill lands.
+ */
+const DENSE_FALLBACK_TYPES: ReadonlySet<MeasurementType> =
+  new Set<MeasurementType>(["BLOOD_GLUCOSE", "PULSE"]);
+
 export interface RecentDayBucket {
   /** Berlin YYYY-MM-DD. */
   date: string;
@@ -326,12 +349,13 @@ function rollupYearly(rows: RollupBucketRow[]): YearlyBucket[] {
  * caught up on — the bounded ~90-day read can NOT supply the monthly /
  * yearly slices (every row in it folds into recent / weekly), so naively
  * reusing it would ship empty monthly / yearly arrays even when years of
- * raw history exist. On that miss this falls back to a full-history
- * in-memory fold so the coarse slices are populated from the raw rows
- * rather than left falsely empty. The full read only happens when the
- * tier is cold, which is exactly the case the write-amplified tier was
- * meant to avoid — so the hot path stays bounded and the cold path stays
- * correct.
+ * raw history exist. On that miss this falls back to an in-memory fold
+ * over a bounded window (1095 days — the yearly router's own horizon;
+ * sample-dense types are additionally day-bucketed in SQL) so the coarse
+ * slices are populated from the raw rows rather than left falsely empty.
+ * The fallback read only happens when the tier is cold, which is exactly
+ * the case the write-amplified tier was meant to avoid — so the hot path
+ * stays bounded and the cold path stays correct.
  */
 export async function buildGradedSeriesWithRollups(
   userId: string,
@@ -396,19 +420,57 @@ export async function buildGradedSeriesWithRollups(
   }
 
   // Tier coverage miss for one or both coarse slices: the bounded
-  // ~90-day read can't supply them, so fold the FULL history in memory
-  // and take whichever slices the tier left empty. The full read is the
-  // exception (cold-tier accounts), never the warm-tier norm.
+  // ~90-day read can't supply them, so fold a BOUNDED history window in
+  // memory and take whichever slices the tier left empty. The fallback
+  // read is the exception (cold-tier accounts), never the warm-tier
+  // norm. v1.28.25 — the read is bounded to the same 1095-day horizon
+  // the yearly rollup router serves (it was previously unwindowed), and
+  // the sample-dense types are day-bucketed in SQL so a heavy import
+  // ahead of the rollup backfill can't drag six-figure row sets into JS.
   if (!monthlyCovered || !yearlyCovered) {
-    const allRows = await prisma.measurement.findMany({
-      where: { userId, type, deletedAt: null },
-      orderBy: { measuredAt: "asc" },
-      select: { measuredAt: true, value: true },
-    });
-    const fullGraded = buildGradedSeriesFromPoints(
-      allRows.map((r) => ({ measuredAt: r.measuredAt, value: r.value })),
-      now,
+    const fallbackSince = new Date(
+      now.getTime() - COLD_FALLBACK_WINDOW_DAYS * MS_PER_DAY,
     );
+    let fallbackPoints: Point[];
+    if (DENSE_FALLBACK_TYPES.has(type)) {
+      // Parameter-bound day-bucket aggregate, mirroring the rollup tier's
+      // `date_trunc(...) GROUP BY` (measurement-rollups.ts) — at most
+      // ~1095 rows regardless of sample density.
+      const bucketRows = await prisma.$queryRaw<
+        Array<{ bucket_start: Date; mean: number }>
+      >`
+        SELECT
+          date_trunc('day', m."measured_at")   AS bucket_start,
+          AVG(m."value")::double precision     AS mean
+        FROM measurements m
+        WHERE m."user_id" = ${userId}
+          AND m."type" = ${type}::"measurement_type"
+          AND m."measured_at" >= ${fallbackSince}
+          AND m."deleted_at" IS NULL
+        GROUP BY date_trunc('day', m."measured_at")
+        ORDER BY bucket_start ASC
+      `;
+      fallbackPoints = bucketRows.map((r) => ({
+        measuredAt: r.bucket_start,
+        value: r.mean,
+      }));
+    } else {
+      const rows = await prisma.measurement.findMany({
+        where: {
+          userId,
+          type,
+          deletedAt: null,
+          measuredAt: { gte: fallbackSince },
+        },
+        orderBy: { measuredAt: "asc" },
+        select: { measuredAt: true, value: true },
+      });
+      fallbackPoints = rows.map((r) => ({
+        measuredAt: r.measuredAt,
+        value: r.value,
+      }));
+    }
+    const fullGraded = buildGradedSeriesFromPoints(fallbackPoints, now);
     if (!monthlyCovered) monthly = fullGraded.monthly;
     if (!yearlyCovered) yearly = fullGraded.yearly;
   }

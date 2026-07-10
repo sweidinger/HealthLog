@@ -237,7 +237,11 @@ export async function syncUserMeasurements(
       if (existing) {
         await prisma.measurement.update({
           where: { id: existing.id },
-          data: { value: m.value },
+          // `deletedAt: null` is a no-op on a live row, a deliberate
+          // RESURRECTION on a tombstoned one — Withings is the source of
+          // truth for its own rows, so a re-fetched measure brings the row
+          // back (mirrors Google / Fitbit).
+          data: { value: m.value, deletedAt: null },
         });
       } else {
         await prisma.measurement.create({

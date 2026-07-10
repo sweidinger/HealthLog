@@ -128,17 +128,27 @@ export async function syncUserActivity(
       continue;
     }
 
+    // The mapper runs INSIDE a per-type catch too (mirrors sync-metrics): a
+    // single malformed point whose `resource.map(point)` throws must not
+    // escape the ROLLUP_RESOURCES loop and abort every sibling type ordered
+    // after it. Route a map throw through the same ledger as a fetch failure —
+    // record it, fail the cycle, and move on to the next type.
     const readings: GoogleHealthMeasurementUpsert[] = [];
-    for (const point of points) {
-      for (const m of resource.map(point)) {
-        readings.push({
-          type: m.type,
-          value: m.value,
-          unit: m.unit,
-          measuredAt: m.measuredAt,
-          externalId: externalIdFor(m),
-        });
+    try {
+      for (const point of points) {
+        for (const m of resource.map(point)) {
+          readings.push({
+            type: m.type,
+            value: m.value,
+            unit: m.unit,
+            measuredAt: m.measuredAt,
+            externalId: externalIdFor(m),
+          });
+        }
       }
+    } catch (err) {
+      imported += await handleCollectionFetchError(resource.verb, userId, err);
+      continue;
     }
     if (points.length === 0) {
       rollupEmptyResponse.push(resource.verb);

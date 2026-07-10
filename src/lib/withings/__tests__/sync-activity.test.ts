@@ -212,18 +212,26 @@ describe("syncUserActivity — field mapping + idempotency", () => {
     // overwrite (the value moved). Keyed by the same four columns the
     // batched read matches on.
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([
-      { id: "row-steps", type: "ACTIVITY_STEPS", measuredAt, value: 1 },
+      {
+        id: "row-steps",
+        type: "ACTIVITY_STEPS",
+        measuredAt,
+        value: 1,
+        deletedAt: null,
+      },
       {
         id: "row-distance",
         type: "WALKING_RUNNING_DISTANCE",
         measuredAt,
         value: 1,
+        deletedAt: null,
       },
       {
         id: "row-calories",
         type: "ACTIVE_ENERGY_BURNED",
         measuredAt,
         value: 1,
+        deletedAt: null,
       },
     ] as never);
     vi.mocked(prisma.measurement.update).mockResolvedValue({} as never);
@@ -241,7 +249,13 @@ describe("syncUserActivity — field mapping + idempotency", () => {
     installFetchMock([{ date: "2026-05-12", steps: 8420 }]);
     const measuredAt = new Date("2026-05-12T12:00:00.000Z");
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([
-      { id: "row-steps", type: "ACTIVITY_STEPS", measuredAt, value: 8420 },
+      {
+        id: "row-steps",
+        type: "ACTIVITY_STEPS",
+        measuredAt,
+        value: 8420,
+        deletedAt: null,
+      },
     ] as never);
 
     const imported = await syncUserActivity("user-1");
@@ -252,6 +266,34 @@ describe("syncUserActivity — field mapping + idempotency", () => {
     expect(prisma.measurement.createMany).not.toHaveBeenCalled();
     expect(prisma.measurement.update).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("resurrects a tombstoned slot even when the value is unchanged (deletedAt: null)", async () => {
+    installFetchMock([{ date: "2026-05-12", steps: 8420 }]);
+    const measuredAt = new Date("2026-05-12T12:00:00.000Z");
+    // Same value, but the row is tombstoned: the write is what resurrects
+    // it — Withings owns the row, so a re-fetched day brings it back.
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        id: "row-steps",
+        type: "ACTIVITY_STEPS",
+        measuredAt,
+        value: 8420,
+        deletedAt: new Date("2026-05-13T00:00:00.000Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.measurement.update).mockResolvedValue({} as never);
+
+    const imported = await syncUserActivity("user-1");
+
+    expect(imported).toBe(1);
+    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
+    expect(prisma.measurement.update).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(prisma.measurement.update).mock.calls[0][0] as {
+      data: { value: number; deletedAt: Date | null };
+    };
+    expect(arg.data.value).toBe(8420);
+    expect(arg.data.deletedAt).toBeNull();
   });
 
   it("anchors measuredAt at noon UTC so the instant lands inside the local day for every supported tz", async () => {
