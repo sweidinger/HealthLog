@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 import { TileHeader } from "@/components/insights/tile-header";
+import { Glp1PlateauNote } from "@/components/insights/glp1-plateau-note";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -170,7 +171,7 @@ export function EfficacyTab({
           straight into the tab's `space-y-6` rhythm. Additive: no existing
           Wirkung content changes. */}
       {isGlp1 && medicationName != null && medicationDose != null ? (
-        <div data-slot="wirkung-drug-level-section">
+        <div className="space-y-6" data-slot="wirkung-drug-level-section">
           <DrugLevelChart
             medication={{
               id: medicationId,
@@ -178,6 +179,10 @@ export function EfficacyTab({
               dose: medicationDose,
             }}
           />
+          {/* v1.28.21 — weight-plateau note (association only). Self-gating:
+              renders nothing unless the server-side detector reports a
+              plateau on the current dose. */}
+          <Glp1PlateauNote />
         </div>
       ) : null}
 

@@ -10,7 +10,15 @@ import {
   YAxis,
 } from "recharts";
 
+import { TriangleAlert } from "lucide-react";
+
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations, useTimeFormatPreference } from "@/lib/i18n/context";
 import { hourCycleOptions } from "@/lib/format-locale";
@@ -71,6 +79,20 @@ export interface SleepHypnogramSession {
    * Withings, Fitbit) is `false` and keeps the timeline.
    */
   reconstructed?: boolean;
+  /**
+   * Non-null when two writer buckets reported clearly different asleep
+   * totals for this night (server-computed, observational only — the
+   * headline total stays the winning writer's). Renders as a discreet
+   * marker with a per-source breakdown in a tooltip.
+   */
+  sourceDiscrepancy?: {
+    deltaMinutes: number;
+    sources: {
+      source: string;
+      deviceType: string | null;
+      asleepMinutes: number;
+    }[];
+  } | null;
 }
 
 export interface SleepHypnogramProps {
@@ -110,6 +132,61 @@ function formatMinutes(total: number, locale: string): string {
     return hours > 0 ? `${hours} Std. ${mins} Min.` : `${mins} Min.`;
   }
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+}
+
+/**
+ * Localised label keys per `MeasurementSource` — the same map the
+ * source-priority settings surface uses (`sources-section.tsx`), so both
+ * surfaces humanise a source identically.
+ */
+const SOURCE_LABEL_KEYS: Record<string, string> = {
+  WITHINGS: "settings.sections.sources.sourceLabels.WITHINGS",
+  APPLE_HEALTH: "settings.sections.sources.sourceLabels.APPLE_HEALTH",
+  MANUAL: "settings.sections.sources.sourceLabels.MANUAL",
+  IMPORT: "settings.sections.sources.sourceLabels.IMPORT",
+  WHOOP: "settings.sections.sources.sourceLabels.WHOOP",
+  COMPUTED: "settings.sections.sources.sourceLabels.COMPUTED",
+  FITBIT: "settings.sections.sources.sourceLabels.FITBIT",
+};
+
+/**
+ * Brand names for sources without a localised settings label — brand
+ * spellings are locale-invariant, so no i18n key is needed for them.
+ */
+const SOURCE_BRAND_NAMES: Record<string, string> = {
+  OURA: "Oura",
+  POLAR: "Polar",
+  GOOGLE_HEALTH: "Google Health",
+  NIGHTSCOUT: "Nightscout",
+  STRAVA: "Strava",
+  TELEGRAM: "Telegram",
+  MCP: "MCP",
+};
+
+/**
+ * Localised device-type label keys (`Measurement.deviceType`), reused from
+ * the source-priority settings surface. Appended in parentheses so two
+ * writer apps behind the same source (watch vs phone under Apple Health)
+ * stay distinguishable in the discrepancy tooltip.
+ */
+const DEVICE_TYPE_LABEL_KEYS: Record<string, string> = {
+  watch: "settings.sections.sources.deviceLabels.watch",
+  band: "settings.sections.sources.deviceLabels.band",
+  ring: "settings.sections.sources.deviceLabels.ring",
+  phone: "settings.sections.sources.deviceLabels.phone",
+  scale: "settings.sections.sources.deviceLabels.scale",
+  other: "settings.sections.sources.deviceLabels.other",
+};
+
+function sourceDisplayName(
+  source: string,
+  deviceType: string | null,
+  t: (key: string) => string,
+): string {
+  const labelKey = SOURCE_LABEL_KEYS[source];
+  const base = labelKey ? t(labelKey) : (SOURCE_BRAND_NAMES[source] ?? source);
+  const deviceKey = deviceType ? DEVICE_TYPE_LABEL_KEYS[deviceType] : undefined;
+  return deviceKey ? `${base} (${t(deviceKey)})` : base;
 }
 
 export function SleepHypnogram({ session }: SleepHypnogramProps) {
@@ -251,10 +328,51 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
       <CardHeader>
         <div className="flex flex-col gap-0.5">
           <TileHeader title={t("insights.sleep.hypnogram.title")} />
-          <span className="text-muted-foreground text-xs">
+          <span className="text-muted-foreground flex items-center gap-1 text-xs">
             {t("insights.sleep.hypnogram.subtitle", {
               asleep: formatMinutes(session.asleepMinutes, locale),
             })}
+            {/* Discreet source-discrepancy marker: two writers reported
+                clearly different totals for this night. Observational — the
+                headline stays the winning writer's number; the tooltip lists
+                each source's own total. Muted, no colour wash, no banner;
+                negative margins keep the 44 px hit target from growing the
+                caption line (same trick as measurement-diversity-nudge). */}
+            {session.sourceDiscrepancy ? (
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      data-slot="sleep-source-discrepancy"
+                      aria-label={t(
+                        "insights.sleep.sourceDiscrepancy.tooltipTitle",
+                      )}
+                      className="text-muted-foreground focus-visible:ring-ring/50 -mx-3 -my-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                      <TriangleAlert className="size-3.5" aria-hidden="true" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    data-slot="sleep-source-discrepancy-body"
+                    align="start"
+                    className="max-w-xs leading-relaxed"
+                  >
+                    <p className="font-medium">
+                      {t("insights.sleep.sourceDiscrepancy.tooltipTitle")}
+                    </p>
+                    <p>
+                      {session.sourceDiscrepancy.sources
+                        .map(
+                          (b) =>
+                            `${sourceDisplayName(b.source, b.deviceType, t)} ${formatMinutes(b.asleepMinutes, locale)}`,
+                        )
+                        .join(" · ")}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : null}
           </span>
           {/* The night's measuring source rides the header as a muted
               caption — it is already on the wire, and "which device

@@ -36,6 +36,13 @@ import {
   type GoogleHealthBackfillPayload,
 } from "@/lib/jobs/google-health-backfill";
 import {
+  GOOGLE_HEALTH_SLEEP_REPAIR_QUEUE,
+  GOOGLE_HEALTH_SLEEP_REPAIR_CONCURRENCY,
+  runGoogleHealthSleepRepairForUser,
+  enqueueBootTimeGoogleHealthSleepRepair,
+  type GoogleHealthSleepRepairPayload,
+} from "@/lib/jobs/google-health-sleep-repair";
+import {
   STRAVA_BACKFILL_QUEUE,
   STRAVA_BACKFILL_CONCURRENCY,
   runStravaBackfillForUser,
@@ -244,6 +251,10 @@ const allQueues = [
   // self-converging boot backfill, and the daily OAuth-state ledger sweep.
   GOOGLE_HEALTH_SYNC_QUEUE,
   GOOGLE_HEALTH_BACKFILL_QUEUE,
+  // v1.28.x — one-shot sleep duplicate repair. Discovery enqueues one full
+  // sleep re-read per connection not yet repaired; the replace-by-window write
+  // path collapses each night's duplicate rows. Idempotent across reboots.
+  GOOGLE_HEALTH_SLEEP_REPAIR_QUEUE,
   GOOGLE_HEALTH_OAUTH_STATE_CLEANUP_QUEUE,
   // v1.17.1 — one-shot sleep-timeline backfill for WHOOP + Withings.
   // Discovery enqueues one job per connection whose sleep rows predate the
@@ -429,6 +440,25 @@ export async function registerIntegrationSyncQueues(
       }
     },
   );
+  // v1.28.x — one-shot Google Health sleep duplicate repair. The boot enqueue
+  // below sends one full sleep-history re-read per un-repaired connection; this
+  // handler runs it (watermark-safe — `syncUserSleep` never stamps
+  // `lastSyncedAt`) and stamps `sleepRepairedAt` so the discovery query drops
+  // the account.
+  await boss.work<GoogleHealthSleepRepairPayload>(
+    GOOGLE_HEALTH_SLEEP_REPAIR_QUEUE,
+    { localConcurrency: GOOGLE_HEALTH_SLEEP_REPAIR_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const { imported } = await runGoogleHealthSleepRepairForUser(userId);
+        workerLog(
+          "info",
+          `[google-health-sleep-repair] user=${userId} imported=${imported}`,
+        );
+      }
+    },
+  );
   await boss.work<GoogleHealthOAuthStateCleanupPayload>(
     GOOGLE_HEALTH_OAUTH_STATE_CLEANUP_QUEUE,
     { localConcurrency: 1 },
@@ -596,6 +626,31 @@ export async function enqueueIntegrationSyncBootDiscovery(): Promise<void> {
     workerLog(
       "error",
       "[google-health-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.28.x — one-shot Google Health sleep duplicate repair. Finds every
+  // connection not yet repaired and enqueues one full sleep re-read per
+  // account; a completed pass stamps `sleepRepairedAt`.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeGoogleHealthSleepRepair();
+    if (error) {
+      workerLog(
+        "error",
+        `[google-health-sleep-repair] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[google-health-sleep-repair] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[google-health-sleep-repair] boot discovery threw an unexpected error",
       err,
     );
   }

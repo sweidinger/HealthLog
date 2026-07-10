@@ -1025,6 +1025,16 @@ interface RollupQuery {
    * reports which shape Google actually accepted.
    */
   onShape?: (shape: GoogleHealthRollupShape) => void;
+  /**
+   * Observes the raw top-level KEY NAMES of the first response page (never
+   * values). A rollup read that parses zero points is ambiguous — the service
+   * either returned nothing (account-side materialisation) or returned points
+   * under an envelope key this reader does not know (a per-cohort naming
+   * drift, the class of mismatch this integration has hit three times). The
+   * structure probe surfaces these keys so a live account settles it in one
+   * report: `["rollupDataPoints"]` = genuinely empty, anything else = drift.
+   */
+  onEnvelopeKeys?: (keys: string[]) => void;
 }
 
 /** The dailyRollUp request shape a walk settled on. */
@@ -1152,6 +1162,16 @@ export async function fetchDailyRollUp(
           });
         }
 
+        // Surface the raw envelope key names of the very first page (names
+        // only, never values) — see `RollupQuery.onEnvelopeKeys`.
+        if (
+          chunkIndex === 0 &&
+          pageCount === 0 &&
+          json &&
+          typeof json === "object"
+        ) {
+          query.onEnvelopeKeys?.(Object.keys(json));
+        }
         for (const p of json?.rollupDataPoints ?? []) points.push(p);
         pageToken = json?.nextPageToken ?? null;
         pageCount += 1;

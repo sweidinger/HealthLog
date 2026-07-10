@@ -1806,6 +1806,10 @@
       "adherenceLane": "Regularność",
       "typicalRange": "Typowy zakres",
       "levelShift": "Wykryto zmianę poziomu w okolicach {date}.",
+      "plateau": {
+        "title": "Plateau masy ciała przy obecnej dawce",
+        "evidence": "Zmiana masy ciała o {delta} kg w ciągu ostatnich {window} dni ({readings} pomiarów) — {days} dni na dawce {dose}."
+      },
       "retarget": {
         "label": "To nie ten pomiar?",
         "placeholder": "Śledź według…",
@@ -2740,6 +2744,9 @@
         "awakenings": "{count} przebudzeń",
         "source": "Źródło: {source}",
         "estimateNote": "Czasy faz są szacowane — to źródło podaje sumy dla każdej fazy, a nie zmierzony przebieg."
+      },
+      "sourceDiscrepancy": {
+        "tooltipTitle": "Źródła się różnią"
       },
       "stages": {
         "deep": "Głęboki",

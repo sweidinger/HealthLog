@@ -243,6 +243,29 @@ const sleepSessionResource = z.object({
     ),
   stages: z.record(sleepStageEnum, z.number().int().nonnegative()),
   segments: z.array(sleepSegmentResource),
+  sourceDiscrepancy: z
+    .object({
+      deltaMinutes: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe(
+          "Spread (max − min) of the disagreeing per-writer asleep totals, in minutes.",
+        ),
+      sources: z.array(
+        z.object({
+          source: z
+            .string()
+            .describe("MeasurementSource value of the writer bucket."),
+          deviceType: z.string().nullable(),
+          asleepMinutes: z.number().int().nonnegative(),
+        }),
+      ),
+    })
+    .nullable()
+    .describe(
+      "Non-null when two writer buckets reported clearly different asleep totals for this session (> 45 min apart and > 20% of the larger total). Observational only — the served totals stay the winning writer's; clients may show a discreet 'sources disagree' hint listing each bucket's total.",
+    ),
 });
 
 const sleepNightResponse = z

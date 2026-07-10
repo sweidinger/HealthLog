@@ -105,6 +105,15 @@ export async function syncUserActivity(
   const start = opts.start;
 
   let imported = 0;
+  // Rollup observability — a cumulative type that "works" (HTTP 200) can still
+  // land zero rows for two very different reasons, and the sync log must tell
+  // them apart without a live-account debugging round-trip:
+  //   emptyResponse → the service returned NO rollup points at all (Google-side
+  //                   materialisation for the account / device cohort);
+  //   droppedAll    → points arrived but none survived the mapper (a response
+  //                   naming/shape drift on this account's service revision).
+  const rollupEmptyResponse: string[] = [];
+  const rollupDroppedAll: string[] = [];
   for (const resource of ROLLUP_RESOURCES) {
     let points: Record<string, unknown>[];
     try {
@@ -131,11 +140,24 @@ export async function syncUserActivity(
         });
       }
     }
+    if (points.length === 0) {
+      rollupEmptyResponse.push(resource.verb);
+    } else if (readings.length === 0) {
+      rollupDroppedAll.push(resource.verb);
+    }
     imported += (
       await upsertGoogleHealthMeasurements(userId, readings, {
         deferRollup: opts.deferRollup,
       })
     ).imported;
+  }
+  if (rollupEmptyResponse.length > 0 || rollupDroppedAll.length > 0) {
+    annotate({
+      meta: {
+        "googleHealth.rollup.emptyResponse": rollupEmptyResponse,
+        "googleHealth.rollup.droppedAll": rollupDroppedAll,
+      },
+    });
   }
 
   // VO2 max — a daily summary (list + `.date` filter), not a rollup type.

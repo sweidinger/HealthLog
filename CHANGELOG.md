@@ -2,7 +2,30 @@
 
 ## [Unreleased]
 
-## [1.28.20] — 2026-07-10 — Estimated drug level where you read efficacy
+## [1.28.21] — 2026-07-10 — Sleep history heals itself; plateau context; sync diagnostics
+
+Three follow-ups to the recent sleep fix, plus better Google Health diagnostics.
+
+Nights that were stored twice before the sleep fix now repair themselves: a
+one-time background pass re-reads each connected account's Google Health sleep
+history and collapses every re-scored night to its true total. No operator
+action needed — it runs once after the update and marks itself done.
+
+The sleep night read now reports when two sources disagree about the same night
+(say, a sleep mat's ten hours in bed against a watch's seven and a half asleep).
+The served total is unchanged — the disagreement rides along as an annotation so
+clients can mark the number instead of silently picking a side.
+
+A GLP-1 medication whose weight has plateaued on the current dose now says so
+where the estimated drug level is shown — a short, factual note with the
+observed change over the window, next to the curve in the efficacy view and in
+Insights. It states the association and nothing more.
+
+Google Health sync diagnostics: a daily-totals read that returns rows but
+imports nothing now says so in the sync log, distinguishing an empty answer
+from one the importer could not read — and the connection test's structure
+probe reports the raw response field names when a type parses to zero, so a
+per-account naming drift is visible from a single report.
 
 The estimated active-substance curve for a GLP-1 medication — the modelled drug
 level from your logged doses — now also appears in the efficacy view and in the

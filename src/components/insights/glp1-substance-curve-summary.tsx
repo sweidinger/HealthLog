@@ -22,6 +22,7 @@ import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { Glp1PlateauNote } from "@/components/insights/glp1-plateau-note";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
 
@@ -80,6 +81,10 @@ export function Glp1SubstanceCurveSummary({
           />
         </div>
       ))}
+      {/* v1.28.21 — weight-plateau note (association only), below the
+          curve(s). Self-gating: renders nothing unless the server-side
+          detector reports a plateau on the current dose. */}
+      <Glp1PlateauNote />
     </div>
   );
 }

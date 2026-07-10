@@ -3361,6 +3361,11 @@ model GoogleHealthConnection {
   /// Set once the self-converging history backfill walks every data type to
   /// completion. Null = backfill still in flight (or never started).
   backfillCompletedAt DateTime? @map("backfill_completed_at")
+  /// Set once the one-shot sleep duplicate-repair re-read completed — the full
+  /// sleep-history re-sync that collapses duplicate rows left by the volatile
+  /// pre-fix externalId (a re-scored night minted parallel copies). Null =
+  /// repair pending (or the connection predates the fix).
+  sleepRepairedAt     DateTime? @map("sleep_repaired_at")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 

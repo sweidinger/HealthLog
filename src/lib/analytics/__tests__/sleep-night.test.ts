@@ -1037,3 +1037,154 @@ describe("per-night writer richness pick", () => {
     expect(after[0].asleepMinutes).toBe(410);
   });
 });
+
+describe("source discrepancy annotation", () => {
+  // Granular Apple night (300 + 90 + 65 = 455 asleep minutes) next to a
+  // bare Withings aggregate claiming 615 for the same session. Apple wins
+  // the night on granular richness; Withings' disagreement is observed
+  // only, never blended into the served total.
+  const discrepantRows: SleepStageRow[] = [
+    srcRow("2026-06-04T00:30:00.000Z", "CORE", 300, "APPLE_HEALTH"),
+    srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "APPLE_HEALTH"),
+    srcRow("2026-06-04T05:00:00.000Z", "REM", 65, "APPLE_HEALTH"),
+    srcRow("2026-06-04T05:30:00.000Z", "ASLEEP", 615, "WITHINGS"),
+  ];
+
+  it("flags two writer buckets whose asleep totals clearly disagree", () => {
+    const sessions = reconstructSleepSessions(discrepantRows, "UTC");
+    expect(sessions).toHaveLength(1);
+    const s = sessions[0];
+    expect(s.sourceDiscrepancy).toEqual({
+      deltaMinutes: 160,
+      sources: [
+        { source: "WITHINGS", deviceType: null, asleepMinutes: 615 },
+        { source: "APPLE_HEALTH", deviceType: null, asleepMinutes: 455 },
+      ],
+    });
+  });
+
+  it("never changes the served total — the winning writer's number stands", () => {
+    // The flagged night serves the SAME asleep total as the identical night
+    // without the disagreeing second writer: the annotation observes, the
+    // writer collapse decides.
+    const flagged = reconstructSleepSessions(discrepantRows, "UTC");
+    const winnerOnly = reconstructSleepSessions(
+      discrepantRows.filter((r) => r.source === "APPLE_HEALTH"),
+      "UTC",
+    );
+    expect(flagged[0].source).toBe("APPLE_HEALTH");
+    expect(flagged[0].asleepMinutes).toBe(455);
+    expect(flagged[0].asleepMinutes).toBe(winnerOnly[0].asleepMinutes);
+    expect(winnerOnly[0].sourceDiscrepancy).toBeNull();
+  });
+
+  it("stays null when the buckets agree within the absolute threshold", () => {
+    // 480 vs 455 → delta 25 ≤ 45 min: ordinary sensor variance, no flag.
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T00:30:00.000Z", "CORE", 300, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "APPLE_HEALTH"),
+      srcRow("2026-06-04T05:00:00.000Z", "REM", 65, "APPLE_HEALTH"),
+      srcRow("2026-06-04T05:30:00.000Z", "ASLEEP", 480, "WITHINGS"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].sourceDiscrepancy).toBeNull();
+  });
+
+  it("stays null when the delta clears the floor but not the relative gate", () => {
+    // 555 vs 500 → delta 55 > 45 min but ≤ 20% of 555 (111): a one-hour
+    // spread on a long night is not a clear disagreement.
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T00:30:00.000Z", "CORE", 345, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "APPLE_HEALTH"),
+      srcRow("2026-06-04T05:00:00.000Z", "REM", 65, "APPLE_HEALTH"),
+      srcRow("2026-06-04T05:30:00.000Z", "ASLEEP", 555, "WITHINGS"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].asleepMinutes).toBe(500);
+    expect(sessions[0].sourceDiscrepancy).toBeNull();
+  });
+
+  it("stays null for a single-writer session", () => {
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T00:30:00.000Z", "CORE", 300, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "APPLE_HEALTH"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].sourceDiscrepancy).toBeNull();
+  });
+
+  it("an IN_BED/AWAKE-only writer makes no asleep claim and never flags", () => {
+    // The classic watch + phone pairing: the phone writes only the in-bed
+    // envelope. It carries no asleep total, so there is nothing to disagree
+    // about — the marker must not fire on every dual-writer Apple night.
+    const rows: SleepStageRow[] = [
+      writerRow(
+        "2026-06-04T00:30:00.000Z",
+        "CORE",
+        300,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      writerRow(
+        "2026-06-04T03:00:00.000Z",
+        "DEEP",
+        90,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      writerRow(
+        "2026-06-04T05:30:00.000Z",
+        "IN_BED",
+        480,
+        "APPLE_HEALTH",
+        "phone",
+      ),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].sourceDiscrepancy).toBeNull();
+  });
+
+  it("distinguishes two writers behind one source by device type", () => {
+    // Watch granular vs phone coarse ASLEEP behind the same APPLE_HEALTH
+    // source: the writer-bucket key (source, deviceType) keeps them apart,
+    // and the annotation carries the device type so the UI can label both.
+    const rows: SleepStageRow[] = [
+      writerRow(
+        "2026-06-04T00:30:00.000Z",
+        "CORE",
+        300,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      writerRow(
+        "2026-06-04T03:00:00.000Z",
+        "DEEP",
+        90,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      writerRow("2026-06-04T05:00:00.000Z", "REM", 65, "APPLE_HEALTH", "watch"),
+      writerRow(
+        "2026-06-04T05:30:00.000Z",
+        "ASLEEP",
+        615,
+        "APPLE_HEALTH",
+        "phone",
+      ),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].asleepMinutes).toBe(455);
+    expect(sessions[0].sourceDiscrepancy).toEqual({
+      deltaMinutes: 160,
+      sources: [
+        { source: "APPLE_HEALTH", deviceType: "phone", asleepMinutes: 615 },
+        { source: "APPLE_HEALTH", deviceType: "watch", asleepMinutes: 455 },
+      ],
+    });
+  });
+});

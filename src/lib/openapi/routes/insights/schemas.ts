@@ -418,6 +418,48 @@ export const correlationDiscoveryResponse = z
       "v1.10.0 — FDR-controlled correlation discovery over a curated behaviour × outcome matrix, lagged behaviour → next-day outcome. Only statistically-defensible pairs surface; descriptive, never causal.",
   });
 
+// v1.28.21 — GLP-1 weight-plateau read. Mirrors the fields of the
+// server-side detector context (`Glp1PlateauContext`); `plateau` is null
+// whenever the detector bows out.
+export const glp1PlateauResponse = z
+  .object({
+    plateau: z
+      .object({
+        drug: z.string().describe('Display drug name ("Mounjaro").'),
+        doseValue: z.number().describe("Current dose value (e.g. 7.5)."),
+        doseUnit: z.string().describe('Dose unit (e.g. "mg").'),
+        doseSince: z
+          .string()
+          .describe("ISO date (YYYY-MM-DD) the current dose started."),
+        daysOnDose: z
+          .number()
+          .int()
+          .describe("Days the user has been on the current dose."),
+        weightDeltaKg: z
+          .number()
+          .describe(
+            "Weight delta in kg over the trailing window (negative = loss).",
+          ),
+        readingsCount: z
+          .number()
+          .int()
+          .describe("Number of weight readings considered."),
+      })
+      .nullable()
+      .describe(
+        "Null when no plateau is detected (no active GLP-1 medication, < window days on the current dose, weight still dropping, or fewer than two readings).",
+      ),
+    windowDays: z
+      .number()
+      .int()
+      .describe("Trailing comparison window in days (currently 21)."),
+  })
+  .meta({
+    id: "InsightsGlp1PlateauResponse",
+    description:
+      "Deterministic weight-plateau detection for users on an active GLP-1 medication: stable dose for ≥ the window with no weight loss beyond the threshold. Association only — carries no verdict or advice.",
+  });
+
 // The seven specialised `*-status` routes accept an optional locale
 // override (the metric is fixed by the route path, unlike the generic
 // metric-status route which carries it as a query field).

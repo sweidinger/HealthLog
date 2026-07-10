@@ -20,7 +20,12 @@ import { prisma } from "@/lib/db";
 import type { Locale } from "@/lib/i18n/config";
 import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 
-const PLATEAU_WINDOW_DAYS = 21;
+/**
+ * Trailing window (days) the detector compares weight across. Exported
+ * so the read endpoint (`GET /api/insights/glp1-plateau`) can surface
+ * the window alongside the context without duplicating the constant.
+ */
+export const PLATEAU_WINDOW_DAYS = 21;
 const PLATEAU_THRESHOLD_KG = 0.5;
 
 export interface Glp1PlateauContext {
