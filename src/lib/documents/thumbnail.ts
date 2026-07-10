@@ -233,6 +233,21 @@ export async function generateThumbnail(
         return { ok: false };
       }
       const image = await napi.loadImage(bytes);
+      // Post-decode backstop: the header sniff returns null on any marker
+      // desync (a malformed-but-decodable JPEG), falling through to here with
+      // NO ceiling. Re-check the DECODED dimensions so such a source can't
+      // bypass the cap and OOM the serial worker.
+      if (image.width * image.height > MAX_SOURCE_PIXELS) {
+        annotate({
+          action: { name: "documents.thumbnail.rejected" },
+          meta: {
+            source: "image",
+            reason: "pixel_cap_post_decode",
+            pixels: image.width * image.height,
+          },
+        });
+        return { ok: false };
+      }
       const thumb = drawScaledJpeg(napi, image);
       if (!thumb) return { ok: false };
       annotate({

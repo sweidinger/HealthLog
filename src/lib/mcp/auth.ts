@@ -30,7 +30,7 @@ export interface McpAuthContext {
   binding: string;
   /** Whether this session may read (always true for a valid token). */
   canRead: boolean;
-  /** Whether this session may write (requires `health:write`; no write tools yet). */
+  /** Whether this session may write (requires `health:write`; gates the live write tools). */
   canWrite: boolean;
 }
 

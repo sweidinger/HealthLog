@@ -34,11 +34,16 @@ export function dashboardSnapshotCacheKey(userId: string): string {
 }
 
 /**
- * Drop the unified dashboard snapshot for a single user. Cheap
- * point-delete; safe to call redundantly.
+ * Drop the unified dashboard snapshot for a single user. The snapshot cell is
+ * keyed `${userId}|dashboard-snapshot|${locale}` (the briefing prose is
+ * locale-specific), so this must sweep by PREFIX — an exact point-delete of the
+ * locale-less key silently misses every real cell and the dashboard keeps
+ * serving the pre-write layout for the whole SWR window. The prefix is
+ * distinctive (nothing else in the analytics bucket starts with it), so the
+ * sweep touches only this user's snapshot variants. Safe to call redundantly.
  */
 export function invalidateUserDashboardSnapshot(userId: string): void {
-  caches.analytics.delete(dashboardSnapshotCacheKey(userId));
+  caches.analytics.deleteByPrefix(dashboardSnapshotCacheKey(userId));
 }
 
 /**

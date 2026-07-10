@@ -17,6 +17,7 @@ import { z } from "zod/v4";
 import { locales } from "@/lib/i18n/config";
 import {
   DEFAULT_DOCTOR_REPORT_PREFS,
+  parseDoctorReportPrefs,
   type DoctorReportPrefs,
 } from "@/lib/validations/doctor-report-prefs";
 
@@ -86,6 +87,51 @@ export const exportSectionsSchema = z
   .partial();
 
 export type ExportSections = z.infer<typeof exportSectionsSchema>;
+
+/**
+ * The top-level keys that exist ONLY in the grouped {@link exportSectionsSchema}
+ * (never in the flat `doctorReportPrefsSchema`). Their presence is the reliable
+ * signal that a persisted `sectionsJson` blob is the grouped shape rather than
+ * the flat one — the flat shape carries `bp` / `weight` / `pulse` at the top
+ * level, the grouped shape nests them under `vitals`.
+ */
+const GROUPED_SECTION_KEYS = [
+  "vitals",
+  "cardioFitness",
+  "activity",
+  "medications",
+  "glucose",
+] as const;
+
+/**
+ * v1.28.17 — resolve a STORED `sectionsJson` blob (from a clinician share link
+ * or any consumer that persists the export selection) to the flat
+ * {@link DoctorReportPrefs} the aggregator + PDF renderer consume.
+ *
+ * The share-link create schema accepts the GROUPED {@link exportSectionsSchema}
+ * and persists it raw, but the report aggregator speaks the FLAT shape. Reading
+ * a grouped blob through the flat parser silently DROPS every grouped toggle
+ * (`vitals.bp`, `activity.sleep`, `medications.compliance`) and falls back to
+ * defaults-ON — so a section the owner switched OFF would still be served. This
+ * resolver closes that gap: a grouped blob is folded through
+ * {@link toDoctorReportPrefs}; a flat / empty / `{}` / null blob keeps the exact
+ * legacy semantics via {@link parseDoctorReportPrefs}. Detection is by the
+ * grouped-only keys, so it can never misread a flat blob as grouped (or vice
+ * versa), and it needs no data migration — existing rows resolve correctly.
+ */
+export function resolveStoredReportSections(raw: unknown): DoctorReportPrefs {
+  if (raw != null && typeof raw === "object" && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>;
+    const looksGrouped = GROUPED_SECTION_KEYS.some((k) => k in obj);
+    if (looksGrouped) {
+      const parsed = exportSectionsSchema.safeParse(obj);
+      // A well-formed grouped blob folds down; a drifted one falls through to
+      // the flat parser, which itself defaults on any shape it cannot read.
+      if (parsed.success) return toDoctorReportPrefs(parsed.data);
+    }
+  }
+  return parseDoctorReportPrefs(raw);
+}
 
 /**
  * Flagship export selection. `.strict()` so unknown keys (including any

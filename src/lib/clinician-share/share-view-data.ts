@@ -22,8 +22,9 @@ import { servingClassFor } from "@/lib/documents/upload-policy";
 import type { DocumentServingClass } from "@/lib/documents/upload-policy";
 import {
   hasAnyReportSection,
-  parseDoctorReportPrefs,
+  type DoctorReportPrefs,
 } from "@/lib/validations/doctor-report-prefs";
+import { resolveStoredReportSections } from "@/lib/validations/health-record-export";
 import type { ShareContext } from "@/lib/clinician-share/resolve-share-token";
 
 /**
@@ -58,7 +59,7 @@ export interface ShareViewData {
    */
   report: DoctorReportData | null;
   /** The resolved section toggles (mood opt-in, defaults otherwise). */
-  sections: ReturnType<typeof parseDoctorReportPrefs>;
+  sections: DoctorReportPrefs;
   /** v1.28 — the hand-picked documents on this link (metadata only). */
   documents: ShareViewDocument[];
   /**
@@ -92,7 +93,12 @@ function frozenRange(context: ShareContext): DoctorReportRange {
 export async function loadShareViewData(
   context: ShareContext,
 ): Promise<ShareViewData> {
-  const sections = parseDoctorReportPrefs(context.sectionsJson);
+  // The stored `sectionsJson` may be the GROUPED export shape (what the create
+  // schema accepts) or the FLAT doctor-report shape (documents-only / legacy).
+  // `resolveStoredReportSections` folds either down correctly — reading a
+  // grouped blob through the flat parser would silently drop every grouped
+  // toggle and default the section back ON, re-widening a scope the owner froze.
+  const sections = resolveStoredReportSections(context.sectionsJson);
   const range = frozenRange(context);
 
   // A documents-only share never aggregates — no health metric is read from the

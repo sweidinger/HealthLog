@@ -5,6 +5,20 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
 
+// Partial mock of the native canvas module: `loadImage` delegates to the real
+// decoder by default (so every real-fixture test below is unaffected) and can
+// be overridden per-test via `loadImageMock` to simulate a decoded image whose
+// dimensions the header sniff could not have known.
+const { loadImageMock } = vi.hoisted(() => ({ loadImageMock: vi.fn() }));
+vi.mock("@napi-rs/canvas", async (importActual) => {
+  const actual = await importActual<typeof import("@napi-rs/canvas")>();
+  return {
+    ...actual,
+    loadImage: (source: Buffer | Uint8Array) =>
+      loadImageMock(source) ?? actual.loadImage(source),
+  };
+});
+
 import { generateThumbnail, THUMB_LONG_EDGE } from "../thumbnail";
 
 /**
@@ -140,5 +154,16 @@ describe("generateThumbnail", () => {
     await expect(generateThumbnail(bomb, "image/png")).resolves.toEqual({
       ok: false,
     });
+  });
+
+  it("refuses an oversize image the header sniff missed (post-decode cap)", async () => {
+    // Bytes the JPEG sniffer cannot read (no SOI) → the pre-decode guard is
+    // skipped and the code falls through to `loadImage`. The decoder is forced
+    // to return 30000×30000 = 900 MP, so only the post-decode backstop can
+    // catch it. Without that backstop this would OOM the serial worker.
+    loadImageMock.mockResolvedValueOnce({ width: 30_000, height: 30_000 });
+    await expect(
+      generateThumbnail(Buffer.from("desynced jpeg bytes"), "image/jpeg"),
+    ).resolves.toEqual({ ok: false });
   });
 });

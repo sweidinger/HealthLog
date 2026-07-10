@@ -260,3 +260,63 @@ describe("loadShareViewData — documentOnly column is authoritative", () => {
     expect(documentOnly).toBe(true);
   });
 });
+
+/**
+ * v1.28.17 — the create schema accepts the GROUPED export sections shape
+ * (`{ vitals: { bp, weight, … }, activity: { sleep }, medications: { … } }`)
+ * and persists it raw. The clinician-view loader MUST fold that grouped shape
+ * down to the flat toggles the aggregator consumes — reading it through the
+ * flat doctor-report parser silently drops every grouped toggle and re-defaults
+ * the section back ON, re-widening a scope the owner explicitly narrowed. This
+ * pins that a section switched OFF in the grouped shape reaches the aggregator
+ * as OFF, not as a defaults-on leak.
+ */
+describe("loadShareViewData — grouped sections are folded, not silently defaulted", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    collect.mockResolvedValue({ patient: { displayName: "Shared record" } });
+    findDocs.mockResolvedValue([]);
+  });
+
+  it("honours grouped OFF toggles instead of falling back to defaults-ON", async () => {
+    // Owner froze a labs-focused share: vitals OFF, but the grouped keys live
+    // under `vitals` where the flat parser cannot see them. Pre-fix, bp/weight/
+    // pulse resolved to the defaults (ON) and leaked to the clinician.
+    await loadShareViewData(
+      ctx({
+        sectionsJson: {
+          vitals: { bp: false, weight: false, pulse: false },
+          activity: { sleep: false },
+          labs: true,
+        },
+        documentOnly: false,
+      }),
+    );
+
+    expect(collect).toHaveBeenCalledTimes(1);
+    const opts = collect.mock.calls[0]![2] as {
+      sections: Record<string, boolean>;
+    };
+    // The grouped OFF toggles must survive the fold.
+    expect(opts.sections.bp).toBe(false);
+    expect(opts.sections.weight).toBe(false);
+    expect(opts.sections.pulse).toBe(false);
+    expect(opts.sections.sleep).toBe(false);
+    // A toggle the owner left ON stays ON.
+    expect(opts.sections.labs).toBe(true);
+  });
+
+  it("still resolves a flat legacy blob through the flat parser unchanged", async () => {
+    // A flat shape has no grouped-only key, so it keeps the exact legacy path.
+    await loadShareViewData(
+      ctx({ sectionsJson: { bp: false, mood: true }, documentOnly: false }),
+    );
+    const opts = collect.mock.calls[0]![2] as {
+      sections: Record<string, boolean>;
+    };
+    expect(opts.sections.bp).toBe(false);
+    expect(opts.sections.mood).toBe(true);
+    // Unspecified flat keys fall back to the documented defaults.
+    expect(opts.sections.weight).toBe(true);
+  });
+});
