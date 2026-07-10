@@ -8321,7 +8321,10 @@
       "statusSearchable": "Wyszukiwalne",
       "statusIndexing": "Udostępnianie do wyszukiwania…",
       "statusNotYet": "Jeszcze nie do wyszukania",
-      "readDone": "AI odczytało Twój dokument."
+      "readDone": "AI odczytało Twój dokument.",
+      "read": "Odczytaj z AI",
+      "reread": "Odczytaj ponownie",
+      "reading": "Odczytywanie…"
     },
     "contentIndex": {
       "indexPrompt": "Udostępnij treść dokumentów do wyszukiwania.",

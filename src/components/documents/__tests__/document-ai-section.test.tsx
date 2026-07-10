@@ -6,13 +6,11 @@ import type { DocumentSuggestionDto } from "@/lib/validations/inbound-documents"
 import { DocumentAiSection } from "../document-ai-section";
 
 /**
- * The detail sheet's AI-assist block is availability-gated: with a provider it
- * offers the review-first Suggest / Summarise / Show-text actions; without one
- * the actions collapse to the calm settings pointer (never an action the
- * endpoint would 422). The redundant "read with AI" button + the searchable
- * status pill were removed — reading + indexing happen automatically on upload,
- * so with auto-read ON and no active suggestion/summary the whole block
- * collapses. The summary panel, when open, keeps the session-only note visible.
+ * The detail sheet's "Read with AI" block is availability-gated: with a provider
+ * it offers the prominent "Read with AI" action alongside suggest / summary;
+ * without one the actions collapse to the calm settings pointer (never an action
+ * the endpoint would 422). The searchable status pill reflects the auto-index in
+ * both states. The summary panel, when open, keeps the session-only note visible.
  */
 
 function render(node: React.ReactNode) {
@@ -64,18 +62,27 @@ function base(
 }
 
 describe("<DocumentAiSection>", () => {
-  it("offers the review-first assist actions when a provider is available", () => {
+  it("leads with the prominent Read-with-AI action when a provider is available", () => {
     const html = render(base({ aiEnabled: true }));
-    // The standalone "read with AI" button is gone — reading is automatic.
-    expect(html).not.toContain('data-slot="document-read-ai"');
+    expect(html).toContain('data-slot="document-read-ai"');
+    expect(html).toContain("Read with AI");
     expect(html).toContain('data-slot="assist-suggest"');
     expect(html).toContain("Suggest details");
     expect(html).toContain("Summarise");
     expect(html).toContain("Show extracted text");
-    // The searchable status pill was removed from this block.
-    expect(html).not.toContain('data-slot="content-search-status"');
     // No unavailable pointer when the actions are offered.
     expect(html).not.toContain('data-slot="assist-unavailable"');
+  });
+
+  it("labels the action as a re-read once a provider has already read it", () => {
+    const html = render(
+      base({ hasContentIndex: true, contentIndexSource: "vision" }),
+    );
+    expect(html).toContain('data-slot="document-read-ai"');
+    expect(html).toContain("Read again");
+    // The status pill reflects the AI-read provenance.
+    expect(html).toContain('data-state="ai-read"');
+    expect(html).toContain("Read by AI");
   });
 
   it("shows the calm settings pointer (no 422 actions) when no provider is available", () => {
@@ -91,6 +98,23 @@ describe("<DocumentAiSection>", () => {
     // Every AI action must be absent — never a 422-guaranteed tap.
     expect(html).not.toContain('data-slot="assist-suggest"');
     expect(html).not.toContain('data-slot="document-read-ai"');
+    // But the searchable status pill still renders — auto-index is honest here.
+    expect(html).toContain('data-slot="content-search-status"');
+  });
+
+  it("keeps a locally-indexed document honestly searchable without a provider", () => {
+    const html = render(
+      base({
+        aiEnabled: false,
+        indexEnabled: false,
+        unavailableReason: "no-provider",
+        hasContentIndex: true,
+        contentIndexSource: "local-pdf",
+      }),
+    );
+    expect(html).toContain('data-state="searchable"');
+    expect(html).toContain("Searchable");
+    expect(html).not.toContain("Read by AI");
   });
 
   it("renders the reviewed suggestion drafts when present", () => {
@@ -123,36 +147,32 @@ describe("<DocumentAiSection>", () => {
     expect(html).not.toContain('data-slot="document-ai-egress-notice"');
     // The actions are still offered.
     expect(html).toContain('data-slot="assist-suggest"');
+    expect(html).toContain('data-slot="document-read-ai"');
   });
 
-  it("collapses the whole block when auto-read is on with nothing to review", () => {
+  it("hides the Read-with-AI action when indexing is unavailable but keeps suggest", () => {
+    const html = render(base({ aiEnabled: true, indexEnabled: false }));
+    expect(html).toContain('data-slot="assist-suggest"');
+    expect(html).not.toContain('data-slot="document-read-ai"');
+  });
+
+  it("hides the manual AI action row when auto-read is on, keeping status", () => {
     const html = render(base({ aiEnabled: true, autoReadEnabled: true }));
-    // Auto-read reads on upload — the manual per-document actions are gone,
-    // and with no active suggestion/summary the block renders nothing at all
-    // rather than an empty bordered box.
-    expect(html).toBe("");
-  });
-
-  it("keeps the review panels when auto-read is on and a suggestion is present", () => {
-    const html = render(
-      base({
-        aiEnabled: true,
-        autoReadEnabled: true,
-        suggestion,
-        suggestionKindLabel: "Imaging",
-        suggestionDateLabel: "14 Feb 2026",
-      }),
-    );
-    // The manual action row stays hidden, but the block itself renders to host
-    // the review panel.
-    expect(html).toContain('data-slot="document-ai-section"');
+    // Auto-read reads on upload — the manual per-document actions are gone.
+    expect(html).not.toContain('data-slot="document-read-ai"');
     expect(html).not.toContain('data-slot="assist-suggest"');
-    expect(html).toContain('data-slot="assist-suggestion-review"');
+    expect(html).not.toContain("Summarise");
+    expect(html).not.toContain("Show extracted text");
+    // The header and the searchable status pill stay. The scoped chat entry
+    // now lives in the detail-sheet header (a neutral Coach icon), not in this
+    // section, so this block no longer owns a chat slot.
+    expect(html).toContain('data-slot="document-ai-section"');
+    expect(html).toContain('data-slot="content-search-status"');
   });
 
   it("shows the manual AI action row when auto-read is off", () => {
     const html = render(base({ aiEnabled: true, autoReadEnabled: false }));
-    expect(html).not.toContain('data-slot="document-read-ai"');
+    expect(html).toContain('data-slot="document-read-ai"');
     expect(html).toContain('data-slot="assist-suggest"');
     expect(html).toContain("Summarise");
   });

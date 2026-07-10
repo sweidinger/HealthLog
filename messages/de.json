@@ -8321,7 +8321,10 @@
       "statusSearchable": "Durchsuchbar",
       "statusIndexing": "Wird durchsuchbar gemacht…",
       "statusNotYet": "Noch nicht durchsuchbar",
-      "readDone": "Die KI hat dein Dokument gelesen."
+      "readDone": "Die KI hat dein Dokument gelesen.",
+      "read": "Mit KI auslesen",
+      "reread": "Erneut lesen",
+      "reading": "Liest…"
     },
     "contentIndex": {
       "indexPrompt": "Dokumentinhalte durchsuchbar machen.",

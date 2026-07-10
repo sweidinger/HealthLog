@@ -8321,7 +8321,10 @@
       "statusSearchable": "Searchable",
       "statusIndexing": "Making searchable…",
       "statusNotYet": "Not searchable yet",
-      "readDone": "The AI read your document."
+      "readDone": "The AI read your document.",
+      "read": "Read with AI",
+      "reread": "Read again",
+      "reading": "Reading…"
     },
     "contentIndex": {
       "indexPrompt": "Make document contents searchable.",
