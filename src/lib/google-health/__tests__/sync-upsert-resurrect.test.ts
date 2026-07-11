@@ -200,3 +200,61 @@ describe("upsertGoogleHealthMeasurements — no-op overwrite skip", () => {
     expect(imported).toBe(1);
   });
 });
+
+describe("upsertGoogleHealthMeasurements — natural-key migration rescue", () => {
+  it("re-keys a tombstoned natural-key twin instead of dropping the insert", async () => {
+    // externalId probe: no match (the key FORMAT changed); natural-key probe:
+    // the old-key row (tombstoned by the sweep) occupies the same
+    // (type, measuredAt, sleepStage) slot — without the rescue the insert
+    // would silently die on the 0055 unique via skipDuplicates.
+    findManyMock
+      .mockResolvedValueOnce([]) // externalId probe
+      .mockResolvedValueOnce([
+        {
+          id: "old-row",
+          type: "SLEEP_DURATION",
+          measuredAt: new Date("2026-07-08T06:30:00.000Z"),
+          sleepStage: "DEEP",
+        },
+      ]); // natural-key rescue probe
+
+    const reading = {
+      type: "SLEEP_DURATION",
+      value: 45,
+      unit: "minutes",
+      measuredAt: new Date("2026-07-08T06:30:00.000Z"),
+      externalId: "name-42:sleep:2026-07-08T05:45:00.000Z",
+      sleepStage: "DEEP" as const,
+    };
+    const { imported } = await upsertGoogleHealthMeasurements(
+      "user-1",
+      [reading],
+      { deferRollup: true },
+    );
+
+    expect(createManyMock).not.toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const upd = (updateMock.mock.calls[0] as unknown[])[0] as {
+      where: { id: string };
+      data: Record<string, unknown>;
+    };
+    expect(upd.where).toEqual({ id: "old-row" });
+    expect(upd.data.externalId).toBe("name-42:sleep:2026-07-08T05:45:00.000Z");
+    expect(upd.data.deletedAt).toBeNull();
+    expect(upd.data.value).toBe(45);
+    expect(imported).toBe(1);
+  });
+
+  it("creates normally when no natural-key twin exists", async () => {
+    findManyMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    createManyMock.mockResolvedValue({ count: 1 });
+    const { imported } = await upsertGoogleHealthMeasurements(
+      "user-1",
+      [STEPS_READING],
+      { deferRollup: true },
+    );
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(createManyMock).toHaveBeenCalledTimes(1);
+    expect(imported).toBe(1);
+  });
+});

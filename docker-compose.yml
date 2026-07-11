@@ -166,6 +166,11 @@ services:
       # in .env reaches the container (the `environment:` block is a whitelist).
       # See docs/integrations/ai-providers.md.
       ALLOW_LOCAL_AI_PRIVATE_HOSTS: "${ALLOW_LOCAL_AI_PRIVATE_HOSTS:-}"
+      # Daily-briefing output-token ceiling (optional; default 2500, clamped
+      # 500-8000). Raise when a verbose model's briefing JSON is cut off.
+      # Listed here so an operator value in .env reaches the container (the
+      # `environment:` block is a whitelist). See docs/integrations/ai-providers.md.
+      INSIGHTS_MAX_TOKENS: "${INSIGHTS_MAX_TOKENS:-}"
       # v1.17.1 — SMTP transport for the email notification channel (optional,
       # all-or-none: HOST + PORT + FROM enable it; USER/PASS optional; SECURE
       # toggles implicit TLS). Listed here so operator values in .env reach the

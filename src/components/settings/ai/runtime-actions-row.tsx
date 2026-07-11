@@ -68,6 +68,7 @@ export function RuntimeActionsRow({
           model?: string;
           reasonCode?: string;
           reason?: string;
+          httpStatus?: number | null;
         } | null;
         error?: string | null;
       };
@@ -95,7 +96,12 @@ export function RuntimeActionsRow({
       if (json.data && json.data.ok === false) {
         setTestOk(false);
         setTestMsg(
-          localiseTestReason(t, json.data.reasonCode, json.data.reason) ??
+          localiseTestReason(
+            t,
+            json.data.reasonCode,
+            json.data.reason,
+            json.data.httpStatus,
+          ) ??
             t("settings.ai.testFailedShort", { message: `HTTP ${res.status}` }),
         );
         return;

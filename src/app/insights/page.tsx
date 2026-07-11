@@ -471,6 +471,10 @@ export default function InsightsPage() {
         // v1.25.3 — failure class points the empty-state hint at the right
         // lever (raise the response timeout vs re-check the provider).
         generationFailureClass={advisor.generationFailureClass}
+        // v1.28.28 (#470) — the grounding gate stripped the last regenerated
+        // briefing; the card explains the omission instead of "no briefing
+        // yet" (which made the regenerate button read as doing nothing).
+        omittedReason={advisor.briefingOmittedReason}
       />
     ) : null,
     vitals: <VitalsDashboard batch={dashboardDerived} layout={layout} />,

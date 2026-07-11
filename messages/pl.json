@@ -2131,7 +2131,9 @@
       "failedDescription": "Dostawca AI przekroczył limit czasu lub zwrócił błąd. Spróbuj ponownie albo zwiększ limit czasu odpowiedzi w ustawieniach AI dla wolnego modelu lokalnego.",
       "failedDescriptionTimeout": "Żądanie AI przekroczyło limit czasu, zanim briefing był gotowy. W przypadku wolnego modelu lokalnego zwiększ limit czasu odpowiedzi w Ustawieniach i spróbuj ponownie.",
       "failedDescriptionProvider": "Dostawca AI odrzucił żądanie. Sprawdź dostawcę i klucz API w ustawieniach AI, a następnie spróbuj ponownie.",
-      "failedDescriptionRateLimit": "Dostawca AI ogranicza teraz liczbę żądań. Spróbuj ponownie za chwilę."
+      "failedDescriptionRateLimit": "Dostawca AI ogranicza teraz liczbę żądań. Spróbuj ponownie za chwilę.",
+      "omittedTitle": "Briefing wstrzymany",
+      "omittedUngroundedDescription": "Wygenerowany briefing zawierał liczbę, której nie udało się zweryfikować na podstawie Twoich danych, więc nie został wyświetlony. Spróbuj ponownie."
     },
     "trendsRow": {
       "title": "Trendy",
@@ -4629,6 +4631,7 @@
       "anthropicKeyLabel": "Klucz API Anthropic",
       "baseUrlLabel": "Base URL",
       "localKeyLabel": "Klucz API (opcjonalny)",
+      "localDescription": "Działa tu każdy punkt końcowy zgodny z OpenAI — model lokalny (Ollama, LM Studio) albo brama taka jak LiteLLM, OpenRouter czy vLLM. Adres bazowy kończy się na /v1; klucz API jest opcjonalny.",
       "savedPreview": "(zapisano {preview})",
       "savedShort": "(zapisano)",
       "saveCta": "Zapisz",
@@ -4704,6 +4707,7 @@
       "testReasonCredentials": "Dostawca odrzucił dane logowania — uwierzytelnij się ponownie w ustawieniach AI.",
       "testReasonRateLimited": "Dostawca ograniczył żądanie — spróbuj ponownie za chwilę.",
       "testReasonServerError": "Dostawca AI zwrócił błąd serwera.",
+      "testReasonBadRequest": "Dostawca odrzucił żądanie (HTTP {status}) — punkt końcowy odpowiedział, więc problem dotyczy formatu żądania lub nazwy modelu, a nie łączności.",
       "testReasonUnreachable": "Nie udało się połączyć z dostawcą AI.",
       "coachMemory": {
         "title": "Co Coach pamięta",

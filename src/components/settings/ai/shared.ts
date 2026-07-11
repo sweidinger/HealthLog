@@ -129,6 +129,7 @@ export function localiseTestReason(
   t: (key: string, params?: Record<string, string | number>) => string,
   reasonCode: string | undefined,
   reason: string | undefined,
+  httpStatus?: number | null,
 ): string | undefined {
   switch (reasonCode) {
     case "credentials":
@@ -137,6 +138,13 @@ export function localiseTestReason(
       return t("settings.ai.testReasonRateLimited");
     case "server_error":
       return t("settings.ai.testReasonServerError");
+    // v1.28.28 (#470) — the endpoint answered with a 4xx: a request-shape /
+    // model-name problem, not connectivity. Falls back to the server's plain
+    // reason when the status did not arrive (legacy response shape).
+    case "bad_request":
+      return httpStatus != null
+        ? t("settings.ai.testReasonBadRequest", { status: httpStatus })
+        : reason;
     case "unreachable":
       return t("settings.ai.testReasonUnreachable");
     default:

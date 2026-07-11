@@ -2131,7 +2131,9 @@
       "failedDescription": "El proveedor de IA agotó el tiempo de espera o devolvió un error. Inténtalo de nuevo o aumenta el tiempo de espera de respuesta en los ajustes de IA para un modelo local lento.",
       "failedDescriptionTimeout": "La solicitud de IA agotó el tiempo de espera antes de que el resumen estuviera listo. Para un modelo local lento, aumenta el tiempo de espera de respuesta en Ajustes y vuelve a intentarlo.",
       "failedDescriptionProvider": "El proveedor de IA rechazó la solicitud. Revisa el proveedor y la clave de API en los ajustes de IA y vuelve a intentarlo.",
-      "failedDescriptionRateLimit": "El proveedor de IA está limitando las solicitudes en este momento. Vuelve a intentarlo en un rato."
+      "failedDescriptionRateLimit": "El proveedor de IA está limitando las solicitudes en este momento. Vuelve a intentarlo en un rato.",
+      "omittedTitle": "Resumen retenido",
+      "omittedUngroundedDescription": "El resumen generado mencionaba una cifra que no se pudo verificar con tus datos, así que no se mostró. Inténtalo de nuevo."
     },
     "trendsRow": {
       "title": "Tendencias",
@@ -4629,6 +4631,7 @@
       "anthropicKeyLabel": "Clave de API de Anthropic",
       "baseUrlLabel": "Base URL",
       "localKeyLabel": "Clave de API (opcional)",
+      "localDescription": "Aquí funciona cualquier endpoint compatible con OpenAI: un modelo local (Ollama, LM Studio) o una pasarela como LiteLLM, OpenRouter o vLLM. La URL base termina en /v1; la clave de API es opcional.",
       "savedPreview": "(guardada {preview})",
       "savedShort": "(guardada)",
       "saveCta": "Guardar",
@@ -4704,6 +4707,7 @@
       "testReasonCredentials": "El proveedor rechazó las credenciales — vuelve a autenticarte en los ajustes de IA.",
       "testReasonRateLimited": "El proveedor limitó la solicitud — inténtalo de nuevo en breve.",
       "testReasonServerError": "El proveedor de IA devolvió un error del servidor.",
+      "testReasonBadRequest": "El proveedor rechazó la solicitud (HTTP {status}): el endpoint respondió, así que el problema está en el formato de la solicitud o en el nombre del modelo, no en la conexión.",
       "testReasonUnreachable": "No se pudo contactar con el proveedor de IA.",
       "coachMemory": {
         "title": "Lo que el Coach recuerda",

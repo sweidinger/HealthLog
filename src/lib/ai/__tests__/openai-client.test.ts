@@ -342,6 +342,132 @@ describe("OpenAIClient", () => {
       );
   });
 
+  // v1.28.28 (#470) — LiteLLM shims Anthropic JSON mode as a synthesized tool
+  // call: finish_reason "tool_calls", empty / "{}" content, the actual JSON in
+  // tool_calls[0].function.arguments. In JSON mode (never combined with real
+  // tools) the arguments string becomes the content instead of silently
+  // emptying the insight.
+  it("falls back to tool_calls[0].function.arguments when JSON mode returns empty content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [
+              {
+                message: {
+                  content: "",
+                  tool_calls: [
+                    {
+                      id: "call_1",
+                      function: {
+                        name: "json_response",
+                        arguments: '{"summary":"via tool shim"}',
+                      },
+                    },
+                  ],
+                },
+                finish_reason: "tool_calls",
+              },
+            ],
+            usage: { total_tokens: 9 },
+          }),
+      }),
+    );
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+      baseUrl: "https://litellm.example.com/v1",
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+    );
+    expect(result.content).toBe('{"summary":"via tool shim"}');
+  });
+
+  it("also applies the tool-call shim when JSON-mode content is a bare '{}'", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [
+              {
+                message: {
+                  content: "{}",
+                  tool_calls: [
+                    {
+                      id: "call_1",
+                      function: {
+                        name: "json_response",
+                        arguments: '{"summary":"real payload"}',
+                      },
+                    },
+                  ],
+                },
+                finish_reason: "tool_calls",
+              },
+            ],
+          }),
+      }),
+    );
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+      baseUrl: "https://litellm.example.com/v1",
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+    );
+    expect(result.content).toBe('{"summary":"real payload"}');
+  });
+
+  it("leaves the normal JSON-mode content path untouched by the tool-call shim", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [
+              {
+                message: {
+                  content: '{"summary":"prose content wins"}',
+                  tool_calls: [
+                    {
+                      id: "call_1",
+                      function: {
+                        name: "json_response",
+                        arguments: '{"summary":"never used"}',
+                      },
+                    },
+                  ],
+                },
+                finish_reason: "stop",
+              },
+            ],
+          }),
+      }),
+    );
+
+    const client = new OpenAIClient({
+      apiKey: "sk-test",
+      model: "gpt-4o-mini",
+      baseUrl: "https://api.openai.com/v1",
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+    );
+    expect(result.content).toBe('{"summary":"prose content wins"}');
+  });
+
   it("threads the caller's abort signal onto the upstream fetch", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,

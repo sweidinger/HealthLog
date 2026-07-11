@@ -2131,7 +2131,9 @@
       "failedDescription": "Il provider IA ha superato il tempo limite o ha restituito un errore. Riprova oppure aumenta il timeout di risposta nelle impostazioni IA per un modello locale lento.",
       "failedDescriptionTimeout": "La richiesta IA ha superato il tempo limite prima che il briefing fosse pronto. Per un modello locale lento, aumenta il timeout di risposta nelle Impostazioni e riprova.",
       "failedDescriptionProvider": "Il provider IA ha rifiutato la richiesta. Controlla il provider e la chiave API nelle impostazioni IA e riprova.",
-      "failedDescriptionRateLimit": "Il provider IA sta limitando le richieste in questo momento. Riprova tra poco."
+      "failedDescriptionRateLimit": "Il provider IA sta limitando le richieste in questo momento. Riprova tra poco.",
+      "omittedTitle": "Briefing non mostrato",
+      "omittedUngroundedDescription": "Il briefing generato citava un valore che non è stato possibile verificare con i tuoi dati, quindi non è stato mostrato. Riprova."
     },
     "trendsRow": {
       "title": "Tendenze",
@@ -4629,6 +4631,7 @@
       "anthropicKeyLabel": "Chiave API Anthropic",
       "baseUrlLabel": "Base URL",
       "localKeyLabel": "Chiave API (facoltativa)",
+      "localDescription": "Qui funziona qualsiasi endpoint compatibile con OpenAI: un modello locale (Ollama, LM Studio) oppure un gateway come LiteLLM, OpenRouter o vLLM. L'URL di base termina con /v1; la chiave API è facoltativa.",
       "savedPreview": "(salvata {preview})",
       "savedShort": "(salvata)",
       "saveCta": "Salva",
@@ -4704,6 +4707,7 @@
       "testReasonCredentials": "Il provider ha rifiutato le credenziali — autenticati di nuovo nelle impostazioni IA.",
       "testReasonRateLimited": "Il provider ha limitato la richiesta — riprova a breve.",
       "testReasonServerError": "Il provider IA ha restituito un errore del server.",
+      "testReasonBadRequest": "Il provider ha rifiutato la richiesta (HTTP {status}): l'endpoint ha risposto, quindi il problema riguarda il formato della richiesta o il nome del modello, non la connessione.",
       "testReasonUnreachable": "Impossibile raggiungere il provider IA.",
       "coachMemory": {
         "title": "Ciò che il Coach ricorda",

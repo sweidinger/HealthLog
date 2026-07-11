@@ -69,8 +69,14 @@ interface TestFailureEnvelope {
   data: {
     ok: false;
     providerType: string;
-    reasonCode: "credentials" | "rate_limited" | "server_error" | "unreachable";
+    reasonCode:
+      | "credentials"
+      | "rate_limited"
+      | "server_error"
+      | "bad_request"
+      | "unreachable";
     reason: string;
+    httpStatus: number | null;
   };
   error: null;
 }
@@ -169,6 +175,40 @@ describe("POST /api/ai/test — provider error leak guard + non-5xx contract", (
     const body = (await response.json()) as TestFailureEnvelope;
     expect(body.data.reasonCode).toBe("unreachable");
     expect(body.data.reason).toMatch(/could not reach/i);
+  });
+
+  // v1.28.28 (#470) — a 4xx means the endpoint ANSWERED and rejected the
+  // request shape / model name; lumping it into "unreachable" sent operators
+  // debugging connectivity when the fix was the model field or a gateway's
+  // parameter strictness.
+  it("categorises a 400 as bad_request, not unreachable", async () => {
+    makeProviderThatThrows(
+      Object.assign(new Error("Local AI request failed (400)"), {
+        httpStatus: 400 as const,
+        bodyExcerpt: '{"error":{"message":"unknown model: llama9"}}',
+      }),
+    );
+    const response = await POST(emptyRequest() as never);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.reasonCode).toBe("bad_request");
+    expect(body.data.reason).toMatch(/HTTP 400/);
+    expect(body.data.reason).toMatch(/not connectivity/i);
+    expect(body.data.httpStatus).toBe(400);
+    // Still secret-free: the upstream body excerpt is never echoed.
+    expect(body.data.reason).not.toMatch(/llama9/);
+  });
+
+  it("categorises a 404 (wrong path / model route) as bad_request", async () => {
+    makeProviderThatThrows(
+      Object.assign(new Error("Local AI request failed (404)"), {
+        httpStatus: 404 as const,
+      }),
+    );
+    const response = await POST(emptyRequest() as never);
+    const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.reasonCode).toBe("bad_request");
+    expect(body.data.httpStatus).toBe(404);
   });
 });
 

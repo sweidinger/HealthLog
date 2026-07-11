@@ -51,7 +51,11 @@ export const AI_BUDGETS = {
   /**
    * Comprehensive insight + dailyBriefing — the largest structured payload
    * (summary + recommendations + dailyBriefing 80-200 words + signals +
-   * keyFindings + trendAnnotations + storyboardAnnotations). 1500 tokens.
+   * keyFindings + trendAnnotations + storyboardAnnotations). The output-token
+   * ceiling lives in `resolveInsightsMaxTokens()` below (env-tunable via
+   * `INSIGHTS_MAX_TOKENS`, default 2500) — the fixed 1500 that used to sit
+   * here truncated real briefings on verbose models (v1.28.28, #470):
+   * finish_reason "length" mid-JSON surfaced as the generic invalid-JSON 422.
    *
    * v1.21.5 — `timeoutMs` raised to 120 s for THIS surface only. The 60 s
    * client default aborted the reasoning-heavy single-turn generation
@@ -74,7 +78,7 @@ export const AI_BUDGETS = {
    * accounts that never set it. The worker cap in `insight-pregenerate.ts`
    * derives from this value plus fixed headroom, so it tracks automatically.
    */
-  comprehensive: { temperature: 0.3, maxTokens: 1500, timeoutMs: 180_000 },
+  comprehensive: { temperature: 0.3, timeoutMs: 180_000 },
 
   /**
    * Per-metric status assessment cards — output is a single
@@ -194,3 +198,46 @@ export const AI_BUDGETS = {
    */
   documentChat: { temperature: 0.3, maxTokens: 600 },
 } as const satisfies Record<string, AiBudget>;
+
+/** Bounds + default for the comprehensive / briefing output-token ceiling. */
+const INSIGHTS_MAX_TOKENS_DEFAULT = 2500;
+const INSIGHTS_MAX_TOKENS_MIN = 500;
+const INSIGHTS_MAX_TOKENS_MAX = 8000;
+
+/** Memo of the last parse, keyed on the raw env string so env stubs in tests re-parse. */
+let insightsMaxTokensMemo: { raw: string | undefined; value: number } | null =
+  null;
+
+/**
+ * v1.28.28 (#470) — output-token ceiling for the comprehensive briefing
+ * generation (the POST /api/insights/generate inline path, its grounding
+ * retry, and every `comprehensive-generate.ts` call site). Reads the
+ * optional `INSIGHTS_MAX_TOKENS` env var:
+ *
+ *  - unset / non-numeric → 2500 (the old hard-coded 1500 truncated real
+ *    briefings on verbose models — the JSON was cut mid-string and the
+ *    user saw a generic invalid-JSON 422),
+ *  - numeric but out of range → clamped into [500, 8000] so a typo can
+ *    neither starve the payload nor hand a runaway budget to the provider.
+ *
+ * Parsed once per distinct raw value (memoised), same posture as
+ * `resolveInsightsRateLimit()` next to the route.
+ */
+export function resolveInsightsMaxTokens(): number {
+  const raw = process.env.INSIGHTS_MAX_TOKENS;
+  if (insightsMaxTokensMemo && insightsMaxTokensMemo.raw === raw) {
+    return insightsMaxTokensMemo.value;
+  }
+  let value = INSIGHTS_MAX_TOKENS_DEFAULT;
+  if (raw) {
+    const parsed = parseInt(raw, 10);
+    if (Number.isFinite(parsed)) {
+      value = Math.min(
+        INSIGHTS_MAX_TOKENS_MAX,
+        Math.max(INSIGHTS_MAX_TOKENS_MIN, parsed),
+      );
+    }
+  }
+  insightsMaxTokensMemo = { raw, value };
+  return value;
+}

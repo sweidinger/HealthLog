@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.28.28] — 2026-07-11 — OpenAI-compatible gateways work; a re-keyed night can no longer vanish
+
+The user-level "Local (OpenAI-compatible)" provider now speaks the standard
+JSON wire: it sends `response_format` and, when an endpoint rejects it, falls
+back once and remembers that endpoint's dialect — so LiteLLM, OpenRouter,
+vLLM, LM Studio and plain Ollama all work from the same settings form. The
+form and the provider docs now say so explicitly. Gateways that wrap a
+Claude-family model behind a synthesized tool call are parsed correctly
+instead of yielding silently empty insights.
+
+The briefing token budget is configurable (`INSIGHTS_MAX_TOKENS`, default
+raised so full briefings stop truncating), and a reply that was cut off
+mid-JSON now says exactly that instead of a generic parse error. When the
+number-grounding check withholds a briefing, the card now explains why
+instead of pretending nothing was generated. The provider test button
+distinguishes "the endpoint rejected the request" from "could not reach the
+endpoint".
+
+Sleep repair follow-up: re-syncing a history whose sleep rows predate the
+stable segment keys could erase those nights — the old rows were swept while
+their replacements collided with a second uniqueness rule and were silently
+dropped. Re-imports now recognise such rows by their natural identity
+(type, instant, stage) and migrate them in place: fresh value, new key,
+restored if deleted. A full sync after updating heals any history affected.
+
 ## [1.28.27] — 2026-07-11 — Runs on CPUs without AVX2
 
 Self-hosts on older x86-64 CPUs — Celeron/Atom-class NAS boxes, pre-2013
