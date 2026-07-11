@@ -2131,7 +2131,9 @@
       "failedDescription": "Le fournisseur d'IA a dépassé le délai ou renvoyé une erreur. Réessayez ou augmentez le délai de réponse dans les paramètres d'IA pour un modèle local lent.",
       "failedDescriptionTimeout": "La requête IA a dépassé le délai avant que le briefing soit prêt. Pour un modèle local lent, augmentez le délai de réponse dans les Paramètres, puis réessayez.",
       "failedDescriptionProvider": "Le fournisseur d'IA a rejeté la requête. Vérifiez le fournisseur et la clé API dans les paramètres d'IA, puis réessayez.",
-      "failedDescriptionRateLimit": "Le fournisseur d'IA limite les requêtes pour le moment. Réessayez dans un instant."
+      "failedDescriptionRateLimit": "Le fournisseur d'IA limite les requêtes pour le moment. Réessayez dans un instant.",
+      "omittedTitle": "Briefing non affiché",
+      "omittedUngroundedDescription": "Le briefing généré mentionnait un chiffre qui n'a pas pu être vérifié avec tes données, il n'a donc pas été affiché. Réessaie."
     },
     "trendsRow": {
       "title": "Tendances",
@@ -4629,6 +4631,7 @@
       "anthropicKeyLabel": "Clé API Anthropic",
       "baseUrlLabel": "Base URL",
       "localKeyLabel": "Clé API (facultative)",
+      "localDescription": "Tout point de terminaison compatible OpenAI fonctionne ici — un modèle local (Ollama, LM Studio) comme une passerelle telle que LiteLLM, OpenRouter ou vLLM. L'URL de base se termine par /v1 ; la clé API est facultative.",
       "savedPreview": "(enregistrée {preview})",
       "savedShort": "(enregistrée)",
       "saveCta": "Enregistrer",
@@ -4704,6 +4707,7 @@
       "testReasonCredentials": "Le fournisseur a rejeté les identifiants — réauthentifiez-vous dans les réglages IA.",
       "testReasonRateLimited": "Le fournisseur a limité la requête — réessayez sous peu.",
       "testReasonServerError": "Le fournisseur d’IA a renvoyé une erreur serveur.",
+      "testReasonBadRequest": "Le fournisseur a rejeté la requête (HTTP {status}) — le point de terminaison a répondu ; le problème vient donc du format de la requête ou du nom du modèle, pas de la connexion.",
       "testReasonUnreachable": "Impossible de joindre le fournisseur d’IA.",
       "coachMemory": {
         "title": "Ce dont le Coach se souvient",

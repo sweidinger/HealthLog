@@ -135,6 +135,14 @@ interface DailyBriefingProps {
    */
   generationFailureClass?: BriefingFailureClass | null;
   /**
+   * v1.28.28 (#470) — the last regenerate produced a briefing that restated a
+   * figure the grounding gate could not verify against the user's data, so it
+   * was withheld rather than shown. Renders a distinct, calm empty state
+   * ("wasn't shown, try again") instead of the generic "no briefing yet",
+   * which made the regenerate button read as doing nothing.
+   */
+  omittedReason?: "ungrounded" | null;
+  /**
    * Optional slot for a meta control mounted in the card header — the
    * comparison toggle migrates here from the hero in commit 5.
    */
@@ -358,6 +366,7 @@ export function DailyBriefing({
   noProviderStale = false,
   generationFailed = false,
   generationFailureClass = null,
+  omittedReason = null,
   metaSlot,
 }: DailyBriefingProps) {
   const { t } = useTranslations();
@@ -570,15 +579,23 @@ export function DailyBriefing({
               // text to fall back on, say so honestly ("couldn't generate")
               // rather than the generic "no briefing yet". The CTA below is the
               // same explicit regenerate — it retries the failed generation.
+              // v1.28.28 (#470) — a grounding-gate omission gets its own calm
+              // wording: the generation SUCCEEDED but restated an unverifiable
+              // figure, so the briefing was withheld. Without this the card
+              // read "no briefing yet" and the button looked like a no-op.
               title={
-                generationFailed
-                  ? t("insights.dailyBriefing.failedTitle")
-                  : t("insights.dailyBriefing.emptyTitle")
+                omittedReason === "ungrounded"
+                  ? t("insights.dailyBriefing.omittedTitle")
+                  : generationFailed
+                    ? t("insights.dailyBriefing.failedTitle")
+                    : t("insights.dailyBriefing.emptyTitle")
               }
               description={
-                generationFailed
-                  ? t(failedDescriptionKey)
-                  : t("insights.dailyBriefing.emptyDescription")
+                omittedReason === "ungrounded"
+                  ? t("insights.dailyBriefing.omittedUngroundedDescription")
+                  : generationFailed
+                    ? t(failedDescriptionKey)
+                    : t("insights.dailyBriefing.emptyDescription")
               }
               action={
                 onRegenerate ? (
@@ -600,7 +617,7 @@ export function DailyBriefing({
                     <span>
                       {regenerating
                         ? t("insights.heroRegenerating")
-                        : generationFailed
+                        : generationFailed || omittedReason === "ungrounded"
                           ? t("insights.dailyBriefing.retryAction")
                           : t("insights.dailyBriefing.emptyAction")}
                     </span>

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { LocalOpenAICompatibleClient } from "../local-client";
+import {
+  LocalOpenAICompatibleClient,
+  resetLocalJsonDialectCache,
+} from "../local-client";
 import { singleUserTurn } from "../types";
 
 describe("LocalOpenAICompatibleClient", () => {
@@ -9,6 +12,9 @@ describe("LocalOpenAICompatibleClient", () => {
     // an RFC1918 host). The safeFetch wrapper enforces the SSRF guard
     // unless the operator explicitly accepts a private host.
     vi.stubEnv("ALLOW_LOCAL_AI_PRIVATE_HOSTS", "true");
+    // v1.28.28 (#470) — the JSON dialect is cached per baseUrl for the
+    // process; clear it so each test starts from the default dialect.
+    resetLocalJsonDialectCache();
   });
 
   afterEach(() => {
@@ -53,13 +59,16 @@ describe("LocalOpenAICompatibleClient", () => {
     expect(body.messages[1].content).toContain("user-input");
     expect(body.messages[1].content.toLowerCase()).toContain("json");
 
-    // CRUCIAL: do not send response_format because many local servers reject it.
+    // No JSON opt-in → neither the standard flag nor the legacy Ollama one.
     expect(body).not.toHaveProperty("response_format");
-    // No JSON opt-in → no `format` field.
     expect(body).not.toHaveProperty("format");
   });
 
-  it("sends Ollama `format: json` only when the caller opts into JSON", async () => {
+  // v1.28.28 (#470) — the JSON opt-in sends the STANDARD OpenAI field so
+  // strict OpenAI-compatible gateways (LiteLLM / OpenRouter / vLLM) accept
+  // the request. The Ollama-native top-level `format` field is gone from
+  // the wire entirely.
+  it("sends standard `response_format` (and never `format`) when the caller opts into JSON", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
@@ -86,8 +95,118 @@ describe("LocalOpenAICompatibleClient", () => {
     );
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.format).toBe("json");
+    expect(body.response_format).toEqual({ type: "json_object" });
+    expect(body).not.toHaveProperty("format");
     expect(body.seed).toBe(99);
+  });
+
+  it("self-heals a response_format rejection: one retry without the flag + cached dialect", async () => {
+    const okReply = {
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [
+            { message: { content: '{"summary":"x"}' }, finish_reason: "stop" },
+          ],
+          usage: { total_tokens: 3 },
+        }),
+    };
+    const mockFetch = vi
+      .fn()
+      // 1st: strict gateway 400s on the unknown field.
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: () =>
+          Promise.resolve(
+            '{"error":{"message":"litellm.BadRequestError: response_format is not supported by this endpoint"}}',
+          ),
+      })
+      // 2nd (the healed retry) + 3rd (a fresh call) succeed.
+      .mockResolvedValue(okReply);
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new LocalOpenAICompatibleClient({
+      apiKey: null,
+      model: "llama3:8b",
+      baseUrl: "http://localhost:11434/v1",
+    });
+    const params = singleUserTurn({
+      system: "s",
+      user: "u",
+      responseFormat: "json",
+    });
+
+    const result = await client.generateCompletion(params);
+    expect(result.content).toBe('{"summary":"x"}');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    // First attempt carried the standard flag; the healed retry dropped it
+    // (and did NOT resurrect the legacy Ollama `format` field).
+    const first = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(first.response_format).toEqual({ type: "json_object" });
+    const retry = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(retry).not.toHaveProperty("response_format");
+    expect(retry).not.toHaveProperty("format");
+
+    // The dialect is cached per baseUrl: the next call goes straight to the
+    // no-flag wire with no extra probe.
+    await client.generateCompletion(params);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    const third = JSON.parse(mockFetch.mock.calls[2][1].body);
+    expect(third).not.toHaveProperty("response_format");
+  });
+
+  it("does NOT retry an unrelated 4xx (surfaces the structured error once)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: () =>
+        Promise.resolve('{"error":{"message":"model llama9 does not exist"}}'),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new LocalOpenAICompatibleClient({
+      apiKey: null,
+      model: "llama9",
+      baseUrl: "http://localhost:11434/v1",
+    });
+
+    await expect(
+      client.generateCompletion(
+        singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+      ),
+    ).rejects.toThrow("Local AI request failed (400)");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces finish_reason 'length' as finishReason on the buffered path", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [
+              {
+                message: { content: '{"summary":"cut off mid' },
+                finish_reason: "length",
+              },
+            ],
+            usage: { total_tokens: 1500 },
+          }),
+      }),
+    );
+
+    const client = new LocalOpenAICompatibleClient({
+      apiKey: null,
+      model: "llama3",
+      baseUrl: "http://localhost:11434/v1",
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+    );
+    expect(result.finishReason).toBe("length");
   });
 
   it("omits Authorization header when no API key is provided", async () => {

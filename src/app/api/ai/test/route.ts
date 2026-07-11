@@ -113,6 +113,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
       providerType: provider.type,
       reasonCode,
       reason,
+      // v1.28.28 (#470) — the upstream status (secret-free) so the client
+      // can localise "rejected the request (HTTP 400)" with the real number.
+      httpStatus: err.httpStatus ?? null,
     });
   }
 });
@@ -123,7 +126,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
  * legacy / unmapped code. Secret-free by construction.
  */
 type TestFailureCode =
-  "credentials" | "rate_limited" | "server_error" | "unreachable";
+  | "credentials"
+  | "rate_limited"
+  | "server_error"
+  | "bad_request"
+  | "unreachable";
 
 /**
  * Map an upstream provider failure to a human-readable, secret-free
@@ -159,6 +166,16 @@ function classifyTestFailure(
     return {
       reasonCode: "server_error",
       reason: "The AI provider returned a server error.",
+    };
+  }
+  // v1.28.28 (#470) — any other 4xx (400 / 404 / 405 / 415 / 422, …) means
+  // the endpoint ANSWERED and rejected the request shape or model name. The
+  // old lump into "unreachable" sent operators debugging connectivity when
+  // the fix was the model field or a gateway's parameter strictness.
+  if (status >= 400 && status < 500) {
+    return {
+      reasonCode: "bad_request",
+      reason: `The provider rejected the request (HTTP ${status}) — the endpoint answered, so this is a request-shape or model-name problem, not connectivity.`,
     };
   }
   return {

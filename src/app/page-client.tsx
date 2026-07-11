@@ -65,7 +65,13 @@ import { VorsorgeDashboardCard } from "@/components/measurement-reminders/vorsor
 // but the slot is one future-callback-field away from cache poisoning.
 const DASHBOARD_QUERY_OPTS = {
   staleTime: 60_000,
-  refetchOnWindowFocus: false,
+  // v1.28.28 — refetch on window focus: the dashboard is exactly the surface
+  // a user leaves open in a background tab while editing its tile selection
+  // elsewhere; without a focus refetch the stale layout sat visible for up to
+  // the poll interval ("saved but nothing changed"). staleTime still bounds
+  // the cost to at most one refetch per minute, and the server side is SWR-
+  // cached, so a focus flick is a cheap cache hit.
+  refetchOnWindowFocus: true,
 } as const;
 
 // v1.19.0 — day-span the batched dashboard series (`series-batch`) fetches.

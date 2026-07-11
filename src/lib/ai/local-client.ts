@@ -1,4 +1,5 @@
 import { safeFetch } from "@/lib/safe-fetch";
+import { annotate } from "@/lib/logging/context";
 import { isLocalAiHostAllowed } from "./local-host-allowlist";
 import type {
   AIProvider,
@@ -6,7 +7,7 @@ import type {
   CompletionParams,
   CompletionResult,
 } from "./types";
-import { buildOpenAIMessages } from "./openai-wire";
+import { buildOpenAIMessages, mapFinishReason } from "./openai-wire";
 
 interface LocalClientConfig {
   apiKey?: string | null;
@@ -18,6 +19,54 @@ const STRICT_JSON_PREFIX =
   "Return strict JSON only, no markdown, no commentary.\n\n";
 
 /**
+ * v1.28.28 (#470) — per-endpoint JSON-mode dialect, learned at runtime.
+ *
+ *  - `"response_format"` (the default): send the standard OpenAI
+ *    `response_format: { type: "json_object" }`. Strict OpenAI-compatible
+ *    gateways (LiteLLM, OpenRouter, vLLM) and Ollama's own `/v1` shim all
+ *    accept it.
+ *  - `"none"`: send no structured-output flag at all. The strict-JSON
+ *    instruction prepended to the first user turn remains the only JSON
+ *    steering — which is what this client shipped for years and what local
+ *    model templates respect. (Ollama's NATIVE `format: "json"` field never
+ *    belonged on the OpenAI-compatible `/chat/completions` wire; it was
+ *    tolerated by Ollama but 400s on strict gateways, so the fallback stays
+ *    minimal instead of resurrecting it.)
+ *
+ * The dialect is cached per baseUrl for the process lifetime: the first
+ * JSON-mode request that 4xxes with an error body referencing
+ * `response_format` / an unknown parameter flips the endpoint to `"none"`
+ * and is retried once without the flag (self-healing, mirroring the
+ * google-health dateFilter self-heal posture). Unrelated 4xx errors are
+ * NOT retried — they surface as the structured error they always were.
+ */
+type LocalJsonDialect = "response_format" | "none";
+const jsonDialectByBaseUrl = new Map<string, LocalJsonDialect>();
+
+/** Test hook — clears the learned per-endpoint dialect cache. */
+export function resetLocalJsonDialectCache(): void {
+  jsonDialectByBaseUrl.clear();
+}
+
+/**
+ * True when a 4xx error body reads as "this endpoint rejects the
+ * `response_format` field" — either it names the field outright or it
+ * complains about an unknown/unexpected parameter.
+ */
+export function isResponseFormatRejection(
+  status: number,
+  bodyExcerpt: string,
+): boolean {
+  if (status < 400 || status >= 500) return false;
+  return (
+    /response_format/i.test(bodyExcerpt) ||
+    /(unknown|unexpected|unrecognized|unsupported|extra)[\s_-]*(parameter|field|argument|property|key)/i.test(
+      bodyExcerpt,
+    )
+  );
+}
+
+/**
  * v1.22 (#89) — absolute backstop for the streaming path. The real ceiling is
  * the per-idle-gap timer (`CompletionParams.timeoutMs`); this only stops a
  * server that streams forever from pinning a worker. Ten minutes is far beyond
@@ -27,8 +76,9 @@ const STREAM_ABSOLUTE_CEILING_MS = 10 * 60_000;
 
 /**
  * Prepend the strict-JSON instruction to the FIRST user turn's text. Local
- * model templates respect an in-message instruction better than the
- * `response_format` flag (which many reject). Mirrors the pre-refactor
+ * model templates respect an in-message instruction reliably, so it is sent
+ * in BOTH dialects — it is the only JSON steering left when an endpoint
+ * rejects `response_format` (dialect `"none"`). Mirrors the pre-refactor
  * behaviour, which prepended to the single user prompt.
  */
 function withStrictJsonPrefix(messages: AiMessage[]): AiMessage[] {
@@ -49,11 +99,14 @@ function withStrictJsonPrefix(messages: AiMessage[]): AiMessage[] {
 }
 
 /**
- * Talks to OpenAI-compatible local servers (Ollama, LocalAI, LM Studio,
- * vLLM, …). Same wire format as OpenAI but without
- * `response_format: { type: "json_object" }` — many local models reject the
- * field outright. Instead we prepend a strict-JSON instruction to the user
- * message, which is what most local model templates respect.
+ * Talks to OpenAI-compatible servers: local runtimes (Ollama, LocalAI,
+ * LM Studio, vLLM, …) AND hosted gateways (LiteLLM, OpenRouter, any
+ * `/v1/chat/completions` endpoint with an optional Bearer key). Same wire
+ * format as OpenAI; JSON surfaces send the standard
+ * `response_format: { type: "json_object" }` by default and self-heal to a
+ * no-flag dialect per endpoint when the server rejects the field (see
+ * `LocalJsonDialect` above). The strict-JSON instruction prepended to the
+ * user message stays in both dialects.
  *
  * v1.20.0 — tool-calling DEGRADES silently here: most local servers reject an
  * unknown `tools` field, so the client never forwards it (capability flag
@@ -81,8 +134,16 @@ export class LocalOpenAICompatibleClient implements AIProvider {
   private buildRequest(
     params: CompletionParams,
     stream: boolean,
-  ): { url: string; headers: Record<string, string>; body: string } {
+  ): {
+    url: string;
+    headers: Record<string, string>;
+    body: string;
+    jsonDialect: LocalJsonDialect;
+  } {
     const url = `${this.config.baseUrl.replace(/\/$/, "")}/chat/completions`;
+    // v1.28.28 (#470) — per-endpoint JSON dialect (see LocalJsonDialect).
+    const jsonDialect =
+      jsonDialectByBaseUrl.get(this.config.baseUrl) ?? "response_format";
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -113,11 +174,16 @@ export class LocalOpenAICompatibleClient implements AIProvider {
       // most OpenAI-compatible local servers honour it; servers that
       // ignore it simply disregard the field. Omitted when unset.
       ...(params.seed !== undefined ? { seed: params.seed } : {}),
-      // v1.18.7 — Ollama's native structured-output switch. The JSON
-      // surfaces opt in via `responseFormat: "json"`; it cuts the
-      // first-pass JSON-failure rate that the fence-stripping safety net
-      // otherwise has to catch. The Coach (prose) leaves it unset.
-      ...(params.responseFormat === "json" ? { format: "json" } : {}),
+      // v1.28.28 (#470) — the JSON surfaces opt in via `responseFormat:
+      // "json"`. Default dialect sends the STANDARD OpenAI field (the
+      // top-level Ollama-native `format: "json"` this client used to send
+      // 400s on strict OpenAI-compatible gateways — LiteLLM / OpenRouter /
+      // vLLM — and never belonged on the /chat/completions wire). An
+      // endpoint that rejects `response_format` is flipped to the no-flag
+      // dialect and retried once (see generateCompletion).
+      ...(params.responseFormat === "json" && jsonDialect === "response_format"
+        ? { response_format: { type: "json_object" } }
+        : {}),
       // v1.22 (#89) — streaming opt-in. `stream_options.include_usage` asks
       // OpenAI-compatible servers (vLLM / LM Studio / exo) to append a final
       // chunk carrying the usage block so the token footer survives streaming.
@@ -126,13 +192,16 @@ export class LocalOpenAICompatibleClient implements AIProvider {
         : {}),
     });
 
-    return { url, headers, body };
+    return { url, headers, body, jsonDialect };
   }
 
   async generateCompletion(
     params: CompletionParams,
   ): Promise<CompletionResult> {
-    const { url, headers, body } = this.buildRequest(params, false);
+    const { url, headers, body, jsonDialect } = this.buildRequest(
+      params,
+      false,
+    );
 
     // safeFetch defaults: no redirect-follow (the local endpoint is the
     // most exploitable on this surface — a user-controlled baseUrl that
@@ -175,6 +244,24 @@ export class LocalOpenAICompatibleClient implements AIProvider {
         .slice(0, 500)
         .replace(/sk-[A-Za-z0-9_-]{8,}/g, "sk-***redacted***")
         .replace(/Bearer\s+[A-Za-z0-9_.-]+/gi, "Bearer ***redacted***");
+      // v1.28.28 (#470) — dialect self-heal. A 4xx whose body names
+      // `response_format` (or an unknown parameter) means this endpoint
+      // rejects the standard JSON flag: learn the no-flag dialect for the
+      // baseUrl and retry ONCE without it (the recursion terminates because
+      // the cached dialect is now "none"). Unrelated 4xx/5xx errors are not
+      // retried.
+      if (
+        params.responseFormat === "json" &&
+        jsonDialect === "response_format" &&
+        isResponseFormatRejection(res.status, bodyExcerpt)
+      ) {
+        jsonDialectByBaseUrl.set(this.config.baseUrl, "none");
+        annotate({
+          action: { name: "ai.local.jsonDialect" },
+          meta: { dialect: "none", httpStatus: res.status },
+        });
+        return this.generateCompletion(params);
+      }
       const err = new Error(`Local AI request failed (${res.status})`);
       Object.assign(err, {
         httpStatus: res.status,
@@ -186,8 +273,26 @@ export class LocalOpenAICompatibleClient implements AIProvider {
       throw err;
     }
 
+    // v1.28.28 (#470) — the standard `response_format` request succeeded:
+    // pin the dialect for this endpoint so a later transient 4xx can never
+    // silently degrade it back.
+    if (
+      params.responseFormat === "json" &&
+      jsonDialect === "response_format" &&
+      !jsonDialectByBaseUrl.has(this.config.baseUrl)
+    ) {
+      jsonDialectByBaseUrl.set(this.config.baseUrl, "response_format");
+      annotate({
+        action: { name: "ai.local.jsonDialect" },
+        meta: { dialect: "response_format" },
+      });
+    }
+
     const json = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: Array<{
+        message?: { content?: string };
+        finish_reason?: string;
+      }>;
       usage?: { total_tokens?: number };
     };
 
@@ -210,6 +315,9 @@ export class LocalOpenAICompatibleClient implements AIProvider {
       tokensUsed: json.usage?.total_tokens ?? null,
       model: this.config.model,
       providerType: "local",
+      // v1.28.28 (#470) — surface why the model stopped so the JSON callers
+      // can tell a token-ceiling truncation ("length") from bad output.
+      finishReason: mapFinishReason(json.choices?.[0]?.finish_reason),
     };
   }
 
@@ -282,7 +390,10 @@ export class LocalOpenAICompatibleClient implements AIProvider {
       // (or there is no readable body). Parse it like the non-streaming path
       // rather than paying a second round-trip.
       const json = (await res.json().catch(() => null)) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{
+          message?: { content?: string };
+          finish_reason?: string;
+        }>;
         usage?: { total_tokens?: number };
       } | null;
       const buffered = json?.choices?.[0]?.message?.content;
@@ -301,6 +412,7 @@ export class LocalOpenAICompatibleClient implements AIProvider {
         tokensUsed: json?.usage?.total_tokens ?? null,
         model: this.config.model,
         providerType: "local",
+        finishReason: mapFinishReason(json?.choices?.[0]?.finish_reason),
       };
     }
 
@@ -309,6 +421,7 @@ export class LocalOpenAICompatibleClient implements AIProvider {
     let sseBuffer = "";
     let content = "";
     let tokensUsed: number | null = null;
+    let finishReason: string | undefined;
 
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
     const armIdle = () => {
@@ -334,7 +447,10 @@ export class LocalOpenAICompatibleClient implements AIProvider {
           const payload = line.slice("data:".length).trim();
           if (!payload || payload === "[DONE]") continue;
           let chunk: {
-            choices?: Array<{ delta?: { content?: string } }>;
+            choices?: Array<{
+              delta?: { content?: string };
+              finish_reason?: string | null;
+            }>;
             usage?: { total_tokens?: number };
           };
           try {
@@ -351,6 +467,8 @@ export class LocalOpenAICompatibleClient implements AIProvider {
           if (typeof chunk.usage?.total_tokens === "number") {
             tokensUsed = chunk.usage.total_tokens;
           }
+          const chunkFinish = chunk.choices?.[0]?.finish_reason;
+          if (typeof chunkFinish === "string") finishReason = chunkFinish;
         }
       }
     } catch (err) {
@@ -388,6 +506,7 @@ export class LocalOpenAICompatibleClient implements AIProvider {
       tokensUsed,
       model: this.config.model,
       providerType: "local",
+      finishReason: mapFinishReason(finishReason),
     };
   }
 }

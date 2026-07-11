@@ -2131,7 +2131,9 @@
       "failedDescription": "The AI provider timed out or returned an error. Try again, or raise the response timeout in AI settings for a slow local model.",
       "failedDescriptionTimeout": "The AI request ran out of time before the briefing was ready. For a slow local model, raise the AI response timeout in Settings, then try again.",
       "failedDescriptionProvider": "The AI provider rejected the request. Re-check the provider and API key in AI settings, then try again.",
-      "failedDescriptionRateLimit": "The AI provider is rate-limiting requests right now. Try again in a little while."
+      "failedDescriptionRateLimit": "The AI provider is rate-limiting requests right now. Try again in a little while.",
+      "omittedTitle": "Briefing withheld",
+      "omittedUngroundedDescription": "The generated briefing referenced a figure that couldn't be verified against your data, so it wasn't shown. Try again."
     },
     "trendsRow": {
       "title": "Trends",
@@ -4629,6 +4631,7 @@
       "anthropicKeyLabel": "Anthropic API key",
       "baseUrlLabel": "Base URL",
       "localKeyLabel": "API key (optional)",
+      "localDescription": "Any OpenAI-compatible endpoint works here — a local model (Ollama, LM Studio) as well as a gateway such as LiteLLM, OpenRouter or vLLM. The base URL ends with /v1; the API key is optional.",
       "savedPreview": "(saved {preview})",
       "savedShort": "(saved)",
       "saveCta": "Save",
@@ -4704,6 +4707,7 @@
       "testReasonCredentials": "Provider rejected the credentials — re-authenticate in AI settings.",
       "testReasonRateLimited": "Provider rate-limited the request — try again shortly.",
       "testReasonServerError": "The AI provider returned a server error.",
+      "testReasonBadRequest": "The provider rejected the request (HTTP {status}) — the endpoint answered, so this is a request-shape or model-name problem, not connectivity.",
       "testReasonUnreachable": "Could not reach the AI provider.",
       "coachMemory": {
         "title": "What the Coach remembers",

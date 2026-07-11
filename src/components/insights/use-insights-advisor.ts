@@ -88,6 +88,14 @@ export interface InsightAdvisorPayload {
    * generic failed-description holds.
    */
   generationFailureClass?: BriefingFailureClass | null;
+  /**
+   * v1.28.28 (#470) — set by the POST when the number-grounding gate stripped
+   * the freshly generated briefing (after its one corrective retry). Without
+   * it the 200 carried a silently-null briefing and the card's "no briefing
+   * yet" made the regenerate button read as doing nothing. Only ever present
+   * on a force-regenerate response; absent on the read path.
+   */
+  briefingOmittedReason?: "ungrounded" | null;
 }
 
 /**
@@ -304,6 +312,13 @@ export interface UseInsightsAdvisorResult {
    * the payload predates the field.
    */
   generationFailureClass: BriefingFailureClass | null;
+  /**
+   * v1.28.28 (#470) — non-null when the LAST regenerate's grounding gate
+   * stripped the briefing. The card renders a distinct, calm "a figure
+   * couldn't be verified, so the briefing wasn't shown — try again" state
+   * instead of the generic "no briefing yet".
+   */
+  briefingOmittedReason: "ungrounded" | null;
 }
 
 /**
@@ -394,5 +409,9 @@ export function useInsightsAdvisorQuery(
     generationFailed: query.data?.payload?.generationFailed ?? false,
     // Absent → no specific lever hint; the generic failed-description holds.
     generationFailureClass: query.data?.payload?.generationFailureClass ?? null,
+    // v1.28.28 (#470) — only a force-regenerate response carries the field
+    // (setQueryData writes that response into this cache); the read path's
+    // GET never does, so the hint clears on the next successful read.
+    briefingOmittedReason: query.data?.payload?.briefingOmittedReason ?? null,
   };
 }

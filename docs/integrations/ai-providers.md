@@ -148,6 +148,35 @@ internal endpoint.
 16-24 GB GPU / M-series Pro/Max (sweet spot for BYOK-style usage),
 70B+ for 48 GB+ / multi-GPU (comparable to mid-tier hosted models).
 
+### OpenAI-compatible gateways (LiteLLM, OpenRouter, …)
+
+The **Local** provider is also the gateway path: any service that
+speaks the OpenAI `/v1/chat/completions` wire plugs in the same way,
+whether it runs on your host or not. The OPENAI provider deliberately
+pins `api.openai.com` (an OpenAI key is never forwarded to a custom
+host), so a gateway always goes through **Local**:
+
+1. In `/settings/ai`, set provider to **Local (OpenAI-compatible)**.
+2. Base URL is the gateway's OpenAI-compatible root and **ends with
+   `/v1`** — e.g. `https://litellm.example.com/v1` or
+   `https://openrouter.ai/api/v1`.
+3. API key is **optional** — set it when the gateway requires a
+   Bearer token (OpenRouter key, LiteLLM master key), leave it blank
+   otherwise. It is encrypted at rest like every other credential.
+4. Model is whatever the gateway routes — e.g.
+   `anthropic/claude-sonnet-4-6` on OpenRouter or a LiteLLM alias.
+
+JSON surfaces send the standard
+`response_format: { type: "json_object" }`; an endpoint that rejects
+the field is detected on the first refusal and retried without it,
+so strict gateways and older local servers both work unmodified.
+
+The **admin** server-key path has a separate guard: an admin-set
+custom base URL must additionally be allowed via
+`ADMIN_AI_BASE_URL_ALLOWLIST` in the container environment. The
+user-level Local provider does not read that variable — it is
+governed by the SSRF guard above.
+
 ## ChatGPT OAuth (Codex)
 
 The `CHATGPT_OAUTH` provider routes generations via the
@@ -282,6 +311,12 @@ stay predictable:
 Lower it when running on a tight budget — the 24h cache already
 short-circuits read traffic; only force-regens and cache-misses cost
 tokens.
+
+`INSIGHTS_MAX_TOKENS` (default `2500`, clamped to 500–8000) sets the
+output-token ceiling for the daily-briefing generation. Raise it if a
+verbose model gets its briefing cut off mid-JSON — the API reports
+that case as "AI response was cut off" rather than the generic
+invalid-JSON error.
 
 ## Connection test
 

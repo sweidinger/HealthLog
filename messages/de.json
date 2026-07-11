@@ -2131,7 +2131,9 @@
       "failedDescription": "Der KI-Anbieter hat das Zeitlimit überschritten oder einen Fehler zurückgegeben. Versuche es erneut oder erhöhe in den KI-Einstellungen das Antwort-Zeitlimit für ein langsames lokales Modell.",
       "failedDescriptionTimeout": "Die KI-Anfrage hat das Zeitlimit überschritten, bevor das Briefing fertig war. Erhöhe für ein langsames lokales Modell in den Einstellungen das Antwort-Zeitlimit und versuche es dann erneut.",
       "failedDescriptionProvider": "Der KI-Anbieter hat die Anfrage abgelehnt. Prüfe Anbieter und API-Schlüssel in den KI-Einstellungen und versuche es erneut.",
-      "failedDescriptionRateLimit": "Der KI-Anbieter drosselt derzeit die Anfragen. Versuche es in Kürze erneut."
+      "failedDescriptionRateLimit": "Der KI-Anbieter drosselt derzeit die Anfragen. Versuche es in Kürze erneut.",
+      "omittedTitle": "Briefing zurückgehalten",
+      "omittedUngroundedDescription": "Das erstellte Briefing nannte eine Zahl, die sich nicht anhand deiner Daten überprüfen ließ, deshalb wurde es nicht angezeigt. Versuche es erneut."
     },
     "trendsRow": {
       "title": "Trends",
@@ -4629,6 +4631,7 @@
       "anthropicKeyLabel": "Anthropic API-Key",
       "baseUrlLabel": "Base URL",
       "localKeyLabel": "API-Key (optional)",
+      "localDescription": "Hier funktioniert jeder OpenAI-kompatible Endpunkt — ein lokales Modell (Ollama, LM Studio) genauso wie ein Gateway wie LiteLLM, OpenRouter oder vLLM. Die Basis-URL endet auf /v1; der API-Schlüssel ist optional.",
       "savedPreview": "(gespeichert {preview})",
       "savedShort": "(gespeichert)",
       "saveCta": "Speichern",
@@ -4704,6 +4707,7 @@
       "testReasonCredentials": "Der Anbieter hat die Anmeldedaten abgelehnt — melde dich in den KI-Einstellungen erneut an.",
       "testReasonRateLimited": "Der Anbieter hat die Anfrage gedrosselt — versuche es in Kürze erneut.",
       "testReasonServerError": "Der KI-Anbieter hat einen Serverfehler zurückgegeben.",
+      "testReasonBadRequest": "Der Anbieter hat die Anfrage abgelehnt (HTTP {status}) — der Endpunkt hat geantwortet; das Problem liegt also am Anfrageformat oder Modellnamen, nicht an der Verbindung.",
       "testReasonUnreachable": "Der KI-Anbieter war nicht erreichbar.",
       "coachMemory": {
         "title": "Woran sich der Coach erinnert",

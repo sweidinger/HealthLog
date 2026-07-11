@@ -83,7 +83,7 @@ import { invalidateUserInsights } from "@/lib/cache/invalidate";
 import { stripJsonFences } from "@/lib/insights/status-shared";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { annotate } from "@/lib/logging/context";
-import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
+import { AI_BUDGETS, resolveInsightsMaxTokens } from "@/lib/ai/ai-budgets";
 import { resolveEffectiveTimeoutMs } from "@/lib/ai/effective-timeout";
 import { recordBriefingFailure } from "@/lib/insights/briefing-failure-marker";
 
@@ -198,7 +198,7 @@ async function rerollBriefingParagraph(args: {
         // Seedless on purpose: the seed would pin the same phrasing, which is
         // exactly what we are varying. Higher temperature for prose variety.
         temperature: BRIEFING_REROLL_TEMPERATURE,
-        maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+        maxTokens: resolveInsightsMaxTokens(),
         // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
         // generation is not clipped at the client's 60 s default mid-stream.
         // v1.25 — honours the per-user response-timeout setting (see caller).
@@ -726,7 +726,7 @@ export async function generateComprehensiveInsight(
         system: systemPrompt,
         user: userPrompt,
         temperature: AI_BUDGETS.comprehensive.temperature,
-        maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+        maxTokens: resolveInsightsMaxTokens(),
         // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
         // generation is not clipped at the client's 60 s default mid-stream.
         // v1.25 — honours the per-user response-timeout setting.
@@ -802,7 +802,7 @@ export async function generateComprehensiveInsight(
             "The previous reply could not be parsed as a JSON object.",
           )}`,
           temperature: AI_BUDGETS.comprehensive.temperature,
-          maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+          maxTokens: resolveInsightsMaxTokens(),
           // v1.21.5 — wider upstream budget; see the first generation call.
           // v1.25 — honours the per-user response-timeout setting.
           timeoutMs: effectiveTimeoutMs,
@@ -848,7 +848,7 @@ export async function generateComprehensiveInsight(
             system: systemPrompt,
             user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
             temperature: AI_BUDGETS.comprehensive.temperature,
-            maxTokens: AI_BUDGETS.comprehensive.maxTokens,
+            maxTokens: resolveInsightsMaxTokens(),
             // v1.21.5 — wider upstream budget; see the first generation call.
             // v1.25 — honours the per-user response-timeout setting.
             timeoutMs: effectiveTimeoutMs,

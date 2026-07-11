@@ -125,8 +125,26 @@ export class OpenAIClient implements AIProvider {
 
     const json = (await res.json()) as OpenAIResponseJson;
     const choice = json.choices?.[0];
-    const content = choice?.message?.content;
+    let content = choice?.message?.content;
     const toolCalls = parseOpenAIToolCalls(choice);
+
+    // v1.28.28 (#470) — gateway JSON-mode shim. LiteLLM (and similar
+    // OpenAI-compatible proxies) translate `response_format: json_object`
+    // for an Anthropic upstream into a synthesized tool call: the reply
+    // comes back with `finish_reason: "tool_calls"`, an empty / "{}"
+    // `message.content`, and the actual JSON object in
+    // `tool_calls[0].function.arguments`. Since no JSON caller passes
+    // tools (useJsonFormat requires !hasTools), lift the arguments string
+    // into `content` so the payload parses instead of silently emptying
+    // the insight. The real tool loop (Coach F1) always has tools and
+    // never enters JSON mode, so it is untouched.
+    const trimmedContent = content?.trim() ?? "";
+    if (useJsonFormat && (trimmedContent === "" || trimmedContent === "{}")) {
+      const args = choice?.message?.tool_calls?.[0]?.function?.arguments;
+      if (typeof args === "string" && args.trim().length > 0) {
+        content = args;
+      }
+    }
 
     // A reply with tool calls and no prose is valid (F1 tool loop); only an
     // empty reply with neither content NOR tool calls is an error.

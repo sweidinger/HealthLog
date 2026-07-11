@@ -89,6 +89,13 @@ export function LocalProviderForm({
 
   return (
     <div data-testid="ai-provider-config-local" className="space-y-4">
+      {/* v1.28.28 (#470) — name the gateway path explicitly. The Local
+          provider is the ONE user-level custom-URL provider, so it is also
+          the documented way to reach LiteLLM / OpenRouter / vLLM and any
+          other OpenAI-compatible endpoint — not just an on-host model. */}
+      <p className="text-muted-foreground text-xs">
+        {t("settings.ai.localDescription")}
+      </p>
       <div>
         <Label htmlFor="ai-local-base-url">
           {t("settings.ai.baseUrlLabel")}

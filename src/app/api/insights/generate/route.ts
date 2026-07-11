@@ -46,7 +46,7 @@ import {
   singleUserTurn,
   type InsightResult,
 } from "@/lib/ai/types";
-import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
+import { AI_BUDGETS, resolveInsightsMaxTokens } from "@/lib/ai/ai-budgets";
 import { resolveEffectiveTimeoutMs } from "@/lib/ai/effective-timeout";
 import {
   recordBriefingFailure,
@@ -597,7 +597,10 @@ export const POST = apiHandler((request: NextRequest) =>
           system: buildSystemPromptWithReferences(locale, referenceMetrics),
           user: userPrompt,
           temperature: 0.3,
-          maxTokens: 1500,
+          // v1.28.28 (#470) — env-tunable output ceiling (INSIGHTS_MAX_TOKENS,
+          // default 2500). The old fixed 1500 truncated verbose models'
+          // briefing JSON mid-string → generic invalid-JSON 422.
+          maxTokens: resolveInsightsMaxTokens(),
           // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
           // generation is not aborted at the client's 60 s default on large
           // accounts (which returned an empty briefing + trend narrative).
@@ -735,6 +738,18 @@ export const POST = apiHandler((request: NextRequest) =>
       // so the React Query mutation can read the JSON body and surface a
       // readable message. Same fix pattern as v1.4.5 ai/test.
       void recordBriefingFailure({ userId, reason: "invalid-json", locale });
+      // v1.28.28 (#470) — truncation-aware: `finishReason === "length"` means
+      // the model hit the output-token ceiling and the JSON was cut off
+      // mid-string, which is a budget problem, not a model-quality one. Say
+      // so with a distinct errorCode instead of the generic invalid-JSON line.
+      if (result.finishReason === "length") {
+        annotate({ meta: { insights_response_truncated: true } });
+        return apiError(
+          "AI response was cut off before the JSON completed — raise the token limit (INSIGHTS_MAX_TOKENS)",
+          422,
+          { errorCode: "ai_response_truncated" },
+        );
+      }
       return apiError("AI response was not valid JSON", 422);
     }
 
@@ -743,6 +758,13 @@ export const POST = apiHandler((request: NextRequest) =>
     // briefing's SHAPE; this asserts every number the briefing prose restates
     // traces to a `features.signalsOfDay` figure. On a miss: one corrective
     // retry, then drop the briefing block rather than ship a fabricated number.
+    //
+    // v1.28.28 (#470) — when the gate strips the briefing, SAY SO: the 200
+    // used to carry a silently-null briefing, the card showed "no briefing
+    // yet", and the regenerate button read as doing nothing. The additive
+    // `briefingOmittedReason` field lets the card render an honest "a figure
+    // couldn't be verified, so the briefing wasn't shown" state instead.
+    let briefingOmittedReason: "ungrounded" | null = null;
     {
       const signals = features.signalsOfDay ?? null;
       let ungrounded = findUngroundedBriefingNumbers(
@@ -763,7 +785,8 @@ export const POST = apiHandler((request: NextRequest) =>
               system: buildSystemPromptWithReferences(locale, referenceMetrics),
               user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
               temperature: 0.3,
-              maxTokens: 1500,
+              // v1.28.28 (#470) — same env-tunable ceiling as the first call.
+              maxTokens: resolveInsightsMaxTokens(),
               // v1.21.5 — wider upstream budget; see the first generation call.
               // v1.25 — honours the per-user response-timeout setting.
               timeoutMs: effectiveTimeoutMs,
@@ -794,6 +817,7 @@ export const POST = apiHandler((request: NextRequest) =>
       // fabricated figure. The structured recommendations/citations stay.
       if (ungrounded.length > 0 && insights && typeof insights === "object") {
         (insights as Record<string, unknown>).dailyBriefing = null;
+        briefingOmittedReason = "ungrounded";
         annotate({
           action: { name: "insights.generate.briefing_grounding_stripped" },
           meta: { ungroundedCount: ungrounded.length },
@@ -880,6 +904,13 @@ export const POST = apiHandler((request: NextRequest) =>
       },
     });
 
-    return apiSuccess({ insights, cached: false, legacyPayload: false });
+    return apiSuccess({
+      insights,
+      cached: false,
+      legacyPayload: false,
+      // v1.28.28 (#470) — additive: non-null when the grounding gate stripped
+      // the briefing from THIS generation, so the card can explain the hole.
+      briefingOmittedReason,
+    });
   }),
 );
