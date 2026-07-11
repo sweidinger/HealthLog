@@ -27,7 +27,13 @@ const ROUTES = [
   // Settings sub-shell — short hub, long sortable-list subpages, long form.
   "/settings/layout",
   "/settings/layout/dashboard",
+  // The other sortable-list subpages + the Modules hub: each hosts an
+  // order editor with the sr-only drag-hint paragraph (see the
+  // one-scroll-floor assertion below).
   "/settings/layout/insights",
+  "/settings/layout/medications",
+  "/settings/layout/mood",
+  "/settings/modules",
   "/settings/account",
   "/settings/notifications",
   // Admin sub-shell — short overview + a longer list page. Guards that the
@@ -115,6 +121,27 @@ test.describe("settings + admin vertical over-scroll guard", () => {
 
         expect(dims, "main-content / wrapper present").not.toBeNull();
         if (!dims) return;
+
+        // One-scroll-floor (UI-STANDARDS §9): `<main>` is the ONLY vertical
+        // scroll surface — the document itself must never become scrollable
+        // next to it (a second painted scrollbar + a dead dark band under
+        // the shell). The historic offender class: an absolutely-positioned
+        // sr-only element (the dnd drag-hint paragraph) whose containing
+        // block resolves to the initial containing block because no ancestor
+        // between it and the root is positioned — its static position below
+        // a long list then extends the DOCUMENT's scrollable overflow while
+        // `<main>` clips everything in normal flow.
+        const doc = await page.evaluate(() => ({
+          scrollHeight: document.documentElement.scrollHeight,
+          clientHeight: document.documentElement.clientHeight,
+        }));
+        expect(
+          doc.scrollHeight,
+          `document scrollHeight=${doc.scrollHeight} > viewport ` +
+            `${doc.clientHeight} — a second vertical scroll surface exists ` +
+            `beside <main> (likely an absolutely-positioned element escaping ` +
+            `to the initial containing block)`,
+        ).toBeLessThanOrEqual(doc.clientHeight + 1);
 
         // A page shorter than the viewport cannot over-scroll at all.
         if (dims.scrollHeight <= dims.clientHeight) return;

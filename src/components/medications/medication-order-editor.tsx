@@ -147,7 +147,11 @@ export function MedicationOrderEditor({
   const dirty = draftActive !== null || draftInactive !== null;
 
   return (
-    <div className="space-y-4" data-slot="medication-order-editor">
+    // `relative` anchors the sr-only drag-hint paragraph: `sr-only` is
+    // absolutely positioned, and without a positioned ancestor its 1px box
+    // lands below the list in DOCUMENT coordinates and makes the document
+    // itself scrollable (second scrollbar — UI-STANDARDS §9 one-scroll-floor).
+    <div className="relative space-y-4" data-slot="medication-order-editor">
       {medications.length === 0 && (
         <p className="text-muted-foreground text-sm">
           {t("medications.emptyTitle")}

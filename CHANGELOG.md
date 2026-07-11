@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.28.29] — 2026-07-11 — Dashboard edits show up on the way back; one scrollbar again
+
+Changing the dashboard tile selection now shows up immediately when you
+navigate back — the third and final layer of this bug. Saving marked the
+dashboard's cached data stale but, with the dashboard page unmounted, nothing
+re-read it until the next poll or a window-focus flick. The save now refreshes
+that cache directly, mounted or not.
+
+The settings pages with sortable lists (dashboard layout, medication order,
+modules, mood tags) showed a second page scrollbar: an invisible
+screen-reader hint below each list escaped its container and silently
+lengthened the document. All five editors are fixed and the overscroll guard
+now covers these routes.
+
 ## [1.28.28] — 2026-07-11 — OpenAI-compatible gateways work; a re-keyed night can no longer vanish
 
 The user-level "Local (OpenAI-compatible)" provider now speaks the standard

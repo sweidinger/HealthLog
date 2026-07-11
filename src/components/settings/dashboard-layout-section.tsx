@@ -241,8 +241,19 @@ export function DashboardLayoutSection({ id }: { id: string }) {
       // invalidation the snapshot keeps its cached layout and the dashboard
       // looks stale until a manual reload. Invalidate the snapshot so the
       // next visit (or open tab) re-reads the saved layout immediately.
+      //
+      // `refetchType: "all"` is load-bearing: while the user sits on this
+      // settings page the dashboard is UNMOUNTED, so its snapshot cell is
+      // inactive — the default `refetchType: "active"` only marks it stale,
+      // and the snapshot query's deliberate `refetchOnMount: false`
+      // (use-dashboard-snapshot.ts) then suppresses the mount-time refetch
+      // on a same-tab navigation back to `/`. The saved tile selection only
+      // surfaced on the 120 s poll or a window-focus flick ("saved but the
+      // dashboard shows old tiles"). Refetching ALL matching cells fires the
+      // request right here, so the dashboard mounts onto fresh data.
       queryClient.invalidateQueries({
         queryKey: queryKeys.dashboardSnapshot(),
+        refetchType: "all",
       });
       setDraft(null);
       toast.success(t("dashboard.layoutSaveSuccess"));
@@ -258,8 +269,11 @@ export function DashboardLayoutSection({ id }: { id: string }) {
       queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
       // v1.18.10 — same snapshot invalidation as the save path so a reset
       // to defaults reflects on the Startseite without a manual reload.
+      // `refetchType: "all"` for the same reason as the save path: the
+      // unmounted snapshot cell must refetch NOW, not on its next poll.
       queryClient.invalidateQueries({
         queryKey: queryKeys.dashboardSnapshot(),
+        refetchType: "all",
       });
       setDraft(null);
       toast.success(t("dashboard.layoutResetSuccess"));
@@ -363,8 +377,11 @@ export function DashboardLayoutSection({ id }: { id: string }) {
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
+      // `refetchType: "all"` for the same reason as the save path: the
+      // unmounted snapshot cell must refetch NOW, not on its next poll.
       queryClient.invalidateQueries({
         queryKey: queryKeys.dashboardSnapshot(),
+        refetchType: "all",
       });
     },
   });
@@ -708,7 +725,15 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           {t("common.loading")}
         </div>
       ) : (
-        <div className="space-y-2">
+        // `relative` anchors the sr-only drag-hint paragraph below: Tailwind's
+        // `sr-only` is `position: absolute`, and without a positioned ancestor
+        // its containing block is the initial containing block — the 1px box
+        // then sits at its static position (below this long list) in DOCUMENT
+        // coordinates and silently makes the document itself scrollable, a
+        // second vertical scrollbar next to the shell-owned `<main>` scroll
+        // (UI-STANDARDS §9 one-scroll-floor; guarded by
+        // e2e/settings-overscroll.spec.ts).
+        <div className="relative space-y-2">
           {/* v1.4.15 Fix 5 — table-style header naming the two
               switches. The "tile" column controls the strip tile in
               the upper row; the "chart" column controls the line
