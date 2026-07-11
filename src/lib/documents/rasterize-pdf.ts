@@ -34,6 +34,8 @@ import { Buffer } from "node:buffer";
 
 import { annotate } from "@/lib/logging/context";
 
+import { nativeCanvasSupported } from "./native-canvas-support";
+
 /**
  * Whether the PDF rasterizer is available in this build. The native
  * `@napi-rs/canvas` binary is compiled in and traced into the standalone image
@@ -123,6 +125,17 @@ export async function rasterizePdf(
   maxPages: number = RASTER_MAX_PAGES,
 ): Promise<RasterResult> {
   let doc: PdfDocument | null = null;
+  // CPU-feature gate: pdfjs renders through @napi-rs/canvas (Skia), whose x64
+  // build uses AVX2 — an unsupported CPU dies with an uncatchable SIGILL on
+  // the first render. Degrade to the existing no-raster path instead (scanned
+  // PDFs stay unreadable for image-only providers; everything else works).
+  if (!nativeCanvasSupported()) {
+    annotate({
+      action: { name: "documents.rasterize.failed" },
+      meta: { reason: "native_canvas_unsupported" },
+    });
+    return { ok: false };
+  }
   try {
     // Lazy import: keeps pdfjs (DOMMatrix) + @napi-rs/canvas out of the eager
     // server chunk. Resolved at first rasterization, then module-cached.

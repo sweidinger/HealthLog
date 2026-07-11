@@ -28,6 +28,8 @@
  */
 import { Buffer } from "node:buffer";
 
+import { nativeCanvasSupported } from "./native-canvas-support";
+
 import { rasterizePdf } from "@/lib/documents/rasterize-pdf";
 import { annotate } from "@/lib/logging/context";
 
@@ -217,6 +219,18 @@ export async function generateThumbnail(
   mimeType: string,
 ): Promise<ThumbnailResult> {
   try {
+    // CPU-feature gate BEFORE the module ever loads: the bundled Skia x64
+    // build uses AVX2, and on a CPU without it the first canvas call is an
+    // uncatchable SIGILL that kills the whole process (crash-loop incident on
+    // a Celeron NAS). With the gate closed, thumbnails simply do not exist —
+    // the vault falls back to kind icons.
+    if (!nativeCanvasSupported()) {
+      annotate({
+        action: { name: "documents.thumbnail.rejected" },
+        meta: { reason: "native_canvas_unsupported" },
+      });
+      return { ok: false };
+    }
     // Lazy import: keeps @napi-rs/canvas (+ transitively pdfjs on the PDF path)
     // out of the eager server chunk. Resolved on first generation, then cached.
     const napi =
