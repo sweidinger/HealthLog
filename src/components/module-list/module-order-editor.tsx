@@ -104,7 +104,11 @@ export function ModuleOrderEditor({ items, onChange }: ModuleOrderEditorProps) {
   }
 
   return (
-    <div className="space-y-2" data-slot="module-order-editor">
+    // `relative` anchors the sr-only drag-hint paragraph: `sr-only` is
+    // absolutely positioned, and without a positioned ancestor its 1px box
+    // lands below the list in DOCUMENT coordinates and makes the document
+    // itself scrollable (second scrollbar — UI-STANDARDS §9 one-scroll-floor).
+    <div className="relative space-y-2" data-slot="module-order-editor">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

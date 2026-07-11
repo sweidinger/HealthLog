@@ -189,7 +189,11 @@ export function TagGroupsCard({ catalog }: TagGroupsCardProps) {
   const customGroupCount = catalog.categories.filter((c) => c.custom).length;
 
   return (
-    <div className="space-y-3" data-slot="mood-tag-groups-card">
+    // `relative` anchors the sr-only drag-hint paragraph: `sr-only` is
+    // absolutely positioned, and without a positioned ancestor its 1px box
+    // lands below the list in DOCUMENT coordinates and makes the document
+    // itself scrollable (second scrollbar — UI-STANDARDS §9 one-scroll-floor).
+    <div className="relative space-y-3" data-slot="mood-tag-groups-card">
       <div className="flex items-center justify-between gap-2">
         <p className="text-muted-foreground min-w-0 text-xs">
           {t("mood.manage.groupsDescription")}
