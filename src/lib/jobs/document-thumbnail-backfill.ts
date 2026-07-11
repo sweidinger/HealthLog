@@ -19,6 +19,7 @@
  * (`src/lib/jobs/reminder/register-maintenance.ts`) so pg-boss provisions it.
  */
 import { prisma } from "@/lib/db";
+import { nativeCanvasSupported } from "@/lib/documents/native-canvas-support";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { enqueueDocumentThumbnail } from "@/lib/jobs/document-thumbnail";
 import { annotate } from "@/lib/logging/context";
@@ -106,6 +107,10 @@ export async function enqueueBootTimeThumbnailBackfill(): Promise<{
 }> {
   const boss = getGlobalBoss();
   if (!boss) return { enqueued: 0 };
+
+  // On a CPU the bundled Skia build cannot run on (no AVX2), thumbnail jobs
+  // would only churn the queue — every generation no-ops behind the gate.
+  if (!nativeCanvasSupported()) return { enqueued: 0 };
 
   // Distinct users with at least one thumbnailable, not-yet-thumbnailed doc.
   const rows = await prisma.inboundDocument.findMany({

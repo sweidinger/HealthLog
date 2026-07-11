@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.28.27] — 2026-07-11 — Runs on CPUs without AVX2
+
+Self-hosts on older x86-64 CPUs — Celeron/Atom-class NAS boxes, pre-2013
+Xeons, and VMs that mask newer CPU flags — crashed in a restart loop since the
+document renderer arrived: the bundled rasterizer uses AVX2 instructions, and
+a CPU without them kills the whole process the first time a thumbnail or a
+scanned-PDF render runs. The renderer is now gated on a one-time CPU-feature
+check: on unsupported hardware, thumbnails and scanned-PDF rasterization
+simply switch off (the vault shows type icons; PDFs are read as text) while
+everything else runs normally. `NATIVE_CANVAS=off|on` overrides the detection
+if ever needed. Reported by a self-hoster with kernel traps in hand — thanks,
+that made it a same-day fix.
+
 ## [1.28.26] — 2026-07-11 — Internal restructuring for maintainability
 
 No user-facing change. Eight of the largest source files were split along
