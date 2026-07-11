@@ -22,7 +22,9 @@ const ROOT = join(__dirname, "..", "..", "..", "..");
 const CONSUMERS = [
   "src/app/api/analytics/route.ts",
   "src/lib/dashboard/snapshot.ts",
-  "src/lib/ai/coach/snapshot.ts",
+  // v1.28.26 — the Coach glucose section moved into its own block module;
+  // the alias derivation lives there and snapshot.ts imports the alias.
+  "src/lib/ai/coach/snapshot-blocks/glucose-block.ts",
 ];
 
 describe("glucose panel window constant", () => {

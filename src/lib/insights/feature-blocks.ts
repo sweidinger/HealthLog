@@ -1,0 +1,385 @@
+/**
+ * Briefing-scoped feature read blocks: full-history extremes, the
+ * bucketed rollup series, and the v1.22 cross-signal integration blocks
+ * (flagged labs, preventive-care due/overdue, workout aggregate). Each
+ * is one bounded DB read projecting to its slice of the
+ * `AggregatedFeatures` payload.
+ *
+ * Extracted verbatim from `features.ts`, which re-exports this module
+ * so every existing call site keeps importing from there; the assembly
+ * point (`extractFeatures`) stays in the hub.
+ */
+import { prisma } from "@/lib/db";
+import { classifyReferenceRange } from "@/lib/labs/reference-range";
+import { resolveLabFields } from "@/lib/labs/serialise";
+import { readRollupBuckets } from "@/lib/rollups/measurement-rollups";
+import { deriveBucketedTypes } from "@/lib/signals/adapters/correlation";
+import type {
+  AggregatedFeatures,
+  BucketedSeries,
+} from "@/lib/insights/features";
+import type {
+  MeasurementType,
+  RollupGranularity,
+} from "@/generated/prisma/client";
+
+/** All-time aggregate (full history) for one measurement type. */
+interface AllTimeExtremes {
+  mean: number | null;
+  min: number | null;
+  max: number | null;
+}
+
+/**
+ * v1.18.11 P1 — full-history min / max / mean per measurement type via ONE
+ * grouped SQL aggregation, with NO row materialisation in JS. Used to fill the
+ * `allTime*` feature fields honestly when the bulk feature read is bounded to a
+ * recent window: the windowed `summarize()` covers trends + recent windows, and
+ * this covers the long-horizon extremes the prompt labels "allTime".
+ *
+ * Only the four types that expose `allTime*` fields are aggregated (weight,
+ * systolic, diastolic, pulse). Returns a map keyed by `MeasurementType`; a type
+ * with no rows is simply absent.
+ */
+export async function readAllTimeExtremes(
+  userId: string,
+  types: readonly MeasurementType[],
+): Promise<Map<MeasurementType, AllTimeExtremes>> {
+  const rows = await prisma.measurement.groupBy({
+    by: ["type"],
+    where: { userId, deletedAt: null, type: { in: [...types] } },
+    _avg: { value: true },
+    _min: { value: true },
+    _max: { value: true },
+  });
+  const out = new Map<MeasurementType, AllTimeExtremes>();
+  for (const r of rows) {
+    out.set(r.type, {
+      mean: r._avg.value ?? null,
+      min: r._min.value ?? null,
+      max: r._max.value ?? null,
+    });
+  }
+  return out;
+}
+
+/**
+ * v1.4.36 W3 T1 — bucket-window definitions for the
+ * `bucketedMeasurements` payload. Mirrors the rollup populator's
+ * granularity ladder so the read-side picks up whatever the persistent
+ * table holds without a recompute round-trip.
+ *
+ * The 90 / 365 / 1825-day windows are non-overlapping: each row of
+ * `measurement_rollups` lives at exactly one granularity, and the
+ * downstream model reads the union of the three series per type.
+ * Total volume per type for a heavy power user (5 years of daily
+ * data): 90 DAY + 39 WEEK + 50 MONTH = 179 buckets × ~40 bytes JSON
+ * each ≈ 7 KB. Eight metric types lands at ~56 KB — well under the
+ * 5 MB cap above, vs 25.9 MB for the v1.4.35 rawMeasurements shape.
+ */
+const BUCKET_WINDOWS: Array<{
+  granularity: RollupGranularity;
+  fromDays: number;
+  toDays: number;
+}> = [
+  { granularity: "DAY", fromDays: 0, toDays: 90 },
+  { granularity: "WEEK", fromDays: 90, toDays: 365 },
+  { granularity: "MONTH", fromDays: 365, toDays: 1825 },
+];
+
+/**
+ * Types the bucketed payload covers. Mirrors the aggregate branches
+ * above so the model never sees a bucket for a metric whose aggregate
+ * block was suppressed. New `MeasurementType` enum values flow in by
+ * adding one row; the rollup populator already covers every type.
+ */
+// Derived from the signal registry: every signal flagged
+// `surfaces.correlationEligible` projects to its DB `MeasurementType`. The list
+// is a membership/iteration set (each type is read independently), so order is
+// not significant; the registry-invariant test pins the set byte-for-byte.
+const BUCKETED_TYPES: MeasurementType[] = deriveBucketedTypes();
+
+/** Days a preventive-care item must be due within to surface as "due soon". */
+const PREVENTIVE_DUE_HORIZON_DAYS = 21;
+
+/** Cap on items surfaced per preventive-care bucket. */
+const PREVENTIVE_MAX_PER_BUCKET = 5;
+
+/** Cap on flagged biomarkers surfaced to the briefing. */
+const LABS_MAX_FLAGGED = 8;
+
+/** Only lab readings within this many months are considered "recent". */
+const LABS_LOOKBACK_MONTHS = 12;
+
+/** Trailing window (days) for the workout aggregate. */
+const WORKOUT_WINDOW_DAYS = 90;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Strip control chars + collapse whitespace, then bound the length, before a
+ * user-supplied label can reach the briefing prompt. Mirrors the labs /
+ * illness snapshot label handling — a self-scoped prompt-injection surface.
+ */
+function sanitizeLabel(text: string, max = 80): string {
+  let out = "";
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0;
+    out += code < 0x20 || (code >= 0x7f && code <= 0x9f) ? " " : ch;
+  }
+  return out.replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+/**
+ * v1.22 — recent FLAGGED biomarkers (abnormal or trending) for the briefing.
+ * Most-recent reading per biomarker over the lookback window; hidden markers
+ * excluded; qualitative rows neutral. Only abnormal (below/above) OR trending
+ * markers surface, bounded. Returns `undefined` when nothing is flagged so the
+ * block is omitted rather than emitting an empty shape.
+ */
+export async function readLabsBriefingBlock(
+  userId: string,
+  now: number,
+): Promise<AggregatedFeatures["labs"] | undefined> {
+  const nowDate = new Date(now);
+  const cutoff = new Date(nowDate);
+  cutoff.setMonth(cutoff.getMonth() - LABS_LOOKBACK_MONTHS);
+
+  const rows = await prisma.labResult.findMany({
+    where: { userId, deletedAt: null, takenAt: { gte: cutoff, lte: nowDate } },
+    orderBy: { takenAt: "desc" },
+    take: LABS_MAX_FLAGGED * 16,
+    select: {
+      analyte: true,
+      panel: true,
+      unit: true,
+      value: true,
+      valueText: true,
+      referenceLow: true,
+      referenceHigh: true,
+      takenAt: true,
+      biomarkerId: true,
+      biomarker: {
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          lowerBound: true,
+          upperBound: true,
+          panel: true,
+          hidden: true,
+        },
+      },
+    },
+  });
+  if (rows.length === 0) return undefined;
+
+  // Group rows per biomarker identity (linked id, else lower-cased analyte),
+  // newest-first, so we can read the latest reading + the immediately prior one
+  // for a trend. Hidden markers are dropped entirely.
+  const byMarker = new Map<string, typeof rows>();
+  for (const row of rows) {
+    if (row.biomarker?.hidden) continue;
+    const resolved = resolveLabFields(row, row.biomarker);
+    const key = row.biomarkerId ?? `analyte:${resolved.analyte.toLowerCase()}`;
+    const list = byMarker.get(key) ?? [];
+    list.push(row);
+    byMarker.set(key, list);
+  }
+
+  const flagged: NonNullable<AggregatedFeatures["labs"]>["flagged"] = [];
+  for (const list of byMarker.values()) {
+    const latest = list[0];
+    const resolved = resolveLabFields(latest, latest.biomarker);
+    const rangeStatus =
+      latest.value === null
+        ? ("unknown" as const)
+        : classifyReferenceRange(
+            latest.value,
+            resolved.referenceLow,
+            resolved.referenceHigh,
+          );
+
+    // Trend = latest numeric reading vs the immediately prior numeric reading.
+    let trend: "rising" | "falling" | "flat" | null = null;
+    if (latest.value !== null) {
+      const prior = list.find((r, i) => i > 0 && r.value !== null);
+      if (prior?.value != null) {
+        const delta = latest.value - prior.value;
+        const eps = Math.max(Math.abs(prior.value) * 0.02, 1e-9);
+        trend = delta > eps ? "rising" : delta < -eps ? "falling" : "flat";
+      }
+    }
+
+    const isAbnormal = rangeStatus === "below" || rangeStatus === "above";
+    const isTrending = trend === "rising" || trend === "falling";
+    if (!isAbnormal && !isTrending) continue;
+
+    flagged.push({
+      analyte: resolved.analyte,
+      value: latest.value,
+      valueText: latest.valueText ? sanitizeLabel(latest.valueText, 60) : null,
+      unit: resolved.unit,
+      rangeStatus,
+      trend,
+      takenAt: latest.takenAt.toISOString(),
+      daysAgo: Math.round((now - latest.takenAt.getTime()) / MS_PER_DAY),
+    });
+  }
+
+  if (flagged.length === 0) return undefined;
+  // Abnormal markers lead, then most-recent first.
+  flagged.sort((a, b) => {
+    const abn = (s: typeof a.rangeStatus) =>
+      s === "below" || s === "above" ? 0 : 1;
+    const d = abn(a.rangeStatus) - abn(b.rangeStatus);
+    return d !== 0 ? d : a.daysAgo - b.daysAgo;
+  });
+  return {
+    flagged: flagged.slice(0, LABS_MAX_FLAGGED),
+    flaggedCount: flagged.length,
+  };
+}
+
+/**
+ * v1.22 — preventive-care (Vorsorge) due + overdue read-side. Reads the
+ * user's enabled, live reminders and buckets by the server-authoritative
+ * `nextDueAt`. Returns `undefined` when nothing is due or overdue.
+ */
+export async function readPreventiveCareBlock(
+  userId: string,
+  now: number,
+): Promise<AggregatedFeatures["preventiveCare"] | undefined> {
+  const horizon = new Date(now + PREVENTIVE_DUE_HORIZON_DAYS * MS_PER_DAY);
+  const rows = await prisma.measurementReminder.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      enabled: true,
+      nextDueAt: { not: null, lte: horizon },
+    },
+    orderBy: { nextDueAt: "asc" },
+    take: (PREVENTIVE_MAX_PER_BUCKET + 1) * 4,
+    select: { label: true, nextDueAt: true },
+  });
+  if (rows.length === 0) return undefined;
+
+  const overdue: NonNullable<AggregatedFeatures["preventiveCare"]>["overdue"] =
+    [];
+  const due: NonNullable<AggregatedFeatures["preventiveCare"]>["due"] = [];
+  for (const r of rows) {
+    if (!r.nextDueAt) continue;
+    const label = sanitizeLabel(r.label);
+    if (!label) continue;
+    const diffMs = r.nextDueAt.getTime() - now;
+    if (diffMs < 0) {
+      overdue.push({ label, daysOverdue: Math.round(-diffMs / MS_PER_DAY) });
+    } else {
+      due.push({ label, daysUntil: Math.round(diffMs / MS_PER_DAY) });
+    }
+  }
+  if (overdue.length === 0 && due.length === 0) return undefined;
+  return {
+    overdue: overdue.slice(0, PREVENTIVE_MAX_PER_BUCKET),
+    due: due.slice(0, PREVENTIVE_MAX_PER_BUCKET),
+  };
+}
+
+/**
+ * v1.22 — workout aggregate over the trailing window. Provider-agnostic:
+ * counts + summed duration + summed distance (km, when any source reported it)
+ * over 7 / 30 days, plus the latest workout. Returns `undefined` when no
+ * workouts fall in the window.
+ */
+export async function readWorkoutsBlock(
+  userId: string,
+  now: number,
+): Promise<AggregatedFeatures["workouts"] | undefined> {
+  const since = new Date(now - WORKOUT_WINDOW_DAYS * MS_PER_DAY);
+  const rows = await prisma.workout.findMany({
+    where: { userId, startedAt: { gte: since } },
+    orderBy: { startedAt: "desc" },
+    take: 2000,
+    select: {
+      sportType: true,
+      startedAt: true,
+      durationSec: true,
+      totalDistanceM: true,
+    },
+  });
+  if (rows.length === 0) return undefined;
+
+  const tally = (windowDays: number) => {
+    const cutoff = now - windowDays * MS_PER_DAY;
+    let count = 0;
+    let durationSec = 0;
+    let distanceM = 0;
+    let anyDistance = false;
+    for (const w of rows) {
+      if (w.startedAt.getTime() < cutoff) continue;
+      count += 1;
+      durationSec += w.durationSec;
+      if (w.totalDistanceM != null) {
+        distanceM += w.totalDistanceM;
+        anyDistance = true;
+      }
+    }
+    return {
+      count,
+      totalDurationMin: Math.round(durationSec / 60),
+      totalDistanceKm: anyDistance
+        ? Math.round((distanceM / 1000) * 10) / 10
+        : null,
+    };
+  };
+
+  const newest = rows[0];
+  const latest = {
+    sportType: sanitizeLabel(newest.sportType, 40),
+    daysAgo: Math.round((now - newest.startedAt.getTime()) / MS_PER_DAY),
+    durationMin: Math.round(newest.durationSec / 60),
+    distanceKm:
+      newest.totalDistanceM != null
+        ? Math.round((newest.totalDistanceM / 1000) * 10) / 10
+        : null,
+  };
+
+  return { last7: tally(7), last30: tally(30), latest };
+}
+
+/**
+ * Read every BUCKETED_TYPES × BUCKET_WINDOWS combination from the
+ * persistent rollup table and project to the wire shape. Empty
+ * (type, granularity) combinations are dropped so the payload never
+ * carries a labelled-but-empty series.
+ */
+export async function readBucketedSeries(
+  userId: string,
+  now: number,
+): Promise<BucketedSeries[]> {
+  const series: BucketedSeries[] = [];
+  for (const type of BUCKETED_TYPES) {
+    for (const window of BUCKET_WINDOWS) {
+      const from = new Date(now - window.toDays * 24 * 60 * 60 * 1000);
+      const to = new Date(now - window.fromDays * 24 * 60 * 60 * 1000);
+      const rows = await readRollupBuckets(
+        userId,
+        type,
+        window.granularity,
+        from,
+        to,
+      );
+      if (rows.length === 0) continue;
+      series.push({
+        type,
+        granularity: window.granularity,
+        buckets: rows.map((r) => ({
+          bucketStart: r.bucketStart.toISOString(),
+          mean: Math.round(r.mean * 100) / 100,
+          count: r.count,
+        })),
+      });
+    }
+  }
+  return series;
+}

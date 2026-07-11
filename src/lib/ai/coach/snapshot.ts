@@ -23,24 +23,8 @@ import {
   type CoachDataCluster,
 } from "@/lib/validations/coach-prefs";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
-import { userDayKey } from "@/lib/tz/format";
-import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
-import {
-  computeGlucoseClinicalMetrics,
-  GLUCOSE_PANEL_WINDOW_DAYS,
-} from "@/lib/analytics/glucose-metrics";
-import {
-  reconstructSleepNights,
-  type SleepStageRow,
-} from "@/lib/analytics/sleep-night";
-import {
-  reconstructNights,
-  sleepNeedMinutes,
-} from "@/lib/insights/derived/sleep-score";
-import {
-  computeSleepRhythmFromNights,
-  type SleepRhythmDto,
-} from "@/lib/insights/derived/sleep-rhythm";
+import { resolveGlucoseUnit } from "@/lib/glucose";
+import type { SleepStageRow } from "@/lib/analytics/sleep-night";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import { annotate } from "@/lib/logging/context";
 import { memoizePerRequest } from "@/lib/request-cache";
@@ -61,21 +45,12 @@ import {
   buildReferenceGroundingBlock,
   type GroundingMetricInput,
 } from "./reference-grounding";
-import { buildTieredSeries } from "@/lib/rollups/tiered-context";
 import type { MeasurementType } from "@/generated/prisma/client";
 import type { ReferenceMetric } from "@/lib/reference-ranges";
 import { isCycleAvailableForUser } from "@/lib/cycle/gate";
 import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
-import {
-  buildComplianceLedgerRows,
-  buildComplianceMedicationContext,
-  calculateCompliance,
-  lastNonSkippedTakenAt,
-  SCHEDULE_COMPLIANCE_SELECT,
-} from "@/lib/analytics/compliance";
-import type { DoseHistoryRow } from "@/lib/medications/scheduling/dose-history";
+import { SCHEDULE_COMPLIANCE_SELECT } from "@/lib/analytics/compliance";
 import type { BaselineProfile } from "@/lib/insights/derived";
-import { buildBaselineBand } from "@/lib/insights/derived/baseline";
 import {
   CLUSTER_PRIORITY,
   clusterSourcesFromPrefs,
@@ -88,6 +63,35 @@ import type {
   CoachScopeSource,
   CoachScopeWindow,
 } from "./types";
+import {
+  readSnapshotCache,
+  snapshotCacheKey,
+  writeSnapshotCache,
+} from "./snapshot-cache";
+import {
+  bpBandFromRows,
+  bucketWeekly,
+  buildCoarseTimelineTail,
+  buildDailyBpRows,
+  buildDailyValueRows,
+  resolveScope,
+  windowToDays,
+  type CoarseTimelineTail,
+  type DailyValueRow,
+} from "./snapshot-series";
+import { buildWorkoutsBlock } from "./snapshot-blocks/workouts-block";
+import {
+  buildGlucoseBlock,
+  GLUCOSE_CLINICAL_WINDOW_DAYS,
+} from "./snapshot-blocks/glucose-block";
+import {
+  buildSleepRhythmBlock,
+  buildSleepTimelineBlock,
+} from "./snapshot-blocks/sleep-block";
+import { buildComplianceBlock } from "./snapshot-blocks/compliance-block";
+
+// Test-only escape hatch — the suites import it from this module.
+export { __resetCoachSnapshotCacheForTests } from "./snapshot-cache";
 
 export interface CoachSnapshotResult {
   snapshotJson: string;
@@ -127,9 +131,6 @@ export interface CoachSnapshotResult {
  */
 const DAILY_TIMELINE_DAYS = 14;
 
-/** Default window when the caller doesn't pass a scope. */
-const DEFAULT_WINDOW: CoachScopeWindow = "last30days";
-
 /**
  * v1.18.10 (P-2) — newest-first cap on the single multi-type measurement read
  * that feeds the Coach snapshot timelines. The window read can reach 365 days
@@ -142,15 +143,6 @@ const DEFAULT_WINDOW: CoachScopeWindow = "last30days";
  * coarse MONTH/YEAR tail comes from the rollup tier, not this read.
  */
 const SNAPSHOT_MEASUREMENT_ROW_CAP = 6000;
-
-/**
- * v1.17.0 — the glucose clinical panel is a fixed trailing-30-day artifact,
- * identical across the insights panel, the dashboard snapshot, the doctor
- * report, and (here) the coach. Pinned independently of the coach's variable
- * narration window so the coach's TIR/GMI/CV% always equals what the panel
- * renders.
- */
-const GLUCOSE_CLINICAL_WINDOW_DAYS = GLUCOSE_PANEL_WINDOW_DAYS;
 
 /**
  * v1.17.0 — the sleep-rhythm read (sleep-debt + chronotype) is a fixed
@@ -185,12 +177,6 @@ const MAX_SNAPSHOT_CHARS = 24_000;
 const MULTI_CLUSTER_THRESHOLD = 6;
 const MULTI_CLUSTER_WINDOW_CAP: CoachScopeWindow = "last90days";
 
-/**
- * v1.7.0 — the workouts block never dumps every session. It carries
- * the most-recent N sessions verbatim plus a per-sport rollup for the
- * tail, so a heavy-training account at a long window stays bounded.
- */
-const WORKOUT_RECENT_CAP = 15;
 /**
  * Clusters that keep the user-chosen window even under the multi-cluster
  * cap — the high-signal clinical series.
@@ -242,379 +228,6 @@ const MODULE_EXCLUDED_SOURCES: Partial<Record<ModuleKey, CoachScopeSource[]>> =
     recovery: ["hrv", "resting_hr", "vo2_max"],
   };
 
-const WEEKDAY_KEYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-
-function windowToDays(window: CoachScopeWindow): number {
-  switch (window) {
-    case "last7days":
-      return 7;
-    case "last30days":
-      return 30;
-    case "last90days":
-      return 90;
-    case "lastYear":
-      // v1.4.27 B7 / BL-P6-4 — year-in-review window. Same 365-day
-      // ceiling as the historical `allTime` cap so the prompt budget
-      // stays bounded, but with explicit semantics — the Coach knows
-      // the user is asking about a long-horizon view rather than the
-      // unbounded "all time" backfill.
-      return 365;
-    case "allTime":
-      // Cap "allTime" at one year for the timeline. The aggregate
-      // section already cites multi-year ranges via the features
-      // pipeline; the timeline stays tight to keep token budget sane.
-      return 365;
-  }
-}
-
-/**
- * YYYY-MM-DD day key anchored to the user's display timezone. The
- * prompt asks the Coach "did you read at 23:50 last night?" — that
- * "last night" answer has to use the user's clock, not UTC. Up to
- * v1.4.24 the day-key was UTC, so a 23:50 Pacific/Auckland reading
- * landed in the next UTC day's bucket and the Coach couldn't pair it
- * with the user's mental model. Delegates to the canonical
- * `userDayKey` so every day-bucket surface stays byte-aligned.
- */
-function tzDayKey(date: Date, tz: string): string {
-  return userDayKey(date, tz);
-}
-
-/**
- * 0..6 → "Sun".."Sat" using the user's tz so "last Monday" in the
- * prompt agrees with the calendar the user is looking at.
- */
-function tzWeekday(date: Date, tz: string): string {
-  const wk = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    weekday: "short",
-  }).format(date);
-  // Normalise "Mon" / "Mon," — modern engines drop the comma but
-  // older ones may include it.
-  const canon = wk.slice(0, 3) as (typeof WEEKDAY_KEYS)[number];
-  return WEEKDAY_KEYS.includes(canon) ? canon : WEEKDAY_KEYS[date.getUTCDay()];
-}
-
-/**
- * ISO week key like 2026-W19. We derive the week from the user-tz
- * day-key so a Sunday-evening reading in Auckland (which is already
- * Monday UTC) labels under the Auckland week.
- */
-function isoWeekKey(date: Date, tz: string): string {
-  // Resolve the wall-clock date in the user's tz, then compute the ISO
-  // week from that calendar date. The Thursday-alignment math is the
-  // standard ISO 8601 algorithm.
-  const dayKey = tzDayKey(date, tz);
-  const [y, m, d] = dayKey.split("-").map(Number);
-  const localMidnight = new Date(Date.UTC(y, m - 1, d));
-  const dayNum = localMidnight.getUTCDay() || 7;
-  localMidnight.setUTCDate(localMidnight.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(localMidnight.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil(
-    ((localMidnight.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
-  );
-  return `${localMidnight.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
-}
-
-interface DailyValueRow {
-  date: string;
-  weekday: string;
-  value: number;
-}
-
-interface DailyBpRow {
-  date: string;
-  weekday: string;
-  sys: number;
-  dia: number;
-}
-
-interface WeeklyBucket {
-  weekISO: string;
-  mean: number;
-  count: number;
-}
-
-/**
- * Group raw measurements (one per row, possibly several per day) into
- * one entry per user-tz day. Multiple readings on the same day are
- * folded into the daily mean — clinically the morning reading is what
- * the Coach is usually asked about, but the snapshot stays pre-clinical
- * and takes the straight mean to avoid presenting a fabricated number.
- */
-function dailyMeans<T extends { measuredAt: Date; value: number }>(
-  rows: T[],
-  tz: string,
-): Map<string, { date: Date; values: number[] }> {
-  const grouped = new Map<string, { date: Date; values: number[] }>();
-  for (const r of rows) {
-    const key = tzDayKey(r.measuredAt, tz);
-    const existing = grouped.get(key);
-    if (existing) {
-      existing.values.push(r.value);
-    } else {
-      grouped.set(key, { date: r.measuredAt, values: [r.value] });
-    }
-  }
-  return grouped;
-}
-
-function bucketWeekly(
-  rows: Array<{ measuredAt: Date; value: number }>,
-  tz: string,
-): WeeklyBucket[] {
-  const grouped = new Map<string, number[]>();
-  for (const r of rows) {
-    const key = isoWeekKey(r.measuredAt, tz);
-    const list = grouped.get(key);
-    if (list) {
-      list.push(r.value);
-    } else {
-      grouped.set(key, [r.value]);
-    }
-  }
-  return Array.from(grouped.entries())
-    .map(([weekISO, values]) => ({
-      weekISO,
-      mean:
-        Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) /
-        10,
-      count: values.length,
-    }))
-    .sort((a, b) => a.weekISO.localeCompare(b.weekISO));
-}
-
-function buildDailyValueRows(
-  rows: Array<{ measuredAt: Date; value: number }>,
-  recentCutoff: Date,
-  tz: string,
-): DailyValueRow[] {
-  const recent = rows.filter((r) => r.measuredAt >= recentCutoff);
-  const grouped = dailyMeans(recent, tz);
-  return Array.from(grouped.entries())
-    .map(([date, info]) => {
-      const mean = info.values.reduce((s, v) => s + v, 0) / info.values.length;
-      return {
-        date,
-        weekday: tzWeekday(info.date, tz),
-        value: Math.round(mean * 10) / 10,
-      };
-    })
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-/**
- * v1.18.7 — coarse tail + anomaly envelope for one metric, from the shared
- * tiered-context builder. The Coach already ships the 0–14d raw + 30–90d
- * weekly band (above); this adds only the bands the weekly-fold CANNOT
- * produce — 90d–1y MONTH, >1y YEAR, and the preserved peak/trough envelope —
- * so a glucose spike or a BP outlier from months ago survives a coarse
- * bucket. Token-bounded by the helper's per-band row caps (~10 month + ≤5
- * year + ≤5 anomalies ≈ 240 tokens), and the degrader sheds it first (it is
- * the lowest-value, oldest detail). Returns `undefined` when the metric has
- * no coarse history at all, so the block is omitted rather than shipped empty.
- */
-interface CoarseTimelineTail {
-  /** 90d–1y monthly buckets: `[bucketStart, mean, min, max]`. */
-  monthly: Array<[string, number, number, number]>;
-  /** >1y yearly buckets: `[bucketStart, mean, min, max]`. */
-  yearly: Array<[string, number, number, number]>;
-  /** Preserved peaks/troughs, ≤5, ranked by |deltaSd|. */
-  anomalies: Array<{
-    band: string;
-    date: string;
-    kind: string;
-    value: number;
-    deltaSd: number;
-  }>;
-}
-
-async function buildCoarseTimelineTail(
-  userId: string,
-  type: MeasurementType,
-  now: Date,
-  tz: string,
-): Promise<CoarseTimelineTail | undefined> {
-  // `buildTieredSeries` reads fall back on miss — a coverage miss yields empty
-  // bands, which collapse to `undefined` here. The try/catch keeps the coarse
-  // tail a strictly additive enrichment: any unexpected reader failure simply
-  // drops the tail rather than failing the whole snapshot (matching the
-  // "fall back on miss" contract the rest of the snapshot honours).
-  let series: Awaited<ReturnType<typeof buildTieredSeries>>;
-  try {
-    // `coarseOnly` — the snapshot already holds the raw 0–14d rows from its
-    // own window read and this tail consumes only the MONTH/YEAR bands +
-    // anomaly envelope, so the builder skips the raw read AND the DAY/WEEK
-    // band reads it would otherwise discard.
-    series = await buildTieredSeries(userId, type, {
-      now: now.getTime(),
-      tz,
-      coarseOnly: true,
-    });
-  } catch {
-    return undefined;
-  }
-  const monthly = series.monthBand.map(
-    (b) =>
-      [b.bucketStart, b.mean, b.min, b.max] as [string, number, number, number],
-  );
-  const yearly = series.yearBand.map(
-    (b) =>
-      [b.bucketStart, b.mean, b.min, b.max] as [string, number, number, number],
-  );
-  if (
-    monthly.length === 0 &&
-    yearly.length === 0 &&
-    series.anomalies.length === 0
-  ) {
-    return undefined;
-  }
-  return {
-    monthly,
-    yearly,
-    anomalies: series.anomalies.map((a) => ({
-      band: a.band,
-      date: a.date,
-      kind: a.kind,
-      value: a.value,
-      deltaSd: a.deltaSd,
-    })),
-  };
-}
-
-/**
- * Pair systolic + diastolic into one row per day. Days with only one
- * side measured are dropped — the Coach is asked about "BP" as a pair,
- * and a half-measured day would invite a fabricated complement.
- */
-function buildDailyBpRows(
-  sysRows: Array<{ measuredAt: Date; value: number }>,
-  diaRows: Array<{ measuredAt: Date; value: number }>,
-  recentCutoff: Date,
-  tz: string,
-): DailyBpRow[] {
-  const sysRecent = sysRows.filter((r) => r.measuredAt >= recentCutoff);
-  const diaRecent = diaRows.filter((r) => r.measuredAt >= recentCutoff);
-  const sysByDay = dailyMeans(sysRecent, tz);
-  const diaByDay = dailyMeans(diaRecent, tz);
-  const out: DailyBpRow[] = [];
-  for (const [day, info] of sysByDay) {
-    const dia = diaByDay.get(day);
-    if (!dia) continue;
-    const sysMean = info.values.reduce((s, v) => s + v, 0) / info.values.length;
-    const diaMean = dia.values.reduce((s, v) => s + v, 0) / dia.values.length;
-    out.push({
-      date: day,
-      weekday: tzWeekday(info.date, tz),
-      sys: Math.round(sysMean),
-      dia: Math.round(diaMean),
-    });
-  }
-  return out.sort((a, b) => a.date.localeCompare(b.date));
-}
-
-/**
- * Resolve the working scope. The explicit request `scope.sources`
- * always wins as the maximum set (an iOS client can pin an exact
- * list). When it is absent the builder expands the user's saved
- * `dataClusters` instead — `clusterDefault` carries that expansion.
- * When neither is present (no prefs row at all, legacy native client)
- * the cluster resolver still returns `DEFAULT_COACH_CLUSTERS`, so the
- * legacy five domains stay the floor.
- *
- * v1.7.0 — replaces the constant `DEFAULT_SOURCES` fallback with the
- * cluster expansion threaded in by `buildCoachSnapshotImpl`.
- */
-function resolveScope(
-  scope: CoachScope | undefined,
-  clusterDefault: ReadonlySet<CoachScopeSource>,
-): {
-  sources: ReadonlySet<CoachScopeSource>;
-  window: CoachScopeWindow;
-} {
-  const sources =
-    scope?.sources && scope.sources.length > 0
-      ? new Set(scope.sources)
-      : clusterDefault;
-  return {
-    sources,
-    window: scope?.window ?? DEFAULT_WINDOW,
-  };
-}
-
-/**
- * v1.4.33 — 60-second in-memory cache for `buildCoachSnapshot()`. The
- * snapshot reads only persisted data; a single chat conversation sends
- * 2-4 turns within a minute and the snapshot would otherwise rebuild
- * from the same rows each turn. Caching the result for 60s shaves the
- * ~10 measurement reads + the GLP-1 / mood / intake side-fetches off
- * every turn after the first, which `.planning/round-v1433-audit-perf.md`
- * §3.3 estimates at 200-800 ms of server-side tail.
- *
- * Scope is part of the cache key so a switch from `last30days` to
- * `last7days` (or a different `sources` set) computes fresh. The map
- * is bounded at 64 entries — a multi-tenant deployment with a few
- * active power users sits well inside that ceiling even if each cycles
- * through several scopes per minute.
- */
-const SNAPSHOT_TTL_MS = 60_000;
-const SNAPSHOT_LRU_MAX = 64;
-const snapshotCache = new Map<
-  string,
-  { expiresAt: number; result: CoachSnapshotResult }
->();
-
-function snapshotCacheKey(
-  userId: string,
-  scope: CoachScope | undefined,
-): string {
-  // v1.7.0 — when the request pins an explicit source list, key on it.
-  // Otherwise the source set is derived from the user's saved
-  // `dataClusters`, which we don't read here (the cache must stay
-  // I/O-free on a hit) — key on a stable `clusters` marker instead.
-  // A cluster change is reflected on the next cache miss (≤60 s), the
-  // same staleness window every other pref change already tolerates.
-  const window = scope?.window ?? DEFAULT_WINDOW;
-  const sourceList =
-    scope?.sources && scope.sources.length > 0
-      ? Array.from(scope.sources).sort().join(",")
-      : "clusters";
-  return `${userId}|${window}|${sourceList}`;
-}
-
-function readSnapshotCache(key: string): CoachSnapshotResult | null {
-  const entry = snapshotCache.get(key);
-  if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
-    snapshotCache.delete(key);
-    return null;
-  }
-  // Touch for LRU — re-insert moves to the end of the Map's iteration order.
-  snapshotCache.delete(key);
-  snapshotCache.set(key, entry);
-  return entry.result;
-}
-
-function writeSnapshotCache(key: string, result: CoachSnapshotResult): void {
-  if (snapshotCache.size >= SNAPSHOT_LRU_MAX) {
-    // Evict the oldest entry — JS Map iteration order is insertion order,
-    // so the first key is the least-recently inserted/touched.
-    const oldest = snapshotCache.keys().next().value;
-    if (oldest !== undefined) {
-      snapshotCache.delete(oldest);
-    }
-  }
-  snapshotCache.set(key, {
-    expiresAt: Date.now() + SNAPSHOT_TTL_MS,
-    result,
-  });
-}
-
-/** Clear the snapshot cache. Test-only escape hatch. */
-export function __resetCoachSnapshotCacheForTests(): void {
-  snapshotCache.clear();
-}
-
 /**
  * Build the Coach prompt snapshot for `userId`. Always uses
  * `includeRaw=false` because the Coach replies are conversational and
@@ -640,30 +253,6 @@ export function __resetCoachSnapshotCacheForTests(): void {
  * chat handler calls this once per turn; within the same conversation
  * the second+ turn lands a cache hit and skips the row-level reads.
  */
-/**
- * v1.22 (W6) — the user's own usual range for one BP component, computed from
- * the rows already fetched for the snapshot (no extra DB read) using the SAME
- * median ± k·MAD statistic as the baseline engine. Returns null below the
- * engine's 7-day history floor so the Coach never quotes a fabricated band.
- */
-function bpBandFromRows(
-  rows: ReadonlyArray<{ measuredAt: Date; value: number }>,
-): { low: number; high: number } | null {
-  const byDay = new Map<string, { sum: number; count: number }>();
-  for (const r of rows) {
-    const day = r.measuredAt.toISOString().slice(0, 10);
-    const acc = byDay.get(day) ?? { sum: 0, count: 0 };
-    acc.sum += r.value;
-    acc.count += 1;
-    byDay.set(day, acc);
-  }
-  const dayMeans = [...byDay.values()].map((a) => a.sum / a.count);
-  if (dayMeans.length < 7) return null;
-  const band = buildBaselineBand(dayMeans);
-  if (!band) return null;
-  return { low: Math.round(band.low), high: Math.round(band.high) };
-}
-
 export async function buildCoachSnapshot(
   userId: string,
   scope?: CoachScope,
@@ -1494,142 +1083,21 @@ async function buildCoachSnapshotImpl(
     registerBlock("mood", "mood");
   }
 
+  // Medication compliance lives outside the structured features — the block
+  // is assembled in `snapshot-blocks/compliance-block.ts` from the ledger
+  // reads above.
   if (wantsCompliance && complianceMeds) {
-    // Medication compliance lives outside the structured features today —
-    // the legacy Coach surface labelled it as "general" provenance only.
-    // v1.4.20.1 shipped a per-day adherence row; v1.16.9 derives it from
-    // the band-engine LEDGER (the same expansion the compliance % and the
-    // dose-history view consume): a slot counts against the rate only once
-    // it is genuinely missed, a pending/upcoming slot never reads as "not
-    // taken", deliberate skips and ad-hoc takes stay out of the
-    // denominator, and cross-source duplicate rows collapse onto one slot.
-    const ledgerRows: DoseHistoryRow[] = [];
-    // v1.17 W1c — the coach's headline adherence figure routes through the
-    // SAME `calculateCompliance(...).rate` ledger authority the medication
-    // card shows (the ledger path, `medicationContext` supplied), so the
-    // coach can never quote a denominator the card doesn't use. Per
-    // medication we take the ledger numerator (on-time + late takes) and
-    // denominator (taken + missed) and pool them across the user's
-    // scheduled medications: for a single medication the headline equals
-    // that med's card rate exactly; for several it is the dose-weighted
-    // overall adherence (the same pooling the cross-med timeline below
-    // already uses), never a per-day / per-week denominator of its own.
-    let complianceTaken = 0;
-    let complianceDenominator = 0;
-    const windowDaysForRate = Math.max(
-      1,
-      Math.round((now.getTime() - cutoff.getTime()) / (24 * 60 * 60 * 1000)),
-    );
-    for (const med of complianceMeds) {
-      if (med.schedules.length === 0) continue;
-      const ctx = buildComplianceMedicationContext(
-        med,
-        lastNonSkippedTakenAt(med.intakeEvents),
-        userTz,
-      );
-      ledgerRows.push(
-        ...buildComplianceLedgerRows(
-          med.intakeEvents,
-          med.schedules,
-          ctx,
-          cutoff,
-          now,
-          now,
-        ),
-      );
-      // The card's rate IS `calculateCompliance(...).rate` over the ledger;
-      // aggregate the same taken / (taken + missed) counts here so the
-      // coach's single headline % equals what the card renders.
-      const result = calculateCompliance(
-        med.intakeEvents,
-        med.schedules,
-        windowDaysForRate,
-        med.createdAt,
-        { now, medicationContext: ctx },
-      );
-      complianceTaken += result.taken;
-      complianceDenominator += result.taken + result.missed;
-    }
-    // Countable rows: taken (on-time or late) or genuinely missed. The
-    // pending / upcoming / skipped / ad-hoc rows carry no adherence signal.
-    const countable = ledgerRows.filter(
-      (r) =>
-        r.status === "taken_on_time" ||
-        r.status === "taken_late" ||
-        r.status === "missed",
-    );
-    if (countable.length > 0) {
-      const recent = countable.filter((r) => r.at >= recentCutoff);
-      const olderRows = countable.filter((r) => r.at < recentCutoff);
-      const isTaken = (r: DoseHistoryRow) =>
-        r.status === "taken_on_time" || r.status === "taken_late";
-      const recentByDay = new Map<
-        string,
-        { date: Date; total: number; taken: number }
-      >();
-      for (const r of recent) {
-        const key = tzDayKey(r.at, userTz);
-        const e = recentByDay.get(key) ?? {
-          date: r.at,
-          total: 0,
-          taken: 0,
-        };
-        e.total += 1;
-        if (isTaken(r)) e.taken += 1;
-        recentByDay.set(key, e);
-      }
-      const recentRows = Array.from(recentByDay.entries())
-        .map(([date, info]) => ({
-          date,
-          weekday: tzWeekday(info.date, userTz),
-          rate: Math.round((info.taken / info.total) * 100) / 100,
-          taken: info.taken,
-          total: info.total,
-        }))
-        .sort((a, b) => a.date.localeCompare(b.date));
-      const olderByWeek = new Map<string, { taken: number; total: number }>();
-      for (const r of olderRows) {
-        const key = isoWeekKey(r.at, userTz);
-        const e = olderByWeek.get(key) ?? { taken: 0, total: 0 };
-        e.total += 1;
-        if (isTaken(r)) e.taken += 1;
-        olderByWeek.set(key, e);
-      }
-      const weeklyRows = Array.from(olderByWeek.entries())
-        .map(([weekISO, v]) => ({
-          weekISO,
-          rate: v.total > 0 ? Math.round((v.taken / v.total) * 100) / 100 : 0,
-          taken: v.taken,
-          total: v.total,
-        }))
-        .sort((a, b) => a.weekISO.localeCompare(b.weekISO));
-      snapshot.compliance = {
-        // v1.17 W1c — headline adherence % from the SAME ledger authority
-        // (`calculateCompliance(...).rate`) the medication card shows: the
-        // dose-weighted pool of taken / (taken + missed) across the user's
-        // scheduled medications, so the coach quotes the card's figure
-        // (single med) or its honest overall adherence (several meds) rather
-        // than a per-day / per-week rate built off a different denominator.
-        // Integer 0-100 to match the card's rounding; null when no scheduled
-        // medication has any countable dose in the window.
-        rate:
-          complianceDenominator > 0
-            ? Math.round((complianceTaken / complianceDenominator) * 100)
-            : null,
-        timeline: { recent: recentRows, weekly: weeklyRows },
-      };
-      metrics.add("compliance");
-      counts.compliance = countable.length;
-      registerBlock("compliance", "compliance");
-    } else {
-      // v1.7.0 — toggled-on cluster with no rows. Annotate so the
-      // dashboards can distinguish "user has no medication data" from
-      // "medication cluster was off".
-      annotate({
-        action: { name: "coach.cluster.empty_skipped" },
-        meta: { cluster: "medication" },
-      });
-    }
+    buildComplianceBlock({
+      complianceMeds,
+      userTz,
+      cutoff,
+      recentCutoff,
+      now,
+      snapshot,
+      metrics,
+      counts,
+      registerBlock,
+    });
   }
 
   // ── v1.4.23 Apple Health additive blocks ─────────────────────────
@@ -1897,335 +1365,69 @@ async function buildCoachSnapshotImpl(
   }
 
   // ── v1.7.0 sleep block (with optional per-stage enrichment) ───────
-  //
-  // Sleep needs the `sleepStage` column so the Coach can narrate REM /
-  // core / deep / awake minutes per night instead of a flat duration.
-  // The shared `byType("SLEEP_DURATION")` rows above already cover the
-  // duration timeline, but they drop the stage label — so the sleep
-  // branch builds its own block. Per-night stage minutes come from a
-  // dedicated read of the SLEEP_DURATION rows that carry a non-null
-  // stage; the duration timeline is built from the same rows summed per
-  // night (one night = the sum of its per-stage rows).
+  // Assembled in `snapshot-blocks/sleep-block.ts` from the dedicated
+  // stage-bearing rows read in parallel above.
   if (sources.has("sleep") && sleepRows) {
-    // The SLEEP_DURATION rows (with the `sleepStage` column) are read in
-    // parallel above.
-    if (sleepRows.length === 0) {
-      annotate({
-        action: { name: "coach.cluster.empty_skipped" },
-        meta: { cluster: "sleep", source: "sleep" },
-      });
-    } else {
-      // v1.11.5 — reconstruct per-night TIME-ASLEEP totals through the shared
-      // helper so the Coach narrates the same nightly numbers every other
-      // sleep surface shows: stages clustered into sessions, a dual-source
-      // night collapsed to one canonical source, and the granular
-      // CORE/DEEP/REM partition counted WITHOUT double-counting the bare
-      // ASLEEP aggregate Apple Health writes alongside it. IN_BED + AWAKE are
-      // excluded from the asleep total.
-      const nights = reconstructSleepNights(
-        sleepRows as SleepStageRow[],
-        userTz,
-        prefsRow?.sourcePriorityJson ?? null,
-      ).filter((n) => n.asleepMinutes > 0);
-      // Recent nights: asleep duration + stage breakdown when present.
-      const recentNights = nights
-        .filter((n) => n.measuredAt >= recentCutoff)
-        .map((n) => {
-          const row: Record<string, unknown> = {
-            date: n.measuredAt,
-            weekday: tzWeekday(n.measuredAt, userTz),
-            minutes: Math.round(n.asleepMinutes),
-          };
-          const stageEntries = Object.entries(n.stages).filter(
-            ([stage]) => stage !== "IN_BED" && stage !== "AWAKE",
-          );
-          if (stageEntries.length > 0) {
-            row.stages = Object.fromEntries(
-              stageEntries.map(([k, v]) => [
-                k.toLowerCase(),
-                Math.round(v as number),
-              ]),
-            );
-          }
-          return row;
-        })
-        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-      const olderNights = nights
-        .filter((n) => n.measuredAt < recentCutoff)
-        .map((n) => ({ measuredAt: n.measuredAt, value: n.asleepMinutes }));
-      snapshot.sleep = {
-        timeline: {
-          recent: recentNights,
-          weekly: bucketWeekly(olderNights, userTz),
-        },
-      };
-      metrics.add("sleep");
-      counts.sleep = sleepRows.length;
-      registerBlock("sleep", "sleep");
-      // W7 grounding: recent nightly asleep duration in HOURS against the
-      // AASM 7–9 h band (the reference unit is hours; the snapshot stores
-      // minutes). Mean over the recent nights the block already reconstructed.
-      if (recentNights.length > 0) {
-        const meanMin =
-          recentNights.reduce(
-            (s, n) => s + (typeof n.minutes === "number" ? n.minutes : 0),
-            0,
-          ) / recentNights.length;
-        if (meanMin > 0) {
-          groundingValues.set("SLEEP_DURATION", meanMin / 60);
-        }
-      }
-    }
+    buildSleepTimelineBlock({
+      sleepRows: sleepRows as SleepStageRow[],
+      sourcePriorityJson: prefsRow?.sourcePriorityJson ?? null,
+      userTz,
+      recentCutoff,
+      snapshot,
+      metrics,
+      counts,
+      registerBlock,
+      groundingValues,
+    });
   }
 
   // ── v1.17.0 sleep-rhythm block (sleep-debt + chronotype) ──────────
-  //
-  // The two server-authoritative timing signals the Sleep page + the
-  // dashboard summary render — cumulative sleep debt and the MCTQ
-  // chronotype band + social jetlag. Built from the SAME assembler the
-  // dashboard route uses (`reconstructNights` → `computeSleepRhythmFromNights`),
-  // over the rhythm's OWN fixed trailing-42-day rows, so the coach quotes the
-  // exact debt + band the page shows regardless of the coach's narration
-  // window. ONE ENGINE: this never recomputes sleep-debt or chronotype inline —
-  // the math lives in `sleep-debt.ts` / `chronotype.ts`, reached through the
-  // assembler. The `needMinutes` is the SAME age-resolved need the derived
-  // block + Sleep Score read (`sleepNeedMinutes(ageYears)`), and the
-  // `sourcePriorityJson` is the one already loaded for the per-stage sleep
-  // block above — no extra read beyond the rhythm rows.
-  //
-  // LEARNING-GATE HONESTY: both signals carry a calm `partial` / `learning`
-  // state below their night thresholds. The chronotype `band` is emitted ONLY
-  // when the state is `ready` — a learning chronotype is surfaced as
-  // "still calibrating", never asserted as a band the data can't support.
+  // Assembled in `snapshot-blocks/sleep-block.ts` from the rhythm's own
+  // fixed trailing-42-day rows read in parallel above.
   if (sources.has("sleep") && sleepRhythmRows && sleepRhythmRows.length > 0) {
-    const rhythm: SleepRhythmDto = computeSleepRhythmFromNights(
-      reconstructNights(
-        sleepRhythmRows as SleepStageRow[],
-        userTz,
-        prefsRow?.sourcePriorityJson ?? null,
-      ),
-      sleepNeedMinutes(derivedProfile.ageYears),
-    );
-    const chronotypeReady = rhythm.chronotype.state === "ready";
-    snapshot.sleepRhythm = {
-      sleepDebt: {
-        state: rhythm.sleepDebt.state,
-        debtMinutes: rhythm.sleepDebt.debtMinutes,
-        needMinutes: rhythm.sleepDebt.needMinutes,
-      },
-      chronotype: {
-        state: rhythm.chronotype.state,
-        // Only assert a band + social jetlag once the chronotype is `ready`.
-        // A `learning` chronotype carries no band the data supports — the
-        // model treats it as "still calibrating", never a typed assertion.
-        band: chronotypeReady ? rhythm.chronotype.band : null,
-        socialJetlagMinutes: chronotypeReady
-          ? rhythm.chronotype.socialJetlagMinutes
-          : null,
-      },
-    };
-    metrics.add("sleep");
-    registerBlock("sleepRhythm", "sleep");
+    buildSleepRhythmBlock({
+      sleepRhythmRows: sleepRhythmRows as SleepStageRow[],
+      sourcePriorityJson: prefsRow?.sourcePriorityJson ?? null,
+      userTz,
+      ageYears: derivedProfile.ageYears,
+      snapshot,
+      metrics,
+      registerBlock,
+    });
   }
 
   // ── v1.7.0 glucose block (per-context daily means) ────────────────
-  //
-  // Glucose is summarised per `GlucoseContext` so the Coach can tell
-  // fasting from postprandial without seeing raw samples. Each context
-  // gets its own per-day mean timeline; the block omits when no rows.
+  // Assembled in `snapshot-blocks/glucose-block.ts` from the shared
+  // measurement read + the fixed-window clinical rows read above.
   if (sources.has("glucose")) {
-    const glucoseCutoff = additiveCutoff("glucose");
-    const glucoseRows = measurementRows.filter(
-      (r) => r.type === "BLOOD_GLUCOSE" && r.measuredAt >= glucoseCutoff,
-    );
-    if (glucoseRows.length === 0) {
-      annotate({
-        action: { name: "coach.cluster.empty_skipped" },
-        meta: { cluster: "glucose", source: "glucose" },
-      });
-    } else {
-      // Group by context (NULL → "unspecified"), then per-day mean.
-      const byContext = new Map<
-        string,
-        Array<{ measuredAt: Date; value: number }>
-      >();
-      for (const r of glucoseRows) {
-        const ctx = r.glucoseContext
-          ? String(r.glucoseContext).toLowerCase()
-          : "unspecified";
-        const list = byContext.get(ctx) ?? [];
-        list.push({ measuredAt: r.measuredAt, value: r.value });
-        byContext.set(ctx, list);
-      }
-      const contexts: Record<string, unknown> = {};
-      for (const [ctx, rows] of byContext) {
-        // v1.16.16 — glucose is stored canonical mg/dL. A mmol/L-preference
-        // user's Coach must read the same number every other surface shows
-        // (5.5, not 100). Aggregate the per-day / weekly means in raw mg/dL,
-        // then convert each resulting figure ONCE (parity with the series
-        // DTO + detail page + FHIR). mg/dL users stay byte-identical because
-        // the conversion is skipped entirely.
-        const recent = buildDailyValueRows(rows, recentCutoff, userTz).map(
-          (d) =>
-            glucoseUnit === "mmol/L"
-              ? { ...d, value: convertGlucose(d.value, glucoseUnit) }
-              : d,
-        );
-        const weekly = bucketWeekly(
-          rows.filter((r) => r.measuredAt < recentCutoff),
-          userTz,
-        ).map((w) =>
-          glucoseUnit === "mmol/L"
-            ? { ...w, mean: convertGlucose(w.mean, glucoseUnit) }
-            : w,
-        );
-        contexts[ctx] = { recent, weekly };
-      }
-      // v1.17.0 — clinical panel summary from the ONE literature-locked engine
-      // the insights panel + doctor report also consume, computed over the SAME
-      // fixed trailing-30-day window + rows the panel uses (`glucoseClinicalRows`,
-      // not the coach-window / cap-trimmed `glucoseRows`), so the coach can never
-      // quote a TIR / GMI / CV% figure the panel doesn't show — true numeric
-      // parity, independent of the user's coach scope. Gated by `stillLearning`
-      // so a thin spot-data window is offered as a calm "still learning" note
-      // rather than asserted as a clinical AGP. The headline mean is converted
-      // ONCE to the user's display unit; the unit-agnostic fractions / indices
-      // travel as-is.
-      const clinicalRaw = computeGlucoseClinicalMetrics(
-        (glucoseClinicalRows ?? []).map((r) => ({
-          measuredAt: r.measuredAt,
-          mgdl: r.value,
-        })),
-        { windowDays: GLUCOSE_CLINICAL_WINDOW_DAYS, now },
-      );
-      const clinical = clinicalRaw.stillLearning
-        ? {
-            stillLearning: true as const,
-            reason: clinicalRaw.stillLearningReason,
-            readingCount: clinicalRaw.readingCount,
-            spanDays: Math.round(clinicalRaw.actualSpanDays),
-          }
-        : {
-            stillLearning: false as const,
-            windowDays: clinicalRaw.windowDays,
-            spanDays: Math.round(clinicalRaw.actualSpanDays),
-            readingCount: clinicalRaw.readingCount,
-            meanInRange:
-              clinicalRaw.meanMgdl !== null
-                ? Math.round(
-                    convertGlucose(clinicalRaw.meanMgdl, glucoseUnit) *
-                      (glucoseUnit === "mmol/L" ? 10 : 1),
-                  ) / (glucoseUnit === "mmol/L" ? 10 : 1)
-                : null,
-            tirPercent: clinicalRaw.distribution
-              ? Math.round(clinicalRaw.distribution.tir * 100)
-              : null,
-            timeBelowPercent: clinicalRaw.distribution
-              ? Math.round(clinicalRaw.distribution.tbrLevel1 * 100)
-              : null,
-            timeAbovePercent: clinicalRaw.distribution
-              ? Math.round(clinicalRaw.distribution.tarLevel1 * 100)
-              : null,
-            gmi:
-              clinicalRaw.gmi !== null
-                ? Math.round(clinicalRaw.gmi * 10) / 10
-                : null,
-            estimatedA1c:
-              clinicalRaw.estimatedA1c !== null
-                ? Math.round(clinicalRaw.estimatedA1c * 10) / 10
-                : null,
-            cvPercent: clinicalRaw.variability
-              ? Math.round(clinicalRaw.variability.cv)
-              : null,
-            unstable: clinicalRaw.variability?.unstable ?? null,
-            // Density-derived: a sparse spot series stays a spot-reading
-            // estimate, a continuous CGM stream (Nightscout) reads false so the
-            // model can narrate the TIR/GMI as continuous-trace figures.
-            isSpotEstimate: clinicalRaw.isSpotEstimate,
-          };
-      // The display unit travels with the block so the prompt renders
-      // "<value> <unit>" and the EVIDENCE BLOCK tags glucose lines correctly.
-      snapshot.glucose = { unit: glucoseUnit, byContext: contexts, clinical };
-      metrics.add("glucose");
-      counts.glucose = glucoseRows.length;
-      registerBlock("glucose", "glucose");
-      // W7 grounding: fasting glucose mean in RAW mg/dL (the reference band's
-      // unit), independent of the user's mmol/L display preference. The
-      // grounding line's band selection respects the W6 `hasDiabetes` opt-in;
-      // here we only feed the representative fasting value. Fall back to the
-      // overall mean when no row is tagged FASTING so the band is still cited.
-      const fastingRows = glucoseRows.filter(
-        (r) => String(r.glucoseContext).toUpperCase() === "FASTING",
-      );
-      const glucoseScalarRows =
-        fastingRows.length > 0 ? fastingRows : glucoseRows;
-      const glucoseMeanMgdl =
-        glucoseScalarRows.reduce((s, r) => s + r.value, 0) /
-        glucoseScalarRows.length;
-      if (Number.isFinite(glucoseMeanMgdl)) {
-        groundingValues.set("BLOOD_GLUCOSE", glucoseMeanMgdl);
-      }
-    }
+    buildGlucoseBlock({
+      measurementRows,
+      glucoseCutoff: additiveCutoff("glucose"),
+      glucoseClinicalRows,
+      glucoseUnit,
+      recentCutoff,
+      userTz,
+      now,
+      snapshot,
+      metrics,
+      counts,
+      registerBlock,
+      groundingValues,
+    });
   }
 
   // ── v1.7.0 workouts block (capped list + per-sport rollup) ────────
-  //
-  // The Workout model is never dumped row-for-row. The block carries
-  // the most recent `WORKOUT_RECENT_CAP` sessions (sport, duration,
-  // energy, distance, avg/max HR) plus a per-sport weekly count + total
-  // duration/energy rollup for the tail so the prompt stays bounded
-  // even for a heavy-training account at a long window.
+  // Assembled in `snapshot-blocks/workouts-block.ts` from the rows read
+  // in parallel above.
   if (sources.has("workouts") && workoutRows) {
-    // The workout sessions are read in parallel above.
-    if (workoutRows.length === 0) {
-      annotate({
-        action: { name: "coach.cluster.empty_skipped" },
-        meta: { cluster: "workouts", source: "workouts" },
-      });
-    } else {
-      const recentList = workoutRows.slice(0, WORKOUT_RECENT_CAP).map((w) => ({
-        date: tzDayKey(w.startedAt, userTz),
-        weekday: tzWeekday(w.startedAt, userTz),
-        sport: w.sportType,
-        durationMin: Math.round(w.durationSec / 60),
-        energyKcal: w.totalEnergyKcal ?? null,
-        distanceM: w.totalDistanceM ?? null,
-        avgHr: w.avgHeartRate ?? null,
-        maxHr: w.maxHeartRate ?? null,
-      }));
-      // Per-sport rollup over the whole window.
-      const bySport = new Map<
-        string,
-        { count: number; durationMin: number; energyKcal: number }
-      >();
-      for (const w of workoutRows) {
-        const e = bySport.get(w.sportType) ?? {
-          count: 0,
-          durationMin: 0,
-          energyKcal: 0,
-        };
-        e.count += 1;
-        e.durationMin += Math.round(w.durationSec / 60);
-        e.energyKcal += w.totalEnergyKcal ?? 0;
-        bySport.set(w.sportType, e);
-      }
-      const sportRollup = Array.from(bySport.entries())
-        .map(([sport, v]) => ({
-          sport,
-          count: v.count,
-          totalDurationMin: v.durationMin,
-          totalEnergyKcal: Math.round(v.energyKcal),
-        }))
-        .sort((a, b) => b.count - a.count);
-      snapshot.workouts = {
-        recent: recentList,
-        perSport: sportRollup,
-        totalInWindow: workoutRows.length,
-      };
-      metrics.add("workouts");
-      counts.workouts = workoutRows.length;
-      registerBlock("workouts", "workouts");
-    }
+    buildWorkoutsBlock({
+      workoutRows,
+      userTz,
+      snapshot,
+      metrics,
+      counts,
+      registerBlock,
+    });
   }
 
   // ── v1.4.25 W4d — GLP-1 weeklyContext block ──────────────────────

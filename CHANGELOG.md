@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.28.26] — 2026-07-11 — Internal restructuring for maintainability
+
+No user-facing change. Eight of the largest source files were split along
+their natural seams into focused modules — mood analytics calculators, the
+insight status-invalidation machinery, feature extraction blocks, the doctor
+report's types and helpers, the Google Health mapping layer, the coach chat
+bubbles and read-aloud controls, the Telegram webhook handlers (the route now
+holds only auth and dispatch), and the coach snapshot's cache, series helpers
+and largest per-metric blocks. Every move is verbatim with stable import
+paths; behavior is pinned by the full test suite.
+
 ## [1.28.25] — 2026-07-11 — Every integration held to the same standard
 
 A platform-wide hardening pass: the failure classes found live this week were

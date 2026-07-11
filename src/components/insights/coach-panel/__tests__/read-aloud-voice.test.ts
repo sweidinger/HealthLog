@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { pickSpeechVoice, scoreSpeechVoice } from "../message-thread";
+import { pickSpeechVoice, scoreSpeechVoice } from "../read-aloud";
 
 type V = { name: string; lang: string; localService?: boolean };
 

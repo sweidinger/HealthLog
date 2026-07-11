@@ -596,7 +596,7 @@ describe("<MessageThread>", () => {
     const src = readFileSync(
       join(
         process.cwd(),
-        "src/components/insights/coach-panel/message-thread.tsx",
+        "src/components/insights/coach-panel/chat-bubble.tsx",
       ),
       "utf8",
     );
