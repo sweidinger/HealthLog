@@ -133,6 +133,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
           source: "MOODLOG",
           date: entry.date,
           moodLoggedAt,
+          // No-op on a live row, a deliberate RESURRECTION on a tombstoned
+          // one — moodLog is the source of truth for the rows it minted; a
+          // created/updated event means the entry exists upstream (deletion
+          // arrives as its own `mood.deleted` event).
+          deletedAt: null,
         },
         create: {
           userId: user.id,
@@ -160,6 +165,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
           score: entry.score,
           tags: entry.tags ? JSON.stringify(entry.tags) : null,
           source: "MOODLOG",
+          // Same resurrection rule as the externalId-keyed upsert above.
+          deletedAt: null,
         },
         create: {
           userId: user.id,

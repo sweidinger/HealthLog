@@ -6,6 +6,9 @@ vi.mock("@/lib/db", () => ({
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
     measurement: { findMany: vi.fn() },
     measurementRollup: { findMany: vi.fn() },
+    // v1.28.25 — the graded-series cold-tier fallback day-buckets dense
+    // types (PULSE) via a raw aggregate instead of a full findMany walk.
+    $queryRaw: vi.fn(async () => []),
     moodEntry: { findMany: vi.fn() },
   },
 }));
@@ -47,6 +50,7 @@ function stubCompletion(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
   // Cold rollup tier: the pulse graded series folds monthly/yearly from
   // the full-history `measurement.findMany` fallback on a tier miss.
   vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
@@ -69,6 +73,14 @@ describe("generatePulseStatusForUser — graded payload", () => {
     } as never);
     vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.measurement.findMany).mockResolvedValue(records as never);
+    // v1.28.25 — PULSE is a dense type, so the cold-tier fallback reads
+    // a SQL day-bucket aggregate instead of the raw findMany walk. Feed
+    // the same 1000 days as day buckets.
+    vi.mocked(prisma.$queryRaw).mockResolvedValue(
+      records
+        .map((r) => ({ bucket_start: r.measuredAt, mean: r.value }))
+        .reverse() as never,
+    );
     vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.auditLog.create).mockResolvedValue({
       createdAt: new Date(),

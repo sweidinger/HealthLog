@@ -245,29 +245,42 @@ export async function buildTargetsResponse(user: AuthedUser) {
     // Absolute latest measurement per type within a one-year floor.
     //
     // Prisma's `distinct` does not compile to Postgres `DISTINCT ON` — the
-    // driver dedups after pulling the rows, so an unbounded scan on a
-    // 347 k-row tenant pulls every measurement back to Node only to drop
-    // all but seven (audit Critical Finding #2, v1.4.40). The 365-day
-    // floor caps the planner-side walk to the existing
-    // `(user_id, type, measured_at)` index range; the trade-off is that a
-    // user who hasn't measured a metric in over a year sees the tile's
-    // `current` value as null instead of pulling a stale year-old reading
-    // forward — which is the correct behaviour for the consistency strip
-    // (the strip already gates on "fewer than 3 readings in 30 days" →
-    // insufficientData).
-    limit(() =>
-      prisma.measurement.findMany({
-        where: {
-          userId,
-          type: { in: types },
-          measuredAt: { gte: oneYearAgo },
-          deletedAt: null,
-        },
-        orderBy: { measuredAt: "desc" },
-        distinct: ["type"],
-        select: { type: true, value: true },
-      }),
-    ),
+    // driver dedups after pulling the rows, so even with the 365-day floor
+    // a dense-type tenant (per-sample PULSE, hourly HR buckets) shipped a
+    // year of raw rows back to Node only to drop all but seven (audit
+    // Critical Finding #2, v1.4.40 flagged the unbounded variant; the
+    // bounded one stayed O(rows-in-year)). Real `DISTINCT ON` resolves it
+    // index-side: one row per type, ordered walk over the existing
+    // `(user_id, type, measured_at)` index. The 365-day floor keeps its
+    // documented product semantics — a metric not measured in over a year
+    // reads `current: null` instead of pulling a stale reading forward.
+    limit(() => {
+      // Whitelist-splice: `types` is the closed compile-time enum list
+      // above; assert each member against the enum-literal shape before
+      // splicing (same pattern as the rollup aggregates in
+      // `measurement-rollups.ts`). user id + date bind as $1 / $2.
+      for (const t of types) {
+        if (!/^[A-Z0-9_]+$/.test(t)) {
+          throw new Error(`invalid measurement type: ${t}`);
+        }
+      }
+      const typeList = types.map((t) => `'${t}'::"measurement_type"`).join(",");
+      return prisma.$queryRawUnsafe<
+        Array<{ type: MeasurementType; value: number }>
+      >(
+        `SELECT DISTINCT ON (m."type")
+           m."type"::text AS type,
+           m."value"      AS value
+         FROM measurements m
+         WHERE m."user_id" = $1
+           AND m."type" IN (${typeList})
+           AND m."measured_at" >= $2
+           AND m."deleted_at" IS NULL
+         ORDER BY m."type" ASC, m."measured_at" DESC`,
+        userId,
+        oneYearAgo,
+      );
+    }),
     // Sleep stage rows for the per-night reconstruction (section 4).
     limit(() =>
       prisma.measurement.findMany({

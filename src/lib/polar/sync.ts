@@ -48,6 +48,10 @@ import {
   mapSpo2,
   type MappedMeasurement,
 } from "./client";
+import {
+  sweepStaleSleepSegments,
+  type SleepSegmentSweep,
+} from "@/lib/sleep/sweep-stale-segments";
 import { getPolarConnection } from "./credentials";
 import { PolarApiError, classifyPolarError } from "./response-classifier";
 
@@ -98,6 +102,7 @@ export async function syncUserPolar(userId: string): Promise<number> {
   if (!conn) return 0;
 
   const readings: PolarMeasurementUpsert[] = [];
+  const sleepSweeps: SleepSegmentSweep[] = [];
   try {
     const [recharges, sleeps, activities, cardioLoads, spo2Tests] =
       await Promise.all([
@@ -111,7 +116,21 @@ export async function syncUserPolar(userId: string): Promise<number> {
       readings.push(...toUpsert(mapNightlyRecharge(r), "recharge"));
     }
     for (const s of sleeps) {
-      readings.push(...toUpsert(mapSleep(s), "sleep"));
+      const rows = toUpsert(mapSleep(s), "sleep");
+      readings.push(...rows);
+      // Night-scoped sweep entry: the reconstructed segments of this date all
+      // key under `sleep:<date>:seg:` (mapper-supplied). Any live row under
+      // that prefix this fetch did NOT re-produce is a re-score orphan or a
+      // legacy `:seg:<tag>:<i>` indexed row — tombstoned before the upsert.
+      // The prefix deliberately stays on `:seg:` — the IN_BED envelope keys
+      // on its measuredAt's UTC date, which can drift a calendar day from
+      // `s.date`, so a broader `sleep:<date>:` bound could cross nights.
+      sleepSweeps.push({
+        prefix: `sleep:${s.date}:seg:`,
+        keepIds: rows
+          .filter((r) => r.type === "SLEEP_DURATION")
+          .map((r) => r.externalId),
+      });
     }
     for (const a of activities) {
       readings.push(...toUpsert(mapActivity(a), "activity"));
@@ -135,6 +154,11 @@ export async function syncUserPolar(userId: string): Promise<number> {
     });
     throw err;
   }
+
+  // Clear whatever an earlier scoring left under the re-fetched nights before
+  // the fresh set upserts (mirrors Google Health's replace-by-window order).
+  // Best-effort inside the helper — a sweep failure never fails the sync.
+  await sweepStaleSleepSegments(userId, "POLAR", sleepSweeps);
 
   const imported = await upsertPolarMeasurements(userId, readings);
   await recordSyncSuccess(userId, "polar");
@@ -183,6 +207,10 @@ export async function upsertPolarMeasurements(
           unit: r.unit,
           measuredAt: r.measuredAt,
           sleepStage: r.sleepStage ?? null,
+          // No-op on a live row, a deliberate RESURRECTION on a tombstoned
+          // one — Polar is the source of truth for its own rows, so a
+          // re-fetched reading brings the row back (mirrors Google / Fitbit).
+          deletedAt: null,
           syncVersion: { increment: 1 },
         },
       });

@@ -388,17 +388,21 @@ async function warmGenericMetricCaches(
   // rows for. Best-effort — a read failure (or a worker prisma surface
   // without `measurement`) yields zero metrics rather than aborting the
   // user's whole pre-generation loop.
-  let rows: Array<{ type: string }>;
+  let typesWithData: ReadonlySet<string>;
   try {
-    rows = await prisma.measurement.findMany({
+    // `groupBy` compiles to a server-side `GROUP BY` — Prisma's
+    // `distinct` dedups in the client AFTER pulling every live row, which
+    // on a dense multi-year account walks a six-figure row set nightly to
+    // answer "which types exist?".
+    const rows = await prisma.measurement.groupBy({
+      by: ["type"],
       where: { userId, deletedAt: null },
-      distinct: ["type"],
-      select: { type: true },
+      orderBy: { type: "asc" },
     });
+    typesWithData = new Set(rows.map((r) => r.type));
   } catch {
     return 0;
   }
-  const typesWithData = new Set(rows.map((r) => r.type));
 
   const metricsWithData = METRIC_STATUS_IDS.filter(
     (id: MetricStatusMetricId) => {

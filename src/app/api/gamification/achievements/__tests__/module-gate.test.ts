@@ -16,6 +16,9 @@ import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // v1.28.25 — the achievements vitals read is a raw (day, hour, type)
+    // bucket aggregation.
+    $queryRaw: vi.fn(),
     measurement: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
     medication: { findMany: vi.fn() },
@@ -76,6 +79,7 @@ const SESSION_OK = {
 beforeEach(() => {
   vi.resetAllMocks();
   __resetAllCachesForTests();
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
     [] as never,
@@ -123,6 +127,7 @@ describe("GET /api/gamification/achievements — achievements module gate", () =
     expect(body.meta.module).toBe("achievements");
 
     // The disappearance is total: no badge aggregation ran.
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
     expect(prisma.measurement.findMany).not.toHaveBeenCalled();
     expect(prisma.userAchievement.findMany).not.toHaveBeenCalled();
     expect(prisma.userAchievement.createMany).not.toHaveBeenCalled();

@@ -26,6 +26,12 @@
 import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
+import { isReauthRequired } from "@/lib/integrations/status";
+import {
+  GOOGLE_HEALTH_INTEGRATION_KEY,
+  GOOGLE_HEALTH_TOKEN_HARD_FAIL,
+  runWithGoogleHealthHardFailLedger,
+} from "@/lib/google-health/sync";
 import { syncUserSleep } from "@/lib/google-health/sync-sleep";
 
 export const GOOGLE_HEALTH_SLEEP_REPAIR_QUEUE = "google-health-sleep-repair";
@@ -50,11 +56,51 @@ export interface GoogleHealthSleepRepairPayload {
  * Idempotent: the per-segment upserts are key-stable and the replace-by-window
  * clears stale copies, so a re-run (e.g. a reboot mid-walk) converges rather
  * than duplicating. Does NOT move `lastSyncedAt`.
+ *
+ * Verdict-gated: `syncUserSleep` swallows fetch/write hard failures into the
+ * ambient hard-fail ledger (returning a count either way), so the repair runs
+ * it inside its own ledger scope — the same mechanism `syncUserGoogleHealth`
+ * uses for its cycle verdict — and stamps `sleepRepairedAt` ONLY on a clean
+ * run. A hard fetch/write failure THROWS so pg-boss retries; a dead token
+ * (parked connection, missing credentials, failed refresh) is NOT clean but
+ * does not throw — retrying a dead grant burns the retry budget on the same
+ * no-op. It returns WITHOUT stamping instead: the boot discovery re-enqueues
+ * the account on the next boot, and the stamp lands after a reconnect.
  */
 export async function runGoogleHealthSleepRepairForUser(
   userId: string,
 ): Promise<{ imported: number }> {
-  const imported = await syncUserSleep(userId, { deferRollup: false });
+  if (await isReauthRequired(userId, GOOGLE_HEALTH_INTEGRATION_KEY)) {
+    annotate({
+      action: {
+        name: "googleHealth.sleepRepair.skipped_reauth",
+        details: { imported: 0 },
+      },
+    });
+    return { imported: 0 };
+  }
+
+  const { result: imported, failures } =
+    await runWithGoogleHealthHardFailLedger(() =>
+      syncUserSleep(userId, { deferRollup: false }),
+    );
+
+  if (failures.length > 0) {
+    if (failures.every((f) => f === GOOGLE_HEALTH_TOKEN_HARD_FAIL)) {
+      // Dead token: nothing was fetched, so nothing to retry until the user
+      // reconnects. No stamp — the next boot's discovery picks it back up.
+      annotate({
+        action: {
+          name: "googleHealth.sleepRepair.skipped_token",
+          details: { imported },
+        },
+      });
+      return { imported };
+    }
+    throw new Error(
+      `google-health sleep repair incomplete for user ${userId} (${failures.join(", ")}) — marker not stamped`,
+    );
+  }
 
   await prisma.googleHealthConnection.update({
     where: { userId },

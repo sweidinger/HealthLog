@@ -48,6 +48,10 @@ import {
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
+  sweepStaleSleepSegments,
+  type SleepSegmentSweep,
+} from "@/lib/sleep/sweep-stale-segments";
+import {
   fetchCardiovascularAge,
   fetchDailyActivity,
   fetchDailySleep,
@@ -133,6 +137,13 @@ export interface OuraCollectionFailure {
 export interface OuraFetchResult {
   readings: OuraMeasurementUpsert[];
   failures: OuraCollectionFailure[];
+  /**
+   * One sweep entry per fetched sleep record (`sleep:<record-id>:` prefix +
+   * that record's fresh SLEEP_DURATION externalIds). Drives the record-scoped
+   * cleanup of rows a revised hypnogram orphaned — including every legacy
+   * run-indexed `seg:<i>` row — before the fresh set upserts.
+   */
+  sleepSweeps: SleepSegmentSweep[];
 }
 
 /**
@@ -162,6 +173,12 @@ async function fetchAll(
   const start = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
   const query = { startDate: ymd(start), endDate: ymd(now) };
 
+  // Filled by the sleep collection's closure as it maps records; carried on
+  // the result so the caller can run the record-scoped sweep before the
+  // upsert. A collection that throws pushes nothing (the fetch is its first
+  // await), so a 401-retry cannot double-enter a record.
+  const sleepSweeps: SleepSegmentSweep[] = [];
+
   const collections: OuraCollectionSpec[] = [
     {
       name: "readiness",
@@ -172,10 +189,27 @@ async function fetchAll(
     },
     {
       name: "sleep",
-      collect: async (t) =>
-        (await fetchSleep(t, query)).flatMap((s) =>
-          toUpsert(mapSleep(s), "sleep"),
-        ),
+      collect: async (t) => {
+        const records = await fetchSleep(t, query);
+        const ups: OuraMeasurementUpsert[] = [];
+        for (const s of records) {
+          const rows = toUpsert(mapSleep(s), "sleep");
+          ups.push(...rows);
+          // Record-scoped sweep entry: every SLEEP_DURATION row of this
+          // record keys under `sleep:<id>:` (hypnogram runs AND the
+          // stage-total fallback), so the prefix bounds the cleanup to this
+          // one record. Clears whatever a revised hypnogram orphaned —
+          // shifted run boundaries, legacy run-indexed `seg:<i>` rows, and a
+          // stale stage-total set once the hypnogram appears.
+          sleepSweeps.push({
+            prefix: `sleep:${s.id}:`,
+            keepIds: rows
+              .filter((r) => r.type === "SLEEP_DURATION")
+              .map((r) => r.externalId),
+          });
+        }
+        return ups;
+      },
     },
     {
       name: "activity",
@@ -256,14 +290,15 @@ async function fetchAll(
 
   const first = await attempt(accessToken, collections);
   if (!first.auth401) {
-    return { readings: first.readings, failures: first.failures };
+    return { readings: first.readings, failures: first.failures, sleepSweeps };
   }
 
   // Reactive refresh: the access token expired (a 401 on the shared token).
   // Refresh once (rotating both tokens) and retry ONLY the collections that
   // failed. A failed refresh throws so the caller parks reauth_required.
   const creds = await getOuraClientCredentials(userId);
-  if (!creds) return { readings: first.readings, failures: first.failures };
+  if (!creds)
+    return { readings: first.readings, failures: first.failures, sleepSweeps };
 
   const rotated = await refreshAccessToken(refreshToken, creds);
   // Compare-and-swap persist: on a lost race against a concurrent sync this
@@ -276,12 +311,13 @@ async function fetchAll(
     refreshTokenCiphertext,
   );
   if (!usableToken)
-    return { readings: first.readings, failures: first.failures };
+    return { readings: first.readings, failures: first.failures, sleepSweeps };
 
   const retry = await attempt(usableToken, first.failed);
   return {
     readings: [...first.readings, ...retry.readings],
     failures: retry.failures,
+    sleepSweeps,
   };
 }
 
@@ -321,6 +357,13 @@ export async function syncUserOura(
     });
     throw err;
   }
+
+  // Clear whatever an earlier scoring left under the re-fetched sleep records
+  // before the fresh set upserts (mirrors Google Health's replace-by-window
+  // order). Best-effort inside the helper — a sweep failure never fails the
+  // sync; the record stays inside the lookback window, so the next tick
+  // retries it.
+  await sweepStaleSleepSegments(userId, "OURA", result.sleepSweeps);
 
   // Import everything the healthy collections returned regardless of whether a
   // sibling collection failed — one bad collection must not blank the source.
@@ -393,6 +436,10 @@ export async function upsertOuraMeasurements(
           unit: r.unit,
           measuredAt: r.measuredAt,
           sleepStage: r.sleepStage ?? null,
+          // No-op on a live row, a deliberate RESURRECTION on a tombstoned
+          // one — Oura is the source of truth for its own rows, so a
+          // re-fetched reading brings the row back (mirrors Google / Fitbit).
+          deletedAt: null,
           syncVersion: { increment: 1 },
         },
       });

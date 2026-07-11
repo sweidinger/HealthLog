@@ -103,7 +103,11 @@ beforeEach(() => {
     updateMany: ReturnType<typeof vi.fn>;
   };
   measurement.findMany.mockResolvedValue([]);
-  measurement.createMany.mockResolvedValue({ count: 0 });
+  // Echo the attempted chunk size, matching Postgres semantics when no row
+  // collides — the route now reconciles `inserted` against this count.
+  measurement.createMany.mockImplementation(
+    async (arg: { data: unknown[] }) => ({ count: arg.data.length }),
+  );
   measurement.updateMany.mockResolvedValue({ count: 0 });
   (
     prisma.$transaction as unknown as {
@@ -226,6 +230,29 @@ describe("POST /api/import/csv — batched write + per-row envelope", () => {
     expect(mMeasurement().createMany).not.toHaveBeenCalled();
   });
 
+  it("resurrects a tombstoned externalId row on re-import (deletedAt: null in update)", async () => {
+    // The ext-probe is deliberately deletedAt-less, so a tombstoned IMPORT
+    // row matches like a live one; the update must carry the resurrection
+    // (IMPORT rows are re-importable by design).
+    mMeasurement().findMany.mockResolvedValue([
+      { type: "WEIGHT", externalId: "ext-tomb" },
+    ]);
+
+    const res = await POST(
+      csvRequest(
+        [HEADER, "WEIGHT,81.0,kg,2026-05-01T08:00:00Z,,,ext-tomb"].join("\n"),
+      ),
+    );
+    const body = (await res.json()) as CsvEnvelope;
+    expect(body.data?.updated).toBe(1);
+    expect(body.data?.rows[0].status).toBe("updated");
+    const updateArg = mMeasurement().updateMany.mock.calls[0][0] as {
+      data: { value: number; deletedAt: Date | null };
+    };
+    expect(updateArg.data.value).toBe(81.0);
+    expect(updateArg.data.deletedAt).toBeNull();
+  });
+
   it("inserts an externalId row when it does not exist yet", async () => {
     mMeasurement().findMany.mockResolvedValue([]);
     const res = await POST(
@@ -273,5 +300,34 @@ describe("POST /api/import/csv — batched write + per-row envelope", () => {
     expect(body.data?.skipped).toBe(1);
     // Only the first survivor reaches the bulk insert.
     expect(mMeasurement().createMany.mock.calls[0][0].data).toHaveLength(1);
+  });
+
+  it("reconciles `inserted` against the createMany count when skipDuplicates absorbs a race", async () => {
+    // Two fresh rows attempted, but a concurrent double-submit already
+    // landed one of them — `skipDuplicates` absorbs the conflict and the
+    // count comes back short. The envelope must sum to the DB truth: one
+    // inserted, one downgraded to skipped/duplicate.
+    mMeasurement().createMany.mockImplementation(
+      async (arg: { data: unknown[] }) => ({ count: arg.data.length - 1 }),
+    );
+
+    const res = await POST(
+      csvRequest(
+        [
+          HEADER,
+          "WEIGHT,80.5,kg,2026-05-01T08:00:00Z,,,",
+          "WEIGHT,81.5,kg,2026-05-01T09:00:00Z,,,",
+        ].join("\n"),
+      ),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as CsvEnvelope;
+    expect(body.data?.inserted).toBe(1);
+    expect(body.data?.skipped).toBe(1);
+    const statuses = body.data?.rows.map((r) => r.status).sort();
+    expect(statuses).toEqual(["inserted", "skipped"]);
+    expect(body.data?.rows.find((r) => r.status === "skipped")?.reason).toBe(
+      "duplicate",
+    );
   });
 });

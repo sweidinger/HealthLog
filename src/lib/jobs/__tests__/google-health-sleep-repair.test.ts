@@ -10,13 +10,15 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { prismaMock, bossSend, syncUserSleep } = vi.hoisted(() => ({
-  prismaMock: {
-    googleHealthConnection: { findMany: vi.fn(), update: vi.fn() },
-  },
-  bossSend: vi.fn(),
-  syncUserSleep: vi.fn(),
-}));
+const { prismaMock, bossSend, syncUserSleep, isReauthRequiredMock } =
+  vi.hoisted(() => ({
+    prismaMock: {
+      googleHealthConnection: { findMany: vi.fn(), update: vi.fn() },
+    },
+    bossSend: vi.fn(),
+    syncUserSleep: vi.fn(),
+    isReauthRequiredMock: vi.fn(async () => false),
+  }));
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }));
 
@@ -33,6 +35,33 @@ vi.mock("@/lib/logging/context", () => ({
   getEvent: () => null,
 }));
 
+vi.mock("@/lib/integrations/status", () => ({
+  isReauthRequired: isReauthRequiredMock,
+  recordSyncFailure: vi.fn(async () => {}),
+  recordSyncSuccess: vi.fn(async () => {}),
+}));
+
+// The repair module threads the REAL hard-fail ledger from
+// `@/lib/google-health/sync`; its heavy transitive deps are mocked the same
+// way the google-health failsoft suite does.
+vi.mock("@/lib/crypto", () => ({ encrypt: vi.fn(), decrypt: vi.fn() }));
+vi.mock("@/lib/rollups/measurement-rollups", () => ({
+  collapseToTypeDayKeys: vi.fn(() => []),
+  recomputeBucketsForMeasurement: vi.fn(async () => {}),
+  recomputeUserRollups: vi.fn(async () => {}),
+}));
+vi.mock("@/lib/insights/comprehensive-generate", () => ({
+  invalidateStatusInsightsForTypes: vi.fn(async () => {}),
+}));
+vi.mock("@/lib/google-health/credentials", () => ({
+  getUserGoogleHealthCredentials: vi.fn(async () => null),
+}));
+vi.mock("@/lib/google-health/client", () => ({ refreshAccessToken: vi.fn() }));
+
+import {
+  GOOGLE_HEALTH_TOKEN_HARD_FAIL,
+  noteHardFailure,
+} from "@/lib/google-health/sync";
 import {
   enqueueBootTimeGoogleHealthSleepRepair,
   runGoogleHealthSleepRepairForUser,
@@ -40,6 +69,7 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  isReauthRequiredMock.mockResolvedValue(false);
 });
 
 describe("enqueueBootTimeGoogleHealthSleepRepair — discovery", () => {
@@ -137,6 +167,43 @@ describe("runGoogleHealthSleepRepairForUser", () => {
     await expect(runGoogleHealthSleepRepairForUser("u1")).rejects.toThrow(
       "google 500",
     );
+    expect(prismaMock.googleHealthConnection.update).not.toHaveBeenCalled();
+  });
+
+  it("a swallowed hard failure (ledger entry) throws and does NOT stamp — pg-boss retries", async () => {
+    // `syncUserSleep` swallows fetch/write hard failures into the ambient
+    // ledger and still resolves a count; the repair must read the ledger, not
+    // the count, before stamping.
+    syncUserSleep.mockImplementation(async () => {
+      noteHardFailure("fetchSleep");
+      return 5;
+    });
+
+    await expect(runGoogleHealthSleepRepairForUser("u1")).rejects.toThrow(
+      /incomplete/,
+    );
+    expect(prismaMock.googleHealthConnection.update).not.toHaveBeenCalled();
+  });
+
+  it("a dead token returns WITHOUT stamping and WITHOUT throwing (boot discovery re-enqueues)", async () => {
+    syncUserSleep.mockImplementation(async () => {
+      noteHardFailure(GOOGLE_HEALTH_TOKEN_HARD_FAIL);
+      return 0;
+    });
+
+    await expect(runGoogleHealthSleepRepairForUser("u1")).resolves.toEqual({
+      imported: 0,
+    });
+    expect(prismaMock.googleHealthConnection.update).not.toHaveBeenCalled();
+  });
+
+  it("a connection parked at error_reauth returns WITHOUT running the sync or stamping", async () => {
+    isReauthRequiredMock.mockResolvedValue(true);
+
+    await expect(runGoogleHealthSleepRepairForUser("u1")).resolves.toEqual({
+      imported: 0,
+    });
+    expect(syncUserSleep).not.toHaveBeenCalled();
     expect(prismaMock.googleHealthConnection.update).not.toHaveBeenCalled();
   });
 });

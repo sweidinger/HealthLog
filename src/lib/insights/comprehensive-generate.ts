@@ -608,10 +608,13 @@ export async function enqueueStatusRefillForUser(
 ): Promise<number> {
   const scopes = new Set<InsightStatusScope>(PER_STATUS_SCOPES);
   try {
-    const rows = await prisma.measurement.findMany({
+    // `groupBy` compiles to a server-side `GROUP BY` — Prisma's
+    // `distinct` dedups in the client AFTER pulling every live row, which
+    // on a dense multi-year account walks a six-figure row set to answer
+    // "which types exist?" on the request path.
+    const rows = await prisma.measurement.groupBy({
+      by: ["type"],
       where: { userId, deletedAt: null },
-      distinct: ["type"],
-      select: { type: true },
     });
     for (const row of rows) {
       const metricId = metricIdForMeasurementType(row.type);

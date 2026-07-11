@@ -19,11 +19,14 @@
  * reserved for HealthKit ingest (pre-iOS-16 `asleepUnspecified` and
  * iOS-16+ `inBed` respectively) and are NOT emitted from this path.
  *
- * Idempotency: every segment writes through the v1.4.25 W17b/c
- * composite (Migration 0055 — `(userId, type, measuredAt, source,
- * sleepStage)` with NULLS NOT DISTINCT). The five-tuple guarantees a
- * re-sync upserts the same row rather than inserting a duplicate, even
- * when Withings re-emits the night with adjusted segment boundaries.
+ * Idempotency: every segment keys on the stable externalId
+ * `withings:sleep:<user>:<sessionId>:<segment-start-unix>` — the session id
+ * plus the segment's own start instant, both stable across re-syncs of an
+ * unchanged night. When Withings re-aggregates a night with adjusted
+ * boundaries, the shifted segments mint new ids and the session-scoped sweep
+ * (`sweepStaleSleepSegments`) tombstones whatever the re-aggregation
+ * orphaned — including every legacy row from the retired running-index
+ * format, so that fix self-heals without a migration.
  *
  * Date semantics: each segment's `measuredAt` is the segment's
  * `enddate` (unix seconds → `Date`). Every reader treats `measuredAt`
@@ -45,6 +48,11 @@ import {
   recomputeBucketsForMeasurement,
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+
+import {
+  sweepStaleSleepSegments,
+  type SleepSegmentSweep,
+} from "@/lib/sleep/sweep-stale-segments";
 
 import { hasActivityScope } from "./client";
 import {
@@ -389,17 +397,20 @@ export async function syncUserSleep(
   }
 
   let imported = 0;
-  let segmentIndex = 0;
   // v1.4.39.1 — track every (type, measuredAt) we touched so the
   // persistent rollup tier can be re-folded at the end. See sync.ts for
   // the full rationale.
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
+  // Fresh segment externalIds per session id, driving the session-scoped
+  // sweep below. Segments without a session id can't be bounded to one night
+  // and are excluded (their `no-id` prefix would span every id-less night in
+  // history, not just this fetch).
+  const freshBySession = new Map<number, string[]>();
   for (const segment of segments) {
     const stage = mapWithingsSleepState(segment.state);
     if (!stage) {
       // State 4 (manual / synthetic marker) is ignored — see file
       // header.
-      segmentIndex++;
       continue;
     }
     // `measuredAt` is the segment END (`enddate`). Every reader treats
@@ -413,15 +424,29 @@ export async function syncUserSleep(
     // floating-point noise.
     const minutes = Math.round(durationSec / 60);
 
-    const externalId = `withings:sleep:${userId}:${segment.id ?? "no-id"}:${segmentIndex}`;
+    // Keyed by the segment's own START instant — a coordinate that is stable
+    // within a session — NOT a positional index. The old running index counted
+    // across the whole 30-day fetch window, so the sliding window renumbered
+    // every segment on each sync: the probe below never matched, the update
+    // branch was dead code, and a re-aggregated night inserted a second set of
+    // rows next to the first (the same double-count bug class Google Health
+    // fixed with its stable session anchor). Legacy indexed rows are swept by
+    // the session-scoped cleanup below, so the format change self-heals.
+    const externalId = `withings:sleep:${userId}:${segment.id ?? "no-id"}:${segment.startdate}`;
+    if (typeof segment.id === "number") {
+      const fresh = freshBySession.get(segment.id) ?? [];
+      fresh.push(externalId);
+      freshBySession.set(segment.id, fresh);
+    }
 
     try {
-      // Key the re-sync lookup on the STABLE `externalId` (segment id +
-      // index), not `measuredAt`. Withings re-aggregates a night between
-      // syncs, so a segment's `enddate` — and therefore its END-stamped
-      // `measuredAt` — shifts; keying on `measuredAt` would miss the prior
-      // row and then collide with the unique `externalId`, leaving the night
-      // stuck at the stale value. Update both `value` and `measuredAt`.
+      // Key the re-sync lookup on the STABLE `externalId` (session id +
+      // segment start), not `measuredAt`. Withings re-aggregates a night
+      // between syncs, so a segment's `enddate` — and therefore its
+      // END-stamped `measuredAt` — shifts; keying on `measuredAt` would miss
+      // the prior row and then collide with the unique `externalId`, leaving
+      // the night stuck at the stale value. Update both `value` and
+      // `measuredAt`.
       const existing = await prisma.measurement.findFirst({
         where: {
           userId,
@@ -434,7 +459,16 @@ export async function syncUserSleep(
       if (existing) {
         await prisma.measurement.update({
           where: { id: existing.id },
-          data: { value: minutes, measuredAt, sleepStage: stage },
+          // `deletedAt: null` is a no-op on a live row, a deliberate
+          // RESURRECTION on a tombstoned one — Withings is the source of
+          // truth for its own rows, so a re-fetched segment brings the row
+          // back (mirrors Google / Fitbit).
+          data: {
+            value: minutes,
+            measuredAt,
+            sleepStage: stage,
+            deletedAt: null,
+          },
         });
       } else {
         await prisma.measurement.create({
@@ -457,8 +491,22 @@ export async function syncUserSleep(
         `Failed to upsert sleep segment (${stage}, ${measuredAt.toISOString()}): ${err}`,
       );
     }
-    segmentIndex++;
   }
+
+  // Session-scoped sweep (mirrors Google Health's replace-by-window): for each
+  // session this fetch re-produced, soft-delete any live WITHINGS
+  // SLEEP_DURATION row under the session's externalId prefix that is NOT in
+  // the fresh set. Collapses re-aggregation orphans AND every legacy
+  // running-index row for re-fetched sessions. Sessions absent from this fetch
+  // are never touched; a sweep failure never fails the sync (the session stays
+  // inside the rolling 30-day window, so the hourly cron retries it).
+  const sweeps: SleepSegmentSweep[] = [...freshBySession].map(
+    ([sessionId, keepIds]) => ({
+      prefix: `withings:sleep:${userId}:${sessionId}:`,
+      keepIds,
+    }),
+  );
+  await sweepStaleSleepSegments(userId, "WITHINGS", sweeps);
 
   // v1.18.10 P0 — nightly sleep vitals (avg HR / respiratory rate / SDNN HRV
   // / avg SpO2 / sleep score) from the per-night summary. A summary-fetch
@@ -502,6 +550,10 @@ export async function syncUserSleep(
             update: {
               value: vital.value,
               measuredAt,
+              // No-op on a live row, a deliberate RESURRECTION on a
+              // tombstoned one — Withings is the source of truth for its
+              // own rows (mirrors Google / Fitbit).
+              deletedAt: null,
               syncVersion: { increment: 1 },
             },
           });

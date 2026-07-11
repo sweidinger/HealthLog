@@ -3,6 +3,9 @@ import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // v1.28.25 — the achievements vitals read is a raw (day, hour, type)
+    // bucket aggregation.
+    $queryRaw: vi.fn(),
     measurement: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
     medication: { findMany: vi.fn() },
@@ -84,6 +87,7 @@ beforeEach(() => {
   // v1.4.34 IW-G — reset achievement LRU between tests so each case
   // observes a cold cache.
   __resetAllCachesForTests();
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
     [] as never,

@@ -35,6 +35,21 @@ import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
  */
 const SLEEP_SERIES_MAX_DAYS = 365;
 
+/**
+ * v1.28.25 — sample-dense kinds read raw rows only up to this window.
+ * A CGM account stores ~288 BLOOD_GLUCOSE rows/day (105k+ rows/year) and
+ * per-sample PULSE piles up similarly, so the 365 / 3650-day requests
+ * walked a six-figure row set into JS, mapped it twice, and serialized
+ * everything. Mirrors the sleep precedent above, but instead of silently
+ * clamping the window, requests beyond the cap keep their full range and
+ * are day-bucketed in SQL (one point per day, mean + min/max band) — the
+ * chart still shows the whole requested history, just at daily grain.
+ * The short windows users actually browse (7 / 30 / 90 d) stay raw and
+ * byte-identical. Sparse kinds (weight, BP, …) are untouched.
+ */
+const DENSE_SERIES_RAW_WINDOW_DAYS = 90;
+const DENSE_SERIES_KINDS: ReadonlySet<string> = new Set(["glucose", "pulse"]);
+
 const kindEnum = z.enum([
   "weight",
   "bloodPressure",
@@ -204,7 +219,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // v1.16.16 — when glucose stats are computed over RAW mg/dL (parity with the
   // detail page + FHIR), the branch fills this so the response below skips the
   // generic over-points path that would double-round mmol/L figures.
-  let glucoseStats: {
+  // v1.28.25 — the dense day-bucket branch also fills it (stats stay
+  // aggregated over the RAW rows in SQL, not over the day-bucket points).
+  let statsOverride: {
     mean: number;
     min: number;
     max: number;
@@ -306,24 +323,155 @@ export const GET = apiHandler(async (request: NextRequest) => {
       }),
     ]);
 
-    // Pair by closest timestamp within ±5 minutes.
+    // Pair by closest timestamp within ±5 minutes. Both reads arrive
+    // sorted ascending, so the nearest-diastolic index is non-decreasing
+    // across the systolic walk — a two-pointer merge finds each pair in
+    // O(sys + dia) instead of the previous full diastolic rescan per
+    // systolic row (O(sys × dia) — quadratic on dense imports). Ties keep
+    // the earlier diastolic row, matching the old scan's strict-`<` keep.
     const PAIR_WINDOW_MS = 5 * 60_000;
+    let diaIdx = 0;
     points = sys.map((s) => {
-      let bestDia: { value: number; dt: number } | null = null;
-      for (const d of dia) {
-        const dt = Math.abs(d.measuredAt.getTime() - s.measuredAt.getTime());
-        if (dt > PAIR_WINDOW_MS) continue;
-        if (!bestDia || dt < bestDia.dt) {
-          bestDia = { value: d.value, dt };
-        }
+      const sysMs = s.measuredAt.getTime();
+      while (
+        diaIdx + 1 < dia.length &&
+        Math.abs(dia[diaIdx + 1].measuredAt.getTime() - sysMs) <
+          Math.abs(dia[diaIdx].measuredAt.getTime() - sysMs)
+      ) {
+        diaIdx += 1;
       }
+      const best = dia[diaIdx];
+      const paired =
+        best !== undefined &&
+        Math.abs(best.measuredAt.getTime() - sysMs) <= PAIR_WINDOW_MS;
       return {
         id: s.id,
         at: s.measuredAt.toISOString(),
         value: s.value,
-        secondary: bestDia?.value ?? null,
+        secondary: paired ? best.value : null,
       };
     });
+  } else if (
+    DENSE_SERIES_KINDS.has(kind) &&
+    days > DENSE_SERIES_RAW_WINDOW_DAYS
+  ) {
+    // v1.28.25 — long-window read of a sample-dense kind (CGM glucose,
+    // per-sample / hourly pulse). Day-bucket in SQL instead of walking
+    // every raw row into JS: one aggregate pass in Postgres returns at
+    // most `days` rows regardless of sample density. Parameter-bound
+    // tagged-template `$queryRaw`, mirroring the rollup tier's
+    // `date_trunc(... ) GROUP BY` aggregate (measurement-rollups.ts).
+    const type = KIND_TO_TYPE[kind];
+    const bucketRows = await prisma.$queryRaw<
+      Array<{
+        bucket_start: Date;
+        mean: number;
+        min_value: number;
+        max_value: number;
+      }>
+    >`
+      SELECT
+        date_trunc('day', m."measured_at")                          AS bucket_start,
+        AVG(m."value")::double precision                            AS mean,
+        MIN(COALESCE(m."value_min", m."value"))::double precision   AS min_value,
+        MAX(COALESCE(m."value_max", m."value"))::double precision   AS max_value
+      FROM measurements m
+      WHERE m."user_id" = ${user.id}
+        AND m."type" = ${type}::"measurement_type"
+        AND m."measured_at" >= ${since}
+        AND m."deleted_at" IS NULL
+      GROUP BY date_trunc('day', m."measured_at")
+      ORDER BY bucket_start ASC
+    `;
+    // Stats stay aggregated over the RAW rows (not the day buckets) so the
+    // strip's mean/min/max/stdDev/count are the same figures the raw path
+    // computed: `AVG`/`MIN`/`MAX` over `value`, `STDDEV_POP` matching the
+    // JS population-variance helper, exact row count. Aggregate-only —
+    // no row transfer.
+    const [rawAgg] = await prisma.$queryRaw<
+      Array<{
+        n: number;
+        mean: number | null;
+        min: number | null;
+        max: number | null;
+        sd: number | null;
+      }>
+    >`
+      SELECT
+        COUNT(*)::int                            AS n,
+        AVG(m."value")::double precision         AS mean,
+        MIN(m."value")::double precision         AS min,
+        MAX(m."value")::double precision         AS max,
+        STDDEV_POP(m."value")::double precision  AS sd
+      FROM measurements m
+      WHERE m."user_id" = ${user.id}
+        AND m."type" = ${type}::"measurement_type"
+        AND m."measured_at" >= ${since}
+        AND m."deleted_at" IS NULL
+    `;
+    const round2 = (v: number) => Math.round(v * 100) / 100;
+    const dayId = (d: Date) => `day:${d.toISOString().slice(0, 10)}`;
+    if (kind === "glucose") {
+      // Same unit engine as the raw glucose branch: canonical mg/dL in
+      // the DB, converted ONCE at serialization to the user's preference.
+      const profile = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { glucoseUnit: true },
+      });
+      const glucoseUnit = resolveGlucoseUnit(profile?.glucoseUnit ?? null);
+      unit = glucoseUnit;
+      points = bucketRows.map((r) => ({
+        id: dayId(r.bucket_start),
+        at: r.bucket_start.toISOString(),
+        value: convertGlucose(r.mean, glucoseUnit),
+        secondary: null,
+      }));
+      if (
+        rawAgg !== undefined &&
+        rawAgg.n > 0 &&
+        rawAgg.mean !== null &&
+        rawAgg.min !== null &&
+        rawAgg.max !== null
+      ) {
+        // Mirrors the raw branch's v1.16.16 parity: round the mg/dL
+        // aggregate to 2 decimals (summarize()'s convention), then
+        // convert each figure once.
+        statsOverride = {
+          mean: convertGlucose(round2(rawAgg.mean), glucoseUnit),
+          min: convertGlucose(rawAgg.min, glucoseUnit),
+          max: convertGlucose(rawAgg.max, glucoseUnit),
+          stdDev: convertGlucose(round2(rawAgg.sd ?? 0), glucoseUnit),
+          count: rawAgg.n,
+        };
+      }
+    } else {
+      // pulse — `value` is the day's average; valueMin/valueMax carry the
+      // day's low/high band (folding each hourly bucket's own spread via
+      // the COALESCE above), same band semantics as the per-hour shape.
+      points = bucketRows.map((r) => ({
+        id: dayId(r.bucket_start),
+        at: r.bucket_start.toISOString(),
+        value: round2(r.mean),
+        secondary: null,
+        valueMin: r.min_value,
+        valueMax: r.max_value,
+      }));
+      if (
+        rawAgg !== undefined &&
+        rawAgg.n > 0 &&
+        rawAgg.mean !== null &&
+        rawAgg.min !== null &&
+        rawAgg.max !== null
+      ) {
+        statsOverride = {
+          mean: round2(rawAgg.mean),
+          min: rawAgg.min,
+          max: rawAgg.max,
+          stdDev: round2(rawAgg.sd ?? 0),
+          count: rawAgg.n,
+        };
+      }
+    }
   } else {
     const type = KIND_TO_TYPE[kind];
     // v1.19.2 (iOS #34 extension) — pull the per-bucket spread for the
@@ -371,7 +519,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       // already-converted+rounded points double-rounds the mean and stdDev
       // for mmol/L users, drifting the last decimal off the detail page.
       // Single-reading sets stay identical (100 → 5.5). Hand back stats here
-      // so the shared block below leaves a populated `glucoseStats` alone.
+      // so the shared block below leaves a populated `statsOverride` alone.
       const rawDataPoints: DataPoint[] = rows.map((r) => ({
         date: r.measuredAt,
         value: r.value,
@@ -379,7 +527,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       if (rawDataPoints.length > 0) {
         const rawSummary = summarize(rawDataPoints);
         const rawValues = rawDataPoints.map((p) => p.value);
-        glucoseStats = {
+        statsOverride = {
           mean:
             rawSummary.mean === null
               ? 0
@@ -443,7 +591,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     unit,
     points,
     stats:
-      glucoseStats ??
+      statsOverride ??
       (summary
         ? {
             mean: summary.mean,

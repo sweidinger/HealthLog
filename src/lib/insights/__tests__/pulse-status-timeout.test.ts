@@ -25,6 +25,9 @@ vi.mock("@/lib/db", () => ({
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
     measurement: { findMany: vi.fn() },
     measurementRollup: { findMany: vi.fn() },
+    // v1.28.25 — the graded-series cold-tier fallback day-buckets dense
+    // types (PULSE) via a raw aggregate instead of a full findMany walk.
+    $queryRaw: vi.fn(async () => []),
     moodEntry: { findMany: vi.fn() },
   },
 }));
@@ -46,6 +49,7 @@ import { generatePulseStatusForUser } from "../pulse-status";
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
   vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
 });
 

@@ -467,7 +467,7 @@ export function mapNightlyRecharge(
  * emitting one timed row per segment ending at the running cursor, and stamp the
  * `IN_BED` envelope + the score row at `sleep_end_time`. The ORDER is synthetic,
  * so every reconstructed segment is flagged `reconstructed: true` and keyed by
- * an indexed externalId so the several rows of one night stay distinct.
+ * a stage-tagged externalId so the several rows of one night stay distinct.
  *
  * If the night carries no usable start/end (older records, missing fields) we
  * fall back to a midnight-UTC anchor and emit untimed stage rows — degraded but
@@ -517,10 +517,12 @@ export function mapSleep(s: PolarSleep): MappedMeasurement[] {
           measuredAt: new Date(endMs),
           fieldTag: "sleep_in_bed",
         },
-        // Indexed externalId keeps the several segment rows of one night
-        // distinct under userId_type_source_externalId.
-        externalIdFor: (fieldTag, index) =>
-          `sleep:${s.date}:seg:${fieldTag}:${index}`,
+        // Stage-tagged externalId keeps the several segment rows of one night
+        // distinct under userId_type_source_externalId (one segment per stage,
+        // no positional index — an index renumbered on a re-score when a
+        // stage's duration flipped 0↔positive, minting fresh ids that
+        // double-counted the night).
+        externalIdFor: (fieldTag) => `sleep:${s.date}:seg:${fieldTag}`,
       }),
     );
 

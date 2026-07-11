@@ -29,13 +29,14 @@ import {
 import {
   getValidToken,
   handleCollectionFetchError,
+  noteHardFailure,
   replaceStaleGoogleHealthSleep,
   upsertGoogleHealthMeasurements,
   type GoogleHealthMeasurementUpsert,
   type GoogleHealthResourceSyncOptions,
   type GoogleHealthSleepReplaceWindow,
 } from "./sync";
-import { annotate } from "@/lib/logging/context";
+import { annotate, getEvent } from "@/lib/logging/context";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 
 export async function syncUserSleep(
@@ -69,7 +70,20 @@ export async function syncUserSleep(
   const readings: GoogleHealthMeasurementUpsert[] = [];
   const replaceWindows: GoogleHealthSleepReplaceWindow[] = [];
   for (const point of points) {
-    const session = mapSleepSessionDetailed(point, tz);
+    // Per-session throw-guard (mapper parity with sync-metrics): a single
+    // malformed session must not abort the sibling sessions in the same page.
+    // The ledger entry still fails the cycle so the watermark holds and the
+    // bad point is re-fetched rather than silently lost past the overlap.
+    let session: ReturnType<typeof mapSleepSessionDetailed>;
+    try {
+      session = mapSleepSessionDetailed(point, tz);
+    } catch (err) {
+      getEvent()?.addWarning(
+        `google-health: sleep session map failed for ${userId}: ${err}`,
+      );
+      noteHardFailure("mapSleepSession");
+      continue;
+    }
     if (session.rows.length === 0) continue;
     for (const m of session.rows) {
       readings.push({

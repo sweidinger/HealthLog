@@ -375,12 +375,50 @@ describe("mapSleep", () => {
     expect(r.reconstructed).toBeUndefined();
   });
 
-  it("gives each reconstructed segment a distinct indexed externalId", () => {
+  it("gives each reconstructed segment a distinct stage-tagged externalId", () => {
     const ids = mapSleep(base)
       .filter((r) => r.reconstructed)
       .map((r) => r.externalId);
-    expect(ids.every((id) => id?.startsWith("sleep-uuid:seg:"))).toBe(true);
+    // One segment per stage — the tag alone keys the row. No positional index:
+    // an index renumbered on a re-score whenever a stage's duration flipped
+    // 0↔positive, minting fresh externalIds that double-counted the night.
+    expect(ids).toEqual([
+      "sleep-uuid:seg:sleep_awake",
+      "sleep-uuid:seg:sleep_core",
+      "sleep-uuid:seg:sleep_deep",
+      "sleep-uuid:seg:sleep_rem",
+    ]);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("keeps IDENTICAL externalIds across a re-score that flips a stage 0↔positive", () => {
+    // First scoring: no awake time (the leading AWAKE segment is skipped).
+    // Re-score of the SAME record: WHOOP now reports a positive awake block.
+    // Under the retired indexed key the re-score renumbered CORE/DEEP/REM,
+    // so the upsert inserted a second set instead of overwriting.
+    const first = mapSleep({
+      ...base,
+      score: {
+        ...base.score!,
+        stage_summary: {
+          ...base.score!.stage_summary,
+          total_awake_time_milli: 0,
+        },
+      },
+    });
+    const rescored = mapSleep(base);
+
+    const idsByStage = (rows: typeof first) =>
+      new Map(
+        rows
+          .filter((r) => r.reconstructed)
+          .map((r) => [r.sleepStage, r.externalId]),
+      );
+    const a = idsByStage(first);
+    const b = idsByStage(rescored);
+    for (const stage of ["CORE", "DEEP", "REM"] as const) {
+      expect(b.get(stage)).toBe(a.get(stage));
+    }
   });
 
   it("sums SLEEP_NEED components ms→min", () => {

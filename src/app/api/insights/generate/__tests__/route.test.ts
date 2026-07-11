@@ -104,6 +104,10 @@ vi.mock("@/lib/jobs/insight-pregenerate-shared", () => ({
 // enqueue pipeline itself is covered by the comprehensive-generate tests.
 vi.mock("@/lib/insights/comprehensive-generate", () => ({
   enqueueStatusRefillForUser: vi.fn(async () => 7),
+  // v1.28.25 — the route shares the lib's comparison-snapshot builder
+  // (its private near-copy was deleted). Null = comparison toggle off,
+  // matching the pre-existing fixtures (no dashboardWidgetsJson set).
+  buildComparisonSnapshotForUser: vi.fn(async () => null),
 }));
 
 vi.mock("@/lib/logging/context", () => ({

@@ -145,6 +145,9 @@ beforeEach(() => {
   (
     prisma.moodEntryRollup.findMany as ReturnType<typeof vi.fn>
   ).mockResolvedValue([]);
+  // v1.28.25 — the latest-ever-per-type read is a raw `DISTINCT ON`
+  // (Prisma's `distinct` dedups client-side after pulling every row).
+  (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 });
 
 describe("GET /api/insights/targets — mood-rollup tier swap", () => {
@@ -291,36 +294,33 @@ describe("GET /api/insights/targets — mood-rollup tier swap", () => {
     expect(moodTarget).toBeUndefined();
   });
 
-  it("floors the `findMany distinct` latest-ever-per-type read at one year", async () => {
-    // Audit High finding 3: the `findMany({orderBy: measuredAt desc,
-    // distinct: ["type"]})` for "absolute latest measurement per type"
-    // used to run WITHOUT a `measuredAt >=` floor. On a 347 k-row
-    // tenant Postgres still has to sort the full set before applying
-    // DISTINCT ON because Prisma's `distinct` does not compile to PG's
-    // `DISTINCT ON` — it dedups in the driver. v1.4.40 adds a
-    // 365-day floor so the planner-side walk is bounded.
-    (prisma.measurement.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(
-      [],
-    );
-
+  it("reads latest-ever-per-type via raw DISTINCT ON with the one-year floor", async () => {
+    // Audit High finding 3 established the 365-day floor; v1.28.25 moves
+    // the read onto a real Postgres `DISTINCT ON` (Prisma's `distinct`
+    // dedups in the driver AFTER pulling every row in the window, which
+    // on a dense-type tenant shipped a year of raw rows to Node just to
+    // keep seven). Pin the raw query: DISTINCT ON, per-type descending
+    // walk, user id + floored date as bound parameters.
     await callGet(makeReq());
 
-    // Find the `distinct: ["type"]` call.
-    const calls = (
-      prisma.measurement.findMany as ReturnType<typeof vi.fn>
-    ).mock.calls.map((c) => c[0]);
-    const distinctCall = calls.find(
-      (c) =>
-        c &&
-        Array.isArray(c.distinct) &&
-        c.distinct[0] === "type" &&
-        c.orderBy?.measuredAt === "desc",
+    const rawCalls = (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mock
+      .calls;
+    const distinctCall = rawCalls.find(
+      (c) => typeof c[0] === "string" && c[0].includes("DISTINCT ON"),
     );
     expect(distinctCall).toBeDefined();
-    // The `measuredAt >= oneYearAgo` floor must be present.
-    expect(distinctCall?.where?.measuredAt).toBeDefined();
-    expect(distinctCall?.where?.measuredAt?.gte).toBeInstanceOf(Date);
-    const flooredAt = distinctCall?.where?.measuredAt?.gte as Date;
+    const [sql, boundUserId, flooredAt] = distinctCall as [
+      string,
+      string,
+      Date,
+    ];
+    expect(sql).toContain(`DISTINCT ON (m."type")`);
+    expect(sql).toContain(`ORDER BY m."type" ASC, m."measured_at" DESC`);
+    // Parameter-bound, never spliced: user id + date ride $1/$2.
+    expect(sql).toContain("$1");
+    expect(sql).toContain("$2");
+    expect(boundUserId).toBe("user-targets-1");
+    expect(flooredAt).toBeInstanceOf(Date);
     const oneYearMs = 365 * 24 * 60 * 60 * 1000;
     const ageMs = Date.now() - flooredAt.getTime();
     // Floor is somewhere around one year ago — give a ±1-hour window

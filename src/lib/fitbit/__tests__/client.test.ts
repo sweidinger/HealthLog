@@ -538,8 +538,11 @@ describe("sleep mapping (1.2 levels.data)", () => {
     const sessions = readSleepSessions({
       sleep: [
         {
-          // No logId → the anchor falls back to the END instant, which must
-          // also be tz-resolved so the externalId is stable across syncs.
+          // No logId → the anchor falls back to the START instant (the
+          // session's identity; the end moves when Fitbit re-scores a night),
+          // which must also be tz-resolved so the externalId is stable across
+          // syncs. endTime is present to prove start wins the fallback.
+          startTime: "2026-05-10T23:00:00.000",
           endTime: "2026-05-11T00:30:00.000",
           levels: {
             data: [
@@ -556,8 +559,8 @@ describe("sleep mapping (1.2 levels.data)", () => {
 
     const out = mapSleepSession(sessions[0]!, "Europe/Berlin");
     expect(out).toHaveLength(1);
-    // anchor = end instant ISO (UTC) → fieldTag starts with that instant.
-    expect(out[0]!.fieldTag).toBe("2026-05-10T22:30:00.000Z:sleep_rem:0");
+    // anchor = start instant ISO (UTC) → fieldTag starts with that instant.
+    expect(out[0]!.fieldTag).toBe("2026-05-10T21:00:00.000Z:sleep_rem:0");
   });
 });
 

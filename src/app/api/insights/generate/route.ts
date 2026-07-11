@@ -30,10 +30,7 @@ import {
   buildDerivedBriefingPrompt,
 } from "@/lib/insights/derived-briefing";
 import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
-import {
-  buildUserPrompt,
-  type ComparisonSnapshot,
-} from "@/lib/ai/prompts/insight-system-prompt";
+import { buildUserPrompt } from "@/lib/ai/prompts/insight-system-prompt";
 import {
   buildSystemPromptWithReferences,
   buildBriefingPersonalisationBlock,
@@ -43,18 +40,7 @@ import {
   getSelfContextTextForUser,
 } from "@/lib/ai/coach/about-me";
 import { metricsFromPresentSections } from "@/lib/ai/medical-references";
-import { summarize, type DataPoint } from "@/lib/analytics/trends";
-import {
-  reconstructSleepNights,
-  type SleepStageRow,
-} from "@/lib/analytics/sleep-night";
-import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
-import {
-  resolveDashboardLayout,
-  type ComparisonBaseline,
-} from "@/lib/dashboard-layout";
-import type { MeasurementType } from "@/generated/prisma/client";
 import {
   insightResultSchema,
   singleUserTurn,
@@ -88,7 +74,13 @@ import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { enqueueForceWarm } from "@/lib/jobs/insight-pregenerate-shared";
-import { enqueueStatusRefillForUser } from "@/lib/insights/comprehensive-generate";
+// v1.28.25 — the comparison-snapshot builder was a private near-copy of
+// the lib export (drifted only in comments); the route now shares the
+// one implementation the nightly warm pass uses.
+import {
+  buildComparisonSnapshotForUser,
+  enqueueStatusRefillForUser,
+} from "@/lib/insights/comprehensive-generate";
 
 export const dynamic = "force-dynamic";
 
@@ -118,153 +110,6 @@ export function resolveInsightsRateLimit(): number {
     return DEFAULT_INSIGHTS_RATE_LIMIT_PER_HOUR;
   }
   return parsed;
-}
-
-/**
- * v1.4.16 phase B8 — fetch the user's persisted comparison toggle and
- * build a `ComparisonSnapshot` for the prompt builder. Returns null
- * when comparison is off (most users), so the prompt builder skips
- * the context block entirely.
- *
- * Snapshot construction reuses the analytics `summarize()` helper
- * (which now emits `avg30LastMonth` + `avg30LastYear`) so the numbers
- * the LLM sees match the numbers the dashboard tile renders — no
- * second source of truth for the comparison delta.
- */
-async function buildComparisonSnapshotForUser(
-  userId: string,
-): Promise<ComparisonSnapshot | null> {
-  // The features payload doesn't carry prior-period values — pulling
-  // a fresh `summarize()` per metric below keeps the snapshot
-  // self-contained without retrofitting features.ts.
-  const row = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { dashboardWidgetsJson: true },
-  });
-  const layout = resolveDashboardLayout(row?.dashboardWidgetsJson);
-  const baseline: ComparisonBaseline = layout.comparisonBaseline ?? "none";
-  if (baseline === "none") return null;
-
-  // Pull every measurement type once and run summarize() so the
-  // prior-period averages line up with what the dashboard analytics
-  // computes. Only include rows where the LLM can sensibly narrate
-  // a prior comparison (i.e. the metric exists in our snapshot type
-  // mapping below).
-  const typeToSnapshotKey: Record<string, string> = {
-    WEIGHT: "weight",
-    BLOOD_PRESSURE_SYS: "bloodPressureSys",
-    BLOOD_PRESSURE_DIA: "bloodPressureDia",
-    PULSE: "pulse",
-    BODY_FAT: "bodyFat",
-    SLEEP_DURATION: "sleep",
-    ACTIVITY_STEPS: "steps",
-  };
-  const typeUnits: Record<string, string> = {
-    WEIGHT: "kg",
-    BLOOD_PRESSURE_SYS: "mmHg",
-    BLOOD_PRESSURE_DIA: "mmHg",
-    PULSE: "bpm",
-    BODY_FAT: "%",
-    SLEEP_DURATION: "h",
-    ACTIVITY_STEPS: "",
-  };
-  const types = Object.keys(typeToSnapshotKey) as MeasurementType[];
-  // The snapshot only feeds summarize()'s avg30 / avg30LastMonth /
-  // avg30LastYear. The widest of those reaches back into the [365, 395)-day
-  // window (ageMs < 395 * DAY in meanOfWindow), so nothing older than 395
-  // days can change a result. Bound the read at 400 days — a 5-day floor over
-  // the strict-less-than boundary — instead of scanning the full history,
-  // which on multi-year accounts is tens of thousands of rows per type on the
-  // page-blocking generate path and the nightly pregenerate cron.
-  const sinceMeasuredAt = new Date(Date.now() - 400 * 86_400_000);
-  const rows = await Promise.all(
-    types.map(async (type) => {
-      // SLEEP_DURATION is stored ONE ROW PER STAGE per night; summarising the
-      // raw stage rows mislabels a per-stage average as a night total (and
-      // double-counts a bare ASLEEP aggregate against its granular twin). Route
-      // the comparison through the per-night dedup reconstruction so the
-      // current/baseline averages are per-night TIME-ASLEEP totals in minutes.
-      let dataPoints: DataPoint[];
-      if (type === "SLEEP_DURATION") {
-        const [sleepRows, sleepTz, sleepPriority] = await Promise.all([
-          prisma.measurement.findMany({
-            where: {
-              userId,
-              type,
-              deletedAt: null,
-              measuredAt: { gte: sinceMeasuredAt },
-            },
-            orderBy: { measuredAt: "asc" },
-            select: {
-              measuredAt: true,
-              value: true,
-              sleepStage: true,
-              source: true,
-              // Writer-level collapse: two HealthKit apps behind one
-              // source (watch stages vs phone in-bed) must not blend.
-              deviceType: true,
-            },
-          }),
-          resolveUserTimezone(userId),
-          loadUserSourcePriority(userId),
-        ]);
-        dataPoints = reconstructSleepNights(
-          sleepRows as SleepStageRow[],
-          sleepTz,
-          sleepPriority,
-        )
-          .filter((n) => n.asleepMinutes > 0)
-          .map((n) => ({ date: n.measuredAt, value: n.asleepMinutes }));
-      } else {
-        const measurements = await prisma.measurement.findMany({
-          where: {
-            userId,
-            type,
-            deletedAt: null,
-            measuredAt: { gte: sinceMeasuredAt },
-          },
-          orderBy: { measuredAt: "asc" },
-          select: { measuredAt: true, value: true },
-        });
-        dataPoints = measurements.map((m): DataPoint => ({
-          date: m.measuredAt,
-          value: m.value,
-        }));
-      }
-      const summary = summarize(dataPoints);
-      const baselineAvg =
-        baseline === "lastMonth"
-          ? (summary.avg30LastMonth ?? null)
-          : (summary.avg30LastYear ?? null);
-      const currentAvg = summary.avg30 ?? null;
-      const delta =
-        currentAvg !== null && baselineAvg !== null
-          ? Math.round((currentAvg - baselineAvg) * 100) / 100
-          : null;
-      const deltaPercent =
-        delta !== null && baselineAvg !== null && baselineAvg !== 0
-          ? Math.round((delta / Math.abs(baselineAvg)) * 100 * 10) / 10
-          : null;
-      return {
-        type: typeToSnapshotKey[type] ?? type,
-        currentAvg,
-        baselineAvg,
-        delta,
-        deltaPercent,
-        unit: typeUnits[type] ?? "",
-      };
-    }),
-  );
-
-  // Drop fully-empty rows (current AND baseline missing) so the prompt
-  // doesn't pad with noise. Keep partial rows (one side null) — the
-  // block renderer flags them with "no prior-period data available"
-  // which is useful context for the model.
-  const metrics = rows.filter(
-    (row) => row.currentAvg !== null || row.baselineAvg !== null,
-  );
-
-  return { baseline, metrics };
 }
 
 /**

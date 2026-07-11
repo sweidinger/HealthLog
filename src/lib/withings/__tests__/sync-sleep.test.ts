@@ -15,6 +15,7 @@ vi.mock("@/lib/db", () => ({
       create: vi.fn(),
       update: vi.fn(),
       upsert: vi.fn(),
+      updateMany: vi.fn(),
     },
     withingsConnection: { findUnique: vi.fn() },
   },
@@ -314,11 +315,14 @@ describe("syncUserSleep — segment writes + idempotency", () => {
         value: 60,
         measuredAt: new Date(1715003600 * 1000),
         sleepStage: "DEEP",
+        // No-op on a live row, resurrection on a tombstoned one — the
+        // source-owned resurrect rule.
+        deletedAt: null,
       },
     });
   });
 
-  it("stamps every row with an externalId tied to the segment", async () => {
+  it("stamps every row with an externalId keyed on session id + segment START", async () => {
     installFetchMock([
       { startdate: 1715000000, enddate: 1715003600, state: 2, id: 42 },
     ]);
@@ -329,7 +333,102 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     const arg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
       data: { externalId: string };
     };
-    expect(arg.data.externalId).toBe("withings:sleep:user-1:42:0");
+    // Session id + the segment's own startdate — both stable within a session.
+    // The retired running index counted across the whole rolling 30-day fetch
+    // window, so the window slide renumbered every segment on each sync and a
+    // re-aggregated night inserted a duplicate set.
+    expect(arg.data.externalId).toBe("withings:sleep:user-1:42:1715000000");
+  });
+
+  it("mints IDENTICAL externalIds when the fetch window slides (re-fetch of the same night)", async () => {
+    // The same two segments of session 42, fetched twice: the second fetch's
+    // window has slid so the series now carries an EXTRA leading segment from
+    // a different session — under the retired running index this shifted
+    // every index of session 42 (0,1 → 1,2), minting fresh ids that inserted
+    // a duplicate night. The start-keyed ids must be identical across fetches.
+    const night = [
+      { startdate: 1715000000, enddate: 1715003600, state: 1, id: 42 },
+      { startdate: 1715003600, enddate: 1715005400, state: 2, id: 42 },
+    ];
+    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+
+    installFetchMock(night);
+    await syncUserSleep("user-1");
+    const firstIds = vi
+      .mocked(prisma.measurement.create)
+      .mock.calls.map((c) => (c[0].data as { externalId: string }).externalId);
+
+    vi.mocked(prisma.measurement.create).mockClear();
+    installFetchMock([
+      { startdate: 1714990000, enddate: 1714993600, state: 1, id: 7 },
+      ...night,
+    ]);
+    await syncUserSleep("user-1");
+    const secondIds = vi
+      .mocked(prisma.measurement.create)
+      .mock.calls.map((c) => (c[0].data as { externalId: string }).externalId)
+      .filter((id) => id.includes(":42:"));
+
+    expect(secondIds).toEqual(firstIds);
+  });
+
+  it("sweeps stale rows per fetched session: live-only, session-prefixed, notIn the fresh set, soft-delete (v1.28.25)", async () => {
+    installFetchMock([
+      { startdate: 1715000000, enddate: 1715003600, state: 1, id: 42 },
+      { startdate: 1715003600, enddate: 1715005400, state: 2, id: 42 },
+    ]);
+    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+
+    await syncUserSleep("user-1");
+
+    expect(prisma.measurement.updateMany).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(prisma.measurement.updateMany).mock.calls[0][0] as {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    };
+    expect(arg.where).toEqual({
+      userId: "user-1",
+      source: "WITHINGS",
+      type: "SLEEP_DURATION",
+      deletedAt: null,
+      externalId: {
+        startsWith: "withings:sleep:user-1:42:",
+        notIn: [
+          "withings:sleep:user-1:42:1715000000",
+          "withings:sleep:user-1:42:1715003600",
+        ],
+      },
+    });
+    expect(arg.data).toEqual({ deletedAt: expect.any(Date) });
+
+    // A legacy running-index row for this session falls inside the sweep:
+    // under the session prefix, never in the fresh start-keyed set.
+    const where = arg.where as {
+      externalId: { startsWith: string; notIn: string[] };
+    };
+    const legacyId = "withings:sleep:user-1:42:0";
+    expect(legacyId.startsWith(where.externalId.startsWith)).toBe(true);
+    expect(where.externalId.notIn).not.toContain(legacyId);
+  });
+
+  it("never sweeps sessions absent from this fetch (no id → no sweep entry)", async () => {
+    // Segments without a session id cannot be bounded to one night — their
+    // shared `no-id` prefix would span every id-less night in history — so
+    // they must not produce a sweep.
+    installFetchMock([
+      { startdate: 1715000000, enddate: 1715003600, state: 2 },
+    ]);
+    vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+
+    const imported = await syncUserSleep("user-1");
+    expect(imported).toBe(1);
+    expect(prisma.measurement.updateMany).not.toHaveBeenCalled();
   });
 
   it("calls recordSyncSuccess after a clean round-trip", async () => {

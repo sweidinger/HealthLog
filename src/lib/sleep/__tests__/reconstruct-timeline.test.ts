@@ -14,7 +14,7 @@ describe("reconstructContiguousSleepTimeline", () => {
         { durationMs: 30 * 60_000, stage: "DEEP", fieldTag: "sleep_deep" },
         { durationMs: 90 * 60_000, stage: "REM", fieldTag: "sleep_rem" },
       ],
-      externalIdFor: (tag, i) => `night:seg:${tag}:${i}`,
+      externalIdFor: (tag) => `night:seg:${tag}`,
     });
     const core = rows.find((r) => r.sleepStage === "CORE")!;
     const deep = rows.find((r) => r.sleepStage === "DEEP")!;
@@ -27,18 +27,18 @@ describe("reconstructContiguousSleepTimeline", () => {
     expect(new Set(rows.map((r) => r.measuredAt.getTime())).size).toBe(3);
   });
 
-  it("flags every laid segment reconstructed and keys an indexed externalId", () => {
+  it("flags every laid segment reconstructed and keys a stage-tagged externalId", () => {
     const rows = reconstructContiguousSleepTimeline({
       startMs: onset,
       stages: [
         { durationMs: 15 * 60_000, stage: "AWAKE", fieldTag: "sleep_awake" },
         { durationMs: 60 * 60_000, stage: "CORE", fieldTag: "sleep_core" },
       ],
-      externalIdFor: (tag, i) => `night:seg:${tag}:${i}`,
+      externalIdFor: (tag) => `night:seg:${tag}`,
     });
     expect(rows.every((r) => r.reconstructed === true)).toBe(true);
-    expect(rows[0].externalId).toBe("night:seg:sleep_awake:0");
-    expect(rows[1].externalId).toBe("night:seg:sleep_core:1");
+    expect(rows[0].externalId).toBe("night:seg:sleep_awake");
+    expect(rows[1].externalId).toBe("night:seg:sleep_core");
   });
 
   it("skips non-positive, null, undefined and non-finite durations", () => {
@@ -51,12 +51,46 @@ describe("reconstructContiguousSleepTimeline", () => {
         { durationMs: Number.NaN, stage: "REM", fieldTag: "sleep_rem" },
         { durationMs: 30 * 60_000, stage: "CORE", fieldTag: "sleep_core" },
       ],
-      externalIdFor: (tag, i) => `night:seg:${tag}:${i}`,
+      externalIdFor: (tag) => `night:seg:${tag}`,
     });
     expect(rows).toHaveLength(1);
-    // The only laid stage keeps index 0 (skipped stages do not consume indices).
-    expect(rows[0].externalId).toBe("night:seg:sleep_core:0");
+    // The laid stage keys on its tag alone — skipped stages cannot influence
+    // the id of any other stage (no positional index to renumber).
+    expect(rows[0].externalId).toBe("night:seg:sleep_core");
     expect(rows[0].measuredAt.getTime()).toBe(onset + 30 * 60_000);
+  });
+
+  it("keeps stable externalIds when a re-score flips a stage 0↔positive", () => {
+    // First scoring: no awake time. Re-score: WHOOP/Polar now report a
+    // positive AWAKE block. Under the retired positional index the re-score
+    // renumbered CORE/DEEP (0→1, 1→2), minting fresh externalIds the upsert
+    // then INSERTED next to the old rows — the night double-counted. The
+    // stage-tagged key must be identical across both scorings.
+    const stages = (awakeMs: number) =>
+      [
+        { durationMs: awakeMs, stage: "AWAKE", fieldTag: "sleep_awake" },
+        { durationMs: 60 * 60_000, stage: "CORE", fieldTag: "sleep_core" },
+        { durationMs: 30 * 60_000, stage: "DEEP", fieldTag: "sleep_deep" },
+      ] as const;
+    const externalIdFor = (tag: string) => `night:seg:${tag}`;
+
+    const first = reconstructContiguousSleepTimeline({
+      startMs: onset,
+      stages: stages(0),
+      externalIdFor,
+    });
+    const rescored = reconstructContiguousSleepTimeline({
+      startMs: onset,
+      stages: stages(15 * 60_000),
+      externalIdFor,
+    });
+
+    const idsOf = (rows: typeof first, stage: string) =>
+      rows.find((r) => r.sleepStage === stage)?.externalId;
+    // CORE and DEEP keep their ids — the awake flip cannot renumber them.
+    expect(idsOf(rescored, "CORE")).toBe(idsOf(first, "CORE"));
+    expect(idsOf(rescored, "DEEP")).toBe(idsOf(first, "DEEP"));
+    expect(idsOf(rescored, "AWAKE")).toBe("night:seg:sleep_awake");
   });
 
   it("appends a single IN_BED envelope at the given END instant", () => {
@@ -70,7 +104,7 @@ describe("reconstructContiguousSleepTimeline", () => {
         measuredAt: new Date(end),
         fieldTag: "sleep_in_bed",
       },
-      externalIdFor: (tag, i) => `night:seg:${tag}:${i}`,
+      externalIdFor: (tag) => `night:seg:${tag}`,
     });
     const inBed = rows.find((r) => r.sleepStage === "IN_BED")!;
     expect(inBed.measuredAt.getTime()).toBe(end);
@@ -91,7 +125,7 @@ describe("reconstructContiguousSleepTimeline", () => {
         measuredAt: new Date(end),
         fieldTag: "sleep_in_bed",
       },
-      externalIdFor: (tag, i) => `night:seg:${tag}:${i}`,
+      externalIdFor: (tag) => `night:seg:${tag}`,
     });
     expect(rows.find((r) => r.sleepStage === "IN_BED")).toBeUndefined();
   });

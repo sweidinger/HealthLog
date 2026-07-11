@@ -14,7 +14,11 @@
 import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
-import { syncUserGoogleHealth } from "@/lib/google-health/sync";
+import { isReauthRequired } from "@/lib/integrations/status";
+import {
+  GOOGLE_HEALTH_INTEGRATION_KEY,
+  syncUserGoogleHealth,
+} from "@/lib/google-health/sync";
 
 export const GOOGLE_HEALTH_BACKFILL_QUEUE = "google-health-backfill";
 
@@ -32,14 +36,44 @@ export interface GoogleHealthBackfillPayload {
 
 /**
  * Per-user backfill handler. Runs a full-history sync for one account and
- * stamps `backfillCompletedAt` so the discovery query drops it. Idempotent: the
- * per-resource upserts are key-stable, so a re-run (e.g. a reboot mid-walk)
- * overwrites rather than duplicating. Mirrors `runFitbitBackfillForUser`.
+ * stamps `backfillCompletedAt` ONLY on a clean run, so the discovery query
+ * drops it. Idempotent: the per-resource upserts are key-stable, so a re-run
+ * (e.g. a reboot mid-walk) overwrites rather than duplicating. Mirrors
+ * `runFitbitBackfillForUser`.
+ *
+ * Verdict-gated: a partial hard failure (one collection 400ing, a write
+ * failing) THROWS so pg-boss retries the job — stamping the marker over a
+ * partial walk would freeze the gap in forever. A connection parked at
+ * `error_reauth` is NOT clean either, but throwing against a dead grant would
+ * just burn the retry budget on the same no-op: return WITHOUT stamping — the
+ * boot discovery re-enqueues the account on the next boot, and the stamp lands
+ * once the user reconnects and a clean walk completes.
  */
 export async function runGoogleHealthBackfillForUser(
   userId: string,
 ): Promise<{ imported: number }> {
-  const imported = await syncUserGoogleHealth(userId, { fullSync: true });
+  if (await isReauthRequired(userId, GOOGLE_HEALTH_INTEGRATION_KEY)) {
+    annotate({
+      action: {
+        name: "google_health.backfill.skipped_reauth",
+        details: { imported: 0 },
+      },
+    });
+    return { imported: 0 };
+  }
+
+  const { imported, failed } = await syncUserGoogleHealth(userId, {
+    fullSync: true,
+  });
+
+  if (failed) {
+    // Surface through the pg-boss retry path (retryLimit 3, backoff). If the
+    // failure parked the connection at error_reauth meanwhile, the next
+    // attempt takes the reauth return above instead of failing again.
+    throw new Error(
+      `google-health backfill incomplete for user ${userId} — marker not stamped`,
+    );
+  }
 
   await prisma.googleHealthConnection.update({
     where: { userId },

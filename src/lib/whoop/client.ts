@@ -646,10 +646,12 @@ export function mapSleep(s: WhoopSleep): MappedMeasurement[] {
         measuredAt,
         fieldTag: "sleep_in_bed",
       },
-      // The sync layer keys reconstructed rows by this externalId verbatim; the
-      // index keeps the several rows of one night distinct under
-      // userId_type_source_externalId.
-      externalIdFor: (tag, index) => `${s.id}:seg:${tag}:${index}`,
+      // The sync layer keys reconstructed rows by this externalId verbatim;
+      // the stage tag keeps the several rows of one night distinct under
+      // userId_type_source_externalId (one segment per stage, no positional
+      // index — an index renumbered on a re-score when a stage's duration
+      // flipped 0↔positive, minting fresh ids that double-counted the night).
+      externalIdFor: (tag) => `${s.id}:seg:${tag}`,
     }),
   );
 

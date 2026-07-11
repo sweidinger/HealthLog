@@ -47,6 +47,17 @@ export interface MoodEntryRecord {
 export interface MeasurementRecord {
   type: string;
   measuredAt: Date;
+  /**
+   * v1.28.25 — row multiplicity. The achievements builder now reads vitals
+   * as SQL (day, hour, type) buckets instead of one row per sample (a
+   * per-sample PULSE history runs to six figures), so one record here can
+   * stand for N underlying rows. Every count-semantics consumer
+   * (`countMeasurementsByType`, the hidden-metrics tallies) weighs the
+   * record by `count`; day-presence consumers dedup by day key and are
+   * multiplicity-blind. Absent means 1 — raw per-sample callers and the
+   * existing tests are unchanged.
+   */
+  count?: number;
 }
 
 export interface IntakeEventRecord {
@@ -79,9 +90,10 @@ export function countMeasurementsByType(
   let bp = 0;
   let pulse = 0;
   for (const m of measurements) {
-    if (m.type === "WEIGHT") weight += 1;
-    else if (m.type === "BLOOD_PRESSURE_SYS") bp += 1;
-    else if (m.type === "PULSE") pulse += 1;
+    const n = m.count ?? 1;
+    if (m.type === "WEIGHT") weight += n;
+    else if (m.type === "BLOOD_PRESSURE_SYS") bp += n;
+    else if (m.type === "PULSE") pulse += n;
   }
   return { weightCount: weight, bpCount: bp, pulseCount: pulse };
 }
@@ -289,18 +301,22 @@ export function getHiddenMetrics(input: {
   let earlyBird = 0;
   let leapDay = 0;
 
-  const tally = (hour: number, dayKey: string): void => {
-    if (hour >= 2 && hour < 4) nightOwl += 1;
-    if (hour >= 4 && hour < 6) earlyBird += 1;
+  // v1.28.25 — `n` is the row multiplicity (`MeasurementRecord.count`): a
+  // bucketed vitals record stands for N raw rows, and these are COUNT
+  // metrics, so each contributes N. Mood / intake tallies stay per-row (n=1).
+  const tally = (hour: number, dayKey: string, n = 1): void => {
+    if (hour >= 2 && hour < 4) nightOwl += n;
+    if (hour >= 4 && hour < 6) earlyBird += n;
     // Feb 29 — only valid in leap years.
-    if (dayKey.endsWith("-02-29")) leapDay += 1;
+    if (dayKey.endsWith("-02-29")) leapDay += n;
   };
 
   for (let i = 0; i < input.measurements.length; i++) {
-    const ts = input.measurements[i].measuredAt;
+    const m = input.measurements[i];
     tally(
-      input.measurementHours?.[i] ?? berlinHour(ts),
-      input.measurementDayKeys?.[i] ?? toBerlinDayKey(ts),
+      input.measurementHours?.[i] ?? berlinHour(m.measuredAt),
+      input.measurementDayKeys?.[i] ?? toBerlinDayKey(m.measuredAt),
+      m.count ?? 1,
     );
   }
   for (const e of input.moodEntries) {
@@ -387,15 +403,26 @@ export function buildExpansionMetricValues(input: {
    * hidden passes so the full vitals array is `Intl`-walked once, not ~3×.
    */
   measurementDayKeys?: string[];
+  /**
+   * v1.28.25 — Berlin hours for `measurements`, precomputed by the caller.
+   * The bucketed-vitals path (SQL `(day, hour, type)` buckets) carries the
+   * Berlin hour straight from the query; deriving it here from a bucket's
+   * representative `measuredAt` would be wrong, so the caller MUST supply
+   * this alongside bucketed records. Raw per-row callers omit it and the
+   * hours derive from `measuredAt` exactly as before.
+   */
+  measurementHours?: number[];
 }): ExpansionMetrics {
   const counts = countMeasurementsByType(input.measurements);
   const mood = getMoodMetrics(input.moodEntries);
   // The hidden pass also needs the per-row Berlin hour; derive it once here
   // (only when the caller supplied day-keys, i.e. on the hot achievements
   // path) so a single hour pass replaces the per-pass re-derivation.
-  const measurementHours = input.measurementDayKeys
-    ? input.measurements.map((m) => berlinHour(m.measuredAt))
-    : undefined;
+  const measurementHours =
+    input.measurementHours ??
+    (input.measurementDayKeys
+      ? input.measurements.map((m) => berlinHour(m.measuredAt))
+      : undefined);
   const engagement = getEngagementMetrics({
     measurements: input.measurements,
     moodEntries: input.moodEntries,

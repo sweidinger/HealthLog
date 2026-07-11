@@ -103,6 +103,12 @@ export async function getValidToken(
           message: "Google Health credentials missing — token refresh skipped",
           errorCode: "credentials_missing",
         });
+        // A dead token means every resource "succeeds" with 0 rows — without a
+        // ledger entry the cycle would read as clean, stamp `markSynced`, and
+        // `recordSyncSuccess` would flip a parked connection back to connected
+        // (an hourly invalid-refresh hammer with an advancing watermark). Fail
+        // the cycle's verdict so the park holds.
+        noteHardFailure(GOOGLE_HEALTH_TOKEN_HARD_FAIL);
         return null;
       }
 
@@ -154,6 +160,11 @@ export async function getValidToken(
           );
       }
       await recordGoogleHealthSyncFailure(userId, err);
+      // Same verdict rule as the credentials-missing branch above: a refresh
+      // failure must fail the cycle, or the all-zeros run stamps success,
+      // un-parks `error_reauth`, and the hourly cohort retries the dead
+      // refresh token forever while `lastSyncedAt` advances past real data.
+      noteHardFailure(GOOGLE_HEALTH_TOKEN_HARD_FAIL);
       return null;
     }
   }
@@ -203,6 +214,41 @@ interface HardFailTracker {
   failures: string[];
 }
 const hardFailStorage = new AsyncLocalStorage<HardFailTracker>();
+
+/**
+ * Ledger label for a dead-token failure (`getValidToken` returning null on a
+ * missing-credentials or failed-refresh path). Exported so the one-shot jobs
+ * that run a single resource inside their own ledger scope can tell "the token
+ * is dead" (park, don't retry) apart from "a fetch/write hard-failed" (retry).
+ */
+export const GOOGLE_HEALTH_TOKEN_HARD_FAIL = "token";
+
+/**
+ * Record a hard failure on the ambient per-cycle ledger, if one is in scope.
+ * No-op outside a ledger scope (e.g. a direct call from a REPL script). Used by
+ * `getValidToken`'s dead-token paths, the measurement write catches, and the
+ * workout upsert catch — anything that must fail the cycle's verdict without
+ * aborting sibling work.
+ */
+export function noteHardFailure(label: string): void {
+  const tracker = hardFailStorage.getStore();
+  if (tracker) tracker.failures.push(label);
+}
+
+/**
+ * Run `fn` inside a fresh hard-fail ledger scope and surface the collected
+ * failures. `syncUserGoogleHealth` owns its own scope; this export exists for
+ * the one-shot jobs (sleep repair) that drive a single resource sync directly
+ * and must still see a dead token or a hard fetch/write failure before
+ * stamping their completion marker.
+ */
+export async function runWithGoogleHealthHardFailLedger<T>(
+  fn: () => Promise<T>,
+): Promise<{ result: T; failures: string[] }> {
+  const tracker: HardFailTracker = { failures: [] };
+  const result = await hardFailStorage.run(tracker, fn);
+  return { result, failures: tracker.failures };
+}
 
 /**
  * Per-cycle accumulator of the `(type, day)` keys every resource's writes
@@ -418,7 +464,15 @@ export async function upsertGoogleHealthMeasurements(
   // insert that `skipDuplicates` silently drops against the tombstone's key,
   // permanently wedging the key (see TOMBSTONES RESURRECT above).
   const externalIds = readings.map((r) => r.externalId);
-  let rowByKey = new Map<string, { id: string }>();
+  interface ProbedRow {
+    id: string;
+    value: number;
+    unit: string;
+    measuredAt: Date;
+    sleepStage: GoogleHealthMeasurementUpsert["sleepStage"];
+    deletedAt: Date | null;
+  }
+  let rowByKey = new Map<string, ProbedRow>();
   try {
     const existing = await prisma.measurement.findMany({
       where: {
@@ -426,12 +480,35 @@ export async function upsertGoogleHealthMeasurements(
         source: "GOOGLE_HEALTH",
         externalId: { in: externalIds },
       },
-      select: { id: true, type: true, externalId: true },
+      // The payload fields ride along so the update branch can skip a no-op
+      // overwrite: the 24 h overlap re-fetches every recent row hourly, and an
+      // unconditional write would bump `syncVersion` (iOS delta churn) on rows
+      // whose values did not change.
+      select: {
+        id: true,
+        type: true,
+        externalId: true,
+        value: true,
+        unit: true,
+        measuredAt: true,
+        sleepStage: true,
+        deletedAt: true,
+      },
     });
     rowByKey = new Map(
       existing
         .filter((e) => e.externalId !== null)
-        .map((e) => [`${e.type} ${e.externalId}`, { id: e.id }]),
+        .map((e) => [
+          `${e.type} ${e.externalId}`,
+          {
+            id: e.id,
+            value: e.value,
+            unit: e.unit,
+            measuredAt: e.measuredAt,
+            sleepStage: e.sleepStage,
+            deletedAt: e.deletedAt,
+          },
+        ]),
     );
   } catch (err) {
     // A probe failure must not strand the whole batch; fall back to treating
@@ -457,9 +534,20 @@ export async function upsertGoogleHealthMeasurements(
   for (const r of readings) {
     const type = r.type as MeasurementType;
     const key = `${type} ${r.externalId}`;
-    const live = rowByKey.get(key);
-    if (live) {
-      toUpdate.push({ id: live.id, r });
+    const existingRow = rowByKey.get(key);
+    if (existingRow) {
+      // Skip the no-op overwrite: a LIVE row whose payload matches the
+      // re-fetched reading exactly gains nothing from a write, and the
+      // unconditional `syncVersion` bump churned the DB + every iOS delta pull
+      // hourly for the whole 24 h overlap window. A TOMBSTONED row always
+      // updates — the write is what resurrects it (`deletedAt: null`).
+      const unchanged =
+        existingRow.deletedAt === null &&
+        existingRow.value === r.value &&
+        existingRow.unit === r.unit &&
+        existingRow.measuredAt.getTime() === r.measuredAt.getTime() &&
+        (existingRow.sleepStage ?? null) === (r.sleepStage ?? null);
+      if (!unchanged) toUpdate.push({ id: existingRow.id, r });
     } else if (!plannedCreateKeys.has(key)) {
       plannedCreateKeys.add(key);
       toCreate.push({
@@ -518,6 +606,11 @@ export async function upsertGoogleHealthMeasurements(
       getEvent()?.addWarning(
         `google-health: failed to create measurements: ${err}`,
       );
+      // Fetched-but-unwritten rows are lost for good once they age out of the
+      // 24 h overlap — fail the cycle's verdict so the watermark holds and the
+      // next tick re-fetches them. No rethrow: sibling chunks and resources
+      // must keep writing.
+      noteHardFailure("measurements:create");
     }
   }
 
@@ -549,6 +642,9 @@ export async function upsertGoogleHealthMeasurements(
       getEvent()?.addWarning(
         `google-health: failed to update measurement: ${err}`,
       );
+      // Same rule as the create catch: hold the watermark so the overwrite is
+      // retried next tick rather than silently dropped.
+      noteHardFailure("measurements:update");
     }
   }
 
@@ -622,16 +718,24 @@ export async function markSynced(userId: string): Promise<void> {
  * read+stamp would let the first resource move `lastSyncedAt` to now() so later
  * resources only see the last overlap window — silently dropping the gap after
  * an outage longer than the overlap.
+ *
+ * VERDICT: returns `{ imported, failed }`. `failed` is exactly the condition
+ * that suppresses `markSynced` — any hard failure (fetch, write, dead token)
+ * or an all-soft-skipped no-op, plus the parked / missing-connection early
+ * returns. The one-shot jobs (backfill) gate their completion markers on it;
+ * stamping a marker after a partial run would freeze the failure in place.
  */
 export async function syncUserGoogleHealth(
   userId: string,
   opts: { fullSync?: boolean } = {},
-): Promise<number> {
+): Promise<{ imported: number; failed: boolean }> {
   if (await isReauthRequired(userId, GOOGLE_HEALTH_INTEGRATION_KEY)) {
     getEvent()?.addWarning(
       `google-health sync skipped for ${userId}: parked at error_reauth`,
     );
-    return 0;
+    // Parked is NOT a clean run — a caller gating a completion marker on the
+    // verdict must not stamp over a no-op.
+    return { imported: 0, failed: true };
   }
 
   // Snapshot the incremental watermark ONCE for the whole cycle. Every resource
@@ -642,7 +746,7 @@ export async function syncUserGoogleHealth(
     where: { userId },
     select: { lastSyncedAt: true },
   });
-  if (!connection) return 0;
+  if (!connection) return { imported: 0, failed: true };
   const start = incrementalStart(connection.lastSyncedAt, {
     fullSync: opts.fullSync,
   });
@@ -736,8 +840,9 @@ export async function syncUserGoogleHealth(
   // 401. Don't stamp success when the whole cycle was soft-skipped and nothing
   // imported; leave the status as-is so the "looks-healthy" window closes.
   const allSoftSkipped = tracker.count >= resources.length && total === 0;
+  const failed = anyFailed || allSoftSkipped;
 
-  if (!anyFailed && !allSoftSkipped) {
+  if (!failed) {
     // Stamp the watermark ONCE for the whole cycle, only on a non-degenerate
     // run. Every resource already saw the snapshot `start`, so stamping now()
     // here can't shrink a later resource's window.
@@ -746,9 +851,9 @@ export async function syncUserGoogleHealth(
   }
 
   annotate({
-    action: { name: "googleHealth.sync", details: { imported: total } },
+    action: { name: "googleHealth.sync", details: { imported: total, failed } },
   });
-  return total;
+  return { imported: total, failed };
 }
 
 /**
@@ -817,7 +922,9 @@ export async function runGoogleHealthPollCohort(
     onUserSynced?: (userId: string, imported: number) => void;
   } = {},
 ): Promise<{ usersSynced: number; measurementsImported: number }> {
-  const sync = opts.sync ?? ((userId: string) => syncUserGoogleHealth(userId));
+  const sync =
+    opts.sync ??
+    ((userId: string) => syncUserGoogleHealth(userId).then((r) => r.imported));
   const limit = pLimit(opts.concurrency ?? GOOGLE_HEALTH_POLL_CONCURRENCY);
 
   let usersSynced = 0;

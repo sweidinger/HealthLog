@@ -545,6 +545,14 @@ async function postBatch(request: NextRequest): Promise<Response> {
                 string | null,
               deviceType: p.row.deviceType as Prepared["row"]["deviceType"],
               sleepStage: p.row.sleepStage as Prepared["row"]["sleepStage"],
+              // No-op on a live row, a deliberate RESURRECTION on a
+              // tombstoned one — the observer re-posts the day's canonical
+              // total, so a `stats:` day-total row follows the
+              // source-owned resurrect rule (mirrors Google / Fitbit).
+              // SAMPLE-grain rows never reach this branch: their
+              // tombstones stick (the iOS LWW reconciler propagates
+              // HealthKit deletions and reports them as `duplicate`).
+              deletedAt: null,
             },
           });
           results[p.index] = { index: p.index, status: "updated" };

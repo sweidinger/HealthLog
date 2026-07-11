@@ -237,7 +237,7 @@ describe("getValidToken — rotating refresh", () => {
   });
 });
 
-describe("upsertFitbitMeasurements — batched, tombstone-safe write", () => {
+describe("upsertFitbitMeasurements — batched write, tombstones resurrect", () => {
   it("inserts a fresh reading via createMany with field-by-field data, source pinned to FITBIT", async () => {
     const measuredAt = new Date("2026-05-10T07:00:00.000Z");
     prismaMock.measurement.findMany.mockResolvedValue([]); // nothing live yet
@@ -255,16 +255,17 @@ describe("upsertFitbitMeasurements — batched, tombstone-safe write", () => {
     expect(imported).toBe(1);
     expect(prismaMock.measurement.update).not.toHaveBeenCalled();
 
-    // The probe filters to LIVE FITBIT rows for the batch's externalIds.
+    // The probe matches EVERY FITBIT row for the batch's externalIds — live
+    // AND tombstoned (the full unique index owns the key either way).
     const probeArg = prismaMock.measurement.findMany.mock.calls[0]![0] as {
       where: Record<string, unknown>;
     };
     expect(probeArg.where).toMatchObject({
       userId: "user1",
       source: "FITBIT",
-      deletedAt: null,
       externalId: { in: ["2026-05-10T07:00:00.000Z:weight"] },
     });
+    expect(probeArg.where).not.toHaveProperty("deletedAt");
 
     const createArg = prismaMock.measurement.createMany.mock.calls[0]![0] as {
       data: Record<string, unknown>[];
@@ -310,11 +311,14 @@ describe("upsertFitbitMeasurements — batched, tombstone-safe write", () => {
     expect(updateArg.data.syncVersion).toEqual({ increment: 1 });
   });
 
-  it("does NOT resurrect a soft-deleted row — a tombstone is absent from the live probe, so a fresh insert is created", async () => {
+  it("RESURRECTS a soft-deleted row — the probe matches the tombstone and the update clears deletedAt", async () => {
     const measuredAt = new Date("2026-05-10T07:00:00.000Z");
-    // The user deleted this Fitbit reading: the tombstone (deletedAt set) is
-    // excluded from the live probe, so findMany returns NOTHING for the key.
-    prismaMock.measurement.findMany.mockResolvedValue([]);
+    // The tombstone still owns its key under the FULL unique index, so the
+    // probe returns it; planning an insert instead would be dropped silently
+    // by `skipDuplicates` and wedge the key forever.
+    prismaMock.measurement.findMany.mockResolvedValue([
+      { id: "m-dead", type: "WEIGHT", externalId: "stats:weight:2026-05-10" },
+    ]);
 
     const { imported } = await upsertFitbitMeasurements("user1", [
       {
@@ -326,12 +330,14 @@ describe("upsertFitbitMeasurements — batched, tombstone-safe write", () => {
       },
     ]);
 
-    // The deleted row is NOT updated/resurrected — a fresh insert is attempted
-    // (the partial unique index `WHERE deleted_at IS NULL` keeps it from
-    // colliding with the dead row, and skipDuplicates guards a live race).
     expect(imported).toBe(1);
-    expect(prismaMock.measurement.update).not.toHaveBeenCalled();
-    expect(prismaMock.measurement.createMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.measurement.createMany).not.toHaveBeenCalled();
+    const updateArg = prismaMock.measurement.update.mock.calls[0]![0] as {
+      where: { id: string };
+      data: Record<string, unknown>;
+    };
+    expect(updateArg.where).toEqual({ id: "m-dead" });
+    expect(updateArg.data.deletedAt).toBeNull();
   });
 
   it("splits a mixed batch: matched-live → update, unmatched → createMany", async () => {

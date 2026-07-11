@@ -308,3 +308,69 @@ describe("POST /api/measurements/batch — hourly HR wire contract (iOS #34)", (
     expect(data.entries[0].status).toBe("updated");
   });
 });
+
+describe("POST /api/measurements/batch — stats tombstone resurrection", () => {
+  it("resurrects a tombstoned stats: day-total on re-post (deletedAt: null, status updated)", async () => {
+    const STEP_STATS_ID = "stats:HKQuantityTypeIdentifierStepCount:2026-06-21";
+    // The existence probe is deliberately deletedAt-less, so a tombstoned
+    // day-total row matches exactly like a live one and routes into the
+    // overwrite branch.
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        type: "ACTIVITY_STEPS",
+        source: "APPLE_HEALTH",
+        externalId: STEP_STATS_ID,
+      },
+    ] as never);
+
+    const res = await POST(
+      makeRequest({
+        entries: [
+          {
+            hkIdentifier: "HKQuantityTypeIdentifierStepCount",
+            value: 9001,
+            unit: "count",
+            startDate: "2026-06-21T00:00:00.000Z",
+            endDate: "2026-06-21T23:59:59.000Z",
+            externalId: STEP_STATS_ID,
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+    expect(data.updated).toBe(1);
+    expect(data.entries[0].status).toBe("updated");
+
+    // The overwrite carries the resurrection: the observer re-posts the
+    // day's canonical total, so the update data pins `deletedAt: null`.
+    expect(prisma.measurement.updateMany).toHaveBeenCalledTimes(1);
+    const updateArg = vi.mocked(prisma.measurement.updateMany).mock.calls[0][0];
+    const updateData = (
+      updateArg as { data: { value: number; deletedAt: Date | null } }
+    ).data;
+    expect(updateData.value).toBe(9001);
+    expect(updateData.deletedAt).toBeNull();
+  });
+
+  it("keeps a tombstoned SAMPLE-grain row suppressed (duplicate, no resurrect write)", async () => {
+    // Apple LWW contract: the iOS reconciler propagates HealthKit
+    // deletions for sample-grain rows, so a re-post of a tombstoned
+    // sample stays a checkpointing `duplicate` — no update runs at all.
+    const SAMPLE_ID = "D00DAD00-0000-4000-8000-000000000000";
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { type: "PULSE", source: "APPLE_HEALTH", externalId: SAMPLE_ID },
+    ] as never);
+
+    const res = await POST(
+      makeRequest({ entries: [hrBucketEntry(SAMPLE_ID, 61)] }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+    expect(data.duplicates).toBe(1);
+    expect(data.updated).toBe(0);
+    expect(data.entries[0].status).toBe("duplicate");
+    expect(prisma.measurement.updateMany).not.toHaveBeenCalled();
+    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
+  });
+});

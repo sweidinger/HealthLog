@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+## [1.28.25] — 2026-07-11 — Every integration held to the same standard
+
+A platform-wide hardening pass: the failure classes found live this week were
+hunted down across every integration, not just where they first surfaced.
+
+Fitbit carried the same silent wedge fixed for Google Health — a soft-deleted
+reading permanently blocked its own re-import, hidden behind a comment
+describing a database index that never existed. Fixed the same way: a re-import
+revives the deleted row in place.
+
+Sleep segments now keep stable identities across re-scoring for Withings,
+WHOOP, Polar and Oura — previously a source refining a night could duplicate or
+orphan its stage rows, quietly inflating the night's total (the class fixed for
+Google earlier this week). Each sync now also sweeps rows a re-score left
+behind, so already-affected nights heal themselves as they are re-read.
+
+One platform rule for deleted rows: a reading owned by a connected source comes
+back when the source reports it again — across Withings, WHOOP, Oura, Polar,
+Nightscout, the mood webhook, CSV re-imports and Apple Health day totals.
+Deleting an Apple Health sample in the Health app still sticks, as the paired
+client expects. Import counts and per-entry statuses now tell the truth in
+every one of these paths.
+
+Google Health lifecycle: an expired connection no longer lets the hourly sync
+stamp success while importing nothing (it parks cleanly for reconnect instead
+of retrying against a dead token forever); history backfills and the sleep
+repair only mark themselves done after a clean pass, so a transient error now
+retries instead of silently leaving a gap; and a failed database write holds
+the sync watermark so the affected window is re-fetched.
+
+Scale: the doctor report reads only the columns and sections it renders;
+exports and backups read the measurement table in pages instead of one giant
+query; long-window charts for sensor-dense metrics (glucose, pulse) aggregate
+per day in the database beyond 90 days instead of shipping every raw sample;
+blood-pressure pairing, achievement tallies and several "which types exist"
+scans moved from in-memory loops to the database. A year of continuous sensor
+data can no longer stall or crash a request.
+
 ## [1.28.24] — 2026-07-11 — A deleted Google reading no longer blocks its re-import
 
 A Google Health reading that had been soft-deleted could never be imported

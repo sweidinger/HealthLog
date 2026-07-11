@@ -12,6 +12,7 @@
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 import { readNote } from "@/lib/crypto/note-cipher";
+import { findMeasurementsPaged } from "@/lib/export/paged-measurements";
 import { BACKUP_SCHEMA_VERSION } from "@/lib/validations/backup";
 import { buildCycleBackupSection } from "@/lib/cycle/backup";
 
@@ -39,10 +40,28 @@ export async function buildFullBackupPayload(
 ): Promise<FullBackupResult> {
   const [measurements, medications, intakeEvents, moodEntries, cycle] =
     await Promise.all([
-      prisma.measurement.findMany({
-        where: { userId, deletedAt: null },
-        orderBy: { measuredAt: "desc" },
-      }),
+      // v1.28.25 — keyset-paginated read with a narrow select. The backup
+      // is inherently whole-history, so on a CGM / per-sample-HR account the
+      // previous single full-width `findMany` materialised a six-figure row
+      // set in one shot. The chunked read accumulates the same rows in the
+      // same `measuredAt desc` order; the payload FORMAT below is untouched
+      // (restore compatibility). The select is exactly the fields the
+      // serializer reads: type / value / unit / measuredAt / source + the
+      // note columns `readNote` decrypts + the `id` cursor key.
+      findMeasurementsPaged(
+        prisma,
+        { userId, deletedAt: null },
+        {
+          id: true,
+          type: true,
+          value: true,
+          unit: true,
+          measuredAt: true,
+          source: true,
+          notes: true,
+          notesEncrypted: true,
+        },
+      ),
       prisma.medication.findMany({
         where: { userId },
         select: {

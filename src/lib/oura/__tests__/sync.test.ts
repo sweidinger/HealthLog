@@ -14,6 +14,7 @@ const {
   fetchResilienceMock,
   refreshMock,
   upsertMock,
+  updateManyMock,
   recordSuccessMock,
   recordFailureMock,
   recomputeMock,
@@ -32,6 +33,7 @@ const {
   fetchResilienceMock: vi.fn(),
   refreshMock: vi.fn(),
   upsertMock: vi.fn(),
+  updateManyMock: vi.fn(),
   recordSuccessMock: vi.fn(),
   recordFailureMock: vi.fn(),
   recomputeMock: vi.fn(),
@@ -45,7 +47,7 @@ vi.mock("../credentials", () => ({
 }));
 
 vi.mock("@/lib/db", () => ({
-  prisma: { measurement: { upsert: upsertMock } },
+  prisma: { measurement: { upsert: upsertMock, updateMany: updateManyMock } },
 }));
 
 vi.mock("@/lib/integrations/status", async (importOriginal) => ({
@@ -107,6 +109,7 @@ beforeEach(() => {
   fetchResilienceMock.mockReset().mockResolvedValue([]);
   refreshMock.mockReset();
   upsertMock.mockReset().mockResolvedValue({});
+  updateManyMock.mockReset().mockResolvedValue({ count: 0 });
   recordSuccessMock.mockReset().mockResolvedValue(undefined);
   recordFailureMock.mockReset().mockResolvedValue(undefined);
   recomputeMock.mockReset().mockResolvedValue(undefined);
@@ -229,6 +232,69 @@ describe("syncUserOura", () => {
     expect(externalIds).toContain("sleep:nap:sleep_deep");
     // The legacy day-keyed collapse would have produced one shared key.
     expect(new Set(externalIds).size).toBe(externalIds.length);
+  });
+
+  it("sweeps stale sleep rows per fetched record: live-only, record-prefixed, notIn the fresh set, soft-delete (v1.28.25)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchSleepMock.mockResolvedValue([
+      {
+        id: "rec-T",
+        day: "2026-06-10",
+        bedtime_start: "2026-06-09T23:00:00.000Z",
+        bedtime_end: "2026-06-10T07:00:00.000Z",
+        sleep_phase_5_min: "1122234",
+      },
+    ]);
+
+    await syncUserOura("u1");
+
+    expect(updateManyMock).toHaveBeenCalledTimes(1);
+    const arg = updateManyMock.mock.calls[0]![0] as {
+      where: {
+        userId: string;
+        source: string;
+        type: string;
+        deletedAt: null;
+        externalId: { startsWith: string; notIn: string[] };
+      };
+      data: Record<string, unknown>;
+    };
+    expect(arg.where.userId).toBe("u1");
+    expect(arg.where.source).toBe("OURA");
+    expect(arg.where.type).toBe("SLEEP_DURATION");
+    expect(arg.where.deletedAt).toBeNull();
+    // Bounded to THIS record. The prefix covers the whole record slice (runs
+    // AND the stage-total fallback shape) so a night that flips between the
+    // two shapes cannot leave the other shape's rows double-counting.
+    expect(arg.where.externalId.startsWith).toBe("sleep:rec-T:");
+    // Every fresh SLEEP_DURATION id of the record is protected.
+    expect(arg.where.externalId.notIn).toEqual([
+      "sleep:rec-T:seg:2026-06-09T23:00:00.000Z",
+      "sleep:rec-T:seg:2026-06-09T23:10:00.000Z",
+      "sleep:rec-T:seg:2026-06-09T23:25:00.000Z",
+      "sleep:rec-T:seg:2026-06-09T23:30:00.000Z",
+    ]);
+    // Soft delete only.
+    expect(arg.data).toEqual({ deletedAt: expect.any(Date) });
+
+    // A legacy run-indexed row for this record falls inside the sweep.
+    const legacyId = "sleep:rec-T:seg:0";
+    expect(legacyId.startsWith(arg.where.externalId.startsWith)).toBe(true);
+    expect(arg.where.externalId.notIn).not.toContain(legacyId);
+
+    // Replace-then-write: the sweep runs before the first upsert.
+    expect(updateManyMock.mock.invocationCallOrder[0]!).toBeLessThan(
+      upsertMock.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("never sweeps when the sleep collection returns no records", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchReadinessMock.mockResolvedValue([
+      { id: "1", day: "2026-06-10", score: 70 },
+    ]);
+    await syncUserOura("u1");
+    expect(updateManyMock).not.toHaveBeenCalled();
   });
 
   it("writes the Sleep Score and SpO2 from the new collections", async () => {
