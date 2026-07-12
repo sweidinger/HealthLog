@@ -50,8 +50,10 @@ Click **Connect WHOOP**. The flow:
 2. The user signs in on WHOOP and grants the requested scopes.
 3. WHOOP redirects back to `/api/whoop/callback` with an auth code.
 4. HealthLog exchanges the code for an access + refresh token, stores
-   them encrypted, registers the webhook, and triggers an initial
-   sync of recent history.
+   them encrypted, and triggers an initial sync of recent history.
+   (The webhook is **not** registered per user — it is configured once
+   at app level in the WHOOP developer console; see the env-var
+   section below.)
 5. Subsequent syncs run on every webhook delivery plus a safety-net
    cron pull.
 

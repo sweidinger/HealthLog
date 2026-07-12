@@ -92,3 +92,74 @@ export async function enqueueForceWarm(payload: {
     // cold until the next poll / nightly cron warms them.
   }
 }
+
+/**
+ * Delay before the single bounded retry of a failed nightly comprehensive
+ * warm. 45 minutes: far enough out that a transient 02:30–04:30 provider
+ * brown-out has usually cleared, early enough that the retry lands before
+ * the user's morning visit.
+ */
+export const PREGENERATE_RETRY_DELAY_SECONDS = 45 * 60;
+
+/**
+ * Bounded intra-day retry for a user whose NIGHTLY comprehensive warm
+ * failed. Without this, a single 04:30 provider hiccup left the user's
+ * briefing stale until the next night: the nightly tick is the only
+ * scheduled machinery, the GET path's warm enqueue only fires once the
+ * cache crosses the 24 h freshness line (often mid-evening), and the POST
+ * cache short-circuit served the stale payload all day.
+ *
+ * Enqueues ONE delayed forced single-user warm (the same `forceWarmUser`
+ * pipeline the on-demand route uses), so every existing bound still
+ * applies at execution time: the job-start freshness re-check, the
+ * failure backoff, and the per-user daily forced-warm cap. `singletonKey`
+ * collapses repeated failures within the window into one queued retry.
+ * Best-effort like `enqueueForceWarm`: no boss instance → annotated no-op,
+ * the nightly tick remains the catch-net.
+ */
+export async function enqueuePregenerateFailureRetry(payload: {
+  userId: string;
+  locale: "de" | "en";
+}): Promise<void> {
+  const boss = getGlobalBoss();
+  if (!boss) {
+    annotate({
+      action: { name: "insights.pregenerate.retry.no_boss" },
+      meta: { locale: payload.locale },
+    });
+    return;
+  }
+  try {
+    await boss.send(
+      INSIGHT_PREGENERATE_QUEUE,
+      {
+        userId: payload.userId,
+        force: true,
+        locale: payload.locale,
+      } satisfies InsightPregeneratePayload,
+      {
+        startAfter: PREGENERATE_RETRY_DELAY_SECONDS,
+        // Distinct from the on-demand `force:` key so a user's page-open
+        // warm can never swallow the scheduled retry (and vice versa);
+        // one retry per user per window.
+        singletonKey: `retry:${payload.userId}`,
+        singletonSeconds: 3600,
+        // A worker crash mid-warm re-runs the job; a warm that completes
+        // with a failed comprehensive does NOT throw, so this cannot loop.
+        retryLimit: 2,
+        retryDelay: 300,
+        retryBackoff: true,
+      },
+    );
+    annotate({
+      action: { name: "insights.pregenerate.retry.enqueued" },
+      meta: {
+        locale: payload.locale,
+        delay_seconds: PREGENERATE_RETRY_DELAY_SECONDS,
+      },
+    });
+  } catch {
+    // Best-effort: a failed enqueue leaves the nightly tick as the
+    // catch-net, exactly the pre-retry behaviour.
+  }
+}

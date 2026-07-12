@@ -246,6 +246,49 @@ describe("generateComprehensiveInsight — content-hash gate (v1.16.8)", () => {
     expect(runRawCompletionWithFallback).toHaveBeenCalledTimes(1);
   });
 
+  it("regenerates when the hash matches but the cached payload carries NO briefing (v1.28.30)", async () => {
+    // A grounding-stripped (or model-omitted) briefing left a briefingless
+    // payload WITH a stored hash: on unchanged data every warm re-stamped
+    // the timestamp and the briefing never came back. A briefingless cache
+    // must not satisfy the unchanged gate.
+    makeByokChain();
+    findUnique.mockResolvedValue({
+      insightsPrivacyMode: "aggregated",
+      insightsCachedAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
+      insightsCachedText: JSON.stringify({
+        dailyBriefing: null,
+        recommendations: [],
+      }),
+      insightsExcludeMetrics: [],
+      insightsSnapshotHash: FEATURES_HASH,
+    });
+    runRawCompletionWithFallback.mockResolvedValue({
+      result: {
+        content: JSON.stringify({ dailyBriefing: { p: "recovered" } }),
+        tokensUsed: 10,
+        providerType: "openai",
+        model: "m",
+      },
+      workingProvider: { providerType: "openai" },
+      fallbackHops: [],
+    });
+
+    const outcome = await generateComprehensiveInsight("u1", {
+      locale: "de",
+      force: true,
+    });
+
+    expect(outcome).toEqual({ status: "generated", providerType: "openai" });
+    expect(runRawCompletionWithFallback).toHaveBeenCalledTimes(1);
+    // A real cache write happened (not a timestamp-only refresh).
+    const write = userUpdate.mock.calls.find(
+      (c) =>
+        (c[0] as { data: Record<string, unknown> }).data.insightsCachedText !==
+        undefined,
+    );
+    expect(write).toBeTruthy();
+  });
+
   it("does not treat a matching hash as unchanged when there is no cached text to serve", async () => {
     makeByokChain();
     findUnique.mockResolvedValue({

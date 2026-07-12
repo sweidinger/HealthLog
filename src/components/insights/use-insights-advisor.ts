@@ -92,8 +92,12 @@ export interface InsightAdvisorPayload {
    * v1.28.28 (#470) — set by the POST when the number-grounding gate stripped
    * the freshly generated briefing (after its one corrective retry). Without
    * it the 200 carried a silently-null briefing and the card's "no briefing
-   * yet" made the regenerate button read as doing nothing. Only ever present
-   * on a force-regenerate response; absent on the read path.
+   * yet" made the regenerate button read as doing nothing.
+   *
+   * v1.28.30 — also carried by the read-only GET, backed by a dated
+   * server-side marker: a briefing the nightly warm stripped now renders
+   * the same honest "withheld" state on every read until the next
+   * successful generation, not only on the regenerate response.
    */
   briefingOmittedReason?: "ungrounded" | null;
 }
@@ -169,7 +173,14 @@ interface AdvisorFetchResult {
   outcome: AdvisorFetchOutcome;
 }
 
-async function fetchAdvisor(
+/**
+ * Exported as a test seam (like `nextAdvisorPollInterval`): the explicit
+ * regenerate MUST post `force: true` — generation happens on the nightly
+ * cron and on explicit intent only, and a force-less button silently
+ * re-reads the 24 h cache (the "button does nothing" half of the
+ * no-briefing-today chain). The wire-contract test pins it.
+ */
+export async function fetchAdvisor(
   options: { force?: boolean } = {},
 ): Promise<AdvisorFetchResult> {
   const controller = new AbortController();
@@ -409,9 +420,10 @@ export function useInsightsAdvisorQuery(
     generationFailed: query.data?.payload?.generationFailed ?? false,
     // Absent → no specific lever hint; the generic failed-description holds.
     generationFailureClass: query.data?.payload?.generationFailureClass ?? null,
-    // v1.28.28 (#470) — only a force-regenerate response carries the field
-    // (setQueryData writes that response into this cache); the read path's
-    // GET never does, so the hint clears on the next successful read.
+    // v1.28.28 (#470) — a force-regenerate response carries the field via
+    // setQueryData; since v1.28.30 the GET carries it too (marker-backed),
+    // so the "withheld" state persists across reads and clears on the next
+    // successful generation.
     briefingOmittedReason: query.data?.payload?.briefingOmittedReason ?? null,
   };
 }

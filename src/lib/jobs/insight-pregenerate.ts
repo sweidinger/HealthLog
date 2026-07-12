@@ -72,6 +72,7 @@ import { resolveEffectiveTimeoutMs } from "@/lib/ai/effective-timeout";
 import {
   INSIGHT_PREGENERATE_QUEUE,
   enqueueForceWarm,
+  enqueuePregenerateFailureRetry,
   type InsightPregeneratePayload,
 } from "@/lib/jobs/insight-pregenerate-shared";
 
@@ -226,6 +227,17 @@ export function comprehensiveWarmBudgetMs(
   );
 }
 
+/**
+ * Short, redaction-safe error description for the failure annotations
+ * below. The central egress redaction (`redactSecrets` in the
+ * WideEventBuilder) is the safety net; keeping the excerpt short bounds
+ * the event size and avoids echoing whole provider bodies.
+ */
+function describeError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err ?? "unknown");
+  return message.slice(0, 240);
+}
+
 /** Per-user result of one forced full warm. */
 export interface ForceWarmResult {
   /**
@@ -321,9 +333,19 @@ async function warmPerStatusCaches(
         try {
           const outcome = await generate(userId, { locale, force: false });
           return outcome.hasProvider && !outcome.cached ? 1 : 0;
-        } catch {
+        } catch (err) {
           // A single card's generation failing must not abort the rest of
-          // the warm pass for this user, nor the cron's user loop.
+          // the warm pass for this user, nor the cron's user loop — but it
+          // must not be invisible either: annotate so a failing card is
+          // diagnosable from one grep instead of a silent zero.
+          annotate({
+            action: { name: "insights.pregenerate.warm_failed" },
+            meta: {
+              stage: "status-card",
+              locale,
+              message: describeError(err),
+            },
+          });
           return 0;
         }
       }),
@@ -360,8 +382,17 @@ async function warmStatusBatch(
         force: false,
       });
       warmed += result.batched + result.fellBack;
-    } catch {
-      // The batch must never throw the cron's user loop off course.
+    } catch (err) {
+      // The batch must never throw the cron's user loop off course — but
+      // a swallowed batch failure left ~7 cards cold with zero signal.
+      annotate({
+        action: { name: "insights.pregenerate.warm_failed" },
+        meta: {
+          stage: "status-batch",
+          locale,
+          message: describeError(err),
+        },
+      });
     }
   }
   return warmed;
@@ -400,7 +431,13 @@ async function warmGenericMetricCaches(
       orderBy: { type: "asc" },
     });
     typesWithData = new Set(rows.map((r) => r.type));
-  } catch {
+  } catch (err) {
+    // Best-effort discovery — but a silently-failing grouped read used to
+    // zero out the whole generic warm with no trace.
+    annotate({
+      action: { name: "insights.pregenerate.warm_failed" },
+      meta: { stage: "metric-discovery", message: describeError(err) },
+    });
     return 0;
   }
 
@@ -434,7 +471,16 @@ async function warmGenericMetricCaches(
             outcome.insufficient !== true
             ? 1
             : 0;
-        } catch {
+        } catch (err) {
+          annotate({
+            action: { name: "insights.pregenerate.warm_failed" },
+            meta: {
+              stage: "metric-card",
+              metric,
+              locale,
+              message: describeError(err),
+            },
+          });
           return 0;
         }
       }),
@@ -522,11 +568,22 @@ export async function runInsightPregenerate(
       userId: string,
       locales: ReadonlyArray<"de" | "en">,
     ) => Promise<number>;
+    /**
+     * v1.28.30 — injected for the test. Defaults to the real delayed
+     * single-user retry enqueue; fired once per candidate whose
+     * comprehensive warm failed so a transient nightly provider hiccup
+     * heals within the day instead of waiting for the next tick.
+     */
+    enqueueRetry?: (payload: {
+      userId: string;
+      locale: "de" | "en";
+    }) => Promise<void>;
   } = {},
 ): Promise<PregenerateRunResult> {
   const now = options.now ?? new Date();
   const cap = options.cap ?? PREGENERATE_BATCH_CAP;
   const generate = options.generate ?? generateComprehensiveInsight;
+  const enqueueRetry = options.enqueueRetry ?? enqueuePregenerateFailureRetry;
   // v1.18.7 (HIGH-1) — when the caller injects its own `statusGenerators`
   // (the unit tests do), keep the per-card warm so those assertions hold;
   // production injects nothing, so the seven warm calls collapse into ONE
@@ -608,12 +665,19 @@ export async function runInsightPregenerate(
         const warmBudgetMs = comprehensiveWarmBudgetMs(
           candidate.aiResponseTimeoutSeconds,
         );
+        // Capture the rejection so the failure annotation can carry the
+        // actual error text — `withTimeout` folds a rejection into a bare
+        // `errored: true` envelope, which made the cause undiagnosable.
+        let thrown: unknown = null;
         const bounded = await withTimeout(
           () =>
             generate(candidate.id, {
               locale,
               force: true,
               signal: controller.signal,
+            }).catch((err: unknown) => {
+              thrown = err;
+              throw err;
             }),
           warmBudgetMs,
           null,
@@ -625,17 +689,26 @@ export async function runInsightPregenerate(
           // bump `failed` with no annotation, so a candidate whose comprehensive
           // generation timed out (e.g. the briefing clipped at the old 45 s
           // bound) left the cached block empty AND emitted nothing greppable.
+          // v1.28.30 — carry the stage + error text so ONE grep on
+          // `comprehensive_failed` names the failing catch and its cause.
           annotate({
             action: { name: "insights.pregenerate.comprehensive_failed" },
             meta: {
               locale,
+              stage: "nightly.bound",
               cause: bounded.timedOut
                 ? "timeout"
                 : bounded.errored
                   ? "error"
                   : "null",
+              budget_ms: warmBudgetMs,
+              message: thrown === null ? null : describeError(thrown),
             },
           });
+          // v1.28.30 — bounded intra-day retry: one delayed forced warm for
+          // just this user, so a transient 04:30 provider hiccup heals
+          // before the morning visit instead of waiting for the next night.
+          await enqueueRetry({ userId: candidate.id, locale });
         } else {
           outcome = bounded.value;
           switch (outcome.status) {
@@ -653,6 +726,24 @@ export async function runInsightPregenerate(
               break;
             case "failed":
               result.failed++;
+              // v1.28.30 — THE previously-silent failure path. A generator
+              // that resolves with `{ status: "failed" }` (features error,
+              // oversize payload, invalid JSON after retry, abort) bumped
+              // the tally with no annotation at all — the nightly summary
+              // showed `failed: 1` and nothing else was greppable. Reuse
+              // the `comprehensive_failed` shape with the generator's own
+              // reason as the cause.
+              annotate({
+                action: { name: "insights.pregenerate.comprehensive_failed" },
+                meta: {
+                  locale,
+                  stage: "nightly.generator",
+                  cause: `generator:${outcome.reason}`,
+                  budget_ms: warmBudgetMs,
+                  message: null,
+                },
+              });
+              await enqueueRetry({ userId: candidate.id, locale });
               break;
           }
         }
@@ -896,12 +987,17 @@ export async function forceWarmUser(
           const warmBudgetMs = comprehensiveWarmBudgetMs(
             freshness?.aiResponseTimeoutSeconds,
           );
+          // v1.28.30 — capture the rejection for the failure annotation.
+          let thrown: unknown = null;
           const comprehensive = await withTimeout(
             () =>
               generate(userId, {
                 locale,
                 force: true,
                 signal: controller.signal,
+              }).catch((err: unknown) => {
+                thrown = err;
+                throw err;
               }),
             warmBudgetMs,
             null,
@@ -913,6 +1009,33 @@ export async function forceWarmUser(
             result.comprehensive = "failed";
           } else {
             result.comprehensive = comprehensive.value.status;
+          }
+          // v1.28.30 — same queryable failure shape as the nightly loop, so
+          // one grep on `comprehensive_failed` covers both entry points.
+          if (
+            result.comprehensive === "failed" ||
+            result.comprehensive === "timeout"
+          ) {
+            annotate({
+              action: { name: "insights.pregenerate.comprehensive_failed" },
+              meta: {
+                locale,
+                stage: "force",
+                cause: comprehensive.timedOut
+                  ? "timeout"
+                  : comprehensive.errored
+                    ? "error"
+                    : comprehensive.value === null
+                      ? "null"
+                      : `generator:${
+                          comprehensive.value.status === "failed"
+                            ? comprehensive.value.reason
+                            : comprehensive.value.status
+                        }`,
+                budget_ms: warmBudgetMs,
+                message: thrown === null ? null : describeError(thrown),
+              },
+            });
           }
 
           // Stamp / clear the failure marker for the backoff gate above. A

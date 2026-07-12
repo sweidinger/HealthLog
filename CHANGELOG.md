@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [1.28.30] — 2026-07-12 — The daily briefing stops silently skipping days
+
+The recurring "no briefing today" had a chain of causes, now closed end to end.
+Every failure path in the nightly generation names its cause in the logs
+(several classes previously failed without a trace). A failed night retries
+itself about forty-five minutes later instead of waiting for the next night.
+A cached insight payload that carries no briefing no longer counts as fresh —
+previously it could satisfy the daily window and even the unchanged-data check,
+so a once-stripped briefing could block its own regeneration indefinitely. And
+the briefing card now reports persistently why a briefing is absent (withheld
+by the number check, generation failed, or not yet attempted) with a retry
+button that always generates.
+
+Documentation corrections, verified against the code: Withings credentials are
+per-user in the app (the documented environment-variable path never existed —
+and the webhook secret is now actually passed through in the compose file);
+the classic Fitbit portal no longer accepts new registrations (new users:
+Google Health); the backup-restore example no longer generates a fresh
+encryption key (which could never decrypt an existing backup) and uses the
+invocation that works in the production image; the certificate-pinning guide
+now describes the real model (two CA-level pins, leaf renewals need no app
+build); scaling and admin-endpoint references corrected.
+
 ## [1.28.29] — 2026-07-11 — Dashboard edits show up on the way back; one scrollbar again
 
 Changing the dashboard tile selection now shows up immediately when you

@@ -68,19 +68,25 @@ The credentials are never returned.
 ## Restore
 
 Pick a key (e.g. `2026-05-08/user-clx123.json.enc`) from the bucket
-and run:
+and run the restore script with the same backup credentials and
+encryption key the backup was written under — a freshly generated
+`BACKUP_ENCRYPTION_KEY` cannot decrypt any existing object:
 
 ```bash
-BACKUP_S3_ENDPOINT=https://...r2.cloudflarestorage.com \
-BACKUP_S3_BUCKET=healthlog-backups                     \
-BACKUP_S3_ACCESS_KEY=...                               \
-BACKUP_S3_SECRET_KEY=...                               \
-BACKUP_S3_REGION=auto                                  \
-BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)          \
-pnpm tsx scripts/restore-backup.ts \
+BACKUP_S3_ENDPOINT=https://...r2.cloudflarestorage.com       \
+BACKUP_S3_BUCKET=healthlog-backups                           \
+BACKUP_S3_ACCESS_KEY=...                                     \
+BACKUP_S3_SECRET_KEY=...                                     \
+BACKUP_S3_REGION=auto                                        \
+BACKUP_ENCRYPTION_KEY=<the key the backup was written under> \
+pnpm dlx tsx scripts/restore-backup.ts \
   2026-05-08/user-clx123.json.enc \
   /tmp/restored.json
 ```
+
+The production standalone image strips `tsx`, so a bare
+`pnpm tsx scripts/...` fails inside the container — always invoke
+one-shot scripts via `pnpm dlx tsx`.
 
 The script downloads the object, decrypts it, and writes the JSON dump
 to disk. Importing the JSON back into a HealthLog instance is left to

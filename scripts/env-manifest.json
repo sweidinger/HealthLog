@@ -37,17 +37,9 @@
     },
     {
       "name": "Withings OAuth",
-      "description": "Required to enable the Withings integration. App boots without these but Withings sync stays disabled.",
+      "description": "Withings API credentials are entered per user in Settings → Integrations (no env-var path). Only the webhook shared secret is operator-level.",
       "required": false,
       "variables": [
-        {
-          "name": "WITHINGS_CLIENT_ID",
-          "purpose": "Withings OAuth client_id from https://developer.withings.com."
-        },
-        {
-          "name": "WITHINGS_CLIENT_SECRET",
-          "purpose": "Withings OAuth client_secret."
-        },
         {
           "name": "WITHINGS_WEBHOOK_SECRET",
           "purpose": "Random secret carried as a path segment in the Withings webhook callback URL. Generate with `openssl rand -hex 32`."
@@ -167,9 +159,18 @@
           "name": "BACKUP_S3_ENDPOINT",
           "purpose": "S3-compatible endpoint URL."
         },
-        { "name": "BACKUP_S3_BUCKET", "purpose": "Bucket name." },
-        { "name": "BACKUP_S3_ACCESS_KEY", "purpose": "S3 access key." },
-        { "name": "BACKUP_S3_SECRET_KEY", "purpose": "S3 secret key." },
+        {
+          "name": "BACKUP_S3_BUCKET",
+          "purpose": "Bucket name."
+        },
+        {
+          "name": "BACKUP_S3_ACCESS_KEY",
+          "purpose": "S3 access key."
+        },
+        {
+          "name": "BACKUP_S3_SECRET_KEY",
+          "purpose": "S3 secret key."
+        },
         {
           "name": "BACKUP_ENCRYPTION_KEY",
           "purpose": "Separate AES key for the backup body — MUST NOT match ENCRYPTION_KEY."

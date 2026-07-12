@@ -86,6 +86,7 @@ import { annotate } from "@/lib/logging/context";
 import { AI_BUDGETS, resolveInsightsMaxTokens } from "@/lib/ai/ai-budgets";
 import { resolveEffectiveTimeoutMs } from "@/lib/ai/effective-timeout";
 import { recordBriefingFailure } from "@/lib/insights/briefing-failure-marker";
+import { cachedPayloadCarriesBriefing } from "@/lib/insights/briefing-payload";
 
 // Scope invalidation + refill moved to a sibling module; re-exported so
 // every existing call site keeps importing from here.
@@ -406,6 +407,35 @@ export async function buildComparisonSnapshotForUser(
   return { baseline, metrics };
 }
 
+/**
+ * v1.28.30 — typed `failed` return for the pre-provider stages (feature
+ * extraction / oversize payload). These paths used to return
+ * `{ status: "failed" }` with NO annotation and NO failure marker: the
+ * nightly cron counted them into its `failed` tally silently, and the
+ * read path could not tell the user the last attempt failed. One helper
+ * so every failure return is greppable under the same action name and
+ * leaves a dated marker for the briefing card's honest empty state.
+ */
+function failBeforeProvider(
+  userId: string,
+  locale: "de" | "en",
+  reason: "payload-too-large" | "features-error" | "aborted",
+  err?: unknown,
+): GenerateOutcome {
+  const message =
+    err instanceof Error
+      ? err.message.slice(0, 240)
+      : err != null
+        ? String(err).slice(0, 240)
+        : null;
+  annotate({
+    action: { name: "insights.generate.comprehensive_failed" },
+    meta: { locale, reason, provider_status: null, provider_message: message },
+  });
+  void recordBriefingFailure({ userId, reason, locale });
+  return { status: "failed", reason };
+}
+
 interface GenerateOptions {
   /** Resolved UI locale for the prompt + cache row. */
   locale: "de" | "en";
@@ -544,15 +574,20 @@ export async function generateComprehensiveInsight(
               aggregated,
               MAX_DOWNGRADE_TOKENS,
             );
-          } catch {
-            return { status: "failed", reason: "payload-too-large" };
+          } catch (finalErr) {
+            return failBeforeProvider(
+              userId,
+              locale,
+              "payload-too-large",
+              finalErr,
+            );
           }
         } else {
-          return { status: "failed", reason: "features-error" };
+          return failBeforeProvider(userId, locale, "features-error", retryErr);
         }
       }
     } else {
-      return { status: "failed", reason: "features-error" };
+      return failBeforeProvider(userId, locale, "features-error", err);
     }
   }
 
@@ -651,9 +686,30 @@ export async function generateComprehensiveInsight(
     referenceMetrics,
   );
 
+  // v1.28.30 — the unchanged short-circuit only holds when the cached
+  // payload actually carries a briefing. A grounding-stripped (or model-
+  // omitted) briefing left a briefingless payload WITH a stored hash;
+  // on unchanged data every subsequent warm re-stamped the timestamp and
+  // the briefing never came back — a permanent silent hole. Treating the
+  // briefingless cache as "not unchanged" re-runs the full generation
+  // (bounded by the nightly budget bucket + forced-warm caps).
+  const cachedCarriesBriefing = cachedPayloadCarriesBriefing(
+    dbUser?.insightsCachedText,
+  );
   if (
     dbUser?.insightsCachedText &&
-    dbUser.insightsSnapshotHash === snapshotHash
+    dbUser.insightsSnapshotHash === snapshotHash &&
+    !cachedCarriesBriefing
+  ) {
+    annotate({
+      action: { name: "insights.generate.briefingless_cache_regenerate" },
+      meta: { locale },
+    });
+  }
+  if (
+    dbUser?.insightsCachedText &&
+    dbUser.insightsSnapshotHash === snapshotHash &&
+    cachedCarriesBriefing
   ) {
     // v1.18.7 (MEDIUM-3) — findings are byte-stable, but re-roll the daily-
     // briefing PARAGRAPH once per calendar day so the prose reads fresh
@@ -811,12 +867,41 @@ export async function generateComprehensiveInsight(
       });
       result = retry.result;
       workingProviderType = retry.workingProvider.providerType;
-    } catch {
+    } catch (retryErr) {
+      // v1.28.30 — annotate alongside the marker so an invalid-JSON night
+      // is greppable under the same action as every other failure class.
+      annotate({
+        action: { name: "insights.generate.comprehensive_failed" },
+        meta: {
+          locale,
+          reason: "invalid-json",
+          provider_status: null,
+          provider_message:
+            retryErr instanceof Error
+              ? retryErr.message.slice(0, 240)
+              : "retry-transport-failed",
+        },
+      });
       void recordBriefingFailure({ userId, reason: "invalid-json", locale });
       return { status: "failed", reason: "invalid-json" };
     }
     insights = parseComprehensiveResult(result.content);
     if (insights === null) {
+      annotate({
+        action: { name: "insights.generate.comprehensive_failed" },
+        meta: {
+          locale,
+          reason: "invalid-json",
+          provider_status: null,
+          // v1.28.28 truncation-aware: a `length` finish means the token
+          // ceiling cut the JSON mid-string — a budget problem, not a
+          // model-quality one.
+          provider_message:
+            result.finishReason === "length"
+              ? "response-truncated-at-token-ceiling"
+              : "unparseable-after-retry",
+        },
+      });
       void recordBriefingFailure({ userId, reason: "invalid-json", locale });
       return { status: "failed", reason: "invalid-json" };
     }
@@ -827,6 +912,11 @@ export async function generateComprehensiveInsight(
   // enforces the same cross-check: every number the briefing restates must
   // trace to a `features.signalsOfDay` figure. One corrective retry, then strip
   // the briefing rather than persist a fabricated number.
+  // v1.28.30 — true when the grounding gate stripped the briefing HARD (no
+  // previous-cached fallback available). Persisted as a dated marker after
+  // the cache write so the read path can render the honest "briefing
+  // withheld" state instead of a silent generic empty card.
+  let briefingStrippedHard = false;
   {
     const signals = features.signalsOfDay ?? null;
     let retryTransportFailed = false;
@@ -895,6 +985,7 @@ export async function generateComprehensiveInsight(
         }
       }
       (insights as Record<string, unknown>).dailyBriefing = fallbackBriefing;
+      briefingStrippedHard = fallbackBriefing == null;
       annotate({
         action: { name: "insights.generate.briefing_grounding_stripped" },
         meta: {
@@ -913,7 +1004,10 @@ export async function generateComprehensiveInsight(
   // stamp a timestamp/text the caller no longer expects. The provider call
   // already cost what it cost; what we must NOT do now is touch the cache.
   if (signal?.aborted) {
-    return { status: "failed", reason: "aborted" };
+    // v1.28.30 — annotated + marked like every other failure: an abandoned
+    // generation is a real "no fresh briefing tonight" outcome, and the read
+    // path needs the marker to render an honest state instead of silence.
+    return failBeforeProvider(userId, locale, "aborted");
   }
 
   await prisma.user.update({
@@ -930,6 +1024,18 @@ export async function generateComprehensiveInsight(
   // what a per-metric card should say, and the old sweep was the reason
   // every warm had to regenerate ~45 cards across both locales.
   invalidateUserInsights(userId);
+
+  // v1.28.30 — the generation SUCCEEDED but the grounding gate withheld the
+  // briefing. Record the marker AFTER the cache write so it is newer than
+  // `insightsCachedAt` and the read path surfaces "briefing withheld"
+  // instead of a silent generic empty card until the next generation.
+  if (briefingStrippedHard) {
+    void recordBriefingFailure({
+      userId,
+      reason: "briefing-ungrounded",
+      locale,
+    });
+  }
 
   return { status: "generated", providerType: workingProviderType };
 }

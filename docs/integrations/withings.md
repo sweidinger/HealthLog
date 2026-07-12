@@ -38,20 +38,25 @@ arrive via the sleep series endpoint.
    needed — `user.metrics` covers weight / BP / heart-list / sleep /
    SpO₂ / body comp / temperature / VO₂ max; `user.activity` is the
    workout-equivalent stream for steps / energy / distance / floors.
-   See `src/lib/withings/client.ts:42` (`WITHINGS_OAUTH_SCOPE`).
+   See `WITHINGS_OAUTH_SCOPE` in `src/lib/withings/client.ts`.
 4. Save the application. Withings will issue a **Client ID** and a
    **Client Secret** — keep the secret out of any chat log; it grants
    read access to every linked account's full health history.
 
-## 2. Wire the credentials into HealthLog
+## 2. Wire the credentials in Settings → Integrations
 
-Paste the client ID and secret into `.env`:
+Withings credentials are stored per user, not in `.env`. Sign in as
+the target user, open **Settings → Integrations → Withings**, and
+paste the client ID and secret. They are encrypted AES-256-GCM at
+rest (`src/lib/withings/credentials.ts`). On a shared instance every
+user brings their own Withings app credentials; there is no
+server-level client-id/secret fallback.
+
+Two server-level env vars remain:
 
 ```env
-WITHINGS_CLIENT_ID="your-client-id"
-WITHINGS_CLIENT_SECRET="your-client-secret"
-WITHINGS_REDIRECT_URI="https://your-instance.example.com/api/withings/callback"
 WITHINGS_WEBHOOK_SECRET="$(openssl rand -hex 32)"
+WITHINGS_REDIRECT_URI="https://your-instance.example.com/api/withings/callback"
 ```
 
 `WITHINGS_WEBHOOK_SECRET` is the path-segment token the webhook
@@ -60,10 +65,9 @@ that fits in a URL path segment works, but a 64-character hex string
 keeps it indistinguishable from random. Restart the `app` container
 after saving.
 
-Per-user override is also possible: the Settings UI accepts a
-client-ID/secret pair scoped to one user, useful if you want a
-shared instance where every user brings their own Withings app
-credentials. Server-level env vars cover the default case.
+`WITHINGS_REDIRECT_URI` is optional — when unset the callback URL
+defaults to `${NEXT_PUBLIC_APP_URL}/api/withings/callback`. Set it
+only when the OAuth callback must differ from that default.
 
 ## 3. Set the webhook URL
 
@@ -90,9 +94,8 @@ callback. The portal only owns the OAuth callback URL.
 
 ## 4. Link from the Settings page
 
-With env vars in place and the app restarted, sign in as the target
-user and open `/settings/integrations/withings`. Click **Connect
-Withings**. The flow:
+With the credentials saved in Settings, open
+`/settings/integrations/withings` and click **Connect Withings**. The flow:
 
 1. The Connect button redirects to Withings' `oauth2/authorize`.
 2. The user signs in on Withings and grants the requested scopes.
@@ -133,10 +136,10 @@ Override per-user via the Sources section of `/settings/thresholds`.
 
 ### The Connect button errors out
 
-- **`Withings credentials not configured`** — `WITHINGS_CLIENT_ID`
-  or `WITHINGS_CLIENT_SECRET` is missing from `.env`. Confirm both
-  are set in the container's runtime environment (`docker compose
-exec app env | grep WITHINGS`).
+- **`Withings credentials not configured`** — the signed-in user has
+  not saved a client ID + secret under **Settings → Integrations →
+  Withings**. Credentials live per user in the database, not in
+  `.env` — paste the pair from the developer portal and retry.
 - **`Callback URI mismatch`** — the URL HealthLog sends to Withings
   must match an entry in the developer-portal app's callback list.
   Add the public URL exactly, including the `https://` scheme and

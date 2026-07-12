@@ -405,11 +405,16 @@ describe("POST /api/insights/generate — cache write (v1.16.8)", () => {
 
   it("does NOT touch the cache when serving from the 24h DB cache", async () => {
     // Cached path: route returns early without touching the LLM or the
-    // cache write.
+    // cache write. v1.28.30 — the short-circuit requires the cached
+    // payload to CARRY a briefing (a briefingless cache is stale for a
+    // briefing-expecting caller), so the fixture carries one.
     vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
       insightsPrivacyMode: "aggregated",
       insightsCachedAt: new Date(),
-      insightsCachedText: JSON.stringify({ changed: "still fresh" }),
+      insightsCachedText: JSON.stringify({
+        changed: "still fresh",
+        dailyBriefing: { paragraph: "ok", keyFindings: [] },
+      }),
       locale: "en",
     } as never);
 
@@ -445,7 +450,10 @@ describe("POST /api/insights/generate — cache write (v1.16.8)", () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
       insightsPrivacyMode: "aggregated",
       insightsCachedAt: new Date(),
-      insightsCachedText: JSON.stringify({ changed: "still fresh" }),
+      insightsCachedText: JSON.stringify({
+        changed: "still fresh",
+        dailyBriefing: { paragraph: "ok", keyFindings: [] },
+      }),
       locale: "en",
     } as never);
 
@@ -464,6 +472,99 @@ describe("POST /api/insights/generate — cache write (v1.16.8)", () => {
     const res = await POST(jsonRequest({ force: true }) as never);
     expect(res.status).toBe(503);
     expect(enqueueStatusRefillForUser).not.toHaveBeenCalled();
+  });
+});
+
+// v1.28.30 — the "no briefing today" chain: a failed nightly warm left a
+// fresh-but-briefingless cache inside the 24 h window, and the POST's
+// unconditional short-circuit served it to every regenerate attempt
+// (`cached: true` three times in prod, zero generations, a full day
+// without a briefing). The short-circuit now only holds when the cached
+// payload carries a briefing OR the account has no usable provider.
+describe("POST /api/insights/generate — briefingless fresh cache (v1.28.30)", () => {
+  function mockBriefinglessFreshCache() {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsPrivacyMode: "aggregated",
+      insightsCachedAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
+      insightsCachedText: JSON.stringify({
+        changed: "fresh but no briefing",
+        dailyBriefing: null,
+      }),
+      insightsExcludeMetrics: [],
+      locale: "en",
+    } as never);
+  }
+
+  it("POST without force + fresh cache WITH briefing → served cached", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsPrivacyMode: "aggregated",
+      insightsCachedAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
+      insightsCachedText: JSON.stringify({
+        dailyBriefing: { paragraph: "today", keyFindings: [] },
+      }),
+      locale: "en",
+    } as never);
+
+    const res = await POST(jsonRequest({}) as never);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { cached: boolean } };
+    expect(body.data.cached).toBe(true);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("POST without force + fresh cache WITHOUT briefing + provider → regenerates", async () => {
+    makeWorkingProvider();
+    mockBriefinglessFreshCache();
+
+    const res = await POST(jsonRequest({}) as never);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { cached: boolean } };
+    // The stale-for-briefing cache was bypassed: a real generation ran and
+    // wrote a fresh cache row.
+    expect(body.data.cached).toBe(false);
+    expect(prisma.user.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("POST without force + fresh cache WITHOUT briefing + NO provider → serves cached (regeneration is futile)", async () => {
+    vi.mocked(hasUsableStatusProvider).mockResolvedValueOnce(false);
+    mockBriefinglessFreshCache();
+
+    const res = await POST(jsonRequest({}) as never);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { cached: boolean } };
+    expect(body.data.cached).toBe(true);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("degrades to the cached payload instead of 429 when the briefingless fall-through is rate-limited", async () => {
+    makeWorkingProvider();
+    mockBriefinglessFreshCache();
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 3600_000,
+    });
+
+    const res = await POST(jsonRequest({}) as never);
+    // A POST-as-read caller never used to see a 429 on a fresh cache;
+    // exhausting the quota falls back to the old cached-serve behaviour.
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { cached: boolean } };
+    expect(body.data.cached).toBe(true);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("explicit force keeps the honest 429 when rate-limited", async () => {
+    makeWorkingProvider();
+    mockBriefinglessFreshCache();
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 3600_000,
+    });
+
+    const res = await POST(jsonRequest({ force: true }) as never);
+    expect(res.status).toBe(429);
   });
 });
 
@@ -617,6 +718,66 @@ describe("GET /api/insights/generate — read-only advisor read", () => {
     expect(body.data.hasProvider).toBe(false);
     expect(enqueueForceWarm).not.toHaveBeenCalled();
     expect(body.data.revalidating).toBe(false);
+  });
+
+  // v1.28.30 — a briefing the grounding gate withheld used to be visible
+  // only on the transient POST response; every later read showed a generic
+  // "no briefing yet". The marker written after the cache write now
+  // surfaces the omission on the read path, WITHOUT reading as a failure.
+  it("surfaces briefingOmittedReason from a briefing-ungrounded marker (not as a failure)", async () => {
+    const cachedAt = new Date(Date.now() - 60 * 60 * 1000);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsCachedAt: cachedAt,
+      insightsCachedText: JSON.stringify({ dailyBriefing: null }),
+      locale: "en",
+    } as never);
+    // Marker newer than the last successful generation (written right
+    // after the cache write on the strip path).
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValueOnce({
+      createdAt: new Date(cachedAt.getTime() + 1000),
+      details: JSON.stringify({ reason: "briefing-ungrounded" }),
+    } as never);
+
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        briefingOmittedReason: string | null;
+        generationFailed: boolean;
+        generationFailureClass: string | null;
+      };
+    };
+    expect(body.data.briefingOmittedReason).toBe("ungrounded");
+    // The generation SUCCEEDED (the briefing was withheld) — the card must
+    // render "withheld", not "couldn't generate".
+    expect(body.data.generationFailed).toBe(false);
+    expect(body.data.generationFailureClass).toBeNull();
+  });
+
+  it("still reports generationFailed for a genuine failure marker", async () => {
+    const cachedAt = new Date(Date.now() - 60 * 60 * 1000);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsCachedAt: cachedAt,
+      insightsCachedText: JSON.stringify({
+        dailyBriefing: { paragraph: "held", keyFindings: [] },
+      }),
+      locale: "en",
+    } as never);
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValueOnce({
+      createdAt: new Date(cachedAt.getTime() + 1000),
+      details: JSON.stringify({ reason: "provider-error", httpStatus: 503 }),
+    } as never);
+
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
+    const body = (await res.json()) as {
+      data: { briefingOmittedReason: string | null; generationFailed: boolean };
+    };
+    expect(body.data.generationFailed).toBe(true);
+    expect(body.data.briefingOmittedReason).toBeNull();
   });
 
   it("reports hasProvider: true on a normal cached read", async () => {
