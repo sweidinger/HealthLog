@@ -148,3 +148,45 @@ describe("reminder-worker — dense intra-day retention wiring", () => {
     expect(source).toMatch(/derivedRestingRowsUpserted/);
   });
 });
+
+describe("reminder-worker — dense hourly-rebuild wiring", () => {
+  it("imports the queue symbols from the dense-intraday-hourly-rebuild module", () => {
+    expect(source).toMatch(
+      /from\s*["']@\/lib\/jobs\/dense-intraday-hourly-rebuild["']/,
+    );
+    expect(source).toMatch(/\bDENSE_INTRADAY_HOURLY_REBUILD_QUEUE\b/);
+    expect(source).toMatch(/\brunDenseIntradayHourlyRebuildForUser\b/);
+    expect(source).toMatch(/\benqueueBootTimeDenseIntradayHourlyRebuild\b/);
+  });
+
+  it("registers the hourly-rebuild queue in allQueues", () => {
+    expect(allQueuesBlock()).toMatch(/\bDENSE_INTRADAY_HOURLY_REBUILD_QUEUE\b/);
+  });
+
+  it("registers a boss.work handler against the hourly-rebuild queue", () => {
+    expect(source).toMatch(
+      /boss\.work[\s\S]{0,250}DENSE_INTRADAY_HOURLY_REBUILD_QUEUE[\s\S]{0,500}runDenseIntradayHourlyRebuildForUser/,
+    );
+  });
+
+  it("fires the boot-discovery enqueue helper", () => {
+    expect(source).toMatch(
+      /await enqueueBootTimeDenseIntradayHourlyRebuild\(\)/,
+    );
+  });
+
+  it("defers the boot-discovery rebuild past the startup storm (P2028 guard)", () => {
+    const REBUILD_PATH = join(
+      __dirname,
+      "..",
+      "dense-intraday-hourly-rebuild.ts",
+    );
+    const rebuildSource = readFileSync(REBUILD_PATH, "utf8");
+    expect(rebuildSource).toMatch(
+      /DENSE_INTRADAY_HOURLY_REBUILD_BOOT_DELAY_SECONDS\s*=\s*\d+/,
+    );
+    expect(rebuildSource).toMatch(
+      /startAfter:\s*DENSE_INTRADAY_HOURLY_REBUILD_BOOT_DELAY_SECONDS/,
+    );
+  });
+});

@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [1.28.31] — 2026-07-12 — Heart-rate history keeps its daily shape
+
+Long-term retention for the dense intra-day signals (heart rate, HRV, blood
+oxygen) now folds to hourly means instead of a single daily mean. The last
+14 days keep every raw sample as before; older days keep up to 24 points —
+enough to see how a day actually went, at roughly nine thousand rows per
+metric per year instead of an unbounded raw stream.
+
+Because the old fold soft-deleted rather than erased, a one-time rebuild
+reconstructs the hourly shape for every already-folded day from the retained
+raw samples, then retires the old daily row in the same transaction — no
+reader can ever double-count a day. The rebuild runs automatically once per
+installation after the update; days whose raw samples are no longer
+available keep their daily mean. Daily min/max/mean statistics captured at
+fold time stay untouched throughout.
+
 ## [1.28.30] — 2026-07-12 — The daily briefing stops silently skipping days
 
 The recurring "no briefing today" had a chain of causes, now closed end to end.

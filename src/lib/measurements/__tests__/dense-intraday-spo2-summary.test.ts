@@ -5,16 +5,17 @@
  * through the day and overnight; the readings map to `aggregation: "latest"`
  * and belong to NEITHER `CUMULATIVE_HK_TYPES` nor `HIGH_FREQUENCY_MEAN_TYPES`,
  * so every sample piled up raw forever. The dense intra-day retention drain
- * folds the out-of-window per-sample rows to one daily-MEAN `stats:` row,
- * mirroring the PULSE facet's min/max preservation: the daily MIN is the
+ * folds the out-of-window per-sample rows to hourly-MEAN `stats:` rows,
+ * mirroring the PULSE facet's fidelity handling: the daily MIN is the
  * overnight-desaturation nadir — the single most clinically meaningful SpO2
  * figure — so the DAY rollup bucket is recomputed from the RAW rows BEFORE the
- * fold and the post-fold recompute that would collapse min == max == mean is
- * skipped.
+ * fold and the post-fold recompute that would degrade min/max (and drift the
+ * mean to an unweighted mean-of-hourly-means) is skipped.
  *
  * This suite pins the SpO2 facet: the pre-fold (and only) DAY-rollup recompute,
- * the MEAN fold + soft-delete, the no-derived-resting-row guard (resting HR is
- * a PULSE-only concern), idempotency, and the per-day failure boundary.
+ * the hourly MEAN fold + soft-delete, the no-derived-resting-row guard
+ * (resting HR is a PULSE-only concern), idempotency, and the per-day failure
+ * boundary.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -86,9 +87,9 @@ beforeEach(() => {
   recomputeBucketsForMeasurement.mockClear();
 });
 
-describe("SpO2 fold — MEAN collapse + soft-delete", () => {
-  it("folds the day to one MEAN row (not the latest, not the min) and soft-deletes the raw rows", async () => {
-    // Overnight dip to 91, daytime band 96..98. Mean ~95.2, NOT the 91 nadir.
+describe("SpO2 fold — hourly MEAN collapse + soft-delete", () => {
+  it("folds each LOCAL hour to its own MEAN row and soft-deletes the raw rows", async () => {
+    // Overnight dip to 91, daytime band 96..98 — four distinct local hours.
     const rows = [
       spo2Row("a", 91, "2026-05-01T03:00:00.000Z"),
       spo2Row("b", 96, "2026-05-01T09:00:00.000Z"),
@@ -104,13 +105,23 @@ describe("SpO2 fold — MEAN collapse + soft-delete", () => {
       log: () => {},
     });
 
-    const createArg = txCreate.mock.calls[0]?.[0] as {
-      data: { value: number; type: string; source: string; unit: string };
-    };
-    expect(createArg.data.type).toBe("OXYGEN_SATURATION");
-    expect(createArg.data.source).toBe("APPLE_HEALTH");
-    expect(createArg.data.unit).toBe("%");
-    expect(createArg.data.value).toBeCloseTo((91 + 96 + 97 + 98) / 4, 6);
+    // One hourly row per distinct local hour; the overnight 91 nadir hour
+    // keeps its own value instead of vanishing into a daily mean of ~95.5.
+    expect(txCreate).toHaveBeenCalledTimes(4);
+    const createArgs = txCreate.mock.calls.map(
+      (c) =>
+        (
+          c[0] as {
+            data: { value: number; type: string; source: string; unit: string };
+          }
+        ).data,
+    );
+    expect(createArgs.map((d) => d.value)).toEqual([91, 96, 97, 98]);
+    for (const d of createArgs) {
+      expect(d.type).toBe("OXYGEN_SATURATION");
+      expect(d.source).toBe("APPLE_HEALTH");
+      expect(d.unit).toBe("%");
+    }
 
     // Soft-delete, never hard delete.
     const updArg = txUpdateMany.mock.calls[0]?.[0] as {
@@ -119,6 +130,7 @@ describe("SpO2 fold — MEAN collapse + soft-delete", () => {
     expect(updArg.data.deletedAt).toBeInstanceOf(Date);
     expect(summary.totals.daysConsolidated).toBe(1);
     expect(summary.totals.perSampleRowsSoftDeleted).toBe(rows.length);
+    expect(summary.totals.hourlyRowsUpserted).toBe(4);
   });
 });
 
@@ -133,11 +145,12 @@ describe("SpO2 fold — min/max preservation (overnight desat nadir)", () => {
 
     await runDenseIntradayRetention(mock, { retentionDays: 0, log: () => {} });
 
-    expect(txCreate).toHaveBeenCalledTimes(1);
+    // Three distinct local hours → three hourly rows.
+    expect(txCreate).toHaveBeenCalledTimes(3);
 
     // EXACTLY one SpO2 recompute — the pre-fold capture. A second (post-fold)
-    // recompute would aggregate the single mean row and collapse the daily MIN
-    // (the overnight-desaturation nadir) into the mean.
+    // recompute would aggregate the hourly mean rows and degrade the daily MIN
+    // (the overnight-desaturation nadir) toward the hourly means.
     const spo2Recomputes = recomputeBucketsForMeasurement.mock.calls.filter(
       (c) => c[1] === "OXYGEN_SATURATION",
     );

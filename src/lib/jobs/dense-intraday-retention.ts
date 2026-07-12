@@ -9,10 +9,10 @@
  * so they drop off the discovery list).
  *
  * Unlike the daily-mean consolidation, this pass scopes to the dense-tier
- * types (`HEART_RATE_VARIABILITY`, `PULSE`) and keeps the last
- * `DENSE_INTRADAY_RETENTION_DAYS` of raw per-sample rows so the Stress
- * engine still has its intra-day SDNN shape; only out-of-window samples
- * fold to a daily mean.
+ * types (`HEART_RATE_VARIABILITY`, `PULSE`, `OXYGEN_SATURATION`) and keeps
+ * the last `DENSE_INTRADAY_RETENTION_DAYS` of raw per-sample rows so the
+ * Stress engine still has its intra-day SDNN shape; only out-of-window
+ * samples fold — to hourly means since v1.28.31.
  *
  * The queue name MUST be registered in `allQueues` in
  * `src/lib/jobs/reminder-worker.ts` so pg-boss provisions it at boot; an
@@ -115,7 +115,8 @@ export async function runDenseIntradayRetentionForUser(
       details: {
         days: summary.totals.daysConsolidated,
         per_sample_rows_soft_deleted: summary.totals.perSampleRowsSoftDeleted,
-        daily_rows_upserted: summary.totals.dailyRowsUpserted,
+        hourly_rows_upserted: summary.totals.hourlyRowsUpserted,
+        daily_rows_retired: summary.totals.dailyRowsRetired,
         // iOS#34 — derived RESTING_HEART_RATE rows minted from folded PULSE
         // days for proxy users, preserving the resting signal post-fold.
         derived_resting_rows_upserted:

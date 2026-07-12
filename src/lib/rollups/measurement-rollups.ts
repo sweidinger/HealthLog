@@ -650,8 +650,13 @@ async function persistRollupRows(
  * Monday-anchored ISO week and calendar-month / calendar-year
  * semantics in JS so the worker re-aggregation queries select the
  * same set of rows the read-side `date_trunc` would group on.
+ *
+ * Exported for callers that enqueue their own `enqueueRollupRecompute`
+ * (the dense-tier hourly rebuild) — a recompute over a PARTIAL bucket
+ * span would replace the full bucket with a partial aggregate, so every
+ * enqueue must cover the whole span this helper resolves.
  */
-function bucketSpan(
+export function bucketSpan(
   measuredAt: Date,
   granularity: RollupGranularity,
 ): { from: Date; to: Date } {

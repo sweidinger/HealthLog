@@ -77,6 +77,13 @@ import {
 } from "@/lib/jobs/dense-intraday-retention";
 import { runDenseIntradayRetention } from "@/lib/measurements/dense-intraday-retention";
 import {
+  DENSE_INTRADAY_HOURLY_REBUILD_QUEUE,
+  DENSE_INTRADAY_HOURLY_REBUILD_CONCURRENCY,
+  runDenseIntradayHourlyRebuildForUser,
+  enqueueBootTimeDenseIntradayHourlyRebuild,
+  type DenseIntradayHourlyRebuildPayload,
+} from "@/lib/jobs/dense-intraday-hourly-rebuild";
+import {
   getWorkerPrisma,
   workerLog,
   BOOT_BACKFILL_STAGGER_SECONDS,
@@ -123,6 +130,10 @@ const allQueues = [
   // driven like mean-consolidation; the steady-state nightly walk folds
   // onto the drain-cumulative tick).
   DENSE_INTRADAY_RETENTION_QUEUE,
+  // v1.28.31 — one-shot hourly history rebuild for pre-hourly folded
+  // dense-tier days. Boot-discovery driven and self-converging (a rebuilt
+  // day's retired daily row drops it from the discovery pairing).
+  DENSE_INTRADAY_HOURLY_REBUILD_QUEUE,
   // v1.4.37 W7c — explicit createQueue is required before the nightly
   // schedule below registers (pg-boss v12 contract). Without this entry the
   // drain schedule silently no-ops and the per-sample APPLE_HEALTH rows
@@ -231,10 +242,11 @@ export async function registerRollupQueues(
 
   // v1.10.0 WX-E — dense intra-day retention per-user backfill worker. The
   // boot enqueue helper below sends one job per user holding live per-sample
-  // dense-tier (HRV / HR) rows older than the retention window; this handler
-  // folds those out-of-window samples to a daily mean and soft-deletes the
-  // originals, keeping the in-window intra-day shape intact for the Stress
-  // engine. Serial concurrency so the backfill never crowds the request pool.
+  // dense-tier (HRV / HR / SpO2) rows older than the retention window; this
+  // handler folds those out-of-window samples to hourly means (v1.28.31) and
+  // soft-deletes the originals, keeping the in-window intra-day shape intact
+  // for the Stress engine. Serial concurrency so the backfill never crowds
+  // the request pool.
   await boss.work<DenseIntradayRetentionPayload>(
     DENSE_INTRADAY_RETENTION_QUEUE,
     { localConcurrency: DENSE_INTRADAY_RETENTION_CONCURRENCY },
@@ -256,6 +268,43 @@ export async function registerRollupQueues(
           workerLog(
             "error",
             `[dense-intraday-retention] user=${userId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
+  // v1.28.31 — one-shot hourly history rebuild worker. The boot enqueue
+  // helper below sends one job per user still holding a pre-hourly daily
+  // `stats:` row paired with tombstoned raw rows; this handler reconstructs
+  // hourly means from the tombstones and retires the daily row atomically.
+  // Self-converging: a rebuilt day drops out of the discovery pairing, so
+  // the pass runs once per install. Serial concurrency so the rebuild never
+  // crowds the request pool.
+  await boss.work<DenseIntradayHourlyRebuildPayload>(
+    DENSE_INTRADAY_HOURLY_REBUILD_QUEUE,
+    { localConcurrency: DENSE_INTRADAY_HOURLY_REBUILD_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        try {
+          const {
+            daysRebuilt,
+            hourlyRowsUpserted,
+            dailyRowsRetired,
+            daysSkippedNoTombstones,
+          } = await runDenseIntradayHourlyRebuildForUser(userId);
+          workerLog(
+            "info",
+            `[dense-intraday-hourly-rebuild] user=${userId} daysRebuilt=${daysRebuilt} hourlyRowsUpserted=${hourlyRowsUpserted} dailyRowsRetired=${dailyRowsRetired} daysSkippedNoTombstones=${daysSkippedNoTombstones}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[dense-intraday-hourly-rebuild] user=${userId} failed`,
             err,
           );
           throw err;
@@ -429,7 +478,7 @@ export async function registerRollupQueues(
             );
             workerLog(
               "info",
-              `[dense-intraday-retention] triggeredAt=${job.data.triggeredAt} usersScanned=${denseSummary.totals.usersScanned} daysConsolidated=${denseSummary.totals.daysConsolidated} perSampleRowsSoftDeleted=${denseSummary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${denseSummary.totals.dailyRowsUpserted}`,
+              `[dense-intraday-retention] triggeredAt=${job.data.triggeredAt} usersScanned=${denseSummary.totals.usersScanned} daysConsolidated=${denseSummary.totals.daysConsolidated} perSampleRowsSoftDeleted=${denseSummary.totals.perSampleRowsSoftDeleted} hourlyRowsUpserted=${denseSummary.totals.hourlyRowsUpserted} dailyRowsRetired=${denseSummary.totals.dailyRowsRetired}`,
             );
           }
         } catch (err) {
@@ -574,6 +623,35 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
     workerLog(
       "error",
       "[dense-intraday-retention] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.28.31 — one-shot hourly history rebuild. Finds every user still
+  // holding a pre-hourly daily dense-tier `stats:` row paired with tombstoned
+  // raw rows and enqueues one rebuild job per account. Rebuilt days retire
+  // their daily row, so the pairing predicate converges to zero across
+  // boots — the retired row is the durable once-per-install marker.
+  try {
+    // Self-defers past both the boot window and the retention drain's own
+    // 600 s stage via its larger constant; no stagger argument threaded.
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeDenseIntradayHourlyRebuild();
+    if (error) {
+      workerLog(
+        "error",
+        `[dense-intraday-hourly-rebuild] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[dense-intraday-hourly-rebuild] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[dense-intraday-hourly-rebuild] boot discovery threw an unexpected error",
       err,
     );
   }
