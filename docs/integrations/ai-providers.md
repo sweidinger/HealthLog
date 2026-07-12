@@ -33,7 +33,9 @@ HealthLog supports two key-provisioning modes that coexist:
   `AppSettings.adminAiKeyEncrypted`. Users who have not configured
   their own key fall back to the admin key. This is the last entry
   in the default provider chain so it acts as a safety net rather
-  than the default route.
+  than the default route. Since v1.28.14 the operator can also share
+  a subscription-based account that users opt into — see
+  [Admin-shared subscription access](#admin-shared-subscription-access).
 
 Single-user instances usually pick one mode and stop there.
 Multi-user instances tend to run BYOK with the admin-shared key as a
@@ -208,6 +210,41 @@ clears the encrypted token columns. The wire-level protocol is
 documented in `docs/codex-protocol-spec.md` for anyone who wants to
 audit the request shape; users who just want the integration to
 work do not need to read it.
+
+## Admin-shared subscription access
+
+Besides the shared API key, the operator can connect a single
+subscription-based AI account for the whole instance — an
+operator-shared subscription provider that users without any
+personal AI setup can opt into.
+
+- **Admin side.** Under **Admin → AI** the operator runs the same
+  device-code OAuth flow as the per-user connection
+  (`POST /api/admin/central-codex/device-start` +
+  `device-poll`). The tokens land AES-256-GCM-encrypted in the
+  `AppSettings` singleton and are never returned by any endpoint —
+  status and disconnect go through `GET` / `DELETE
+/api/admin/central-codex`, which sit behind the cookie-only
+  `requireAdmin()` boundary.
+- **User side.** Each user opts in individually in `/settings/ai`
+  (`PATCH /api/auth/me/use-central-codex`, body
+  `{ "useCentralCodex": boolean }`). The opt-in is off by default.
+- **Chain semantics.** The shared connection is the internal
+  `admin-codex` chain entry. It is never part of the persisted chain
+  and never offered in the chain editor — it is appended **last** to
+  the resolved chain, and only when the user opted in AND the
+  operator has connected the account
+  (`src/lib/ai/provider-chain.ts`). A hand-crafted persisted entry
+  resolves to nothing.
+- **Cost.** Generations through the shared connection run under the
+  operator's account, so usage and rate limits land on the operator,
+  not the user.
+
+The settings UI states this plainly: the shared access is a single
+signed-in AI account the operator connected for everyone on the
+server — not the user's own key. Users who want their data to reach
+only a provider under their own contract should configure a personal
+provider instead; their own entries always resolve first.
 
 ## Privacy stance
 

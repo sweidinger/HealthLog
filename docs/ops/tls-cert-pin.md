@@ -1,26 +1,34 @@
-# TLS leaf SPKI pin — coupling, alarm, and re-pin runbook
+# TLS SPKI pinning — coupling, alarm, and re-pin runbook
 
-The native client SPKI-pins the server's TLS **leaf** certificate. This is a
-deliberate hardening choice on the client side, but it couples the client to
-the exact leaf keypair the server serves: when that leaf rotates, a client
-that was only ever shipped the old pin refuses to connect. This page explains
-the coupling, the server-side alarm that watches for a rotation, and the
-operator / release-owner steps when it fires.
+The native client SPKI-pins the server's TLS chain at the **CA level**. It
+ships a small pin set — currently the issuing intermediate plus the root —
+and accepts a connection only when the served chain passes baseline X.509
+evaluation AND at least one certificate anywhere in the chain matches a pin
+(any-match). The leaf is deliberately **not** pinned, so routine leaf
+renewals are a client no-op. The outage risk is a **chain change**: the
+served chain stops terminating in the pinned CA keys — the server moves to a
+different CA, or the CA rotates its intermediate / root keys. This page
+explains the coupling, the server-side alarm that watches the served leaf,
+and the operator / release-owner steps when it fires.
 
 ## The coupling
 
-A SPKI pin is `base64(sha256(DER subjectPublicKeyInfo))` — a hash of the
+A SPKI pin is `base64(sha256(DER subjectPublicKeyInfo))` — a hash of a
 certificate's public key, not of the whole certificate. The native client
-carries a set of these pins and rejects any TLS connection whose leaf public
-key is not in the set.
+carries a set of these pins (build-time config, ≥ 2 well-formed pins
+enforced for release builds) and rejects any TLS connection whose validated
+chain contains no pinned key. Hosts outside the client's pinned-host list
+fall back to plain system-trust validation, which is the documented model
+for self-hosted instances that ship their own chain.
 
-The app host's certificate is issued by Google Trust Services (GTS) and
-auto-renews roughly every 90 days. Each renewal mints a **new leaf keypair**,
-so the SPKI pin changes on every renewal. Intermediate and root rolls have
-the same effect on the leaf chain. Because the client pins the leaf, every
-such change is a hard outage for any client that hasn't been shipped the new
-pin — and there is otherwise no server-side signal that a client is pinning
-the served leaf at all.
+The app host's certificate auto-renews roughly every 90 days and each
+renewal mints a new leaf keypair. Because the client pins the CA keys rather
+than the leaf, those renewals pass without a client build. What DOES break
+every pinned client is a chain that no longer terminates in a pinned key —
+and there is no server-side signal that clients are pinning the served chain
+at all. The alarm below exists to catch exactly that early: it watches the
+served **leaf**, the most frequently rotating element, as the canary for any
+chain movement.
 
 ## The alarm
 
@@ -46,13 +54,15 @@ successful probe returning a pin genuinely outside the known set.
 
 ### Baseline source: an env var, not auto-learning
 
-`TLS_LEAF_SPKI_PINS` (comma-separated) is the known-good set. The baseline is
-an env var on purpose, **not** a persisted "last-seen" row:
+`TLS_LEAF_SPKI_PINS` (comma-separated) is the known-good set of **served
+leaf** pins. It is the operator's explicit record of what the server is
+expected to serve — distinct from the client's CA-level pin set, which lives
+in the client build config. The baseline is an env var on purpose, **not** a
+persisted "last-seen" row:
 
-- The pinned client only trusts the pins it was shipped, so the operator must
-  derive the client's pin set from a single explicit source of truth. The env
-  var **is** that source — the same value goes into the client's pin set and
-  into `TLS_LEAF_SPKI_PINS`.
+- An explicit baseline forces the operator to acknowledge every leaf
+  rotation and check the new chain against the client's pinned CA keys
+  before the alarm goes quiet.
 - A persisted last-seen baseline would silently adopt the first rotated pin
   and suppress the very alarm the pinned client needs.
 - When the env var is unset, the monitor fails **loud, not open**: it logs
@@ -84,36 +94,43 @@ The variable is on the compose `environment:` whitelist and the
 whether it is set. It is optional: without it the monitor still runs and logs
 the served pin, but cannot alarm on a change.
 
-## When the alarm fires — re-pin procedure
+## When the alarm fires
 
 When you see a `tls.pin.leaf_changed` alert / `system.tls.pin_changed` audit
-row, the served leaf has rotated. The pinned client will stop connecting once
-its shipped pin no longer matches a served leaf. Act inside the certificate's
-remaining validity, with margin for app review and client roll-out — target
-**≥ 11 days before the old pin's certificate expires** (the alert body and
-audit row both carry the new leaf's `validTo`).
+row, the served leaf has rotated. First determine which of two cases you are
+in:
 
-1. **Re-extract the new leaf pin** with the `openssl` pipeline above. It
-   should equal the `servedPin` in the alert.
-2. **Dual-pin.** Add the new pin to the client's pin set **alongside** the old
-   one (do not replace it yet), and update `TLS_LEAF_SPKI_PINS` to the
-   comma-separated pair, e.g.
-   `TLS_LEAF_SPKI_PINS="<old-pin>,<new-pin>"`. Holding both pins means clients
-   on the old build keep working through the cutover and the server-side
-   alarm goes quiet because the served pin is now in the known set. Re-deploy
-   the server so the new env value takes effect.
+1. **Routine renewal, same chain.** Inspect the new chain (the `openssl`
+   pipeline above, or the alert payload). If the issuing intermediate and
+   root are unchanged, the client's CA-level pins still match and no client
+   is at risk. Update `TLS_LEAF_SPKI_PINS` to the new served-leaf pin and
+   re-deploy so the alarm goes quiet. No client build.
+2. **Chain change.** The new leaf chains through a different intermediate /
+   root (CA switch, or the CA rotated its keys). Every pinned client will
+   stop connecting once the old chain is no longer served — run the re-pin
+   procedure below inside the old chain's remaining validity, with margin
+   for app review and client roll-out (the alert body and audit row carry
+   the new leaf's `validTo`).
+
+### Re-pin procedure (chain change)
+
+1. **Extract the new chain's CA pins** (intermediate + root) with the
+   `openssl` pipeline / the client repo's SPKI-extraction script.
+2. **Dual-pin.** Add the new CA pins to the client's pin set **alongside**
+   the old ones (do not replace them yet). Clients on the old build keep
+   working as long as the old chain is still served; the dual-pinned build
+   works against both chains. Update `TLS_LEAF_SPKI_PINS` to the currently
+   served leaf pin(s) so the server-side alarm reflects reality.
 3. **Ship the client build** carrying the dual-pin set to TestFlight (and
-   onward to release). Give it long enough to roll out to the installed base
-   before the next renewal.
-4. **Retire the old pin** once the old leaf is no longer served and the
-   dual-pinned client build has reached the installed base: drop the old pin
-   from both the client pin set and `TLS_LEAF_SPKI_PINS`, leaving only the
-   current leaf pin.
+   onward to release). Give it long enough to roll out to the installed
+   base before the old chain disappears.
+4. **Retire the old pins** once the old chain is no longer served and the
+   dual-pinned client build has reached the installed base.
 
-Treat the dual-pin window as standing practice: always ship the **next** pin
-before the current leaf rotates, so a renewal never catches a single-pinned
-client. If GTS renews on a fixed cadence, pre-extracting and dual-pinning the
-upcoming leaf ahead of the renewal turns every rotation into a no-op.
+CA-level pins move rarely — intermediates and roots carry multi-year
+lifetimes and rotations are announced well ahead. Track the pinned
+certificates' expiry dates and pre-stage the successor pins before the
+cutover, so a chain change never catches a single-chain client.
 
 ## Environment assumption
 

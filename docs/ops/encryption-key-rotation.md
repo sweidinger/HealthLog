@@ -44,7 +44,7 @@ under `v1` (the synthetic id assigned to the existing `ENCRYPTION_KEY`).
 3. **Run the rotation script** to re-encrypt every existing encrypted column
    under the new active key:
    ```
-   pnpm tsx scripts/rotate-encryption-key.ts v2
+   pnpm dlx tsx scripts/rotate-encryption-key.ts v2
    ```
    The script is idempotent — running it again is a no-op for rows already
    prefixed with `v2.`. It rotates User, WithingsConnection, AppSettings,
@@ -69,7 +69,7 @@ script reports zero `v2.`-prefixed rows remaining.
 ```
 ENCRYPTION_KEYS='{"v2":"<old>","v3":"<new>"}'
 ENCRYPTION_ACTIVE_KEY_ID="v3"
-pnpm tsx scripts/rotate-encryption-key.ts v3
+pnpm dlx tsx scripts/rotate-encryption-key.ts v3
 ENCRYPTION_KEYS='{"v3":"<new>"}'
 ```
 

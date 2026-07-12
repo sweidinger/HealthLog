@@ -81,6 +81,7 @@ import {
   buildComparisonSnapshotForUser,
   enqueueStatusRefillForUser,
 } from "@/lib/insights/comprehensive-generate";
+import { cachedPayloadCarriesBriefing } from "@/lib/insights/briefing-payload";
 
 export const dynamic = "force-dynamic";
 
@@ -168,10 +169,21 @@ export const GET = apiHandler(async (request: NextRequest) => {
     userId,
     since: cachedAt,
   });
-  const generationFailed = briefingFailure !== null;
+  // v1.28.30 — a `briefing-ungrounded` marker is NOT a failure: the
+  // generation succeeded but the grounding gate withheld the briefing
+  // (marker written after the cache write, so it survives the `since`
+  // filter). Surface it as the persistent omission signal — the card's
+  // "briefing withheld" state used to exist only on the transient POST
+  // response, so a nightly strip read as a silent generic empty card.
+  const briefingOmittedReason: "ungrounded" | null =
+    briefingFailure?.reason === "briefing-ungrounded" ? "ungrounded" : null;
+  const generationFailed =
+    briefingFailure !== null && briefingOmittedReason === null;
   // v1.25.3 — the failure class lets the empty state point its hint at the
   // right lever (raise the response timeout vs re-check the provider).
-  const generationFailureClass = briefingFailure?.failureClass ?? null;
+  const generationFailureClass = generationFailed
+    ? (briefingFailure?.failureClass ?? null)
+    : null;
 
   // Read-only: never block on the provider. Warm out of band only when the
   // cached briefing is stale / missing AND a provider is configured (a
@@ -222,6 +234,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
         // v1.25.3 — coarse failure class for the empty-state hint (null when
         // the last attempt succeeded).
         generationFailureClass,
+        // v1.28.30 — persistent grounding-omission signal (see above), so a
+        // nightly-stripped briefing renders "withheld", not "no briefing yet".
+        briefingOmittedReason,
       });
     } catch {
       // Invalid cache row — fall through to the empty payload below. The
@@ -246,6 +261,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     generationFailed,
     // v1.25.3 — coarse failure class for the empty-state hint.
     generationFailureClass,
+    // v1.28.30 — see the cached branch above.
+    briefingOmittedReason,
   });
 });
 
@@ -301,6 +318,24 @@ export const POST = apiHandler((request: NextRequest) =>
     if (jsonError) return jsonError;
     const forceRefresh = body.force === true;
 
+    // v1.28.30 — a fresh cache WITHOUT a briefing must not satisfy a
+    // briefing-expecting caller: after a failed nightly warm the cached
+    // payload can sit inside the 24 h window all day, and the old
+    // unconditional short-circuit served it to every POST (three
+    // regenerate attempts, three `cached: true` responses, zero
+    // generations). The short-circuit now holds only when the cached
+    // payload actually carries a briefing OR the account has no usable
+    // provider (regenerating would be futile — serve what exists). The
+    // read-only GET is untouched: it never generates and its out-of-band
+    // revalidation behaviour stays as-is. When the briefingless fall-
+    // through is rate-limited below, the cached payload is served after
+    // all so a POST-as-read client degrades to the old behaviour instead
+    // of a 429.
+    let briefinglessCacheFallback: {
+      cached: unknown;
+      legacyPayload: boolean;
+      cachedAt: Date;
+    } | null = null;
     if (
       !forceRefresh &&
       dbUser?.insightsCachedAt &&
@@ -314,15 +349,33 @@ export const POST = apiHandler((request: NextRequest) =>
         // We don't auto-regenerate — that would burn rate-limit tokens
         // on a cache-hit silently. User-initiated only.
         const legacyPayload = isLegacyInsightPayload(cached);
-        annotate({
-          action: { name: "insights.generate" },
-          meta: { cached: true, legacyPayload },
-        });
-        return apiSuccess({
-          insights: cached,
-          cached: true,
-          cachedAt: dbUser.insightsCachedAt,
+        const carriesBriefing = cachedPayloadCarriesBriefing(
+          dbUser.insightsCachedText,
+        );
+        if (carriesBriefing || !(await hasUsableStatusProvider(userId))) {
+          annotate({
+            action: { name: "insights.generate" },
+            meta: {
+              cached: true,
+              legacyPayload,
+              briefingless: !carriesBriefing,
+            },
+          });
+          return apiSuccess({
+            insights: cached,
+            cached: true,
+            cachedAt: dbUser.insightsCachedAt,
+            legacyPayload,
+          });
+        }
+        briefinglessCacheFallback = {
+          cached,
           legacyPayload,
+          cachedAt: dbUser.insightsCachedAt,
+        };
+        annotate({
+          action: { name: "insights.generate.briefingless_cache_bypassed" },
+          meta: { locale },
         });
       } catch {
         // Invalid cache, regenerate
@@ -346,6 +399,22 @@ export const POST = apiHandler((request: NextRequest) =>
       60 * 60 * 1000,
     );
     if (!rl.allowed) {
+      // v1.28.30 — a POST-as-read caller whose fresh-but-briefingless cache
+      // fell through to regeneration degrades to the cached payload when
+      // the hourly quota is exhausted, instead of surfacing a 429 it never
+      // used to see. Explicit `force` keeps the honest 429.
+      if (briefinglessCacheFallback !== null) {
+        annotate({
+          action: { name: "insights.generate" },
+          meta: { cached: true, rate_limited_fallback: true },
+        });
+        return apiSuccess({
+          insights: briefinglessCacheFallback.cached,
+          cached: true,
+          cachedAt: briefinglessCacheFallback.cachedAt,
+          legacyPayload: briefinglessCacheFallback.legacyPayload,
+        });
+      }
       return apiError(`Maximum ${limit} insight generations per hour.`, 429);
     }
 
@@ -854,6 +923,20 @@ export const POST = apiHandler((request: NextRequest) =>
         }),
       },
     });
+
+    // v1.28.30 — persist the grounding omission (marker AFTER the cache
+    // write so it is newer than `insightsCachedAt`). The transient
+    // `briefingOmittedReason` on this response only reached the caller that
+    // forced the regenerate; every later read showed a generic "no briefing
+    // yet". The dated marker lets the GET surface the same honest
+    // "briefing withheld" state until the next successful generation.
+    if (briefingOmittedReason === "ungrounded") {
+      void recordBriefingFailure({
+        userId,
+        reason: "briefing-ungrounded",
+        locale,
+      });
+    }
 
     // v1.16.8 — no blanket per-status eviction here any more (nuking ~45
     // cache rows per manual regenerate deleted every hash baseline and was

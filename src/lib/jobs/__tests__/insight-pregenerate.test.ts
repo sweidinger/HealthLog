@@ -19,10 +19,23 @@ import path from "node:path";
 
 const checkRateLimit = vi.fn();
 const getAssistantFlags = vi.fn();
+const annotateSpy = vi.fn();
 
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: (...a: unknown[]) => checkRateLimit(...a),
 }));
+// v1.28.30 — spy on annotate so the no-silent-failure contract is pinned:
+// every failure increment must emit a queryable action. Spread the actual
+// module so `getEvent` (used by the feature-cache scope) stays real.
+vi.mock("@/lib/logging/context", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/logging/context")>(
+    "@/lib/logging/context",
+  );
+  return {
+    ...actual,
+    annotate: (...a: unknown[]) => annotateSpy(...a),
+  };
+});
 vi.mock("@/lib/feature-flags", () => ({
   getAssistantFlags: (...a: unknown[]) => getAssistantFlags(...a),
 }));
@@ -339,6 +352,170 @@ describe("runInsightPregenerate — outcome tally", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// v1.28.30 — the recurring "no briefing today" chain started with a nightly
+// failure that was invisible: a generator resolving `{ status: "failed" }`
+// bumped the tally through a switch case with NO annotation (only the
+// bounded timeout/error path was annotated), and the failed user was not
+// re-attempted until the next night. These tests pin both halves of the
+// fix: every failure path annotates `insights.pregenerate.comprehensive_failed`
+// with a stage + cause, and every failure enqueues exactly one bounded
+// intra-day retry for that user.
+describe("runInsightPregenerate — failure visibility + intra-day retry (v1.28.30)", () => {
+  function failureAnnotations() {
+    return annotateSpy.mock.calls
+      .map(
+        (call) =>
+          call[0] as {
+            action?: { name?: string };
+            meta?: Record<string, unknown>;
+          },
+      )
+      .filter(
+        (a) => a.action?.name === "insights.pregenerate.comprehensive_failed",
+      );
+  }
+
+  it("annotates a generator-returned `failed` outcome (the previously silent switch case) and enqueues one retry", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "failed", reason: "invalid-json" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+    const enqueueRetry = vi.fn().mockResolvedValue(undefined);
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+      enqueueRetry,
+    });
+
+    expect(result.failed).toBe(1);
+    const failures = failureAnnotations();
+    expect(failures).toHaveLength(1);
+    expect(failures[0].meta).toMatchObject({
+      locale: "de",
+      stage: "nightly.generator",
+      cause: "generator:invalid-json",
+    });
+    expect(enqueueRetry).toHaveBeenCalledTimes(1);
+    expect(enqueueRetry).toHaveBeenCalledWith({ userId: "u1", locale: "de" });
+  });
+
+  it("annotates a thrown generator error with its message and enqueues one retry", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "en" }]);
+    const generate = vi
+      .fn()
+      .mockRejectedValue(new Error("ECONNRESET upstream"));
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+    const enqueueRetry = vi.fn().mockResolvedValue(undefined);
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+      enqueueRetry,
+    });
+
+    expect(result.failed).toBe(1);
+    const failures = failureAnnotations();
+    expect(failures).toHaveLength(1);
+    expect(failures[0].meta).toMatchObject({
+      locale: "en",
+      stage: "nightly.bound",
+      cause: "error",
+      message: "ECONNRESET upstream",
+    });
+    expect(enqueueRetry).toHaveBeenCalledWith({ userId: "u1", locale: "en" });
+  });
+
+  it("annotates a bounded-budget timeout and enqueues one retry", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    const generate = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () => resolve({ status: "generated", providerType: "x" }),
+            260_000,
+          );
+        }),
+    );
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+    const enqueueRetry = vi.fn().mockResolvedValue(undefined);
+
+    vi.useFakeTimers();
+    try {
+      const promise = runInsightPregenerate(prisma as never, {
+        generate,
+        statusGenerators,
+        warmGenericMetrics,
+        enqueueRetry,
+      });
+      await vi.advanceTimersByTimeAsync(230_000);
+      const result = await promise;
+
+      expect(result.failed).toBe(1);
+      const failures = failureAnnotations();
+      expect(failures).toHaveLength(1);
+      expect(failures[0].meta).toMatchObject({
+        stage: "nightly.bound",
+        cause: "timeout",
+      });
+      expect(enqueueRetry).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does NOT enqueue a retry for generated / cached / unchanged / skipped / budget-blocked users", async () => {
+    const { prisma } = makePrisma([
+      { id: "a", locale: "de" },
+      { id: "b", locale: "de" },
+      { id: "c", locale: "de" },
+      { id: "d", locale: "de" },
+      { id: "e", locale: "de" },
+    ]);
+    // e is budget-blocked; a-d run the generator.
+    checkRateLimit
+      .mockResolvedValueOnce({ allowed: true })
+      .mockResolvedValueOnce({ allowed: true })
+      .mockResolvedValueOnce({ allowed: true })
+      .mockResolvedValueOnce({ allowed: true })
+      .mockResolvedValueOnce({ allowed: false });
+    const generate = vi
+      .fn()
+      .mockResolvedValueOnce({ status: "generated", providerType: "x" })
+      .mockResolvedValueOnce({ status: "cached" })
+      .mockResolvedValueOnce({ status: "unchanged" })
+      .mockResolvedValueOnce({ status: "skipped", reason: "no-provider" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+    const enqueueRetry = vi.fn().mockResolvedValue(undefined);
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+      enqueueRetry,
+    });
+
+    expect(result.failed).toBe(0);
+    expect(enqueueRetry).not.toHaveBeenCalled();
+    expect(failureAnnotations()).toHaveLength(0);
   });
 });
 

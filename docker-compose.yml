@@ -81,6 +81,7 @@ services:
       # docker-compose reads .env for `${VAR}` substitution at compose-up time).
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-}"
       NATIVE_CANVAS: "${NATIVE_CANVAS:-}"
+      WITHINGS_WEBHOOK_SECRET: "${WITHINGS_WEBHOOK_SECRET:-}"
       # v1.18.11 (W3) — client-IP resolution + geo lookup. Behind Cloudflare
       # the real visitor IP is in `cf-connecting-ip`; set
       # TRUST_CF_CONNECTING_IP=1 ONLY when Cloudflare is in front (off by

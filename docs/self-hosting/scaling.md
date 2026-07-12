@@ -24,15 +24,18 @@ deployed in three modes:
 3. `docker compose up -d --build`.
 
 Both containers connect to the same Postgres. pg-boss claims jobs
-atomically via row-level locking, so it is safe to run multiple worker
-replicas — they will share the load.
+atomically via row-level locking (`FOR UPDATE SKIP LOCKED`), so
+running multiple worker replicas is **safe** — no job runs twice —
+but it doubles the DB load and muddies telemetry without adding
+throughput a personal instance needs (`src/lib/process-type.ts`).
+Run **one** worker container and scale the `web` containers instead.
 
 ## Healthchecks
 
 - `app` (web) healthcheck: `wget /api/version` every 30s.
 - `app-worker` does not expose a port; its liveness is reported into
   the `worker_status` table on every reminder pass and surfaced through
-  `/api/admin/worker-status`.
+  `/api/admin/status`.
 
 The web container does NOT depend on the worker, and vice versa, so
 neither container's startup can deadlock the other. The shared

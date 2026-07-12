@@ -5,10 +5,10 @@
 
 HealthLog reads Fitbit and Pixel Watch data through the **classic Fitbit Web
 API** (`api.fitbit.com`). The OAuth app is a **Fitbit developer app registered
-at [dev.fitbit.com](https://dev.fitbit.com/apps/new)** — **not** a Google Cloud
+at [dev.fitbit.com](https://dev.fitbit.com/)** — **not** a Google Cloud
 OAuth client. Like WHOOP, credentials are brought per user: each user (or the
-operator on their behalf) registers their own Fitbit app and pastes the client
-id/secret into Settings. The internal integration key is `fitbit`.
+operator on their behalf) supplies their own Fitbit app's client id/secret in
+Settings. The internal integration key is `fitbit`.
 
 > **Common mistake:** the field wants a **Fitbit** Client ID (a short numeric
 > id from dev.fitbit.com), **not** a Google Cloud client id ending in
@@ -16,30 +16,33 @@ id/secret into Settings. The internal integration key is `fitbit`.
 > consent screen with `unauthorized_client — Invalid client_id`, because Fitbit
 > and Google Cloud are separate client registries.
 
-> **Heads-up — September 2026 sunset.** Google is retiring the classic Fitbit
-> Web API in **September 2026** and moving to the Google Health API behind Google
-> sign-in. That replacement currently requires Google Restricted-scope brand
-> verification plus an annual third-party CASA security assessment, which does
-> not fit a self-hosted bring-your-own-credentials model, so the path beyond the
-> sunset is still being worked out. Until then the setup below is the supported
-> way to connect Fitbit.
+> **Heads-up — new registrations are closed.** Fitbit has **discontinued
+> self-serve app registration**: the form at `dev.fitbit.com/apps/new` is
+> disabled for new applications, and the classic Fitbit Web API sunsets in
+> **September 2026**. If you already hold a registered Fitbit app, it keeps
+> working until the sunset and the setup below still applies. If you are
+> connecting Fitbit data for the first time, use the
+> [Google Health integration](google-health.md) instead — Fitbit devices sync
+> into Google's health stack, which HealthLog reads directly.
 
-## 1. Register a Fitbit developer app
+## 1. Use an existing Fitbit developer app
 
-1. Sign in at <https://dev.fitbit.com/apps/new> and register a new application.
-2. **OAuth 2.0 Application Type:**
+Registration of new apps is no longer possible (see the note above). For an
+app you registered before the shutdown, these are the settings that matter:
+
+1. **OAuth 2.0 Application Type:**
    - **Personal** — the app only ever sees the **owner's own** Fitbit account,
      and gets intraday (per-minute) heart-rate/steps automatically. This is the
      right choice for a single-person self-host.
    - **Server** (or **Client**) — needed when the instance connects **other
      people's** accounts. Intraday/heart-rate access is then granted case by
      case via Fitbit's Intraday Data Access request form.
-3. **Callback URL:** `https://your-instance.example.com/api/fitbit/callback`
+2. **Callback URL:** `https://your-instance.example.com/api/fitbit/callback`
    — absolute, **HTTPS**, and matching the `redirect_uri` HealthLog sends (see
    the redirect-URI note below). One entry per environment you connect from.
-4. **Scopes:** tick the ones HealthLog requests (next section).
-5. Save. Fitbit issues a **Client ID** (short, numeric) and a **Client Secret**
-   — keep the secret out of any chat log.
+3. **Scopes:** the ones HealthLog requests (next section).
+4. The app's settings page shows the **Client ID** (short, numeric) and the
+   **Client Secret** — keep the secret out of any chat log.
 
 ## 2. Scopes
 
