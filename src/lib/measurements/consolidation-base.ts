@@ -144,6 +144,14 @@ export interface DayWriteContext {
   reducedValue: number;
   dayRows: PerSampleRow[];
   sourceRowIds: string[];
+  /**
+   * The user's resolved IANA timezone and the bucket's calendar-day key.
+   * A drain whose write grain is finer than the day (the dense-tier hourly
+   * fold) needs both to derive per-hour sub-buckets; the day-grain drains
+   * ignore them.
+   */
+  tz: string;
+  dateKey: string;
 }
 
 /** Inputs to one per-user-type-day consolidation pass. */
@@ -426,6 +434,8 @@ export async function runConsolidation<TType extends MeasurementType>(
               reducedValue,
               dayRows,
               sourceRowIds,
+              tz,
+              dateKey,
               shouldMint,
             });
           }

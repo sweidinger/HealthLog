@@ -2,8 +2,8 @@
  * iOS#34 / #69 — server-side aggregation of high-frequency heart rate.
  *
  * The dense intra-day retention drain folds out-of-window per-sample PULSE
- * rows to one daily-MEAN `stats:` row to bound the ~16k-rows-per-user bloat.
- * The plain mean-only fold would erase the two clinically-meaningful daily
+ * rows to hourly-MEAN `stats:` rows to bound the ~16k-rows-per-user bloat.
+ * The mean fold alone would erase the two clinically-meaningful daily
  * figures the app derives from the raw stream:
  *
  *   1. Resting HR — the read-path resolver derives it from the 20th-percentile
@@ -146,12 +146,14 @@ describe("PULSE fold — min/max preservation via pre-fold rollup recompute", ()
 
     await runDenseIntradayRetention(mock, { retentionDays: 0, log: () => {} });
 
-    // The fold minted the daily mean row.
-    expect(txCreate).toHaveBeenCalledTimes(1);
+    // The fold minted one hourly mean row per distinct local hour (06:00Z /
+    // 12:00Z / 18:00Z land in three different Berlin hours).
+    expect(txCreate).toHaveBeenCalledTimes(3);
 
     // PULSE recompute happens EXACTLY once — the pre-fold capture. A second
-    // (post-fold) PULSE recompute would aggregate the single mean row and
-    // collapse min == max == mean, erasing the intraday bounds.
+    // (post-fold) PULSE recompute would aggregate the hourly mean rows and
+    // degrade min/max to hourly-mean extremes (and the DAY mean to an
+    // unweighted mean-of-hourly-means), erasing the intraday bounds.
     const pulseRecomputes = recomputeBucketsForMeasurement.mock.calls.filter(
       (c) => c[1] === "PULSE",
     );

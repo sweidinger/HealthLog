@@ -122,6 +122,72 @@ export function canonicalDailyTimestamp(dateKey: string, tz?: string): Date {
 }
 
 /**
+ * Per-timezone cache for the hour-of-day formatter. The dense-tier hourly
+ * fold calls `hourOfDayForUserTz` once per scanned sample (thousands of
+ * rows per heavy user-day); constructing an `Intl.DateTimeFormat` per call
+ * dominates the bucketing cost, so the formatter is built once per zone.
+ */
+const hourFormatterByTz = new Map<string, Intl.DateTimeFormat>();
+
+function hourFormatterFor(tz: string): Intl.DateTimeFormat {
+  const cached = hourFormatterByTz.get(tz);
+  if (cached) return cached;
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "2-digit",
+    hour12: false,
+  });
+  hourFormatterByTz.set(tz, fmt);
+  return fmt;
+}
+
+/**
+ * Resolve the user's local hour-of-day (0–23) for a given instant +
+ * timezone. On a fall-back DST day the repeated wall-clock hour maps both
+ * of its instants to the same hour value — deliberate: the hourly fold
+ * buckets by LOCAL hour, so the 25-hour day folds its duplicated hour into
+ * one bucket rather than minting two rows for the same wall-clock hour.
+ */
+export function hourOfDayForUserTz(date: Date, tz: string): number {
+  const part = hourFormatterFor(tz)
+    .formatToParts(date)
+    .find((p) => p.type === "hour")?.value;
+  const hour = part ? Number.parseInt(part, 10) : 0;
+  // Some ICU builds render midnight as "24" under hourCycle h24.
+  return hour === 24 ? 0 : hour;
+}
+
+/**
+ * Compute the canonical anchor instant for a (calendar-day, local-hour)
+ * slot: the user's local HH:30 — the middle of the local hour, mirroring
+ * the local-noon convention of `canonicalDailyTimestamp` one grain down.
+ * Anchoring mid-hour keeps the instant a full 30 minutes inside its hour,
+ * so it round-trips back to the same (day, hour) through
+ * `dayKeyForUserTz` + `hourOfDayForUserTz` for every zone.
+ *
+ * DST: the offset is read at the first-guess instant and re-read once at
+ * the candidate — a transition between the two shifts the offset by at
+ * most one step, so the second read converges for every wall-clock time
+ * that exists. On a fall-back day the ambiguous repeated HH:30 resolves
+ * deterministically to one of its two instants (whichever the re-read
+ * lands on), which is all the fold needs — the hourly externalId, not the
+ * instant, is the row's identity.
+ */
+export function canonicalHourlyTimestamp(
+  dateKey: string,
+  hour: number,
+  tz: string,
+): Date {
+  const hh = String(hour).padStart(2, "0");
+  const guess = new Date(`${dateKey}T${hh}:30:00.000Z`);
+  const offsetFirst = tzOffsetMinutesAt(guess, tz);
+  const candidate = new Date(guess.getTime() - offsetFirst * 60 * 1000);
+  const offsetAtCandidate = tzOffsetMinutesAt(candidate, tz);
+  if (offsetAtCandidate === offsetFirst) return candidate;
+  return new Date(guess.getTime() - offsetAtCandidate * 60 * 1000);
+}
+
+/**
  * v1.4.37 W10 — Compute the JS-Date instant at the user's local 00:00
  * for a calendar-day key. Robust on DST transitions because the offset
  * is read at the UTC-midnight instant of the day, and EU/US DST

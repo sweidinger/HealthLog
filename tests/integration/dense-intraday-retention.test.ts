@@ -1,15 +1,16 @@
 /**
  * v1.10.2 — real-Postgres integration coverage for
- * `runDenseIntradayRetention()`. The mocked unit tests could not surface
- * the v1.10.0.2 P2002 fold-coexistence bug: the fold mints a canonical
- * daily-mean row at the user's local-noon instant, but a row may ALREADY
- * sit on that `(userId, type, measuredAt, source, sleepStage)` unique
- * index from another path. An externalId-keyed upsert misses the lookup
- * and the INSERT then violates the measured_at index with P2002.
+ * `runDenseIntradayRetention()`. v1.28.31 — hourly fold grain.
  *
- * This file seeds that exact colliding shape against a live Postgres and
- * asserts the reworked fold coexists with the pre-existing daily row,
- * stays idempotent, and preserves the dense-tier scope.
+ * The mocked unit tests could not surface the v1.10.0.2 P2002
+ * fold-coexistence bug class: the fold mints canonical `stats:` rows at
+ * deterministic instants, but a row may ALREADY sit on the
+ * `(userId, type, measuredAt, source, sleepStage)` unique index from
+ * another path, or already carry the target externalId on
+ * `(userId, type, source, externalId)`. This file seeds those colliding
+ * shapes against a live Postgres and asserts the hourly fold coexists /
+ * adopts, retires a pre-hourly daily row atomically, stays idempotent,
+ * and preserves the dense-tier scope.
  */
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -20,10 +21,10 @@ import { canonicalDailyTimestamp } from "@/lib/measurements/consolidation-tz";
 const TEST_USER_ID = "user-dense-retention";
 const TZ = "Europe/Berlin";
 const DAY_KEY = "2026-05-01";
-// The canonical local-noon instant the fold writes for the seeded day.
+// The canonical local-noon instant the PRE-hourly fold wrote for the day.
 const CANONICAL = canonicalDailyTimestamp(DAY_KEY, TZ);
-const HRV_STATS_ID =
-  "stats:HKQuantityTypeIdentifierHeartRateVariabilitySDNN:2026-05-01";
+const HRV_HK = "HKQuantityTypeIdentifierHeartRateVariabilitySDNN";
+const HRV_DAILY_STATS_ID = `stats:${HRV_HK}:${DAY_KEY}`;
 
 beforeEach(async () => {
   await truncateAllTables(getPrismaClient());
@@ -38,7 +39,7 @@ beforeEach(async () => {
 });
 
 describe("runDenseIntradayRetention (real Postgres)", () => {
-  it("folds out-of-window HRV per-sample rows into one daily MEAN and soft-deletes them", async () => {
+  it("folds out-of-window HRV per-sample rows into hourly MEANs and soft-deletes them", async () => {
     const prisma = getPrismaClient();
     await prisma.measurement.createMany({
       data: [
@@ -48,6 +49,7 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
           value: 40,
           unit: "ms",
           source: "APPLE_HEALTH",
+          // Berlin UTC+2 → local hour 10.
           measuredAt: new Date("2026-05-01T08:00:00.000Z"),
           externalId: "hk-hrv-1",
         },
@@ -57,8 +59,19 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
           value: 60,
           unit: "ms",
           source: "APPLE_HEALTH",
-          measuredAt: new Date("2026-05-01T09:00:00.000Z"),
+          // Same local hour 10 — folds into the SAME hourly mean.
+          measuredAt: new Date("2026-05-01T08:40:00.000Z"),
           externalId: "hk-hrv-2",
+        },
+        {
+          userId: TEST_USER_ID,
+          type: "HEART_RATE_VARIABILITY",
+          value: 70,
+          unit: "ms",
+          source: "APPLE_HEALTH",
+          // Local hour 11 — its own hourly row.
+          measuredAt: new Date("2026-05-01T09:10:00.000Z"),
+          externalId: "hk-hrv-3",
         },
       ],
     });
@@ -70,7 +83,8 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
     });
 
     expect(summary.totals.daysConsolidated).toBe(1);
-    expect(summary.totals.perSampleRowsSoftDeleted).toBe(2);
+    expect(summary.totals.perSampleRowsSoftDeleted).toBe(3);
+    expect(summary.totals.hourlyRowsUpserted).toBe(2);
 
     const live = await prisma.measurement.findMany({
       where: {
@@ -78,35 +92,35 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
         type: "HEART_RATE_VARIABILITY",
         deletedAt: null,
       },
+      orderBy: { measuredAt: "asc" },
     });
-    expect(live).toHaveLength(1);
-    // MEAN of (40, 60) = 50.
+    expect(live).toHaveLength(2);
+    // Hour 10: MEAN of (40, 60) = 50, anchored at local 10:30 (08:30Z).
+    expect(live[0].externalId).toBe(`stats:${HRV_HK}:${DAY_KEY}T10`);
     expect(live[0].value).toBeCloseTo(50, 6);
-    expect(live[0].externalId).toBe(HRV_STATS_ID);
-    expect(live[0].measuredAt.getTime()).toBe(CANONICAL.getTime());
+    expect(live[0].measuredAt.toISOString()).toBe("2026-05-01T08:30:00.000Z");
+    // Hour 11: its own value, anchored at local 11:30 (09:30Z).
+    expect(live[1].externalId).toBe(`stats:${HRV_HK}:${DAY_KEY}T11`);
+    expect(live[1].value).toBeCloseTo(70, 6);
+    expect(live[1].measuredAt.toISOString()).toBe("2026-05-01T09:30:00.000Z");
   });
 
-  it("coexists with a pre-existing daily row on the canonical instant (the P2002 case)", async () => {
+  it("retires a pre-hourly DAILY stats row in the same pass (late-sync path, no P2002, no double count)", async () => {
     const prisma = getPrismaClient();
-    // A previously-collapsed daily `stats:` row ALREADY sits on the
-    // canonical local-noon instant under a DIFFERENT HK stats id than the
-    // one the fold mints (e.g. a row minted by a sibling consolidation path,
-    // or a legacy stats id). The scan EXCLUDES it (NOT startsWith 'stats:'),
-    // so it is never folded into the mean — but pre-v1.10.2 the fold's
-    // externalId-keyed upsert missed it on lookup and the INSERT then
-    // collided on (userId, type, measuredAt, source, sleepStage) with P2002.
+    // A pre-v1.28.31 fold already collapsed this day to the daily grain:
+    // the canonical daily row sits at local-noon with the daily stats id.
     await prisma.measurement.create({
       data: {
         userId: TEST_USER_ID,
         type: "HEART_RATE_VARIABILITY",
-        value: 999, // stale value to be overwritten by the fold
+        value: 999, // stale daily mean — superseded by the hourly rows
         unit: "ms",
         source: "APPLE_HEALTH",
         measuredAt: CANONICAL,
-        externalId: "stats:legacy-hrv-id:2026-05-01",
+        externalId: HRV_DAILY_STATS_ID,
       },
     });
-    // Out-of-window per-sample rows that should fold into the canonical row.
+    // Late-synced raw samples arrive for the already-folded day.
     await prisma.measurement.createMany({
       data: [
         {
@@ -137,6 +151,7 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
       log: () => {},
     });
     expect(summary.totals.daysConsolidated).toBe(1);
+    expect(summary.totals.dailyRowsRetired).toBe(1);
 
     const live = await prisma.measurement.findMany({
       where: {
@@ -144,75 +159,51 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
         type: "HEART_RATE_VARIABILITY",
         deletedAt: null,
       },
+      orderBy: { measuredAt: "asc" },
     });
-    // Exactly one live daily row: the pre-existing one, adopted in place.
-    expect(live).toHaveLength(1);
-    expect(live[0].measuredAt.getTime()).toBe(CANONICAL.getTime());
-    // The fold refreshed the value to the per-sample MEAN (50), overwriting
-    // the stale 999, and stamped the canonical `stats:` externalId.
-    expect(live[0].value).toBeCloseTo(50, 6);
-    expect(live[0].externalId).toBe(HRV_STATS_ID);
+    // ONLY the hourly rows are live — the daily row is tombstoned in the
+    // same transaction, so an AVG-over-live-rows reader never double-counts.
+    expect(live).toHaveLength(2);
+    expect(live.map((r) => r.externalId)).toEqual([
+      `stats:${HRV_HK}:${DAY_KEY}T08`,
+      `stats:${HRV_HK}:${DAY_KEY}T20`,
+    ]);
+    expect(live.map((r) => r.value)).toEqual([40, 60]);
 
-    // The two out-of-window samples are tombstoned.
-    const tombstoned = await prisma.measurement.findMany({
-      where: {
-        userId: TEST_USER_ID,
-        type: "HEART_RATE_VARIABILITY",
-        deletedAt: { not: null },
-      },
+    const daily = await prisma.measurement.findFirst({
+      where: { userId: TEST_USER_ID, externalId: HRV_DAILY_STATS_ID },
     });
-    expect(tombstoned).toHaveLength(2);
+    expect(daily?.deletedAt).not.toBeNull();
   });
 
-  it("adopts the row already carrying the target stats externalId on the canonical instant (VECTOR 1)", async () => {
+  it("adopts a row already carrying the target hourly stats externalId (VECTOR 1, no P2002)", async () => {
     const prisma = getPrismaClient();
-    // BOTH-present collision (VECTOR 1). A prior fold already minted the
-    // canonical daily row carrying the TARGET `stats:` externalId and it
-    // sits on the canonical local-noon instant. A fresh batch of
-    // out-of-window per-sample rows then arrives for the same day. The fold
-    // must adopt the EXISTING canonical row in place — refreshing its value
-    // and re-anchoring it — never INSERT a second row at local-noon (that
-    // would collide on the measured_at composite) and never stamp the target
-    // externalId onto a sibling (that would collide on the externalId
-    // composite with this very row). The pre-fix `findFirst` had no
-    // externalId discrimination and no deterministic `orderBy`, so it could
-    // pick the wrong row and trip P2002 on the externalId index.
+    // A prior hourly fold already minted the hour-08 row at its anchor.
     await prisma.measurement.create({
       data: {
         userId: TEST_USER_ID,
         type: "HEART_RATE_VARIABILITY",
-        value: 999, // stale — the fold overwrites it with the day's mean
+        value: 999, // stale — refreshed by the re-fold
         unit: "ms",
         source: "APPLE_HEALTH",
-        measuredAt: CANONICAL,
-        externalId: HRV_STATS_ID, // the TARGET canonical externalId
+        measuredAt: new Date("2026-05-01T06:30:00.000Z"), // local 08:30
+        externalId: `stats:${HRV_HK}:${DAY_KEY}T08`,
       },
     });
-    // Out-of-window per-sample rows that fold into the canonical row.
-    await prisma.measurement.createMany({
-      data: [
-        {
-          userId: TEST_USER_ID,
-          type: "HEART_RATE_VARIABILITY",
-          value: 40,
-          unit: "ms",
-          source: "APPLE_HEALTH",
-          measuredAt: new Date("2026-05-01T06:00:00.000Z"),
-          externalId: "hk-hrv-1",
-        },
-        {
-          userId: TEST_USER_ID,
-          type: "HEART_RATE_VARIABILITY",
-          value: 60,
-          unit: "ms",
-          source: "APPLE_HEALTH",
-          measuredAt: new Date("2026-05-01T18:00:00.000Z"),
-          externalId: "hk-hrv-2",
-        },
-      ],
+    // A late raw sample lands in the same local hour.
+    await prisma.measurement.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "HEART_RATE_VARIABILITY",
+        value: 40,
+        unit: "ms",
+        source: "APPLE_HEALTH",
+        measuredAt: new Date("2026-05-01T06:10:00.000Z"),
+        externalId: "hk-hrv-late",
+      },
     });
 
-    // Must not throw P2002.
+    // Must not throw P2002 — the fold adopts the existing hourly row.
     const summary = await runDenseIntradayRetention(prisma, {
       userId: TEST_USER_ID,
       retentionDays: 0,
@@ -227,30 +218,17 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
         deletedAt: null,
       },
     });
-    // Exactly ONE live canonical row remains — the row that already carried
-    // the target `stats:` externalId, adopted in place and folded.
     expect(live).toHaveLength(1);
-    expect(live[0].externalId).toBe(HRV_STATS_ID);
-    expect(live[0].measuredAt.getTime()).toBe(CANONICAL.getTime());
-    // MEAN of the two folded per-sample values (40, 60) = 50, overwriting
-    // the stale 999.
-    expect(live[0].value).toBeCloseTo(50, 6);
-
-    // Both scanned per-sample rows are tombstoned.
-    const tombstoned = await prisma.measurement.findMany({
-      where: {
-        userId: TEST_USER_ID,
-        type: "HEART_RATE_VARIABILITY",
-        deletedAt: { not: null },
-      },
-    });
-    expect(tombstoned).toHaveLength(2);
+    expect(live[0].externalId).toBe(`stats:${HRV_HK}:${DAY_KEY}T08`);
+    // Refreshed to the late sample's hourly mean, overwriting the stale 999.
+    expect(live[0].value).toBeCloseTo(40, 6);
+    expect(live[0].measuredAt.toISOString()).toBe("2026-05-01T06:30:00.000Z");
   });
 
-  it("does not tombstone a per-sample row that happens to fall on the canonical instant", async () => {
+  it("does not tombstone a per-sample row that happens to fall on an hourly anchor", async () => {
     const prisma = getPrismaClient();
-    // One per-sample row sits exactly on the canonical local-noon instant;
-    // it must become the adopted daily row, not get soft-deleted.
+    // One per-sample row sits exactly on the local-10:30 anchor instant;
+    // it must become the adopted hourly row, not get soft-deleted.
     await prisma.measurement.createMany({
       data: [
         {
@@ -259,8 +237,8 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
           value: 50,
           unit: "ms",
           source: "APPLE_HEALTH",
-          measuredAt: CANONICAL,
-          externalId: "hk-hrv-noon",
+          measuredAt: new Date("2026-05-01T08:30:00.000Z"), // local 10:30
+          externalId: "hk-hrv-anchor",
         },
         {
           userId: TEST_USER_ID,
@@ -268,8 +246,8 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
           value: 70,
           unit: "ms",
           source: "APPLE_HEALTH",
-          measuredAt: new Date("2026-05-01T06:00:00.000Z"),
-          externalId: "hk-hrv-morning",
+          measuredAt: new Date("2026-05-01T08:00:00.000Z"), // same local hour
+          externalId: "hk-hrv-sibling",
         },
       ],
     });
@@ -289,13 +267,13 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
       },
     });
     expect(live).toHaveLength(1);
-    expect(live[0].measuredAt.getTime()).toBe(CANONICAL.getTime());
-    // MEAN of (50, 70) = 60 — the adopted row carries the day's mean.
+    expect(live[0].measuredAt.toISOString()).toBe("2026-05-01T08:30:00.000Z");
+    // MEAN of (50, 70) = 60 — the adopted row carries the hour's mean.
     expect(live[0].value).toBeCloseTo(60, 6);
-    expect(live[0].externalId).toBe(HRV_STATS_ID);
+    expect(live[0].externalId).toBe(`stats:${HRV_HK}:${DAY_KEY}T10`);
   });
 
-  it("is idempotent — a second run is a no-op and the value stays correct", async () => {
+  it("is idempotent — a second run is a no-op and the values stay correct", async () => {
     const prisma = getPrismaClient();
     await prisma.measurement.createMany({
       data: [
@@ -327,9 +305,11 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
     });
     expect(first.totals.daysConsolidated).toBe(1);
     expect(first.totals.perSampleRowsSoftDeleted).toBe(2);
+    expect(first.totals.hourlyRowsUpserted).toBe(2);
 
     // Second run must converge to zero work and never collide on the
-    // canonical row it minted on the first pass.
+    // hourly rows it minted on the first pass (the `stats:` prefix keeps
+    // them out of the scan).
     const second = await runDenseIntradayRetention(prisma, {
       userId: TEST_USER_ID,
       retentionDays: 0,
@@ -337,13 +317,15 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
     });
     expect(second.totals.daysConsolidated).toBe(0);
     expect(second.totals.perSampleRowsSoftDeleted).toBe(0);
+    expect(second.totals.hourlyRowsUpserted).toBe(0);
 
     const live = await prisma.measurement.findMany({
       where: { userId: TEST_USER_ID, type: "PULSE", deletedAt: null },
+      orderBy: { measuredAt: "asc" },
     });
-    expect(live).toHaveLength(1);
-    // MEAN of (60, 80) = 70.
-    expect(live[0].value).toBeCloseTo(70, 6);
+    expect(live).toHaveLength(2);
+    // Each hour keeps its own mean (60 and 80) — never a blended 70.
+    expect(live.map((r) => r.value)).toEqual([60, 80]);
   });
 
   it("keeps in-window per-sample rows raw (retention bound)", async () => {
