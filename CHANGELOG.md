@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.28.32] — 2026-07-12 — Fitbit: re-keyed re-imports can no longer be silently dropped
+
+Single-fix release for the Fitbit integration, mirroring the Google Health
+fix from v1.28.28. The measurements table carries a second unique index on
+the natural key (type, time, source, sleep stage) that also covers
+soft-deleted rows; when an import carries new external ids for rows that
+were previously removed — the re-keyed re-import case — the insert collided
+with the old row and was dropped without a trace. Planned inserts now get a
+second probe by natural key: a match, live or removed, is updated in place
+with the fresh value and the new id instead. If the probe itself fails, the
+sync reports the failure and holds its watermark so the next run retries —
+nothing is lost either way. No other code path is touched in this release.
+
 ## [1.28.31] — 2026-07-12 — Heart-rate history keeps its daily shape
 
 Long-term retention for the dense intra-day signals (heart rate, HRV, blood

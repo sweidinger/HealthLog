@@ -93,6 +93,7 @@ import {
   upsertFitbitMeasurements,
 } from "../sync";
 import { FitbitApiError } from "../response-classifier";
+import { prisma } from "@/lib/db";
 
 /** A resource sync that 403s its collection and soft-skips, like the real one. */
 async function softSkip403(...args: unknown[]): Promise<number> {
@@ -237,6 +238,42 @@ describe("syncUserFitbit — hard-fail ledger (F-SYNC-4)", () => {
     expect(update).not.toHaveBeenCalled();
     // The hard failure was recorded on the status ledger.
     expect(recordSyncFailure).toHaveBeenCalled();
+  });
+
+  it("a failed natural-key rescue probe notes the ledger: no success stamp, no watermark", async () => {
+    // The rescue probe (second measurement.findMany inside the upsert) dies.
+    // The rows still go to createMany (skipDuplicates absorbs a twin
+    // collision), but a twin that WAS wedged would be dropped silently — so
+    // the ledger entry must hold the watermark for a retry next tick.
+    const measurementFindMany = vi.mocked(prisma.measurement.findMany);
+    measurementFindMany
+      .mockResolvedValueOnce([]) // externalId probe
+      .mockRejectedValueOnce(new Error("db down")); // natural-key rescue probe
+    syncUserMetrics.mockImplementation(async (...args: unknown[]) => {
+      const { imported } = await upsertFitbitMeasurements(
+        String(args[0]),
+        [
+          {
+            type: "ACTIVITY_STEPS",
+            value: 8123,
+            unit: "steps",
+            measuredAt: new Date("2026-07-08T00:00:00.000Z"),
+            externalId: "stats:steps:2026-07-08",
+          },
+        ],
+        { deferRollup: true },
+      );
+      return imported;
+    });
+
+    // Resolves (no rethrow) — the insert was still attempted.
+    const total = await syncUserFitbit("user1");
+    expect(total).toBe(1);
+
+    // The ledger flips anyFailed → success is NOT stamped and the watermark is
+    // not advanced, so the next tick retries the rescue.
+    expect(recordSyncSuccess).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });
 
