@@ -458,7 +458,12 @@ export async function upsertFitbitMeasurements(
     externalId: string;
     sleepStage: FitbitMeasurementUpsert["sleepStage"];
   }> = [];
-  const toUpdate: Array<{ id: string; r: FitbitMeasurementUpsert }> = [];
+  const toUpdate: Array<{
+    id: string;
+    r: FitbitMeasurementUpsert;
+    /** Set when a key-format migration re-keys the row in place (see below). */
+    reKeyTo?: string;
+  }> = [];
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
 
   // A batch can carry the same (type, externalId) twice (an overlap re-fetch);
@@ -499,6 +504,92 @@ export async function upsertFitbitMeasurements(
     }
   }
 
+  // ── KEY-FORMAT MIGRATION RESCUE ──────────────────────────────────────────
+  // measurements carries a SECOND full unique index — the natural key
+  // `(user_id, type, measured_at, source, sleep_stage)` NULLS NOT DISTINCT
+  // (migration 0055) — and it covers tombstoned rows too. When an externalId
+  // FORMAT changes (a re-keyed re-import after an anchor-scheme fix), a
+  // re-fetched night's fresh rows carry NEW externalIds but the SAME natural
+  // key as the rows a replace-by-window sweep just tombstoned: the externalId
+  // probe finds nothing, the insert collides with the tombstone on the natural
+  // index, and `skipDuplicates` drops it SILENTLY — old row gone, new row
+  // never written (live incident on the Google transport: a full-history
+  // re-sync erased a user's sleep). So every planned CREATE gets a second
+  // probe by natural key; a match — live or tombstoned — is UPDATED in place
+  // instead: fresh value, the NEW externalId (the migration itself),
+  // `deletedAt: null`.
+  if (toCreate.length > 0) {
+    try {
+      const rescued = new Set<number>();
+      const naturalKeyOf = (
+        type: string,
+        measuredAt: Date,
+        stage: FitbitMeasurementUpsert["sleepStage"],
+      ): string => `${type}|${measuredAt.getTime()}|${stage ?? ""}`;
+      for (let i = 0; i < toCreate.length; i += FITBIT_CREATE_CHUNK) {
+        const chunk = toCreate.slice(i, i + FITBIT_CREATE_CHUNK);
+        const rows = await prisma.measurement.findMany({
+          where: {
+            userId,
+            source: "FITBIT",
+            type: { in: [...new Set(chunk.map((c) => c.type))] },
+            measuredAt: { in: chunk.map((c) => c.measuredAt) },
+          },
+          select: {
+            id: true,
+            type: true,
+            measuredAt: true,
+            sleepStage: true,
+          },
+        });
+        const byNaturalKey = new Map(
+          rows.map((row) => [
+            naturalKeyOf(
+              row.type,
+              row.measuredAt,
+              row.sleepStage as FitbitMeasurementUpsert["sleepStage"],
+            ),
+            row.id,
+          ]),
+        );
+        for (let j = 0; j < chunk.length; j++) {
+          const c = chunk[j];
+          const id = byNaturalKey.get(
+            naturalKeyOf(c.type, c.measuredAt, c.sleepStage),
+          );
+          if (id) {
+            rescued.add(i + j);
+            toUpdate.push({
+              id,
+              r: {
+                type: c.type,
+                value: c.value,
+                unit: c.unit,
+                measuredAt: c.measuredAt,
+                externalId: c.externalId,
+                sleepStage: c.sleepStage,
+              },
+              reKeyTo: c.externalId,
+            });
+          }
+        }
+      }
+      if (rescued.size > 0) {
+        for (let i = toCreate.length - 1; i >= 0; i--) {
+          if (rescued.has(i)) toCreate.splice(i, 1);
+        }
+      }
+    } catch (err) {
+      // Best-effort: an unresolved natural-key twin only means the insert is
+      // dropped by `skipDuplicates` as before — note the failure on the
+      // ambient ledger so the watermark holds and the next tick retries the
+      // rescue rather than losing the rows for good.
+      getEvent()?.addWarning(`Fitbit: natural-key rescue probe failed: ${err}`);
+      const hardTracker = hardFailStorage.getStore();
+      if (hardTracker) hardTracker.failures.push("measurements:rescue");
+    }
+  }
+
   let imported = 0;
 
   // Fresh inserts: chunked `createMany` (server-owned rows, field-by-field).
@@ -534,7 +625,7 @@ export async function upsertFitbitMeasurements(
   // `syncVersion`. `deletedAt: null` rides along unconditionally — a no-op on
   // a live row, a deliberate RESURRECTION on a tombstoned one (Fitbit is the
   // source of truth for its own rows; see TOMBSTONES RESURRECT above).
-  for (const { id, r } of toUpdate) {
+  for (const { id, r, reKeyTo } of toUpdate) {
     try {
       await prisma.measurement.update({
         where: { id },
@@ -544,6 +635,8 @@ export async function upsertFitbitMeasurements(
           measuredAt: r.measuredAt,
           sleepStage: r.sleepStage ?? null,
           deletedAt: null,
+          // Key-format migration: adopt the fresh externalId in place.
+          ...(reKeyTo ? { externalId: reKeyTo } : {}),
           // Surface the server-side mutation to the iOS LWW reconciler.
           syncVersion: { increment: 1 },
         },
