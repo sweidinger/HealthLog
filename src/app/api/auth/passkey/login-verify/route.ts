@@ -17,8 +17,17 @@ import {
   isCookielessNativeCaller,
 } from "@/lib/auth/native-client";
 import { issueAccessAndRefresh } from "@/lib/auth/refresh-token";
+import { isOidcOnly } from "@/lib/auth/oidc";
 
 export const POST = apiHandler(async (request: NextRequest) => {
+  // OIDC_ONLY must block passkey login too, not just password login — a
+  // credential minted before SSO was mandated must not stay a live bypass.
+  if (isOidcOnly()) {
+    return apiError("Passkey login is disabled. Sign in with SSO.", 403, {
+      errorCode: "oidc_only",
+    });
+  }
+
   await ensureDbCompatibility();
 
   // v1.4.43 W13 M-4 — tighter shared bucket on trust-chain misconfig.

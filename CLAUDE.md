@@ -165,6 +165,7 @@ The native SwiftUI client lives in a separate repository and rides public beta v
 - The `clientManaged` opt-in on `PATCH /api/auth/me/notification-prefs` suppresses server-side `MEDICATION_REMINDER` APNs for clients that manage their own local reminders. The cron skips dose-due APNs when the flag is `true` and emits a `medication_reminder.suppressed_client_managed` wide-event annotation per skip.
 - `push_attempts` table holds the last 90 days of APNS / Web-Push / Telegram / NTFY delivery attempts (channel + eventType + result + reason + createdAt). The admin diagnostic endpoint at `/api/admin/notifications/diagnostic` surfaces masked device tokens + channel state + last 20 attempts for the calling user.
 - Any request / response schema change must regen `docs/api/openapi.yaml` and commit the result. CI fails on drift.
+- The iOS app authenticates via password/passkey only (`src/lib/auth/native-client.ts`) — there is no OIDC flow for native clients yet. `OIDC_ONLY=true` is enforced server-side on those same routes, so enabling it locks every iOS user out of sign-in until a native SSO flow ships. Don't recommend it to an operator running the iOS app.
 
 ## DO-NOTs
 

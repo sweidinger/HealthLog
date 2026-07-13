@@ -286,6 +286,13 @@
     "passwordTooShort": "La contraseña debe tener al menos {minLength} caracteres.",
     "privacyPolicy": "Política de privacidad",
     "passwordBreached": "Esta contraseña aparece en filtraciones de datos conocidas. Elige otra.",
+    "oidc": {
+      "signInDefault": "Iniciar sesión con SSO",
+      "errorDenied": "El inicio de sesión se canceló.",
+      "errorNoEmail": "Tu proveedor de identidad no compartió un correo electrónico verificado.",
+      "errorRegistrationDisabled": "Ninguna cuenta coincide con esa identidad y los nuevos registros están cerrados actualmente.",
+      "errorFailed": "El inicio de sesión único falló. Inténtalo de nuevo."
+    },
     "mfa": {
       "title": "Autenticación de dos factores",
       "totpHint": "Introduce el código de 6 dígitos de tu aplicación de autenticación.",

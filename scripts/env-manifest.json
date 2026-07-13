@@ -79,6 +79,26 @@
       ]
     },
     {
+      "name": "OIDC SSO login",
+      "description": "Required to enable SSO login against a self-hosted identity provider (Authentik, Keycloak, Authelia, Google Workspace, etc.). App boots without these but the login page's SSO button stays hidden. Register a confidential client with redirect URI ${NEXT_PUBLIC_APP_URL}/api/auth/oidc/callback.",
+      "required": false,
+      "allOrNone": true,
+      "variables": [
+        {
+          "name": "OIDC_ISSUER_URL",
+          "purpose": "OIDC provider issuer URL (discovery doc served at <issuer>/.well-known/openid-configuration)."
+        },
+        {
+          "name": "OIDC_CLIENT_ID",
+          "purpose": "OIDC confidential client id."
+        },
+        {
+          "name": "OIDC_CLIENT_SECRET",
+          "purpose": "OIDC confidential client secret."
+        }
+      ]
+    },
+    {
       "name": "APNs (iOS push)",
       "description": "All four core APNS_* vars together. Missing any disables APNs silently — the v1.4.40 AP-2 gap that motivated this manifest. allOrNone trips the synthetic <all-or-none> required row whenever 1-3 of the 4 are set.",
       "required": false,

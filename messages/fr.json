@@ -286,6 +286,13 @@
     "passwordTooShort": "Le mot de passe doit comporter au moins {minLength} caractères.",
     "privacyPolicy": "Politique de confidentialité",
     "passwordBreached": "Ce mot de passe figure dans des fuites de données connues. Choisissez-en un autre.",
+    "oidc": {
+      "signInDefault": "Se connecter avec le SSO",
+      "errorDenied": "La connexion a été annulée.",
+      "errorNoEmail": "Votre fournisseur d'identité n'a pas transmis d'adresse e-mail vérifiée.",
+      "errorRegistrationDisabled": "Aucun compte ne correspond à cette identité et les nouvelles inscriptions sont actuellement fermées.",
+      "errorFailed": "L'authentification unique a échoué. Veuillez réessayer."
+    },
     "mfa": {
       "title": "Authentification à deux facteurs",
       "totpHint": "Saisissez le code à 6 chiffres de votre application d'authentification.",

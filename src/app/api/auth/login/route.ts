@@ -13,8 +13,18 @@ import { finishLogin } from "@/lib/auth/login-response";
 import { createMfaChallenge } from "@/lib/auth/mfa/challenge";
 import { consumeTrustedDevice } from "@/lib/auth/trusted-device";
 import { syncMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
+import { isOidcOnly } from "@/lib/auth/oidc";
 
 export const POST = apiHandler(async (request: NextRequest) => {
+  // OIDC_ONLY means password login must be a dead end, not just a hidden
+  // button — otherwise a pre-existing password (or a leaked/reused one)
+  // stays a live bypass of the operator's SSO-only policy.
+  if (isOidcOnly()) {
+    return apiError("Password login is disabled. Sign in with SSO.", 403, {
+      errorCode: "oidc_only",
+    });
+  }
+
   // v1.4.43 W13 M-4 — `checkAuthSurfaceRateLimit` swaps to a tighter
   // global bucket when the trust chain is misconfigured; otherwise it
   // is byte-equivalent to the previous per-IP `auth:login:{ip}` key.

@@ -1,7 +1,7 @@
 /**
  * v1.4.43 W6 — multi-issue 422 envelope on POST /api/auth/register.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
@@ -118,3 +118,50 @@ describe("POST /api/auth/register — 422 multi-issue (v1.4.43 W6)", () => {
 async function postPathThrough(body: unknown): Promise<Response> {
   return POST(postReq(body));
 }
+
+describe("POST /api/auth/register — OIDC_ONLY server-side enforcement", () => {
+  const OIDC_ENV_KEYS = [
+    "OIDC_ISSUER_URL",
+    "OIDC_CLIENT_ID",
+    "OIDC_CLIENT_SECRET",
+    "OIDC_ONLY",
+  ] as const;
+  const original: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of OIDC_ENV_KEYS) original[key] = process.env[key];
+  });
+
+  afterEach(() => {
+    for (const key of OIDC_ENV_KEYS) {
+      if (original[key] === undefined) delete process.env[key];
+      else process.env[key] = original[key];
+    }
+  });
+
+  it("rejects self-registration before any DB lookup when OIDC_ONLY is set", async () => {
+    process.env.OIDC_ISSUER_URL = "https://idp.example.com";
+    process.env.OIDC_CLIENT_ID = "client-1";
+    process.env.OIDC_CLIENT_SECRET = "secret-1";
+    process.env.OIDC_ONLY = "true";
+
+    const res = await postPathThrough({
+      email: "new@example.com",
+      username: "newuser",
+      password: "a-very-strong-password-123",
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("still allows registration when OIDC_ONLY is set but the provider is half-configured", async () => {
+    delete process.env.OIDC_ISSUER_URL;
+    process.env.OIDC_CLIENT_ID = "client-1";
+    process.env.OIDC_CLIENT_SECRET = "secret-1";
+    process.env.OIDC_ONLY = "true";
+
+    const res = await postPathThrough({ email: "not-an-email", username: "x" });
+    // Falls through to normal validation (422 here) rather than 403 — a
+    // half-set OIDC group must never lock everyone out.
+    expect(res.status).toBe(422);
+  });
+});

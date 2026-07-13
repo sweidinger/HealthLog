@@ -26,8 +26,18 @@ import {
   isValidTimezone,
   resolveServerDefaultTimezone,
 } from "@/lib/tz/resolver";
+import { isOidcOnly } from "@/lib/auth/oidc";
 
 export const POST = apiHandler(async (request: NextRequest) => {
+  // OIDC_ONLY must block self-registration too — otherwise anyone can
+  // self-provision a fresh password account and bypass the operator's
+  // SSO-only policy outright, invite token or not.
+  if (isOidcOnly()) {
+    return apiError("Registration is disabled. Sign in with SSO.", 403, {
+      errorCode: "oidc_only",
+    });
+  }
+
   // v1.4.43 W13 M-4 — tighten to a global bucket when the trust chain
   // is misconfigured; otherwise byte-equivalent per-IP semantics.
   const rl = await checkAuthSurfaceRateLimit(

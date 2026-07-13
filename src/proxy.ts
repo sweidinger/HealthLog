@@ -15,6 +15,14 @@ const PUBLIC_PATHS = [
   "/api/auth/registration-status",
   "/api/auth/passkey/login-options",
   "/api/auth/passkey/login-verify",
+  // OIDC SSO login. `login` starts the redirect to the IdP, `callback`
+  // completes it and mints the session — both must be reachable with no
+  // existing session, since they authenticate the user in the first
+  // place. `status` is the public flag the login page reads to decide
+  // whether to render the SSO button.
+  "/api/auth/oidc/login",
+  "/api/auth/oidc/callback",
+  "/api/auth/oidc/status",
   "/api/health",
   "/api/version",
   "/api/notifications/vapid",

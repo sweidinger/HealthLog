@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Lock, Loader2 } from "lucide-react";
+import { KeyRound, Lock, Loader2, Shield } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { MfaLoginStep, type MfaMethod } from "@/components/auth/mfa-login-step";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import { prefetchDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
+import { sanitizeSameOriginPath } from "@/lib/url-safety";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +33,16 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"passkey" | "password">("passkey");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => {
+    const oidcError = searchParams.get("error");
+    if (!oidcError) return null;
+    const key: Record<string, string> = {
+      oidc_denied: "auth.oidc.errorDenied",
+      oidc_no_email: "auth.oidc.errorNoEmail",
+      oidc_registration_disabled: "auth.oidc.errorRegistrationDisabled",
+    };
+    return t(key[oidcError] ?? "auth.oidc.errorFailed");
+  });
   const [loading, setLoading] = useState(false);
   // v1.23 — second step of login when the password response carries
   // `meta.mfaRequired`. Holds the opaque ticket + the factors the account can
@@ -66,14 +76,32 @@ export default function LoginPage() {
     staleTime: 60 * 1000,
   });
 
+  const { data: oidcStatus } = useQuery({
+    queryKey: queryKeys.authOidcStatus(),
+    queryFn: async () => {
+      try {
+        return await apiGet<{
+          enabled?: boolean;
+          buttonLabel?: string | null;
+          only?: boolean;
+        }>("/api/auth/oidc/status", { cache: "no-store" });
+      } catch {
+        return { enabled: false, buttonLabel: null, only: false };
+      }
+    },
+    staleTime: 60 * 1000,
+  });
+
+  function handleOidcLogin() {
+    const params = new URLSearchParams({ next: getRedirectTarget() });
+    window.location.href = `/api/auth/oidc/login?${params}`;
+  }
+
   function getRedirectTarget(): string {
-    const next = searchParams.get("next");
-    if (!next) return "/";
-    // Prevent open redirects: only allow local absolute paths.
-    if (next.startsWith("/") && !next.startsWith("//")) {
-      return next;
-    }
-    return "/";
+    return sanitizeSameOriginPath(
+      searchParams.get("next"),
+      window.location.href,
+    );
   }
 
   // v1.16.6 first-load waterfall fix — the session cookie exists the
@@ -268,102 +296,128 @@ export default function LoginPage() {
           </div>
         ) : (
           <div className="mt-8 space-y-4">
-            {/* Phase A5 / B-mobile: bumped from default size (h-9, 36px)
-              to size="lg" so the login CTAs meet WCAG 2.5.5 (44px
-              minimum) on mobile. Login is the most-tapped flow on a
-              fresh install. */}
-            <Button
-              onClick={handlePasskeyLogin}
-              className="min-h-11 w-full"
-              size="lg"
-              disabled={loading}
-            >
-              {loading && mode === "passkey" ? (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-              ) : (
-                <KeyRound className="h-4 w-4" />
-              )}
-              {t("auth.loginWithPasskey")}
-            </Button>
-
-            <div className="flex items-center gap-3">
-              <Separator className="flex-1" />
-              <span className="text-muted-foreground text-xs">
-                {t("common.or")}
-              </span>
-              <Separator className="flex-1" />
-            </div>
-
-            {mode === "passkey" ? (
+            {oidcStatus?.enabled && (
               <Button
-                variant="outline"
+                onClick={handleOidcLogin}
+                variant={oidcStatus.only ? "default" : "outline"}
                 className="min-h-11 w-full"
                 size="lg"
-                onClick={() => setMode("password")}
               >
-                <Lock className="h-4 w-4" />
-                {t("auth.loginWithPassword")}
+                <Shield className="h-4 w-4" />
+                {oidcStatus.buttonLabel || t("auth.oidc.signInDefault")}
               </Button>
-            ) : (
-              <form onSubmit={handlePasswordLogin} className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="email">{t("auth.emailOrUsername")}</Label>
-                  <Input
-                    id="email"
-                    type="text"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    // `webauthn` token arms the conditional-UI passkey
-                    // autofill prompt on this field (see the mount effect).
-                    autoComplete="username webauthn"
-                    inputMode="email"
-                    enterKeyHint="next"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    aria-required="true"
-                    aria-invalid={!!error || undefined}
-                    aria-describedby={errorDescriptor}
-                    placeholder={t("auth.emailOrUsernamePlaceholder")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">{t("auth.password")}</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                    enterKeyHint="go"
-                    aria-required="true"
-                    aria-invalid={!!error || undefined}
-                    aria-describedby={errorDescriptor}
-                    placeholder="********"
-                  />
-                </div>
+            )}
+
+            {oidcStatus?.enabled && !oidcStatus.only && (
+              <div className="flex items-center gap-3">
+                <Separator className="flex-1" />
+                <span className="text-muted-foreground text-xs">
+                  {t("common.or")}
+                </span>
+                <Separator className="flex-1" />
+              </div>
+            )}
+
+            {!oidcStatus?.only && (
+              <>
+                {/* Phase A5 / B-mobile: bumped from default size (h-9, 36px)
+                  to size="lg" so the login CTAs meet WCAG 2.5.5 (44px
+                  minimum) on mobile. Login is the most-tapped flow on a
+                  fresh install. */}
                 <Button
-                  type="submit"
+                  onClick={handlePasskeyLogin}
                   className="min-h-11 w-full"
                   size="lg"
                   disabled={loading}
                 >
-                  {loading && mode === "password" ? (
+                  {loading && mode === "passkey" ? (
                     <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
                   ) : (
-                    <Lock className="h-4 w-4" />
+                    <KeyRound className="h-4 w-4" />
                   )}
-                  {t("auth.login")}
+                  {t("auth.loginWithPasskey")}
                 </Button>
-                <button
-                  type="button"
-                  onClick={() => setMode("passkey")}
-                  className="text-muted-foreground hover:text-foreground inline-flex min-h-11 w-full items-center justify-center text-center text-xs"
-                >
-                  {t("auth.backToPasskey")}
-                </button>
-              </form>
+
+                <div className="flex items-center gap-3">
+                  <Separator className="flex-1" />
+                  <span className="text-muted-foreground text-xs">
+                    {t("common.or")}
+                  </span>
+                  <Separator className="flex-1" />
+                </div>
+
+                {mode === "passkey" ? (
+                  <Button
+                    variant="outline"
+                    className="min-h-11 w-full"
+                    size="lg"
+                    onClick={() => setMode("password")}
+                  >
+                    <Lock className="h-4 w-4" />
+                    {t("auth.loginWithPassword")}
+                  </Button>
+                ) : (
+                  <form onSubmit={handlePasswordLogin} className="space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">{t("auth.emailOrUsername")}</Label>
+                      <Input
+                        id="email"
+                        type="text"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        // `webauthn` token arms the conditional-UI passkey
+                        // autofill prompt on this field (see the mount effect).
+                        autoComplete="username webauthn"
+                        inputMode="email"
+                        enterKeyHint="next"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        aria-required="true"
+                        aria-invalid={!!error || undefined}
+                        aria-describedby={errorDescriptor}
+                        placeholder={t("auth.emailOrUsernamePlaceholder")}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">{t("auth.password")}</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        autoComplete="current-password"
+                        enterKeyHint="go"
+                        aria-required="true"
+                        aria-invalid={!!error || undefined}
+                        aria-describedby={errorDescriptor}
+                        placeholder="********"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="min-h-11 w-full"
+                      size="lg"
+                      disabled={loading}
+                    >
+                      {loading && mode === "password" ? (
+                        <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                      ) : (
+                        <Lock className="h-4 w-4" />
+                      )}
+                      {t("auth.login")}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setMode("passkey")}
+                      className="text-muted-foreground hover:text-foreground inline-flex min-h-11 w-full items-center justify-center text-center text-xs"
+                    >
+                      {t("auth.backToPasskey")}
+                    </button>
+                  </form>
+                )}
+              </>
             )}
 
             {error && (
@@ -377,7 +431,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {registrationEnabled === true && (
+            {!oidcStatus?.only && registrationEnabled === true && (
               <p className="text-muted-foreground text-center text-xs">
                 {t("auth.noAccount")}{" "}
                 <Link
