@@ -973,7 +973,15 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   // `AppleSleepingBreathingDisturbances` (the per-night quantity) →
   // BREATHING_DISTURBANCES, and `HKCategoryTypeIdentifierSleepApneaEvent`
   // (the fired screening event) → BREATHING_DISTURBANCE_EVENT.
-  // Nutrition — the maintainer directive, indefinite hold
+  // Nutrition — the Measurement path stays PERMANENTLY closed to
+  // Dietary types. Energy / macros (and sodium): indefinite hold, the
+  // anti-goal against diet-app territory stands. Water + caffeine (and
+  // the 24 micro Dietary vitamin/mineral identifiers, which were never
+  // listed here because no sample ever mapped) ride the dedicated
+  // day-total endpoint `POST /api/nutrients/batch` (closed catalog in
+  // `src/lib/nutrients/catalog.ts`) — never Measurements, so the two
+  // entries below stay deferred and a stray sample-grain post keeps
+  // skipping as unmappable.
   "HKQuantityTypeIdentifierDietaryWater",
   "HKQuantityTypeIdentifierDietaryCaffeine",
   "HKQuantityTypeIdentifierDietaryEnergyConsumed",

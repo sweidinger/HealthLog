@@ -33,6 +33,7 @@ import { measurementReminderKeys } from "./measurement-reminders";
 import { medicationKeys } from "./medications";
 import { mentalHealthKeys } from "./mental-health";
 import { moodKeys } from "./mood";
+import { nutrientKeys } from "./nutrients";
 import { settingsKeys } from "./settings";
 import { workoutKeys } from "./workouts";
 
@@ -58,6 +59,7 @@ export const queryKeys = {
   ...environmentKeys,
   ...documentKeys,
   ...customMetrics,
+  ...nutrientKeys,
 };
 
 /**

@@ -93,6 +93,7 @@ function moduleMap(
     mcp: true,
     inboundDocuments: true,
     mentalHealth: true,
+    nutrients: true,
   };
   return { ...base, ...overrides };
 }

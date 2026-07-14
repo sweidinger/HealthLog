@@ -805,6 +805,10 @@ model User {
   // that win over the home location for the days they cover.
   environmentContexts         EnvironmentContext[]
   environmentTravelLocations  EnvironmentTravelLocation[]
+  // v1.28 — micronutrient intake daily totals synced from Apple Health
+  // (vitamins, minerals, water, caffeine). Opt-in `nutrients` module, off
+  // by default; the ingest route refuses while the module is off.
+  nutrientIntakeDays          NutrientIntakeDay[]
   // v1.25 (W-DOCS-IN) — inbound clinical documents (doctor reports /
   // discharge letters) the user uploads. The raw document is encrypted at
   // rest; extracted facts land in a review-then-confirm staging area
@@ -6200,4 +6204,44 @@ model DocumentThumbnail {
 
   @@index([userId])
   @@map("document_thumbnails")
+}
+
+// ─── Nutrient intake (v1.28) ───────────────────────────────────────
+//
+// Micronutrient daily totals synced from Apple Health — vitamins,
+// minerals, water, caffeine as supplement-style "substances taken",
+// never a food diary (energy / macros are out of scope by directive).
+// One row per (user, local day, nutrient); the composite PK IS the
+// idempotency key, so an iOS re-post of a grown day total replaces the
+// row in place (last-writer-wins day-total contract — the `stats:`
+// overwrite semantics without externalId string parsing). `nutrient`
+// is a bare string enforced in code against the closed catalog in
+// `src/lib/nutrients/catalog.ts` (the IntegrationStatus precedent: no
+// migration to add a code). No soft delete: rows are source-owned day
+// totals; replace-on-repost is the correction mechanism and account
+// deletion cascades. Behind the opt-in `nutrients` module
+// (refuse-ingest-when-off).
+
+model NutrientIntakeDay {
+  userId                String   @map("user_id")
+  /// YYYY-MM-DD anchored to the user's IANA timezone (iOS-computed —
+  /// the same day-key contract as the `stats:` externalIds).
+  day                   String
+  /// Closed catalog code ("vitamin_d", "magnesium", "water", ...).
+  nutrient              String
+  /// Daily total in the catalog's canonical unit.
+  amount                Float
+  /// Canonical unit echoed from the catalog ("mg" | "ug" | "ml") —
+  /// denormalised on purpose: rows stay self-describing in exports
+  /// even if the catalog ever drifts.
+  unit                  String
+  source                String   @default("APPLE_HEALTH")
+  externalSourceVersion String?  @map("external_source_version")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day, nutrient])
+  @@index([userId, nutrient, day(sort: Desc)])
+  @@map("nutrient_intake_days")
 }

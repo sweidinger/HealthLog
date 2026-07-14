@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.28.34] — 2026-07-14 — Nutrient intake lands as quiet context (server side)
+
+Supplement-style intake written to Apple Health by nutrition apps — vitamins,
+minerals, water, caffeine — can now sync to HealthLog as daily totals. This is
+deliberately not a nutrition feature: no food diary, no calorie tracking, no
+dashboard tile. The data lands in a dedicated store (26 nutrients with EFSA
+reference values), is visible on a read-only card under Settings → Sources,
+and will feed the Coach as context in a later release.
+
+The module is opt-in and off by default; with it off, the server refuses the
+data entirely. Re-posting a day replaces it, units are guarded against
+µg/mg mix-ups, and implausible values are skipped per entry. This release is
+inert until the iOS companion app ships its reading side (coordination ticket
+filed); the wire contract is in the OpenAPI spec.
+
 ## [1.28.33] — 2026-07-14 — Re-importing a cumulative Apple Health export works again
 
 Re-uploading a fresh export.zip over existing data could fail with a duplicate-key

@@ -4238,7 +4238,16 @@
           "other": "Other",
           "unknown": "Unknown"
         },
-        "subtitle": "Decide which source wins when two report the same metric."
+        "subtitle": "Decide which source wins when two report the same metric.",
+        "nutrients": {
+          "title": "Synced nutrient intake",
+          "description": "Daily totals synced from Apple Health over the last {days} days. Read-only — the source app owns the numbers.",
+          "empty": "No nutrient data has been synced yet.",
+          "latest": "{amount} {unit} on {date}",
+          "daysWithData": "{count} of {days} days",
+          "moduleHint": "Syncing is controlled by the Nutrient intake module.",
+          "moduleHintLink": "Manage modules"
+        }
       },
       "ai": {
         "title": "AI provider",
@@ -7570,6 +7579,10 @@
     "mentalHealth": {
       "label": "Mental wellbeing",
       "description": "Opt-in PHQ-9 and GAD-7 screeners beside mood tracking. Off by default; answers are encrypted and kept out of the AI Coach."
+    },
+    "nutrients": {
+      "label": "Nutrient intake",
+      "description": "Store daily micronutrient totals (vitamins, minerals, water, caffeine) synced from Apple Health. Off by default."
     }
   },
   "illness": {
@@ -8451,6 +8464,36 @@
       "valuesTitle": "{metric} — all values",
       "valuesDescription": "Every logged value for this metric.",
       "backToMetric": "Back to {metric}"
+    }
+  },
+  "nutrients": {
+    "names": {
+      "vitamin_a": "Vitamin A",
+      "thiamin": "Thiamin (B1)",
+      "riboflavin": "Riboflavin (B2)",
+      "niacin": "Niacin (B3)",
+      "pantothenic_acid": "Pantothenic acid (B5)",
+      "vitamin_b6": "Vitamin B6",
+      "biotin": "Biotin (B7)",
+      "folate": "Folate (B9)",
+      "vitamin_b12": "Vitamin B12",
+      "vitamin_c": "Vitamin C",
+      "vitamin_d": "Vitamin D",
+      "vitamin_e": "Vitamin E",
+      "vitamin_k": "Vitamin K",
+      "calcium": "Calcium",
+      "iron": "Iron",
+      "magnesium": "Magnesium",
+      "phosphorus": "Phosphorus",
+      "zinc": "Zinc",
+      "copper": "Copper",
+      "manganese": "Manganese",
+      "selenium": "Selenium",
+      "chromium": "Chromium",
+      "molybdenum": "Molybdenum",
+      "iodine": "Iodine",
+      "water": "Water",
+      "caffeine": "Caffeine"
     }
   }
 }

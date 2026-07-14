@@ -52,6 +52,7 @@ import { mentalHealthPaths } from "./mental-health";
 import { medicationPaths, medicationResource } from "./medications";
 import { metaPaths } from "./meta";
 import { moodPaths } from "./mood";
+import { nutrientPaths } from "./nutrients";
 import { onboardingPaths } from "./onboarding";
 import { profilePaths } from "./profile";
 import { settingsPaths } from "./settings";
@@ -94,6 +95,8 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...inboundDocumentPaths,
   ...customMetricPaths,
   ...onboardingPaths,
+  // v1.28 — nutrient-intake sync (appended; spread order is load-bearing).
+  ...nutrientPaths,
 };
 
 export const openApiComponents: NonNullable<ZodOpenApiObject["components"]> = {
