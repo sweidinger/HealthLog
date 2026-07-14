@@ -20,6 +20,7 @@ import {
   apiPost,
 } from "@/lib/api/api-fetch";
 import { MfaLoginStep, type MfaMethod } from "@/components/auth/mfa-login-step";
+import { OIDC_MFA_COOKIE, OIDC_MFA_COOKIE_PATH } from "@/lib/auth/oidc-cookie";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import { prefetchDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
@@ -217,6 +218,35 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  // OIDC → second-factor handoff. The OAuth callback cannot render UI: for
+  // a 2FA-enrolled account it mints the same single-use MFA ticket password
+  // login uses and parks it in a short-lived, login-page-scoped cookie
+  // (`oidc-cookie.ts` documents why it is readable here). Pick it up once,
+  // clear it, and enter the exact same MfaLoginStep the password flow uses —
+  // `next` continuation rides the query string as usual.
+  useEffect(() => {
+    const raw = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith(`${OIDC_MFA_COOKIE}=`))
+      ?.slice(OIDC_MFA_COOKIE.length + 1);
+    if (!raw) return;
+    document.cookie = `${OIDC_MFA_COOKIE}=; path=${OIDC_MFA_COOKIE_PATH}; max-age=0`;
+    try {
+      const parsed = JSON.parse(decodeURIComponent(raw)) as {
+        ticket?: string;
+        methods?: MfaMethod[];
+      };
+      if (parsed.ticket) {
+        setMfaChallenge({
+          ticket: parsed.ticket,
+          methods: parsed.methods ?? ["totp", "recovery"],
+        });
+      }
+    } catch {
+      // Malformed handoff — fall through to the normal login UI.
+    }
+  }, []);
 
   // v1.23 — passkey conditional-UI autofill. When the browser supports it,
   // arm a discoverable-credential assertion bound to the username field so a

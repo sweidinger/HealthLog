@@ -28,12 +28,25 @@ vi.mock("@/lib/db", () => ({
       update: vi.fn(),
     },
     appSettings: { findUnique: vi.fn() },
+    webauthnMfaCredential: { count: vi.fn() },
   },
 }));
 
 vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ createSession: vi.fn() }));
 vi.mock("@/lib/auth/login-alert", () => ({ recordSignInDevice: vi.fn() }));
+vi.mock("@/lib/auth/mfa/challenge", () => ({
+  createMfaChallenge: vi.fn(async () => ({
+    ticket: "mfa-ticket-1",
+    expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+  })),
+}));
+vi.mock("@/lib/auth/mfa-enrollment", () => ({
+  syncMfaEnrollCookie: vi.fn(),
+}));
+vi.mock("@/lib/auth/secure-cookie", () => ({
+  shouldEmitSecureCookie: () => false,
+}));
 vi.mock("@/lib/tz/resolver", () => ({
   resolveServerDefaultTimezone: vi.fn(async () => "Europe/Berlin"),
 }));
@@ -54,6 +67,7 @@ import { checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 import { createSession } from "@/lib/auth/session";
+import { createMfaChallenge } from "@/lib/auth/mfa/challenge";
 import {
   getOidcConfig,
   discoverOidcMetadata,
@@ -160,6 +174,11 @@ beforeEach(() => {
   } as never);
   vi.mocked(getOidcConfig).mockReturnValue(CONFIG);
   vi.mocked(discoverOidcMetadata).mockResolvedValue(METADATA);
+  vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(0);
+  vi.mocked(createMfaChallenge).mockResolvedValue({
+    ticket: "mfa-ticket-1",
+    expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+  });
 });
 
 describe("GET /api/auth/oidc/callback", () => {
@@ -366,6 +385,73 @@ describe("GET /api/auth/oidc/callback", () => {
     expect(res.headers.get("location")).toContain(
       "error=oidc_registration_disabled",
     );
+  });
+
+  it("never stamps the session step-up fresh — the 5th createSession arg is null", async () => {
+    mockIdentity();
+    mockUserLookups({ byIdentity: null, byEmail: userRow() });
+    vi.mocked(prisma.user.update).mockResolvedValue(
+      userRow({ oidcIssuer: METADATA.issuer, oidcSub: "sub-1" }) as never,
+    );
+
+    await GET(validRequest());
+
+    expect(createSession).toHaveBeenCalledWith(
+      "user-1",
+      false,
+      "1.2.3.4",
+      null,
+      null,
+    );
+  });
+
+  it("routes a TOTP-enrolled account through the MFA challenge instead of logging in", async () => {
+    mockIdentity();
+    mockUserLookups({
+      byIdentity: userRow({
+        oidcIssuer: METADATA.issuer,
+        oidcSub: "sub-1",
+        totpConfirmedAt: new Date(),
+      }),
+    });
+
+    const res = await GET(validRequest("/dashboard"));
+
+    // No session — the partial state lives in the single-use ticket.
+    expect(createSession).not.toHaveBeenCalled();
+    expect(createMfaChallenge).toHaveBeenCalledWith("user-1", "login");
+
+    const location = res.headers.get("location")!;
+    expect(location).toContain("/auth/login");
+    expect(location).not.toContain("error=");
+    // `next` continuation rides the query string into the login page.
+    expect(location).toContain(`next=${encodeURIComponent("/dashboard")}`);
+
+    // The ticket + methods ride the login-page-scoped handoff cookie.
+    const setCookie = res.headers.getSetCookie().join("\n");
+    expect(setCookie).toContain("oidc_mfa_handoff=");
+    expect(setCookie).toContain(encodeURIComponent("mfa-ticket-1"));
+    expect(setCookie.toLowerCase()).toContain("path=/auth/login");
+    expect(decodeURIComponent(setCookie)).toContain('"totp"');
+  });
+
+  it("offers only the security-key method for a WebAuthn-only account", async () => {
+    mockIdentity();
+    mockUserLookups({
+      byIdentity: userRow({
+        oidcIssuer: METADATA.issuer,
+        oidcSub: "sub-1",
+        totpConfirmedAt: null,
+      }),
+    });
+    vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(1);
+
+    const res = await GET(validRequest());
+
+    expect(createSession).not.toHaveBeenCalled();
+    const setCookie = decodeURIComponent(res.headers.getSetCookie().join("\n"));
+    expect(setCookie).toContain('"webauthn"');
+    expect(setCookie).not.toContain('"totp"');
   });
 
   it("redirects with oidc_failed when the token exchange throws", async () => {

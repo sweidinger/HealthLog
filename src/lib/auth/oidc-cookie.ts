@@ -5,3 +5,20 @@
  */
 export const OIDC_STATE_COOKIE = "oidc_auth_state";
 export const OIDC_STATE_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * MFA handoff between `/api/auth/oidc/callback` (writer) and the login page
+ * (reader). When the OIDC account has a native second factor, the callback
+ * mints the same single-use MFA ticket password login uses — but it ends on
+ * a browser redirect, not a JSON response, so the ticket travels in this
+ * short-lived, login-page-scoped cookie instead of an envelope `meta`.
+ * Deliberately NOT httpOnly: the login page's script must read the ticket —
+ * exactly the exposure the password flow already has, where the ticket
+ * arrives in a JSON body read by the same script. The ticket alone carries
+ * no session authority (single-use, hashed at rest, ~5-minute TTL,
+ * attempt-capped — see `src/lib/auth/mfa/challenge.ts`).
+ */
+export const OIDC_MFA_COOKIE = "oidc_mfa_handoff";
+export const OIDC_MFA_COOKIE_PATH = "/auth/login";
+/** Mirrors MFA_CHALLENGE_TTL_MS — the cookie dies with the ticket. */
+export const OIDC_MFA_TTL_MS = 5 * 60 * 1000;

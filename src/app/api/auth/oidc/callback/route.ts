@@ -17,7 +17,15 @@ import {
   getOidcRedirectUri,
   verifyIdToken,
 } from "@/lib/auth/oidc";
-import { OIDC_STATE_COOKIE } from "@/lib/auth/oidc-cookie";
+import {
+  OIDC_MFA_COOKIE,
+  OIDC_MFA_COOKIE_PATH,
+  OIDC_MFA_TTL_MS,
+  OIDC_STATE_COOKIE,
+} from "@/lib/auth/oidc-cookie";
+import { createMfaChallenge } from "@/lib/auth/mfa/challenge";
+import { syncMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
+import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
 import { resolveServerDefaultTimezone } from "@/lib/tz/resolver";
 
 const LOGIN_ERROR_URL = "/auth/login";
@@ -256,16 +264,76 @@ export const GET = apiHandler(async (req: NextRequest) => {
       }
     }
 
+    // Native second factor. OIDC is a DELEGATED factor: it proves the IdP
+    // authenticated someone, but it never substitutes for this app's own
+    // second factor. An account with a confirmed TOTP secret or a
+    // registered security key gets the same MFA challenge step password
+    // login gets — no session is minted here; the single-use ticket rides
+    // the handoff cookie to the login page, which renders the same
+    // challenge UI and completes at `/api/auth/mfa/verify`. (The
+    // trusted-device skip cannot apply on this path: its cookie is
+    // SameSite=Strict, which the browser withholds on an IdP-initiated
+    // redirect chain.)
+    const hasTotp = Boolean(user.totpConfirmedAt);
+    const webauthnKeyCount = await prisma.webauthnMfaCredential.count({
+      where: { userId: user.id },
+    });
+    const hasWebauthn = webauthnKeyCount > 0;
+
+    if (hasTotp || hasWebauthn) {
+      const challenge = await createMfaChallenge(user.id, "login");
+      const methods: ("totp" | "recovery" | "webauthn")[] = [];
+      if (hasTotp) methods.push("totp", "recovery");
+      if (hasWebauthn) methods.push("webauthn");
+      await auditLog("auth.mfa.challenge", {
+        userId: user.id,
+        ipAddress: ip,
+        details: { source: "login.oidc" },
+      });
+      annotate({
+        action: { name: "auth.mfa.challenge" },
+        meta: { mfa_required: true },
+      });
+      const loginUrl = new URL(LOGIN_ERROR_URL, req.url);
+      if (stored.next !== "/") {
+        loginUrl.searchParams.set("next", stored.next);
+      }
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.delete(OIDC_STATE_COOKIE);
+      response.cookies.set(
+        OIDC_MFA_COOKIE,
+        JSON.stringify({ ticket: challenge.ticket, methods }),
+        {
+          // Not httpOnly by design — see the constant's doc comment.
+          httpOnly: false,
+          secure: shouldEmitSecureCookie(),
+          sameSite: "lax",
+          maxAge: Math.floor(OIDC_MFA_TTL_MS / 1000),
+          path: OIDC_MFA_COOKIE_PATH,
+        },
+      );
+      return response;
+    }
+
     const ua = req.headers.get("user-agent");
-    // The IdP already performed its own authentication — OIDC login
-    // satisfies HealthLog's own MFA step-up, the same treatment passkey
-    // login gives its own factor.
+
+    // v1.23 parity with password login — the admin-enforced-MFA hint cookie
+    // sends a single-factor account into forced enrollment after sign-in.
+    await syncMfaEnrollCookie(user.id, {
+      totpConfirmedAt: user.totpConfirmedAt,
+      mfaEnforced: user.mfaEnforced,
+    });
+
+    // The 5th argument stays null: OIDC is a delegated factor, so an SSO
+    // session must never satisfy `requireFreshMfa` step-up (MFA disable,
+    // encryption-key rotation, encrypted export, account deletion) — the
+    // same treatment a trusted-device login gets.
     await createSession(
       user.id,
       user.onboardingCompletedAt === null,
       ip,
       ua,
-      new Date(),
+      null,
     );
 
     void recordSignInDevice({ userId: user.id, ip, userAgent: ua });
