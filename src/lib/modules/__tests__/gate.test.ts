@@ -357,14 +357,18 @@ describe("registry — opt-in marker", () => {
   // are highly sensitive: `mcp` (remote external-assistant endpoint),
   // `environment` (outbound weather fetch tied to a coarse location),
   // `inboundDocuments` (sends an uploaded clinical document to the OCR/vision
-  // provider), and `mentalHealth` (a depression / anxiety self-assessment — at
-  // least as sensitive as mood, surfaced only on explicit opt-in). Every other
+  // provider), `mentalHealth` (a depression / anxiety self-assessment — at
+  // least as sensitive as mood, surfaced only on explicit opt-in), and
+  // `nutrients` (supplement-pattern intake synced from the phone's health
+  // store — the device-side HealthKit permission is not visible consent to
+  // server/AI-side storage, so ingest refuses while off). Every other
   // module is the default-on disabled-allowlist.
   const OPT_IN_KEYS = new Set([
     "mcp",
     "environment",
     "inboundDocuments",
     "mentalHealth",
+    "nutrients",
   ]);
 
   it("marks only the egress-surface modules opt-in (every other is default-on)", () => {

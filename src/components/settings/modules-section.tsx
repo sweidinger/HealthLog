@@ -47,6 +47,7 @@ import {
   FileScan,
   FileText,
   MessageCircleHeart,
+  Leaf,
   Moon,
   Plug,
   Pill,
@@ -96,6 +97,8 @@ const MODULE_ICONS: Record<ModuleKey, LucideIcon> = {
   inboundDocuments: FileScan,
   // v1.25.0 — opt-in mental-health screeners (PHQ-9 / GAD-7).
   mentalHealth: Brain,
+  // v1.28 — opt-in micronutrient-intake sync (Apple Health day totals).
+  nutrients: Leaf,
 };
 
 export function ModulesSection() {

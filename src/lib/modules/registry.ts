@@ -147,6 +147,15 @@ export const MODULE_KEYS = [
   // assessment routes refuse server-side. Item answers are always encrypted and
   // always excluded from the AI Coach / MCP regardless of this toggle.
   "mentalHealth",
+  // v1.28 — micronutrient-intake sync (vitamins, minerals, water,
+  // caffeine as day totals from Apple Health). OPT-IN (off by default):
+  // the HealthKit read permission is consent to read on the DEVICE, not
+  // visible consent to "a server — and later an AI assistant — holds my
+  // supplement pattern"; the project already answered this for less
+  // sensitive data (`environment`, weather, is opt-in). With it off the
+  // ingest route refuses (403 `module.disabled`) and the settings card
+  // does not render. The `optIn` marker inverts the per-user default.
+  "nutrients",
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -321,6 +330,17 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       // reveals the `/mental-wellbeing` check-in and lets the screener
       // total ride the doctor-report export; item answers stay encrypted and
       // off the AI Coach / MCP regardless.
+      optIn: true,
+    },
+    nutrients: {
+      key: "nutrients",
+      labelKey: "modules.nutrients.label",
+      descriptionKey: "modules.nutrients.description",
+      category: "device",
+      // Off by default: supplement-pattern intake synced from the phone's
+      // health store is server/AI-consent-sensitive even though the
+      // HealthKit read permission was granted on the device. Ships dark;
+      // ingest refuses while off (refuse-ingest posture, not surface-only).
       optIn: true,
     },
   });

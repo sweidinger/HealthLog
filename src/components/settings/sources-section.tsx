@@ -44,6 +44,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { NutrientIntakeCard } from "@/components/settings/nutrient-intake-card";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -580,6 +581,10 @@ export function SourcesSection() {
           </Link>
         </p>
       </SettingsCard>
+
+      {/* v1.28 — read-only synced-nutrient list for the opt-in `nutrients`
+          module (renders nothing while the module is off). */}
+      <NutrientIntakeCard />
     </div>
   );
 }

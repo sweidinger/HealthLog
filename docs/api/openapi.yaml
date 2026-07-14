@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.33
+  version: 1.28.34
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -10355,6 +10355,128 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/nutrients/batch:
+    post:
+      tags:
+        - Nutrients
+      summary: Ingest micronutrient day totals (v1.28)
+      description: >-
+        Bulk upsert of supplement-style daily totals synced from HealthKit — vitamins, minerals, water, caffeine. Day
+        totals only: compute HKStatisticsCollectionQuery cumulative sums day-anchored in the user's current IANA
+        timezone; `day` is yyyy-MM-dd in that timezone (the same rule as the `stats:` day keys). Never post raw samples.
+        Upsert key is (day, nutrient): a re-post replaces the stored total and reports `updated`. Post the current +
+        previous local day per sync; backfill 30 days on first enable. Max 500 entries; Idempotency-Key supported; rate
+        limit 60/min. Per-entry skips (`unit_mismatch` | `value_out_of_range` | `day_invalid`) are terminal — log and
+        drop, do not retry the entry. Behind the opt-in `nutrients` module (403 `module.disabled` when off). Query
+        HealthKit with exactly the listed unit per code (`ug` = microgram; do not convert to IU):
+
+
+        | code | HealthKit identifier | unit |
+
+        | --- | --- | --- |
+
+        | vitamin_a | HKQuantityTypeIdentifierDietaryVitaminA | ug |
+
+        | thiamin | HKQuantityTypeIdentifierDietaryThiamin | mg |
+
+        | riboflavin | HKQuantityTypeIdentifierDietaryRiboflavin | mg |
+
+        | niacin | HKQuantityTypeIdentifierDietaryNiacin | mg |
+
+        | pantothenic_acid | HKQuantityTypeIdentifierDietaryPantothenicAcid | mg |
+
+        | vitamin_b6 | HKQuantityTypeIdentifierDietaryVitaminB6 | mg |
+
+        | biotin | HKQuantityTypeIdentifierDietaryBiotin | ug |
+
+        | folate | HKQuantityTypeIdentifierDietaryFolate | ug |
+
+        | vitamin_b12 | HKQuantityTypeIdentifierDietaryVitaminB12 | ug |
+
+        | vitamin_c | HKQuantityTypeIdentifierDietaryVitaminC | mg |
+
+        | vitamin_d | HKQuantityTypeIdentifierDietaryVitaminD | ug |
+
+        | vitamin_e | HKQuantityTypeIdentifierDietaryVitaminE | mg |
+
+        | vitamin_k | HKQuantityTypeIdentifierDietaryVitaminK | ug |
+
+        | calcium | HKQuantityTypeIdentifierDietaryCalcium | mg |
+
+        | iron | HKQuantityTypeIdentifierDietaryIron | mg |
+
+        | magnesium | HKQuantityTypeIdentifierDietaryMagnesium | mg |
+
+        | phosphorus | HKQuantityTypeIdentifierDietaryPhosphorus | mg |
+
+        | zinc | HKQuantityTypeIdentifierDietaryZinc | mg |
+
+        | copper | HKQuantityTypeIdentifierDietaryCopper | mg |
+
+        | manganese | HKQuantityTypeIdentifierDietaryManganese | mg |
+
+        | selenium | HKQuantityTypeIdentifierDietarySelenium | ug |
+
+        | chromium | HKQuantityTypeIdentifierDietaryChromium | ug |
+
+        | molybdenum | HKQuantityTypeIdentifierDietaryMolybdenum | ug |
+
+        | iodine | HKQuantityTypeIdentifierDietaryIodine | ug |
+
+        | water | HKQuantityTypeIdentifierDietaryWater | ml |
+
+        | caffeine | HKQuantityTypeIdentifierDietaryCaffeine | mg |
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NutrientBatchRequest"
+      responses:
+        "200":
+          description: Batch processed; per-entry statuses inserted | updated | skipped.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NutrientBatchEnvelope"
+        "401": *a1
+        "403": &a17
+          description: The opt-in `nutrients` module is off for this account (errorCode `module.disabled`). Stop syncing and do
+            not retry; offer the enable-in-settings hint. Only run the HealthKit read-authorization flow while the
+            module is on.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/nutrients:
+    get:
+      tags:
+        - Nutrients
+      summary: Synced-nutrient window summary (v1.28)
+      description: "Per-nutrient summary of the last `days` days (default 14): latest synced day + total and the
+        days-with-data count, in catalog order. Read-only; feeds the settings card. Behind the opt-in `nutrients`
+        module."
+      parameters:
+        - in: query
+          name: days
+          schema:
+            default: 14
+            type: integer
+            minimum: 1
+            maximum: 365
+      responses:
+        "200":
+          description: The window summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NutrientOverviewEnvelope"
+        "401": *a1
+        "403": *a17
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     EncryptedExportRequest:
@@ -11501,6 +11623,8 @@ components:
           type: boolean
         mentalHealth:
           type: boolean
+        nutrients:
+          type: boolean
       additionalProperties: false
       description: Partial module enable/disable update. Each key is an optional boolean; an omitted key is left untouched,
         `false` disables the module, `true` (re-)enables it. Only the toggleable "secondary domains" are accepted — a
@@ -12143,6 +12267,76 @@ components:
         - updatedAt
       description: Resumable module-tour progress point. `lastStopId` seeds the resume index; `status` is the running/terminal
         state.
+    NutrientBatchRequest:
+      type: object
+      properties:
+        entries:
+          minItems: 1
+          maxItems: 500
+          type: array
+          items:
+            $ref: "#/components/schemas/NutrientIntakeEntry"
+      required:
+        - entries
+      description: Bulk day-total upsert, max 500 entries. Upsert key is (day, nutrient); a re-post replaces the stored total
+        (last-writer-wins day-total contract).
+    NutrientIntakeEntry:
+      type: object
+      properties:
+        day:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}$
+        nutrient:
+          $ref: "#/components/schemas/NutrientCode"
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 10
+        amount:
+          type: number
+          minimum: 0
+        externalSourceVersion:
+          type: string
+          minLength: 1
+          maxLength: 120
+      required:
+        - day
+        - nutrient
+        - unit
+        - amount
+      description: One nutrient day total. day = YYYY-MM-DD in the user's IANA timezone; unit must equal the catalog's
+        canonical unit for the code (mg | ug | ml) or the entry is skipped unit_mismatch.
+    NutrientCode:
+      type: string
+      enum:
+        - vitamin_a
+        - thiamin
+        - riboflavin
+        - niacin
+        - pantothenic_acid
+        - vitamin_b6
+        - biotin
+        - folate
+        - vitamin_b12
+        - vitamin_c
+        - vitamin_d
+        - vitamin_e
+        - vitamin_k
+        - calcium
+        - iron
+        - magnesium
+        - phosphorus
+        - zinc
+        - copper
+        - manganese
+        - selenium
+        - chromium
+        - molybdenum
+        - iodine
+        - water
+        - caffeine
+      description: Closed nutrient catalog code — 24 HealthKit Dietary vitamin/mineral types plus water and caffeine. Energy,
+        macros and sodium/potassium are out of scope.
     MedicationTreatmentClass:
       type: string
       enum:
@@ -19022,6 +19216,9 @@ components:
         mentalHealth:
           type: boolean
           description: Whether the "mentalHealth" module is enabled for this account.
+        nutrients:
+          type: boolean
+          description: Whether the "nutrients" module is enabled for this account.
       required:
         - cycle
         - mood
@@ -19040,6 +19237,7 @@ components:
         - mcp
         - inboundDocuments
         - mentalHealth
+        - nutrients
       additionalProperties: false
       description: Fully-resolved per-user module enable/disable map. Every toggleable module key is present. `false` means
         the surface should disappear end-to-end (nav, dashboard, insights, …). `cycle` mirrors `cycleTrackingEnabled`;
@@ -28359,6 +28557,140 @@ components:
         - progress
       additionalProperties: false
       description: The persisted completion flag and resume point after the write.
+    NutrientBatchEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/NutrientBatchResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    NutrientBatchResponse:
+      type: object
+      properties:
+        processed:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        inserted:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        updated:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        skipped:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              reason:
+                type: string
+            required:
+              - index
+              - reason
+            additionalProperties: false
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/NutrientEntryResult"
+      required:
+        - processed
+        - inserted
+        - updated
+        - skipped
+        - entries
+      additionalProperties: false
+      description: Always 200 when the envelope parses; per-entry failures surface as skipped entries, never a batch failure.
+    NutrientEntryResult:
+      type: object
+      properties:
+        index:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        status:
+          type: string
+          enum:
+            - inserted
+            - updated
+            - skipped
+        reason:
+          type: string
+      required:
+        - index
+        - status
+      additionalProperties: false
+      description: "Per-entry ingest outcome. skipped reasons: unit_mismatch | value_out_of_range | day_invalid |
+        upsert_failed. Log and drop a skipped entry — do not retry it."
+    NutrientOverviewEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/NutrientIntakeOverview"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    NutrientIntakeOverview:
+      type: object
+      properties:
+        windowDays:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        nutrients:
+          type: array
+          items:
+            type: object
+            properties:
+              nutrient:
+                $ref: "#/components/schemas/NutrientCode"
+              unit:
+                type: string
+              latestDay:
+                type: string
+              latestAmount:
+                type: number
+              daysWithData:
+                type: integer
+                minimum: 1
+                maximum: 9007199254740991
+            required:
+              - nutrient
+              - unit
+              - latestDay
+              - latestAmount
+              - daysWithData
+            additionalProperties: false
+      required:
+        - windowDays
+        - nutrients
+      additionalProperties: false
+      description: "Per-nutrient window summary in catalog order: latest synced day + total, and the count of days carrying
+        data inside the window. Nutrients without data in the window are omitted."
     MedicationScheduleOutput:
       type: object
       properties:

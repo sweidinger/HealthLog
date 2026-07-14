@@ -4238,7 +4238,16 @@
           "other": "Altro",
           "unknown": "Sconosciuto"
         },
-        "subtitle": "Decidi quale fonte prevale quando due riportano la stessa metrica."
+        "subtitle": "Decidi quale fonte prevale quando due riportano la stessa metrica.",
+        "nutrients": {
+          "title": "Assunzione di nutrienti sincronizzata",
+          "description": "Totali giornalieri sincronizzati da Apple Health negli ultimi {days} giorni. Sola lettura: i valori appartengono all'app di origine.",
+          "empty": "Nessun dato sui nutrienti ancora sincronizzato.",
+          "latest": "{amount} {unit} il {date}",
+          "daysWithData": "{count} giorni su {days}",
+          "moduleHint": "La sincronizzazione è controllata dal modulo Assunzione di nutrienti.",
+          "moduleHintLink": "Gestisci moduli"
+        }
       },
       "ai": {
         "title": "Provider IA",
@@ -7570,6 +7579,10 @@
     "mentalHealth": {
       "label": "Benessere mentale",
       "description": "Questionari PHQ-9 e GAD-7 facoltativi, accanto al diario dell'umore. Disattivato per impostazione predefinita; le risposte sono cifrate e tenute fuori dal Coach IA."
+    },
+    "nutrients": {
+      "label": "Assunzione di nutrienti",
+      "description": "Salva i totali giornalieri di micronutrienti (vitamine, minerali, acqua, caffeina) sincronizzati da Apple Health. Disattivato per impostazione predefinita."
     }
   },
   "illness": {
@@ -8451,6 +8464,36 @@
       "valuesTitle": "{metric} — tutti i valori",
       "valuesDescription": "Tutti i valori registrati per questa metrica.",
       "backToMetric": "Torna a {metric}"
+    }
+  },
+  "nutrients": {
+    "names": {
+      "vitamin_a": "Vitamina A",
+      "thiamin": "Tiamina (B1)",
+      "riboflavin": "Riboflavina (B2)",
+      "niacin": "Niacina (B3)",
+      "pantothenic_acid": "Acido pantotenico (B5)",
+      "vitamin_b6": "Vitamina B6",
+      "biotin": "Biotina (B7)",
+      "folate": "Folati (B9)",
+      "vitamin_b12": "Vitamina B12",
+      "vitamin_c": "Vitamina C",
+      "vitamin_d": "Vitamina D",
+      "vitamin_e": "Vitamina E",
+      "vitamin_k": "Vitamina K",
+      "calcium": "Calcio",
+      "iron": "Ferro",
+      "magnesium": "Magnesio",
+      "phosphorus": "Fosforo",
+      "zinc": "Zinco",
+      "copper": "Rame",
+      "manganese": "Manganese",
+      "selenium": "Selenio",
+      "chromium": "Cromo",
+      "molybdenum": "Molibdeno",
+      "iodine": "Iodio",
+      "water": "Acqua",
+      "caffeine": "Caffeina"
     }
   }
 }

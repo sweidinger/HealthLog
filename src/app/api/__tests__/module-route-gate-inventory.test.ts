@@ -111,6 +111,13 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   // ungated insights AI route fails this test BY NAME rather than leaking the
   // surface over a Bearer token when the account turned insights off.
   "src/app/api/insights",
+  // v1.28 — the nutrient-intake sync (opt-in `nutrients` module). Unlike the
+  // data-layer-exempt siblings this domain is REFUSE-INGEST-WHEN-OFF (the
+  // mental-health posture): both the batch ingest and the window-summary
+  // read call `requireModuleEnabled(user.id, "nutrients")` directly, so a
+  // phone whose user never opted in cannot land rows server-side. Walking
+  // the tree means a NEW ungated nutrients route fails BY NAME.
+  "src/app/api/nutrients",
 ];
 
 /**

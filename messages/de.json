@@ -4238,7 +4238,16 @@
           "other": "Sonstige",
           "unknown": "Unbekannt"
         },
-        "subtitle": "Lege fest, welche Quelle gewinnt, wenn zwei dieselbe Messgröße liefern."
+        "subtitle": "Lege fest, welche Quelle gewinnt, wenn zwei dieselbe Messgröße liefern.",
+        "nutrients": {
+          "title": "Synchronisierte Nährstoffzufuhr",
+          "description": "Tagessummen aus Apple Health der letzten {days} Tage. Nur lesend — die Quell-App besitzt die Werte.",
+          "empty": "Noch keine Nährstoffdaten synchronisiert.",
+          "latest": "{amount} {unit} am {date}",
+          "daysWithData": "{count} von {days} Tagen",
+          "moduleHint": "Die Synchronisierung steuert das Modul „Nährstoffzufuhr“.",
+          "moduleHintLink": "Module verwalten"
+        }
       },
       "ai": {
         "title": "KI-Anbieter",
@@ -7570,6 +7579,10 @@
     "mentalHealth": {
       "label": "Seelisches Wohlbefinden",
       "description": "Freiwillige PHQ-9- und GAD-7-Selbsttests ergänzend zum Stimmungstagebuch. Standardmäßig aus; Antworten sind verschlüsselt und bleiben aus dem KI-Coach heraus."
+    },
+    "nutrients": {
+      "label": "Nährstoffzufuhr",
+      "description": "Speichert tägliche Mikronährstoff-Summen (Vitamine, Mineralstoffe, Wasser, Koffein) aus Apple Health. Standardmäßig aus."
     }
   },
   "illness": {
@@ -8451,6 +8464,36 @@
       "valuesTitle": "{metric} — alle Werte",
       "valuesDescription": "Alle erfassten Werte dieser Metrik.",
       "backToMetric": "Zurück zu {metric}"
+    }
+  },
+  "nutrients": {
+    "names": {
+      "vitamin_a": "Vitamin A",
+      "thiamin": "Thiamin (B1)",
+      "riboflavin": "Riboflavin (B2)",
+      "niacin": "Niacin (B3)",
+      "pantothenic_acid": "Pantothensäure (B5)",
+      "vitamin_b6": "Vitamin B6",
+      "biotin": "Biotin (B7)",
+      "folate": "Folat (B9)",
+      "vitamin_b12": "Vitamin B12",
+      "vitamin_c": "Vitamin C",
+      "vitamin_d": "Vitamin D",
+      "vitamin_e": "Vitamin E",
+      "vitamin_k": "Vitamin K",
+      "calcium": "Calcium",
+      "iron": "Eisen",
+      "magnesium": "Magnesium",
+      "phosphorus": "Phosphor",
+      "zinc": "Zink",
+      "copper": "Kupfer",
+      "manganese": "Mangan",
+      "selenium": "Selen",
+      "chromium": "Chrom",
+      "molybdenum": "Molybdän",
+      "iodine": "Jod",
+      "water": "Wasser",
+      "caffeine": "Koffein"
     }
   }
 }

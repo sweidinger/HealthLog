@@ -4238,7 +4238,16 @@
           "other": "Inne",
           "unknown": "Nieznane"
         },
-        "subtitle": "Zdecyduj, które źródło wygrywa, gdy dwa podają tę samą metrykę."
+        "subtitle": "Zdecyduj, które źródło wygrywa, gdy dwa podają tę samą metrykę.",
+        "nutrients": {
+          "title": "Zsynchronizowane spożycie składników",
+          "description": "Dzienne sumy z Apple Health z ostatnich {days} dni. Tylko do odczytu — wartości należą do aplikacji źródłowej.",
+          "empty": "Nie zsynchronizowano jeszcze danych o składnikach odżywczych.",
+          "latest": "{amount} {unit} dnia {date}",
+          "daysWithData": "{count} z {days} dni",
+          "moduleHint": "Synchronizacją steruje moduł spożycia składników odżywczych.",
+          "moduleHintLink": "Zarządzaj modułami"
+        }
       },
       "ai": {
         "title": "Dostawca AI",
@@ -7570,6 +7579,10 @@
     "mentalHealth": {
       "label": "Dobrostan psychiczny",
       "description": "Dobrowolne testy PHQ-9 i GAD-7 obok dziennika nastroju. Domyślnie wyłączone; odpowiedzi są szyfrowane i pozostają poza Coachem AI."
+    },
+    "nutrients": {
+      "label": "Spożycie składników odżywczych",
+      "description": "Zapisuje dzienne sumy mikroskładników (witaminy, minerały, woda, kofeina) synchronizowane z Apple Health. Domyślnie wyłączone."
     }
   },
   "illness": {
@@ -8451,6 +8464,36 @@
       "valuesTitle": "{metric} — wszystkie wartości",
       "valuesDescription": "Wszystkie zapisane wartości tej metryki.",
       "backToMetric": "Powrót do {metric}"
+    }
+  },
+  "nutrients": {
+    "names": {
+      "vitamin_a": "Witamina A",
+      "thiamin": "Tiamina (B1)",
+      "riboflavin": "Ryboflawina (B2)",
+      "niacin": "Niacyna (B3)",
+      "pantothenic_acid": "Kwas pantotenowy (B5)",
+      "vitamin_b6": "Witamina B6",
+      "biotin": "Biotyna (B7)",
+      "folate": "Foliany (B9)",
+      "vitamin_b12": "Witamina B12",
+      "vitamin_c": "Witamina C",
+      "vitamin_d": "Witamina D",
+      "vitamin_e": "Witamina E",
+      "vitamin_k": "Witamina K",
+      "calcium": "Wapń",
+      "iron": "Żelazo",
+      "magnesium": "Magnez",
+      "phosphorus": "Fosfor",
+      "zinc": "Cynk",
+      "copper": "Miedź",
+      "manganese": "Mangan",
+      "selenium": "Selen",
+      "chromium": "Chrom",
+      "molybdenum": "Molibden",
+      "iodine": "Jod",
+      "water": "Woda",
+      "caffeine": "Kofeina"
     }
   }
 }
