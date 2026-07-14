@@ -28,7 +28,7 @@
 
 ## Checklist
 
-- [ ] Targets the `develop` branch (not `main` — see [CONTRIBUTING.md](../CONTRIBUTING.md))
+- [ ] Targets the `main` branch (trunk-based — see [CONTRIBUTING.md](../CONTRIBUTING.md))
 - [ ] `pnpm typecheck` passes locally
 - [ ] `pnpm lint` passes locally
 - [ ] `pnpm test` passes locally
