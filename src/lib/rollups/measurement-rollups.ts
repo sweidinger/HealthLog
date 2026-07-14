@@ -30,7 +30,6 @@
 import { prisma } from "@/lib/db";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
-import { isP2002 } from "@/lib/prisma-errors";
 import {
   collapseRollupRowsBySource,
   loadUserSourcePriority,
@@ -38,7 +37,6 @@ import {
 } from "@/lib/rollups/measurement-read";
 import { startOfUtcDay } from "@/lib/tz/start-of-utc-day";
 import type {
-  MeasurementSource,
   MeasurementType,
   RollupGranularity,
 } from "@/generated/prisma/client";
@@ -504,9 +502,10 @@ async function runRollupAggregate(input: {
 
 /**
  * UPSERT the aggregate rows into `measurement_rollups`. Returns the
- * number of rows touched. Uses a single chunked `$executeRaw` insert
- * with `ON CONFLICT DO UPDATE` so the round-trip count is bounded
- * regardless of fan-out width.
+ * number of rows touched. Uses a chunked raw insert with
+ * `ON CONFLICT DO UPDATE` so the round-trip count is bounded
+ * regardless of fan-out width AND a concurrent writer on the same
+ * partition can never raise a unique violation.
  */
 async function persistRollupRows(
   userId: string,
@@ -515,7 +514,7 @@ async function persistRollupRows(
 ): Promise<number> {
   if (rows.length === 0) return 0;
 
-  // v1.11.1 — rows are now minted per source. Delete-then-insert the affected
+  // v1.11.1 — rows are now minted per source. Delete-then-upsert the affected
   // (type, bucket) partitions across ALL sources before writing, so a source
   // that disappeared from a bucket (the user disconnected a provider, or
   // deleted the last reading from one device) does not strand a stale
@@ -537,85 +536,49 @@ async function persistRollupRows(
     bucketStart: { gte: minBucket, lte: maxBucket },
   };
 
-  const toData = (row: RollupRow) => ({
-    userId,
-    type: row.type as MeasurementType,
-    granularity,
-    bucketStart: row.bucket_start,
-    source: row.source as MeasurementSource,
-    count: Number(row.count),
-    mean: row.mean ?? 0,
-    minValue: row.min_value ?? 0,
-    maxValue: row.max_value ?? 0,
-    // v1.4.39 W-SUM — populate for every type. Cumulative read paths (steps,
-    // flights, distance, daylight, active-energy) consume this column
-    // directly; spot metrics carry it for free because the underlying SUM
-    // aggregator runs in the same query as AVG / MIN / MAX.
-    sumValue: row.sum_value ?? null,
-    sd: row.sd,
-    slope: row.slope,
-    r2: row.r2,
-    // v1.20.0 F6 — persist the regression accumulators alongside the
-    // existing stats; they ride the same aggregate (no extra round-trip).
-    sumX: row.sum_x ?? null,
-    sumXy: row.sum_xy ?? null,
-    sumXx: row.sum_xx ?? null,
-    sumYy: row.sum_yy ?? null,
-    computedAt: new Date(),
-  });
+  // v1.28.33 (issue #486) — the insert leg is a raw
+  // `INSERT … ON CONFLICT (pk) DO UPDATE` instead of `createMany`. The
+  // synchronous DAY hook carries no pg-boss singleton, so a write hook
+  // can race the end-of-import full fold (or a second hook) on the same
+  // (user, type, day, source) partition: under READ COMMITTED the
+  // loser's delete leg cannot see the winner's still-uncommitted rows,
+  // and its plain insert then tripped `measurement_rollups_pkey`
+  // (Postgres 23505). The previous shape swallowed that P2002 and
+  // DROPPED the loser's freshly computed aggregate — wrong whenever the
+  // loser had already seen newer measurements than the winner: the
+  // bucket kept the stale aggregate until the next unrelated write.
+  // `DO UPDATE` makes the write last-write-wins: every recompute lands
+  // its own freshly computed values, so the later writer overwrites the
+  // earlier one and no interleaving can raise or drop. The rows are
+  // sorted on (type, source, bucket) so two concurrent multi-row
+  // upserts take their row locks in the same order and cannot deadlock.
+  const ordered = [...rows].sort((a, b) =>
+    a.type !== b.type
+      ? a.type < b.type
+        ? -1
+        : 1
+      : a.source !== b.source
+        ? a.source < b.source
+          ? -1
+          : 1
+        : a.bucket_start.getTime() - b.bucket_start.getTime(),
+  );
 
   // Chunk to keep the parameter count below Postgres' 65k cap and the
   // round-trip count bounded for large backfills.
   const CHUNK = 500;
 
-  // Common path — the entire write fits one chunk (every incremental hook
-  // and most bucket-span recomputes). Atomic delete-then-insert so a
-  // concurrent read never sees a half-rewritten partition.
-  //
-  // The synchronous DAY hook carries no pg-boss singleton, so two writes
-  // landing on the same (user, type, day) can interleave: T1.delete,
-  // T2.delete, T1.create, T2.create — and T2's createMany then trips the
-  // (userId, type, granularity, bucketStart, source) unique index. Treat
-  // that P2002 as benign: the peer rewrote the identical source-collapsed
-  // partition (the aggregate is a pure function of the same underlying
-  // rows), so the rollup is already correct. Annotate and return 0 written
-  // rather than bubbling a recompute failure.
-  if (rows.length <= CHUNK) {
-    try {
-      const [, created] = await prisma.$transaction([
-        prisma.measurementRollup.deleteMany({ where: deleteWhere }),
-        prisma.measurementRollup.createMany({ data: rows.map(toData) }),
-      ]);
-      return created.count;
-    } catch (err) {
-      if (isP2002(err)) {
-        annotate({
-          meta: {
-            rollup_persist_race: true,
-            rollup_persist_granularity: granularity,
-            rollup_persist_types: types.length,
-          },
-        });
-        return 0;
-      }
-      throw err;
-    }
-  }
-
-  // Large backfill — delete the partition range and insert the chunks
-  // inside ONE interactive transaction. Pre-v1.16.10 the deleteMany
-  // committed standalone before the chunk loop, and the chunks ran
-  // without the P2002 tolerance the ≤CHUNK path has: a concurrent
-  // write-hook insert landing mid-loop made a createMany throw, the
-  // loop aborted, the delete stayed committed — and every type in the
-  // window lost ALL its buckets until the next race-free fold (the
-  // coverage probe then cycled covered/uncovered as the boot backfill
-  // re-raced the hooks). The transaction keeps the delete invisible
-  // until every chunk landed; `skipDuplicates` (ON CONFLICT DO
-  // NOTHING) additionally absorbs a hook row that commits between two
-  // chunks — READ COMMITTED lets a later statement see it — without
-  // aborting the batch. The hook's row is the per-(type, day) loser of
-  // the same aggregate, so skipping the fold's duplicate is benign.
+  // Delete the partition range and upsert the chunks inside ONE
+  // interactive transaction. Pre-v1.16.10 the deleteMany committed
+  // standalone before the chunk loop: a concurrent write-hook insert
+  // landing mid-loop aborted the loop, the delete stayed committed —
+  // and every type in the window lost ALL its buckets until the next
+  // race-free fold (the coverage probe then cycled covered/uncovered
+  // as the boot backfill re-raced the hooks). The transaction keeps
+  // the delete invisible until every chunk landed; the ON CONFLICT
+  // upsert absorbs a hook row that commits between two chunks — READ
+  // COMMITTED lets a later statement see it — without aborting the
+  // batch.
   //
   // Transaction sizing: one call covers ONE granularity, so the worst
   // case is the full 5-year DAY fold of a multi-source power user —
@@ -624,24 +587,95 @@ async function persistRollupRows(
   // transaction was considered and rejected: it would re-open the
   // committed-delete gap between types sharing the bucket range. The
   // 120 s timeout (Prisma default: 5 s) covers the chunk round-trips
-  // with headroom; the fold runs on the serial backfill worker, so a
-  // long-held transaction cannot pile up behind itself.
+  // with headroom; the incremental hook path is a single sub-500-row
+  // chunk and finishes far inside it.
   let touched = 0;
   await prisma.$transaction(
     async (tx) => {
       await tx.measurementRollup.deleteMany({ where: deleteWhere });
-      for (let i = 0; i < rows.length; i += CHUNK) {
-        const slice = rows.slice(i, i + CHUNK);
-        const res = await tx.measurementRollup.createMany({
-          data: slice.map(toData),
-          skipDuplicates: true,
-        });
-        touched += res.count;
+      for (let i = 0; i < ordered.length; i += CHUNK) {
+        const slice = ordered.slice(i, i + CHUNK);
+        const { sql, params } = buildRollupUpsert(userId, granularity, slice);
+        touched += await tx.$executeRawUnsafe(sql, ...params);
       }
     },
     { maxWait: 10_000, timeout: 120_000 },
   );
   return touched;
+}
+
+/**
+ * Build the chunked `INSERT … ON CONFLICT DO UPDATE` statement for one
+ * slice of aggregate rows. Every value travels as a positional `$N`
+ * parameter — nothing from the rows is spliced into the SQL text; the
+ * only literals are the fixed column list and the enum type names.
+ */
+function buildRollupUpsert(
+  userId: string,
+  granularity: RollupGranularity,
+  rows: RollupRow[],
+): { sql: string; params: unknown[] } {
+  const params: unknown[] = [];
+  const tuples: string[] = [];
+  const computedAt = new Date();
+  for (const row of rows) {
+    const base = params.length;
+    params.push(
+      userId,
+      row.type,
+      granularity,
+      row.bucket_start,
+      row.source,
+      Number(row.count),
+      row.mean ?? 0,
+      row.min_value ?? 0,
+      row.max_value ?? 0,
+      // v1.4.39 W-SUM — populate for every type. Cumulative read paths
+      // (steps, flights, distance, daylight, active-energy) consume this
+      // column directly; spot metrics carry it for free because the
+      // underlying SUM aggregator runs in the same query as AVG/MIN/MAX.
+      row.sum_value ?? null,
+      row.sd,
+      row.slope,
+      row.r2,
+      // v1.20.0 F6 — persist the regression accumulators alongside the
+      // existing stats; they ride the same aggregate (no extra round-trip).
+      row.sum_x ?? null,
+      row.sum_xy ?? null,
+      row.sum_xx ?? null,
+      row.sum_yy ?? null,
+      computedAt,
+    );
+    tuples.push(
+      `($${base + 1}, $${base + 2}::"measurement_type", $${base + 3}::"measurement_rollup_granularity", ` +
+        `$${base + 4}::timestamptz, $${base + 5}::"measurement_source", $${base + 6}::int, ` +
+        `$${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, ` +
+        `$${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}::timestamptz)`,
+    );
+  }
+  const sql = `
+    INSERT INTO measurement_rollups
+      (user_id, type, granularity, bucket_start, source, count, mean,
+       min_value, max_value, sum_value, sd, slope, r2,
+       sum_x, sum_xy, sum_xx, sum_yy, computed_at)
+    VALUES ${tuples.join(", ")}
+    ON CONFLICT (user_id, type, granularity, bucket_start, source)
+    DO UPDATE SET
+      count       = EXCLUDED.count,
+      mean        = EXCLUDED.mean,
+      min_value   = EXCLUDED.min_value,
+      max_value   = EXCLUDED.max_value,
+      sum_value   = EXCLUDED.sum_value,
+      sd          = EXCLUDED.sd,
+      slope       = EXCLUDED.slope,
+      r2          = EXCLUDED.r2,
+      sum_x       = EXCLUDED.sum_x,
+      sum_xy      = EXCLUDED.sum_xy,
+      sum_xx      = EXCLUDED.sum_xx,
+      sum_yy      = EXCLUDED.sum_yy,
+      computed_at = EXCLUDED.computed_at
+  `;
+  return { sql, params };
 }
 
 /**
