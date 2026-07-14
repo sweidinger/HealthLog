@@ -27,6 +27,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import {
   APPLE_HEALTH_IMPORT_QUEUE,
+  APPLE_HEALTH_IMPORT_SEND_OPTIONS,
   type AppleHealthImportPayload,
 } from "@/lib/jobs/apple-health-import-worker";
 import { streamMultipartToDisk } from "@/lib/multipart/stream-to-disk";
@@ -148,7 +149,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
     uploadBytes: uploaded.bytes,
     enqueuedAt: new Date().toISOString(),
   };
-  const bossJobId = await boss.send(APPLE_HEALTH_IMPORT_QUEUE, payload);
+  // No retries + wide expiration: the staged upload is consumed by the
+  // first run, so a redelivery could only fail on the deleted `/tmp`
+  // file and mask the real outcome (see the worker's send-options doc).
+  const bossJobId = await boss.send(
+    APPLE_HEALTH_IMPORT_QUEUE,
+    payload,
+    APPLE_HEALTH_IMPORT_SEND_OPTIONS,
+  );
 
   await prisma.importJob.update({
     where: { id: importJob.id },

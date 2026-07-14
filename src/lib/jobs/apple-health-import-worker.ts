@@ -44,6 +44,26 @@ export const APPLE_HEALTH_IMPORT_QUEUE = "apple-health-import";
 /** Concurrency cap per worker host. */
 export const APPLE_HEALTH_IMPORT_CONCURRENCY = 1;
 
+/**
+ * v1.28.33 (issue #486) — job-level pg-boss overrides for the import
+ * sends. The queue defaults (retryLimit 2, expireInSeconds 900) are
+ * wrong for this job shape twice over:
+ *
+ *   - A retry can never succeed: the first run consumes and unlinks the
+ *     staged `/tmp` upload, so a redelivery re-opens a deleted file and
+ *     its ENOENT masks the first run's real outcome.
+ *   - A GB-scale export parses for well over 15 minutes; the default
+ *     expiration marked the still-running job failed mid-run and
+ *     scheduled exactly that doomed retry.
+ *
+ * `retryLimit: 0` makes the single run authoritative; the expiration
+ * leaves generous headroom over the largest observed exports.
+ */
+export const APPLE_HEALTH_IMPORT_SEND_OPTIONS = {
+  retryLimit: 0,
+  expireInSeconds: 6 * 60 * 60,
+} as const;
+
 /** Payload `boss.send` carries onto the queue. */
 export interface AppleHealthImportPayload {
   /** Owner of the imported rows. */
@@ -59,6 +79,19 @@ export interface AppleHealthImportPayload {
 }
 
 let workerPrismaSingleton: PrismaClient | null = null;
+
+/**
+ * Test-only handle on the worker Prisma singleton. Mirrors the
+ * `_resetEnsureUserRollupsFreshInFlightForTests` pattern in
+ * `measurement-rollups.ts` — the integration suite injects the shared
+ * testcontainer client so the handler does not open a second pool that
+ * would dangle past the container teardown. Production code never calls
+ * this.
+ */
+export function _setWorkerPrismaForTests(client: PrismaClient | null): void {
+  workerPrismaSingleton = client;
+}
+
 function getWorkerPrisma(): PrismaClient {
   if (!workerPrismaSingleton) {
     // Inherit the web client's pool ceiling + per-session statement timeouts
@@ -136,6 +169,29 @@ export async function handleAppleHealthImport(
   }
   const importJobId = importJob.id;
 
+  // v1.28.33 (issue #486) — refuse to re-run a job whose mirror row is
+  // already terminal. pg-boss redelivers after the queue's expiration
+  // window (a GB-scale import outlives the default 15 minutes), but the
+  // first run consumed and unlinked the staged upload, so a redelivery
+  // can only re-open the deleted `/tmp` file, fail with ENOENT, and
+  // OVERWRITE the first run's real outcome (a genuine failure reason —
+  // or a completed import flipped back to `failed`). The kick-off
+  // endpoints now send with `retryLimit: 0`; this guard keeps any
+  // residual redelivery (expiration sweep, operator requeue) from
+  // masking the terminal state.
+  if (importJob.status === "done" || importJob.status === "failed") {
+    console.warn(
+      `[apple-health-import] Ignoring duplicate delivery for ImportJob=${importJobId}` +
+        ` — row is already terminal (${importJob.status}); the staged upload` +
+        " was consumed by the first run and a re-run could only mask its outcome",
+    );
+    return;
+  }
+
+  // Extracted-XML path, hoisted so the failure path can clean it up —
+  // pre-v1.28.33 a parse failure stranded the multi-GB XML in `/tmp`.
+  let extractedXmlPath: string | null = null;
+
   try {
     // Resolve the user's timezone — required for the cumulative
     // `stats:` day-key bucketing. Default to Europe/Berlin if the
@@ -159,6 +215,7 @@ export async function handleAppleHealthImport(
     });
 
     const unzip = extractExportXml(uploadPath);
+    extractedXmlPath = unzip.xmlPath;
 
     // Phase 2 + 3: parsing + upserting (the parser tracks both
     // phases internally via the onProgress hook).
@@ -241,7 +298,23 @@ export async function handleAppleHealthImport(
     safeUnlink(unzip.xmlPath);
     safeUnlink(uploadPath);
   } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
+    // v1.28.33 (issue #486) — a missing staging file is an operational
+    // condition, not a parse failure: `/tmp` is wiped on a container
+    // restart and a previous attempt unlinks the upload on its own
+    // failure path. Surface an honest, actionable reason instead of the
+    // raw `ENOENT: no such file or directory, open '/tmp/…'` string the
+    // status endpoint used to hand the UI.
+    const missingStagingFile =
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as NodeJS.ErrnoException).code === "ENOENT";
+    const reason = missingStagingFile
+      ? "Import staging file is no longer available (the server restarted" +
+        " or a previous attempt cleaned it up) — upload the export again"
+      : err instanceof Error
+        ? err.message
+        : String(err);
     await prisma.importJob.update({
       where: { id: importJobId },
       data: {
@@ -250,6 +323,7 @@ export async function handleAppleHealthImport(
         completedAt: new Date(),
       },
     });
+    if (extractedXmlPath) safeUnlink(extractedXmlPath);
     safeUnlink(uploadPath);
     throw err;
   }

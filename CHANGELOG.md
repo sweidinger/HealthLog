@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.28.33] — 2026-07-14 — Re-importing a cumulative Apple Health export works again
+
+Re-uploading a fresh export.zip over existing data could fail with a duplicate-key
+error in the rollup tier: a concurrent recompute (a live sync, the nightly drain)
+racing the import's full fold could collide on the same aggregation bucket — and
+the losing side silently dropped its freshly computed aggregate, leaving a stale
+bucket. Rollup writes are now conflict-safe upserts with deterministic lock
+ordering: a race can neither fail the import nor lose an aggregate, and buckets
+left stale by earlier races self-heal on their next recompute.
+
+The misleading error is gone too. A long import could outlive its queue timeout;
+the redelivery re-opened the already-consumed staging file and overwrote the real
+failure — or even a successful completion — with a raw ENOENT. Import jobs now
+finish terminally (no redelivery after the staging file is consumed, six-hour
+timeout), a delivery for an already-finished import is a no-op, and a genuinely
+missing staging file reports an honest "upload the export again" message.
+
 ## [1.28.32] — 2026-07-12 — Fitbit: re-keyed re-imports can no longer be silently dropped
 
 Single-fix release for the Fitbit integration, mirroring the Google Health

@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
   findMany: vi.fn(),
   findFirstMeasurement: vi.fn(),
+  txExecuteRawUnsafe: vi.fn(),
   bossSend: vi.fn(),
   getGlobalBossMock: vi.fn(),
 }));
@@ -72,6 +73,7 @@ const {
   deleteMany,
   findFirst,
   findFirstMeasurement,
+  txExecuteRawUnsafe,
   bossSend,
   getGlobalBossMock,
 } = mocks;
@@ -105,18 +107,18 @@ beforeEach(() => {
   findFirst.mockReset();
   mocks.findMany.mockReset();
   findFirstMeasurement.mockReset();
+  txExecuteRawUnsafe.mockReset();
   bossSend.mockReset();
   getGlobalBossMock.mockReset();
   // v1.4.38 — clear the per-userId in-flight map so a previous test's
   // resolved promise does not short-circuit the next test's recompute
   // assertion.
   _resetEnsureUserRollupsFreshInFlightForTests();
-  // Default: $transaction supports both client shapes the populator
-  // uses — the batched array form (`[deleteMany(...), createMany(...)]`
-  // on the ≤CHUNK path) resolves the pre-built promises like the real
-  // client, and the interactive callback form (large path) invokes the
-  // callback with a tx proxy wired to the same delegate mocks so the
-  // assertions can observe the in-transaction calls.
+  // Default: $transaction invokes the interactive callback with a tx
+  // proxy wired to the same delegate mocks so the assertions can
+  // observe the in-transaction calls; the batched array form (legacy —
+  // no persist path uses it any more) resolves the pre-built promises
+  // like the real client.
   transaction.mockImplementation(async (arg: unknown) => {
     if (typeof arg === "function") {
       return (arg as (tx: unknown) => Promise<unknown>)({
@@ -124,11 +126,14 @@ beforeEach(() => {
           deleteMany: mocks.deleteMany,
           createMany: mocks.createMany,
         },
+        $executeRawUnsafe: mocks.txExecuteRawUnsafe,
       });
     }
     return Promise.all(arg as unknown[]);
   });
-  // v1.11.1 — persistRollupRows writes via createMany; default the count.
+  // v1.28.33 — persistRollupRows writes via a raw ON CONFLICT upsert;
+  // default one affected row per chunk call.
+  txExecuteRawUnsafe.mockResolvedValue(1);
   createMany.mockResolvedValue({ count: 1 });
 });
 
@@ -194,24 +199,34 @@ describe("recomputeBucketsForMeasurement", () => {
       new Date("2026-05-10T14:30:00.000Z"),
     );
 
-    // DAY pass — v1.11.1 delete-then-insert the day partition in one tx.
+    // DAY pass — v1.11.1 delete-then-upsert the day partition in one tx.
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(deleteMany).toHaveBeenCalledTimes(1);
     expect(deleteMany.mock.calls[0][0].where.userId).toBe("user-1");
     expect(deleteMany.mock.calls[0][0].where.granularity).toBe("DAY");
     expect(deleteMany.mock.calls[0][0].where.type.in).toContain("WEIGHT");
-    expect(createMany).toHaveBeenCalledTimes(1);
-    const created = createMany.mock.calls[0][0].data;
-    expect(created).toHaveLength(1);
-    expect(created[0].userId).toBe("user-1");
-    expect(created[0].type).toBe("WEIGHT");
-    expect(created[0].granularity).toBe("DAY");
-    expect(created[0].source).toBe("MANUAL");
-    expect(created[0].count).toBe(3);
-    expect(created[0].mean).toBe(82.5);
+    // v1.28.33 (issue #486) — the insert leg is a raw ON CONFLICT DO
+    // UPDATE upsert so a concurrent same-partition writer overwrites
+    // instead of raising (or being dropped). Param layout per row:
+    // [userId, type, granularity, bucketStart, source, count, mean,
+    //  min, max, sum, sd, slope, r2, sumX, sumXy, sumXx, sumYy,
+    //  computedAt].
+    expect(txExecuteRawUnsafe).toHaveBeenCalledTimes(1);
+    const [sql, ...params] = txExecuteRawUnsafe.mock.calls[0];
+    expect(sql).toContain(
+      "ON CONFLICT (user_id, type, granularity, bucket_start, source)",
+    );
+    expect(sql).toContain("DO UPDATE SET");
+    expect(params).toHaveLength(18);
+    expect(params[0]).toBe("user-1");
+    expect(params[1]).toBe("WEIGHT");
+    expect(params[2]).toBe("DAY");
+    expect(params[4]).toBe("MANUAL");
+    expect(params[5]).toBe(3);
+    expect(params[6]).toBe(82.5);
     // v1.4.39 W-SUM — sumValue flows through. Cumulative read paths
     // (steps, flights, distance, daylight, active-energy) consume it.
-    expect(created[0].sumValue).toBe(247.5);
+    expect(params[9]).toBe(247.5);
 
     // WEEK / MONTH / YEAR — three enqueues against the worker queue.
     expect(bossSend).toHaveBeenCalledTimes(3);
@@ -223,13 +238,14 @@ describe("recomputeBucketsForMeasurement", () => {
     }
   });
 
-  it("swallows a P2002 from a concurrent same-partition recompute", async () => {
-    // Two writes on the same (user, type, day) can interleave the
-    // delete-then-insert (no pg-boss singleton on the sync DAY hook), so
-    // the losing createMany trips the per-source unique index. The peer
-    // wrote the identical source-collapsed partition, so the rollup is
-    // already correct — persistRollupRows must treat the P2002 as benign
-    // rather than failing the recompute.
+  it("upserts every stat column so a racing recompute overwrites last-write-wins", async () => {
+    // v1.28.33 (issue #486) — two writes on the same (user, type, day)
+    // can interleave the delete-then-insert (no pg-boss singleton on
+    // the sync DAY hook). The pre-fix shape swallowed the loser's
+    // P2002 and DROPPED its freshly computed aggregate — leaving the
+    // bucket stale whenever the loser had seen newer measurements than
+    // the winner. The upsert must instead carry EVERY stat column in
+    // its DO UPDATE clause so the later recompute lands its values.
     queryRawUnsafe.mockResolvedValueOnce([
       {
         type: "WEIGHT",
@@ -247,23 +263,34 @@ describe("recomputeBucketsForMeasurement", () => {
     ]);
     getGlobalBossMock.mockReturnValue({ send: bossSend });
     bossSend.mockResolvedValue("job-id");
-    // The DAY transaction loses the race and throws a unique violation.
-    transaction.mockRejectedValueOnce({ code: "P2002" });
 
-    await expect(
-      recomputeBucketsForMeasurement(
-        "user-1",
-        "WEIGHT",
-        new Date("2026-05-10T14:30:00.000Z"),
-      ),
-    ).resolves.not.toThrow();
+    await recomputeBucketsForMeasurement(
+      "user-1",
+      "WEIGHT",
+      new Date("2026-05-10T14:30:00.000Z"),
+    );
 
-    // The downstream WEEK/MONTH/YEAR enqueues still fire — the benign DAY
-    // race does not abort the rest of the recompute.
-    expect(bossSend).toHaveBeenCalledTimes(3);
+    const [sql] = txExecuteRawUnsafe.mock.calls[0];
+    for (const column of [
+      "count",
+      "mean",
+      "min_value",
+      "max_value",
+      "sum_value",
+      "sd",
+      "slope",
+      "r2",
+      "sum_x",
+      "sum_xy",
+      "sum_xx",
+      "sum_yy",
+      "computed_at",
+    ]) {
+      expect(sql).toMatch(new RegExp(`${column}\\s*= EXCLUDED.${column}`));
+    }
   });
 
-  it("rethrows a non-P2002 transaction error", async () => {
+  it("rethrows a transaction error", async () => {
     queryRawUnsafe.mockResolvedValueOnce([
       {
         type: "WEIGHT",
@@ -318,13 +345,13 @@ describe("recomputeBucketsForMeasurement", () => {
       new Date("2026-05-10T14:30:00.000Z"),
     );
 
-    expect(createMany).toHaveBeenCalledTimes(1);
-    const arg = createMany.mock.calls[0][0].data[0];
-    expect(arg.sumValue).toBe(12480);
+    expect(txExecuteRawUnsafe).toHaveBeenCalledTimes(1);
+    const [, ...params] = txExecuteRawUnsafe.mock.calls[0];
+    expect(params[9]).toBe(12480);
     // mean × count algebraic equivalence — the writer carries SUM
     // directly because the aggregator computed it once. Asserting
     // both gives parity coverage for the consumer-side fallback.
-    expect(arg.mean * arg.count).toBe(12480);
+    expect((params[6] as number) * (params[5] as number)).toBe(12480);
   });
 
   it("passes through null sum_value when the aggregator returns NULL", async () => {
@@ -355,8 +382,8 @@ describe("recomputeBucketsForMeasurement", () => {
       new Date("2026-05-10T14:30:00.000Z"),
     );
 
-    const arg = createMany.mock.calls[0][0].data[0];
-    expect(arg.sumValue).toBeNull();
+    const [, ...params] = txExecuteRawUnsafe.mock.calls[0];
+    expect(params[9]).toBeNull();
   });
 
   it("deletes the DAY row when the post-mutation aggregate is empty", async () => {
@@ -374,6 +401,7 @@ describe("recomputeBucketsForMeasurement", () => {
     expect(deleteMany.mock.calls[0][0].where.userId).toBe("user-1");
     expect(deleteMany.mock.calls[0][0].where.granularity).toBe("DAY");
     expect(upsert).not.toHaveBeenCalled();
+    expect(txExecuteRawUnsafe).not.toHaveBeenCalled();
   });
 });
 
@@ -395,10 +423,13 @@ describe("persistRollupRows — large path (via recomputeUserRollups)", () => {
     }));
   }
 
-  it("wraps the delete + every insert chunk in ONE interactive transaction with skipDuplicates", async () => {
-    // 1200 rows → large path (> 500), 3 insert chunks (500/500/200).
+  it("wraps the delete + every upsert chunk in ONE interactive transaction", async () => {
+    // 1200 rows → 3 upsert chunks (500/500/200).
     queryRawUnsafe.mockResolvedValueOnce(syntheticRows(1200));
-    createMany.mockResolvedValue({ count: 400 });
+    txExecuteRawUnsafe
+      .mockResolvedValueOnce(500)
+      .mockResolvedValueOnce(500)
+      .mockResolvedValueOnce(200);
 
     const result = await recomputeUserRollups("user-1", {
       granularities: ["DAY"],
@@ -407,8 +438,8 @@ describe("persistRollupRows — large path (via recomputeUserRollups)", () => {
     // ONE interactive transaction — the callback form, not the batched
     // array. The committed-delete-without-inserts window of the
     // pre-v1.16.10 shape (delete commits, a concurrent write-hook
-    // P2002 aborts the chunk loop, the types lose ALL buckets) cannot
-    // exist when both legs share the transaction.
+    // unique violation aborts the chunk loop, the types lose ALL
+    // buckets) cannot exist when both legs share the transaction.
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(typeof transaction.mock.calls[0][0]).toBe("function");
     // A generous interactive timeout — the chunk loop on a multi-year
@@ -422,13 +453,16 @@ describe("persistRollupRows — large path (via recomputeUserRollups)", () => {
     expect(deleteMany.mock.calls[0][0].where.userId).toBe("user-1");
     expect(deleteMany.mock.calls[0][0].where.granularity).toBe("DAY");
 
-    // 3 chunks, every one tolerant of a mid-transaction hook insert.
-    expect(createMany).toHaveBeenCalledTimes(3);
-    expect(createMany.mock.calls[0][0].data).toHaveLength(500);
-    expect(createMany.mock.calls[1][0].data).toHaveLength(500);
-    expect(createMany.mock.calls[2][0].data).toHaveLength(200);
-    for (const call of createMany.mock.calls) {
-      expect(call[0].skipDuplicates).toBe(true);
+    // 3 chunks of 18 params per row, every one an ON CONFLICT DO UPDATE
+    // upsert — tolerant of a mid-transaction hook insert AND of a
+    // concurrent fold on the same partition (v1.28.33, issue #486).
+    expect(txExecuteRawUnsafe).toHaveBeenCalledTimes(3);
+    expect(txExecuteRawUnsafe.mock.calls[0]).toHaveLength(1 + 500 * 18);
+    expect(txExecuteRawUnsafe.mock.calls[1]).toHaveLength(1 + 500 * 18);
+    expect(txExecuteRawUnsafe.mock.calls[2]).toHaveLength(1 + 200 * 18);
+    for (const call of txExecuteRawUnsafe.mock.calls) {
+      expect(call[0]).toContain("ON CONFLICT");
+      expect(call[0]).toContain("DO UPDATE SET");
     }
 
     expect(result.rowsUpserted).toBe(1200);
@@ -436,8 +470,8 @@ describe("persistRollupRows — large path (via recomputeUserRollups)", () => {
 
   it("a failing chunk rejects through the transaction so the delete rolls back with it", async () => {
     queryRawUnsafe.mockResolvedValueOnce(syntheticRows(700));
-    createMany
-      .mockResolvedValueOnce({ count: 500 })
+    txExecuteRawUnsafe
+      .mockResolvedValueOnce(500)
       .mockRejectedValueOnce(new Error("connection reset"));
 
     // The error must bubble (pg-boss retries the fold); the structural
@@ -453,14 +487,19 @@ describe("persistRollupRows — large path (via recomputeUserRollups)", () => {
     expect(deleteMany).toHaveBeenCalledTimes(1);
   });
 
-  it("the ≤500-row path keeps the batched two-statement transaction", async () => {
+  it("the ≤500-row path runs through the same interactive upsert transaction", async () => {
     queryRawUnsafe.mockResolvedValueOnce(syntheticRows(2));
-    createMany.mockResolvedValue({ count: 2 });
+    txExecuteRawUnsafe.mockResolvedValueOnce(2);
 
-    await recomputeUserRollups("user-1", { granularities: ["DAY"] });
+    const result = await recomputeUserRollups("user-1", {
+      granularities: ["DAY"],
+    });
 
     expect(transaction).toHaveBeenCalledTimes(1);
-    expect(Array.isArray(transaction.mock.calls[0][0])).toBe(true);
+    expect(typeof transaction.mock.calls[0][0]).toBe("function");
+    expect(txExecuteRawUnsafe).toHaveBeenCalledTimes(1);
+    expect(txExecuteRawUnsafe.mock.calls[0]).toHaveLength(1 + 2 * 18);
+    expect(result.rowsUpserted).toBe(2);
   });
 });
 
