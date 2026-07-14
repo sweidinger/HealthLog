@@ -25,6 +25,7 @@ import { AboutMeSection } from "@/components/settings/about-me-section";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
+import { storeTimezone } from "@/lib/timezone-mirror";
 import { TimeFormatSelect } from "@/components/settings/time-format-select";
 import { DateFormatSelect } from "@/components/settings/date-format-select";
 import { UnitPreferenceSelect } from "@/components/settings/unit-preference-select";
@@ -142,6 +143,13 @@ export function AccountSection() {
     ]);
 
     if (profileRes.ok && tzRes.ok) {
+      // Instant same-tab flip of every rendered timestamp (issue #490):
+      // mirror the accepted zone before the `/me` refetch confirms it —
+      // the same synchronous-update pattern the time/date-format selects
+      // use. `refetch()` → `fetchMe` re-writes the mirror authoritatively.
+      if (user && timezone && timezone !== user.timezone) {
+        storeTimezone(timezone);
+      }
       setSaveMsg({ key: "settings.profileSaved" });
       setSaveMsgType("success");
       await refetch();

@@ -15,6 +15,7 @@
  */
 
 import type { Locale } from "./i18n/config";
+import { isValidTimezone } from "./tz/format";
 
 /**
  * Fallback timezone for surfaces that are not yet user-scoped (admin
@@ -146,7 +147,12 @@ export function makeFormatters(
   dateFormat: DateFormatPreference = "AUTO",
 ): Formatters {
   const intlLocale = resolveIntlLocale(locale);
-  const tz = userTz && userTz.length > 0 ? userTz : DISPLAY_TIMEZONE;
+  // Poison guard: an invalid IANA name would make `Intl.DateTimeFormat`
+  // throw `RangeError` inside every date/time call — i.e. white-screen
+  // every page that renders a timestamp. Validate here (cheap — the
+  // probe memoises successful constructions) and fall back to Berlin,
+  // matching `formatInUserTz` / `hourInTz` / `isNearUtc`.
+  const tz = userTz && isValidTimezone(userTz) ? userTz : DISPLAY_TIMEZONE;
   const hourOpts = hourCycleOptions(timeFormat);
   // Field-order locale for the numeric date renderers. AUTO keeps the
   // user's own locale; DMY/MDY/YMD pin a canonical locale whose default

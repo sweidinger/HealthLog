@@ -215,6 +215,12 @@ export function ScheduleHistoryTimeline({
                         </span>
                       )}
                     </p>
+                    {/* `validFrom` / `validUntil` (like `currentSince`
+                        above) are real era-boundary instants
+                        (`@db.Timestamptz`, the moment an edit archived the
+                        plan) — NOT `@db.Date` calendar dates — so the
+                        profile-timezone formatter renders the correct
+                        local day (issue #490 audit). */}
                     <p className="text-muted-foreground text-xs tabular-nums">
                       {fmt.date(revision.validFrom)}
                       {" – "}

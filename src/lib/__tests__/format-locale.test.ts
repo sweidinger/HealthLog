@@ -137,6 +137,81 @@ describe("makeFormatters", () => {
     // The narrow check: day-of-month should be 11, not 10.
     expect(tokyo.date(lateUtc)).toMatch(/11/);
   });
+
+  // ── Issue #490 — profile-timezone display matrix ──────────────────────
+  //
+  // The client formatters now receive the mirrored profile zone. Pin the
+  // three matrix zones (east + DST, west of Berlin + DST, east no-DST)
+  // and the poison values that must NEVER reach `Intl.DateTimeFormat`
+  // unguarded (RangeError there would white-screen every date render).
+  describe("profile-timezone matrix (#490)", () => {
+    // sample = 2026-04-18T14:30:00Z (see above).
+    it("renders Pacific/Auckland (UTC+12, NZST after the April DST end)", () => {
+      const fmt = makeFormatters("en", "Pacific/Auckland", "H24");
+      expect(fmt.time(sample)).toBe("02:30"); // next local day
+      expect(fmt.date(sample)).toBe("04/19/2026");
+    });
+
+    it("renders America/New_York (west of Berlin, EDT)", () => {
+      const fmt = makeFormatters("en", "America/New_York", "H24");
+      expect(fmt.time(sample)).toBe("10:30");
+      expect(fmt.date(sample)).toBe("04/18/2026");
+    });
+
+    it("renders Asia/Manila (UTC+8, no DST)", () => {
+      const fmt = makeFormatters("en", "Asia/Manila", "H24");
+      expect(fmt.time(sample)).toBe("22:30");
+      expect(fmt.date(sample)).toBe("04/18/2026");
+    });
+
+    it.each([["Mars/Olympus"], ["garbage"], [""], [undefined]])(
+      "poison zone %s never throws and falls back to Berlin",
+      (zone) => {
+        const fmt = makeFormatters("en", zone as string | undefined, "H24");
+        expect(fmt.time(sample)).toBe("16:30");
+        expect(fmt.date(sample)).toBe("04/18/2026");
+        expect(fmt.dateTime(sample)).toBe("04/18/2026, 16:30");
+        expect(fmt.dateWithWeekday(sample)).toContain("18");
+        expect(fmt.monthShort(sample)).toBe("Apr");
+      },
+    );
+
+    // The 23:30-Manila boundary pin: the rendered day label must equal the
+    // server's profile-tz day key for the same instant — the exact split
+    // #490 reported (Manila-grouped data under Berlin labels).
+    it("renders the same calendar day the server day-keys (Asia/Manila)", () => {
+      // YMD preference → the date renders as the ISO day key itself.
+      const manila = makeFormatters("en", "Asia/Manila", "H24", "YMD");
+      // 15:30 UTC = 23:30 Manila, still Jul 14 in Manila.
+      const lateManilaEvening = new Date("2026-07-14T15:30:00Z");
+      expect(manila.date(lateManilaEvening)).toBe("2026-07-14");
+      // 17:30 UTC = 01:30 Jul 15 Manila — Berlin (19:30 Jul 14) would
+      // label the previous day; the profile zone must win.
+      const pastManilaMidnight = new Date("2026-07-14T17:30:00Z");
+      expect(manila.date(pastManilaMidnight)).toBe("2026-07-15");
+      expect(manila.time(pastManilaMidnight)).toBe("01:30");
+    });
+
+    // Berlin DST pins — the zone maths must follow the IANA rules at the
+    // instant, never a cached offset.
+    it("renders across the Berlin 2026-03-29 spring-forward", () => {
+      const fmt = makeFormatters("de", "Europe/Berlin", "H24");
+      // 00:30 UTC = 01:30 CET (before the 02:00→03:00 jump).
+      expect(fmt.time(new Date("2026-03-29T00:30:00Z"))).toBe("01:30");
+      // 01:30 UTC = 03:30 CEST (the 02:xx hour does not exist).
+      expect(fmt.time(new Date("2026-03-29T01:30:00Z"))).toBe("03:30");
+      expect(fmt.date(new Date("2026-03-29T01:30:00Z"))).toBe("29.03.2026");
+    });
+
+    it("renders across the Berlin 2026-10-25 fall-back (doubled hour)", () => {
+      const fmt = makeFormatters("de", "Europe/Berlin", "H24");
+      // 00:30 UTC = 02:30 CEST (first pass through the doubled hour).
+      expect(fmt.time(new Date("2026-10-25T00:30:00Z"))).toBe("02:30");
+      // 01:30 UTC = 02:30 CET (second pass).
+      expect(fmt.time(new Date("2026-10-25T01:30:00Z"))).toBe("02:30");
+      expect(fmt.date(new Date("2026-10-25T01:30:00Z"))).toBe("25.10.2026");
+    });
+  });
 });
 
 // v1.25.3 — the time-format preference must reach every hour/minute renderer,

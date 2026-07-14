@@ -261,11 +261,7 @@ function RationaleCard({
           compliance get dedicated wrappers; everything else routes
           through HealthChart with the metric-key vocabulary. */}
       {isMoodMetric(metricType) ? (
-        <MoodChart
-          mini
-          windowOverride={rationale.dataWindow}
-          userTimezone={user?.timezone}
-        />
+        <MoodChart mini windowOverride={rationale.dataWindow} />
       ) : isComplianceMetric(metricType) ? null : chartTypes.length > 0 ? (
         <HealthChart
           types={chartTypes}

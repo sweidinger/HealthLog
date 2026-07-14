@@ -35,7 +35,7 @@ import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { computePaddedYDomain } from "@/lib/insights/chart-y-domain";
 import { Button } from "@/components/ui/button";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
-import { makeFormatters } from "@/lib/format-locale";
+import { makeBucketLabelFormatters } from "@/lib/charts/bucket-label";
 import {
   bucketTimeSeries,
   pickBucket,
@@ -595,14 +595,15 @@ export function HealthChart({
   const { isAuthenticated, user } = useAuth();
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
-  // v1.4.25 W7b — tz-aware formatter for x-axis tick labels + tooltip
-  // date strings. `useFormatters()` reads the active UI locale only;
-  // this builds a locale + userTz pair so a Pacific/Auckland user reads
-  // their own day on the axis.
-  const tzFmt = useMemo(
-    () => makeFormatters(locale, userTimezone),
-    [locale, userTimezone],
-  );
+  // Issue #490 — x-axis tick + tooltip date labels. Every timestamp this
+  // chart formats encodes a CALENDAR DAY (noon-UTC of a profile-tz day
+  // key, or a `bucketTimeSeries` Berlin-day UTC-midnight bucket start),
+  // so labels render UTC-pinned via `makeBucketLabelFormatters` — the
+  // encoded day paints verbatim in every profile zone. Rendering these
+  // encodings through a profile-tz formatter shifted week/month bucket
+  // labels a day/month back for zones west of Berlin. Day-key BUCKETING
+  // below still uses `userTimezone` — only labels are pinned.
+  const tzFmt = useMemo(() => makeBucketLabelFormatters(locale), [locale]);
   // v1.4.25 W7b — per-row day-key formatter used to bucket measurement
   // rows by the user's local calendar day. Memoised on userTimezone so
   // the inner per-row loop reuses a single Intl.DateTimeFormat.

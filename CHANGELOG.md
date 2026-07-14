@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.28.35] — 2026-07-14 — Timestamps honor the profile timezone
+
+Client-rendered times previously fell back to a hardcoded display zone
+(Europe/Berlin) no matter what the profile timezone said; a user in Manila saw
+Berlin clock times on every card, chart, and table. Display now follows the
+profile timezone everywhere, with a strict fallback to the legacy display zone
+— never the browser zone, so screen, PDF, and export can no longer disagree.
+An invalid stored timezone can never break rendering; it falls back safely.
+
+The same pass closed the latent inconsistencies the audit surfaced: the
+"Updated today" cards no longer mix one zone for the day boundary and another
+for the clock; calendar-date fields no longer shift a day for profiles west of
+UTC; the dose-history day headings and weekday labels render in the display
+zone; chart day/month labels stay correct for every zone (bucket math is
+untouched); and the clinician share view renders in the patient's timezone
+instead of the server container's. Day groupings, schedules, and aggregates
+were already timezone-correct server-side and are byte-identical.
+
 ## [1.28.34] — 2026-07-14 — Nutrient intake lands as quiet context (server side)
 
 Supplement-style intake written to Apple Health by nutrition apps — vitamins,

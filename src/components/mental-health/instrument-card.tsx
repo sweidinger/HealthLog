@@ -40,7 +40,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { MedicationCardHeader } from "@/components/medications/medication-card-header";
-import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import {
+  useFormatters,
+  useTranslations,
+  useDisplayTimezone,
+} from "@/lib/i18n/context";
 import { relativeCalendarDate } from "@/lib/i18n/relative-time";
 import {
   INSTRUMENTS,
@@ -67,6 +71,9 @@ export function InstrumentCard({
 }) {
   const { t, locale } = useTranslations();
   const { date: formatDate } = useFormatters();
+  // Issue #490 — day-boundary zone for the relative "today / yesterday"
+  // bucket must match the zone `formatDate` renders in (mirror → Berlin).
+  const displayTz = useDisplayTimezone();
   const def = INSTRUMENTS[instrument];
   const key = def.i18nKey;
   const title = t(`mentalHealth.instrument.${key}`);
@@ -139,7 +146,7 @@ export function InstrumentCard({
               {t("mentalHealth.lastResult")}
             </span>
             <span className="text-foreground text-right">
-              {relativeCalendarDate(last.takenAt, t, formatDate)}
+              {relativeCalendarDate(last.takenAt, t, formatDate, displayTz)}
             </span>
           </div>
           <div className="text-muted-foreground flex items-baseline justify-between gap-3">

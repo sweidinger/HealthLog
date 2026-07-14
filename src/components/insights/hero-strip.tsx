@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import {
+  useTranslations,
+  useFormatters,
+  useDisplayTimezone,
+} from "@/lib/i18n/context";
 import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { useAuth } from "@/hooks/use-auth";
 import { useModuleEnabled } from "@/hooks/use-module-enabled";
@@ -188,6 +192,9 @@ export function HeroStrip({
   const { t } = useTranslations();
   const fmt = useFormatters();
   const { user } = useAuth();
+  // Issue #490 — the SAME resolved zone `fmt.time` renders in (mirror →
+  // Berlin), so the today/yesterday boundary and the clock can never split.
+  const displayTz = useDisplayTimezone();
 
   // v1.21.2 (A5) — localise the Tension Verdict's contributor keys into the
   // card's already-localised `{ positive, negative }` shape. Only forwarded when
@@ -237,7 +244,7 @@ export function HeroStrip({
   // hero no longer reads relative while the cards below it read absolute. The
   // day boundary follows the user's profile timezone.
   const generatedLine = updatedAt
-    ? formatUpdatedLabel(updatedAt, t, fmt.dateShort, fmt.time, user?.timezone)
+    ? formatUpdatedLabel(updatedAt, t, fmt.dateShort, fmt.time, displayTz)
     : null;
 
   return (

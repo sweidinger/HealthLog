@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useTranslations } from "@/lib/i18n/context";
-import { makeFormatters } from "@/lib/format-locale";
+import { makeBucketLabelFormatters } from "@/lib/charts/bucket-label";
 import type { DataSummary } from "@/lib/analytics/trends";
 import {
   bucketTimeSeries,
@@ -90,12 +90,6 @@ interface MoodChartProps {
    * only surface — the cog stays hidden and overlays are clean.
    */
   chartKey?: ChartOverlayKey;
-  /**
-   * v1.4.25 W7b — per-user display timezone. When passed, the x-axis
-   * tick labels and tooltip date render in the user's tz. Defaults to
-   * "Europe/Berlin" so older mount sites stay byte-identical.
-   */
-  userTimezone?: string;
   /**
    * v1.16.0 — fires once the mood analytics query has settled (initial
    * load finished). The dashboard's shared reveal gate listens here so
@@ -304,17 +298,17 @@ export function MoodChart({
   windowOverride,
   compareBaseline = "none",
   chartKey,
-  userTimezone = "Europe/Berlin",
   onDataReady,
 }: MoodChartProps) {
   const { isAuthenticated } = useAuth();
   const { t, locale } = useTranslations();
-  // v1.4.25 W7b — tz-aware formatter for x-axis tick labels + tooltip
-  // date strings.
-  const tzFmt = useMemo(
-    () => makeFormatters(locale, userTimezone),
-    [locale, userTimezone],
-  );
+  // Issue #490 — x-axis tick + tooltip date labels. Every timestamp this
+  // chart formats encodes a CALENDAR DAY (noon-UTC of a server day key,
+  // or a `bucketTimeSeries` Berlin-day UTC-midnight bucket start), so
+  // labels render UTC-pinned via `makeBucketLabelFormatters` — the
+  // encoded day paints verbatim in every profile zone (a profile-tz
+  // formatter shifted week/month bucket labels for zones west of Berlin).
+  const tzFmt = useMemo(() => makeBucketLabelFormatters(locale), [locale]);
   const initialRangePoints = windowOverride
     ? MINI_RANGE_POINTS[windowOverride]
     : 30;

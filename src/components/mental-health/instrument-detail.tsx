@@ -11,7 +11,11 @@
  * deliberate click, never pushed at the moment someone arrives to check in.
  */
 import { Button } from "@/components/ui/button";
-import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import {
+  useFormatters,
+  useTranslations,
+  useDisplayTimezone,
+} from "@/lib/i18n/context";
 import { relativeCalendarDate } from "@/lib/i18n/relative-time";
 import { INSTRUMENTS } from "@/lib/mental-health/instruments";
 
@@ -31,6 +35,9 @@ export function InstrumentDetail({
 }) {
   const { t } = useTranslations();
   const { date: formatDate } = useFormatters();
+  // Issue #490 — day-boundary zone for the relative "today / yesterday"
+  // bucket must match the zone `formatDate` renders in (mirror → Berlin).
+  const displayTz = useDisplayTimezone();
   const def = INSTRUMENTS[instrument];
   const last = rows.find((r) => r.instrument === instrument);
 
@@ -45,7 +52,7 @@ export function InstrumentDetail({
               {t("mentalHealth.lastResult")}
             </span>
             <span className="text-foreground text-right">
-              {relativeCalendarDate(last.takenAt, t, formatDate)}
+              {relativeCalendarDate(last.takenAt, t, formatDate, displayTz)}
             </span>
           </div>
           <div className="text-muted-foreground flex items-baseline justify-between gap-3">

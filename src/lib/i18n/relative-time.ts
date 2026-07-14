@@ -13,6 +13,22 @@
  * dashboard.staleHintWeeksOne / Other pattern already in the bundle.
  * Eliminates the "vor 1 Minuten" grammar bug a German user spotted.
  */
+import { DEFAULT_TIMEZONE, isValidTimezone } from "@/lib/tz/format";
+
+/**
+ * Resolve the day-boundary zone for the calendar-bucketed labels below.
+ * Issue #490 half-fix closure: `timeZone` used to flow straight into
+ * `Intl.DateTimeFormat`, where `undefined` silently meant the BROWSER
+ * zone — so pre-`/api/auth/me` the today/yesterday boundary followed the
+ * device while the rendered clock (`fmt.time`) followed the profile
+ * mirror. Boundary and clock must resolve the SAME zone in every state:
+ * valid zone → itself; undefined / "" / garbage → Berlin (the exact
+ * fallback `makeFormatters` applies to the clock). Never the browser.
+ */
+function resolveBoundaryZone(timeZone: string | undefined): string {
+  return timeZone && isValidTimezone(timeZone) ? timeZone : DEFAULT_TIMEZONE;
+}
+
 export function formatRelativeTime(
   iso: string,
   t: (key: string, params?: Record<string, string | number>) => string,
@@ -71,7 +87,7 @@ export function relativeCalendarDate(
   const target = new Date(iso);
   if (Number.isNaN(target.getTime())) return "";
   const dayFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
+    timeZone: resolveBoundaryZone(timeZone),
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -112,7 +128,7 @@ export function formatUpdatedLabel(
   const target = new Date(iso);
   if (Number.isNaN(target.getTime())) return "";
   const dayFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
+    timeZone: resolveBoundaryZone(timeZone),
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

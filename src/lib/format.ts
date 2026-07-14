@@ -25,6 +25,7 @@
 
 import { makeFormatters } from "./format-locale";
 import { readStoredTimeFormat } from "./time-format";
+import { readStoredTimezone } from "./timezone-mirror";
 import { locales, type Locale } from "./i18n/config";
 
 function isLocale(value: string | null | undefined): value is Locale {
@@ -46,10 +47,15 @@ function activeLocale(): Locale {
 }
 
 function formatters() {
-  // Honour the mirrored hour-cycle preference so these legacy helpers render
-  // the same clock as `useFormatters()` call sites. SSR reads AUTO — same
-  // post-hydration caveat as `activeLocale()` above.
-  return makeFormatters(activeLocale(), undefined, readStoredTimeFormat());
+  // Honour the mirrored hour-cycle preference AND the mirrored profile
+  // timezone (issue #490) so these legacy helpers render the same clock and
+  // zone as `useFormatters()` call sites. SSR reads AUTO + "" (→ Berlin) —
+  // same post-hydration caveat as `activeLocale()` above.
+  return makeFormatters(
+    activeLocale(),
+    readStoredTimezone(),
+    readStoredTimeFormat(),
+  );
 }
 
 /** Locale-aware "19.02.2026, 14:30" or "02/19/2026, 2:30 PM". */

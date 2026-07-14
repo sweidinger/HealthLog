@@ -77,7 +77,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import {
+  useTranslations,
+  useFormatters,
+  useDateFormatPreference,
+} from "@/lib/i18n/context";
+import { formatDateWithWeekday } from "@/lib/date-format";
 import {
   invalidateKeys,
   medicationDependentKeys,
@@ -152,8 +157,9 @@ export function DoseHistoryLedger({
   schedules,
   windowDays = 90,
 }: DoseHistoryLedgerProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fmt = useFormatters();
+  const dateFormatPref = useDateFormatPreference();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const timeZone = user?.timezone || "Europe/Berlin";
@@ -437,7 +443,12 @@ export function DoseHistoryLedger({
             data-day={group.dayKey}
           >
             <h3 className="text-muted-foreground px-1 text-xs font-medium">
-              {fmt.dateWithWeekday(new Date(`${group.dayKey}T00:00:00`))}
+              {/* Issue #490 — `dayKey` is a profile-timezone calendar day.
+                  The old browser-local-midnight parse re-interpreted it in
+                  the DEVICE zone and could shift the heading a day when
+                  browser ≠ profile zone; the day-key label renders
+                  UTC-pinned instead (zone-independent, weekday included). */}
+              {formatDateWithWeekday(group.dayKey, dateFormatPref, locale)}
             </h3>
             <ul className="border-border/60 divide-border/60 divide-y rounded-md border">
               {group.rows.map((row, i) => (

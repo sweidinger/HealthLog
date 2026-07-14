@@ -9,7 +9,11 @@ import { MedicationStateBadges } from "@/components/medications/card-parts/medic
 import { MedicationCardBody } from "@/components/medications/card-parts/medication-card-body";
 import { useMedicationIntake } from "@/components/medications/use-medication-intake";
 import { useWeekdayLabel } from "@/components/medications/card-parts/medication-next-last-slot";
-import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import {
+  useTranslations,
+  useFormatters,
+  useDisplayTimezone,
+} from "@/lib/i18n/context";
 import {
   invalidateKeys,
   medicationDependentKeys,
@@ -19,6 +23,7 @@ import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
 import { formatDose } from "@/lib/medications/format-dose";
+import { getDayOfWeekInTz } from "@/lib/tz/local-day";
 import { type InjectionSiteKey } from "@/lib/medications/injection-sites";
 import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
 import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
@@ -185,6 +190,11 @@ export function Glp1MedicationCard({
   const { user } = useAuth();
   const userTz = user?.timezone || "Europe/Berlin";
   const fmt = useFormatters();
+  // Issue #490 — the zone `fmt` renders dates in (mirror → Berlin). The
+  // weekday name paired with `fmt.dateShort` must be derived in this SAME
+  // zone: `Date.getDay()` reads the BROWSER zone and could name a weekday
+  // that contradicts the date printed next to it.
+  const displayTz = useDisplayTimezone();
   const weekdayLabel = useWeekdayLabel();
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   // v1.8.5 — post-dose injection-site prompt (see medication-card.tsx).
@@ -403,7 +413,7 @@ export function Glp1MedicationCard({
     if (!next) return null;
     if (next.daysAway === 0) return t("medications.glp1NextInjectionToday");
     if (next.daysAway === 1) return t("medications.glp1NextInjectionTomorrow");
-    const dayName = weekdayLabel(next.date.getDay());
+    const dayName = weekdayLabel(getDayOfWeekInTz(next.date, displayTz));
     const dateShort = fmt.dateShort(next.date);
     return t("medications.glp1NextInjectionDays", {
       label: `${dayName}, ${dateShort}`,
@@ -453,7 +463,7 @@ export function Glp1MedicationCard({
     medication.nextDueOverdue && next
       ? diffDays(next.date, now) === 0
         ? formatTime(next.date.toISOString())
-        : `${weekdayLabel(next.date.getDay())}, ${fmt.dateShort(next.date)}`
+        : `${weekdayLabel(getDayOfWeekInTz(next.date, displayTz))}, ${fmt.dateShort(next.date)}`
       : null;
 
   const nextLine =
