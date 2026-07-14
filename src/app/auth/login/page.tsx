@@ -39,6 +39,8 @@ export default function LoginPage() {
     const key: Record<string, string> = {
       oidc_denied: "auth.oidc.errorDenied",
       oidc_no_email: "auth.oidc.errorNoEmail",
+      oidc_email_unverified: "auth.oidc.errorEmailUnverified",
+      oidc_identity_conflict: "auth.oidc.errorIdentityConflict",
       oidc_registration_disabled: "auth.oidc.errorRegistrationDisabled",
     };
     return t(key[oidcError] ?? "auth.oidc.errorFailed");

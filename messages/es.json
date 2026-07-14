@@ -290,6 +290,8 @@
       "signInDefault": "Iniciar sesión con SSO",
       "errorDenied": "El inicio de sesión se canceló.",
       "errorNoEmail": "Tu proveedor de identidad no compartió un correo electrónico verificado.",
+      "errorEmailUnverified": "Tu proveedor de identidad no marcó tu correo electrónico como verificado.",
+      "errorIdentityConflict": "Ese correo electrónico pertenece a una cuenta que ya está vinculada a otra identidad SSO.",
       "errorRegistrationDisabled": "Ninguna cuenta coincide con esa identidad y los nuevos registros están cerrados actualmente.",
       "errorFailed": "El inicio de sesión único falló. Inténtalo de nuevo."
     },

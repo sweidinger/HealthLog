@@ -290,6 +290,8 @@
       "signInDefault": "Se connecter avec le SSO",
       "errorDenied": "La connexion a été annulée.",
       "errorNoEmail": "Votre fournisseur d'identité n'a pas transmis d'adresse e-mail vérifiée.",
+      "errorEmailUnverified": "Votre fournisseur d'identité n'a pas marqué votre adresse e-mail comme vérifiée.",
+      "errorIdentityConflict": "Cette adresse e-mail appartient à un compte déjà lié à une autre identité SSO.",
       "errorRegistrationDisabled": "Aucun compte ne correspond à cette identité et les nouvelles inscriptions sont actuellement fermées.",
       "errorFailed": "L'authentification unique a échoué. Veuillez réessayer."
     },

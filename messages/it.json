@@ -290,6 +290,8 @@
       "signInDefault": "Accedi con SSO",
       "errorDenied": "L'accesso è stato annullato.",
       "errorNoEmail": "Il tuo provider di identità non ha condiviso un indirizzo email verificato.",
+      "errorEmailUnverified": "Il tuo provider di identità non ha contrassegnato il tuo indirizzo email come verificato.",
+      "errorIdentityConflict": "Questo indirizzo email appartiene a un account già collegato a un'altra identità SSO.",
       "errorRegistrationDisabled": "Nessun account corrisponde a questa identità e le nuove registrazioni sono attualmente chiuse.",
       "errorFailed": "L'accesso Single Sign-On non è riuscito. Riprova."
     },

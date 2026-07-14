@@ -18,6 +18,7 @@ import {
   verifyIdToken,
 } from "@/lib/auth/oidc";
 import { OIDC_STATE_COOKIE } from "@/lib/auth/oidc-cookie";
+import { resolveServerDefaultTimezone } from "@/lib/tz/resolver";
 
 const LOGIN_ERROR_URL = "/auth/login";
 
@@ -133,55 +134,126 @@ export const GET = apiHandler(async (req: NextRequest) => {
       emailVerified = userinfo.emailVerified;
     }
 
-    // Accept a verified email, or one with no `email_verified` claim at
-    // all (some providers never send it) — but never one explicitly
-    // marked unverified.
-    if (!email || emailVerified === false) {
-      annotate({ meta: { reason: "no_verified_email" } });
-      return errorRedirect(req, "oidc_no_email");
-    }
-
+    // (1) Durable identity match — the (issuer, sub) pair stamped on a
+    // previous login, link, or provision. Email is deliberately NOT
+    // consulted here: after the stamp it is a display field, so an
+    // IdP-side email change can refresh it below but can never re-point
+    // the login at a different account.
     let user = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
+      where: { oidcIssuer: metadata.issuer, oidcSub: identity.sub },
     });
 
-    if (!user) {
-      const userCount = await prisma.user.count();
-      let registrationEnabled = true;
-      try {
-        const settings = await prisma.appSettings.findUnique({
-          where: { id: "singleton" },
+    if (user) {
+      // Refresh the display email only — and only from a claim the IdP
+      // explicitly marks verified. Skipped when another account already
+      // holds the address (`email` is unique); the login itself proceeds
+      // either way, keyed by (issuer, sub).
+      const displayEmail = email ? email.toLowerCase() : null;
+      if (
+        displayEmail &&
+        emailVerified === true &&
+        user.email?.toLowerCase() !== displayEmail
+      ) {
+        const emailTaken = await prisma.user.findFirst({
+          where: {
+            email: { equals: displayEmail, mode: "insensitive" },
+            NOT: { id: user.id },
+          },
+          select: { id: true },
         });
-        if (settings && !settings.registrationEnabled && userCount > 0) {
-          registrationEnabled = false;
+        if (!emailTaken) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { email: displayEmail },
+          });
         }
-      } catch {
-        // Table may not exist yet; allow provisioning (matches register/route.ts).
       }
-      if (!registrationEnabled) {
-        annotate({ meta: { reason: "registration_disabled" } });
-        return errorRedirect(req, "oidc_registration_disabled");
+    } else {
+      // No stamped identity yet — both remaining paths (link-once,
+      // provision) bind this (issuer, sub) to an account keyed by email,
+      // so the claim must be explicitly `email_verified: true`. An ABSENT
+      // claim is a reject, not a benefit of the doubt: an IdP that does
+      // not assert verification cannot anchor a link that later gates a
+      // health record.
+      if (!email) {
+        annotate({ meta: { reason: "no_email" } });
+        return errorRedirect(req, "oidc_no_email");
+      }
+      if (emailVerified !== true) {
+        annotate({ meta: { reason: "email_unverified" } });
+        return errorRedirect(req, "oidc_email_unverified");
       }
 
-      const username = await deriveUniqueUsername(email, (candidate) =>
-        prisma.user
-          .findUnique({ where: { username: candidate } })
-          .then((u: unknown) => u !== null),
-      );
-
-      user = await prisma.user.create({
-        data: {
-          email,
-          username,
-          passwordHash: null,
-          role: userCount === 0 ? "ADMIN" : "USER",
-        },
+      const byEmail = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
       });
 
-      await auditLog("auth.oidc.provisioned", {
-        userId: user.id,
-        ipAddress: ip,
-      });
+      if (byEmail) {
+        // (2) Link ONCE. An account already pinned to a different IdP
+        // identity is never silently re-bound — a rebind would let a
+        // second IdP identity that acquires the same email capture the
+        // account. Audited so the operator can see the collision.
+        if (byEmail.oidcIssuer !== null || byEmail.oidcSub !== null) {
+          await auditLog("auth.oidc.link_conflict", {
+            userId: byEmail.id,
+            ipAddress: ip,
+          });
+          annotate({ meta: { reason: "identity_conflict" } });
+          return errorRedirect(req, "oidc_identity_conflict");
+        }
+        user = await prisma.user.update({
+          where: { id: byEmail.id },
+          data: { oidcIssuer: metadata.issuer, oidcSub: identity.sub },
+        });
+        await auditLog("auth.oidc.linked", {
+          userId: user.id,
+          ipAddress: ip,
+        });
+      } else {
+        // (3) Provision.
+        const userCount = await prisma.user.count();
+        let registrationEnabled = true;
+        try {
+          const settings = await prisma.appSettings.findUnique({
+            where: { id: "singleton" },
+          });
+          if (settings && !settings.registrationEnabled && userCount > 0) {
+            registrationEnabled = false;
+          }
+        } catch {
+          // Table may not exist yet; allow provisioning (matches register/route.ts).
+        }
+        if (!registrationEnabled) {
+          annotate({ meta: { reason: "registration_disabled" } });
+          return errorRedirect(req, "oidc_registration_disabled");
+        }
+
+        const username = await deriveUniqueUsername(email, (candidate) =>
+          prisma.user
+            .findUnique({ where: { username: candidate } })
+            .then((u: unknown) => u !== null),
+        );
+
+        user = await prisma.user.create({
+          data: {
+            email: email.toLowerCase(),
+            username,
+            passwordHash: null,
+            role: userCount === 0 ? "ADMIN" : "USER",
+            // Same server-default resolution the register route uses — an
+            // SSO-provisioned account has no registration form to carry the
+            // browser-detected timezone.
+            timezone: await resolveServerDefaultTimezone(),
+            oidcIssuer: metadata.issuer,
+            oidcSub: identity.sub,
+          },
+        });
+
+        await auditLog("auth.oidc.provisioned", {
+          userId: user.id,
+          ipAddress: ip,
+        });
+      }
     }
 
     const ua = req.headers.get("user-agent");

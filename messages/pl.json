@@ -290,6 +290,8 @@
       "signInDefault": "Zaloguj się przez SSO",
       "errorDenied": "Logowanie zostało anulowane.",
       "errorNoEmail": "Twój dostawca tożsamości nie przekazał zweryfikowanego adresu e-mail.",
+      "errorEmailUnverified": "Twój dostawca tożsamości nie oznaczył Twojego adresu e-mail jako zweryfikowanego.",
+      "errorIdentityConflict": "Ten adres e-mail należy do konta powiązanego już z inną tożsamością SSO.",
       "errorRegistrationDisabled": "Żadne konto nie pasuje do tej tożsamości, a nowe rejestracje są obecnie zamknięte.",
       "errorFailed": "Logowanie jednokrotne nie powiodło się. Spróbuj ponownie."
     },

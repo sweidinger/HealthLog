@@ -290,6 +290,8 @@
       "signInDefault": "Sign in with SSO",
       "errorDenied": "Sign-in was cancelled.",
       "errorNoEmail": "Your identity provider did not share a verified email address.",
+      "errorEmailUnverified": "Your identity provider did not mark your email address as verified.",
+      "errorIdentityConflict": "That email address belongs to an account that is already linked to a different SSO identity.",
       "errorRegistrationDisabled": "No account matches that identity, and new sign-ups are currently closed.",
       "errorFailed": "Single sign-on failed. Please try again."
     },

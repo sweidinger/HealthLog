@@ -290,6 +290,8 @@
       "signInDefault": "Mit SSO anmelden",
       "errorDenied": "Die Anmeldung wurde abgebrochen.",
       "errorNoEmail": "Dein Identitätsanbieter hat keine bestätigte E-Mail-Adresse übermittelt.",
+      "errorEmailUnverified": "Dein Identitätsanbieter hat deine E-Mail-Adresse nicht als bestätigt markiert.",
+      "errorIdentityConflict": "Diese E-Mail-Adresse gehört zu einem Konto, das bereits mit einer anderen SSO-Identität verknüpft ist.",
       "errorRegistrationDisabled": "Kein Konto passt zu dieser Identität, und neue Registrierungen sind derzeit geschlossen.",
       "errorFailed": "Single Sign-On ist fehlgeschlagen. Bitte versuche es erneut."
     },
