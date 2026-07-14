@@ -17,6 +17,8 @@ import { formatBytes } from "@/components/documents/vault-utils";
 import type { ShareViewDocument } from "@/lib/clinician-share/share-view-data";
 import { DOCTOR_REPORT_TYPE_LABEL_KEYS } from "@/lib/doctor-report/type-label-keys";
 import type { DoctorReportData } from "@/lib/doctor-report-data";
+import { makeFormatters } from "@/lib/format-locale";
+import type { Locale } from "@/lib/i18n/config";
 import type { InboundDocumentKindValue } from "@/lib/validations/inbound-documents";
 import type { DoctorReportPrefs } from "@/lib/validations/doctor-report-prefs";
 
@@ -53,7 +55,17 @@ interface ClinicianViewProps {
   /** The raw share token from the path — used to build serve-route URLs. */
   token?: string;
   /** Viewer locale (byte formatting only). Defaults to English. */
-  locale?: string;
+  locale?: Locale;
+  /**
+   * Issue #490 — the share OWNER's (patient's) profile timezone. Period
+   * start/end and the expiry date render in this zone so the dates agree
+   * with the patient-tz aggregation behind the stats (and with the
+   * doctor-report PDF). Pre-fix the dates rendered via a bare
+   * `toLocaleDateString()` — the server CONTAINER's zone (≈ UTC), neither
+   * the patient's nor the viewer's, with US-English field order regardless
+   * of the resolved page locale.
+   */
+  timezone?: string;
 }
 
 /** Human-readable display per persisted wellness-score type (i18n key suffix). */
@@ -197,8 +209,12 @@ export function ClinicianView({
   documentOnly = false,
   token = "",
   locale = "en",
+  timezone,
 }: ClinicianViewProps) {
-  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString();
+  // Owner-tz, locale-aware date rendering (issue #490) — `makeFormatters`
+  // guards the zone and falls back to Europe/Berlin on garbage/absence.
+  const fmt = makeFormatters(locale, timezone);
+  const fmtDate = (iso: string) => fmt.date(new Date(iso));
   const fmtNum = (n: number) => Math.round(n * 100) / 100;
 
   // A documents-only share carries no report — the aggregator is never called

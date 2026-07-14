@@ -41,7 +41,7 @@ interface ComprehensiveMoodData {
 }
 
 export default function InsightsStimmungPage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
 
@@ -107,11 +107,7 @@ export default function InsightsStimmungPage() {
           MeasurementType series, so the period-over-period range read
           (`/api/analytics/range`, keyed on a MeasurementType enum) has
           nothing to aggregate. */}
-      <MoodChart
-        chartKey="mood"
-        compareBaseline={compareBaseline}
-        userTimezone={user?.timezone}
-      />
+      <MoodChart chartKey="mood" compareBaseline={compareBaseline} />
 
       <MetricTargetSummary slug="mood" />
 

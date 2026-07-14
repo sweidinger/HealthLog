@@ -13,6 +13,7 @@ import {
 } from "react";
 import { locales, defaultLocale, type Locale } from "./config";
 import {
+  DISPLAY_TIMEZONE,
   makeFormatters,
   type Formatters,
   type TimeFormatPreference,
@@ -20,6 +21,7 @@ import {
 } from "../format-locale";
 import { readStoredTimeFormat, subscribeTimeFormat } from "../time-format";
 import { readStoredDateFormat, subscribeDateFormat } from "../date-format";
+import { readStoredTimezone, subscribeTimezone } from "../timezone-mirror";
 import { resolveKey } from "./resolve-key";
 import {
   getCachedMessages,
@@ -325,18 +327,46 @@ export function useDateFormatPreference(): DateFormatPreference {
 }
 
 /**
+ * The user's mirrored profile timezone, resolved to a renderable IANA zone:
+ * valid mirror value → `DISPLAY_TIMEZONE` (Europe/Berlin). Reactive to
+ * mirror changes (profile save, cross-tab, `/api/auth/me` re-fetch) via the
+ * same localStorage-mirror pattern as the hour-cycle preference. SSR and the
+ * pre-fetch state resolve Berlin — deliberately NO browser-timezone rung
+ * (issue #490): the chain must match the server's `resolveUserTimezone`
+ * fallback so on-screen times agree with the PDF / exports.
+ *
+ * Use this wherever a day-boundary or weekday must be derived in the SAME
+ * zone `useFormatters()` renders clocks in (e.g. `formatUpdatedLabel`).
+ */
+export function useDisplayTimezone(): string {
+  const stored = useSyncExternalStore(
+    subscribeTimezone,
+    readStoredTimezone,
+    () => "",
+  );
+  return stored !== "" ? stored : DISPLAY_TIMEZONE;
+}
+
+/**
  * Locale-aware formatters tied to the active UI locale. Use for every number,
  * date, and time rendered in the UI so regional conventions (70,5 vs 70.5,
  * 19.02.2026 vs Feb 19, 2026) follow the user's language choice. Times honour
  * the per-user hour-cycle preference (AUTO follows the locale, H12 / H24 pin
- * the cycle).
+ * the cycle) and render in the user's profile timezone (issue #490 — the
+ * localStorage mirror `fetchMe` keeps in sync; "" falls back to Berlin
+ * inside `makeFormatters`).
  */
 export function useFormatters(): Formatters {
   const { locale } = useTranslations();
   const timeFormat = useTimeFormatPreference();
   const dateFormat = useDateFormatPreference();
+  const timezone = useSyncExternalStore(
+    subscribeTimezone,
+    readStoredTimezone,
+    () => "",
+  );
   return useMemo(
-    () => makeFormatters(locale, undefined, timeFormat, dateFormat),
-    [locale, timeFormat, dateFormat],
+    () => makeFormatters(locale, timezone, timeFormat, dateFormat),
+    [locale, timezone, timeFormat, dateFormat],
   );
 }

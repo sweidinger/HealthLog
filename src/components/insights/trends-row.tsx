@@ -112,7 +112,7 @@ function MetricChart({
   const { user } = useAuth();
   const userTimezone = user?.timezone;
   if (config.kind === "mood") {
-    return <MoodChart title={title} mini userTimezone={userTimezone} />;
+    return <MoodChart title={title} mini />;
   }
   return (
     <HealthChartDynamicMini

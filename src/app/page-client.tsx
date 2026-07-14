@@ -1375,7 +1375,6 @@ export default function DashboardPageClient() {
                 onDataReady={() => markChartReady("mood-chart")}
                 compareBaseline={compareBaseline}
                 chartKey="mood"
-                userTimezone={user?.timezone}
               />
             ),
           });

@@ -147,6 +147,25 @@ describe("per-user timezone — Pacific/Auckland end-to-end", () => {
     expect(await resolveUserTimezone(me.id)).toBe("Asia/Tokyo");
   });
 
+  // Issue #490 — the client display fix rides a localStorage mirror that
+  // `fetchMe` fills from `/api/auth/me`. Pin that the route actually
+  // carries the profile zone (the value the mirror consumes), so a field
+  // rename / select-list slip can't silently collapse every client render
+  // back to the Berlin fallback.
+  it("GET /api/auth/me carries the profile timezone the client mirror consumes", async () => {
+    await seedAucklandUser();
+
+    const { GET } = await import("@/app/api/auth/me/route");
+    // The handler resolves the session from the mocked cookie jar; it
+    // takes no request argument.
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { timezone?: string } | null;
+    };
+    expect(body.data?.timezone).toBe("Pacific/Auckland");
+  });
+
   it("PUT /api/auth/me/timezone rejects an invalid IANA zone with 422", async () => {
     await seedAucklandUser();
 

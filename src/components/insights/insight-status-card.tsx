@@ -5,12 +5,15 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TileHeader } from "@/components/insights/tile-header";
-import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import {
+  useTranslations,
+  useFormatters,
+  useDisplayTimezone,
+} from "@/lib/i18n/context";
 import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/use-auth";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { AskCoachIconButton } from "@/components/insights/ask-coach-action";
 import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
@@ -289,7 +292,9 @@ function StatusBody({ text }: { text: string }) {
 function LastUpdatedFooter({ updatedAt }: { updatedAt: string | null }) {
   const { t } = useTranslations();
   const fmt = useFormatters();
-  const { user } = useAuth();
+  // Issue #490 — boundary zone == the zone `fmt.time` renders in (mirror →
+  // Berlin), so the today/yesterday bucket and the clock can never split.
+  const displayTz = useDisplayTimezone();
   if (!updatedAt) return null;
   return (
     // v1.11.5 — right-aligned so the timestamp tucks to the trailing edge
@@ -300,13 +305,7 @@ function LastUpdatedFooter({ updatedAt }: { updatedAt: string | null }) {
     // matching the briefing + per-metric cards. The day boundary follows the
     // user's profile timezone, not the browser's.
     <p className="text-muted-foreground text-right text-xs">
-      {formatUpdatedLabel(
-        updatedAt,
-        t,
-        fmt.dateShort,
-        fmt.time,
-        user?.timezone,
-      )}
+      {formatUpdatedLabel(updatedAt, t, fmt.dateShort, fmt.time, displayTz)}
     </p>
   );
 }

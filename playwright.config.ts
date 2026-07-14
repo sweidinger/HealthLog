@@ -59,6 +59,12 @@ export default defineConfig({
     // matches what real users render on first paint and is the only honest
     // a11y baseline for this app.
     colorScheme: "dark",
+    // Issue #490 — pin the browser timezone. Without this the context
+    // inherits the HOST zone (UTC on CI, Europe/Berlin on a local Mac),
+    // so any surface that renders a clock or a day boundary could pass
+    // locally and skew two hours / a calendar day on CI. Berlin matches
+    // the app's own display fallback, so CI and local render identically.
+    timezoneId: "Europe/Berlin",
   },
 
   projects: [

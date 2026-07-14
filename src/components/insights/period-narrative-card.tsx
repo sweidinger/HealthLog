@@ -4,10 +4,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarRange } from "lucide-react";
 
-import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import {
+  useTranslations,
+  useFormatters,
+  useDisplayTimezone,
+} from "@/lib/i18n/context";
 import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { queryKeys } from "@/lib/query-keys";
-import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
@@ -77,7 +80,9 @@ export function PeriodNarrativeCard({
 }: PeriodNarrativeCardProps) {
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
-  const { user } = useAuth();
+  // Issue #490 — the SAME resolved zone `fmt.time` renders in (mirror →
+  // Berlin), so the today/yesterday boundary and the clock can never split.
+  const displayTz = useDisplayTimezone();
   const [period, setPeriod] = useState<NarrativePeriod>("week");
 
   const query = useQuery({
@@ -197,7 +202,7 @@ export function PeriodNarrativeCard({
                 t,
                 fmt.dateShort,
                 fmt.time,
-                user?.timezone,
+                displayTz,
               )}
         </p>
       </div>

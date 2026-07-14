@@ -25,10 +25,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
-import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import {
+  useTranslations,
+  useFormatters,
+  useDisplayTimezone,
+} from "@/lib/i18n/context";
 import { formatUpdatedLabel } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
-import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type {
   DailyBriefing as DailyBriefingPayload,
@@ -371,7 +374,9 @@ export function DailyBriefing({
 }: DailyBriefingProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
-  const { user } = useAuth();
+  // Issue #490 — the SAME resolved zone `fmt.time` renders in (mirror →
+  // Berlin), so the today/yesterday boundary and the clock can never split.
+  const displayTz = useDisplayTimezone();
 
   // v1.25.3 — when there is no last good text and the last attempt failed,
   // point the hint at the lever that matches the failure class. A timeout (the
@@ -493,7 +498,7 @@ export function DailyBriefing({
                         t,
                         fmt.dateShort,
                         fmt.time,
-                        user?.timezone,
+                        displayTz,
                       )}
                     </p>
                   )}

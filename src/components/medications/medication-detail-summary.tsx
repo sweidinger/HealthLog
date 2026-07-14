@@ -21,7 +21,12 @@ import {
   summariseCadence,
   type MedicationPayload,
 } from "@/components/medications/wizard/wizard-payload";
-import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import {
+  useTranslations,
+  useFormatters,
+  useDateFormatPreference,
+} from "@/lib/i18n/context";
+import { formatDate as formatCalendarDate } from "@/lib/date-format";
 
 export interface MedicationDetailSummaryProps {
   name: string;
@@ -58,8 +63,9 @@ export function MedicationDetailSummary({
   asNeeded = false,
   startsOn,
 }: MedicationDetailSummaryProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const formatters = useFormatters();
+  const dateFormatPref = useDateFormatPreference();
   const status = resolveStatus(active, endsOn);
 
   const statusLabel =
@@ -80,10 +86,15 @@ export function MedicationDetailSummary({
         ? "bg-warning"
         : "bg-muted-foreground";
 
+  // Issue #490 — `Medication.startsOn` is a `@db.Date` calendar date
+  // (serialised as UTC midnight). The old `formatters.dateTime(startsOn)`
+  // re-read that instant in the display zone: it invented a meaningless
+  // clock time and shifted the day for zones west of UTC. A calendar date
+  // renders UTC-pinned (date only), correct in every zone.
   const cadenceLine = oneShot
     ? startsOn
       ? t("medications.detail.cadence.oneShotOn", {
-          date: formatters.dateTime(startsOn),
+          date: formatCalendarDate(new Date(startsOn), dateFormatPref, locale),
         })
       : t("medications.detail.cadence.oneShotPending")
     : asNeeded

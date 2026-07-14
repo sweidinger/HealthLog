@@ -36,6 +36,11 @@ vi.mock("@/lib/clinician-share/resolve-share-token", () => ({
 vi.mock("@/lib/clinician-share/share-view-data", () => ({
   loadShareViewData: vi.fn(),
 }));
+// Issue #490 — the page resolves the share OWNER's timezone for the date
+// rendering; the Prisma-backed resolver is stubbed like the data loader.
+vi.mock("@/lib/tz/resolver", () => ({
+  resolveUserTimezone: vi.fn(async () => "Europe/Berlin"),
+}));
 vi.mock("@/components/clinician/clinician-view", () => ({
   ClinicianView: () => null,
 }));

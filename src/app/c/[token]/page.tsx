@@ -31,6 +31,7 @@ import {
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { parseLocaleFromAcceptLanguage } from "@/lib/format-locale";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { ClinicianView } from "@/components/clinician/clinician-view";
 import { ShareUnlockGate } from "@/components/clinician/share-unlock-gate";
 
@@ -103,8 +104,15 @@ export default async function ClinicianSharePage({
   const context = await resolveShareToken(token);
   if (!context) notFound();
 
-  const [{ report, sections, documents, documentOnly }, locale] =
-    await Promise.all([loadShareViewData(context), resolveLocale()]);
+  // Issue #490 — period/expiry dates render in the share OWNER's (patient's)
+  // profile timezone so they agree with the patient-tz aggregation behind the
+  // stats and with the doctor-report PDF (never the container's zone).
+  const [{ report, sections, documents, documentOnly }, locale, ownerTimezone] =
+    await Promise.all([
+      loadShareViewData(context),
+      resolveLocale(),
+      resolveUserTimezone(context.ownerUserId),
+    ]);
   const { t } = getServerTranslator(locale);
 
   return (
@@ -118,6 +126,7 @@ export default async function ClinicianSharePage({
       documentOnly={documentOnly}
       token={token}
       locale={locale}
+      timezone={ownerTimezone}
     />
   );
 }

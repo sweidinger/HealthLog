@@ -18,6 +18,7 @@ import type {
 } from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
 import { isDateFormatPreference, storeDateFormat } from "@/lib/date-format";
+import { storeTimezone } from "@/lib/timezone-mirror";
 import type { ModuleKey } from "@/lib/modules/registry";
 import type { TourProgress } from "@/lib/onboarding/tour-progress";
 import { clearOfflineCachesForSessionEnd } from "@/lib/pwa/query-persister";
@@ -241,6 +242,12 @@ async function fetchMe(): Promise<AuthUser> {
     ? data.dateFormat
     : "AUTO";
   storeDateFormat(dateFormat);
+  // Profile timezone (issue #490): mirror into localStorage so
+  // `useFormatters()` and the legacy format helpers render timestamps in
+  // the user's zone. `storeTimezone` validates the IANA name and CLEARS
+  // the mirror on garbage, so a poison value falls back to Berlin instead
+  // of reaching `Intl.DateTimeFormat` (RangeError).
+  storeTimezone(typeof data.timezone === "string" ? data.timezone : "");
   // A confirmed session: refresh the non-sensitive offline-relaunch marker.
   storeWasAuthenticated();
   return {

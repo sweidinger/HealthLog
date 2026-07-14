@@ -40,7 +40,11 @@ import {
   Wrench,
 } from "lucide-react";
 
-import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import {
+  useFormatters,
+  useTranslations,
+  useDisplayTimezone,
+} from "@/lib/i18n/context";
 import { relativeCalendarDate } from "@/lib/i18n/relative-time";
 import { startOfLocalDayInTz } from "@/lib/tz/local-day";
 import { cn } from "@/lib/utils";
@@ -804,6 +808,9 @@ function VorsorgeCard({
 }) {
   const { t } = useTranslations();
   const fmt = useFormatters();
+  // Issue #490 — day-boundary zone for the relative "today / yesterday"
+  // bucket must match the zone `fmt.date` renders in (mirror → Berlin).
+  const displayTz = useDisplayTimezone();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const due = relativeDueKey(reminder.nextDueAt, now);
   const cadence =
@@ -1017,7 +1024,12 @@ function VorsorgeCard({
   // the same `medications.today` / `medications.yesterday` keys the medication
   // card renders. Falls back to "—" when there is no last-done value.
   const lastValue = reminder.lastSatisfiedAt
-    ? relativeCalendarDate(reminder.lastSatisfiedAt, t, (d) => fmt.date(d))
+    ? relativeCalendarDate(
+        reminder.lastSatisfiedAt,
+        t,
+        (d) => fmt.date(d),
+        displayTz,
+      )
     : "—";
 
   // v1.18.9 (#39) — the next-due status reads as DISCREET COLOURED TEXT (never
@@ -1100,6 +1112,10 @@ function VorsorgeCard({
 
           {reminder.endsOn && (
             <p className="text-muted-foreground text-sm">
+              {/* `endsOn` is a real instant (`now + courseDays` at Coach
+                  accept, plain timestamptz — NOT a `@db.Date` UTC-midnight
+                  calendar date), so the profile-tz formatter renders the
+                  correct local course-end day for every zone. */}
               {t("measurementReminders.until", {
                 date: fmt.date(new Date(reminder.endsOn)),
               })}

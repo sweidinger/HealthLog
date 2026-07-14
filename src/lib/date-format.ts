@@ -140,6 +140,34 @@ export function formatDate(
 }
 
 /**
+ * Format a plain calendar date (ISO `yyyy-MM-dd` day key or a Date) as
+ * short weekday + day + month — the `fmt.dateWithWeekday` field set
+ * ("Di., 14.07." / "Tue, 07/14") — pinned to UTC like {@link formatDate}.
+ *
+ * Issue #490: for a value that is a DAY KEY (e.g. the dose-history
+ * ledger's profile-timezone day groups), parsing it as a local-midnight
+ * instant and re-formatting through a timezone-aware formatter can shift
+ * the rendered day when browser and profile zones differ. The calendar
+ * date (and therefore its weekday) is already fully determined by the
+ * key, so it renders UTC-pinned — correct in every zone, no DST edge.
+ */
+export function formatDateWithWeekday(
+  value: Date | string | null | undefined,
+  pref: DateFormatPreference,
+  locale: Locale,
+): string {
+  if (value === null || value === undefined || value === "") return "";
+  const date = value instanceof Date ? value : parseIsoDate(value);
+  if (date === null || Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(resolveDateLocale(pref, locale), {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+/**
  * Parse a `yyyy-MM-dd` string to a UTC `Date` at midnight. Returns null on
  * a value that is not exactly the ISO calendar-date shape so callers can
  * fall back to the placeholder rather than rendering "Invalid Date".

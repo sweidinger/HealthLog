@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatDate,
+  formatDateWithWeekday,
   parseIsoDate,
   resolveDateLocale,
   isDateFormatPreference,
@@ -68,6 +69,46 @@ describe("formatDate", () => {
     expect(formatDate(null, "AUTO", "en")).toBe("");
     expect(formatDate(undefined, "AUTO", "en")).toBe("");
     expect(formatDate("not-a-date", "AUTO", "en")).toBe("");
+  });
+});
+
+// ── Issue #490 — `@db.Date` / day-key rendering regressions ─────────────
+//
+// A serialised calendar date (`@db.Date` → UTC-midnight instant, or a raw
+// profile-tz `yyyy-MM-dd` day key) must render the ENCODED day in every
+// display zone — the pre-fix paths re-read the encoding in a timezone-aware
+// formatter and shifted the day for zones west of UTC (medication one-shot
+// `startsOn`) or for browser ≠ profile pairs (dose-ledger day headings).
+describe("formatDateWithWeekday (#490)", () => {
+  // 2026-07-14 is a Tuesday.
+  it("renders a day key with its zone-independent weekday", () => {
+    expect(formatDateWithWeekday("2026-07-14", "AUTO", "en")).toBe(
+      "Tue, 07/14",
+    );
+    expect(formatDateWithWeekday("2026-07-14", "AUTO", "de")).toBe(
+      "Di., 14.07.",
+    );
+  });
+
+  it("honours the date-order preference like the formatter hook", () => {
+    expect(formatDateWithWeekday("2026-07-14", "DMY", "en")).toBe(
+      "Di., 14.07.",
+    );
+    expect(formatDateWithWeekday("2026-07-14", "MDY", "de")).toBe("Tue, 07/14");
+  });
+
+  it("renders a UTC-midnight Date on its encoded day (never the day before)", () => {
+    // The `@db.Date` wire shape — the exact value class the medication
+    // one-shot `startsOn` fix feeds through `formatDate`.
+    const utcMidnight = new Date("2026-07-01T00:00:00.000Z");
+    expect(formatDateWithWeekday(utcMidnight, "AUTO", "en")).toBe("Wed, 07/01");
+    expect(formatDate(utcMidnight, "AUTO", "en")).toBe("07/01/2026");
+  });
+
+  it("returns an empty string for empty / unparseable input", () => {
+    expect(formatDateWithWeekday("", "AUTO", "en")).toBe("");
+    expect(formatDateWithWeekday(null, "AUTO", "en")).toBe("");
+    expect(formatDateWithWeekday("14.07.2026", "AUTO", "en")).toBe("");
   });
 });
 
