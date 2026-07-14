@@ -4,6 +4,13 @@
  * codeVerifier, next}` across the browser round-trip to the IdP and back.
  */
 export const OIDC_STATE_COOKIE = "oidc_auth_state";
+/**
+ * RFC 6265 keys a cookie by (name, domain, path) — a delete must repeat the
+ * exact path the set used or it silently targets a different (non-existent)
+ * cookie and the stale state blob survives. Every set AND delete goes
+ * through this constant.
+ */
+export const OIDC_STATE_COOKIE_PATH = "/api/auth/oidc";
 export const OIDC_STATE_TTL_MS = 10 * 60 * 1000;
 
 /**

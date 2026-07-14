@@ -459,4 +459,25 @@ describe("GET /api/auth/oidc/callback", () => {
     const res = await GET(validRequest());
     expect(res.headers.get("location")).toContain("error=oidc_failed");
   });
+
+  it("deletes the state cookie with the exact path it was set under", async () => {
+    // RFC 6265 keys cookies by (name, domain, path) — a deletion without
+    // `Path=/api/auth/oidc` would target a `/`-scoped cookie that does not
+    // exist and leave the real single-use blob alive.
+    const errorRes = await GET(makeRequest({ query: "?error=access_denied" }));
+    const errorCookie = errorRes.headers
+      .getSetCookie()
+      .find((c) => c.startsWith("oidc_auth_state="))!;
+    expect(errorCookie.toLowerCase()).toContain("path=/api/auth/oidc");
+
+    mockIdentity();
+    mockUserLookups({
+      byIdentity: userRow({ oidcIssuer: METADATA.issuer, oidcSub: "sub-1" }),
+    });
+    const successRes = await GET(validRequest());
+    const successCookie = successRes.headers
+      .getSetCookie()
+      .find((c) => c.startsWith("oidc_auth_state="))!;
+    expect(successCookie.toLowerCase()).toContain("path=/api/auth/oidc");
+  });
 });

@@ -238,6 +238,11 @@ export default function LoginPage() {
         methods?: MfaMethod[];
       };
       if (parsed.ticket) {
+        // A lazy useState initializer cannot replace this: `document` does
+        // not exist during the server render, and seeding client-only state
+        // there would desync hydration. Mount-time pickup of an external
+        // one-shot store is exactly the effect escape hatch.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMfaChallenge({
           ticket: parsed.ticket,
           methods: parsed.methods ?? ["totp", "recovery"],
@@ -252,7 +257,12 @@ export default function LoginPage() {
   // arm a discoverable-credential assertion bound to the username field so a
   // returning user can pick their passkey straight from the autofill prompt.
   // Best-effort: any abort (the user types a password instead) is swallowed.
+  // Waits for the OIDC status and stays off entirely under OIDC_ONLY —
+  // passkey login is a dead end there (server-enforced), so arming the
+  // browser's credential prompt would only dangle a door that is locked.
   useEffect(() => {
+    if (oidcStatus === undefined) return;
+    if (oidcStatus.only === true) return;
     if (autofillStarted.current) return;
     autofillStarted.current = true;
     let cancelled = false;
@@ -291,7 +301,7 @@ export default function LoginPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [oidcStatus]);
 
   return (
     <div className="flex w-full max-w-sm flex-col gap-4">

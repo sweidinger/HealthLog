@@ -7,7 +7,10 @@ vi.mock("jose", () => ({
 }));
 
 import { safeFetch } from "@/lib/safe-fetch";
-import { jwtVerify as mockJwtVerify } from "jose";
+import {
+  createRemoteJWKSet as mockCreateRemoteJWKSet,
+  jwtVerify as mockJwtVerify,
+} from "jose";
 import {
   _resetOidcCacheForTests,
   buildAuthorizationUrl,
@@ -195,6 +198,28 @@ describe("discoverOidcMetadata", () => {
     );
   });
 
+  it("tolerates exactly one trailing slash between config and discovery issuer", async () => {
+    // Several IdPs mint their issuer with a canonical trailing slash while
+    // the operator configures without one. The provider-sent form is kept
+    // in the metadata — the ID token's `iss` must match IT byte-exact.
+    vi.mocked(safeFetch).mockResolvedValue(
+      jsonResponse({ ...METADATA_DOC, issuer: "https://idp.example.com/" }),
+    );
+    const config = getOidcConfig()!;
+    const metadata = await discoverOidcMetadata(config);
+    expect(metadata.issuer).toBe("https://idp.example.com/");
+  });
+
+  it("does not stretch the slash tolerance beyond a single trailing slash", async () => {
+    vi.mocked(safeFetch).mockResolvedValue(
+      jsonResponse({ ...METADATA_DOC, issuer: "https://idp.example.com//" }),
+    );
+    const config = getOidcConfig()!;
+    await expect(discoverOidcMetadata(config)).rejects.toThrow(
+      /issuer mismatch/,
+    );
+  });
+
   it("rejects a discovery doc missing required fields", async () => {
     vi.mocked(safeFetch).mockResolvedValue(
       jsonResponse({ issuer: METADATA_DOC.issuer }),
@@ -343,6 +368,62 @@ describe("verifyIdToken", () => {
         nonce: "nonce-1",
       }),
     ).rejects.toThrow(/missing sub claim/);
+  });
+
+  it("verifies with a closed asymmetric algorithm allowlist and bounded clock tolerance", async () => {
+    vi.mocked(mockJwtVerify).mockResolvedValue({
+      payload: { sub: "user-sub-1", nonce: "nonce-1" },
+    } as never);
+    const config = getOidcConfig()!;
+    await verifyIdToken({
+      metadata: METADATA_DOC,
+      config,
+      idToken: "id-token",
+      nonce: "nonce-1",
+    });
+    expect(mockJwtVerify).toHaveBeenCalledWith(
+      "id-token",
+      expect.anything(),
+      expect.objectContaining({
+        issuer: METADATA_DOC.issuer,
+        audience: config.clientId,
+        algorithms: ["RS256", "PS256", "ES256", "EdDSA"],
+        clockTolerance: "60s",
+      }),
+    );
+  });
+
+  it("pins the JWKS fetch to the issuer's host with a bounded timeout", async () => {
+    vi.mocked(mockJwtVerify).mockResolvedValue({
+      payload: { sub: "user-sub-1", nonce: "nonce-1" },
+    } as never);
+    const config = getOidcConfig()!;
+    await verifyIdToken({
+      metadata: METADATA_DOC,
+      config,
+      idToken: "id-token",
+      nonce: "nonce-1",
+    });
+    expect(mockCreateRemoteJWKSet).toHaveBeenCalledWith(
+      new URL(METADATA_DOC.jwks_uri),
+      { timeoutDuration: 15_000 },
+    );
+  });
+
+  it("rejects a discovery doc whose jwks_uri points at a foreign host", async () => {
+    const config = getOidcConfig()!;
+    await expect(
+      verifyIdToken({
+        metadata: {
+          ...METADATA_DOC,
+          jwks_uri: "https://evil.example.com/jwks",
+        },
+        config,
+        idToken: "id-token",
+        nonce: "nonce-1",
+      }),
+    ).rejects.toThrow(/jwks_uri host mismatch/);
+    expect(mockCreateRemoteJWKSet).not.toHaveBeenCalled();
   });
 });
 

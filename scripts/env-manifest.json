@@ -99,6 +99,25 @@
       ]
     },
     {
+      "name": "OIDC SSO options",
+      "description": "Optional tuning for an enabled OIDC provider. Each stands alone (deliberately NOT allOrNone — any subset is valid) and each has a safe default when unset.",
+      "required": false,
+      "variables": [
+        {
+          "name": "OIDC_SCOPES",
+          "purpose": "Space-separated scopes requested at authorization. Default: \"openid email profile\"."
+        },
+        {
+          "name": "OIDC_BUTTON_LABEL",
+          "purpose": "Label on the login page's SSO button. Default: \"Single Sign-On\"."
+        },
+        {
+          "name": "OIDC_ONLY",
+          "purpose": "\"true\" disables password/passkey login server-side (only effective when the OIDC provider group is fully configured). Default: additive login. Locks the native iOS app out of sign-in."
+        }
+      ]
+    },
+    {
       "name": "APNs (iOS push)",
       "description": "All four core APNS_* vars together. Missing any disables APNs silently — the v1.4.40 AP-2 gap that motivated this manifest. allOrNone trips the synthetic <all-or-none> required row whenever 1-3 of the 4 are set.",
       "required": false,

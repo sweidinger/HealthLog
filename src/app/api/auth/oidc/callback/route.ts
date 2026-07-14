@@ -22,6 +22,7 @@ import {
   OIDC_MFA_COOKIE_PATH,
   OIDC_MFA_TTL_MS,
   OIDC_STATE_COOKIE,
+  OIDC_STATE_COOKIE_PATH,
 } from "@/lib/auth/oidc-cookie";
 import { createMfaChallenge } from "@/lib/auth/mfa/challenge";
 import { syncMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
@@ -34,9 +35,46 @@ function errorRedirect(req: NextRequest, reason: string): NextResponse {
   const response = NextResponse.redirect(
     new URL(`${LOGIN_ERROR_URL}?error=${reason}`, req.url),
   );
-  response.cookies.delete(OIDC_STATE_COOKIE);
+  deleteStateCookie(response);
   return response;
 }
+
+/**
+ * The state cookie is set with `path: "/api/auth/oidc"`; the delete must
+ * repeat that path (RFC 6265 keys cookies by name+domain+path — a bare
+ * delete would target `/` and never match, leaving the single-use blob
+ * alive for the rest of its TTL).
+ */
+function deleteStateCookie(response: NextResponse): void {
+  response.cookies.delete({
+    name: OIDC_STATE_COOKIE,
+    path: OIDC_STATE_COOKIE_PATH,
+  });
+}
+
+/**
+ * Closed set of RFC 6749 §4.1.2.1 / OIDC Core §3.1.2.6 authorization error
+ * codes. The wide-event meta only ever carries a member of this set (or
+ * "other") — never the raw, attacker-influenceable query value.
+ */
+const KNOWN_IDP_ERROR_CODES = new Set([
+  "access_denied",
+  "invalid_request",
+  "unauthorized_client",
+  "unsupported_response_type",
+  "invalid_scope",
+  "server_error",
+  "temporarily_unavailable",
+  "interaction_required",
+  "login_required",
+  "account_selection_required",
+  "consent_required",
+  "invalid_request_uri",
+  "invalid_request_object",
+  "request_not_supported",
+  "request_uri_not_supported",
+  "registration_not_supported",
+]);
 
 interface StoredOidcState {
   state: string;
@@ -82,7 +120,12 @@ export const GET = apiHandler(async (req: NextRequest) => {
   const { searchParams } = req.nextUrl;
   const idpError = searchParams.get("error");
   if (idpError) {
-    annotate({ meta: { reason: "idp_denied", idpError } });
+    annotate({
+      meta: {
+        reason: "idp_denied",
+        idpError: KNOWN_IDP_ERROR_CODES.has(idpError) ? idpError : "other",
+      },
+    });
     return errorRedirect(req, "oidc_denied");
   }
 
@@ -299,7 +342,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
         loginUrl.searchParams.set("next", stored.next);
       }
       const response = NextResponse.redirect(loginUrl);
-      response.cookies.delete(OIDC_STATE_COOKIE);
+      deleteStateCookie(response);
       response.cookies.set(
         OIDC_MFA_COOKIE,
         JSON.stringify({ ticket: challenge.ticket, methods }),
@@ -341,7 +384,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
     await auditLog("auth.oidc.login", { userId: user.id, ipAddress: ip });
 
     const response = NextResponse.redirect(new URL(stored.next, req.url));
-    response.cookies.delete(OIDC_STATE_COOKIE);
+    deleteStateCookie(response);
     return response;
   } catch (err) {
     getEvent()?.setError(err);

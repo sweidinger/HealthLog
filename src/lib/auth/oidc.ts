@@ -7,6 +7,11 @@
  * OAuth server) rather than pulling in a full OAuth/OIDC framework; `jose`
  * is used only for JWKS fetch + ID-token signature/claims verification,
  * which is not worth hand-rolling.
+ *
+ * None of the outbound calls opt into `requirePublicHost`: a LAN- or
+ * Tailscale-only IdP (Authentik/Keycloak/Authelia on the same box) is a
+ * legitimate, common self-host topology, and the issuer comes from operator
+ * env config — never from user input.
  */
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { safeFetch } from "@/lib/safe-fetch";
@@ -117,7 +122,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * logins don't stampede the discovery endpoint. The doc's own `issuer`
  * claim must match the configured issuer URL (RFC 8414 §3.3) — a
  * mismatch means the provider is misconfigured or something is spoofing
- * the discovery response.
+ * the discovery response. The comparison tolerates exactly ONE trailing
+ * slash on either side (several IdPs mint their issuer with a canonical
+ * trailing slash while operators configure without one, and vice versa);
+ * anything beyond that single-slash normalisation is still a hard reject.
+ * The provider-sent `issuer` is what gets cached and later matched against
+ * the ID token's `iss` claim byte-exact — the tolerance applies only to
+ * the operator-config comparison, never to token verification.
  */
 export async function discoverOidcMetadata(
   config: OidcConfig,
@@ -147,7 +158,12 @@ export async function discoverOidcMetadata(
       ) {
         throw new Error("discovery document missing required fields");
       }
-      if (json.issuer !== config.issuerUrl) {
+      const stripOneTrailingSlash = (value: string): string =>
+        value.endsWith("/") ? value.slice(0, -1) : value;
+      if (
+        stripOneTrailingSlash(json.issuer) !==
+        stripOneTrailingSlash(config.issuerUrl)
+      ) {
         throw new Error(
           `discovery issuer mismatch: expected ${config.issuerUrl}, got ${json.issuer}`,
         );
@@ -172,16 +188,25 @@ export async function discoverOidcMetadata(
   return metadataInFlight;
 }
 
-function getJwks(metadata: OidcMetadata) {
+function getJwks(metadata: OidcMetadata, config: OidcConfig) {
   if (jwksCache && jwksCache.issuerUrl === metadata.issuer) {
     return jwksCache.jwks;
   }
-  // `jose`'s own fetch to the trusted, discovery-supplied `jwks_uri` is a
-  // deliberate, scoped exception to the safe-fetch-required convention —
-  // the target host comes from the operator-configured issuer, never from
-  // user input, and the ESLint rule only lints project source, not
-  // library internals.
-  const jwks = createRemoteJWKSet(new URL(metadata.jwks_uri));
+  // `jose`'s own fetch to the discovery-supplied `jwks_uri` is a
+  // deliberate, scoped exception to the safe-fetch-required convention
+  // (the ESLint rule only lints project source, not library internals).
+  // It is disciplined two ways instead: the `jwks_uri` host must exactly
+  // equal the operator-configured issuer's host — a spoofed or sloppy
+  // discovery doc cannot point key fetching at a third party — and the
+  // fetch carries the same 15 s timeout `safeFetch` defaults to.
+  const jwksUrl = new URL(metadata.jwks_uri);
+  const issuerHost = new URL(config.issuerUrl).host;
+  if (jwksUrl.host !== issuerHost) {
+    throw new Error(
+      `jwks_uri host mismatch: expected ${issuerHost}, got ${jwksUrl.host}`,
+    );
+  }
+  const jwks = createRemoteJWKSet(jwksUrl, { timeoutDuration: 15_000 });
   jwksCache = { issuerUrl: metadata.issuer, jwks };
   return jwks;
 }
@@ -268,10 +293,19 @@ export async function verifyIdToken(params: {
   idToken: string;
   nonce: string;
 }): Promise<OidcIdentity> {
-  const jwks = getJwks(params.metadata);
+  const jwks = getJwks(params.metadata, params.config);
   const { payload } = await jwtVerify(params.idToken, jwks, {
     issuer: params.metadata.issuer,
     audience: params.config.clientId,
+    // Closed allowlist of asymmetric signature algorithms — every ID token
+    // must be provider-key signed. Never extend this with an HMAC (HS*)
+    // entry: a symmetric alg would let anyone who knows the client secret
+    // forge identities.
+    algorithms: ["RS256", "PS256", "ES256", "EdDSA"],
+    // Self-hosted IdP + app on different boxes routinely drift a few
+    // seconds apart; a minute of tolerance on exp/iat/nbf absorbs that
+    // without meaningfully extending a token's life.
+    clockTolerance: "60s",
   });
 
   if (typeof payload.sub !== "string" || !payload.sub) {

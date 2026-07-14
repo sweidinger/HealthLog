@@ -13,7 +13,11 @@ import {
   getOidcRedirectUri,
   sanitizeOidcNextPath,
 } from "@/lib/auth/oidc";
-import { OIDC_STATE_COOKIE, OIDC_STATE_TTL_MS } from "@/lib/auth/oidc-cookie";
+import {
+  OIDC_STATE_COOKIE,
+  OIDC_STATE_COOKIE_PATH,
+  OIDC_STATE_TTL_MS,
+} from "@/lib/auth/oidc-cookie";
 
 /**
  * Redirects the browser to the configured OIDC provider's authorization
@@ -84,7 +88,9 @@ export const GET = apiHandler(async (req: NextRequest) => {
     // the session cookie and the Withings OAuth state cookie.
     sameSite: "lax",
     maxAge: Math.floor(OIDC_STATE_TTL_MS / 1000),
-    path: "/api/auth/oidc",
+    // Shared constant — the callback's delete must repeat this exact path
+    // (RFC 6265 keys cookies by name+domain+path).
+    path: OIDC_STATE_COOKIE_PATH,
   });
 
   return response;

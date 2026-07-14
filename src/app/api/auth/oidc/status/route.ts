@@ -6,19 +6,14 @@ import { getOidcConfig, isOidcOnly } from "@/lib/auth/oidc";
 export const dynamic = "force-dynamic";
 
 /** Public — the login page reads this pre-session to decide whether to
- * render the SSO button and whether to hide password/passkey login. */
+ * render the SSO button and whether to hide password/passkey login. Pure
+ * env reads; nothing here can throw. */
 export const GET = apiHandler(async () => {
-  try {
-    const config = getOidcConfig();
-    annotate({ action: { name: "auth.oidc.status" } });
-    return apiSuccess({
-      enabled: config !== null,
-      buttonLabel: config?.buttonLabel ?? null,
-      only: isOidcOnly(),
-    });
-  } catch {
-    // Fail closed, matching registration-status.
-    annotate({ action: { name: "auth.oidc.status" } });
-    return apiSuccess({ enabled: false, buttonLabel: null, only: false });
-  }
+  annotate({ action: { name: "auth.oidc.status" } });
+  const config = getOidcConfig();
+  return apiSuccess({
+    enabled: config !== null,
+    buttonLabel: config?.buttonLabel ?? null,
+    only: isOidcOnly(),
+  });
 });
