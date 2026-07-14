@@ -21,7 +21,9 @@ notes, and machine-readable specs that ship alongside the source:
   recipe. Routine install steps stay on `docs.healthlog.dev`. Includes
   [`self-hosting/mcp.md`](./self-hosting/mcp.md) — enabling the
   off-by-default MCP connector and pointing Claude.ai / ChatGPT /
-  Claude Desktop at it.
+  Claude Desktop at it, and [`self-hosting/sso.md`](./self-hosting/sso.md)
+  — OIDC SSO login: IdP setup, the identity-pinning security model,
+  `OIDC_ONLY` consequences, and the break-glass runbook.
 - [`migration/`](./migration/) — release-by-release migration notes.
   Read the entry for the version you're upgrading from.
 - [`audit/`](./audit/) — per-release audit summaries archived for
