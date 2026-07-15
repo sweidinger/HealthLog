@@ -215,14 +215,22 @@ export async function drainPerSampleCumulative(
     statsPrefix: DAILY_STATS_PREFIX,
     reduce: sumBucketValues,
     // v1.4.37 W7c — exclude rows inside the grace window so the nightly
-    // scheduled drain never collapses today's still-in-flight watch
-    // syncs. No `deletedAt` filter and no NOT-stats predicate here: the
-    // cumulative drain historically scans every row and relies on the
-    // in-memory bucketer to skip already-collapsed `stats:` rows.
+    // scheduled drain never collapses today's still-in-flight watch syncs.
+    // `deletedAt: null` pins the scan to LIVE rows — matching the three
+    // sibling drains (daily-mean :234, dense-intraday :464, legacy-steps
+    // :287). Without it a soft-deleted non-`stats:` APPLE_HEALTH sample was
+    // (a) re-summed into the day total and (b) hard-deleted below, which both
+    // resurrects a user-deleted sample inside the grace window AND erases the
+    // legacy-steps audit tombstones (double-counting them into a second
+    // `stats:` total). The NOT-`stats:` predicate stays OFF here: the
+    // cumulative drain relies on the in-memory bucketer to skip
+    // already-collapsed `stats:` rows, and the live `stats:` total (never
+    // tombstoned) is still scanned so the late-fold path can see it.
     buildScanWhere: ({ userId, type, cutoffAt }) => ({
       userId,
       source: "APPLE_HEALTH",
       type,
+      deletedAt: null,
       ...(cutoffAt ? { measuredAt: { lt: cutoffAt } } : {}),
     }),
     writeDay: async ({
@@ -253,6 +261,25 @@ export async function drainPerSampleCumulative(
       const foldOnce = async (): Promise<number> => {
         let removed = 0;
         await pc.$transaction(async (tx) => {
+          // Single-flight the per-(user, type, day) fold. Two overlapping
+          // drains — a rolling-deploy nightly overlap, or an operator's manual
+          // `POST /api/admin/drain-per-sample-cumulative` racing the cron —
+          // each scan the same live per-sample rows before either commits.
+          // Without a guard the second run re-adds its already-drained sum onto
+          // the first run's committed `stats:` total → a permanent 2× day total
+          // that never self-heals. The transaction-scoped advisory lock
+          // (released on commit/rollback, keyed on the bucket's canonical
+          // externalId) serialises the two folds so their read+write never
+          // interleave; the live re-read below then makes the serialised-second
+          // fold contribute exactly zero. Mirrors the per-user advisory-lock
+          // guard on the documents quota gate (`api/documents/inbound`).
+          // (`pg_advisory_xact_lock` returns void, which the client cannot
+          // deserialize as a column — selecting FROM it yields a plain int row.)
+          await tx.$queryRaw`
+            SELECT 1 AS locked
+            FROM pg_advisory_xact_lock(hashtextextended('drain-cumulative:' || ${userId} || ':' || ${externalId}, 0))
+          `;
+
           // Index-A row: already carries the target `stats:` externalId. When
           // present, this is the existing collapsed daily total.
           const eidRow = await tx.measurement.findFirst({
@@ -286,8 +313,27 @@ export async function drainPerSampleCumulative(
           // per-sample row that fell on local noon, itself part of this
           // bucket), its value is already inside `reducedValue`, so the merged
           // value is just `reducedValue`. A fresh day mints `reducedValue`.
+          //
+          // Concurrency guard (paired with the advisory lock above): a sibling
+          // fold that committed just before this one may have already merged
+          // some or all of these per-sample rows into `eidRow` and hard-deleted
+          // them. Trusting the pre-scan `reducedValue` for the increment would
+          // then re-add a sibling's already-folded work → the permanent 2×.
+          // Re-read the still-present contributors inside the locked
+          // transaction: whatever survives is the genuine un-folded increment
+          // (all of `reducedValue` on a clean single run; zero for a
+          // serialised-second run whose rows the winner already drained).
+          const liveIncrement =
+            eidRow !== null
+              ? (
+                  await tx.measurement.findMany({
+                    where: { id: { in: sourceRowIds } },
+                    select: { value: true },
+                  })
+                ).reduce((sum, r) => sum + r.value, 0)
+              : 0;
           const mergedValue =
-            eidRow !== null ? eidRow.value + reducedValue : reducedValue;
+            eidRow !== null ? eidRow.value + liveIncrement : reducedValue;
 
           let canonicalRowId: string;
           if (adoptTarget) {

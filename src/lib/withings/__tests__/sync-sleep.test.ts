@@ -322,6 +322,46 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     });
   });
 
+  it("re-keys a re-scored segment in place via the natural key instead of colliding (F3, 0055 wedge)", async () => {
+    // Withings re-scores a night: the segment's END (measuredAt + the 0055
+    // natural key) stays fixed while its START (externalId) shifts, same stage.
+    // The externalId probe MISSES (new START ⇒ new id), but the natural key
+    // `(userId, type, measuredAt, source, sleepStage)` is still occupied by the
+    // prior row. A blind create would P2002 on it (swallowed → row lost, then
+    // the sweep tombstones the old row → the night wedges forever). The
+    // natural-key rescue must UPDATE the surviving row in place, re-keying it.
+    installFetchMock([
+      { startdate: 1715000500, enddate: 1715003600, state: 2, id: 42 },
+    ]);
+    vi.mocked(prisma.measurement.findFirst).mockImplementation((async (args: {
+      where: Record<string, unknown>;
+    }) => {
+      const where = args.where;
+      // externalId probe (START shifted ⇒ new id) → miss.
+      if ("externalId" in where) return null;
+      // natural-key probe (END + stage unchanged) → the surviving prior row.
+      if ("measuredAt" in where) return { id: "old-row" };
+      return null;
+    }) as never);
+    vi.mocked(prisma.measurement.update).mockResolvedValue({} as never);
+    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+
+    const imported = await syncUserSleep("user-1");
+    expect(imported).toBe(1);
+
+    // No collision: the survivor is re-keyed in place, never re-created.
+    expect(prisma.measurement.create).not.toHaveBeenCalled();
+    expect(prisma.measurement.update).toHaveBeenCalledWith({
+      where: { id: "old-row" },
+      data: {
+        value: expect.any(Number),
+        // Re-keyed onto the shifted START-based externalId and resurrected.
+        externalId: "withings:sleep:user-1:42:1715000500",
+        deletedAt: null,
+      },
+    });
+  });
+
   it("stamps every row with an externalId keyed on session id + segment START", async () => {
     installFetchMock([
       { startdate: 1715000000, enddate: 1715003600, state: 2, id: 42 },

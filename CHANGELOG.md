@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.28.39] — 2026-07-16 — Sync data-loss hardening
+
+Four fixes to sync paths that could lose or corrupt data in edge cases:
+
+- The nightly pass that folds raw cumulative samples (steps, energy, distance)
+  into daily totals no longer re-counts a sample you had deleted — it was the
+  one such pass missing the deleted-row filter its siblings all carry.
+- That same pass is now safe when two runs overlap (a deploy-timing overlap, or
+  a manual admin trigger racing the nightly job): an advisory lock plus an
+  in-transaction re-read make the fold idempotent, so an overlap can no longer
+  permanently double a day's total.
+- A re-scored Withings sleep segment (its end time shifts) now updates the
+  existing row in place instead of colliding with it and wedging that night —
+  the same re-key rescue the other providers already carry.
+- Withings measurement sync now holds its position when a reading fails to
+  write, instead of advancing past it and stranding the reading; the next sync
+  retries it.
+
 ## [1.28.38] — 2026-07-16 — Documents polish, waist reminders, bulk sharing
 
 The document vault gets a round of overdue polish. The list cards drop a
