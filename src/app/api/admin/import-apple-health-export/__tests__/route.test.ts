@@ -32,6 +32,8 @@ const mocks = vi.hoisted(() => ({
   importJobFindFirst: vi.fn().mockResolvedValue(null),
   importJobUpdate: vi.fn(),
   userFindUnique: vi.fn(),
+  streamToDisk: vi.fn(),
+  unlink: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -41,6 +43,15 @@ vi.mock("@/lib/rate-limit", () => ({
 vi.mock("@/lib/jobs/boss-instance", () => ({
   getGlobalBoss: mocks.getGlobalBoss,
 }));
+
+vi.mock("@/lib/multipart/stream-to-disk", () => ({
+  streamMultipartToDisk: mocks.streamToDisk,
+}));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...actual, unlink: mocks.unlink };
+});
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -67,6 +78,8 @@ const USER_SESSION = {
   user: { id: "user-2", username: "alice", role: "USER" as const },
 };
 
+const STAGED_PATH = "/tmp/healthlog-admin-apple-health-import-abc.bin";
+
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.checkRateLimit.mockResolvedValue({ allowed: true });
@@ -76,7 +89,26 @@ beforeEach(() => {
   mocks.importJobFindFirst.mockResolvedValue(null);
   mocks.importJobUpdate.mockResolvedValue({ id: "ij-1" });
   mocks.userFindUnique.mockResolvedValue({ id: "user-2", username: "alice" });
+  mocks.streamToDisk.mockResolvedValue({
+    filePath: STAGED_PATH,
+    bytes: 100,
+    sha256: "deadbeef",
+    originalFilename: "export.zip",
+    textFields: { userId: "user-2" },
+  });
+  mocks.unlink.mockResolvedValue(undefined);
 });
+
+function multipartReq(): NextRequest {
+  return new NextRequest(
+    "http://localhost/api/admin/import-apple-health-export",
+    {
+      method: "POST",
+      headers: { "content-type": "multipart/form-data; boundary=---x" },
+      body: "stub",
+    },
+  );
+}
 
 describe("POST /api/admin/import-apple-health-export", () => {
   it("returns 401 when unauthenticated", async () => {
@@ -138,5 +170,46 @@ describe("POST /api/admin/import-apple-health-export", () => {
     );
     const res = await POST(req);
     expect(res.status).toBe(429);
+  });
+
+  it("re-stages and enqueues when the only prior job for the same bytes is failed (issue #486)", async () => {
+    vi.mocked(getSession).mockResolvedValue(ADMIN_SESSION as never);
+    mocks.importJobFindFirst.mockImplementation(async (args: unknown) => {
+      const where = (args as { where?: { status?: { not?: string } } }).where;
+      if (where?.status?.not === "failed") return null;
+      return { id: "old-failed-job", status: "failed" };
+    });
+
+    const res = await POST(multipartReq());
+    expect(res.status).toBe(202);
+    const body = await res.json();
+    expect(body.data.status).toBe("queued");
+    expect(body.data.idempotent).toBeUndefined();
+    expect(body.data.jobId).not.toBe("old-failed-job");
+    expect(mocks.bossSend).toHaveBeenCalledTimes(1);
+    expect(mocks.importJobCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.importJobFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { not: "failed" } }),
+      }),
+    );
+    expect(mocks.unlink).not.toHaveBeenCalled();
+  });
+
+  it("short-circuits to a viable prior job and unlinks the redundant upload", async () => {
+    vi.mocked(getSession).mockResolvedValue(ADMIN_SESSION as never);
+    mocks.importJobFindFirst.mockResolvedValue({
+      id: "live-job",
+      status: "parsing",
+    });
+
+    const res = await POST(multipartReq());
+    expect(res.status).toBe(202);
+    const body = await res.json();
+    expect(body.data.idempotent).toBe(true);
+    expect(body.data.jobId).toBe("live-job");
+    expect(mocks.bossSend).not.toHaveBeenCalled();
+    expect(mocks.importJobCreate).not.toHaveBeenCalled();
+    expect(mocks.unlink).toHaveBeenCalledWith(STAGED_PATH);
   });
 });

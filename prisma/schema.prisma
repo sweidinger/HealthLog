@@ -4089,6 +4089,12 @@ model ImportJob {
   exportedAt         DateTime? @map("exported_at")
   startedAt          DateTime  @default(now()) @map("started_at")
   completedAt        DateTime? @map("completed_at")
+  /// Bumped on every write, including each mid-run progress tick. Acts
+  /// as a liveness heartbeat: `reconcileOrphanImportJobs` treats a
+  /// non-terminal row whose heartbeat has gone stale as orphaned, so a
+  /// job still actively parsing in another worker (fresh heartbeat) is
+  /// never flipped to `failed` (issue #486 follow-up).
+  updatedAt          DateTime  @updatedAt @map("updated_at")
   /// JSON envelope mirroring `ImportJobProgress` (`src/lib/measurements/
   /// import-apple-health-export.ts`). Updated mid-run.
   progress           Json      @default("{}")
