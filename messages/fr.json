@@ -7178,8 +7178,11 @@
       "TOTAL_BODY_WATER": "Eau corporelle",
       "VISCERAL_FAT": "Graisse viscérale",
       "BODY_MASS_INDEX": "Indice de masse corporelle (IMC)",
+      "WAIST_CIRCUMFERENCE": "Tour de taille",
       "PHQ9_SCORE": "PHQ-9 · humeur",
-      "GAD7_SCORE": "GAD-7 · inquiétude"
+      "GAD7_SCORE": "GAD-7 · inquiétude",
+      "WHO5_SCORE": "WHO-5 · bien-être",
+      "SCI_SCORE": "SCI · sommeil"
     },
     "typeGroups": {
       "vitals": "Constantes vitales",
@@ -8302,7 +8305,9 @@
       "deleted": "{count} document(s) supprimés",
       "restored": "{count} document(s) restaurés",
       "partialFailure": "Impossible de mettre à jour {failed} sur {total}",
-      "failed": "L'action n'a pas pu être effectuée"
+      "failed": "L'action n'a pas pu être effectuée",
+      "share": "Partager",
+      "shareTooMany": "Un lien de partage contient au maximum {max} documents. Désélectionnez-en quelques-uns et réessayez."
     },
     "episodeCard": {
       "title": "Documents",
@@ -8366,6 +8371,8 @@
     },
     "share": {
       "title": "Partager ce document",
+      "multiTitle": "Partager ces documents",
+      "multiLabel": "{count} documents",
       "description": "Créez un lien clinicien en lecture seule avec ce document joint. Le lien et sa phrase secrète n’apparaissent qu’une seule fois."
     },
     "chat": {
@@ -8385,8 +8392,8 @@
       "errorCredential": "Le fournisseur d'IA doit être reconnecté dans les paramètres.",
       "errorConsent": "Activez le consentement à l'IA dans les paramètres pour discuter de ce document.",
       "errorNetwork": "Vous semblez hors ligne. Vérifiez votre connexion et réessayez.",
-      "openAria": "Discuter de ce document",
-      "openButton": "Poser une question sur ce document",
+      "openAria": "Interroger le Coach sur ce document",
+      "openButton": "Demander au Coach",
       "scopeBadge": "Discussion sur : {title}"
     }
   },

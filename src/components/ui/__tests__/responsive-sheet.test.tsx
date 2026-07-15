@@ -193,6 +193,69 @@ describe("<ResponsiveSheet>", () => {
     expect(html).toContain("Edit medication");
   });
 
+  it("reserves the close-button gutter on the Sheet header by default", () => {
+    mobile = true;
+    const html = renderToStaticMarkup(
+      <ResponsiveSheet open onOpenChange={() => {}} title="Detail">
+        <p>body</p>
+      </ResponsiveSheet>,
+    );
+    // Default showCloseButton=true → the primitive paints its absolute X, so
+    // the header reserves the right gutter for it.
+    expect(html).toContain("pr-12");
+    mobile = false;
+  });
+
+  it("drops the Sheet header gutter when showCloseButton is false", () => {
+    mobile = true;
+    const html = renderToStaticMarkup(
+      <ResponsiveSheet
+        open
+        onOpenChange={() => {}}
+        title="Detail"
+        showCloseButton={false}
+        headerAction={<button type="button">X</button>}
+      >
+        <p>body</p>
+      </ResponsiveSheet>,
+    );
+    // No primitive close button → no reserved gutter; the headerAction sits
+    // flush to the header's p-4 right edge.
+    expect(html).not.toContain("pr-12");
+    mobile = false;
+  });
+
+  it("reserves the Dialog header gutter for headerAction by default", () => {
+    mobile = false;
+    const html = renderToStaticMarkup(
+      <ResponsiveSheet
+        open
+        onOpenChange={() => {}}
+        title="Detail"
+        headerAction={<button type="button">X</button>}
+      >
+        <p>body</p>
+      </ResponsiveSheet>,
+    );
+    expect(html).toContain("pr-9");
+  });
+
+  it("drops the Dialog header gutter when showCloseButton is false", () => {
+    mobile = false;
+    const html = renderToStaticMarkup(
+      <ResponsiveSheet
+        open
+        onOpenChange={() => {}}
+        title="Detail"
+        showCloseButton={false}
+        headerAction={<button type="button">X</button>}
+      >
+        <p>body</p>
+      </ResponsiveSheet>,
+    );
+    expect(html).not.toContain("pr-9");
+  });
+
   it("does not throw when onOpenChange is invoked (controlled-state plumbing)", () => {
     mobile = false;
     const onOpenChange = vi.fn();

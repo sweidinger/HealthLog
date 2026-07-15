@@ -4,15 +4,16 @@
  * Floating bulk-action bar for the vault's multi-select mode. Appears once
  * at least one document is selected, pinned above the bottom nav on phones
  * and near the bottom edge on desktop. Carries the selected count and the
- * four bulk verbs — set type, link condition, delete (undo-able), clear —
- * all driving `POST /api/documents/inbound/bulk` from the page.
+ * bulk verbs — set type, link condition, share (one link for the whole
+ * selection), delete (undo-able), clear — all driving the page's handlers.
  *
  * A `role="toolbar"` with proper labels; the destructive verb sits last
- * before Clear so a stray tap sequence never ends on Delete. The bar is a
- * deliberate hand-rolled shell (a floating toolbar is not a Card surface):
- * dense-tile padding `p-3` per the standards.
+ * before Clear so a stray tap sequence never ends on Delete. Share sits just
+ * before Delete (the safe actions lead). The bar is a deliberate hand-rolled
+ * shell (a floating toolbar is not a Card surface): dense-tile padding `p-3`
+ * per the standards.
  */
-import { FolderPlus, Tag, Trash2, X } from "lucide-react";
+import { FolderPlus, Share2, Tag, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,7 @@ export function DocumentBulkBar({
   busy,
   onSetKind,
   onLinkEpisode,
+  onShare,
   onDelete,
   onClear,
 }: {
@@ -47,6 +49,12 @@ export function DocumentBulkBar({
   busy: boolean;
   onSetKind: (kind: InboundDocumentKindValue) => void;
   onLinkEpisode: (episodeId: string) => void;
+  /**
+   * Share the whole selection as ONE documents-only link. The page caps the
+   * selection at `SHARE_LINK_MAX_DOCUMENTS` and surfaces the over-cap hint —
+   * this handler just opens the share sheet seeded with the selection.
+   */
+  onShare: () => void;
   onDelete: () => void;
   onClear: () => void;
 }) {
@@ -107,6 +115,17 @@ export function DocumentBulkBar({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
+
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={busy}
+          onClick={onShare}
+          data-slot="document-bulk-share"
+        >
+          <Share2 className="size-4" aria-hidden />
+          {t("documents.bulk.share")}
+        </Button>
 
         {/* Solid destructive (matching the detail sheet's Delete) — the
             outline variant's destructive text on the card surface fails the

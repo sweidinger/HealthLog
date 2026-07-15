@@ -62,6 +62,7 @@ import { invalidateKeys, queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import {
   INBOUND_DOCUMENT_KINDS,
+  isAiReadSource,
   type DocumentSuggestionDto,
   type DocumentSummaryMode,
   type InboundDocumentDetailDto,
@@ -420,6 +421,12 @@ export function DocumentDetailSheet({
   const title = doc?.title ?? doc?.filename ?? t("documents.card.untitled");
   const Icon = doc ? DOCUMENT_KIND_ICONS[doc.kind] : null;
   const originalHref = doc ? `/api/documents/inbound/${doc.id}/original` : "#";
+  // AI-read provenance — surfaced here (the detail view) as calm muted meta
+  // since v1.28.38 dropped the vault-card glyph. Same condition the AI section
+  // uses: a content index exists AND its source is a provider vision/text read.
+  const aiRead = doc
+    ? doc.hasContentIndex && isAiReadSource(doc.contentIndexSource)
+    : false;
 
   return (
     <>
@@ -752,6 +759,15 @@ export function DocumentDetailSheet({
                 })}
                 {doc.filename ? ` · ${doc.filename}` : ""}
               </p>
+
+              {aiRead ? (
+                <p
+                  data-slot="document-detail-ai-read"
+                  className="text-muted-foreground text-xs"
+                >
+                  {t("documents.ai.statusAiRead")}
+                </p>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -761,8 +777,7 @@ export function DocumentDetailSheet({
         <DocumentShareSheet
           open={shareOpen}
           onOpenChange={setShareOpen}
-          documentId={doc.id}
-          documentTitle={title}
+          documents={[{ id: doc.id, title }]}
         />
       ) : null}
 

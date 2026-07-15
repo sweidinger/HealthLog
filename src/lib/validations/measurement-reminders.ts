@@ -56,6 +56,7 @@ export const measurementReminderTypeEnum = z
     "TOTAL_BODY_WATER",
     "VISCERAL_FAT",
     "BODY_MASS_INDEX",
+    "WAIST_CIRCUMFERENCE",
     // v1.27.6 — the mental-wellbeing screeners become plannable Vorsorge
     // items. Not a passive wearable score: a screening is an active "go and
     // do it" action exactly like stepping on the scale. Auto-resolves from

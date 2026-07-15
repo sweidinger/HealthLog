@@ -117,6 +117,7 @@ const TYPE_GROUPS = [
       "TOTAL_BODY_WATER",
       "VISCERAL_FAT",
       "BODY_MASS_INDEX",
+      "WAIST_CIRCUMFERENCE",
     ],
   },
   // v1.27.6 — the mental-wellbeing screenings become plannable like any

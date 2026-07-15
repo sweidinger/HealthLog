@@ -7178,8 +7178,11 @@
       "TOTAL_BODY_WATER": "Körperwasser",
       "VISCERAL_FAT": "Viszeralfett",
       "BODY_MASS_INDEX": "Body-Mass-Index (BMI)",
+      "WAIST_CIRCUMFERENCE": "Taillenumfang",
       "PHQ9_SCORE": "PHQ-9 · Stimmung",
-      "GAD7_SCORE": "GAD-7 · Sorgen"
+      "GAD7_SCORE": "GAD-7 · Sorgen",
+      "WHO5_SCORE": "WHO-5 · Wohlbefinden",
+      "SCI_SCORE": "SCI · Schlaf"
     },
     "typeGroups": {
       "vitals": "Vitalwerte",
@@ -8302,7 +8305,9 @@
       "deleted": "{count} Dokument(e) gelöscht",
       "restored": "{count} Dokument(e) wiederhergestellt",
       "partialFailure": "{failed} von {total} konnten nicht aktualisiert werden",
-      "failed": "Die Aktion konnte nicht ausgeführt werden"
+      "failed": "Die Aktion konnte nicht ausgeführt werden",
+      "share": "Teilen",
+      "shareTooMany": "Ein Freigabelink fasst höchstens {max} Dokumente. Wähle einige ab und versuche es erneut."
     },
     "episodeCard": {
       "title": "Dokumente",
@@ -8366,6 +8371,8 @@
     },
     "share": {
       "title": "Dieses Dokument teilen",
+      "multiTitle": "Diese Dokumente teilen",
+      "multiLabel": "{count} Dokumente",
       "description": "Erstelle einen schreibgeschützten Ärzte-Link mit diesem angehängten Dokument. Link und Passphrase erscheinen nur einmal."
     },
     "chat": {
@@ -8385,8 +8392,8 @@
       "errorCredential": "Der KI-Anbieter muss in den Einstellungen neu verbunden werden.",
       "errorConsent": "Aktiviere die KI-Zustimmung in den Einstellungen, um über dieses Dokument zu chatten.",
       "errorNetwork": "Du scheinst offline zu sein. Prüfe deine Verbindung und versuche es erneut.",
-      "openAria": "Über dieses Dokument chatten",
-      "openButton": "Zu diesem Dokument fragen",
+      "openAria": "Coach über dieses Dokument fragen",
+      "openButton": "Coach fragen",
       "scopeBadge": "Chat über: {title}"
     }
   },

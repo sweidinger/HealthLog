@@ -223,6 +223,42 @@ export function expandRangeSelection(
   return next;
 }
 
+// ─── Bulk share selection ──────────────────────────────────────────────────
+
+/**
+ * Client mirror of the server's `SHARE_LINK_MAX_DOCUMENTS` — one share link
+ * carries at most 50 documents. Kept as a local literal (NOT imported from the
+ * clinician-share validations module, which pulls the Prisma client into scope
+ * and would drag the DB into the client bundle); the server re-enforces the cap
+ * on create regardless. The bulk-SELECT cap (`DOCUMENT_BULK_MAX_IDS`) is higher
+ * (100), so a large selection is capped for the share path with an explicit hint.
+ */
+export const SHARE_LINK_MAX_DOCUMENTS = 50;
+
+/**
+ * Map a selection over the loaded corpus onto the `{ id, title }` list a share
+ * link seeds from. Returns `{ overCap: true }` when the selection exceeds
+ * `SHARE_LINK_MAX_DOCUMENTS` — the caller surfaces the hint and refuses rather
+ * than silently dropping documents from the link. `untitledLabel` is injected
+ * so the helper stays pure / i18n-free.
+ */
+export function resolveBulkShareDocuments(
+  documents: readonly InboundDocumentDto[],
+  selected: ReadonlySet<string>,
+  untitledLabel: string,
+):
+  | { overCap: true }
+  | { overCap: false; documents: { id: string; title: string }[] } {
+  if (selected.size > SHARE_LINK_MAX_DOCUMENTS) return { overCap: true };
+  const picked = documents
+    .filter((d) => selected.has(d.id))
+    .map((d) => ({
+      id: d.id,
+      title: d.title ?? d.filename ?? untitledLabel,
+    }));
+  return { overCap: false, documents: picked };
+}
+
 // ─── Upload response contract (§3.2) ───────────────────────────────────────
 
 /**

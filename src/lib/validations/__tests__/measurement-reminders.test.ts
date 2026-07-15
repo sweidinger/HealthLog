@@ -34,6 +34,7 @@ describe("measurementReminderTypeEnum (V3 — completeness)", () => {
         "TOTAL_BODY_WATER",
         "VISCERAL_FAT",
         "BODY_MASS_INDEX",
+        "WAIST_CIRCUMFERENCE",
         // v1.27.6 — plannable mental-wellbeing screenings
         "PHQ9_SCORE",
         "GAD7_SCORE",
@@ -73,6 +74,20 @@ describe("measurementReminderTypeEnum (V3 — completeness)", () => {
       intervalDays: 7,
     });
     expect(parsed.success).toBe(true);
+  });
+
+  it("accepts WAIST_CIRCUMFERENCE (the added body-composition target)", () => {
+    expect(allowed).toContain("WAIST_CIRCUMFERENCE");
+    const parsed = createMeasurementReminderSchema.safeParse({
+      label: "Taillenumfang messen",
+      measurementType: "WAIST_CIRCUMFERENCE",
+      intervalDays: 30,
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("does NOT add WAIST_TO_HEIGHT (only waist circumference was requested)", () => {
+    expect(allowed).not.toContain("WAIST_TO_HEIGHT");
   });
 
   it("matches BP on the SYS sentinel only (DIA would double-count)", () => {

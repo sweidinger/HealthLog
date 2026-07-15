@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.37
+  version: 1.28.38
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -12092,6 +12092,7 @@ components:
         - TOTAL_BODY_WATER
         - VISCERAL_FAT
         - BODY_MASS_INDEX
+        - WAIST_CIRCUMFERENCE
         - PHQ9_SCORE
         - GAD7_SCORE
         - WHO5_SCORE
