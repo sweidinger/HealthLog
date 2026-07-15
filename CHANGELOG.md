@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.28.36] — 2026-07-15 — Re-importing after a failed Apple Health import actually retries
+
+The v1.28.33 rollup and staging fixes were correct but never reached the
+reporter's case: the upload deduplicates by content hash, and the lookup
+matched a previously FAILED job too — so re-uploading the same export.zip
+returned the old failed job and replayed its stale error without ever running
+the import again. The dedup now ignores failed jobs; the same file retries
+cleanly. A redundant staged upload is also cleaned up on a dedup hit instead
+of lingering in the staging directory.
+
+Two related hardenings: the boot-time reconcile that marks interrupted imports
+failed now performs a real liveness check (queue state plus a progress
+heartbeat) instead of unconditionally failing every in-flight job — so a split
+or multi-worker deployment no longer kills an import running in another worker.
+And the "staging file not found" message now names the separate-container cause
+explicitly, with a matching note in the scaling guide.
+
 ## [1.28.35] — 2026-07-14 — Timestamps honor the profile timezone
 
 Client-rendered times previously fell back to a hardcoded display zone

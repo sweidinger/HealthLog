@@ -30,6 +30,32 @@ but it doubles the DB load and muddies telemetry without adding
 throughput a personal instance needs (`src/lib/process-type.ts`).
 Run **one** worker container and scale the `web` containers instead.
 
+## Apple Health import staging (shared volume required for a split)
+
+The Apple Health `export.zip` import streams the upload to a staging
+file on local disk (under the container's temp dir) and hands the
+worker only the file **path**. In single-container mode
+(`HEALTHLOG_PROCESS_TYPE=all`, the default) the web handler and the
+worker share the same filesystem, so the handoff just works.
+
+In a web/worker split — or any topology where the container that
+accepts the upload is not the one that runs the job (a `web` +
+`worker` split, extra `all` replicas, or old+new containers coexisting
+during a rolling deploy) — the worker cannot see the web container's
+staging file. The import then fails with a staging-file-missing error
+("the import staging file is not visible to the worker"). Two things to
+know:
+
+- A pure `web` container has no pg-boss handle, so an import kicked off
+  there currently returns `503 Background worker is not running`. Run
+  imports from a container that also runs the worker until send-only
+  boss support lands.
+- If you run web and worker as separate containers, they **must share
+  the import staging directory** — mount the same named volume at the
+  temp path on both — or run imports in single-container (`all`) mode.
+  Without a shared staging volume, imports in split mode cannot
+  complete.
+
 ## Healthchecks
 
 - `app` (web) healthcheck: `wget /api/version` every 30s.

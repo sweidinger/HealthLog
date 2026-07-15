@@ -31,6 +31,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import type { Job } from "pg-boss";
 
 import { extractExportXml } from "@/lib/import/unzip-export-xml";
+import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import {
   streamParseExportXml,
   type ImportJobProgress,
@@ -310,8 +311,12 @@ export async function handleAppleHealthImport(
       "code" in err &&
       (err as NodeJS.ErrnoException).code === "ENOENT";
     const reason = missingStagingFile
-      ? "Import staging file is no longer available (the server restarted" +
-        " or a previous attempt cleaned it up) — upload the export again"
+      ? "Import staging file is no longer available — the server restarted," +
+        " a previous attempt cleaned it up, or (if you run separate web and" +
+        " worker containers) they do not share the import staging directory." +
+        " Upload the export again; split deployments must run single-container" +
+        " mode or mount a shared staging volume on both the web and worker" +
+        " containers."
       : err instanceof Error
         ? err.message
         : String(err);
@@ -338,22 +343,89 @@ function safeUnlink(path: string): void {
 }
 
 /**
- * Reconcile orphan `ImportJob` rows on worker startup. A row stuck
- * in `parsing` or `upserting` whose `pgBossJobId` is no longer alive
- * on the boss side means the worker was killed mid-run; flip it to
- * `failed` with `interrupted_by_restart` so the operator can re-run
- * the upload. Idempotent — re-running this on a clean startup is a
- * no-op.
+ * A non-terminal ImportJob whose heartbeat (`updatedAt`) has not moved
+ * for this long is treated as orphaned even when pg-boss still reports
+ * its job `active`. A live import bumps the heartbeat on every progress
+ * tick (every 1000 records → sub-second during the parse phase), and
+ * the only legitimately-quiet window is the `unpacking` unzip of a
+ * multi-GB archive, so 30 minutes clears the largest observed exports
+ * with headroom while still self-healing a genuinely stuck job.
+ */
+const IMPORT_HEARTBEAT_STALE_MS = 30 * 60 * 1000;
+
+/** pg-boss job states from which a mid-run import can still make progress. */
+const LIVE_PG_BOSS_STATES = new Set(["active", "created", "retry"]);
+
+/**
+ * Reconcile orphan `ImportJob` rows on worker startup. A row stuck in
+ * `unpacking` / `parsing` / `upserting` means a worker was mid-run when
+ * it last shut down — flip it to `failed` with `interrupted_by_restart`
+ * so the operator can re-upload (and, post-issue-#486, so the kick-off
+ * dedup no longer short-circuits future re-uploads onto a dead job).
  *
- * Exported so the worker boot path in `reminder-worker.ts` can wire
- * it into the start-up sequence right after `boss.start()`.
+ * The reconcile is deliberately NOT unconditional. In a multi-replica
+ * or rolling-deploy topology a booting worker must not flip a row that
+ * another live worker is actively parsing. It therefore keeps a
+ * non-terminal row alive when BOTH:
+ *   - pg-boss still reports its backing job in a live state
+ *     (`active` / `created` / `retry`), AND
+ *   - the row's `updatedAt` heartbeat is fresher than
+ *     `IMPORT_HEARTBEAT_STALE_MS`.
+ * A row is reconciled to `failed` when its pg-boss job is gone (null,
+ * archived) or terminal (`completed` / `cancelled` / `failed`), OR when
+ * its heartbeat has gone stale (owner died but pg-boss has not yet
+ * expired the job). This keeps the single-worker default self-healing
+ * truly-stuck jobs while never racing a live import in another worker.
+ *
+ * If the boss handle is unavailable (should not happen — reconcile runs
+ * after `setGlobalBoss()`), it falls back to the heartbeat bound alone.
+ * Idempotent — re-running on a clean startup is a no-op.
+ *
+ * Exported so the worker boot path in `reminder-worker.ts` can wire it
+ * into the start-up sequence right after `boss.start()`.
  */
 export async function reconcileOrphanImportJobs(): Promise<void> {
   const prisma = getWorkerPrisma();
+  const candidates = await prisma.importJob.findMany({
+    where: { status: { in: ["unpacking", "parsing", "upserting"] } },
+    select: { id: true, pgBossJobId: true, updatedAt: true },
+  });
+  if (candidates.length === 0) return;
+
+  const boss = getGlobalBoss();
+  const staleBefore = Date.now() - IMPORT_HEARTBEAT_STALE_MS;
+  const orphanIds: string[] = [];
+
+  for (const row of candidates) {
+    const heartbeatStale = row.updatedAt.getTime() < staleBefore;
+
+    // No live-state source, or no backing job id, or a stale heartbeat:
+    // the row cannot be confirmed as running anywhere → reconcile it.
+    if (!boss || !row.pgBossJobId || heartbeatStale) {
+      orphanIds.push(row.id);
+      continue;
+    }
+
+    let live = false;
+    try {
+      const job = await boss.getJobById(
+        APPLE_HEALTH_IMPORT_QUEUE,
+        row.pgBossJobId,
+      );
+      live = job !== null && LIVE_PG_BOSS_STATES.has(job.state);
+    } catch {
+      // Lookup failed — the heartbeat is fresh (checked above), so leave
+      // the row alone rather than risk flipping a live import; a later
+      // boot re-evaluates it once the heartbeat goes stale.
+      live = true;
+    }
+
+    if (!live) orphanIds.push(row.id);
+  }
+
+  if (orphanIds.length === 0) return;
   await prisma.importJob.updateMany({
-    where: {
-      status: { in: ["unpacking", "parsing", "upserting"] },
-    },
+    where: { id: { in: orphanIds } },
     data: {
       status: "failed",
       failureReason: "interrupted_by_restart",

@@ -26,6 +26,7 @@ import {
   type AppleHealthImportPayload,
 } from "@/lib/jobs/apple-health-import-worker";
 import { streamMultipartToDisk } from "@/lib/multipart/stream-to-disk";
+import { unlink } from "node:fs/promises";
 
 export const dynamic = "force-dynamic";
 
@@ -112,15 +113,22 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // Same content-hash idempotency as the user-facing route, but scoped
   // by the target user — an admin re-uploading the same file for the
-  // same user resolves to the previous job.
+  // same user resolves to the previous job. As on the user route, a
+  // prior `failed` job is excluded (issue #486) so the same export can
+  // be retried; only still-viable jobs (queued / in-flight / done)
+  // short-circuit.
   const existing = await prisma.importJob.findFirst({
     where: {
       userId: targetUser.id,
       uploadSha256: uploaded.sha256,
+      status: { not: "failed" },
     },
     orderBy: { startedAt: "desc" },
   });
   if (existing) {
+    // Redundant staging file — the existing viable job owns the bytes.
+    // Unlink so a deduped admin re-upload does not leak `/tmp`.
+    await unlink(uploaded.filePath).catch(() => {});
     annotate({ meta: { idempotent_hit: true, job_id: existing.id } });
     return apiSuccess(
       {

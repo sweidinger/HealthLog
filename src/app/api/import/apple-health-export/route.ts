@@ -12,7 +12,10 @@
  * the bytes) short-circuits to the previous `ImportJob` id without
  * re-queueing — the iOS client cannot reliably emit a stable
  * `Idempotency-Key` for a 1 GB file, so we hash the bytes and dedup
- * on content.
+ * on content. The dedup only covers still-viable jobs (queued,
+ * in-flight, or already `done`); a prior `failed` job is NOT matched,
+ * so the same export can always be retried with the same bytes
+ * (issue #486 — a failed row must never tombstone its own hash).
  *
  * Locks per `.planning/research/v1434-r-1-xml-import.md` §5.3.
  */
@@ -31,6 +34,7 @@ import {
   type AppleHealthImportPayload,
 } from "@/lib/jobs/apple-health-import-worker";
 import { streamMultipartToDisk } from "@/lib/multipart/stream-to-disk";
+import { unlink } from "node:fs/promises";
 
 export const dynamic = "force-dynamic";
 
@@ -104,15 +108,25 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   // Content-hash idempotency: a re-upload of the same bytes resolves
-  // to the previous ImportJob row instead of re-queueing.
+  // to the previous ImportJob row instead of re-queueing — but ONLY
+  // when that prior job is still viable (queued / in-flight / done). A
+  // `failed` prior job must NOT short-circuit (issue #486): matching it
+  // returned its stale failureReason forever and made retrying the same
+  // export impossible. Excluding `failed` lets the same bytes fall
+  // through to a fresh stage + enqueue.
   const existing = await prisma.importJob.findFirst({
     where: {
       userId: user.id,
       uploadSha256: uploaded.sha256,
+      status: { not: "failed" },
     },
     orderBy: { startedAt: "desc" },
   });
   if (existing) {
+    // The existing viable job owns the canonical bytes; the upload we
+    // just streamed to `/tmp` is redundant. Unlink it so a deduped
+    // re-upload does not leak a gigabyte-scale staging file.
+    await unlink(uploaded.filePath).catch(() => {});
     annotate({ meta: { idempotent_hit: true, job_id: existing.id } });
     return apiSuccess(
       {
