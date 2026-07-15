@@ -3,9 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 /**
  * The floating bulk bar, pinned via single-pass static renders: a labelled
- * toolbar carrying the selected count and the four bulk verbs. The
- * link-condition menu only renders when the account actually has episodes
- * to link — no dead affordance on an episode-free account.
+ * toolbar carrying the selected count and the bulk verbs (set type, link
+ * condition, share, delete, clear). The link-condition menu only renders when
+ * the account actually has episodes to link — no dead affordance on an
+ * episode-free account.
  */
 import { I18nProvider } from "@/lib/i18n/context";
 import { DocumentBulkBar } from "../document-bulk-bar";
@@ -19,6 +20,7 @@ function render(episodes: { id: string; label: string }[]) {
         busy={false}
         onSetKind={() => {}}
         onLinkEpisode={() => {}}
+        onShare={() => {}}
         onDelete={() => {}}
         onClear={() => {}}
       />
@@ -34,6 +36,8 @@ describe("<DocumentBulkBar>", () => {
     expect(html).toContain("3 selected");
     expect(html).toContain("Change type");
     expect(html).toContain("Link condition");
+    expect(html).toContain('data-slot="document-bulk-share"');
+    expect(html).toContain("Share");
     expect(html).toContain("Delete");
     expect(html).toContain("Clear selection");
   });

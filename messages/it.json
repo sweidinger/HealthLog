@@ -7178,8 +7178,11 @@
       "TOTAL_BODY_WATER": "Acqua corporea",
       "VISCERAL_FAT": "Grasso viscerale",
       "BODY_MASS_INDEX": "Indice di massa corporea (IMC)",
+      "WAIST_CIRCUMFERENCE": "Circonferenza vita",
       "PHQ9_SCORE": "PHQ-9 · umore",
-      "GAD7_SCORE": "GAD-7 · preoccupazione"
+      "GAD7_SCORE": "GAD-7 · preoccupazione",
+      "WHO5_SCORE": "WHO-5 · benessere",
+      "SCI_SCORE": "SCI · sonno"
     },
     "typeGroups": {
       "vitals": "Parametri vitali",
@@ -8302,7 +8305,9 @@
       "deleted": "{count} documenti eliminati",
       "restored": "{count} documenti ripristinati",
       "partialFailure": "Impossibile aggiornare {failed} su {total}",
-      "failed": "Impossibile completare l'azione"
+      "failed": "Impossibile completare l'azione",
+      "share": "Condividi",
+      "shareTooMany": "Un link di condivisione contiene al massimo {max} documenti. Deseleziona alcuni documenti e riprova."
     },
     "episodeCard": {
       "title": "Documenti",
@@ -8350,7 +8355,6 @@
       "close": "Nascondi"
     },
     "ai": {
-      "statusAiRead": "Letto dall’IA",
       "readDone": "L’IA ha letto il tuo documento.",
       "read": "Leggi con l’IA",
       "reread": "Leggi di nuovo",
@@ -8366,6 +8370,8 @@
     },
     "share": {
       "title": "Condividi questo documento",
+      "multiTitle": "Condividi questi documenti",
+      "multiLabel": "{count} documenti",
       "description": "Crea un link di sola lettura per il medico con questo documento allegato. Il link e la relativa passphrase compaiono una sola volta."
     },
     "chat": {
@@ -8385,8 +8391,8 @@
       "errorCredential": "Il provider IA va ricollegato nelle impostazioni.",
       "errorConsent": "Attiva il consenso all'IA nelle impostazioni per chattare su questo documento.",
       "errorNetwork": "Sembri offline. Controlla la connessione e riprova.",
-      "openAria": "Chatta su questo documento",
-      "openButton": "Fai una domanda su questo documento",
+      "openAria": "Chiedi al Coach su questo documento",
+      "openButton": "Chiedi al Coach",
       "scopeBadge": "Stai chattando su: {title}"
     }
   },

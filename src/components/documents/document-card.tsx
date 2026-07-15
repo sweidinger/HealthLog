@@ -9,13 +9,14 @@
  * Anatomy per the design standards: a leading edge that shows a small preview
  * thumbnail tile when one has been rendered (`hasThumbnail`) and otherwise the
  * kind icon `text-foreground size-5`, title in foreground (`text-sm
- * font-medium`, truncated), one muted meta line (date · size · filename),
+ * font-medium`, truncated), a muted meta line (date · size) with the real
+ * filename on its own muted line below (full name on hover via `title`),
  * condition-tag pills, an attachment-class badge for download-only formats,
  * and a selection checkbox that appears on hover / focus / while selected. The
  * whole card is clickable through an invisible overlay button; the checkbox
  * floats above it.
  */
-import { Download, Sparkles, X } from "lucide-react";
+import { Download, X } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +25,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-import {
-  isAiReadSource,
-  type InboundDocumentDto,
-} from "@/lib/validations/inbound-documents";
+import type { InboundDocumentDto } from "@/lib/validations/inbound-documents";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
 import type { UploadQueueItem } from "./use-document-upload";
 import { documentDateKey, formatBytes } from "./vault-utils";
@@ -87,8 +85,6 @@ export function DocumentCard({
   const size = formatBytes(document.byteSize, locale);
   const showFilename =
     document.filename !== null && document.filename !== title;
-  const aiRead =
-    document.hasContentIndex && isAiReadSource(document.contentIndexSource);
 
   return (
     <Card
@@ -133,22 +129,20 @@ export function DocumentCard({
           )}
           <div className="flex min-w-0 flex-1 flex-col">
             <p className="truncate text-sm font-medium">{title}</p>
-            <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
-              <span className="truncate">
-                {date} · {size}
-                {showFilename ? ` · ${document.filename}` : ""}
-              </span>
-              {aiRead ? (
-                // AI-read marker rides INLINE on the meta row — a bare glyph,
-                // no pill line (the tag ate a whole row in the dense grid).
-                <Sparkles
-                  data-slot="document-card-ai-read"
-                  role="img"
-                  aria-label={t("documents.ai.statusAiRead")}
-                  className="text-primary size-3 shrink-0"
-                />
-              ) : null}
+            <p className="text-muted-foreground truncate text-xs">
+              {date} · {size}
             </p>
+            {showFilename ? (
+              // Filename on its OWN muted line so it never clips the date/size
+              // meta; the full name stays reachable on hover via `title`.
+              <p
+                data-slot="document-card-filename"
+                className="text-muted-foreground truncate text-xs"
+                title={document.filename ?? undefined}
+              >
+                {document.filename}
+              </p>
+            ) : null}
           </div>
           <Checkbox
             checked={selected}

@@ -7178,8 +7178,11 @@
       "TOTAL_BODY_WATER": "Woda w organizmie",
       "VISCERAL_FAT": "Tłuszcz trzewny",
       "BODY_MASS_INDEX": "Wskaźnik masy ciała (BMI)",
+      "WAIST_CIRCUMFERENCE": "Obwód talii",
       "PHQ9_SCORE": "PHQ-9 · nastrój",
-      "GAD7_SCORE": "GAD-7 · lęk"
+      "GAD7_SCORE": "GAD-7 · lęk",
+      "WHO5_SCORE": "WHO-5 · dobrostan",
+      "SCI_SCORE": "SCI · sen"
     },
     "typeGroups": {
       "vitals": "Parametry życiowe",
@@ -8302,7 +8305,9 @@
       "deleted": "Usunięto dokumenty: {count}",
       "restored": "Przywrócono dokumenty: {count}",
       "partialFailure": "Nie udało się zaktualizować {failed} z {total}",
-      "failed": "Nie udało się wykonać akcji"
+      "failed": "Nie udało się wykonać akcji",
+      "share": "Udostępnij",
+      "shareTooMany": "Link do udostępniania obejmuje maksymalnie {max} dokumentów. Odznacz kilka i spróbuj ponownie."
     },
     "episodeCard": {
       "title": "Dokumenty",
@@ -8350,7 +8355,6 @@
       "close": "Ukryj"
     },
     "ai": {
-      "statusAiRead": "Odczytane przez AI",
       "readDone": "AI odczytało Twój dokument.",
       "read": "Odczytaj z AI",
       "reread": "Odczytaj ponownie",
@@ -8366,6 +8370,8 @@
     },
     "share": {
       "title": "Udostępnij ten dokument",
+      "multiTitle": "Udostępnij te dokumenty",
+      "multiLabel": "{count} dokumentów",
       "description": "Utwórz link tylko do odczytu dla lekarza z dołączonym tym dokumentem. Link i hasło pojawią się tylko raz."
     },
     "chat": {
@@ -8385,8 +8391,8 @@
       "errorCredential": "Dostawcę AI trzeba ponownie połączyć w ustawieniach.",
       "errorConsent": "Włącz zgodę na AI w ustawieniach, aby porozmawiać o tym dokumencie.",
       "errorNetwork": "Wygląda na to, że jesteś offline. Sprawdź połączenie i spróbuj ponownie.",
-      "openAria": "Porozmawiaj o tym dokumencie",
-      "openButton": "Zapytaj o ten dokument",
+      "openAria": "Zapytaj Coacha o ten dokument",
+      "openButton": "Zapytaj Coacha",
       "scopeBadge": "Rozmowa o: {title}"
     }
   },

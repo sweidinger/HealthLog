@@ -7178,8 +7178,11 @@
       "TOTAL_BODY_WATER": "Body water",
       "VISCERAL_FAT": "Visceral fat",
       "BODY_MASS_INDEX": "Body mass index (BMI)",
+      "WAIST_CIRCUMFERENCE": "Waist circumference",
       "PHQ9_SCORE": "PHQ-9 · mood",
-      "GAD7_SCORE": "GAD-7 · worry"
+      "GAD7_SCORE": "GAD-7 · worry",
+      "WHO5_SCORE": "WHO-5 · wellbeing",
+      "SCI_SCORE": "SCI · sleep"
     },
     "typeGroups": {
       "vitals": "Vitals",
@@ -8302,7 +8305,9 @@
       "deleted": "{count} document(s) deleted",
       "restored": "{count} document(s) restored",
       "partialFailure": "{failed} of {total} could not be updated",
-      "failed": "The action could not be completed"
+      "failed": "The action could not be completed",
+      "share": "Share",
+      "shareTooMany": "A share link can hold at most {max} documents. Deselect some and try again."
     },
     "episodeCard": {
       "title": "Documents",
@@ -8350,7 +8355,6 @@
       "close": "Hide"
     },
     "ai": {
-      "statusAiRead": "Read by AI",
       "readDone": "The AI read your document.",
       "read": "Read with AI",
       "reread": "Read again",
@@ -8366,6 +8370,8 @@
     },
     "share": {
       "title": "Share this document",
+      "multiTitle": "Share these documents",
+      "multiLabel": "{count} documents",
       "description": "Create a read-only clinician link with this document attached. The link and its passphrase appear once."
     },
     "chat": {
@@ -8385,8 +8391,8 @@
       "errorCredential": "The AI provider needs reconnecting in settings.",
       "errorConsent": "Turn on AI consent in settings to chat about this document.",
       "errorNetwork": "You appear to be offline. Check your connection and try again.",
-      "openAria": "Chat about this document",
-      "openButton": "Ask about this document",
+      "openAria": "Ask the Coach about this document",
+      "openButton": "Ask the Coach",
       "scopeBadge": "Chatting about: {title}"
     }
   },

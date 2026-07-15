@@ -53,6 +53,7 @@ import {
 } from "@/lib/validations/inbound-documents";
 import { DocumentBulkBar } from "./document-bulk-bar";
 import { DocumentDetailSheet } from "./document-detail-sheet";
+import { DocumentShareSheet } from "./document-share-sheet";
 import { DocumentFilterBar, type ConditionChip } from "./document-filter-bar";
 import { DocumentTimeline } from "./document-timeline";
 import { UploadZone } from "./upload-zone";
@@ -65,6 +66,8 @@ import {
   documentDateKey,
   expandRangeSelection,
   parseVaultSearchParams,
+  resolveBulkShareDocuments,
+  SHARE_LINK_MAX_DOCUMENTS,
   vaultFiltersToSearch,
 } from "./vault-utils";
 
@@ -481,6 +484,32 @@ export function DocumentsView() {
     [bulk, clearSelection, restoreBulk, t],
   );
 
+  // ── Bulk share ────────────────────────────────────────────────────────
+  // ONE documents-only link for the whole selection (the share model carries
+  // up to SHARE_MAX_DOCUMENTS docs per link). The titles come from the loaded
+  // corpus — a selected id is always a rendered row. Over the cap we surface a
+  // hint and refuse rather than silently dropping docs from the link.
+  const [bulkShareOpen, setBulkShareOpen] = useState(false);
+  const [bulkShareDocs, setBulkShareDocs] = useState<
+    { id: string; title: string }[]
+  >([]);
+  const openBulkShare = useCallback(() => {
+    const resolved = resolveBulkShareDocuments(
+      documents,
+      selectedIds,
+      t("documents.card.untitled"),
+    );
+    if (resolved.overCap) {
+      toast.error(
+        t("documents.bulk.shareTooMany", { max: SHARE_LINK_MAX_DOCUMENTS }),
+      );
+      return;
+    }
+    if (resolved.documents.length === 0) return;
+    setBulkShareDocs(resolved.documents);
+    setBulkShareOpen(true);
+  }, [documents, selectedIds, t]);
+
   // ── Detail sheet ──────────────────────────────────────────────────────
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -662,10 +691,17 @@ export function DocumentsView() {
           busy={bulk.isPending}
           onSetKind={(kind) => runBulk("setKind", { kind })}
           onLinkEpisode={(episodeId) => runBulk("linkEpisode", { episodeId })}
+          onShare={openBulkShare}
           onDelete={() => deleteBulk([...selectedIds])}
           onClear={clearSelection}
         />
       ) : null}
+
+      <DocumentShareSheet
+        open={bulkShareOpen}
+        onOpenChange={setBulkShareOpen}
+        documents={bulkShareDocs}
+      />
 
       {/* Page-wide drop overlay — pure decoration (aria-hidden); the intake
           itself announces through the live region below. */}

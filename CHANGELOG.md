@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [1.28.38] — 2026-07-16 — Documents polish, waist reminders, bulk sharing
+
+The document vault gets a round of overdue polish. The list cards drop a
+stray glyph and give the real filename its own line so it stops being cut
+off; the detail view's close button is aligned correctly (a shared sheet
+primitive was reserving space for a button it wasn't showing). The action
+that opens a document in the coach now reads "Coach fragen".
+
+From a multi-selection in the overview you can now share several documents
+at once — one link holding the selection, with the same documents-only
+privacy as a single share (up to 50 per link).
+
+Reminders can now be linked to waist circumference. And the well-being
+reminder types (WHO-5, sleep-condition) that were showing their internal
+names instead of a label are now translated in every language.
+
 ## [1.28.37] — 2026-07-15 — Provider step totals survive a restart
 
 A boot-time maintenance pass that folds genuinely old raw step samples into

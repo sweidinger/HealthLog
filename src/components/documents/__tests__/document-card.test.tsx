@@ -115,6 +115,53 @@ describe("<DocumentCard>", () => {
     expect(html).not.toContain("/thumbnail");
   });
 
+  it("does NOT render the AI-read glyph on the card face, even when AI-read", () => {
+    // The AI-read state stays surfaced authoritatively in the detail sheet's
+    // DocumentAiSection; the card face no longer duplicates it (v1.28.38).
+    const html = render(
+      <DocumentCard
+        document={doc({ hasContentIndex: true, contentIndexSource: "vision" })}
+        selected={false}
+        onToggleSelected={noop}
+        onOpen={noop}
+        highlighted={false}
+      />,
+    );
+    expect(html).not.toContain('data-slot="document-card-ai-read"');
+  });
+
+  it("renders the filename on its own line with the full name in title", () => {
+    const html = render(
+      <DocumentCard
+        document={doc({
+          title: "MRT Knie",
+          filename: "mrt-knie-2025-10-04.pdf",
+        })}
+        selected={false}
+        onToggleSelected={noop}
+        onOpen={noop}
+        highlighted={false}
+      />,
+    );
+    // Dedicated filename line, muted text-xs, full name reachable on hover.
+    expect(html).toContain('data-slot="document-card-filename"');
+    expect(html).toContain('title="mrt-knie-2025-10-04.pdf"');
+    expect(html).toContain("mrt-knie-2025-10-04.pdf");
+  });
+
+  it("omits the filename line when the filename equals the title", () => {
+    const html = render(
+      <DocumentCard
+        document={doc({ title: "report.pdf", filename: "report.pdf" })}
+        selected={false}
+        onToggleSelected={noop}
+        onOpen={noop}
+        highlighted={false}
+      />,
+    );
+    expect(html).not.toContain('data-slot="document-card-filename"');
+  });
+
   it("falls back to the untitled label and rings when highlighted", () => {
     const html = render(
       <DocumentCard

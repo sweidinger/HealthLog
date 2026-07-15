@@ -12,6 +12,8 @@ import {
   formatMonthLabel,
   parseUploadResponse,
   parseVaultSearchParams,
+  resolveBulkShareDocuments,
+  SHARE_LINK_MAX_DOCUMENTS,
   vaultFiltersToSearch,
 } from "../vault-utils";
 
@@ -282,5 +284,62 @@ describe("shift-click range selection", () => {
     expect([
       ...expandRangeSelection(order, new Set(["c"]), "gone", "c"),
     ]).toEqual([]);
+  });
+});
+
+describe("resolveBulkShareDocuments", () => {
+  const corpus = [
+    doc({ id: "d1", title: "Blood panel", filename: "bp.pdf" }),
+    doc({ id: "d2", title: null, filename: "scan.jpg" }),
+    doc({ id: "d3", title: null, filename: null }),
+    doc({ id: "d4", title: "Referral" }),
+  ];
+
+  it("maps the selection to {id,title}, falling back title → filename → untitled", () => {
+    const result = resolveBulkShareDocuments(
+      corpus,
+      new Set(["d1", "d2", "d3"]),
+      "Untitled",
+    );
+    expect(result.overCap).toBe(false);
+    if (result.overCap) throw new Error("unexpected over-cap");
+    expect(result.documents).toEqual([
+      { id: "d1", title: "Blood panel" },
+      { id: "d2", title: "scan.jpg" },
+      { id: "d3", title: "Untitled" },
+    ]);
+  });
+
+  it("preserves corpus order and ignores ids not in the corpus", () => {
+    const result = resolveBulkShareDocuments(
+      corpus,
+      new Set(["d4", "d1", "ghost"]),
+      "Untitled",
+    );
+    if (result.overCap) throw new Error("unexpected over-cap");
+    expect(result.documents.map((d) => d.id)).toEqual(["d1", "d4"]);
+  });
+
+  it("caps at SHARE_LINK_MAX_DOCUMENTS (50) — over the cap refuses rather than truncates", () => {
+    const many = Array.from({ length: 60 }, (_, i) => doc({ id: `x${i}` }));
+    const selected = new Set(many.map((d) => d.id));
+    expect(selected.size).toBeGreaterThan(SHARE_LINK_MAX_DOCUMENTS);
+    expect(resolveBulkShareDocuments(many, selected, "Untitled")).toEqual({
+      overCap: true,
+    });
+  });
+
+  it("allows exactly 50 selected documents", () => {
+    const fifty = Array.from({ length: SHARE_LINK_MAX_DOCUMENTS }, (_, i) =>
+      doc({ id: `y${i}` }),
+    );
+    const result = resolveBulkShareDocuments(
+      fifty,
+      new Set(fifty.map((d) => d.id)),
+      "Untitled",
+    );
+    expect(result.overCap).toBe(false);
+    if (result.overCap) throw new Error("unexpected over-cap");
+    expect(result.documents).toHaveLength(SHARE_LINK_MAX_DOCUMENTS);
   });
 });

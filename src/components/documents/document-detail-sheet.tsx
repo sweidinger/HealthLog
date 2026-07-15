@@ -761,8 +761,7 @@ export function DocumentDetailSheet({
         <DocumentShareSheet
           open={shareOpen}
           onOpenChange={setShareOpen}
-          documentId={doc.id}
-          documentTitle={title}
+          documents={[{ id: doc.id, title }]}
         />
       ) : null}
 

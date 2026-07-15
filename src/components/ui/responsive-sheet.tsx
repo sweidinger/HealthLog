@@ -167,7 +167,13 @@ export function ResponsiveSheet({
             <SheetHeader
               data-slot="responsive-sheet-header"
               className={cn(
-                "border-border/70 gap-1.5 border-b p-4 pr-12",
+                "border-border/70 gap-1.5 border-b p-4",
+                // Reserve the right gutter ONLY when the primitive paints its
+                // absolute close button. With `showCloseButton={false}` the
+                // consumer's own trailing control (headerAction) sits flush to
+                // the `p-4` right edge instead of being pushed in by an empty
+                // reserved gutter.
+                showCloseButton && "pr-12",
                 headerAction && "flex-row items-start justify-between gap-3",
               )}
             >
@@ -255,7 +261,12 @@ export function ResponsiveSheet({
             data-slot="responsive-sheet-header"
             className={cn(
               "shrink-0",
-              headerAction && "flex-row items-start justify-between gap-3 pr-9",
+              headerAction && "flex-row items-start justify-between gap-3",
+              // Reserve the trailing gutter for the primitive's absolute close
+              // button ONLY when it is actually painted. With
+              // `showCloseButton={false}` the headerAction sits flush to the
+              // header's right edge instead of being pushed in.
+              headerAction && showCloseButton && "pr-9",
             )}
           >
             {headerAction ? (
