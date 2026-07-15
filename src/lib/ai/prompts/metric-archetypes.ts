@@ -134,6 +134,14 @@ export function getMetricArchetypeUserPrompt(
    * relative, exactly as before.
    */
   interpretationBlock?: string,
+  /**
+   * v1.28.40 — the rotating opener-archetype hint (VERDICT / TREND / CONTRAST /
+   * CONTINUITY / MEANING). When present it is emitted as an `OPENER HINT:` line
+   * so the base prompt's "Lead per the OPENER HINT … do NOT open with the
+   * number" branch fires. Optional so tests can omit it; production always
+   * passes it from `metric-status.ts`.
+   */
+  openerHint?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
@@ -147,14 +155,18 @@ export function getMetricArchetypeUserPrompt(
     interpretationBlock && interpretationBlock.trim().length > 0
       ? `\n\n${interpretationBlock}\n`
       : "";
+  const openerLine =
+    openerHint && openerHint.trim().length > 0
+      ? `\nOPENER HINT: ${openerHint}`
+      : "";
   if (locale === "en") {
-    return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's ${meta.displayName.toLowerCase()}: name the current level with a concrete number from the snapshot, place the recent window against their own weekly/monthly baseline, and — when something is genuinely actionable — close with one doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}${interpBlock}
+    return `Date: ${todayKey} (Europe/Berlin)${openerLine}
+Write one short assessment of this person's ${meta.displayName.toLowerCase()}. Open with what it MEANS in plain words — the read, not the number (e.g. "running a little calmer than usual", "steady and right where it's been") — then bring in ONE concrete number from the snapshot right after as support, placed against their own weekly/monthly baseline; never lead with the value. Close with one doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}${interpBlock}
 
 ${snapshotJson}`;
   }
-  return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zu ${meta.displayName} dieser Person: benenne das aktuelle Niveau mit einer konkreten Zahl aus dem Snapshot, ordne das recent-Fenster gegen die eigene Wochen-/Monats-Baseline ein und schließe — wenn etwas wirklich umsetzbar ist — mit einem machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}${interpBlock}
+  return `Datum: ${todayKey} (Europe/Berlin)${openerLine}
+Schreibe eine kurze Einschätzung zu ${meta.displayName} dieser Person. Beginne mit der BEDEUTUNG in klaren Worten — dem Eindruck, nicht der Zahl (z. B. "läuft gerade etwas ruhiger als sonst", "stabil und genau da, wo es war") — und bring danach EINE konkrete Zahl aus dem Snapshot als Beleg, gegen die eigene Wochen-/Monats-Baseline eingeordnet; führe nie mit dem Wert. Schließe nur dann mit einem machbaren Schritt, wenn der Befund wirklich einen hergibt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}${interpBlock}
 
 ${snapshotJson}`;
 }

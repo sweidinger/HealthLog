@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.28.40] — 2026-07-16 — Insight assessments lead with meaning, not a number
+
+The per-metric insight assessments read like a data readout — they opened on
+the current value. The overview texts already lead with the day's verdict in
+plain words and land the warm, motivating tone; the per-metric cards were told
+the opposite (name the level with a number first) and never received the
+opener-variation the other insight surfaces use. Now every metric assessment
+opens with what the reading MEANS and brings the number in right after as
+support, in the same warm register as the overview. A shared opening-shape
+contract keeps the surfaces from drifting apart again, and the deterministic
+first-paint fallbacks lead with the verdict too. No change to what the numbers
+say — only how the sentence is built.
+
 ## [1.28.39] — 2026-07-16 — Sync data-loss hardening
 
 Four fixes to sync paths that could lose or corrupt data in edge cases:

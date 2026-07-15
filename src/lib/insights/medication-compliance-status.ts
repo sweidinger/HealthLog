@@ -3,6 +3,8 @@ import {
   getMedicationComplianceSystemPrompt,
   getMedicationComplianceUserPrompt,
 } from "@/lib/ai/prompts/medication-compliance";
+import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
+import type { Locale } from "@/lib/i18n/config";
 import {
   buildComplianceMedicationContext,
   buildMedicationComplianceBundle,
@@ -531,6 +533,11 @@ export async function prepareMedicationComplianceStatusForUser(
       locale,
       previousContextBlock,
       assessmentContextBlock,
+      // v1.28.40 — rotating opener hint, per (user, metric, day).
+      openerArchetypeHint(
+        `${userId}:medication-compliance:${todayKey}`,
+        locale as Locale,
+      ),
     ),
     snapshotHash,
     // v1.12.7 — match the archetype cards' 0.45.

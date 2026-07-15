@@ -4,6 +4,13 @@ import {
   getMetricArchetypeSystemPrompt,
   getMetricArchetypeUserPrompt,
 } from "../metric-archetypes";
+import { getBloodPressureUserPrompt } from "../blood-pressure";
+import { getWeightUserPrompt } from "../weight";
+import { getPulseUserPrompt } from "../pulse";
+import { getBmiUserPrompt } from "../bmi";
+import { getMoodUserPrompt } from "../mood";
+import { getMedicationComplianceUserPrompt } from "../medication-compliance";
+import { getGeneralStatusUserPrompt } from "../general-status";
 import { getMetricStatusMeta } from "@/lib/insights/metric-status-registry";
 
 /**
@@ -146,6 +153,69 @@ describe("metric-archetype user prompt — context block plumbing", () => {
       getMetricArchetypeUserPrompt(meta, "{}", "2026-06-05", "de"),
     ).toMatch(/lass den Schritt weg/i);
   });
+});
+
+/**
+ * v1.28.40 — the verdict-first rewrite. Every per-metric USER prompt must now
+ * LEAD with meaning (verdict-first) and STOP instructing the model to open on a
+ * concrete number, and must carry the opener-hint rotation. These pin both the
+ * new opening posture and the removal of the old "name the current level with a
+ * concrete number" instruction, in EN and DE, for all seven builders + the
+ * overall assessment — the exact drift the audit isolated as the tone split.
+ */
+describe("v1.28.40 per-metric user prompts — verdict-first, number-as-support", () => {
+  const meta = getMetricStatusMeta("RESTING_HEART_RATE")!;
+
+  // A builder normalised to `(locale, openerHint?) => prompt` so the parametric
+  // assertions below can drive every surface through one shape.
+  const BUILDERS: Record<
+    string,
+    (locale: "en" | "de", openerHint?: string) => string
+  > = {
+    "metric-archetype": (l, h) =>
+      getMetricArchetypeUserPrompt(meta, "{}", "2026-06-05", l, "", "", "", h),
+    "blood-pressure": (l, h) =>
+      getBloodPressureUserPrompt("{}", "2026-06-05", l, "", "", h),
+    weight: (l, h) => getWeightUserPrompt("{}", "2026-06-05", l, "", "", h),
+    pulse: (l, h) => getPulseUserPrompt("{}", "2026-06-05", l, "", "", h),
+    bmi: (l, h) => getBmiUserPrompt("{}", "2026-06-05", l, "", "", h),
+    mood: (l, h) => getMoodUserPrompt("{}", "2026-06-05", l, "", "", h),
+    "medication-compliance": (l, h) =>
+      getMedicationComplianceUserPrompt("{}", "2026-06-05", l, "", "", h),
+    general: (l, h) =>
+      getGeneralStatusUserPrompt("{}", "2026-06-05", l, "", "", h),
+  };
+
+  for (const [name, build] of Object.entries(BUILDERS)) {
+    it(`${name}: EN leads verdict-first and no longer instructs number-first`, () => {
+      const p = build("en");
+      // The old number-first instruction is gone.
+      expect(p).not.toMatch(/name the current .* with a concrete number/i);
+      expect(p).not.toMatch(/name the current systolic\/diastolic level/i);
+      // Verdict-first: opens on meaning, explicitly NOT the number/value.
+      expect(p).toMatch(/open with/i);
+      expect(p).toMatch(/not (a|the) (number|value)/i);
+      // The number stays required as support (grounding preserved).
+      expect(p).toMatch(/as support|snapshot/i);
+    });
+
+    it(`${name}: DE leads verdict-first and no longer instructs number-first`, () => {
+      const p = build("de");
+      expect(p).not.toMatch(/benenne das aktuelle/i);
+      expect(p).toMatch(/beginne mit/i);
+      expect(p).toMatch(/nicht (der|mit einer) Zahl/i);
+      expect(p).toMatch(/als Beleg|Snapshot/i);
+    });
+
+    it(`${name}: emits the OPENER HINT line only when a hint is passed`, () => {
+      expect(
+        build("en", "Open with the overall read in plain words."),
+      ).toContain("OPENER HINT: Open with the overall read in plain words.");
+      // Backward-compatible: no hint → no dangling OPENER HINT line.
+      expect(build("en")).not.toContain("OPENER HINT");
+      expect(build("en")).not.toContain("undefined");
+    });
+  }
 });
 
 describe("metric-archetype system prompt — archetype grounding intact", () => {

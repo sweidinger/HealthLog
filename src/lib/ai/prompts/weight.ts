@@ -37,6 +37,8 @@ export function getWeightUserPrompt(
   previousContextBlock?: string,
   /** v1.12.7 — diversity / anti-repetition context; see blood-pressure.ts. */
   assessmentContextBlock?: string,
+  /** v1.28.40 — rotating opener-archetype hint; see metric-archetypes.ts. */
+  openerHint?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
@@ -46,14 +48,18 @@ export function getWeightUserPrompt(
     assessmentContextBlock && assessmentContextBlock.trim().length > 0
       ? `\n\n${assessmentContextBlock}\n`
       : "";
+  const openerLine =
+    openerHint && openerHint.trim().length > 0
+      ? `\nOPENER HINT: ${openerHint}`
+      : "";
   if (locale === "en") {
-    return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's weight: name the current level and direction, place the recent days against their own weekly/monthly baseline as a continuous trend and pace (kg/week, plateau, milestone — not the single value, and not the WHO band, which the BMI card covers), and — when something is genuinely actionable — close with one doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
+    return `Date: ${todayKey} (Europe/Berlin)${openerLine}
+Write one short assessment of this person's weight. Open with what the trend MEANS in plain words — the direction and momentum, not the number (e.g. "easing down steadily", "holding right where it's settled") — then bring in ONE concrete number from the snapshot right after as support, read as a continuous trend and pace against their own weekly/monthly baseline (kg/week, plateau, milestone — not the single value, and not the WHO band, which the BMI card covers); never lead with the value. Close with one doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
-  return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zum Gewicht dieser Person: benenne Niveau und Richtung, ordne die jüngsten Tage gegen die eigene Wochen-/Monats-Baseline als kontinuierlichen Trend und Tempo ein (kg/Woche, Plateau, Meilenstein — nicht der Einzelwert und nicht das WHO-Band, das die BMI-Karte trägt) und schließe — wenn etwas wirklich umsetzbar ist — mit einem machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
+  return `Datum: ${todayKey} (Europe/Berlin)${openerLine}
+Schreibe eine kurze Einschätzung zum Gewicht dieser Person. Beginne mit der BEDEUTUNG in klaren Worten — Richtung und Tempo, nicht der Zahl (z. B. "geht ruhig nach unten", "hält sich genau da, wo es sich eingependelt hat") — und bring danach EINE konkrete Zahl aus dem Snapshot als Beleg, als kontinuierlichen Trend und Tempo gegen die eigene Wochen-/Monats-Baseline gelesen (kg/Woche, Plateau, Meilenstein — nicht der Einzelwert und nicht das WHO-Band, das die BMI-Karte trägt); führe nie mit dem Wert. Schließe nur dann mit einem machbaren Schritt, wenn der Befund wirklich einen hergibt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }

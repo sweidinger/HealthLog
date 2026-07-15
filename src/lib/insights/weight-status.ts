@@ -3,6 +3,8 @@ import {
   getWeightSystemPrompt,
   getWeightUserPrompt,
 } from "@/lib/ai/prompts/weight";
+import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
+import type { Locale } from "@/lib/i18n/config";
 import {
   significantPearsonCorrelation,
   type PairedPoint,
@@ -611,6 +613,8 @@ export async function prepareWeightStatusForUser(
       locale,
       previousContextBlock,
       assessmentContextBlock,
+      // v1.28.40 — rotating opener hint, per (user, metric, day).
+      openerArchetypeHint(`${userId}:weight:${todayKey}`, locale as Locale),
     ),
     snapshotHash,
     // v1.12.7 — match the archetype cards' 0.45.

@@ -65,11 +65,58 @@ function capitalise(s: string): string {
 }
 
 /**
- * Compose a warm, grounded deterministic line from a metric signal. Names
- * the current value, places it against the user's own baseline, and ends
- * with one pointer (when the value is outside their usual swing) or an
- * honest "nothing to act on" (when it sits in range). Returns null when the
- * signal carries no current value — the caller then uses the generic tip.
+ * v1.28.40 — the verdict-first opener for the deterministic floor. A tiny
+ * CLOSED vocabulary keyed by (direction, outsideNormalSwing) so the line leads
+ * with MEANING before the number, matching the warm AI voice above it. It
+ * introduces no new figure and no new claim — the numbers still come from the
+ * value sentence right after — so grounding is untouched. Returns null when the
+ * signal is too thin to state a confident read (no baseline / no delta), in
+ * which case the line simply opens on the value as before.
+ */
+function verdictLead(
+  signal: MetricSignal,
+  locale: InsightLocale,
+): string | null {
+  // Inside the user's own usual swing → a steady, reassuring verdict.
+  if (signal.outsideNormalSwing === false) {
+    return locale === "de"
+      ? "Stabil und wie gewohnt"
+      : "Steady and much as usual";
+  }
+  // Outside the usual swing → is the move in a favourable or unfavourable
+  // direction? For a target-band metric the direction alone can't say, so it
+  // stays a neutral "worth a look" verdict.
+  if (
+    signal.outsideNormalSwing === true &&
+    signal.delta !== null &&
+    signal.delta !== 0
+  ) {
+    const favourable =
+      signal.direction === "higher-better"
+        ? signal.delta > 0
+        : signal.direction === "lower-better"
+          ? signal.delta < 0
+          : null;
+    if (favourable === true) {
+      return locale === "de"
+        ? "Das geht in eine gute Richtung"
+        : "This is moving in a good direction";
+    }
+    return locale === "de"
+      ? "Zuletzt etwas außerhalb deines üblichen Rahmens"
+      : "A little off your usual lately";
+  }
+  // No baseline / no usable delta → no confident verdict; open on the value.
+  return null;
+}
+
+/**
+ * Compose a warm, grounded deterministic line from a metric signal. Leads with
+ * a plain-words verdict (meaning first), then names the current value placed
+ * against the user's own baseline, and ends with one pointer (when the value is
+ * outside their usual swing) or an honest "nothing to act on" (when it sits in
+ * range). Returns null when the signal carries no current value — the caller
+ * then uses the generic tip.
  */
 function composeGroundedFallback(
   signal: MetricSignal | null | undefined,
@@ -83,7 +130,12 @@ function composeGroundedFallback(
 
   const sentences: string[] = [];
 
-  // 1) Lead with the current value, placed against the user's own baseline.
+  // 0) Verdict-first: lead with what it MEANS in plain words before the number,
+  // so the floor reads like the warm AI voice and never opens on a bare value.
+  const lead = verdictLead(signal, locale);
+  if (lead) sentences.push(`${lead}.`);
+
+  // 1) Then the current value, placed against the user's own baseline.
   if (
     signal.baseline !== null &&
     signal.delta !== null &&

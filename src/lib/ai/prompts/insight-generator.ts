@@ -39,6 +39,7 @@ import {
   toneContract,
   antiRecitation,
   interpretationDepth,
+  openingShape,
   safetyGlp1,
   safetyAcute,
   metricIdentifierBan,
@@ -55,8 +56,12 @@ import {
  * read, weave 2-3 signals into one associative story, state fewer numbers than
  * signals), and the shared paragraph FORMATTING contract joins so the briefing
  * renders as real paragraphs. Grounding is unchanged.
+ * 5.1.0 (v1.28.40) — the shared `openingShape` contract joins so the briefing's
+ * verdict-first opening is pinned to the same canonical wording the per-metric
+ * cards now carry, foreclosing the number-first/verdict-first drift between
+ * surfaces. Clause order only — grounding untouched.
  */
-export const PROMPT_VERSION = "5.0.0" as const;
+export const PROMPT_VERSION = "5.1.0" as const;
 
 /** Europe/Berlin YYYY-MM-DD day key — the rotation boundary for the opener. */
 function berlinDayKey(now: Date): string {
@@ -843,6 +848,10 @@ neutralem Label + Detail. Höchstgrenze: 20 Einträge.`,
   // future safety edit is made once in `shared-contracts.ts`.
   { id: "sharedGrounding", en: grounding.en, de: grounding.de },
   { id: "sharedTone", en: toneContract.en, de: toneContract.de },
+  // v1.28.40 — the shared opening-shape contract, canonical wording. The
+  // briefing already leads verdict-first (rule 8); this pins it to the same
+  // fragment the per-metric cards carry so the two surfaces can't drift.
+  { id: "sharedOpeningShape", en: openingShape.en, de: openingShape.de },
   // v1.27.13 (Welle J) — the overview + briefing text carried the same
   // recitation disease (counts, cadence). Both contracts apply here so the
   // summary and the daily briefing interpret rather than enumerate; the

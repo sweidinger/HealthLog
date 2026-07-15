@@ -3,6 +3,8 @@ import {
   getBloodPressureSystemPrompt,
   getBloodPressureUserPrompt,
 } from "@/lib/ai/prompts/blood-pressure";
+import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
+import type { Locale } from "@/lib/i18n/config";
 import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
@@ -705,6 +707,12 @@ export async function prepareBloodPressureStatusForUser(
       locale,
       previousContextBlock,
       assessmentContextBlock,
+      // v1.28.40 — rotating opener hint, per (user, metric, day); activates the
+      // base prompt's verdict-first opener branch on the per-metric card.
+      openerArchetypeHint(
+        `${userId}:blood-pressure:${todayKey}`,
+        locale as Locale,
+      ),
     ),
     snapshotHash,
     // v1.12.7 — match the archetype cards' 0.45: more cadence entropy while

@@ -52,7 +52,7 @@ import {
  * prompt below changes so the cross-feature attribution aggregator can slice
  * quality per (provider × prompt) and a prompt change is observable.
  */
-export const NARRATIVE_PROMPT_VERSION = "1.12.0" as const;
+export const NARRATIVE_PROMPT_VERSION = "1.13.0" as const;
 
 /** A narrative cached this recently is served without regenerating. */
 const NARRATIVE_FRESH_MS = 20 * 60 * 60 * 1000;
@@ -117,7 +117,7 @@ Hard rules:
 - 2 to 4 short sentences. Plain text only — no markdown, no headings, no bullet points, no emojis.
 - If the context is thin, say plainly that there is little to report this period rather than inventing detail.
 
-${composeSharedContracts("en", ["toneContract", "grounding", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller", "formattingContract"])}`;
+${composeSharedContracts("en", ["toneContract", "grounding", "openingShape", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller", "formattingContract"])}`;
 
 const SYSTEM_PROMPT_DE = `Du fasst den Gesundheits-Tracking-ZEITRAUM einer Person (eine Woche oder einen Monat) für diese Person zusammen.
 Prompt-Version: ${NARRATIVE_PROMPT_VERSION}.
@@ -131,7 +131,7 @@ Feste Regeln:
 - 2 bis 4 kurze Sätze. Nur Klartext — kein Markdown, keine Überschriften, keine Aufzählungen, keine Emojis.
 - Wenn der Kontext dünn ist, sage klar, dass es in diesem Zeitraum wenig zu berichten gibt, statt Details zu erfinden.
 
-${composeSharedContracts("de", ["toneContract", "grounding", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller", "formattingContract"])}`;
+${composeSharedContracts("de", ["toneContract", "grounding", "openingShape", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller", "formattingContract"])}`;
 
 /**
  * Test-only view of the composed system prompts (incl. the appended shared

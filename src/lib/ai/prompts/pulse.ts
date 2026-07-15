@@ -31,6 +31,8 @@ export function getPulseUserPrompt(
   previousContextBlock?: string,
   /** v1.12.7 — diversity / anti-repetition context; see blood-pressure.ts. */
   assessmentContextBlock?: string,
+  /** v1.28.40 — rotating opener-archetype hint; see metric-archetypes.ts. */
+  openerHint?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
@@ -40,14 +42,18 @@ export function getPulseUserPrompt(
     assessmentContextBlock && assessmentContextBlock.trim().length > 0
       ? `\n\n${assessmentContextBlock}\n`
       : "";
+  const openerLine =
+    openerHint && openerHint.trim().length > 0
+      ? `\nOPENER HINT: ${openerHint}`
+      : "";
   if (locale === "en") {
-    return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's resting pulse: name the current level, place the recent days against their own weekly/monthly baseline, and — when something is genuinely actionable — close with one doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
+    return `Date: ${todayKey} (Europe/Berlin)${openerLine}
+Write one short assessment of this person's resting pulse. Open with what it MEANS in plain words — the read, not the number (e.g. "running a little calmer than usual", "steady, right where it's been") — then bring in ONE concrete number from the snapshot right after as support, placed against their own weekly/monthly baseline; never lead with the value. Close with one doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
-  return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zum Ruhepuls dieser Person: benenne das aktuelle Niveau, ordne die jüngsten Tage gegen die eigene Wochen-/Monats-Baseline ein und schließe — wenn etwas wirklich umsetzbar ist — mit einem machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
+  return `Datum: ${todayKey} (Europe/Berlin)${openerLine}
+Schreibe eine kurze Einschätzung zum Ruhepuls dieser Person. Beginne mit der BEDEUTUNG in klaren Worten — dem Eindruck, nicht der Zahl (z. B. "läuft gerade etwas ruhiger als sonst", "stabil, genau da, wo er war") — und bring danach EINE konkrete Zahl aus dem Snapshot als Beleg, gegen die eigene Wochen-/Monats-Baseline eingeordnet; führe nie mit dem Wert. Schließe nur dann mit einem machbaren Schritt, wenn der Befund wirklich einen hergibt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }

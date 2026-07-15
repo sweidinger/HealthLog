@@ -31,6 +31,8 @@ export function getBmiUserPrompt(
   previousContextBlock?: string,
   /** v1.12.7 — diversity / anti-repetition context; see blood-pressure.ts. */
   assessmentContextBlock?: string,
+  /** v1.28.40 — rotating opener-archetype hint; see metric-archetypes.ts. */
+  openerHint?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
@@ -40,14 +42,18 @@ export function getBmiUserPrompt(
     assessmentContextBlock && assessmentContextBlock.trim().length > 0
       ? `\n\n${assessmentContextBlock}\n`
       : "";
+  const openerLine =
+    openerHint && openerHint.trim().length > 0
+      ? `\nOPENER HINT: ${openerHint}`
+      : "";
   if (locale === "en") {
-    return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's BMI: name the current value and WHO band, say whether it has crossed a band or is nearing a band boundary against their own weekly/monthly baseline, and — when something is genuinely actionable — close with one doable step; when nothing is, skip the step rather than manufacture filler. Leave the weight pace to the weight card. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
+    return `Date: ${todayKey} (Europe/Berlin)${openerLine}
+Write one short assessment of this person's BMI. Open with what its band placement MEANS in plain words — where it sits and whether that's holding or shifting, not the number (e.g. "sitting comfortably in the healthy band", "edging toward the next band up") — then bring in the current value and WHO band right after as support, saying against their own weekly/monthly baseline whether it has crossed a band or is nearing a boundary; never lead with the value. Close with one doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Leave the weight pace to the weight card. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
-  return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zum BMI dieser Person: benenne den aktuellen Wert und das WHO-Band, sage gegen die eigene Wochen-/Monats-Baseline, ob er ein Band gewechselt hat oder sich einer Bandgrenze nähert, und schließe — wenn etwas wirklich umsetzbar ist — mit einem machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Das Gewichtstempo bleibt der Gewichts-Karte überlassen. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
+  return `Datum: ${todayKey} (Europe/Berlin)${openerLine}
+Schreibe eine kurze Einschätzung zum BMI dieser Person. Beginne mit der BEDEUTUNG der Bandlage in klaren Worten — wo er liegt und ob das hält oder sich verschiebt, nicht der Zahl (z. B. "liegt bequem im gesunden Band", "nähert sich dem nächsten Band") — und bring danach den aktuellen Wert und das WHO-Band als Beleg, samt Angabe gegen die eigene Wochen-/Monats-Baseline, ob er ein Band gewechselt hat oder sich einer Bandgrenze nähert; führe nie mit dem Wert. Schließe nur dann mit einem machbaren Schritt, wenn der Befund wirklich einen hergibt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Das Gewichtstempo bleibt der Gewichts-Karte überlassen. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }

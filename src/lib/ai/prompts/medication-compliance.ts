@@ -33,6 +33,8 @@ export function getMedicationComplianceUserPrompt(
   previousContextBlock?: string,
   /** v1.12.7 — diversity / anti-repetition context; see blood-pressure.ts. */
   assessmentContextBlock?: string,
+  /** v1.28.40 — rotating opener-archetype hint; see metric-archetypes.ts. */
+  openerHint?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
@@ -42,14 +44,18 @@ export function getMedicationComplianceUserPrompt(
     assessmentContextBlock && assessmentContextBlock.trim().length > 0
       ? `\n\n${assessmentContextBlock}\n`
       : "";
+  const openerLine =
+    openerHint && openerHint.trim().length > 0
+      ? `\nOPENER HINT: ${openerHint}`
+      : "";
   if (locale === "en") {
-    return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's medication adherence: name the recent rate, place it against their own baseline (compliance7 vs compliance30), and — when something is genuinely actionable — close with one doable, blame-free step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the event count and recency.${ctxBlock}${extraBlock}
+    return `Date: ${todayKey} (Europe/Berlin)${openerLine}
+Write one short assessment of this person's medication adherence. Open with what it MEANS in plain words — how reliable the routine is looking, not the number (e.g. "your routine's been rock-solid", "a few doses have slipped lately") — then bring in the recent rate right after as support, placed against their own baseline (compliance7 vs compliance30); never lead with the value. Close with one doable, blame-free step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the event count and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
-  return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zur Einnahmetreue dieser Person: benenne die jüngste Rate, ordne sie gegen die eigene Baseline ein (compliance7 vs. compliance30) und schließe — wenn etwas wirklich umsetzbar ist — mit einem machbaren, wertfreien Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Ereignisanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
+  return `Datum: ${todayKey} (Europe/Berlin)${openerLine}
+Schreibe eine kurze Einschätzung zur Einnahmetreue dieser Person. Beginne mit der BEDEUTUNG in klaren Worten — wie verlässlich die Routine aussieht, nicht der Zahl (z. B. "deine Routine sitzt richtig gut", "zuletzt sind ein paar Dosen durchgerutscht") — und bring danach die jüngste Rate als Beleg, gegen die eigene Baseline eingeordnet (compliance7 vs. compliance30); führe nie mit dem Wert. Schließe nur dann mit einem machbaren, wertfreien Schritt, wenn der Befund wirklich einen hergibt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Ereignisanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }

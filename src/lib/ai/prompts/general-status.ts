@@ -33,6 +33,8 @@ export function getGeneralStatusUserPrompt(
   previousContextBlock?: string,
   /** v1.12.7 — diversity / anti-repetition context; see blood-pressure.ts. */
   assessmentContextBlock?: string,
+  /** v1.28.40 — rotating opener-archetype hint; see metric-archetypes.ts. */
+  openerHint?: string,
 ): string {
   // v1.4: when the previous-analysis context block is supplied, the
   // model is instructed to call out improvements / regressions
@@ -46,14 +48,18 @@ export function getGeneralStatusUserPrompt(
     assessmentContextBlock && assessmentContextBlock.trim().length > 0
       ? `\n\n${assessmentContextBlock}\n`
       : "";
+  const openerLine =
+    openerHint && openerHint.trim().length > 0
+      ? `\nOPENER HINT: ${openerHint}`
+      : "";
   if (locale === "en") {
-    return `Date: ${todayKey} (Europe/Berlin)
-Write one short overall assessment across the available health metrics: name what stands out, place the recent days against the person's own weekly/monthly baseline, and — when something is genuinely actionable — close with the single most important doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count, density and recency.${ctxBlock}${extraBlock}
+    return `Date: ${todayKey} (Europe/Berlin)${openerLine}
+Write one short overall assessment across the available health metrics. Open with the overall read in plain words — how things are looking taken together, not a number (e.g. "a steady stretch across the board", "one thing standing out this week") — then bring in the one or two metrics that stand out as support, each placed against the person's own weekly/monthly baseline; never lead with a value. Close with the single most important doable step only when the overall picture genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count, density and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
-  return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Gesamteinschätzung über die verfügbaren Gesundheitsdaten: benenne das Auffälligste, ordne die jüngsten Tage gegen die eigene Wochen-/Monats-Baseline ein und schließe — wenn etwas wirklich umsetzbar ist — mit dem einen wichtigsten machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl, Dichte und Aktualität ableiten.${ctxBlock}${extraBlock}
+  return `Datum: ${todayKey} (Europe/Berlin)${openerLine}
+Schreibe eine kurze Gesamteinschätzung über die verfügbaren Gesundheitsdaten. Beginne mit dem Gesamteindruck in klaren Worten — wie es zusammengenommen aussieht, nicht mit einer Zahl (z. B. "über alles hinweg eine ruhige Phase", "diese Woche sticht eine Sache heraus") — und bring danach die ein bis zwei auffälligsten Metriken als Beleg, jeweils gegen die eigene Wochen-/Monats-Baseline eingeordnet; führe nie mit einem Wert. Schließe nur dann mit dem einen wichtigsten machbaren Schritt, wenn das Gesamtbild wirklich einen hergibt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl, Dichte und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }
