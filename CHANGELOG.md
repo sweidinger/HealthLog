@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.28.41] — 2026-07-16 — Complete the translations, and guard the gap
+
+One reminder-adjacent label — the recovery-driver "functional impact" track on
+the illness insights card — was showing its internal name instead of a
+translation in every language; it is now translated in all six. The class of
+bug behind it (a label resolved through a computed key the static check can't
+see, so a missing translation ships silently — the same seam as the well-being
+labels fixed a release ago) is now closed structurally: a new test walks each
+such key space against every language bundle, so a missing translation fails
+the build instead of reaching a user.
+
 ## [1.28.40] — 2026-07-16 — Insight assessments lead with meaning, not a number
 
 The per-metric insight assessments read like a data readout — they opened on
