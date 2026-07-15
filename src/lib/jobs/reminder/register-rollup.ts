@@ -61,6 +61,13 @@ import {
   type StepConsolidationPayload,
 } from "@/lib/jobs/step-consolidation";
 import {
+  STEP_CONSOLIDATION_REPAIR_QUEUE,
+  STEP_CONSOLIDATION_REPAIR_CONCURRENCY,
+  runStepConsolidationRepairForUser,
+  enqueueBootTimeStepConsolidationRepair,
+  type StepConsolidationRepairPayload,
+} from "@/lib/jobs/step-consolidation-repair";
+import {
   MEAN_CONSOLIDATION_QUEUE,
   MEAN_CONSOLIDATION_CONCURRENCY,
   runMeanConsolidationForUser,
@@ -122,6 +129,9 @@ const allQueues = [
   // v1.5.6 — boot-time legacy step consolidation. Discovery enqueues
   // one job per user still holding live pre-v1.5.0 granular step rows.
   STEP_CONSOLIDATION_QUEUE,
+  // v1.28.37 — one-shot repair for the provider step rows the pre-fix
+  // consolidation swept. Boot-discovery driven, self-converging.
+  STEP_CONSOLIDATION_REPAIR_QUEUE,
   // v1.7.0 — daily-mean consolidation for high-frequency spot HealthKit
   // metrics (walking speed/step length, respiratory rate, audio exposure).
   MEAN_CONSOLIDATION_QUEUE,
@@ -214,6 +224,25 @@ export async function registerRollupQueues(
         workerLog(
           "info",
           `[step-consolidation] user=${userId} days=${daysConsolidated} legacyRowsSoftDeleted=${legacyRowsSoftDeleted}`,
+        );
+      }
+    },
+  );
+
+  // v1.28.37 — step-consolidation repair worker. Resurrects the
+  // GOOGLE_HEALTH / FITBIT daily-total step rows the pre-fix consolidation
+  // swept and removes the shadow MANUAL totals it minted. Serial
+  // concurrency so the repair never crowds the dashboard request pool.
+  await boss.work<StepConsolidationRepairPayload>(
+    STEP_CONSOLIDATION_REPAIR_QUEUE,
+    { localConcurrency: STEP_CONSOLIDATION_REPAIR_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const summary = await runStepConsolidationRepairForUser(userId);
+        workerLog(
+          "info",
+          `[step-consolidation-repair] user=${userId} resurrected=${summary.rowsResurrected} wedgeSkipped=${summary.wedgeSkipped} manualMintsRemoved=${summary.manualMintsRemoved} daysRecomputed=${summary.daysRecomputed} failures=${summary.failures}`,
         );
       }
     },
@@ -709,6 +738,36 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
     workerLog(
       "error",
       "[medication-compliance-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.28.37 — step-consolidation repair. Finds every account still holding
+  // a resurrectable tombstoned GOOGLE_HEALTH / FITBIT daily-total step row
+  // (swept by the pre-fix consolidation) and enqueues one repair job per
+  // account. Self-converging: a resurrected row goes live and drops out of
+  // the discovery predicate.
+  try {
+    // Stage 5.
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeStepConsolidationRepair(
+        BOOT_BACKFILL_STAGGER_SECONDS * 5,
+      );
+    if (error) {
+      workerLog(
+        "error",
+        `[step-consolidation-repair] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[step-consolidation-repair] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[step-consolidation-repair] boot discovery threw an unexpected error",
       err,
     );
   }
