@@ -77,12 +77,20 @@ test.describe("profile-timezone display (#490)", () => {
 
     await page.goto("/settings/privacy", { waitUntil: "domcontentloaded" });
 
-    // The sessions card is collapsed by default — expand it first.
+    // The sessions card is collapsed by default — expand it first. The
+    // toggle's onClick can be dropped if Playwright clicks before React has
+    // hydrated the handler, leaving the region `hidden` for the whole wait.
+    // Retry the click until `aria-expanded` actually flips.
     const toggle = page.locator(
       '[data-slot="settings-security-sessions-toggle"]',
     );
     await expect(toggle).toBeVisible({ timeout: 10_000 });
-    await toggle.click();
+    await expect(async () => {
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true", {
+        timeout: 2_000,
+      });
+    }).toPass({ timeout: 15_000 });
 
     const row = page.locator('[data-slot="security-session-row"]').first();
     await expect(row).toBeVisible({ timeout: 10_000 });
