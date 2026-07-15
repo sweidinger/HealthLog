@@ -5,7 +5,8 @@
 ## [1.28.38] — 2026-07-16 — Documents polish, waist reminders, bulk sharing
 
 The document vault gets a round of overdue polish. The list cards drop a
-stray glyph and give the real filename its own line so it stops being cut
+stray glyph — the "read by AI" mark it carried moves into the document's
+detail view — and give the real filename its own line so it stops being cut
 off; the detail view's close button is aligned correctly (a shared sheet
 primitive was reserving space for a button it wasn't showing). The action
 that opens a document in the coach now reads "Coach fragen".

@@ -8355,6 +8355,7 @@
       "close": "Ausblenden"
     },
     "ai": {
+      "statusAiRead": "Von KI gelesen",
       "readDone": "Die KI hat dein Dokument gelesen.",
       "read": "Mit KI auslesen",
       "reread": "Erneut lesen",

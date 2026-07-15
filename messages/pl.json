@@ -8355,6 +8355,7 @@
       "close": "Ukryj"
     },
     "ai": {
+      "statusAiRead": "Odczytane przez AI",
       "readDone": "AI odczytało Twój dokument.",
       "read": "Odczytaj z AI",
       "reread": "Odczytaj ponownie",

@@ -8355,6 +8355,7 @@
       "close": "Masquer"
     },
     "ai": {
+      "statusAiRead": "Lu par l’IA",
       "readDone": "L’IA a lu votre document.",
       "read": "Lire avec l’IA",
       "reread": "Relire",
