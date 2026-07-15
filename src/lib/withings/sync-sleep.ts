@@ -471,18 +471,56 @@ export async function syncUserSleep(
           },
         });
       } else {
-        await prisma.measurement.create({
-          data: {
+        // Natural-key rescue — mirrors the measure path's findFirst in
+        // `sync.ts`. When Withings re-scores a night it can shift a segment's
+        // START (its externalId) while the END (`measuredAt`) and the stage
+        // stay put: the externalId probe above then MISSES, but the 0055
+        // natural key `(userId, type, measuredAt, source, sleepStage)`
+        // (NULLS NOT DISTINCT) is already occupied by the prior row. A blind
+        // `create` P2002s on that key; the collision is swallowed by the catch
+        // below and the sweep then tombstones the old row — so the re-keyed
+        // segment is lost and, because a tombstoned row still holds the natural
+        // key, every later sync re-collides: the night wedges permanently (the
+        // "0055 erased re-keyed sleep" class). Probe the natural key
+        // (tombstone-inclusive — no `deletedAt` filter) and re-key that row in
+        // place, so a re-scored segment updates rather than colliding.
+        const naturalKeyRow = await prisma.measurement.findFirst({
+          where: {
             userId,
             type: SLEEP_TYPE,
-            value: minutes,
-            unit: getUnitForType(SLEEP_TYPE),
-            measuredAt,
             source: "WITHINGS",
+            measuredAt,
             sleepStage: stage,
-            externalId,
           },
+          select: { id: true },
         });
+        if (naturalKeyRow) {
+          await prisma.measurement.update({
+            where: { id: naturalKeyRow.id },
+            // Re-key the surviving row onto the new START-based externalId and
+            // resurrect it if the sweep had tombstoned it. `measuredAt` and
+            // `sleepStage` already match by construction (they ARE the natural
+            // key we matched on), so only value + externalId + deletedAt move.
+            data: {
+              value: minutes,
+              externalId,
+              deletedAt: null,
+            },
+          });
+        } else {
+          await prisma.measurement.create({
+            data: {
+              userId,
+              type: SLEEP_TYPE,
+              value: minutes,
+              unit: getUnitForType(SLEEP_TYPE),
+              measuredAt,
+              source: "WITHINGS",
+              sleepStage: stage,
+              externalId,
+            },
+          });
+        }
       }
       touched.push({ type: SLEEP_TYPE, measuredAt });
       imported++;

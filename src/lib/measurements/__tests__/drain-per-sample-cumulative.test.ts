@@ -390,6 +390,15 @@ describe("drainPerSampleCumulative — late-sync fold into existing total", () =
     const update = vi.fn().mockResolvedValue({ id: "stats-row" });
     const create = vi.fn().mockResolvedValue({ id: "stats-row-new" });
     const deleteMany = vi.fn().mockResolvedValue({ count: 2 });
+    // v1.28.39 F2 — the in-tx re-read of the still-live per-sample contributors
+    // (only fires when an index-A `stats:` total already exists). Returns the
+    // two late rows so `liveIncrement` sums to the same 500 the pre-scan did on
+    // a clean single run.
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([{ value: 300 }, { value: 200 }]);
+    // v1.28.39 F2 — the per-bucket advisory lock (`pg_advisory_xact_lock`).
+    const $queryRaw = vi.fn().mockResolvedValue([{ locked: 1 }]);
 
     // `findFirst` serves three roles inside `writeDay`:
     //   1. index-A lookup (filters on `externalId`) → the existing collapsed
@@ -412,7 +421,10 @@ describe("drainPerSampleCumulative — late-sync fold into existing total", () =
       },
     );
 
-    const tx = { measurement: { update, create, deleteMany, findFirst } };
+    const tx = {
+      $queryRaw,
+      measurement: { update, create, deleteMany, findFirst, findMany },
+    };
 
     return {
       prisma: {
@@ -530,8 +542,13 @@ describe("drainPerSampleCumulative — colliding day does not abort the walk", (
         return { unit: "count" };
       },
     );
+    const findMany = vi.fn().mockResolvedValue([]);
+    const $queryRaw = vi.fn().mockResolvedValue([{ locked: 1 }]);
 
-    const tx = { measurement: { update, create, deleteMany, findFirst } };
+    const tx = {
+      $queryRaw,
+      measurement: { update, create, deleteMany, findFirst, findMany },
+    };
     const prisma = {
       user: { findMany: findManyUser },
       measurement: { findMany: findManyMeasurement },
@@ -585,8 +602,13 @@ describe("drainPerSampleCumulative — colliding day does not abort the walk", (
         return { unit: "count" };
       },
     );
+    const findMany = vi.fn().mockResolvedValue([]);
+    const $queryRaw = vi.fn().mockResolvedValue([{ locked: 1 }]);
 
-    const tx = { measurement: { update, create, deleteMany, findFirst } };
+    const tx = {
+      $queryRaw,
+      measurement: { update, create, deleteMany, findFirst, findMany },
+    };
     const prisma = {
       user: { findMany: findManyUser },
       measurement: { findMany: findManyMeasurement },
@@ -610,5 +632,124 @@ describe("drainPerSampleCumulative — colliding day does not abort the walk", (
     expect(updateArg.data.externalId).toContain("stats:");
     expect(summary.totals.daysFailed).toBe(0);
     expect(summary.totals.bucketsCollapsed).toBe(1);
+  });
+});
+
+// v1.28.39 F1 — the cumulative drain was the ONLY one of the four consolidation
+// drains whose scan `where` omitted `deletedAt: null`, so a soft-deleted
+// non-`stats:` APPLE_HEALTH sample was re-summed into the day total AND
+// hard-deleted (resurrecting a user-deleted grace-window sample and erasing the
+// legacy-steps audit tombstones into a double-counted second `stats:` total).
+// The scan must pin live rows only, matching the three siblings.
+describe("drainPerSampleCumulative — scan excludes soft-deleted rows (F1)", () => {
+  function buildPrismaMock() {
+    const findManyUser = vi.fn();
+    const findManyMeasurement = vi.fn().mockResolvedValue([]);
+    return {
+      user: { findMany: findManyUser },
+      measurement: { findMany: findManyMeasurement },
+      $transaction: vi.fn(async (cb: (tx: unknown) => Promise<unknown>) =>
+        cb({}),
+      ),
+    } as unknown as PrismaClient & {
+      user: { findMany: ReturnType<typeof vi.fn> };
+      measurement: { findMany: ReturnType<typeof vi.fn> };
+    };
+  }
+
+  it("pins the per-sample scan to deletedAt: null so tombstones are never re-summed or hard-deleted", async () => {
+    const prismaMock = buildPrismaMock();
+    prismaMock.user.findMany.mockResolvedValue([
+      { id: "user-1", timezone: "Europe/Berlin" },
+    ]);
+
+    await drainPerSampleCumulative(prismaMock, { log: () => {} });
+
+    const call = prismaMock.measurement.findMany.mock.calls[0]?.[0];
+    expect(call).toBeDefined();
+    expect(call.where.source).toBe("APPLE_HEALTH");
+    // The fix: the scan is live-rows-only. Pre-fix this key was absent and a
+    // soft-deleted Apple sample fell into the sum + hard delete.
+    expect(call.where.deletedAt).toBeNull();
+  });
+});
+
+// v1.28.39 F2 — the additive late-fold merge (`eidRow.value + <increment>`)
+// double-counted under two overlapping runs of the same (user, type, day): both
+// scan the same live per-sample rows, the winner mints+hard-deletes, and the
+// loser re-added its now-stale scan sum onto the winner's committed total → a
+// permanent 2× that never self-healed. The per-bucket advisory lock serialises
+// the folds and the in-tx re-read makes the serialised-second fold contribute
+// zero.
+describe("drainPerSampleCumulative — concurrent fold does not double-count (F2)", () => {
+  it("re-reads the live contributors in-tx so a second overlapping drain adds zero", async () => {
+    const findManyUser = vi
+      .fn()
+      .mockResolvedValue([{ id: "user-1", timezone: "Europe/Berlin" }]);
+
+    // This run's SCAN still sees the two per-sample rows (it scanned before the
+    // sibling committed) summing to 500 in `reducedValue`.
+    const findManyMeasurement = vi.fn(
+      async (args: { where: { type: string } }) => {
+        if (args.where.type === "ACTIVITY_STEPS") {
+          return [
+            {
+              id: "s-1",
+              type: "ACTIVITY_STEPS",
+              value: 300,
+              measuredAt: new Date("2026-05-16T20:00:00.000Z"),
+              externalId: "hk-uuid-1",
+            },
+            {
+              id: "s-2",
+              type: "ACTIVITY_STEPS",
+              value: 200,
+              measuredAt: new Date("2026-05-16T21:00:00.000Z"),
+              externalId: "hk-uuid-2",
+            },
+          ];
+        }
+        return [];
+      },
+    );
+
+    const update = vi.fn().mockResolvedValue({ id: "stats-row" });
+    const create = vi.fn().mockResolvedValue({ id: "stats-row-new" });
+    const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
+    // The sibling run already collapsed the day to 9000 (index-A row exists)…
+    const findFirst = vi.fn(
+      async (args: { where: Record<string, unknown> }) => {
+        if ("externalId" in args.where) return { id: "stats-row", value: 9000 };
+        if ("measuredAt" in args.where) return null;
+        return { unit: "count" };
+      },
+    );
+    // …AND already HARD-DELETED s-1 / s-2, so the in-tx re-read of the live
+    // contributors returns nothing → increment 0, not the stale 500.
+    const findMany = vi.fn().mockResolvedValue([]);
+    const $queryRaw = vi.fn().mockResolvedValue([{ locked: 1 }]);
+
+    const tx = {
+      $queryRaw,
+      measurement: { update, create, deleteMany, findFirst, findMany },
+    };
+    const prisma = {
+      user: { findMany: findManyUser },
+      measurement: { findMany: findManyMeasurement },
+      $transaction: vi.fn(async (cb: (t: typeof tx) => Promise<unknown>) =>
+        cb(tx),
+      ),
+    } as unknown as PrismaClient;
+
+    await drainPerSampleCumulative(prisma, { log: () => {} });
+
+    // The advisory lock fired for the bucket.
+    expect($queryRaw).toHaveBeenCalledTimes(1);
+    // The row is adopted in place and left at 9000 — NOT 9500. Pre-fix the
+    // merge added the stale `reducedValue` (500) onto the committed total.
+    expect(create).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(1);
+    const updateArg = update.mock.calls[0]?.[0] as { data: { value: number } };
+    expect(updateArg.data.value).toBe(9000);
   });
 });

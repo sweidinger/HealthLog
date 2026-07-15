@@ -12,7 +12,8 @@ import {
   subscribeWebhook,
 } from "./client";
 import { getUserWithingsCredentials } from "./credentials";
-import { getEvent } from "@/lib/logging/context";
+import { annotate, getEvent } from "@/lib/logging/context";
+import { isP2002 } from "@/lib/prisma-errors";
 import {
   isReauthRequired,
   recordSyncFailure,
@@ -213,6 +214,16 @@ export async function syncUserMeasurements(
   // the user's sync.
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
 
+  // v1.28.39 — hold-watermark-on-hard-failure (mirrors google-health /
+  // fitbit's `hardFailStorage` verdict). A per-row write that HARD-fails
+  // (anything but a benign P2002 idempotent-write collision) must not let
+  // `lastSyncedAt` advance past the unpersisted reading — the 10-min overlap
+  // window would otherwise never re-cover it and the reading is stranded
+  // forever. Track any hard failure so the watermark stamp + `recordSyncSuccess`
+  // below are held and the failure is recorded for the next tick to retry.
+  let anyRowFailed = false;
+  let firstRowError: unknown = null;
+
   for (const m of measures) {
     const measType = m.type as MeasurementType;
     try {
@@ -258,7 +269,22 @@ export async function syncUserMeasurements(
       touched.push({ type: measType, measuredAt: m.measuredAt });
       imported++;
     } catch (err) {
-      getEvent()?.addWarning(`Failed to upsert measure: ${err}`);
+      if (isP2002(err)) {
+        // Benign: the composite unique index serialised a concurrent insert of
+        // this exact reading — the row is present, nothing is lost. Warn and
+        // continue WITHOUT holding the watermark (this is the expected
+        // idempotent-write race the findFirst+create models around).
+        getEvent()?.addWarning(
+          `Withings measure upsert hit an idempotent P2002 (row already present): ${err}`,
+        );
+      } else {
+        // A genuine write failure strands this reading. Flag the cycle so the
+        // watermark is held and the next scheduled tick refetches the overlap
+        // window and retries.
+        anyRowFailed = true;
+        if (firstRowError === null) firstRowError = err;
+        getEvent()?.addWarning(`Failed to upsert measure: ${err}`);
+      }
     }
   }
 
@@ -298,6 +324,29 @@ export async function syncUserMeasurements(
     getEvent()?.addWarning(
       `withings: rollup recompute failed for ${userId}: ${err}`,
     );
+  }
+
+  // v1.28.39 — HOLD the watermark on any hard row failure. Implements the
+  // documented status-tracking contract above ("downstream measurement-upsert
+  // that fails ALL items → recordSyncFailure"), extended to a partial hard
+  // failure: a single hard-failed row must not advance `lastSyncedAt` past the
+  // reading it failed to persist, or the 10-min overlap window loses it. Record
+  // the failure (classified transient by default → the connection stays live
+  // and the next tick retries from the un-advanced watermark) and return
+  // WITHOUT stamping the watermark or success. The rows that DID write kept
+  // their rollup recompute above.
+  if (anyRowFailed) {
+    annotate({
+      action: {
+        name: "withings.sync.watermark_held",
+        details: { imported },
+      },
+    });
+    await recordWithingsSyncFailure(
+      userId,
+      firstRowError ?? new Error("Withings measure row write failed"),
+    );
+    return imported;
   }
 
   // Update last synced timestamp
