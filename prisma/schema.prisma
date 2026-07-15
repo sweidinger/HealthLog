@@ -42,6 +42,13 @@ model User {
   email        String?  @unique
   passwordHash String?  @map("password_hash") // argon2id, optional fallback
   role         String   @default("USER") // "ADMIN" | "USER"
+  // OIDC SSO — the (issuer, sub) pair pins the account to exactly one IdP
+  // identity. Stamped on first OIDC login (auto-provision or one-time link
+  // by verified email); every later OIDC login matches on this pair, never
+  // on the email, so an IdP-side email change can update the display email
+  // but can never re-point the login at a different account.
+  oidcIssuer   String?  @map("oidc_issuer")
+  oidcSub      String?  @map("oidc_sub")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -871,6 +878,10 @@ model User {
   // v1.16.0 — per-signup invite redemption ledger (multi-use history).
   inviteRedemptions InviteRedemption[] @relation("InviteRedemptions")
 
+  // One account per IdP identity — the (issuer, sub) pair is the durable
+  // OIDC key (both NULL on accounts that never signed in via SSO; Postgres
+  // unique indexes ignore NULL pairs).
+  @@unique([oidcIssuer, oidcSub])
   @@map("users")
 }
 

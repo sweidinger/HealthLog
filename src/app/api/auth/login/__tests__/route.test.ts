@@ -5,7 +5,7 @@
  * only signal operators need; the identifier itself is PII and stays
  * out of the row.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
@@ -133,5 +133,50 @@ describe("POST /api/auth/login — auth.login.failed audit row (H-1)", () => {
     expect(payload.details).toBeDefined();
     expect(Object.keys(payload.details!)).not.toContain("identifier");
     expect(JSON.stringify(payload)).not.toContain(TYPED_EMAIL);
+  });
+});
+
+describe("POST /api/auth/login — OIDC_ONLY server-side enforcement", () => {
+  const OIDC_ENV_KEYS = [
+    "OIDC_ISSUER_URL",
+    "OIDC_CLIENT_ID",
+    "OIDC_CLIENT_SECRET",
+    "OIDC_ONLY",
+  ] as const;
+  const original: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of OIDC_ENV_KEYS) original[key] = process.env[key];
+  });
+
+  afterEach(() => {
+    for (const key of OIDC_ENV_KEYS) {
+      if (original[key] === undefined) delete process.env[key];
+      else process.env[key] = original[key];
+    }
+  });
+
+  it("rejects password login before touching the DB when OIDC_ONLY is set", async () => {
+    process.env.OIDC_ISSUER_URL = "https://idp.example.com";
+    process.env.OIDC_CLIENT_ID = "client-1";
+    process.env.OIDC_CLIENT_SECRET = "secret-1";
+    process.env.OIDC_ONLY = "true";
+
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(403);
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("still allows password login when OIDC_ONLY is set but the provider is half-configured", async () => {
+    delete process.env.OIDC_ISSUER_URL;
+    process.env.OIDC_CLIENT_ID = "client-1";
+    process.env.OIDC_CLIENT_SECRET = "secret-1";
+    process.env.OIDC_ONLY = "true";
+
+    const res = await POST(makeRequest());
+    // Falls through to normal password verification (which fails here
+    // since verifyPassword is mocked to return false) rather than 403 —
+    // a half-set OIDC group must never lock everyone out.
+    expect(res.status).toBe(401);
   });
 });

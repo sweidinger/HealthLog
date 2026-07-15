@@ -1,0 +1,151 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+
+vi.mock("@/lib/api-handler", () => ({
+  apiHandler: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
+}));
+
+vi.mock("@/lib/logging/context", () => ({
+  annotate: vi.fn(),
+  getEvent: () => null,
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  checkAuthSurfaceRateLimit: vi.fn(),
+}));
+
+vi.mock("@/lib/crypto", () => ({
+  encrypt: vi.fn((s: string) => `enc(${s})`),
+}));
+
+vi.mock("@/lib/auth/secure-cookie", () => ({
+  shouldEmitSecureCookie: () => true,
+}));
+
+vi.mock("@/lib/auth/oidc", async () => {
+  // Keep the real `sanitizeOidcNextPath` — it's the security-relevant part
+  // of this route, and the tests below assert its output round-trips into
+  // the state cookie rather than re-deriving the same logic here.
+  const actual =
+    await vi.importActual<typeof import("@/lib/auth/oidc")>("@/lib/auth/oidc");
+  return {
+    getOidcConfig: vi.fn(),
+    discoverOidcMetadata: vi.fn(),
+    buildAuthorizationUrl: vi.fn(() => "https://idp.example.com/authorize?x=1"),
+    getOidcRedirectUri: () =>
+      "https://healthlog.example.com/api/auth/oidc/callback",
+    sanitizeOidcNextPath: actual.sanitizeOidcNextPath,
+  };
+});
+
+import { GET } from "../route";
+import { checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
+import { getOidcConfig, discoverOidcMetadata } from "@/lib/auth/oidc";
+
+function makeRequest(path = "/api/auth/oidc/login"): NextRequest {
+  return new NextRequest(`http://localhost${path}`);
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(checkAuthSurfaceRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 10,
+    reset: 0,
+    ip: "1.2.3.4",
+  } as never);
+});
+
+describe("GET /api/auth/oidc/login", () => {
+  it("redirects to /auth/login?error=oidc_disabled when unconfigured", async () => {
+    vi.mocked(getOidcConfig).mockReturnValue(null);
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain(
+      "/auth/login?error=oidc_disabled",
+    );
+  });
+
+  it("redirects to the rate-limit error page when throttled", async () => {
+    vi.mocked(getOidcConfig).mockReturnValue({
+      issuerUrl: "https://idp.example.com",
+      clientId: "client-1",
+      clientSecret: "secret-1",
+      scopes: "openid email profile",
+      buttonLabel: "SSO",
+    });
+    vi.mocked(checkAuthSurfaceRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      reset: 0,
+      ip: "1.2.3.4",
+    } as never);
+    const res = await GET(makeRequest());
+    expect(res.headers.get("location")).toContain("error=oidc_rate_limited");
+  });
+
+  it("redirects to the IdP and sets the encrypted state cookie on success", async () => {
+    vi.mocked(getOidcConfig).mockReturnValue({
+      issuerUrl: "https://idp.example.com",
+      clientId: "client-1",
+      clientSecret: "secret-1",
+      scopes: "openid email profile",
+      buttonLabel: "SSO",
+    });
+    vi.mocked(discoverOidcMetadata).mockResolvedValue({
+      issuer: "https://idp.example.com",
+      authorization_endpoint: "https://idp.example.com/authorize",
+      token_endpoint: "https://idp.example.com/token",
+      jwks_uri: "https://idp.example.com/jwks",
+    });
+
+    const res = await GET(makeRequest("/api/auth/oidc/login?next=/dashboard"));
+    expect(res.headers.get("location")).toBe(
+      "https://idp.example.com/authorize?x=1",
+    );
+    const cookie = res.cookies.get("oidc_auth_state");
+    expect(cookie?.value).toMatch(/^enc\(/);
+    expect(cookie?.httpOnly).toBe(true);
+    expect(cookie?.sameSite).toBe("lax");
+  });
+
+  it("neutralizes a backslash-normalization open-redirect payload in next", async () => {
+    vi.mocked(getOidcConfig).mockReturnValue({
+      issuerUrl: "https://idp.example.com",
+      clientId: "client-1",
+      clientSecret: "secret-1",
+      scopes: "openid email profile",
+      buttonLabel: "SSO",
+    });
+    vi.mocked(discoverOidcMetadata).mockResolvedValue({
+      issuer: "https://idp.example.com",
+      authorization_endpoint: "https://idp.example.com/authorize",
+      token_endpoint: "https://idp.example.com/token",
+      jwks_uri: "https://idp.example.com/jwks",
+    });
+
+    const res = await GET(
+      makeRequest(
+        `/api/auth/oidc/login?next=${encodeURIComponent("/\\evil.com")}`,
+      ),
+    );
+    const cookie = res.cookies.get("oidc_auth_state");
+    const stored = JSON.parse(
+      cookie!.value.replace(/^enc\(/, "").replace(/\)$/, ""),
+    );
+    expect(stored.next).toBe("/");
+  });
+
+  it("falls back to the login error page on discovery failure", async () => {
+    vi.mocked(getOidcConfig).mockReturnValue({
+      issuerUrl: "https://idp.example.com",
+      clientId: "client-1",
+      clientSecret: "secret-1",
+      scopes: "openid email profile",
+      buttonLabel: "SSO",
+    });
+    vi.mocked(discoverOidcMetadata).mockRejectedValue(new Error("boom"));
+    const res = await GET(makeRequest());
+    expect(res.headers.get("location")).toContain("error=oidc_failed");
+  });
+});

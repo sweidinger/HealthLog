@@ -14,6 +14,7 @@ export const authKeys = {
    */
   authMe: () => ["auth", "me"] as const,
   authRegistrationStatus: () => ["auth", "registration-status"] as const,
+  authOidcStatus: () => ["auth", "oidc", "status"] as const,
   /**
    * v1.4.40 W-RSC — Settings → AI surfaces and the targets editor
    * subscribe to the user-thresholds API. Centralise the key so a

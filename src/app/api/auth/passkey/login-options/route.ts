@@ -1,11 +1,19 @@
 import { createAuthenticationOptions } from "@/lib/auth/passkey";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { checkAuthSurfaceRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { isOidcOnly } from "@/lib/auth/oidc";
 
 export const POST = apiHandler(async (request: Request) => {
+  // OIDC_ONLY must block passkey login too, not just password login.
+  if (isOidcOnly()) {
+    return apiError("Passkey login is disabled. Sign in with SSO.", 403, {
+      errorCode: "oidc_only",
+    });
+  }
+
   // v1.4.43 W13 M-4 — tighter shared bucket on trust-chain misconfig.
   const rl = await checkAuthSurfaceRateLimit(
     request,
