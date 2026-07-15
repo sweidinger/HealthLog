@@ -53,6 +53,39 @@ describe("bucketLegacyStepRows", () => {
     expect(byDay.get("2026-05-16")?.[0].id).toBe("legacy");
   });
 
+  it("skips a Google Health daily-total row (stats:steps:<day>)", () => {
+    // Regression: Google + Fitbit daily steps carry `stats:steps:<day>`,
+    // which does NOT start with the narrow `stats:HK…` prefix. The broad
+    // `stats:` skip must exclude them so they are never bucketed (and
+    // therefore never soft-deleted) — the data-loss bug this closes.
+    const tz = "Europe/Berlin";
+    const rows = [
+      row({
+        id: "google-total",
+        externalId: "stats:steps:2026-05-16",
+        measuredAt: new Date("2026-05-16T12:00:00.000Z"),
+      }),
+      row({ id: "legacy", measuredAt: new Date("2026-05-16T08:00:00.000Z") }),
+    ];
+    const byDay = bucketLegacyStepRows(rows, tz);
+    expect(byDay.get("2026-05-16")).toHaveLength(1);
+    expect(byDay.get("2026-05-16")?.[0].id).toBe("legacy");
+  });
+
+  it("skips a Fitbit daily-total row (identical stats:steps:<day> shape)", () => {
+    const byDay = bucketLegacyStepRows(
+      [
+        row({
+          id: "fitbit-total",
+          externalId: "stats:steps:2026-05-17",
+          measuredAt: new Date("2026-05-17T12:00:00.000Z"),
+        }),
+      ],
+      "Europe/Berlin",
+    );
+    expect(byDay.has("2026-05-17")).toBe(false);
+  });
+
   it("buckets a late-evening UTC sample into the next local day", () => {
     // 23:30 UTC on 2026-05-16 is 01:30 on 2026-05-17 in Berlin (UTC+2).
     const byDay = bucketLegacyStepRows(

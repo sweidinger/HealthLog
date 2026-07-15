@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.28.37] — 2026-07-15 — Provider step totals survive a restart
+
+A boot-time maintenance pass that folds genuinely old raw step samples into
+daily totals had too broad a reach: it also matched the daily step totals that
+Google Health, Fitbit, and Withings write, and soft-deleted them on every
+worker start. Recent days came back on the next sync, but older days stayed
+gone until a full re-sync — which the next restart swept again. The pass now
+skips any row that is already a daily total and only ever touches the ingest
+paths that produced real legacy raw samples, so a provider's step history is
+left alone. A one-time repair restores the totals removed by earlier restarts
+(within the retention window; a single full sync recovers anything older) and
+cleans up the placeholder totals the bug minted in their place.
+
 ## [1.28.36] — 2026-07-15 — Re-importing after a failed Apple Health import actually retries
 
 The v1.28.33 rollup and staging fixes were correct but never reached the

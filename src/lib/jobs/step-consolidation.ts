@@ -55,6 +55,20 @@ export async function runStepConsolidationForUser(
       },
     },
   });
+  // Regression guardrail. `providerRowsSkipped` is 0 in normal operation —
+  // the source pin + broad `stats:` skip keep every provider-owned / daily-
+  // total step row out of the consolidation scan. A non-zero value means a
+  // future change re-broadened the scan and a provider's daily total was
+  // about to be soft-deleted (the Google/Fitbit data-loss bug). Emit the
+  // wide event only when the canary trips so the signal is cheap and loud.
+  if (summary.totals.providerRowsSkipped > 0) {
+    annotate({
+      action: {
+        name: "measurement.step.provider_row_skipped",
+        details: { count: summary.totals.providerRowsSkipped },
+      },
+    });
+  }
   return {
     daysConsolidated: summary.totals.daysConsolidated,
     legacyRowsSoftDeleted: summary.totals.legacyRowsSoftDeleted,
@@ -63,9 +77,10 @@ export async function runStepConsolidationForUser(
 
 /**
  * Boot-time discovery. Finds every user with at least one LIVE legacy
- * step row (an `ACTIVITY_STEPS` row whose `externalId` is NULL or does
- * NOT start with the daily-stats prefix, and that is not tombstoned)
- * and enqueues one consolidation job per account.
+ * step row — a non-tombstoned `ACTIVITY_STEPS` row from a writable source
+ * (`APPLE_HEALTH` / `MANUAL` / `IMPORT`) whose `externalId` is NULL or is
+ * NOT already in a provider's daily-total `stats:%` shape — and enqueues
+ * one consolidation job per account.
  *
  * Idempotent across reboots: once a user's legacy rows are
  * soft-deleted, the `deleted_at IS NULL` predicate drops them from the
@@ -93,19 +108,28 @@ export async function enqueueBootTimeStepConsolidation(
   }
 
   try {
-    // The daily-total externalId shape is `stats:<HK>:<YYYY-MM-DD>`. A
-    // live row is a legacy candidate when its externalId does NOT match
-    // that prefix (NULL externalId — a manual/legacy row — also
-    // qualifies because `LIKE` against NULL is NULL/false). Splice-free:
-    // the prefix is a constant compile-time literal, not user input.
+    // A live row is a legacy-consolidation candidate when BOTH:
+    //   - its `source` is a client/user-writable ingest path
+    //     (`APPLE_HEALTH` / `MANUAL` / `IMPORT`) — the only sources that
+    //     ever wrote raw per-sample step rows; and
+    //   - its `external_id` is NOT already in ANY provider's daily-total
+    //     `stats:%` shape (NULL externalId — a manual/legacy row — also
+    //     qualifies because `LIKE` against NULL is NULL/false).
+    // Both scopes mirror `buildScanWhere` in `consolidate-legacy-steps.ts`
+    // so discovery and scan agree exactly. The source pin is what protects
+    // WITHINGS (keyed `withings:activity:…`, not `stats:`) and the
+    // GOOGLE_HEALTH / FITBIT daily totals (`stats:steps:…`) from the boot
+    // sweep that this closes. Splice-free: every literal is a compile-time
+    // constant, not user input.
     const users = await prisma.$queryRaw<Array<{ id: string }>>`
       SELECT DISTINCT m."user_id" AS id
       FROM measurements m
       WHERE m."type" = 'ACTIVITY_STEPS'
         AND m."deleted_at" IS NULL
+        AND m."source" IN ('APPLE_HEALTH', 'MANUAL', 'IMPORT')
         AND (
           m."external_id" IS NULL
-          OR m."external_id" NOT LIKE 'stats:HKQuantityTypeIdentifierStepCount:%'
+          OR m."external_id" NOT LIKE 'stats:%'
         )
     `;
 

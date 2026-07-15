@@ -168,6 +168,137 @@ describe("consolidateLegacySteps (real Postgres)", () => {
     expect(tombstoned).toBe(2);
   });
 
+  it("leaves Google Health AND Fitbit daily-total rows untouched (the data-loss bug, pinned for both providers)", async () => {
+    const prisma = getPrismaClient();
+    // Provider daily totals, keyed `stats:steps:<day>`, server-owned.
+    await prisma.measurement.createMany({
+      data: [
+        {
+          userId: TEST_USER_ID,
+          type: "ACTIVITY_STEPS",
+          value: 8123,
+          unit: "steps",
+          source: "GOOGLE_HEALTH",
+          measuredAt: new Date("2026-05-16T12:00:00.000Z"),
+          externalId: "stats:steps:2026-05-16",
+        },
+        {
+          userId: TEST_USER_ID,
+          type: "ACTIVITY_STEPS",
+          value: 9456,
+          unit: "steps",
+          source: "FITBIT",
+          measuredAt: new Date("2026-05-17T12:00:00.000Z"),
+          externalId: "stats:steps:2026-05-17",
+        },
+      ],
+    });
+
+    const summary = await consolidateLegacySteps(prisma, {
+      userId: TEST_USER_ID,
+      dryRun: false,
+      log: () => {},
+    });
+
+    // Nothing discovered, nothing bucketed, nothing minted — the canary
+    // stays 0 (no provider row ever reached the scan).
+    expect(summary.totals.daysConsolidated).toBe(0);
+    expect(summary.totals.legacyRowsSoftDeleted).toBe(0);
+    expect(summary.totals.dailyRowsUpserted).toBe(0);
+    expect(summary.totals.providerRowsSkipped).toBe(0);
+
+    // Both provider rows are still live, unchanged; no MANUAL mint created.
+    const rows = await prisma.measurement.findMany({
+      where: { userId: TEST_USER_ID, type: "ACTIVITY_STEPS" },
+      orderBy: { measuredAt: "asc" },
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.deletedAt === null)).toBe(true);
+    expect(rows.map((r) => r.source)).toEqual(["GOOGLE_HEALTH", "FITBIT"]);
+    expect(rows.map((r) => r.value)).toEqual([8123, 9456]);
+    const manual = await prisma.measurement.count({
+      where: { userId: TEST_USER_ID, source: "MANUAL" },
+    });
+    expect(manual).toBe(0);
+  });
+
+  it("leaves a Withings daily-total row untouched (source pin, not stats:-keyed)", async () => {
+    const prisma = getPrismaClient();
+    // Withings keys `withings:activity:…` — NOT `stats:`. Only the source
+    // pin protects it; the prefix skip alone would miss it.
+    await prisma.measurement.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "ACTIVITY_STEPS",
+        value: 7000,
+        unit: "steps",
+        source: "WITHINGS",
+        measuredAt: new Date("2026-05-16T12:00:00.000Z"),
+        externalId: `withings:activity:${TEST_USER_ID}:2026-05-16:steps`,
+      },
+    });
+
+    const summary = await consolidateLegacySteps(prisma, {
+      userId: TEST_USER_ID,
+      dryRun: false,
+      log: () => {},
+    });
+
+    expect(summary.totals.daysConsolidated).toBe(0);
+    expect(summary.totals.providerRowsSkipped).toBe(0);
+    const live = await prisma.measurement.findMany({
+      where: { userId: TEST_USER_ID, type: "ACTIVITY_STEPS", deletedAt: null },
+    });
+    expect(live).toHaveLength(1);
+    expect(live[0].source).toBe("WITHINGS");
+    expect(live[0].value).toBe(7000);
+  });
+
+  it("still consolidates genuine legacy IMPORT and MANUAL raw rows (the drain is not disabled)", async () => {
+    const prisma = getPrismaClient();
+    await prisma.measurement.createMany({
+      data: [
+        {
+          userId: TEST_USER_ID,
+          type: "ACTIVITY_STEPS",
+          value: 1000,
+          unit: "steps",
+          source: "IMPORT",
+          measuredAt: new Date("2026-05-16T08:00:00.000Z"),
+          externalId: "import-legacy-1",
+        },
+        {
+          userId: TEST_USER_ID,
+          type: "ACTIVITY_STEPS",
+          value: 500,
+          unit: "steps",
+          source: "MANUAL",
+          measuredAt: new Date("2026-05-16T18:00:00.000Z"),
+          externalId: "manual-legacy-1",
+        },
+      ],
+    });
+
+    const summary = await consolidateLegacySteps(prisma, {
+      userId: TEST_USER_ID,
+      dryRun: false,
+      log: () => {},
+    });
+
+    expect(summary.totals.daysConsolidated).toBe(1);
+    expect(summary.totals.legacyRowsSoftDeleted).toBe(2);
+    expect(summary.totals.dailyRowsUpserted).toBe(1);
+    expect(summary.totals.providerRowsSkipped).toBe(0);
+
+    const live = await prisma.measurement.findMany({
+      where: { userId: TEST_USER_ID, type: "ACTIVITY_STEPS", deletedAt: null },
+    });
+    expect(live).toHaveLength(1);
+    expect(live[0].value).toBe(1500);
+    expect(live[0].externalId).toBe(STEP_TOTAL_ID);
+    expect(live[0].source).toBe("MANUAL");
+  });
+
   it("is idempotent — a second run is a no-op", async () => {
     const prisma = getPrismaClient();
     await prisma.measurement.createMany({

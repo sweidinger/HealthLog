@@ -11,8 +11,15 @@
  * daily shape so historical step data reads consistently.
  *
  * Per user × calendar day (anchored to `User.timezone`):
- *   1. SELECT live (`deletedAt IS NULL`) `ACTIVITY_STEPS` rows whose
- *      `externalId` does NOT start with the daily-stats prefix.
+ *   1. SELECT live (`deletedAt IS NULL`) `ACTIVITY_STEPS` rows that are
+ *      genuine legacy raw per-sample rows — `source` in the writable set
+ *      (`APPLE_HEALTH` / `MANUAL` / `IMPORT`) AND `externalId` NOT already
+ *      in ANY provider's daily-total `stats:` shape. A row keyed `stats:%`
+ *      is already an aggregated daily total (Apple `stats:HK…`, Google /
+ *      Fitbit `stats:steps:…`) and must never be re-consolidated; a
+ *      provider-owned row (`GOOGLE_HEALTH` / `FITBIT` / `WITHINGS` / …) is a
+ *      server-side daily aggregate that this pass must never touch. See the
+ *      scope note on `buildScanWhere` below.
  *   2. Group into per-day buckets in the user's timezone.
  *   3. SUM the legacy values for the day.
  *   4. UPSERT the canonical daily-total row keyed by
@@ -37,7 +44,10 @@
  * production standalone image strips `tsx`. Modelled on the
  * `rollup-full-backfill` boot-time converging-backfill pattern.
  */
-import type { PrismaClient } from "@/generated/prisma/client";
+import type {
+  MeasurementSource,
+  PrismaClient,
+} from "@/generated/prisma/client";
 import { isP2002 as isUniqueConstraintViolation } from "@/lib/prisma-errors";
 import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 
@@ -62,6 +72,60 @@ const STEP_HK_IDENTIFIER = "HKQuantityTypeIdentifierStepCount";
  * externalId.
  */
 export const STEP_DAILY_STATS_PREFIX = `stats:${STEP_HK_IDENTIFIER}:`;
+
+/**
+ * Broad daily-total prefix marking ANY provider's already-aggregated
+ * daily step row. Apple daily totals carry `stats:HKQuantityType…`,
+ * Google + Fitbit carry `stats:steps:<day>`, and any future
+ * stats-contract provider carries `stats:<tag>:<day>`. A row whose
+ * externalId starts with this is, by construction, already a daily total
+ * and must NEVER be discovered, scanned, or bucketed for consolidation —
+ * consolidation targets ONLY the raw per-sample rows that predate the
+ * daily-stats split.
+ *
+ * This is the skip-prefix the scan `where` and the bucketer use.
+ * `STEP_DAILY_STATS_PREFIX` (narrow) stays the shape this pass MINTS for
+ * a genuinely-consolidated legacy day; the two are deliberately
+ * different — mint narrow, skip broad.
+ *
+ * The original v1.5.6 pass skipped only the narrow `stats:HK…` prefix.
+ * Google Health daily steps (`stats:steps:<day>`, v1.27.0) and Fitbit
+ * (identical shape, v1.12.0) re-qualified under that narrow skip on every
+ * worker boot and were soft-deleted — the data-loss bug this widening
+ * closes.
+ */
+export const ANY_DAILY_STATS_PREFIX = "stats:";
+
+/**
+ * The only `MeasurementSource`s that can hold genuine pre-v1.5.0 legacy
+ * raw step rows: the client/user-writable ingest paths.
+ *
+ *   - `APPLE_HEALTH` — the HealthKit batch ingest that wrote per-sample
+ *     step rows before iOS moved to the daily-`stats:` total.
+ *   - `MANUAL` — hand-entered step readings.
+ *   - `IMPORT` — the CSV / Apple-Health-export bulk import.
+ *
+ * Every OTHER source is a server-owned daily aggregate that must never be
+ * consolidated: `WITHINGS` (keyed `withings:activity:…`, NOT `stats:`, so
+ * the `stats:%` skip alone would NOT protect it — this pin is what does),
+ * `GOOGLE_HEALTH` / `FITBIT` (`stats:steps:…`), and
+ * `WHOOP` / `POLAR` / `OURA` / `NIGHTSCOUT` / `STRAVA` / `COMPUTED`.
+ *
+ * Pinning here matches every sibling drain (all pin `source`); the v1.5.6
+ * pass was the only outlier, written when Apple + manual were the only
+ * step sources. The pin does NOT reduce coverage of genuine legacy raw
+ * rows — those are `APPLE_HEALTH` / `MANUAL` / `IMPORT` by construction.
+ */
+export const LEGACY_STEP_CONSOLIDATABLE_SOURCES: readonly MeasurementSource[] =
+  ["APPLE_HEALTH", "MANUAL", "IMPORT"] as const;
+
+/**
+ * Fast-membership set of the consolidatable sources for the in-band
+ * regression canary (`providerRowsSkipped`).
+ */
+const CONSOLIDATABLE_SOURCE_SET: ReadonlySet<MeasurementSource> = new Set(
+  LEGACY_STEP_CONSOLIDATABLE_SOURCES,
+);
 
 /** Per-(user, day) action summary. */
 export interface StepConsolidationBucket {
@@ -99,6 +163,18 @@ export interface StepConsolidationSummary {
      * of the pass — the pass stays converging for every other day.
      */
     daysSkippedOnConflict: number;
+    /**
+     * Regression canary. Counts source rows that reached a per-day bucket
+     * (i.e. were about to be soft-deleted) yet are a provider-owned source
+     * OR carry a `stats:%` daily-total externalId. With the source pin +
+     * broad `stats:` skip in place this is ALWAYS 0 — a provider / daily-total
+     * row can never enter the scan. A non-zero value means a future change
+     * re-broadened the scan and a provider's daily total is being eaten
+     * again (the v1.27.0/v1.12.0 Google/Fitbit data-loss bug). Surfaced as
+     * the `measurement.step.provider_row_skipped` wide event so a dashboard
+     * alerts on the regression.
+     */
+    providerRowsSkipped: number;
   };
 }
 
@@ -121,7 +197,9 @@ export function bucketLegacyStepRows(
   rows: readonly PerSampleRow[],
   tz: string,
 ): Map<string, PerSampleRow[]> {
-  return bucketRowsByDay(rows, tz, STEP_DAILY_STATS_PREFIX);
+  // Skip on the BROAD `stats:` prefix so a daily total from ANY provider
+  // (Apple `stats:HK…`, Google / Fitbit `stats:steps:…`) is never bucketed.
+  return bucketRowsByDay(rows, tz, ANY_DAILY_STATS_PREFIX);
 }
 
 /** SUM the values in a per-day legacy bucket. */
@@ -154,6 +232,7 @@ export async function consolidateLegacySteps(
       dailyRowsUpserted: 0,
       daysFoldedIntoExisting: 0,
       daysSkippedOnConflict: 0,
+      providerRowsSkipped: 0,
     },
   };
 
@@ -172,18 +251,41 @@ export async function consolidateLegacySteps(
     // Single type — the HK identifier is fixed.
     hkIdentifierForType: () => STEP_HK_IDENTIFIER,
     dailyStatsExternalId,
-    statsPrefix: STEP_DAILY_STATS_PREFIX,
+    // Skip on the BROAD `stats:` prefix (not the narrow `stats:HK…` mint
+    // prefix). This drives both the scan `NOT startsWith` and the bucketer
+    // skip, so a daily total from ANY provider is excluded at both sites.
+    statsPrefix: ANY_DAILY_STATS_PREFIX,
     reduce: sumLegacyStepValues,
-    // Live legacy step rows whose externalId is NOT the daily-stats
-    // shape. The `stats:` daily-total row (if present) is read separately
-    // per day; we exclude it here so it is never soft-deleted. No
-    // source-scope — legacy granular rows predate the source split, so
-    // every source is in scope. Soft-deleted rows are excluded so a
-    // re-run after a partial pass never re-aggregates.
+    // Select `source` too so the in-band regression canary
+    // (`providerRowsSkipped`) can inspect what reached a bucket.
+    scanSelect: {
+      id: true,
+      type: true,
+      value: true,
+      measuredAt: true,
+      externalId: true,
+      source: true,
+    },
+    // Live legacy step rows that are genuine pre-v1.5.0 raw per-sample
+    // rows. TWO scopes, both required:
+    //   1. `source IN (APPLE_HEALTH, MANUAL, IMPORT)` — the only sources
+    //      that ever wrote raw per-sample step rows. This is what protects
+    //      WITHINGS (keyed `withings:activity:…`, NOT `stats:`, so the
+    //      prefix skip below would miss it), plus GOOGLE_HEALTH / FITBIT /
+    //      WHOOP / … server-owned daily aggregates. Matches every sibling
+    //      drain, which all pin `source`.
+    //   2. `NOT startsWith 'stats:'` — a row already in a provider's
+    //      daily-total shape (Apple `stats:HK…`, Google/Fitbit
+    //      `stats:steps:…`, and the MANUAL totals this pass itself mints)
+    //      is already aggregated and is read separately per day; excluding
+    //      it here means it is never soft-deleted or re-consolidated.
+    // Soft-deleted rows are excluded so a re-run after a partial pass never
+    // re-aggregates.
     buildScanWhere: ({ userId, type, statsPrefix }) => ({
       userId,
       type,
       deletedAt: null,
+      source: { in: [...LEGACY_STEP_CONSOLIDATABLE_SOURCES] },
       NOT: { externalId: { startsWith: statsPrefix } },
     }),
     // Does a post-v1.5.0 daily total already exist for this day? If so it
@@ -307,6 +409,26 @@ export async function consolidateLegacySteps(
         return;
       }
 
+      // In-band regression canary. With the scope pins above, no
+      // provider-owned or `stats:%`-keyed row can reach a bucket, so this
+      // stays 0. If a future change re-broadens the scan, the offending
+      // rows show up here and the wide event fires — catching the
+      // Google/Fitbit data-loss regression before it eats history again.
+      // `source` is present because the legacy-steps `scanSelect` requests
+      // it; the shared `PerSampleRow` shape does not carry it, so read it
+      // through a local widening.
+      for (const r of dayRows as ReadonlyArray<
+        PerSampleRow & { source?: MeasurementSource }
+      >) {
+        const isProviderOwned =
+          r.source !== undefined && !CONSOLIDATABLE_SOURCE_SET.has(r.source);
+        const isDailyTotal =
+          r.externalId?.startsWith(ANY_DAILY_STATS_PREFIX) ?? false;
+        if (isProviderOwned || isDailyTotal) {
+          summary.totals.providerRowsSkipped += 1;
+        }
+      }
+
       const hadExistingTotal = !shouldMint;
       summary.buckets.push({
         userId,
@@ -350,7 +472,7 @@ export async function consolidateLegacySteps(
   summary.totals.usersScanned = usersScanned;
 
   log(
-    `[step-consolidation] done — usersScanned=${summary.totals.usersScanned} daysConsolidated=${summary.totals.daysConsolidated} legacyRowsSoftDeleted=${summary.totals.legacyRowsSoftDeleted} dailyRowsUpserted=${summary.totals.dailyRowsUpserted} daysFoldedIntoExisting=${summary.totals.daysFoldedIntoExisting} daysSkippedOnConflict=${summary.totals.daysSkippedOnConflict}${options.dryRun ? " (dry-run)" : ""}`,
+    `[step-consolidation] done — usersScanned=${summary.totals.usersScanned} daysConsolidated=${summary.totals.daysConsolidated} legacyRowsSoftDeleted=${summary.totals.legacyRowsSoftDeleted} dailyRowsUpserted=${summary.totals.dailyRowsUpserted} daysFoldedIntoExisting=${summary.totals.daysFoldedIntoExisting} daysSkippedOnConflict=${summary.totals.daysSkippedOnConflict} providerRowsSkipped=${summary.totals.providerRowsSkipped}${options.dryRun ? " (dry-run)" : ""}`,
   );
 
   return summary;
