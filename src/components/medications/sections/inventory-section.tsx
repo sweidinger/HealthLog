@@ -35,7 +35,7 @@
  * (pill packs count too).
  */
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   useQuery,
@@ -48,14 +48,7 @@ import { Loader2, PackageOpen, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteButton } from "@/components/data-list/delete-button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -500,6 +493,7 @@ export function AddInventoryDialog({
     useState<ContainerType>(initialContainerType);
   const [expiry, setExpiry] = useState("");
   const [busy, setBusy] = useState(false);
+  const formId = useId();
 
   const parsed = Number(quantity);
   const effectiveMode = unitsPerDose > 1 ? quantityMode : "units";
@@ -531,152 +525,147 @@ export function AddInventoryDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("medications.detail.bestand.addTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("medications.detail.bestand.addDescription")}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2">
-            <label
-              htmlFor="inventory-add-container-type"
-              className="text-sm font-medium"
-            >
-              {t("medications.detail.bestand.containerTypeLabel")}
-            </label>
-            <Select
-              value={containerType}
-              onValueChange={(v) => setContainerType(v as ContainerType)}
-            >
-              <SelectTrigger
-                id="inventory-add-container-type"
-                className="w-full"
-                data-slot="inventory-container-type"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CONTAINER_TYPES.map((ct) => (
-                  <SelectItem key={ct} value={ct}>
-                    {t(`medications.detail.bestand.containerType.${ct}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <label
-              htmlFor="inventory-add-quantity"
-              className="text-sm font-medium"
-            >
-              {t("medications.detail.bestand.addQuantityLabel")}
-            </label>
-            {unitsPerDose > 1 && (
-              <div
-                className="border-border/60 inline-flex rounded-md border p-0.5"
-                role="group"
-                aria-label={t("medications.detail.bestand.addQuantityLabel")}
-                data-slot="inventory-quantity-mode"
-              >
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={quantityMode === "doses" ? "secondary" : "ghost"}
-                  aria-pressed={quantityMode === "doses"}
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setQuantityMode("doses")}
-                >
-                  {t("medications.detail.bestand.quantityModeDoses")}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={quantityMode === "units" ? "secondary" : "ghost"}
-                  aria-pressed={quantityMode === "units"}
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setQuantityMode("units")}
-                >
-                  {t("medications.detail.bestand.quantityModeUnits")}
-                </Button>
-              </div>
+    <ResponsiveSheet
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title={t("medications.detail.bestand.addTitle")}
+      description={t("medications.detail.bestand.addDescription")}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={!quantityValid || busy}
+            aria-busy={busy || undefined}
+          >
+            {busy && (
+              <Loader2
+                aria-hidden="true"
+                className="h-4 w-4 animate-spin motion-reduce:animate-none"
+              />
             )}
-            <Input
-              id="inventory-add-quantity"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={
-                effectiveMode === "doses"
-                  ? Math.floor(1000 / unitsPerDose)
-                  : 1000
-              }
-              step={1}
-              required
-              autoComplete="off"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              aria-describedby="inventory-add-quantity-helper"
-            />
-            {unitsPerDose > 1 && Number.isInteger(parsed) && parsed >= 1 && (
-              <p
-                className="text-muted-foreground text-xs"
-                data-slot="inventory-quantity-conversion"
+            {t("medications.detail.bestand.addSubmit")}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-4">
+        <div className="space-y-2">
+          <label
+            htmlFor="inventory-add-container-type"
+            className="text-sm font-medium"
+          >
+            {t("medications.detail.bestand.containerTypeLabel")}
+          </label>
+          <Select
+            value={containerType}
+            onValueChange={(v) => setContainerType(v as ContainerType)}
+          >
+            <SelectTrigger
+              id="inventory-add-container-type"
+              className="w-full"
+              data-slot="inventory-container-type"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CONTAINER_TYPES.map((ct) => (
+                <SelectItem key={ct} value={ct}>
+                  {t(`medications.detail.bestand.containerType.${ct}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <label
+            htmlFor="inventory-add-quantity"
+            className="text-sm font-medium"
+          >
+            {t("medications.detail.bestand.addQuantityLabel")}
+          </label>
+          {unitsPerDose > 1 && (
+            <div
+              className="border-border/60 inline-flex rounded-md border p-0.5"
+              role="group"
+              aria-label={t("medications.detail.bestand.addQuantityLabel")}
+              data-slot="inventory-quantity-mode"
+            >
+              <Button
+                type="button"
+                size="sm"
+                variant={quantityMode === "doses" ? "secondary" : "ghost"}
+                aria-pressed={quantityMode === "doses"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setQuantityMode("doses")}
               >
-                {effectiveMode === "doses"
-                  ? t("medications.detail.bestand.quantityInUnits", { units })
-                  : // A unit count below one dose must not read "≈ 0 doses" —
-                    // it is simply less than one dose.
-                    Math.floor(parsed / unitsPerDose) === 0
-                    ? t("medications.detail.bestand.quantityUnderOneDose")
-                    : t("medications.detail.bestand.quantityInDoses", {
-                        doses: Math.floor(parsed / unitsPerDose),
-                      })}
-              </p>
-            )}
+                {t("medications.detail.bestand.quantityModeDoses")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={quantityMode === "units" ? "secondary" : "ghost"}
+                aria-pressed={quantityMode === "units"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setQuantityMode("units")}
+              >
+                {t("medications.detail.bestand.quantityModeUnits")}
+              </Button>
+            </div>
+          )}
+          <Input
+            id="inventory-add-quantity"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={
+              effectiveMode === "doses" ? Math.floor(1000 / unitsPerDose) : 1000
+            }
+            step={1}
+            required
+            autoComplete="off"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            aria-describedby="inventory-add-quantity-helper"
+          />
+          {unitsPerDose > 1 && Number.isInteger(parsed) && parsed >= 1 && (
             <p
-              id="inventory-add-quantity-helper"
               className="text-muted-foreground text-xs"
+              data-slot="inventory-quantity-conversion"
             >
-              {t("medications.detail.bestand.addQuantityHelper")}
+              {effectiveMode === "doses"
+                ? t("medications.detail.bestand.quantityInUnits", { units })
+                : // A unit count below one dose must not read "≈ 0 doses" —
+                  // it is simply less than one dose.
+                  Math.floor(parsed / unitsPerDose) === 0
+                  ? t("medications.detail.bestand.quantityUnderOneDose")
+                  : t("medications.detail.bestand.quantityInDoses", {
+                      doses: Math.floor(parsed / unitsPerDose),
+                    })}
             </p>
-          </div>
-          <div className="space-y-2">
-            <label
-              htmlFor="inventory-add-expiry"
-              className="text-sm font-medium"
-            >
-              {t("medications.detail.bestand.addExpiryLabel")}
-            </label>
-            <DateField
-              id="inventory-add-expiry"
-              value={expiry}
-              onChange={setExpiry}
-            />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              disabled={!quantityValid || busy}
-              aria-busy={busy || undefined}
-            >
-              {busy && (
-                <Loader2
-                  aria-hidden="true"
-                  className="h-4 w-4 animate-spin motion-reduce:animate-none"
-                />
-              )}
-              {t("medications.detail.bestand.addSubmit")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          )}
+          <p
+            id="inventory-add-quantity-helper"
+            className="text-muted-foreground text-xs"
+          >
+            {t("medications.detail.bestand.addQuantityHelper")}
+          </p>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="inventory-add-expiry" className="text-sm font-medium">
+            {t("medications.detail.bestand.addExpiryLabel")}
+          </label>
+          <DateField
+            id="inventory-add-expiry"
+            value={expiry}
+            onChange={setExpiry}
+          />
+        </div>
+      </form>
+    </ResponsiveSheet>
   );
 }
 
@@ -703,6 +692,7 @@ function AdjustInventoryDialog({
     item.unitsRemaining == null ? "" : String(item.unitsRemaining),
   );
   const [busy, setBusy] = useState(false);
+  const formId = useId();
 
   const parsed = Number(value);
   // v1.16.12 — fractional remaining allowed (a ½-tablet dose leaves 29.5).
@@ -733,68 +723,65 @@ function AdjustInventoryDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {t("medications.detail.bestand.adjustTitle")}
-          </DialogTitle>
-          <DialogDescription>
-            {t("medications.detail.bestand.adjustDescription")}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2">
-            <label
-              htmlFor="inventory-adjust-remaining"
-              className="text-sm font-medium"
-            >
-              {t("medications.detail.bestand.adjustQuantityLabel")}
-            </label>
-            <Input
-              id="inventory-adjust-remaining"
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={item.unitsTotal ?? undefined}
-              step="any"
-              required
-              autoComplete="off"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              aria-describedby="inventory-adjust-helper"
-            />
-            <p
-              id="inventory-adjust-helper"
-              className="text-muted-foreground text-xs"
-            >
-              {t("medications.detail.bestand.adjustHelper", {
-                total:
-                  item.unitsTotal ?? t("medications.detail.bestand.unknown"),
-              })}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              disabled={!valid || busy}
-              aria-busy={busy || undefined}
-            >
-              {busy && (
-                <Loader2
-                  aria-hidden="true"
-                  className="h-4 w-4 animate-spin motion-reduce:animate-none"
-                />
-              )}
-              {t("medications.detail.bestand.adjustSubmit")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveSheet
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title={t("medications.detail.bestand.adjustTitle")}
+      description={t("medications.detail.bestand.adjustDescription")}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={!valid || busy}
+            aria-busy={busy || undefined}
+          >
+            {busy && (
+              <Loader2
+                aria-hidden="true"
+                className="h-4 w-4 animate-spin motion-reduce:animate-none"
+              />
+            )}
+            {t("medications.detail.bestand.adjustSubmit")}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-4">
+        <div className="space-y-2">
+          <label
+            htmlFor="inventory-adjust-remaining"
+            className="text-sm font-medium"
+          >
+            {t("medications.detail.bestand.adjustQuantityLabel")}
+          </label>
+          <Input
+            id="inventory-adjust-remaining"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={item.unitsTotal ?? undefined}
+            step="any"
+            required
+            autoComplete="off"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            aria-describedby="inventory-adjust-helper"
+          />
+          <p
+            id="inventory-adjust-helper"
+            className="text-muted-foreground text-xs"
+          >
+            {t("medications.detail.bestand.adjustHelper", {
+              total: item.unitsTotal ?? t("medications.detail.bestand.unknown"),
+            })}
+          </p>
+        </div>
+      </form>
+    </ResponsiveSheet>
   );
 }
 
@@ -823,6 +810,7 @@ function PackagingDialog({
     dosesPerUnit === null ? "" : String(dosesPerUnit),
   );
   const [busy, setBusy] = useState(false);
+  const formId = useId();
 
   const parsedPerDose = Number(perDoseValue);
   const perDoseValid =
@@ -864,94 +852,92 @@ function PackagingDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {t("medications.detail.bestand.packagingTitle")}
-          </DialogTitle>
-          <DialogDescription>
-            {t("medications.detail.bestand.packagingDescription")}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2">
-            <label
-              htmlFor="packaging-units-per-dose"
-              className="text-sm font-medium"
-            >
-              {t("medications.detail.bestand.packagingUnitsPerDoseLabel")}
-            </label>
-            <Input
-              id="packaging-units-per-dose"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={100}
-              step={1}
-              required
-              autoComplete="off"
-              value={perDoseValue}
-              onChange={(e) => setPerDoseValue(e.target.value)}
-              aria-describedby="packaging-units-per-dose-helper"
-            />
-            <p
-              id="packaging-units-per-dose-helper"
-              className="text-muted-foreground text-xs"
-            >
-              {t("medications.detail.bestand.packagingUnitsPerDoseHelper")}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <label
-              htmlFor="packaging-default-pack"
-              className="text-sm font-medium"
-            >
-              {t("medications.detail.bestand.packagingDefaultPackLabel")}
-            </label>
-            <Input
-              id="packaging-default-pack"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={1000}
-              step={1}
-              autoComplete="off"
-              value={packValue}
-              onChange={(e) => setPackValue(e.target.value)}
-              aria-describedby="packaging-default-pack-helper"
-            />
-            <p
-              id="packaging-default-pack-helper"
-              className="text-muted-foreground text-xs"
-            >
-              {t("medications.detail.bestand.packagingDefaultPackHelper")}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={busy}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              disabled={!perDoseValid || !packValid || busy}
-            >
-              {busy && (
-                <Loader2
-                  aria-hidden="true"
-                  className="h-4 w-4 animate-spin motion-reduce:animate-none"
-                />
-              )}
-              {t("common.save")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveSheet
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title={t("medications.detail.bestand.packagingTitle")}
+      description={t("medications.detail.bestand.packagingDescription")}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={busy}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={!perDoseValid || !packValid || busy}
+          >
+            {busy && (
+              <Loader2
+                aria-hidden="true"
+                className="h-4 w-4 animate-spin motion-reduce:animate-none"
+              />
+            )}
+            {t("common.save")}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-4">
+        <div className="space-y-2">
+          <label
+            htmlFor="packaging-units-per-dose"
+            className="text-sm font-medium"
+          >
+            {t("medications.detail.bestand.packagingUnitsPerDoseLabel")}
+          </label>
+          <Input
+            id="packaging-units-per-dose"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={100}
+            step={1}
+            required
+            autoComplete="off"
+            value={perDoseValue}
+            onChange={(e) => setPerDoseValue(e.target.value)}
+            aria-describedby="packaging-units-per-dose-helper"
+          />
+          <p
+            id="packaging-units-per-dose-helper"
+            className="text-muted-foreground text-xs"
+          >
+            {t("medications.detail.bestand.packagingUnitsPerDoseHelper")}
+          </p>
+        </div>
+        <div className="space-y-2">
+          <label
+            htmlFor="packaging-default-pack"
+            className="text-sm font-medium"
+          >
+            {t("medications.detail.bestand.packagingDefaultPackLabel")}
+          </label>
+          <Input
+            id="packaging-default-pack"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={1000}
+            step={1}
+            autoComplete="off"
+            value={packValue}
+            onChange={(e) => setPackValue(e.target.value)}
+            aria-describedby="packaging-default-pack-helper"
+          />
+          <p
+            id="packaging-default-pack-helper"
+            className="text-muted-foreground text-xs"
+          >
+            {t("medications.detail.bestand.packagingDefaultPackHelper")}
+          </p>
+        </div>
+      </form>
+    </ResponsiveSheet>
   );
 }

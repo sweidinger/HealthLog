@@ -334,7 +334,7 @@ export default function AchievementsPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="bg-card border-border flex min-h-34 flex-col justify-between rounded-xl border p-5">
+        <div className="bg-card border-border flex min-h-34 flex-col justify-between rounded-xl border p-4 md:p-6">
           <p className="text-muted-foreground text-sm">
             {t("achievements.points")}
           </p>
@@ -354,7 +354,7 @@ export default function AchievementsPage() {
             aria-label={t("achievements.points")}
           />
         </div>
-        <div className="bg-card border-border flex min-h-34 flex-col justify-between rounded-xl border p-5">
+        <div className="bg-card border-border flex min-h-34 flex-col justify-between rounded-xl border p-4 md:p-6">
           <p className="text-muted-foreground text-sm">
             {t("achievements.unlocked")}
           </p>
@@ -368,7 +368,7 @@ export default function AchievementsPage() {
             {t("achievements.remainingUnlocks", { count: remainingUnlocks })}
           </p>
         </div>
-        <div className="bg-card border-border min-h-34 rounded-xl border p-5 sm:col-span-2 lg:col-span-1">
+        <div className="bg-card border-border min-h-34 rounded-xl border p-4 sm:col-span-2 md:p-6 lg:col-span-1">
           <p className="text-muted-foreground text-sm">
             {t("achievements.nextGoal")}
           </p>

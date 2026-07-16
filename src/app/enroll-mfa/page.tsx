@@ -31,7 +31,10 @@ export default function EnrollMfaPage() {
         </div>
         <div className="space-y-2">
           <div className="text-foreground inline-flex items-center gap-2 text-lg font-semibold">
-            <ShieldAlert className="text-primary h-5 w-5" aria-hidden="true" />
+            <ShieldAlert
+              className="text-foreground h-5 w-5"
+              aria-hidden="true"
+            />
             {t("auth.enrollMfa.title")}
           </div>
           <p className="text-muted-foreground text-sm">

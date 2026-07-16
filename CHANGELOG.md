@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.28.43] — 2026-07-16 — Visual consistency polish
+
+A pass over small visual inconsistencies the design audit surfaced:
+
+- The insights header now uses the standard heading weight and spacing scale.
+- Two dashboard tiles that hand-rolled a dimmer header now use the same tile
+  header as their neighbours, so the cards read as one family.
+- A few tiles sat a step denser than their siblings; they now match.
+- Two header icons that used the accent colour are back to the standard.
+- Several edit dialogs on phone-reachable surfaces now open as the same bottom
+  sheet the rest of the app uses.
+
+A new lint rule keeps card spacing on the standard scale so this drift can't
+quietly return.
+
 ## [1.28.42] — 2026-07-16 — Snappier lists, correct mood refresh, safer first sign-up
 
 Performance and correctness fixes:

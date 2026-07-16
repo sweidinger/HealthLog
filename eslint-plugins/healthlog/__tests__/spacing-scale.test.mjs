@@ -60,6 +60,32 @@ ruleTester.run("spacing-scale", rule, {
       code: '<CardHeader className="pb-2" />',
       filename: "/repo/src/components/__tests__/example.test.tsx",
     },
+    // The card-shell `5` check is scoped to the bg-card+border pair, so the
+    // justified list-marker inset never trips it (no shell).
+    {
+      code: '<ul className="list-disc pl-5 space-y-1" />',
+      filename: APP_FILE,
+    },
+    // A directional inset ON a shell is out of scope (pl-5/pr-5 not banned).
+    {
+      code: '<div className="bg-card border-border rounded-xl border pl-5" />',
+      filename: APP_FILE,
+    },
+    // Form-body rhythm without a shell surface is fine.
+    {
+      code: '<form className="space-y-5" />',
+      filename: APP_FILE,
+    },
+    // A shell already on-scale is fine.
+    {
+      code: '<div className="bg-card border-border rounded-xl border p-4 md:p-6" />',
+      filename: APP_FILE,
+    },
+    // bg-card without a border is not treated as a shell.
+    {
+      code: '<div className="bg-card p-5" />',
+      filename: APP_FILE,
+    },
   ],
   invalid: [
     {
@@ -107,6 +133,35 @@ ruleTester.run("spacing-scale", rule, {
       code: '<UI.CardHeader className="pb-2" />',
       filename: APP_FILE,
       errors: [{ messageId: "slotPadding" }],
+    },
+    // Card-shell `5` step: bg-card + border + p-5 on one element.
+    {
+      code: '<div className="bg-card border-border rounded-xl border p-5" />',
+      filename: APP_FILE,
+      errors: [{ messageId: "cardShellStep5" }],
+    },
+    // …py-5, …space-y-5, …gap-5 on a shell all trip it.
+    {
+      code: '<section className="bg-card rounded-lg border py-5" />',
+      filename: APP_FILE,
+      errors: [{ messageId: "cardShellStep5" }],
+    },
+    {
+      code: '<div className="bg-card border-border rounded-xl border gap-5 flex" />',
+      filename: APP_FILE,
+      errors: [{ messageId: "cardShellStep5" }],
+    },
+    // Split across cn() args — the join still sees the shell + the step-5.
+    {
+      code: '<div className={cn("bg-card border rounded-xl", "p-5")} />',
+      filename: APP_FILE,
+      errors: [{ messageId: "cardShellStep5" }],
+    },
+    // Modifier-prefixed step on a shell.
+    {
+      code: '<div className="bg-card border-border rounded-xl border sm:p-5" />',
+      filename: APP_FILE,
+      errors: [{ messageId: "cardShellStep5" }],
     },
   ],
 });

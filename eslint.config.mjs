@@ -66,9 +66,14 @@ const eslintConfig = defineConfig([
       // token references, not utilities, and stay legal — the light-theme
       // overrides in globals.css keep them AA on both themes.
       "healthlog/no-dracula-utility": ["error", { checks: ["dracula"] }],
-      // The Card primitive is gap-based; pt-/pb- on CardHeader/CardContent
-      // fights the gap and re-opens the sl-001 drift class. Density lives
-      // on the Card itself (`gap-2 py-3 md:py-4`). See the rule header.
+      // Spacing-scale discipline. Two error-clean checks: pt-/pb- on
+      // CardHeader/CardContent fights the gap-based Card contract (re-opens
+      // the sl-001 drift class), and an off-scale `5` step (p-5/py-5/space-y-5/
+      // gap-5) on a bg-card+border shell reads denser than every sibling
+      // <Card>. The shell check is scoped to the bg-card+border pair so
+      // justified list-marker insets (pl-5/pl-7) and form-body rhythm never
+      // trip it. Density lives on the Card itself (`gap-2 py-3 md:py-4`) or on
+      // a swept `p-4 md:p-6` shell. See the rule header.
       "healthlog/spacing-scale": "error",
     },
   },

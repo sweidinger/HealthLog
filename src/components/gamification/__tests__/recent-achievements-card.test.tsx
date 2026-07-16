@@ -202,6 +202,18 @@ describe("<RecentAchievementsCard>", () => {
     expect(html).toContain("View all");
   });
 
+  it("routes the header through the canonical TileHeader (foreground icon, h2)", () => {
+    mockData = { summary: {}, achievements: [], metrics: {} };
+    const html = render();
+    // Adopts the shared tile-header primitive so it matches sibling tiles…
+    expect(html).toContain('data-slot="tile-header"');
+    // …with the foreground (never muted) glyph and the h2 heading, not the
+    // old muted h-4 / text-sm row.
+    expect(html).toContain("Recent unlocks");
+    expect(html).not.toMatch(/<h2[^>]*text-sm font-semibold/);
+    expect(html).not.toContain("text-muted-foreground h-4 w-4");
+  });
+
   it("renders up to three most-recent unlocks with title + date", () => {
     mockData = {
       summary: {},

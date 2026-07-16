@@ -95,7 +95,7 @@ The architecture map in `.planning/codebase/arch.md` walks each layer with file:
 - **`annotate()` on every interesting code path.** Wide-event observability. Action names follow `<surface>.<noun>.<verb>` (`coach.budget.exceeded`, `measurement.batch.ingest`). Don't free-text in `meta` — pin the shape so dashboards stay stable.
 - **i18n keys exist for every `t()` call.** `i18n-call-site-coverage.test.ts` walks every `.ts(x)` under `src/`, extracts every `t("ns.key")` literal, and asserts each key resolves in `messages/en.json`. `i18n-locale-integrity.test.ts` propagates the EN guarantee across `de / en / es / fr / it / pl`. If a guard fails, fix the bundle, don't suppress the test.
 - **OpenAPI registry stays in sync.** Zod schemas carry `.meta()` annotations under `src/lib/openapi/`; `pnpm openapi:generate` emits `docs/api/openapi.yaml`. CI fails on drift. Re-run the generator after touching a request / response schema and commit the YAML alongside the Zod change.
-- **File naming.** Components and lib files: kebab-case (`daily-briefing.tsx`, `secure-cookie.ts`). Hooks: `use-` prefix kebab-case (`use-coach-prefs.ts`). React component exports stay PascalCase regardless of filename. The 18 PascalCase outliers under `src/components/medications/` + `src/components/onboarding/` are pre-existing drift and worth cleaning up when the surrounding files come up for edit.
+- **File naming.** Components and lib files: kebab-case (`daily-briefing.tsx`, `secure-cookie.ts`). Hooks: `use-` prefix kebab-case (`use-coach-prefs.ts`). React component exports stay PascalCase regardless of filename.
 
 ## Tests and commands
 
