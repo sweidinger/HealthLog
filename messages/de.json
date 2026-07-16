@@ -2213,6 +2213,11 @@
       "errorCredentialExpired": "Deine Verbindung zum KI-Anbieter ist abgelaufen. Stelle sie in den Einstellungen wieder her, damit der Coach weiterläuft.",
       "tagline": "Persönlicher Gesundheitscoach, auf deine Daten gestützt.",
       "newChat": "Neuer Chat",
+      "docScope": {
+        "badge": "Dokument",
+        "chattingAbout": "Chat über: {title}",
+        "notIndexedHint": "Lies dieses Dokument zuerst im Archiv mit KI ein, damit der Coach dazu antworten kann."
+      },
       "actionsMenu": "Aktionen",
       "maximizeAriaLabel": "Im Vollbild öffnen",
       "minimizeAriaLabel": "Zurück zum Seitenfenster",
@@ -8407,24 +8412,8 @@
     },
     "chat": {
       "title": "Über dieses Dokument chatten",
-      "notIndexed": "Lies das Dokument zuerst mit KI, um darüber zu chatten.",
-      "empty": "Stelle eine Frage zu diesem Dokument, um zu beginnen.",
-      "placeholder": "Frage zu diesem Dokument…",
-      "inputLabel": "Deine Frage zu diesem Dokument",
-      "send": "Senden",
-      "thinking": "Dokument wird gelesen…",
-      "safety": "Antworten beschreiben dieses Dokument und sind keine medizinische Beratung.",
-      "close": "Chat schließen",
-      "errorHistory": "Unterhaltung konnte nicht geladen werden. Bitte erneut versuchen.",
-      "errorGeneric": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
-      "errorRateLimited": "Zu viele Nachrichten. Bitte kurz warten und erneut versuchen.",
-      "errorBudget": "Das tägliche KI-Limit ist erreicht. Bitte morgen erneut versuchen.",
-      "errorCredential": "Der KI-Anbieter muss in den Einstellungen neu verbunden werden.",
-      "errorConsent": "Aktiviere die KI-Zustimmung in den Einstellungen, um über dieses Dokument zu chatten.",
-      "errorNetwork": "Du scheinst offline zu sein. Prüfe deine Verbindung und versuche es erneut.",
       "openAria": "Coach über dieses Dokument fragen",
-      "openButton": "Coach fragen",
-      "scopeBadge": "Chat über: {title}"
+      "openButton": "Coach fragen"
     }
   },
   "selfDescription": {

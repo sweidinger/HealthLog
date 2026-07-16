@@ -2213,6 +2213,11 @@
       "errorCredentialExpired": "Tu conexión con el proveedor de IA ha caducado. Vuelve a conectarla en Ajustes para que el Coach siga funcionando.",
       "tagline": "Coach personal de salud, apoyado en tus datos.",
       "newChat": "Nueva conversación",
+      "docScope": {
+        "badge": "Documento",
+        "chattingAbout": "Hablando sobre: {title}",
+        "notIndexedHint": "Primero lee este documento con IA en el archivo para que el Coach pueda responder sobre él."
+      },
       "actionsMenu": "Acciones",
       "maximizeAriaLabel": "Abrir en pantalla completa",
       "minimizeAriaLabel": "Volver al panel",
@@ -8407,24 +8412,8 @@
     },
     "chat": {
       "title": "Chatea sobre este documento",
-      "notIndexed": "Primero lee este documento con IA para poder chatear sobre él.",
-      "empty": "Haz una pregunta sobre este documento para empezar.",
-      "placeholder": "Pregunta sobre este documento…",
-      "inputLabel": "Tu pregunta sobre este documento",
-      "send": "Enviar",
-      "thinking": "Leyendo el documento…",
-      "safety": "Las respuestas describen este documento y no son consejo médico.",
-      "close": "Cerrar chat",
-      "errorHistory": "No se pudo cargar la conversación. Inténtalo de nuevo.",
-      "errorGeneric": "Algo salió mal. Inténtalo de nuevo.",
-      "errorRateLimited": "Demasiados mensajes. Espera un momento e inténtalo de nuevo.",
-      "errorBudget": "Se alcanzó el límite diario de IA. Inténtalo de nuevo mañana.",
-      "errorCredential": "Hay que volver a conectar el proveedor de IA en los ajustes.",
-      "errorConsent": "Activa el consentimiento de IA en los ajustes para chatear sobre este documento.",
-      "errorNetwork": "Parece que no tienes conexión. Comprueba tu red e inténtalo de nuevo.",
       "openAria": "Pregunta al Coach sobre este documento",
-      "openButton": "Preguntar al Coach",
-      "scopeBadge": "Chateando sobre: {title}"
+      "openButton": "Preguntar al Coach"
     }
   },
   "selfDescription": {

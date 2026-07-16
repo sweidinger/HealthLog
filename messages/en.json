@@ -2213,6 +2213,11 @@
       "errorCredentialExpired": "Your AI provider connection has expired. Reconnect it in Settings to keep the Coach running.",
       "tagline": "Personal health coach, grounded in your data.",
       "newChat": "New chat",
+      "docScope": {
+        "badge": "Document",
+        "chattingAbout": "Chatting about: {title}",
+        "notIndexedHint": "Read this document with AI first in the vault so the Coach can answer about it."
+      },
       "actionsMenu": "Actions",
       "maximizeAriaLabel": "Open in full page",
       "minimizeAriaLabel": "Back to the drawer",
@@ -8407,24 +8412,8 @@
     },
     "chat": {
       "title": "Chat about this document",
-      "notIndexed": "Read this document with AI first to chat about it.",
-      "empty": "Ask a question about this document to get started.",
-      "placeholder": "Ask about this document…",
-      "inputLabel": "Your question about this document",
-      "send": "Send",
-      "thinking": "Reading the document…",
-      "safety": "Answers describe this document and are not medical advice.",
-      "close": "Close chat",
-      "errorHistory": "Couldn't load the conversation. Try again.",
-      "errorGeneric": "Something went wrong. Try again.",
-      "errorRateLimited": "Too many messages. Wait a moment and try again.",
-      "errorBudget": "The daily AI limit has been reached. Try again tomorrow.",
-      "errorCredential": "The AI provider needs reconnecting in settings.",
-      "errorConsent": "Turn on AI consent in settings to chat about this document.",
-      "errorNetwork": "You appear to be offline. Check your connection and try again.",
       "openAria": "Ask the Coach about this document",
-      "openButton": "Ask the Coach",
-      "scopeBadge": "Chatting about: {title}"
+      "openButton": "Ask the Coach"
     }
   },
   "selfDescription": {

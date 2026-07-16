@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MessagesSquare, Search, Target, Trash2 } from "lucide-react";
+import { FileText, MessagesSquare, Search, Target, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -223,8 +223,16 @@ function CoachConversationsBody() {
                         className="flex min-h-11 min-w-0 flex-1 flex-col justify-center text-left"
                         data-slot="coach-conversations-select"
                       >
-                        <span className="block truncate font-medium">
-                          {c.title}
+                        <span className="flex min-w-0 items-center gap-1.5 font-medium">
+                          {/* v1.28.51 — badge doc-scoped threads (fenced
+                              endpoint) so they read as distinct in the list. */}
+                          {c.documentId ? (
+                            <FileText
+                              className="text-primary size-3.5 shrink-0"
+                              aria-label={t("insights.coach.docScope.badge")}
+                            />
+                          ) : null}
+                          <span className="truncate">{c.title}</span>
                         </span>
                         <span className="text-muted-foreground block text-xs">
                           {formatRelativeTime(c.updatedAt, t)}

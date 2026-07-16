@@ -508,6 +508,18 @@ const coachConversationSchema = z
       .datetime({ offset: true })
       .describe("Bumped on every appended message; the rail orders by this."),
     messageCount: z.number().int(),
+    documentId: z
+      .string()
+      .nullish()
+      .describe(
+        "When set, this thread is scoped to one stored document (a document chat, run on the hardened fenced endpoint). Null/absent for a normal health thread.",
+      ),
+    documentTitle: z
+      .string()
+      .nullish()
+      .describe(
+        "The owning document's resolved title (title, falling back to filename) for the scope badge. Null on a health thread or when the document has neither.",
+      ),
   })
   .meta({
     id: "CoachConversation",
@@ -547,6 +559,18 @@ const coachConversationDetailSchema = z
       .optional()
       .describe(
         "Rolling summary of turns elided past the history window; null when none is on file.",
+      ),
+    documentId: z
+      .string()
+      .nullish()
+      .describe(
+        "When set, this thread is scoped to one stored document; the client routes its turns through the hardened fenced document endpoint, never the tool route.",
+      ),
+    documentTitle: z
+      .string()
+      .nullish()
+      .describe(
+        "The owning document's resolved title for the scope badge. Null on a health thread.",
       ),
   })
   .meta({

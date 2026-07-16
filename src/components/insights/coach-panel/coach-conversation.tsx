@@ -4,7 +4,7 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings, Sparkles } from "lucide-react";
+import { FileText, Plus, Settings, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 import type { CoachScope } from "@/lib/ai/coach/types";
 import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 import type { CoachSeededQuestionDTO } from "@/app/api/insights/coach/seeded-question/route";
+import type { InboundDocumentDetailDto } from "@/lib/validations/inbound-documents";
 import {
   metricScopeLabelFallback,
   scopeSourceMetricLabelKey,
@@ -191,6 +192,15 @@ export interface CoachConversationProps {
    * "new chat" or thread switch is never overridden.
    */
   autoOpenMostRecent?: boolean;
+  /**
+   * v1.28.51 (Documents R3, Design A) — seed a fresh chat SCOPED to a stored
+   * document. The `/coach?doc=<id>` deep-link (the detail sheet's "Ask the
+   * Coach" action) passes it so the first turn is created + sent through the
+   * HARDENED fenced document endpoint, and the scope badge + not-indexed hint
+   * render before anything is typed. Once a thread exists the scope is read
+   * authoritatively from the loaded conversation's `documentId` instead.
+   */
+  initialDocumentId?: string | null;
 }
 
 export function CoachConversation({
@@ -208,6 +218,7 @@ export function CoachConversation({
   surface,
   initialConversationId,
   autoOpenMostRecent = false,
+  initialDocumentId,
 }: CoachConversationProps) {
   const { t } = useTranslations();
   const router = useRouter();
@@ -259,11 +270,47 @@ export function CoachConversation({
   });
 
   const { data: conversation } = useCoachConversation(currentConversationId);
+
+  // v1.28.51 (Documents R3, Design A) — document scope. `pendingDocumentId`
+  // seeds a fresh, not-yet-created chat from the `?doc=<id>` deep-link; once a
+  // thread exists the loaded conversation's own `documentId` is authoritative.
+  // `activeDocumentId` is what drives the send-path branch (fenced document
+  // endpoint vs. Coach tool route) and the scope badge. Cleared whenever the
+  // user starts a new chat or switches threads, so a stale doc scope can never
+  // leak onto a health thread.
+  const [pendingDocumentId, setPendingDocumentId] = useState<string | null>(
+    initialDocumentId ?? null,
+  );
+  const activeDocumentId =
+    conversation?.documentId ?? pendingDocumentId ?? null;
+
   const send = useSendCoachMessage({
     onDone: (resolvedId) => {
       setCurrentConversationId(resolvedId);
     },
   });
+
+  // Resolve the document's badge title + indexed status. `documentTitle` on the
+  // loaded conversation covers a persisted thread; the detail fetch covers the
+  // fresh `?doc=` case (no thread yet) AND supplies `hasContentIndex` for the
+  // "read it with AI first" hint (the conversation DTO does not carry it).
+  const { data: docDetail } = useQuery({
+    queryKey: queryKeys.inboundDocument(activeDocumentId ?? "none"),
+    enabled: activeDocumentId !== null,
+    staleTime: 60_000,
+    queryFn: async () =>
+      apiGet<InboundDocumentDetailDto>(
+        `/api/documents/inbound/${activeDocumentId}`,
+      ),
+  });
+  const docScopeTitle =
+    conversation?.documentTitle ??
+    docDetail?.title ??
+    docDetail?.filename ??
+    t("documents.card.untitled");
+  // Only warn when we positively know the document is NOT indexed. While the
+  // detail is still loading we say nothing rather than flash a false hint.
+  const docScopeNotIndexed = docDetail ? !docDetail.hasContentIndex : false;
 
   // v1.18.11 (W11, #67) — auto-open the most-recent conversation when the
   // surface mounts with no explicit selection. Only fetches the rail list
@@ -325,11 +372,14 @@ export function CoachConversation({
         : undefined;
     // v1.16.6 — hand the question to the turn so the Coach reaction is
     // contextual (the question bubble itself is never persisted).
+    // v1.28.51 — `documentId` routes a doc-scoped turn through the hardened
+    // fenced endpoint (see `resolveCoachSendTarget`); undefined on health chats.
     const resolvedId = await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
       guidedQuestion: guidedQuestion ?? undefined,
       scope,
+      documentId: activeDocumentId ?? undefined,
     });
     if (guidedQuestion !== null && guidedIndex !== null) {
       setPendingAdopt({
@@ -392,6 +442,7 @@ export function CoachConversation({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
       scope,
+      documentId: activeDocumentId ?? undefined,
     });
   }
 
@@ -399,6 +450,8 @@ export function CoachConversation({
     setCurrentConversationId(null);
     setInputValue("");
     setPendingAdopt(null);
+    // v1.28.51 — a new chat is always a health thread; drop any document scope.
+    setPendingDocumentId(null);
     dispatchGuided({ type: "RESET" });
     send.reset();
   }
@@ -657,6 +710,33 @@ export function CoachConversation({
     </div>
   );
 
+  // v1.28.51 (Documents R3, Design A) — the scope banner for a doc-scoped
+  // thread: a small "Document" badge + "Chatting about: <title>", plus the
+  // "read it with AI first" hint when the document is not yet indexed. Rendered
+  // in BOTH surfaces (page + drawer) above the thread so the fenced scope is
+  // always visible. Null on a normal health thread.
+  const docScopeBanner = activeDocumentId ? (
+    <div
+      data-slot="coach-doc-scope"
+      className="border-border/70 bg-muted/20 flex shrink-0 flex-col gap-1 border-b px-4 py-2 sm:px-6"
+    >
+      <div className="flex min-w-0 items-center gap-2 text-xs">
+        <span className="bg-primary/15 text-primary inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-medium">
+          <FileText className="size-3" aria-hidden="true" />
+          {t("insights.coach.docScope.badge")}
+        </span>
+        <span className="text-muted-foreground truncate">
+          {t("insights.coach.docScope.chattingAbout", { title: docScopeTitle })}
+        </span>
+      </div>
+      {docScopeNotIndexed ? (
+        <p className="text-muted-foreground text-[11px] leading-snug">
+          {t("insights.coach.docScope.notIndexedHint")}
+        </p>
+      ) : null}
+    </div>
+  ) : null;
+
   // v1.18.11 (W11) — the PAGE surface drops the top header bar and the
   // rail-tray strip entirely. The composer is the single control hub; the
   // thread (`[&>*]:max-w-2xl` inner gutter) and the docked composer
@@ -671,6 +751,7 @@ export function CoachConversation({
         data-variant={surface}
         className={cn("flex min-h-0 flex-1 flex-col", className)}
       >
+        {docScopeBanner}
         {/* v1.21.4 (A) — the page-toolbar gear was removed; Settings now lives
             in the composer's `+` actions menu alongside New chat and
             Conversations, keeping the page chrome to the composer alone. */}
@@ -777,6 +858,8 @@ export function CoachConversation({
         {trailingHeaderActions}
       </header>
 
+      {docScopeBanner}
+
       {/* Drawer surface keeps its existing body chrome: thread + rail-tray
           strip + docked composer, with the conversation list + sources as
           mobile trays. The "Conversations" affordance hands off to the
@@ -807,6 +890,9 @@ export function CoachConversation({
               setCurrentConversationId(id);
               setHistoryTrayOpen(false);
               setPendingAdopt(null);
+              // v1.28.51 — the selected thread's own `documentId` is now
+              // authoritative; drop any pending `?doc=` seed so it can't leak.
+              setPendingDocumentId(null);
               dispatchGuided({ type: "RESET" });
             }}
           />
