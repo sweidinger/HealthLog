@@ -3,6 +3,7 @@ import { writeFileSync, mkdtempSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
+import { Prisma } from "@/generated/prisma/client";
 import {
   hashSampleKey,
   parseRecordValue,
@@ -96,6 +97,27 @@ function makeFakePrisma() {
   type Row = Record<string, unknown>;
   const measurements: Row[] = [];
   const workouts: Row[] = [];
+  let nextId = 1;
+
+  // The real `measurements` table carries a SECOND full unique index — the
+  // natural key `(userId, type, measuredAt, source, sleepStage)` (migration
+  // 0055, NULLS NOT DISTINCT) — on top of the `(userId, type, source,
+  // externalId)` one the upsert keys on. Model BOTH so a create that would
+  // collide on the natural key raises the exact P2002 the production DB does,
+  // which is what the natural-key rescue must catch. `measuredAt` compares by
+  // epoch; NULL `sleepStage` collides with NULL (NULLS NOT DISTINCT).
+  const sameMeasuredAt = (a: unknown, b: unknown): boolean =>
+    a instanceof Date && b instanceof Date
+      ? a.getTime() === b.getTime()
+      : a === b;
+  const sameStage = (a: unknown, b: unknown): boolean =>
+    (a ?? null) === (b ?? null);
+  const naturalKeyMatch = (m: Row, r: Row): boolean =>
+    m.userId === r.userId &&
+    m.type === r.type &&
+    m.source === r.source &&
+    sameMeasuredAt(m.measuredAt, r.measuredAt) &&
+    sameStage(m.sleepStage, r.sleepStage);
 
   return {
     _measurements: measurements,
@@ -137,6 +159,24 @@ function makeFakePrisma() {
           ) ?? null
         );
       },
+      // Natural-key probe used by the rescue path. Tombstone-inclusive: no
+      // `deletedAt` filter is applied here or by the caller.
+      findFirst: async ({ where }: { where: Record<string, unknown> }) => {
+        const match = measurements.find((m) => naturalKeyMatch(m, where));
+        return match ? { id: match.id } : null;
+      },
+      update: async ({
+        where,
+        data,
+      }: {
+        where: { id: unknown };
+        data: Row;
+      }) => {
+        const idx = measurements.findIndex((m) => m.id === where.id);
+        if (idx < 0) throw new Error(`no row with id ${String(where.id)}`);
+        measurements[idx] = { ...measurements[idx], ...data };
+        return measurements[idx];
+      },
       upsert: async ({
         where,
         create,
@@ -158,8 +198,17 @@ function makeFakePrisma() {
           measurements[idx] = { ...measurements[idx], ...update };
           return measurements[idx];
         }
-        measurements.push(create);
-        return create;
+        // The externalId leg missed → this is a create. Enforce the natural-key
+        // unique before inserting, exactly as Postgres would.
+        if (measurements.some((m) => naturalKeyMatch(m, create))) {
+          throw new Prisma.PrismaClientKnownRequestError(
+            "Unique constraint failed on the fields: (`user_id`,`type`,`measured_at`,`source`,`sleep_stage`)",
+            { code: "P2002", clientVersion: "test" },
+          );
+        }
+        const row = { id: `m${nextId++}`, ...create };
+        measurements.push(row);
+        return row;
       },
     },
     workout: {
@@ -395,6 +444,134 @@ describe("streamParseExportXml — end-to-end", () => {
     expect(secondRun.perType.ACTIVITY_STEPS?.updated).toBe(1);
     expect(secondRun.workouts.inserted).toBe(0);
     expect(secondRun.workouts.updated).toBe(1);
+  });
+});
+
+/**
+ * Issue #486 — two Apple samples that share the `measurements` natural key
+ * `(userId, type, measuredAt, source, sleepStage)` but carry DIFFERENT
+ * externalIds. The externalId upsert misses on the second → its create leg
+ * collides on the natural key → P2002. Before the natural-key rescue this
+ * aborted the whole import after minutes of work; after it, the run completes
+ * with the colliding row adopted in place.
+ */
+describe("streamParseExportXml — natural-key collision (issue #486)", () => {
+  // Both records share `endDate` (→ same `measuredAt`, the natural key) but
+  // differ in `startDate`/`value` (→ different `hashSampleKey` externalId).
+  function collidingExportXml(): string {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HealthData [<!ELEMENT HealthData (Record)*>]>
+<HealthData locale="en_US">
+  <Record type="HKQuantityTypeIdentifierBodyMass"
+          unit="kg"
+          startDate="2026-05-14 08:10:00 +0200"
+          endDate="2026-05-14 08:14:00 +0200"
+          value="78.4"
+          sourceName="Source App A"/>
+  <Record type="HKQuantityTypeIdentifierBodyMass"
+          unit="kg"
+          startDate="2026-05-14 08:12:00 +0200"
+          endDate="2026-05-14 08:14:00 +0200"
+          value="78.6"
+          sourceName="Source App B"/>
+</HealthData>`;
+  }
+
+  it("completes and adopts the colliding row instead of throwing P2002", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "healthlog-parser-test-"));
+    const xmlPath = join(tmp, "export.xml");
+    writeFileSync(xmlPath, collidingExportXml());
+    const prisma = makeFakePrisma();
+
+    // On pre-fix code this rejects with the P2002 the fake raises when the
+    // second create hits the natural key; on fixed code it resolves.
+    const result = await streamParseExportXml({
+      xmlPath,
+      userId: "user-1",
+      userTimezone: "Europe/Berlin",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+    });
+
+    // Both samples were read; one row physically landed, the twin adopted it.
+    expect(result.perType.WEIGHT?.read).toBe(2);
+    expect(result.perType.WEIGHT?.inserted).toBe(1);
+    expect(result.perType.WEIGHT?.updated).toBe(1);
+
+    const weightRows = prisma._measurements.filter((m) => m.type === "WEIGHT");
+    expect(weightRows).toHaveLength(1);
+    // Last write wins: value + externalId re-keyed onto the second sample.
+    expect(weightRows[0]?.value).toBe(78.6);
+    const secondExternalId = hashSampleKey(
+      "HKQuantityTypeIdentifierBodyMass",
+      "78.6",
+      "2026-05-14 08:12:00 +0200",
+      "2026-05-14 08:14:00 +0200",
+    );
+    expect(weightRows[0]?.externalId).toBe(secondExternalId);
+
+    // The collision was rescued, not skipped.
+    expect(result.unknown["WEIGHT::natural_key_unresolved"]).toBeUndefined();
+    expect(result.unknown["WEIGHT::natural_key_rescue_failed"]).toBeUndefined();
+  });
+
+  it("re-import of overlapping data with a re-keyed externalId adopts the prior row", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "healthlog-parser-test-"));
+    const prisma = makeFakePrisma();
+
+    // First import: single reading, externalId derived from its start/end.
+    const firstPath = join(tmp, "export-1.xml");
+    writeFileSync(
+      firstPath,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HealthData [<!ELEMENT HealthData (Record)*>]>
+<HealthData locale="en_US">
+  <Record type="HKQuantityTypeIdentifierBodyMass"
+          unit="kg"
+          startDate="2026-05-14 08:10:00 +0200"
+          endDate="2026-05-14 08:14:00 +0200"
+          value="78.4"/>
+</HealthData>`,
+    );
+    const first = await streamParseExportXml({
+      xmlPath: firstPath,
+      userId: "user-1",
+      userTimezone: "Europe/Berlin",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+    });
+    expect(first.perType.WEIGHT?.inserted).toBe(1);
+    expect(prisma._measurements).toHaveLength(1);
+
+    // Re-export: SAME instant (endDate), but the sample now carries a
+    // different start window → a re-keyed externalId. The externalId upsert
+    // misses; the natural key is still held by the first row.
+    const secondPath = join(tmp, "export-2.xml");
+    writeFileSync(
+      secondPath,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HealthData [<!ELEMENT HealthData (Record)*>]>
+<HealthData locale="en_US">
+  <Record type="HKQuantityTypeIdentifierBodyMass"
+          unit="kg"
+          startDate="2026-05-14 08:11:30 +0200"
+          endDate="2026-05-14 08:14:00 +0200"
+          value="79.0"/>
+</HealthData>`,
+    );
+    const second = await streamParseExportXml({
+      xmlPath: secondPath,
+      userId: "user-1",
+      userTimezone: "Europe/Berlin",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+    });
+
+    // No duplicate row; the prior row was adopted, counted as an update.
+    expect(second.perType.WEIGHT?.inserted).toBe(0);
+    expect(second.perType.WEIGHT?.updated).toBe(1);
+    expect(prisma._measurements).toHaveLength(1);
+    expect(prisma._measurements[0]?.value).toBe(79.0);
   });
 });
 

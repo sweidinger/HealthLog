@@ -374,39 +374,112 @@ export async function streamParseExportXml(
       const stat = bumpStat(row.type);
       const rowStart = Date.now();
       const exists = existingKey.has(`${row.type}::${row.externalId}`);
-      await prisma.measurement.upsert({
-        where: {
-          userId_type_source_externalId: {
+      try {
+        await prisma.measurement.upsert({
+          where: {
+            userId_type_source_externalId: {
+              userId,
+              type: row.type,
+              source: "APPLE_HEALTH",
+              externalId: row.externalId,
+            },
+          },
+          create: {
             userId,
             type: row.type,
+            value: row.value,
+            unit: row.unit,
             source: "APPLE_HEALTH",
+            measuredAt: row.measuredAt,
             externalId: row.externalId,
+            externalSourceVersion: row.externalSourceVersion,
+            sleepStage: row.sleepStage ?? null,
+            deviceType: row.deviceType,
           },
-        },
-        create: {
-          userId,
-          type: row.type,
-          value: row.value,
-          unit: row.unit,
-          source: "APPLE_HEALTH",
-          measuredAt: row.measuredAt,
-          externalId: row.externalId,
-          externalSourceVersion: row.externalSourceVersion,
-          sleepStage: row.sleepStage ?? null,
-          deviceType: row.deviceType,
-        },
-        update: {
-          value: row.value,
-          measuredAt: row.measuredAt,
-          externalSourceVersion: row.externalSourceVersion,
-          sleepStage: row.sleepStage ?? null,
-          deviceType: row.deviceType,
-        },
-      });
-      stat.durationMs += Date.now() - rowStart;
-      if (exists) stat.updated += 1;
-      else stat.inserted += 1;
-      rowsUpserted += 1;
+          update: {
+            value: row.value,
+            measuredAt: row.measuredAt,
+            externalSourceVersion: row.externalSourceVersion,
+            sleepStage: row.sleepStage ?? null,
+            deviceType: row.deviceType,
+          },
+        });
+        stat.durationMs += Date.now() - rowStart;
+        if (exists) stat.updated += 1;
+        else stat.inserted += 1;
+        rowsUpserted += 1;
+      } catch (err) {
+        // Natural-key rescue. `Measurement` carries a SECOND full unique
+        // index beyond the externalId one this upsert keys on — the natural
+        // key `(userId, type, measuredAt, source, sleepStage)` (migration
+        // 0055, NULLS NOT DISTINCT). When two Apple samples share that natural
+        // key but carry DIFFERENT externalIds — two source apps writing at the
+        // same instant, or hash-derived ids on a re-import of overlapping data
+        // — the externalId leg above MISSES (the incoming externalId isn't in
+        // the table) and the create leg then collides on the natural key →
+        // P2002. A blind throw aborts the whole import mid-run (issue #486).
+        // Instead, mirror the sync providers' natural-key rescue
+        // (`withings/sync-sleep.ts`, `google-health/sync.ts`, `fitbit/sync.ts`):
+        // probe the occupied row by its natural key — tombstone-inclusive, no
+        // `deletedAt` filter, since a soft-deleted row still holds the key and
+        // would otherwise wedge the night forever — and ADOPT it: re-key onto
+        // the incoming externalId, take the new value/unit, resurrect if it was
+        // tombstoned. A single sample must NEVER abort the run: this catch sits
+        // OUTSIDE any transaction (each upsert is its own statement), so the
+        // caught P2002 can't poison a surrounding tx.
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
+          try {
+            const twin = await prisma.measurement.findFirst({
+              where: {
+                userId,
+                type: row.type,
+                source: "APPLE_HEALTH",
+                measuredAt: row.measuredAt,
+                sleepStage: row.sleepStage ?? null,
+              },
+              select: { id: true },
+            });
+            if (twin) {
+              await prisma.measurement.update({
+                where: { id: twin.id },
+                // `measuredAt` + `sleepStage` already match by construction
+                // (they ARE the natural key we probed on), so only value/unit,
+                // the externalId re-key, provenance, and the resurrect move.
+                data: {
+                  value: row.value,
+                  unit: row.unit,
+                  externalId: row.externalId,
+                  externalSourceVersion: row.externalSourceVersion,
+                  deviceType: row.deviceType,
+                  deletedAt: null,
+                },
+              });
+              // An adopted natural-key twin is an in-place UPDATE, not a fresh
+              // row — keep the inserted/updated split honest.
+              stat.updated += 1;
+              rowsUpserted += 1;
+            } else {
+              // P2002 with no findable natural-key twin (a race, or a collision
+              // we can't reconcile here). Skip this one sample and keep going —
+              // surfaced under `unknown` so operators can see the skip.
+              unknown[`${row.type}::natural_key_unresolved`] =
+                (unknown[`${row.type}::natural_key_unresolved`] ?? 0) + 1;
+            }
+          } catch {
+            unknown[`${row.type}::natural_key_rescue_failed`] =
+              (unknown[`${row.type}::natural_key_rescue_failed`] ?? 0) + 1;
+          }
+        } else {
+          // Any other single-row write error: skip the sample, never abort the
+          // import over one bad row.
+          unknown[`${row.type}::upsert_failed`] =
+            (unknown[`${row.type}::upsert_failed`] ?? 0) + 1;
+        }
+        stat.durationMs += Date.now() - rowStart;
+      }
     }
   };
 
