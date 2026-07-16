@@ -121,14 +121,8 @@ const layoutSchema = z.object({
       }),
     )
     .optional(),
-  // Dashboard hero (daily verdict) visibility. Optional so clients
-  // that predate the field can still PUT; when omitted the handler
-  // preserves the stored value (same preserve-when-absent contract as
-  // `chartOverlayPrefs` — a Settings save that doesn't know the field
-  // must not silently reset the user's choice).
-  heroVisible: z.boolean().optional(),
   // v1.27.7 — hero score rings (max 3, closed id set). Optional with the
-  // same preserve-when-absent contract as `heroVisible`; the resolver
+  // same preserve-when-absent contract as `chartOverlayPrefs`; the resolver
   // dedupes on read/serialize, `.max()` bounds the wire length.
   selectedScoreRings: z
     .array(z.enum(SCORE_RING_IDS))
@@ -284,19 +278,17 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   // didn't send. The dashboard-layout PUT typically saves widget
   // visibility / order; chart prefs are PUT through their own route
   // (`/api/dashboard/chart-overlay-prefs`) and would otherwise be
-  // wiped here on a subsequent layout save. `heroVisible` and
-  // `selectedScoreRings` ride the same preserve-when-absent contract —
-  // an older client's layout save must not reset either choice. One
+  // wiped here on a subsequent layout save. `selectedScoreRings` and
+  // `heroRingOrder` ride the same preserve-when-absent contract — an
+  // older client's layout save must not reset either choice. One
   // stored-layout read covers all fallbacks.
   let mergedChartOverlayPrefs: ChartOverlayPrefsMap | undefined = parsed.data
     .chartOverlayPrefs as ChartOverlayPrefsMap | undefined;
-  let mergedHeroVisible: boolean | undefined = parsed.data.heroVisible;
   let mergedScoreRings: ScoreRingId[] | undefined =
     parsed.data.selectedScoreRings;
   let mergedHeroRingOrder: HeroRingId[] | undefined = parsed.data.heroRingOrder;
   if (
     mergedChartOverlayPrefs === undefined ||
-    mergedHeroVisible === undefined ||
     mergedScoreRings === undefined ||
     mergedHeroRingOrder === undefined
   ) {
@@ -310,9 +302,6 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     if (mergedChartOverlayPrefs === undefined) {
       mergedChartOverlayPrefs = existingLayout.chartOverlayPrefs ?? {};
     }
-    if (mergedHeroVisible === undefined) {
-      mergedHeroVisible = existingLayout.heroVisible === true;
-    }
     if (mergedScoreRings === undefined) {
       mergedScoreRings = existingLayout.selectedScoreRings;
     }
@@ -323,7 +312,6 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   const normalized = serializeDashboardLayout({
     ...parsed.data,
     chartOverlayPrefs: mergedChartOverlayPrefs,
-    heroVisible: mergedHeroVisible,
     selectedScoreRings: mergedScoreRings,
     heroRingOrder: mergedHeroRingOrder,
   } as DashboardLayout);

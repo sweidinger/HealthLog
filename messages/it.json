@@ -327,37 +327,7 @@
     "welcomeBackWithName": "{greeting} {name}, bentornato.",
     "hero": {
       "scoreLabel": "Health Score",
-      "ringLink": "Apri i dettagli di {metric}",
-      "scoreProvisional": "Dati ancora insufficienti",
-      "scoreComputing": "Calcolo del punteggio in corso …",
-      "ringDoses": "Dosi di oggi",
-      "ringDosesAria": "{taken} di {scheduled} dosi assunte oggi",
-      "ringCarousel": {
-        "aria": "Anelli del benessere",
-        "dot": "Mostra anello {index} di {total}"
-      },
-      "verdict": {
-        "doseOverdue": "Una dose di {name} è in ritardo.",
-        "doseOverdueNoName": "Una dose è in ritardo.",
-        "bpHigh": "L’ultima pressione era molto alta ({sys}/{dia}). Misurala di nuovo con calma.",
-        "doseUpcoming": "Alle {time} è prevista {name}.",
-        "doseUpcomingNoName": "Alle {time} è prevista una dose.",
-        "weightDrift": "Questa settimana il tuo peso si sta allontanando dall’intervallo obiettivo.",
-        "shortNights": "Le tue notti sono state corte di recente — in media {hours} h.",
-        "silence": "Nessuna misurazione da {days} giorni. Una voce rapida tiene aggiornato il quadro.",
-        "scoreDrop": "Il tuo punteggio è {points} punti sotto la settimana scorsa.",
-        "allQuiet": "Tutto tranquillo — oggi non c’è nulla che richieda la tua attenzione."
-      },
-      "action": {
-        "takeDose": "Registra ora",
-        "viewBp": "Vedi pressione",
-        "viewWeight": "Vedi peso",
-        "viewSleep": "Vedi sonno",
-        "logMeasurement": "Registra misurazione"
-      },
-      "briefing": {
-        "title": "Briefing di oggi"
-      }
+      "ringDoses": "Dosi di oggi"
     },
     "greetingSalutation": "Ciao, {name}",
     "streakLabel": "giorni di fila",
@@ -410,8 +380,6 @@
     "compliance7d": "Aderenza (7 giorni)",
     "mood": "Umore",
     "customizeTitle": "Layout della dashboard",
-    "heroToggleLabel": "Panoramica del giorno",
-    "heroToggleDescription": "Mostra saluto, focus del giorno e anelli dei punteggi in cima alla dashboard.",
     "scoreRingsTitle": "Anelli dei punteggi",
     "scoreRingsDescription": "Fino a tre anelli aggiuntivi accanto al punteggio di salute, ad esempio prontezza, recupero, sonno o aderenza. Trascina per riordinare; il punteggio di salute è primo per impostazione predefinita.",
     "layoutReset": "Ripristina i valori predefiniti",

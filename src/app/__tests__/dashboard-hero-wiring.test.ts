@@ -5,19 +5,16 @@ import { join } from "node:path";
 /**
  * Dashboard hero — page + header wiring pins.
  *
- * The hero band mounts between the page header and the tile strip:
+ * The legacy opt-in `DashboardHero` (gated on a layout `heroVisible`
+ * flag) was retired: the digest-driven `TodayHero` is the single,
+ * unambiguous hero, mounted above the tile strip. Pinned here:
  *
- *   - it gates on the layout's `heroVisible` flag (only the literal
- *     `true` renders — the hero is opt-in) AND on snapshot mode (the
- *     verdict needs the snapshot payload);
- *   - while `primaryLoading` is true (same `!mounted ||` pin the tile
- *     silhouettes use) a footprint-identical skeleton holds the band,
- *     so the hero and the tiles swap to content in the SAME render
- *     pass;
- *   - the greeting paragraph lives in the hero when that renders; when
- *     the hero does NOT render (snapshot flag off, or hidden via the
- *     layout toggle) the header takes it back behind `showGreeting`,
- *     fed from the page's hero gate — the greeting never disappears.
+ *   - the page mounts `TodayHero` and no longer references the legacy
+ *     hero, its skeleton, or the `heroVisible` gate;
+ *   - the greeting paragraph lives in the header on every mount (the
+ *     header owns it unconditionally now that the legacy hero — which
+ *     once carried it — is gone), while the page itself derives no
+ *     welcome text.
  */
 const PAGE_PATH = join(process.cwd(), "src/app/page-client.tsx");
 const HEADER_PATH = join(
@@ -28,60 +25,44 @@ const HEADER_PATH = join(
 describe("dashboard hero — page wiring", () => {
   const src = readFileSync(PAGE_PATH, "utf8");
 
-  it("gates the hero on snapshot mode + the layout's heroVisible flag", () => {
-    expect(src).toMatch(
-      /const\s+heroVisible\s*=\s*snapshotEnabled\s*&&\s*layout\.heroVisible\s*===\s*true;/,
-    );
-  });
-
-  it("holds the skeleton while primaryLoading and swaps the hero in the same pass", () => {
-    const block = src.match(
-      /\{heroVisible\s*&&[\s\S]*?<DashboardHero[\s\S]*?\)\}/,
-    );
-    expect(block).not.toBeNull();
-    expect(block![0]).toMatch(
-      /primaryLoading\s*\|\|\s*!heroSnapshot\s*\?\s*\(\s*<DashboardHeroSkeleton\s*\/>/,
-    );
-    expect(block![0]).toContain("onQuickEntry={setQuickEntryDialog}");
-  });
-
-  it("derives primaryLoading once in the component body (shared with the tile gate)", () => {
-    const matches = src.match(/const\s+primaryLoading\s*=\s*!mounted/g) ?? [];
-    expect(matches).toHaveLength(1);
-  });
-
-  it("the hero sits between the header and the strip", () => {
-    const headerIdx = src.indexOf("<DashboardHeader");
-    const heroIdx = src.indexOf("{heroVisible &&");
+  it("mounts the TodayHero above the tile strip", () => {
+    const heroIdx = src.indexOf("<TodayHero");
     const stripIdx = src.indexOf("dashboard-tile-strip");
-    expect(headerIdx).toBeGreaterThan(-1);
-    expect(heroIdx).toBeGreaterThan(headerIdx);
+    expect(heroIdx).toBeGreaterThan(-1);
     expect(stripIdx).toBeGreaterThan(heroIdx);
   });
 
-  it("the page no longer derives the welcome text (it moved into the hero)", () => {
+  it("no longer references the retired legacy hero", () => {
+    expect(src).not.toContain("DashboardHero");
+    expect(src).not.toContain("DashboardHeroSkeleton");
+    expect(src).not.toContain("heroVisible");
+  });
+
+  it("the page derives no welcome text (the header owns the greeting)", () => {
     expect(src).not.toContain("welcomeText");
     expect(src).not.toContain("welcomeBackWithName");
     expect(src).not.toContain("getHourForTimeZone");
   });
 });
 
-describe("dashboard hero — header handoff", () => {
+describe("dashboard hero — header greeting", () => {
   const header = readFileSync(HEADER_PATH, "utf8");
 
-  it("the header keeps the greeting behind showGreeting (hero-hidden fallback)", () => {
-    // The greeting renders here ONLY when the hero band does not — the
-    // prop gates the paragraph, and the `min-h-5` line-box reservation
-    // keeps the header stable through the post-hydration name swap.
-    expect(header).toContain("showGreeting");
-    expect(header).toMatch(/\{\s*showGreeting\s*\?/);
+  it("renders the greeting unconditionally (no showGreeting gate)", () => {
+    // The greeting line renders on every mount — the legacy hero that
+    // once owned it is gone, so there is no `showGreeting` prop to gate
+    // it. The `min-h-5` line-box reservation keeps the header stable
+    // through the post-hydration name swap.
+    expect(header).not.toContain("showGreeting");
     expect(header).toContain("min-h-5");
     expect(header).toContain('data-slot="dashboard-header-greeting"');
   });
 
-  it("the page feeds showGreeting from the inverted hero gate", () => {
+  it("the page mounts the header without a greeting prop", () => {
     const src = readFileSync(PAGE_PATH, "utf8");
-    expect(src).toMatch(/showGreeting=\{!heroVisible\}/);
+    expect(src).toContain(
+      "<DashboardHeader onQuickEntry={setQuickEntryDialog} />",
+    );
   });
 
   it("the header keeps the title + customize + add actions", () => {

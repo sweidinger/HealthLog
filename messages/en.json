@@ -327,37 +327,7 @@
     "welcomeBackWithName": "{greeting} {name}, welcome back.",
     "hero": {
       "scoreLabel": "Health Score",
-      "ringLink": "Open {metric} details",
-      "scoreProvisional": "Not enough data yet",
-      "scoreComputing": "Calculating score…",
-      "ringDoses": "Doses today",
-      "ringDosesAria": "{taken} of {scheduled} doses taken today",
-      "ringCarousel": {
-        "aria": "Wellness rings",
-        "dot": "Show ring {index} of {total}"
-      },
-      "verdict": {
-        "doseOverdue": "A dose of {name} is overdue.",
-        "doseOverdueNoName": "A dose is overdue.",
-        "bpHigh": "Your last blood pressure was very high ({sys}/{dia}). Take another reading at rest.",
-        "doseUpcoming": "{name} is due at {time}.",
-        "doseUpcomingNoName": "A dose is due at {time}.",
-        "weightDrift": "Your weight is moving away from the target range this week.",
-        "shortNights": "Your nights have been short lately — {hours} h on average.",
-        "silence": "No measurement for {days} days. A quick entry keeps your picture current.",
-        "scoreDrop": "Your score sits {points} points below last week.",
-        "allQuiet": "All quiet — nothing needs your attention today."
-      },
-      "action": {
-        "takeDose": "Log it now",
-        "viewBp": "View blood pressure",
-        "viewWeight": "View weight",
-        "viewSleep": "View sleep",
-        "logMeasurement": "Log measurement"
-      },
-      "briefing": {
-        "title": "Today’s briefing"
-      }
+      "ringDoses": "Doses today"
     },
     "greetingSalutation": "Hi, {name}",
     "streakLabel": "days in a row",
@@ -410,8 +380,6 @@
     "compliance7d": "Adherence (7 days)",
     "mood": "Mood",
     "customizeTitle": "Dashboard layout",
-    "heroToggleLabel": "Daily overview",
-    "heroToggleDescription": "Shows your greeting, daily focus and score rings at the top of the dashboard.",
     "scoreRingsTitle": "Score rings",
     "scoreRingsDescription": "Up to three additional rings next to the health score — for example readiness, recovery, sleep or adherence. Drag to reorder; the health score leads by default.",
     "layoutReset": "Reset to defaults",

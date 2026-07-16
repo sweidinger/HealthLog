@@ -13,21 +13,21 @@ import { mockMoodInsights } from "./utils/mock-mood-insights";
  * Phone-width density guard (390×844 iPhone class, 360×780 small
  * Android class).
  *
- * Two invariants, per the report against the dashboard hero (a long
- * briefing-signal headline squeezed into a one-word-per-line column
- * beside a wide delta, the delta spilling past the tile edge at 360 px):
+ * Two invariants, per the original overflow report (long headline text
+ * squeezed into a one-word-per-line column beside a wide delta, the
+ * delta spilling past the tile edge at 360 px):
  *
  *   1. No horizontal page overflow — `scrollWidth` never exceeds the
  *      viewport width (1 px sub-pixel tolerance).
- *   2. Nothing escapes its tile — for every card / hero band / list
+ *   2. Nothing escapes its tile — for every card / Today hero / list
  *      row, no descendant's visible box crosses the tile's left or
  *      right edge (clip-aware: content genuinely hidden by an inner
  *      `overflow-hidden` wrapper below the tile is fine; content cut
  *      off at the tile's own edge is the bug).
  *
- * The snapshot mock pins the worst case: hero band on, three score
- * rings, and a fresh briefing whose signal rows pair wrapping German
- * headlines with wide delta strings.
+ * The mocks pin the worst case: the Today hero (its score face + a
+ * worth-a-look rail) plus a fresh briefing whose rows pair wrapping
+ * German headlines with wide delta strings.
  *
  * Desktop project only — the assertions are viewport-driven via
  * `setViewportSize` (the `ipad-viewport.spec.ts` pattern).
@@ -51,7 +51,7 @@ interface TileEscape {
 function collectTileEscapes(): TileEscape[] {
   const escapes: TileEscape[] = [];
   const tiles = document.querySelectorAll(
-    '[data-slot="card"], [data-slot="dashboard-hero"], [data-slot="list-row"]',
+    '[data-slot="card"], [data-slot="today-hero"], [data-slot="list-row"]',
   );
   const TOLERANCE = 1;
   for (const tile of tiles) {
@@ -113,10 +113,46 @@ test.describe("phone-width density guard", () => {
         await page.setViewportSize(viewport);
         await mockDashboardSnapshot(page, {
           summaries: POPULATED_SUMMARIES,
-          heroVisible: true,
           briefing: LONG_HEADLINE_BRIEFING,
           scoreRings: MOCK_SCORE_RINGS,
         });
+        // The Today hero reads the unified daily digest from
+        // `/api/daily/digest`. Mock it with a deterministic digest (a
+        // score + one worth-a-look item) so the hero paints without
+        // reaching the real route — mirror of the dashboard.spec mock.
+        await page.route(/\/api\/daily\/digest(\?|$)/, (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              data: {
+                generatedAt: new Date().toISOString(),
+                phase: "final",
+                sleepPending: false,
+                score: { value: 82, band: "green", delta: 2 },
+                topSignal: null,
+                briefingLead: "Your week is trending steady.",
+                line: "Your week is trending steady.",
+                worthALook: [
+                  {
+                    kind: "sync_issue",
+                    title: "Sync needs attention",
+                    body: "Withings isn't syncing.",
+                    status: "warning",
+                    actions: [
+                      {
+                        labelKey: "daily.action.reconnect",
+                        intent: "sync.reconnect",
+                        href: "/settings/integrations",
+                      },
+                    ],
+                  },
+                ],
+              },
+              error: null,
+            }),
+          }),
+        );
         if (route === "/insights/mood") {
           await mockMoodInsights(page);
         }
@@ -124,14 +160,12 @@ test.describe("phone-width density guard", () => {
         await page.waitForLoadState("networkidle");
 
         if (route === "/") {
-          // The guard must not pass vacuously — the hero band and its
-          // long-headline spotlight rows have to actually render.
+          // The guard must not pass vacuously — the Today hero and its
+          // score face have to actually render.
+          await expect(page.locator('[data-slot="today-hero"]')).toBeVisible();
           await expect(
-            page.locator('[data-slot="dashboard-hero"]'),
+            page.locator('[data-slot="today-hero-score"]'),
           ).toBeVisible();
-          await expect(
-            page.locator('[data-slot="dashboard-briefing-spotlight-row"]'),
-          ).toHaveCount(3);
         }
 
         if (route === "/insights/mood") {

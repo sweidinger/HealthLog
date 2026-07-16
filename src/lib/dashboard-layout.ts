@@ -357,8 +357,8 @@ function coerceChartOverlayPrefsMap(value: unknown): ChartOverlayPrefsMap {
  *     canonical compliance engine — the ring that absorbs the retired
  *     hero dose row's information role.
  *
- * The preference piggy-backs on the layout blob like `heroVisible` (a UI
- * affordance, no Prisma migration). The resolver drops unknown ids,
+ * The preference piggy-backs on the layout blob like `chartOverlayPrefs`
+ * (a UI affordance, no Prisma migration). The resolver drops unknown ids,
  * dedupes, and clamps to `MAX_SELECTED_SCORE_RINGS`; a missing /
  * malformed field falls back to the default single MED_COMPLIANCE ring,
  * while an explicitly-saved empty array stays empty (the user chose no
@@ -506,16 +506,6 @@ export interface DashboardLayout {
   /** v1.4.18 — per-chart overlay-prefs (3 toggles per chart card). */
   chartOverlayPrefs?: ChartOverlayPrefsMap;
   /**
-   * Dashboard hero (daily verdict) visibility. Piggy-backs on the
-   * layout blob like the B8 comparison baseline — a UI affordance, not
-   * an analytical attribute, so no Prisma migration. Opt-in: the
-   * resolver clamps anything that is not the literal `true` back to
-   * `false` (legacy blobs without the field keep the hero off; a
-   * stale client cannot poison it with a non-boolean), and the
-   * serializer persists the resolved boolean explicitly.
-   */
-  heroVisible?: boolean;
-  /**
    * v1.27.7 — hero score rings (max 3, closed `SCORE_RING_IDS` set)
    * rendered next to the health-score ring. See the doc on
    * `SCORE_RING_IDS`; the resolver clamps/dedupes/drops-unknown.
@@ -540,9 +530,6 @@ const DASHBOARD_LAYOUT_VERSION = 1;
  */
 export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
   version: DASHBOARD_LAYOUT_VERSION,
-  // Hero (daily verdict) is off by default; users opt in via
-  // Settings → Dashboard.
-  heroVisible: false,
   // One medication-adherence ring next to the health score by default —
   // the successor of the hero dose row's information role.
   selectedScoreRings: [...DEFAULT_SELECTED_SCORE_RINGS],
@@ -699,10 +686,6 @@ export function resolveDashboardLayout(raw: unknown): DashboardLayout {
     // client cannot poison the dashboard with values the renderer
     // doesn't know how to draw.
     chartOverlayPrefs: coerceChartOverlayPrefsMap(candidate.chartOverlayPrefs),
-    // Hero visibility — anything that is not the literal `true`
-    // clamps to `false` (default-off for legacy blobs and malformed
-    // values alike; the hero is opt-in).
-    heroVisible: candidate.heroVisible === true,
     // v1.27.7 — hero score rings: unknown ids drop, duplicates collapse,
     // the list clamps to three. A legacy blob without the field gets the
     // default single MED_COMPLIANCE ring.
@@ -744,9 +727,6 @@ export function serializeDashboardLayout(
     // v1.4.18 — persist per-chart overlay prefs verbatim through the
     // same coercion the resolver runs so the wire shape is stable.
     chartOverlayPrefs: coerceChartOverlayPrefsMap(layout.chartOverlayPrefs),
-    // Persist hero visibility explicitly (same clamp as the resolver)
-    // so a re-read never has to guess the default.
-    heroVisible: layout.heroVisible === true,
     // v1.27.7 — persist the score-ring selection through the same
     // coercion the resolver runs so the wire shape is stable.
     selectedScoreRings: resolvedSelectedScoreRings,

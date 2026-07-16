@@ -159,11 +159,16 @@ describe("<DashboardLayoutSection> — drag-and-drop reorder", () => {
   it("keeps the arrow buttons present after the drag handle lands (a11y fallback)", () => {
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     // Move up + Move down translation keys resolve to the English
-    // strings — counted once per row.
+    // strings — counted once per row. Both the widget rows and the
+    // score-ring reorder rows (health-score anchor + selected rings)
+    // carry the same arrow pair, so the total is one per row of either
+    // kind.
+    const ringRows = (html.match(/data-slot="score-ring-row"/g) ?? []).length;
+    const expected = WEB_RENDERABLE_ROW_COUNT + ringRows;
     const moveUpCount = (html.match(/aria-label="Move up"/g) ?? []).length;
     const moveDownCount = (html.match(/aria-label="Move down"/g) ?? []).length;
-    expect(moveUpCount).toBe(WEB_RENDERABLE_ROW_COUNT);
-    expect(moveDownCount).toBe(WEB_RENDERABLE_ROW_COUNT);
+    expect(moveUpCount).toBe(expected);
+    expect(moveDownCount).toBe(expected);
   });
 
   it("hint string localises to German", () => {
@@ -284,76 +289,6 @@ describe("<DashboardLayoutSection> — iOS-only id skip (v1.7.0)", () => {
 });
 
 /**
- * Dashboard hero (Tagesüberblick) visibility switch — one toggle above
- * the widget list, persisted as `heroVisible` on the layout blob through
- * the SAME PUT mutation the widget rows use (the Save button flushes the
- * draft). SSR smoke assertions + source pins, matching the rest of this
- * suite (no DOM runtime for state mutation).
- */
-describe("<DashboardLayoutSection> — hero visibility switch", () => {
-  it("renders one hero switch above the widget list", () => {
-    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
-    const switches = html.match(/data-slot="hero-visible-switch"/g) ?? [];
-    expect(switches).toHaveLength(1);
-    // Above the list: the hero switch markup precedes the first widget row.
-    expect(html.indexOf('data-slot="hero-visible-switch"')).toBeLessThan(
-      html.indexOf('data-slot="widget-row"'),
-    );
-  });
-
-  it("labels the switch with the localised copy + description", () => {
-    const de = render(<DashboardLayoutSection id="dashboard-layout" />, "de");
-    expect(de).toContain("Tagesüberblick");
-    expect(de).toContain(
-      "Zeigt Begrüßung, Tagesfokus und Score-Ringe ganz oben auf dem Dashboard.",
-    );
-    const en = render(<DashboardLayoutSection id="dashboard-layout" />);
-    expect(en).toContain("Daily overview");
-  });
-
-  it("reflects heroVisible: default layout → unchecked, true → checked", () => {
-    const uncheckedHtml = render(
-      <DashboardLayoutSection id="dashboard-layout" />,
-    );
-    const unchecked = uncheckedHtml.match(
-      /<button[^>]*data-slot="hero-visible-switch"[^>]*>/,
-    );
-    expect(unchecked).not.toBeNull();
-    expect(unchecked![0]).toContain('data-state="unchecked"');
-
-    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
-    const checkedHtml = render(
-      <DashboardLayoutSection id="dashboard-layout" />,
-    );
-    const checked = checkedHtml.match(
-      /<button[^>]*data-slot="hero-visible-switch"[^>]*>/,
-    );
-    expect(checked).not.toBeNull();
-    expect(checked![0]).toContain('data-state="checked"');
-  });
-
-  it("persists through the existing PUT draft flow (source pins)", () => {
-    const src = readFileSync(
-      join(
-        process.cwd(),
-        "src/components/settings/dashboard-layout-section.tsx",
-      ),
-      "utf8",
-    );
-    // The toggle writes the flag onto the layout draft…
-    expect(src).toMatch(
-      /setDraft\(\{\s*\.\.\.layout,\s*heroVisible:\s*value\s*\}\)/,
-    );
-    // …which the Save button flushes via the one save mutation
-    // (`apiPut("/api/dashboard/widgets", …)`) every other control uses.
-    expect(src).toMatch(/onCheckedChange=\{\(v\) => setHeroVisible\(v\)\}/);
-    expect(src).toMatch(
-      /apiPut<DashboardLayout>\("\/api\/dashboard\/widgets", next\)/,
-    );
-  });
-});
-
-/**
  * v1.11.2 HIGH-1 — the 8 B5 ids are WRITABLE (in DASHBOARD_WIDGET_IDS so the
  * iOS pin PUT validates them) but have NO web render path, so the web
  * Settings list must NOT offer a dead toggle for them.
@@ -441,19 +376,20 @@ describe("<DashboardLayoutSection> — disabled-module widget toggles", () => {
 });
 
 /**
- * v1.27.7 — hero score-ring picker. Rendered only while the hero is on
- * (the rings live inside the hero band); offers only rings whose owning
- * module is enabled; caps the selection at three via disabled switches.
- * SSR smoke assertions, matching the rest of this suite.
+ * v1.27.7 — hero score-ring picker. Renders whenever the layout loads
+ * (it configures the server-computed score rings the dashboard snapshot
+ * carries); offers only rings whose owning module is enabled; caps the
+ * selection at three via disabled switches. SSR smoke assertions,
+ * matching the rest of this suite.
  */
 describe("<DashboardLayoutSection> — hero score-ring picker (v1.27.7)", () => {
-  it("stays hidden while the hero is off (default layout)", () => {
+  it("renders for the default layout", () => {
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
-    expect(html).not.toContain('data-slot="score-rings-picker"');
+    expect(html).toContain('data-slot="score-rings-picker"');
   });
 
-  it("renders one switch per ring when the hero is on (fail-open module map)", () => {
-    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+  it("renders one switch per ring (fail-open module map)", () => {
+    queryState.layout = DEFAULT_DASHBOARD_LAYOUT;
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     expect(html).toContain('data-slot="score-rings-picker"');
     // v1.27.27 — one switch per score ring (4) plus the always-present
@@ -469,7 +405,7 @@ describe("<DashboardLayoutSection> — hero score-ring picker (v1.27.7)", () => 
   });
 
   it("hides rings whose owning module is disabled (anchor stays)", () => {
-    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    queryState.layout = DEFAULT_DASHBOARD_LAYOUT;
     authState.modules = { recovery: false, sleep: false };
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     const switches = html.match(/data-slot="score-ring-switch"/g) ?? [];
@@ -481,7 +417,7 @@ describe("<DashboardLayoutSection> — hero score-ring picker (v1.27.7)", () => 
   });
 
   it("hides the derived rings when the insights module is off (anchor stays)", () => {
-    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    queryState.layout = DEFAULT_DASHBOARD_LAYOUT;
     authState.modules = { insights: false };
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     const switches = html.match(/data-slot="score-ring-switch"/g) ?? [];
@@ -493,7 +429,6 @@ describe("<DashboardLayoutSection> — hero score-ring picker (v1.27.7)", () => 
   it("disables the remaining switches at the three-ring cap", () => {
     queryState.layout = {
       ...DEFAULT_DASHBOARD_LAYOUT,
-      heroVisible: true,
       selectedScoreRings: ["READINESS", "RECOVERY_SCORE", "SLEEP_SCORE"],
     };
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
@@ -522,7 +457,7 @@ describe("<DashboardLayoutSection> — hero score-ring picker (v1.27.7)", () => 
  */
 describe("<DashboardLayoutSection> — health-score anchor + reorder (v1.27.27)", () => {
   it("renders the health-score anchor as a reorderable row, leading by default", () => {
-    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    queryState.layout = DEFAULT_DASHBOARD_LAYOUT;
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     // A sortable ring row exists for the health-score anchor.
     expect(html).toContain('data-slot="score-ring-row"');
@@ -543,7 +478,7 @@ describe("<DashboardLayoutSection> — health-score anchor + reorder (v1.27.27)"
   });
 
   it("the anchor switch is checked and disabled (locked-on, no toggle-off)", () => {
-    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    queryState.layout = DEFAULT_DASHBOARD_LAYOUT;
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     const anchorSwitch = html.match(
       /<button[^>]*data-slot="score-ring-switch"[^>]*data-ring="HEALTH_SCORE"[^>]*>/,
@@ -554,7 +489,7 @@ describe("<DashboardLayoutSection> — health-score anchor + reorder (v1.27.27)"
   });
 
   it("the anchor carries a drag handle + move arrows (reorderable)", () => {
-    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    queryState.layout = DEFAULT_DASHBOARD_LAYOUT;
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     // The health-score row is a full sortable row: its drag handle exists.
     const handles = html.match(/data-slot="score-ring-drag-handle"/g) ?? [];
@@ -565,7 +500,6 @@ describe("<DashboardLayoutSection> — health-score anchor + reorder (v1.27.27)"
   it("honours a persisted order that moves the anchor off the lead", () => {
     queryState.layout = {
       ...DEFAULT_DASHBOARD_LAYOUT,
-      heroVisible: true,
       selectedScoreRings: ["READINESS", "MED_COMPLIANCE"],
       heroRingOrder: ["READINESS", "HEALTH_SCORE", "MED_COMPLIANCE"],
     };

@@ -327,37 +327,7 @@
     "welcomeBackWithName": "{greeting} {name}, willkommen zurück.",
     "hero": {
       "scoreLabel": "Health Score",
-      "ringLink": "{metric}-Details öffnen",
-      "scoreProvisional": "Noch nicht genug Daten",
-      "scoreComputing": "Score wird berechnet…",
-      "ringDoses": "Dosen heute",
-      "ringDosesAria": "{taken} von {scheduled} Dosen heute genommen",
-      "ringCarousel": {
-        "aria": "Wellness-Ringe",
-        "dot": "Ring {index} von {total} anzeigen"
-      },
-      "verdict": {
-        "doseOverdue": "Eine Dosis {name} ist überfällig.",
-        "doseOverdueNoName": "Eine Dosis ist überfällig.",
-        "bpHigh": "Dein letzter Blutdruck war sehr hoch ({sys}/{dia}). Miss in Ruhe noch einmal nach.",
-        "doseUpcoming": "Um {time} steht {name} an.",
-        "doseUpcomingNoName": "Um {time} steht eine Dosis an.",
-        "weightDrift": "Dein Gewicht bewegt sich diese Woche vom Zielbereich weg.",
-        "shortNights": "Deine Nächte waren zuletzt kurz — im Schnitt {hours} h.",
-        "silence": "Seit {days} Tagen keine Messung. Ein kurzer Eintrag hält dein Bild aktuell.",
-        "scoreDrop": "Dein Score liegt {points} Punkte unter der Vorwoche.",
-        "allQuiet": "Alles ruhig — heute gibt es nichts, das deine Aufmerksamkeit braucht."
-      },
-      "action": {
-        "takeDose": "Jetzt eintragen",
-        "viewBp": "Blutdruck ansehen",
-        "viewWeight": "Gewicht ansehen",
-        "viewSleep": "Schlaf ansehen",
-        "logMeasurement": "Messung erfassen"
-      },
-      "briefing": {
-        "title": "Tagesbriefing"
-      }
+      "ringDoses": "Dosen heute"
     },
     "greetingSalutation": "Hallo, {name}",
     "streakLabel": "Tage in Folge",
@@ -410,8 +380,6 @@
     "compliance7d": "Therapietreue (7 Tage)",
     "mood": "Stimmung",
     "customizeTitle": "Dashboard-Layout",
-    "heroToggleLabel": "Tagesüberblick",
-    "heroToggleDescription": "Zeigt Begrüßung, Tagesfokus und Score-Ringe ganz oben auf dem Dashboard.",
     "scoreRingsTitle": "Score-Ringe",
     "scoreRingsDescription": "Bis zu drei zusätzliche Ringe neben dem Health Score – zum Beispiel Bereitschaft, Erholung, Schlaf oder Therapietreue. Zum Umsortieren ziehen; der Health Score steht standardmäßig vorne.",
     "layoutReset": "Auf Defaults zurücksetzen",

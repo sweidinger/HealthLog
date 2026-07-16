@@ -4,7 +4,7 @@
  * GET returns the resolved presentation (view + manual order, defaults
  * merged in if the user hasn't customised yet). PUT updates it with
  * preserve-when-absent semantics — a view-only PUT keeps the stored
- * order and vice versa, matching the `heroVisible` contract on
+ * order and vice versa, matching the `chartOverlayPrefs` contract on
  * `/api/dashboard/widgets`. DELETE resets to default.
  *
  * Mirrors the shape and semantics of `/api/insights/layout`; the blob
@@ -42,7 +42,7 @@ const layoutSchema = z.object({
   version: z.literal(1),
   // Both fields are optional so a client can PUT exactly the field it
   // changed; the handler merges the absent one from the stored blob
-  // (preserve-when-absent, like `heroVisible` on the dashboard layout).
+  // (preserve-when-absent, like `chartOverlayPrefs` on the dashboard layout).
   view: z.enum(MEDICATION_LIST_VIEWS).optional(),
   // Medication ids are opaque here — display-only ordering, unknown /
   // deleted ids are ignored at apply time, so the schema bounds size

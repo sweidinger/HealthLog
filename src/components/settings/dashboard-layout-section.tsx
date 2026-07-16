@@ -202,8 +202,6 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   // tooltip. One hint paragraph is rendered once at the bottom of the list
   // and referenced by every drag handle in this section.
   const dragHintId = useId();
-  // Label ↔ switch hookup for the hero (Tagesüberblick) toggle below.
-  const heroToggleId = useId();
 
   // v1.4.47 W4 — sensors: pointer for mouse/touch, keyboard for Tab + Space
   // + arrow-key reordering. The KeyboardSensor still works for users who
@@ -320,16 +318,6 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   function setComparisonBaseline(value: ComparisonBaseline) {
     if (!layout) return;
     setDraft({ ...layout, comparisonBaseline: value });
-  }
-
-  /**
-   * Dashboard hero (daily verdict) visibility. Rides the layout blob
-   * (`heroVisible`, default on) and persists through the same PUT the
-   * widget toggles use — the Save button flushes it.
-   */
-  function setHeroVisible(value: boolean) {
-    if (!layout) return;
-    setDraft({ ...layout, heroVisible: value });
   }
 
   /**
@@ -595,44 +583,17 @@ export function DashboardLayoutSection({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Hero (Tagesüberblick) visibility — one switch above the widget
-          list because the band sits above every widget on the dashboard.
-          Persists as `heroVisible` on the layout blob through the same
-          PUT mutation the rows below use (Save flushes the draft). */}
-      {layout && (
-        <div className="border-border bg-background/30 flex min-h-12 items-center justify-between gap-3 rounded-md border px-3 py-2">
-          <div className="min-w-0">
-            <label
-              htmlFor={heroToggleId}
-              className="text-foreground text-sm font-medium"
-            >
-              {t("dashboard.heroToggleLabel")}
-            </label>
-            <p className="text-muted-foreground text-xs">
-              {t("dashboard.heroToggleDescription")}
-            </p>
-          </div>
-          <Switch
-            id={heroToggleId}
-            checked={layout.heroVisible === true}
-            onCheckedChange={(v) => setHeroVisible(v)}
-            disabled={saveMutation.isPending}
-            data-slot="hero-visible-switch"
-          />
-        </div>
-      )}
-
-      {/* v1.27.7 — hero score-ring picker. Only rendered while the hero
-          is on (the rings live inside the hero band, so the picker would
-          be a dead control otherwise). Offers only rings whose owning
-          module is enabled — the WIDGET_MODULE_BY_ID gating pattern; the
-          three derived rings additionally sit behind the insights
-          module, mirroring the derived routes. Selection caps at
-          MAX_SELECTED_SCORE_RINGS; unchecked switches disable at the cap.
+      {/* v1.27.7 — hero score-ring picker. Configures the score rings the
+          server computes onto the dashboard snapshot (`selectedScoreRings`
+          / `heroRingOrder`), consumed by the native client. Offers only
+          rings whose owning module is enabled — the WIDGET_MODULE_BY_ID
+          gating pattern; the three derived rings additionally sit behind
+          the insights module, mirroring the derived routes. Selection caps
+          at MAX_SELECTED_SCORE_RINGS; unchecked switches disable at the cap.
           v1.27.8 — choices apply instantly (no Save round) and the
           selected rings reorder with the same drag-handle + arrow pair
-          as the widget rows below; the array order is the hero order. */}
-      {layout && layout.heroVisible === true && (
+          as the widget rows below; the array order is the ring order. */}
+      {layout && (
         <div
           data-slot="score-rings-picker"
           className="border-border bg-background/30 space-y-3 rounded-md border px-3 py-2"

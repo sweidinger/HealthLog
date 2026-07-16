@@ -395,62 +395,40 @@ describe("resolveDashboardLayout() — chartOverlayPrefs (v1.4.18)", () => {
 });
 
 /**
- * Dashboard hero (daily verdict) visibility — `heroVisible` piggy-backs
- * on the layout blob like the B8 comparison baseline. Resolver contract:
- * anything that is not the literal `true` clamps back to `false`
- * (the hero is opt-in; legacy blobs keep it off and a stale client
- * cannot poison the field with a non-boolean). Serializer persists the
- * resolved boolean explicitly so a re-read never has to guess the
- * default.
+ * The legacy opt-in dashboard hero was retired; its `heroVisible` flag is
+ * gone from the layout type, defaults, resolver, and serializer. A stored
+ * blob that still carries the field must resolve without throwing and drop
+ * it silently (the resolver is a whitelist constructor, so an unknown key
+ * is ignored on read and never re-persisted).
  */
-describe("resolveDashboardLayout() — heroVisible", () => {
-  it("defaults to false for legacy layouts (no field saved)", () => {
-    const legacy = {
-      version: 1,
-      widgets: [{ id: "weight", visible: true, order: 0 }],
-    };
-    expect(resolveDashboardLayout(legacy).heroVisible).toBe(false);
-  });
-
-  it("respects an explicit heroVisible: true", () => {
+describe("resolveDashboardLayout() — retired heroVisible field", () => {
+  it("drops a stored heroVisible without throwing", () => {
     const saved = {
       version: 1,
       widgets: [{ id: "weight", visible: true, order: 0 }],
       heroVisible: true,
     };
-    expect(resolveDashboardLayout(saved).heroVisible).toBe(true);
+    const resolved = resolveDashboardLayout(saved) as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(resolved).not.toHaveProperty("heroVisible");
   });
 
-  it("clamps non-boolean values back to false", () => {
-    for (const poisoned of ["true", 0, null, 1, {}]) {
-      const saved = {
-        version: 1,
-        widgets: [{ id: "weight", visible: true, order: 0 }],
-        heroVisible: poisoned,
-      };
-      expect(resolveDashboardLayout(saved).heroVisible).toBe(false);
-    }
+  it("does not carry heroVisible on DEFAULT_DASHBOARD_LAYOUT", () => {
+    expect(DEFAULT_DASHBOARD_LAYOUT).not.toHaveProperty("heroVisible");
   });
 
-  it("defaults heroVisible to false in DEFAULT_DASHBOARD_LAYOUT", () => {
-    expect(DEFAULT_DASHBOARD_LAYOUT.heroVisible).toBe(false);
-  });
-
-  it("preserves heroVisible: true through serialize → resolve round-trip", () => {
-    const layout: DashboardLayout = {
-      ...DEFAULT_DASHBOARD_LAYOUT,
-      heroVisible: true,
-    };
-    const resolved = resolveDashboardLayout(serializeDashboardLayout(layout));
-    expect(resolved.heroVisible).toBe(true);
-  });
-
-  it("serializer derives false when the field is missing on input", () => {
-    const layout: DashboardLayout = {
+  it("does not re-emit heroVisible on serialize", () => {
+    const saved = {
       version: 1,
       widgets: [{ id: "weight", visible: true, order: 0 }],
+      heroVisible: true,
     };
-    expect(serializeDashboardLayout(layout).heroVisible).toBe(false);
+    const serialized = serializeDashboardLayout(
+      resolveDashboardLayout(saved),
+    ) as unknown as Record<string, unknown>;
+    expect(serialized).not.toHaveProperty("heroVisible");
   });
 });
 
