@@ -31,6 +31,7 @@ export const doctorReportPrefsSchema = z
     mood: z.boolean(),
     compliance: z.boolean(),
     sleep: z.boolean(),
+    glucose: z.boolean(),
     cycle: z.boolean(),
     labs: z.boolean(),
     allergies: z.boolean(),
@@ -53,6 +54,7 @@ export interface DoctorReportPrefs {
   mood: boolean;
   compliance: boolean;
   sleep: boolean;
+  glucose: boolean;
   cycle: boolean;
   labs: boolean;
   allergies: boolean;
@@ -73,6 +75,12 @@ export const DEFAULT_DOCTOR_REPORT_PREFS: DoctorReportPrefs = {
   mood: false, // privacy default per the maintainer
   compliance: true,
   sleep: true,
+  // Glucose the user recorded to share with a clinician — ON by default,
+  // like BP / weight / labs. The per-report toggle lets a diabetic user
+  // withhold glucose from a SPECIFIC shared report without disabling the
+  // glucose module app-wide (default-on preserves the pre-toggle behaviour,
+  // where glucose always rendered).
+  glucose: true,
   // Cycle data is opt-in: a user sharing a BP report with a cardiologist
   // should not auto-leak reproductive data. Same privacy stance as mood.
   cycle: false,
@@ -102,6 +110,7 @@ export const EMPTY_DOCTOR_REPORT_PREFS: DoctorReportPrefs = {
   mood: false,
   compliance: false,
   sleep: false,
+  glucose: false,
   cycle: false,
   labs: false,
   allergies: false,

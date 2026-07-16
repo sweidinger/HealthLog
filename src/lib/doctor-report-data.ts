@@ -104,11 +104,15 @@ export async function collectDoctorReportData(
   // bmi/compliance) carry no key and are never gated here.
   if (moduleMap.mood === false) sections.mood = false;
   if (moduleMap.sleep === false) sections.sleep = false;
+  if (moduleMap.glucose === false) sections.glucose = false;
   if (moduleMap.cycle === false) sections.cycle = false;
   if (moduleMap.labs === false) sections.labs = false;
   // Module gates with no `sections` key — applied directly to the data slices
-  // below (glucose panel, recovery/strain wellness scores, workout series).
-  const glucoseEnabled = moduleMap.glucose !== false;
+  // below (recovery/strain wellness scores, workout series). Glucose now
+  // carries its own report section toggle, into which the module gate above
+  // already folds — so the section flag is the single lever for the glucose
+  // panel (stats + ranges + clinical metrics).
+  const glucoseEnabled = sections.glucose !== false;
   const recoveryEnabled = moduleMap.recovery !== false;
   const workoutsEnabled = moduleMap.workouts !== false;
 
@@ -140,6 +144,8 @@ export async function collectDoctorReportData(
   }
   if (sections.pulse === false) excludedMeasurementTypes.push("PULSE");
   if (sections.sleep === false) excludedMeasurementTypes.push("SLEEP_DURATION");
+  if (sections.glucose === false)
+    excludedMeasurementTypes.push("BLOOD_GLUCOSE");
   for (const [type, moduleKey] of Object.entries(MEASUREMENT_TYPE_MODULE)) {
     if (moduleMap[moduleKey] === false) {
       excludedMeasurementTypes.push(type as MeasurementType);
@@ -924,10 +930,10 @@ export async function collectDoctorReportData(
 
 /**
  * Per-measurement-type → section-toggle mapping. Keys not listed here
- * (e.g., glucose contexts, body fat, oxygen saturation) bypass the
- * toggles for now — those sections will get their own flags in a
- * future iteration. The current scope per the maintainer's directive is the
- * "big five" plus mood + compliance.
+ * (e.g., body fat, oxygen saturation) bypass the toggles — those sections
+ * have no per-report flag. Glucose DOES carry a `glucose` section toggle,
+ * but `BLOOD_GLUCOSE` is gated at query-exclusion time (mirroring sleep) and
+ * its panel collapses via `glucoseEnabled`, so it does not ride this map.
  */
 const MEASUREMENT_TYPE_SECTION: Record<string, keyof DoctorReportPrefs> = {
   BLOOD_PRESSURE_SYS: "bp",

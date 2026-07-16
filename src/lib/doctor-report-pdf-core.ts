@@ -183,8 +183,12 @@ export const DOCTOR_REPORT_TYPE_UNIT_KEYS: Record<string, string | null> = {
  * smart scales report all three together. SpO2 (Withings ScanWatch type
  * 54, HealthKit, n8n / Health Connect) is rendered last in the same
  * table for clinical readability. Glucose ships separately via
- * per-context `glucoseStats`. Sleep + activity are intentionally
- * excluded from a clinical-focused report.
+ * per-context `glucoseStats`. SLEEP_DURATION rides this table too: the
+ * `sleep` section toggle is default-ON and the data layer reconstructs a
+ * per-night time-asleep total (in minutes) for exactly this row — the
+ * render loop converts it to hours so value and unit (`h`) agree, matching
+ * the FHIR sleep Observation. Activity (steps) stays excluded from a
+ * clinical-focused report.
  *
  * v1.10.0 — computed scores (WX-C). The server-derived `*_SCORE` types
  * (RECOVERY_SCORE / STRESS_SCORE / STRAIN_SCORE) are NOT clinical vitals:
@@ -216,6 +220,7 @@ export const DOCTOR_REPORT_VITAL_TYPES = [
   "TOTAL_BODY_WATER",
   "BONE_MASS",
   "OXYGEN_SATURATION",
+  "SLEEP_DURATION",
 ] as const;
 
 const MOOD_LABEL_KEYS: Record<number, string> = {
@@ -689,12 +694,18 @@ export function buildDoctorReportPdfDocument(
     const s = data.stats[type];
     if (!s) continue;
     const unit = unitFor(type);
+    // SLEEP_DURATION stats are per-night asleep totals in MINUTES (the data
+    // layer reconstructs them for exactly this row); the vitals unit is hours
+    // (`h`), so convert to keep value and unit consistent — the same hours
+    // value the FHIR sleep Observation emits.
+    const conv =
+      type === "SLEEP_DURATION" ? (v: number) => v / 60 : (v: number) => v;
     vitalRows.push([
       t(DOCTOR_REPORT_TYPE_LABEL_KEYS[type] ?? ""),
-      `${num(s.latest)} ${unit}`.trim(),
-      `${num(s.avg)} ${unit}`.trim(),
-      num(s.min),
-      num(s.max),
+      `${num(conv(s.latest))} ${unit}`.trim(),
+      `${num(conv(s.avg))} ${unit}`.trim(),
+      num(conv(s.min)),
+      num(conv(s.max)),
       String(s.count),
     ]);
   }

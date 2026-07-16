@@ -120,8 +120,10 @@ describe("measurementTypeEnum coverage", () => {
 
   // Documented exclusions from the doctor-report main vitals table:
   //  - BLOOD_GLUCOSE renders through the per-context `glucoseStats` section
-  //  - SLEEP_DURATION + ACTIVITY_STEPS are intentionally omitted from the
-  //    clinical PDF (lifestyle, not a vital sign — see source comment).
+  //  - ACTIVITY_STEPS is intentionally omitted from the clinical PDF
+  //    (lifestyle, not a vital sign — see source comment). SLEEP_DURATION
+  //    DOES render in the vitals table (per-night asleep hours), gated on the
+  //    default-ON `sleep` section toggle — see doctor-report-pdf-core.ts.
   //  - v1.4.23 Apple Health metrics (HRV, resting HR, active energy,
   //    flights, distance, VO2 max, body temperature) are excluded from
   //    the v1.4.23 release of the doctor PDF — they ship into the
@@ -136,7 +138,6 @@ describe("measurementTypeEnum coverage", () => {
   // doctor-report-pdf-core.ts so the rationale stays discoverable.
   const PDF_VITAL_EXCLUSIONS = new Set([
     "BLOOD_GLUCOSE",
-    "SLEEP_DURATION",
     "ACTIVITY_STEPS",
     "HEART_RATE_VARIABILITY",
     "RESTING_HEART_RATE",

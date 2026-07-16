@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.28.45] — 2026-07-16 — Doctor report + privacy fixes
+
+- Sleep now actually appears in the doctor-report PDF. The sleep section was
+  enabled by default and its data was prepared, but the PDF's vitals table left
+  it out, so the section rendered empty — it now shows time asleep in hours.
+- Glucose can now be included or withheld from a shared report like every other
+  clinical section. The toggle existed in settings but did nothing; it now
+  gates the glucose data end to end.
+- Turning the environment module off now also keeps its data (audio exposure,
+  daylight, skin temperature) out of the coach, matching how the other modules
+  behave.
+
 ## [1.28.44] — 2026-07-16 — Loose ends: a broken link, the API contract, module guards
 
 - The "connect a device" link on the sleep insights empty state pointed at a

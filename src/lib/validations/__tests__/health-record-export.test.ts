@@ -104,4 +104,13 @@ describe("toDoctorReportPrefs", () => {
       toDoctorReportPrefs({ medications: { compliance: false } }).compliance,
     ).toBe(false);
   });
+
+  it("threads the glucose section toggle (default ON, off when unchecked)", () => {
+    // Default-on preserves the pre-toggle behaviour where glucose always
+    // rendered; an explicit false withholds glucose from this report.
+    expect(toDoctorReportPrefs(undefined).glucose).toBe(true);
+    expect(toDoctorReportPrefs({}).glucose).toBe(true);
+    expect(toDoctorReportPrefs({ glucose: true }).glucose).toBe(true);
+    expect(toDoctorReportPrefs({ glucose: false }).glucose).toBe(false);
+  });
 });

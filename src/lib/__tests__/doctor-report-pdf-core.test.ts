@@ -173,6 +173,47 @@ describe("renderDoctorReportPdfBytes", () => {
     const header = String.fromCharCode(...bytes.slice(0, 5));
     expect(header).toBe("%PDF-");
   });
+
+  it("renders a sleep vitals row (minutes → hours) when sleep stats exist", async () => {
+    // SLEEP_DURATION stats are per-night asleep totals in MINUTES; the vitals
+    // table renders them in hours. 420 min → 7 h, 450 min avg → 7.5 h.
+    const data = makeData({
+      stats: {
+        ...makeData().stats,
+        SLEEP_DURATION: {
+          avg: 450,
+          min: 390,
+          max: 510,
+          count: 7,
+          latest: 420,
+        },
+      },
+    });
+    const bytes = renderDoctorReportPdfBytes(data, {
+      t: getServerTranslator("en").t,
+      locale: "en",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    // The sleep label and the hours-converted value both appear in the table.
+    // `num` renders one fixed fraction digit: 420 min → 7.0 h, 450 min → 7.5 h.
+    expect(text).toContain("Sleep duration");
+    expect(text).toContain("7.0 h");
+    expect(text).toContain("7.5 h");
+    // The raw minute value must NOT leak into the table.
+    expect(text).not.toContain("420 h");
+    expect(text).not.toContain("450 h");
+  });
+
+  it("omits the sleep vitals row when there are no sleep stats", async () => {
+    const bytes = renderDoctorReportPdfBytes(makeData(), {
+      t: getServerTranslator("en").t,
+      locale: "en",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    expect(text).not.toContain("Sleep duration");
+  });
 });
 
 describe("buildDoctorReportPdfDocument", () => {
