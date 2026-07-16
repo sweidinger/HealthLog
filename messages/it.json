@@ -8530,5 +8530,32 @@
       "water": "Acqua",
       "caffeine": "Caffeina"
     }
+  },
+  "daily": {
+    "line": {
+      "score": "Il tuo punteggio di salute oggi è {score}.",
+      "allClear": "Oggi nulla richiede la tua attenzione — tutto procede normalmente."
+    },
+    "item": {
+      "doseWindow": {
+        "title": "Farmaco da assumere",
+        "body": "Oggi è prevista una dose.",
+        "bodyNamed": "{name} è previsto oggi."
+      },
+      "preventiveCare": {
+        "title": "Controllo da fare",
+        "body": "{label} è da fare.",
+        "bodyMany": "Ci sono {count} controlli da fare."
+      },
+      "syncIssue": {
+        "title": "La sincronizzazione richiede attenzione",
+        "body": "{integration} non si sincronizza — riconnettilo per mantenere aggiornati i tuoi dati."
+      }
+    },
+    "action": {
+      "logDose": "Registra dose",
+      "reconnect": "Riconnetti",
+      "viewCheckups": "Vedi controlli"
+    }
   }
 }

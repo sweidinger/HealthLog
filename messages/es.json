@@ -8530,5 +8530,32 @@
       "water": "Agua",
       "caffeine": "Cafeína"
     }
+  },
+  "daily": {
+    "line": {
+      "score": "Tu puntuación de salud hoy es {score}.",
+      "allClear": "Hoy nada requiere tu atención: todo evoluciona con normalidad."
+    },
+    "item": {
+      "doseWindow": {
+        "title": "Medicación pendiente",
+        "body": "Hoy toca una dosis.",
+        "bodyNamed": "{name} toca hoy."
+      },
+      "preventiveCare": {
+        "title": "Revisión pendiente",
+        "body": "{label} está pendiente.",
+        "bodyMany": "Hay {count} revisiones pendientes."
+      },
+      "syncIssue": {
+        "title": "La sincronización necesita atención",
+        "body": "{integration} no se está sincronizando: vuelve a conectarlo para mantener tus datos al día."
+      }
+    },
+    "action": {
+      "logDose": "Registrar dosis",
+      "reconnect": "Reconectar",
+      "viewCheckups": "Ver revisiones"
+    }
   }
 }

@@ -10706,6 +10706,26 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/daily/digest:
+    get:
+      tags:
+        - Insights
+      summary: The unified daily digest
+      description: "Assembles the day's read from already-cached data: the nightly briefing lifted read-only from the insights
+        cache, the dashboard-snapshot health score / meds-today / sleep freshness, plus deterministic integration-status
+        and Vorsorge reads for the 'worth a look' rail. No provider call, no warm-on-mount. Requires the insights
+        module. Cookie or Bearer auth."
+      responses:
+        "200":
+          description: The daily digest.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyDigestEnvelope"
+        "401": *a1
+        "403": *a5
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     EncryptedExportRequest:
@@ -29772,6 +29792,168 @@ components:
         - data
         - error
       additionalProperties: false
+    DailyDigestEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DailyDigest"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DailyDigest:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+          description: ISO-8601 instant the digest was read.
+        phase:
+          type: string
+          enum:
+            - provisional
+            - final
+          description: Freshness lifecycle — 'final' once last night's sleep is in.
+        sleepPending:
+          type: boolean
+          description: Sleep tracked but last night not yet recorded.
+        score:
+          anyOf:
+            - type: object
+              properties:
+                value:
+                  type: number
+                band:
+                  type: string
+                delta:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+              required:
+                - value
+                - band
+                - delta
+              additionalProperties: false
+            - type: "null"
+          description: Health score + band + week-over-week delta; null when none.
+        topSignal:
+          anyOf:
+            - type: object
+              properties:
+                sourceMetric:
+                  type: string
+                tone:
+                  type: string
+                  enum:
+                    - good
+                    - watch
+                    - info
+                headline:
+                  type: string
+                nudge:
+                  type: string
+                delta:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+              required:
+                - sourceMetric
+                - tone
+                - headline
+                - nudge
+                - delta
+              additionalProperties: false
+            - type: "null"
+          description: Clinical-priority top signal, lifted from the cached briefing.
+        briefingLead:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: First sentence of the cached briefing paragraph.
+        line:
+          type: string
+          description: "Push / lock-screen line: cached-AI lead with a deterministic floor."
+        worthALook:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyPriorityItem"
+          description: Bounded 0–3 rail items, never padded.
+      required:
+        - generatedAt
+        - phase
+        - sleepPending
+        - score
+        - topSignal
+        - briefingLead
+        - line
+        - worthALook
+      additionalProperties: false
+      description: The one data spine of the daily-value system — composed from already-cached data, never a fresh AI call.
+        Consumed by the Today surface, the daily push, and a future iOS widget.
+    DailyPriorityItem:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - coach_checkin
+            - dose_window
+            - preventive_care
+            - sync_issue
+            - milestone
+            - ecg_new_recording
+            - tension_window
+          description: Closed rail-item kind.
+        title:
+          type: string
+          description: Localised headline (resolved server-side).
+        body:
+          description: Grounded one-liner, rendered as plain text.
+          type: string
+        status:
+          description: Semantic status wash — meaning, not decoration.
+          type: string
+          enum:
+            - success
+            - warning
+            - info
+            - destructive
+        actions:
+          maxItems: 3
+          type: array
+          items:
+            type: object
+            properties:
+              labelKey:
+                type: string
+                description: i18n key, resolved client-side.
+              intent:
+                type: string
+                description: Stable action token.
+              href:
+                description: Deep-link when navigational.
+                type: string
+            required:
+              - labelKey
+              - intent
+            additionalProperties: false
+          description: 1–3 one-tap actions.
+        moduleKey:
+          description: Provenance of the gate that admitted the item.
+          type: string
+      required:
+        - kind
+        - title
+        - actions
+      additionalProperties: false
+      description: One 'worth a look' rail item. The single model every daily-value consumer renders through PriorityCard.
     MedicationScheduleOutput:
       type: object
       properties:

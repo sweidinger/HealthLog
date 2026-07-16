@@ -33,6 +33,7 @@ import {
 } from "./coach";
 import { consentPaths } from "./consent";
 import { customMetricPaths } from "./custom-metrics";
+import { dailyPaths } from "./daily";
 import { cyclePaths } from "./cycle";
 import { biomarkerPaths } from "./biomarkers";
 import { inboundDocumentPaths } from "./documents";
@@ -101,6 +102,9 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   // v1.28 — HealthKit integration config (appended; spread order is
   // load-bearing).
   ...integrationPaths,
+  // v1.28 — the unified daily digest (P3 spine; appended, spread order is
+  // load-bearing).
+  ...dailyPaths,
 };
 
 export const openApiComponents: NonNullable<ZodOpenApiObject["components"]> = {

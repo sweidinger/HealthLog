@@ -8530,5 +8530,32 @@
       "water": "Water",
       "caffeine": "Caffeine"
     }
+  },
+  "daily": {
+    "line": {
+      "score": "Your health score today is {score}.",
+      "allClear": "Nothing needs your attention today — everything's tracking normally."
+    },
+    "item": {
+      "doseWindow": {
+        "title": "Medication due",
+        "body": "A dose is due today.",
+        "bodyNamed": "{name} is due today."
+      },
+      "preventiveCare": {
+        "title": "Check-up due",
+        "body": "{label} is due.",
+        "bodyMany": "{count} check-ups are due."
+      },
+      "syncIssue": {
+        "title": "Sync needs attention",
+        "body": "{integration} isn't syncing — reconnect to keep your data current."
+      }
+    },
+    "action": {
+      "logDose": "Log dose",
+      "reconnect": "Reconnect",
+      "viewCheckups": "View check-ups"
+    }
   }
 }

@@ -111,6 +111,12 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   // ungated insights AI route fails this test BY NAME rather than leaking the
   // surface over a Bearer token when the account turned insights off.
   "src/app/api/insights",
+  // v1.28 — the unified daily-digest read (`GET /api/daily/digest`). The digest
+  // is the AI-narrative daily layer, so it gates on the `insights` module via
+  // `requireModuleEnabled(user.id, "insights")` directly. Walking the tree means
+  // a NEW ungated daily route fails BY NAME rather than leaking over a Bearer
+  // token when the account turned insights off.
+  "src/app/api/daily",
   // v1.28 — the nutrient-intake sync (opt-in `nutrients` module). Unlike the
   // data-layer-exempt siblings this domain is REFUSE-INGEST-WHEN-OFF (the
   // mental-health posture): both the batch ingest and the window-summary
