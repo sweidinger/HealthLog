@@ -30,6 +30,12 @@ import {
   type MorningDigestRefreshPayload,
 } from "@/lib/jobs/morning-digest-refresh";
 import {
+  DAILY_BRIEFING_QUEUE,
+  DAILY_BRIEFING_CRON,
+  runDailyBriefingTick,
+} from "@/lib/jobs/daily-briefing";
+import { maybeDispatchDailyBriefing } from "@/lib/daily/daily-briefing-push";
+import {
   RECOVERY_SCORE_QUEUE,
   RECOVERY_SCORE_CRON,
   runRecoveryScore,
@@ -188,6 +194,11 @@ const allQueues = [
   // v1.16.11 — daily medication low-stock pass. Without this entry the 09:00
   // schedule silently no-ops and no low-stock alert ever fires.
   MEDICATION_LOW_STOCK_QUEUE,
+  // S5 — daily-briefing fallback cron. The primary morning push rides the
+  // sleep-arrival finalisation hook below; this queue is the fixed local-morning
+  // slot for the no-sleep-arrived case. Without this entry the every-15-min
+  // schedule silently no-ops and the fallback push never fires.
+  DAILY_BRIEFING_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -243,6 +254,11 @@ const schedules: ScheduleEntry[] = [
   // can act on it. Once daily; the per-medication stamp keeps it at
   // one push per threshold crossing.
   [MEDICATION_LOW_STOCK_QUEUE, MEDICATION_LOW_STOCK_CRON],
+  // S5 — daily-briefing fallback slot. Ticks every 15 min; the per-user
+  // local-hour gate inside the tick selects each user's fixed morning slot, so
+  // one UTC cron serves every timezone. The `push_attempts` cap suppresses it
+  // when the sleep-arrival finalisation push already fired this morning.
+  [DAILY_BRIEFING_QUEUE, DAILY_BRIEFING_CRON],
 ];
 
 /**
@@ -326,6 +342,20 @@ export async function registerStatusQueues(
               "morning_refresh",
               `${result.status}:${result.comprehensive ?? "none"}`,
             );
+            // S5 — the day just finalised (last night's sleep folded in), so
+            // this is the natural, event-driven moment to fire the calm morning
+            // push carrying the FINAL digest. Fully fault-isolated inside the
+            // seam; the opt-in / morning-window / once-per-day gates all live
+            // there, so a user who never opted in or is outside the window is a
+            // clean no-op. The fallback cron covers the no-sleep-arrived case.
+            if (result.status === "finalised") {
+              const pushResult = await maybeDispatchDailyBriefing(
+                getWorkerPrisma(),
+                job.data.userId,
+                new Date(),
+              );
+              evt.addMeta("daily_briefing_push", pushResult);
+            }
           } catch (err) {
             recordError();
             workerLog("error", "[morning-digest-refresh] pass failed", err);
@@ -429,6 +459,40 @@ export async function registerStatusQueues(
       });
     },
   );
+  // S5 — daily-briefing fallback slot. Single-flight; the `push_attempts`
+  // frequency cap makes an overlapping tick a no-op (a second same-day attempt
+  // is suppressed), and the tick only loads a digest for opted-in users at
+  // their exact local fallback hour. No provider call — it reads the cached
+  // digest and dispatches the deterministic line + cached lead.
+  await boss.work(DAILY_BRIEFING_QUEUE, { localConcurrency: 1 }, async () => {
+    await withBackgroundEvent("job.daily_briefing", async (evt) => {
+      try {
+        const summary = await runDailyBriefingTick(
+          getWorkerPrisma(),
+          new Date(),
+        );
+        evt.setBackground({
+          task_name: "job.daily_briefing",
+          result: {
+            candidates_scanned: summary.candidatesScanned,
+            in_slot: summary.inSlot,
+            sent: summary.sent,
+            suppressed_frequency: summary.suppressedFrequency,
+            no_digest: summary.noDigest,
+            opted_out: summary.optedOut,
+            module_off: summary.moduleOff,
+            no_channel: summary.noChannel,
+            outside_window: summary.outsideWindow,
+            failed: summary.failed,
+          },
+        });
+      } catch (err) {
+        evt.setError(err);
+        recordError();
+        throw err;
+      }
+    });
+  });
   // v1.10.0 — computed scores (WX-E). Nightly Stress-score (HRV-derived
   // proxy) compute + store. Single-flight so two ticks never double-walk
   // the cohort. The runner iterates every eligible user and upserts one

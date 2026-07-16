@@ -101,6 +101,17 @@ export const EVENT_TYPES = [
   // would defeat the feature. An explicit per-channel `NotificationPreference`
   // row still wins for a user who opts out.
   "SECURITY_ALERT",
+  // S5 — the once-daily calm morning briefing. Default OFF (see
+  // EVENT_DEFAULT_ENABLED, the PERSONAL_RECORD precedent): the user opts in
+  // per-channel from the /notifications matrix, so the channel choice is
+  // explicit at opt-in. It reads the CACHED daily digest — never a fresh AI
+  // call — and carries a minimal, non-clinical line (cached briefing lead with
+  // a deterministic floor). It is a nudge, NEVER the anomaly channel: it is
+  // dispatched non-urgent, fired at most once per user per local day (the
+  // `push_attempts` ledger is the frequency anchor), and only inside a local
+  // morning window, so a concerning reading always stays on
+  // `MEASUREMENT_ANOMALY` and this never bypasses Focus.
+  "DAILY_BRIEFING",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -162,6 +173,12 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // needs surfaced. An explicit per-channel `NotificationPreference` row
   // (enabled=false) still suppresses it for a user who opts out.
   SECURITY_ALERT: true,
+  // S5 — OFF by default (the PERSONAL_RECORD precedent). The calm daily
+  // briefing stays silent until the user explicitly opts in per-channel at
+  // /notifications; the dispatcher's default-policy gate suppresses every
+  // channel that has no explicit enabled row, so a fresh account never
+  // receives a morning push it did not ask for.
+  DAILY_BRIEFING: false,
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {

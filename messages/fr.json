@@ -6516,6 +6516,8 @@
     "eventMeasurementReminderDesc": "Envoyé lorsqu'une mesure suivie est due.",
     "eventMedicationIntakeSync": "Synchronisation des prises",
     "eventMedicationIntakeSyncDesc": "Mise à jour entre appareils quand une dose est enregistrée, prise ou ignorée.",
+    "eventDailyBriefing": "Résumé quotidien",
+    "eventDailyBriefingDesc": "Un résumé matinal et posé de votre journée. Désactivé jusqu'à ce que vous l'activiez.",
     "security": {
       "newDeviceTitle": "Nouvelle connexion à votre compte",
       "newDeviceBody": "Une nouvelle connexion depuis {device} ({location}). Si ce n'était pas vous, changez votre mot de passe immédiatement.",
@@ -8503,6 +8505,10 @@
     "line": {
       "score": "Ton score de santé aujourd'hui est de {score}.",
       "allClear": "Rien ne requiert ton attention aujourd'hui — tout évolue normalement."
+    },
+    "push": {
+      "title": "Votre résumé du matin",
+      "bodyProvisional": "{line} · Le sommeil de la nuit dernière n'est pas encore disponible."
     },
     "item": {
       "doseWindow": {

@@ -6516,6 +6516,8 @@
     "eventMeasurementReminderDesc": "Inviato quando una misurazione tracciata è in scadenza.",
     "eventMedicationIntakeSync": "Sincronizzazione assunzioni",
     "eventMedicationIntakeSyncDesc": "Aggiornamento tra dispositivi quando una dose viene registrata, assunta o saltata.",
+    "eventDailyBriefing": "Riepilogo quotidiano",
+    "eventDailyBriefingDesc": "Un riepilogo mattutino e tranquillo della tua giornata. Disattivato finché non lo attivi.",
     "security": {
       "newDeviceTitle": "Nuovo accesso al tuo account",
       "newDeviceBody": "Un nuovo accesso da {device} ({location}). Se non sei stato tu, cambia subito la password.",
@@ -8503,6 +8505,10 @@
     "line": {
       "score": "Il tuo punteggio di salute oggi è {score}.",
       "allClear": "Oggi nulla richiede la tua attenzione — tutto procede normalmente."
+    },
+    "push": {
+      "title": "Il tuo riepilogo mattutino",
+      "bodyProvisional": "{line} · Il sonno della scorsa notte non è ancora disponibile."
     },
     "item": {
       "doseWindow": {
