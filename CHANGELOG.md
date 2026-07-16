@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.28.47] — 2026-07-16 — Job queue engine update (pg-boss 12.26)
+
+Updates the background-job engine (pg-boss) from 12.20 to 12.26, which adds
+schema-drift detection, self-healing for background index builds, and a set of
+correctness fixes. Some of those fixes surface errors that earlier versions
+silently swallowed; the app already attaches an error listener to the queue and
+does not use the direct calls affected by the change, so the upgrade is
+transparent. No configuration change is needed.
+
 ## [1.28.46] — 2026-07-16 — Server performance on large instances
 
 Performance work for accounts with a lot of history, none of it changing what
