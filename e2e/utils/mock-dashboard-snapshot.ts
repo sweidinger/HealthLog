@@ -231,11 +231,9 @@ export interface MockSnapshotOptions {
   summaries?: Record<string, DataSummary>;
   /** Artificial latency in ms before the route fulfils (race specs). */
   delayMs?: number;
-  /** Render the dashboard hero band (`layout.heroVisible` opt-in). */
-  heroVisible?: boolean;
-  /** Fresh (`ready`, non-stale) briefing for the hero spotlight rows. */
+  /** Fresh (`ready`, non-stale) briefing for the dashboard briefing card. */
   briefing?: DailyBriefing;
-  /** Selected hero score rings (renders beside the health-score ring). */
+  /** Selected score rings carried on the snapshot (server-computed). */
   scoreRings?: DashboardScoreRing[];
 }
 
@@ -263,9 +261,7 @@ export function buildMockSnapshot(
       onboardingTourCompleted: true,
       greetingHour: 9,
     },
-    layout: options.heroVisible
-      ? { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true }
-      : DEFAULT_DASHBOARD_LAYOUT,
+    layout: DEFAULT_DASHBOARD_LAYOUT,
     layoutCatalogue: buildLayoutCatalogue(),
     metricStates: {},
     targetBands: mockTargetBands(),

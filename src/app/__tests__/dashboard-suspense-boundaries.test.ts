@@ -77,10 +77,10 @@ describe("v1.4.40 — dashboard per-cell Suspense boundaries", () => {
   it("keeps the per-render Intl hour walk off the page (audit-H4 successor)", () => {
     const src = load(PAGE_PATH);
     // The audit-H4 `useMemo(getHourForTimeZone, [userTimezone])` pin
-    // retired with the greeting itself: the hero band derives the
-    // daypart from the snapshot's server-computed `greetingHour`
-    // (`dashboard-hero.tsx`), so the page no longer instantiates any
-    // `Intl.DateTimeFormat` for the greeting — per render or otherwise.
+    // moved off the page with the greeting itself: the greeting now
+    // lives in the header (`dashboard-header.tsx`), so the page no
+    // longer instantiates any `Intl.DateTimeFormat` for the greeting —
+    // per render or otherwise.
     expect(src).not.toContain("getHourForTimeZone");
     expect(src).not.toContain("welcomeText");
   });

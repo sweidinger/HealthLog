@@ -43,8 +43,6 @@ import {
   useDashboardChartReveal,
 } from "@/components/dashboard/chart-reveal";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { DashboardHero } from "@/components/dashboard/hero/dashboard-hero";
-import { DashboardHeroSkeleton } from "@/components/dashboard/hero/dashboard-hero-skeleton";
 import { TodayHero } from "@/components/daily/today-hero";
 import { TodayHeroSkeleton } from "@/components/daily/today-hero-skeleton";
 import {
@@ -766,25 +764,9 @@ export default function DashboardPageClient() {
     !mounted ||
     (snapshotEnabled ? snapshotQuery.isLoading : analyticsSlimQuery.isLoading);
 
-  // v1.16.9 — the greeting paragraph moved off the header into the
-  // hero band (it derives from the snapshot's server-computed
-  // `greetingHour`, so the old client-side Intl hour walk retired
-  // with it). The hero gates on the layout's `heroVisible` flag
-  // (opt-in; only the literal `true` renders) and holds
-  // a footprint-identical skeleton while the snapshot is in flight,
-  // so the band swaps in place — no growth, no greeting flash. When
-  // the hero does NOT render (toggle off, or snapshot flag off) the
-  // header takes the greeting back — it must never disappear with the
-  // band.
-  const heroVisible = snapshotEnabled && layout.heroVisible === true;
-  const heroSnapshot = snapshotQuery.data;
-
   return (
     <div className="space-y-6">
-      <DashboardHeader
-        onQuickEntry={setQuickEntryDialog}
-        showGreeting={!heroVisible}
-      />
+      <DashboardHeader onQuickEntry={setQuickEntryDialog} />
 
       {/* S2 — the Today hero, promoted above the tile strip (MARC sign-off
           decision 1). Renders the S1 daily digest: the day's read, the
@@ -803,16 +785,6 @@ export default function DashboardPageClient() {
         ) : digestQuery.data ? (
           <TodayHero digest={digestQuery.data} />
         ) : null)}
-
-      {heroVisible &&
-        (primaryLoading || !heroSnapshot ? (
-          <DashboardHeroSkeleton />
-        ) : (
-          <DashboardHero
-            snapshot={heroSnapshot}
-            onQuickEntry={setQuickEntryDialog}
-          />
-        ))}
 
       {/* v1.18.6 — the spotlight tour launcher moved to the app-shell
        * (`AuthShell`) so its overlay survives the cross-page

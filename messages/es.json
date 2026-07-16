@@ -327,37 +327,7 @@
     "welcomeBackWithName": "{greeting} {name}, te damos la bienvenida de nuevo.",
     "hero": {
       "scoreLabel": "Health Score",
-      "ringLink": "Abrir detalles de {metric}",
-      "scoreProvisional": "Aún no hay datos suficientes",
-      "scoreComputing": "Calculando la puntuación …",
-      "ringDoses": "Dosis de hoy",
-      "ringDosesAria": "{taken} de {scheduled} dosis tomadas hoy",
-      "ringCarousel": {
-        "aria": "Anillos de bienestar",
-        "dot": "Mostrar anillo {index} de {total}"
-      },
-      "verdict": {
-        "doseOverdue": "Una dosis de {name} está atrasada.",
-        "doseOverdueNoName": "Una dosis está atrasada.",
-        "bpHigh": "Tu última tensión arterial fue muy alta ({sys}/{dia}). Vuelve a medirla con calma.",
-        "doseUpcoming": "A las {time} toca {name}.",
-        "doseUpcomingNoName": "A las {time} toca una dosis.",
-        "weightDrift": "Tu peso se está alejando del rango objetivo esta semana.",
-        "shortNights": "Tus noches han sido cortas últimamente — {hours} h de media.",
-        "silence": "Sin mediciones desde hace {days} días. Un registro rápido mantiene tu panorama al día.",
-        "scoreDrop": "Tu puntuación está {points} puntos por debajo de la semana pasada.",
-        "allQuiet": "Todo tranquilo — hoy no hay nada que requiera tu atención."
-      },
-      "action": {
-        "takeDose": "Registrar ahora",
-        "viewBp": "Ver tensión arterial",
-        "viewWeight": "Ver peso",
-        "viewSleep": "Ver sueño",
-        "logMeasurement": "Registrar medición"
-      },
-      "briefing": {
-        "title": "Resumen de hoy"
-      }
+      "ringDoses": "Dosis de hoy"
     },
     "greetingSalutation": "Hola, {name}",
     "streakLabel": "días seguidos",
@@ -410,8 +380,6 @@
     "compliance7d": "Cumplimiento (7 días)",
     "mood": "Estado de ánimo",
     "customizeTitle": "Diseño del panel",
-    "heroToggleLabel": "Resumen del día",
-    "heroToggleDescription": "Muestra el saludo, el foco del día y los anillos de puntuación en la parte superior del panel.",
     "scoreRingsTitle": "Anillos de puntuación",
     "scoreRingsDescription": "Hasta tres anillos adicionales junto a la puntuación de salud, por ejemplo preparación, recuperación, sueño o cumplimiento. Arrastra para reordenar; la puntuación de salud va primero de forma predeterminada.",
     "layoutReset": "Restablecer valores por defecto",

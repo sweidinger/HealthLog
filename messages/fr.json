@@ -327,37 +327,7 @@
     "welcomeBackWithName": "{greeting} {name}, content de te revoir.",
     "hero": {
       "scoreLabel": "Health Score",
-      "ringLink": "Ouvrir les détails de {metric}",
-      "scoreProvisional": "Pas encore assez de données",
-      "scoreComputing": "Calcul du score en cours …",
-      "ringDoses": "Doses du jour",
-      "ringDosesAria": "{taken} des {scheduled} doses prises aujourd'hui",
-      "ringCarousel": {
-        "aria": "Anneaux de bien-être",
-        "dot": "Afficher l'anneau {index} sur {total}"
-      },
-      "verdict": {
-        "doseOverdue": "Une dose de {name} est en retard.",
-        "doseOverdueNoName": "Une dose est en retard.",
-        "bpHigh": "Votre dernière tension était très élevée ({sys}/{dia}). Reprenez une mesure au calme.",
-        "doseUpcoming": "{name} est prévu à {time}.",
-        "doseUpcomingNoName": "Une dose est prévue à {time}.",
-        "weightDrift": "Votre poids s’éloigne de la plage cible cette semaine.",
-        "shortNights": "Vos nuits ont été courtes récemment — {hours} h en moyenne.",
-        "silence": "Aucune mesure depuis {days} jours. Une saisie rapide garde votre tableau à jour.",
-        "scoreDrop": "Votre score est {points} points sous la semaine dernière.",
-        "allQuiet": "Tout est calme — rien ne demande votre attention aujourd’hui."
-      },
-      "action": {
-        "takeDose": "Enregistrer maintenant",
-        "viewBp": "Voir la tension",
-        "viewWeight": "Voir le poids",
-        "viewSleep": "Voir le sommeil",
-        "logMeasurement": "Saisir une mesure"
-      },
-      "briefing": {
-        "title": "Briefing du jour"
-      }
+      "ringDoses": "Doses du jour"
     },
     "greetingSalutation": "Bonjour, {name}",
     "streakLabel": "jours d’affilée",
@@ -410,8 +380,6 @@
     "compliance7d": "Observance (7 jours)",
     "mood": "Humeur",
     "customizeTitle": "Mise en page du tableau",
-    "heroToggleLabel": "Aperçu du jour",
-    "heroToggleDescription": "Affiche le message d’accueil, le focus du jour et les anneaux de score tout en haut du tableau de bord.",
     "scoreRingsTitle": "Anneaux de score",
     "scoreRingsDescription": "Jusqu’à trois anneaux supplémentaires à côté du score de santé — par exemple préparation, récupération, sommeil ou observance. Glissez pour réordonner ; le score de santé est placé en premier par défaut.",
     "layoutReset": "Rétablir les valeurs par défaut",

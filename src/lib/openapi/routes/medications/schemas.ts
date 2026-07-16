@@ -743,7 +743,7 @@ export const medicationListLayoutSchema = z
       .enum(MEDICATION_LIST_VIEWS)
       .optional()
       .describe(
-        'Which presentation /medications renders in. Default "cards". Optional on PUT — when omitted the stored value is preserved (preserve-when-absent, like `heroVisible` on the dashboard layout). Always present on responses.',
+        'Which presentation /medications renders in. Default "cards". Optional on PUT — when omitted the stored value is preserved (preserve-when-absent, like `chartOverlayPrefs` on the dashboard layout). Always present on responses.',
       ),
     order: z
       .array(z.string().min(1).max(MEDICATION_ORDER_ID_MAX_LENGTH))

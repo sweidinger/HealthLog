@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.53
+  version: 1.28.54
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -11535,8 +11535,8 @@ components:
           const: 1
         view:
           description: Which presentation /medications renders in. Default "cards". Optional on PUT — when omitted the stored
-            value is preserved (preserve-when-absent, like `heroVisible` on the dashboard layout). Always present on
-            responses.
+            value is preserved (preserve-when-absent, like `chartOverlayPrefs` on the dashboard layout). Always present
+            on responses.
           type: string
           enum:
             - cards
@@ -30064,8 +30064,8 @@ components:
           const: 1
         view:
           description: Which presentation /medications renders in. Default "cards". Optional on PUT — when omitted the stored
-            value is preserved (preserve-when-absent, like `heroVisible` on the dashboard layout). Always present on
-            responses.
+            value is preserved (preserve-when-absent, like `chartOverlayPrefs` on the dashboard layout). Always present
+            on responses.
           type: string
           enum:
             - cards

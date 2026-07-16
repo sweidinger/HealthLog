@@ -1,13 +1,11 @@
 "use client";
 
 /**
- * Dashboard page header: title, the customize shortcut, and the
- * quick-add dropdown that opens the quick-entry sheets. The greeting
- * line lives in the hero band (`<DashboardHero>`) when that renders —
- * but the hero is optional (snapshot flag off, or hidden via the
- * dashboard-layout toggle), and the greeting must never disappear with
- * it. `showGreeting` (fed from the page's hero gate) restores the
- * pre-hero greeting paragraph under the title for exactly those mounts.
+ * Dashboard page header: title, the greeting line, the customize
+ * shortcut, and the quick-add dropdown that opens the quick-entry
+ * sheets. The greeting sits under the title on every dashboard mount —
+ * the promoted Today hero renders separately above the tile strip and
+ * carries its own read, so the header greeting is unconditional.
  *
  * Extracted from the dashboard page; the page owns the open-state the
  * dropdown items set via `onQuickEntry`.
@@ -31,11 +29,8 @@ import type { QuickEntryDialog } from "@/components/dashboard/quick-entry-sheets
 
 export function DashboardHeader({
   onQuickEntry,
-  showGreeting = false,
 }: {
   onQuickEntry: (dialog: NonNullable<QuickEntryDialog>) => void;
-  /** Render the greeting line here because the hero band does not. */
-  showGreeting?: boolean;
 }) {
   const { t } = useTranslations();
   const { user } = useAuth();
@@ -71,18 +66,16 @@ export function DashboardHeader({
     <PageHeader
       title={t("dashboard.title")}
       description={
-        showGreeting ? (
-          /* `min-h-5` reserves the greeting's line box from the SSR
-             pass on: the text personalises (name appended) on the first
-             client re-render after hydration, and the reserved line
-             keeps the header from collapsing/growing around that swap. */
-          <span
-            data-slot="dashboard-header-greeting"
-            className="block min-h-5 truncate"
-          >
-            {welcomeText}
-          </span>
-        ) : undefined
+        /* `min-h-5` reserves the greeting's line box from the SSR
+           pass on: the text personalises (name appended) on the first
+           client re-render after hydration, and the reserved line
+           keeps the header from collapsing/growing around that swap. */
+        <span
+          data-slot="dashboard-header-greeting"
+          className="block min-h-5 truncate"
+        >
+          {welcomeText}
+        </span>
       }
       actions={
         <>
