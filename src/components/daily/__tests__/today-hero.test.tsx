@@ -1,14 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { I18nProvider } from "@/lib/i18n/context";
 import { TodayHero } from "../today-hero";
 import type { DailyDigest } from "@/lib/daily/digest";
 import type { PriorityItem } from "@/lib/daily/priority-item";
 
+// The hero now wires the coach check-in card's keep / let-go taps through
+// `useCoachCheckinAction`, so it needs a QueryClient in the tree.
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
+  const client = new QueryClient();
   return renderToStaticMarkup(
-    <I18nProvider initialLocale={locale}>{node}</I18nProvider>,
+    <QueryClientProvider client={client}>
+      <I18nProvider initialLocale={locale}>{node}</I18nProvider>
+    </QueryClientProvider>,
   );
 }
 

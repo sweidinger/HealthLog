@@ -6536,6 +6536,8 @@
     "eventMeasurementReminderDesc": "Envoyé lorsqu'une mesure suivie est due.",
     "eventMedicationIntakeSync": "Synchronisation des prises",
     "eventMedicationIntakeSyncDesc": "Mise à jour entre appareils quand une dose est enregistrée, prise ou ignorée.",
+    "eventDailyBriefing": "Résumé quotidien",
+    "eventDailyBriefingDesc": "Un résumé matinal et posé de votre journée. Désactivé jusqu'à ce que vous l'activiez.",
     "security": {
       "newDeviceTitle": "Nouvelle connexion à votre compte",
       "newDeviceBody": "Une nouvelle connexion depuis {device} ({location}). Si ce n'était pas vous, changez votre mot de passe immédiatement.",
@@ -8524,6 +8526,10 @@
       "score": "Ton score de santé aujourd'hui est de {score}.",
       "allClear": "Rien ne requiert ton attention aujourd'hui — tout évolue normalement."
     },
+    "push": {
+      "title": "Votre résumé du matin",
+      "bodyProvisional": "{line} · Le sommeil de la nuit dernière n'est pas encore disponible."
+    },
     "item": {
       "doseWindow": {
         "title": "Médicament à prendre",
@@ -8538,12 +8544,20 @@
       "syncIssue": {
         "title": "La synchronisation demande votre attention",
         "body": "{integration} ne se synchronise pas — reconnecte-le pour garder tes données à jour."
+      },
+      "coachCheckin": {
+        "title": "Il est temps de revoir un plan",
+        "body": "Cela fait environ une semaine que vous avez défini ce plan : gardez-le, ajustez-le ou laissez-le. Sans pression.",
+        "bodyPlan": "Il y a environ une semaine, vous vous étiez fixé : « {plan} ». Gardez-le, ajustez-le ou laissez-le, sans pression."
       }
     },
     "action": {
       "logDose": "Enregistrer la dose",
       "reconnect": "Reconnecter",
-      "viewCheckups": "Voir les examens"
+      "viewCheckups": "Voir les examens",
+      "checkinKeep": "Garder",
+      "checkinAdjust": "Ajuster",
+      "checkinLetGo": "Laisser tomber"
     },
     "today": {
       "scoreLabel": "Score de santé",

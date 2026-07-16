@@ -48,6 +48,7 @@ import {
   recomputeBucketsForMeasurement,
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 
 import {
   sweepStaleSleepSegments,
@@ -635,6 +636,15 @@ export async function syncUserSleep(
       `withings sleep: rollup recompute failed for ${userId}: ${err}`,
     );
   }
+
+  // S4 — if a stage segment for last night just landed, kick the debounced
+  // morning refresh so the digest/score finalise with the current sleep. The
+  // trigger judges "last night" in the user's profile tz and no-ops on a
+  // backfill; fire-and-forget so a freshness enqueue never fails the sync.
+  void maybeEnqueueMorningRefresh(
+    userId,
+    touched.filter((tt) => tt.type === SLEEP_TYPE).map((tt) => tt.measuredAt),
+  ).catch(() => {});
 
   await recordSyncSuccess(userId, "withings");
   return imported;

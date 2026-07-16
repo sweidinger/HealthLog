@@ -34,6 +34,7 @@ import { prisma } from "@/lib/db";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
+import { COACH_CHECKIN_REVIEW_DAYS } from "@/lib/daily/digest";
 import { coachPlanPatchSchema } from "@/lib/validations/coach-plan";
 
 interface RouteCtx {
@@ -92,6 +93,23 @@ export const PATCH = apiHandler(async (req: NextRequest, ctx: RouteCtx) => {
     data.reviewDate = parsed.data.reviewDate
       ? new Date(parsed.data.reviewDate)
       : null;
+  }
+
+  // S3 (§2.3.1) — every accepted plan earns a check-in. When the coach
+  // activates a plan and set no review date of its own, default `reviewDate` to
+  // +COACH_CHECKIN_REVIEW_DAYS so the Today check-in card fires in a week. Read
+  // the current row first so an explicitly-pinned review date is never
+  // clobbered; the read stays owner-scoped, so it leaks no cross-account state.
+  if (parsed.data.status === "active" && parsed.data.reviewDate === undefined) {
+    const current = await prisma.coachPlan.findFirst({
+      where: { id, userId: user.id, deletedAt: null },
+      select: { reviewDate: true },
+    });
+    if (current && current.reviewDate === null) {
+      data.reviewDate = new Date(
+        Date.now() + COACH_CHECKIN_REVIEW_DAYS * 86_400_000,
+      );
+    }
   }
 
   // `updateMany` (not `update`) so an unknown / cross-user / already-deleted id
