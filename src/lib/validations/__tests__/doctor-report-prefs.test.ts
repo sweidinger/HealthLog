@@ -57,6 +57,18 @@ describe("parseDoctorReportPrefs", () => {
     expect(out.mood).toBe(false);
   });
 
+  it("defaults glucose to ON (per-report control, parity with pre-toggle behaviour)", () => {
+    const out = parseDoctorReportPrefs(null);
+    expect(out.glucose).toBe(true);
+  });
+
+  it("accepts an explicit glucose=false partial update", () => {
+    const out = parseDoctorReportPrefs({ glucose: false });
+    expect(out.glucose).toBe(false);
+    // Other sections keep their defaults.
+    expect(out.labs).toBe(true);
+  });
+
   it("defaults labs to ON (recorded to share with a clinician)", () => {
     const out = parseDoctorReportPrefs(null);
     expect(out.labs).toBe(true);
@@ -90,6 +102,7 @@ describe("resolveDoctorReportPrefs", () => {
       mood: true,
       compliance: false,
       sleep: false,
+      glucose: false,
       cycle: false,
       labs: false,
       allergies: false,

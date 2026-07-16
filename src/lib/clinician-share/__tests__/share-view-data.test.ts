@@ -306,6 +306,36 @@ describe("loadShareViewData — grouped sections are folded, not silently defaul
     expect(opts.sections.labs).toBe(true);
   });
 
+  it("folds a grouped glucose=OFF toggle down to sections.glucose=false", async () => {
+    // A diabetic owner withholds glucose from THIS share without disabling the
+    // glucose module app-wide. The grouped `glucose` toggle must survive the
+    // fold and reach the aggregator so no glucose panel is built.
+    await loadShareViewData(
+      ctx({
+        sectionsJson: {
+          vitals: { bp: true },
+          glucose: false,
+        },
+        documentOnly: false,
+      }),
+    );
+    const opts = collect.mock.calls[0]![2] as {
+      sections: Record<string, boolean>;
+    };
+    expect(opts.sections.glucose).toBe(false);
+    // A share that leaves glucose unspecified keeps the default-ON behaviour.
+    vi.clearAllMocks();
+    collect.mockResolvedValue({ patient: { displayName: "Shared record" } });
+    findDocs.mockResolvedValue([]);
+    await loadShareViewData(
+      ctx({ sectionsJson: { vitals: { bp: true } }, documentOnly: false }),
+    );
+    const opts2 = collect.mock.calls[0]![2] as {
+      sections: Record<string, boolean>;
+    };
+    expect(opts2.sections.glucose).toBe(true);
+  });
+
   it("still resolves a flat legacy blob through the flat parser unchanged", async () => {
     // A flat shape has no grouped-only key, so it keeps the exact legacy path.
     await loadShareViewData(

@@ -211,6 +211,9 @@ const CORE_CLUSTERS: ReadonlySet<CoachDataCluster> = new Set<CoachDataCluster>([
  *                   tokens drops the raw additive timelines too; the
  *                   composites are additionally gated below so they never
  *                   build off the sleep signal alone.
+ *   - `environment` → the audio-exposure (env / headphone / event), daylight,
+ *                   and skin-temperature blocks — the sources the opt-in
+ *                   environment cluster owns (`CLUSTER_SOURCES.environment`).
  *
  * `cycle` is intentionally absent: its block already resolves through the
  * fully two-layer cycle gate (`isCycleAvailableForUser` — the per-user
@@ -226,6 +229,17 @@ const MODULE_EXCLUDED_SOURCES: Partial<Record<ModuleKey, CoachScopeSource[]>> =
     glucose: ["glucose"],
     workouts: ["workouts"],
     recovery: ["hrv", "resting_hr", "vo2_max"],
+    // The environment/exposure cluster owns exactly these sources (mirrors
+    // `CLUSTER_SOURCES.environment` in clusters.ts). When the opt-in
+    // environment module is off, strip its audio-exposure / daylight /
+    // skin-temperature blocks so the model never sees a disabled domain.
+    environment: [
+      "audio_env",
+      "audio_headphone",
+      "audio_event",
+      "daylight",
+      "skin_temp",
+    ],
   };
 
 /**

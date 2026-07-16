@@ -94,13 +94,19 @@ export type ExportSections = z.infer<typeof exportSectionsSchema>;
  * signal that a persisted `sectionsJson` blob is the grouped shape rather than
  * the flat one — the flat shape carries `bp` / `weight` / `pulse` at the top
  * level, the grouped shape nests them under `vitals`.
+ *
+ * `glucose` is deliberately NOT a discriminator: it is a top-level boolean in
+ * BOTH shapes (the flat `DoctorReportPrefs` gained its own `glucose` section
+ * toggle), so its presence no longer distinguishes grouped from flat. A real
+ * grouped export always carries one of the nested groups below, so detection
+ * stays reliable without it — and a bare `{ glucose: false }` blob correctly
+ * resolves through the flat parser.
  */
 const GROUPED_SECTION_KEYS = [
   "vitals",
   "cardioFitness",
   "activity",
   "medications",
-  "glucose",
 ] as const;
 
 /**
@@ -187,6 +193,7 @@ export function toDoctorReportPrefs(
     mood: s.mood === true,
     compliance: m.compliance ?? m.list ?? fallback.compliance,
     sleep: a.sleep ?? fallback.sleep,
+    glucose: s.glucose ?? fallback.glucose,
     // Cycle is opt-in: only true when explicitly requested (privacy).
     cycle: s.cycle === true,
     labs: s.labs ?? fallback.labs,

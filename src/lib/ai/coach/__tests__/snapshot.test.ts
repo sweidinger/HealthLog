@@ -635,6 +635,45 @@ describe("buildCoachSnapshot", () => {
     expect(out.provenance.metrics).not.toContain("glucose");
   });
 
+  it("drops the environment/exposure blocks when the environment module is disabled", async () => {
+    // The opt-in environment cluster owns the audio-exposure / daylight /
+    // skin-temperature sources. With the module off, none may reach the model.
+    resolveModuleMapMock.mockResolvedValue({
+      ...allModulesEnabled(),
+      environment: false,
+    });
+    featuresMock.mockResolvedValue({});
+    prismaMock.measurement.findMany.mockResolvedValue([
+      daysAgo(2, 72, "AUDIO_EXPOSURE_ENV"),
+      daysAgo(3, 33.1, "SKIN_TEMPERATURE"),
+      daysAgo(4, 45, "TIME_IN_DAYLIGHT"),
+    ]);
+
+    const envSources = [
+      "audio_env",
+      "audio_headphone",
+      "audio_event",
+      "daylight",
+      "skin_temp",
+    ] as const;
+    const out = await buildCoachSnapshot("user-1", {
+      sources: [...envSources],
+    });
+    const parsed = JSON.parse(out.snapshotJson);
+
+    // No environment block reaches the prompt.
+    expect(parsed.audioExposureEnvironment).toBeUndefined();
+    expect(parsed.audioExposureHeadphone).toBeUndefined();
+    expect(parsed.audioExposureEvent).toBeUndefined();
+    expect(parsed.timeInDaylight).toBeUndefined();
+    expect(parsed.skinTemperature).toBeUndefined();
+    // Every environment source token is stripped from scope.
+    for (const src of envSources) {
+      expect(parsed.scope.sources).not.toContain(src);
+      expect(out.provenance.metrics).not.toContain(src);
+    }
+  });
+
   it("drops the sleep + sleepRhythm blocks when the sleep module is disabled", async () => {
     resolveModuleMapMock.mockResolvedValue({
       ...allModulesEnabled(),
