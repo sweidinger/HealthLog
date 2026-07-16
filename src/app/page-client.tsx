@@ -793,7 +793,12 @@ export default function DashboardPageClient() {
           degrades to nothing (the hero itself returns null). The dense
           tile grid + charts below are untouched. */}
       {insightsEnabled &&
-        (digestQuery.isLoading ? (
+        // `!mounted` pins the SSR pass AND the first hydration render to the
+        // skeleton (v1.16.4 pattern): the digest query rehydrates from the
+        // persisted cache on the client, so without this gate the client's
+        // first render would paint the hero while the server rendered the
+        // skeleton — a text-content hydration mismatch (React #418).
+        (!mounted || digestQuery.isLoading ? (
           <TodayHeroSkeleton />
         ) : digestQuery.data ? (
           <TodayHero digest={digestQuery.data} />
