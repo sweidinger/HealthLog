@@ -52,8 +52,16 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
+// v1.28.42 (H3) — the list now mounts only the active layout (desktop table
+// OR mobile card list), not both CSS-hidden copies. Drive the breakpoint hook
+// so each branch can be asserted independently.
+vi.mock("@/hooks/use-is-mobile", () => ({
+  useIsMobile: vi.fn(() => false),
+}));
+
 import { I18nProvider } from "@/lib/i18n/context";
 import { MeasurementList } from "../measurement-list";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 function render(locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
@@ -86,15 +94,26 @@ describe("MeasurementList — APPLE_HEALTH badge", () => {
     expect(html).toContain("Apple Health");
   });
 
-  it("paints the source badge in BOTH the desktop table and the mobile card", () => {
+  it("paints the source badge in EACH layout (desktop table + mobile card)", () => {
     // v1.4.23 W6 design review HIGH-1: the badge previously rendered
     // only inside the desktop `<Table>` cell. iOS users (the audience
     // that actually consumes Apple Health data) land on the mobile
     // card branch and saw no source indicator at all, risking
-    // duplicate hand-entries on top of synced rows. Both branches must
+    // duplicate hand-entries on top of synced rows. Both layouts must
     // carry the badge so the surface is honest at every viewport.
-    const html = render("en");
-    const matches = html.match(/data-testid="measurement-source-badge"/g);
-    expect(matches?.length ?? 0).toBe(2);
+    //
+    // v1.28.42 (H3) — only the active layout mounts now, so assert the
+    // badge appears once in each branch (rather than twice in one render).
+    vi.mocked(useIsMobile).mockReturnValue(false);
+    const desktop = render("en").match(
+      /data-testid="measurement-source-badge"/g,
+    );
+    expect(desktop?.length ?? 0).toBe(1);
+
+    vi.mocked(useIsMobile).mockReturnValue(true);
+    const mobile = render("en").match(
+      /data-testid="measurement-source-badge"/g,
+    );
+    expect(mobile?.length ?? 0).toBe(1);
   });
 });

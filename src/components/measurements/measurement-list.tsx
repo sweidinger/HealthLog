@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -288,6 +289,16 @@ export function MeasurementList({
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
+  // v1.28.42 (H3) — the desktop table and the mobile card list used to BOTH
+  // render (only CSS `display` hid one), so a dense cumulative (up to ~5000
+  // rows) or sleep page built every row subtree twice — double the DOM, double
+  // the per-row `Intl` work. Gate on the SSR-safe `useIsMobile` so only the
+  // active layout mounts. The hook resolves to the desktop branch on the server
+  // and the first client paint (matching the SSR HTML → no hydration
+  // mismatch), then flips to the live viewport after hydration; the `md:*`
+  // visibility classes below stay as a belt-and-suspenders visual guard for
+  // that first frame. No row markup or data-slot changes.
+  const isMobile = useIsMobile("md");
   const queryClient = useQueryClient();
   const router = useRouter();
   // v1.22 — clicking a row's type badge drills into that metric's Insights
@@ -880,119 +891,120 @@ export function MeasurementList({
           />
         ) : (
           <>
-            {/* Desktop table */}
-            <div className="bg-card border-border hidden overflow-hidden rounded-lg border md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10 pl-4">
-                      {/* v1.15.13 — select-all-on-page header checkbox. */}
-                      <Checkbox
-                        checked={
-                          selectAll === "all"
-                            ? true
-                            : selectAll === "some"
-                              ? "indeterminate"
-                              : false
-                        }
-                        disabled={pageIds.length === 0}
-                        onCheckedChange={onToggleSelectAll}
-                        aria-label={t("dataList.selectAll")}
+            {/* Desktop table — rendered only when not mobile (v1.28.42 H3). */}
+            {!isMobile && (
+              <div className="bg-card border-border hidden overflow-hidden rounded-lg border md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10 pl-4">
+                        {/* v1.15.13 — select-all-on-page header checkbox. */}
+                        <Checkbox
+                          checked={
+                            selectAll === "all"
+                              ? true
+                              : selectAll === "some"
+                                ? "indeterminate"
+                                : false
+                          }
+                          disabled={pageIds.length === 0}
+                          onCheckedChange={onToggleSelectAll}
+                          aria-label={t("dataList.selectAll")}
+                        />
+                      </TableHead>
+                      <TableHead className="w-28">
+                        {t("measurements.type")}
+                      </TableHead>
+                      <SortableHead
+                        column="value"
+                        label={t("measurements.value")}
+                        currentSort={sortBy}
+                        currentDir={sortDir}
+                        onSort={toggleSort}
                       />
-                    </TableHead>
-                    <TableHead className="w-28">
-                      {t("measurements.type")}
-                    </TableHead>
-                    <SortableHead
-                      column="value"
-                      label={t("measurements.value")}
-                      currentSort={sortBy}
-                      currentDir={sortDir}
-                      onSort={toggleSort}
-                    />
-                    <SortableHead
-                      column="measuredAt"
-                      label={t("measurements.date")}
-                      currentSort={sortBy}
-                      currentDir={sortDir}
-                      onSort={toggleSort}
-                    />
-                    <TableHead className="w-56">
-                      {t("measurements.comment")}
-                    </TableHead>
-                    <SortableHead
-                      column="source"
-                      label={t("measurements.source")}
-                      currentSort={sortBy}
-                      currentDir={sortDir}
-                      onSort={toggleSort}
-                      className="w-20"
-                    />
-                    <TableHead className="w-20 pr-4 text-right">
-                      {t("measurements.actions")}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.measurements.map((m) => {
-                    const isGrouped =
-                      m.dayKey !== undefined && m.sampleCount !== undefined;
-                    // v1.11.5 — sleep night rows are grouped (chevron
-                    // drills into the stage segments) but render a
-                    // sleep-aware headline + nap caption, not the
-                    // cumulative "daily total" caption.
-                    const isSleep = m.type === "SLEEP_DURATION";
-                    const isExpanded = isGrouped
-                      ? expandedDayKeys.has(m.dayKey as string)
-                      : false;
-                    // v1.4.38 W-D P1-1 — stable drill-down id so the
-                    // disclosure chevron can thread aria-controls to the
-                    // expanded panel. dayKey is unique per row when
-                    // grouped; fall back to m.id otherwise.
-                    const drilldownId = `drilldown-desktop-${m.dayKey ?? m.id}`;
-                    const isSelected = selectedIds.has(m.id);
-                    return (
-                      <Fragment key={m.id}>
-                        <TableRow
-                          data-state={isSelected ? "selected" : undefined}
-                        >
-                          <TableCell className="pl-4">
-                            {/* Grouped/synthetic rows aren't individually
+                      <SortableHead
+                        column="measuredAt"
+                        label={t("measurements.date")}
+                        currentSort={sortBy}
+                        currentDir={sortDir}
+                        onSort={toggleSort}
+                      />
+                      <TableHead className="w-56">
+                        {t("measurements.comment")}
+                      </TableHead>
+                      <SortableHead
+                        column="source"
+                        label={t("measurements.source")}
+                        currentSort={sortBy}
+                        currentDir={sortDir}
+                        onSort={toggleSort}
+                        className="w-20"
+                      />
+                      <TableHead className="w-20 pr-4 text-right">
+                        {t("measurements.actions")}
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.measurements.map((m) => {
+                      const isGrouped =
+                        m.dayKey !== undefined && m.sampleCount !== undefined;
+                      // v1.11.5 — sleep night rows are grouped (chevron
+                      // drills into the stage segments) but render a
+                      // sleep-aware headline + nap caption, not the
+                      // cumulative "daily total" caption.
+                      const isSleep = m.type === "SLEEP_DURATION";
+                      const isExpanded = isGrouped
+                        ? expandedDayKeys.has(m.dayKey as string)
+                        : false;
+                      // v1.4.38 W-D P1-1 — stable drill-down id so the
+                      // disclosure chevron can thread aria-controls to the
+                      // expanded panel. dayKey is unique per row when
+                      // grouped; fall back to m.id otherwise.
+                      const drilldownId = `drilldown-desktop-${m.dayKey ?? m.id}`;
+                      const isSelected = selectedIds.has(m.id);
+                      return (
+                        <Fragment key={m.id}>
+                          <TableRow
+                            data-state={isSelected ? "selected" : undefined}
+                          >
+                            <TableCell className="pl-4">
+                              {/* Grouped/synthetic rows aren't individually
                                 deletable, so they have no checkbox. */}
-                            {!isGrouped && (
-                              <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={() => onToggleRow(m.id)}
-                                aria-label={t("dataList.selectRow")}
-                              />
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              asChild
-                              variant="secondary"
-                              className={`focus-visible:ring-ring/50 cursor-pointer transition-colors focus-visible:ring-2 focus-visible:outline-none ${TYPE_COLORS[m.type] ?? ""}`.trim()}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => navigateForType(m.type)}
-                                aria-label={t(
-                                  "measurements.openMetricInsights",
-                                  {
-                                    type: TYPE_LABEL_KEYS[m.type]
-                                      ? t(TYPE_LABEL_KEYS[m.type])
-                                      : m.type,
-                                  },
-                                )}
+                              {!isGrouped && (
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => onToggleRow(m.id)}
+                                  aria-label={t("dataList.selectRow")}
+                                />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                asChild
+                                variant="secondary"
+                                className={`focus-visible:ring-ring/50 cursor-pointer transition-colors focus-visible:ring-2 focus-visible:outline-none ${TYPE_COLORS[m.type] ?? ""}`.trim()}
                               >
-                                {TYPE_LABEL_KEYS[m.type]
-                                  ? t(TYPE_LABEL_KEYS[m.type])
-                                  : m.type}
-                              </button>
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-semibold tabular-nums">
-                            {/* v1.4.39.3 — non-grouped rows render the
+                                <button
+                                  type="button"
+                                  onClick={() => navigateForType(m.type)}
+                                  aria-label={t(
+                                    "measurements.openMetricInsights",
+                                    {
+                                      type: TYPE_LABEL_KEYS[m.type]
+                                        ? t(TYPE_LABEL_KEYS[m.type])
+                                        : m.type,
+                                    },
+                                  )}
+                                >
+                                  {TYPE_LABEL_KEYS[m.type]
+                                    ? t(TYPE_LABEL_KEYS[m.type])
+                                    : m.type}
+                                </button>
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-semibold tabular-nums">
+                              {/* v1.4.39.3 — non-grouped rows render the
                                 stored value with its native precision
                                 (`fmt.number` honours up to 3 fraction
                                 digits by default, drops trailing zeros)
@@ -1004,33 +1016,33 @@ export function MeasurementList({
                                 integer-only by definition.
                                 v1.11.5 — sleep rows render the night's
                                 TIME ASLEEP as "8h 12m" + a nap caption. */}
-                            {isSleep ? (
-                              <>
-                                {formatSleepMinutes(m.value, locale)}
-                                <SleepNightCaption m={m} />
-                              </>
-                            ) : (
-                              <>
-                                {isGrouped
-                                  ? fmt.integer(m.value)
-                                  : fmt.number(
-                                      m.value,
-                                      rawDisplayFractionDigits(m.type),
-                                    )}{" "}
-                                {m.unit}
-                                {isGrouped && (
-                                  <span className="text-muted-foreground ml-2 text-xs font-normal">
-                                    {t("measurements.dailyTotalCaption", {
-                                      count: fmt.integer(
-                                        m.sampleCount as number,
-                                      ),
-                                    })}
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </TableCell>
-                          {/*
+                              {isSleep ? (
+                                <>
+                                  {formatSleepMinutes(m.value, locale)}
+                                  <SleepNightCaption m={m} />
+                                </>
+                              ) : (
+                                <>
+                                  {isGrouped
+                                    ? fmt.integer(m.value)
+                                    : fmt.number(
+                                        m.value,
+                                        rawDisplayFractionDigits(m.type),
+                                      )}{" "}
+                                  {m.unit}
+                                  {isGrouped && (
+                                    <span className="text-muted-foreground ml-2 text-xs font-normal">
+                                      {t("measurements.dailyTotalCaption", {
+                                        count: fmt.integer(
+                                          m.sampleCount as number,
+                                        ),
+                                      })}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </TableCell>
+                            {/*
                             v1.4.43 QoL (L8) — `formatDateOrRelative`
                             renders timestamps inside the last 24 h
                             as "vor 3 min" so a fresh entry visible
@@ -1038,279 +1050,286 @@ export function MeasurementList({
                             list view never disagrees about how to
                             phrase "when".
                           */}
-                          <TableCell className="text-muted-foreground text-sm">
-                            {formatDateOrRelative(m.measuredAt, t)}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {m.notes ? (
-                              <span title={m.notes}>
-                                {truncateComment(m.notes)}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {m.source !== "MANUAL" && (
-                              <Badge
-                                variant="outline"
-                                data-testid="measurement-source-badge"
-                                className={`text-xs ${sourceBadgeClass(m.source)}`.trim()}
-                              >
-                                {formatMeasurementSource(m.source, t)}
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="pr-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {isGrouped ? (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-10 w-10"
-                                  data-testid="measurement-day-expand"
-                                  onClick={() =>
-                                    toggleExpand(m.dayKey as string)
-                                  }
-                                  aria-expanded={isExpanded}
-                                  aria-controls={drilldownId}
-                                  aria-label={
-                                    isExpanded
-                                      ? t("measurements.collapseDay")
-                                      : t("measurements.expandDay")
-                                  }
-                                >
-                                  <ChevronDown
-                                    className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                                  />
-                                </Button>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {formatDateOrRelative(m.measuredAt, t)}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {m.notes ? (
+                                <span title={m.notes}>
+                                  {truncateComment(m.notes)}
+                                </span>
                               ) : (
-                                <>
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {m.source !== "MANUAL" && (
+                                <Badge
+                                  variant="outline"
+                                  data-testid="measurement-source-badge"
+                                  className={`text-xs ${sourceBadgeClass(m.source)}`.trim()}
+                                >
+                                  {formatMeasurementSource(m.source, t)}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="pr-4 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {isGrouped ? (
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     className="h-10 w-10"
-                                    onClick={() => startEdit(m)}
-                                    aria-label={t("common.edit")}
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <DeleteButton
-                                    onConfirm={() =>
-                                      deleteMutation.mutate(m.id)
+                                    data-testid="measurement-day-expand"
+                                    onClick={() =>
+                                      toggleExpand(m.dayKey as string)
                                     }
-                                    title={t("measurements.deleteConfirmTitle")}
-                                    description={t(
-                                      "measurements.deleteConfirmDescription",
-                                    )}
-                                  />
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                        {isGrouped && isExpanded && (
-                          <TableRow id={drilldownId}>
-                            <TableCell colSpan={7} className="p-0">
-                              <DayDrillDown
-                                type={m.type}
-                                dayKey={m.dayKey as string}
-                                unit={m.unit}
-                                layout="desktop"
-                              />
+                                    aria-expanded={isExpanded}
+                                    aria-controls={drilldownId}
+                                    aria-label={
+                                      isExpanded
+                                        ? t("measurements.collapseDay")
+                                        : t("measurements.expandDay")
+                                    }
+                                  >
+                                    <ChevronDown
+                                      className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                    />
+                                  </Button>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-10 w-10"
+                                      onClick={() => startEdit(m)}
+                                      aria-label={t("common.edit")}
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <DeleteButton
+                                      onConfirm={() =>
+                                        deleteMutation.mutate(m.id)
+                                      }
+                                      title={t(
+                                        "measurements.deleteConfirmTitle",
+                                      )}
+                                      description={t(
+                                        "measurements.deleteConfirmDescription",
+                                      )}
+                                    />
+                                  </>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                          {isGrouped && isExpanded && (
+                            <TableRow id={drilldownId}>
+                              <TableCell colSpan={7} className="p-0">
+                                <DayDrillDown
+                                  type={m.type}
+                                  dayKey={m.dayKey as string}
+                                  unit={m.unit}
+                                  layout="desktop"
+                                />
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
 
-            {/* Mobile list */}
-            <div className="space-y-2 md:hidden">
-              {data.measurements.map((m) => {
-                const Icon = TYPE_ICONS[m.type];
-                const isGrouped =
-                  m.dayKey !== undefined && m.sampleCount !== undefined;
-                const isSleep = m.type === "SLEEP_DURATION";
-                const isExpanded = isGrouped
-                  ? expandedDayKeys.has(m.dayKey as string)
-                  : false;
-                // v1.4.38 W-D P1-1 — see desktop counterpart.
-                const drilldownId = `drilldown-mobile-${m.dayKey ?? m.id}`;
-                const isSelected = selectedIds.has(m.id);
-                return (
-                  <ListRow
-                    key={m.id}
-                    data-state={isSelected ? "selected" : undefined}
-                    className="bg-card border-border data-[state=selected]:border-primary/60 data-[state=selected]:bg-primary/5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        {/* v1.15.13 — multi-select checkbox in a 44px tap
+            {/* Mobile list — rendered only when mobile (v1.28.42 H3). */}
+            {isMobile && (
+              <div className="space-y-2 md:hidden">
+                {data.measurements.map((m) => {
+                  const Icon = TYPE_ICONS[m.type];
+                  const isGrouped =
+                    m.dayKey !== undefined && m.sampleCount !== undefined;
+                  const isSleep = m.type === "SLEEP_DURATION";
+                  const isExpanded = isGrouped
+                    ? expandedDayKeys.has(m.dayKey as string)
+                    : false;
+                  // v1.4.38 W-D P1-1 — see desktop counterpart.
+                  const drilldownId = `drilldown-mobile-${m.dayKey ?? m.id}`;
+                  const isSelected = selectedIds.has(m.id);
+                  return (
+                    <ListRow
+                      key={m.id}
+                      data-state={isSelected ? "selected" : undefined}
+                      className="bg-card border-border data-[state=selected]:border-primary/60 data-[state=selected]:bg-primary/5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          {/* v1.15.13 — multi-select checkbox in a 44px tap
                             target; absent for synthetic grouped rows. */}
-                        {!isGrouped && (
-                          // v1.15.13 MEDIUM-1 kept the 16px Radix Checkbox
-                          // (itself a `<button role=checkbox>`) inside a
-                          // 44px wrapper `<button>` for WCAG 2.5.5 — but a
-                          // button may not nest inside a button, and the
-                          // invalid markup made React 19 fail hydration on
-                          // every list paint. The wrapper is now a plain
-                          // layout `<div>`; the Checkbox stays the single
-                          // control and owns the 44px hit area via an
-                          // `after` hit-slop (clicks on a pseudo-element
-                          // hit-test against its host button).
-                          <div className="flex size-11 shrink-0 items-center justify-center">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => onToggleRow(m.id)}
-                              aria-label={t("dataList.selectRow")}
-                              className="relative after:absolute after:-inset-3.5"
-                            />
-                          </div>
-                        )}
-                        {Icon && (
-                          <button
-                            type="button"
-                            onClick={() => navigateForType(m.type)}
-                            aria-label={t("measurements.openMetricInsights", {
-                              type: TYPE_LABEL_KEYS[m.type]
-                                ? t(TYPE_LABEL_KEYS[m.type])
-                                : m.type,
-                            })}
-                            className={`focus-visible:ring-ring/50 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none ${TYPE_COLORS[m.type] ?? ""}`}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </button>
-                        )}
-                        <div className="min-w-0">
-                          {/* v1.22 — metadata badges sit on the scale
+                          {!isGrouped && (
+                            // v1.15.13 MEDIUM-1 kept the 16px Radix Checkbox
+                            // (itself a `<button role=checkbox>`) inside a
+                            // 44px wrapper `<button>` for WCAG 2.5.5 — but a
+                            // button may not nest inside a button, and the
+                            // invalid markup made React 19 fail hydration on
+                            // every list paint. The wrapper is now a plain
+                            // layout `<div>`; the Checkbox stays the single
+                            // control and owns the 44px hit area via an
+                            // `after` hit-slop (clicks on a pseudo-element
+                            // hit-test against its host button).
+                            <div className="flex size-11 shrink-0 items-center justify-center">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => onToggleRow(m.id)}
+                                aria-label={t("dataList.selectRow")}
+                                className="relative after:absolute after:-inset-3.5"
+                              />
+                            </div>
+                          )}
+                          {Icon && (
+                            <button
+                              type="button"
+                              onClick={() => navigateForType(m.type)}
+                              aria-label={t("measurements.openMetricInsights", {
+                                type: TYPE_LABEL_KEYS[m.type]
+                                  ? t(TYPE_LABEL_KEYS[m.type])
+                                  : m.type,
+                              })}
+                              className={`focus-visible:ring-ring/50 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none ${TYPE_COLORS[m.type] ?? ""}`}
+                            >
+                              <Icon className="h-4 w-4" />
+                            </button>
+                          )}
+                          <div className="min-w-0">
+                            {/* v1.22 — metadata badges sit on the scale
                               token `text-xs` (12 px, the mobile legibility
                               baseline) instead of an arbitrary per-site
                               size, so the row tracks the type scale. */}
-                          {(m.type === "BLOOD_PRESSURE_SYS" ||
-                            m.type === "BLOOD_PRESSURE_DIA") && (
-                            <Badge
-                              variant="outline"
-                              className="mr-1.5 h-5 px-1 text-xs"
-                            >
-                              {t(TYPE_LABEL_KEYS[m.type])}
-                            </Badge>
-                          )}
-                          <span className="font-semibold tabular-nums">
-                            {/* v1.4.39.3 — mirror the desktop table:
+                            {(m.type === "BLOOD_PRESSURE_SYS" ||
+                              m.type === "BLOOD_PRESSURE_DIA") && (
+                              <Badge
+                                variant="outline"
+                                className="mr-1.5 h-5 px-1 text-xs"
+                              >
+                                {t(TYPE_LABEL_KEYS[m.type])}
+                              </Badge>
+                            )}
+                            <span className="font-semibold tabular-nums">
+                              {/* v1.4.39.3 — mirror the desktop table:
                                 grouped daily aggregates stay integer,
                                 non-grouped single readings render with
                                 their native decimal precision so
                                 "78.4 kg" no longer truncates to "78".
                                 v1.11.5 — sleep rows render TIME ASLEEP. */}
+                              {isSleep ? (
+                                formatSleepMinutes(m.value, locale)
+                              ) : (
+                                <>
+                                  {isGrouped
+                                    ? fmt.integer(m.value)
+                                    : fmt.number(
+                                        m.value,
+                                        rawDisplayFractionDigits(m.type),
+                                      )}{" "}
+                                  {m.unit}
+                                </>
+                              )}
+                            </span>
                             {isSleep ? (
-                              formatSleepMinutes(m.value, locale)
+                              <SleepNightCaption m={m} />
                             ) : (
-                              <>
-                                {isGrouped
-                                  ? fmt.integer(m.value)
-                                  : fmt.number(
-                                      m.value,
-                                      rawDisplayFractionDigits(m.type),
-                                    )}{" "}
-                                {m.unit}
-                              </>
+                              isGrouped && (
+                                <span className="text-muted-foreground ml-1.5 text-xs">
+                                  {t("measurements.dailyTotalCaption", {
+                                    count: fmt.integer(m.sampleCount as number),
+                                  })}
+                                </span>
+                              )
                             )}
-                          </span>
-                          {isSleep ? (
-                            <SleepNightCaption m={m} />
-                          ) : (
-                            isGrouped && (
-                              <span className="text-muted-foreground ml-1.5 text-xs">
-                                {t("measurements.dailyTotalCaption", {
-                                  count: fmt.integer(m.sampleCount as number),
-                                })}
-                              </span>
-                            )
-                          )}
-                          <p className="text-muted-foreground truncate text-xs">
-                            {/*
+                            <p className="text-muted-foreground truncate text-xs">
+                              {/*
                               v1.4.43 QoL (L8) — see desktop
                               counterpart at the same `measuredAt`
                               site. Relative under 24 h, absolute
                               older.
                             */}
-                            <span>{formatDateOrRelative(m.measuredAt, t)}</span>
-                            {m.source !== "MANUAL" && (
-                              <Badge
-                                variant="outline"
-                                data-testid="measurement-source-badge"
-                                className={`ml-1.5 h-4 px-1 text-xs ${sourceBadgeClass(m.source)}`.trim()}
-                              >
-                                {formatMeasurementSource(m.source, t)}
-                              </Badge>
-                            )}
-                          </p>
-                          {m.notes && (
-                            <p className="text-muted-foreground truncate text-xs">
-                              {truncateComment(m.notes)}
+                              <span>
+                                {formatDateOrRelative(m.measuredAt, t)}
+                              </span>
+                              {m.source !== "MANUAL" && (
+                                <Badge
+                                  variant="outline"
+                                  data-testid="measurement-source-badge"
+                                  className={`ml-1.5 h-4 px-1 text-xs ${sourceBadgeClass(m.source)}`.trim()}
+                                >
+                                  {formatMeasurementSource(m.source, t)}
+                                </Badge>
+                              )}
                             </p>
-                          )}
+                            {m.notes && (
+                              <p className="text-muted-foreground truncate text-xs">
+                                {truncateComment(m.notes)}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        {isGrouped ? (
-                          <Button
-                            variant="ghost"
-                            size="icon-lg"
-                            data-testid="measurement-day-expand"
-                            onClick={() => toggleExpand(m.dayKey as string)}
-                            aria-expanded={isExpanded}
-                            aria-controls={drilldownId}
-                            aria-label={
-                              isExpanded
-                                ? t("measurements.collapseDay")
-                                : t("measurements.expandDay")
-                            }
-                          >
-                            <ChevronDown
-                              className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                            />
-                          </Button>
-                        ) : (
-                          <>
+                        <div className="flex shrink-0 items-center gap-1">
+                          {isGrouped ? (
                             <Button
                               variant="ghost"
                               size="icon-lg"
-                              onClick={() => startEdit(m)}
-                              aria-label={t("common.edit")}
+                              data-testid="measurement-day-expand"
+                              onClick={() => toggleExpand(m.dayKey as string)}
+                              aria-expanded={isExpanded}
+                              aria-controls={drilldownId}
+                              aria-label={
+                                isExpanded
+                                  ? t("measurements.collapseDay")
+                                  : t("measurements.expandDay")
+                              }
                             >
-                              <Pencil className="h-4 w-4" />
+                              <ChevronDown
+                                className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                              />
                             </Button>
-                            <DeleteButton
-                              iconClassName="h-4 w-4"
-                              onConfirm={() => deleteMutation.mutate(m.id)}
-                              title={t("measurements.deleteConfirmTitle")}
-                              description={t(
-                                "measurements.deleteConfirmDescription",
-                              )}
-                            />
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon-lg"
+                                onClick={() => startEdit(m)}
+                                aria-label={t("common.edit")}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <DeleteButton
+                                iconClassName="h-4 w-4"
+                                onConfirm={() => deleteMutation.mutate(m.id)}
+                                title={t("measurements.deleteConfirmTitle")}
+                                description={t(
+                                  "measurements.deleteConfirmDescription",
+                                )}
+                              />
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    {isGrouped && isExpanded && (
-                      <div id={drilldownId}>
-                        <DayDrillDown
-                          type={m.type}
-                          dayKey={m.dayKey as string}
-                          unit={m.unit}
-                          layout="mobile"
-                        />
-                      </div>
-                    )}
-                  </ListRow>
-                );
-              })}
-            </div>
+                      {isGrouped && isExpanded && (
+                        <div id={drilldownId}>
+                          <DayDrillDown
+                            type={m.type}
+                            dayKey={m.dayKey as string}
+                            unit={m.unit}
+                            layout="mobile"
+                          />
+                        </div>
+                      )}
+                    </ListRow>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
 

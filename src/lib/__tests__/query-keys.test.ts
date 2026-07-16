@@ -269,6 +269,16 @@ describe("dependent-key bundles", () => {
     expect(keyStrings).toContain(JSON.stringify(["insights"]));
   });
 
+  // v1.28.42 (M2) — the dashboard snapshot embeds a mood block + feeds the
+  // score ring, but a mood write only invalidated the mood bundle, leaving the
+  // Startseite tile / score stale for up to ~120 s. Mirror the measurement
+  // (v1.18.9) and medication (v1.16.11) bundles. Pin the membership so a future
+  // refactor can't silently drop the dependency again.
+  it("moodDependentKeys bundles the dashboard snapshot (v1.28.42)", () => {
+    const keyStrings = moodDependentKeys.map((k) => JSON.stringify(k));
+    expect(keyStrings).toContain(JSON.stringify(["dashboard", "snapshot"]));
+  });
+
   it("medicationDependentKeys bundle covers medications + analytics + achievements", () => {
     const keyStrings = medicationDependentKeys.map((k) => JSON.stringify(k));
     expect(keyStrings).toContain(JSON.stringify(["medications"]));

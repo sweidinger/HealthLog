@@ -14,7 +14,21 @@ vi.mock("@/lib/db", () => ({
     appSettings: {
       findUnique: vi.fn().mockResolvedValue({ registrationEnabled: true }),
     },
+    // v1.28.42 (M1) — the first-admin count+insert now runs inside a
+    // transaction-scoped advisory lock. Default `$transaction` to run the
+    // callback with the same prisma mock as its `tx` handle.
+    $transaction: vi.fn(),
+    $queryRaw: vi.fn().mockResolvedValue([{ locked: 1 }]),
   },
+}));
+
+// v1.28.42 — fail-open breach check + silent device record; mock so the
+// happy-path register tests don't reach the network / a real DB write.
+vi.mock("@/lib/auth/hibp", () => ({
+  checkPasswordBreach: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("@/lib/auth/login-alert", () => ({
+  recordSignInDevice: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/auth/session", () => ({
@@ -62,6 +76,10 @@ vi.mock("next/headers", () => ({
 
 import { POST } from "../route";
 import { checkRateLimit, checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
+import { prisma } from "@/lib/db";
+import { checkPasswordStrength, hashPassword } from "@/lib/auth/password";
+import { createSession } from "@/lib/auth/session";
+import { Prisma } from "@/generated/prisma/client";
 
 function postReq(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/auth/register", {
@@ -118,6 +136,90 @@ describe("POST /api/auth/register — 422 multi-issue (v1.4.43 W6)", () => {
 async function postPathThrough(body: unknown): Promise<Response> {
   return POST(postReq(body));
 }
+
+// v1.28.42 (M1 + L4) — first-admin race + duplicate-under-race status code.
+describe("POST /api/auth/register — first-admin atomicity (M1)", () => {
+  beforeEach(() => {
+    // Happy-path setup: reach the create call deterministically.
+    vi.mocked(checkPasswordStrength).mockReturnValue({
+      isAcceptable: true,
+      feedback: [],
+    } as never);
+    vi.mocked(hashPassword).mockResolvedValue("hashed");
+    vi.mocked(createSession).mockResolvedValue(undefined as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.user.create).mockImplementation((async (args: {
+      data: Record<string, unknown>;
+    }) => ({
+      id: "u1",
+      username: args.data.username,
+      email: args.data.email,
+      role: args.data.role,
+    })) as never);
+    // Run the transaction callback against the same prisma mock as `tx`.
+    vi.mocked(prisma.$transaction).mockImplementation(((
+      fn: (tx: typeof prisma) => unknown,
+    ) => fn(prisma)) as never);
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([{ locked: 1 }] as never);
+  });
+
+  const validBody = {
+    email: "new@example.com",
+    username: "newuser",
+    password: "a-very-strong-password-123",
+  };
+
+  it("mints ADMIN when the in-transaction count is 0 (genuine first user)", async () => {
+    // Early gate count and in-tx count both 0.
+    vi.mocked(prisma.user.count).mockResolvedValue(0 as never);
+
+    const res = await postPathThrough(validBody);
+    expect(res.status).toBe(201);
+    const createArgs = vi.mocked(prisma.user.create).mock.calls[0]?.[0] as {
+      data: { role: string };
+    };
+    expect(createArgs.data.role).toBe("ADMIN");
+  });
+
+  it("mints USER when a concurrent registration committed first (stale early read, fresh in-tx re-count)", async () => {
+    // The early gate read observed the empty-DB window (0), but by the time
+    // the locked transaction re-counts, the racing first registration has
+    // committed → 1. Without the in-tx re-count this second user would also
+    // be minted ADMIN (the double-admin bug); the fresh count closes it.
+    vi.mocked(prisma.user.count)
+      .mockResolvedValueOnce(0 as never) // early registrationEnabled gate
+      .mockResolvedValueOnce(1 as never); // inside the advisory-locked tx
+
+    const res = await postPathThrough(validBody);
+    expect(res.status).toBe(201);
+    const createArgs = vi.mocked(prisma.user.create).mock.calls[0]?.[0] as {
+      data: { role: string };
+    };
+    expect(createArgs.data.role).toBe("USER");
+  });
+
+  it("acquires the transaction-scoped advisory lock before counting", async () => {
+    vi.mocked(prisma.user.count).mockResolvedValue(0 as never);
+    await postPathThrough(validBody);
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+    expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it("maps a P2002 duplicate under the race to 409, not 500 (L4)", async () => {
+    vi.mocked(prisma.user.count).mockResolvedValue(1 as never);
+    vi.mocked(prisma.user.create).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint", {
+        code: "P2002",
+        clientVersion: "test",
+      }) as never,
+    );
+
+    const res = await postPathThrough(validBody);
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("Username or email already taken");
+  });
+});
 
 describe("POST /api/auth/register — OIDC_ONLY server-side enforcement", () => {
   const OIDC_ENV_KEYS = [

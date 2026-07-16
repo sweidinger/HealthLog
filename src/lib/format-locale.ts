@@ -15,6 +15,7 @@
  */
 
 import type { Locale } from "./i18n/config";
+import { getDateTimeFormat, getNumberFormat } from "./intl/formatter-cache";
 import { isValidTimezone } from "./tz/format";
 
 /**
@@ -160,42 +161,52 @@ export function makeFormatters(
   // so axis month names follow the UI language, not the date-order pin.
   const dateLocale = dateOrderLocale(dateFormat, intlLocale);
 
+  // v1.28.42 (H2) — the returned closures used to construct a fresh
+  // `Intl.NumberFormat` / `Intl.DateTimeFormat` on every call. `makeFormatters`
+  // is memoised per (locale, tz, timeFormat, dateFormat) on the client, but a
+  // dense history list still calls these closures thousands of times per
+  // render, rebuilding an identical formatter each time (V8's toLocale cache
+  // busts on any options object) → main-thread stalls. Route through the
+  // process-wide formatter cache so each distinct (locale, options) shape is
+  // constructed once. `getDateTimeFormat(...).format(date)` is behaviourally
+  // identical to `Date.prototype.toLocale*String(locale, options)` — the latter
+  // builds the same `Intl.DateTimeFormat` internally — so rendered output is
+  // unchanged. The options carry `timeZone` + the hour-cycle/date-field shape,
+  // so the cache key already distinguishes every variant.
   return {
     number: (value, fractionDigits) =>
-      new Intl.NumberFormat(intlLocale, {
+      getNumberFormat(intlLocale, {
         minimumFractionDigits: fractionDigits,
         maximumFractionDigits: fractionDigits,
       }).format(value),
 
     integer: (value) =>
-      new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(
-        value,
-      ),
+      getNumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(value),
 
     percent: (value, fractionDigits = 0) =>
-      new Intl.NumberFormat(intlLocale, {
+      getNumberFormat(intlLocale, {
         style: "percent",
         minimumFractionDigits: fractionDigits,
         maximumFractionDigits: fractionDigits,
       }).format(value),
 
     date: (value) =>
-      asDate(value).toLocaleDateString(dateLocale, {
+      getDateTimeFormat(dateLocale, {
         timeZone: tz,
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
-      }),
+      }).format(asDate(value)),
 
     dateShort: (value) =>
-      asDate(value).toLocaleDateString(dateLocale, {
+      getDateTimeFormat(dateLocale, {
         timeZone: tz,
         day: "2-digit",
         month: "2-digit",
-      }),
+      }).format(asDate(value)),
 
     dateTime: (value) =>
-      asDate(value).toLocaleString(dateLocale, {
+      getDateTimeFormat(dateLocale, {
         timeZone: tz,
         day: "2-digit",
         month: "2-digit",
@@ -203,29 +214,29 @@ export function makeFormatters(
         hour: "2-digit",
         minute: "2-digit",
         ...hourOpts,
-      }),
+      }).format(asDate(value)),
 
     time: (value) =>
-      asDate(value).toLocaleTimeString(intlLocale, {
+      getDateTimeFormat(intlLocale, {
         timeZone: tz,
         hour: "2-digit",
         minute: "2-digit",
         ...hourOpts,
-      }),
+      }).format(asDate(value)),
 
     dateWithWeekday: (value) =>
-      asDate(value).toLocaleDateString(dateLocale, {
+      getDateTimeFormat(dateLocale, {
         timeZone: tz,
         weekday: "short",
         day: "2-digit",
         month: "2-digit",
-      }),
+      }).format(asDate(value)),
 
     monthShort: (value) =>
-      asDate(value).toLocaleDateString(intlLocale, {
+      getDateTimeFormat(intlLocale, {
         timeZone: tz,
         month: "short",
-      }),
+      }).format(asDate(value)),
   };
 }
 
