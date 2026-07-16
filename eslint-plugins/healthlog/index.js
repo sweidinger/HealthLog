@@ -6,7 +6,8 @@
  *   - `safe-fetch-required`  — outbound fetch must route through safeFetch.
  *   - `api-fetch-required`   — client /api/ calls must route through apiFetch.
  *   - `no-raw-palette-color` — ban raw Tailwind palette utilities in app UI.
- *   - `spacing-scale`        — no pt-/pb- overrides on gap-based Card slots.
+ *   - `spacing-scale`        — no pt-/pb- overrides on gap-based Card slots,
+ *                              and no off-scale `5` step on a bg-card shell.
  */
 
 "use strict";

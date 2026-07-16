@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Save, Shield, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Input } from "@/components/ui/input";
 import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
@@ -506,7 +500,7 @@ export function AccountSection() {
           Erweitert. It is a maintenance / reset action, not a profile or
           security control, so it sits beside Research Mode + the danger zone. */}
 
-      <Dialog
+      <ResponsiveSheet
         open={passwordDialogOpen}
         onOpenChange={(open) => {
           setPasswordDialogOpen(open);
@@ -518,81 +512,73 @@ export function AccountSection() {
             setPasswordMsgType(null);
           }
         }}
+        title={t("settings.passwordReset")}
+        description={t("settings.changePasswordDescription")}
+        className="sm:max-w-xl"
       >
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{t("settings.passwordReset")}</DialogTitle>
-            <DialogDescription>
-              {t("settings.changePasswordDescription")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="grid gap-3 lg:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="current-password">
-                  {t("settings.currentPassword")}
-                </Label>
-                <PasswordInput
-                  id="current-password"
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-password">
-                  {t("settings.newPassword")}
-                </Label>
-                <PasswordInput
-                  id="new-password"
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">
-                  {t("settings.confirmNewPassword")}
-                </Label>
-                <PasswordInput
-                  id="confirm-password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </div>
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <div className="grid gap-3 lg:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="current-password">
+                {t("settings.currentPassword")}
+              </Label>
+              <PasswordInput
+                id="current-password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">{t("settings.newPassword")}</Label>
+              <PasswordInput
+                id="new-password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">
+                {t("settings.confirmNewPassword")}
+              </Label>
+              <PasswordInput
+                id="confirm-password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
 
-            {passwordMsg && (
-              <p
-                role="alert"
-                className={`text-sm ${
-                  passwordMsgType === "success"
-                    ? "text-success"
-                    : "text-destructive"
-                }`}
-              >
-                {statusText(passwordMsg, t)}
-              </p>
-            )}
-
-            <Button
-              type="submit"
-              variant="outline"
-              className="min-h-11 sm:min-h-9"
-              disabled={passwordSaving}
+          {passwordMsg && (
+            <p
+              role="alert"
+              className={`text-sm ${
+                passwordMsgType === "success"
+                  ? "text-success"
+                  : "text-destructive"
+              }`}
             >
-              {passwordSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {t("settings.changePassword")}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+              {statusText(passwordMsg, t)}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            variant="outline"
+            className="min-h-11 sm:min-h-9"
+            disabled={passwordSaving}
+          >
+            {passwordSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {t("settings.changePassword")}
+          </Button>
+        </form>
+      </ResponsiveSheet>
     </div>
   );
 }

@@ -47,6 +47,7 @@ import {
 } from "recharts";
 import { ArrowDown, ArrowRight, ArrowUp, Pill } from "lucide-react";
 import { ComplianceInfoTip } from "@/components/medications/card-parts/compliance-info-tip";
+import { TileHeader } from "@/components/insights/tile-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
@@ -402,8 +403,10 @@ export function MedicationComplianceChart({
           ≥sm: original side-by-side layout. */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <Pill className="text-muted-foreground h-4 w-4" />
-          <h3 className="text-sm font-semibold">{displayTitle}</h3>
+          {/* Canonical tile header (foreground h-5 icon, text-base title) so
+              this card reads in the same language as its sibling HealthChart
+              tiles instead of the old muted h-4 / text-sm row. */}
+          <TileHeader icon={Pill} title={displayTitle} />
           {/* `?` explainer for what the adherence percentage measures —
               shares the i18n body with the per-card bars. */}
           <ComplianceInfoTip />

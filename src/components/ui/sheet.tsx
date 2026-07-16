@@ -102,7 +102,14 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn("flex flex-col gap-1.5 p-4", className)}
+      // Reserve the trailing gutter for the absolute close-X the way
+      // `DialogHeader` (pr-9) does, sized to the sheet's own close button
+      // (`top-3 right-4`, min-w-9…11) so a long raw-`<Sheet>` title never
+      // slides under the X — the Documents close-X overlap class, foreclosed
+      // at the primitive. Consumers that render `showCloseButton={false}`
+      // (or their own close affordance) drop it back with `pr-4` via
+      // `className` — tailwind-merge keeps the later value.
+      className={cn("flex flex-col gap-1.5 p-4 pr-12", className)}
       {...props}
     />
   );

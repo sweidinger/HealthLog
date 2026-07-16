@@ -49,4 +49,22 @@ describe("<MedicationComplianceChart> v1.4.18 clean-line revert", () => {
     expect(html).not.toContain("chart-gradient-medication");
     expect(html).not.toContain("linearGradient");
   });
+
+  it("leads with the canonical TileHeader, not the old muted h-4 / text-sm row", async () => {
+    const { I18nProvider } = await import("@/lib/i18n/context");
+    const { MedicationComplianceChart } =
+      await import("../medication-compliance-chart");
+
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en">
+        <MedicationComplianceChart />
+      </I18nProvider>,
+    );
+
+    // Adopts the shared tile-header primitive so the card matches its sibling
+    // HealthChart tiles (foreground h-5 glyph, text-base title).
+    expect(html).toContain('data-slot="tile-header"');
+    // The old hand-rolled muted h-4 icon row is gone.
+    expect(html).not.toContain("text-muted-foreground h-4 w-4");
+  });
 });

@@ -257,7 +257,7 @@ export function HeroStrip({
         // it the shadow bled through the sticky section nav below
         // (the nav uses bg-background/80 + backdrop-blur, which the
         // shadow leaked through).
-        "relative isolate overflow-hidden rounded-xl px-4 py-5 sm:px-6 sm:py-6",
+        "relative isolate overflow-hidden rounded-xl px-4 py-4 sm:px-6 sm:py-6",
       )}
     >
       {/*
@@ -290,12 +290,12 @@ export function HeroStrip({
           from first paint. */}
       <div
         className={cn(
-          "flex flex-col gap-5",
+          "flex flex-col gap-4",
           (healthScore || healthScorePending) &&
             "md:flex-row md:items-stretch md:gap-6 lg:flex-row lg:items-stretch lg:gap-6",
         )}
       >
-        <div className="flex min-w-0 flex-1 flex-col gap-5">
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               {/* Header glyph stays in the foreground tier — UI-STANDARDS §1
@@ -307,7 +307,7 @@ export function HeroStrip({
               />
               <h1
                 data-slot="insights-hero-strip-greeting"
-                className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]"
+                className="text-2xl leading-tight font-bold tracking-tight sm:text-3xl"
               >
                 {greeting}
               </h1>

@@ -55,6 +55,27 @@ describe("<HeroStrip>", () => {
     expect(html).toContain("Good morning");
   });
 
+  it("renders the H1 at the canonical bold weight and on-scale sizes", () => {
+    const html = render(<HeroStrip briefing={null} now={morningLocal} />);
+    const greeting = html.match(
+      /data-slot="insights-hero-strip-greeting"[^>]*class="([^"]*)"/,
+    );
+    expect(greeting).not.toBeNull();
+    // App H1 weight is bold (UI-STANDARDS §5) — never font-semibold.
+    expect(greeting![1]).toContain("font-bold");
+    expect(greeting![1]).not.toContain("font-semibold");
+    // No off-scale arbitrary type sizes (§5) — round to the neighbouring step.
+    expect(greeting![1]).not.toContain("text-[28px]");
+    expect(greeting![1]).toContain("sm:text-3xl");
+  });
+
+  it("keeps the hero band and its columns on the spacing scale (no step-5)", () => {
+    const html = render(<HeroStrip briefing={null} now={morningLocal} />);
+    // The band's own padding + the flex column gaps stay on 4/6, never 5.
+    expect(html).not.toContain("py-5");
+    expect(html).not.toContain("gap-5");
+  });
+
   it("renders the morning greeting in German", () => {
     const html = render(<HeroStrip briefing={null} now={morningLocal} />, "de");
     expect(html).toContain("Guten Morgen");

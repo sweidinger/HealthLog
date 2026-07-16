@@ -25,6 +25,7 @@ import { formatDate } from "@/lib/format";
 import { useAchievementsQuery } from "@/lib/queries/use-achievements-query";
 import type { AchievementProgress } from "@/lib/gamification/achievements";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TileHeader } from "@/components/insights/tile-header";
 
 const iconMap: Record<string, LucideIcon> = {
   Activity,
@@ -113,23 +114,23 @@ export function RecentAchievementsCard() {
       data-slot="recent-achievements-card"
       className="bg-card border-border space-y-3 rounded-xl border p-4 md:p-6"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Trophy
-            className="text-muted-foreground h-4 w-4"
-            aria-hidden="true"
-          />
-          <h2 className="text-sm font-semibold">
-            {t("achievements.dashboardCard.title")}
-          </h2>
-        </div>
-        <Link
-          href="/achievements"
-          className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-xs"
-        >
-          {t("achievements.dashboardCard.viewAll")}
-        </Link>
-      </div>
+      {/* Canonical tile header (foreground h-5 icon, text-base h2) so the
+          dashboard card matches its sibling tiles instead of the old muted
+          h-4 / text-sm row. The "view all" link rides the header's right slot
+          (§11 inline-action-row). */}
+      <TileHeader
+        icon={Trophy}
+        titleAs="h2"
+        title={t("achievements.dashboardCard.title")}
+        right={
+          <Link
+            href="/achievements"
+            className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-xs"
+          >
+            {t("achievements.dashboardCard.viewAll")}
+          </Link>
+        }
+      />
 
       {isPending ? (
         <ul

@@ -100,7 +100,7 @@ export function DoneScreen() {
       <section
         aria-labelledby="onboarding-ai-panel-title"
         data-slot="onboarding-ai-panel"
-        className="border-border bg-card mx-auto flex w-full max-w-md flex-col gap-4 rounded-xl border p-5 text-left"
+        className="border-border bg-card mx-auto flex w-full max-w-md flex-col gap-4 rounded-xl border p-4 text-left md:p-6"
       >
         <header className="flex items-start gap-3">
           <span

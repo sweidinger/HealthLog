@@ -45,14 +45,7 @@ import { useCallback, useId, useRef, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslations } from "@/lib/i18n/context";
@@ -208,92 +201,20 @@ export function NaturalLanguageExtractor({
   const overLimit = charCount > MAX_TEXT_LENGTH;
 
   return (
-    <Dialog
+    <ResponsiveSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) handleClose();
       }}
-    >
-      <DialogContent aria-busy={busy || undefined}>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="size-4" aria-hidden="true" />
-            {t("medications.scheduling.naturalLanguage.title")}
-          </DialogTitle>
-          <DialogDescription>
-            {t("medications.scheduling.naturalLanguage.description")}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-3">
-          <div>
-            <Label htmlFor={textareaId} className="sr-only">
-              {t("medications.scheduling.naturalLanguage.title")}
-            </Label>
-            <Textarea
-              id={textareaId}
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder={t(
-                "medications.scheduling.naturalLanguage.placeholder",
-              )}
-              rows={4}
-              maxLength={MAX_TEXT_LENGTH + 200}
-              disabled={busy}
-              aria-invalid={overLimit || error?.kind === "empty" || undefined}
-              aria-describedby={
-                errorMessage ? `${textareaId}-error` : undefined
-              }
-            />
-            <div className="text-muted-foreground mt-1 text-right text-xs">
-              {charCount} / {MAX_TEXT_LENGTH}
-            </div>
-          </div>
-
-          {errorMessage ? (
-            <p
-              id={`${textareaId}-error`}
-              role="alert"
-              className="text-destructive text-sm"
-            >
-              {errorMessage}
-            </p>
-          ) : null}
-
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-muted-foreground text-xs font-medium">
-              {t("medications.scheduling.naturalLanguage.examples.label")}
-            </legend>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <ExampleChip
-                onPick={insertExample}
-                label={t(
-                  "medications.scheduling.naturalLanguage.examples.weekly",
-                )}
-                disabled={busy}
-              />
-              <ExampleChip
-                onPick={insertExample}
-                label={t(
-                  "medications.scheduling.naturalLanguage.examples.daily",
-                )}
-                disabled={busy}
-              />
-              <ExampleChip
-                onPick={insertExample}
-                label={t(
-                  "medications.scheduling.naturalLanguage.examples.rolling",
-                )}
-                disabled={busy}
-              />
-            </div>
-          </fieldset>
-        </div>
-
-        <DialogFooter>
+      title={
+        <span className="flex items-center gap-2">
+          <Sparkles className="size-4" aria-hidden="true" />
+          {t("medications.scheduling.naturalLanguage.title")}
+        </span>
+      }
+      description={t("medications.scheduling.naturalLanguage.description")}
+      footer={
+        <>
           <Button
             type="button"
             variant="outline"
@@ -322,9 +243,73 @@ export function NaturalLanguageExtractor({
               ? t("medications.scheduling.naturalLanguage.submitBusy")
               : t("medications.scheduling.naturalLanguage.submit")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3" aria-busy={busy || undefined}>
+        <div>
+          <Label htmlFor={textareaId} className="sr-only">
+            {t("medications.scheduling.naturalLanguage.title")}
+          </Label>
+          <Textarea
+            id={textareaId}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder={t(
+              "medications.scheduling.naturalLanguage.placeholder",
+            )}
+            rows={4}
+            maxLength={MAX_TEXT_LENGTH + 200}
+            disabled={busy}
+            aria-invalid={overLimit || error?.kind === "empty" || undefined}
+            aria-describedby={errorMessage ? `${textareaId}-error` : undefined}
+          />
+          <div className="text-muted-foreground mt-1 text-right text-xs">
+            {charCount} / {MAX_TEXT_LENGTH}
+          </div>
+        </div>
+
+        {errorMessage ? (
+          <p
+            id={`${textareaId}-error`}
+            role="alert"
+            className="text-destructive text-sm"
+          >
+            {errorMessage}
+          </p>
+        ) : null}
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-muted-foreground text-xs font-medium">
+            {t("medications.scheduling.naturalLanguage.examples.label")}
+          </legend>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <ExampleChip
+              onPick={insertExample}
+              label={t(
+                "medications.scheduling.naturalLanguage.examples.weekly",
+              )}
+              disabled={busy}
+            />
+            <ExampleChip
+              onPick={insertExample}
+              label={t("medications.scheduling.naturalLanguage.examples.daily")}
+              disabled={busy}
+            />
+            <ExampleChip
+              onPick={insertExample}
+              label={t(
+                "medications.scheduling.naturalLanguage.examples.rolling",
+              )}
+              disabled={busy}
+            />
+          </div>
+        </fieldset>
+      </div>
+    </ResponsiveSheet>
   );
 }
 
