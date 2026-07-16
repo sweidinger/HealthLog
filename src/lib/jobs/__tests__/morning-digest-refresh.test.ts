@@ -6,7 +6,10 @@ import type { GenerateOutcome } from "@/lib/insights/comprehensive-generate";
 const LOCAL_DATE = "2026-07-16";
 
 function makePrisma(
-  user: { locale: string | null; morningDigestRefreshedOn: string | null } | null,
+  user: {
+    locale: string | null;
+    morningDigestRefreshedOn: string | null;
+  } | null,
 ) {
   const updateMock = vi.fn(async () => ({}));
   const prisma = {
@@ -30,12 +33,10 @@ describe("runMorningDigestRefresh", () => {
       locale: "en",
       morningDigestRefreshedOn: null,
     });
-    const generate = vi.fn(
-      async (): Promise<GenerateOutcome> => ({
-        status: "generated",
-        providerType: "mock",
-      }),
-    );
+    const generate = vi.fn(async (): Promise<GenerateOutcome> => ({
+      status: "generated",
+      providerType: "mock",
+    }));
 
     const result = await runMorningDigestRefresh(
       prisma as never,
@@ -57,9 +58,9 @@ describe("runMorningDigestRefresh", () => {
       locale: "de",
       morningDigestRefreshedOn: null,
     });
-    const generate = vi.fn(
-      async (): Promise<GenerateOutcome> => ({ status: "unchanged" }),
-    );
+    const generate = vi.fn(async (): Promise<GenerateOutcome> => ({
+      status: "unchanged",
+    }));
 
     const result = await runMorningDigestRefresh(
       prisma as never,
@@ -77,12 +78,10 @@ describe("runMorningDigestRefresh", () => {
       locale: "en",
       morningDigestRefreshedOn: null,
     });
-    const generate = vi.fn(
-      async (): Promise<GenerateOutcome> => ({
-        status: "skipped",
-        reason: "no-provider",
-      }),
-    );
+    const generate = vi.fn(async (): Promise<GenerateOutcome> => ({
+      status: "skipped",
+      reason: "no-provider",
+    }));
 
     const result = await runMorningDigestRefresh(
       prisma as never,
@@ -99,12 +98,10 @@ describe("runMorningDigestRefresh", () => {
       locale: "en",
       morningDigestRefreshedOn: LOCAL_DATE,
     });
-    const generate = vi.fn(
-      async (): Promise<GenerateOutcome> => ({
-        status: "generated",
-        providerType: "mock",
-      }),
-    );
+    const generate = vi.fn(async (): Promise<GenerateOutcome> => ({
+      status: "generated",
+      providerType: "mock",
+    }));
 
     const result = await runMorningDigestRefresh(
       prisma as never,
@@ -122,12 +119,10 @@ describe("runMorningDigestRefresh", () => {
       locale: "en",
       morningDigestRefreshedOn: null,
     });
-    const generate = vi.fn(
-      async (): Promise<GenerateOutcome> => ({
-        status: "failed",
-        reason: "provider-timeout",
-      }),
-    );
+    const generate = vi.fn(async (): Promise<GenerateOutcome> => ({
+      status: "failed",
+      reason: "provider-timeout",
+    }));
 
     const result = await runMorningDigestRefresh(
       prisma as never,
@@ -142,9 +137,9 @@ describe("runMorningDigestRefresh", () => {
 
   it("reports missing-user when the row is gone", async () => {
     const { prisma, updateMock } = makePrisma(null);
-    const generate = vi.fn(
-      async (): Promise<GenerateOutcome> => ({ status: "unchanged" }),
-    );
+    const generate = vi.fn(async (): Promise<GenerateOutcome> => ({
+      status: "unchanged",
+    }));
 
     const result = await runMorningDigestRefresh(
       prisma as never,

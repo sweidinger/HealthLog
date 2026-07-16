@@ -2,7 +2,25 @@
 
 ## [Unreleased]
 
-## [1.28.54] — 2026-07-16 — One hero on the dashboard
+## [1.28.55] — 2026-07-16 — The Today view comes to life
+
+Three pieces turn the Today view into a daily loop:
+
+- **A coach check-in.** When a coach plan is due for a look-back, it surfaces as
+  a calm card in Today with keep, adjust, or let-go — one tap. Letting go retires
+  the plan quietly; silence never changes it.
+- **A morning that reflects last night.** The score and read are prepared
+  overnight, but last night's sleep usually hasn't synced by then. Now, the
+  moment it arrives, the sleep-dependent parts refresh on their own — so by the
+  time you look, the day is up to date. Until sleep is in, Today says so plainly
+  instead of showing a stale score.
+- **An optional daily nudge.** A once-a-day morning notification with the day's
+  read, off by default and opt-in per channel under Notifications. It carries the
+  refreshed digest when sleep is in, never repeats within a day, and is a calm
+  note — never an alert.
+
+All three read the digest prepared overnight; nothing is generated when you open
+the app.
 
 With the Today view now leading the dashboard, the older opt-in hero card it
 replaced is retired, so the two never stack. The greeting stays, the tiles and
