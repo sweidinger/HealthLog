@@ -208,8 +208,12 @@ async function postBatch(request: NextRequest): Promise<Response> {
         results.push({ index: i, status: "inserted" });
       }
     } catch (err: unknown) {
-      const reason =
-        err instanceof Error ? err.message.slice(0, 120) : "upsert_failed";
+      // The client-facing `reason` is a closed set (see the file header) —
+      // never echo raw exception text into it. Log the real error
+      // server-side only (SWC keeps `console.error` in prod) and return the
+      // fixed `upsert_failed` member.
+      console.error("[nutrient-batch] upsert failed", err);
+      const reason = "upsert_failed";
       skipped.push({ index: i, reason });
       results.push({ index: i, status: "skipped", reason });
     }

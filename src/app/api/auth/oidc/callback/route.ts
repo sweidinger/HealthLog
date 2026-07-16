@@ -285,19 +285,43 @@ export const GET = apiHandler(async (req: NextRequest) => {
             .then((u: unknown) => u !== null),
         );
 
-        user = await prisma.user.create({
-          data: {
-            email: email.toLowerCase(),
-            username,
-            passwordHash: null,
-            role: userCount === 0 ? "ADMIN" : "USER",
-            // Same server-default resolution the register route uses — an
-            // SSO-provisioned account has no registration form to carry the
-            // browser-detected timezone.
-            timezone: await resolveServerDefaultTimezone(),
-            oidcIssuer: metadata.issuer,
-            oidcSub: identity.sub,
-          },
+        // Same server-default resolution the register route uses — an
+        // SSO-provisioned account has no registration form to carry the
+        // browser-detected timezone.
+        const timezone = await resolveServerDefaultTimezone();
+
+        // v1.28.48 — the first provisioned user becomes ADMIN. Deriving that
+        // role from the early `userCount` (read above, before username
+        // derivation) and then creating without coordination is the same
+        // check-then-act race the password-register route closed in v1.28.42:
+        // two concurrent OIDC first-logins racing the empty-DB window would
+        // both observe `0` and both be minted ADMIN. Serialise the
+        // count+insert behind a transaction-scoped advisory lock (released on
+        // commit/rollback) and re-count *inside* the lock so the second
+        // provision observes the first's committed row and is minted USER.
+        // The lock key STRING matches the register route's — an OIDC
+        // first-login racing a password first-registration is serialised
+        // against the same lock, so only one ADMIN can ever be minted.
+        user = await prisma.$transaction(async (tx) => {
+          // `pg_advisory_xact_lock` returns void, which the client cannot
+          // deserialize as a column — selecting FROM it yields a plain int row.
+          await tx.$queryRaw`
+            SELECT 1 AS locked
+            FROM pg_advisory_xact_lock(hashtextextended('register:first-admin', 0))
+          `;
+          const priorUsers = await tx.user.count();
+          const role = priorUsers === 0 ? "ADMIN" : "USER";
+          return tx.user.create({
+            data: {
+              email: email.toLowerCase(),
+              username,
+              passwordHash: null,
+              role,
+              timezone,
+              oidcIssuer: metadata.issuer,
+              oidcSub: identity.sub,
+            },
+          });
         });
 
         await auditLog("auth.oidc.provisioned", {

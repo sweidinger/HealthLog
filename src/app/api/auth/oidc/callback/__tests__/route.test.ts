@@ -29,6 +29,11 @@ vi.mock("@/lib/db", () => ({
     },
     appSettings: { findUnique: vi.fn() },
     webauthnMfaCredential: { count: vi.fn() },
+    // v1.28.48 — the first-admin provision count+insert now runs inside a
+    // transaction-scoped advisory lock. Default `$transaction` to run the
+    // callback with the same prisma mock as its `tx` handle.
+    $transaction: vi.fn(),
+    $queryRaw: vi.fn(),
   },
 }));
 
@@ -179,6 +184,12 @@ beforeEach(() => {
     ticket: "mfa-ticket-1",
     expiresAt: new Date(Date.now() + 5 * 60 * 1000),
   });
+  // Run the provision transaction callback against the same prisma mock as
+  // its `tx` handle, and let the advisory-lock `$queryRaw` resolve.
+  vi.mocked(prisma.$transaction).mockImplementation(((
+    fn: (tx: typeof prisma) => unknown,
+  ) => fn(prisma)) as never);
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([{ locked: 1 }] as never);
 });
 
 describe("GET /api/auth/oidc/callback", () => {
@@ -368,6 +379,90 @@ describe("GET /api/auth/oidc/callback", () => {
     );
     expect(createSession).toHaveBeenCalled();
     expect(res.status).toBe(307);
+  });
+
+  it("mints ADMIN for a genuine first OIDC user (in-lock count 0)", async () => {
+    mockIdentity({
+      sub: "sub-first",
+      email: "first@example.com",
+      emailVerified: true,
+    });
+    mockUserLookups({ byIdentity: null, byEmail: null });
+    // Both the outer registration gate and the in-lock re-count observe an
+    // empty DB → the provisioned account is the operator's first ADMIN.
+    vi.mocked(prisma.user.count).mockResolvedValue(0);
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      registrationEnabled: true,
+    } as never);
+    vi.mocked(prisma.user.create).mockResolvedValue(
+      userRow({ id: "user-new", onboardingCompletedAt: null }) as never,
+    );
+
+    const res = await GET(validRequest());
+
+    const createArgs = vi.mocked(prisma.user.create).mock.calls[0]?.[0] as {
+      data: { role: string };
+    };
+    expect(createArgs.data.role).toBe("ADMIN");
+    expect(createSession).toHaveBeenCalled();
+    expect(res.status).toBe(307);
+  });
+
+  it("mints USER when a concurrent first user committed first (stale outer read 0, in-lock re-count 1)", async () => {
+    // The outer read observed the empty-DB window (0), but by the time the
+    // advisory-locked transaction re-counts, the racing first provision has
+    // committed → 1. Without the in-lock re-count this second user would also
+    // be minted ADMIN (the double-admin bug); the fresh count closes it. The
+    // shared lock key also serialises this against a racing password register.
+    mockIdentity({
+      sub: "sub-second",
+      email: "second@example.com",
+      emailVerified: true,
+    });
+    mockUserLookups({ byIdentity: null, byEmail: null });
+    vi.mocked(prisma.user.count)
+      .mockResolvedValueOnce(0) // outer registrationEnabled gate
+      .mockResolvedValueOnce(1); // inside the advisory-locked transaction
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      registrationEnabled: true,
+    } as never);
+    vi.mocked(prisma.user.create).mockResolvedValue(
+      userRow({ id: "user-new", onboardingCompletedAt: null }) as never,
+    );
+
+    const res = await GET(validRequest());
+
+    const createArgs = vi.mocked(prisma.user.create).mock.calls[0]?.[0] as {
+      data: { role: string };
+    };
+    expect(createArgs.data.role).toBe("USER");
+    expect(res.status).toBe(307);
+  });
+
+  it("acquires the transaction-scoped advisory lock before provisioning", async () => {
+    mockIdentity({
+      sub: "sub-lock",
+      email: "lock@example.com",
+      emailVerified: true,
+    });
+    mockUserLookups({ byIdentity: null, byEmail: null });
+    vi.mocked(prisma.user.count).mockResolvedValue(0);
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      registrationEnabled: true,
+    } as never);
+    vi.mocked(prisma.user.create).mockResolvedValue(
+      userRow({ id: "user-new", onboardingCompletedAt: null }) as never,
+    );
+
+    await GET(validRequest());
+
+    // The lock (`$queryRaw` on `pg_advisory_xact_lock`) runs inside the
+    // `$transaction`, and the create is gated behind both.
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+    expect(prisma.$transaction).toHaveBeenCalled();
+    expect(
+      vi.mocked(prisma.$queryRaw).mock.invocationCallOrder[0],
+    ).toBeLessThan(vi.mocked(prisma.user.create).mock.invocationCallOrder[0]);
   });
 
   it("refuses to auto-provision when registration is closed", async () => {

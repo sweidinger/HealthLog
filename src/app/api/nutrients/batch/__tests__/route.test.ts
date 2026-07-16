@@ -333,9 +333,12 @@ describe("POST /api/nutrients/batch — upsert semantics", () => {
     );
   });
 
-  it("a thrown upsert marks only that entry skipped upsert_failed", async () => {
+  it("a thrown upsert marks only that entry skipped upsert_failed without leaking the raw error", async () => {
+    // The exception message must never reach the client — the per-entry
+    // `reason` is a closed set. A raw-message echo was a v1.28.48 fix.
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(prisma.nutrientIntakeDay.upsert)
-      .mockRejectedValueOnce(new Error("boom"))
+      .mockRejectedValueOnce(new Error("boom: sensitive db detail"))
       .mockResolvedValueOnce({} as never);
 
     const res = await POST(
@@ -348,7 +351,13 @@ describe("POST /api/nutrients/batch — upsert semantics", () => {
     );
     const body = (await res.json()) as BatchResponse;
     expect(body.data.entries[0].status).toBe("skipped");
+    expect(body.data.entries[0].reason).toBe("upsert_failed");
+    expect(body.data.skipped[0].reason).toBe("upsert_failed");
+    // The raw exception text is logged server-side only, never echoed.
+    expect(JSON.stringify(body)).not.toContain("sensitive db detail");
+    expect(spy).toHaveBeenCalled();
     expect(body.data.entries[1].status).toBe("inserted");
     expect(body.data.inserted).toBe(1);
+    spy.mockRestore();
   });
 });
