@@ -128,6 +128,17 @@ const RhythmEventsCard = dynamic(
     })),
   { ssr: false },
 );
+// v1.28.50 — ECG recording surface (waveform-backed). Deferred like the
+// other below-the-fold blocks; the section un-mounts itself when the user
+// has no recordings (`ssr: false` + its own data gate), so it carries no
+// loading placeholder of its own.
+const EcgSection = dynamic(
+  () =>
+    import("@/components/insights/ecg-section").then((mod) => ({
+      default: mod.EcgSection,
+    })),
+  { ssr: false },
+);
 // v1.25 — baseline-drift card. Un-mounts when nothing is drifting; owns its own
 // read-only `/api/insights/health-status` query.
 const HealthStatusCard = dynamic(
@@ -499,6 +510,7 @@ export default function InsightsPage() {
     "health-status": <HealthStatusCard enabled={isAuthenticated} />,
     breathing: <BreathingScreeningCard enabled={isAuthenticated} />,
     "labs-changes": <LabsChangesCard enabled={isAuthenticated} />,
+    ecg: <EcgSection enabled={isAuthenticated} />,
   };
 
   const orderedSectionIds = orderedVisibleSectionIds(layout);

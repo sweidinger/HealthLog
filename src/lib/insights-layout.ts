@@ -116,6 +116,11 @@ export const INSIGHTS_SECTION_IDS = [
   "health-status",
   "breathing",
   "labs-changes",
+  // v1.28.50 — ECG recording surface (waveform-backed, single-lead device).
+  // Kept separate from the waveform-less `rhythm-events` timeline. Auto-merges
+  // default-invisible onto existing saved layouts (per the section resolver),
+  // default-visible for new users; data-availability-gated on top.
+  "ecg",
 ] as const;
 
 export type InsightsSectionId = (typeof INSIGHTS_SECTION_IDS)[number];

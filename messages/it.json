@@ -3834,6 +3834,36 @@
         "cta": "Registra il rapporto vita-altezza"
       },
       "coachPrefill": "Non ho ancora registrato un rapporto vita-altezza — perché è un numero utile e come lo tengo sotto 0,5?"
+    },
+    "ecg": {
+      "sectionTitle": "Registrazioni ECG",
+      "sectionIntro": "Tracciati ECG a derivazione singola registrati dal tuo dispositivo. HealthLog mostra solo la registrazione e il risultato prodotto dal dispositivo; non legge né interpreta il tracciato.",
+      "loadError": "Impossibile caricare le tue registrazioni ECG.",
+      "backToList": "Torna alle registrazioni",
+      "disclaimer": "Questo è il risultato prodotto dal tuo dispositivo di registrazione. HealthLog non legge né interpreta le registrazioni ECG e non fornisce una diagnosi.",
+      "clinicianNote": "Se questo risultato ti preoccupa, parla di questa registrazione con un medico.",
+      "resultAttribution": "Risultato registrato: {result}, come riportato dal dispositivo di registrazione.",
+      "result": {
+        "irregular": "Fibrillazione atriale rilevata",
+        "notDetected": "Nessun segno di fibrillazione atriale",
+        "inconclusive": "Registrazione non conclusiva",
+        "none": "Nessun risultato riportato"
+      },
+      "meta": {
+        "recorded": "Registrato",
+        "duration": "Durata",
+        "lead": "Derivazione",
+        "averageHeartRate": "Frequenza cardiaca media",
+        "samplingRate": "Frequenza di campionamento",
+        "leadSingle": "Derivazione singola (derivazione I)",
+        "durationValue": "{seconds} s",
+        "bpmValue": "{bpm} bpm",
+        "hzValue": "{hz} Hz",
+        "unknown": "—"
+      },
+      "waveform": {
+        "ariaLabel": "Tracciato ECG registrato il {date}, durata {duration}, frequenza cardiaca media {heartRate}, risultato registrato: {result}."
+      }
     }
   },
   "thresholds": {

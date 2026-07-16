@@ -4,9 +4,11 @@
  * Schema declarations live in `./schemas`; this module is the path orchestrator.
  */
 import type { ZodOpenApiObject } from "zod-openapi";
+import { z } from "zod/v4";
 import {
   consentRequiredResponse,
   dataEnvelope,
+  errorEnvelope,
   moduleDisabledResponse,
   stdResponses,
 } from "../shared";
@@ -31,6 +33,9 @@ import {
   insightsPregenerateRequest,
   insightsPregenerateResponse,
   dashboardSnapshotResponse,
+  ecgListResponse,
+  ecgDetailQuery,
+  ecgDetailResponse,
 } from "./schemas";
 
 export const insightsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
@@ -425,6 +430,61 @@ export const insightsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
           },
         },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/ecg": {
+    get: {
+      tags: ["Insights"],
+      summary: "ECG recording list (metadata only)",
+      description:
+        "v1.28.50 — the authenticated user's ECG recordings as a cheap, index-covered metadata list (recorded time, duration, sampling rate, sample count, average heart rate, lead, and the DEVICE's own rhythm classification). NEVER decrypts or returns the waveform — the per-recording strip is fetched on demand from GET /api/insights/ecg/{id}. Reflects only the recording device's certified on-device classification, verbatim; HealthLog never re-classifies an ECG or produces a diagnosis. Data-availability-gated: an empty account returns `hasRecordings: false`. Module-gated on `insights` and the operator `insightStatus` assistant surface; no LLM call. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description: "The ECG recording list (possibly empty).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(ecgListResponse, "EcgListResponseEnvelope"),
+            },
+          },
+        },
+        ...moduleDisabledResponse,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/ecg/{id}": {
+    get: {
+      tags: ["Insights"],
+      summary: "One ECG recording with waveform",
+      description:
+        "v1.28.50 — one recording's decrypted waveform plus metadata and the DEVICE's verbatim classification. Ownership is narrowed in the query where (`{ id, userId }`) so a cross-user read is structurally impossible; a foreign or unknown id 404s (existence sealed). The waveform is AES-256-GCM at rest, decrypted through the fail-closed codec. By default the ~9000-sample strip is min/max-decimated to ~2500 display points so R-wave peaks survive; `?full=1` returns the raw array. HealthLog does not interpret the trace, measure intervals, annotate beats, or emit a verdict of its own. Module-gated on `insights` and the operator `insightStatus` assistant surface; no LLM call. `no-store`. Auth via cookie or Bearer.",
+      requestParams: {
+        path: z.object({
+          id: z.string().describe("The ECG recording id (cuid)."),
+        }),
+        query: ecgDetailQuery,
+      },
+      responses: {
+        "200": {
+          description:
+            "The recording's waveform + metadata + device classification.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                ecgDetailResponse,
+                "EcgDetailResponseEnvelope",
+              ),
+            },
+          },
+        },
+        "404": {
+          description:
+            "No ECG recording with that id for the authenticated user (existence sealed — a foreign id is indistinguishable from a missing one).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...moduleDisabledResponse,
         ...stdResponses,
       },
     },

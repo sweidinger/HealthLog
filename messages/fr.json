@@ -3834,6 +3834,36 @@
         "cta": "Enregistrer le rapport taille-hauteur"
       },
       "coachPrefill": "Je n'ai pas encore enregistré de rapport taille-hauteur — pourquoi est-ce un chiffre utile, et comment le maintenir sous 0,5 ?"
+    },
+    "ecg": {
+      "sectionTitle": "Enregistrements ECG",
+      "sectionIntro": "Tracés ECG à une seule dérivation enregistrés par votre appareil. HealthLog affiche uniquement l'enregistrement et le résultat produit par votre appareil ; il ne lit ni n'interprète le tracé.",
+      "loadError": "Impossible de charger vos enregistrements ECG.",
+      "backToList": "Retour aux enregistrements",
+      "disclaimer": "Il s'agit du résultat produit par votre appareil d'enregistrement. HealthLog ne lit ni n'interprète les enregistrements ECG et ne fournit aucun diagnostic.",
+      "clinicianNote": "Si ce résultat vous préoccupe, parlez de cet enregistrement à un professionnel de santé.",
+      "resultAttribution": "Résultat enregistré : {result}, tel que signalé par l'appareil d'enregistrement.",
+      "result": {
+        "irregular": "Fibrillation auriculaire détectée",
+        "notDetected": "Aucun signe de fibrillation auriculaire",
+        "inconclusive": "Enregistrement non concluant",
+        "none": "Aucun résultat signalé"
+      },
+      "meta": {
+        "recorded": "Enregistré",
+        "duration": "Durée",
+        "lead": "Dérivation",
+        "averageHeartRate": "Fréquence cardiaque moyenne",
+        "samplingRate": "Fréquence d'échantillonnage",
+        "leadSingle": "Une seule dérivation (dérivation I)",
+        "durationValue": "{seconds} s",
+        "bpmValue": "{bpm} bpm",
+        "hzValue": "{hz} Hz",
+        "unknown": "—"
+      },
+      "waveform": {
+        "ariaLabel": "Tracé ECG enregistré le {date}, durée {duration}, fréquence cardiaque moyenne {heartRate}, résultat enregistré : {result}."
+      }
     }
   },
   "thresholds": {

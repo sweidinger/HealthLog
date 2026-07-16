@@ -67,6 +67,12 @@ const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   // the same `insightStatus` sub-flag as the assessment routes (no Coach
   // prose).
   "src/app/api/insights/rhythm-events/route.ts",
+  // v1.28.50 — ECG recording surface (list + per-recording waveform). Pure
+  // DB read of the device's own recordings + verdicts; gates on the same
+  // `insightStatus` sub-flag as the assessment routes (no Coach prose — the
+  // waveform is never interpreted).
+  "src/app/api/insights/ecg/route.ts",
+  "src/app/api/insights/ecg/[id]/route.ts",
   "src/app/api/insights/weight-status/route.ts",
 ];
 

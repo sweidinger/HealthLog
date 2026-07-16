@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.49
+  version: 1.28.50
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -6688,6 +6688,76 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/insights/ecg:
+    get:
+      tags:
+        - Insights
+      summary: ECG recording list (metadata only)
+      description: "v1.28.50 — the authenticated user's ECG recordings as a cheap, index-covered metadata list (recorded time,
+        duration, sampling rate, sample count, average heart rate, lead, and the DEVICE's own rhythm classification).
+        NEVER decrypts or returns the waveform — the per-recording strip is fetched on demand from GET
+        /api/insights/ecg/{id}. Reflects only the recording device's certified on-device classification, verbatim;
+        HealthLog never re-classifies an ECG or produces a diagnosis. Data-availability-gated: an empty account returns
+        `hasRecordings: false`. Module-gated on `insights` and the operator `insightStatus` assistant surface; no LLM
+        call. Auth via cookie or Bearer."
+      responses:
+        "200":
+          description: The ECG recording list (possibly empty).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EcgListResponseEnvelope"
+        "401": *a1
+        "403": *a5
+        "422": *a3
+        "429": *a4
+  /api/insights/ecg/{id}:
+    get:
+      tags:
+        - Insights
+      summary: One ECG recording with waveform
+      description: v1.28.50 — one recording's decrypted waveform plus metadata and the DEVICE's verbatim classification.
+        Ownership is narrowed in the query where (`{ id, userId }`) so a cross-user read is structurally impossible; a
+        foreign or unknown id 404s (existence sealed). The waveform is AES-256-GCM at rest, decrypted through the
+        fail-closed codec. By default the ~9000-sample strip is min/max-decimated to ~2500 display points so R-wave
+        peaks survive; `?full=1` returns the raw array. HealthLog does not interpret the trace, measure intervals,
+        annotate beats, or emit a verdict of its own. Module-gated on `insights` and the operator `insightStatus`
+        assistant surface; no LLM call. `no-store`. Auth via cookie or Bearer.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            description: The ECG recording id (cuid).
+          required: true
+          description: The ECG recording id (cuid).
+        - in: query
+          name: full
+          schema:
+            description: "`1` returns the RAW, un-decimated sample array (the true-calibration 25 mm/s · 10 mm/mV zoom view).
+              Omitted returns the min/max-decimated ~2500-point fit-to-width overview (`decimated: true`)."
+            type: string
+            const: "1"
+          description: "`1` returns the RAW, un-decimated sample array (the true-calibration 25 mm/s · 10 mm/mV zoom view).
+            Omitted returns the min/max-decimated ~2500-point fit-to-width overview (`decimated: true`)."
+      responses:
+        "200":
+          description: The recording's waveform + metadata + device classification.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EcgDetailResponseEnvelope"
+        "401": *a1
+        "403": *a5
+        "404":
+          description: No ECG recording with that id for the authenticated user (existence sealed — a foreign id is
+            indistinguishable from a missing one).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
   /api/insights/correlations:
     get:
       tags:
@@ -12049,6 +12119,7 @@ components:
                   - health-status
                   - breathing
                   - labs-changes
+                  - ecg
               visible:
                 type: boolean
               order:
@@ -24709,6 +24780,199 @@ components:
       additionalProperties: false
       description: "Deterministic weight-plateau detection for users on an active GLP-1 medication: stable dose for ≥ the
         window with no weight loss beyond the threshold. Association only — carries no verdict or advice."
+    EcgListResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/EcgListResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    EcgListResponse:
+      type: object
+      properties:
+        recordings:
+          type: array
+          items:
+            $ref: "#/components/schemas/EcgRecordingListItem"
+          description: The user's ECG recordings, newest first (capped at 200).
+        hasRecordings:
+          type: boolean
+          description: False for an account with no recordings — the client un-mounts the whole ECG surface (data-availability
+            floor).
+      required:
+        - recordings
+        - hasRecordings
+      additionalProperties: false
+      description: Metadata-only ECG recording list. Never carries the waveform — the per-recording strip is fetched on demand
+        from GET /api/insights/ecg/{id}. Read-only; no LLM call. Reflects only the device's own classification, never a
+        HealthLog interpretation.
+    EcgRecordingListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Recording id (cuid).
+        recordedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: On-device recording time (the display timestamp).
+        durationSeconds:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: "`sampleCount / samplingFrequency` in seconds; null when the source omitted the sampling frequency."
+        samplingFrequency:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Signal sampling rate in Hz (Withings ScanWatch = 300); 0 when the source omitted it.
+        sampleCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Number of samples in the (encrypted) waveform array.
+        averageHeartRate:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+          description: Source-reported average heart rate (BPM) for the strip, when present.
+        lead:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Recording lead label when the source reports it; null for the single-lead ScanWatch (Lead I).
+        classification:
+          anyOf:
+            - type: string
+              enum:
+                - IRREGULAR
+                - NOT_DETECTED
+                - INCONCLUSIVE
+            - type: "null"
+          description: "The RECORDING DEVICE's own rhythm classification, surfaced verbatim: IRREGULAR (device flagged possible
+            atrial fibrillation), NOT_DETECTED (algorithm ran, nothing flagged), INCONCLUSIVE (poor signal /
+            out-of-range HR). Null when the source reported none. HealthLog never re-classifies an ECG — this is the
+            device's certified on-device result, not a HealthLog verdict."
+        source:
+          type: string
+          description: Measurement source that wrote the recording (e.g. WITHINGS).
+        hasWaveform:
+          type: boolean
+          description: True when a waveform is stored (`sampleCount > 0`); false for a verdict-only fallback event with no signal
+            to fetch.
+      required:
+        - id
+        - recordedAt
+        - durationSeconds
+        - samplingFrequency
+        - sampleCount
+        - averageHeartRate
+        - lead
+        - classification
+        - source
+        - hasWaveform
+      additionalProperties: false
+    EcgDetailResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/EcgDetailResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    EcgDetailResponse:
+      type: object
+      properties:
+        recordedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: On-device recording time (the display timestamp).
+        durationSeconds:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: Strip duration in seconds; null when the sampling frequency was 0.
+        samplingFrequency:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Signal sampling rate in Hz (300 for a ScanWatch).
+        averageHeartRate:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+          description: Source-reported average heart rate (BPM) for the strip, when present.
+        lead:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Recording lead label when reported; null for the single-lead ScanWatch (Lead I).
+        classification:
+          anyOf:
+            - type: string
+              enum:
+                - IRREGULAR
+                - NOT_DETECTED
+                - INCONCLUSIVE
+            - type: "null"
+          description: "The RECORDING DEVICE's own rhythm classification, surfaced verbatim: IRREGULAR (device flagged possible
+            atrial fibrillation), NOT_DETECTED (algorithm ran, nothing flagged), INCONCLUSIVE (poor signal /
+            out-of-range HR). Null when the source reported none. HealthLog never re-classifies an ECG — this is the
+            device's certified on-device result, not a HealthLog verdict."
+        source:
+          type: string
+          description: Measurement source that wrote the recording.
+        samples:
+          type: array
+          items:
+            type: number
+          description: Micro-volt waveform samples. Min/max-decimated to ~2500 points by default so R-wave peaks survive the
+            fit-to-width compression; the raw array when `?full=1`. The x-position of each sample is implied by its
+            index (an overview trace, not a calibrated-time axis) unless `decimated` is false.
+        decimated:
+          type: boolean
+          description: True when `samples` was min/max-decimated for display; false when the raw array is returned (`?full=1`, or
+            a strip already at or below the display budget).
+      required:
+        - recordedAt
+        - durationSeconds
+        - samplingFrequency
+        - averageHeartRate
+        - lead
+        - classification
+        - source
+        - samples
+        - decimated
+      additionalProperties: false
+      description: One ECG recording's decrypted waveform plus metadata and the DEVICE's verbatim classification. Ownership is
+        narrowed in the query where — a foreign / unknown id 404s. The waveform is AES-256-GCM at rest, decrypted
+        through the fail-closed codec. HealthLog does not interpret the trace, measure intervals, annotate beats, or
+        emit a verdict of its own. no-store.
     CorrelationDiscoveryResponseEnvelope:
       type: object
       properties:
@@ -29665,6 +29929,7 @@ components:
                   - health-status
                   - breathing
                   - labs-changes
+                  - ecg
               visible:
                 type: boolean
               order:
