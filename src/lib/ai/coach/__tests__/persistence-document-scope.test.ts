@@ -1,16 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 /**
- * v1.28.51 (Documents R3, Design A) — the Coach rail + detail READERS now
- * surface document-scoped threads alongside health threads (the DTO carries
- * `documentId` + `documentTitle`). These tests pin two invariants of the
- * filter relaxation:
- *   1. Relaxing the `documentId` scope must NEVER relax the `userId` scope —
- *      ownership stays narrowed on every read.
- *   2. Omitting the `documentId` option drops the scope filter (a union of both
- *      health + doc threads); passing it keeps the filter (the document route's
- *      own isolation is unchanged).
- * The DTO now resolves `documentTitle` from the joined document.
+ * v1.29.x (S7) — the Coach persistence readers over the join-table + sticky-flag
+ * model. These pin:
+ *   1. Ownership stays narrowed (`userId`) on every read — no scope relaxation
+ *      ever widens ownership.
+ *   2. The rail list omits the scope filter (a union of health + fenced threads),
+ *      while the document sheet passes `attachedDocumentId` (a join-row filter).
+ *   3. The tool-route SEND path passes `documentScoped: false` (fenced threads
+ *      404 there); the fenced endpoint passes `documentScoped: true`.
+ *   4. The DTO carries `fenced` + `attachments[]` (+ `documentTitle` = the first
+ *      attachment's resolved title, filename fallback).
  */
 
 const findMany = vi.fn();
@@ -37,73 +37,82 @@ import {
 
 const now = new Date("2026-07-16T10:00:00.000Z");
 
+function att(
+  documentId: string,
+  title: string | null,
+  filename: string | null,
+) {
+  return { documentId, document: { title, filename } };
+}
+
 beforeEach(() => {
   findMany.mockReset();
   findFirst.mockReset();
 });
 
-describe("listConversations — filter relaxation + DTO", () => {
-  it("omits the documentId filter when no documentId is passed (union of both scopes), but keeps userId narrowed", async () => {
+describe("listConversations — filter + DTO", () => {
+  it("omits the scope filter (union of both) but keeps userId narrowed, and maps fenced + attachments", async () => {
     findMany.mockResolvedValue([
       {
         id: "c1",
         title: "Health thread",
         createdAt: now,
         updatedAt: now,
-        documentId: null,
+        documentScoped: false,
         _count: { messages: 3 },
-        document: null,
+        attachments: [],
       },
       {
         id: "c2",
-        title: "Doc thread",
+        title: "Fenced thread",
         createdAt: now,
         updatedAt: now,
-        documentId: "doc-1",
+        documentScoped: true,
         _count: { messages: 2 },
-        document: { title: "Blood panel", filename: "panel.pdf" },
+        attachments: [att("doc-1", "Blood panel", "panel.pdf")],
       },
     ]);
 
     const page = await listConversations({ userId: "user-1" });
 
     const where = findMany.mock.calls[0][0].where;
-    // userId stays narrowed — the relaxation never widens ownership.
     expect(where.userId).toBe("user-1");
-    // No documentId key at all → no scope filter → both scopes returned.
-    expect("documentId" in where).toBe(false);
+    expect("attachments" in where).toBe(false);
 
-    // The DTO now carries the scope discriminator + resolved title.
     expect(page.conversations[0]).toMatchObject({
       id: "c1",
-      documentId: null,
+      fenced: false,
       documentTitle: null,
     });
+    expect(page.conversations[0].attachments).toEqual([]);
     expect(page.conversations[1]).toMatchObject({
       id: "c2",
-      documentId: "doc-1",
+      fenced: true,
       documentTitle: "Blood panel",
     });
+    expect(page.conversations[1].attachments).toEqual([
+      { documentId: "doc-1", title: "Blood panel" },
+    ]);
   });
 
-  it("still applies the documentId filter when the document route passes it (isolation unchanged)", async () => {
+  it("applies the join-row filter when the document sheet passes attachedDocumentId", async () => {
     findMany.mockResolvedValue([]);
-    await listConversations({ userId: "user-1", documentId: "doc-9" });
+    await listConversations({ userId: "user-1", attachedDocumentId: "doc-9" });
     const where = findMany.mock.calls[0][0].where;
     expect(where.userId).toBe("user-1");
-    expect(where.documentId).toBe("doc-9");
+    expect(where.attachments).toEqual({ some: { documentId: "doc-9" } });
   });
 
-  it("falls back to filename when the document has no title", async () => {
+  it("falls back to filename when the first attachment has no title", async () => {
     findMany.mockResolvedValue([
       {
         id: "c3",
         title: "t",
         createdAt: now,
         updatedAt: now,
-        documentId: "doc-3",
+        documentScoped: true,
         _count: { messages: 1 },
-        document: { title: null, filename: "scan.pdf" },
+        attachments: [att("doc-3", null, "scan.pdf")],
       },
     ]);
     const page = await listConversations({ userId: "user-1" });
@@ -111,59 +120,72 @@ describe("listConversations — filter relaxation + DTO", () => {
   });
 });
 
-describe("fetchConversationWithMessages — filter relaxation + DTO", () => {
-  it("reads across both scopes (no documentId filter) while keeping userId narrowed", async () => {
-    findFirst.mockResolvedValue({
-      id: "c2",
-      title: "Doc thread",
-      createdAt: now,
-      updatedAt: now,
-      documentId: "doc-1",
-      summaryEncrypted: null,
-      document: { title: "Blood panel", filename: "panel.pdf" },
-      messages: [
-        {
-          id: "m1",
-          role: "user",
-          encryptedContent: new Uint8Array(),
-          metricSourceJson: null,
-          providerType: null,
-          promptVersion: null,
-          tokensUsed: null,
-          model: null,
-          createdAt: now,
-        },
-      ],
-    });
+describe("fetchConversationWithMessages — filter + DTO", () => {
+  const baseRow = {
+    id: "c2",
+    title: "Fenced thread",
+    createdAt: now,
+    updatedAt: now,
+    documentScoped: true,
+    summaryEncrypted: null,
+    attachments: [att("doc-1", "Blood panel", "panel.pdf")],
+    messages: [
+      {
+        id: "m1",
+        role: "user",
+        encryptedContent: new Uint8Array(),
+        metricSourceJson: null,
+        providerType: null,
+        promptVersion: null,
+        tokensUsed: null,
+        model: null,
+        createdAt: now,
+      },
+    ],
+  };
 
+  it("reads across both scopes (no scope opt) while keeping userId narrowed and maps fenced + attachments", async () => {
+    findFirst.mockResolvedValue(baseRow);
     const detail = await fetchConversationWithMessages("user-1", "c2");
-
     const where = findFirst.mock.calls[0][0].where;
     expect(where.id).toBe("c2");
     expect(where.userId).toBe("user-1");
-    // No documentId opt → no scope filter (the relaxed coach detail reader).
-    expect("documentId" in where).toBe(false);
-
-    expect(detail?.documentId).toBe("doc-1");
+    expect("documentScoped" in where).toBe(false);
+    expect(detail?.fenced).toBe(true);
+    expect(detail?.attachmentCount).toBe(1);
+    expect(detail?.attachments).toEqual([
+      { documentId: "doc-1", title: "Blood panel" },
+    ]);
     expect(detail?.documentTitle).toBe("Blood panel");
   });
 
-  it("keeps the documentId filter when the document route passes it", async () => {
+  it("the tool-route SEND path narrows to documentScoped: false (fenced threads 404)", async () => {
     findFirst.mockResolvedValue(null);
     await fetchConversationWithMessages("user-1", "c2", {
-      documentId: "doc-1",
+      documentScoped: false,
     });
     const where = findFirst.mock.calls[0][0].where;
     expect(where.userId).toBe("user-1");
-    expect(where.documentId).toBe("doc-1");
+    expect(where.documentScoped).toBe(false);
   });
 
-  it("keeps the strict null-scope filter when the coach SEND path passes documentId: null", async () => {
+  it("the fenced endpoint narrows to documentScoped: true", async () => {
     findFirst.mockResolvedValue(null);
-    await fetchConversationWithMessages("user-1", "c2", { documentId: null });
+    await fetchConversationWithMessages("user-1", "c2", {
+      documentScoped: true,
+    });
+    const where = findFirst.mock.calls[0][0].where;
+    expect(where.documentScoped).toBe(true);
+  });
+
+  it("the single-doc sheet narrows to a live join row for the path id (+ documentScoped true)", async () => {
+    findFirst.mockResolvedValue(null);
+    await fetchConversationWithMessages("user-1", "c2", {
+      attachedDocumentId: "doc-1",
+    });
     const where = findFirst.mock.calls[0][0].where;
     expect(where.userId).toBe("user-1");
-    // The tool-route send path stays fenced to health threads.
-    expect(where.documentId).toBeNull();
+    expect(where.documentScoped).toBe(true);
+    expect(where.attachments).toEqual({ some: { documentId: "doc-1" } });
   });
 });

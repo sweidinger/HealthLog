@@ -12,6 +12,7 @@
  * The queue MUST be registered in the maintenance registrar
  * (`src/lib/jobs/reminder/register-maintenance.ts`) so pg-boss provisions it.
  */
+import { maybeAutoStageLabFacts } from "@/lib/documents/auto-stage-labs";
 import { indexDocumentContent } from "@/lib/documents/index-document";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
@@ -44,6 +45,15 @@ export async function runDocumentIndex(
       ? { documentId, indexed: true, source: outcome.source }
       : { documentId, indexed: false, reason: outcome.reason },
   });
+
+  // S8 — once the document is indexed, auto-stage lab facts for a lab-looking
+  // document (both modules on + the auto-AI-read consent gate). Facts land
+  // PENDING for the existing human review; nothing is committed. Fully gated +
+  // idempotent inside; a failure here must never fail the index job, so it is
+  // swallowed to a no-op (the manual extract button remains the fallback).
+  if (outcome.indexed) {
+    await maybeAutoStageLabFacts(userId, documentId).catch(() => {});
+  }
 }
 
 /**

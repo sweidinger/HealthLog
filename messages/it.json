@@ -2450,7 +2450,27 @@
         "correlationWeightWeekday": "Il mio peso segue uno schema settimanale? Cosa mi dice questa correlazione per giorno della settimana?",
         "recommendation": "Dimmi di più su questa raccomandazione: \"{text}\" — perché si applica a me e cosa dovrei fare?"
       },
-      "assessmentPrompt": "Spiegami la mia valutazione di {metric}: cosa significa e cosa dovrei fare?"
+      "assessmentPrompt": "Spiegami la mia valutazione di {metric}: cosa significa e cosa dovrei fare?",
+      "attach": {
+        "menuChooseFromDocuments": "Scegli dai documenti",
+        "menuUploadNew": "Carica nuovo documento",
+        "trigger": "Allega documenti",
+        "pickerTitle": "Allega documenti",
+        "pickerDescription": "Il coach legge solo i documenti che alleghi, non i tuoi dati sanitari.",
+        "pickerSearchPlaceholder": "Cerca documenti…",
+        "pickerEmpty": "Ancora nessun documento nel tuo archivio.",
+        "pickerNotIndexed": "Non ancora indicizzato",
+        "pickerCap": "Puoi allegarne ancora fino a {max}.",
+        "pickerConfirm": "Allega ({count})",
+        "pillRemove": "Rimuovi {title}",
+        "indexing": "Indicizzazione…",
+        "indexingHint": "Un documento è ancora in fase di indicizzazione; potrai inviare quando è pronto.",
+        "fencedHint": "Questa conversazione funziona senza accesso ai tuoi dati sanitari: il coach legge solo i documenti allegati.",
+        "documentsAttachedOne": "1 documento allegato",
+        "documentsAttachedOther": "{count} documenti allegati",
+        "railBadge": "Chat documento isolata",
+        "uploadError": "Caricamento non riuscito. Riprova."
+      }
     },
     "relativeJustNow": "proprio ora",
     "relativeMinutesAgoOne": "{count} minuto fa",

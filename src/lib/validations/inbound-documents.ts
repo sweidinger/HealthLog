@@ -680,3 +680,51 @@ export const documentChatHistoryQuerySchema = z.object({
 export type DocumentChatHistoryQuery = z.infer<
   typeof documentChatHistoryQuerySchema
 >;
+
+// ─── Fenced multi-document coach chat (S7) ──────────────────────────────────
+
+/** Max documents attachable to one coach conversation. Bounds prompt size + the
+ * numeric-grounding union; five labelled documents is already past the point a
+ * chat answer stays useful. */
+export const MAX_COACH_ATTACHMENTS = 5;
+
+/**
+ * Request body for `POST /api/insights/chat/fenced`. `.strict()` — the schema
+ * REFUSES the tool-mode fields (`scope` / `guidedQuestion` / `prefill`) and
+ * `userId` rather than silently dropping them, so a confused client fails loudly
+ * in test. `conversationId` continues an existing FENCED thread; `attachmentIds`
+ * (first-turn only, min 1) creates a fresh fenced thread — supplying BOTH is a
+ * 422 (attach-to-existing goes through the attach endpoint; one write path per
+ * concern). No `documentId` / `userId` field — the owner is narrowed from the
+ * session, the documents come from the join table.
+ */
+export const fencedChatRequestSchema = z
+  .object({
+    conversationId: z.string().trim().min(1).max(64).optional(),
+    message: z.string().trim().min(1).max(DOCUMENT_CHAT_MESSAGE_MAX),
+    locale: z.enum(["en", "de"]).optional(),
+    attachmentIds: z
+      .array(z.string().trim().min(1).max(64))
+      .min(1)
+      .max(MAX_COACH_ATTACHMENTS)
+      .optional(),
+  })
+  .strict()
+  .meta({ id: "FencedCoachChatRequest" });
+
+export type FencedChatRequestInput = z.infer<typeof fencedChatRequestSchema>;
+
+/**
+ * Request body for `POST /api/insights/chat/{id}/attachments` — attach ONE
+ * already-stored document to an existing conversation. `.strict()`; no `userId`.
+ */
+export const coachAttachmentCreateSchema = z
+  .object({
+    documentId: z.string().trim().min(1).max(64),
+  })
+  .strict()
+  .meta({ id: "CoachAttachmentCreateRequest" });
+
+export type CoachAttachmentCreateInput = z.infer<
+  typeof coachAttachmentCreateSchema
+>;

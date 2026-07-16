@@ -304,22 +304,39 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   let priorSummary: string | null = null;
 
   if (conversationId) {
-    // v1.27.33 / v1.28.51 — the SEND path stays scoped to Coach threads
-    // (`documentId: null`) DELIBERATELY, even though the read paths (rail list +
-    // detail GET) were relaxed to surface doc-scoped threads in the Coach UI.
-    // This is the load-bearing prompt-injection fence: a document chat runs its
-    // tool-loop + health-snapshot NEVER — a doc turn is routed by the client to
-    // the hardened `/api/documents/inbound/[id]/chat` endpoint. Should a
-    // doc-scoped conversation id ever reach THIS tool route, the null-scope
-    // fetch below returns nothing and the turn 404s rather than executing an
-    // injected instruction against the coach's write tools. Do not relax.
+    // v1.29.x (S7) — the load-bearing prompt-injection fence, now a DUAL
+    // predicate. Untrusted document text may only enter an LLM prompt on the
+    // fenced pipeline (no tools, no snapshot). This tool route must never load a
+    // fenced conversation:
+    //   PRIMARY  — `documentScoped: false` in the WHERE. The sticky flag is set
+    //              at fenced-creation / first-attach and NEVER cleared, so a
+    //              conversation that has EVER held a document 404s here forever.
+    //   BACKSTOP — even so, assert zero live attachments. `documentScoped: false`
+    //              with an attachment row present is flag/join drift (an
+    //              invariant broke somewhere): fail closed, loudly.
+    // A doc turn is routed by the client to `/api/insights/chat/fenced` (or the
+    // single-doc sheet endpoint). Should a fenced id ever reach THIS route the
+    // fetch returns nothing and the turn 404s rather than running an injected
+    // instruction against the coach's write tools. Do not relax.
     const existing = await fetchConversationWithMessages(
       userId,
       conversationId,
-      { documentId: null },
+      { documentScoped: false },
     );
     if (!existing) {
-      // 404, not 403 — never reveal cross-user existence
+      // 404, not 403 — never reveal cross-user / cross-mode existence
+      throw new HttpError(404, "coach.conversation.notFound");
+    }
+    if (existing.attachmentCount > 0) {
+      // Drift alarm — telemetry AND an audit row (not routine telemetry).
+      annotate({
+        action: { name: "insights.coach.fence_drift" },
+        meta: { conversationId: existing.id },
+      });
+      await auditLog("insights.coach.fence_drift", {
+        userId,
+        details: { conversationId: existing.id },
+      });
       throw new HttpError(404, "coach.conversation.notFound");
     }
     workingConversationId = existing.id;

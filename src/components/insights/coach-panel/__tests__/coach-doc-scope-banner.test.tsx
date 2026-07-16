@@ -13,33 +13,36 @@ import { queryKeys } from "@/lib/query-keys";
 import { CoachConversation } from "../coach-conversation";
 
 /**
- * v1.28.51 (Documents R3, Design A) — the doc-scope banner.
+ * v1.29.x (S7) — the fenced-conversation banner.
  *
- * When the Coach is scoped to a document (the `/coach?doc=<id>` hand-off from
- * the vault, before any thread exists), the shared `<CoachConversation>` surface
- * paints a "Document" badge + "Chatting about: <title>" and, when the document
- * is not yet content-indexed, the calm "read it with AI first" hint. On a normal
- * health thread the banner is absent. Replaces the deleted drawer's not-indexed /
- * scope coverage at the component level; the fenced-send guarantee is pinned by
- * `coach-send-target.test.ts`.
+ * When the Coach is fenced — here seeded via the `/coach?doc=<id>` hand-off,
+ * which stages ONE document as a pending first-turn attachment before any
+ * thread exists — the shared `<CoachConversation>` surface paints the
+ * `coach-doc-scope` banner: a paperclip + "N documents attached" count and the
+ * honest fencing line (the coach runs WITHOUT access to health data and reads
+ * only the attached documents). While a staged attachment is still being
+ * content-indexed the banner adds the "still being indexed" hint. On a normal
+ * health thread the banner is absent. The fenced-send routing guarantee itself
+ * is pinned by `coach-send-target.test.ts`.
  *
- * `pendingDocumentId` seeds from the `initialDocumentId` prop via a `useState`
- * initializer, so the banner resolves in a single static-markup pass. The
- * document detail (`/api/documents/inbound/<id>`) is seeded into the cache so the
- * title + indexed status render without a network call.
+ * `pendingAttachmentIds` seeds from the `initialDocumentId` prop via a
+ * `useState` initializer, so the banner resolves in a single static-markup
+ * pass. The document detail (`/api/documents/inbound/<id>`) is seeded into the
+ * cache so the staged pill's title + indexed status render without a network
+ * call.
  */
 
 const DOC_ID = "e2edocscopedoc0000000001";
 const TITLE = "Chest X-ray report";
 
-const NOT_INDEXED_HINT =
-  "Read this document with AI first in the vault so the Coach can answer about it.";
+const FENCING_LINE = "without access to your health data";
+const INDEXING_HINT = "still being indexed";
 
 function makeClient(hasContentIndex: boolean): QueryClient {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  // A fresh doc scope has no thread yet — keep the rail empty so the surface
+  // A fresh fenced chat has no thread yet — keep the rail empty so the surface
   // stays on the new-chat hero and the banner is the thing under test.
   client.setQueryData(queryKeys.coachConversations(), {
     conversations: [],
@@ -63,29 +66,31 @@ function render(node: React.ReactNode, client: QueryClient): string {
   );
 }
 
-describe("<CoachConversation> doc-scope banner (R3)", () => {
-  it("shows the badge + 'Chatting about' title for an indexed document scope", () => {
+describe("<CoachConversation> fenced banner (S7)", () => {
+  it("shows the paperclip count + honest fencing line for a staged attachment", () => {
     const html = render(
       <CoachConversation surface="page" initialDocumentId={DOC_ID} />,
       makeClient(true),
     );
     expect(html).toContain('data-slot="coach-doc-scope"');
-    expect(html).toContain("Document");
-    expect(html).toContain(`Chatting about: ${TITLE}`);
-    // Indexed → no "read it first" hint.
-    expect(html).not.toContain(NOT_INDEXED_HINT);
+    // Exactly one document staged → the singular count.
+    expect(html).toContain("1 document attached");
+    // The honest fencing line is always present on a fenced conversation.
+    expect(html).toContain(FENCING_LINE);
+    // Indexed → no "still being indexed" hint.
+    expect(html).not.toContain(INDEXING_HINT);
   });
 
-  it("shows the calm not-indexed hint when the document has no content index", () => {
+  it("shows the still-indexing hint when the staged document has no content index", () => {
     const html = render(
       <CoachConversation surface="page" initialDocumentId={DOC_ID} />,
       makeClient(false),
     );
     expect(html).toContain('data-slot="coach-doc-scope"');
-    expect(html).toContain(NOT_INDEXED_HINT);
+    expect(html).toContain(INDEXING_HINT);
   });
 
-  it("paints no banner on a normal health thread (no document scope)", () => {
+  it("paints no banner on a normal health thread (no attachments, not fenced)", () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });

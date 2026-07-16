@@ -2,7 +2,28 @@
 
 ## [Unreleased]
 
-## [1.28.55] — 2026-07-16 — The Today view comes to life
+## [1.28.56] — 2026-07-17 — Documents, closer to hand
+
+Four changes bring documents and your record closer together:
+
+- **Ask the Coach opens beside your document.** Asking about a document now
+  opens the Coach in a side panel rather than jumping to a full page — expand it
+  to full screen whenever you like, and it keeps its place.
+- **Bring documents into a Coach chat.** From the composer's "+", attach one or
+  more documents — pick from your vault or upload a new one, at the start or
+  mid-conversation — and the Coach answers grounded in them. A conversation with
+  a document runs in its fenced mode: grounded in those documents only, with no
+  access to your health data or tools, so nothing in an uploaded file can reach
+  anything it shouldn't.
+- **Lab values from a document, proposed for your labs.** When a document you've
+  had read looks like lab work, its values are detected and proposed — one tap to
+  add them to your labs; they're never added without your say-so.
+- **A lab scan is also kept.** Scanning a lab report into your labs now also
+  files the document in your vault (encrypted, like every upload) and links the
+  two, so the reading and its source stay together.
+
+Migration 0245 (attaching multiple documents to a conversation) accompanies this
+release; existing document chats carry over unchanged.
 
 Three pieces turn the Today view into a daily loop:
 

@@ -2450,7 +2450,27 @@
         "correlationWeightWeekday": "Czy moja waga podlega cotygodniowemu wzorcowi? Co mówi mi ta korelacja według dnia tygodnia?",
         "recommendation": "Powiedz mi więcej o tej rekomendacji: \"{text}\" — dlaczego mnie dotyczy i co powinienem z nią zrobić?"
       },
-      "assessmentPrompt": "Wyjaśnij mi moją ocenę {metric} — co oznacza i co powinienem z tym zrobić?"
+      "assessmentPrompt": "Wyjaśnij mi moją ocenę {metric} — co oznacza i co powinienem z tym zrobić?",
+      "attach": {
+        "menuChooseFromDocuments": "Wybierz z dokumentów",
+        "menuUploadNew": "Prześlij nowy dokument",
+        "trigger": "Załącz dokumenty",
+        "pickerTitle": "Załącz dokumenty",
+        "pickerDescription": "Coach czyta tylko załączone dokumenty, a nie Twoje dane zdrowotne.",
+        "pickerSearchPlaceholder": "Szukaj dokumentów…",
+        "pickerEmpty": "Nie masz jeszcze dokumentów w archiwum.",
+        "pickerNotIndexed": "Jeszcze nie zindeksowano",
+        "pickerCap": "Możesz załączyć jeszcze do {max}.",
+        "pickerConfirm": "Załącz ({count})",
+        "pillRemove": "Usuń {title}",
+        "indexing": "Indeksowanie…",
+        "indexingHint": "Dokument jest jeszcze indeksowany – wyślesz, gdy będzie gotowy.",
+        "fencedHint": "Ta rozmowa działa bez dostępu do Twoich danych zdrowotnych – coach czyta tylko załączone dokumenty.",
+        "documentsAttachedOne": "1 załączony dokument",
+        "documentsAttachedOther": "Załączone dokumenty: {count}",
+        "railBadge": "Odizolowany czat dokumentu",
+        "uploadError": "Przesyłanie nie powiodło się. Spróbuj ponownie."
+      }
     },
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",

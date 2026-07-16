@@ -179,6 +179,14 @@ export type OcrCommitRow = z.infer<typeof ocrCommitRowSchema>;
 
 export const ocrCommitSchema = z.object({
   rows: z.array(ocrCommitRowSchema).min(1).max(OCR_MAX_ROWS),
+  /**
+   * S9 — the vault document the client filed the scanned bytes into (kind
+   * LAB_RESULT), so the committed labs can be cross-linked back to their source
+   * (`inboundDocuments` module on). Optional: text-mode scans keep the image
+   * on-device and file nothing, and a module-off account never files. Ownership
+   * is verified server-side before any link is written.
+   */
+  documentId: z.string().trim().min(1).max(64).optional(),
 });
 
 export type OcrCommitInput = z.infer<typeof ocrCommitSchema>;

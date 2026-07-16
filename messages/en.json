@@ -2450,7 +2450,27 @@
         "correlationWeightWeekday": "Does my weight follow a weekly pattern? What does this day-of-week correlation tell me?",
         "recommendation": "Tell me more about this recommendation: \"{text}\" — why does it apply to me, and what should I do about it?"
       },
-      "assessmentPrompt": "Walk me through my {metric} assessment — what does it mean and what should I do about it?"
+      "assessmentPrompt": "Walk me through my {metric} assessment — what does it mean and what should I do about it?",
+      "attach": {
+        "menuChooseFromDocuments": "Choose from documents",
+        "menuUploadNew": "Upload new document",
+        "trigger": "Attach documents",
+        "pickerTitle": "Attach documents",
+        "pickerDescription": "The coach reads only the documents you attach — not your health data.",
+        "pickerSearchPlaceholder": "Search documents…",
+        "pickerEmpty": "No documents in your vault yet.",
+        "pickerNotIndexed": "Not yet indexed",
+        "pickerCap": "You can attach up to {max} more.",
+        "pickerConfirm": "Attach ({count})",
+        "pillRemove": "Remove {title}",
+        "indexing": "Indexing…",
+        "indexingHint": "A document is still being indexed — you can send once it's ready.",
+        "fencedHint": "This conversation runs without access to your health data — the coach only reads the attached documents.",
+        "documentsAttachedOne": "1 document attached",
+        "documentsAttachedOther": "{count} documents attached",
+        "railBadge": "Fenced document chat",
+        "uploadError": "Upload failed. Please try again."
+      }
     },
     "relativeJustNow": "just now",
     "relativeMinutesAgoOne": "{count} minute ago",

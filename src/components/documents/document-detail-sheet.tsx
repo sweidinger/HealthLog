@@ -28,7 +28,6 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -59,6 +58,7 @@ import {
   apiPost,
 } from "@/lib/api/api-fetch";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { invalidateKeys, queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import {
@@ -216,7 +216,11 @@ export function DocumentDetailSheet({
   const { t, locale } = useTranslations();
   const format = useFormatters();
   const queryClient = useQueryClient();
-  const router = useRouter();
+  // v1.28.52 (Documents R3) — the vault "Ask the Coach" action opens the REAL
+  // fenced coach conversation in the shared side drawer (scoped to this
+  // document) instead of a full-page nav; `askCoach(..., doc.id)` carries the
+  // document scope through the launch context.
+  const launch = useCoachLaunch();
 
   const detail = useQuery({
     queryKey: queryKeys.inboundDocument(documentId ?? "none"),
@@ -472,14 +476,19 @@ export function DocumentDetailSheet({
               </Button>
               <div className="flex items-center gap-2">
                 {aiEnabled ? (
-                  // v1.28.51 (Documents R3, Design A) — "Ask the Coach" opens
-                  // the REAL coach view scoped to this document
-                  // (`/coach?doc=<id>`), replacing the bespoke doc-chat drawer.
-                  // Every doc turn there still runs on the hardened fenced
-                  // document endpoint (never the coach tool route).
+                  // v1.28.52 (Documents R3) — "Ask the Coach" opens the REAL
+                  // coach conversation scoped to this document in the SIDE
+                  // DRAWER (the maximize control there expands it to the full
+                  // `/coach` page). Every doc turn still runs on the hardened
+                  // fenced document endpoint (never the coach tool route) — only
+                  // WHERE the conversation renders changed, not the send path.
+                  // Close the detail sheet so the drawer owns the surface.
                   <Button
                     variant="outline"
-                    onClick={() => router.push(`/coach?doc=${doc.id}`)}
+                    onClick={() => {
+                      onOpenChange(false);
+                      launch?.askCoach(null, undefined, false, doc.id);
+                    }}
                     data-slot="document-chat-open"
                     aria-label={t("documents.chat.openAria")}
                   >

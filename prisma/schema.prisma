@@ -4657,25 +4657,51 @@ model CoachConversation {
   summaryUpdatedAt DateTime? @map("summary_updated_at")
   summaryTurnCount Int       @default(0) @map("summary_turn_count")
 
-  // v1.27.33 (Document vault P4 — chat about a document) — the discriminator
-  // that turns a Coach conversation into a DOCUMENT chat. NULL = a normal Coach
-  // conversation (health-record surface, snapshot + tools). Non-NULL = a chat
-  // scoped to exactly one stored document: its only context is that document's
-  // text, no health snapshot, no tools. The two never mix — the Coach rail
-  // filters `documentId: null` and the document sheet filters `documentId: <id>`.
-  // Cascades on document delete so a discarded document takes its chats with it.
-  documentId String? @map("document_id")
+  // v1.29.x (S7 — attach multiple documents to a coach conversation) — PERMANENT
+  // fence marker. Set true when the conversation is created via the fenced
+  // endpoint or when the FIRST document is attached. NO code path ever sets it
+  // back to false — detaching every document, or a document being deleted,
+  // leaves it true. A conversation whose history may contain document-derived
+  // text must never regain the tool loop. The LIVE attachment set lives in the
+  // `CoachConversationDocument` join table; this sticky flag is the fail-closed
+  // half of the fenced-only discriminator (see the dual predicate on the tool
+  // route). Replaces the pre-S7 scalar `documentId` discriminator, which could
+  // only express one document and would UNFENCE on that document's delete.
+  documentScoped Boolean @default(false) @map("document_scoped")
 
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  document InboundDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  messages CoachMessage[]
+  user        User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    CoachMessage[]
+  attachments CoachConversationDocument[]
 
   @@index([userId, updatedAt])
-  // v1.27.33 — the document sheet lists a document's chats newest-first; the
-  // Coach rail lists `documentId IS NULL` newest-first. This composite covers
-  // both scans without a separate index per surface.
-  @@index([userId, documentId, updatedAt])
+  // v1.29.x (S7) — the rail lists health threads + fenced threads newest-first
+  // and the tool-route send path filters on the flag. Replaces the retired
+  // [userId, documentId, updatedAt] composite.
+  @@index([userId, documentScoped, updatedAt])
   @@map("coach_conversations")
+}
+
+/// v1.29.x (S7) — a document attached to a coach conversation. The EXISTENCE of
+/// any row for a conversation is one half of the fenced-only discriminator (the
+/// other is `CoachConversation.documentScoped`). Composite PK so the SQL
+/// backfill needs no client-side id generation and duplicate attaches are
+/// impossible by construction. Two cascades:
+///   - from DOCUMENT: deleting a vault document removes its join rows (its text
+///     leaves every conversation's context) but NEVER the conversation — a
+///     fenced thread survives via the sticky flag.
+///   - from CONVERSATION: deleting a chat removes its attachment rows, never the
+///     documents.
+model CoachConversationDocument {
+  conversationId String   @map("conversation_id")
+  documentId     String   @map("document_id")
+  addedAt        DateTime @default(now()) @map("added_at")
+
+  conversation CoachConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  document     InboundDocument   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, documentId])
+  @@index([documentId]) // document-sheet "chats about this doc" scan + path-id join filter
+  @@map("coach_conversation_documents")
 }
 
 // One message in a Coach conversation. `role` is "user" or "assistant"
@@ -6069,10 +6095,11 @@ model InboundDocument {
   /// column) so the list/detail `omit: { contentEncrypted }` queries never
   /// drag the blob into the SELECT. Cascades on delete.
   thumbnail      DocumentThumbnail?
-  /// v1.27.33 (Document vault P4) — "chat about a document" threads. Each is a
-  /// `CoachConversation` with `documentId` set to this document; cascades on
-  /// delete so a discarded document takes its chats with it.
-  chats          CoachConversation[]
+  /// v1.29.x (S7) — coach-conversation attachments (m:n via
+  /// `CoachConversationDocument`). Deleting this document cascades its join rows
+  /// away (its text leaves every conversation's context) but never the
+  /// conversation itself — a fenced thread survives via its sticky flag.
+  chatAttachments CoachConversationDocument[]
   /// share-link memberships (m:n via `ClinicianShareLinkDocument`).
   /// Cascades: deleting this document removes it from every share it was on.
   shareLinks     ClinicianShareLinkDocument[]

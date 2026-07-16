@@ -43,6 +43,7 @@ const samplePage: CoachConversationsPage = {
       createdAt: "2026-05-10T08:00:00.000Z",
       updatedAt: "2026-05-10T08:01:00.000Z",
       messageCount: 2,
+      fenced: false,
     },
     {
       id: "c2",
@@ -50,6 +51,7 @@ const samplePage: CoachConversationsPage = {
       createdAt: "2026-05-09T14:00:00.000Z",
       updatedAt: "2026-05-09T14:05:00.000Z",
       messageCount: 4,
+      fenced: false,
     },
   ],
   nextCursor: null,

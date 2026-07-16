@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, MessagesSquare, Search, Trash2 } from "lucide-react";
+import { MessagesSquare, Paperclip, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,14 +162,22 @@ export function HistoryRail({
                   data-slot="coach-history-select"
                 >
                   <span className="flex min-w-0 items-center gap-1.5 font-medium">
-                    {/* v1.28.51 — a doc-scoped thread runs on the hardened
-                        fenced endpoint; badge it so the two are visibly
-                        distinct in the rail. */}
-                    {c.documentId ? (
-                      <FileText
-                        className="text-primary size-3.5 shrink-0"
-                        aria-label={t("insights.coach.docScope.badge")}
-                      />
+                    {/* v1.29.x (S7) — a fenced thread runs on the hardened
+                        fenced endpoint over its attached documents; badge it
+                        with a paperclip (+ count when more than one) so it
+                        reads as distinct in the rail. */}
+                    {c.fenced ? (
+                      <span
+                        className="text-primary inline-flex shrink-0 items-center gap-0.5"
+                        aria-label={t("insights.coach.attach.railBadge")}
+                      >
+                        <Paperclip className="size-3.5" aria-hidden="true" />
+                        {(c.attachments?.length ?? 0) > 1 ? (
+                          <span className="text-[10px] font-semibold tabular-nums">
+                            {c.attachments?.length}
+                          </span>
+                        ) : null}
+                      </span>
                     ) : null}
                     <span className="truncate">{c.title}</span>
                   </span>

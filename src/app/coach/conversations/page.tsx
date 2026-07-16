@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, MessagesSquare, Search, Target, Trash2 } from "lucide-react";
+import {
+  MessagesSquare,
+  Paperclip,
+  Search,
+  Target,
+  Trash2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -224,13 +230,24 @@ function CoachConversationsBody() {
                         data-slot="coach-conversations-select"
                       >
                         <span className="flex min-w-0 items-center gap-1.5 font-medium">
-                          {/* v1.28.51 — badge doc-scoped threads (fenced
-                              endpoint) so they read as distinct in the list. */}
-                          {c.documentId ? (
-                            <FileText
-                              className="text-primary size-3.5 shrink-0"
-                              aria-label={t("insights.coach.docScope.badge")}
-                            />
+                          {/* v1.29.x (S7) — badge fenced threads (they run on
+                              the hardened fenced endpoint over their attached
+                              documents) with a paperclip + attachment count. */}
+                          {c.fenced ? (
+                            <span
+                              className="text-primary inline-flex shrink-0 items-center gap-0.5"
+                              aria-label={t("insights.coach.attach.railBadge")}
+                            >
+                              <Paperclip
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
+                              {(c.attachments?.length ?? 0) > 1 ? (
+                                <span className="text-[10px] font-semibold tabular-nums">
+                                  {c.attachments?.length}
+                                </span>
+                              ) : null}
+                            </span>
                           ) : null}
                           <span className="truncate">{c.title}</span>
                         </span>

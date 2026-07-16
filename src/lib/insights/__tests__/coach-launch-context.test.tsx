@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { CoachLaunchProvider, useCoachLaunch } from "../coach-launch-context";
+import {
+  CoachLaunchProvider,
+  resolveLaunchState,
+  useCoachLaunch,
+} from "../coach-launch-context";
 
 /**
  * v1.4.27 R3d MB4 — Coach launch context smoke contract.
@@ -29,6 +33,7 @@ function Probe({ output }: { output: string[] }) {
       hasSetOpen: typeof launch.setOpen,
       open: launch.open,
       prefill: launch.prefill,
+      documentId: launch.documentId,
     }),
   );
   return <span data-slot="probe-output">{output.join(",")}</span>;
@@ -54,6 +59,8 @@ describe("CoachLaunchProvider", () => {
     expect(parsed.hasSetOpen).toBe("function");
     expect(parsed.open).toBe(false);
     expect(parsed.prefill).toBeNull();
+    // v1.28.52 — the document scope defaults to null (health chat).
+    expect(parsed.documentId).toBeNull();
   });
 
   it("renders the children inside the provider mount", () => {
@@ -64,5 +71,74 @@ describe("CoachLaunchProvider", () => {
     );
     expect(html).toContain('data-slot="child-mount"');
     expect(html).toContain("child");
+  });
+});
+
+/**
+ * v1.28.52 (Documents R3) — the pure open-state derivation the provider's
+ * `askCoach(...)` applies. Testing it directly pins the precedence rules
+ * (document scope, ambient inheritance, auto-send gating) without simulating
+ * React state.
+ */
+describe("resolveLaunchState", () => {
+  const NO_AMBIENT = { ambientScope: null, ambientPrefill: null } as const;
+
+  it("threads an explicit documentId through so the drawer opens doc-scoped", () => {
+    const result = resolveLaunchState({
+      nextPrefill: null,
+      nextAutoSend: false,
+      nextDocumentId: "doc-123",
+      ...NO_AMBIENT,
+    });
+    expect(result).toEqual({
+      prefill: null,
+      scope: null,
+      documentId: "doc-123",
+      autoSend: false,
+    });
+  });
+
+  it("defaults documentId to null for a plain (health) launch", () => {
+    expect(resolveLaunchState({ ...NO_AMBIENT }).documentId).toBeNull();
+  });
+
+  it("never inherits a document scope from ambient page state", () => {
+    // A document scope is only ever explicit — ambient scope must not leak one.
+    const result = resolveLaunchState({
+      ambientScope: { metric: "weight" },
+      ambientPrefill: "How is my weight?",
+    });
+    expect(result.documentId).toBeNull();
+    // Ambient scope + opener still inherited for the health path.
+    expect(result.scope).toEqual({ metric: "weight" });
+    expect(result.prefill).toBe("How is my weight?");
+  });
+
+  it("gates auto-send on an explicit prefill (a doc/blank open never auto-sends)", () => {
+    expect(
+      resolveLaunchState({
+        nextAutoSend: true,
+        nextDocumentId: "doc-1",
+        ...NO_AMBIENT,
+      }).autoSend,
+    ).toBe(false);
+    expect(
+      resolveLaunchState({
+        nextPrefill: "Explain this",
+        nextAutoSend: true,
+        ...NO_AMBIENT,
+      }).autoSend,
+    ).toBe(true);
+  });
+
+  it("lets an explicit scope win over ambient scope", () => {
+    const result = resolveLaunchState({
+      nextScope: { metric: "pulse" },
+      ambientScope: { metric: "weight" },
+      ambientPrefill: "ambient opener",
+    });
+    expect(result.scope).toEqual({ metric: "pulse" });
+    // Explicit scope means the ambient opener is NOT inherited.
+    expect(result.prefill).toBeNull();
   });
 });

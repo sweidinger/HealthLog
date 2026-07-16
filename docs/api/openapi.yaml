@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.55
+  version: 1.28.56
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -5281,6 +5281,124 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
+  /api/insights/chat/fenced:
+    post:
+      tags:
+        - Insights
+      summary: Send a FENCED multi-document coach turn (streaming reply)
+      description: "v1.29.x (S7) — sends a user turn and streams a grounded prose reply about the documents attached to a
+        coach conversation, as Server-Sent Events (`text/event-stream`: one `data: <json>\\n\\n` frame per event;
+        `token` / `done` / `error`, HTTP 200 even for a provider/refusal outcome). FENCED by construction: NO tools, NO
+        health snapshot; every attached document is fenced as untrusted DATA (per-document header fields
+        marker-scrubbed); the single picked provider is egress-consent-checked once per attached document (403
+        `consent.ai.required` if any fails); the reply is numerically grounded against the LIVE attachments' figures
+        only. `conversationId` continues an existing fenced thread; `attachmentIds` (first-turn ONLY, min 1, max 5)
+        creates a fresh fenced thread — supplying BOTH is a 422. The body is `.strict()`: `scope` / `guidedQuestion` /
+        `prefill` / `userId` are rejected. A plain tool conversation 404s here. Module-gated on `inboundDocuments`;
+        rate-limited (shared `document-chat` bucket). Renders as plain text (no markdown). Auth via cookie or Bearer."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FencedCoachChatRequest"
+      responses:
+        "200":
+          description: Server-Sent Events stream of `token` / `done` / `error` frames.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: "SSE frames: `data: <json>\\n\\n`. See the operation description for the per-`type` frame shapes."
+        "401": *a1
+        "403":
+          description: "AI consent required for an external provider (`errorCode: consent.ai.required`). A 422 (`stdResponses`)
+            covers an un-indexed / unavailable attachment (`coach.fenced.attachmentUnavailable`), the attachment cap
+            (`coach.fenced.attachmentLimit`), or `attachmentIds` sent with a `conversationId`
+            (`coach.fenced.attachmentConflict`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/insights/chat/{id}/attachments:
+    post:
+      tags:
+        - Insights
+      summary: Attach a document to a coach conversation
+      description: "v1.29.x (S7) — attaches one already-stored, content-indexed document to an existing conversation and sets
+        its sticky `documentScoped` flag TRUE (the one legal, privilege-reducing tool→fenced transition; audit-logged
+        when a flip occurs). Validates the document is owned + live + indexed + within the 5-document cap. Idempotent:
+        attaching an already-attached document is a 200. A foreign / unknown conversation or document maps to 404.
+        Module-gated on `inboundDocuments`; rate-limited. Auth via cookie or Bearer."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Conversation id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachAttachmentCreateRequest"
+      responses:
+        "200":
+          description: The refreshed live attachment set + the fenced flag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachAttachmentsResponse"
+        "401": *a1
+        "404":
+          description: Conversation or document not found / not owned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/insights/chat/{id}/attachments/{documentId}:
+    delete:
+      tags:
+        - Insights
+      summary: Detach a document from a coach conversation
+      description: v1.29.x (S7) — removes the document from the conversation. The conversation stays FENCED (the sticky flag
+        is never cleared — a thread whose history may contain document-derived text must never regain the tool loop).
+        Detaching the last document leaves a fenced conversation with zero attachments. A missing row / foreign
+        conversation maps to 404. Module-gated on `inboundDocuments`; rate-limited. Auth via cookie or Bearer.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Conversation id.
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The attached document's id.
+      responses:
+        "200":
+          description: The refreshed live attachment set + the fenced flag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachAttachmentsResponseDetach"
+        "401": *a1
+        "404":
+          description: Attachment or conversation not found / not owned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
   /api/insights/layout:
     get:
       tags:
@@ -7911,6 +8029,10 @@ paths:
                     required:
                       - analyte
                       - takenAt
+                documentId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
               required:
                 - rows
       responses:
@@ -12110,6 +12232,43 @@ components:
         supplied keys over the persisted row, so a PATCH touching only `medication` leaves the siblings intact.
         `medication.lowStockRunwayDays` (1–60, nullable) is the low-stock alert threshold in remaining runway days —
         `null` switches the alert off.
+    FencedCoachChatRequest:
+      type: object
+      properties:
+        conversationId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        locale:
+          type: string
+          enum:
+            - en
+            - de
+        attachmentIds:
+          minItems: 1
+          maxItems: 5
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+      required:
+        - message
+      additionalProperties: false
+    CoachAttachmentCreateRequest:
+      type: object
+      properties:
+        documentId:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+        - documentId
+      additionalProperties: false
     InsightsLayoutBody:
       type: object
       properties:
@@ -21954,15 +22113,20 @@ components:
           type: integer
           minimum: -9007199254740991
           maximum: 9007199254740991
-        documentId:
-          description: When set, this thread is scoped to one stored document (a document chat, run on the hardened fenced
-            endpoint). Null/absent for a normal health thread.
-          anyOf:
-            - type: string
-            - type: "null"
+        fenced:
+          type: boolean
+          description: "v1.29.x (S7) — the sticky fence flag. true = a FENCED thread: its turns route through the hardened fenced
+            endpoint (no tools, no health snapshot), never the tool route. Permanent once true. false = a normal health
+            thread."
+        attachments:
+          description: v1.29.x (S7) — the LIVE set of documents attached to this thread. Empty on a health thread (or a fenced
+            thread whose attachments were all detached).
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachConversationAttachment"
         documentTitle:
-          description: The owning document's resolved title (title, falling back to filename) for the scope badge. Null on a
-            health thread or when the document has neither.
+          description: v1.29.x (S7) — the FIRST attachment's resolved title, kept for the rail's single-line badge. Null on a
+            health thread or a fenced thread with no live attachment.
           anyOf:
             - type: string
             - type: "null"
@@ -21972,8 +22136,24 @@ components:
         - createdAt
         - updatedAt
         - messageCount
+        - fenced
       additionalProperties: false
       description: Lightweight conversation metadata for the history rail. No message bodies — the rail does not decrypt.
+    CoachConversationAttachment:
+      type: object
+      properties:
+        documentId:
+          type: string
+        title:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: The attached document's resolved title (title, falling back to filename). Null when it has neither.
+            Plaintext; no health values.
+      required:
+        - documentId
+        - title
+      additionalProperties: false
     CoachConversationDetailResponse:
       type: object
       properties:
@@ -22020,14 +22200,22 @@ components:
           anyOf:
             - type: string
             - type: "null"
-        documentId:
-          description: When set, this thread is scoped to one stored document; the client routes its turns through the hardened
-            fenced document endpoint, never the tool route.
-          anyOf:
-            - type: string
-            - type: "null"
+        fenced:
+          type: boolean
+          description: v1.29.x (S7) — the sticky fence flag; the client routes a fenced thread's turns through the hardened fenced
+            endpoint, never the tool route.
+        attachments:
+          description: v1.29.x (S7) — the LIVE set of attached documents (join rows), attach-time order.
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachConversationAttachment"
+        attachmentCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: v1.29.x (S7) — count of live attachment rows (equal to attachments.length).
         documentTitle:
-          description: The owning document's resolved title for the scope badge. Null on a health thread.
+          description: v1.29.x (S7) — the first attachment's resolved title for the rail badge. Null on a health thread.
           anyOf:
             - type: string
             - type: "null"
@@ -22038,6 +22226,8 @@ components:
         - updatedAt
         - messageCount
         - messages
+        - fenced
+        - attachmentCount
       additionalProperties: false
       description: Full conversation with every message decrypted server-side. The client renders the bodies directly; no
         decryption key is involved.
@@ -22181,6 +22371,55 @@ components:
           required:
             - deleted
           additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachAttachmentsResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoachAttachments"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachAttachments:
+      type: object
+      properties:
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachConversationAttachment"
+          description: The conversation's refreshed live attachment set.
+        fenced:
+          type: boolean
+          description: The sticky fence flag — always true after an attach; unchanged (stays true) by a detach.
+      required:
+        - attachments
+        - fenced
+      additionalProperties: false
+    CoachAttachmentsResponseDetach:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoachAttachments"
         error:
           type: "null"
         meta:

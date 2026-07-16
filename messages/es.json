@@ -2450,7 +2450,27 @@
         "correlationWeightWeekday": "¿Mi peso sigue un patrón semanal? ¿Qué me dice esta correlación por día de la semana?",
         "recommendation": "Cuéntame más sobre esta recomendación: \"{text}\" — ¿por qué se aplica a mí y qué debería hacer al respecto?"
       },
-      "assessmentPrompt": "Explícame mi evaluación de {metric}: ¿qué significa y qué debería hacer al respecto?"
+      "assessmentPrompt": "Explícame mi evaluación de {metric}: ¿qué significa y qué debería hacer al respecto?",
+      "attach": {
+        "menuChooseFromDocuments": "Elegir de documentos",
+        "menuUploadNew": "Subir documento nuevo",
+        "trigger": "Adjuntar documentos",
+        "pickerTitle": "Adjuntar documentos",
+        "pickerDescription": "El coach solo lee los documentos que adjuntes, no tus datos de salud.",
+        "pickerSearchPlaceholder": "Buscar documentos…",
+        "pickerEmpty": "Aún no tienes documentos en tu archivo.",
+        "pickerNotIndexed": "Aún no indexado",
+        "pickerCap": "Puedes adjuntar hasta {max} más.",
+        "pickerConfirm": "Adjuntar ({count})",
+        "pillRemove": "Quitar {title}",
+        "indexing": "Indexando…",
+        "indexingHint": "Un documento aún se está indexando; podrás enviar cuando esté listo.",
+        "fencedHint": "Esta conversación se ejecuta sin acceso a tus datos de salud: el coach solo lee los documentos adjuntos.",
+        "documentsAttachedOne": "1 documento adjunto",
+        "documentsAttachedOther": "{count} documentos adjuntos",
+        "railBadge": "Chat de documento aislado",
+        "uploadError": "Error al subir. Inténtalo de nuevo."
+      }
     },
     "relativeJustNow": "ahora mismo",
     "relativeMinutesAgoOne": "hace {count} minuto",
