@@ -957,3 +957,49 @@ export const dashboardSnapshotResponse = z
     description:
       "Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget layout); `extras` (BD-in-target + per-context glucose) is null on a rollup-coverage miss so the strip never waits on the slowest read. `briefing` is lifted read-only from the pre-generated insight cache — never generated synchronously — and reports `ready` / `preparing` / `disabled` / `no-provider` via `briefingState` (`no-provider` = stale-or-missing cache with no AI provider configured anywhere, so no warm pass will fill it; stop polling and surface a connect-provider hint). A stale-but-parseable briefing is still delivered with `briefingStale: true`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive in-process from data already fetched, adding no DB round-trip.",
   });
+
+// v1.4.31 — the iOS "cards" adapter over the same alert rule engine the
+// web comprehensive surface consumes. Each card is one `HealthAlert`
+// re-shaped to the iOS Insight model. Module-gated on `insights` and the
+// operator `insightStatus` assistant surface.
+const insightCard = z
+  .object({
+    id: z.string().describe("Stable per-card id (e.g. `alert-1`)."),
+    title: z.string(),
+    summary: z.string().describe("One-line alert message."),
+    body: z
+      .string()
+      .nullable()
+      .describe("Longer narrative; null on the current rule-engine cards."),
+    severity: z
+      .enum(["alert", "caution", "info", "good"])
+      .describe(
+        "Mapped from the underlying alert level (danger→alert, warning→caution, success→good, else info).",
+      ),
+    recommendations: z
+      .array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          actionURL: z.string().nullable(),
+        }),
+      )
+      .describe(
+        "Suggested follow-ups; empty on the current rule-engine cards.",
+      ),
+    generatedAt: z.iso.datetime({ offset: true }),
+    provider: z
+      .string()
+      .describe(
+        "Lower-cased AI provider label for the account (e.g. `claude`).",
+      ),
+  })
+  .meta({
+    id: "InsightCard",
+    description:
+      "One iOS insight card, re-shaped from a server-side HealthAlert. Deterministic rule-engine output — no LLM call on this path.",
+  });
+
+export const insightsCardsResponse = z
+  .array(insightCard)
+  .meta({ id: "InsightsCardsResponse" });

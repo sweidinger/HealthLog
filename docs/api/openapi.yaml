@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.28.43
+  version: 1.28.44
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -827,6 +827,25 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/measurement-categories:
+    get:
+      tags:
+        - Meta
+      summary: Measurement categorisation overlay
+      description: "Returns the UI-side measurement categorisation as an HTTP contract: the ordered category list (id + i18n
+        label key + order) plus the MeasurementType → category assignments. iOS reads this on cold start to drive the
+        HealthKit permission picker (one consent screen per category) and caches it client-side (`Cache-Control: public,
+        max-age=600`). Auth via cookie or Bearer (not admin); no PII."
+      responses:
+        "200":
+          description: Categorisation overlay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementCategoriesEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/meta/capabilities:
     get:
       tags:
@@ -1448,6 +1467,31 @@ paths:
               schema:
                 type: string
                 format: binary
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/auth/check-user:
+    post:
+      tags:
+        - Auth
+      summary: Resolve the next sign-in step for a typed identifier
+      description: Given an email or username, returns which onboarding branch the iOS client should render plus the
+        `hasPasskey` / `hasPassword` booleans so it can offer a Passkey affordance alongside a password field without a
+        second round-trip. Anonymous surface; per-IP rate-limited (30 requests / 15 min). The response is the same
+        whether or not the identifier matched, and the identifier is never echoed back.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckUserRequest"
+      responses:
+        "200":
+          description: Discovery result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckUserEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -2885,6 +2929,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/medications/intake/bulk:
+    post:
+      tags:
+        - Medications
+      summary: Bulk medication-intake backfill (iOS SyncMode)
+      description: Up to 500 intake entries per call, mirroring the mood-entries bulk envelope so the iOS sync engine reuses
+        one retry/cursor path. Idempotent via the `Idempotency-Key` header plus per-entry `idempotencyKey` /
+        `externalId`. Per-entry status (`inserted` / `updated` / `duplicate` / `skipped`) lets the client advance its
+        cursor. Rate-limited 60/min/user. An `APPLE_HEALTH` entry must carry `externalId` and target a medication
+        mirrored from Apple Health, else the whole batch 422s (`meta.errorCode =
+        medications.intake.bulk.apple_health_not_mirrored`); an over-size batch 422s
+        (`medications.intake.bulk.too_large`); a malformed body 422s (`medications.intake.bulk.invalid`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkMedicationIntakeRequest"
+      responses:
+        "200":
+          description: Batch processed (always 200 on a well-formed body).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkMedicationIntakeResponseEnvelope"
+        "401": *a1
         "422": *a3
         "429": *a4
   /api/medications:
@@ -6024,6 +6096,27 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
+  /api/insights/cards:
+    get:
+      tags:
+        - Insights
+      summary: Insight cards (iOS adapter)
+      description: "v1.4.31 — the native-client adapter over the same alert rule engine the web comprehensive surface
+        consumes: measurements, BP-in-target, weight trend, pulse, and cadence-aware medication compliance are fed
+        through `generateAlerts()` and each resulting `HealthAlert` is re-shaped to the iOS Insight card model.
+        Deterministic — no LLM call on this path. Module-gated on `insights` and the operator `insightStatus` assistant
+        surface. Auth via cookie or Bearer."
+      responses:
+        "200":
+          description: The list of insight cards (possibly empty).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsCardsEnvelope"
+        "401": *a1
+        "403": *a5
+        "422": *a3
+        "429": *a4
   /api/insights/pregenerate:
     post:
       tags:
@@ -6666,6 +6759,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InsightsLabsChangesEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/mood-entries/bulk:
+    post:
+      tags:
+        - Mood
+      summary: Bulk mood backfill (iOS SyncMode)
+      description: "Drains the iOS local mood log in one shot: up to 500 entries per call with per-entry UPSERT semantics
+        keyed by `externalId`, so an adopt-on-pair backfill or a retried batch is idempotent. Idempotent via the
+        `Idempotency-Key` header too. Per-entry status (`inserted` / `duplicate` / `skipped`) advances the client
+        cursor. Rate-limited 60/min/user. An over-size batch 422s (`meta.errorCode = mood.bulk.too_large`); a malformed
+        body 422s (`mood.bulk.invalid`)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkMoodRequest"
+      responses:
+        "200":
+          description: Batch processed (always 200 on a well-formed body).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkMoodResponseEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -10477,6 +10596,46 @@ paths:
         "403": *a17
         "422": *a3
         "429": *a4
+  /api/integrations/healthkit:
+    get:
+      tags:
+        - Integrations
+      summary: Read the HealthKit integration config
+      description: Returns the resolved per-metric HealthKit config — the default metric set merged with the user's stored
+        overrides — plus the last HealthKit sync instant. Auth via cookie or Bearer.
+      responses:
+        "200":
+          description: Resolved HealthKit config.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthKitConfigEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Integrations
+      summary: Update the HealthKit integration config
+      description: Merges the supplied entries into the stored config by `id` (unknown ids are ignored) and returns the
+        resolved config (defaults merged) so the client always sees a complete metric list. `lastSyncedAt` is null on
+        the echo. Auth via cookie or Bearer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthKitConfigPatchRequest"
+      responses:
+        "200":
+          description: Updated + resolved HealthKit config.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthKitConfigPatchEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     EncryptedExportRequest:
@@ -10490,6 +10649,17 @@ components:
             server-side recovery.
       required:
         - passphrase
+    CheckUserRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+          maxLength: 254
+          description: The typed identifier — either an email or a username. Queried verbatim (no case-folding), never echoed back.
+      required:
+        - identifier
+      description: "Discovery lookup for the iOS onboarding flow: given a typed email or username, resolve the next sign-in step."
     MfaVerifyRequest:
       type: object
       properties:
@@ -10917,6 +11087,77 @@ components:
         - bundleId
       description: Native device registration. Re-registering an APNs token belonging to another user returns 409
         (cross-user-hijack guard).
+    BulkMedicationIntakeRequest:
+      type: object
+      properties:
+        entries:
+          minItems: 1
+          maxItems: 500
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkMedicationIntakeEntry"
+      required:
+        - entries
+      description: iOS SyncMode bulk intake backfill. 1–500 entries per call; idempotent via `Idempotency-Key` and per-entry
+        `idempotencyKey` / `externalId`.
+    BulkMedicationIntakeEntry:
+      type: object
+      properties:
+        medicationId:
+          type: string
+          minLength: 1
+        scheduledFor:
+          description: ISO instant; defaults to `takenAt` then now() when omitted.
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        takenAt:
+          description: ISO instant of the take; omit + `skipped:false` = pending.
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        skipped:
+          description: Default false.
+          type: boolean
+        idempotencyKey:
+          type: string
+          minLength: 1
+          maxLength: 128
+        injectionSite:
+          description: Per-entry injection site; a disallowed site marks THIS entry skipped without failing the batch.
+          type: string
+          enum:
+            - ABDOMEN_LEFT
+            - ABDOMEN_RIGHT
+            - ABDOMEN_UPPER_LEFT
+            - ABDOMEN_UPPER_RIGHT
+            - THIGH_LEFT
+            - THIGH_RIGHT
+            - UPPER_ARM_LEFT
+            - UPPER_ARM_RIGHT
+        forceSlotInstant:
+          description: Pin a taken entry onto a named real scheduled slot; ignored on non-taken entries.
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        doseTaken:
+          description: Per-entry dose override; persisted only on a taken entry.
+          type: string
+          minLength: 1
+          maxLength: 50
+        source:
+          description: v1.28 — Apple Health dose-event import. Must be supplied together with `externalId`, and may only target a
+            medication mirrored from Apple Health (else the whole batch 422s).
+          type: string
+          const: APPLE_HEALTH
+        externalId:
+          description: The HealthKit dose-event UUID. Drives the idempotent re-sync dedup (first-write-wins per Apple dose).
+          type: string
+          minLength: 1
+          maxLength: 128
+      required:
+        - medicationId
+      description: One bulk medication-intake entry. `source` + `externalId` are both-or-neither.
     CreateMedicationRequest:
       type: object
       properties:
@@ -12027,6 +12268,86 @@ components:
       properties: {}
       description: No body fields. The user is taken from the session / Bearer and the locale from the session; the warm
         covers every assessment for that user.
+    BulkMoodRequest:
+      type: object
+      properties:
+        entries:
+          minItems: 1
+          maxItems: 500
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkMoodEntry"
+      required:
+        - entries
+      description: iOS SyncMode bulk mood backfill. 1–500 entries per call; per-entry UPSERT keyed by `externalId` so re-runs
+        are idempotent.
+    BulkMoodEntry:
+      type: object
+      properties:
+        mood:
+          type: string
+          enum:
+            - SUPER_GUT
+            - GUT
+            - OKAY
+            - SCHLECHT
+            - LAUSIG
+        tags:
+          maxItems: 20
+          type: array
+          items:
+            type: string
+            maxLength: 50
+        tagKeys:
+          description: Structured-tag keys from the catalog; unknown keys dropped.
+          maxItems: 30
+          type: array
+          items:
+            type: string
+            maxLength: 60
+        ratedFactors:
+          description: Rated mood factors; an out-of-scale rating marks THIS entry skipped, never the batch.
+          maxItems: 30
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                maxLength: 60
+              rating:
+                type: integer
+                minimum: 1
+                maximum: 5
+            required:
+              - key
+              - rating
+        note:
+          type: string
+          maxLength: 500
+        moodLoggedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: ISO instant the entry was logged.
+        source:
+          description: Defaults to MANUAL.
+          type: string
+          enum:
+            - MANUAL
+            - MOODLOG
+            - WEB
+            - TELEGRAM
+            - DAYLIO
+        externalId:
+          description: iOS-side source-stable id for idempotent dedup on the `(userId, source, externalId)` key.
+          type: string
+          minLength: 1
+          maxLength: 120
+      required:
+        - mood
+        - moodLoggedAt
+      description: One bulk mood entry (UPSERT keyed by `externalId`).
     MeasurementReminderCreate:
       type: object
       properties:
@@ -12338,6 +12659,40 @@ components:
         - caffeine
       description: Closed nutrient catalog code — 24 HealthKit Dietary vitamin/mineral types plus water and caffeine. Energy,
         macros and sodium/potassium are out of scope.
+    HealthKitConfigPatchRequest:
+      type: object
+      properties:
+        entries:
+          maxItems: 50
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                minLength: 1
+                maxLength: 64
+              kind:
+                type: string
+                minLength: 1
+                maxLength: 64
+              direction:
+                type: string
+                enum:
+                  - bidirectional
+                  - readOnly
+                  - writeOnly
+                  - disabled
+                description: Per-metric sync direction.
+              enabled:
+                type: boolean
+            required:
+              - id
+              - direction
+      required:
+        - entries
+      description: Merge-by-`id` update of the HealthKit metric config. Unknown ids are silently ignored; omitted fields fall
+        back to the stored (or default) value for that entry. Up to 50 entries per call.
     MedicationTreatmentClass:
       type: string
       enum:
@@ -13533,6 +13888,66 @@ components:
         - data
         - error
       additionalProperties: false
+    MeasurementCategoriesEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementCategoriesResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementCategoriesResponse:
+      type: object
+      properties:
+        version:
+          type: number
+          const: 1
+          description: Additive schema marker; assignments never reshuffle.
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: Category id (e.g. `vitals`).
+              labelKey:
+                type: string
+                description: i18n key for the category label (`categories.<id>`).
+              order:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+                description: Stable display order.
+            required:
+              - id
+              - labelKey
+              - order
+            additionalProperties: false
+          description: The ordered category list for the picker.
+        assignments:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: string
+          description: MeasurementType → category id map.
+      required:
+        - version
+        - categories
+        - assignments
+      additionalProperties: false
+      description: "The measurement categorisation overlay: the ordered category list plus the MeasurementType → category
+        assignments. Derived server-side from the canonical map; cached `public, max-age=600`."
     CapabilitiesEnvelope:
       type: object
       properties:
@@ -13922,6 +14337,49 @@ components:
         - data
         - error
       additionalProperties: false
+    CheckUserEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CheckUserResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CheckUserResponse:
+      type: object
+      properties:
+        branch:
+          type: string
+          enum:
+            - not_found
+            - passkey_only
+            - email_fallback
+            - exists
+          description: "Next UX step: `not_found` (show sign-up), `passkey_only` (Sign in with Passkey), `email_fallback`
+            (password field, with a Passkey affordance when applicable), `exists` (account with no usable credential —
+            recovery path)."
+        hasPasskey:
+          type: boolean
+          description: The account has at least one registered passkey.
+        hasPassword:
+          type: boolean
+          description: The account has a password hash.
+      required:
+        - branch
+        - hasPasskey
+        - hasPassword
+      additionalProperties: false
+      description: Account-existence + credential shape. The response is identical whether or not the identifier matched
+        (account-existence is the explicit contract iOS needs); the identifier is never echoed.
     LoginResponse:
       type: object
       properties:
@@ -16863,6 +17321,94 @@ components:
       required:
         - data
         - error
+      additionalProperties: false
+    BulkMedicationIntakeResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/BulkMedicationIntakeResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    BulkMedicationIntakeResponse:
+      type: object
+      properties:
+        processed:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        inserted:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        updated:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        duplicates:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        skipped:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              reason:
+                type: string
+            required:
+              - index
+              - reason
+            additionalProperties: false
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkMedicationIntakeEntryResult"
+      required:
+        - processed
+        - inserted
+        - updated
+        - duplicates
+        - skipped
+        - entries
+      additionalProperties: false
+    BulkMedicationIntakeEntryResult:
+      type: object
+      properties:
+        index:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        status:
+          type: string
+          enum:
+            - inserted
+            - updated
+            - duplicate
+            - skipped
+          description: "`inserted`/`updated`/`duplicate` — the row landed (advance the cursor). `skipped` — not stored; see
+            `reason`."
+        reason:
+          type: string
+        id:
+          description: The landed row id (absent on skips).
+          type: string
+      required:
+        - index
+        - status
       additionalProperties: false
     ListMedicationsResponse:
       type: object
@@ -23324,6 +23870,89 @@ components:
       additionalProperties: false
       description: AI-generated insights bundle. Strict-schema validated server-side; Coach-routed when the insight surface
         needs day-level grounding.
+    InsightsCardsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsCardsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsCardsResponse:
+      type: array
+      items:
+        $ref: "#/components/schemas/InsightCard"
+    InsightCard:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stable per-card id (e.g. `alert-1`).
+        title:
+          type: string
+        summary:
+          type: string
+          description: One-line alert message.
+        body:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Longer narrative; null on the current rule-engine cards.
+        severity:
+          type: string
+          enum:
+            - alert
+            - caution
+            - info
+            - good
+          description: Mapped from the underlying alert level (danger→alert, warning→caution, success→good, else info).
+        recommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              label:
+                type: string
+              actionURL:
+                anyOf:
+                  - type: string
+                  - type: "null"
+            required:
+              - id
+              - label
+              - actionURL
+            additionalProperties: false
+          description: Suggested follow-ups; empty on the current rule-engine cards.
+        generatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        provider:
+          type: string
+          description: Lower-cased AI provider label for the account (e.g. `claude`).
+      required:
+        - id
+        - title
+        - summary
+        - body
+        - severity
+        - recommendations
+        - generatedAt
+        - provider
+      additionalProperties: false
+      description: One iOS insight card, re-shaped from a server-side HealthAlert. Deterministic rule-engine output — no LLM
+        call on this path.
     InsightsPregenerateResponseEnvelope:
       type: object
       properties:
@@ -24524,6 +25153,90 @@ components:
         - generatedAt
       additionalProperties: false
       description: Per-analyte change between the two most-recent numeric lab panels. Neutral framing, never a diagnosis.
+    BulkMoodResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/BulkMoodResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    BulkMoodResponse:
+      type: object
+      properties:
+        processed:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        inserted:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        duplicates:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        skipped:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              reason:
+                type: string
+            required:
+              - index
+              - reason
+            additionalProperties: false
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkMoodEntryResult"
+      required:
+        - processed
+        - inserted
+        - duplicates
+        - skipped
+        - entries
+      additionalProperties: false
+    BulkMoodEntryResult:
+      type: object
+      properties:
+        index:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        status:
+          type: string
+          enum:
+            - inserted
+            - duplicate
+            - skipped
+          description: "`inserted`/`duplicate` — the row landed (advance the cursor). `skipped` — see `reason`."
+        reason:
+          type: string
+        id:
+          description: The upserted row id (absent on skips).
+          type: string
+        externalId:
+          description: Echoed back when the entry carried one, for client mapping.
+          type: string
+      required:
+        - index
+        - status
+      additionalProperties: false
     MoodTagTreeEnvelope:
       type: object
       properties:
@@ -28692,6 +29405,86 @@ components:
       additionalProperties: false
       description: "Per-nutrient window summary in catalog order: latest synced day + total, and the count of days carrying
         data inside the window. Nutrients without data in the window are omitted."
+    HealthKitConfigEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/HealthKitConfigResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    HealthKitConfigResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthKitEntry"
+        lastSyncedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+          description: When HealthKit last synced for this user; null when never (and always null on the PATCH echo).
+      required:
+        - entries
+        - lastSyncedAt
+      additionalProperties: false
+      description: "The resolved HealthKit integration config: the default metric set merged with the user's stored per-metric
+        overrides."
+    HealthKitEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stable metric key (e.g. `bodyMass`).
+        kind:
+          type: string
+          description: HealthKit sample kind (e.g. `bloodPressure`).
+        direction:
+          type: string
+          enum:
+            - bidirectional
+            - readOnly
+            - writeOnly
+            - disabled
+          description: Per-metric sync direction.
+        enabled:
+          type: boolean
+      required:
+        - id
+        - kind
+        - direction
+        - enabled
+      additionalProperties: false
+      description: One resolved HealthKit metric mapping (defaults merged with the user's stored overrides).
+    HealthKitConfigPatchEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/HealthKitConfigResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     MedicationScheduleOutput:
       type: object
       properties:

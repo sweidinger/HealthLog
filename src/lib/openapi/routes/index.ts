@@ -43,6 +43,7 @@ import { healthRecordPaths } from "./health-record";
 import { illnessPaths } from "./illness";
 import { importPaths } from "./import";
 import { insightsPaths } from "./insights";
+import { integrationPaths } from "./integrations";
 import { insightsSignalPaths } from "./insights-signals";
 import { labsPaths } from "./labs";
 import { ocrPaths } from "./ocr";
@@ -97,6 +98,9 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...onboardingPaths,
   // v1.28 — nutrient-intake sync (appended; spread order is load-bearing).
   ...nutrientPaths,
+  // v1.28 — HealthKit integration config (appended; spread order is
+  // load-bearing).
+  ...integrationPaths,
 };
 
 export const openApiComponents: NonNullable<ZodOpenApiObject["components"]> = {

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.28.44] — 2026-07-16 — Loose ends: a broken link, the API contract, module guards
+
+- The "connect a device" link on the sleep insights empty state pointed at a
+  settings page that doesn't exist and returned a 404; it now opens the
+  integrations settings.
+- Six endpoints the iOS app already uses were missing from the published API
+  contract (`docs/api/openapi.yaml`); they are now documented, so the contract
+  is complete again.
+- A few module pages didn't redirect away when their module was turned off, the
+  way the others do; they now behave consistently.
+
 ## [1.28.43] — 2026-07-16 — Visual consistency polish
 
 A pass over small visual inconsistencies the design audit surfaced:

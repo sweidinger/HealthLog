@@ -49,6 +49,13 @@ export default function LabsPage() {
   const [scanOpen, setScanOpen] = useState(false);
   const ocrCapability = useOcrCapability(isAuthenticated);
 
+  // Gated on the resolved `modules.labs` flag from `GET /api/auth/me` (the
+  // per-user toggle AND the operator server-wide kill-switch). Default-on: an
+  // absent key reads as enabled, so a direct URL hit only bounces on an
+  // explicit `false`. Every `/api/labs/*` route also enforces the gate
+  // server-side, so this is a UX redirect, not the security boundary.
+  const enabled = user?.modules?.labs !== false;
+
   const refreshVisible = useCallback(
     () => queryClient.invalidateQueries({ type: "active" }),
     [queryClient],
@@ -59,12 +66,15 @@ export default function LabsPage() {
   });
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading) return;
+    if (!isAuthenticated) {
       router.push("/auth/login");
+    } else if (!enabled) {
+      router.push("/");
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, enabled, router]);
 
-  if (!mounted || isLoading) {
+  if (!mounted || isLoading || (isAuthenticated && !enabled)) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />

@@ -11,6 +11,7 @@ import {
   intakeSchema,
   createInventoryItemSchema,
   updateInventoryItemSchema,
+  injectionSiteEnum,
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
 import {
@@ -49,7 +50,127 @@ import {
   medicationListLayoutSchema,
 } from "./schemas";
 
+// ── Bulk intake backfill (iOS SyncMode) — mirrors the route's
+// `bulkPayloadSchema` / `bulkEntrySchema` and the batch-envelope response.
+const bulkIntakeEntry = z
+  .object({
+    medicationId: z.string().min(1),
+    scheduledFor: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe("ISO instant; defaults to `takenAt` then now() when omitted."),
+    takenAt: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe("ISO instant of the take; omit + `skipped:false` = pending."),
+    skipped: z.boolean().optional().describe("Default false."),
+    idempotencyKey: z.string().min(1).max(128).optional(),
+    injectionSite: injectionSiteEnum
+      .optional()
+      .describe(
+        "Per-entry injection site; a disallowed site marks THIS entry skipped without failing the batch.",
+      ),
+    forceSlotInstant: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe(
+        "Pin a taken entry onto a named real scheduled slot; ignored on non-taken entries.",
+      ),
+    doseTaken: z
+      .string()
+      .trim()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe("Per-entry dose override; persisted only on a taken entry."),
+    source: z
+      .literal("APPLE_HEALTH")
+      .optional()
+      .describe(
+        "v1.28 — Apple Health dose-event import. Must be supplied together with `externalId`, and may only target a medication mirrored from Apple Health (else the whole batch 422s).",
+      ),
+    externalId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(128)
+      .optional()
+      .describe(
+        "The HealthKit dose-event UUID. Drives the idempotent re-sync dedup (first-write-wins per Apple dose).",
+      ),
+  })
+  .meta({
+    id: "BulkMedicationIntakeEntry",
+    description:
+      "One bulk medication-intake entry. `source` + `externalId` are both-or-neither.",
+  });
+
+const bulkIntakePayload = z
+  .object({
+    entries: z.array(bulkIntakeEntry).min(1).max(500),
+  })
+  .meta({
+    id: "BulkMedicationIntakeRequest",
+    description:
+      "iOS SyncMode bulk intake backfill. 1–500 entries per call; idempotent via `Idempotency-Key` and per-entry `idempotencyKey` / `externalId`.",
+  });
+
+const bulkIntakeEntryResult = z
+  .object({
+    index: z.number().int().nonnegative(),
+    status: z
+      .enum(["inserted", "updated", "duplicate", "skipped"])
+      .describe(
+        "`inserted`/`updated`/`duplicate` — the row landed (advance the cursor). `skipped` — not stored; see `reason`.",
+      ),
+    reason: z.string().optional(),
+    id: z.string().optional().describe("The landed row id (absent on skips)."),
+  })
+  .meta({ id: "BulkMedicationIntakeEntryResult" });
+
+const bulkIntakeResponse = z
+  .object({
+    processed: z.number().int().nonnegative(),
+    inserted: z.number().int().nonnegative(),
+    updated: z.number().int().nonnegative(),
+    duplicates: z.number().int().nonnegative(),
+    skipped: z.array(
+      z.object({
+        index: z.number().int().nonnegative(),
+        reason: z.string(),
+      }),
+    ),
+    entries: z.array(bulkIntakeEntryResult),
+  })
+  .meta({ id: "BulkMedicationIntakeResponse" });
+
 export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/medications/intake/bulk": {
+    post: {
+      tags: ["Medications"],
+      summary: "Bulk medication-intake backfill (iOS SyncMode)",
+      description:
+        "Up to 500 intake entries per call, mirroring the mood-entries bulk envelope so the iOS sync engine reuses one retry/cursor path. Idempotent via the `Idempotency-Key` header plus per-entry `idempotencyKey` / `externalId`. Per-entry status (`inserted` / `updated` / `duplicate` / `skipped`) lets the client advance its cursor. Rate-limited 60/min/user. An `APPLE_HEALTH` entry must carry `externalId` and target a medication mirrored from Apple Health, else the whole batch 422s (`meta.errorCode = medications.intake.bulk.apple_health_not_mirrored`); an over-size batch 422s (`medications.intake.bulk.too_large`); a malformed body 422s (`medications.intake.bulk.invalid`).",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: bulkIntakePayload } },
+      },
+      responses: {
+        "200": {
+          description: "Batch processed (always 200 on a well-formed body).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                bulkIntakeResponse,
+                "BulkMedicationIntakeResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/medications": {
     get: {
       tags: ["Medications"],

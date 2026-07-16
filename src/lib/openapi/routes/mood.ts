@@ -23,6 +23,7 @@ import {
   hideCatalogueTagSchema,
 } from "@/lib/mood/custom-tags";
 import { moodTagLayoutSchema } from "@/lib/mood/tag-layout";
+import { moodLevelEnum, moodSourceEnum } from "@/lib/validations/moodlog";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 
 // ── Request schemas — annotated for spec emission ────────────────────
@@ -167,7 +168,120 @@ const notFoundResponse = {
   },
 } as const;
 
+// ── Bulk mood backfill (iOS SyncMode) — mirrors the route's
+// `bulkPayloadSchema` / `bulkEntrySchema` and the batch-envelope response.
+const bulkMoodEntry = z
+  .object({
+    mood: moodLevelEnum,
+    tags: z.array(z.string().max(50)).max(20).optional(),
+    tagKeys: z
+      .array(z.string().max(60))
+      .max(30)
+      .optional()
+      .describe("Structured-tag keys from the catalog; unknown keys dropped."),
+    ratedFactors: z
+      .array(
+        z.object({
+          key: z.string().max(60),
+          rating: z.number().int().min(1).max(5),
+        }),
+      )
+      .max(30)
+      .optional()
+      .describe(
+        "Rated mood factors; an out-of-scale rating marks THIS entry skipped, never the batch.",
+      ),
+    note: z.string().max(500).optional(),
+    moodLoggedAt: z.iso
+      .datetime({ offset: true })
+      .describe("ISO instant the entry was logged."),
+    source: moodSourceEnum.optional().describe("Defaults to MANUAL."),
+    externalId: z
+      .string()
+      .min(1)
+      .max(120)
+      .optional()
+      .describe(
+        "iOS-side source-stable id for idempotent dedup on the `(userId, source, externalId)` key.",
+      ),
+  })
+  .meta({
+    id: "BulkMoodEntry",
+    description: "One bulk mood entry (UPSERT keyed by `externalId`).",
+  });
+
+const bulkMoodPayload = z
+  .object({
+    entries: z.array(bulkMoodEntry).min(1).max(500),
+  })
+  .meta({
+    id: "BulkMoodRequest",
+    description:
+      "iOS SyncMode bulk mood backfill. 1–500 entries per call; per-entry UPSERT keyed by `externalId` so re-runs are idempotent.",
+  });
+
+const bulkMoodEntryResult = z
+  .object({
+    index: z.number().int().nonnegative(),
+    status: z
+      .enum(["inserted", "duplicate", "skipped"])
+      .describe(
+        "`inserted`/`duplicate` — the row landed (advance the cursor). `skipped` — see `reason`.",
+      ),
+    reason: z.string().optional(),
+    id: z
+      .string()
+      .optional()
+      .describe("The upserted row id (absent on skips)."),
+    externalId: z
+      .string()
+      .optional()
+      .describe("Echoed back when the entry carried one, for client mapping."),
+  })
+  .meta({ id: "BulkMoodEntryResult" });
+
+const bulkMoodResponse = z
+  .object({
+    processed: z.number().int().nonnegative(),
+    inserted: z.number().int().nonnegative(),
+    duplicates: z.number().int().nonnegative(),
+    skipped: z.array(
+      z.object({
+        index: z.number().int().nonnegative(),
+        reason: z.string(),
+      }),
+    ),
+    entries: z.array(bulkMoodEntryResult),
+  })
+  .meta({ id: "BulkMoodResponse" });
+
 export const moodPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/mood-entries/bulk": {
+    post: {
+      tags: ["Mood"],
+      summary: "Bulk mood backfill (iOS SyncMode)",
+      description:
+        "Drains the iOS local mood log in one shot: up to 500 entries per call with per-entry UPSERT semantics keyed by `externalId`, so an adopt-on-pair backfill or a retried batch is idempotent. Idempotent via the `Idempotency-Key` header too. Per-entry status (`inserted` / `duplicate` / `skipped`) advances the client cursor. Rate-limited 60/min/user. An over-size batch 422s (`meta.errorCode = mood.bulk.too_large`); a malformed body 422s (`mood.bulk.invalid`).",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: bulkMoodPayload } },
+      },
+      responses: {
+        "200": {
+          description: "Batch processed (always 200 on a well-formed body).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                bulkMoodResponse,
+                "BulkMoodResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/mood/tags": {
     get: {
       tags: ["Mood"],

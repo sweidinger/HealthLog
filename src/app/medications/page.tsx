@@ -153,6 +153,12 @@ function MedicationCardSkeleton() {
 export default function MedicationsPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useTranslations();
+  // v1.18.1 (D3) — medications is an opt-out module. When the account has it
+  // turned off the whole page disappears (the nav entry is hidden by the same
+  // gate) and the list query never fires (the API would 403 anyway).
+  // Default-on: an absent key reads as enabled, so the page only hides on an
+  // explicit `false`.
+  const medicationsEnabled = user?.modules?.medications !== false;
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -195,7 +201,7 @@ export default function MedicationsPage() {
     queryFn: async () => {
       return apiGet<Medication[]>("/api/medications");
     },
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && medicationsEnabled,
     // v1.16.12 (#316) — refetch on every mount, even inside the global
     // staleTime window. App Router unmounts this page on navigation away
     // and remounts it on return; without this, a return within 5 min
@@ -275,6 +281,13 @@ export default function MedicationsPage() {
         <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
       </div>
     );
+  }
+
+  // Module off ⇒ the surface disappears entirely. The nav entry is hidden by
+  // the same gate, so a direct hit renders nothing rather than an orphaned
+  // shell.
+  if (isAuthenticated && !medicationsEnabled) {
+    return null;
   }
 
   if (!isAuthenticated) {

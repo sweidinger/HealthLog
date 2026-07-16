@@ -4,8 +4,14 @@
  * Schema declarations live in `./schemas`; this module is the path orchestrator.
  */
 import type { ZodOpenApiObject } from "zod-openapi";
-import { consentRequiredResponse, dataEnvelope, stdResponses } from "../shared";
 import {
+  consentRequiredResponse,
+  dataEnvelope,
+  moduleDisabledResponse,
+  stdResponses,
+} from "../shared";
+import {
+  insightsCardsResponse,
   insightsComprehensiveResponse,
   metricStatusQuery,
   metricStatusResponse,
@@ -70,6 +76,29 @@ export const insightsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         },
         ...stdResponses,
         ...consentRequiredResponse,
+      },
+    },
+  },
+  "/api/insights/cards": {
+    get: {
+      tags: ["Insights"],
+      summary: "Insight cards (iOS adapter)",
+      description:
+        "v1.4.31 — the native-client adapter over the same alert rule engine the web comprehensive surface consumes: measurements, BP-in-target, weight trend, pulse, and cadence-aware medication compliance are fed through `generateAlerts()` and each resulting `HealthAlert` is re-shaped to the iOS Insight card model. Deterministic — no LLM call on this path. Module-gated on `insights` and the operator `insightStatus` assistant surface. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description: "The list of insight cards (possibly empty).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightsCardsResponse,
+                "InsightsCardsEnvelope",
+              ),
+            },
+          },
+        },
+        ...moduleDisabledResponse,
+        ...stdResponses,
       },
     },
   },

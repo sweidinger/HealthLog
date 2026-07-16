@@ -116,7 +116,59 @@ const capabilitiesResponse = z
       "Live id vocabularies + contract version. Every list is derived server-side from the canonical registry it documents, so it cannot drift from the values the routes actually accept/emit.",
   });
 
+// v1.4.41 — the measurement categorisation overlay iOS reads on cold start
+// to drive the HealthKit permission picker (one consent screen per
+// category). Every value is sourced server-side from the canonical
+// `MEASUREMENT_CATEGORIES` map, so the wire shape here is the contract.
+const measurementCategoriesResponse = z
+  .object({
+    version: z
+      .literal(1)
+      .describe("Additive schema marker; assignments never reshuffle."),
+    categories: z
+      .array(
+        z.object({
+          id: z.string().describe("Category id (e.g. `vitals`)."),
+          labelKey: z
+            .string()
+            .describe("i18n key for the category label (`categories.<id>`)."),
+          order: z.number().int().describe("Stable display order."),
+        }),
+      )
+      .describe("The ordered category list for the picker."),
+    assignments: z
+      .record(z.string(), z.string())
+      .describe("MeasurementType → category id map."),
+  })
+  .meta({
+    id: "MeasurementCategoriesResponse",
+    description:
+      "The measurement categorisation overlay: the ordered category list plus the MeasurementType → category assignments. Derived server-side from the canonical map; cached `public, max-age=600`.",
+  });
+
 export const metaPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/measurement-categories": {
+    get: {
+      tags: ["Meta"],
+      summary: "Measurement categorisation overlay",
+      description:
+        "Returns the UI-side measurement categorisation as an HTTP contract: the ordered category list (id + i18n label key + order) plus the MeasurementType → category assignments. iOS reads this on cold start to drive the HealthKit permission picker (one consent screen per category) and caches it client-side (`Cache-Control: public, max-age=600`). Auth via cookie or Bearer (not admin); no PII.",
+      responses: {
+        "200": {
+          description: "Categorisation overlay.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                measurementCategoriesResponse,
+                "MeasurementCategoriesEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/meta/capabilities": {
     get: {
       tags: ["Meta"],
