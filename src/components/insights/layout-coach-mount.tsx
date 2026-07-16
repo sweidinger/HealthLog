@@ -59,6 +59,10 @@ export function LayoutCoachMount() {
       // Auto-send the prefill as the first turn when the launch requested it
       // (assessment hand-off), so the answer lands without a manual send.
       autoSend={launch.autoSend}
+      // v1.28.52 (Documents R3) — carry the stored-document scope so the vault
+      // "Ask the Coach" action opens the REAL fenced conversation in the drawer
+      // scoped to that document (maximizing then preserves the scope).
+      documentId={launch.documentId}
     />
   );
 }

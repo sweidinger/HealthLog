@@ -201,6 +201,14 @@ export interface CoachConversationProps {
    * authoritatively from the loaded conversation's `documentId` instead.
    */
   initialDocumentId?: string | null;
+  /**
+   * v1.28.52 (Documents R3) — hand the chrome an imperative getter for the
+   * live conversation id (parallel to `registerReset`). The drawer reads it at
+   * maximize time so it can hand off to `/coach?c=<id>` when a thread already
+   * exists, falling back to `/coach?doc=<id>` for a pre-first-turn doc chat —
+   * the surface-toggle preserves scope. The page omits it.
+   */
+  registerConversationIdGetter?: (getter: () => string | null) => void;
 }
 
 export function CoachConversation({
@@ -219,6 +227,7 @@ export function CoachConversation({
   initialConversationId,
   autoOpenMostRecent = false,
   initialDocumentId,
+  registerConversationIdGetter,
 }: CoachConversationProps) {
   const { t } = useTranslations();
   const router = useRouter();
@@ -346,6 +355,20 @@ export function CoachConversation({
       dispatchGuided({ type: "RESET" });
     });
   }, [registerReset, send, setInputValue]);
+
+  // v1.28.52 (Documents R3) — expose the live conversation id imperatively so
+  // the drawer chrome can read it at maximize time (it lives inside this
+  // surface, not the chrome). A latest-value ref keeps the registered getter
+  // stable while always returning the current thread id, so maximize hands off
+  // to `/coach?c=<id>` once a turn has created the thread.
+  const conversationIdRef = useRef<string | null>(currentConversationId);
+  useEffect(() => {
+    conversationIdRef.current = currentConversationId;
+  });
+  useEffect(() => {
+    if (!registerConversationIdGetter) return;
+    registerConversationIdGetter(() => conversationIdRef.current);
+  }, [registerConversationIdGetter]);
 
   async function handleSubmit(value: string) {
     const trimmed = value.trim();

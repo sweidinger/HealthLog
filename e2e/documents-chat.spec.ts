@@ -1,19 +1,21 @@
 /**
- * Document vault — the "chat about a document" entry point (v1.28.51, R3).
+ * Document vault — the "chat about a document" entry point (v1.28.52, R3).
  *
- * The bespoke in-sheet chat drawer is gone (Documents R3, Design A). Asking the
- * Coach about a document now hands off to the REAL Coach, scoped to that
- * document: the detail sheet's Coach affordance navigates to `/coach?doc=<id>`,
- * where the conversation runs on the same hardened fenced endpoint but inside
- * the Coach's own surface and history.
+ * The bespoke in-sheet chat drawer is gone (Documents R3). Asking the Coach
+ * about a document now opens the REAL Coach conversation, scoped to that
+ * document, in the shared SIDE DRAWER: the detail sheet's Coach affordance
+ * closes the sheet and opens the coach drawer pre-scoped to the document (its
+ * maximize control expands to the full `/coach` page). The conversation runs on
+ * the same hardened fenced endpoint — only WHERE it renders changed.
  *
  * This suite pins the documents-side contract: the affordance is offered only
- * when a provider is available, and it navigates to the doc-scoped Coach; with
- * NO provider the AI area collapses to the settings pointer and no Coach entry
- * renders at all. The Coach-side rendering (the "Chatting about" scope banner +
- * the not-indexed hint) is covered by the coach-conversation component test; the
- * fenced-send guarantee (a document turn never reaches the tool route) by the
- * coach-send-target + persistence-scope unit tests.
+ * when a provider is available, and it OPENS THE DOC-SCOPED DRAWER in place (no
+ * full-page nav); with NO provider the AI area collapses to the settings
+ * pointer and no Coach entry renders at all. The Coach-side rendering (the
+ * "Chatting about" scope banner + the not-indexed hint) is covered by the
+ * coach-conversation component test; the fenced-send guarantee (a document turn
+ * never reaches the tool route) by the coach-send-target + persistence-scope
+ * unit tests.
  *
  * v1.27.31 lesson kept: the sheet's AI area depends on the capability probe +
  * usage endpoints, so both are mocked — otherwise the AI area never renders and
@@ -94,9 +96,9 @@ test.describe("document vault — chat about a document", () => {
     test.slow();
   });
 
-  // ── (a) Provider available: the Coach entry hands off to the doc-scoped Coach ──
+  // ── (a) Provider available: the Coach entry opens the doc-scoped drawer ──
 
-  test("offers the Coach entry and hands off to the document-scoped Coach", async ({
+  test("offers the Coach entry and opens the document-scoped Coach drawer in place", async ({
     page,
   }) => {
     await mockAiEnabled(page);
@@ -106,14 +108,20 @@ test.describe("document vault — chat about a document", () => {
     await expect(sheet).toBeVisible();
 
     // The neutral Coach affordance lives in the detail-sheet AI area; tapping it
-    // navigates to the real Coach seeded with this document.
+    // closes the sheet and opens the REAL coach drawer scoped to this document.
     const open = sheet.locator('[data-slot="document-chat-open"]');
     await expect(open).toBeVisible();
     await open.click();
 
-    // The documents-side contract: the URL hands off to the doc-scoped Coach.
-    await page.waitForURL(new RegExp(`/coach\\?doc=${CONTENT_DOC_ID}`));
-    expect(new URL(page.url()).searchParams.get("doc")).toBe(CONTENT_DOC_ID);
+    // The documents-side contract: the coach drawer opens IN PLACE (no
+    // full-page nav) scoped to this document — its doc-scope banner renders.
+    const drawer = page.locator('[data-slot="coach-drawer"]');
+    await expect(drawer).toBeVisible({ timeout: 10_000 });
+    await expect(drawer.locator('[data-slot="coach-doc-scope"]')).toBeVisible({
+      timeout: 10_000,
+    });
+    // Still on /documents — the drawer expands to the page only via maximize.
+    expect(new URL(page.url()).pathname).not.toContain("/coach");
   });
 
   // ── (b) No provider: the calm settings pointer, no Coach entry at all ──

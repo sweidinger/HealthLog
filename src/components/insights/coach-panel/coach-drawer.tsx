@@ -29,6 +29,26 @@ export {
 } from "./use-resettable-value";
 
 /**
+ * v1.28.52 (Documents R3) — the full-page target the maximize control hands
+ * off to, kept pure so the continuity rules are unit-testable.
+ *
+ * Precedence:
+ *   - a live conversation id (a turn has created the thread) → `/coach?c=<id>`
+ *     so the exact thread re-opens on the page, scope and all.
+ *   - else a document scope (a doc-scoped drawer maximized before its first
+ *     turn) → `/coach?doc=<id>` so the fresh page chat stays scoped.
+ *   - else the plain `/coach` new-chat surface.
+ */
+export function coachMaximizeHref(
+  conversationId: string | null,
+  documentId?: string | null,
+): string {
+  if (conversationId) return `/coach?c=${conversationId}`;
+  if (documentId) return `/coach?doc=${documentId}`;
+  return "/coach";
+}
+
+/**
  * v1.4.20 phase B2b — AI Coach drawer (right-side `<Sheet>` overlay).
  *
  * Mounts above `/insights` so the user keeps the dashboard context
@@ -59,6 +79,14 @@ export interface CoachDrawerProps {
    * exactly once on open. Used by the assessment hand-off.
    */
   autoSend?: boolean;
+  /**
+   * v1.28.52 (Documents R3) — the stored document this drawer chat is scoped
+   * to (the vault "Ask the Coach" action). Forwarded to `<CoachConversation>`
+   * as `initialDocumentId` so the first turn routes through the hardened
+   * fenced endpoint; the maximize control preserves the scope when no thread
+   * exists yet (`/coach?doc=<id>`).
+   */
+  documentId?: string | null;
 }
 
 export function CoachDrawer({
@@ -67,6 +95,7 @@ export function CoachDrawer({
   prefill,
   scope,
   autoSend,
+  documentId,
 }: CoachDrawerProps) {
   const { t } = useTranslations();
   const router = useRouter();
@@ -85,6 +114,18 @@ export function CoachDrawer({
     resetRef.current = reset;
   }, []);
 
+  // v1.28.52 (Documents R3) — the live conversation id lives inside the shared
+  // surface; this imperative getter (registered parallel to `registerReset`)
+  // lets the maximize control read it so it can preserve the thread / doc scope
+  // when handing off to the full page.
+  const conversationIdGetterRef = useRef<(() => string | null) | null>(null);
+  const registerConversationIdGetter = useCallback(
+    (getter: () => string | null) => {
+      conversationIdGetterRef.current = getter;
+    },
+    [],
+  );
+
   const handleOpenChange = useCallback(
     (next: boolean) => {
       if (!next) {
@@ -98,13 +139,20 @@ export function CoachDrawer({
   );
 
   const handleMaximize = useCallback(() => {
-    // Hand the conversation off to the full-page surface. Close the
-    // drawer first (aborts any in-flight stream via `handleOpenChange`)
+    // Hand the conversation off to the full-page surface, PRESERVING scope:
+    // read the live thread id (or fall back to the document scope) BEFORE the
+    // reset clears it, so a doc-scoped drawer maximizes into the same doc /
+    // thread instead of a blank `/coach`.
+    const href = coachMaximizeHref(
+      conversationIdGetterRef.current?.() ?? null,
+      documentId,
+    );
+    // Close the drawer (aborts any in-flight stream via `handleOpenChange`)
     // then route to the dedicated page.
     onOpenChange(false);
     resetRef.current?.();
-    router.push("/coach");
-  }, [onOpenChange, router]);
+    router.push(href);
+  }, [onOpenChange, router, documentId]);
 
   // v1.21.4 (Coach-UI B) — the drawer's "Conversations" affordance now hands
   // off to the dedicated conversation-history page (`/coach/conversations`),
@@ -146,8 +194,14 @@ export function CoachDrawer({
           prefill={prefill}
           launchScope={scope}
           autoSend={autoSend}
+          // v1.28.52 (Documents R3) — scope a fresh drawer chat to a stored
+          // document (vault "Ask the Coach"); the send path is unchanged (the
+          // fenced document endpoint), only WHERE it renders (drawer vs page).
+          initialDocumentId={documentId}
           autoFocusComposer
           registerReset={registerReset}
+          // Lets the maximize control read the live thread id at hand-off time.
+          registerConversationIdGetter={registerConversationIdGetter}
           // v1.16.1 — the "Conversations" affordance hands off to a
           // dedicated route instead of opening the broken in-panel left
           // tray. v1.21.4 (Coach-UI B) — it now navigates to

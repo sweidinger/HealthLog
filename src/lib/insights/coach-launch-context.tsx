@@ -81,14 +81,26 @@ interface CoachLaunchValue {
    */
   scope: CoachLaunchScope | null;
   /**
+   * v1.28.52 (Documents R3) — the stored document a fresh drawer chat is
+   * scoped to, or null for a health chat. Set by `askCoach(..., documentId)`
+   * from the vault detail sheet's "Ask the Coach" action so the conversation
+   * opens in the SIDE DRAWER (not a full-page nav) pre-scoped to the document.
+   * `<LayoutCoachMount>` forwards it to the drawer as `initialDocumentId`, and
+   * every doc turn still routes through the hardened fenced endpoint inside
+   * `<CoachConversation>`. Cleared on close alongside `prefill` / `scope`.
+   */
+  documentId: string | null;
+  /**
    * Open the drawer with an optional prefill + scope hint. When `autoSend`
    * is true the prefill is dispatched as the conversation's first turn
-   * automatically (used by the assessment hand-off).
+   * automatically (used by the assessment hand-off). `documentId` scopes the
+   * opened conversation to a stored document (vault "Ask the Coach").
    */
   askCoach: (
     prefill?: string | null,
     scope?: CoachLaunchScope,
     autoSend?: boolean,
+    documentId?: string | null,
   ) => void;
   /**
    * v1.21.0 (C4 H1) — register the metric surface the user is currently
@@ -115,6 +127,46 @@ interface CoachLaunchValue {
   setOpen: (next: boolean) => void;
 }
 
+/**
+ * Pure derivation of the open-state a single `askCoach(...)` call produces,
+ * factored out of the provider so the precedence rules (explicit arg vs.
+ * ambient scope, auto-send gating, document scoping) are unit-testable without
+ * simulating React state. The provider applies the result field-by-field.
+ */
+export interface ResolvedLaunchState {
+  prefill: string | null;
+  scope: CoachLaunchScope | null;
+  documentId: string | null;
+  autoSend: boolean;
+}
+
+export function resolveLaunchState(input: {
+  nextPrefill?: string | null;
+  nextScope?: CoachLaunchScope;
+  nextAutoSend?: boolean;
+  nextDocumentId?: string | null;
+  ambientScope: CoachLaunchScope | null;
+  ambientPrefill: string | null;
+}): ResolvedLaunchState {
+  // An explicit scope (insight card, metric-card affordance) wins; otherwise
+  // inherit the metric page's ambient scope. The composer seed follows the
+  // same precedence: explicit prefill, else the ambient page opener.
+  const usingAmbientScope = input.nextScope === undefined;
+  return {
+    scope: input.nextScope ?? input.ambientScope ?? null,
+    prefill:
+      input.nextPrefill ??
+      (usingAmbientScope ? input.ambientPrefill : null) ??
+      null,
+    // Auto-send only applies when an explicit prefill is given (a card
+    // hand-off), never for an ambient/blank open.
+    autoSend: Boolean(input.nextAutoSend) && Boolean(input.nextPrefill),
+    // A document scope is always explicit (the vault "Ask the Coach" action);
+    // it is never inherited from ambient page state.
+    documentId: input.nextDocumentId ?? null,
+  };
+}
+
 const CoachLaunchContext = createContext<CoachLaunchValue | null>(null);
 
 export interface CoachLaunchProviderProps {
@@ -128,6 +180,8 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
   const [autoSend, setAutoSend] = useState<boolean>(false);
   // Scope the open conversation is narrowed to. `null` → default snapshot.
   const [scope, setScope] = useState<CoachLaunchScope | null>(null);
+  // Stored-document scope of the open conversation. `null` → health chat.
+  const [documentId, setDocumentId] = useState<string | null>(null);
   // Ambient scope + seed opener of the metric surface currently on screen.
   // The FAB's `askCoach()` (no args) falls back to these so opening the
   // Coach from a metric page still lands a pre-scoped, pre-seeded
@@ -141,23 +195,24 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
       nextPrefill?: string | null,
       nextScope?: CoachLaunchScope,
       nextAutoSend?: boolean,
+      nextDocumentId?: string | null,
     ) => {
-      // v1.21.0 (C4 H1/H4) — scope is live. An explicit scope (insight
-      // card, metric-card affordance) wins; otherwise inherit the metric
-      // page's ambient scope so the FAB opens contextual to where the user
-      // is. `null` only when neither is present (true global launch). The
-      // composer seed follows the same precedence: explicit prefill, else
-      // the ambient page opener that pairs with the inherited scope.
-      const usingAmbientScope = nextScope === undefined;
-      setScope(nextScope ?? ambientScopeRef.current ?? null);
-      setPrefill(
-        nextPrefill ??
-          (usingAmbientScope ? ambientPrefillRef.current : null) ??
-          null,
-      );
-      // Auto-send only applies when an explicit prefill is given (a card
-      // hand-off), never for an ambient/blank open.
-      setAutoSend(Boolean(nextAutoSend) && Boolean(nextPrefill));
+      // v1.21.0 (C4 H1/H4) — scope is live; v1.28.52 — document scope threads
+      // through so the vault "Ask the Coach" action opens the drawer scoped to
+      // the document instead of a full-page nav. Precedence lives in the pure
+      // `resolveLaunchState` helper so the rules stay unit-testable.
+      const resolved = resolveLaunchState({
+        nextPrefill,
+        nextScope,
+        nextAutoSend,
+        nextDocumentId,
+        ambientScope: ambientScopeRef.current,
+        ambientPrefill: ambientPrefillRef.current,
+      });
+      setScope(resolved.scope);
+      setPrefill(resolved.prefill);
+      setAutoSend(resolved.autoSend);
+      setDocumentId(resolved.documentId);
       setOpen(true);
     },
     [],
@@ -183,11 +238,12 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
   const handleSetOpen = useCallback((next: boolean) => {
     setOpen(next);
     if (!next) {
-      // Drop the prefill + scope + auto-send on close so the next open
-      // starts clean.
+      // Drop the prefill + scope + document + auto-send on close so the next
+      // open starts clean.
       setPrefill(null);
       setScope(null);
       setAutoSend(false);
+      setDocumentId(null);
     }
   }, []);
 
@@ -197,11 +253,21 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
       prefill,
       autoSend,
       scope,
+      documentId,
       askCoach,
       registerScope,
       setOpen: handleSetOpen,
     }),
-    [open, prefill, autoSend, scope, askCoach, registerScope, handleSetOpen],
+    [
+      open,
+      prefill,
+      autoSend,
+      scope,
+      documentId,
+      askCoach,
+      registerScope,
+      handleSetOpen,
+    ],
   );
 
   return (
