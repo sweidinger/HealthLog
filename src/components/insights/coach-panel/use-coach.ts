@@ -267,6 +267,57 @@ export interface SendCoachMessageParams {
    * persisted with the message.
    */
   guidedQuestion?: string;
+  /**
+   * v1.28.51 (Documents R3, Design A) — when set, this turn belongs to a
+   * DOCUMENT-scoped conversation. It is sent to the HARDENED fenced document
+   * endpoint (`/api/documents/inbound/<id>/chat`) — no tools, no health
+   * snapshot, fenced doc text — and NEVER to the full Coach tool route. This is
+   * the single branch that keeps untrusted document text off the write tools;
+   * see `resolveCoachSendTarget`.
+   */
+  documentId?: string | null;
+}
+
+/**
+ * v1.28.51 (Documents R3, Design A) — the ONE branch point that decides which
+ * backend a Coach turn hits. When `documentId` is set the turn goes to the
+ * hardened, fenced document chat endpoint; otherwise the normal Coach route
+ * (tool loop + health snapshot). Extracted as a pure function so a unit test
+ * can prove a doc-scoped send never resolves to the tool route — the whole
+ * prompt-injection fence rests on this decision.
+ */
+export function resolveCoachSendTarget(params: SendCoachMessageParams): {
+  url: string;
+  body: string;
+} {
+  const documentId =
+    typeof params.documentId === "string" && params.documentId.length > 0
+      ? params.documentId
+      : null;
+  if (documentId) {
+    // Fenced document path. Only the three fields the document route accepts —
+    // NOT `scope` / `guidedQuestion` / `prefill`, which drive the coach's
+    // snapshot + tool behaviour and have no place on the hardened endpoint.
+    return {
+      url: `/api/documents/inbound/${encodeURIComponent(documentId)}/chat`,
+      body: JSON.stringify({
+        conversationId: params.conversationId,
+        message: params.message,
+        locale: params.locale,
+      }),
+    };
+  }
+  return {
+    url: "/api/insights/chat",
+    body: JSON.stringify({
+      conversationId: params.conversationId,
+      message: params.message,
+      prefill: params.prefill,
+      locale: params.locale,
+      scope: params.scope,
+      guidedQuestion: params.guidedQuestion,
+    }),
+  };
 }
 
 export interface UseSendCoachMessageOptions {
@@ -362,24 +413,22 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         return null;
       }
 
+      // v1.28.51 — resolve the target BEFORE the fetch. A doc-scoped turn
+      // resolves to the hardened fenced document endpoint; everything else to
+      // the Coach tool route. This is the prompt-injection fence's client edge.
+      const target = resolveCoachSendTarget(params);
+
       // apiFetchRaw: the chat POST streams SSE — the envelope helpers
       // would buffer and unwrap a body that never carries the envelope.
       let response: Response;
       try {
-        response = await apiFetchRaw("/api/insights/chat", {
+        response = await apiFetchRaw(target.url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Accept: "text/event-stream",
           },
-          body: JSON.stringify({
-            conversationId: params.conversationId,
-            message: params.message,
-            prefill: params.prefill,
-            locale: params.locale,
-            scope: params.scope,
-            guidedQuestion: params.guidedQuestion,
-          }),
+          body: target.body,
           signal: controller.signal,
         });
       } catch (err) {

@@ -67,16 +67,6 @@ export const documentKeys = {
   inboundDocumentAiCapability: () =>
     ["documents", "inbound", "ai-capability"] as const,
   /**
-   * The scoped "chat about this document" thread
-   * (`GET /api/documents/inbound/{id}/chat`). Keyed on the document id so two
-   * open detail sheets never share a thread cache slot; a sent turn's SSE
-   * `done` frame invalidates exactly this key so the persisted history reloads.
-   * Stays under the `["documents", "inbound"]` prefix so a document delete /
-   * bulk write still evicts it.
-   */
-  inboundDocumentChat: (documentId: string) =>
-    ["documents", "inbound", documentId, "chat"] as const,
-  /**
    * The per-user "read documents automatically with AI" opt-in
    * (`GET/PATCH /api/auth/me/documents-auto-ai-read`). Drives the AI-settings
    * toggle; a flip invalidates the document AI capability probe.

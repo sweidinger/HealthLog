@@ -2,7 +2,19 @@
 
 ## [Unreleased]
 
-## [1.28.50] — 2026-07-16 — View your ECG recordings in Insights
+## [1.28.51] — 2026-07-16 — Chatting about a document lives in the Coach now
+
+Asking the Coach about a document used to open a separate, half-finished chat
+panel that never showed up in your Coach history. It now opens the real Coach:
+the conversation appears in your Coach list like any other, marked with a small
+document badge and a "Chatting about: <title>" note so it's clear which
+document it's scoped to.
+
+The safeguards that make document chat safe are unchanged. A conversation about
+a document still runs in its fenced mode — grounded in that document's text
+only, with no access to your health data or any tools — so text inside an
+uploaded file can't reach anything it shouldn't. Only the surface moved into the
+Coach; the boundary did not.
 
 ECG recordings synced from a compatible watch were stored but never shown. They
 now have a place in Insights: a list of your recordings, each opening the full

@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -69,7 +70,6 @@ import {
   type InboundDocumentKindValue,
 } from "@/lib/validations/inbound-documents";
 import { DocumentAiSection } from "./document-ai-section";
-import { DocumentChatDrawer } from "./document-chat-drawer";
 import type { DocumentAiTarget } from "./document-ai-transport";
 import { DocumentShareSheet } from "./document-share-sheet";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
@@ -216,6 +216,7 @@ export function DocumentDetailSheet({
   const { t, locale } = useTranslations();
   const format = useFormatters();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const detail = useQuery({
     queryKey: queryKeys.inboundDocument(documentId ?? "none"),
@@ -241,9 +242,6 @@ export function DocumentDetailSheet({
 
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  // The doc-scoped Coach chat drawer — opened by the neutral top-right icon in
-  // the sheet header, mounted as a sibling overlay of this detail sheet.
-  const [docChatOpen, setDocChatOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [suggestion, setSuggestion] = useState<DocumentSuggestionDto | null>(
@@ -264,7 +262,6 @@ export function DocumentDetailSheet({
     setLastDocumentId(documentId);
     setEditingTitle(false);
     setShareOpen(false);
-    setDocChatOpen(false);
     setMutationError(null);
     setSuggestion(null);
     setAppliedFields({ title: false, kind: false, date: false });
@@ -475,9 +472,14 @@ export function DocumentDetailSheet({
               </Button>
               <div className="flex items-center gap-2">
                 {aiEnabled ? (
+                  // v1.28.51 (Documents R3, Design A) — "Ask the Coach" opens
+                  // the REAL coach view scoped to this document
+                  // (`/coach?doc=<id>`), replacing the bespoke doc-chat drawer.
+                  // Every doc turn there still runs on the hardened fenced
+                  // document endpoint (never the coach tool route).
                   <Button
                     variant="outline"
-                    onClick={() => setDocChatOpen(true)}
+                    onClick={() => router.push(`/coach?doc=${doc.id}`)}
                     data-slot="document-chat-open"
                     aria-label={t("documents.chat.openAria")}
                   >
@@ -778,16 +780,6 @@ export function DocumentDetailSheet({
           open={shareOpen}
           onOpenChange={setShareOpen}
           documents={[{ id: doc.id, title }]}
-        />
-      ) : null}
-
-      {doc && aiEnabled ? (
-        <DocumentChatDrawer
-          open={docChatOpen}
-          onOpenChange={setDocChatOpen}
-          documentId={doc.id}
-          indexed={doc.hasContentIndex}
-          documentTitle={title}
         />
       ) : null}
     </>

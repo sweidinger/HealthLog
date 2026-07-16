@@ -65,11 +65,19 @@ function CoachPageBody() {
   // defaults to the new-chat hero.
   const rawC = searchParams.get("c");
   const deepLinkedId = rawC && rawC !== "new" ? rawC : null;
+  // v1.28.51 (Documents R3, Design A) — `?doc=<id>` seeds a fresh chat SCOPED
+  // to a stored document (the vault detail sheet's "Ask the Coach" action). An
+  // explicit `?c=<id>` thread wins over it (that thread carries its own scope).
+  const rawDoc = searchParams.get("doc");
+  const seedDocumentId = deepLinkedId === null && rawDoc ? rawDoc : null;
 
   // C1 exception — an unread coach-initiated message opens the most-recent
   // conversation (which holds that proactive turn). Only consulted when the
   // entry did not pin a specific thread or ask for a fresh chat.
-  const exceptionEligible = deepLinkedId === null && rawC !== "new";
+  // A `?doc=` open is an explicit fresh doc-scoped chat — never override it by
+  // resuming the most-recent thread on an unread nudge.
+  const exceptionEligible =
+    deepLinkedId === null && rawC !== "new" && seedDocumentId === null;
   const { data: nudge } = useQuery({
     queryKey: queryKeys.coachNudgeStatus(),
     queryFn: async (): Promise<CoachNudgeStatus> =>
@@ -84,6 +92,9 @@ function CoachPageBody() {
       surface="page"
       autoFocusComposer
       initialConversationId={deepLinkedId}
+      // v1.28.51 — seed the document scope for a `?doc=<id>` open so the first
+      // turn is created + sent through the hardened fenced document endpoint.
+      initialDocumentId={seedDocumentId}
       // Default is the new-chat hero; only resume most-recent for the
       // unread coach-initiated exception.
       autoOpenMostRecent={hasUnreadCoachMessage}

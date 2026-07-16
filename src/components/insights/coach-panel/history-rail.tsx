@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MessagesSquare, Search, Trash2 } from "lucide-react";
+import { FileText, MessagesSquare, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,7 +161,18 @@ export function HistoryRail({
                   className="min-w-0 flex-1 truncate text-left"
                   data-slot="coach-history-select"
                 >
-                  <span className="block truncate font-medium">{c.title}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 font-medium">
+                    {/* v1.28.51 — a doc-scoped thread runs on the hardened
+                        fenced endpoint; badge it so the two are visibly
+                        distinct in the rail. */}
+                    {c.documentId ? (
+                      <FileText
+                        className="text-primary size-3.5 shrink-0"
+                        aria-label={t("insights.coach.docScope.badge")}
+                      />
+                    ) : null}
+                    <span className="truncate">{c.title}</span>
+                  </span>
                   <span className="text-muted-foreground block text-[11px]">
                     {formatRelativeTime(c.updatedAt, t)}
                   </span>

@@ -2213,6 +2213,11 @@
       "errorCredentialExpired": "La connessione al provider di IA è scaduta. Riconnettila nelle Impostazioni per mantenere attivo il Coach.",
       "tagline": "Coach personale di salute, basato sui tuoi dati.",
       "newChat": "Nuova chat",
+      "docScope": {
+        "badge": "Documento",
+        "chattingAbout": "Stai parlando di: {title}",
+        "notIndexedHint": "Leggi prima questo documento con l'IA nell'archivio così il Coach può rispondere."
+      },
       "actionsMenu": "Azioni",
       "maximizeAriaLabel": "Apri a pagina intera",
       "minimizeAriaLabel": "Torna al pannello",
@@ -8407,24 +8412,8 @@
     },
     "chat": {
       "title": "Chatta su questo documento",
-      "notIndexed": "Leggi prima questo documento con l'IA per poterne parlare.",
-      "empty": "Fai una domanda su questo documento per iniziare.",
-      "placeholder": "Una domanda su questo documento…",
-      "inputLabel": "La tua domanda su questo documento",
-      "send": "Invia",
-      "thinking": "Lettura del documento…",
-      "safety": "Le risposte descrivono questo documento e non sono un consiglio medico.",
-      "close": "Chiudi chat",
-      "errorHistory": "Impossibile caricare la conversazione. Riprova.",
-      "errorGeneric": "Qualcosa è andato storto. Riprova.",
-      "errorRateLimited": "Troppi messaggi. Attendi un momento e riprova.",
-      "errorBudget": "Limite giornaliero di IA raggiunto. Riprova domani.",
-      "errorCredential": "Il provider IA va ricollegato nelle impostazioni.",
-      "errorConsent": "Attiva il consenso all'IA nelle impostazioni per chattare su questo documento.",
-      "errorNetwork": "Sembri offline. Controlla la connessione e riprova.",
       "openAria": "Chiedi al Coach su questo documento",
-      "openButton": "Chiedi al Coach",
-      "scopeBadge": "Stai chattando su: {title}"
+      "openButton": "Chiedi al Coach"
     }
   },
   "selfDescription": {

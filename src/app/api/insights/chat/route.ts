@@ -304,8 +304,15 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   let priorSummary: string | null = null;
 
   if (conversationId) {
-    // v1.27.33 — scope to Coach threads (documentId null); a document chat can
-    // never be loaded through the Coach route.
+    // v1.27.33 / v1.28.51 — the SEND path stays scoped to Coach threads
+    // (`documentId: null`) DELIBERATELY, even though the read paths (rail list +
+    // detail GET) were relaxed to surface doc-scoped threads in the Coach UI.
+    // This is the load-bearing prompt-injection fence: a document chat runs its
+    // tool-loop + health-snapshot NEVER — a doc turn is routed by the client to
+    // the hardened `/api/documents/inbound/[id]/chat` endpoint. Should a
+    // doc-scoped conversation id ever reach THIS tool route, the null-scope
+    // fetch below returns nothing and the turn 404s rather than executing an
+    // injected instruction against the coach's write tools. Do not relax.
     const existing = await fetchConversationWithMessages(
       userId,
       conversationId,
@@ -1437,9 +1444,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
     userId: auth.user.id,
     cursor,
     limit: Number.isFinite(limit) ? (limit as number) : undefined,
-    // v1.27.33 — the Coach rail shows only health threads; document chats
-    // (documentId set) live on the document sheet and are filtered out here.
-    documentId: null,
+    // v1.28.51 (Documents R3, Design A) — the rail now surfaces BOTH health
+    // threads and doc-scoped threads (the DTO carries `documentId` +
+    // `documentTitle` so the client badges the fenced ones). Omitting the
+    // `documentId` key drops the filter entirely — a union of both scopes —
+    // while `userId` stays narrowed from the session, so the relaxation never
+    // widens ownership. Doc turns still POST to the hardened document endpoint,
+    // never this route (see the `documentId: null` guard on the POST path).
   });
 
   annotate({

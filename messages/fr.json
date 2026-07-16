@@ -2213,6 +2213,11 @@
       "errorCredentialExpired": "Ta connexion au fournisseur d'IA a expiré. Reconnecte-la dans les Réglages pour que le Coach continue de fonctionner.",
       "tagline": "Coach personnel de santé, ancré sur tes données.",
       "newChat": "Nouvelle conversation",
+      "docScope": {
+        "badge": "Document",
+        "chattingAbout": "Discussion sur : {title}",
+        "notIndexedHint": "Lis d'abord ce document avec l'IA dans le coffre pour que le Coach puisse y répondre."
+      },
       "actionsMenu": "Actions",
       "maximizeAriaLabel": "Ouvrir en pleine page",
       "minimizeAriaLabel": "Revenir au panneau",
@@ -8407,24 +8412,8 @@
     },
     "chat": {
       "title": "Discuter de ce document",
-      "notIndexed": "Lisez d'abord ce document avec l'IA pour pouvoir en discuter.",
-      "empty": "Posez une question sur ce document pour commencer.",
-      "placeholder": "Une question sur ce document…",
-      "inputLabel": "Votre question sur ce document",
-      "send": "Envoyer",
-      "thinking": "Lecture du document…",
-      "safety": "Les réponses décrivent ce document et ne constituent pas un avis médical.",
-      "close": "Fermer le chat",
-      "errorHistory": "Impossible de charger la conversation. Réessayez.",
-      "errorGeneric": "Une erreur s'est produite. Réessayez.",
-      "errorRateLimited": "Trop de messages. Patientez un instant et réessayez.",
-      "errorBudget": "La limite quotidienne d'IA est atteinte. Réessayez demain.",
-      "errorCredential": "Le fournisseur d'IA doit être reconnecté dans les paramètres.",
-      "errorConsent": "Activez le consentement à l'IA dans les paramètres pour discuter de ce document.",
-      "errorNetwork": "Vous semblez hors ligne. Vérifiez votre connexion et réessayez.",
       "openAria": "Interroger le Coach sur ce document",
-      "openButton": "Demander au Coach",
-      "scopeBadge": "Discussion sur : {title}"
+      "openButton": "Demander au Coach"
     }
   },
   "selfDescription": {

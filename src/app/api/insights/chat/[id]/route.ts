@@ -33,11 +33,16 @@ export const GET = apiHandler(async (_request: NextRequest, ctx: RouteCtx) => {
   const { id } = await ctx.params;
   if (!id) return apiError("coach.conversation.notFound", 404);
 
-  // v1.27.33 — Coach detail is scoped to health threads (documentId null); a
-  // document chat is read through its own document-scoped route, not here.
-  const detail = await fetchConversationWithMessages(auth.user.id, id, {
-    documentId: null,
-  });
+  // v1.28.51 (Documents R3, Design A) — the Coach detail READER now returns
+  // both health and doc-scoped threads so `/coach?c=<id>` can display a document
+  // conversation inside the real coach chrome. Dropping the `documentId: null`
+  // opt removes the scope filter while `auth.user.id` stays narrowed, so a
+  // caller can only ever read their OWN thread (a foreign id is still 404).
+  // This reader only decrypts + returns persisted messages — no tool loop, no
+  // snapshot — so surfacing a doc thread here does not reopen the injection
+  // surface the fenced SEND path (documents route) guards. The DTO carries
+  // `documentId` + `documentTitle` so the client picks the fenced send path.
+  const detail = await fetchConversationWithMessages(auth.user.id, id);
   if (!detail) {
     return apiError("coach.conversation.notFound", 404);
   }

@@ -369,6 +369,22 @@ export interface CoachConversationDTO {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  /**
+   * v1.28.51 (Documents R3, Design A) — when set, this thread is a chat SCOPED
+   * to one stored document (the discriminator `coach_conversations.document_id`).
+   * Null / absent = a normal Coach thread (health-record surface). The Coach rail
+   * badges a doc-scoped thread and, crucially, routes its turns through the
+   * HARDENED fenced document endpoint — never the tool route. Server-derived from
+   * the row; never a client input.
+   */
+  documentId?: string | null;
+  /**
+   * v1.28.51 — the owning document's resolved title (its `title`, falling back to
+   * `filename`), for the "Chatting about: <title>" badge. Null when the document
+   * has neither, or on a non-document thread. Plaintext (same posture as the
+   * document title column); no health values.
+   */
+  documentTitle?: string | null;
 }
 
 /**

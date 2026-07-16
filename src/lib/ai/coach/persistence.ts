@@ -163,7 +163,26 @@ export async function createConversation(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     messageCount: 0,
+    // v1.28.51 — carry the scope discriminator on the created DTO. The title
+    // is resolved lazily by the list/detail reads (which join the document);
+    // create does not join, so a fresh doc thread reports null until reloaded.
+    documentId: row.documentId ?? null,
+    documentTitle: null,
   };
+}
+
+/**
+ * v1.28.51 (Documents R3) — resolve a joined document's badge title: its
+ * user-given `title`, falling back to the `filename`, or null when neither is
+ * set (or the thread has no document). Both columns are plaintext already
+ * (see the schema note on `InboundDocument.title`), so this leaks no health
+ * values the row did not already carry in the clear.
+ */
+function resolveDocumentTitle(
+  document: { title: string | null; filename: string | null } | null,
+): string | null {
+  if (!document) return null;
+  return document.title ?? document.filename ?? null;
 }
 
 /**
@@ -302,6 +321,10 @@ export async function fetchConversationWithMessages(
         orderBy: { createdAt: "desc" },
         take: CONVERSATION_MESSAGE_DETAIL_CAP,
       },
+      // v1.28.51 — join the owning document (if any) so the detail DTO can
+      // badge a doc-scoped thread with its title. Only the two plaintext
+      // label columns are selected; the encrypted document body is untouched.
+      document: { select: { title: true, filename: true } },
     },
   });
   if (!row) return null;
@@ -339,6 +362,8 @@ export async function fetchConversationWithMessages(
     messageCount: messages.length,
     messages,
     summary,
+    documentId: row.documentId ?? null,
+    documentTitle: resolveDocumentTitle(row.document),
   };
 }
 
@@ -381,6 +406,9 @@ export async function listConversations(
       : {}),
     include: {
       _count: { select: { messages: true } },
+      // v1.28.51 — join the owning document (label columns only) so the rail
+      // can badge a doc-scoped thread with its title. Null on Coach threads.
+      document: { select: { title: true, filename: true } },
     },
   });
 
@@ -394,6 +422,8 @@ export async function listConversations(
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
       messageCount: r._count.messages,
+      documentId: r.documentId ?? null,
+      documentTitle: resolveDocumentTitle(r.document),
     })),
     nextCursor,
   };
