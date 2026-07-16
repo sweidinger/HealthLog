@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.28.54] — 2026-07-16 — One hero on the dashboard
+
+With the Today view now leading the dashboard, the older opt-in hero card it
+replaced is retired, so the two never stack. The greeting stays, the tiles and
+charts are unchanged, and a layout stored with the old hero switched on simply
+ignores that setting — nothing to redo.
+
 ## [1.28.53] — 2026-07-16 — A "Today" overview at the top of your dashboard
 
 The dashboard opens with a Today view: your health score, the day's lead read,
