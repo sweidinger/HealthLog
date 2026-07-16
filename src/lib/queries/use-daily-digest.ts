@@ -1,0 +1,50 @@
+"use client";
+
+/**
+ * S2 — client cell for the unified daily digest (`GET /api/daily/digest`).
+ *
+ * The Today hero reads the ALREADY-CACHED `DailyDigest` DTO S1 assembled
+ * server-side. This hook is a plain GET of that cached route — it never
+ * warms a provider, never triggers a fresh AI call (the whole daily-value
+ * system's warm-on-mount ban extends here); the route composes from the
+ * nightly-cached briefing + dashboard snapshot ingredients.
+ *
+ * Gating: `enabled` is caller-supplied so the page can fold in the
+ * `insights` module flag (the digest is the AI-narrative daily layer;
+ * the route returns 403 `module.disabled` when insights is off) and the
+ * auth state. Freshness mirrors the dashboard snapshot cadence — a warm
+ * return-to-dashboard within the `staleTime` is a free cache hit, and a
+ * background sync surfaces on focus/poll — so the two above-the-fold
+ * cells refresh in lockstep without a second request storm.
+ *
+ * The read unwraps the `{ data, error }` envelope through `apiGet`
+ * (`(await res.json()).data`), and the queryKey is the centralised
+ * factory entry `queryKeys.dailyDigest()`.
+ */
+import { useQuery } from "@tanstack/react-query";
+
+import { apiGet } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
+import { retryOnceOnTransientError } from "@/lib/queries/retry-transient";
+import type { DailyDigest } from "@/lib/daily/digest";
+
+export function useDailyDigest(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.dailyDigest(),
+    queryFn: () => apiGet<DailyDigest>("/api/daily/digest"),
+    enabled,
+    // Match the dashboard snapshot's freshness so the hero and the tile
+    // strip below it share one refresh cadence: a warm remount inside the
+    // minute is free; a background sync surfaces on focus; an open tab
+    // polls in the foreground only.
+    staleTime: 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    // One retry on transient network / 5xx (never 401/403) so a single
+    // blip doesn't collapse the hero to its empty degrade.
+    retry: retryOnceOnTransientError,
+  });
+}

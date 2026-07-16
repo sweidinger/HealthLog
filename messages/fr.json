@@ -8530,5 +8530,41 @@
       "water": "Eau",
       "caffeine": "Caféine"
     }
+  },
+  "daily": {
+    "line": {
+      "score": "Ton score de santé aujourd'hui est de {score}.",
+      "allClear": "Rien ne requiert ton attention aujourd'hui — tout évolue normalement."
+    },
+    "item": {
+      "doseWindow": {
+        "title": "Médicament à prendre",
+        "body": "Une dose est prévue aujourd'hui.",
+        "bodyNamed": "{name} est prévu aujourd'hui."
+      },
+      "preventiveCare": {
+        "title": "Examen à faire",
+        "body": "{label} est à faire.",
+        "bodyMany": "{count} examens sont à faire."
+      },
+      "syncIssue": {
+        "title": "La synchronisation demande votre attention",
+        "body": "{integration} ne se synchronise pas — reconnecte-le pour garder tes données à jour."
+      }
+    },
+    "action": {
+      "logDose": "Enregistrer la dose",
+      "reconnect": "Reconnecter",
+      "viewCheckups": "Voir les examens"
+    },
+    "today": {
+      "scoreLabel": "Score de santé",
+      "deltaVsBaseline": "{delta} par rapport à ta référence",
+      "deltaFlat": "Conforme à ta référence",
+      "sleepPending": "Le sommeil de la nuit dernière n'est pas encore arrivé — la lecture du jour est provisoire.",
+      "readFullBriefing": "Lire le briefing complet",
+      "worthALook": "À regarder",
+      "allClear": "Rien ne requiert ton attention aujourd'hui."
+    }
   }
 }

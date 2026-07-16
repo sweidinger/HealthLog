@@ -8530,5 +8530,41 @@
       "water": "Wasser",
       "caffeine": "Koffein"
     }
+  },
+  "daily": {
+    "line": {
+      "score": "Dein Gesundheitsscore heute liegt bei {score}.",
+      "allClear": "Heute braucht nichts deine Aufmerksamkeit — alles verläuft normal."
+    },
+    "item": {
+      "doseWindow": {
+        "title": "Medikament fällig",
+        "body": "Heute ist eine Dosis fällig.",
+        "bodyNamed": "{name} ist heute fällig."
+      },
+      "preventiveCare": {
+        "title": "Vorsorge fällig",
+        "body": "{label} ist fällig.",
+        "bodyMany": "{count} Vorsorgetermine sind fällig."
+      },
+      "syncIssue": {
+        "title": "Synchronisierung braucht Aufmerksamkeit",
+        "body": "{integration} synchronisiert nicht — verbinde neu, um deine Daten aktuell zu halten."
+      }
+    },
+    "action": {
+      "logDose": "Dosis erfassen",
+      "reconnect": "Neu verbinden",
+      "viewCheckups": "Vorsorge ansehen"
+    },
+    "today": {
+      "scoreLabel": "Gesundheitsscore",
+      "deltaVsBaseline": "{delta} ggü. deinem Ausgangswert",
+      "deltaFlat": "Im Bereich deines Ausgangswerts",
+      "sleepPending": "Der Schlaf von letzter Nacht fehlt noch – der heutige Wert ist vorläufig.",
+      "readFullBriefing": "Vollständiges Briefing lesen",
+      "worthALook": "Einen Blick wert",
+      "allClear": "Heute braucht nichts deine Aufmerksamkeit."
+    }
   }
 }
