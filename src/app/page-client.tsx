@@ -799,12 +799,7 @@ export default function DashboardPageClient() {
           <TodayHero digest={digestQuery.data} />
         ) : null)}
 
-      {/* The digest-driven TodayHero owns the promoted hero slot whenever
-          Insights is on (Marc sign-off, decision 1). The legacy opt-in
-          DashboardHero only shows for an Insights-disabled account, so the two
-          heroes never stack. */}
       {heroVisible &&
-        !insightsEnabled &&
         (primaryLoading || !heroSnapshot ? (
           <DashboardHeroSkeleton />
         ) : (
