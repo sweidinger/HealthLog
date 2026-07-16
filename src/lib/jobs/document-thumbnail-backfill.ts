@@ -18,6 +18,7 @@
  * The queue MUST be registered in the maintenance registrar
  * (`src/lib/jobs/reminder/register-maintenance.ts`) so pg-boss provisions it.
  */
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { nativeCanvasSupported } from "@/lib/documents/native-canvas-support";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
@@ -112,19 +113,22 @@ export async function enqueueBootTimeThumbnailBackfill(): Promise<{
   // would only churn the queue — every generation no-ops behind the gate.
   if (!nativeCanvasSupported()) return { enqueued: 0 };
 
-  // Distinct users with at least one thumbnailable, not-yet-thumbnailed doc.
-  const rows = await prisma.inboundDocument.findMany({
-    where: {
-      deletedAt: null,
-      mimeType: { in: [...THUMBNAILABLE_MIMES] },
-      thumbnail: { is: null },
-    },
-    select: { userId: true },
-    distinct: ["userId"],
-  });
+  // v1.28.46 perf (H4) — DB-level SELECT DISTINCT with an anti-join to the
+  // thumbnail side table, not Prisma `distinct` (which fetches every matching
+  // row then de-dupes in JS at boot). The migration-0243 partial index over
+  // `(user_id, mime_type) WHERE deleted_at IS NULL` bounds the document-side
+  // scan; `document_thumbnails.document_id` is already UNIQUE (the 1:1
+  // relation) so the `t.id IS NULL` anti-join is index-driven.
+  const rows = await prisma.$queryRaw<{ user_id: string }[]>`
+    SELECT DISTINCT d.user_id AS user_id
+    FROM inbound_documents d
+    LEFT JOIN document_thumbnails t ON t.document_id = d.id
+    WHERE d.deleted_at IS NULL
+      AND d.mime_type IN (${Prisma.join([...THUMBNAILABLE_MIMES])})
+      AND t.id IS NULL`;
 
   let enqueued = 0;
-  for (const { userId } of rows) {
+  for (const { user_id: userId } of rows) {
     const payload: ThumbnailBackfillPayload = {
       userId,
       enqueuedAt: new Date().toISOString(),

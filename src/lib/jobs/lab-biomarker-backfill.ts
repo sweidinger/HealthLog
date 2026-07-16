@@ -180,11 +180,14 @@ export async function enqueueBootTimeLabBiomarkerBackfill(): Promise<{
   }
 
   try {
-    const rows = await prisma.labResult.findMany({
-      where: { deletedAt: null, biomarkerId: null },
-      select: { userId: true },
-      distinct: ["userId"],
-    });
+    // v1.28.46 perf (H4) — DB-level SELECT DISTINCT, not Prisma `distinct`
+    // (which fetches every matching row then de-dupes in JS at boot). The
+    // migration-0243 partial index over `(user_id) WHERE deleted_at IS NULL
+    // AND biomarker_id IS NULL` makes this an index-only scan that converges
+    // to empty as rows are linked.
+    const rows = await prisma.$queryRaw<{ user_id: string }[]>`
+      SELECT DISTINCT user_id FROM lab_results
+      WHERE deleted_at IS NULL AND biomarker_id IS NULL`;
 
     if (rows.length === 0) {
       return { enqueued: 0, skipped: 0, error: null };
@@ -192,7 +195,7 @@ export async function enqueueBootTimeLabBiomarkerBackfill(): Promise<{
 
     let enqueued = 0;
     let skipped = 0;
-    for (const { userId } of rows) {
+    for (const { user_id: userId } of rows) {
       const payload: LabBiomarkerBackfillPayload = {
         userId,
         enqueuedAt: new Date().toISOString(),

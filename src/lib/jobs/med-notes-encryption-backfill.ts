@@ -241,31 +241,30 @@ export async function enqueueBootTimeMedNotesEncryptionBackfill(): Promise<{
   }
 
   try {
-    const [sideEffectUsers, doseChangeRows, inventoryUsers] = await Promise.all(
-      [
-        prisma.medicationSideEffect.findMany({
-          where: { notes: { not: null }, notesEncrypted: null },
-          select: { userId: true },
-          distinct: ["userId"],
-        }),
-        // Dose-changes carry no userId — surface the parent medication's owner
-        // and dedupe in JS (distinct cannot span a relation field).
-        prisma.medicationDoseChange.findMany({
-          where: { note: { not: null }, noteEncrypted: null },
-          select: { medication: { select: { userId: true } } },
-        }),
-        prisma.medicationInventoryItem.findMany({
-          where: { notes: { not: null }, notesEncrypted: null },
-          select: { userId: true },
-          distinct: ["userId"],
-        }),
-      ],
-    );
+    // v1.28.46 perf (H4) — DB-level SELECT DISTINCT, not Prisma `distinct`
+    // (which fetches every matching row then de-dupes in JS at boot). Dose-
+    // changes carry no userId, so their owner comes through a join on the
+    // parent medication. The migration-0243 partial indexes match each
+    // predicate so the scans stay index-only and converge to empty.
+    const [sideEffectUsers, doseChangeUsers, inventoryUsers] =
+      await Promise.all([
+        prisma.$queryRaw<{ user_id: string }[]>`
+          SELECT DISTINCT user_id FROM medication_side_effects
+          WHERE notes IS NOT NULL AND notes_encrypted IS NULL`,
+        prisma.$queryRaw<{ user_id: string }[]>`
+          SELECT DISTINCT m.user_id AS user_id
+          FROM medication_dose_changes dc
+          JOIN medications m ON m.id = dc.medication_id
+          WHERE dc.note IS NOT NULL AND dc.note_encrypted IS NULL`,
+        prisma.$queryRaw<{ user_id: string }[]>`
+          SELECT DISTINCT user_id FROM medication_inventory_items
+          WHERE notes IS NOT NULL AND notes_encrypted IS NULL`,
+      ]);
 
     const userIds = new Set<string>();
-    for (const { userId } of sideEffectUsers) userIds.add(userId);
-    for (const { medication } of doseChangeRows) userIds.add(medication.userId);
-    for (const { userId } of inventoryUsers) userIds.add(userId);
+    for (const { user_id } of sideEffectUsers) userIds.add(user_id);
+    for (const { user_id } of doseChangeUsers) userIds.add(user_id);
+    for (const { user_id } of inventoryUsers) userIds.add(user_id);
 
     if (userIds.size === 0) {
       return { enqueued: 0, skipped: 0, error: null };

@@ -18,6 +18,7 @@
  * NO synchronous request lifecycle: the cron path runs entirely on
  * pg-boss, never inside an HTTP handler.
  */
+import pLimit from "p-limit";
 import { prisma } from "@/lib/db";
 import {
   extractFeatures,
@@ -313,91 +314,127 @@ export async function buildComparisonSnapshotForUser(
     ACTIVITY_STEPS: "",
   };
   const types = Object.keys(typeToSnapshotKey) as MeasurementType[];
-  // The snapshot only feeds summarize()'s avg30 / avg30LastMonth /
-  // avg30LastYear. The widest of those reaches back into the [365, 395)-day
-  // window (ageMs < 395 * DAY in meanOfWindow), so nothing older than 395
-  // days can change a result. Bound the read at 400 days — a 5-day floor over
-  // the strict-less-than boundary — instead of scanning the full history,
-  // which on multi-year accounts is tens of thousands of rows per type on the
-  // page-blocking generate path and the nightly pregenerate cron.
-  const sinceMeasuredAt = new Date(Date.now() - 400 * 86_400_000);
+
+  // The snapshot only ever reads two of summarize()'s means per call: avg30
+  // (the "current" 30-day mean) and exactly ONE baseline mean — avg30LastMonth
+  // (window [30, 60) days ago) or avg30LastYear (window [365, 395) days ago),
+  // chosen by `baseline`. Rather than pull every raw row across a 400-day
+  // window into JS and average there (tens of thousands of rows per dense type
+  // on the page-blocking generate path AND the nightly pregenerate cron),
+  // compute each mean as a DB-side AVG over the exact window the JS reducer
+  // covered. The 2-dp rounding and the half-open window bounds are matched to
+  // summarize()/meanOfWindow() byte-for-byte, so the emitted metrics are
+  // numerically identical to the previous raw-scan implementation.
+  //
+  // SLEEP_DURATION stays on the raw path: it is stored ONE ROW PER STAGE per
+  // night, so a bare SQL AVG would blend per-stage rows and double-count a
+  // bare ASLEEP aggregate against its granular twin. Only the per-night dedup
+  // reconstruction yields a meaningful nightly TIME-ASLEEP total.
+  //
+  // Anchor every window on ONE clock read so the aggregate reads and the sleep
+  // reconstruction share an identical "now" (summarize() reads the clock once
+  // too). Bounds mirror summarize(): avg30 keeps `now - measuredAt < 30d`
+  // (measuredAt > now-30d, no upper bound); meanOfWindow(a,b) keeps
+  // `a*DAY <= age < b*DAY` (measuredAt > now-b AND measuredAt <= now-a).
+  const nowMs = Date.now();
+  const DAY = 86_400_000;
+  const currentWhere: { gt: Date } = { gt: new Date(nowMs - 30 * DAY) };
+  const baselineWhere: { gt: Date; lte: Date } =
+    baseline === "lastMonth"
+      ? { gt: new Date(nowMs - 60 * DAY), lte: new Date(nowMs - 30 * DAY) }
+      : { gt: new Date(nowMs - 395 * DAY), lte: new Date(nowMs - 365 * DAY) };
+
+  // Rounded (2 dp) DB-side mean of `value` over one measured-at window, or null
+  // when the window holds no live rows — matching summarize()'s avg30 /
+  // meanOfWindow exactly (both round with Math.round(x * 100) / 100 and return
+  // null on an empty slice).
+  const avgOverWindow = async (
+    type: MeasurementType,
+    measuredAt: { gt: Date; lte?: Date },
+  ): Promise<number | null> => {
+    const agg = await prisma.measurement.aggregate({
+      where: { userId, type, deletedAt: null, measuredAt },
+      _avg: { value: true },
+    });
+    const avg = agg._avg.value;
+    return avg === null ? null : Math.round(avg * 100) / 100;
+  };
+
+  // Sleep still needs the raw 400-day window for the per-night reconstruction;
+  // the widest baseline mean reaches into [365, 395) days, so a 5-day floor
+  // over that boundary is the smallest safe bound.
+  const sleepSinceMeasuredAt = new Date(nowMs - 400 * DAY);
+
+  // Cap the type fan-out so a multi-metric account cannot open one DB
+  // connection per type at once (mirrors the pLimit(4) discipline in
+  // series-batch/route.ts).
+  const limit = pLimit(4);
+
   const rows = await Promise.all(
-    types.map(async (type) => {
-      // SLEEP_DURATION is stored ONE ROW PER STAGE per night; summarising the
-      // raw stage rows mislabels a per-stage average as a night total (and
-      // double-counts a bare ASLEEP aggregate against its granular twin). Route
-      // the comparison through the per-night dedup reconstruction so the
-      // current/baseline averages are per-night TIME-ASLEEP totals in minutes.
-      let dataPoints: DataPoint[];
-      if (type === "SLEEP_DURATION") {
-        const [sleepRows, sleepTz, sleepPriority] = await Promise.all([
-          prisma.measurement.findMany({
-            where: {
-              userId,
-              type,
-              deletedAt: null,
-              measuredAt: { gte: sinceMeasuredAt },
-            },
-            orderBy: { measuredAt: "asc" },
-            select: {
-              measuredAt: true,
-              value: true,
-              sleepStage: true,
-              source: true,
-              // Writer-level collapse: two HealthKit apps behind one
-              // source (watch stages vs phone in-bed) must not blend.
-              deviceType: true,
-            },
-          }),
-          resolveUserTimezone(userId),
-          loadUserSourcePriority(userId),
-        ]);
-        dataPoints = reconstructSleepNights(
-          sleepRows as SleepStageRow[],
-          sleepTz,
-          sleepPriority,
-        )
-          .filter((n) => n.asleepMinutes > 0)
-          .map((n) => ({ date: n.measuredAt, value: n.asleepMinutes }));
-      } else {
-        const measurements = await prisma.measurement.findMany({
-          where: {
-            userId,
-            type,
-            deletedAt: null,
-            measuredAt: { gte: sinceMeasuredAt },
-          },
-          orderBy: { measuredAt: "asc" },
-          select: { measuredAt: true, value: true },
-        });
-        dataPoints = measurements.map((m): DataPoint => ({
-          date: m.measuredAt,
-          value: m.value,
-        }));
-      }
-      const summary = summarize(dataPoints);
-      const baselineAvg =
-        baseline === "lastMonth"
-          ? (summary.avg30LastMonth ?? null)
-          : (summary.avg30LastYear ?? null);
-      const currentAvg = summary.avg30 ?? null;
-      const delta =
-        currentAvg !== null && baselineAvg !== null
-          ? Math.round((currentAvg - baselineAvg) * 100) / 100
-          : null;
-      const deltaPercent =
-        delta !== null && baselineAvg !== null && baselineAvg !== 0
-          ? Math.round((delta / Math.abs(baselineAvg)) * 100 * 10) / 10
-          : null;
-      return {
-        type: typeToSnapshotKey[type] ?? type,
-        currentAvg,
-        baselineAvg,
-        delta,
-        deltaPercent,
-        unit: typeUnits[type] ?? "",
-      };
-    }),
+    types.map((type) =>
+      limit(async () => {
+        let currentAvg: number | null;
+        let baselineAvg: number | null;
+        if (type === "SLEEP_DURATION") {
+          const [sleepRows, sleepTz, sleepPriority] = await Promise.all([
+            prisma.measurement.findMany({
+              where: {
+                userId,
+                type,
+                deletedAt: null,
+                measuredAt: { gte: sleepSinceMeasuredAt },
+              },
+              orderBy: { measuredAt: "asc" },
+              select: {
+                measuredAt: true,
+                value: true,
+                sleepStage: true,
+                source: true,
+                // Writer-level collapse: two HealthKit apps behind one
+                // source (watch stages vs phone in-bed) must not blend.
+                deviceType: true,
+              },
+            }),
+            resolveUserTimezone(userId),
+            loadUserSourcePriority(userId),
+          ]);
+          const dataPoints: DataPoint[] = reconstructSleepNights(
+            sleepRows as SleepStageRow[],
+            sleepTz,
+            sleepPriority,
+          )
+            .filter((n) => n.asleepMinutes > 0)
+            .map((n) => ({ date: n.measuredAt, value: n.asleepMinutes }));
+          const summary = summarize(dataPoints);
+          currentAvg = summary.avg30 ?? null;
+          baselineAvg =
+            baseline === "lastMonth"
+              ? (summary.avg30LastMonth ?? null)
+              : (summary.avg30LastYear ?? null);
+        } else {
+          [currentAvg, baselineAvg] = await Promise.all([
+            avgOverWindow(type, currentWhere),
+            avgOverWindow(type, baselineWhere),
+          ]);
+        }
+        const delta =
+          currentAvg !== null && baselineAvg !== null
+            ? Math.round((currentAvg - baselineAvg) * 100) / 100
+            : null;
+        const deltaPercent =
+          delta !== null && baselineAvg !== null && baselineAvg !== 0
+            ? Math.round((delta / Math.abs(baselineAvg)) * 100 * 10) / 10
+            : null;
+        return {
+          type: typeToSnapshotKey[type] ?? type,
+          currentAvg,
+          baselineAvg,
+          delta,
+          deltaPercent,
+          unit: typeUnits[type] ?? "",
+        };
+      }),
+    ),
   );
 
   const metrics = rows.filter(

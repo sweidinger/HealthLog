@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.28.46] — 2026-07-16 — Server performance on large instances
+
+Performance work for accounts with a lot of history, none of it changing what
+any number means:
+
+- Insight generation computed its 30-day comparison averages by pulling every
+  matching row of the last 400 days into memory and averaging in code. It now
+  asks the database for the averages directly — the same figures, without
+  materialising the rows. (Sleep keeps its per-night reconstruction path.)
+- The background scans that run at worker startup used an in-memory
+  de-duplication over full-table reads. They now de-duplicate in the database
+  and are backed by partial indexes (migration 0243, additive), so startup on a
+  large instance no longer does full scans.
+- The coach chat re-rendered every message on every streamed token; now only
+  the message being streamed re-renders.
+- The doctor-report mood read no longer pulls fields it doesn't use.
+
 ## [1.28.45] — 2026-07-16 — Doctor report + privacy fixes
 
 - Sleep now actually appears in the doctor-report PDF. The sleep section was
