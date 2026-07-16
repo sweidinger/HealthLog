@@ -37,4 +37,36 @@ describe("formatter-cache", () => {
     expect(a).toBe(b);
     expect(a.format(new Date("2026-05-08T12:00:00Z"))).toBe("2026-05-08");
   });
+
+  // v1.28.42 (H2) — `makeFormatters` routes every date/time closure through
+  // this cache, so the memo key MUST distinguish the two variables that make
+  // otherwise-identical shapes render differently: the profile timezone and
+  // the hour-cycle option. A collision on either would render the wrong wall
+  // clock / wrong local day.
+  it("keys DateTimeFormat by timeZone (no cross-tz collision)", () => {
+    const opts = { hour: "2-digit", minute: "2-digit" } as const;
+    const berlin = getDateTimeFormat("en-US", {
+      ...opts,
+      timeZone: "Europe/Berlin",
+    });
+    const tokyo = getDateTimeFormat("en-US", {
+      ...opts,
+      timeZone: "Asia/Tokyo",
+    });
+    expect(berlin).not.toBe(tokyo);
+    // 14:30 UTC → 16:30 Berlin (CEST) vs 23:30 Tokyo.
+    const sample = new Date("2026-04-18T14:30:00Z");
+    expect(berlin.format(sample)).not.toBe(tokyo.format(sample));
+  });
+
+  it("keys DateTimeFormat by hour-cycle option", () => {
+    const base = {
+      timeZone: "Europe/Berlin",
+      hour: "2-digit",
+      minute: "2-digit",
+    } as const;
+    const auto = getDateTimeFormat("en-US", base);
+    const h24 = getDateTimeFormat("en-US", { ...base, hourCycle: "h23" });
+    expect(auto).not.toBe(h24);
+  });
 });

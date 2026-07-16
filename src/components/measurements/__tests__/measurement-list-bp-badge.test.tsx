@@ -65,8 +65,15 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
+// v1.28.42 (H3) — the list now mounts only the active layout, so drive the
+// breakpoint hook to assert the badge in each branch independently.
+vi.mock("@/hooks/use-is-mobile", () => ({
+  useIsMobile: vi.fn(() => false),
+}));
+
 import { I18nProvider } from "@/lib/i18n/context";
 import { MeasurementList } from "../measurement-list";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 function render(locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
@@ -87,23 +94,40 @@ function countOccurrences(haystack: string, needle: string): number {
 }
 
 describe("MeasurementList — Sys/Dia disambiguation badge (mobile list)", () => {
-  // Both desktop table + mobile card list render in static markup
-  // (responsive switching is purely CSS), so each label must appear
-  // twice — once per branch — when the badge is wired correctly.
+  // v1.28.42 (H3) — only the active layout mounts now (previously both the
+  // desktop table and the mobile card list rendered, CSS-hidden). Assert each
+  // label appears exactly once per branch so the mobile-enum regression this
+  // guard was written for (badge silently absent on mobile) still fails loudly.
 
-  it("renders the Sys badge in BOTH desktop table and mobile list", () => {
-    const html = render("en");
-    expect(countOccurrences(html, ">Sys<")).toBe(2);
+  it("renders the Sys badge in the desktop table", () => {
+    vi.mocked(useIsMobile).mockReturnValue(false);
+    expect(countOccurrences(render("en"), ">Sys<")).toBe(1);
   });
 
-  it("renders the Dia badge in BOTH desktop table and mobile list", () => {
-    const html = render("en");
-    expect(countOccurrences(html, ">Dia<")).toBe(2);
+  it("renders the Sys badge in the mobile list", () => {
+    vi.mocked(useIsMobile).mockReturnValue(true);
+    expect(countOccurrences(render("en"), ">Sys<")).toBe(1);
   });
 
-  it("renders Sys + Dia in both branches under the German locale too", () => {
-    const html = render("de");
-    expect(countOccurrences(html, ">Sys<")).toBe(2);
-    expect(countOccurrences(html, ">Dia<")).toBe(2);
+  it("renders the Dia badge in the desktop table", () => {
+    vi.mocked(useIsMobile).mockReturnValue(false);
+    expect(countOccurrences(render("en"), ">Dia<")).toBe(1);
+  });
+
+  it("renders the Dia badge in the mobile list", () => {
+    vi.mocked(useIsMobile).mockReturnValue(true);
+    expect(countOccurrences(render("en"), ">Dia<")).toBe(1);
+  });
+
+  it("renders Sys + Dia in each branch under the German locale too", () => {
+    vi.mocked(useIsMobile).mockReturnValue(false);
+    const desktop = render("de");
+    expect(countOccurrences(desktop, ">Sys<")).toBe(1);
+    expect(countOccurrences(desktop, ">Dia<")).toBe(1);
+
+    vi.mocked(useIsMobile).mockReturnValue(true);
+    const mobile = render("de");
+    expect(countOccurrences(mobile, ">Sys<")).toBe(1);
+    expect(countOccurrences(mobile, ">Dia<")).toBe(1);
   });
 });

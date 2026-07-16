@@ -105,6 +105,17 @@ export const measurementDependentKeys = [
 /**
  * Keys that should be invalidated when a mood entry is created, updated or
  * deleted.
+ *
+ * v1.28.42 (M2) — `dashboardSnapshot` joins the bundle, mirroring the
+ * measurement (v1.18.9) and medication (v1.16.11) fixes for the same #38
+ * stale-read class. The dashboard snapshot embeds a mood block and feeds the
+ * score ring, but `moodDependentKeys` omitted the key, so a mood logged from
+ * the Startseite quick-entry sheet (or on `/mood`) left the dashboard tile /
+ * score showing the pre-write value for up to ~120 s (the snapshot query runs
+ * refetchOnMount/WindowFocus off with a 120 s poll). The server snapshot bucket
+ * is already hard-evicted on a mood write (`invalidateUserMood` sweeps
+ * `${userId}|`), so the refetch this invalidation triggers returns post-write
+ * data at once.
  */
 export const moodDependentKeys = [
   queryKeys.moodEntries(),
@@ -113,6 +124,7 @@ export const moodDependentKeys = [
   queryKeys.insightsRoot(),
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),
+  queryKeys.dashboardSnapshot(),
 ];
 
 /**

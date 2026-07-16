@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import {
   consumeInviteToken,
   recordInviteConsumer,
@@ -179,19 +180,56 @@ export const POST = apiHandler(async (request: NextRequest) => {
     }
   }
 
-  // First user becomes admin
-  const role = userCount === 0 ? "ADMIN" : "USER";
+  // v1.28.42 (M1) — the first registered user becomes ADMIN. Deriving that
+  // role from the early `userCount` (read at the top, before all the
+  // validation above) and then creating without coordination is a
+  // check-then-act race: on a freshly-exposed instance two registrations
+  // racing the empty-DB window both observe `0` and are BOTH minted ADMIN.
+  // Serialise the count+insert behind a transaction-scoped advisory lock
+  // (released on commit/rollback) and re-count *inside* the lock, so the
+  // second registration always observes the first's committed row and is
+  // minted USER. The lock scope is only the count + insert — none of the
+  // argon2 hash / HIBP / invite work above runs under it. Mirrors the
+  // advisory-lock single-flight in `drain-per-sample-cumulative.ts`.
+  //
+  // v1.28.42 (L4) — a concurrent same-email/username signup (both passed the
+  // findUnique probe above before either committed) surfaces the unique
+  // violation as `P2002`; map it to the unified 409 rather than an unhandled
+  // 500. The DB unique index is the real guard against duplicate accounts;
+  // this only fixes the status code under the race.
+  const user = await prisma
+    .$transaction(async (tx) => {
+      // `pg_advisory_xact_lock` returns void, which the client cannot
+      // deserialize as a column — selecting FROM it yields a plain int row.
+      await tx.$queryRaw`
+        SELECT 1 AS locked
+        FROM pg_advisory_xact_lock(hashtextextended('register:first-admin', 0))
+      `;
+      const priorUsers = await tx.user.count();
+      const role = priorUsers === 0 ? "ADMIN" : "USER";
+      return tx.user.create({
+        data: {
+          email,
+          username,
+          passwordHash,
+          role,
+          timezone,
+        },
+      });
+    })
+    .catch((err: unknown) => {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002"
+      ) {
+        return null;
+      }
+      throw err;
+    });
 
-  // Create user
-  const user = await prisma.user.create({
-    data: {
-      email,
-      username,
-      passwordHash,
-      role,
-      timezone,
-    },
-  });
+  if (user === null) {
+    return apiError("Username or email already taken", 409);
+  }
 
   // Create session immediately. v1.4.22 W5 reconcile (Sr-H1) —
   // `createSession` anchors the `hl_onboarding` cookie itself; fresh

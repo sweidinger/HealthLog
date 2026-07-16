@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.28.42] — 2026-07-16 — Snappier lists, correct mood refresh, safer first sign-up
+
+Performance and correctness fixes:
+
+- The shared date/number formatters rebuilt a fresh locale formatter on every
+  single call, which stalled the main thread across long history lists. They
+  now reuse cached formatters — the same output, without the per-row cost.
+- Long measurement lists (a year of dense readings) rendered every row twice —
+  a desktop and a mobile copy, one hidden with CSS. They now render one layout
+  for the current viewport.
+- Logging a mood entry now refreshes the dashboard immediately; the mood tile
+  and score could previously stay stale for up to two minutes after a change.
+- On a brand-new instance, two people signing up at the exact same moment could
+  both be made admin. First-admin selection is now atomic, so exactly one does.
+
 ## [1.28.41] — 2026-07-16 — Complete the translations, and guard the gap
 
 One reminder-adjacent label — the recovery-driver "functional impact" track on
