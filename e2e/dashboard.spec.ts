@@ -98,6 +98,45 @@ test.describe("authenticated dashboard render", () => {
       }),
     );
 
+    // S2 — the Today hero reads the unified daily digest from
+    // `/api/daily/digest`. Mock it with a deterministic digest (a score +
+    // one worth-a-look item) so the hero paints without reaching the real
+    // route, and so a slow/absent digest can never hang the render or
+    // surface a console error under the significant-error gate below.
+    await page.route(/\/api\/daily\/digest(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            generatedAt: new Date().toISOString(),
+            phase: "final",
+            sleepPending: false,
+            score: { value: 82, band: "green", delta: 2 },
+            topSignal: null,
+            briefingLead: "Your week is trending steady.",
+            line: "Your week is trending steady.",
+            worthALook: [
+              {
+                kind: "sync_issue",
+                title: "Sync needs attention",
+                body: "Withings isn't syncing.",
+                status: "warning",
+                actions: [
+                  {
+                    labelKey: "daily.action.reconnect",
+                    intent: "sync.reconnect",
+                    href: "/settings/integrations",
+                  },
+                ],
+              },
+            ],
+          },
+          error: null,
+        }),
+      }),
+    );
+
     // v1.18.6 — the dashboard now batches every visible chart's daily
     // series into ONE `/api/measurements/series-batch` round-trip and
     // hands each chart its slice via `preloadedSeries`. The route is a
@@ -208,6 +247,17 @@ test.describe("authenticated dashboard render", () => {
     await expect(strip).toBeVisible({ timeout: 10_000 });
     const tileCount = Number(await strip.getAttribute("data-tile-count"));
     expect(tileCount).toBeGreaterThan(0);
+
+    // S2 — the Today hero paints above the tile strip from the mocked
+    // digest: its score ring and its worth-a-look rail render.
+    const todayHero = page.locator('[data-slot="today-hero"]');
+    await expect(todayHero).toBeVisible({ timeout: 10_000 });
+    await expect(
+      todayHero.locator('[data-slot="today-hero-score"]'),
+    ).toBeVisible();
+    await expect(
+      todayHero.locator('[data-slot="today-hero-rail"]'),
+    ).toBeVisible();
 
     // At least one chart must render. Recharts mounts a `<svg>` with
     // `class="recharts-surface"` (or a `<div class="recharts-wrapper">`

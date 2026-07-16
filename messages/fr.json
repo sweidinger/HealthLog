@@ -8556,6 +8556,15 @@
       "logDose": "Enregistrer la dose",
       "reconnect": "Reconnecter",
       "viewCheckups": "Voir les examens"
+    },
+    "today": {
+      "scoreLabel": "Score de santé",
+      "deltaVsBaseline": "{delta} par rapport à ta référence",
+      "deltaFlat": "Conforme à ta référence",
+      "sleepPending": "Le sommeil de la nuit dernière n'est pas encore arrivé — la lecture du jour est provisoire.",
+      "readFullBriefing": "Lire le briefing complet",
+      "worthALook": "À regarder",
+      "allClear": "Rien ne requiert ton attention aujourd'hui."
     }
   }
 }

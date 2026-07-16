@@ -8556,6 +8556,15 @@
       "logDose": "Zapisz dawkę",
       "reconnect": "Połącz ponownie",
       "viewCheckups": "Zobacz badania"
+    },
+    "today": {
+      "scoreLabel": "Wynik zdrowia",
+      "deltaVsBaseline": "{delta} wzgl. Twojej wartości bazowej",
+      "deltaFlat": "Zgodnie z Twoją wartością bazową",
+      "sleepPending": "Sen z ostatniej nocy jeszcze nie dotarł — dzisiejszy odczyt jest wstępny.",
+      "readFullBriefing": "Przeczytaj pełny briefing",
+      "worthALook": "Warto sprawdzić",
+      "allClear": "Dziś nic nie wymaga Twojej uwagi."
     }
   }
 }

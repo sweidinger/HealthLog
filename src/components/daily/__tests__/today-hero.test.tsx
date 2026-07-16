@@ -1,0 +1,149 @@
+import { describe, it, expect } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { I18nProvider } from "@/lib/i18n/context";
+import { TodayHero } from "../today-hero";
+import type { DailyDigest } from "@/lib/daily/digest";
+import type { PriorityItem } from "@/lib/daily/priority-item";
+
+function render(node: React.ReactNode, locale: "en" | "de" = "en") {
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale={locale}>{node}</I18nProvider>,
+  );
+}
+
+const doseItem: PriorityItem = {
+  kind: "dose_window",
+  title: "Medication due",
+  body: "Ramipril is due today.",
+  status: "warning",
+  actions: [
+    {
+      labelKey: "daily.action.logDose",
+      intent: "dose.log",
+      href: "/medications",
+    },
+  ],
+  moduleKey: "medications",
+};
+
+const syncItem: PriorityItem = {
+  kind: "sync_issue",
+  title: "Sync needs attention",
+  body: "Withings isn't syncing.",
+  status: "warning",
+  actions: [
+    {
+      labelKey: "daily.action.reconnect",
+      intent: "sync.reconnect",
+      href: "/settings/integrations",
+    },
+  ],
+};
+
+function digest(over: Partial<DailyDigest> = {}): DailyDigest {
+  return {
+    generatedAt: "2026-07-16T06:00:00.000Z",
+    phase: "final",
+    sleepPending: false,
+    score: { value: 82, band: "green", delta: 3 },
+    topSignal: {
+      sourceMetric: "bp",
+      tone: "watch",
+      headline: "Blood pressure a touch high this morning",
+      nudge: "Take it again after a calm five minutes.",
+      delta: "+6 mmHg vs your 30-day average",
+    },
+    briefingLead: "Your week is trending steady.",
+    line: "Your week is trending steady.",
+    worthALook: [doseItem, syncItem],
+    ...over,
+  };
+}
+
+describe("<TodayHero>", () => {
+  it("renders the score, the lead read, and the worth-a-look rail", () => {
+    const html = render(<TodayHero digest={digest()} />);
+    expect(html).toContain('data-slot="today-hero"');
+    expect(html).toContain('data-phase="final"');
+    // Score ring paints its populated (final) face with the server band.
+    expect(html).toContain('data-slot="today-hero-score"');
+    expect(html).toContain('data-band="green"');
+    expect(html).not.toContain('data-provisional="true"');
+    // The day's read lead.
+    expect(html).toContain("Your week is trending steady.");
+    // The top signal headline + its delta.
+    expect(html).toContain("Blood pressure a touch high this morning");
+    expect(html).toContain("+6 mmHg vs your 30-day average");
+    // The rail with both priority cards.
+    expect(html).toContain('data-slot="today-hero-rail"');
+    expect(html).toContain('data-kind="dose_window"');
+    expect(html).toContain('data-kind="sync_issue"');
+    // The score delta chip.
+    expect(html).toContain('data-slot="today-hero-score-delta"');
+  });
+
+  it("wires each PriorityItem action to its existing destination via href", () => {
+    const html = render(<TodayHero digest={digest()} />);
+    // Every S1 rail action carries an href, so PriorityCard renders it as a
+    // link to the existing surface — S2 invents no new backend action.
+    expect(html).toContain('href="/medications"');
+    expect(html).toContain('href="/settings/integrations"');
+    // The read-the-full-briefing affordance routes to Insights.
+    expect(html).toContain('data-slot="today-hero-briefing-link"');
+    expect(html).toContain('href="/insights"');
+  });
+
+  it("shows the honest sleep-pending note and provisional score", () => {
+    const html = render(
+      <TodayHero
+        digest={digest({
+          phase: "provisional",
+          sleepPending: true,
+          score: null,
+          briefingLead: null,
+          line: "Your health score today is 82.",
+          worthALook: [doseItem],
+        })}
+      />,
+    );
+    expect(html).toContain('data-phase="provisional"');
+    expect(html).toContain('data-slot="today-hero-sleep-pending"');
+    expect(html).toContain("Last night");
+    // Null score → the ring's provisional face, never a zero.
+    expect(html).toContain('data-provisional="true"');
+    // No briefing lead → no full-briefing link.
+    expect(html).not.toContain('data-slot="today-hero-briefing-link"');
+  });
+
+  it("degrades to nothing on a genuinely empty account", () => {
+    const html = render(
+      <TodayHero
+        digest={digest({
+          score: null,
+          topSignal: null,
+          briefingLead: null,
+          line: "Nothing needs your attention today — everything's tracking normally.",
+          worthALook: [],
+        })}
+      />,
+    );
+    // No score, no items, no cached briefing lead → the hero renders nothing
+    // rather than an alarming empty card (the tile strip carries the
+    // add-your-first-reading empty state).
+    expect(html).toBe("");
+  });
+
+  it("shows the first-class all-clear line when a score is present but nothing is notable", () => {
+    const html = render(
+      <TodayHero
+        digest={digest({
+          worthALook: [],
+        })}
+      />,
+    );
+    expect(html).toContain('data-slot="today-hero"');
+    expect(html).toContain('data-slot="today-hero-all-clear"');
+    expect(html).not.toContain('data-slot="today-hero-rail"');
+  });
+});

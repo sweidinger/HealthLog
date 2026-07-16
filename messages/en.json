@@ -8556,6 +8556,15 @@
       "logDose": "Log dose",
       "reconnect": "Reconnect",
       "viewCheckups": "View check-ups"
+    },
+    "today": {
+      "scoreLabel": "Health score",
+      "deltaVsBaseline": "{delta} vs your baseline",
+      "deltaFlat": "In line with your baseline",
+      "sleepPending": "Last night's sleep isn't in yet — today's read is provisional.",
+      "readFullBriefing": "Read the full briefing",
+      "worthALook": "Worth a look",
+      "allClear": "Nothing needs your attention today."
     }
   }
 }

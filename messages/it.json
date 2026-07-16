@@ -8556,6 +8556,15 @@
       "logDose": "Registra dose",
       "reconnect": "Riconnetti",
       "viewCheckups": "Vedi controlli"
+    },
+    "today": {
+      "scoreLabel": "Punteggio di salute",
+      "deltaVsBaseline": "{delta} rispetto al tuo valore di riferimento",
+      "deltaFlat": "In linea con il tuo valore di riferimento",
+      "sleepPending": "Il sonno di stanotte non è ancora arrivato: la lettura di oggi è provvisoria.",
+      "readFullBriefing": "Leggi il briefing completo",
+      "worthALook": "Da tenere d'occhio",
+      "allClear": "Oggi nulla richiede la tua attenzione."
     }
   }
 }

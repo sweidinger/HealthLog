@@ -1,0 +1,14 @@
+/**
+ * Query keys — the unified daily-value system (S2 Today surface).
+ * Part of the centralized factory; aggregated in `./index.ts`.
+ *
+ * The Today hero reads ONE cell against `GET /api/daily/digest` (the
+ * `DailyDigest` DTO S1 shipped). A single flat key: the digest is a
+ * per-user daily read with no discriminator, so `["daily","digest"]`
+ * is the whole surface. Kept in the factory so a future daily-data
+ * mutation can invalidate it by prefix without a bare-array literal
+ * (the `healthlog/queryKey-factory` rule bans those).
+ */
+export const dailyKeys = {
+  dailyDigest: () => ["daily", "digest"] as const,
+};

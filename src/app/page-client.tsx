@@ -45,6 +45,8 @@ import {
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { DashboardHero } from "@/components/dashboard/hero/dashboard-hero";
 import { DashboardHeroSkeleton } from "@/components/dashboard/hero/dashboard-hero-skeleton";
+import { TodayHero } from "@/components/daily/today-hero";
+import { TodayHeroSkeleton } from "@/components/daily/today-hero-skeleton";
 import {
   QuickEntrySheets,
   type QuickEntryDialog,
@@ -123,6 +125,8 @@ import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import { useDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
+import { useDailyDigest } from "@/lib/queries/use-daily-digest";
+import { useModuleEnabled } from "@/hooks/use-module-enabled";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import type { DataSummary } from "@/lib/analytics/trends";
 import { mergeSlimAndThickAnalytics } from "@/lib/analytics/merge-slim-thick";
@@ -222,6 +226,13 @@ export default function DashboardPageClient() {
   // four independent cells.
   const snapshotEnabled = isDashboardSnapshotEnabled();
   const snapshotQuery = useDashboardSnapshot(snapshotEnabled);
+
+  // S2 — the Today hero reads the unified daily digest (the S1 DTO) from
+  // its own cached route. Gated on the `insights` module (the digest is
+  // the AI-narrative daily layer; the route 403s when insights is off)
+  // and the auth state so a logged-out / gated account never fires it.
+  const insightsEnabled = useModuleEnabled("insights");
+  const digestQuery = useDailyDigest(isAuthenticated && insightsEnabled);
 
   const analyticsSlimQuery = useAnalyticsQuery({
     slice: "summaries",
@@ -774,6 +785,19 @@ export default function DashboardPageClient() {
         onQuickEntry={setQuickEntryDialog}
         showGreeting={!heroVisible}
       />
+
+      {/* S2 — the Today hero, promoted above the tile strip (MARC sign-off
+          decision 1). Renders the S1 daily digest: the day's read, the
+          honest score/freshness face, and the worth-a-look rail. Shimmer
+          skeleton while the cached digest loads; a genuinely empty account
+          degrades to nothing (the hero itself returns null). The dense
+          tile grid + charts below are untouched. */}
+      {insightsEnabled &&
+        (digestQuery.isLoading ? (
+          <TodayHeroSkeleton />
+        ) : digestQuery.data ? (
+          <TodayHero digest={digestQuery.data} />
+        ) : null)}
 
       {heroVisible &&
         (primaryLoading || !heroSnapshot ? (

@@ -8556,6 +8556,15 @@
       "logDose": "Dosis erfassen",
       "reconnect": "Neu verbinden",
       "viewCheckups": "Vorsorge ansehen"
+    },
+    "today": {
+      "scoreLabel": "Gesundheitsscore",
+      "deltaVsBaseline": "{delta} ggü. deinem Ausgangswert",
+      "deltaFlat": "Im Bereich deines Ausgangswerts",
+      "sleepPending": "Der Schlaf von letzter Nacht fehlt noch – der heutige Wert ist vorläufig.",
+      "readFullBriefing": "Vollständiges Briefing lesen",
+      "worthALook": "Einen Blick wert",
+      "allClear": "Heute braucht nichts deine Aufmerksamkeit."
     }
   }
 }
