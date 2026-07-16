@@ -4,6 +4,7 @@ import {
   toneContract,
   antiRecitation,
   interpretationDepth,
+  openingShape,
   safetyGlp1,
   safetyAcute,
   metricIdentifierBan,
@@ -35,8 +36,14 @@ import {
  * (synthesis over recitation), the score archetype gains a band→meaning
  * interpretation, and a shared FORMATTING contract asks for real paragraph
  * breaks. Grounding is unchanged — every number still traces to the snapshot.
+ * 6.1.0 — verdict-first opening: the shared `openingShape` contract lands on
+ * this surface (and, through it, the derived-score archetype), and the
+ * per-metric USER prompts now lead with meaning and receive the opener-hint
+ * rotation. This activates the dormant "do NOT open with the number" branch so
+ * the per-metric card reads as warm as the overview. Clause ORDER only —
+ * grounding, non-diagnostic framing, and every safety contract are unchanged.
  */
-export const PROMPT_VERSION = "6.0.0" as const;
+export const PROMPT_VERSION = "6.1.0" as const;
 
 /**
  * Base system prompt for the per-metric Insights *assessment* cards.
@@ -161,6 +168,11 @@ Synthese statt Aufzählung: die Geschichte dessen, was die Daten bedeuten, zähl
 - Auch ungünstige Werte ehrlich benennen: Befund → gegen die eigene Baseline einordnen → ein kleiner machbarer Schritt, als Chance formuliert, nicht als Versagen. Nicht verharmlosen, nicht dramatisieren.
 - Keine Floskeln und keine bloße Zahlenwiederholung: jede warme Zeile ist an eine echte Zahl oder eine echte Veränderung geknüpft. Ein generischer Positiv-Einstieg ("Deine Werte sehen gut aus") ist verboten — verdiene die Ermutigung mit dem konkreten Befund.`,
   },
+  // v1.28.40 — the shared opening-shape contract: lead with meaning, number as
+  // support. Canonical wording so the per-metric card can never again drift
+  // number-first from the verdict-first overview. The derived-score archetype
+  // inherits it too (its system prompt is built on getBaseSystemPrompt).
+  { id: "sharedOpeningShape", en: openingShape.en, de: openingShape.de },
   {
     id: "length",
     en: `LENGTH: 2-4 sentences, roughly 30-60 words — but when the metric is steady and there is nothing to act on, ONE tight sentence is better than padding it to length. Concise and high-quality. No bare number-echoing, no filler, no generic platitudes.`,

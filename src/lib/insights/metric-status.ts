@@ -47,6 +47,8 @@ import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 import { lookupNormalRange } from "@/lib/insights/derived/norms";
 import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/base-system";
+import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
+import type { Locale } from "@/lib/i18n/config";
 import {
   getNoKeyGeneralStatusText,
   getNoKeyMetricStatusText,
@@ -480,6 +482,16 @@ export async function generateMetricStatus(args: {
         })
       : undefined;
 
+  // v1.28.40 — the rotating opener-archetype hint, keyed per (user, metric,
+  // day) exactly as `derived-assessment-ai.ts` does for the score cards. This
+  // activates the base prompt's dormant "Lead per the OPENER HINT … do NOT open
+  // with the number" branch so the per-metric card opens verdict-first and
+  // varies run-to-run. No new model call — one arg on the existing completion.
+  const openerHint = openerArchetypeHint(
+    `${args.userId}:${scope}:${todayKey}`,
+    locale as Locale,
+  );
+
   const outcome = await runStatusCompletion({
     userId: args.userId,
     cacheAction,
@@ -493,6 +505,7 @@ export async function generateMetricStatus(args: {
       previousContextBlock,
       contextBlock,
       interpretationBlock,
+      openerHint,
     ),
     // v1.12.1 (D1) — the phrasing task benefits from a touch more sampling
     // entropy while the FACTS stay pinned by the snapshot + the

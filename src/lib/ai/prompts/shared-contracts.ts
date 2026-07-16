@@ -152,6 +152,22 @@ export const forbiddenFiller: SharedContract = {
 };
 
 /**
+ * v1.28.40 — opening-shape contract. The maintainer's complaint: the per-metric
+ * assessment cards read as a dry data readout while the overview reads warm. The
+ * root cause is a divergent OPENING instruction — the overview leads verdict-
+ * first, the per-metric card led number-first. This single fragment pins the
+ * "lead with meaning, number as support" rule on every narrative surface so the
+ * two can never drift apart again. It changes clause ORDER only — grounding is
+ * untouched, the number stays required as support.
+ */
+export const openingShape: SharedContract = {
+  en: `OPENING — lead with meaning, not the metric value
+Open on the read in plain words — what this says about the person today — and bring the number in right after, as support, never as the first thing. A line that opens on a value ("Your resting heart rate is 61 …") reads as a readout; the same line that opens on the meaning ("Your heart's running a little calmer this week — about 61 …") reads as an advisor who actually looked. Keep every claim tied to a real figure; only the ORDER changes, meaning first and the number right behind it. This holds whether the surface covers one metric or many.`,
+  de: `ERÖFFNUNG — mit der Bedeutung führen, nicht mit dem Messwert
+Beginne mit dem Eindruck in klaren Worten — was das heute über die Person sagt — und bring die Zahl direkt danach als Beleg, nie als Erstes. Eine Zeile, die mit einem Wert eröffnet ("Dein Ruhepuls ist 61 …"), liest sich wie ein Ablesen; dieselbe Zeile, die mit der Bedeutung eröffnet ("Dein Herz läuft diese Woche etwas ruhiger — rund 61 …"), liest sich wie ein Begleiter, der wirklich hingesehen hat. Jede Aussage bleibt an einer echten Zahl verankert; nur die REIHENFOLGE ändert sich, Bedeutung zuerst und die Zahl direkt dahinter. Das gilt, ob die Fläche eine Metrik abdeckt oder viele.`,
+};
+
+/**
  * v1.21.0 (QoL-B §3 / D4 §4) — forward-looking outlook contract. The voice
  * already nails honest-not-sycophantic but barely looks ahead; this fragment
  * is the "give outlooks, sharpen expectations" craft, kept inside the
@@ -193,6 +209,7 @@ export const SHARED_CONTRACTS = {
   toneContract,
   antiRecitation,
   interpretationDepth,
+  openingShape,
   safetyGlp1,
   safetyAcute,
   metricIdentifierBan,

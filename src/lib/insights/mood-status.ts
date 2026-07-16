@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getMoodSystemPrompt, getMoodUserPrompt } from "@/lib/ai/prompts/mood";
+import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
+import type { Locale } from "@/lib/i18n/config";
 import { getNoKeyMoodStatusText } from "@/lib/insights/no-key-fallbacks";
 import {
   formatPreviousContextForPrompt,
@@ -715,6 +717,8 @@ export async function prepareMoodStatusForUser(
       locale,
       previousContextBlock,
       assessmentContextBlock,
+      // v1.28.40 — rotating opener hint, per (user, metric, day).
+      openerArchetypeHint(`${userId}:mood:${todayKey}`, locale as Locale),
     ),
     snapshotHash,
     // v1.12.7 — match the archetype cards' 0.45.

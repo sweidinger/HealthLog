@@ -15,6 +15,7 @@ import {
   toneContract,
   antiRecitation,
   interpretationDepth,
+  openingShape,
   safetyGlp1,
   safetyAcute,
   metricIdentifierBan,
@@ -59,6 +60,9 @@ const SURFACES: Record<
       // overview + briefing text too.
       antiRecitation,
       interpretationDepth,
+      // v1.28.40 — the opening-shape contract pins the briefing's verdict-first
+      // opening to the same wording the per-metric cards now carry.
+      openingShape,
       safetyGlp1,
       safetyAcute,
       metricIdentifierBan,
@@ -78,6 +82,9 @@ const SURFACES: Record<
       // v1.27.13 (Welle J) — the assessment cards enforce both new contracts.
       antiRecitation,
       interpretationDepth,
+      // v1.28.40 — the opening-shape contract lands here so the per-metric card
+      // (and the derived-score archetype built on it) opens verdict-first.
+      openingShape,
       safetyGlp1,
       safetyAcute,
       metricIdentifierBan,
@@ -109,6 +116,9 @@ const SURFACES: Record<
     contracts: [
       grounding,
       toneContract,
+      // v1.28.40 — the retrospective narrative composes the opening-shape
+      // contract too, matching its verdict-first SHAPE rule to the house voice.
+      openingShape,
       safetyGlp1,
       safetyAcute,
       metricIdentifierBan,
@@ -162,6 +172,21 @@ describe("shared-contract cross-surface coverage", () => {
       expect(getStrictInsightsSystemPrompt(locale)).toContain(
         outlookContract[locale],
       );
+    }
+  });
+
+  // v1.28.40 — the opening-shape ("lead with meaning, not the value") contract
+  // must be present on the overview, the per-metric cards, AND the period
+  // narrative at once — the exact drift that produced the "dry per-insight
+  // readout" complaint (verdict-first present on the overview, absent on the
+  // per-metric card) can then never recur silently.
+  it("the opening-shape contract reaches the overview, per-metric, and narrative surfaces", () => {
+    for (const locale of LOCALES) {
+      expect(getStrictInsightsSystemPrompt(locale)).toContain(
+        openingShape[locale],
+      );
+      expect(getBaseSystemPrompt(locale)).toContain(openingShape[locale]);
+      expect(SYSTEM_PROMPTS_FOR_TEST[locale]).toContain(openingShape[locale]);
     }
   });
 });

@@ -152,6 +152,32 @@ describe("buildDeterministicNarrative", () => {
     );
   });
 
+  // v1.28.40 — the deterministic floor opens with a one-line verdict before the
+  // delta list, matching the verdict-first AI narrative beside it.
+  it("opens with a movement verdict before the delta list (en/de)", () => {
+    const en = buildDeterministicNarrative(
+      ctx({ metricDeltas: [WEIGHT_DOWN] }),
+      "en",
+    );
+    expect(en.startsWith("A week of real movement.")).toBe(true);
+    // The changes sentence + its figures still follow the verdict.
+    expect(en).toContain("your weight");
+    const de = buildDeterministicNarrative(
+      ctx({ metricDeltas: [WEIGHT_DOWN] }),
+      "de",
+    );
+    expect(de.startsWith("Eine Woche mit echter Bewegung.")).toBe(true);
+  });
+
+  it("opens with a calm verdict when nothing moved (en/de, month)", () => {
+    expect(buildDeterministicNarrative(ctx({ period: "month" }), "en")).toMatch(
+      /^A calm month\./,
+    );
+    expect(buildDeterministicNarrative(ctx({ period: "month" }), "de")).toMatch(
+      /^Ein ruhiger Monat\./,
+    );
+  });
+
   it("falls back to a prettified label for an unmapped metric type", () => {
     const text = buildDeterministicNarrative(
       ctx({

@@ -396,6 +396,15 @@ export function buildDeterministicScoreAssessment(
   const standing = bandPhrase(band, locale);
 
   const sentences: string[] = [];
+
+  // v1.28.40 — verdict-first: open with the band → "what it means for today"
+  // read (a closed, non-numeric table) BEFORE the score, so the deterministic
+  // floor leads with meaning like the warm AI voice, e.g. "A good day to take
+  // on a little more — your readiness is 72/100 …". No number is introduced
+  // here, so the grounding posture is unchanged.
+  const meaning = scoreBandMeaning(metric, band, locale);
+  if (meaning) sentences.push(meaning);
+
   sentences.push(
     locale === "de"
       ? `${capitalise(label)} liegt heute bei ${score} von 100 — ${standing}.`
@@ -454,12 +463,11 @@ export function buildDeterministicScoreAssessment(
     );
   }
 
-  // v1.22 (W6) — close with a band-conditioned "what it means for today" read
-  // from the closed deterministic table, so even the provider-less + demo score
-  // cards carry the forward interpretation the WHOOP/Oura voice does, not just
-  // the attribution. No number is introduced, so the grounding posture holds.
-  const meaning = scoreBandMeaning(metric, band, locale);
-  if (meaning) sentences.push(meaning);
+  // v1.28.40 — the band-conditioned "what it means for today" read now OPENS the
+  // assessment (above) instead of closing it, so the score card leads with
+  // meaning. When no meaning is mapped for this band the card falls back to its
+  // standing-first shape, which is already verdict-carrying ("… — in a good
+  // place").
 
   return sentences.join(" ");
 }

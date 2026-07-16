@@ -133,4 +133,77 @@ describe("signal-grounded no-key fallbacks", () => {
       getNoKeyGeneralStatusText("en"),
     );
   });
+
+  // v1.28.40 — the deterministic floor now leads verdict-first (meaning before
+  // the value), matching the warm AI voice a provider user sees on the next
+  // read. The value + baseline still follow, so grounding is unchanged.
+  it("leads with an unfavourable-direction verdict before the value (pulse, en)", () => {
+    const text = getNoKeyPulseStatusText(
+      "en",
+      signal({
+        current: 72,
+        baseline: 64,
+        delta: 8,
+        outsideNormalSwing: true,
+        direction: "lower-better",
+      }),
+    );
+    // Verdict-first: opens on meaning, not the number.
+    expect(text.startsWith("A little off your usual lately.")).toBe(true);
+    // The grounded value + baseline still follow the verdict.
+    expect(text).toContain("72 bpm");
+    expect(text).toContain("64 bpm");
+    expect(text.toLowerCase()).toContain("usual average");
+  });
+
+  it("leads with a steady verdict when inside the usual swing (weight, en)", () => {
+    const text = getNoKeyWeightStatusText(
+      "en",
+      signal({
+        metric: "weight",
+        current: 80.4,
+        baseline: 80.3,
+        delta: 0.1,
+        outsideNormalSwing: false,
+        direction: "target-band",
+      }),
+    );
+    expect(text.startsWith("Steady and much as usual.")).toBe(true);
+    expect(text).toContain("80.4");
+    expect(text.toLowerCase()).toContain("nothing you need to act on");
+  });
+
+  it("leads with a favourable verdict when the move is in the good direction (de)", () => {
+    const text = getNoKeyMedicationComplianceStatusText(
+      "de",
+      signal({
+        metric: "adherence",
+        current: 94,
+        baseline: 80,
+        delta: 14,
+        outsideNormalSwing: true,
+        direction: "higher-better",
+      }),
+    );
+    expect(text.startsWith("Das geht in eine gute Richtung.")).toBe(true);
+    expect(text).toContain("94%");
+  });
+
+  it("opens on the value (no verdict) when there is no usable baseline (bp, de)", () => {
+    const text = getNoKeyBloodPressureStatusText(
+      "de",
+      signal({
+        metric: "blood pressure",
+        current: 128,
+        baseline: null,
+        delta: null,
+        outsideNormalSwing: null,
+        deltaPct: null,
+        spread: null,
+      }),
+    );
+    // No confident verdict without a baseline → the honest value-first opener.
+    expect(text.startsWith("Dein Blutdruck liegt aktuell bei 128")).toBe(true);
+    expect(text).not.toContain("Schnitt von");
+  });
 });

@@ -143,6 +143,30 @@ export function buildDeterministicNarrative(
   const sentences: string[] = [];
 
   const ranked = rankDeltas(context.metricDeltas).slice(0, 3);
+
+  // v1.28.40 — verdict-first: open on a one-line read of the period before the
+  // delta list, so the deterministic floor leads with meaning like the warm AI
+  // narrative beside it. No number is introduced — the movers and their figures
+  // follow in the next sentence.
+  const periodWordEn = context.period === "week" ? "week" : "month";
+  if (ranked.length > 0) {
+    sentences.push(
+      locale === "de"
+        ? context.period === "week"
+          ? "Eine Woche mit echter Bewegung."
+          : "Ein Monat mit echter Bewegung."
+        : `A ${periodWordEn} of real movement.`,
+    );
+  } else {
+    sentences.push(
+      locale === "de"
+        ? context.period === "week"
+          ? "Eine ruhige Woche."
+          : "Ein ruhiger Monat."
+        : `A calm ${periodWordEn}.`,
+    );
+  }
+
   if (ranked.length > 0) {
     const phrases = ranked.map((d) => deltaPhrase(d, locale));
     const joined =

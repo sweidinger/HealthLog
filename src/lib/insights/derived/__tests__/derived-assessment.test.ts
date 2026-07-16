@@ -230,6 +230,23 @@ describe("band → meaning enrichment (deterministic fallback)", () => {
     expect(a!.text.toLowerCase()).toContain("carry you well");
   });
 
+  // v1.28.40 — the band-meaning read now OPENS the assessment (verdict-first)
+  // instead of closing it, so the score card leads with meaning, e.g.
+  // "A middling day … — your readiness is 64/100 …".
+  it("leads with the band-meaning verdict BEFORE the score standing (en)", () => {
+    const a = resolveDeterministicAssessment(
+      "READINESS",
+      okDerived(readiness),
+      "en",
+      NOW,
+    );
+    // Yellow readiness meaning ("… usual load …") precedes the "64 out of 100".
+    expect(a!.text.indexOf("usual load")).toBeGreaterThanOrEqual(0);
+    expect(a!.text.indexOf("usual load")).toBeLessThan(
+      a!.text.indexOf("out of 100"),
+    );
+  });
+
   it("names BOTH a carry (green) AND the forward read (de)", () => {
     const a = resolveDeterministicAssessment(
       "SLEEP_SCORE",

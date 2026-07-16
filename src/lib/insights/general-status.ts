@@ -3,6 +3,8 @@ import {
   getGeneralStatusSystemPrompt,
   getGeneralStatusUserPrompt,
 } from "@/lib/ai/prompts/general-status";
+import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
+import type { Locale } from "@/lib/i18n/config";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
@@ -483,6 +485,8 @@ export async function prepareGeneralStatusForUser(
       locale,
       previousContextBlock,
       assessmentContextBlock,
+      // v1.28.40 — rotating opener hint, per (user, metric, day).
+      openerArchetypeHint(`${userId}:general:${todayKey}`, locale as Locale),
     ),
     snapshotHash,
     // v1.12.7 — match the archetype cards' 0.45.

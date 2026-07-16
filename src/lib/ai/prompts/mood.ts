@@ -33,6 +33,8 @@ export function getMoodUserPrompt(
   previousContextBlock?: string,
   /** v1.12.7 — diversity / anti-repetition context; see blood-pressure.ts. */
   assessmentContextBlock?: string,
+  /** v1.28.40 — rotating opener-archetype hint; see metric-archetypes.ts. */
+  openerHint?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
@@ -42,14 +44,18 @@ export function getMoodUserPrompt(
     assessmentContextBlock && assessmentContextBlock.trim().length > 0
       ? `\n\n${assessmentContextBlock}\n`
       : "";
+  const openerLine =
+    openerHint && openerHint.trim().length > 0
+      ? `\nOPENER HINT: ${openerHint}`
+      : "";
   if (locale === "en") {
-    return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's mood: name the recent level, place it against their own weekly/monthly baseline, and — when something is genuinely actionable — close with one kind, doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the entry count and recency.${ctxBlock}${extraBlock}
+    return `Date: ${todayKey} (Europe/Berlin)${openerLine}
+Write one short assessment of this person's mood. Open with what the recent pattern MEANS in plain words — the read, not the number (e.g. "a brighter stretch than usual", "steady, holding where it's been") — then bring in the recent level right after as support, placed against their own weekly/monthly baseline; never lead with the value. Close with one kind, doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the entry count and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
-  return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zur Stimmung dieser Person: benenne das jüngste Niveau, ordne es gegen die eigene Wochen-/Monats-Baseline ein und schließe — wenn etwas wirklich umsetzbar ist — mit einem freundlichen, machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Eintragsanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
+  return `Datum: ${todayKey} (Europe/Berlin)${openerLine}
+Schreibe eine kurze Einschätzung zur Stimmung dieser Person. Beginne mit der BEDEUTUNG des jüngsten Musters in klaren Worten — dem Eindruck, nicht der Zahl (z. B. "eine hellere Phase als sonst", "stabil, hält sich, wo sie war") — und bring danach das jüngste Niveau als Beleg, gegen die eigene Wochen-/Monats-Baseline eingeordnet; führe nie mit dem Wert. Schließe nur dann mit einem freundlichen, machbaren Schritt, wenn der Befund wirklich einen hergibt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Eintragsanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }
