@@ -26,6 +26,10 @@ import { withIdempotency } from "@/lib/idempotency";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { resolveOrMintBiomarker } from "@/lib/labs/biomarker-store";
 import { serialiseLabResult } from "@/lib/labs/serialise";
+import {
+  linkOcrLabsToVaultDocument,
+  type InsertedLabForLink,
+} from "@/lib/labs/vault-link";
 import { annotate } from "@/lib/logging/context";
 import {
   ocrCommitSchema,
@@ -121,6 +125,9 @@ async function commitOcrRows(request: NextRequest) {
 
   const inserted: ReturnType<typeof serialiseLabResult>[] = [];
   const skipped: OcrSkippedRowDto[] = [];
+  // S9 — the rows actually written, kept for the vault cross-link so a re-commit
+  // (every row a duplicate → nothing inserted) links nothing new.
+  const linkable: InsertedLabForLink[] = [];
   // Tracks the keys already written in THIS request so an in-document duplicate
   // is caught even before the prior row is visible to a live query. The
   // mint-then-create on a mid-row failure can leave an orphan biomarker, which
@@ -165,6 +172,28 @@ async function commitOcrRows(request: NextRequest) {
 
     writtenInBatch.add(key);
     inserted.push(serialiseLabResult(created, biomarker));
+    linkable.push({
+      labResultId: created.id,
+      analyte: created.analyte,
+      value: created.value,
+      valueText: created.valueText,
+      unit: created.unit,
+      referenceLow: created.referenceLow,
+      referenceHigh: created.referenceHigh,
+      takenAt: created.takenAt,
+    });
+  }
+
+  // S9 — cross-link the freshly inserted labs to the vault document the client
+  // filed the scanned bytes into. Best-effort: the labs are the authoritative
+  // write, so a link failure (module off, foreign / missing document) never
+  // fails the commit. Owner + module checks live inside the linker.
+  if (parsed.data.documentId && linkable.length > 0) {
+    await linkOcrLabsToVaultDocument(
+      user.id,
+      parsed.data.documentId,
+      linkable,
+    ).catch(() => {});
   }
 
   await auditLog("labs.ocr.commit", {

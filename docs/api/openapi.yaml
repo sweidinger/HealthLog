@@ -8029,6 +8029,10 @@ paths:
                     required:
                       - analyte
                       - takenAt
+                documentId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
               required:
                 - rows
       responses:

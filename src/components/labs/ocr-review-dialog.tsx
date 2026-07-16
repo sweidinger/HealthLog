@@ -108,6 +108,10 @@ export function OcrReviewDialog({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [stage, setStage] = useState<Stage>("pick");
   const [rows, setRows] = useState<OcrReviewRow[]>([]);
+  // S9 — in vision mode the picked file is retained so, on commit, it can be
+  // filed into the Documents vault and cross-linked to the committed labs. Text
+  // mode keeps the image on-device, so nothing is retained there.
+  const [pickedFile, setPickedFile] = useState<File | null>(null);
 
   // Text mode OCR's the image in the browser then POSTs the text; vision mode
   // uploads the image. Both resolve with the same proposed-rows DTO.
@@ -126,6 +130,7 @@ export function OcrReviewDialog({
   function reset() {
     setStage("pick");
     setRows([]);
+    setPickedFile(null);
     extract.reset();
     commit.reset();
   }
@@ -136,6 +141,8 @@ export function OcrReviewDialog({
   }
 
   function onFilePicked(file: File) {
+    // Retain the source only for vision mode (text mode never sends the image).
+    setPickedFile(mode === "vision" ? file : null);
     extract.mutate(file, {
       onSuccess: (data) => {
         const seeded = seedReviewRows(data.rows, data.reportDate);
@@ -159,16 +166,19 @@ export function OcrReviewDialog({
       toast.error(t("labs.ocr.nothingToSave"));
       return;
     }
-    commit.mutate(payload, {
-      onSuccess: (result) => {
-        toast.success(
-          t("labs.ocr.savedToast", { count: result.inserted.length }),
-        );
-        onCommitted();
-        handleClose(false);
+    commit.mutate(
+      { rows: payload, file: pickedFile },
+      {
+        onSuccess: (result) => {
+          toast.success(
+            t("labs.ocr.savedToast", { count: result.inserted.length }),
+          );
+          onCommitted();
+          handleClose(false);
+        },
+        onError: () => toast.error(t("labs.ocr.saveFailed")),
       },
-      onError: () => toast.error(t("labs.ocr.saveFailed")),
-    });
+    );
   }
 
   const busy = extract.isPending || commit.isPending;

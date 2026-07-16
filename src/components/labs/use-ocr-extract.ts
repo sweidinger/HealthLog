@@ -115,15 +115,55 @@ export function useUpdateLabsLocalOcr() {
   });
 }
 
+/** The commit payload: the confirmed rows plus, in vision mode, the source file. */
+export interface OcrCommitInput {
+  rows: OcrCommitRowInput[];
+  /**
+   * S9 — the scanned file, threaded from the vision-mode extract. When present
+   * (and the documents module is on) it is filed into the Documents vault and
+   * the committed labs are cross-linked to it. Absent in text mode, where the
+   * image stays on-device.
+   */
+  file?: File | null;
+}
+
+/**
+ * S9 — file the scanned bytes into the Documents vault (kind LAB_RESULT) via the
+ * existing upload endpoint (encrypted at rest, EXIF-stripped, thumbnailed,
+ * sha256-deduped). Best-effort: a module-off account 403s and a re-scan dedupes,
+ * so any failure resolves to `undefined` and the commit proceeds unlinked.
+ */
+async function fileScanToVault(file: File): Promise<string | undefined> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("kind", "LAB_RESULT");
+  const doc = await apiFetch<{ id: string }>("/api/documents/inbound", {
+    method: "POST",
+    body: form,
+  });
+  return doc?.id;
+}
+
 /** Commit the confirmed rows and invalidate the dependent reads. */
 export function useOcrCommit() {
   const queryClient = useQueryClient();
-  return useMutation<OcrCommitResult, Error, OcrCommitRowInput[]>({
-    mutationFn: (rows: OcrCommitRowInput[]) =>
-      apiPost<OcrCommitResult>("/api/labs/ocr/commit", { rows }),
-    onSuccess: () => {
+  return useMutation<OcrCommitResult, Error, OcrCommitInput>({
+    mutationFn: async ({ rows, file }: OcrCommitInput) => {
+      const documentId = file
+        ? await fileScanToVault(file).catch(() => undefined)
+        : undefined;
+      return apiPost<OcrCommitResult>("/api/labs/ocr/commit", {
+        rows,
+        ...(documentId ? { documentId } : {}),
+      });
+    },
+    onSuccess: (_result, { file }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
       queryClient.invalidateQueries({ queryKey: queryKeys.biomarkers() });
+      // A scan filed into the vault adds a document — refresh its lists.
+      if (file) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.documents() });
+      }
     },
   });
 }
