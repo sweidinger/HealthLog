@@ -21,6 +21,7 @@ import { readDashboardSnapshotCached } from "@/lib/dashboard/snapshot-read";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
+import { userDayKey } from "@/lib/tz/format";
 import {
   buildDailyDigest,
   type DailyDigest,
@@ -145,6 +146,16 @@ export async function loadDailyDigest(
   const sleepSlot = snapshot.tiles.lastSeenByType["SLEEP_DURATION"];
   const sleepLastSeenDaysAgo = sleepSlot ? sleepSlot.daysAgo : null;
 
+  // S4 freshness (§E) — the day is `final` once the sleep-arrival morning
+  // refresh has stamped `User.morningDigestRefreshedOn` with the user's current
+  // local date (profile tz). Read fresh off the row here, so it flips the
+  // instant the refresh job runs — ahead of the snapshot cache that feeds
+  // `sleepLastSeenDaysAgo`.
+  const todayLocalDate = userDayKey(now, user.timezone);
+  const morningRefreshedToday =
+    user.morningDigestRefreshedOn !== null &&
+    user.morningDigestRefreshedOn === todayLocalDate;
+
   const syncIssues: DailyDigestSyncIssue[] = syncRows.map((row) => ({
     integration: row.integration,
     state: row.state,
@@ -171,6 +182,7 @@ export async function loadDailyDigest(
       briefing: snapshot.briefing,
       medsToday: snapshot.medsToday,
       sleepLastSeenDaysAgo,
+      morningRefreshedToday,
       syncIssues,
       preventiveDue,
       coachPlans,

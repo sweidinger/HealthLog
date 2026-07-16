@@ -53,6 +53,7 @@ function input(over: Partial<DailyDigestInput> = {}): DailyDigestInput {
     briefing,
     medsToday: meds(),
     sleepLastSeenDaysAgo: 0,
+    morningRefreshedToday: false,
     syncIssues: [],
     preventiveDue: [],
     coachPlans: [],
@@ -150,6 +151,34 @@ describe("buildDailyDigest — freshness (provisional/final)", () => {
     );
     expect(d.phase).toBe("final");
     expect(d.sleepPending).toBe(false);
+  });
+
+  it("the morning-refresh marker finalises the day even while the snapshot's sleep last-seen is still stale (S4 fast path)", () => {
+    // Sleep last-seen still lags at 1 day (snapshot cache not yet expired), but
+    // the sleep-arrival refresh has stamped the marker for today — the digest
+    // must read `final` immediately off the authoritative marker.
+    const provisional = buildDailyDigest(
+      input({ sleepLastSeenDaysAgo: 1, morningRefreshedToday: false }),
+      t,
+    );
+    expect(provisional.phase).toBe("provisional");
+    expect(provisional.sleepPending).toBe(true);
+
+    const finalised = buildDailyDigest(
+      input({ sleepLastSeenDaysAgo: 1, morningRefreshedToday: true }),
+      t,
+    );
+    expect(finalised.phase).toBe("final");
+    expect(finalised.sleepPending).toBe(false);
+  });
+
+  it("stays provisional when sleep never arrives (no marker, no reading)", () => {
+    const d = buildDailyDigest(
+      input({ sleepLastSeenDaysAgo: null, morningRefreshedToday: false }),
+      t,
+    );
+    expect(d.phase).toBe("provisional");
+    expect(d.sleepPending).toBe(true);
   });
 });
 

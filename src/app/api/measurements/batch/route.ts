@@ -64,6 +64,7 @@ import { deviceTypeEnum } from "@/lib/validations/source-priority";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
@@ -764,6 +765,22 @@ async function postBatch(request: NextRequest): Promise<Response> {
     } catch (err) {
       console.warn("[measurements] rollup recompute failed", err);
     }
+
+    // S4 — Apple-Health sleep is the third sleep transport. If any SLEEP_DURATION
+    // row for last night just landed, kick the debounced morning refresh so the
+    // digest/score finalise with the current sleep. The trigger judges "last
+    // night" in the user's profile tz, so a historical Apple export replaying
+    // months of nights never re-triggers for an old night. Fire-and-forget.
+    void maybeEnqueueMorningRefresh(
+      user.id,
+      prepared
+        .filter((p) => p.row.type === "SLEEP_DURATION")
+        .map((p) =>
+          p.row.measuredAt instanceof Date
+            ? p.row.measuredAt
+            : new Date(p.row.measuredAt as string),
+        ),
+    ).catch(() => {});
   }
 
   return apiSuccess({

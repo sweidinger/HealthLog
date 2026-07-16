@@ -25,6 +25,7 @@ import {
   sweepStaleSleepSegments,
   type SleepSegmentSweep,
 } from "@/lib/sleep/sweep-stale-segments";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 
 import { fetchSleeps, fetchSleepById, mapSleep } from "./client";
 import {
@@ -95,6 +96,15 @@ export async function syncUserSleep(
 
   const imported = await upsertWhoopMeasurements(userId, readings);
   await markResourceSynced(userId, "sleep");
+
+  // S4 — trigger the debounced morning refresh on a last-night segment landing.
+  void maybeEnqueueMorningRefresh(
+    userId,
+    readings
+      .filter((r) => r.type === "SLEEP_DURATION")
+      .map((r) => r.measuredAt),
+  ).catch(() => {});
+
   return imported;
 }
 
@@ -142,5 +152,16 @@ export async function syncWhoopSleepById(
     { prefix: `${record.id}:`, keepIds },
   ]);
 
-  return upsertWhoopMeasurements(userId, readings);
+  const imported = await upsertWhoopMeasurements(userId, readings);
+
+  // S4 — a webhook-driven single-record refresh is the freshest possible
+  // last-night signal; kick the debounced morning refresh on its segments.
+  void maybeEnqueueMorningRefresh(
+    userId,
+    readings
+      .filter((r) => r.type === "SLEEP_DURATION")
+      .map((r) => r.measuredAt),
+  ).catch(() => {});
+
+  return imported;
 }

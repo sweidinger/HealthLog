@@ -25,6 +25,11 @@ import {
   type InsightPregeneratePayload,
 } from "@/lib/jobs/insight-pregenerate";
 import {
+  MORNING_DIGEST_REFRESH_QUEUE,
+  runMorningDigestRefresh,
+  type MorningDigestRefreshPayload,
+} from "@/lib/jobs/morning-digest-refresh";
+import {
   RECOVERY_SCORE_QUEUE,
   RECOVERY_SCORE_CRON,
   runRecoveryScore,
@@ -154,6 +159,11 @@ const allQueues = [
   // provisions the queue and the enqueue silently drops. No cron schedule —
   // a send-only queue driven by navigation.
   INSIGHT_STATUS_GENERATE_QUEUE,
+  // S4 — event-driven morning digest refresh, enqueued by the sleep-arrival
+  // trigger when last night's completed sleep lands. No cron schedule — a
+  // send-only queue driven by sleep ingest; without this entry pg-boss never
+  // provisions the queue and every enqueue silently drops.
+  MORNING_DIGEST_REFRESH_QUEUE,
   // v1.10.0 — computed scores (WX-C / WX-E). Nightly Recovery / Stress /
   // Strain compute + store. The queue MUST be registered here or pg-boss
   // never provisions it and the nightly schedule silently never fires.
@@ -294,6 +304,38 @@ export async function registerStatusQueues(
     INSIGHT_PREGENERATE_QUEUE,
     { localConcurrency: 2 },
     handleInsightPregenerateJob,
+  );
+  // S4 — event-driven morning digest refresh. One forced comprehensive
+  // regeneration per user per local morning, enqueued by the sleep-arrival
+  // trigger. Single-flight: the enqueue-side singletonKey already collapses a
+  // night's samples into one job, and the handler's marker re-check makes a
+  // rare double-fire a no-op, so one slot is enough and bounds the provider
+  // concurrency the same way the nightly path does.
+  await boss.work<MorningDigestRefreshPayload>(
+    MORNING_DIGEST_REFRESH_QUEUE,
+    { localConcurrency: 1 },
+    async (jobs) => {
+      await withBackgroundEvent("job.morning_digest_refresh", async (evt) => {
+        for (const job of jobs) {
+          try {
+            const result = await runMorningDigestRefresh(
+              getWorkerPrisma(),
+              job.data,
+            );
+            evt.addMeta(
+              "morning_refresh",
+              `${result.status}:${result.comprehensive ?? "none"}`,
+            );
+          } catch (err) {
+            recordError();
+            workerLog("error", "[morning-digest-refresh] pass failed", err);
+            // Rethrow so the queue's retry policy re-runs the refresh; the
+            // marker re-check keeps a retry idempotent.
+            throw err;
+          }
+        }
+      });
+    },
   );
   // v1.8.3 — on-demand per-metric status generation enqueued by the
   // read-only status route on a cold card. Low concurrency so a first

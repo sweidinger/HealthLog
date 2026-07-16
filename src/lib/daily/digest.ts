@@ -121,6 +121,16 @@ export interface DailyDigestInput {
   medsToday: MedsTodayBlock;
   /** Days since the freshest sleep reading; null when never recorded. */
   sleepLastSeenDaysAgo: number | null;
+  /**
+   * S4 freshness (§E) — whether the event-driven morning refresh has already
+   * run for the user's CURRENT local date. Derived in the IO seam by comparing
+   * `User.morningDigestRefreshedOn` against today's local date (profile tz):
+   * `true` once last night's sleep arrived AND the sleep-dependent generation
+   * was re-run with it. This is the authoritative `final` signal — it flips
+   * immediately on the refresh, before the snapshot cache (which feeds
+   * `sleepLastSeenDaysAgo`) has expired.
+   */
+  morningRefreshedToday: boolean;
   syncIssues: DailyDigestSyncIssue[];
   preventiveDue: DailyDigestPreventiveDue[];
   /** Standing coach plans (active + reviewed) — check-in candidates (§2.3). */
@@ -348,11 +358,21 @@ export function buildDailyDigest(
   input: DailyDigestInput,
   t: Translate,
 ): DailyDigest {
+  // §E freshness lifecycle. The day is `final` once ANY of:
+  //   - sleep is disabled (nothing to wait for);
+  //   - the event-driven morning refresh has run for today (authoritative,
+  //     fast — flips the instant the sleep-arrival job stamps the marker);
+  //   - last night's sleep is already visibly in the record (`daysAgo === 0`) —
+  //     the eventual-consistency backstop for when the refresh job never ran
+  //     (no boss worker / keyless self-hoster) but the snapshot has caught up.
+  // Otherwise it stays `provisional`, and `sleepPending` drives the honest
+  // "last night's sleep not yet in" note.
   const sleepEnabled = moduleEnabled(input.modules, "sleep");
-  const sleepPending =
-    sleepEnabled &&
-    (input.sleepLastSeenDaysAgo === null || input.sleepLastSeenDaysAgo >= 1);
-  const phase: DailyDigest["phase"] = sleepPending ? "provisional" : "final";
+  const lastNightSleepIn = input.sleepLastSeenDaysAgo === 0;
+  const isFinal =
+    !sleepEnabled || input.morningRefreshedToday || lastNightSleepIn;
+  const sleepPending = sleepEnabled && !isFinal;
+  const phase: DailyDigest["phase"] = isFinal ? "final" : "provisional";
 
   const topSignal = input.briefing?.signalsOfDay?.[0] ?? null;
   const briefingLead = firstSentence(input.briefing?.paragraph);
