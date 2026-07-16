@@ -7751,12 +7751,12 @@
       "RECOVERY_SCORE": "Recovery",
       "OXYGEN_SATURATION": "Saturation en oxygène",
       "BODY_TEMPERATURE": "Température corporelle",
-      "SKIN_TEMPERATURE": "Température cutanée",
       "RESPIRATORY_RATE": "Fréquence respiratoire",
       "BLOOD_PRESSURE_SYS": "Pression artérielle systolique",
       "BLOOD_PRESSURE_DIA": "Pression artérielle diastolique",
       "PULSE": "Pulse",
-      "WEIGHT": "Weight"
+      "WEIGHT": "Weight",
+      "FUNCTIONAL_IMPACT": "Retentissement fonctionnel"
     },
     "listLoadError": "Impossible de charger vos épisodes."
   },

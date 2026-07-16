@@ -7751,12 +7751,12 @@
       "RECOVERY_SCORE": "Recovery",
       "OXYGEN_SATURATION": "Saturacja tlenem",
       "BODY_TEMPERATURE": "Temperatura ciała",
-      "SKIN_TEMPERATURE": "Temperatura skóry",
       "RESPIRATORY_RATE": "Częstość oddechów",
       "BLOOD_PRESSURE_SYS": "Ciśnienie skurczowe",
       "BLOOD_PRESSURE_DIA": "Ciśnienie rozkurczowe",
       "PULSE": "Pulse",
-      "WEIGHT": "Weight"
+      "WEIGHT": "Weight",
+      "FUNCTIONAL_IMPACT": "Wpływ na funkcjonowanie"
     },
     "listLoadError": "Nie udało się załadować epizodów."
   },
