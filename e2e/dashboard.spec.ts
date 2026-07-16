@@ -130,6 +130,31 @@ test.describe("authenticated dashboard render", () => {
                   },
                 ],
               },
+              // S3 — a coach check-in card (keep / adjust / let-go). Rendered
+              // only; the mutating taps PATCH the plan route, which this spec
+              // never clicks, so it stays green without a plan-route stub.
+              {
+                kind: "coach_checkin",
+                title: "Time to check in on a plan",
+                body: "About a week ago you set: “every morning → weigh in”.",
+                status: "info",
+                moduleKey: "coach",
+                actions: [
+                  {
+                    labelKey: "daily.action.checkinKeep",
+                    intent: "coach.checkin.keep:p1",
+                  },
+                  {
+                    labelKey: "daily.action.checkinAdjust",
+                    intent: "coach.checkin.adjust",
+                    href: "/coach",
+                  },
+                  {
+                    labelKey: "daily.action.checkinLetGo",
+                    intent: "coach.checkin.letGo:p1",
+                  },
+                ],
+              },
             ],
           },
           error: null,

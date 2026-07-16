@@ -315,7 +315,68 @@ describe("PATCH /api/coach/plans/[id]", () => {
     expect(arg.where.id).toBe("p1");
     expect(arg.where.userId).toBe("user-1");
     expect(arg.where.deletedAt).toBeNull();
-    // Only the lifecycle field is written — never metric / encrypted text.
+    // S3 (§2.3.1): activating a plan the coach never dated defaults a review
+    // checkpoint ~7d out. Only lifecycle fields are written (status +
+    // reviewDate) — never metric / encrypted text (no mass assignment).
+    expect(new Set(Object.keys(arg.data))).toEqual(
+      new Set(["status", "reviewDate"]),
+    );
+    expect(arg.data.status).toBe("active");
+    expect(arg.data.reviewDate).toBeInstanceOf(Date);
+    const days =
+      ((arg.data.reviewDate as Date).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(6.5);
+    expect(days).toBeLessThan(7.5);
+  });
+
+  it("does NOT clobber a review date the caller pinned on activate", async () => {
+    vi.mocked(prisma.coachPlan.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    vi.mocked(prisma.coachPlan.findFirst).mockResolvedValue({
+      id: "p1",
+      metric: "WEIGHT",
+      ifCueEncrypted: bytes("every morning"),
+      thenActionEncrypted: bytes("weigh in"),
+      targetEncrypted: null,
+      status: "active",
+      reviewDate: new Date("2026-08-01T00:00:00Z"),
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+      updatedAt: new Date("2026-06-03T00:00:00Z"),
+    } as never);
+
+    const res = await callPatch({
+      status: "active",
+      reviewDate: "2026-08-01T00:00:00.000Z",
+    });
+    expect(res.status).toBe(200);
+    const arg = vi.mocked(prisma.coachPlan.updateMany).mock.calls[0]?.[0] as {
+      data: { reviewDate: Date };
+    };
+    // The pinned date is honoured verbatim, not the +7d default.
+    expect(arg.data.reviewDate.toISOString()).toBe("2026-08-01T00:00:00.000Z");
+  });
+
+  it("does NOT default a review date when marking a plan met", async () => {
+    vi.mocked(prisma.coachPlan.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    vi.mocked(prisma.coachPlan.findFirst).mockResolvedValue({
+      id: "p1",
+      metric: "WEIGHT",
+      ifCueEncrypted: bytes("every morning"),
+      thenActionEncrypted: bytes("weigh in"),
+      targetEncrypted: null,
+      status: "met",
+      reviewDate: null,
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+      updatedAt: new Date("2026-06-03T00:00:00Z"),
+    } as never);
+
+    await callPatch({ status: "met" });
+    const arg = vi.mocked(prisma.coachPlan.updateMany).mock.calls[0]?.[0] as {
+      data: Record<string, unknown>;
+    };
     expect(Object.keys(arg.data)).toEqual(["status"]);
   });
 

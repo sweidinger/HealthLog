@@ -8518,12 +8518,20 @@
       "syncIssue": {
         "title": "La sincronizzazione richiede attenzione",
         "body": "{integration} non si sincronizza — riconnettilo per mantenere aggiornati i tuoi dati."
+      },
+      "coachCheckin": {
+        "title": "È il momento di rivedere un piano",
+        "body": "È passata circa una settimana da quando hai definito questo piano: mantienilo, modificalo o lascialo andare. Senza pressioni.",
+        "bodyPlan": "Circa una settimana fa ti eri proposto: «{plan}». Mantienilo, modificalo o lascialo andare, senza pressioni."
       }
     },
     "action": {
       "logDose": "Registra dose",
       "reconnect": "Riconnetti",
-      "viewCheckups": "Vedi controlli"
+      "viewCheckups": "Vedi controlli",
+      "checkinKeep": "Mantieni",
+      "checkinAdjust": "Modifica",
+      "checkinLetGo": "Lascia andare"
     },
     "today": {
       "scoreLabel": "Punteggio di salute",

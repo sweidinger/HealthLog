@@ -8518,12 +8518,20 @@
       "syncIssue": {
         "title": "Synchronisierung braucht Aufmerksamkeit",
         "body": "{integration} synchronisiert nicht — verbinde neu, um deine Daten aktuell zu halten."
+      },
+      "coachCheckin": {
+        "title": "Zeit, einen Plan anzuschauen",
+        "body": "Es ist etwa eine Woche her, seit du diesen Plan gesetzt hast — behalte ihn, passe ihn an oder lass ihn los. Ganz ohne Druck.",
+        "bodyPlan": "Vor etwa einer Woche hast du dir vorgenommen: „{plan}“. Behalte es, passe es an oder lass es los — ganz ohne Druck."
       }
     },
     "action": {
       "logDose": "Dosis erfassen",
       "reconnect": "Neu verbinden",
-      "viewCheckups": "Vorsorge ansehen"
+      "viewCheckups": "Vorsorge ansehen",
+      "checkinKeep": "Behalten",
+      "checkinAdjust": "Anpassen",
+      "checkinLetGo": "Loslassen"
     },
     "today": {
       "scoreLabel": "Gesundheitsscore",

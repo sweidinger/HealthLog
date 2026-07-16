@@ -36,9 +36,14 @@ import { ScoreRing } from "@/components/insights/derived/score-ring";
 import type { ScoreBand } from "@/components/insights/derived/band-tokens";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { PriorityCard } from "@/components/daily/priority-card";
+import { useCoachCheckinAction } from "@/hooks/use-coach-checkin";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-import type { DailyDigest } from "@/lib/daily/digest";
+import {
+  COACH_CHECKIN_KEEP_INTENT,
+  COACH_CHECKIN_LETGO_INTENT,
+  type DailyDigest,
+} from "@/lib/daily/digest";
 
 /** Format the server-computed score delta as a signed, muted chip string. */
 function formatDelta(
@@ -53,6 +58,21 @@ function formatDelta(
 
 export function TodayHero({ digest }: { digest: DailyDigest }) {
   const { t } = useTranslations();
+  const { keep, letGo } = useCoachCheckinAction();
+
+  // The coach check-in card's keep / let-go intents carry the plan id after the
+  // ":" (a closed two-intent allowlist); adjust is an href handled by the card
+  // as a <Link>, so it never lands here. Every other rail kind is pure
+  // navigation (dose / sync / preventive), so their taps never call this.
+  const handleAction = (intent: string) => {
+    const keepPrefix = `${COACH_CHECKIN_KEEP_INTENT}:`;
+    const letGoPrefix = `${COACH_CHECKIN_LETGO_INTENT}:`;
+    if (intent.startsWith(keepPrefix)) {
+      keep.mutate(intent.slice(keepPrefix.length));
+    } else if (intent.startsWith(letGoPrefix)) {
+      letGo.mutate(intent.slice(letGoPrefix.length));
+    }
+  };
 
   const hasScore = digest.score !== null;
   const hasItems = digest.worthALook.length > 0;
@@ -174,7 +194,11 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {digest.worthALook.map((item, i) => (
-                <PriorityCard key={`${item.kind}-${i}`} item={item} />
+                <PriorityCard
+                  key={`${item.kind}-${i}`}
+                  item={item}
+                  onAction={handleAction}
+                />
               ))}
             </div>
           </div>

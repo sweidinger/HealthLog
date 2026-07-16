@@ -8518,12 +8518,20 @@
       "syncIssue": {
         "title": "Sync needs attention",
         "body": "{integration} isn't syncing — reconnect to keep your data current."
+      },
+      "coachCheckin": {
+        "title": "Time to check in on a plan",
+        "body": "It's been about a week since you set this plan — keep it, adjust it, or let it go. No pressure either way.",
+        "bodyPlan": "About a week ago you set: “{plan}”. Keep it, adjust it, or let it go — no pressure either way."
       }
     },
     "action": {
       "logDose": "Log dose",
       "reconnect": "Reconnect",
-      "viewCheckups": "View check-ups"
+      "viewCheckups": "View check-ups",
+      "checkinKeep": "Keep it",
+      "checkinAdjust": "Adjust",
+      "checkinLetGo": "Let it go"
     },
     "today": {
       "scoreLabel": "Health score",
