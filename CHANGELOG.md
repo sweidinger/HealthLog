@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.28.49] — 2026-07-16 — Apple Health re-import no longer stops on a duplicate reading
+
+Re-importing a cumulative export.zip could run for several minutes and then fail
+outright on a unique-constraint error when two readings shared the same time,
+type, and source but carried different internal ids — a single such reading
+aborted the whole import. The importer now recognises that case: it updates the
+existing reading in place (and brings back one that had been removed) instead of
+failing, and if it still can't place a single reading it skips just that one and
+carries on. A re-import completes cleanly.
+
 ## [1.28.48] — 2026-07-16 — Security follow-ups
 
 Two fixes from the campaign's security re-verification:
