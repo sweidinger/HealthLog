@@ -72,6 +72,19 @@ export const insightsKeys = {
    */
   insightsRhythmEvents: () => ["insights", "rhythm-events"] as const,
   /**
+   * v1.28.50 — ECG recording surface. The metadata list
+   * (`/api/insights/ecg`) and the per-recording waveform detail
+   * (`/api/insights/ecg/[id]`). The detail key carries the recording id
+   * plus a `full` discriminant so the fit-to-width overview waveform and
+   * the raw `?full=1` true-calibration array cache independently and never
+   * poison each other (same key + different sample density would). Both
+   * sit under the `["insights"]` prefix so a sync that lands a new
+   * recording busts them via the standard insights invalidation fan-out.
+   */
+  insightsEcgList: () => ["insights", "ecg"] as const,
+  insightsEcgDetail: (id: string, full: boolean) =>
+    ["insights", "ecg", id, full ? "full" : "overview"] as const,
+  /**
    * v1.10.0 — derived-wellness metrics. One generic route
    * (`/api/insights/derived?metric=…[&type=…]`) backs the vitals
    * dashboard tiles, the composite score-anatomy view, and the home

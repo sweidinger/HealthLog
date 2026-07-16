@@ -3834,6 +3834,36 @@
         "cta": "Registrar índice cintura-altura"
       },
       "coachPrefill": "Aún no he registrado un índice cintura-altura: ¿por qué es un número útil y cómo lo mantengo por debajo de 0,5?"
+    },
+    "ecg": {
+      "sectionTitle": "Registros de ECG",
+      "sectionIntro": "Tiras de ECG de una sola derivación registradas por tu dispositivo. HealthLog solo muestra el registro y el resultado que produjo tu dispositivo; no lee ni interpreta la onda.",
+      "loadError": "No se pudieron cargar tus registros de ECG.",
+      "backToList": "Volver a los registros",
+      "disclaimer": "Este es el resultado que produjo tu dispositivo de registro. HealthLog no lee ni interpreta los registros de ECG y no proporciona un diagnóstico.",
+      "clinicianNote": "Si este resultado te preocupa, comenta este registro con un profesional médico.",
+      "resultAttribution": "Resultado registrado: {result}, según lo informado por el dispositivo de registro.",
+      "result": {
+        "irregular": "Fibrilación auricular detectada",
+        "notDetected": "Sin signos de fibrilación auricular",
+        "inconclusive": "Registro no concluyente",
+        "none": "Sin resultado informado"
+      },
+      "meta": {
+        "recorded": "Registrado",
+        "duration": "Duración",
+        "lead": "Derivación",
+        "averageHeartRate": "Frecuencia cardíaca media",
+        "samplingRate": "Frecuencia de muestreo",
+        "leadSingle": "Una sola derivación (derivación I)",
+        "durationValue": "{seconds} s",
+        "bpmValue": "{bpm} bpm",
+        "hzValue": "{hz} Hz",
+        "unknown": "—"
+      },
+      "waveform": {
+        "ariaLabel": "Tira de ECG registrada el {date}, duración {duration}, frecuencia cardíaca media {heartRate}, resultado registrado: {result}."
+      }
     }
   },
   "thresholds": {

@@ -1003,3 +1003,135 @@ const insightCard = z
 export const insightsCardsResponse = z
   .array(insightCard)
   .meta({ id: "InsightsCardsResponse" });
+
+// v1.28.50 — ECG recording surface. The device's own AFib verdict, verbatim.
+// Only three RhythmClassification values occur for an ECG strip; the field is
+// nullable when the source omitted a classification.
+const ecgClassification = z
+  .enum(["IRREGULAR", "NOT_DETECTED", "INCONCLUSIVE"])
+  .nullable()
+  .describe(
+    "The RECORDING DEVICE's own rhythm classification, surfaced verbatim: IRREGULAR (device flagged possible atrial fibrillation), NOT_DETECTED (algorithm ran, nothing flagged), INCONCLUSIVE (poor signal / out-of-range HR). Null when the source reported none. HealthLog never re-classifies an ECG — this is the device's certified on-device result, not a HealthLog verdict.",
+  );
+
+const ecgRecordingListItem = z
+  .object({
+    id: z.string().describe("Recording id (cuid)."),
+    recordedAt: z.iso
+      .datetime({ offset: true })
+      .describe("On-device recording time (the display timestamp)."),
+    durationSeconds: z
+      .number()
+      .nullable()
+      .describe(
+        "`sampleCount / samplingFrequency` in seconds; null when the source omitted the sampling frequency.",
+      ),
+    samplingFrequency: z
+      .number()
+      .int()
+      .describe(
+        "Signal sampling rate in Hz (Withings ScanWatch = 300); 0 when the source omitted it.",
+      ),
+    sampleCount: z
+      .number()
+      .int()
+      .describe("Number of samples in the (encrypted) waveform array."),
+    averageHeartRate: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "Source-reported average heart rate (BPM) for the strip, when present.",
+      ),
+    lead: z
+      .string()
+      .nullable()
+      .describe(
+        "Recording lead label when the source reports it; null for the single-lead ScanWatch (Lead I).",
+      ),
+    classification: ecgClassification,
+    source: z
+      .string()
+      .describe("Measurement source that wrote the recording (e.g. WITHINGS)."),
+    hasWaveform: z
+      .boolean()
+      .describe(
+        "True when a waveform is stored (`sampleCount > 0`); false for a verdict-only fallback event with no signal to fetch.",
+      ),
+  })
+  .meta({ id: "EcgRecordingListItem" });
+
+export const ecgListResponse = z
+  .object({
+    recordings: z
+      .array(ecgRecordingListItem)
+      .describe("The user's ECG recordings, newest first (capped at 200)."),
+    hasRecordings: z
+      .boolean()
+      .describe(
+        "False for an account with no recordings — the client un-mounts the whole ECG surface (data-availability floor).",
+      ),
+  })
+  .meta({
+    id: "EcgListResponse",
+    description:
+      "Metadata-only ECG recording list. Never carries the waveform — the per-recording strip is fetched on demand from GET /api/insights/ecg/{id}. Read-only; no LLM call. Reflects only the device's own classification, never a HealthLog interpretation.",
+  });
+
+export const ecgDetailQuery = z
+  .object({
+    full: z
+      .literal("1")
+      .optional()
+      .describe(
+        "`1` returns the RAW, un-decimated sample array (the true-calibration 25 mm/s · 10 mm/mV zoom view). Omitted returns the min/max-decimated ~2500-point fit-to-width overview (`decimated: true`).",
+      ),
+  })
+  .meta({ id: "EcgDetailQuery" });
+
+export const ecgDetailResponse = z
+  .object({
+    recordedAt: z.iso
+      .datetime({ offset: true })
+      .describe("On-device recording time (the display timestamp)."),
+    durationSeconds: z
+      .number()
+      .nullable()
+      .describe(
+        "Strip duration in seconds; null when the sampling frequency was 0.",
+      ),
+    samplingFrequency: z
+      .number()
+      .int()
+      .describe("Signal sampling rate in Hz (300 for a ScanWatch)."),
+    averageHeartRate: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "Source-reported average heart rate (BPM) for the strip, when present.",
+      ),
+    lead: z
+      .string()
+      .nullable()
+      .describe(
+        "Recording lead label when reported; null for the single-lead ScanWatch (Lead I).",
+      ),
+    classification: ecgClassification,
+    source: z.string().describe("Measurement source that wrote the recording."),
+    samples: z
+      .array(z.number())
+      .describe(
+        "Micro-volt waveform samples. Min/max-decimated to ~2500 points by default so R-wave peaks survive the fit-to-width compression; the raw array when `?full=1`. The x-position of each sample is implied by its index (an overview trace, not a calibrated-time axis) unless `decimated` is false.",
+      ),
+    decimated: z
+      .boolean()
+      .describe(
+        "True when `samples` was min/max-decimated for display; false when the raw array is returned (`?full=1`, or a strip already at or below the display budget).",
+      ),
+  })
+  .meta({
+    id: "EcgDetailResponse",
+    description:
+      "One ECG recording's decrypted waveform plus metadata and the DEVICE's verbatim classification. Ownership is narrowed in the query where — a foreign / unknown id 404s. The waveform is AES-256-GCM at rest, decrypted through the fail-closed codec. HealthLog does not interpret the trace, measure intervals, annotate beats, or emit a verdict of its own. no-store.",
+  });

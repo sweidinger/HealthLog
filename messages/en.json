@@ -3834,6 +3834,36 @@
         "cta": "Log waist-to-height ratio"
       },
       "coachPrefill": "I haven't logged a waist-to-height ratio yet — why is it a useful number, and how do I keep it under 0.5?"
+    },
+    "ecg": {
+      "sectionTitle": "ECG recordings",
+      "sectionIntro": "Single-lead ECG strips recorded by your device. HealthLog only shows the recording and the result your device produced — it does not read or interpret the waveform.",
+      "loadError": "Could not load your ECG recordings.",
+      "backToList": "Back to recordings",
+      "disclaimer": "This is the result your recording device produced. HealthLog does not read or interpret ECG recordings and does not provide a diagnosis.",
+      "clinicianNote": "If this result concerns you, discuss this recording with a clinician.",
+      "resultAttribution": "Recorded result: {result}, as reported by the recording device.",
+      "result": {
+        "irregular": "Atrial fibrillation detected",
+        "notDetected": "No signs of atrial fibrillation",
+        "inconclusive": "Inconclusive recording",
+        "none": "No result reported"
+      },
+      "meta": {
+        "recorded": "Recorded",
+        "duration": "Duration",
+        "lead": "Lead",
+        "averageHeartRate": "Average heart rate",
+        "samplingRate": "Sampling rate",
+        "leadSingle": "Single lead (Lead I)",
+        "durationValue": "{seconds} s",
+        "bpmValue": "{bpm} bpm",
+        "hzValue": "{hz} Hz",
+        "unknown": "—"
+      },
+      "waveform": {
+        "ariaLabel": "ECG strip recorded {date}, duration {duration}, average heart rate {heartRate}, recorded result: {result}."
+      }
     }
   },
   "thresholds": {

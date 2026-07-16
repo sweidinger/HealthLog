@@ -33,6 +33,7 @@ describe("insights-layout v2 — section id universe", () => {
       "health-status",
       "breathing",
       "labs-changes",
+      "ecg",
     ]);
   });
 

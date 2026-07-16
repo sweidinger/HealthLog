@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.28.50] — 2026-07-16 — View your ECG recordings in Insights
+
+ECG recordings synced from a compatible watch were stored but never shown. They
+now have a place in Insights: a list of your recordings, each opening the full
+waveform on a familiar ECG grid, with the date, duration, average heart rate,
+and the result your device recorded.
+
+The result shown is the one your recording device produced — HealthLog does not
+read or interpret the trace and does not provide a diagnosis. A recording is
+single-lead and for personal awareness only; if a result concerns you, a note
+alongside it points you to discuss the recording with a clinician.
+
 ## [1.28.49] — 2026-07-16 — Apple Health re-import no longer stops on a duplicate reading
 
 Re-importing a cumulative export.zip could run for several minutes and then fail
@@ -14,7 +26,7 @@ carries on. A re-import completes cleanly.
 
 ## [1.28.48] — 2026-07-16 — Security follow-ups
 
-Two fixes from the campaign's security re-verification:
+Two security fixes:
 
 - On a brand-new instance with single-sign-on configured, two people signing in
   for the very first time at the same moment could both be made admin. The
