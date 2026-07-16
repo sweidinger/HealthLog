@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.28.52] — 2026-07-16 — Dashboard tiles for more of what you already track
+
+The dashboard gains tiles for readings that were synced and charted but never
+had a place on the home strip: heart-rate variability, blood oxygen, breathing
+rate, wrist temperature, and — for anyone with a body-composition scale — muscle
+mass, body water, and bone mass.
+
+Each tile appears only once you have that reading, so nothing new shows up on an
+account that doesn't track it, and every tile can be toggled or reordered under
+Settings → Dashboard like the rest. Tapping one opens its detail view. Nothing
+changed in how the readings are stored or synced — this only surfaces what was
+already there.
+
 ## [1.28.51] — 2026-07-16 — Chatting about a document lives in the Coach now
 
 Asking the Coach about a document used to open a separate, half-finished chat
