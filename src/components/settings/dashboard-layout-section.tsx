@@ -138,8 +138,13 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   glucose: "measurements.typeBloodGlucose",
   totalBodyWater: "measurements.typeTotalBodyWater",
   boneMass: "measurements.typeBoneMass",
+  // v1.28.52 — muscle mass joins the body-composition strip tiles.
+  muscleMass: "measurements.typeMuscleMass",
   bpInTarget: "dashboard.bpInTarget",
   oxygenSaturation: "measurements.typeOxygenSaturation",
+  // v1.28.52 — HRV + respiratory rate graduate to web-writable widgets.
+  hrv: "measurements.typeHeartRateVariability",
+  respiratoryRate: "measurements.typeRespiratoryRate",
   achievements: "achievements.title",
   // v1.4.25 W8d — VO2 max secondary-metric tile (opt-in).
   vo2Max: "dashboard.vo2Max",

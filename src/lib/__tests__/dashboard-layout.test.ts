@@ -460,15 +460,19 @@ describe("resolveDashboardLayout() — heroVisible", () => {
  * iOS-only ids extend it without touching the writable PUT enum.
  */
 describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
-  it("carries exactly 36 distinct ids (25 server-known + 11 iOS-only)", () => {
+  it("carries exactly 37 distinct ids (28 server-known + 9 iOS-only)", () => {
     // v1.11.2 B5 — the 8 v1.10 additive metrics became web-writable, so
     // the server-known set grew 16 → 24 and the catalogue 27 → 35.
     // v1.18.2 — the Vorsorge summary widget added one server-known id
     // (24 → 25), so the catalogue grew 35 → 36.
-    expect(DASHBOARD_WIDGET_IDS).toHaveLength(25);
-    expect(DASHBOARD_IOS_ONLY_WIDGET_IDS).toHaveLength(11);
-    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(36);
-    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(36);
+    // v1.28.52 — HRV + respiratory rate graduated from the iOS-only set to
+    // web-writable (iOS-only 11 → 9), and muscle mass is a brand-new
+    // writable id, so the server-known set grew 25 → 28 and the catalogue
+    // 36 → 37.
+    expect(DASHBOARD_WIDGET_IDS).toHaveLength(28);
+    expect(DASHBOARD_IOS_ONLY_WIDGET_IDS).toHaveLength(9);
+    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(37);
+    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(37);
   });
 
   it("ships the sleep / steps / glucose strip tiles default-on (v1.20.0)", () => {
@@ -511,19 +515,78 @@ describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
   });
 
   it("carries the locked iOS-only ids verbatim", () => {
+    // v1.28.52 — `hrv` + `respiratoryRate` left this set for the writable
+    // DASHBOARD_WIDGET_IDS (they gained a web strip tile).
     expect([...DASHBOARD_IOS_ONLY_WIDGET_IDS]).toEqual([
       "restingHeartRate",
-      "hrv",
       "walkingSpeed",
       "walkingAsymmetry",
       "walkingStepLength",
       "bmi",
       "bodyTemperature",
       "walkingDoubleSupport",
-      "respiratoryRate",
       "audioExposureEnvironment",
       "audioExposureHeadphone",
     ]);
+  });
+});
+
+/**
+ * v1.28.52 — vitals + body-composition strip tiles. Seven metrics
+ * HealthLog already collects (HRV, SpO2, respiratory rate, wrist
+ * temperature, muscle mass, total body water, bone mass) gain a
+ * dashboard strip tile. Each must be a WRITABLE widget id (so the PUT
+ * enum + Settings toggle accept it) with a default layout row that turns
+ * the strip tile on and keeps the chart row off (the tile self-gates on
+ * data in page.tsx; the chart lives on the /insights sub-page).
+ */
+describe("v1.28.52 — vitals + body-composition strip tiles", () => {
+  const NEW_TILE_IDS = [
+    "hrv",
+    "oxygenSaturation",
+    "respiratoryRate",
+    "wristTemperature",
+    "muscleMass",
+    "totalBodyWater",
+    "boneMass",
+  ] as const;
+
+  it("registers every new tile id as a writable widget (Settings enum + PUT accept it)", () => {
+    const writable = new Set<string>(DASHBOARD_WIDGET_IDS);
+    for (const id of NEW_TILE_IDS) {
+      expect(writable.has(id)).toBe(true);
+    }
+  });
+
+  it("carries a default layout row for every new tile: strip tile on, chart row off", () => {
+    for (const id of NEW_TILE_IDS) {
+      const widget = DEFAULT_DASHBOARD_LAYOUT.widgets.find((w) => w.id === id);
+      expect(widget, `default row for ${id}`).toBeDefined();
+      // Strip tile on so accounts that sync the metric discover it on /;
+      // it self-gates on `count > 0` in page.tsx.
+      expect(widget?.tileVisible, `${id} tileVisible`).toBe(true);
+      // Chart row off — those charts live on the /insights sub-pages.
+      expect(widget?.visible, `${id} visible`).toBe(false);
+    }
+  });
+
+  it("keeps the promoted ids out of the iOS-only + pin-only sets (no double-book)", () => {
+    const iosOnly = new Set<string>(DASHBOARD_IOS_ONLY_WIDGET_IDS);
+    const pinOnly = new Set<string>(IOS_PIN_ONLY_WIDGET_IDS);
+    for (const id of NEW_TILE_IDS) {
+      expect(iosOnly.has(id), `${id} not iOS-only`).toBe(false);
+      expect(pinOnly.has(id), `${id} not pin-only`).toBe(false);
+    }
+  });
+
+  it("round-trips every new tile id through serialize → resolve", () => {
+    const resolved = resolveDashboardLayout(
+      serializeDashboardLayout(DEFAULT_DASHBOARD_LAYOUT),
+    );
+    const ids = new Set(resolved.widgets.map((w) => w.id));
+    for (const id of NEW_TILE_IDS) {
+      expect(ids.has(id), `${id} survives round-trip`).toBe(true);
+    }
   });
 });
 
@@ -536,14 +599,15 @@ describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
  * `dashboard-layout-section.test.tsx`).
  */
 describe("IOS_PIN_ONLY_WIDGET_IDS — writable but not web-rendered", () => {
-  it("is the 8 B5 ids verbatim", () => {
+  it("is the 7 pin-only ids verbatim", () => {
+    // v1.28.52 — `wristTemperature` graduated to a web-rendered strip tile,
+    // so it is no longer pin-only (the Settings list now offers its toggle).
     expect([...IOS_PIN_ONLY_WIDGET_IDS]).toEqual([
       "cardioRecovery",
       "sixMinuteWalk",
       "stairAscentSpeed",
       "stairDescentSpeed",
       "breathingDisturbances",
-      "wristTemperature",
       "falls",
       "walkingSteadiness",
     ]);
@@ -623,7 +687,7 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
       version: 1,
       widgets: [
         { id: "weight", visible: true, tileVisible: true, order: 0 },
-        { id: "hrv", visible: true, tileVisible: true, order: 1 }, // iOS-only
+        { id: "hrv", visible: true, tileVisible: true, order: 1 }, // catalogue id
         { id: "glp1", visible: true, tileVisible: true, order: 2 }, // retired
         { id: "totally-made-up", visible: true, tileVisible: true, order: 3 },
       ],
@@ -635,17 +699,17 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
     expect(ids).not.toContain("totally-made-up");
   });
 
-  it("keeps the default layout at the 25 web tiles (no iOS-only seeded)", () => {
+  it("keeps the default layout at the 28 web tiles (no iOS-only seeded)", () => {
     const ids = DEFAULT_DASHBOARD_LAYOUT.widgets.map((w) => w.id);
-    expect(ids).toHaveLength(25);
+    expect(ids).toHaveLength(28);
     for (const iosId of DASHBOARD_IOS_ONLY_WIDGET_IDS) {
       expect(ids).not.toContain(iosId);
     }
   });
 
   it("does NOT auto-append iOS-only ids when a web-only layout is read", () => {
-    // A web account that saved only `weight` must auto-upgrade to the 25
-    // web defaults — never to the 36 catalogue. iOS-only ids appear only
+    // A web account that saved only `weight` must auto-upgrade to the 28
+    // web defaults — never to the 37 catalogue. iOS-only ids appear only
     // once a native client has explicitly sent them.
     const partial = {
       version: 1,
@@ -653,7 +717,7 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
     };
     const resolved = resolveDashboardLayout(partial);
     const ids = resolved.widgets.map((w) => w.id);
-    expect(ids).toHaveLength(25);
+    expect(ids).toHaveLength(28);
     for (const iosId of DASHBOARD_IOS_ONLY_WIDGET_IDS) {
       expect(ids).not.toContain(iosId);
     }

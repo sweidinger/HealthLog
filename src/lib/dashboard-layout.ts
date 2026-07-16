@@ -27,8 +27,18 @@ export const DASHBOARD_WIDGET_IDS = [
   "glucose",
   "totalBodyWater",
   "boneMass",
+  // v1.28.52 — muscle mass joins the body-composition strip tiles
+  // (totalBodyWater / boneMass). Maps 1:1 to the MUSCLE_MASS
+  // MeasurementType the server already stores; self-gates on data.
+  "muscleMass",
   "bpInTarget",
   "oxygenSaturation",
+  // v1.28.52 — HRV + respiratory rate graduate from the iOS-only
+  // catalogue to first-class web-writable widgets with a strip tile.
+  // Each maps 1:1 to a MeasurementType the server already surfaces via
+  // the summaries slice; both self-gate on having a sample.
+  "hrv",
+  "respiratoryRate",
   "achievements",
   // v1.4.25 W8d — VO2 max trend tile (secondary-metric pattern). The
   // strip tile is on by default and self-gates on having any VO2_MAX
@@ -90,7 +100,8 @@ export const IOS_PIN_ONLY_WIDGET_IDS = [
   "stairAscentSpeed",
   "stairDescentSpeed",
   "breathingDisturbances",
-  "wristTemperature",
+  // v1.28.52 — `wristTemperature` graduated to a web-rendered strip tile,
+  // so it is no longer pin-only (the Settings list now offers its toggle).
   "falls",
   "walkingSteadiness",
 ] as const satisfies readonly DashboardWidgetId[];
@@ -113,14 +124,15 @@ export const IOS_PIN_ONLY_WIDGET_IDS = [
  */
 export const DASHBOARD_IOS_ONLY_WIDGET_IDS = [
   "restingHeartRate",
-  "hrv",
+  // v1.28.52 — `hrv` + `respiratoryRate` graduated to web-writable widgets
+  // (now members of DASHBOARD_WIDGET_IDS), so they leave the iOS-only set to
+  // avoid double-booking the catalogue.
   "walkingSpeed",
   "walkingAsymmetry",
   "walkingStepLength",
   "bmi",
   "bodyTemperature",
   "walkingDoubleSupport",
-  "respiratoryRate",
   "audioExposureEnvironment",
   "audioExposureHeadphone",
 ] as const;
@@ -541,10 +553,26 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     { id: "weight", visible: true, tileVisible: true, order: 0 },
     { id: "bp", visible: true, tileVisible: true, order: 1 },
     { id: "pulse", visible: true, tileVisible: true, order: 2 },
-    { id: "bodyFat", visible: true, tileVisible: true, order: 3 },
-    { id: "mood", visible: true, tileVisible: true, order: 4 },
-    { id: "bpInTarget", visible: true, tileVisible: true, order: 5 },
-    { id: "medications", visible: true, tileVisible: true, order: 6 },
+    // v1.28.52 — vitals strip cluster (HRV / SpO2 / respiratory rate /
+    // wrist temperature) sits next to pulse. Each strip tile is on by
+    // default (`tileVisible: true`) and self-gates on having a sample of
+    // that MeasurementType (see the `showXTile` gates in page.tsx), so an
+    // empty account still gets a clean dashboard. The chart row stays off
+    // (`visible: false`) — those charts live on the /insights sub-pages.
+    { id: "hrv", visible: false, tileVisible: true, order: 3 },
+    { id: "oxygenSaturation", visible: false, tileVisible: true, order: 4 },
+    { id: "respiratoryRate", visible: false, tileVisible: true, order: 5 },
+    { id: "wristTemperature", visible: false, tileVisible: true, order: 6 },
+    { id: "bodyFat", visible: true, tileVisible: true, order: 7 },
+    // v1.28.52 — body-composition strip cluster (muscle mass / total body
+    // water / bone mass) next to body fat. Same self-gating tile contract
+    // as the vitals cluster above; charts live on the /insights sub-pages.
+    { id: "muscleMass", visible: false, tileVisible: true, order: 8 },
+    { id: "totalBodyWater", visible: false, tileVisible: true, order: 9 },
+    { id: "boneMass", visible: false, tileVisible: true, order: 10 },
+    { id: "mood", visible: true, tileVisible: true, order: 11 },
+    { id: "bpInTarget", visible: true, tileVisible: true, order: 12 },
+    { id: "medications", visible: true, tileVisible: true, order: 13 },
     // v1.20.0 — sleep / steps / glucose strip tiles default-on so accounts
     // that sync these signals discover them on / without hunting through
     // Settings → Dashboard. Each follows the VO2max precedent: the strip
@@ -552,24 +580,16 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     // (`hasSleep` / `hasSteps` / `showGlucoseCards` in page.tsx), so an
     // empty account still gets a clean dashboard. The chart row stays off
     // (`visible: false`) — those charts live on the /insights sub-pages.
-    { id: "sleep", visible: false, tileVisible: true, order: 7 },
-    { id: "steps", visible: false, tileVisible: true, order: 8 },
-    { id: "glucose", visible: false, tileVisible: true, order: 9 },
-    // totalBodyWater / boneMass / oxygenSaturation carry as catalogue ids
-    // for the iOS layout round-trip only — they have no web render block or
-    // data-floor flag in page.tsx, so flipping their defaults would surface
-    // nothing on web. Their data IS discoverable via the /insights sub-pages.
-    // Kept false until a web render path lands (see .planning/v1200-backlog.md).
-    { id: "totalBodyWater", visible: false, tileVisible: false, order: 10 },
-    { id: "boneMass", visible: false, tileVisible: false, order: 11 },
-    { id: "oxygenSaturation", visible: false, tileVisible: false, order: 12 },
+    { id: "sleep", visible: false, tileVisible: true, order: 14 },
+    { id: "steps", visible: false, tileVisible: true, order: 15 },
+    { id: "glucose", visible: false, tileVisible: true, order: 16 },
     // v1.4.15 phase-B4 — recent-unlocks card (dashboard surface for the
     // gamification feature). Visible by default — the card is small,
     // self-gates on having any achievements (otherwise it shows a brief
     // "no achievements yet" + link), and maintainer-asked-for-it explicitly.
     // `tileVisible` is forced false because there is no tile surface
     // for this widget; only the chart-row card.
-    { id: "achievements", visible: true, tileVisible: false, order: 13 },
+    { id: "achievements", visible: true, tileVisible: false, order: 17 },
     // v1.4.25 W8d — VO2 max trend tile. The strip tile is on by default
     // (`tileVisible: true`) so accounts that already sync a VO2max sample
     // see cardio fitness without hunting through Settings → Dashboard; the
@@ -577,34 +597,33 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     // page.tsx), so accounts with no sample still get a clean dashboard.
     // The chart row stays off (`visible: false`) — VO2max charts live on
     // the /insights/cardio-fitness and /insights/pulse sub-pages.
-    { id: "vo2Max", visible: false, tileVisible: true, order: 14 },
+    { id: "vo2Max", visible: false, tileVisible: true, order: 18 },
     // v1.4.32 — Recent workouts dashboard tile. Default-visible so
     // brand-new accounts discover the workout surface without
     // hunting through Settings; the tile self-gates on a non-empty
     // workouts list and renders an Apple-Health onboarding hint
     // otherwise.
-    { id: "recentWorkouts", visible: true, tileVisible: true, order: 15 },
+    { id: "recentWorkouts", visible: true, tileVisible: true, order: 19 },
     // v1.11.2 B5 — v1.10 additive HealthKit signals, pinnable but
     // default-invisible on both surfaces. The user opts in via
     // Settings → Dashboard; each tile self-gates on having any sample.
-    { id: "cardioRecovery", visible: false, tileVisible: false, order: 16 },
-    { id: "sixMinuteWalk", visible: false, tileVisible: false, order: 17 },
-    { id: "stairAscentSpeed", visible: false, tileVisible: false, order: 18 },
-    { id: "stairDescentSpeed", visible: false, tileVisible: false, order: 19 },
+    { id: "cardioRecovery", visible: false, tileVisible: false, order: 20 },
+    { id: "sixMinuteWalk", visible: false, tileVisible: false, order: 21 },
+    { id: "stairAscentSpeed", visible: false, tileVisible: false, order: 22 },
+    { id: "stairDescentSpeed", visible: false, tileVisible: false, order: 23 },
     {
       id: "breathingDisturbances",
       visible: false,
       tileVisible: false,
-      order: 20,
+      order: 24,
     },
-    { id: "wristTemperature", visible: false, tileVisible: false, order: 21 },
-    { id: "falls", visible: false, tileVisible: false, order: 22 },
-    { id: "walkingSteadiness", visible: false, tileVisible: false, order: 23 },
+    { id: "falls", visible: false, tileVisible: false, order: 25 },
+    { id: "walkingSteadiness", visible: false, tileVisible: false, order: 26 },
     // v1.18.2 — Vorsorge summary card. Chart-row only (no strip tile), so
     // `tileVisible` is forced false. v1.20.0 — flipped `visible: true` so
     // preventive-care reminders surface on / by default; the card self-gates
     // (see page.tsx) and shows nothing for accounts without due reminders.
-    { id: "vorsorge", visible: true, tileVisible: false, order: 24 },
+    { id: "vorsorge", visible: true, tileVisible: false, order: 27 },
   ],
 };
 

@@ -55,6 +55,15 @@ const TILE_CAPABLE_WIDGET_IDS = new Set<string>([
   "glucose",
   "bpInTarget",
   "vo2Max",
+  // v1.28.52 — vitals + body-composition strip tiles: each paints one
+  // strip card and self-gates on having a sample of its MeasurementType.
+  "hrv",
+  "oxygenSaturation",
+  "respiratoryRate",
+  "wristTemperature",
+  "muscleMass",
+  "totalBodyWater",
+  "boneMass",
 ]);
 
 /**

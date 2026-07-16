@@ -6,16 +6,22 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
 import {
   Activity,
+  Bone,
   Droplet,
+  Droplets,
+  Dumbbell,
   Footprints,
   Gauge,
   Heart,
+  HeartPulse,
   Moon,
   Percent,
   Plus,
   Smile,
   Target,
+  Thermometer,
   TrendingUp,
+  Wind,
 } from "lucide-react";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import { cn } from "@/lib/utils";
@@ -156,6 +162,15 @@ const TILE_INSIGHT_HREF: Record<string, string> = {
   sleep: "/insights/sleep",
   steps: "/insights/steps",
   vo2Max: "/insights/cardio-fitness",
+  // v1.28.52 — vitals + body-composition strip tiles link to their
+  // existing /insights detail pages (bands, history, correlations).
+  hrv: "/insights/hrv",
+  oxygenSaturation: "/insights/oxygen",
+  respiratoryRate: "/insights/respiratory-rate",
+  wristTemperature: "/insights/wrist-temperature",
+  muscleMass: "/insights/muscle-mass",
+  totalBodyWater: "/insights/body-water",
+  boneMass: "/insights/bone-mass",
 };
 
 function tileInsightHref(id: string): string | null {
@@ -354,6 +369,17 @@ export default function DashboardPageClient() {
   // auto-populates this summary because the route iterates over the
   // full measurementTypeEnum.options list; no backend change needed.
   const vo2Summary = data?.summaries?.VO2_MAX;
+  // v1.28.52 — additional vitals + body-composition summaries. Each rides
+  // the same summaries slice (`computeSummariesSlice` iterates the full
+  // measurement-type enum), so no backend change was needed; the strip
+  // tiles below self-gate on `count > 0`.
+  const hrvSummary = data?.summaries?.HEART_RATE_VARIABILITY;
+  const spo2Summary = data?.summaries?.OXYGEN_SATURATION;
+  const respRateSummary = data?.summaries?.RESPIRATORY_RATE;
+  const wristTempSummary = data?.summaries?.WRIST_TEMPERATURE;
+  const muscleMassSummary = data?.summaries?.MUSCLE_MASS;
+  const bodyWaterSummary = data?.summaries?.TOTAL_BODY_WATER;
+  const boneMassSummary = data?.summaries?.BONE_MASS;
   const moodSummary = moodData?.summary;
 
   // Resolve full dashboard layout — controls visibility + order of every widget
@@ -430,6 +456,14 @@ export default function DashboardPageClient() {
   const hasSleep = (sleepSummary?.count ?? 0) > 0;
   const hasSteps = (stepsSummary?.count ?? 0) > 0;
   const hasVo2 = (vo2Summary?.count ?? 0) > 0;
+  // v1.28.52 — data floors for the new vitals + body-composition tiles.
+  const hasHrv = (hrvSummary?.count ?? 0) > 0;
+  const hasSpo2 = (spo2Summary?.count ?? 0) > 0;
+  const hasRespRate = (respRateSummary?.count ?? 0) > 0;
+  const hasWristTemp = (wristTempSummary?.count ?? 0) > 0;
+  const hasMuscleMass = (muscleMassSummary?.count ?? 0) > 0;
+  const hasBodyWater = (bodyWaterSummary?.count ?? 0) > 0;
+  const hasBoneMass = (boneMassSummary?.count ?? 0) > 0;
   /**
    * v1.4.33 F4 — gate the BD-Zielbereich tile so a literal "0,0 %"
    * placeholder doesn't ride on the dashboard when none of the user's
@@ -468,6 +502,16 @@ export default function DashboardPageClient() {
   const showStepsTile =
     isTileVisible("steps") && hasSteps && user?.modules?.workouts !== false;
   const showVo2Tile = isTileVisible("vo2Max") && hasVo2;
+  // v1.28.52 — strip-tile gates for the new vitals + body-composition
+  // metrics. Each follows the VO2max precedent: layout toggle AND a
+  // non-empty summary, so an account without that metric sees no tile.
+  const showHrvTile = isTileVisible("hrv") && hasHrv;
+  const showSpo2Tile = isTileVisible("oxygenSaturation") && hasSpo2;
+  const showRespRateTile = isTileVisible("respiratoryRate") && hasRespRate;
+  const showWristTempTile = isTileVisible("wristTemperature") && hasWristTemp;
+  const showMuscleMassTile = isTileVisible("muscleMass") && hasMuscleMass;
+  const showBodyWaterTile = isTileVisible("totalBodyWater") && hasBodyWater;
+  const showBoneMassTile = isTileVisible("boneMass") && hasBoneMass;
   const showBpInTargetTile = isTileVisible("bpInTarget") && hasBpInTarget;
 
   // Chart (lower row) gates — controlled by the legacy `visible` flag.
@@ -1055,6 +1099,177 @@ export default function DashboardPageClient() {
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(vo2Summary)}
                 staleDays={tileStaleDays("VO2_MAX")}
+              />
+            ),
+          });
+        }
+        // v1.28.52 — vitals strip tiles (HRV / SpO2 / respiratory rate /
+        // wrist temperature). Each self-gates on the layout toggle AND a
+        // non-empty summary (see the `showXTile` gates above), links to its
+        // /insights detail page, and forwards the per-type freshness caption.
+        // Units + sentiments mirror the matching /insights sub-page:
+        // higher HRV and higher SpO2 are better (up-good); respiratory rate
+        // and wrist temperature read as neutral (stability is the signal).
+        if (showHrvTile) {
+          trendCards.push({
+            id: "hrv",
+            order: widgetOrder("hrv"),
+            node: (
+              <TrendCard
+                key="hrv"
+                label={t("measurements.typeHeartRateVariability")}
+                latest={hrvSummary?.latest ?? null}
+                unit="ms"
+                avg7={hrvSummary?.avg7 ?? null}
+                avg30={hrvSummary?.avg30 ?? null}
+                slope30={hrvSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(hrvSummary)}
+                icon={HeartPulse}
+                directionSentiment="up-good"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(hrvSummary)}
+                staleDays={tileStaleDays("HEART_RATE_VARIABILITY")}
+              />
+            ),
+          });
+        }
+        if (showSpo2Tile) {
+          trendCards.push({
+            id: "oxygenSaturation",
+            order: widgetOrder("oxygenSaturation"),
+            node: (
+              <TrendCard
+                key="oxygenSaturation"
+                label={t("measurements.typeOxygenSaturation")}
+                latest={spo2Summary?.latest ?? null}
+                unit="%"
+                avg7={spo2Summary?.avg7 ?? null}
+                avg30={spo2Summary?.avg30 ?? null}
+                slope30={spo2Summary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(spo2Summary)}
+                icon={Droplets}
+                directionSentiment="up-good"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(spo2Summary)}
+                staleDays={tileStaleDays("OXYGEN_SATURATION")}
+              />
+            ),
+          });
+        }
+        if (showRespRateTile) {
+          trendCards.push({
+            id: "respiratoryRate",
+            order: widgetOrder("respiratoryRate"),
+            node: (
+              <TrendCard
+                key="respiratoryRate"
+                label={t("measurements.typeRespiratoryRate")}
+                latest={respRateSummary?.latest ?? null}
+                unit="breaths/min"
+                avg7={respRateSummary?.avg7 ?? null}
+                avg30={respRateSummary?.avg30 ?? null}
+                slope30={respRateSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(respRateSummary)}
+                icon={Wind}
+                directionSentiment="neutral"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(respRateSummary)}
+                staleDays={tileStaleDays("RESPIRATORY_RATE")}
+              />
+            ),
+          });
+        }
+        if (showWristTempTile) {
+          trendCards.push({
+            id: "wristTemperature",
+            order: widgetOrder("wristTemperature"),
+            node: (
+              <TrendCard
+                key="wristTemperature"
+                label={t("measurements.typeWristTemperature")}
+                latest={wristTempSummary?.latest ?? null}
+                unit="°C"
+                avg7={wristTempSummary?.avg7 ?? null}
+                avg30={wristTempSummary?.avg30 ?? null}
+                slope30={wristTempSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(wristTempSummary)}
+                icon={Thermometer}
+                directionSentiment="neutral"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(wristTempSummary)}
+                staleDays={tileStaleDays("WRIST_TEMPERATURE")}
+              />
+            ),
+          });
+        }
+        // v1.28.52 — body-composition strip tiles (muscle mass / total body
+        // water / bone mass). Higher muscle mass reads as up-good; body water
+        // and bone mass are neutral (stability, not direction, is the signal).
+        if (showMuscleMassTile) {
+          trendCards.push({
+            id: "muscleMass",
+            order: widgetOrder("muscleMass"),
+            node: (
+              <TrendCard
+                key="muscleMass"
+                label={t("measurements.typeMuscleMass")}
+                latest={muscleMassSummary?.latest ?? null}
+                unit="kg"
+                avg7={muscleMassSummary?.avg7 ?? null}
+                avg30={muscleMassSummary?.avg30 ?? null}
+                slope30={muscleMassSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(muscleMassSummary)}
+                icon={Dumbbell}
+                directionSentiment="up-good"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(muscleMassSummary)}
+                staleDays={tileStaleDays("MUSCLE_MASS")}
+              />
+            ),
+          });
+        }
+        if (showBodyWaterTile) {
+          trendCards.push({
+            id: "totalBodyWater",
+            order: widgetOrder("totalBodyWater"),
+            node: (
+              <TrendCard
+                key="totalBodyWater"
+                label={t("measurements.typeTotalBodyWater")}
+                latest={bodyWaterSummary?.latest ?? null}
+                unit="kg"
+                avg7={bodyWaterSummary?.avg7 ?? null}
+                avg30={bodyWaterSummary?.avg30 ?? null}
+                slope30={bodyWaterSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(bodyWaterSummary)}
+                icon={Droplet}
+                directionSentiment="neutral"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(bodyWaterSummary)}
+                staleDays={tileStaleDays("TOTAL_BODY_WATER")}
+              />
+            ),
+          });
+        }
+        if (showBoneMassTile) {
+          trendCards.push({
+            id: "boneMass",
+            order: widgetOrder("boneMass"),
+            node: (
+              <TrendCard
+                key="boneMass"
+                label={t("measurements.typeBoneMass")}
+                latest={boneMassSummary?.latest ?? null}
+                unit="kg"
+                avg7={boneMassSummary?.avg7 ?? null}
+                avg30={boneMassSummary?.avg30 ?? null}
+                slope30={boneMassSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(boneMassSummary)}
+                icon={Bone}
+                directionSentiment="neutral"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(boneMassSummary)}
+                staleDays={tileStaleDays("BONE_MASS")}
               />
             ),
           });

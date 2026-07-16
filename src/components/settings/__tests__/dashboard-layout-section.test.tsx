@@ -383,7 +383,8 @@ describe("<DashboardLayoutSection> — iOS-pin-only ids hidden from web (v1.11.2
       stairAscentSpeed: "Stair ascent speed",
       stairDescentSpeed: "Stair descent speed",
       breathingDisturbances: "Breathing disturbances",
-      wristTemperature: "Wrist temperature",
+      // v1.28.52 — `wristTemperature` is no longer pin-only; it now renders
+      // a web row, so it left both IOS_PIN_ONLY_WIDGET_IDS and this map.
       falls: "Falls",
       walkingSteadiness: "Walking steadiness",
     };

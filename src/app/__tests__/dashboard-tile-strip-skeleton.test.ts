@@ -108,8 +108,11 @@ describe("resolveConfiguredTileCount (v1.16.8)", () => {
     // plus the v1.20.0 sleep / steps / glucose flips are tile-visible AND
     // tile-capable; medications + recentWorkouts are tile-visible in the
     // stored layout but paint NO strip tile, so they must not inflate the
-    // silhouette. bp paints sys + dia = 2.
-    expect(resolveConfiguredTileCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(11);
+    // silhouette. bp paints sys + dia = 2. v1.28.52 added seven vitals +
+    // body-composition strip tiles (hrv, oxygenSaturation, respiratoryRate,
+    // wristTemperature, muscleMass, totalBodyWater, boneMass), each
+    // single-count: 11 + 7 = 18.
+    expect(resolveConfiguredTileCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(18);
   });
 
   it("ignores chart-only and iOS-pin-only widget ids", () => {
