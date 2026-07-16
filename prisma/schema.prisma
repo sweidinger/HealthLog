@@ -111,6 +111,15 @@ model User {
   // without re-paying for the findings. This stamps the day a re-roll ran so
   // the gate stays at most one extra call per day.
   insightsBriefingRerollDate String?   @map("insights_briefing_reroll_date")
+  // Morning-freshness marker: the user-local YYYY-MM-DD (their profile
+  // timezone) for which the event-driven morning refresh has run — i.e. last
+  // night's sleep has arrived AND the sleep-dependent insight/score cache was
+  // regenerated with it. The daily digest reads `final` when this equals the
+  // user's current local date, `provisional` otherwise. Stamped by the
+  // `morning-digest-refresh` job the sleep-arrival trigger enqueues; the
+  // string form makes the "same local morning" comparison timezone-honest
+  // without a second timestamp read.
+  morningDigestRefreshedOn   String?   @map("morning_digest_refreshed_on")
   // v1.4.36 W3 T3 — per-user AI Insights exclude-metrics list, mirrors
   // `coachPrefsJson.excludeMetrics`. The /api/insights/generate route
   // filters matching keys off `features` before JSON.stringify so the

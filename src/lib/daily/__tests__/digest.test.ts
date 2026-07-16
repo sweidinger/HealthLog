@@ -5,7 +5,12 @@ import type { DailyBriefing } from "@/lib/ai/schema";
 import type { MedsTodayBlock } from "@/lib/dashboard/meds-today";
 import {
   buildDailyDigest,
+  COACH_CHECKIN_KEEP_INTENT,
+  COACH_CHECKIN_LETGO_INTENT,
+  COACH_CHECKIN_RESURFACE_DAYS,
+  COACH_CHECKIN_REVIEW_DAYS,
   MAX_WORTH_A_LOOK,
+  type DailyDigestCoachPlan,
   type DailyDigestInput,
 } from "@/lib/daily/digest";
 
@@ -48,8 +53,28 @@ function input(over: Partial<DailyDigestInput> = {}): DailyDigestInput {
     briefing,
     medsToday: meds(),
     sleepLastSeenDaysAgo: 0,
+    morningRefreshedToday: false,
     syncIssues: [],
     preventiveDue: [],
+    coachPlans: [],
+    ...over,
+  };
+}
+
+const DAY = 86_400_000;
+
+function plan(over: Partial<DailyDigestCoachPlan> = {}): DailyDigestCoachPlan {
+  // Default: an active plan whose defaulted review (createdAt + 7d) is due.
+  const createdAt = new Date(
+    NOW.getTime() - (COACH_CHECKIN_REVIEW_DAYS + 1) * DAY,
+  );
+  return {
+    id: "p1",
+    status: "active",
+    reviewDate: null,
+    createdAt,
+    updatedAt: createdAt,
+    planText: "every morning → weigh in",
     ...over,
   };
 }
@@ -126,6 +151,34 @@ describe("buildDailyDigest — freshness (provisional/final)", () => {
     );
     expect(d.phase).toBe("final");
     expect(d.sleepPending).toBe(false);
+  });
+
+  it("the morning-refresh marker finalises the day even while the snapshot's sleep last-seen is still stale (S4 fast path)", () => {
+    // Sleep last-seen still lags at 1 day (snapshot cache not yet expired), but
+    // the sleep-arrival refresh has stamped the marker for today — the digest
+    // must read `final` immediately off the authoritative marker.
+    const provisional = buildDailyDigest(
+      input({ sleepLastSeenDaysAgo: 1, morningRefreshedToday: false }),
+      t,
+    );
+    expect(provisional.phase).toBe("provisional");
+    expect(provisional.sleepPending).toBe(true);
+
+    const finalised = buildDailyDigest(
+      input({ sleepLastSeenDaysAgo: 1, morningRefreshedToday: true }),
+      t,
+    );
+    expect(finalised.phase).toBe("final");
+    expect(finalised.sleepPending).toBe(false);
+  });
+
+  it("stays provisional when sleep never arrives (no marker, no reading)", () => {
+    const d = buildDailyDigest(
+      input({ sleepLastSeenDaysAgo: null, morningRefreshedToday: false }),
+      t,
+    );
+    expect(d.phase).toBe("provisional");
+    expect(d.sleepPending).toBe(true);
   });
 });
 
@@ -231,5 +284,132 @@ describe("buildDailyDigest — worth-a-look rail item builders", () => {
   it("returns an empty rail when nothing needs attention", () => {
     const d = buildDailyDigest(input(), t);
     expect(d.worthALook).toEqual([]);
+  });
+});
+
+describe("buildDailyDigest — coach check-in (S3)", () => {
+  function checkin(d: ReturnType<typeof buildDailyDigest>) {
+    return d.worthALook.find((i) => i.kind === "coach_checkin");
+  }
+
+  it("emits a check-in when an active plan's defaulted review has come due", () => {
+    const d = buildDailyDigest(input({ coachPlans: [plan()] }), t);
+    const item = checkin(d);
+    expect(item).toBeDefined();
+    expect(item?.status).toBe("info");
+    expect(item?.moduleKey).toBe("coach");
+    expect(item?.actions).toHaveLength(3);
+    // The plan's own words are echoed in the body.
+    expect(item?.body).toContain("every morning → weigh in");
+    // Keep / let-go carry the plan id; adjust is a plain navigation href.
+    expect(item?.actions[0].intent).toBe(`${COACH_CHECKIN_KEEP_INTENT}:p1`);
+    expect(item?.actions[1].href).toBe("/coach");
+    expect(item?.actions[2].intent).toBe(`${COACH_CHECKIN_LETGO_INTENT}:p1`);
+  });
+
+  it("emits a review-due check-in from a plan's pinned reviewDate", () => {
+    const reviewDate = new Date(NOW.getTime() - DAY);
+    const d = buildDailyDigest(
+      input({ coachPlans: [plan({ reviewDate })] }),
+      t,
+    );
+    expect(checkin(d)).toBeDefined();
+  });
+
+  it("emits a check-in for a reviewed plan (post-sweep read-back state)", () => {
+    const d = buildDailyDigest(
+      input({
+        coachPlans: [
+          plan({
+            status: "reviewed",
+            reviewDate: null,
+            updatedAt: new Date(NOW.getTime() - DAY),
+          }),
+        ],
+      }),
+      t,
+    );
+    expect(checkin(d)).toBeDefined();
+  });
+
+  it("falls back to a generic body when the plan text is undecryptable", () => {
+    const d = buildDailyDigest(
+      input({ coachPlans: [plan({ planText: null })] }),
+      t,
+    );
+    expect(checkin(d)?.body).toBe(
+      "It's been about a week since you set this plan — keep it, adjust it, or let it go. No pressure either way.",
+    );
+  });
+
+  it("does NOT emit a check-in before the review is due", () => {
+    const d = buildDailyDigest(
+      input({
+        coachPlans: [plan({ reviewDate: new Date(NOW.getTime() + DAY) })],
+      }),
+      t,
+    );
+    expect(checkin(d)).toBeUndefined();
+  });
+
+  it("does NOT emit a check-in when the coach module is off", () => {
+    const d = buildDailyDigest(
+      input({ modules: { coach: false }, coachPlans: [plan()] }),
+      t,
+    );
+    expect(checkin(d)).toBeUndefined();
+  });
+
+  it("emits none when there are no standing plans", () => {
+    const d = buildDailyDigest(input({ coachPlans: [] }), t);
+    expect(checkin(d)).toBeUndefined();
+  });
+
+  it("stops resurfacing after the resurface window (quiet retirement)", () => {
+    const stale = new Date(
+      NOW.getTime() - (COACH_CHECKIN_RESURFACE_DAYS + 2) * DAY,
+    );
+    const d = buildDailyDigest(
+      input({ coachPlans: [plan({ reviewDate: stale })] }),
+      t,
+    );
+    expect(checkin(d)).toBeUndefined();
+  });
+
+  it("caps at ONE check-in per day, surfacing the earliest-due plan", () => {
+    const older = new Date(NOW.getTime() - 5 * DAY);
+    const newer = new Date(NOW.getTime() - 1 * DAY);
+    const d = buildDailyDigest(
+      input({
+        coachPlans: [
+          plan({ id: "recent", reviewDate: newer }),
+          plan({ id: "oldest", reviewDate: older }),
+        ],
+      }),
+      t,
+    );
+    const items = d.worthALook.filter((i) => i.kind === "coach_checkin");
+    expect(items).toHaveLength(1);
+    expect(items[0].actions[0].intent).toBe(
+      `${COACH_CHECKIN_KEEP_INTENT}:oldest`,
+    );
+  });
+
+  it("does not displace an overdue dose from the bounded rail", () => {
+    const d = buildDailyDigest(
+      input({
+        medsToday: meds({ nextDueOverdue: true, nextDueMedicationName: "X" }),
+        syncIssues: [
+          { integration: "withings", state: "error_reauth" },
+          { integration: "moodlog", state: "parked" },
+        ],
+        coachPlans: [plan()],
+      }),
+      t,
+    );
+    // dose + 2 sync fill the cap; the check-in waits for a following day.
+    expect(d.worthALook).toHaveLength(MAX_WORTH_A_LOOK);
+    expect(checkin(d)).toBeUndefined();
+    expect(d.worthALook[0].kind).toBe("dose_window");
   });
 });

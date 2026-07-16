@@ -6516,6 +6516,8 @@
     "eventMeasurementReminderDesc": "Wysyłane, gdy śledzony pomiar jest wymagany.",
     "eventMedicationIntakeSync": "Synchronizacja przyjęć leku",
     "eventMedicationIntakeSyncDesc": "Aktualizacja między urządzeniami, gdy dawka zostanie zapisana, przyjęta lub pominięta.",
+    "eventDailyBriefing": "Codzienne podsumowanie",
+    "eventDailyBriefingDesc": "Spokojne poranne podsumowanie Twojego dnia. Wyłączone, dopóki go nie włączysz.",
     "security": {
       "newDeviceTitle": "Nowe logowanie do Twojego konta",
       "newDeviceBody": "Nowe logowanie z {device} ({location}). Jeśli to nie Ty, natychmiast zmień hasło.",
@@ -8504,6 +8506,10 @@
       "score": "Twój dzisiejszy wynik zdrowia to {score}.",
       "allClear": "Dziś nic nie wymaga Twojej uwagi — wszystko przebiega normalnie."
     },
+    "push": {
+      "title": "Twoje poranne podsumowanie",
+      "bodyProvisional": "{line} · Brakuje jeszcze snu z zeszłej nocy."
+    },
     "item": {
       "doseWindow": {
         "title": "Lek do przyjęcia",
@@ -8518,12 +8524,20 @@
       "syncIssue": {
         "title": "Synchronizacja wymaga uwagi",
         "body": "{integration} się nie synchronizuje — połącz ponownie, aby dane były aktualne."
+      },
+      "coachCheckin": {
+        "title": "Czas przyjrzeć się planowi",
+        "body": "Minął mniej więcej tydzień, odkąd ustaliłeś ten plan — zachowaj go, dostosuj lub odpuść. Bez presji.",
+        "bodyPlan": "Około tygodnia temu postanowiłeś: „{plan}”. Zachowaj to, dostosuj lub odpuść — bez presji."
       }
     },
     "action": {
       "logDose": "Zapisz dawkę",
       "reconnect": "Połącz ponownie",
-      "viewCheckups": "Zobacz badania"
+      "viewCheckups": "Zobacz badania",
+      "checkinKeep": "Zachowaj",
+      "checkinAdjust": "Dostosuj",
+      "checkinLetGo": "Odpuść"
     },
     "today": {
       "scoreLabel": "Wynik zdrowia",

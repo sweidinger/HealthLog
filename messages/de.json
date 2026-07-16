@@ -6516,6 +6516,8 @@
     "eventMeasurementReminderDesc": "Wird gesendet, wenn eine erfasste Messung fällig ist.",
     "eventMedicationIntakeSync": "Einnahme-Synchronisierung",
     "eventMedicationIntakeSyncDesc": "Geräteübergreifende Aktualisierung, wenn eine Dosis protokolliert, eingenommen oder übersprungen wird.",
+    "eventDailyBriefing": "Täglicher Überblick",
+    "eventDailyBriefingDesc": "Eine ruhige Morgenzusammenfassung deines Tages. Standardmäßig aus, bis du sie aktivierst.",
     "security": {
       "newDeviceTitle": "Neue Anmeldung bei deinem Konto",
       "newDeviceBody": "Eine neue Anmeldung von {device} ({location}). Falls du das nicht warst, ändere sofort dein Passwort.",
@@ -8504,6 +8506,10 @@
       "score": "Dein Gesundheitsscore heute liegt bei {score}.",
       "allClear": "Heute braucht nichts deine Aufmerksamkeit — alles verläuft normal."
     },
+    "push": {
+      "title": "Dein Morgenüberblick",
+      "bodyProvisional": "{line} · Der Schlaf von letzter Nacht fehlt noch."
+    },
     "item": {
       "doseWindow": {
         "title": "Medikament fällig",
@@ -8518,12 +8524,20 @@
       "syncIssue": {
         "title": "Synchronisierung braucht Aufmerksamkeit",
         "body": "{integration} synchronisiert nicht — verbinde neu, um deine Daten aktuell zu halten."
+      },
+      "coachCheckin": {
+        "title": "Zeit, einen Plan anzuschauen",
+        "body": "Es ist etwa eine Woche her, seit du diesen Plan gesetzt hast — behalte ihn, passe ihn an oder lass ihn los. Ganz ohne Druck.",
+        "bodyPlan": "Vor etwa einer Woche hast du dir vorgenommen: „{plan}“. Behalte es, passe es an oder lass es los — ganz ohne Druck."
       }
     },
     "action": {
       "logDose": "Dosis erfassen",
       "reconnect": "Neu verbinden",
-      "viewCheckups": "Vorsorge ansehen"
+      "viewCheckups": "Vorsorge ansehen",
+      "checkinKeep": "Behalten",
+      "checkinAdjust": "Anpassen",
+      "checkinLetGo": "Loslassen"
     },
     "today": {
       "scoreLabel": "Gesundheitsscore",

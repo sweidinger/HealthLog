@@ -6516,6 +6516,8 @@
     "eventMeasurementReminderDesc": "Inviato quando una misurazione tracciata è in scadenza.",
     "eventMedicationIntakeSync": "Sincronizzazione assunzioni",
     "eventMedicationIntakeSyncDesc": "Aggiornamento tra dispositivi quando una dose viene registrata, assunta o saltata.",
+    "eventDailyBriefing": "Riepilogo quotidiano",
+    "eventDailyBriefingDesc": "Un riepilogo mattutino e tranquillo della tua giornata. Disattivato finché non lo attivi.",
     "security": {
       "newDeviceTitle": "Nuovo accesso al tuo account",
       "newDeviceBody": "Un nuovo accesso da {device} ({location}). Se non sei stato tu, cambia subito la password.",
@@ -8504,6 +8506,10 @@
       "score": "Il tuo punteggio di salute oggi è {score}.",
       "allClear": "Oggi nulla richiede la tua attenzione — tutto procede normalmente."
     },
+    "push": {
+      "title": "Il tuo riepilogo mattutino",
+      "bodyProvisional": "{line} · Il sonno della scorsa notte non è ancora disponibile."
+    },
     "item": {
       "doseWindow": {
         "title": "Farmaco da assumere",
@@ -8518,12 +8524,20 @@
       "syncIssue": {
         "title": "La sincronizzazione richiede attenzione",
         "body": "{integration} non si sincronizza — riconnettilo per mantenere aggiornati i tuoi dati."
+      },
+      "coachCheckin": {
+        "title": "È il momento di rivedere un piano",
+        "body": "È passata circa una settimana da quando hai definito questo piano: mantienilo, modificalo o lascialo andare. Senza pressioni.",
+        "bodyPlan": "Circa una settimana fa ti eri proposto: «{plan}». Mantienilo, modificalo o lascialo andare, senza pressioni."
       }
     },
     "action": {
       "logDose": "Registra dose",
       "reconnect": "Riconnetti",
-      "viewCheckups": "Vedi controlli"
+      "viewCheckups": "Vedi controlli",
+      "checkinKeep": "Mantieni",
+      "checkinAdjust": "Modifica",
+      "checkinLetGo": "Lascia andare"
     },
     "today": {
       "scoreLabel": "Punteggio di salute",

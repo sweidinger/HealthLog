@@ -6516,6 +6516,8 @@
     "eventMeasurementReminderDesc": "Sent when a tracked measurement is due.",
     "eventMedicationIntakeSync": "Medication intake sync",
     "eventMedicationIntakeSyncDesc": "Cross-device update when a dose is logged, taken or skipped.",
+    "eventDailyBriefing": "Daily briefing",
+    "eventDailyBriefingDesc": "One calm morning summary of your day's read. Off until you turn it on.",
     "security": {
       "newDeviceTitle": "New sign-in to your account",
       "newDeviceBody": "A new sign-in from {device} ({location}). If this wasn't you, change your password immediately.",
@@ -8504,6 +8506,10 @@
       "score": "Your health score today is {score}.",
       "allClear": "Nothing needs your attention today — everything's tracking normally."
     },
+    "push": {
+      "title": "Your morning briefing",
+      "bodyProvisional": "{line} · Last night's sleep isn't in yet."
+    },
     "item": {
       "doseWindow": {
         "title": "Medication due",
@@ -8518,12 +8524,20 @@
       "syncIssue": {
         "title": "Sync needs attention",
         "body": "{integration} isn't syncing — reconnect to keep your data current."
+      },
+      "coachCheckin": {
+        "title": "Time to check in on a plan",
+        "body": "It's been about a week since you set this plan — keep it, adjust it, or let it go. No pressure either way.",
+        "bodyPlan": "About a week ago you set: “{plan}”. Keep it, adjust it, or let it go — no pressure either way."
       }
     },
     "action": {
       "logDose": "Log dose",
       "reconnect": "Reconnect",
-      "viewCheckups": "View check-ups"
+      "viewCheckups": "View check-ups",
+      "checkinKeep": "Keep it",
+      "checkinAdjust": "Adjust",
+      "checkinLetGo": "Let it go"
     },
     "today": {
       "scoreLabel": "Health score",
