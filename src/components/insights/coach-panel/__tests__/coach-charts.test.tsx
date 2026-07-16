@@ -62,6 +62,8 @@ describe("Coach chart rendering", () => {
     createdAt: "2026-06-01T10:00:00.000Z",
     updatedAt: "2026-06-01T10:00:00.000Z",
     messageCount: 1,
+    fenced: false,
+    attachmentCount: 0,
     messages: [
       {
         id: "m1",

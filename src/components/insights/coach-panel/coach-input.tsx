@@ -11,14 +11,17 @@ import {
 } from "react";
 import Link from "next/link";
 import {
+  FolderOpen,
   Loader2,
   MessagesSquare,
   Mic,
+  Paperclip,
   Plus,
   Send,
   Settings,
   Square,
   Target,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -120,6 +123,25 @@ export interface CoachInputProps {
    * `+` actions menu. Required when `showHub` is set.
    */
   onOpenHistory?: () => void;
+  /**
+   * v1.29.x (S7) — mount the document-attach trigger (a leading paperclip menu:
+   * "Choose from documents" + "Upload new document"). Set by the parent only
+   * when the `inboundDocuments` module is enabled for the user; hidden entirely
+   * otherwise. Separate from the `showHub` `+` actions menu — this affordance
+   * stages fenced document attachments, it does not manage conversations.
+   */
+  attachEnabled?: boolean;
+  /**
+   * v1.29.x (S7) — open the vault picker dialog. The parent owns the dialog +
+   * the staged-attachment state. Required when `attachEnabled` is set.
+   */
+  onPickFromVault?: () => void;
+  /**
+   * v1.29.x (S7) — the user chose files from the "Upload new document" item.
+   * The parent uploads them through the existing `/api/documents/inbound`
+   * pipeline and stages the resulting documents as indexing pills.
+   */
+  onUploadNew?: (files: File[]) => void;
 }
 
 /**
@@ -238,9 +260,13 @@ export function CoachInput({
   showHub = false,
   onNewChat,
   onOpenHistory,
+  attachEnabled = false,
+  onPickFromVault,
+  onUploadNew,
 }: CoachInputProps) {
   const { t, locale } = useTranslations();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const attachFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // v1.4.27 MB3 / CF-30 — focus the textarea once on mount when the
   // parent flags this surface as the freshly-opened one. The empty
@@ -534,6 +560,65 @@ export function CoachInput({
     </DropdownMenu>
   );
 
+  // v1.29.x (S7) — the document-attach affordance: a leading paperclip menu
+  // ("Choose from documents" opens the vault picker; "Upload new document"
+  // opens the file input, reusing the existing `/api/documents/inbound`
+  // pipeline). Rendered only when the parent enables it (module-gated). It is a
+  // SEPARATE control from the `showHub` `+` actions menu — the two never merge.
+  const attachButton = attachEnabled ? (
+    <>
+      <input
+        ref={attachFileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        data-slot="coach-input-attach-file"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          // Reset so re-selecting the same file re-fires `change`.
+          event.target.value = "";
+          if (files.length > 0) onUploadNew?.(files);
+        }}
+      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={disabled}
+            data-slot="coach-input-attach"
+            aria-label={t("insights.coach.attach.trigger")}
+            title={t("insights.coach.attach.trigger")}
+            className="text-muted-foreground hover:text-foreground size-11 shrink-0 rounded-xl sm:size-9"
+          >
+            <Paperclip className="size-5 sm:size-4" aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="top" className="w-56">
+          <DropdownMenuItem
+            data-slot="coach-input-attach-vault"
+            onSelect={() => onPickFromVault?.()}
+          >
+            <FolderOpen className="size-4" aria-hidden="true" />
+            {t("insights.coach.attach.menuChooseFromDocuments")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            data-slot="coach-input-attach-upload"
+            // Defer the input click a tick so the Radix menu finishes closing
+            // and returning focus before the native file dialog opens.
+            onSelect={() =>
+              setTimeout(() => attachFileInputRef.current?.click(), 0)
+            }
+          >
+            <Upload className="size-4" aria-hidden="true" />
+            {t("insights.coach.attach.menuUploadNew")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  ) : null;
+
   return (
     <form
       data-slot="coach-input"
@@ -562,8 +647,10 @@ export function CoachInput({
           "flex items-end gap-1.5 p-1.5",
         )}
       >
-        {/* Leading control. Page surface: the `+` actions menu. Drawer
-            surface: the dictation mic. */}
+        {/* Leading controls. The document-attach paperclip (module-gated)
+            leads, then the surface control: the `+` actions menu (page) or the
+            dictation mic (drawer). */}
+        {attachButton}
         {showHub ? actionsButton : micButton}
         <textarea
           id={inputId}

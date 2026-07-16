@@ -3,19 +3,27 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Plus, Settings, Sparkles } from "lucide-react";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { Paperclip, Plus, Settings, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { apiDelete, apiGet } from "@/lib/api/api-fetch";
+import { apiDelete, apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 import type { CoachScope } from "@/lib/ai/coach/types";
 import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 import type { CoachSeededQuestionDTO } from "@/app/api/insights/coach/seeded-question/route";
 import type { InboundDocumentDetailDto } from "@/lib/validations/inbound-documents";
+import { MAX_COACH_ATTACHMENTS } from "@/lib/validations/inbound-documents";
+import { useModuleEnabled } from "@/hooks/use-module-enabled";
+import { parseUploadResponse } from "@/components/documents/vault-utils";
 import {
   metricScopeLabelFallback,
   scopeSourceMetricLabelKey,
@@ -40,11 +48,15 @@ import { MessageThread, type InterleavedThreadItem } from "./message-thread";
 import { MobileRailTray } from "./mobile-rail-tray";
 import { SelfContextAdoptOffer } from "./self-context-adopt-offer";
 import { SourcesRail } from "./sources-rail";
+import { AttachmentPills, type AttachmentPillItem } from "./attachment-pills";
+import { AttachmentPicker } from "./attachment-picker";
 import { useResettableValue } from "./use-resettable-value";
 import { useCoachAmbientSuggestionsEnabled } from "@/hooks/use-coach-ambient-suggestions";
 import {
+  useAttachCoachDocument,
   useCoachConversation,
   useCoachConversations,
+  useDetachCoachDocument,
   useSendCoachMessage,
 } from "./use-coach";
 
@@ -193,12 +205,13 @@ export interface CoachConversationProps {
    */
   autoOpenMostRecent?: boolean;
   /**
-   * v1.28.51 (Documents R3, Design A) — seed a fresh chat SCOPED to a stored
-   * document. The `/coach?doc=<id>` deep-link (the detail sheet's "Ask the
-   * Coach" action) passes it so the first turn is created + sent through the
-   * HARDENED fenced document endpoint, and the scope badge + not-indexed hint
-   * render before anything is typed. Once a thread exists the scope is read
-   * authoritatively from the loaded conversation's `documentId` instead.
+   * v1.28.51 (Documents R3) / v1.29.x (S7) — seed a fresh chat with ONE stored
+   * document attached. The `/coach?doc=<id>` deep-link (the detail sheet's "Ask
+   * the Coach" action) passes it so the first turn is created + sent FENCED
+   * (through the hardened `/api/insights/chat/fenced` endpoint) with that
+   * document staged. Seeds the local `pendingAttachmentIds` for a not-yet-created
+   * chat; once a thread exists the attachment set is read authoritatively from
+   * the loaded conversation's `attachments` + sticky `fenced` flag instead.
    */
   initialDocumentId?: string | null;
   /**
@@ -280,18 +293,24 @@ export function CoachConversation({
 
   const { data: conversation } = useCoachConversation(currentConversationId);
 
-  // v1.28.51 (Documents R3, Design A) — document scope. `pendingDocumentId`
-  // seeds a fresh, not-yet-created chat from the `?doc=<id>` deep-link; once a
-  // thread exists the loaded conversation's own `documentId` is authoritative.
-  // `activeDocumentId` is what drives the send-path branch (fenced document
-  // endpoint vs. Coach tool route) and the scope badge. Cleared whenever the
-  // user starts a new chat or switches threads, so a stale doc scope can never
-  // leak onto a health thread.
-  const [pendingDocumentId, setPendingDocumentId] = useState<string | null>(
-    initialDocumentId ?? null,
+  // v1.29.x (S7) — multi-document attachments. `pendingAttachmentIds` holds the
+  // documents STAGED locally in the composer:
+  //   • a not-yet-created chat → the full set to send FENCED on the first turn;
+  //   • an existing conversation → uploads still being indexed, which auto-attach
+  //     via the attach endpoint the moment their content index lands.
+  // Seeds from the `/coach?doc=<id>` deep-link (a single document). Cleared on a
+  // new chat / thread switch so a stale attachment can never leak onto a health
+  // thread.
+  const [pendingAttachmentIds, setPendingAttachmentIds] = useState<string[]>(
+    initialDocumentId ? [initialDocumentId] : [],
   );
-  const activeDocumentId =
-    conversation?.documentId ?? pendingDocumentId ?? null;
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Whether the document-attach affordance is available at all (module-gated).
+  const attachEnabled = useModuleEnabled("inboundDocuments");
+
+  const attachDoc = useAttachCoachDocument(currentConversationId ?? "");
+  const detachDoc = useDetachCoachDocument(currentConversationId ?? "");
 
   const send = useSendCoachMessage({
     onDone: (resolvedId) => {
@@ -299,27 +318,175 @@ export function CoachConversation({
     },
   });
 
-  // Resolve the document's badge title + indexed status. `documentTitle` on the
-  // loaded conversation covers a persisted thread; the detail fetch covers the
-  // fresh `?doc=` case (no thread yet) AND supplies `hasContentIndex` for the
-  // "read it with AI first" hint (the conversation DTO does not carry it).
-  const { data: docDetail } = useQuery({
-    queryKey: queryKeys.inboundDocument(activeDocumentId ?? "none"),
-    enabled: activeDocumentId !== null,
-    staleTime: 60_000,
-    queryFn: async () =>
-      apiGet<InboundDocumentDetailDto>(
-        `/api/documents/inbound/${activeDocumentId}`,
-      ),
+  // v1.29.x (S7) — the SERVER-AUTHORITATIVE fence. For an existing conversation
+  // the sticky `fenced` flag on the loaded DTO decides; for a not-yet-created
+  // chat the presence of any staged attachment makes it fenced. A stale client
+  // can never mis-route an already-fenced conversation to the tool route because
+  // the existing-conversation branch reads the server flag, never local state.
+  const serverAttachments = conversation?.attachments ?? [];
+  const fenced =
+    currentConversationId !== null
+      ? (conversation?.fenced ?? false)
+      : pendingAttachmentIds.length > 0;
+
+  // Resolve title + indexed status for every locally-staged id (the server
+  // attachments already carry their titles). Un-indexed docs poll until their
+  // content index lands (freshly-uploaded documents index in the background).
+  const stagedDetailResults = useQueries({
+    queries: pendingAttachmentIds.map((id) => ({
+      queryKey: queryKeys.inboundDocument(id),
+      queryFn: async () =>
+        apiGet<InboundDocumentDetailDto>(`/api/documents/inbound/${id}`),
+      staleTime: 15_000,
+      refetchInterval: (query: {
+        state: { data?: InboundDocumentDetailDto };
+      }) =>
+        query.state.data && !query.state.data.hasContentIndex ? 2500 : false,
+    })),
   });
-  const docScopeTitle =
-    conversation?.documentTitle ??
-    docDetail?.title ??
-    docDetail?.filename ??
-    t("documents.card.untitled");
-  // Only warn when we positively know the document is NOT indexed. While the
-  // detail is still loading we say nothing rather than flash a false hint.
-  const docScopeNotIndexed = docDetail ? !docDetail.hasContentIndex : false;
+  const stagedDetailById = new Map<
+    string,
+    InboundDocumentDetailDto | undefined
+  >();
+  pendingAttachmentIds.forEach((id, i) => {
+    stagedDetailById.set(id, stagedDetailResults[i]?.data);
+  });
+  const isStagedIndexed = (id: string): boolean =>
+    stagedDetailById.get(id)?.hasContentIndex === true;
+  const stagedTitle = (id: string): string => {
+    const d = stagedDetailById.get(id);
+    return d?.title ?? d?.filename ?? t("documents.card.untitled");
+  };
+
+  // The pills row above the composer. On a fresh chat every pill is a staged id;
+  // on an existing conversation the server attachments are the live pills and any
+  // staged uploads (still indexing) render alongside them.
+  const attachmentPills: AttachmentPillItem[] =
+    currentConversationId === null
+      ? pendingAttachmentIds.map((id) => ({
+          documentId: id,
+          title: stagedTitle(id),
+          indexing: !isStagedIndexed(id),
+        }))
+      : [
+          ...serverAttachments.map((a) => ({
+            documentId: a.documentId,
+            title: a.title ?? t("documents.card.untitled"),
+            indexing: false,
+          })),
+          ...pendingAttachmentIds.map((id) => ({
+            documentId: id,
+            title: stagedTitle(id),
+            indexing: true,
+          })),
+        ];
+
+  const anyPendingUnindexed = pendingAttachmentIds.some(
+    (id) => !isStagedIndexed(id),
+  );
+
+  // Cap bookkeeping: how many documents already count, and the free slots the
+  // picker / upload path may still fill.
+  const liveAttachmentCount =
+    currentConversationId === null
+      ? pendingAttachmentIds.length
+      : serverAttachments.length + pendingAttachmentIds.length;
+  const remainingSlots = Math.max(
+    0,
+    MAX_COACH_ATTACHMENTS - liveAttachmentCount,
+  );
+  const excludeIds = [
+    ...pendingAttachmentIds,
+    ...serverAttachments.map((a) => a.documentId),
+  ];
+
+  // v1.29.x (S7) — once a staged UPLOAD finishes indexing on an EXISTING
+  // conversation, promote it to a real attachment via the attach endpoint and
+  // drop it from the local staging set. The ref guards against a double-mutate
+  // while the request is in flight. The effect is keyed on a stable string of
+  // the ready-to-attach ids (recomputed in render) so it fires only when the
+  // set of indexed-and-staged documents actually changes.
+  const attachingRef = useRef<Set<string>>(new Set());
+  const readyToAttachIds =
+    currentConversationId !== null
+      ? pendingAttachmentIds.filter((id) => isStagedIndexed(id))
+      : [];
+  const readyToAttachKey = readyToAttachIds.join(",");
+  useEffect(() => {
+    if (!readyToAttachKey) return;
+    for (const id of readyToAttachKey.split(",")) {
+      if (attachingRef.current.has(id)) continue;
+      attachingRef.current.add(id);
+      attachDoc.mutate(id, {
+        onSettled: () => {
+          attachingRef.current.delete(id);
+          setPendingAttachmentIds((prev) => prev.filter((x) => x !== id));
+        },
+      });
+    }
+  }, [readyToAttachKey, attachDoc]);
+
+  function handleRemoveAttachment(documentId: string) {
+    // A staged id (fresh chat, or an upload not yet attached) is local state.
+    if (pendingAttachmentIds.includes(documentId)) {
+      setPendingAttachmentIds((prev) => prev.filter((x) => x !== documentId));
+      return;
+    }
+    // An already-attached document on an existing conversation → detach endpoint.
+    if (currentConversationId !== null) {
+      detachDoc.mutate(documentId);
+    }
+  }
+
+  function handlePickFromVault(ids: string[]) {
+    if (currentConversationId === null) {
+      // Fresh chat: stage them for the first-turn attach (deduped + capped).
+      setPendingAttachmentIds((prev) =>
+        Array.from(new Set([...prev, ...ids])).slice(0, MAX_COACH_ATTACHMENTS),
+      );
+      return;
+    }
+    // Existing conversation: the picker only offers indexed documents, so attach
+    // each straight away — the server flips the sticky fenced flag.
+    for (const id of ids) attachDoc.mutate(id);
+  }
+
+  async function handleUploadNew(files: File[]) {
+    const toUpload = files.slice(0, remainingSlots);
+    for (const file of toUpload) {
+      const form = new FormData();
+      form.append("file", file);
+      let response: Response;
+      try {
+        response = await apiFetchRaw("/api/documents/inbound", {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+          body: form,
+        });
+      } catch {
+        toast.error(t("insights.coach.attach.uploadError"));
+        continue;
+      }
+      const parsed = parseUploadResponse(
+        response.status,
+        await response.text(),
+      );
+      if (!parsed.ok) {
+        toast.error(t("insights.coach.attach.uploadError"));
+        continue;
+      }
+      const doc = parsed.document;
+      // Reflect the new document in the vault + seed its detail so the pill
+      // resolves its title immediately (it indexes in the background).
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.documents(),
+      });
+      queryClient.setQueryData(queryKeys.inboundDocument(doc.id), doc);
+      setPendingAttachmentIds((prev) =>
+        prev.includes(doc.id) ? prev : [...prev, doc.id],
+      );
+    }
+  }
 
   // v1.18.11 (W11, #67) — auto-open the most-recent conversation when the
   // surface mounts with no explicit selection. Only fetches the rail list
@@ -373,6 +540,11 @@ export function CoachConversation({
   async function handleSubmit(value: string) {
     const trimmed = value.trim();
     if (!trimmed || send.isStreaming) return;
+    // v1.29.x (S7) — a fenced turn cannot go out while a staged attachment is
+    // still being indexed: the fenced endpoint 422s on an un-indexed document,
+    // so mirror that gate client-side (the composer shows the "still indexing"
+    // hint). The server edge is the real wall; this is the honest UI mirror.
+    if (fenced && anyPendingUnindexed) return;
     // v1.16.5 — in the guided flow the composer message IS the answer
     // to the current question. Mark it answered before the send so the
     // question bubble anchors above the user's message, and dismiss the
@@ -395,15 +567,28 @@ export function CoachConversation({
         : undefined;
     // v1.16.6 — hand the question to the turn so the Coach reaction is
     // contextual (the question bubble itself is never persisted).
-    // v1.28.51 — `documentId` routes a doc-scoped turn through the hardened
-    // fenced endpoint (see `resolveCoachSendTarget`); undefined on health chats.
+    // v1.29.x (S7) — `fenced` + `pendingAttachmentIds` route a fenced turn
+    // through the hardened `/api/insights/chat/fenced` endpoint (see
+    // `resolveCoachSendTarget`); the tool-mode fields (`scope`,
+    // `guidedQuestion`) are suppressed on a fenced turn — that endpoint has no
+    // snapshot and no guided flow. `pendingAttachmentIds` travels ONLY on a
+    // brand-new conversation (first-turn attach).
+    const wasFreshFenced = currentConversationId === null && fenced;
     const resolvedId = await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
-      guidedQuestion: guidedQuestion ?? undefined,
-      scope,
-      documentId: activeDocumentId ?? undefined,
+      guidedQuestion: fenced ? undefined : (guidedQuestion ?? undefined),
+      scope: fenced ? undefined : scope,
+      fenced,
+      pendingAttachmentIds:
+        currentConversationId === null ? pendingAttachmentIds : undefined,
     });
+    // A fresh fenced chat's first turn created the conversation server-side and
+    // persisted the attachments; the server now owns them via the conversation
+    // detail, so drop the local staging set to avoid duplicate "indexing" pills.
+    if (wasFreshFenced && resolvedId) {
+      setPendingAttachmentIds([]);
+    }
     if (guidedQuestion !== null && guidedIndex !== null) {
       setPendingAdopt({
         question: guidedQuestion,
@@ -457,6 +642,7 @@ export function CoachConversation({
   function handleRegenerate(userText: string) {
     const trimmed = userText.trim();
     if (!trimmed || send.isStreaming) return;
+    if (fenced && anyPendingUnindexed) return;
     const scope =
       currentConversationId === null
         ? launchScopeToCoachScope(launchScope)
@@ -464,8 +650,10 @@ export function CoachConversation({
     void send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
-      scope,
-      documentId: activeDocumentId ?? undefined,
+      scope: fenced ? undefined : scope,
+      fenced,
+      pendingAttachmentIds:
+        currentConversationId === null ? pendingAttachmentIds : undefined,
     });
   }
 
@@ -473,8 +661,9 @@ export function CoachConversation({
     setCurrentConversationId(null);
     setInputValue("");
     setPendingAdopt(null);
-    // v1.28.51 — a new chat is always a health thread; drop any document scope.
-    setPendingDocumentId(null);
+    // v1.29.x (S7) — a new chat is always a health thread; drop any staged
+    // attachments so a fenced scope can never leak onto a fresh health thread.
+    setPendingAttachmentIds([]);
     dispatchGuided({ type: "RESET" });
     send.reset();
   }
@@ -530,24 +719,45 @@ export function CoachConversation({
   // it grows a leading `+` actions menu (new chat + open conversations) and
   // a settings deep-link. The drawer keeps its own header for those, so the
   // hub is page-only.
+  // v1.29.x (S7) — the composer with its attachment chrome: the pills row + the
+  // "still indexing" hint stack directly above the input, so they travel with
+  // the composer into BOTH the new-chat hero and the docked conversation view.
   const composerNode = (
-    <CoachInput
-      value={inputValue}
-      onChange={setInputValue}
-      onSubmit={() => handleSubmit(inputValue)}
-      onCancel={send.cancel}
-      disabled={send.isStreaming}
-      isStreaming={send.isStreaming}
-      autoFocusOnOpen={autoFocusComposer}
-      placeholder={
-        guided.phase === "asking"
-          ? t("insights.coach.guided.answerPlaceholder")
-          : undefined
-      }
-      showHub={surface === "page"}
-      onNewChat={handleNewChat}
-      onOpenHistory={() => router.push("/coach/conversations")}
-    />
+    <div className="flex flex-col gap-2">
+      <AttachmentPills
+        items={attachmentPills}
+        onRemove={handleRemoveAttachment}
+        disabled={send.isStreaming}
+      />
+      {fenced && anyPendingUnindexed ? (
+        <p
+          data-slot="coach-attach-indexing-hint"
+          className="text-muted-foreground px-1 text-xs"
+        >
+          {t("insights.coach.attach.indexingHint")}
+        </p>
+      ) : null}
+      <CoachInput
+        value={inputValue}
+        onChange={setInputValue}
+        onSubmit={() => handleSubmit(inputValue)}
+        onCancel={send.cancel}
+        disabled={send.isStreaming}
+        isStreaming={send.isStreaming}
+        autoFocusOnOpen={autoFocusComposer}
+        placeholder={
+          guided.phase === "asking"
+            ? t("insights.coach.guided.answerPlaceholder")
+            : undefined
+        }
+        showHub={surface === "page"}
+        onNewChat={handleNewChat}
+        onOpenHistory={() => router.push("/coach/conversations")}
+        attachEnabled={attachEnabled}
+        onPickFromVault={() => setPickerOpen(true)}
+        onUploadNew={handleUploadNew}
+      />
+    </div>
   );
 
   // v1.18.9 — the centred new-chat hero replaces the cramped empty thread
@@ -645,7 +855,12 @@ export function CoachConversation({
     : null;
 
   let scopeHint: React.ReactNode = null;
-  if (a2Metric && a2MetricLabel) {
+  if (fenced) {
+    // v1.29.x (S7) — a fenced conversation has NO health snapshot to scope, so
+    // the A2/A3 "the Coach is already on <metric>" openers are suppressed. The
+    // honest fencing banner (below) is the only chrome the fenced hero shows.
+    scopeHint = null;
+  } else if (a2Metric && a2MetricLabel) {
     // A2 — the launch prefill IS the data-aware opener; fall back to the
     // generic per-metric question when the launch carried no prefill.
     const seedQuestion =
@@ -694,7 +909,7 @@ export function CoachConversation({
           question has been answered. Self-removes after settle; v1.16.5
           reports the outcome back into the guided machine for the closing
           summary. */}
-      {pendingAdopt && !send.isStreaming ? (
+      {pendingAdopt && !send.isStreaming && !fenced ? (
         <SelfContextAdoptOffer
           question={pendingAdopt.question}
           answer={pendingAdopt.answer}
@@ -711,7 +926,7 @@ export function CoachConversation({
       {/* v1.16.5 — guided clarifying-questions entry card (V2 of the
           v1.16.0 chips). Offers the in-chat sequence while questions pend
           and the flow hasn't started. */}
-      {guided.phase === "idle" && pendingQuestions.length > 0 ? (
+      {guided.phase === "idle" && pendingQuestions.length > 0 && !fenced ? (
         <GuidedQuestionsCard
           count={pendingQuestions.length}
           disabled={send.isStreaming || dismissQuestions.isPending}
@@ -733,28 +948,34 @@ export function CoachConversation({
     </div>
   );
 
-  // v1.28.51 (Documents R3, Design A) — the scope banner for a doc-scoped
-  // thread: a small "Document" badge + "Chatting about: <title>", plus the
-  // "read it with AI first" hint when the document is not yet indexed. Rendered
-  // in BOTH surfaces (page + drawer) above the thread so the fenced scope is
-  // always visible. Null on a normal health thread.
-  const docScopeBanner = activeDocumentId ? (
+  // v1.29.x (S7) — the fenced-conversation banner. The moment a conversation is
+  // fenced (server sticky flag, or ≥1 staged attachment on a fresh chat) this
+  // states plainly that the coach runs WITHOUT access to health data and reads
+  // ONLY the attached documents, and counts the attachments. Rendered in BOTH
+  // surfaces (page + drawer) above the thread so the fence is always visible.
+  // Null on a normal health thread.
+  const attachedCount = attachmentPills.length;
+  const docScopeBanner = fenced ? (
     <div
       data-slot="coach-doc-scope"
       className="border-border/70 bg-muted/20 flex shrink-0 flex-col gap-1 border-b px-4 py-2 sm:px-6"
     >
       <div className="flex min-w-0 items-center gap-2 text-xs">
         <span className="bg-primary/15 text-primary inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-medium">
-          <FileText className="size-3" aria-hidden="true" />
-          {t("insights.coach.docScope.badge")}
-        </span>
-        <span className="text-muted-foreground truncate">
-          {t("insights.coach.docScope.chattingAbout", { title: docScopeTitle })}
+          <Paperclip className="size-3" aria-hidden="true" />
+          {attachedCount === 1
+            ? t("insights.coach.attach.documentsAttachedOne")
+            : t("insights.coach.attach.documentsAttachedOther", {
+                count: attachedCount,
+              })}
         </span>
       </div>
-      {docScopeNotIndexed ? (
+      <p className="text-muted-foreground text-[11px] leading-snug">
+        {t("insights.coach.attach.fencedHint")}
+      </p>
+      {anyPendingUnindexed ? (
         <p className="text-muted-foreground text-[11px] leading-snug">
-          {t("insights.coach.docScope.notIndexedHint")}
+          {t("insights.coach.attach.indexingHint")}
         </p>
       ) : null}
     </div>
@@ -802,6 +1023,15 @@ export function CoachConversation({
             </div>
           </>
         )}
+        {attachEnabled ? (
+          <AttachmentPicker
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            remainingSlots={remainingSlots}
+            excludeIds={excludeIds}
+            onConfirm={handlePickFromVault}
+          />
+        ) : null}
       </div>
     );
   }
@@ -913,9 +1143,10 @@ export function CoachConversation({
               setCurrentConversationId(id);
               setHistoryTrayOpen(false);
               setPendingAdopt(null);
-              // v1.28.51 — the selected thread's own `documentId` is now
-              // authoritative; drop any pending `?doc=` seed so it can't leak.
-              setPendingDocumentId(null);
+              // v1.29.x (S7) — the selected thread's own `fenced` flag +
+              // `attachments` are now authoritative; drop any staged `?doc=`
+              // seed so a pending attachment can't leak across a thread switch.
+              setPendingAttachmentIds([]);
               dispatchGuided({ type: "RESET" });
             }}
           />
@@ -933,6 +1164,16 @@ export function CoachConversation({
           />
         }
       />
+
+      {attachEnabled ? (
+        <AttachmentPicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          remainingSlots={remainingSlots}
+          excludeIds={excludeIds}
+          onConfirm={handlePickFromVault}
+        />
+      ) : null}
     </div>
   );
 }

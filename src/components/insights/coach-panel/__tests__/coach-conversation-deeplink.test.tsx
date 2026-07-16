@@ -42,6 +42,7 @@ const RAIL: CoachConversationsPage = {
       createdAt: "2026-06-20T08:00:00.000Z",
       updatedAt: "2026-06-20T09:00:00.000Z",
       messageCount: 3,
+      fenced: false,
     },
     {
       id: "older",
@@ -49,6 +50,7 @@ const RAIL: CoachConversationsPage = {
       createdAt: "2026-06-18T08:00:00.000Z",
       updatedAt: "2026-06-18T08:05:00.000Z",
       messageCount: 2,
+      fenced: false,
     },
   ],
   nextCursor: null,

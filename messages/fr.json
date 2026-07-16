@@ -2450,7 +2450,27 @@
         "correlationWeightWeekday": "Mon poids suit-il un schéma hebdomadaire ? Que m'indique cette corrélation selon le jour de la semaine ?",
         "recommendation": "Parle-moi davantage de cette recommandation : \"{text}\" — pourquoi s'applique-t-elle à moi, et que devrais-je faire ?"
       },
-      "assessmentPrompt": "Explique-moi mon évaluation de {metric} : qu'est-ce que cela signifie et que dois-je faire ?"
+      "assessmentPrompt": "Explique-moi mon évaluation de {metric} : qu'est-ce que cela signifie et que dois-je faire ?",
+      "attach": {
+        "menuChooseFromDocuments": "Choisir parmi les documents",
+        "menuUploadNew": "Téléverser un nouveau document",
+        "trigger": "Joindre des documents",
+        "pickerTitle": "Joindre des documents",
+        "pickerDescription": "Le coach lit uniquement les documents que vous joignez, pas vos données de santé.",
+        "pickerSearchPlaceholder": "Rechercher des documents…",
+        "pickerEmpty": "Aucun document dans votre coffre pour l'instant.",
+        "pickerNotIndexed": "Pas encore indexé",
+        "pickerCap": "Vous pouvez encore en joindre jusqu'à {max}.",
+        "pickerConfirm": "Joindre ({count})",
+        "pillRemove": "Retirer {title}",
+        "indexing": "Indexation…",
+        "indexingHint": "Un document est encore en cours d'indexation ; vous pourrez envoyer une fois prêt.",
+        "fencedHint": "Cette conversation s'exécute sans accès à vos données de santé : le coach lit uniquement les documents joints.",
+        "documentsAttachedOne": "1 document joint",
+        "documentsAttachedOther": "{count} documents joints",
+        "railBadge": "Chat de document cloisonné",
+        "uploadError": "Échec du téléversement. Veuillez réessayer."
+      }
     },
     "relativeJustNow": "à l’instant",
     "relativeMinutesAgoOne": "il y a {count} minute",

@@ -112,6 +112,17 @@ const NOT_COACH_OWNED_ROUTES: ReadonlyArray<string> = [
   "src/app/api/insights/health-status/route.ts",
   "src/app/api/insights/breathing-screening/route.ts",
   "src/app/api/insights/labs-changes/route.ts",
+  // v1.29.x (S7) — the FENCED multi-document coach chat + its attach/detach
+  // mutations. These live under /insights/chat for URL grouping but are
+  // DOCUMENT-surface routes: they gate on the `inboundDocuments` module
+  // (`requireModuleEnabled`), NOT on the Coach assistant surface — parity with
+  // the document-sheet chat (`/api/documents/inbound/[id]/chat`, outside this
+  // scan). The security boundary here is the fence (no tools, no snapshot),
+  // not the Coach gate; disabling Coach must not wedge a fenced document chat
+  // any more than it wedges the document sheet. See the S7 design §3.2 step 1.
+  "src/app/api/insights/chat/fenced/route.ts",
+  "src/app/api/insights/chat/[id]/attachments/route.ts",
+  "src/app/api/insights/chat/[id]/attachments/[documentId]/route.ts",
 ];
 
 const COACH_GATE_NEEDLE = 'requireAssistantSurface("coach")';

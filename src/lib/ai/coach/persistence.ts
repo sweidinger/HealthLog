@@ -14,6 +14,7 @@ import { prisma } from "@/lib/db";
 import { decryptFromBytes, encryptToBytes } from "./bytes-codec";
 
 import type {
+  CoachConversationAttachmentDTO,
   CoachConversationDTO,
   CoachConversationDetailDTO,
   CoachMessageDTO,
@@ -120,11 +121,16 @@ export interface CreateConversationParams {
   userId: string;
   title: string;
   /**
-   * v1.27.33 (Document vault P4) — when set, scopes the conversation to a stored
-   * document (a "chat about a document" thread). Omitted / null = a normal Coach
-   * conversation (health-record surface). The two never mix.
+   * v1.29.x (S7) — create the conversation as a FENCED thread (sets the sticky
+   * `documentScoped` flag). Omitted / false = a normal Coach conversation.
    */
-  documentId?: string | null;
+  documentScoped?: boolean;
+  /**
+   * v1.29.x (S7) — the initial attachment set (join rows). The CALLER must have
+   * validated every id (owned + live + indexed + within cap) before passing them
+   * — this helper only writes the rows. Composite PK makes duplicates a no-op.
+   */
+  attachmentIds?: string[];
 }
 
 export interface AppendMessageParams {
@@ -150,12 +156,26 @@ export interface AppendMessageParams {
 export async function createConversation(
   params: CreateConversationParams,
 ): Promise<CoachConversationDTO> {
-  const row = await prisma.coachConversation.create({
-    data: {
-      userId: params.userId,
-      title: summariseTitle(params.title),
-      documentId: params.documentId ?? null,
-    },
+  const attachmentIds = params.attachmentIds ?? [];
+  const row = await prisma.$transaction(async (tx) => {
+    const conversation = await tx.coachConversation.create({
+      data: {
+        userId: params.userId,
+        title: summariseTitle(params.title),
+        documentScoped: params.documentScoped ?? false,
+      },
+    });
+    if (attachmentIds.length > 0) {
+      await tx.coachConversationDocument.createMany({
+        // Composite PK — a duplicate id is skipped rather than throwing.
+        data: attachmentIds.map((documentId) => ({
+          conversationId: conversation.id,
+          documentId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    return conversation;
   });
   return {
     id: row.id,
@@ -163,26 +183,43 @@ export async function createConversation(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     messageCount: 0,
-    // v1.28.51 — carry the scope discriminator on the created DTO. The title
-    // is resolved lazily by the list/detail reads (which join the document);
-    // create does not join, so a fresh doc thread reports null until reloaded.
-    documentId: row.documentId ?? null,
+    // The attachment labels are resolved lazily by the list/detail reads (which
+    // join the document); create does not join, so a fresh thread reports the
+    // fenced flag but an empty attachment list until reloaded.
+    fenced: row.documentScoped,
+    attachments: [],
     documentTitle: null,
   };
 }
 
 /**
- * v1.28.51 (Documents R3) — resolve a joined document's badge title: its
- * user-given `title`, falling back to the `filename`, or null when neither is
- * set (or the thread has no document). Both columns are plaintext already
- * (see the schema note on `InboundDocument.title`), so this leaks no health
- * values the row did not already carry in the clear.
+ * v1.29.x (S7) — resolve a joined document's badge title: its user-given
+ * `title`, falling back to the `filename`, or null when neither is set. Both
+ * columns are plaintext already (see the schema note on `InboundDocument.title`),
+ * so this leaks no health values the row did not already carry in the clear.
  */
 function resolveDocumentTitle(
   document: { title: string | null; filename: string | null } | null,
 ): string | null {
   if (!document) return null;
   return document.title ?? document.filename ?? null;
+}
+
+/**
+ * v1.29.x (S7) — map a conversation's included join rows to the attachment DTO
+ * list (ordered by attach time), skipping any row whose document join is missing
+ * (a corrupted/foreign row the owner-scoped `document` select could not resolve).
+ */
+function mapAttachments(
+  rows: ReadonlyArray<{
+    documentId: string;
+    document: { title: string | null; filename: string | null } | null;
+  }>,
+): CoachConversationAttachmentDTO[] {
+  return rows.map((r) => ({
+    documentId: r.documentId,
+    title: resolveDocumentTitle(r.document),
+  }));
 }
 
 /**
@@ -299,19 +336,32 @@ export async function fetchConversationWithMessages(
   userId: string,
   conversationId: string,
   /**
-   * v1.27.33 (Document vault P4) — optional surface isolation. When provided,
-   * the fetch additionally requires `documentId` to equal this value, so a Coach
-   * caller (passes `null`) can never load a document chat and the document chat
-   * route (passes the document id) can never load a Coach thread. Omitted =
-   * no `documentId` filter (unchanged behaviour).
+   * v1.29.x (S7) — optional surface isolation, fail-closed. The reader is always
+   * `userId`-narrowed; these narrow further:
+   *   - `documentScoped` — require the sticky flag to equal this value. The tool
+   *     route passes `false` (a fenced thread 404s there); the fenced endpoint
+   *     passes `true` (a plain tool thread 404s there). One mode per conversation,
+   *     both directions.
+   *   - `attachedDocumentId` — additionally require a LIVE join row for this
+   *     document (and `documentScoped: true`). The single-doc sheet route passes
+   *     the path id so it can only ever load a conversation that actually holds
+   *     that document. Never combined with `documentScoped`.
    */
-  opts?: { documentId?: string | null },
+  opts?: { documentScoped?: boolean; attachedDocumentId?: string },
 ): Promise<CoachConversationDetailDTO | null> {
   const row = await prisma.coachConversation.findFirst({
     where: {
       id: conversationId,
       userId,
-      ...(opts && "documentId" in opts ? { documentId: opts.documentId } : {}),
+      ...(opts?.documentScoped !== undefined
+        ? { documentScoped: opts.documentScoped }
+        : {}),
+      ...(opts?.attachedDocumentId
+        ? {
+            documentScoped: true,
+            attachments: { some: { documentId: opts.attachedDocumentId } },
+          }
+        : {}),
     },
     include: {
       messages: {
@@ -321,10 +371,14 @@ export async function fetchConversationWithMessages(
         orderBy: { createdAt: "desc" },
         take: CONVERSATION_MESSAGE_DETAIL_CAP,
       },
-      // v1.28.51 — join the owning document (if any) so the detail DTO can
-      // badge a doc-scoped thread with its title. Only the two plaintext
-      // label columns are selected; the encrypted document body is untouched.
-      document: { select: { title: true, filename: true } },
+      // v1.29.x (S7) — the LIVE attachment set (join → document label columns
+      // only; the encrypted body is untouched), ordered by attach time. Always
+      // loaded: the tool route's drift guard reads the count, and the fenced
+      // pipeline reads the ids as its grounding context.
+      attachments: {
+        orderBy: { addedAt: "asc" },
+        include: { document: { select: { title: true, filename: true } } },
+      },
     },
   });
   if (!row) return null;
@@ -354,6 +408,7 @@ export async function fetchConversationWithMessages(
     }
   }
 
+  const attachments = mapAttachments(row.attachments);
   return {
     id: row.id,
     title: row.title,
@@ -362,8 +417,10 @@ export async function fetchConversationWithMessages(
     messageCount: messages.length,
     messages,
     summary,
-    documentId: row.documentId ?? null,
-    documentTitle: resolveDocumentTitle(row.document),
+    fenced: row.documentScoped,
+    attachments,
+    attachmentCount: attachments.length,
+    documentTitle: attachments[0]?.title ?? null,
   };
 }
 
@@ -372,11 +429,12 @@ export interface ListConversationsParams {
   cursor?: string | null;
   limit?: number;
   /**
-   * v1.27.33 (Document vault P4) — optional surface filter. The Coach rail
-   * passes `null` (only its own health threads); the document sheet passes the
-   * document id (only that document's chats). Omitted = no `documentId` filter.
+   * v1.29.x (S7) — optional surface filter. The Coach rail passes neither (a
+   * union of health + fenced threads, badged client-side). The document sheet
+   * passes `attachedDocumentId` (only conversations that hold that document via a
+   * live join row). `userId` stays narrowed regardless.
    */
-  documentId?: string | null;
+  attachedDocumentId?: string;
 }
 
 /**
@@ -394,7 +452,9 @@ export async function listConversations(
   const rows = await prisma.coachConversation.findMany({
     where: {
       userId: params.userId,
-      ...("documentId" in params ? { documentId: params.documentId } : {}),
+      ...(params.attachedDocumentId
+        ? { attachments: { some: { documentId: params.attachedDocumentId } } }
+        : {}),
     },
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: limit + 1,
@@ -406,9 +466,13 @@ export async function listConversations(
       : {}),
     include: {
       _count: { select: { messages: true } },
-      // v1.28.51 — join the owning document (label columns only) so the rail
-      // can badge a doc-scoped thread with its title. Null on Coach threads.
-      document: { select: { title: true, filename: true } },
+      // v1.29.x (S7) — the live attachment set (label columns only) so the rail
+      // can badge a fenced thread with a paperclip + the first document's title.
+      // Empty on a health thread.
+      attachments: {
+        orderBy: { addedAt: "asc" },
+        include: { document: { select: { title: true, filename: true } } },
+      },
     },
   });
 
@@ -416,15 +480,19 @@ export async function listConversations(
   const nextCursor = rows.length > limit ? page[page.length - 1].id : null;
 
   return {
-    conversations: page.map((r) => ({
-      id: r.id,
-      title: r.title,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-      messageCount: r._count.messages,
-      documentId: r.documentId ?? null,
-      documentTitle: resolveDocumentTitle(r.document),
-    })),
+    conversations: page.map((r) => {
+      const attachments = mapAttachments(r.attachments);
+      return {
+        id: r.id,
+        title: r.title,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        messageCount: r._count.messages,
+        fenced: r.documentScoped,
+        attachments,
+        documentTitle: attachments[0]?.title ?? null,
+      };
+    }),
     nextCursor,
   };
 }
@@ -445,4 +513,108 @@ export async function deleteConversation(
   if (!row) return false;
   await prisma.coachConversation.delete({ where: { id: row.id } });
   return true;
+}
+
+// ─── S7: coach-conversation attachments ─────────────────────────────────────
+
+/**
+ * v1.29.x (S7) — the state the attach/detach routes need to decide the outcome:
+ * the sticky flag (for the tool→fenced flip detection), the message count (a
+ * flip only matters on a thread with prior turns), and the LIVE attachment ids
+ * (for the cap + idempotency checks). Owner-scoped; null when the conversation
+ * does not exist or is not owned by `userId` (route → 404).
+ */
+export interface ConversationAttachmentState {
+  id: string;
+  documentScoped: boolean;
+  messageCount: number;
+  attachmentIds: string[];
+}
+
+export async function fetchConversationAttachmentState(
+  userId: string,
+  conversationId: string,
+): Promise<ConversationAttachmentState | null> {
+  const row = await prisma.coachConversation.findFirst({
+    where: { id: conversationId, userId },
+    select: {
+      id: true,
+      documentScoped: true,
+      _count: { select: { messages: true } },
+      attachments: { select: { documentId: true } },
+    },
+  });
+  if (!row) return null;
+  return {
+    id: row.id,
+    documentScoped: row.documentScoped,
+    messageCount: row._count.messages,
+    attachmentIds: row.attachments.map((a) => a.documentId),
+  };
+}
+
+/**
+ * v1.29.x (S7) — attach a document: create the join row (idempotent via the
+ * composite PK) and set the sticky `documentScoped` flag TRUE. This is the ONE
+ * legal, privilege-REDUCING tool→fenced flip. The flag is only ever set true
+ * here — no code path clears it. The CALLER must have validated the document
+ * (owned + live + indexed + within cap) first.
+ */
+export async function attachDocument(args: {
+  conversationId: string;
+  documentId: string;
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.coachConversationDocument.createMany({
+      data: [
+        { conversationId: args.conversationId, documentId: args.documentId },
+      ],
+      skipDuplicates: true,
+    });
+    await tx.coachConversation.update({
+      where: { id: args.conversationId },
+      // Unconditional set-true: the flag is already true or becoming true, never
+      // anything else. Detaching / deleting never reaches this write.
+      data: { documentScoped: true },
+    });
+  });
+}
+
+/**
+ * v1.29.x (S7) — detach a document: delete the join row. Writes NO flag — a
+ * detached conversation stays fenced (the sticky-flag invariant). The absence of
+ * any `documentScoped` write here is the guarantee, not a guarded branch.
+ * Returns false when the conversation is not owned or the row did not exist
+ * (route → 404, no info leak).
+ */
+export async function detachDocument(args: {
+  userId: string;
+  conversationId: string;
+  documentId: string;
+}): Promise<boolean> {
+  const owned = await prisma.coachConversation.findFirst({
+    where: { id: args.conversationId, userId: args.userId },
+    select: { id: true },
+  });
+  if (!owned) return false;
+  const result = await prisma.coachConversationDocument.deleteMany({
+    where: { conversationId: args.conversationId, documentId: args.documentId },
+  });
+  return result.count > 0;
+}
+
+/**
+ * v1.29.x (S7) — the live attachment DTO list for a conversation (join → label
+ * columns, attach-time order). Used by the attach/detach routes to echo the
+ * refreshed pill set back to the client.
+ */
+export async function loadConversationAttachmentDTOs(
+  conversationId: string,
+): Promise<CoachConversationAttachmentDTO[]> {
+  const rows = await prisma.coachConversationDocument.findMany({
+    where: { conversationId },
+    orderBy: { addedAt: "asc" },
+    include: { document: { select: { title: true, filename: true } } },
+  });
+  return mapAttachments(rows);
 }

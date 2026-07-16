@@ -2450,7 +2450,27 @@
         "correlationWeightWeekday": "Folgt mein Gewicht einem Wochenmuster? Was sagt mir dieser Wochentags-Zusammenhang?",
         "recommendation": "Erzähl mir mehr zu dieser Empfehlung: \"{text}\" — warum trifft sie auf mich zu, und was sollte ich tun?"
       },
-      "assessmentPrompt": "Erkläre mir meine {metric}-Einschätzung — was bedeutet sie und was sollte ich tun?"
+      "assessmentPrompt": "Erkläre mir meine {metric}-Einschätzung — was bedeutet sie und was sollte ich tun?",
+      "attach": {
+        "menuChooseFromDocuments": "Aus Dokumenten wählen",
+        "menuUploadNew": "Neues Dokument hochladen",
+        "trigger": "Dokumente anhängen",
+        "pickerTitle": "Dokumente anhängen",
+        "pickerDescription": "Der Coach liest nur die angehängten Dokumente – nicht deine Gesundheitsdaten.",
+        "pickerSearchPlaceholder": "Dokumente durchsuchen…",
+        "pickerEmpty": "Noch keine Dokumente in deinem Tresor.",
+        "pickerNotIndexed": "Noch nicht indexiert",
+        "pickerCap": "Du kannst noch bis zu {max} anhängen.",
+        "pickerConfirm": "Anhängen ({count})",
+        "pillRemove": "{title} entfernen",
+        "indexing": "Wird indexiert…",
+        "indexingHint": "Ein Dokument wird noch indexiert – du kannst senden, sobald es bereit ist.",
+        "fencedHint": "Diese Unterhaltung läuft ohne Zugriff auf deine Gesundheitsdaten – der Coach liest nur die angehängten Dokumente.",
+        "documentsAttachedOne": "1 Dokument angehängt",
+        "documentsAttachedOther": "{count} Dokumente angehängt",
+        "railBadge": "Dokument-Chat (abgeschottet)",
+        "uploadError": "Upload fehlgeschlagen. Bitte versuche es erneut."
+      }
     },
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",

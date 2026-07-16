@@ -363,6 +363,17 @@ export interface CoachProvenance {
  * Lightweight DTO the conversation list endpoint returns.
  * Decryption deliberately deferred — the rail only needs metadata.
  */
+/**
+ * v1.29.x (S7) — one document attached to a coach conversation. `documentId` is
+ * the join row's document; `title` is its resolved label (its `title`, falling
+ * back to `filename`), plaintext (same posture as the document title column), no
+ * health values. The client renders one pill per attachment.
+ */
+export interface CoachConversationAttachmentDTO {
+  documentId: string;
+  title: string | null;
+}
+
 export interface CoachConversationDTO {
   id: string;
   title: string;
@@ -370,19 +381,25 @@ export interface CoachConversationDTO {
   updatedAt: string;
   messageCount: number;
   /**
-   * v1.28.51 (Documents R3, Design A) — when set, this thread is a chat SCOPED
-   * to one stored document (the discriminator `coach_conversations.document_id`).
-   * Null / absent = a normal Coach thread (health-record surface). The Coach rail
-   * badges a doc-scoped thread and, crucially, routes its turns through the
-   * HARDENED fenced document endpoint — never the tool route. Server-derived from
-   * the row; never a client input.
+   * v1.29.x (S7) — the sticky fence flag (`coach_conversations.document_scoped`).
+   * true = a FENCED thread: its turns route through the hardened fenced endpoint
+   * (no tools, no health snapshot), never the tool route. false = a normal Coach
+   * thread (health-record surface). Server-derived from the row; never a client
+   * input. This flag is PERMANENT — once true it is never cleared, even after
+   * every attachment is detached or deleted.
    */
-  documentId?: string | null;
+  fenced: boolean;
   /**
-   * v1.28.51 — the owning document's resolved title (its `title`, falling back to
-   * `filename`), for the "Chatting about: <title>" badge. Null when the document
-   * has neither, or on a non-document thread. Plaintext (same posture as the
-   * document title column); no health values.
+   * v1.29.x (S7) — the LIVE set of documents attached to this thread (join rows).
+   * Empty on a health thread, and possibly empty on a fenced thread whose
+   * attachments were all detached/deleted (the flag stays true). Absent on the
+   * lightweight create DTO (the reads resolve the labels).
+   */
+  attachments?: CoachConversationAttachmentDTO[];
+  /**
+   * v1.29.x (S7) — the FIRST attachment's resolved title, kept for the rail's
+   * single-line badge (paperclip + title). Null on a health thread or a fenced
+   * thread with no live attachment.
    */
   documentTitle?: string | null;
 }
@@ -422,6 +439,13 @@ export interface CoachConversationDetailDTO extends CoachConversationDTO {
    * window, or null when none is on file / it could not be decrypted.
    */
   summary?: string | null;
+  /**
+   * v1.29.x (S7) — the count of LIVE attachment rows. The tool route's
+   * defense-in-depth guard reads this: a `documentScoped: false` fetch that
+   * nonetheless carries an attachment is flag/join drift → fail closed (404 +
+   * `insights.coach.fence_drift` audit). Equal to `attachments.length`.
+   */
+  attachmentCount: number;
 }
 
 /**

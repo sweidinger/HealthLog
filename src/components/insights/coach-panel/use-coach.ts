@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
+  CoachConversationAttachmentDTO,
   CoachConversationDetailDTO,
   CoachConversationDTO,
   CoachConversationsPage,
@@ -14,7 +15,7 @@ import type {
   CoachUsage,
 } from "@/lib/ai/coach/types";
 import type { CoachSuggestedAction } from "@/lib/ai/coach/suggest-action";
-import { apiDelete, apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
+import { apiDelete, apiFetchRaw, apiGet, apiPost } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
 
 /**
@@ -123,6 +124,57 @@ export function useDeleteCoachConversation() {
       if (typeof id === "string") {
         queryClient.removeQueries({ queryKey: QUERY_KEYS.one(id) });
       }
+    },
+  });
+}
+
+/**
+ * v1.29.x (S7) — attach a stored document to an EXISTING fenced (or about-to-be-
+ * fenced) conversation. On success invalidates the conversation detail + rail so
+ * the pills + badge refetch from server truth. The server flips the sticky flag
+ * true (the one legal, privilege-reducing tool→fenced transition).
+ */
+export function useAttachCoachDocument(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: queryKeys.coachAttachmentMutation(conversationId),
+    mutationFn: async (documentId: string): Promise<CoachAttachmentsResponse> =>
+      apiPost<CoachAttachmentsResponse>(
+        `/api/insights/chat/${conversationId}/attachments`,
+        { documentId },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.coachConversation(conversationId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.coachConversations(),
+      });
+    },
+  });
+}
+
+/**
+ * v1.29.x (S7) — detach a document from a fenced conversation. The conversation
+ * stays fenced (sticky flag). Invalidates the detail + rail on success.
+ */
+export function useDetachCoachDocument(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: queryKeys.coachAttachmentMutation(conversationId),
+    mutationFn: async (documentId: string): Promise<CoachAttachmentsResponse> =>
+      apiDelete<CoachAttachmentsResponse>(
+        `/api/insights/chat/${conversationId}/attachments/${encodeURIComponent(
+          documentId,
+        )}`,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.coachConversation(conversationId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.coachConversations(),
+      });
     },
   });
 }
@@ -268,42 +320,56 @@ export interface SendCoachMessageParams {
    */
   guidedQuestion?: string;
   /**
-   * v1.28.51 (Documents R3, Design A) — when set, this turn belongs to a
-   * DOCUMENT-scoped conversation. It is sent to the HARDENED fenced document
-   * endpoint (`/api/documents/inbound/<id>/chat`) — no tools, no health
-   * snapshot, fenced doc text — and NEVER to the full Coach tool route. This is
-   * the single branch that keeps untrusted document text off the write tools;
-   * see `resolveCoachSendTarget`.
+   * v1.29.x (S7) — SERVER-AUTHORITATIVE: the loaded conversation's sticky
+   * `documentScoped` flag. When true the turn is FENCED and routes to the
+   * hardened `/api/insights/chat/fenced` endpoint (no tools, no snapshot, fenced
+   * document text) — NEVER the coach tool route. A stale client cannot mis-route
+   * an already-fenced conversation to the tool route because this comes from the
+   * server DTO, not client-side attachment bookkeeping.
    */
-  documentId?: string | null;
+  fenced?: boolean;
+  /**
+   * v1.29.x (S7) — LOCAL state: documents staged in the composer for a NOT-yet-
+   * created conversation (first-turn attach). Empty / omitted otherwise. Their
+   * presence also forces the fenced route (a fresh chat born with attachments is
+   * fenced). Ignored once a conversation exists — attach-to-existing goes through
+   * `POST /api/insights/chat/{id}/attachments`.
+   */
+  pendingAttachmentIds?: string[];
 }
 
 /**
- * v1.28.51 (Documents R3, Design A) — the ONE branch point that decides which
- * backend a Coach turn hits. When `documentId` is set the turn goes to the
- * hardened, fenced document chat endpoint; otherwise the normal Coach route
- * (tool loop + health snapshot). Extracted as a pure function so a unit test
- * can prove a doc-scoped send never resolves to the tool route — the whole
- * prompt-injection fence rests on this decision.
+ * v1.29.x (S7) — the ONE branch point that decides which backend a Coach turn
+ * hits. A FENCED turn (the conversation's server `fenced` flag OR staged
+ * first-turn attachments) goes to the hardened `/api/insights/chat/fenced`
+ * endpoint; otherwise the normal Coach route (tool loop + health snapshot).
+ * Extracted as a pure function so a unit test can prove a fenced send never
+ * resolves to the tool route — the whole prompt-injection fence rests on this.
  */
 export function resolveCoachSendTarget(params: SendCoachMessageParams): {
   url: string;
   body: string;
 } {
-  const documentId =
-    typeof params.documentId === "string" && params.documentId.length > 0
-      ? params.documentId
-      : null;
-  if (documentId) {
-    // Fenced document path. Only the three fields the document route accepts —
-    // NOT `scope` / `guidedQuestion` / `prefill`, which drive the coach's
-    // snapshot + tool behaviour and have no place on the hardened endpoint.
+  const fenced =
+    params.fenced === true || (params.pendingAttachmentIds?.length ?? 0) > 0;
+  if (fenced) {
+    // Fenced path. The body carries ONLY the fields the fenced endpoint accepts
+    // — NOT `scope` / `guidedQuestion` / `prefill`, which drive the coach's
+    // snapshot + tool behaviour and have no place on the hardened endpoint (the
+    // server schema is `.strict()` and would 422 them). `attachmentIds` travels
+    // ONLY on a brand-new conversation (first-turn attach); attach-to-existing
+    // uses the dedicated attach endpoint, so it is omitted once an id exists.
+    const attachmentIds =
+      !params.conversationId && (params.pendingAttachmentIds?.length ?? 0) > 0
+        ? params.pendingAttachmentIds
+        : undefined;
     return {
-      url: `/api/documents/inbound/${encodeURIComponent(documentId)}/chat`,
+      url: "/api/insights/chat/fenced",
       body: JSON.stringify({
         conversationId: params.conversationId,
         message: params.message,
         locale: params.locale,
+        attachmentIds,
       }),
     };
   }
@@ -318,6 +384,16 @@ export function resolveCoachSendTarget(params: SendCoachMessageParams): {
       guidedQuestion: params.guidedQuestion,
     }),
   };
+}
+
+/**
+ * v1.29.x (S7) — the shape both attach + detach mutations return (and the fenced
+ * conversation detail carries): the refreshed live attachment set + the sticky
+ * fenced flag (always true after an attach; unchanged by a detach).
+ */
+export interface CoachAttachmentsResponse {
+  attachments: CoachConversationAttachmentDTO[];
+  fenced: boolean;
 }
 
 export interface UseSendCoachMessageOptions {
@@ -642,6 +718,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
 // Re-exports for adjacent components that don't want to reach into
 // `@/lib/ai/coach/types` directly.
 export type {
+  CoachConversationAttachmentDTO,
   CoachConversationDTO,
   CoachConversationDetailDTO,
   CoachProvenance,

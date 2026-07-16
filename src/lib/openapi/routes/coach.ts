@@ -20,6 +20,10 @@ import {
   coachPlansListQuerySchema,
 } from "@/lib/validations/coach-plan";
 import { coachChatRequestSchema } from "@/lib/ai/coach/types";
+import {
+  coachAttachmentCreateSchema,
+  fencedChatRequestSchema,
+} from "@/lib/validations/inbound-documents";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { createShareLinkSchema } from "@/lib/validations/clinician-share-link";
 import { coachReminderSuggestionActionSchema } from "@/lib/validations/coach-reminder-suggestion";
@@ -499,6 +503,18 @@ const coachMessageSchema = z
       "One Coach chat message, decrypted server-side. Ordered oldest-first within a conversation.",
   });
 
+const coachConversationAttachmentSchema = z
+  .object({
+    documentId: z.string(),
+    title: z
+      .string()
+      .nullable()
+      .describe(
+        "The attached document's resolved title (title, falling back to filename). Null when it has neither. Plaintext; no health values.",
+      ),
+  })
+  .meta({ id: "CoachConversationAttachment" });
+
 const coachConversationSchema = z
   .object({
     id: z.string(),
@@ -508,17 +524,22 @@ const coachConversationSchema = z
       .datetime({ offset: true })
       .describe("Bumped on every appended message; the rail orders by this."),
     messageCount: z.number().int(),
-    documentId: z
-      .string()
-      .nullish()
+    fenced: z
+      .boolean()
       .describe(
-        "When set, this thread is scoped to one stored document (a document chat, run on the hardened fenced endpoint). Null/absent for a normal health thread.",
+        "v1.29.x (S7) — the sticky fence flag. true = a FENCED thread: its turns route through the hardened fenced endpoint (no tools, no health snapshot), never the tool route. Permanent once true. false = a normal health thread.",
+      ),
+    attachments: z
+      .array(coachConversationAttachmentSchema)
+      .optional()
+      .describe(
+        "v1.29.x (S7) — the LIVE set of documents attached to this thread. Empty on a health thread (or a fenced thread whose attachments were all detached).",
       ),
     documentTitle: z
       .string()
       .nullish()
       .describe(
-        "The owning document's resolved title (title, falling back to filename) for the scope badge. Null on a health thread or when the document has neither.",
+        "v1.29.x (S7) — the FIRST attachment's resolved title, kept for the rail's single-line badge. Null on a health thread or a fenced thread with no live attachment.",
       ),
   })
   .meta({
@@ -560,17 +581,28 @@ const coachConversationDetailSchema = z
       .describe(
         "Rolling summary of turns elided past the history window; null when none is on file.",
       ),
-    documentId: z
-      .string()
-      .nullish()
+    fenced: z
+      .boolean()
       .describe(
-        "When set, this thread is scoped to one stored document; the client routes its turns through the hardened fenced document endpoint, never the tool route.",
+        "v1.29.x (S7) — the sticky fence flag; the client routes a fenced thread's turns through the hardened fenced endpoint, never the tool route.",
+      ),
+    attachments: z
+      .array(coachConversationAttachmentSchema)
+      .optional()
+      .describe(
+        "v1.29.x (S7) — the LIVE set of attached documents (join rows), attach-time order.",
+      ),
+    attachmentCount: z
+      .number()
+      .int()
+      .describe(
+        "v1.29.x (S7) — count of live attachment rows (equal to attachments.length).",
       ),
     documentTitle: z
       .string()
       .nullish()
       .describe(
-        "The owning document's resolved title for the scope badge. Null on a health thread.",
+        "v1.29.x (S7) — the first attachment's resolved title for the rail badge. Null on a health thread.",
       ),
   })
   .meta({
@@ -584,6 +616,19 @@ const coachConversationDeletedResponse = z.object({
     .literal(true)
     .describe("Always true on success; a foreign / unknown id is a 404."),
 });
+
+const coachAttachmentsResponseSchema = z
+  .object({
+    attachments: z
+      .array(coachConversationAttachmentSchema)
+      .describe("The conversation's refreshed live attachment set."),
+    fenced: z
+      .boolean()
+      .describe(
+        "The sticky fence flag — always true after an attach; unchanged (stays true) by a detach.",
+      ),
+  })
+  .meta({ id: "CoachAttachments" });
 
 coachChatRequestSchema.meta({
   id: "CoachChatRequest",
@@ -730,6 +775,124 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         },
         "404": {
           description: "Conversation not found or not owned by the caller.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/chat/fenced": {
+    post: {
+      tags: ["Insights"],
+      summary: "Send a FENCED multi-document coach turn (streaming reply)",
+      description:
+        "v1.29.x (S7) — sends a user turn and streams a grounded prose reply about the documents attached to a coach conversation, as Server-Sent Events (`text/event-stream`: one `data: <json>\\n\\n` frame per event; `token` / `done` / `error`, HTTP 200 even for a provider/refusal outcome). FENCED by construction: NO tools, NO health snapshot; every attached document is fenced as untrusted DATA (per-document header fields marker-scrubbed); the single picked provider is egress-consent-checked once per attached document (403 `consent.ai.required` if any fails); the reply is numerically grounded against the LIVE attachments' figures only. `conversationId` continues an existing fenced thread; `attachmentIds` (first-turn ONLY, min 1, max 5) creates a fresh fenced thread — supplying BOTH is a 422. The body is `.strict()`: `scope` / `guidedQuestion` / `prefill` / `userId` are rejected. A plain tool conversation 404s here. Module-gated on `inboundDocuments`; rate-limited (shared `document-chat` bucket). Renders as plain text (no markdown). Auth via cookie or Bearer.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: fencedChatRequestSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Server-Sent Events stream of `token` / `done` / `error` frames.",
+          content: {
+            "text/event-stream": {
+              schema: {
+                type: "string",
+                description:
+                  "SSE frames: `data: <json>\\n\\n`. See the operation description for the per-`type` frame shapes.",
+              },
+            },
+          },
+        },
+        "403": {
+          description:
+            "AI consent required for an external provider (`errorCode: consent.ai.required`). A 422 (`stdResponses`) covers an un-indexed / unavailable attachment (`coach.fenced.attachmentUnavailable`), the attachment cap (`coach.fenced.attachmentLimit`), or `attachmentIds` sent with a `conversationId` (`coach.fenced.attachmentConflict`).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/chat/{id}/attachments": {
+    post: {
+      tags: ["Insights"],
+      summary: "Attach a document to a coach conversation",
+      description:
+        "v1.29.x (S7) — attaches one already-stored, content-indexed document to an existing conversation and sets its sticky `documentScoped` flag TRUE (the one legal, privilege-reducing tool→fenced transition; audit-logged when a flip occurs). Validates the document is owned + live + indexed + within the 5-document cap. Idempotent: attaching an already-attached document is a 200. A foreign / unknown conversation or document maps to 404. Module-gated on `inboundDocuments`; rate-limited. Auth via cookie or Bearer.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "Conversation id.",
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: coachAttachmentCreateSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The refreshed live attachment set + the fenced flag.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachAttachmentsResponseSchema,
+                "CoachAttachmentsResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Conversation or document not found / not owned.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/chat/{id}/attachments/{documentId}": {
+    delete: {
+      tags: ["Insights"],
+      summary: "Detach a document from a coach conversation",
+      description:
+        "v1.29.x (S7) — removes the document from the conversation. The conversation stays FENCED (the sticky flag is never cleared — a thread whose history may contain document-derived text must never regain the tool loop). Detaching the last document leaves a fenced conversation with zero attachments. A missing row / foreign conversation maps to 404. Module-gated on `inboundDocuments`; rate-limited. Auth via cookie or Bearer.",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "Conversation id.",
+        },
+        {
+          name: "documentId",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "The attached document's id.",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "The refreshed live attachment set + the fenced flag.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachAttachmentsResponseSchema,
+                "CoachAttachmentsResponseDetach",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Attachment or conversation not found / not owned.",
           content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,

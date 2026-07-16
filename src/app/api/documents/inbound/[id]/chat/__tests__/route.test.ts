@@ -187,6 +187,8 @@ beforeEach(() => {
     createdAt: "",
     updatedAt: "",
     messageCount: 0,
+    fenced: true,
+    attachments: [],
   });
   vi.mocked(appendMessage).mockImplementation(
     async (p) =>
@@ -328,19 +330,19 @@ describe("POST — security model (no tools, no snapshot, fenced)", () => {
 });
 
 describe("POST — conversation surface isolation", () => {
-  it("404s continuing a conversationId not scoped to this document, fetched with documentId", async () => {
+  it("404s continuing a conversationId that does not hold this document (path-id join filter)", async () => {
     vi.mocked(fetchConversationWithMessages).mockResolvedValue(null);
     const res = await POST(
       req("doc-1", { conversationId: "other-conv", message: "hi" }) as never,
       ctx("doc-1") as never,
     );
     expect(res.status).toBe(404);
-    // The fetch is document-scoped — a Coach thread (documentId null) or a
-    // foreign document's thread can never be loaded here.
+    // The fetch requires a LIVE join row for the path id (+ documentScoped) — a
+    // health thread or a foreign/other document's thread can never load here.
     expect(fetchConversationWithMessages).toHaveBeenCalledWith(
       "user-1",
       "other-conv",
-      { documentId: "doc-1" },
+      { attachedDocumentId: "doc-1" },
     );
     expect(runStreamingRawCompletionWithFallback).not.toHaveBeenCalled();
   });
