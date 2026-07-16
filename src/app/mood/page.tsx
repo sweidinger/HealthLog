@@ -19,7 +19,7 @@ import { useEffect } from "react";
 import { useTranslations } from "@/lib/i18n/context";
 
 export default function MoodPage() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const mounted = useMounted();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -29,6 +29,13 @@ export default function MoodPage() {
   // Sheet branch can sticky-pin Save / Cancel above the keyboard.
   const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
   const { t } = useTranslations();
+
+  // Gated on the resolved `modules.mood` flag from `GET /api/auth/me` (the
+  // per-user toggle AND the operator server-wide kill-switch). Default-on: an
+  // absent key reads as enabled, so a direct URL hit only bounces on an
+  // explicit `false`. Every `/api/mood-entries/*` route also enforces the gate
+  // server-side, so this is a UX redirect, not the security boundary.
+  const enabled = user?.modules?.mood !== false;
 
   // v1.16.4 — PWA pull-to-refresh: a top-anchored touch pull refetches
   // whatever this page currently has mounted (`type: "active"` scopes the
@@ -44,17 +51,20 @@ export default function MoodPage() {
   });
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading) return;
+    if (!isAuthenticated) {
       router.push("/auth/login");
+    } else if (!enabled) {
+      router.push("/");
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, enabled, router]);
 
   // `!mounted` keeps the hydration render identical to the SSR HTML: the
   // auth query is fired by the early-hydrating shell and can settle before
   // this page boundary hydrates, so `isLoading` alone flipped the branch
   // and React logged hydration error #418 — same fix as the measurements
   // page; see `useMounted`.
-  if (!mounted || isLoading) {
+  if (!mounted || isLoading || (isAuthenticated && !enabled)) {
     return <PageAuthGate label={t("common.loading")} />;
   }
 

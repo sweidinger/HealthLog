@@ -66,9 +66,9 @@ function SleepStageStackedBar(
  *
  * Empty state: no SLEEP_DURATION rows yet → render the "Apple Health
  * sync is coming in v1.5" message with a deep-link to Settings →
- * Devices so the user can prepare. We do NOT render any of the three
- * blocks in that case — half-rendered empty cards would be worse than
- * a single clean CTA.
+ * Integrations so the user can connect a sleep source. We do NOT render
+ * any of the three blocks in that case — half-rendered empty cards would
+ * be worse than a single clean CTA.
  */
 
 interface SleepAnalyticsSummary {
@@ -111,7 +111,7 @@ export function SleepOverview() {
         description={t("insights.sleep.empty.description")}
         action={
           <Button size="sm" variant="outline" asChild>
-            <Link href="/settings/devices">
+            <Link href="/settings/integrations">
               {t("insights.sleep.empty.action")}
             </Link>
           </Button>
