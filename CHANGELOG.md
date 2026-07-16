@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.28.48] — 2026-07-16 — Security follow-ups
+
+Two fixes from the campaign's security re-verification:
+
+- On a brand-new instance with single-sign-on configured, two people signing in
+  for the very first time at the same moment could both be made admin. The
+  first-admin selection now takes the same lock as password registration, so
+  exactly one admin is created no matter which sign-in path or how concurrent.
+- A background nutrient-import error could echo a raw database message back to
+  the client; it now returns a fixed status and logs the detail server-side only.
+
 ## [1.28.47] — 2026-07-16 — Job queue engine update (pg-boss 12.26)
 
 Updates the background-job engine (pg-boss) from 12.20 to 12.26, which adds
