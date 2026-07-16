@@ -2,7 +2,19 @@
 
 ## [Unreleased]
 
-## [1.28.52] — 2026-07-16 — Dashboard tiles for more of what you already track
+## [1.28.53] — 2026-07-16 — A "Today" overview at the top of your dashboard
+
+The dashboard opens with a Today view: your health score, the day's lead read,
+and a short "worth a look" list — a dose window that's open, an integration to
+reconnect, a check-up coming due — each a single tap to the right place. The
+familiar tiles and charts sit just below, unchanged.
+
+It reads the insight that's already prepared overnight, so it loads instantly
+and never generates anything on open. When last night's sleep hasn't synced yet,
+it says so plainly and fills in the sleep-dependent parts once the data arrives,
+rather than showing a stale or empty score. This is the first piece of a single
+daily view that later surfaces — a morning refresh, an optional daily note —
+will all build on.
 
 The dashboard gains tiles for readings that were synced and charted but never
 had a place on the home strip: heart-rate variability, blood oxygen, breathing
