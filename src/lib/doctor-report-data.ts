@@ -256,6 +256,13 @@ export async function collectDoctorReportData(
               moodLoggedAt: { gte: start, lte: end },
             },
             orderBy: { moodLoggedAt: "asc" },
+            // v1.28.46 perf (H1) — narrow select. The collector reads exactly
+            // two fields off each mood row: `score` (the mood summary /
+            // distribution) and `tags` (GLP-1 side-effect tag counts). The
+            // full-width read pulled every column — including the encrypted
+            // `noteEncrypted` Bytes and the plaintext `note` free text — across
+            // the whole report window, none of which the report ever touches.
+            select: { score: true, tags: true },
           })
         : Promise.resolve([]),
       prisma.user.findUnique({

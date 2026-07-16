@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -409,7 +409,49 @@ interface ChatBubbleProps {
   onRegenerate?: () => void;
 }
 
-export function ChatBubble({
+/**
+ * v1.28.46 perf (M3) — memo comparator for `ChatBubble`. The Coach thread
+ * re-renders on every streamed token (the live turn's content grows), which
+ * re-runs `messages.map` and re-creates every persisted bubble. Without memo
+ * each settled bubble re-runs `selectCoachChartTokens` + provenance work per
+ * token; on a long thread that is tokens × messages renders and drops frames.
+ *
+ * Every prop that changes the bubble's output is compared by value/reference.
+ * The ONE prop that is not stable across renders is `onRegenerate`: the thread
+ * builds a fresh `() => onRegenerate(precedingUserContent)` closure per render
+ * for each assistant message (message-thread.tsx), so a naive shallow memo
+ * would never skip. Its identity does not affect rendering (the closure is only
+ * invoked on click, and captures the same preceding user text on a settled
+ * thread), so it is compared by PRESENCE, not identity. Result: only the
+ * streaming bubble (whose `content`/`streaming` actually change) re-renders.
+ *
+ * Exported so the contract is unit-testable without standing up the thread.
+ */
+export function areChatBubblePropsEqual(
+  prev: ChatBubbleProps,
+  next: ChatBubbleProps,
+): boolean {
+  return (
+    prev.role === next.role &&
+    prev.content === next.content &&
+    prev.streaming === next.streaming &&
+    prev.inProgress === next.inProgress &&
+    prev.errorCode === next.errorCode &&
+    prev.providerType === next.providerType &&
+    prev.messageId === next.messageId &&
+    prev.tokensUsed === next.tokensUsed &&
+    prev.model === next.model &&
+    prev.createdAt === next.createdAt &&
+    prev.metricSource === next.metricSource &&
+    prev.suggestion === next.suggestion &&
+    prev.suggestedAction === next.suggestedAction &&
+    prev.usage === next.usage &&
+    // onRegenerate is a per-render closure — compare only whether it is present.
+    (prev.onRegenerate === undefined) === (next.onRegenerate === undefined)
+  );
+}
+
+function ChatBubbleImpl({
   role,
   content,
   metricSource,
@@ -808,6 +850,15 @@ export function ChatBubble({
     </div>
   );
 }
+
+/**
+ * v1.28.46 perf (M3) — memoized bubble. Skips re-render for every settled
+ * bubble while the streaming turn grows token-by-token; the streaming bubble
+ * (changed `content`/`streaming`) is the only one that re-renders. `displayName`
+ * is set so the name survives the memo wrapper in React DevTools.
+ */
+export const ChatBubble = memo(ChatBubbleImpl, areChatBubblePropsEqual);
+ChatBubble.displayName = "ChatBubble";
 
 /**
  * v1.16.8 — per-message remember control under the user bubble.

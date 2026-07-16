@@ -1707,6 +1707,11 @@ model Measurement {
   // and series reads for every type NOT covered by the two partials above
   // and removes the `deleted_at` heap re-check. Same Prisma-can't-express-a-
   // partial-predicate reason it is omitted here.
+  // `measurements_note_backfill_idx` is a partial index over `(user_id)
+  // WHERE notes IS NOT NULL AND notes_encrypted IS NULL` — see migration 0243
+  // (v1.28.46 H4). It makes the note-encryption boot-discovery `SELECT DISTINCT
+  // user_id` an index-only scan that converges to empty. Same partial-predicate
+  // reason it is omitted here.
   @@map("measurements")
 }
 
@@ -2719,6 +2724,11 @@ model MedicationDoseChange {
   medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
 
   @@index([medicationId, effectiveFrom])
+  // `medication_dose_changes_note_backfill_idx` is a partial index over
+  // `(medication_id) WHERE note IS NOT NULL AND note_encrypted IS NULL` — see
+  // migration 0243 (v1.28.46 H4). The med-notes boot-discovery joins dose-
+  // changes to medications on medication_id to reach the owner; the index
+  // leads with that join key. Raw SQL only (partial predicate).
   @@map("medication_dose_changes")
 }
 
@@ -2817,6 +2827,10 @@ model MedicationInventoryItem {
 
   @@index([userId, medicationId, state])
   @@index([userId, expiresAt])
+  // `medication_inventory_items_note_backfill_idx` is a partial index over
+  // `(user_id) WHERE notes IS NOT NULL AND notes_encrypted IS NULL` — see
+  // migration 0243 (v1.28.46 H4) for the med-notes boot-discovery scan. Raw
+  // SQL only (partial predicate not expressible in Prisma).
   @@map("medication_inventory_items")
 }
 
@@ -2876,6 +2890,10 @@ model MedicationSideEffect {
 
   @@index([userId, medicationId, occurredAt])
   @@index([userId, occurredAt])
+  // `medication_side_effects_note_backfill_idx` is a partial index over
+  // `(user_id) WHERE notes IS NOT NULL AND notes_encrypted IS NULL` — see
+  // migration 0243 (v1.28.46 H4) for the med-notes boot-discovery scan. Raw
+  // SQL only (partial predicate not expressible in Prisma).
   @@map("medication_side_effects")
 }
 
@@ -3539,6 +3557,10 @@ model MoodEntry {
   // v1.7.0 sync — keyset support for the `/api/sync/changes` mood feed
   // (`where userId` ordered by `(updatedAt asc, id asc)`).
   @@index([userId, updatedAt, id])
+  // `mood_entries_note_backfill_idx` is a partial index over `(user_id)
+  // WHERE note IS NOT NULL AND note_encrypted IS NULL` — see migration 0243
+  // (v1.28.46 H4), serving the note-encryption boot-discovery scan. Raw SQL
+  // only (partial predicate not expressible in Prisma).
   @@map("mood_entries")
 }
 
@@ -4373,6 +4395,10 @@ model LabResult {
   @@index([userId, analyte, takenAt])
   @@index([userId, deletedAt])
   @@index([biomarkerId])
+  // `lab_results_biomarker_backfill_idx` is a partial index over `(user_id)
+  // WHERE deleted_at IS NULL AND biomarker_id IS NULL` — see migration 0243
+  // (v1.28.46 H4), serving the lab-biomarker boot-discovery `SELECT DISTINCT
+  // user_id`. Raw SQL only (partial predicate not expressible in Prisma).
   @@map("lab_results")
 }
 
@@ -6055,6 +6081,11 @@ model InboundDocument {
   // a superset of the plain `(userId, deletedAt)` index, which is therefore
   // redundant for read planning and dropped.
   @@index([userId, deletedAt, documentDate])
+  // `inbound_documents_thumbnail_backfill_idx` is a partial index over
+  // `(user_id, mime_type) WHERE deleted_at IS NULL` — see migration 0243
+  // (v1.28.46 H4). It bounds the document-side scan of the thumbnail
+  // boot-discovery (which anti-joins document_thumbnails for the missing
+  // preview). Raw SQL only (partial predicate not expressible in Prisma).
   @@map("inbound_documents")
 }
 

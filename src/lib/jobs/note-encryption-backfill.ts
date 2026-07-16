@@ -192,22 +192,25 @@ export async function enqueueBootTimeNoteEncryptionBackfill(
   }
 
   try {
+    // v1.28.46 perf (H4) — DB-level SELECT DISTINCT, not Prisma `distinct`.
+    // Prisma `distinct` fetches EVERY matching row then de-dupes in JS; on the
+    // densest table (`measurements`) that is a full un-migrated-partition scan
+    // materialised into the worker at boot. `SELECT DISTINCT user_id` de-dupes
+    // in Postgres and, with the migration-0243 partial indexes matching each
+    // predicate, becomes an index-only scan that shrinks to nothing as the
+    // backfill converges.
     const [measurementUsers, moodUsers] = await Promise.all([
-      prisma.measurement.findMany({
-        where: { notes: { not: null }, notesEncrypted: null },
-        select: { userId: true },
-        distinct: ["userId"],
-      }),
-      prisma.moodEntry.findMany({
-        where: { note: { not: null }, noteEncrypted: null },
-        select: { userId: true },
-        distinct: ["userId"],
-      }),
+      prisma.$queryRaw<{ user_id: string }[]>`
+        SELECT DISTINCT user_id FROM measurements
+        WHERE notes IS NOT NULL AND notes_encrypted IS NULL`,
+      prisma.$queryRaw<{ user_id: string }[]>`
+        SELECT DISTINCT user_id FROM mood_entries
+        WHERE note IS NOT NULL AND note_encrypted IS NULL`,
     ]);
 
     const userIds = new Set<string>();
-    for (const { userId } of measurementUsers) userIds.add(userId);
-    for (const { userId } of moodUsers) userIds.add(userId);
+    for (const { user_id } of measurementUsers) userIds.add(user_id);
+    for (const { user_id } of moodUsers) userIds.add(user_id);
 
     if (userIds.size === 0) {
       return { enqueued: 0, skipped: 0, error: null };
