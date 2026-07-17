@@ -10788,6 +10788,69 @@ paths:
         "403": *a17
         "422": *a3
         "429": *a4
+  /api/nutrients/daily:
+    get:
+      tags:
+        - Nutrients
+      summary: One nutrient's day-bucketed series (v1.29)
+      description: Dense per-day series for one catalog code over the last `days` days (default 30) — one entry per calendar
+        day, 0 for a day with no logged data, summed ACROSS SOURCES (a day may carry both an APPLE_HEALTH row and a
+        MANUAL row since migration 0249). Feeds the `/insights/nutrients` hydration + caffeine charts. Also returns the
+        EFSA reference resolved against the caller's profile sex — `null` when the profile has no sex on file (never
+        guessed). Behind the opt-in `nutrients` module.
+      parameters:
+        - in: query
+          name: nutrient
+          schema:
+            $ref: "#/components/schemas/NutrientCode"
+          required: true
+          description: Closed nutrient catalog code — 24 HealthKit Dietary vitamin/mineral types plus water and caffeine. Energy,
+            macros and sodium/potassium are out of scope.
+        - in: query
+          name: days
+          schema:
+            default: 30
+            type: integer
+            minimum: 1
+            maximum: 90
+      responses:
+        "200":
+          description: The day-bucketed series + resolved reference.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NutrientDailySeriesEnvelope"
+        "401": *a1
+        "403": *a17
+        "422": *a3
+        "429": *a4
+  /api/nutrients/water:
+    post:
+      tags:
+        - Nutrients
+      summary: Manual water quick-add (v1.29)
+      description: "Writes ONLY the `source=\"MANUAL\"` row for `(day, \"water\")` — never the `source=\"APPLE_HEALTH\"` row
+        the batch endpoint owns, so a manual entry and an Apple sync coexist instead of one clobbering the other. `mode:
+        \"add\"` increments the manual day total (quick-add chips); `mode: \"set\"` overwrites it (the \"edit today's
+        total\" undo path — there is no per-entry ledger). `day` defaults to the caller's current local day when
+        omitted. Idempotency-Key supported; rate limit 60/min. Behind the opt-in `nutrients` module."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NutrientWaterWriteRequest"
+      responses:
+        "200":
+          description: The MANUAL water row after the write.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NutrientWaterWriteEnvelope"
+        "401": *a1
+        "403": *a17
+        "422": *a3
+        "429": *a4
   /api/integrations/healthkit:
     get:
       tags:
@@ -12347,7 +12410,7 @@ components:
               - order
         tiles:
           minItems: 1
-          maxItems: 61
+          maxItems: 62
           type: array
           items:
             type: object
@@ -12406,6 +12469,7 @@ components:
                   - wrist-temperature
                   - mood
                   - medications
+                  - nutrients
                   - blutdruck
                   - puls
                   - sauerstoff
@@ -12945,6 +13009,26 @@ components:
         - caffeine
       description: Closed nutrient catalog code — 24 HealthKit Dietary vitamin/mineral types plus water and caffeine. Energy,
         macros and sodium/potassium are out of scope.
+    NutrientWaterWriteRequest:
+      type: object
+      properties:
+        amountMl:
+          type: number
+          minimum: 1
+          maximum: 20000
+        mode:
+          type: string
+          enum:
+            - add
+            - set
+        day:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}$
+      required:
+        - amountMl
+        - mode
+      description: Manual water quick-add against the MANUAL source row. add increments today's manual total; set overwrites
+        it. Never touches the APPLE_HEALTH row.
     HealthKitConfigPatchRequest:
       type: object
       properties:
@@ -29987,6 +30071,123 @@ components:
       additionalProperties: false
       description: "Per-nutrient window summary in catalog order: latest synced day + total, and the count of days carrying
         data inside the window. Nutrients without data in the window are omitted."
+    NutrientDailySeriesEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/NutrientDailySeries"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    NutrientDailySeries:
+      type: object
+      properties:
+        nutrient:
+          $ref: "#/components/schemas/NutrientCode"
+        unit:
+          type: string
+        windowDays:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        days:
+          type: array
+          items:
+            type: object
+            properties:
+              day:
+                type: string
+              amount:
+                type: number
+            required:
+              - day
+              - amount
+            additionalProperties: false
+        reference:
+          anyOf:
+            - type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - PRI
+                    - AI
+                    - safeLevel
+                direction:
+                  type: string
+                  enum:
+                    - target
+                    - upperGuidance
+                value:
+                  type: number
+                source:
+                  type: string
+              required:
+                - kind
+                - direction
+                - value
+                - source
+              additionalProperties: false
+            - type: "null"
+      required:
+        - nutrient
+        - unit
+        - windowDays
+        - days
+        - reference
+      additionalProperties: false
+      description: Dense day-bucketed series (one entry per day in the window, 0 for a day with no data) summed across
+        sources, plus the EFSA reference resolved against the caller's profile sex (null when sex is unknown on the
+        profile).
+    NutrientWaterWriteEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/NutrientWaterWriteResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    NutrientWaterWriteResponse:
+      type: object
+      properties:
+        day:
+          type: string
+        nutrient:
+          type: string
+          const: water
+        source:
+          type: string
+          const: MANUAL
+        amount:
+          type: number
+        unit:
+          type: string
+      required:
+        - day
+        - nutrient
+        - source
+        - amount
+        - unit
+      additionalProperties: false
+      description: The MANUAL water row after the add/set write.
     HealthKitConfigEnvelope:
       type: object
       properties:
@@ -30451,7 +30652,7 @@ components:
             additionalProperties: false
         tiles:
           minItems: 1
-          maxItems: 61
+          maxItems: 62
           type: array
           items:
             type: object
@@ -30510,6 +30711,7 @@ components:
                   - wrist-temperature
                   - mood
                   - medications
+                  - nutrients
                   - blutdruck
                   - puls
                   - sauerstoff

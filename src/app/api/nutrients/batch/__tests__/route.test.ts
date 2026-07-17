@@ -267,10 +267,11 @@ describe("POST /api/nutrients/batch — upsert semantics", () => {
 
     expect(prisma.nutrientIntakeDay.upsert).toHaveBeenCalledWith({
       where: {
-        userId_day_nutrient: {
+        userId_day_nutrient_source: {
           userId: "user-1",
           day,
           nutrient: "vitamin_d",
+          source: "APPLE_HEALTH",
         },
       },
       create: {
@@ -279,6 +280,7 @@ describe("POST /api/nutrients/batch — upsert semantics", () => {
         nutrient: "vitamin_d",
         amount: 22.5,
         unit: "ug",
+        source: "APPLE_HEALTH",
         externalSourceVersion: "yazio-9.9",
       },
       update: {

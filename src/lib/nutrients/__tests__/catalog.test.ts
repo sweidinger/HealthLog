@@ -16,6 +16,7 @@ import {
   NUTRIENT_CODES,
   NUTRIENT_DEFINITIONS,
   isNutrientCode,
+  resolveNutrientReference,
 } from "../catalog";
 
 describe("nutrient catalog", () => {
@@ -148,6 +149,52 @@ describe("nutrient catalog", () => {
         en.nutrients?.names?.[def.code],
         `EN name missing: ${def.code}`,
       ).toBeTruthy();
+    }
+  });
+});
+
+describe("resolveNutrientReference (v1.29)", () => {
+  it("resolves a uniform-adult reference (calcium) regardless of sex, including unknown", () => {
+    for (const sex of ["MALE", "FEMALE", null] as const) {
+      const ref = resolveNutrientReference("calcium", sex);
+      expect(ref).not.toBeNull();
+      expect(ref?.value).toBe(950);
+      expect(ref?.kind).toBe("PRI");
+      expect(ref?.direction).toBe("target");
+      expect(ref?.source).toBe(NUTRIENT_CATALOG.calcium.reference.source);
+    }
+  });
+
+  it("resolves a sex-split reference (water, iron) to the matching value per sex", () => {
+    expect(resolveNutrientReference("water", "MALE")?.value).toBe(2500);
+    expect(resolveNutrientReference("water", "FEMALE")?.value).toBe(2000);
+    expect(resolveNutrientReference("iron", "MALE")?.value).toBe(11);
+    expect(resolveNutrientReference("iron", "FEMALE")?.value).toBe(16);
+  });
+
+  it("omits a sex-split reference when sex is unknown — never guesses", () => {
+    expect(resolveNutrientReference("water", null)).toBeNull();
+    expect(resolveNutrientReference("iron", null)).toBeNull();
+    expect(resolveNutrientReference("magnesium", null)).toBeNull();
+    expect(resolveNutrientReference("vitamin_a", null)).toBeNull();
+  });
+
+  it("resolves caffeine's upperGuidance ceiling regardless of sex", () => {
+    const ref = resolveNutrientReference("caffeine", null);
+    expect(ref).toEqual({
+      kind: "safeLevel",
+      direction: "upperGuidance",
+      value: 400,
+      source: NUTRIENT_CATALOG.caffeine.reference.source,
+    });
+  });
+
+  it("resolves every catalog code to a non-null reference for at least one sex", () => {
+    for (const code of NUTRIENT_CODES) {
+      const resolved =
+        resolveNutrientReference(code, "MALE") ??
+        resolveNutrientReference(code, "FEMALE");
+      expect(resolved, `no resolvable reference: ${code}`).not.toBeNull();
     }
   });
 });

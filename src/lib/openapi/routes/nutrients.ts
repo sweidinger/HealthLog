@@ -14,8 +14,12 @@ import { NUTRIENT_DEFINITIONS } from "@/lib/nutrients/catalog";
 import {
   nutrientBatchSchema,
   nutrientBatchResponseSchema,
+  nutrientDailyQuerySchema,
+  nutrientDailySeriesSchema,
   nutrientOverviewQuerySchema,
   nutrientOverviewSchema,
+  nutrientWaterWriteSchema,
+  nutrientWaterWriteResponseSchema,
 } from "@/lib/validations/nutrients";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 
@@ -81,6 +85,59 @@ export const nutrientPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 nutrientOverviewSchema,
                 "NutrientOverviewEnvelope",
+              ),
+            },
+          },
+        },
+        ...moduleDisabled,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/nutrients/daily": {
+    get: {
+      tags: ["Nutrients"],
+      summary: "One nutrient's day-bucketed series (v1.29)",
+      description:
+        "Dense per-day series for one catalog code over the last `days` days (default 30) — one entry per calendar day, 0 for a day with no logged data, summed ACROSS SOURCES (a day may carry both an APPLE_HEALTH row and a MANUAL row since migration 0249). Feeds the `/insights/nutrients` hydration + caffeine charts. Also returns the EFSA reference resolved against the caller's profile sex — `null` when the profile has no sex on file (never guessed). Behind the opt-in `nutrients` module.",
+      requestParams: { query: nutrientDailyQuerySchema },
+      responses: {
+        "200": {
+          description: "The day-bucketed series + resolved reference.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                nutrientDailySeriesSchema,
+                "NutrientDailySeriesEnvelope",
+              ),
+            },
+          },
+        },
+        ...moduleDisabled,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/nutrients/water": {
+    post: {
+      tags: ["Nutrients"],
+      summary: "Manual water quick-add (v1.29)",
+      description:
+        'Writes ONLY the `source="MANUAL"` row for `(day, "water")` — never the `source="APPLE_HEALTH"` row the batch endpoint owns, so a manual entry and an Apple sync coexist instead of one clobbering the other. `mode: "add"` increments the manual day total (quick-add chips); `mode: "set"` overwrites it (the "edit today\'s total" undo path — there is no per-entry ledger). `day` defaults to the caller\'s current local day when omitted. Idempotency-Key supported; rate limit 60/min. Behind the opt-in `nutrients` module.',
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: nutrientWaterWriteSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The MANUAL water row after the write.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                nutrientWaterWriteResponseSchema,
+                "NutrientWaterWriteEnvelope",
               ),
             },
           },

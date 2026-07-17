@@ -165,11 +165,18 @@ async function postBatch(request: NextRequest): Promise<Response> {
     }
 
     try {
+      // v1.29 — `source` joined the composite PK (migration 0249) so a
+      // manual water entry (source=MANUAL, written by
+      // `POST /api/nutrients/water`) coexists with the Apple-synced day
+      // total instead of one clobbering the other on the next sync. The
+      // batch route always owns the APPLE_HEALTH row — byte-identical
+      // upsert behaviour to pre-0249, just against the wider key.
       const key = {
-        userId_day_nutrient: {
+        userId_day_nutrient_source: {
           userId: user.id,
           day: entry.day,
           nutrient: entry.nutrient,
+          source: "APPLE_HEALTH",
         },
       };
 
@@ -189,6 +196,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
           nutrient: entry.nutrient,
           amount: entry.amount,
           unit: definition.unit,
+          source: "APPLE_HEALTH",
           externalSourceVersion: entry.externalSourceVersion ?? null,
         },
         update: {

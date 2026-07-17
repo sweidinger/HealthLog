@@ -6349,13 +6349,20 @@ model NutrientIntakeDay {
   /// denormalised on purpose: rows stay self-describing in exports
   /// even if the catalog ever drifts.
   unit                  String
+  /// "APPLE_HEALTH" | "MANUAL" (closed set enforced in app code, not a
+  /// DB enum). v1.29 — joined the composite PK (migration 0249) so a
+  /// manual water entry and the Apple-synced day total coexist as two
+  /// rows instead of the manual write being silently clobbered by the
+  /// next Apple last-writer-wins sync. Apple owns its row (LWW on
+  /// re-post); manual owns its row (increment/set via
+  /// `POST /api/nutrients/water`); reads SUM across sources per day.
   source                String   @default("APPLE_HEALTH")
   externalSourceVersion String?  @map("external_source_version")
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@id([userId, day, nutrient])
+  @@id([userId, day, nutrient, source])
   @@index([userId, nutrient, day(sort: Desc)])
   @@map("nutrient_intake_days")
 }
