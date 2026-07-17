@@ -34,7 +34,7 @@ import { prisma } from "@/lib/db";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
-import { COACH_CHECKIN_REVIEW_DAYS } from "@/lib/daily/digest";
+import { COACH_CHECKIN_REVIEW_DAYS } from "@/lib/daily/coach-checkin-intents";
 import { coachPlanPatchSchema } from "@/lib/validations/coach-plan";
 
 interface RouteCtx {

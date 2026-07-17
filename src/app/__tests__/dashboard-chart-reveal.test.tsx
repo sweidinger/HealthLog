@@ -138,8 +138,10 @@ describe("TrendCardSkeleton", () => {
     // Same outer chrome + min-height floor as the real TrendCard slot.
     expect(html).toContain("rounded-xl");
     expect(html).toContain("min-h-[8rem]");
-    // Reduced motion honoured via the Skeleton primitive.
-    expect(html).toContain("motion-reduce:animate-none");
+    // Reduced motion honoured via the Skeleton primitive's shimmer class
+    // (its prefers-reduced-motion guard lives beside the keyframes in
+    // globals.css).
+    expect(html).toContain("skeleton-shimmer");
   });
 });
 

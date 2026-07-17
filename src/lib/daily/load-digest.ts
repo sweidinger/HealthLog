@@ -26,10 +26,23 @@ import {
   buildDailyDigest,
   type DailyDigest,
   type DailyDigestCoachPlan,
+  type DailyDigestEcg,
   type DailyDigestPreventiveDue,
   type DailyDigestScore,
   type DailyDigestSyncIssue,
+  type DailyDigestTensionWindow,
 } from "@/lib/daily/digest";
+import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
+import { readDayMeanSeries } from "@/lib/insights/derived/baseline";
+import { detectStreak, type StreakPoint } from "@/lib/insights/streak-detector";
+import {
+  MILESTONE_SALIENT_TYPES,
+  milestoneFromRecord,
+  milestonesFromStreak,
+  selectFreshMilestone,
+  type Milestone,
+} from "@/lib/daily/milestones";
+import { loadIntradayPulse } from "@/lib/analytics/intraday-pulse-io";
 
 /** Integration states that mean "your action is needed to keep data flowing". */
 const SYNC_ISSUE_STATES = ["error_reauth", "parked"] as const;
@@ -42,6 +55,88 @@ const CHECKIN_PLAN_STATES = ["active", "reviewed"] as const;
 
 /** Cap on plans scanned for the (one/day) check-in candidate. */
 const CHECKIN_PLAN_READ_LIMIT = 50;
+
+/** Trailing window the milestone streak read uses (matches score-narrative). */
+const MILESTONE_STREAK_WINDOW_DAYS = 30;
+
+/** How far back to scan for a just-set personal best (a couple of days is ample). */
+const MILESTONE_RECORD_LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000;
+
+/** UTC-ISO day key — the space the streak series + rollup tier already emit. */
+function utcDayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * S12 — gather today's single freshly-reached milestone (or null) from the
+ * engines that ALREADY exist. Two cheap, fail-soft reads reused verbatim:
+ *   - `detectStreak` over the salient vitals' day-mean series (the exact
+ *     `score-narrative` pattern) → return-to-range + sustained-in-range states;
+ *   - a bounded `PersonalRecord` scan (the `pr-detection` output) → new bests.
+ * The reached-once gate (`selectFreshMilestone`) admits at most one, only on the
+ * day it was reached. Any failure leaves the reward quiet rather than guessing.
+ */
+async function gatherFreshMilestone(
+  userId: string,
+  now: Date,
+): Promise<Milestone | null> {
+  const todayKey = utcDayKey(now);
+  const candidates: Milestone[] = [];
+
+  const coverage = await probeRollupCoverage(userId).catch(() => null);
+  if (coverage) {
+    const perMetric = await Promise.all(
+      MILESTONE_SALIENT_TYPES.map(async (type) => {
+        try {
+          const { points } = await readDayMeanSeries(
+            userId,
+            type,
+            MILESTONE_STREAK_WINDOW_DAYS,
+            now,
+            coverage,
+          );
+          if (points.length === 0) return [] as Milestone[];
+          const series: StreakPoint[] = points.map((p) => ({
+            day: p.day,
+            value: p.mean,
+          }));
+          const latestDayKey = points[points.length - 1].day;
+          return milestonesFromStreak(type, detectStreak(series), latestDayKey);
+        } catch {
+          return [] as Milestone[];
+        }
+      }),
+    );
+    candidates.push(...perMetric.flat());
+  }
+
+  try {
+    const records = await prisma.personalRecord.findMany({
+      where: {
+        userId,
+        metricType: { in: [...MILESTONE_SALIENT_TYPES] },
+        achievedAt: {
+          gte: new Date(now.getTime() - MILESTONE_RECORD_LOOKBACK_MS),
+        },
+      },
+      select: { metricType: true, achievedAt: true },
+      orderBy: { achievedAt: "desc" },
+      take: 10,
+    });
+    for (const record of records) {
+      candidates.push(
+        milestoneFromRecord(record.metricType, utcDayKey(record.achievedAt)),
+      );
+    }
+  } catch {
+    // A read hiccup just leaves the reward quiet — never a fabricated one.
+  }
+
+  return selectFreshMilestone(candidates, todayKey);
+}
+
+/** S10 — how recently an ECG recording counts as "new" for the rail read. */
+const ECG_NEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 interface CoachPlanRow {
   id: string;
@@ -92,6 +187,7 @@ export async function loadDailyDigest(
     syncRows,
     dueReminders,
     planRows,
+    ecgRow,
   ] = await Promise.all([
     readDashboardSnapshotCached(user),
     resolveModuleMap(user.id),
@@ -133,6 +229,18 @@ export async function loadDailyDigest(
       orderBy: { updatedAt: "desc" },
       take: CHECKIN_PLAN_READ_LIMIT,
     }),
+    // S10 — the freshest ECG recording within the last-day window, for the
+    // `ecg_new_recording` rail item. Descriptors only (verdict + recordedAt) —
+    // the encrypted waveform is never selected, so no decrypt and no trace
+    // crosses into the digest. The builder gates on the `insights` module.
+    prisma.ecgRecording.findFirst({
+      where: {
+        userId: user.id,
+        recordedAt: { gte: new Date(now.getTime() - ECG_NEW_WINDOW_MS) },
+      },
+      orderBy: { recordedAt: "desc" },
+      select: { recordedAt: true, rhythmClassification: true },
+    }),
   ]);
 
   const score: DailyDigestScore | null = snapshot.healthScore
@@ -165,12 +273,48 @@ export async function loadDailyDigest(
     label: row.label,
   }));
 
+  // S10 — the freshest ECG recording (device verdict + recordedAt only). The
+  // builder decides "new" and gates on the `insights` module. An ECG row only
+  // ever carries an AFib-screening verdict; the shared enum's other members
+  // (walking-steadiness / event codes) never apply, so anything else maps to
+  // null rather than leaking into the device-verdict copy.
+  const verdict = ecgRow?.rhythmClassification;
+  const latestEcg: DailyDigestEcg | null = ecgRow
+    ? {
+        recordedAt: ecgRow.recordedAt,
+        deviceVerdict:
+          verdict === "IRREGULAR" ||
+          verdict === "NOT_DETECTED" ||
+          verdict === "INCONCLUSIVE"
+            ? verdict
+            : null,
+      }
+    : null;
+
   // Only decrypt plan prose for a coach-enabled account; the builder gates on
   // the module too, so a disabled coach never surfaces a check-in either way.
   const coachEnabled = modules.coach !== false;
   const coachPlans: DailyDigestCoachPlan[] = coachEnabled
     ? planRows.map((row) => toCoachPlanCandidate(row as CoachPlanRow))
     : [];
+
+  // S12 — the calm reward layer. Only gather when the insights module (the
+  // narrative layer that hosts the milestone card) is on; the builder gates on
+  // it too, so a disabled account never surfaces one either way.
+  const insightsEnabled = modules.insights !== false;
+  const milestone = insightsEnabled
+    ? await gatherFreshMilestone(user.id, now)
+    : null;
+
+  // S11 — the day's elevated-at-rest window, computed on demand from raw for
+  // TODAY only (read-swap, one bounded day-read; never persisted). Gated on the
+  // insights module and fault-isolated: a tension-read failure must never break
+  // the digest (a hot, must-not-fail path), it just omits the calm marker.
+  const tensionWindow: DailyDigestTensionWindow | null = insightsEnabled
+    ? await loadIntradayPulse(user.id, user.timezone, todayLocalDate)
+        .then((r) => (r.tension ? { partOfDay: r.tension.partOfDay } : null))
+        .catch(() => null)
+    : null;
 
   const { t } = getServerTranslator(resolveLocale(locale));
 
@@ -186,6 +330,9 @@ export async function loadDailyDigest(
       syncIssues,
       preventiveDue,
       coachPlans,
+      milestone,
+      tensionWindow,
+      latestEcg,
     },
     t,
   );
@@ -199,6 +346,9 @@ export async function loadDailyDigest(
       daily_digest_has_score: digest.score !== null,
       daily_digest_has_checkin: digest.worthALook.some(
         (i) => i.kind === "coach_checkin",
+      ),
+      daily_digest_has_milestone: digest.worthALook.some(
+        (i) => i.kind === "milestone",
       ),
     },
   });

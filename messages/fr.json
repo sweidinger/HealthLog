@@ -3856,6 +3856,25 @@
       },
       "waveform": {
         "ariaLabel": "Tracé ECG enregistré le {date}, durée {duration}, fréquence cardiaque moyenne {heartRate}, résultat enregistré : {result}."
+      },
+      "crossLink": {
+        "title": "Enregistrements ECG",
+        "recordingsOne": "1 enregistrement disponible.",
+        "recordingsMany": "{count} enregistrements disponibles.",
+        "latestResult": "Dernier résultat de l’appareil : {result}.",
+        "cta": "Voir les enregistrements"
+      }
+    },
+    "intradayPulse": {
+      "title": "Le rythme de votre journée",
+      "caption": "Votre fréquence cardiaque au fil de la journée, moyennée par tranches de 10 minutes.",
+      "empty": "Pas encore assez de mesures aujourd'hui pour afficher le rythme de la journée.",
+      "baseline": "Repos",
+      "tension": {
+        "morning": "Une période élevée au repos ce matin — peut-être un peu de tension.",
+        "afternoon": "Une période élevée au repos cet après-midi — peut-être un peu de tension.",
+        "evening": "Une période élevée au repos ce soir — peut-être un peu de tension.",
+        "night": "Une période élevée au repos cette nuit — peut-être un peu de tension."
       }
     }
   },
@@ -8549,6 +8568,25 @@
         "title": "Il est temps de revoir un plan",
         "body": "Cela fait environ une semaine que vous avez défini ce plan : gardez-le, ajustez-le ou laissez-le. Sans pression.",
         "bodyPlan": "Il y a environ une semaine, vous vous étiez fixé : « {plan} ». Gardez-le, ajustez-le ou laissez-le, sans pression."
+      },
+      "tensionWindow": {
+        "title": "Peut-être un peu de tension",
+        "body": {
+          "morning": "Votre fréquence cardiaque est restée au-dessus de votre valeur de repos un bon moment ce matin alors que vous étiez au calme — peut-être un peu de tension.",
+          "afternoon": "Votre fréquence cardiaque est restée au-dessus de votre valeur de repos un bon moment cet après-midi alors que vous étiez au calme — peut-être un peu de tension.",
+          "evening": "Votre fréquence cardiaque est restée au-dessus de votre valeur de repos un bon moment ce soir alors que vous étiez au calme — peut-être un peu de tension.",
+          "night": "Votre fréquence cardiaque est restée au-dessus de votre valeur de repos un bon moment cette nuit alors que vous étiez au calme — peut-être un peu de tension."
+        }
+      },
+      "ecgNewRecording": {
+        "title": "Nouvel enregistrement ECG",
+        "body": "Votre appareil a enregistré un nouvel ECG : prêt à être consulté.",
+        "bodyVerdict": "Votre appareil a enregistré un nouvel ECG et a signalé : {verdict}.",
+        "verdict": {
+          "irregular": "un possible rythme irrégulier",
+          "notDetected": "aucun rythme irrégulier",
+          "inconclusive": "un résultat non concluant"
+        }
       }
     },
     "action": {
@@ -8557,7 +8595,10 @@
       "viewCheckups": "Voir les examens",
       "checkinKeep": "Garder",
       "checkinAdjust": "Ajuster",
-      "checkinLetGo": "Laisser tomber"
+      "checkinLetGo": "Laisser tomber",
+      "viewMilestone": "Voir",
+      "viewPulse": "Voir le pouls",
+      "viewEcg": "Voir l’enregistrement"
     },
     "today": {
       "scoreLabel": "Score de santé",
@@ -8566,7 +8607,44 @@
       "sleepPending": "Le sommeil de la nuit dernière n'est pas encore arrivé — la lecture du jour est provisoire.",
       "readFullBriefing": "Lire le briefing complet",
       "worthALook": "À regarder",
-      "allClear": "Rien ne requiert ton attention aujourd'hui."
+      "allClear": "Rien ne requiert ton attention aujourd'hui.",
+      "ringLink": "Ouvrir les détails de {metric}",
+      "ringDosesAria": "{taken} des {scheduled} doses prises aujourd'hui"
+    },
+    "milestone": {
+      "metric": {
+        "restingHeartRate": "fréquence cardiaque au repos",
+        "heartRateVariability": "variabilité de la fréquence cardiaque",
+        "respiratoryRate": "fréquence respiratoire",
+        "weight": "poids",
+        "generic": "cette valeur"
+      },
+      "record": {
+        "title": "Nouveau record : {metric}",
+        "body": "Vous avez atteint un record personnel de {metric} aujourd'hui. Noté en toute tranquillité, rien à faire."
+      },
+      "returnToBaseline": {
+        "title": "De retour dans votre plage : {metric}",
+        "body": "Votre {metric} est revenue dans votre plage habituelle. Quoi que ce fût, c'est passé."
+      },
+      "sustainedInRange": {
+        "week1": {
+          "title": "Une semaine dans la plage",
+          "body": "Votre {metric} reste dans votre plage habituelle depuis une semaine. Bien régulier."
+        },
+        "week2": {
+          "title": "Deux semaines dans la plage",
+          "body": "Votre {metric} reste dans votre plage habituelle depuis deux semaines. Calme et régulier."
+        },
+        "week3": {
+          "title": "Trois semaines dans la plage",
+          "body": "Trois semaines avec votre {metric} dans votre plage habituelle. Une vraie période de stabilité."
+        },
+        "week4": {
+          "title": "Un mois dans la plage",
+          "body": "Un mois entier avec votre {metric} dans votre plage habituelle. Merveilleusement stable."
+        }
+      }
     }
   }
 }

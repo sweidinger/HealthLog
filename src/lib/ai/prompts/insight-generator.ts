@@ -397,7 +397,22 @@ gib die obige Verweigerung zurück.`,
     typical mid-titration. Worth mentioning at the next visit if
     it persists." This is a SAFETY contract; treat any
     dose-prescriptive instinct as a sign the response is
-    out-of-bounds.`,
+    out-of-bounds.
+14. ECG recordings are DEVICE-VERDICT ONLY. When the snapshot
+    carries an "ecg" block, it holds ONLY counts, the RECORDING
+    DEVICE's own verdicts (deviceVerdicts / latestDeviceVerdict:
+    irregular / notDetected / inconclusive), and the latest
+    recording's recency + average heart rate. You NEVER see the
+    waveform and you NEVER interpret one. You may note that a
+    recording exists and attribute its result to the device —
+    "your device logged an ECG on <date> and flagged a possible
+    irregular result" — and, for a non-normal device verdict,
+    suggest discussing that recording with a clinician. You must
+    NEVER present the verdict as your own, never read morphology,
+    never measure intervals or beats, never assign a rhythm
+    diagnosis, and never state or imply that HealthLog analysed the
+    trace. If the "ecg" block is absent, stay silent about ECG —
+    do not mention its absence or suggest recording one.`,
     de: `GRUNDREGELN — NULL HALLUZINATIONEN
 1. Jede Aussage in "summary" muss auf einer Zahl beruhen, die im
    übergebenen Datenpaket sichtbar ist. Lässt sich die Aussage nicht
@@ -601,7 +616,23 @@ gib die obige Verweigerung zurück.`,
     mid-titration Phase. Lohnt sich beim nächsten Termin
     anzusprechen, falls es darüber hinaus persistiert." Das ist
     ein SICHERHEITS-Vertrag; behandle jeden dosis-präskriptiven
-    Impuls als Signal, dass die Antwort außerhalb des Skopus liegt.`,
+    Impuls als Signal, dass die Antwort außerhalb des Skopus liegt.
+14. EKG-Aufzeichnungen sind NUR das GERÄTE-URTEIL. Enthält der
+    Snapshot einen "ecg"-Block, trägt er AUSSCHLIESSLICH Zählungen,
+    die EIGENEN Urteile des AUFZEICHNUNGSGERÄTS (deviceVerdicts /
+    latestDeviceVerdict: irregular / notDetected / inconclusive)
+    sowie Aktualität und durchschnittliche Herzfrequenz der letzten
+    Aufzeichnung. Du siehst NIE die Kurve und interpretierst sie
+    NIE. Du darfst erwähnen, dass eine Aufzeichnung existiert, und
+    das Ergebnis dem Gerät zuschreiben — "dein Gerät hat am <Datum>
+    ein EKG aufgezeichnet und ein mögliches unregelmäßiges Ergebnis
+    markiert" — und bei einem nicht-normalen Geräte-Urteil anregen,
+    diese Aufzeichnung mit einer Ärztin zu besprechen. Du darfst das
+    Urteil NIEMALS als dein eigenes ausgeben, keine Morphologie
+    lesen, keine Intervalle oder Schläge vermessen, keine
+    Rhythmus-Diagnose stellen und niemals andeuten, dass HealthLog
+    die Kurve analysiert hat. Fehlt der "ecg"-Block, schweige zum
+    Thema EKG — erwähne weder sein Fehlen noch rege eine Aufzeichnung an.`,
   },
   {
     id: "guidelineTargets",

@@ -27,6 +27,17 @@ import {
   MAX_PRIORITY_ACTIONS,
   type PriorityItem,
 } from "@/lib/daily/priority-item";
+import {
+  milestoneCopy,
+  milestoneHref,
+  type Milestone,
+} from "@/lib/daily/milestones";
+import {
+  COACH_CHECKIN_REVIEW_DAYS,
+  COACH_CHECKIN_KEEP_INTENT,
+  COACH_CHECKIN_LETGO_INTENT,
+  COACH_CHECKIN_ADJUST_INTENT,
+} from "@/lib/daily/coach-checkin-intents";
 
 /** At most three rail items — a glance, never a wall (§2.5, never padded). */
 export const MAX_WORTH_A_LOOK = 3;
@@ -42,7 +53,7 @@ const MS_PER_DAY = 86_400_000;
  * ones the coach explicitly dated. The PATCH-to-`active` route defaults
  * `reviewDate` to `+COACH_CHECKIN_REVIEW_DAYS`; this constant is the one source.
  */
-export const COACH_CHECKIN_REVIEW_DAYS = 7;
+// COACH_CHECKIN_REVIEW_DAYS lives in ./coach-checkin-intents (client-safe).
 
 /**
  * After a check-in comes due, it resurfaces for at most this many days before
@@ -60,9 +71,9 @@ export const COACH_CHECKIN_RESURFACE_DAYS = 14;
  * and PATCHes the existing plan-lifecycle route. "Adjust" is navigation (an
  * `href` into the coach), so it carries no plan id and never mutates here.
  */
-export const COACH_CHECKIN_KEEP_INTENT = "coach.checkin.keep";
-export const COACH_CHECKIN_LETGO_INTENT = "coach.checkin.letGo";
-export const COACH_CHECKIN_ADJUST_INTENT = "coach.checkin.adjust";
+// The check-in intents live in ./coach-checkin-intents (client-safe) and are
+// imported above, so the client Today surface can use them without pulling this
+// server-side builder into its bundle.
 
 type Translate = ServerTranslator["t"];
 
@@ -90,6 +101,29 @@ export interface DailyDigestSyncIssue {
 /** A Vorsorge / measurement reminder whose next-due instant has passed. */
 export interface DailyDigestPreventiveDue {
   label: string;
+}
+
+/**
+ * S11 — a confident elevated-at-rest ("tension") window for the day, already
+ * detected server-side (`loadIntradayPulse`) under its full confidence gate.
+ * The builder only formats it; the signal correctness lives in the analytics
+ * layer, and a null here means the honest "no window" — nothing is emitted.
+ */
+export interface DailyDigestTensionWindow {
+  /** Part of day the window's midpoint fell in — drives the cautious copy. */
+  partOfDay: "morning" | "afternoon" | "evening" | "night";
+}
+
+/**
+ * S10 — the latest ECG recording, for the `ecg_new_recording` rail item. Only
+ * ever the DEVICE's verdict + when it was recorded — NEVER the waveform (the
+ * DTO carries no samples). The builder decides "new" from `recordedAt`; the
+ * card attributes any verdict to the recording device.
+ */
+export interface DailyDigestEcg {
+  recordedAt: Date;
+  /** The recording device's OWN verdict, or null when unclassified. */
+  deviceVerdict: "IRREGULAR" | "NOT_DETECTED" | "INCONCLUSIVE" | null;
 }
 
 /**
@@ -135,6 +169,21 @@ export interface DailyDigestInput {
   preventiveDue: DailyDigestPreventiveDue[];
   /** Standing coach plans (active + reviewed) — check-in candidates (§2.3). */
   coachPlans: DailyDigestCoachPlan[];
+  /**
+   * S12 — the single freshly-reached durable milestone for today, or null. The
+   * IO seam gathers candidates from the existing streak / personal-record
+   * engines and applies the reached-once gate (`selectFreshMilestone`), so the
+   * builder only ever sees a milestone worth celebrating today.
+   */
+  milestone?: Milestone | null;
+  /** S11 — the day's detected elevated-at-rest window, or null (honest-absent). */
+  tensionWindow: DailyDigestTensionWindow | null;
+  /**
+   * S10 — the freshest ECG recording (device verdict + recordedAt only), or
+   * null. Optional so consumers that predate the ECG weave stay valid; the
+   * builder treats a missing value as "no recent recording".
+   */
+  latestEcg?: DailyDigestEcg | null;
 }
 
 export interface DailyDigest {
@@ -257,6 +306,69 @@ function buildPreventiveCareItem(
 }
 
 /**
+ * S12 — the calm reward card. Emits ONE `milestone` PriorityItem when a durable
+ * state was reached TODAY (the IO seam already applied the reached-once gate).
+ * Gated on the `insights` module — the daily narrative layer that hosts it.
+ * Celebratory-but-quiet: `success` status, a single "view" action into the
+ * metric's insight, and copy that marks arrival at a state, never a maintained
+ * count. Shown the day reached and never again — never a "you broke it" note.
+ */
+function buildMilestoneItem(
+  milestone: Milestone | null | undefined,
+  modules: DigestModuleMap,
+  t: Translate,
+): PriorityItem | null {
+  if (!milestone) return null;
+  if (!moduleEnabled(modules, "insights")) return null;
+  const { title, body } = milestoneCopy(milestone, t);
+  return {
+    kind: "milestone",
+    title,
+    body,
+    status: "success",
+    actions: [
+      {
+        labelKey: "daily.action.viewMilestone",
+        intent: "milestone.view",
+        href: milestoneHref(milestone),
+      },
+    ],
+    moduleKey: "insights",
+  };
+}
+
+/**
+ * S11 — the elevated-at-rest ("tension") card. Emitted at most once per day
+ * (the window is already the day's single most confident stretch), gated on
+ * the `insights` module and on a non-null window (the analytics layer stays
+ * silent unless every confidence gate holds). Cautious, non-diagnostic copy:
+ * "possible tension", never a clinical stress verdict. The one action deep-
+ * links into the pulse insight where the intraday shape is charted.
+ */
+function buildTensionWindowItem(
+  window: DailyDigestTensionWindow | null,
+  modules: DigestModuleMap,
+  t: Translate,
+): PriorityItem | null {
+  if (!moduleEnabled(modules, "insights")) return null;
+  if (!window) return null;
+  return {
+    kind: "tension_window",
+    title: t("daily.item.tensionWindow.title"),
+    body: t(`daily.item.tensionWindow.body.${window.partOfDay}`),
+    status: "info",
+    actions: [
+      {
+        labelKey: "daily.action.viewPulse",
+        intent: "pulse.view",
+        href: "/insights/pulse",
+      },
+    ],
+    moduleKey: "insights",
+  };
+}
+
+/**
  * The instant a plan's check-in came due (§2.3). A coach-pinned `reviewDate`
  * wins. Otherwise, a `reviewed` plan lost its `reviewDate` to the daily sweep
  * when the read-back fired, so its `updatedAt` (the flip moment) is when the
@@ -337,6 +449,69 @@ function buildCoachCheckinItem(
 }
 
 /**
+ * S10 — how recently an ECG recording must have landed to count as "new" for
+ * the rail (§3.5.3). A calendar-day window: a recording synced within the last
+ * day surfaces once, then retires on its own (no persisted "seen" marker, no
+ * migration). The 24h window is itself the one/day cap — at most one recording
+ * is the freshest, and it drops off the rail after a day.
+ */
+const ECG_NEW_WINDOW_MS = MS_PER_DAY;
+
+/** Device verdict → the calm, device-attributed verdict key for the card body. */
+const ECG_VERDICT_KEYS: Record<
+  NonNullable<DailyDigestEcg["deviceVerdict"]>,
+  string
+> = {
+  IRREGULAR: "daily.item.ecgNewRecording.verdict.irregular",
+  NOT_DETECTED: "daily.item.ecgNewRecording.verdict.notDetected",
+  INCONCLUSIVE: "daily.item.ecgNewRecording.verdict.inconclusive",
+};
+
+/**
+ * The one ECG "new recording" item (§3.5.3). Gated on the `insights` module
+ * (the ECG viewer's own gate). Fires ONLY when the freshest recording landed
+ * within the last day — a calm "a new ECG recording is ready to view" pointer
+ * into the viewer. NON-DIAGNOSTIC: the body echoes ONLY the RECORDING DEVICE's
+ * verdict, attributed to the device; HealthLog never interprets the trace (the
+ * DTO carries no waveform). The 24h window caps it at one/day and retires it on
+ * its own without a persisted seen-marker.
+ */
+function buildEcgNewRecordingItem(
+  ecg: DailyDigestEcg | null | undefined,
+  modules: DigestModuleMap,
+  now: Date,
+  t: Translate,
+): PriorityItem | null {
+  if (!moduleEnabled(modules, "insights")) return null;
+  if (!ecg) return null;
+  const age = now.getTime() - ecg.recordedAt.getTime();
+  // Skip a future-dated row (clock skew) and anything older than the window.
+  if (age < 0 || age > ECG_NEW_WINDOW_MS) return null;
+
+  const verdictKey = ecg.deviceVerdict
+    ? ECG_VERDICT_KEYS[ecg.deviceVerdict]
+    : null;
+  const body = verdictKey
+    ? t("daily.item.ecgNewRecording.bodyVerdict", { verdict: t(verdictKey) })
+    : t("daily.item.ecgNewRecording.body");
+
+  return {
+    kind: "ecg_new_recording",
+    title: t("daily.item.ecgNewRecording.title"),
+    body,
+    status: "info",
+    actions: [
+      {
+        labelKey: "daily.action.viewEcg",
+        intent: "ecg.view",
+        href: "/insights#ecg",
+      },
+    ],
+    moduleKey: "insights",
+  };
+}
+
+/**
  * The push / lock-screen line: prefer the warmer cached briefing lead, fall
  * back to the top signal's headline, then a deterministic score floor, then
  * the honest all-clear. NEVER a fresh AI call — every branch reads cache or a
@@ -384,6 +559,11 @@ export function buildDailyDigest(
   const worthALook: PriorityItem[] = [];
   const dose = buildDoseWindowItem(input.medsToday, input.modules, t);
   if (dose) worthALook.push(dose);
+  // A freshly-reached milestone is rare and one-per-day — surface it ahead of
+  // the ambient sync / check-in items so the calm reward is not buried, but
+  // below an overdue dose (the one genuinely time-critical daily action).
+  const milestone = buildMilestoneItem(input.milestone, input.modules, t);
+  if (milestone) worthALook.push(milestone);
   worthALook.push(...buildSyncIssueItems(input.syncIssues, t));
   const checkin = buildCoachCheckinItem(
     input.coachPlans,
@@ -392,8 +572,20 @@ export function buildDailyDigest(
     t,
   );
   if (checkin) worthALook.push(checkin);
+  const ecg = buildEcgNewRecordingItem(
+    input.latestEcg,
+    input.modules,
+    input.now,
+    t,
+  );
+  if (ecg) worthALook.push(ecg);
   const preventive = buildPreventiveCareItem(input.preventiveDue, t);
   if (preventive) worthALook.push(preventive);
+  // S11 — the calm, informational tension marker sits last: it is context, not
+  // an action that expires, so a time-sensitive dose / sync / check-in wins the
+  // bounded rail ahead of it.
+  const tension = buildTensionWindowItem(input.tensionWindow, input.modules, t);
+  if (tension) worthALook.push(tension);
 
   // Defence-in-depth: no card ever exceeds the P1 action cap.
   for (const item of worthALook) {

@@ -10,13 +10,13 @@ describe("<Skeleton>", () => {
     expect(html).toContain('aria-hidden="true"');
   });
 
-  it("preserves caller classes alongside the pulse animation", () => {
+  it("preserves caller classes alongside the shimmer animation", () => {
     const html = renderToStaticMarkup(
       <Skeleton className="h-8 rounded-full" />,
     );
-    // The pulse class drives the visual shimmer; honour reduce-motion.
-    expect(html).toContain("animate-pulse");
-    expect(html).toContain("motion-reduce:animate-none");
+    // The shimmer class drives the loading sweep; its reduced-motion
+    // fallback lives in globals.css next to the keyframes.
+    expect(html).toContain("skeleton-shimmer");
     // Caller's classes should survive the merge.
     expect(html).toContain("h-8");
     expect(html).toContain("rounded-full");

@@ -3856,6 +3856,25 @@
       },
       "waveform": {
         "ariaLabel": "ECG strip recorded {date}, duration {duration}, average heart rate {heartRate}, recorded result: {result}."
+      },
+      "crossLink": {
+        "title": "ECG recordings",
+        "recordingsOne": "1 recording on file.",
+        "recordingsMany": "{count} recordings on file.",
+        "latestResult": "Latest device result: {result}.",
+        "cta": "View recordings"
+      }
+    },
+    "intradayPulse": {
+      "title": "Your day's shape",
+      "caption": "Your heart rate through the day, averaged in 10-minute steps.",
+      "empty": "Not enough heart-rate readings today to show the day's shape yet.",
+      "baseline": "Resting",
+      "tension": {
+        "morning": "A sustained elevated-at-rest stretch this morning — possibly some tension.",
+        "afternoon": "A sustained elevated-at-rest stretch this afternoon — possibly some tension.",
+        "evening": "A sustained elevated-at-rest stretch this evening — possibly some tension.",
+        "night": "A sustained elevated-at-rest stretch overnight — possibly some tension."
       }
     }
   },
@@ -8549,6 +8568,25 @@
         "title": "Time to check in on a plan",
         "body": "It's been about a week since you set this plan — keep it, adjust it, or let it go. No pressure either way.",
         "bodyPlan": "About a week ago you set: “{plan}”. Keep it, adjust it, or let it go — no pressure either way."
+      },
+      "tensionWindow": {
+        "title": "Possible tension today",
+        "body": {
+          "morning": "Your heart rate sat above its resting baseline for a sustained stretch this morning while you were still — possibly some tension.",
+          "afternoon": "Your heart rate sat above its resting baseline for a sustained stretch this afternoon while you were still — possibly some tension.",
+          "evening": "Your heart rate sat above its resting baseline for a sustained stretch this evening while you were still — possibly some tension.",
+          "night": "Your heart rate sat above its resting baseline for a sustained stretch overnight while you were still — possibly some tension."
+        }
+      },
+      "ecgNewRecording": {
+        "title": "New ECG recording",
+        "body": "Your device recorded a new ECG — it's ready to view.",
+        "bodyVerdict": "Your device recorded a new ECG and reported: {verdict}.",
+        "verdict": {
+          "irregular": "a possible irregular rhythm",
+          "notDetected": "no irregular rhythm",
+          "inconclusive": "an inconclusive result"
+        }
       }
     },
     "action": {
@@ -8557,7 +8595,10 @@
       "viewCheckups": "View check-ups",
       "checkinKeep": "Keep it",
       "checkinAdjust": "Adjust",
-      "checkinLetGo": "Let it go"
+      "checkinLetGo": "Let it go",
+      "viewMilestone": "View",
+      "viewPulse": "View pulse",
+      "viewEcg": "View recording"
     },
     "today": {
       "scoreLabel": "Health score",
@@ -8566,7 +8607,44 @@
       "sleepPending": "Last night's sleep isn't in yet — today's read is provisional.",
       "readFullBriefing": "Read the full briefing",
       "worthALook": "Worth a look",
-      "allClear": "Nothing needs your attention today."
+      "allClear": "Nothing needs your attention today.",
+      "ringLink": "Open {metric} details",
+      "ringDosesAria": "{taken} of {scheduled} doses taken today"
+    },
+    "milestone": {
+      "metric": {
+        "restingHeartRate": "resting heart rate",
+        "heartRateVariability": "heart-rate variability",
+        "respiratoryRate": "respiratory rate",
+        "weight": "weight",
+        "generic": "this metric"
+      },
+      "record": {
+        "title": "A new {metric} best",
+        "body": "A personal best for your {metric} today — quietly noted, nothing to do."
+      },
+      "returnToBaseline": {
+        "title": "Back in range: {metric}",
+        "body": "Your {metric} has settled back inside your usual range. Whatever that was, it has passed."
+      },
+      "sustainedInRange": {
+        "week1": {
+          "title": "A week in range",
+          "body": "Your {metric} has held inside your usual range for a week now. Nice and steady."
+        },
+        "week2": {
+          "title": "Two weeks in range",
+          "body": "Your {metric} has stayed in your usual range for two weeks. Calm and steady."
+        },
+        "week3": {
+          "title": "Three weeks in range",
+          "body": "Three weeks of your {metric} sitting in your usual range. A real stretch of steadiness."
+        },
+        "week4": {
+          "title": "A month in range",
+          "body": "A full month with your {metric} in your usual range. Beautifully steady."
+        }
+      }
     }
   }
 }

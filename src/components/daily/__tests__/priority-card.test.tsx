@@ -60,6 +60,31 @@ describe("<PriorityCard>", () => {
     expect(info).toContain("bg-info/10");
   });
 
+  it("carries the metric-family accent for metric-flavoured kinds only", () => {
+    const tension = render(
+      <PriorityCard item={item({ kind: "tension_window" })} />,
+    );
+    expect(tension).toContain("metric-accent");
+    expect(tension).toContain("--tile-hue:var(--tile-stress)");
+    const ecg = render(
+      <PriorityCard item={item({ kind: "ecg_new_recording" })} />,
+    );
+    expect(ecg).toContain("--tile-hue:var(--tile-strain)");
+    // Utility kinds carry no metric identity — status alone speaks.
+    const sync = render(<PriorityCard item={item({ kind: "sync_issue" })} />);
+    expect(sync).not.toContain("metric-accent");
+  });
+
+  it("gives the milestone card the quiet reached treatment instead of the generic fade-in", () => {
+    const html = render(
+      <PriorityCard item={item({ kind: "milestone", status: "success" })} />,
+    );
+    expect(html).toContain("milestone-reached");
+    expect(html).not.toContain("animate-insight-in");
+    // The success wash still carries the semantic border.
+    expect(html).toContain("border-success/25");
+  });
+
   it("renders a navigation action as a link carrying the href", () => {
     const html = render(
       <PriorityCard

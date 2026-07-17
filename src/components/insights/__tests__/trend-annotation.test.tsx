@@ -127,7 +127,7 @@ describe("<TrendAnnotation>", () => {
       <TrendAnnotation metric="bp" annotation={null} status="pending" />,
     );
     expect(html).toMatch(/data-slot="trend-annotation-pending"/);
-    expect(html).toContain("animate-pulse");
+    expect(html).toContain("skeleton-shimmer");
     // Empty hint and filled prose MUST be absent during pending.
     expect(html).not.toContain('data-slot="trend-annotation-empty"');
     expect(html).not.toContain('data-slot="trend-annotation"');

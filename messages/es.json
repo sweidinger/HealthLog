@@ -3856,6 +3856,25 @@
       },
       "waveform": {
         "ariaLabel": "Tira de ECG registrada el {date}, duración {duration}, frecuencia cardíaca media {heartRate}, resultado registrado: {result}."
+      },
+      "crossLink": {
+        "title": "Registros de ECG",
+        "recordingsOne": "1 registro guardado.",
+        "recordingsMany": "{count} registros guardados.",
+        "latestResult": "Último resultado del dispositivo: {result}.",
+        "cta": "Ver registros"
+      }
+    },
+    "intradayPulse": {
+      "title": "La forma de tu día",
+      "caption": "Tu frecuencia cardíaca a lo largo del día, promediada en tramos de 10 minutos.",
+      "empty": "Aún no hay suficientes lecturas de hoy para mostrar la forma del día.",
+      "baseline": "Reposo",
+      "tension": {
+        "morning": "Un tramo elevado en reposo esta mañana; posiblemente algo de tensión.",
+        "afternoon": "Un tramo elevado en reposo esta tarde; posiblemente algo de tensión.",
+        "evening": "Un tramo elevado en reposo al anochecer; posiblemente algo de tensión.",
+        "night": "Un tramo elevado en reposo por la noche; posiblemente algo de tensión."
       }
     }
   },
@@ -8549,6 +8568,25 @@
         "title": "Es buen momento para revisar un plan",
         "body": "Ha pasado alrededor de una semana desde que definiste este plan: consérvalo, ajústalo o déjalo ir. Sin presión.",
         "bodyPlan": "Hace aproximadamente una semana te propusiste: «{plan}». Consérvalo, ajústalo o déjalo ir, sin presión."
+      },
+      "tensionWindow": {
+        "title": "Quizá algo de tensión hoy",
+        "body": {
+          "morning": "Tu frecuencia cardíaca estuvo por encima de tu valor en reposo durante un buen rato esta mañana mientras estabas en calma; posiblemente algo de tensión.",
+          "afternoon": "Tu frecuencia cardíaca estuvo por encima de tu valor en reposo durante un buen rato esta tarde mientras estabas en calma; posiblemente algo de tensión.",
+          "evening": "Tu frecuencia cardíaca estuvo por encima de tu valor en reposo durante un buen rato al anochecer mientras estabas en calma; posiblemente algo de tensión.",
+          "night": "Tu frecuencia cardíaca estuvo por encima de tu valor en reposo durante un buen rato por la noche mientras estabas en calma; posiblemente algo de tensión."
+        }
+      },
+      "ecgNewRecording": {
+        "title": "Nuevo registro de ECG",
+        "body": "Tu dispositivo registró un nuevo ECG: está listo para verlo.",
+        "bodyVerdict": "Tu dispositivo registró un nuevo ECG e informó: {verdict}.",
+        "verdict": {
+          "irregular": "un posible ritmo irregular",
+          "notDetected": "ningún ritmo irregular",
+          "inconclusive": "un resultado no concluyente"
+        }
       }
     },
     "action": {
@@ -8557,7 +8595,10 @@
       "viewCheckups": "Ver revisiones",
       "checkinKeep": "Conservar",
       "checkinAdjust": "Ajustar",
-      "checkinLetGo": "Dejarlo ir"
+      "checkinLetGo": "Dejarlo ir",
+      "viewMilestone": "Ver",
+      "viewPulse": "Ver pulso",
+      "viewEcg": "Ver registro"
     },
     "today": {
       "scoreLabel": "Puntuación de salud",
@@ -8566,7 +8607,44 @@
       "sleepPending": "El sueño de anoche aún no ha llegado; la lectura de hoy es provisional.",
       "readFullBriefing": "Leer el informe completo",
       "worthALook": "Merece un vistazo",
-      "allClear": "Hoy nada necesita tu atención."
+      "allClear": "Hoy nada necesita tu atención.",
+      "ringLink": "Abrir detalles de {metric}",
+      "ringDosesAria": "{taken} de {scheduled} dosis tomadas hoy"
+    },
+    "milestone": {
+      "metric": {
+        "restingHeartRate": "frecuencia cardíaca en reposo",
+        "heartRateVariability": "variabilidad de la frecuencia cardíaca",
+        "respiratoryRate": "frecuencia respiratoria",
+        "weight": "peso",
+        "generic": "este valor"
+      },
+      "record": {
+        "title": "Nuevo récord: {metric}",
+        "body": "Hoy has alcanzado tu mejor marca de {metric}. Anotado con calma, sin nada que hacer."
+      },
+      "returnToBaseline": {
+        "title": "De nuevo en tu rango: {metric}",
+        "body": "Tu {metric} ha vuelto a tu rango habitual. Fuera lo que fuera, ya pasó."
+      },
+      "sustainedInRange": {
+        "week1": {
+          "title": "Una semana en rango",
+          "body": "Tu {metric} lleva una semana dentro de tu rango habitual. Con buena estabilidad."
+        },
+        "week2": {
+          "title": "Dos semanas en rango",
+          "body": "Tu {metric} lleva dos semanas dentro de tu rango habitual. Tranquilo y constante."
+        },
+        "week3": {
+          "title": "Tres semanas en rango",
+          "body": "Tres semanas con tu {metric} dentro de tu rango habitual. Un buen tramo de calma."
+        },
+        "week4": {
+          "title": "Un mes en rango",
+          "body": "Un mes entero con tu {metric} dentro de tu rango habitual. Maravillosamente estable."
+        }
+      }
     }
   }
 }

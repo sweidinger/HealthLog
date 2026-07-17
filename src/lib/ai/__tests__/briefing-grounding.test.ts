@@ -261,4 +261,39 @@ describe("core-vitals grounding extension", () => {
     );
     expect(found.map((f) => f.value)).toContain(195);
   });
+
+  // S10 — the ECG device-verdict descriptor feeds the narrative; its
+  // server-computed counts must be admitted so a device-attributed sentence
+  // ("your device logged 5 ECG recordings") is not stripped by the gate, while
+  // a count the block never produced still trips it.
+  const ecgFeatures = {
+    ecg: {
+      recordingCount: 5,
+      deviceVerdicts: { irregular: 2, notDetected: 3, inconclusive: 0 },
+      latestDeviceVerdict: "IRREGULAR",
+      latestRecordedDaysAgo: 4,
+      latestAverageHeartRate: 61,
+    },
+  } as never;
+
+  it("grounds a restated ECG recording count + latest device figures", () => {
+    const found = findUngroundedBriefingNumbers(
+      {
+        paragraph:
+          "Your device logged 5 ECG recordings this month; the latest, 4 days ago, averaged 61 bpm.",
+      },
+      signals,
+      ecgFeatures,
+    );
+    expect(found).toEqual([]);
+  });
+
+  it("flags an ECG count the descriptor never produced", () => {
+    const found = findUngroundedBriefingNumbers(
+      { paragraph: "Your device logged 12 ECG recordings this month." },
+      signals,
+      ecgFeatures,
+    );
+    expect(found.map((f) => f.value)).toContain(12);
+  });
 });

@@ -153,6 +153,20 @@ function authoritativeValues(
         push(w.latest.daysAgo);
       }
     }
+    // S10 — ECG device-verdict descriptor. Admit the pre-computed counts + the
+    // latest recording's device-reported HR / recency so a briefing that
+    // references the recordings ("your device logged 2 ECG recordings this
+    // month") stays grounded. Only server-computed figures are added; the
+    // waveform never reaches the payload, so no trace-derived number exists.
+    const ecg = features.ecg;
+    if (ecg) {
+      push(ecg.recordingCount);
+      push(ecg.deviceVerdicts.irregular);
+      push(ecg.deviceVerdicts.notDetected);
+      push(ecg.deviceVerdicts.inconclusive);
+      push(ecg.latestRecordedDaysAgo);
+      push(ecg.latestAverageHeartRate);
+    }
     // v1.25.1 — clinical-depth aggregate blocks (grip / waist / pain) wired
     // into the briefing. Admit their pre-computed figures so the prose may cite
     // them, same posture as the glucose / labs / workout blocks above.
