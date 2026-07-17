@@ -8042,6 +8042,12 @@
       "nummerGegenKummer": {
         "name": "Nummer gegen Kummer (für junge Menschen)"
       },
+      "telefonSeelsorgeAt": {
+        "name": "Telefonseelsorge Österreich (rund um die Uhr, kostenlos, vertraulich)"
+      },
+      "dargeboteneHand": {
+        "name": "Die Dargebotene Hand (rund um die Uhr, kostenlos, vertraulich)"
+      },
       "krisenchat": {
         "name": "krisenchat (24/7-Chat, junge Menschen)"
       },
