@@ -1403,7 +1403,10 @@
           "confirmAction": "Supprimer",
           "toast": "Prise supprimée",
           "failed": "Impossible de supprimer la prise."
-        }
+        },
+        "viewRecent90": "90 derniers jours",
+        "viewAll": "Historique complet",
+        "viewToggleLabel": "Plage de l'historique"
       },
       "verlauf": {
         "loading": "Chargement de l'historique …",
@@ -1806,7 +1809,10 @@
         "subtitle": "Ce qui coïncide avec les mesures visées par vos médicaments — association seulement, jamais un verdict.",
         "link": "Ouvrir la vue Effet",
         "empty": "Pas encore assez de données pour relier vos médicaments à leurs mesures cibles."
-      }
+      },
+      "scaleAbsolute": "Absolu",
+      "scalePercentSinceStart": "% depuis le début",
+      "scaleToggleLabel": "Échelle du graphique"
     }
   },
   "charts": {
