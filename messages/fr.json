@@ -7898,14 +7898,14 @@
       "bpLowDoctor": "Deux mesures récentes avaient une systolique inférieure à {systolic} mmHg. Si tu te sens étourdi ou faible, assieds-toi ou allonge-toi et contacte ton médecin si cela persiste.",
       "bpLowEmergency": "Deux mesures récentes avaient une systolique inférieure à {systolic} mmHg et tu as signalé des symptômes. Si tu te sens près de t'évanouir, confus ou as la peau froide et moite, appelle les secours immédiatement.",
       "glucoseLowTitle": "Glycémie basse",
-      "glucoseLowDoctor": "Deux mesures récentes étaient en dessous de 70 mg/dL ({value} mg/dL). Prends des glucides à action rapide, remesure dans 15 minutes et contacte ton médecin si les baisses persistent.",
-      "glucoseLowEmergency": "Deux mesures récentes étaient en dessous de 70 mg/dL ({value} mg/dL) et tu as signalé des symptômes. Traite maintenant avec du sucre rapide ; si tu ne peux pas ou te sens très mal, appelle les secours.",
+      "glucoseLowDoctor": "Deux mesures récentes étaient en dessous de {threshold} {unit} ({value} {unit}). Prends des glucides à action rapide, remesure dans 15 minutes et contacte ton médecin si les baisses persistent.",
+      "glucoseLowEmergency": "Deux mesures récentes étaient en dessous de {threshold} {unit} ({value} {unit}) et tu as signalé des symptômes. Traite maintenant avec du sucre rapide ; si tu ne peux pas ou te sens très mal, appelle les secours.",
       "glucoseLowSevereTitle": "Glycémie très basse",
-      "glucoseLowSevereDoctor": "Deux mesures récentes étaient en dessous de 54 mg/dL ({value} mg/dL). Traite immédiatement avec des glucides à action rapide, remesure dans 15 minutes et contacte ton médecin.",
-      "glucoseLowSevereEmergency": "Deux mesures récentes étaient en dessous de 54 mg/dL ({value} mg/dL) et tu as signalé des symptômes. Traite maintenant ; si tu ne gardes pas la nourriture ou te sens très mal, appelle les secours.",
+      "glucoseLowSevereDoctor": "Deux mesures récentes étaient en dessous de {threshold} {unit} ({value} {unit}). Traite immédiatement avec des glucides à action rapide, remesure dans 15 minutes et contacte ton médecin.",
+      "glucoseLowSevereEmergency": "Deux mesures récentes étaient en dessous de {threshold} {unit} ({value} {unit}) et tu as signalé des symptômes. Traite maintenant ; si tu ne gardes pas la nourriture ou te sens très mal, appelle les secours.",
       "glucoseHighTitle": "Glycémie très élevée",
-      "glucoseHighDoctor": "Deux mesures récentes étaient à {value} mg/dL ou plus. Remesure, hydrate-toi et contacte ton médecin dès que possible si cela reste aussi élevé.",
-      "glucoseHighEmergency": "Deux mesures récentes étaient à {value} mg/dL ou plus et tu as signalé des symptômes. En cas de vomissements, de respiration rapide ou de confusion, appelle les secours immédiatement."
+      "glucoseHighDoctor": "Deux mesures récentes étaient à {value} {unit} ou plus. Remesure, hydrate-toi et contacte ton médecin dès que possible si cela reste aussi élevé.",
+      "glucoseHighEmergency": "Deux mesures récentes étaient à {value} {unit} ou plus et tu as signalé des symptômes. En cas de vomissements, de respiration rapide ou de confusion, appelle les secours immédiatement."
     }
   },
   "version": {

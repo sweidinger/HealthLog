@@ -7898,14 +7898,14 @@
       "bpLowDoctor": "Dwa ostatnie pomiary miały ciśnienie skurczowe poniżej {systolic} mmHg. Jeśli kręci ci się w głowie lub czujesz osłabienie, usiądź lub połóż się i skontaktuj się z lekarzem, jeśli to się utrzymuje.",
       "bpLowEmergency": "Dwa ostatnie pomiary miały ciśnienie skurczowe poniżej {systolic} mmHg i zgłosiłeś objawy. Jeśli czujesz, że możesz zemdleć, jesteś zdezorientowany lub masz zimną, lepką skórę, natychmiast zadzwoń po pomoc.",
       "glucoseLowTitle": "Niski poziom cukru",
-      "glucoseLowDoctor": "Dwa ostatnie pomiary były poniżej 70 mg/dL ({value} mg/dL). Przyjmij szybko działające węglowodany, zmierz ponownie za 15 minut i skontaktuj się z lekarzem, jeśli spadki się utrzymują.",
-      "glucoseLowEmergency": "Dwa ostatnie pomiary były poniżej 70 mg/dL ({value} mg/dL) i zgłosiłeś objawy. Lecz to teraz szybkim cukrem; jeśli nie możesz lub czujesz się bardzo źle, zadzwoń po pomoc.",
+      "glucoseLowDoctor": "Dwa ostatnie pomiary były poniżej {threshold} {unit} ({value} {unit}). Przyjmij szybko działające węglowodany, zmierz ponownie za 15 minut i skontaktuj się z lekarzem, jeśli spadki się utrzymują.",
+      "glucoseLowEmergency": "Dwa ostatnie pomiary były poniżej {threshold} {unit} ({value} {unit}) i zgłosiłeś objawy. Lecz to teraz szybkim cukrem; jeśli nie możesz lub czujesz się bardzo źle, zadzwoń po pomoc.",
       "glucoseLowSevereTitle": "Bardzo niski poziom cukru",
-      "glucoseLowSevereDoctor": "Dwa ostatnie pomiary były poniżej 54 mg/dL ({value} mg/dL). Lecz natychmiast szybko działającymi węglowodanami, zmierz ponownie za 15 minut i skontaktuj się z lekarzem.",
-      "glucoseLowSevereEmergency": "Dwa ostatnie pomiary były poniżej 54 mg/dL ({value} mg/dL) i zgłosiłeś objawy. Lecz to teraz; jeśli nie utrzymujesz pokarmu lub czujesz się bardzo źle, zadzwoń po pomoc.",
+      "glucoseLowSevereDoctor": "Dwa ostatnie pomiary były poniżej {threshold} {unit} ({value} {unit}). Lecz natychmiast szybko działającymi węglowodanami, zmierz ponownie za 15 minut i skontaktuj się z lekarzem.",
+      "glucoseLowSevereEmergency": "Dwa ostatnie pomiary były poniżej {threshold} {unit} ({value} {unit}) i zgłosiłeś objawy. Lecz to teraz; jeśli nie utrzymujesz pokarmu lub czujesz się bardzo źle, zadzwoń po pomoc.",
       "glucoseHighTitle": "Bardzo wysoki poziom cukru",
-      "glucoseHighDoctor": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej. Zmierz ponownie, nawodnij się i jak najszybciej skontaktuj się z lekarzem, jeśli pozostaje tak wysoki.",
-      "glucoseHighEmergency": "Dwa ostatnie pomiary wyniosły {value} mg/dL lub więcej i zgłosiłeś objawy. W razie wymiotów, przyspieszonego oddechu lub dezorientacji natychmiast zadzwoń po pomoc."
+      "glucoseHighDoctor": "Dwa ostatnie pomiary wyniosły {value} {unit} lub więcej. Zmierz ponownie, nawodnij się i jak najszybciej skontaktuj się z lekarzem, jeśli pozostaje tak wysoki.",
+      "glucoseHighEmergency": "Dwa ostatnie pomiary wyniosły {value} {unit} lub więcej i zgłosiłeś objawy. W razie wymiotów, przyspieszonego oddechu lub dezorientacji natychmiast zadzwoń po pomoc."
     }
   },
   "version": {

@@ -7898,14 +7898,14 @@
       "bpLowDoctor": "Dos lecturas recientes tuvieron una sistólica por debajo de {systolic} mmHg. Si te mareas o te sientes débil, siéntate o recuéstate y contacta a tu médico si continúa.",
       "bpLowEmergency": "Dos lecturas recientes tuvieron una sistólica por debajo de {systolic} mmHg e indicaste síntomas. Si te sientes a punto de desmayar, confuso o con piel fría y húmeda, llama a emergencias ya.",
       "glucoseLowTitle": "Glucosa baja",
-      "glucoseLowDoctor": "Dos lecturas recientes estuvieron por debajo de 70 mg/dL ({value} mg/dL). Toma carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico si los bajones continúan.",
-      "glucoseLowEmergency": "Dos lecturas recientes estuvieron por debajo de 70 mg/dL ({value} mg/dL) e indicaste síntomas. Trátalo ahora con azúcar rápida; si no puedes o te sientes muy mal, llama a emergencias.",
+      "glucoseLowDoctor": "Dos lecturas recientes estuvieron por debajo de {threshold} {unit} ({value} {unit}). Toma carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico si los bajones continúan.",
+      "glucoseLowEmergency": "Dos lecturas recientes estuvieron por debajo de {threshold} {unit} ({value} {unit}) e indicaste síntomas. Trátalo ahora con azúcar rápida; si no puedes o te sientes muy mal, llama a emergencias.",
       "glucoseLowSevereTitle": "Glucosa muy baja",
-      "glucoseLowSevereDoctor": "Dos lecturas recientes estuvieron por debajo de 54 mg/dL ({value} mg/dL). Trátalo de inmediato con carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico.",
-      "glucoseLowSevereEmergency": "Dos lecturas recientes estuvieron por debajo de 54 mg/dL ({value} mg/dL) e indicaste síntomas. Trátalo ahora; si no retienes alimentos o te sientes muy mal, llama a emergencias.",
+      "glucoseLowSevereDoctor": "Dos lecturas recientes estuvieron por debajo de {threshold} {unit} ({value} {unit}). Trátalo de inmediato con carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico.",
+      "glucoseLowSevereEmergency": "Dos lecturas recientes estuvieron por debajo de {threshold} {unit} ({value} {unit}) e indicaste síntomas. Trátalo ahora; si no retienes alimentos o te sientes muy mal, llama a emergencias.",
       "glucoseHighTitle": "Glucosa muy alta",
-      "glucoseHighDoctor": "Dos lecturas recientes fueron de {value} mg/dL o más. Vuelve a medir, hidrátate y contacta a tu médico cuanto antes si sigue así de alta.",
-      "glucoseHighEmergency": "Dos lecturas recientes fueron de {value} mg/dL o más e indicaste síntomas. Si tienes vómitos, respiración rápida o confusión, llama a emergencias ya."
+      "glucoseHighDoctor": "Dos lecturas recientes fueron de {value} {unit} o más. Vuelve a medir, hidrátate y contacta a tu médico cuanto antes si sigue así de alta.",
+      "glucoseHighEmergency": "Dos lecturas recientes fueron de {value} {unit} o más e indicaste síntomas. Si tienes vómitos, respiración rápida o confusión, llama a emergencias ya."
     }
   },
   "version": {
