@@ -66,11 +66,52 @@ export {
   type SettingsSectionSlug,
 };
 
+/**
+ * 2026-07-17 UX/IA audit (M6) — the sidebar's 19 entries render under one
+ * of these seven non-interactive group headers instead of as one flat
+ * list. Presentation only: no slug, route, or redirect changes. Order
+ * below is the render order of the groups themselves.
+ */
+export type SettingsSectionGroup =
+  | "account"
+  | "yourData"
+  | "display"
+  | "healthProfile"
+  | "ai"
+  | "connectivity"
+  | "system";
+
+export const SETTINGS_SECTION_GROUP_ORDER: readonly SettingsSectionGroup[] = [
+  "account",
+  "yourData",
+  "display",
+  "healthProfile",
+  "ai",
+  "connectivity",
+  "system",
+];
+
+/** i18n key for each group's header label, under `settings.shell.groups.*`. */
+export const SETTINGS_SECTION_GROUP_LABEL_KEYS: Record<
+  SettingsSectionGroup,
+  string
+> = {
+  account: "settings.shell.groups.account",
+  yourData: "settings.shell.groups.yourData",
+  display: "settings.shell.groups.display",
+  healthProfile: "settings.shell.groups.healthProfile",
+  ai: "settings.shell.groups.ai",
+  connectivity: "settings.shell.groups.connectivity",
+  system: "settings.shell.groups.system",
+};
+
 interface SettingsSection {
   slug: SettingsSectionSlug;
   /** i18n key under `settings.sections.<slug>.title`. */
   titleKey: string;
   icon: LucideIcon;
+  /** 2026-07-17 UX/IA audit (M6) — which sidebar group this entry renders under. */
+  group: SettingsSectionGroup;
   /**
    * v1.18.0 (S5) — per-submodule entries are listed only when their module
    * is enabled. When set, the nav entry hides if the resolved
@@ -83,104 +124,152 @@ interface SettingsSection {
 
 /**
  * Source of truth for the section list that the settings shell renders
- * in its sidebar + mobile chip-strip. Order matches the in-app
- * navigation order. Don't reorder without updating tests.
+ * in its sidebar + mobile chip-strip.
  *
- * "About" sits at the end of the list. v1.4.33 IW7 had folded it into
- * the sidebar user-card dropdown only, which left `/settings/about` an
- * orphaned route — reachable by URL but discoverable nowhere in the
- * settings navigation. It is now both a regular (last) shell entry and
- * a user-card dropdown item ("Über HealthLog" / "About HealthLog").
+ * 2026-07-17 UX/IA audit (M6) — the list used to render in a single flat
+ * order with no visual structure (19 entries deep, the AI cluster and the
+ * programmatic-access cluster interleaved, the health-profile pair split
+ * across the list). It is now clustered into the seven
+ * `SettingsSectionGroup`s (`SETTINGS_SECTION_GROUP_ORDER`), each entry
+ * carrying its `group`; the shell inserts a non-interactive header before
+ * the first VISIBLE entry of each group. This is a presentation-only
+ * reorder — no slug, route, or redirect changed, and `SETTINGS_SECTION_SLUGS`
+ * (`section-slugs.ts`, which also carries the page-only slugs and drives
+ * `generateStaticParams()`) is untouched.
  *
- * v1.18.0 (S3) — `sources` is no longer a sidebar entry: source priority
- * folded into Settings → Integrations as the "Sources" sub-tab.
- * `thresholds` (Targets) keeps its own entry, served by the dynamic
- * `[section]` route.
+ * "About" sits at the end of the list (System group). v1.4.33 IW7 had
+ * folded it into the sidebar user-card dropdown only, which left
+ * `/settings/about` an orphaned route — reachable by URL but discoverable
+ * nowhere in the settings navigation. It is now both a regular shell entry
+ * and a user-card dropdown item ("Über HealthLog" / "About HealthLog").
  */
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
-  { slug: "account", titleKey: "settings.sections.account.title", icon: User },
+  // ── Account ──
+  {
+    slug: "account",
+    titleKey: "settings.sections.account.title",
+    icon: User,
+    group: "account",
+  },
   // v1.23 — the account-security home: second factors, recovery codes,
-  // passkey management. Sits directly under Account.
+  // passkey management.
   {
     slug: "security",
     titleKey: "settings.sections.security.title",
     icon: ShieldCheck,
+    group: "account",
   },
-  // v1.18.0 — the "Was du trackst" hub. Sits right below Account: the one
-  // place to enable/disable the secondary tracking domains.
+  // v1.23 — "Data & Privacy" assembles the export / deletion / retention /
+  // encryption / session / activity pieces into one coherent privacy pane.
+  {
+    slug: "privacy",
+    titleKey: "settings.sections.privacy.title",
+    icon: Lock,
+    group: "account",
+  },
+  // ── Your data ──
+  // v1.18.0 — the "Was du trackst" hub: the front door for enabling /
+  // disabling the secondary tracking domains.
   {
     slug: "modules",
     titleKey: "settings.sections.modules.title",
     icon: Blocks,
+    group: "yourData",
   },
   {
     slug: "integrations",
     titleKey: "settings.sections.integrations.title",
     icon: Link2,
+    group: "yourData",
   },
-  // v1.25.3 — the standalone Kanäle (delivery channels) entry folded back
-  // into Notifications as a labelled in-page group; `/settings/channels`
-  // 301-redirects to `/settings/notifications#channels`.
-  // v1.18.1 (D4) — Quellen (source weighting) split out into its own entry:
-  // which connection wins when two report the same metric.
+  // v1.18.1 (D4) — Quellen (source weighting): which connection wins when
+  // two report the same metric. v1.25.3 — Kanäle (delivery channels) folded
+  // back into Notifications as an in-page group;
+  // `/settings/channels` 301-redirects to `/settings/notifications#channels`.
   {
     slug: "sources",
     titleKey: "settings.sections.sources.title",
     icon: Layers,
+    group: "yourData",
   },
-  // v1.18.0 (S4) — "Benachrichtigungen" is now the single module-gated
-  // reminder-types home. The separate "Erinnerungen" hub (a link-only page)
-  // is gone; reminder TYPES live here, each row gated on its module.
+  // v1.18.0 (S5) — the full health record (PDF + FHIR R4 + zip package).
+  // v1.18.6.1 — NOT module-gated: the health record is a flagship export
+  // capability; gating its only entry-point on the `doctorReport` opt-out
+  // meant a stray toggle in the Modules hub made the whole section vanish
+  // with no in-context way back. The `doctorReport` module still governs
+  // the data layer server-side (403 `module.disabled` over Bearer).
   {
-    slug: "notifications",
-    titleKey: "settings.sections.notifications.title",
-    icon: Bell,
+    slug: "gesundheitsakte",
+    titleKey: "settings.sections.gesundheitsakte.title",
+    icon: FileHeart,
+    group: "yourData",
   },
+  // v1.25.7 — clinician share links fold into the Gesundheitsakte section as
+  // a labelled "Sharing" group; `/settings/sharing` 301-redirects there.
+  {
+    slug: "export",
+    titleKey: "settings.sections.export.title",
+    icon: Download,
+    group: "yourData",
+  },
+  // ── Display ──
   // v1.17.1 (F-2) — one nav entry replaces the four scattered Dashboard /
-  // Insights / Medications / Mood "arrange" entries. Those routes still
-  // resolve (deep links, page-header cogs, and the hub's own links all work);
-  // they are reached through this hub now, so "how my app looks" reads as one
-  // home. v1.25.3 — renamed to "Appearance"/"Darstellung" and widened into the
-  // index for every module's view/sort/order surface. The slug stays `layout`
-  // so every route + deep link is untouched.
-  // v1.25.7 — "Darstellung" (Appearance) absorbs the per-module view/sort/
-  // order surfaces. The standalone Medikamente / Stimmung / Labor /
-  // Krankheit / Vorsorge nav entries are gone: each module's full settings
-  // v1.25.11 (#148) — "Darstellung" is a HUB that lists each module and links
-  // to its own subpage at `/settings/layout/<module>`. The old per-module
-  // routes 301-redirect to the matching subpage (next.config.ts).
+  // Insights / Medications / Mood "arrange" entries; those routes still
+  // resolve, reached through this hub. v1.25.3 — renamed to "Appearance" /
+  // "Darstellung" and widened into the index for every module's
+  // view/sort/order surface (the slug stays `layout`). v1.25.11 (#148) —
+  // each module lives on its own subpage at `/settings/layout/<module>`;
+  // the old per-module routes 301-redirect there.
   {
     slug: "layout",
     titleKey: "settings.sections.layout.title",
     icon: Palette,
+    group: "display",
   },
-  // v1.25 (W-ENV) — Environmental context: home location, travel overrides, and
-  // the weather/daylight backfill. Module-gated on the opt-in `environment`
-  // module, so the entry only appears once the user turns it on.
-  {
-    slug: "environment",
-    titleKey: "settings.sections.environment.title",
-    icon: CloudSun,
-    moduleGate: "environment",
-  },
-  // v1.25 (W-RECORDS) — Anamnese (medical history): the structured-record home
-  // for allergies + family history. NOT module-gated (like Vorsorge) — these
-  // are foundational health-profile records, always available. Sits between
-  // the illness journal and the preventive-care reminders.
-  {
-    slug: "anamnesis",
-    titleKey: "settings.sections.anamnesis.title",
-    icon: ClipboardList,
-  },
-  // v1.25.7 — Vorsorge (preventive-care reminders) folded into "Darstellung"
-  // alongside the other tracking modules; `/settings/vorsorge` 301-redirects
-  // to `/settings/layout/vorsorge` (next.config.ts).
+  // v1.25.7 — Vorsorge (preventive-care reminders) folded into
+  // "Darstellung"; `/settings/vorsorge` 301-redirects to
+  // `/settings/layout/vorsorge`.
   {
     slug: "thresholds",
     titleKey: "settings.sections.thresholds.title",
     icon: SlidersHorizontal,
+    group: "display",
   },
-  { slug: "ai", titleKey: "settings.sections.ai.title", icon: Sparkles },
+  // v1.18.0 (S4) — "Benachrichtigungen" is the single module-gated
+  // reminder-types home; the standalone "Erinnerungen" hub is gone.
+  {
+    slug: "notifications",
+    titleKey: "settings.sections.notifications.title",
+    icon: Bell,
+    group: "display",
+  },
+  // ── Health profile ──
+  // v1.25 (W-RECORDS) — Anamnese (medical history): the structured-record
+  // home for allergies + family history. NOT module-gated (like Vorsorge) —
+  // these are foundational health-profile records, always available.
+  {
+    slug: "anamnesis",
+    titleKey: "settings.sections.anamnesis.title",
+    icon: ClipboardList,
+    group: "healthProfile",
+  },
+  // v1.25 (W-ENV) — Environmental context: home location, travel overrides,
+  // and the weather/daylight backfill. Module-gated on the opt-in
+  // `environment` module, so the entry only appears once the user turns it on.
+  {
+    slug: "environment",
+    titleKey: "settings.sections.environment.title",
+    icon: CloudSun,
+    group: "healthProfile",
+    moduleGate: "environment",
+  },
+  // ── AI ──
+  {
+    slug: "ai",
+    titleKey: "settings.sections.ai.title",
+    icon: Sparkles,
+    group: "ai",
+  },
   // v1.18.0 (S5) — Coach: the Coach preference cards get their own entry,
   // shown only when the coach module is enabled. The AI entry above keeps
   // provider / model / BYOK configuration.
@@ -188,54 +277,37 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "coach",
     titleKey: "settings.sections.coach.title",
     icon: Bot,
+    group: "ai",
     moduleGate: "coach",
   },
-  { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
-  // v1.22.0 — remote MCP connector. Not module-gated: the card carries its own
-  // enable toggle (mirroring `gesundheitsakte`), so the entry-point stays
-  // reachable even with the opt-in module off.
-  { slug: "mcp", titleKey: "settings.sections.mcp.title", icon: Plug },
-  // v1.18.0 (S5) — the full health record (PDF + FHIR R4 + zip package)
-  // earns its own home, lifted out of Export & Import.
-  //
-  // v1.18.6.1 — the nav entry is NOT module-gated. The health record is a
-  // flagship export capability; gating its only entry-point on the
-  // `doctorReport` opt-out meant a stray toggle in the Modules hub made the
-  // whole section vanish with no in-context way back. The entry now always
-  // shows. The `doctorReport` module still governs the data layer: the
-  // server-side `/api/export/health-record` route remains the hard
-  // enforcement (403 `module.disabled` over Bearer when the account opts
-  // out), and the Modules hub keeps the toggle for anyone who wants the
-  // surface gone elsewhere — but the Settings entry-point stays reachable.
+  // ── Connectivity ──
   {
-    slug: "gesundheitsakte",
-    titleKey: "settings.sections.gesundheitsakte.title",
-    icon: FileHeart,
+    slug: "api",
+    titleKey: "settings.sections.api.title",
+    icon: KeyRound,
+    group: "connectivity",
   },
-  // v1.25.7 — clinician share links fold into the Gesundheitsakte section as a
-  // labelled "Sharing" group: minting a time-boxed read-only link is a sharing
-  // face of the same data. `/settings/sharing` 301-redirects to
-  // `/settings/gesundheitsakte#sharing` (next.config.ts). The public
-  // `/c/[token]` view and the `/api/share-links` lifecycle are unchanged.
+  // v1.22.0 — remote MCP connector. Not module-gated: the card carries its
+  // own enable toggle (mirroring `gesundheitsakte`), so the entry-point
+  // stays reachable even with the opt-in module off.
   {
-    slug: "export",
-    titleKey: "settings.sections.export.title",
-    icon: Download,
+    slug: "mcp",
+    titleKey: "settings.sections.mcp.title",
+    icon: Plug,
+    group: "connectivity",
   },
+  // ── System ──
   {
     slug: "advanced",
     titleKey: "settings.sections.advanced.title",
     icon: Settings2,
-  },
-  {
-    slug: "privacy",
-    titleKey: "settings.sections.privacy.title",
-    icon: Lock,
+    group: "system",
   },
   {
     slug: "about",
     titleKey: "settings.sections.about.title",
     icon: Info,
+    group: "system",
   },
 ] as const;
 
@@ -471,29 +543,41 @@ export function SettingsShell({
         aria-label={t("settings.shell.sectionsNav")}
         className="no-scrollbar relative -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
       >
-        <ul className="flex min-w-max gap-2">
-          {visibleSections.map((section) => {
+        <ul className="flex min-w-max items-center gap-2">
+          {visibleSections.map((section, index) => {
             const isActive = section.slug === activeSlug;
             const Icon = section.icon;
+            // 2026-07-17 UX/IA audit (M6) — a quiet vertical divider marks a
+            // group boundary in the horizontal strip (the desktop sidebar
+            // carries the full text header for the same grouping).
+            const startsNewGroup =
+              index > 0 && visibleSections[index - 1].group !== section.group;
             return (
-              <li key={section.slug} className="snap-start">
-                <Link
-                  href={`/settings/${section.slug}`}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(
-                    // v1.4.25 W8 — chip strip is the primary mobile-settings
-                    // navigation surface. Pad to WCAG 2.5.5 44 px so the
-                    // chips can be tapped without zoom on a Pixel-5.
-                    "flex min-h-11 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
-                    isActive
-                      ? "border-primary/40 bg-primary/10 text-primary"
-                      : "border-border text-foreground hover:bg-accent",
-                  )}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {t(section.titleKey)}
-                </Link>
-              </li>
+              <React.Fragment key={section.slug}>
+                {startsNewGroup ? (
+                  <li aria-hidden="true" className="shrink-0">
+                    <span className="bg-border block h-6 w-px" />
+                  </li>
+                ) : null}
+                <li className="snap-start">
+                  <Link
+                    href={`/settings/${section.slug}`}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      // v1.4.25 W8 — chip strip is the primary mobile-settings
+                      // navigation surface. Pad to WCAG 2.5.5 44 px so the
+                      // chips can be tapped without zoom on a Pixel-5.
+                      "flex min-h-11 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+                      isActive
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border text-foreground hover:bg-accent",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    {t(section.titleKey)}
+                  </Link>
+                </li>
+              </React.Fragment>
             );
           })}
         </ul>
@@ -537,25 +621,44 @@ export function SettingsShell({
           className="no-scrollbar hidden max-h-[calc(100dvh-5.5rem)] overflow-y-auto md:sticky md:top-6 md:col-start-1 md:row-start-2 md:block md:self-start"
         >
           <ul className="space-y-1">
-            {visibleSections.map((section) => {
+            {visibleSections.map((section, index) => {
               const isActive = section.slug === activeSlug;
               const Icon = section.icon;
+              // 2026-07-17 UX/IA audit (M6) — a non-interactive header
+              // precedes the first VISIBLE entry of each group so a
+              // module-gated entry never leaves an orphan header above an
+              // empty cluster.
+              const startsNewGroup =
+                index === 0 ||
+                visibleSections[index - 1].group !== section.group;
               return (
-                <li key={section.slug}>
-                  <Link
-                    href={`/settings/${section.slug}`}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <Icon className="h-4 w-4" aria-hidden="true" />
-                    {t(section.titleKey)}
-                  </Link>
-                </li>
+                <React.Fragment key={section.slug}>
+                  {startsNewGroup ? (
+                    <li
+                      className={cn(
+                        "text-muted-foreground px-3 pb-1 text-xs font-medium tracking-wide uppercase",
+                        index === 0 ? "" : "pt-4",
+                      )}
+                    >
+                      {t(SETTINGS_SECTION_GROUP_LABEL_KEYS[section.group])}
+                    </li>
+                  ) : null}
+                  <li>
+                    <Link
+                      href={`/settings/${section.slug}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-accent",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                      {t(section.titleKey)}
+                    </Link>
+                  </li>
+                </React.Fragment>
               );
             })}
           </ul>

@@ -2534,9 +2534,9 @@
         "label": "Aktywność",
         "header": "Aktywność i mobilność"
       },
-      "cardiovascularParent": {
-        "label": "Sercowo-naczyniowe",
-        "header": "Markery sercowo-naczyniowe"
+      "heartParent": {
+        "label": "Serce",
+        "header": "Zdrowie serca"
       },
       "hearingParent": {
         "label": "Słuch",
@@ -4192,7 +4192,16 @@
       "disableError": "Nie udało się wyłączyć trybu Badawczego. Spróbuj ponownie."
     },
     "shell": {
-      "sectionsNav": "Sekcje ustawień"
+      "sectionsNav": "Sekcje ustawień",
+      "groups": {
+        "account": "Konto",
+        "yourData": "Twoje dane",
+        "display": "Wyświetlanie",
+        "healthProfile": "Profil zdrowotny",
+        "ai": "AI",
+        "connectivity": "Łączność",
+        "system": "System"
+      }
     },
     "sections": {
       "account": {

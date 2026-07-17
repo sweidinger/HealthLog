@@ -2534,9 +2534,9 @@
         "label": "Actividad",
         "header": "Actividad y movilidad"
       },
-      "cardiovascularParent": {
-        "label": "Cardiovascular",
-        "header": "Marcadores cardiovasculares"
+      "heartParent": {
+        "label": "Corazón",
+        "header": "Salud cardíaca"
       },
       "hearingParent": {
         "label": "Audición",
@@ -4192,7 +4192,16 @@
       "disableError": "No se pudo desactivar el modo Investigación. Inténtalo de nuevo."
     },
     "shell": {
-      "sectionsNav": "Secciones de ajustes"
+      "sectionsNav": "Secciones de ajustes",
+      "groups": {
+        "account": "Cuenta",
+        "yourData": "Tus datos",
+        "display": "Visualización",
+        "healthProfile": "Perfil de salud",
+        "ai": "IA",
+        "connectivity": "Conectividad",
+        "system": "Sistema"
+      }
     },
     "sections": {
       "account": {

@@ -73,7 +73,7 @@ const MANAGER_GROUP_HEADER_KEYS: Record<ManagerGroup, string> = {
   body: "insights.tabStrip.bodyParent.label",
   activity: "insights.tabStrip.activityParent.label",
   sleep: "insights.editMode.groupSleep",
-  cardiovascular: "insights.tabStrip.cardiovascularParent.label",
+  heart: "insights.tabStrip.heartParent.label",
   hearing: "insights.tabStrip.hearingParent.label",
   environment: "insights.tabStrip.environmentParent.label",
   metabolic: "insights.tabStrip.metabolicParent.label",

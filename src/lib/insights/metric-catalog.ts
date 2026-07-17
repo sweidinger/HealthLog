@@ -69,7 +69,7 @@ export const CATALOG_GROUP_HEADER_KEYS: Record<ManagerGroup, string> = {
   body: "insights.tabStrip.bodyParent.header",
   activity: "insights.tabStrip.activityParent.header",
   sleep: "insights.editMode.groupSleep",
-  cardiovascular: "insights.tabStrip.cardiovascularParent.header",
+  heart: "insights.tabStrip.heartParent.header",
   hearing: "insights.tabStrip.hearingParent.header",
   environment: "insights.tabStrip.environmentParent.header",
   metabolic: "insights.tabStrip.metabolicParent.header",
@@ -198,7 +198,7 @@ function buildMetricEntries(): CatalogEntry[] {
  */
 const ECG_ENTRY: CatalogEntry = {
   id: "ecg",
-  group: "cardiovascular",
+  group: "heart",
   nameKey: "insights.ecg.sectionTitle",
   sourceKey: "metricCatalog.ecg.source",
   kind: "metric",
@@ -217,7 +217,7 @@ const ECG_ENTRY: CatalogEntry = {
  */
 const WATCHDOG_ENTRY: CatalogEntry = {
   id: "watchdog",
-  group: "cardiovascular",
+  group: "heart",
   nameKey: "metricCatalog.watchdog.title",
   sourceKey: "metricCatalog.watchdog.description",
   kind: "info",

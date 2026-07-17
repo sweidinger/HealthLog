@@ -2534,9 +2534,9 @@
         "label": "Attività",
         "header": "Attività e mobilità"
       },
-      "cardiovascularParent": {
-        "label": "Cardiovascolare",
-        "header": "Marcatori cardiovascolari"
+      "heartParent": {
+        "label": "Cuore",
+        "header": "Salute del cuore"
       },
       "hearingParent": {
         "label": "Udito",
@@ -4192,7 +4192,16 @@
       "disableError": "Impossibile disattivare la modalità Ricerca. Riprova."
     },
     "shell": {
-      "sectionsNav": "Sezioni delle impostazioni"
+      "sectionsNav": "Sezioni delle impostazioni",
+      "groups": {
+        "account": "Account",
+        "yourData": "I tuoi dati",
+        "display": "Visualizzazione",
+        "healthProfile": "Profilo sanitario",
+        "ai": "IA",
+        "connectivity": "Connettività",
+        "system": "Sistema"
+      }
     },
     "sections": {
       "account": {

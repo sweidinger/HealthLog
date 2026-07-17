@@ -70,10 +70,11 @@ describe("<InsightsTabStrip> — availability gating (v1.4.27 F19)", () => {
       hasMedication: false,
     };
     const html = render(<InsightsTabStrip availability={availability} />);
-    // Pills that have data stay.
-    expect(html).toContain(">Pulse<");
+    // Pills that have data stay — pulse and bmi surface through their
+    // Heart / Body groups (2026-07-17 UX/IA audit M1).
+    expect(html).toContain('data-group="heart"');
     expect(html).toContain(">Weight<");
-    expect(html).toContain(">BMI<");
+    expect(html).toContain('data-group="body"');
     // Pills without data drop.
     expect(html).not.toContain(">Blood Pressure<");
     expect(html).not.toContain(">Mood<");
@@ -143,7 +144,8 @@ describe("<InsightsTabStrip> — availability gating (v1.4.27 F19)", () => {
     };
     const html = render(<InsightsTabStrip availability={availability} />);
     expect(html).toContain(">Weight<");
-    expect(html).toContain(">BMI<");
+    // bmi surfaces through the Body group (2026-07-17 UX/IA audit M1).
+    expect(html).toContain('data-group="body"');
   });
 });
 
@@ -221,7 +223,7 @@ describe("<InsightsTabStrip> — vitals group collapse (v1.4.34 IW-D)", () => {
     };
     const html = render(<InsightsTabStrip availability={availability} />);
     expect(html).not.toContain(">Vitals<");
-    expect(html).not.toContain('data-slot="insights-tab-strip-group"');
+    expect(html).not.toContain('data-group="vitals"');
   });
 
   it("renders the parent pill as a popover trigger (button, not link)", () => {
@@ -230,17 +232,80 @@ describe("<InsightsTabStrip> — vitals group collapse (v1.4.34 IW-D)", () => {
     expect(html).toContain('data-group="vitals"');
   });
 
-  it("preserves the non-grouped pills inline", () => {
+  it("preserves the pinned flat pills inline", () => {
     const html = render(<InsightsTabStrip availability={fullAvailability} />);
-    // Flat (non-grouped) pills must still be reachable directly.
+    // Pinned pills must still be reachable directly.
     expect(html).toContain(">Blood Pressure<");
-    expect(html).toContain(">Pulse<");
     expect(html).toContain(">Weight<");
-    expect(html).toContain(">BMI<");
     expect(html).toContain(">Sleep<");
     expect(html).toContain(">Mood<");
     expect(html).toContain(">Medication<");
-    expect(html).toContain(">Workouts<");
+  });
+});
+
+describe("<InsightsTabStrip> — heart group collapse (2026-07-17 UX/IA audit H2)", () => {
+  // Pulse, resting HR, HRV and cardio recovery used to be scattered across
+  // a flat "Pulse" pill and the "Vitals" popover; they now share one
+  // "Heart" group. Blood pressure stays pinned flat (see the pinned-pills
+  // test above).
+  const heartAvailability: InsightInputs = {
+    summaries: {
+      PULSE: fakeSummary(5),
+      HEART_RATE_VARIABILITY: fakeSummary(5),
+      RESTING_HEART_RATE: fakeSummary(5),
+      CARDIO_RECOVERY: fakeSummary(5),
+    },
+    hasMood: false,
+    hasMedication: false,
+  };
+
+  it("renders a single 'Heart' parent pill instead of flat Pulse / HRV / Resting HR / Cardio recovery pills", () => {
+    const html = render(<InsightsTabStrip availability={heartAvailability} />);
+    const parentMatches = html.match(/>Heart</g);
+    expect(parentMatches).not.toBeNull();
+    expect(parentMatches!.length).toBe(1);
+    expect(html).toContain('data-group="heart"');
+    expect(html).not.toContain(">Pulse<");
+    expect(html).not.toContain(">HRV<");
+    expect(html).not.toContain(">Resting HR<");
+    expect(html).not.toContain(">Cardio Recovery<");
+  });
+
+  it("hides the Heart parent pill when no heart metric has data", () => {
+    const availability: InsightInputs = {
+      summaries: { WEIGHT: fakeSummary(2) },
+      hasMood: false,
+      hasMedication: false,
+    };
+    const html = render(<InsightsTabStrip availability={availability} />);
+    expect(html).not.toContain(">Heart<");
+    expect(html).not.toContain('data-group="heart"');
+  });
+});
+
+describe("<InsightsTabStrip> — bmi / workouts collapse into their groups (2026-07-17 UX/IA audit M1)", () => {
+  it("bmi renders inside the 'Body' popover, not as a flat pill", () => {
+    const availability: InsightInputs = {
+      summaries: { WEIGHT: fakeSummary(5) },
+      hasMood: false,
+      hasMedication: false,
+    };
+    const html = render(<InsightsTabStrip availability={availability} />);
+    expect(html).toContain(">Weight<");
+    expect(html).not.toContain(">BMI<");
+    expect(html).toContain('data-group="body"');
+  });
+
+  it("workouts renders inside the 'Activity' popover, not as a flat pill", () => {
+    const availability: InsightInputs = {
+      summaries: {},
+      hasMood: false,
+      hasMedication: false,
+      hasWorkouts: true,
+    };
+    const html = render(<InsightsTabStrip availability={availability} />);
+    expect(html).not.toContain(">Workouts<");
+    expect(html).toContain('data-group="activity"');
   });
 });
 
@@ -255,8 +320,10 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
   };
 
   it("hides a pill whose slug is layout-hidden even though it has data", () => {
-    // `pulse` has data but is NOT in the visible set ⇒ no pill. `weight`
-    // has data AND is visible ⇒ pill shows.
+    // `pulse` has data but is NOT in the visible set ⇒ its Heart group
+    // never emits. `weight` has data AND is visible ⇒ pill shows. `bmi`
+    // has data (derived from WEIGHT) AND is visible ⇒ its Body group
+    // emits (2026-07-17 UX/IA audit M1 — bmi collapsed out of the flat row).
     const visibleTileIds = new Set(["overview", "weight", "bmi"]);
     const html = render(
       <InsightsTabStrip
@@ -265,11 +332,11 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
       />,
     );
     expect(html).toContain(">Weight<");
-    expect(html).toContain(">BMI<");
-    expect(html).not.toContain(">Pulse<");
+    expect(html).toContain('data-group="body"');
+    expect(html).not.toContain('data-group="heart"');
   });
 
-  it("shows a pill when its slug is layout-visible AND has data", () => {
+  it("shows a group parent pill when its slug is layout-visible AND has data", () => {
     const visibleTileIds = new Set(["overview", "pulse", "weight", "bmi"]);
     const html = render(
       <InsightsTabStrip
@@ -277,7 +344,7 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
         visibleTileIds={visibleTileIds}
       />,
     );
-    expect(html).toContain(">Pulse<");
+    expect(html).toContain('data-group="heart"');
     expect(html).toContain(">Weight<");
   });
 
@@ -302,9 +369,9 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
   it("falls back to the data-only gate when no layout is loaded (visibleTileIds undefined)", () => {
     // No visibleTileIds prop ⇒ pre-W2 behaviour: every data-having pill shows.
     const html = render(<InsightsTabStrip availability={dataAvailability} />);
-    expect(html).toContain(">Pulse<");
+    expect(html).toContain('data-group="heart"');
     expect(html).toContain(">Weight<");
-    expect(html).toContain(">BMI<");
+    expect(html).toContain('data-group="body"');
   });
 
   it("always shows the Overview pill regardless of layout visibility", () => {
@@ -316,7 +383,7 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
       />,
     );
     expect(html).toContain(">Overview<");
-    expect(html).not.toContain(">Pulse<");
+    expect(html).not.toContain('data-group="heart"');
     expect(html).not.toContain(">Weight<");
   });
 
@@ -405,7 +472,9 @@ describe("<InsightsTabStrip> — module enable/disable gate (v1.18.0)", () => {
   // A pill belonging to a toggleable module (mood / sleep / glucose /
   // workouts) is hidden when that module is disabled in the account's
   // resolved module map — on TOP of the data + layout gates. Core metric
-  // pills (BP, pulse, weight, BMI …) carry no module key and ignore it.
+  // pills (BP, pulse, weight, BMI …) carry no module key and ignore it —
+  // pulse and bmi now surface through their Heart / Body group instead of
+  // a flat pill, but the module gate still never touches them.
   const moduleAvailability: InsightInputs = {
     summaries: {
       PULSE: fakeSummary(5),
@@ -418,10 +487,11 @@ describe("<InsightsTabStrip> — module enable/disable gate (v1.18.0)", () => {
     hasWorkouts: true,
   };
 
-  it("hides the Mood / Sleep / Workouts pills + the glucose (Metabolic) group when their modules are disabled", () => {
+  it("hides the Mood / Sleep / Activity(workouts) pills/groups + the glucose (Metabolic) group when their modules are disabled", () => {
     // `blood-glucose` is the sole metabolic metric with data here, so its
     // module gate collapses the whole "Metabolic" group parent pill —
-    // mood / sleep / workouts are flat pills that drop directly.
+    // mood / sleep are flat pills that drop directly; workouts is the
+    // sole Activity-group member here, so disabling it collapses Activity.
     const html = render(
       <InsightsTabStrip
         availability={moduleAvailability}
@@ -435,12 +505,14 @@ describe("<InsightsTabStrip> — module enable/disable gate (v1.18.0)", () => {
     );
     expect(html).not.toContain(">Mood<");
     expect(html).not.toContain(">Sleep<");
-    expect(html).not.toContain(">Workouts<");
+    expect(html).not.toContain('data-group="activity"');
     expect(html).not.toContain('data-group="metabolic"');
-    // Core metric pills are unaffected by the module map.
-    expect(html).toContain(">Pulse<");
+    // Core metric pills are unaffected by the module map — pulse and bmi
+    // carry no module key and still surface through their Heart / Body
+    // groups (2026-07-17 UX/IA audit — both collapsed out of the flat row).
+    expect(html).toContain('data-group="heart"');
     expect(html).toContain(">Weight<");
-    expect(html).toContain(">BMI<");
+    expect(html).toContain('data-group="body"');
     expect(html).toContain(">Overview<");
   });
 
@@ -458,7 +530,8 @@ describe("<InsightsTabStrip> — module enable/disable gate (v1.18.0)", () => {
     );
     expect(html).toContain(">Mood<");
     expect(html).toContain(">Sleep<");
-    expect(html).toContain(">Workouts<");
+    // Workouts collapses into the Activity group (2026-07-17 UX/IA audit M1).
+    expect(html).toContain('data-group="activity"');
     expect(html).toContain('data-group="metabolic"');
   });
 
@@ -486,7 +559,7 @@ describe("<InsightsTabStrip> — module enable/disable gate (v1.18.0)", () => {
       );
       expect(html).toContain(">Mood<");
       expect(html).toContain(">Sleep<");
-      expect(html).toContain(">Workouts<");
+      expect(html).toContain('data-group="activity"');
       expect(html).toContain('data-group="metabolic"');
       expect(html).toContain(">Recovery<");
     }

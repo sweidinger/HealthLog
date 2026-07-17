@@ -2534,9 +2534,9 @@
         "label": "Aktivität",
         "header": "Aktivität & Mobilität"
       },
-      "cardiovascularParent": {
-        "label": "Herz-Kreislauf",
-        "header": "Herz-Kreislauf-Marker"
+      "heartParent": {
+        "label": "Herz",
+        "header": "Herzgesundheit"
       },
       "hearingParent": {
         "label": "Gehör",
@@ -4192,7 +4192,16 @@
       "disableError": "Forschungsmodus konnte nicht deaktiviert werden. Bitte erneut versuchen."
     },
     "shell": {
-      "sectionsNav": "Einstellungs-Bereiche"
+      "sectionsNav": "Einstellungs-Bereiche",
+      "groups": {
+        "account": "Konto",
+        "yourData": "Deine Daten",
+        "display": "Anzeige",
+        "healthProfile": "Gesundheitsprofil",
+        "ai": "KI",
+        "connectivity": "Konnektivität",
+        "system": "System"
+      }
     },
     "sections": {
       "account": {

@@ -2534,9 +2534,9 @@
         "label": "Activité",
         "header": "Activité et mobilité"
       },
-      "cardiovascularParent": {
-        "label": "Cardiovasculaire",
-        "header": "Marqueurs cardiovasculaires"
+      "heartParent": {
+        "label": "Cœur",
+        "header": "Santé cardiaque"
       },
       "hearingParent": {
         "label": "Audition",
@@ -4192,7 +4192,16 @@
       "disableError": "Impossible de désactiver le mode Recherche. Veuillez réessayer."
     },
     "shell": {
-      "sectionsNav": "Sections des réglages"
+      "sectionsNav": "Sections des réglages",
+      "groups": {
+        "account": "Compte",
+        "yourData": "Vos données",
+        "display": "Affichage",
+        "healthProfile": "Profil de santé",
+        "ai": "IA",
+        "connectivity": "Connectivité",
+        "system": "Système"
+      }
     },
     "sections": {
       "account": {

@@ -78,7 +78,7 @@ const GROUP_ICONS: Record<ManagerGroup, LucideIcon> = {
   body: Scale,
   activity: Footprints,
   sleep: Moon,
-  cardiovascular: HeartPulse,
+  heart: HeartPulse,
   hearing: Ear,
   environment: Sun,
   metabolic: Droplet,

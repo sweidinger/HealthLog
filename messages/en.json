@@ -2534,9 +2534,9 @@
         "label": "Activity",
         "header": "Activity & mobility"
       },
-      "cardiovascularParent": {
-        "label": "Cardiovascular",
-        "header": "Cardiovascular markers"
+      "heartParent": {
+        "label": "Heart",
+        "header": "Heart health"
       },
       "hearingParent": {
         "label": "Hearing",
@@ -4192,7 +4192,16 @@
       "disableError": "Could not disable Research Mode. Please try again."
     },
     "shell": {
-      "sectionsNav": "Settings sections"
+      "sectionsNav": "Settings sections",
+      "groups": {
+        "account": "Account",
+        "yourData": "Your data",
+        "display": "Display",
+        "healthProfile": "Health profile",
+        "ai": "AI",
+        "connectivity": "Connectivity",
+        "system": "System"
+      }
     },
     "sections": {
       "account": {
