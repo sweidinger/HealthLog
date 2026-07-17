@@ -2,7 +2,37 @@
 
 ## [Unreleased]
 
-## [1.28.56] — 2026-07-17 — Documents, closer to hand
+## [1.29.0] — 2026-07-17 — A daily health companion
+
+This release draws a line under a run of work that turns HealthLog from a place
+you record your health into one that meets you each day — and it completes that
+picture with the pieces that make it feel whole.
+
+Over the last releases the dashboard gained a **Today** view that leads with the
+day's read, a health score that refreshes the moment last night's sleep syncs, a
+coach check-in when a plan is due for a look-back, and an optional morning note.
+Documents came closer to hand — the Coach opens beside them, you can bring
+several into a conversation, and lab values move between a document and your
+labs. This release adds the layer that ties it together:
+
+- **Your heart's rhythm, in context.** ECG recordings are no longer a page on
+  their own — they're referenced where your resting heart rate and rhythm are
+  discussed, always as the reading your device produced, never a reading of the
+  app's own. A new recording surfaces gently in Today.
+- **The shape of your day.** Heart rate is now drawn across the day, not just as
+  a daily number — so you can see it settle and climb. When it stays elevated
+  while you're at rest and not moving, Today notes it plainly as possible
+  tension, carefully and never as a verdict.
+- **Quiet milestones.** Reaching a steady stretch in your target range, or a new
+  personal best, is marked with a calm moment — states you've reached, not
+  streaks to keep, so there's nothing to break and nothing to nag.
+- **One piece throughout.** The Today view brings back the health rings you
+  choose, each surface carries its metric's own calm colour, and the whole thing
+  reads as one design rather than a stack of features.
+
+Nothing new generates when you open the app — every daily surface reads the
+insight prepared overnight. No new data is collected; this makes more of what's
+already yours.
 
 Four changes bring documents and your record closer together:
 
