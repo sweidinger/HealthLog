@@ -8608,8 +8608,7 @@
       "readFullBriefing": "Leggi il briefing completo",
       "worthALook": "Da tenere d'occhio",
       "allClear": "Oggi nulla richiede la tua attenzione.",
-      "ringLink": "Apri i dettagli di {metric}",
-      "ringDosesAria": "{taken} di {scheduled} dosi assunte oggi"
+      "ringLink": "Apri i dettagli di {metric}"
     },
     "milestone": {
       "metric": {

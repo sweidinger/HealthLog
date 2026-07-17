@@ -317,6 +317,14 @@ describe("dependent-key bundles", () => {
     const keyStrings = medicationDependentKeys.map((k) => JSON.stringify(k));
     expect(keyStrings).toContain(JSON.stringify(["dashboard", "snapshot"]));
   });
+
+  // v1.29.1 — the Today digest reads `medsToday` from the same server
+  // snapshot the intake routes hard-evict, but nothing invalidated the client
+  // query, so the digest's dose-window rail item lingered until a hard reload.
+  it("medicationDependentKeys bundles the daily digest (v1.29.1)", () => {
+    const keyStrings = medicationDependentKeys.map((k) => JSON.stringify(k));
+    expect(keyStrings).toContain(JSON.stringify(["daily", "digest"]));
+  });
 });
 
 /**

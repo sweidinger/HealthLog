@@ -8608,8 +8608,7 @@
       "readFullBriefing": "Leer el informe completo",
       "worthALook": "Merece un vistazo",
       "allClear": "Hoy nada necesita tu atención.",
-      "ringLink": "Abrir detalles de {metric}",
-      "ringDosesAria": "{taken} de {scheduled} dosis tomadas hoy"
+      "ringLink": "Abrir detalles de {metric}"
     },
     "milestone": {
       "metric": {

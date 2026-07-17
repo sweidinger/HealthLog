@@ -158,6 +158,15 @@ export const moodDependentKeys = [
  * minutes. The intake routes already hard-evict the server-side
  * snapshot bucket, so the refetch this triggers returns post-write data
  * immediately.
+ *
+ * v1.29.1 — `dailyDigest` joins the bundle. The Today hero's digest reads
+ * `medsToday` from the same server snapshot the intake routes hard-evict,
+ * but nothing invalidated the client query, so the digest's "dose due"
+ * rail item lingered until a hard reload. Like the snapshot, the digest
+ * query runs with refetchOnMount/WindowFocus tuned off, so the intake
+ * seam ALSO forces an inactive refetch (it is unmounted while the user is
+ * on the medication card); this bundle membership covers the case where
+ * the dashboard is the active surface.
  */
 export const medicationDependentKeys = [
   queryKeys.medications(),
@@ -166,6 +175,7 @@ export const medicationDependentKeys = [
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),
   queryKeys.dashboardSnapshot(),
+  queryKeys.dailyDigest(),
   ["dashboard-medication-compliance"] as const,
   ["compliance-chart-inline"] as const,
 ];

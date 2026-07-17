@@ -16,20 +16,32 @@ import { apiDelete, apiPost } from "@/lib/api/api-fetch";
  * Invalidate every read that reflects a dose's taken/due state after an
  * intake write. `invalidateKeys` invalidates with the default
  * `refetchType: "active"`, which only refetches mounted queries — so the
- * dashboard snapshot, inactive while the user is on the medication card or
- * detail page, is marked stale but never refetched. On navigating back the
- * snapshot remounts under `refetchOnMount: false`, so the pre-write cache is
- * served and the "due" prompt lingers until a hard reload. Force the inactive
- * snapshot to refetch so the dashboard clears as soon as the dose is recorded.
+ * dashboard snapshot AND the Today digest, both inactive while the user is on
+ * the medication card or detail page, are marked stale but never refetched. On
+ * navigating back each remounts under `refetchOnMount: false`, so the pre-write
+ * cache is served and the "due" prompt (snapshot dose tally) plus the digest's
+ * dose-window rail item both linger until a hard reload. Force the inactive
+ * queries to refetch so the dashboard clears as soon as the dose is recorded.
+ *
+ * v1.29.1 — the digest joins the forced-inactive refetch. Its `medsToday`
+ * reads the SAME server snapshot cell the intake route already hard-evicts, so
+ * the refetch returns post-write dose state immediately (no server change
+ * needed — the eviction seam is reused).
  */
 async function invalidateMedicationReads(
   queryClient: QueryClient,
 ): Promise<void> {
   await invalidateKeys(queryClient, medicationDependentKeys);
-  await queryClient.invalidateQueries({
-    queryKey: queryKeys.dashboardSnapshot(),
-    refetchType: "inactive",
-  });
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.dashboardSnapshot(),
+      refetchType: "inactive",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.dailyDigest(),
+      refetchType: "inactive",
+    }),
+  ]);
 }
 
 type Translator = (

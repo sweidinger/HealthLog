@@ -35,6 +35,7 @@ import {
   recomputeBucketsForMeasurement,
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 import {
   fetchActivities,
   fetchCardioLoads,
@@ -161,6 +162,16 @@ export async function syncUserPolar(userId: string): Promise<number> {
   await sweepStaleSleepSegments(userId, "POLAR", sleepSweeps);
 
   const imported = await upsertPolarMeasurements(userId, readings);
+
+  // S4 — trigger the debounced morning refresh on a last-night segment landing
+  // (mirrors the Withings / WHOOP / Apple seams).
+  void maybeEnqueueMorningRefresh(
+    userId,
+    readings
+      .filter((r) => r.type === "SLEEP_DURATION")
+      .map((r) => r.measuredAt),
+  ).catch(() => {});
+
   await recordSyncSuccess(userId, "polar");
   return imported;
 }

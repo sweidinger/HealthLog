@@ -31,6 +31,23 @@ vi.mock("@/lib/db", () => ({
   prisma: { user: { findUnique: () => userFindUniqueMock() } },
 }));
 
+// v1.29.1 — every gate now annotates a distinct `reason`; the spy captures the
+// wide-event so each early return is observable in prod.
+const annotateMock = vi.fn();
+vi.mock("@/lib/logging/context", () => ({
+  annotate: (event: unknown) => annotateMock(event),
+}));
+
+/** The `meta` of the single wide-event the trigger emitted this call. */
+function lastAnnotateMeta(): Record<string, unknown> {
+  const call = annotateMock.mock.calls.at(-1);
+  return (call?.[0] as { meta?: Record<string, unknown> })?.meta ?? {};
+}
+function lastAnnotateName(): string | undefined {
+  const call = annotateMock.mock.calls.at(-1);
+  return (call?.[0] as { action?: { name?: string } })?.action?.name;
+}
+
 import {
   isLastNightLocal,
   maybeEnqueueMorningRefresh,
@@ -84,6 +101,7 @@ describe("maybeEnqueueMorningRefresh", () => {
     resolveModuleMapMock.mockResolvedValue({});
     userFindUniqueMock.mockReset();
     userFindUniqueMock.mockResolvedValue({ morningDigestRefreshedOn: null });
+    annotateMock.mockReset();
   });
 
   it("enqueues exactly one debounced refresh for many last-night samples", async () => {
@@ -101,30 +119,47 @@ describe("maybeEnqueueMorningRefresh", () => {
     expect((opts as { singletonKey: string }).singletonKey).toBe(
       "morning-refresh:u1:2026-07-16",
     );
+    // The success path stays observable too.
+    expect(lastAnnotateName()).toBe("daily.morning_refresh.triggered");
   });
 
-  it("does NOT trigger for an old/backfilled sleep only", async () => {
+  it("does NOT trigger for an old/backfilled sleep only, and annotates the gate", async () => {
     await maybeEnqueueMorningRefresh("u1", [oldNight, oldNight], NOW);
     expect(sendMock).not.toHaveBeenCalled();
+    expect(lastAnnotateName()).toBe("daily.morning_refresh.skipped");
+    const meta = lastAnnotateMeta();
+    expect(meta.reason).toBe("not_last_night");
+    // The diagnostic payload: today's local key, tz, and the samples' resolved
+    // local dates so a real landing shows exactly why the gate rejected them.
+    expect(meta.today).toBe("2026-07-16");
+    expect(meta.tz).toBe("America/Los_Angeles");
+    // 06:00Z on the 10th = 23:00 on the 9th in LA (UTC-7).
+    expect(meta.sample_local_dates).toEqual(["2026-07-09", "2026-07-09"]);
   });
 
-  it("no-ops when the sleep module is off", async () => {
+  it("no-ops when the sleep module is off, and annotates the gate", async () => {
     resolveModuleMapMock.mockResolvedValue({ sleep: false });
     await maybeEnqueueMorningRefresh("u1", [lastNight], NOW);
     expect(sendMock).not.toHaveBeenCalled();
+    expect(lastAnnotateName()).toBe("daily.morning_refresh.skipped");
+    expect(lastAnnotateMeta().reason).toBe("sleep_module_off");
   });
 
-  it("skips the enqueue when the day is already finalised (marker == today)", async () => {
+  it("skips the enqueue when the day is already finalised (marker == today), and annotates the gate", async () => {
     userFindUniqueMock.mockResolvedValue({
       morningDigestRefreshedOn: "2026-07-16",
     });
     await maybeEnqueueMorningRefresh("u1", [lastNight], NOW);
     expect(sendMock).not.toHaveBeenCalled();
+    expect(lastAnnotateName()).toBe("daily.morning_refresh.skipped");
+    expect(lastAnnotateMeta().reason).toBe("already_refreshed");
   });
 
-  it("no-ops with no sleep samples", async () => {
+  it("no-ops with no sleep samples, and annotates the gate", async () => {
     await maybeEnqueueMorningRefresh("u1", [], NOW);
     expect(sendMock).not.toHaveBeenCalled();
+    expect(lastAnnotateName()).toBe("daily.morning_refresh.skipped");
+    expect(lastAnnotateMeta().reason).toBe("no_sleep_rows");
   });
 
   it("never throws when a dependency fails", async () => {

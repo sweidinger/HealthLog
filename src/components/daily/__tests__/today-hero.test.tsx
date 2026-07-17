@@ -6,7 +6,6 @@ import { I18nProvider } from "@/lib/i18n/context";
 import { TodayHero } from "../today-hero";
 import type { DailyDigest } from "@/lib/daily/digest";
 import type { PriorityItem } from "@/lib/daily/priority-item";
-import type { DashboardScoreRing } from "@/lib/dashboard/score-rings";
 
 // The hero now wires the coach check-in card's keep / let-go taps through
 // `useCoachCheckinAction`, so it needs a QueryClient in the tree.
@@ -141,34 +140,13 @@ describe("<TodayHero>", () => {
     expect(html).toBe("");
   });
 
-  it("renders the selected score rings as a cluster in the caller's order", () => {
-    const rings: DashboardScoreRing[] = [
-      { id: "SLEEP_SCORE", score: 74, band: "yellow" },
-      {
-        id: "MED_COMPLIANCE",
-        score: 33,
-        band: "yellow",
-        doses: { taken: 1, scheduled: 3 },
-      },
-    ];
-    const html = render(<TodayHero digest={digest()} rings={rings} />);
-    expect(html).toContain('data-slot="today-hero-ring-cluster"');
-    // Caller order (= the user's resolved hero ring order) is preserved.
-    const sleepAt = html.indexOf('data-ring="SLEEP_SCORE"');
-    const medsAt = html.indexOf('data-ring="MED_COMPLIANCE"');
-    expect(sleepAt).toBeGreaterThan(-1);
-    expect(medsAt).toBeGreaterThan(sleepAt);
-    // Each ring links to its existing detail surface.
-    expect(html).toContain('href="/insights/scores/sleep"');
-    expect(html).toContain('href="/medications"');
-    // The dose ring shows today's tally, not a mystery percentage.
-    expect(html).toContain("1/3");
-    expect(html).toContain("1 of 3 doses taken today");
-  });
-
-  it("renders no ring cluster when the selection is empty", () => {
+  // v1.29.1 — the v1.29.0 selected-score-ring cluster was removed from the web
+  // hero (Marc, live-use: uneven, wasted tile space). Only the main
+  // health-score ring paints now; the cluster's data-slots are gone.
+  it("renders no score-ring cluster — only the health-score ring", () => {
     const html = render(<TodayHero digest={digest()} />);
     expect(html).not.toContain('data-slot="today-hero-ring-cluster"');
+    expect(html).not.toContain('data-slot="today-hero-ring"');
     // The health-score ring alone still paints, exactly as before.
     expect(html).toContain('data-slot="today-hero-score"');
   });
