@@ -284,7 +284,7 @@ export function MedicationComplianceChart({
   const chartData = useMemo(
     () =>
       data
-        ? aggregateMedicationCompliance(data, (d) => tzFmt.dateShort(d))
+        ? aggregateMedicationCompliance(data, (d) => tzFmt.dateShortSmart(d))
         : [],
     [data, tzFmt],
   );

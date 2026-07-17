@@ -175,7 +175,7 @@ export function IntradayPulseChart({
 
   const dayLabel = isToday
     ? t("insights.intradayPulse.today")
-    : fmt.dateShort(new Date(`${dateKey}T12:00:00.000Z`));
+    : fmt.dateShortSmart(new Date(`${dateKey}T12:00:00.000Z`));
 
   return (
     <div

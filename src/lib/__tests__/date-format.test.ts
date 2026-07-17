@@ -5,11 +5,12 @@
  * field order the `<DateField>` primitive and `useFormatters().date()` render.
  * AUTO defers to the active locale; DMY / MDY / YMD pin the order regardless.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   formatDate,
   formatDateWithWeekday,
+  formatDateWithWeekdaySmart,
   parseIsoDate,
   resolveDateLocale,
   isDateFormatPreference,
@@ -109,6 +110,41 @@ describe("formatDateWithWeekday (#490)", () => {
     expect(formatDateWithWeekday("", "AUTO", "en")).toBe("");
     expect(formatDateWithWeekday(null, "AUTO", "en")).toBe("");
     expect(formatDateWithWeekday("14.07.2026", "AUTO", "en")).toBe("");
+  });
+});
+
+// Issue #66 (date-format sweep) — the dose-history ledger scrolls day
+// groups across year boundaries; a bare "Di., 16.12." from last December
+// must not read as this year's. "Now" is faked so the boundary is
+// deterministic regardless of the day this suite runs.
+describe("formatDateWithWeekdaySmart (#66)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-10T12:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("omits the year for a day key in the current UTC year", () => {
+    expect(formatDateWithWeekdaySmart("2026-07-14", "AUTO", "en")).toBe(
+      "Tue, 07/14",
+    );
+  });
+
+  it("adds the year for a day key from a prior UTC year", () => {
+    expect(formatDateWithWeekdaySmart("2025-12-16", "AUTO", "en")).toBe(
+      "Tue, 12/16/2025",
+    );
+    expect(formatDateWithWeekdaySmart("2025-12-16", "AUTO", "de")).toBe(
+      "Di., 16.12.2025",
+    );
+  });
+
+  it("returns an empty string for empty / unparseable input", () => {
+    expect(formatDateWithWeekdaySmart("", "AUTO", "en")).toBe("");
+    expect(formatDateWithWeekdaySmart(null, "AUTO", "en")).toBe("");
   });
 });
 

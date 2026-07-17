@@ -15,7 +15,7 @@ import { Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet, apiDelete } from "@/lib/api/api-fetch";
 
@@ -34,6 +34,7 @@ export function TrustedDevicesCard({
   isAuthenticated: boolean;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<string | null>(null);
 
@@ -125,7 +126,7 @@ export function TrustedDevicesCard({
                   </p>
                   <p className="text-muted-foreground text-xs">
                     {t("settings.security.trustedDevices.expires", {
-                      date: new Date(d.expiresAt).toLocaleDateString(),
+                      date: fmt.date(d.expiresAt),
                     })}
                   </p>
                 </div>

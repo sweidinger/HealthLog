@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TileHeader } from "@/components/insights/tile-header";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import type { Formatters } from "@/lib/format-locale";
 import { FERTILE_HUE, FLOW_HUE, OVULATION_HUE } from "./phase-tokens";
 import type { CyclePrediction, CycleHistoryResponse } from "./types";
 
@@ -26,12 +27,17 @@ import type { CyclePrediction, CycleHistoryResponse } from "./types";
  * cycle-tracking on-ramp, not repeated beneath every prediction surface.
  */
 
-function formatDate(d: string): string {
+/**
+ * Issue #66 — was a bespoke `toLocaleDateString(undefined, …)` (browser
+ * locale, never the app's) with no year. Predictions run 1-2 cycles out, so
+ * a window straddling New Year's would otherwise print an unadorned "Jan 3"
+ * in December. Routes through the app-locale conditional-year formatter
+ * instead; `dateShortSmart` already renders day+month in the locale's field
+ * order and only adds the year when it differs from the current one.
+ */
+function formatDate(d: string, fmt: Formatters): string {
   // Render at noon UTC so the YYYY-MM-DD never rolls a day across tz.
-  return new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+  return fmt.dateShortSmart(`${d}T12:00:00Z`);
 }
 
 function confidenceTone(c: number): {
@@ -60,6 +66,7 @@ export function PredictionsPanel({
   history,
 }: PredictionsPanelProps) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
 
   return (
     <div className="space-y-4">
@@ -92,8 +99,9 @@ export function PredictionsPanel({
                 <Row
                   hue={FERTILE_HUE}
                   label={t("cycle.predictions.fertileWindow")}
-                  value={`${formatDate(prediction.fertileWindowStart)} – ${formatDate(
+                  value={`${formatDate(prediction.fertileWindowStart, fmt)} – ${formatDate(
                     prediction.fertileWindowEnd,
+                    fmt,
                   )}`}
                 />
               ) : null}
@@ -105,7 +113,7 @@ export function PredictionsPanel({
                       ? t("cycle.predictions.ovulationConfirmed")
                       : t("cycle.predictions.ovulation")
                   }
-                  value={formatDate(prediction.predictedOvulation)}
+                  value={formatDate(prediction.predictedOvulation, fmt)}
                 />
               ) : null}
             </>
@@ -120,6 +128,7 @@ export function PredictionsPanel({
 
 function NextPeriod({ prediction }: { prediction: CyclePrediction }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const tone = confidenceTone(prediction.confidence);
   return (
     <div className="space-y-1.5">
@@ -128,8 +137,8 @@ function NextPeriod({ prediction }: { prediction: CyclePrediction }) {
           hue={FLOW_HUE}
           label={t("cycle.predictions.nextPeriod")}
           value={t("cycle.predictions.nextPeriodWindow", {
-            low: formatDate(prediction.nextPeriodStartLow),
-            high: formatDate(prediction.nextPeriodStartHigh),
+            low: formatDate(prediction.nextPeriodStartLow, fmt),
+            high: formatDate(prediction.nextPeriodStartHigh, fmt),
           })}
         />
         <Badge variant={tone.variant} className="shrink-0">
@@ -186,6 +195,7 @@ function HistoryCard({
   history: CycleHistoryResponse | undefined;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const stats = history?.stats;
   // Most-recent observed cycles (the spread the regularity number summarises —
   // seeing it builds trust; the data was already on the wire). QA H2.
@@ -253,10 +263,10 @@ function HistoryCard({
                     className="flex items-center justify-between gap-3 py-2 text-sm"
                   >
                     <span className="text-foreground tabular-nums">
-                      {formatDate(c.startDate)}
+                      {formatDate(c.startDate, fmt)}
                       {" – "}
                       {c.endDate
-                        ? formatDate(c.endDate)
+                        ? formatDate(c.endDate, fmt)
                         : t("cycle.history.ongoing")}
                     </span>
                     <span className="text-muted-foreground flex items-center gap-2 tabular-nums">

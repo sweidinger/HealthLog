@@ -171,11 +171,6 @@ export interface Formatters {
   dateWithWeekdaySmart: (value: DateInput) => string;
   /** For axis labels: 3-letter month abbreviation. */
   monthShort: (value: DateInput) => string;
-  /**
-   * Month + year, e.g. "Feb. 2026" / "Feb 2026" — for axis labels and
-   * next-dose captions that need to disambiguate a Dec → Jan rollover.
-   */
-  monthYear: (value: DateInput) => string;
 }
 
 export function makeFormatters(
@@ -298,13 +293,6 @@ export function makeFormatters(
       getDateTimeFormat(intlLocale, {
         timeZone: tz,
         month: "short",
-      }).format(asDate(value)),
-
-    monthYear: (value) =>
-      getDateTimeFormat(intlLocale, {
-        timeZone: tz,
-        month: "short",
-        year: "numeric",
       }).format(asDate(value)),
   };
 }

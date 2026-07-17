@@ -34,8 +34,7 @@ import {
 import { RichChartTooltip, type RichTooltipRow } from "../charts/chart-tooltip";
 import { CHART_HEIGHT_PX } from "@/lib/charts/constants";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
-import { formatDateShort } from "@/lib/format";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { INSTRUMENTS } from "@/lib/mental-health/instruments";
 
 import type { AssessmentRow, InstrumentId } from "./types";
@@ -55,6 +54,7 @@ export function AssessmentHistoryChart({
   rows: AssessmentRow[];
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const def = INSTRUMENTS[instrument];
 
   const points = useMemo<ChartPoint[]>(() => {
@@ -103,7 +103,7 @@ export function AssessmentHistoryChart({
           type="number"
           scale="time"
           domain={["dataMin", "dataMax"]}
-          tickFormatter={(ts: number) => formatDateShort(new Date(ts))}
+          tickFormatter={(ts: number) => fmt.dateShortSmart(new Date(ts))}
           tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           stroke="var(--border)"
           minTickGap={32}
@@ -139,7 +139,7 @@ export function AssessmentHistoryChart({
             return (
               <RichChartTooltip
                 active
-                label={formatDateShort(new Date(point.timestamp))}
+                label={fmt.dateShortSmart(new Date(point.timestamp))}
                 rows={rowsOut}
               />
             );

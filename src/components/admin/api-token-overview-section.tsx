@@ -11,10 +11,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDate, formatDateTime } from "@/lib/format";
+import type { Formatters } from "@/lib/format-locale";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { ListRow } from "@/components/ui/list-row";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { type ApiTokenInfo } from "./_shared";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -114,35 +115,30 @@ function TokenStatusBadge({
 const TOKEN_NAME_ISO_RE =
   /^(.+?)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2}))(.*)$/;
 
-// Locale-fixed dd.MM.yyyy HH:mm in the Europe/Berlin display zone — the
-// rest of the app shows timestamps in Berlin time (`format-locale.ts`),
-// so a token issued at 19:46 UTC must read as 21:46 in summer / 20:46
-// in winter, not the raw UTC clock.
-const TOKEN_NAME_DATE_FORMATTER = new Intl.DateTimeFormat("de-DE", {
-  timeZone: "Europe/Berlin",
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
-
-function formatTokenName(name: string): string {
+/**
+ * Issue #66 (date-format sweep) — this used to hard-code `de-DE` +
+ * `Europe/Berlin`, so a non-German admin saw a German-formatted
+ * timestamp baked into the token name regardless of their own locale
+ * or profile timezone. Routes through the same `fmt.dateTime` every
+ * other surface renders through, so the admin's locale, hour-cycle
+ * preference, and profile timezone all apply here too.
+ */
+function formatTokenName(name: string, fmt: Formatters): string {
   const match = TOKEN_NAME_ISO_RE.exec(name);
   if (!match) return name;
   const [, prefix, iso, rest] = match;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return name;
-  // Intl emits "05.05.2026, 21:46" — strip the comma so the suffix
-  // reads as a single date+time chunk.
-  const stamp = TOKEN_NAME_DATE_FORMATTER.format(d).replace(",", "");
+  // `fmt.dateTime` emits "05.05.2026, 21:46" — strip the comma so the
+  // suffix reads as a single date+time chunk.
+  const stamp = fmt.dateTime(d).replace(",", "");
   const formatted = `${prefix} · ${stamp}`;
   return rest && rest.trim() ? `${formatted} ${rest.trim()}` : formatted;
 }
 
 export function ApiTokenOverviewSection() {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   // v1.4.19 phase A7 — `/admin/api-tokens` is a dedicated single-
   // section route. The previous pattern carried a "Collapse / Expand"
   // toggle as an escape hatch from the v1.4 shared admin page where
@@ -232,7 +228,9 @@ export function ApiTokenOverviewSection() {
                           <TruncatedCell value={token.user.username} />
                         </td>
                         <td className="max-w-0 px-3 py-2">
-                          <TruncatedCell value={formatTokenName(token.name)} />
+                          <TruncatedCell
+                            value={formatTokenName(token.name, fmt)}
+                          />
                         </td>
                         <td className="max-w-0 px-3 py-2">
                           <div className="flex flex-wrap gap-1">
@@ -303,7 +301,7 @@ export function ApiTokenOverviewSection() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <TruncatedCell
-                              value={formatTokenName(token.name)}
+                              value={formatTokenName(token.name, fmt)}
                               className="min-w-0 flex-1 font-medium"
                             />
                             <TokenStatusBadge token={token} size="xs" />

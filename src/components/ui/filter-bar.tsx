@@ -229,7 +229,7 @@ export function FilterBarDateRange({
   const fmt = useFormatters();
   const active = from !== "" || to !== "";
   const display = active
-    ? `${from ? fmt.dateShort(from) : "…"} – ${to ? fmt.dateShort(to) : "…"}`
+    ? `${from ? fmt.dateShortSmart(from) : "…"} – ${to ? fmt.dateShortSmart(to) : "…"}`
     : null;
   const clear = () => {
     onFromChange("");

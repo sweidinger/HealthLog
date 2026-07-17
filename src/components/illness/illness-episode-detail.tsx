@@ -82,11 +82,11 @@ export function IllnessEpisodeDetail({ episodeId }: { episodeId: string }) {
               </Badge>
               <span className="text-muted-foreground text-xs">
                 {t("illness.onsetOn", {
-                  date: fmt.dateShort(new Date(episode.onsetAt)),
+                  date: fmt.dateShortSmart(new Date(episode.onsetAt)),
                 })}
                 {episode.resolvedAt
                   ? ` · ${t("illness.recoveredOn", {
-                      date: fmt.dateShort(new Date(episode.resolvedAt)),
+                      date: fmt.dateShortSmart(new Date(episode.resolvedAt)),
                     })}`
                   : ""}
               </span>

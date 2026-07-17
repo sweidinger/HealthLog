@@ -420,7 +420,7 @@ export function Glp1MedicationCard({
     if (next.daysAway === 0) return t("medications.glp1NextInjectionToday");
     if (next.daysAway === 1) return t("medications.glp1NextInjectionTomorrow");
     const dayName = weekdayLabel(getDayOfWeekInTz(next.date, displayTz));
-    const dateShort = fmt.dateShort(next.date);
+    const dateShort = fmt.dateShortSmart(next.date);
     return t("medications.glp1NextInjectionDays", {
       label: `${dayName}, ${dateShort}`,
       days: next.daysAway,
@@ -469,7 +469,7 @@ export function Glp1MedicationCard({
     medication.nextDueOverdue && next
       ? diffDays(next.date, now) === 0
         ? formatTime(next.date.toISOString())
-        : `${weekdayLabel(getDayOfWeekInTz(next.date, displayTz))}, ${fmt.dateShort(next.date)}`
+        : `${weekdayLabel(getDayOfWeekInTz(next.date, displayTz))}, ${fmt.dateShortSmart(next.date)}`
       : null;
 
   const nextLine =

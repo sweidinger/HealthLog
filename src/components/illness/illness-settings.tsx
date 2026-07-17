@@ -43,7 +43,7 @@ export function IllnessSettings() {
         : e.lifecycle === "CHRONIC_ONGOING"
           ? t("illness.status.ongoing")
           : t("illness.status.active")
-    } · ${fmt.dateShort(new Date(e.onsetAt))}`,
+    } · ${fmt.dateShortSmart(new Date(e.onsetAt))}`,
   }));
 
   return (

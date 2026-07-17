@@ -551,7 +551,7 @@ function MedicationTableRowItem({
             ? t("medications.tomorrow")
             : diffDays <= 5
               ? weekdayLabel(nextDate.getDay())
-              : fmt.dateWithWeekday(nextDate);
+              : fmt.dateWithWeekdaySmart(nextDate);
       nextCell = (
         <span>
           {dayLabel}, {formatTime(new Date(nextAt).toISOString())}

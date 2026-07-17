@@ -437,7 +437,7 @@ export function MedicationCard({
             } else if (diffDays <= 5) {
               dayLabel = weekdayLabel(nextDate.getDay());
             } else {
-              dayLabel = fmt.dateWithWeekday(nextDate);
+              dayLabel = fmt.dateWithWeekdaySmart(nextDate);
             }
           }
 

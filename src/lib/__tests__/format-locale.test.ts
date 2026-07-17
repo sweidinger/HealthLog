@@ -265,17 +265,6 @@ describe("makeFormatters", () => {
       // that prints as 2025 in New York must carry the year.
       expect(nyFmt.dateShortSmart(newYearUtcEve)).toContain("2025");
     });
-
-    it("monthYear always carries the year (chart axis / next-dose labels)", () => {
-      const de = makeFormatters("de");
-      const en = makeFormatters("en");
-      const dec = new Date("2025-12-30T10:00:00Z");
-      const jan = new Date("2026-01-15T10:00:00Z");
-      expect(de.monthYear(dec)).toContain("2025");
-      expect(de.monthYear(jan)).toContain("2026");
-      expect(en.monthYear(dec)).toBe("Dec 2025");
-      expect(en.monthYear(jan)).toBe("Jan 2026");
-    });
   });
 });
 
