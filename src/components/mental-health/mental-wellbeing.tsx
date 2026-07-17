@@ -18,7 +18,7 @@
  * `assessment-result`, `assessment-history`, `crisis-card`).
  * The landing follows the card grammar of Vorsorge / Medications: instrument
  * cards (last-result line + Start) + a history card. The disclaimer renders
- * ONLY here (a muted caption) and behind the InfoHint — never while testing.
+ * ONLY here (a muted caption) and behind the InfoPopover — never while testing.
  *
  * v1.27.9 — the landing is intro + instrument cards, nothing else: the
  * combined history card left the main page entirely. Each card opens a

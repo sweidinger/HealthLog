@@ -94,7 +94,7 @@ export const STAGE_COLORS: Record<string, string> = {
   CORE: "var(--info)", // dracula-cyan — bulk of sleep
   ASLEEP: "var(--success)", // dracula-green — legacy iOS 15- unspecified
   AWAKE: "var(--dracula-yellow)", // dracula-yellow — wake bouts
-  IN_BED: "#6272a4", // dracula-comment — pre-asleep
+  IN_BED: "var(--chart-inbed)", // muted blue-grey — pre-asleep
 };
 
 function formatMinutes(total: number, locale: string): string {

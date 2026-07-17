@@ -16,7 +16,7 @@ import { SectionHeading } from "@/components/insights/section-heading";
 import { SparklineDeltaTile } from "./sparkline-delta-tile";
 import { LearnMoreLink } from "@/components/ui/learn-more-link";
 import { CoverageMeter } from "./coverage-meter";
-import { VitalsInfoTip } from "./vitals-info-tip";
+import { InfoPopover } from "@/components/ui/info-popover";
 import { METRIC_PROVENANCE } from "./standards";
 import { type DerivedBatchRead } from "./use-derived-metric";
 import {
@@ -171,11 +171,11 @@ function tileOrder(layout: InsightsLayout | undefined, tileId: string): number {
 
 /**
  * The (i) info-tip trigger for one derived metric, wired from the map.
- * `provenance` (inputs / source / window / asOf) isn't rendered here —
- * `VitalsInfoTip` carries only the method/caveat + cited standard, mirroring
- * what `ProvenanceExplainer` itself renders today — but the param is kept so
- * every call site (which already reads `data.provenance` off the derived
- * batch) doesn't need touching if a future pass restores the detail.
+ * `provenance` (inputs / source / window / asOf) isn't rendered here — the
+ * shared `InfoPopover` carries only the method/caveat + cited standard,
+ * mirroring what `ProvenanceExplainer` itself renders today — but the param
+ * is kept so every call site (which already reads `data.provenance` off the
+ * derived batch) doesn't need touching if a future pass restores the detail.
  */
 function MetricProvenance({
   metric,
@@ -195,7 +195,13 @@ function MetricProvenance({
       {t(meta.methodKey)}
     </>
   );
-  return <VitalsInfoTip method={method} standard={meta.standard} />;
+  return (
+    <InfoPopover
+      content={method}
+      link={meta.standard}
+      label={t("insights.derived.vitals.infoLabel")}
+    />
+  );
 }
 
 interface TileProps {
@@ -291,7 +297,7 @@ function BaselineTile({
           // v1.29.1 muted this on VITALS_BASELINE tiles because the always-on
           // "typical range = median ± MAD" caption repeated across every vital
           // baseline tile and read as clutter. v1.29.2 restores the context —
-          // now behind the compact (i) trigger (`VitalsInfoTip`) instead of a
+          // now behind the compact (i) trigger (`InfoPopover`) instead of a
           // full-width caption, so every baseline tile carries it again
           // without the repetition or the header-row squeeze that clipped the
           // cardio-fitness heading.

@@ -1,16 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Activity,
-  Bike,
-  Dumbbell,
-  Footprints,
-  Heart,
-  Mountain,
-  PersonStanding,
-  type LucideIcon,
-} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { getNumberFormat, getDateTimeFormat } from "@/lib/intl/formatter-cache";
@@ -19,6 +9,7 @@ import {
   hourCycleOptions,
   type TimeFormatPreference,
 } from "@/lib/format-locale";
+import { iconForSport } from "@/lib/workouts/sport-icons";
 import type { WorkoutListEntry } from "@/hooks/use-workouts";
 
 /**
@@ -32,33 +23,6 @@ import type { WorkoutListEntry } from "@/hooks/use-workouts";
  * runs server-side, so the list is already deduped by the time it
  * lands here.
  */
-
-const SPORT_TYPE_ICON: Record<string, LucideIcon> = {
-  walking: Footprints,
-  running: PersonStanding,
-  cycling: Bike,
-  hiking: Mountain,
-  swimming: Activity,
-  rowing: Activity,
-  elliptical: Activity,
-  stairClimber: Activity,
-  yoga: PersonStanding,
-  mindAndBody: PersonStanding,
-  strength: Dumbbell,
-  hiit: Activity,
-  dance: Activity,
-  golf: Activity,
-  tennis: Activity,
-  basketball: Activity,
-  soccer: Activity,
-  crossTraining: Activity,
-  mixedCardio: Heart,
-  other: Activity,
-};
-
-function iconForSport(sportType: string): LucideIcon {
-  return SPORT_TYPE_ICON[sportType] ?? Activity;
-}
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);

@@ -138,7 +138,7 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
               >
                 {topSignal.headline}
                 {topSignal.delta ? (
-                  <span className="text-muted-foreground/80">
+                  <span className="text-muted-foreground">
                     {" "}
                     · {topSignal.delta}
                   </span>

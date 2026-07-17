@@ -34,9 +34,10 @@ describe("mood tag bars — full-saturation palette (v1.19.0)", () => {
     for (const fill of fills ?? []) {
       expect(fill).not.toContain("opacity-55");
     }
-    // The level hue itself stays a Dracula token.
-    expect(html).toContain("var(--dracula-red)");
-    expect(html).toContain("var(--dracula-green)");
+    // The level hue itself stays a token — semantic since v1.28.17 (was a
+    // raw `--dracula-*` primitive; see mood-tag-breakdown.tsx).
+    expect(html).toContain("var(--destructive)");
+    expect(html).toContain("var(--success)");
   });
 
   it("structured tag breakdown bars render at full opacity", () => {

@@ -66,12 +66,16 @@ const Y_LABEL_KEY: Record<MetricKind, string> = {
   bloodPressure: "insights.mood.correlation.bloodPressureAxis",
 };
 
+// v1.28.17 — the shared `--chart-1..5` vocabulary (same values as the
+// `--dracula-purple/cyan/pink/green/orange` primitives it replaces, per
+// theme), not raw palette tokens — matches the `no-raw-palette-color`
+// discipline and the app's other chart-series colouring.
 const FILL_BY_KIND: Record<MetricKind, string> = {
-  sleep: "var(--dracula-purple)",
-  steps: "var(--dracula-cyan)",
-  pulse: "var(--dracula-pink)",
-  weight: "var(--dracula-green)",
-  bloodPressure: "var(--dracula-orange)",
+  sleep: "var(--chart-1)",
+  steps: "var(--chart-4)",
+  pulse: "var(--chart-3)",
+  weight: "var(--chart-2)",
+  bloodPressure: "var(--chart-5)",
 };
 
 const STRENGTH_KEY: Record<CorrelationResult["strength"], string> = {

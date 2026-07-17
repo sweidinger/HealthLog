@@ -4,7 +4,7 @@ import { Moon } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { InfoHint } from "@/components/ui/info-hint";
+import { InfoPopover } from "@/components/ui/info-popover";
 import { TileHeader } from "@/components/insights/tile-header";
 import { LearningGate } from "@/components/ui/learning-gate";
 import type { SleepDebtDto } from "./use-sleep-rhythm";
@@ -43,7 +43,7 @@ export function SleepDebtCard({ debt }: { debt: SleepDebtDto }) {
             title={t("insights.sleep.debt.title")}
             right={
               debt.source === "COMPUTED" ? (
-                <InfoHint label={t("insights.sleep.debt.computedInfo")} />
+                <InfoPopover content={t("insights.sleep.debt.computedInfo")} />
               ) : undefined
             }
           />
@@ -75,7 +75,7 @@ export function SleepDebtCard({ debt }: { debt: SleepDebtDto }) {
           title={t("insights.sleep.debt.title")}
           right={
             debt.source === "COMPUTED" ? (
-              <InfoHint label={t("insights.sleep.debt.computedInfo")} />
+              <InfoPopover content={t("insights.sleep.debt.computedInfo")} />
             ) : undefined
           }
         />

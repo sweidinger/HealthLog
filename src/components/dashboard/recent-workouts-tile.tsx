@@ -1,16 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Activity,
-  Bike,
-  Dumbbell,
-  Footprints,
-  HeartPulse,
-  Mountain,
-  PersonStanding,
-  type LucideIcon,
-} from "lucide-react";
+import { Activity } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { useWorkouts, type WorkoutListEntry } from "@/hooks/use-workouts";
@@ -19,6 +10,7 @@ import { TileHeader } from "@/components/insights/tile-header";
 import { getDateTimeFormat } from "@/lib/intl/formatter-cache";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorCard } from "@/components/ui/query-error-card";
+import { iconForSport } from "@/lib/workouts/sport-icons";
 
 /**
  * v1.4.32 — `<RecentWorkoutsTile>`.
@@ -37,33 +29,6 @@ import { QueryErrorCard } from "@/components/ui/query-error-card";
  * between the dashboard and `/insights/workouts` is a single
  * round-trip per session.
  */
-
-const SPORT_TYPE_ICON: Record<string, LucideIcon> = {
-  walking: Footprints,
-  running: PersonStanding,
-  cycling: Bike,
-  hiking: Mountain,
-  swimming: Activity,
-  rowing: Activity,
-  elliptical: Activity,
-  stairClimber: Activity,
-  yoga: PersonStanding,
-  mindAndBody: PersonStanding,
-  strength: Dumbbell,
-  hiit: Activity,
-  dance: Activity,
-  golf: Activity,
-  tennis: Activity,
-  basketball: Activity,
-  soccer: Activity,
-  crossTraining: Activity,
-  mixedCardio: HeartPulse,
-  other: Activity,
-};
-
-function iconForSport(sportType: string): LucideIcon {
-  return SPORT_TYPE_ICON[sportType] ?? Activity;
-}
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);

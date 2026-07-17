@@ -19,11 +19,13 @@ export interface MoodTagRow {
   avgScore: number;
 }
 
+// v1.28.17 — semantic tokens, not raw `--dracula-*` primitives (see
+// mood-distribution-chart's `BAR_COLOR_BY_SCORE` for the same swap).
 function colorForScore(score: number): string {
-  if (score < 2) return "var(--dracula-red)";
-  if (score < 3) return "var(--dracula-orange)";
+  if (score < 2) return "var(--destructive)";
+  if (score < 3) return "var(--warning)";
   if (score < 3.5) return "var(--dracula-yellow)";
-  return "var(--dracula-green)";
+  return "var(--success)";
 }
 
 export function MoodTagBreakdown({ tags }: { tags: MoodTagRow[] }) {
