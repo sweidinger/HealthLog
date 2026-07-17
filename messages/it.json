@@ -586,6 +586,22 @@
     "typeWho5Score": "Punteggio WHO-5",
     "typeSciScore": "Punteggio SCI"
   },
+  "metricCatalog": {
+    "title": "Cosa può monitorare HealthLog",
+    "description": "Tutti gli ambiti di metriche supportati da HealthLog, che tu abbia già dei dati oppure no — e cosa li fornirebbe.",
+    "statusPresent": "Monitorato",
+    "statusAbsent": "Non ancora monitorato",
+    "statusModuleOff": "Disattivato",
+    "connectCta": "Collega una fonte",
+    "viewCta": "Visualizza",
+    "ecg": {
+      "source": "Tracciati ECG a una derivazione da un orologio compatibile — oggi Withings ScanWatch — sincronizzati automaticamente."
+    },
+    "watchdog": {
+      "title": "Monitoraggio automatico",
+      "description": "HealthLog osserva anche silenziosamente in background — notifiche di ritmo irregolare e disturbi respiratori da un orologio connesso, oltre ad avvisi di scostamento dalla tua base di riferimento — mostrando una scheda solo quando qualcosa emerge. Nessuna scheda visibile è un buon segno, non una funzione mancante."
+    }
+  },
   "mood": {
     "title": "Umore",
     "subtitle": "Andamento e voci dell’umore",
@@ -2486,6 +2502,7 @@
     "relativeDaysAgoOne": "{count} giorno fa",
     "relativeDaysAgoOther": "{count} giorni fa",
     "navOverview": "Panoramica",
+    "navCatalog": "Tutte le metriche",
     "navBloodPressure": "Pressione arteriosa",
     "navWeight": "Peso",
     "navPulse": "Polso",

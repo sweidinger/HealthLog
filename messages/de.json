@@ -586,6 +586,22 @@
     "typeWho5Score": "WHO-5-Wert",
     "typeSciScore": "SCI-Wert"
   },
+  "metricCatalog": {
+    "title": "Was HealthLog erfassen kann",
+    "description": "Alle Messwert-Bereiche, die HealthLog unterstützt — auch die, für die noch keine Daten vorliegen — und was sie liefert.",
+    "statusPresent": "Erfasst",
+    "statusAbsent": "Noch nicht erfasst",
+    "statusModuleOff": "Aus",
+    "connectCta": "Quelle verbinden",
+    "viewCta": "Ansehen",
+    "ecg": {
+      "source": "Einkanal-EKG-Streifen von einer kompatiblen Uhr — aktuell Withings ScanWatch — werden automatisch synchronisiert."
+    },
+    "watchdog": {
+      "title": "Automatische Überwachung",
+      "description": "HealthLog beobachtet außerdem still im Hintergrund — Benachrichtigungen zu unregelmäßigem Rhythmus und Atemstörungen von einer verbundenen Uhr sowie Warnungen bei Abweichungen von deiner Baseline — und zeigt eine Karte nur, wenn etwas auffällt. Keine Karte ist ein gutes Zeichen, kein fehlendes Feature."
+    }
+  },
   "mood": {
     "title": "Stimmung",
     "subtitle": "Stimmungsverlauf und Einträge",
@@ -2486,6 +2502,7 @@
     "relativeDaysAgoOne": "vor {count} Tag",
     "relativeDaysAgoOther": "vor {count} Tagen",
     "navOverview": "Übersicht",
+    "navCatalog": "Alle Messwerte",
     "navBloodPressure": "Blutdruck",
     "navWeight": "Gewicht",
     "navPulse": "Puls",

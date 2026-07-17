@@ -586,6 +586,22 @@
     "typeWho5Score": "WHO-5 score",
     "typeSciScore": "SCI score"
   },
+  "metricCatalog": {
+    "title": "What HealthLog can track",
+    "description": "Every metric domain HealthLog supports, whether or not you have data for it yet — and what would supply it.",
+    "statusPresent": "Tracked",
+    "statusAbsent": "Not tracked yet",
+    "statusModuleOff": "Off",
+    "connectCta": "Connect a source",
+    "viewCta": "View",
+    "ecg": {
+      "source": "Single-lead ECG strips from a compatible watch — Withings ScanWatch today — synced automatically."
+    },
+    "watchdog": {
+      "title": "Automatic screening",
+      "description": "HealthLog also watches quietly in the background — irregular-rhythm and breathing-disturbance notifications from a connected watch, plus baseline-drift alerts — and surfaces a card only when something stands out. No card showing is a good sign, not a missing feature."
+    }
+  },
   "mood": {
     "title": "Mood",
     "subtitle": "Mood tracker and entries",
@@ -2486,6 +2502,7 @@
     "relativeDaysAgoOne": "{count} day ago",
     "relativeDaysAgoOther": "{count} days ago",
     "navOverview": "Overview",
+    "navCatalog": "All metrics",
     "navBloodPressure": "Blood Pressure",
     "navWeight": "Weight",
     "navPulse": "Pulse",

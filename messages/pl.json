@@ -586,6 +586,22 @@
     "typeWho5Score": "Wynik WHO-5",
     "typeSciScore": "Wynik SCI"
   },
+  "metricCatalog": {
+    "title": "Co HealthLog potrafi śledzić",
+    "description": "Wszystkie obszary metryk obsługiwane przez HealthLog — również te, dla których nie masz jeszcze danych — oraz co je dostarcza.",
+    "statusPresent": "Śledzone",
+    "statusAbsent": "Jeszcze nieśledzone",
+    "statusModuleOff": "Wyłączone",
+    "connectCta": "Połącz źródło",
+    "viewCta": "Zobacz",
+    "ecg": {
+      "source": "Jednoodprowadzeniowe zapisy EKG z kompatybilnego zegarka — obecnie Withings ScanWatch — synchronizowane automatycznie."
+    },
+    "watchdog": {
+      "title": "Automatyczny nadzór",
+      "description": "HealthLog dyskretnie obserwuje też dane w tle — powiadomienia o nieregularnym rytmie i zaburzeniach oddychania z podłączonego zegarka, a także alerty o odchyleniu od Twojej wartości bazowej — i pokazuje kartę tylko wtedy, gdy coś zwraca uwagę. Brak karty to dobry znak, a nie brakująca funkcja."
+    }
+  },
   "mood": {
     "title": "Nastrój",
     "subtitle": "Trend i wpisy nastroju",
@@ -2486,6 +2502,7 @@
     "relativeDaysAgoOne": "{count} dzień temu",
     "relativeDaysAgoOther": "{count} dni temu",
     "navOverview": "Przegląd",
+    "navCatalog": "Wszystkie metryki",
     "navBloodPressure": "Ciśnienie krwi",
     "navWeight": "Waga",
     "navPulse": "Tętno",

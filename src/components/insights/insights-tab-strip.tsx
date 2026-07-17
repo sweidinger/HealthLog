@@ -551,6 +551,19 @@ function buildTabs(
       labelKey: SUB_PAGE_TABS[slug].labelKey,
     });
   }
+
+  // 2026-07-17 discoverability audit (R1) — a quiet, always-present pill
+  // trailing every other pill, linking to the "what can HealthLog track"
+  // catalog. Unlike every metric pill above, it carries no availability
+  // gate (like Overview / Recovery): the catalog's whole purpose is
+  // listing the metrics that AREN'T visible elsewhere yet, so gating its
+  // own entry point on data would defeat it.
+  entries.push({
+    kind: "link",
+    href: `${INSIGHTS_OVERVIEW_PATH}/catalog`,
+    labelKey: "insights.navCatalog",
+  });
+
   return entries;
 }
 
