@@ -12,6 +12,7 @@ import {
   Dumbbell,
   Footprints,
   Gauge,
+  GlassWater,
   Heart,
   HeartPulse,
   Moon,
@@ -173,6 +174,9 @@ const TILE_INSIGHT_HREF: Record<string, string> = {
   muscleMass: "/insights/muscle-mass",
   totalBodyWater: "/insights/body-water",
   boneMass: "/insights/bone-mass",
+  // v1.29 — fluid intake links to the nutrients surface (hydration hero +
+  // quick-add), not a Measurement-backed detail page.
+  waterIntake: "/insights/nutrients",
 };
 
 function tileInsightHref(id: string): string | null {
@@ -394,6 +398,10 @@ export default function DashboardPageClient() {
   const muscleMassSummary = data?.summaries?.MUSCLE_MASS;
   const bodyWaterSummary = data?.summaries?.TOTAL_BODY_WATER;
   const boneMassSummary = data?.summaries?.BONE_MASS;
+  // v1.29 — fluid intake strip tile. Synthetic summary key, not a real
+  // MeasurementType — derived server-side from `NutrientIntakeDay`
+  // (nutrient="water", summed across sources); see `dashboard/snapshot.ts`.
+  const waterIntakeSummary = data?.summaries?.NUTRIENT_WATER;
   const moodSummary = moodData?.summary;
 
   // Resolve full dashboard layout — controls visibility + order of every widget
@@ -478,6 +486,8 @@ export default function DashboardPageClient() {
   const hasMuscleMass = (muscleMassSummary?.count ?? 0) > 0;
   const hasBodyWater = (bodyWaterSummary?.count ?? 0) > 0;
   const hasBoneMass = (boneMassSummary?.count ?? 0) > 0;
+  // v1.29 — data floor for the fluid-intake strip tile.
+  const hasWaterIntake = (waterIntakeSummary?.count ?? 0) > 0;
   /**
    * v1.4.33 F4 — gate the BD-Zielbereich tile so a literal "0,0 %"
    * placeholder doesn't ride on the dashboard when none of the user's
@@ -526,6 +536,9 @@ export default function DashboardPageClient() {
   const showMuscleMassTile = isTileVisible("muscleMass") && hasMuscleMass;
   const showBodyWaterTile = isTileVisible("totalBodyWater") && hasBodyWater;
   const showBoneMassTile = isTileVisible("boneMass") && hasBoneMass;
+  // v1.29 — fluid intake strip tile gate: layout toggle AND a non-empty
+  // summary, same precedent as the vitals/body-composition tiles above.
+  const showWaterIntakeTile = isTileVisible("waterIntake") && hasWaterIntake;
   const showBpInTargetTile = isTileVisible("bpInTarget") && hasBpInTarget;
 
   // Chart (lower row) gates — controlled by the legacy `visible` flag.
@@ -1276,6 +1289,32 @@ export default function DashboardPageClient() {
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(boneMassSummary)}
                 staleDays={tileStaleDays("BONE_MASS")}
+              />
+            ),
+          });
+        }
+        // v1.29 — fluid intake strip tile. Neutral sentiment: more water is
+        // not unambiguously "better" (over-hydration is a real risk), so no
+        // up/down framing — same posture as wrist temperature / body water.
+        if (showWaterIntakeTile) {
+          trendCards.push({
+            id: "waterIntake",
+            order: widgetOrder("waterIntake"),
+            node: (
+              <TrendCard
+                key="waterIntake"
+                label={t("nutrients.names.water")}
+                latest={waterIntakeSummary?.latest ?? null}
+                unit="mL"
+                avg7={waterIntakeSummary?.avg7 ?? null}
+                avg30={waterIntakeSummary?.avg30 ?? null}
+                slope30={waterIntakeSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(waterIntakeSummary)}
+                icon={GlassWater}
+                directionSentiment="neutral"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(waterIntakeSummary)}
+                staleDays={tileStaleDays("NUTRIENT_WATER")}
               />
             ),
           });

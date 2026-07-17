@@ -162,6 +162,8 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   walkingSteadiness: "measurements.typeWalkingSteadiness",
   // v1.18.2 — Vorsorge preventive-care summary card.
   vorsorge: "measurementReminders.sectionTitle",
+  // v1.29 — fluid intake strip tile (nutrients-store-backed).
+  waterIntake: "nutrients.names.water",
 };
 
 /**

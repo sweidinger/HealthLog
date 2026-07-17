@@ -72,6 +72,10 @@ export const DASHBOARD_WIDGET_IDS = [
   // user opts in via Settings → Dashboard. Always-on data surface (no
   // toggleable module gate), so it behaves as a core opt-in tile.
   "vorsorge",
+  // v1.29 — fluid intake (drinking water). Nutrients-store-backed (see
+  // `NUTRIENT_WATER` in the dashboard snapshot), gated on the `nutrients`
+  // module; self-gates on data like the v1.28.52 strip tiles.
+  "waterIntake",
 ] as const;
 
 export type DashboardWidgetId = (typeof DASHBOARD_WIDGET_IDS)[number];
@@ -611,6 +615,12 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     // preventive-care reminders surface on / by default; the card self-gates
     // (see page.tsx) and shows nothing for accounts without due reminders.
     { id: "vorsorge", visible: true, tileVisible: false, order: 27 },
+    // v1.29 — fluid intake strip tile. On by default (`tileVisible: true`)
+    // like the v1.28.52 vitals cluster; self-gates on having water data
+    // (see `showWaterIntakeTile` in page-client.tsx) AND on the `nutrients`
+    // module (opt-in, default off), so an account that never enabled
+    // nutrients or never logged water sees a clean dashboard.
+    { id: "waterIntake", visible: false, tileVisible: true, order: 28 },
   ],
 };
 

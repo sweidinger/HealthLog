@@ -515,6 +515,50 @@ async function buildMoodBlock(
 }
 
 /**
+ * v1.29 — fluid-intake dashboard tile block, read from `NutrientIntakeDay`
+ * (nutrient="water", last 30 day-keys, summed ACROSS SOURCES per day —
+ * migration 0249 can carry an APPLE_HEALTH row and a MANUAL row for the
+ * same day). ≤ 60 rows off the existing `(userId, nutrient, day desc)`
+ * index. Sparse by construction (only days with an actual write become a
+ * `DataPoint`) — matching the convention every real `MeasurementType`
+ * summary follows: an unlogged day is absent, not a zero reading. `null`
+ * when there is no water data in the window; the caller strips the
+ * synthetic `NUTRIENT_WATER` key entirely in that case (mirrors mood).
+ * Always fetched (cheap, indexed) and stripped post-hoc by
+ * `gateSummariesByModules` when the `nutrients` module is off — the same
+ * fetch-then-gate posture the sleep/glucose/recovery types already use.
+ */
+async function buildNutrientWaterBlock(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<{ summary: DataSummary; lastSeenAt: string } | null> {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const rows = await prisma.nutrientIntakeDay.findMany({
+    where: { userId, nutrient: "water", day: { gte: since } },
+    select: { day: true, amount: true },
+  });
+  if (rows.length === 0) return null;
+
+  const sumByDay = new Map<string, number>();
+  for (const row of rows) {
+    sumByDay.set(row.day, (sumByDay.get(row.day) ?? 0) + row.amount);
+  }
+  const points: DataPoint[] = [...sumByDay.entries()]
+    .map(([day, amount]) => ({
+      date: new Date(`${day}T00:00:00.000Z`),
+      value: amount,
+    }))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  return {
+    summary: summarize(points),
+    lastSeenAt: points[points.length - 1].date.toISOString(),
+  };
+}
+
+/**
  * Thick slice — BD-Zielbereich + per-context glucose + health score.
  * Only called by the builder when the rollup tier is warm for the
  * types this slice actually reads (`isThickPhaseWarm`); the BP
@@ -1104,6 +1148,7 @@ export async function buildDashboardSnapshot(
     medsToday,
     modules,
     scoreRings,
+    nutrientWater,
   ] = await Promise.all([
     // A5 — reuse the coverage map already probed above so the slice
     // doesn't re-run the identical `probeRollupCoverage` query.
@@ -1131,7 +1176,26 @@ export async function buildDashboardSnapshot(
         await medsTodayPromise,
       ),
     ).catch(() => [] as DashboardScoreRing[]),
+    // v1.29 — fluid-intake tile block (see `buildNutrientWaterBlock`).
+    time("nutrientWater", () => buildNutrientWaterBlock(prisma, user.id)),
   ]);
+
+  // v1.29 — fold the water block into the slim slice under a synthetic
+  // `NUTRIENT_WATER` key BEFORE the module gate below strips it (like
+  // every other summary type) when `nutrients` is off. Not a real
+  // `MeasurementType` — see the widened `SUMMARY_TYPE_MODULE` note.
+  if (nutrientWater) {
+    const lastMs = new Date(nutrientWater.lastSeenAt).getTime();
+    const daysAgo = Math.floor((nowMs - lastMs) / (24 * 60 * 60 * 1000));
+    slimRaw.summaries = {
+      ...slimRaw.summaries,
+      NUTRIENT_WATER: nutrientWater.summary,
+    };
+    slimRaw.lastSeenByType = {
+      ...slimRaw.lastSeenByType,
+      NUTRIENT_WATER: { lastSeenAt: nutrientWater.lastSeenAt, daysAgo },
+    };
+  }
 
   // v1.18.0 — strip disabled-module data before it leaves the server.
   // Mood is blanked when the mood module is off; sleep / glucose summary

@@ -10,10 +10,8 @@
  * both for the server call sites and the existing tests.
  *
  * `ModuleKey` comes from `@/lib/modules/registry` (pure constants, no
- * imports) and `MeasurementType` is a type-only import from the generated
- * Prisma client, so this file stays browser-bundle-safe.
+ * imports), so this file stays browser-bundle-safe.
  */
-import type { MeasurementType } from "@/generated/prisma/client";
 import type { ModuleKey } from "@/lib/modules/registry";
 
 /**
@@ -41,26 +39,39 @@ export const WIDGET_MODULE_BY_ID: Partial<Record<string, ModuleKey>> = {
   stairAscentSpeed: "recovery",
   stairDescentSpeed: "recovery",
   breathingDisturbances: "sleep",
+  // v1.29 — fluid-intake strip tile, nutrients-store-backed (see
+  // `SUMMARY_TYPE_MODULE.NUTRIENT_WATER` below).
+  waterIntake: "nutrients",
 };
 
 /**
- * `MeasurementType` slim-summary keys that belong to a toggleable module.
- * When the module is off the key is stripped from `tiles.summaries` /
+ * Slim-summary keys that belong to a toggleable module. When the module
+ * is off the key is stripped from `tiles.summaries` /
  * `tiles.lastSeenByType` (so `metricStates` and the client data-floor
  * gates also drop it) before the snapshot leaves the server. Core vital
  * types are absent here and always pass through.
+ *
+ * v1.29 — widened from `Partial<Record<MeasurementType, ModuleKey>>` to
+ * `Partial<Record<string, ModuleKey>>` so the synthetic `NUTRIENT_WATER`
+ * key (a `NutrientIntakeDay`-derived summary, not a real
+ * `MeasurementType` — the abandoned `feat/water` branch's parallel
+ * `WATER_INTAKE` enum value is deliberately NOT added) can ride the same
+ * gate without widening the `MeasurementType` enum itself.
  */
-export const SUMMARY_TYPE_MODULE: Partial<Record<MeasurementType, ModuleKey>> =
-  {
-    SLEEP_DURATION: "sleep",
-    BLOOD_GLUCOSE: "glucose",
-    // v1.18.0 B1 — recovery-domain HealthKit metrics. The recovery page +
-    // its tiles are the recovery module's surface; when it is off these
-    // device-native signals must drop from the dashboard snapshot too.
-    CARDIO_RECOVERY: "recovery",
-    SIX_MINUTE_WALK_DISTANCE: "recovery",
-    STAIR_ASCENT_SPEED: "recovery",
-    STAIR_DESCENT_SPEED: "recovery",
-    // Per-night breathing-disturbance index is a sleep-page signal.
-    BREATHING_DISTURBANCES: "sleep",
-  };
+export const SUMMARY_TYPE_MODULE: Partial<Record<string, ModuleKey>> = {
+  SLEEP_DURATION: "sleep",
+  BLOOD_GLUCOSE: "glucose",
+  // v1.18.0 B1 — recovery-domain HealthKit metrics. The recovery page +
+  // its tiles are the recovery module's surface; when it is off these
+  // device-native signals must drop from the dashboard snapshot too.
+  CARDIO_RECOVERY: "recovery",
+  SIX_MINUTE_WALK_DISTANCE: "recovery",
+  STAIR_ASCENT_SPEED: "recovery",
+  STAIR_DESCENT_SPEED: "recovery",
+  // Per-night breathing-disturbance index is a sleep-page signal.
+  BREATHING_DISTURBANCES: "sleep",
+  // v1.29 — fluid-intake dashboard tile summary, derived server-side from
+  // `NutrientIntakeDay` (nutrient="water", summed across sources). Gated
+  // on the `nutrients` module like the rest of that store's surfaces.
+  NUTRIENT_WATER: "nutrients",
+};
