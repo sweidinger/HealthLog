@@ -31,6 +31,23 @@ describe("sanitizeSameOriginPath", () => {
     expect(sanitizeSameOriginPath("\\\\evil.com", BASE)).toBe("/");
   });
 
+  it("rejects a same-origin next whose pathname collapses to protocol-relative", () => {
+    // `/..//evil.com` resolves ON-origin here (the `..` collapses at root),
+    // but its pathname is `//evil.com`. Consumers re-resolve the returned
+    // value (`new URL(result, base)`, `router.push`), where `//evil.com`
+    // becomes protocol-relative and escapes to https://evil.com. The
+    // reconstructed-path re-check must reject these to "/".
+    expect(sanitizeSameOriginPath("/..//evil.com", BASE)).toBe("/");
+    expect(sanitizeSameOriginPath("/.//evil.com", BASE)).toBe("/");
+    expect(sanitizeSameOriginPath("/../..//evil.com", BASE)).toBe("/");
+  });
+
+  it("still allows a legitimate same-origin path with an inner double slash", () => {
+    // Only a LEADING `//` (protocol-relative) escapes on re-resolve; a double
+    // slash inside the path stays on-origin and must be preserved.
+    expect(sanitizeSameOriginPath("/reports/a//b", BASE)).toBe("/reports/a//b");
+  });
+
   it("preserves a same-origin path's search and hash", () => {
     expect(sanitizeSameOriginPath("/settings?tab=security#top", BASE)).toBe(
       "/settings?tab=security#top",

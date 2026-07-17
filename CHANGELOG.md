@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.29.5] — 2026-07-17
+
+### Security
+
+- **Hardened the same-origin redirect guard.** A crafted relative
+  post-login `next` path (e.g. `/..//evil.com`) passed the same-origin
+  check but left a protocol-relative pathname that could re-resolve to a
+  foreign origin when re-used in a redirect or client navigation. The
+  guard now re-verifies the reconstructed path resolves on-origin and
+  rejects it otherwise. Covers the OIDC callback and the password/passkey
+  login redirect.
+
+### Fixed
+
+- **OIDC login redirects use the operator app URL, not the request URL.**
+  Behind a reverse proxy that does not forward the original host, the
+  login and callback routes built their browser redirects from the
+  address the app was reached at inside the container, sending users to
+  an unreachable internal URL after login. Every OIDC redirect is now
+  built from the operator-set `NEXT_PUBLIC_APP_URL`, matching the
+  convention the other integrations already use.
+
 ## [1.29.4] — 2026-07-17
 
 - **The workouts list shows the most recent first.** The list was ordered
