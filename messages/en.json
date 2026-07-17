@@ -3397,6 +3397,7 @@
         "sectionSubtitle": "Resting cardiovascular and respiratory signals against your own baseline",
         "loadingLabel": "Loading your vitals",
         "loadError": "Could not load your vitals right now.",
+        "infoLabel": "How is this calculated?",
         "building": "Building your typical range — {count} of {target} days",
         "typicalRange": "Typical for you: {low}–{high}",
         "fitnessYounger": "Cardio fitness of someone ~{years} yr younger",

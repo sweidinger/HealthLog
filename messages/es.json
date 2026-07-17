@@ -3397,6 +3397,7 @@
         "sectionSubtitle": "Señales cardiovasculares y respiratorias en reposo frente a tu propia línea base",
         "loadingLabel": "Cargando tus constantes",
         "loadError": "No se pudieron cargar tus constantes en este momento.",
+        "infoLabel": "¿Cómo se calcula esto?",
         "building": "Creando tu rango habitual — {count} de {target} días",
         "typicalRange": "Habitual para ti: {low}–{high}",
         "fitnessYounger": "Forma cardiovascular de alguien ~{years} años más joven",

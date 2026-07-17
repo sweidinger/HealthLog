@@ -3397,6 +3397,7 @@
         "sectionSubtitle": "Ruhewerte von Herz-Kreislauf und Atmung im Vergleich zu deiner eigenen Baseline",
         "loadingLabel": "Vitalwerte werden geladen",
         "loadError": "Deine Vitalwerte konnten gerade nicht geladen werden.",
+        "infoLabel": "Wie wird das berechnet?",
         "building": "Typischer Bereich entsteht — {count} von {target} Tagen",
         "typicalRange": "Typisch für dich: {low}–{high}",
         "fitnessYounger": "Ausdauer wie ~{years} J. jünger",

@@ -3397,6 +3397,7 @@
         "sectionSubtitle": "Spoczynkowe sygnały sercowo-naczyniowe i oddechowe na tle Twojej własnej linii bazowej",
         "loadingLabel": "Wczytywanie parametrów życiowych",
         "loadError": "Nie udało się teraz wczytać Twoich parametrów życiowych.",
+        "infoLabel": "Jak to jest obliczane?",
         "building": "Budowanie Twojego typowego zakresu — {count} z {target} dni",
         "typicalRange": "Typowe dla Ciebie: {low}–{high}",
         "fitnessYounger": "Kondycja jak u osoby ~{years} lat młodszej",

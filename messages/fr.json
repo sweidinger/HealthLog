@@ -3397,6 +3397,7 @@
         "sectionSubtitle": "Signaux cardiovasculaires et respiratoires au repos par rapport à ta propre référence",
         "loadingLabel": "Chargement de vos constantes",
         "loadError": "Impossible de charger vos constantes pour le moment.",
+        "infoLabel": "Comment ce résultat est-il calculé ?",
         "building": "Construction de votre plage habituelle — {count} sur {target} jours",
         "typicalRange": "Habituel pour vous : {low}–{high}",
         "fitnessYounger": "Forme cardio d'une personne ~{years} ans plus jeune",
