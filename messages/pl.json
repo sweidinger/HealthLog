@@ -3869,8 +3869,12 @@
     "intradayPulse": {
       "title": "Przebieg Twojego dnia",
       "caption": "Twoje tętno w ciągu dnia, uśrednione w 10-minutowych odcinkach.",
-      "empty": "Za mało dzisiejszych pomiarów, aby pokazać przebieg dnia.",
+      "hourlyNote": "Pokazano średnią godzinową dla tego dnia — ostatnie dni pokazują pełny, 10-minutowy szczegół.",
+      "empty": "Za mało pomiarów z tego dnia, aby pokazać jego przebieg.",
       "baseline": "Spoczynek",
+      "today": "Dziś",
+      "previousDay": "Poprzedni dzień",
+      "nextDay": "Następny dzień",
       "tension": {
         "morning": "Utrzymujący się podwyższony spoczynek rano — możliwe napięcie.",
         "afternoon": "Utrzymujący się podwyższony spoczynek po południu — możliwe napięcie.",

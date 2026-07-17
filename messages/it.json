@@ -3869,8 +3869,12 @@
     "intradayPulse": {
       "title": "L'andamento della tua giornata",
       "caption": "La tua frequenza cardiaca durante il giorno, mediata in intervalli di 10 minuti.",
-      "empty": "Non ci sono ancora abbastanza misurazioni di oggi per mostrare l'andamento della giornata.",
+      "hourlyNote": "Media oraria per questo giorno — i giorni recenti mostrano il dettaglio completo a 10 minuti.",
+      "empty": "Non ci sono ancora abbastanza misurazioni per questo giorno per mostrarne l'andamento.",
       "baseline": "Riposo",
+      "today": "Oggi",
+      "previousDay": "Giorno precedente",
+      "nextDay": "Giorno successivo",
       "tension": {
         "morning": "Un tratto elevato a riposo stamattina — forse un po' di tensione.",
         "afternoon": "Un tratto elevato a riposo questo pomeriggio — forse un po' di tensione.",

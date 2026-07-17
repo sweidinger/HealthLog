@@ -20,11 +20,14 @@ import { percentile } from "@/lib/insights/strain-score";
 import { resolveRestingPulseSeries } from "@/lib/analytics/resting-pulse";
 import {
   BUCKET_MINUTES,
+  HOURLY_BUCKET_MINUTES,
   MIN_BASELINE_DAYS,
+  computeHourlyMeanSeries,
   computeTenMinuteMeanSeries,
   detectTensionWindow,
   makeLocalResolver,
   type IntradayHrBucket,
+  type IntradayResolution,
   type LocalResolver,
   type TensionWindow,
   type WorkoutInterval,
@@ -47,6 +50,15 @@ export interface IntradayPulseResult {
   baseline: number | null;
   baselineSource: "resting" | "proxy" | "none";
   tension: TensionWindow | null;
+  /**
+   * S11 day navigator — `"tenMin"` when `series` was folded from live raw
+   * per-sample rows, `"hourly"` when the day fell outside
+   * `DENSE_INTRADAY_RETENTION_DAYS` and `series` is the coarser fallback
+   * read off the folded `stats:` hourly-mean tier instead. `tension` is
+   * always `null` on an `"hourly"` day — see `detectTensionWindow`'s
+   * docblock for why a tension read needs per-sample resolution.
+   */
+  resolution: IntradayResolution;
 }
 
 /** Median (p50), or null on an empty series. */
@@ -147,7 +159,7 @@ export async function loadIntradayPulse(
       },
       orderBy: { measuredAt: "asc" },
       take: MAX_DAY_PULSE_ROWS,
-      select: { value: true, measuredAt: true },
+      select: { value: true, measuredAt: true, externalId: true },
     }),
     prisma.measurement.findMany({
       where: {
@@ -171,11 +183,48 @@ export async function loadIntradayPulse(
     resolveBaseline(userId),
   ]);
 
-  const series = computeTenMinuteMeanSeries(
-    pulseRows.map((r) => ({ measuredAt: r.measuredAt, value: r.value })),
+  // Split live PULSE rows into raw per-sample rows and already-folded
+  // `stats:` hourly-mean rows (the dense-intraday-retention fold's output —
+  // see `dense-intraday-retention.ts`). A day's raw rows are folded and
+  // tombstoned atomically as a whole, so in practice a day is either wholly
+  // raw or wholly folded; the split still guards against ever mixing the two
+  // grains into one mislabeled series.
+  const rawPulseRows = pulseRows.filter(
+    (r) => !r.externalId?.startsWith("stats:"),
+  );
+  const foldedPulseRows = pulseRows.filter((r) =>
+    r.externalId?.startsWith("stats:"),
+  );
+
+  const tenMinSeries = computeTenMinuteMeanSeries(
+    rawPulseRows.map((r) => ({ measuredAt: r.measuredAt, value: r.value })),
     dateKey,
     localOf,
   );
+
+  // Day-navigator fallback (S11 / v1.29.x): a day outside
+  // `DENSE_INTRADAY_RETENTION_DAYS` has its raw rows tombstoned by the
+  // retention fold, so `tenMinSeries` comes back empty even though the day's
+  // shape survives at hour resolution in the folded `stats:` tier. Fall back
+  // to that coarser read rather than rendering an empty chart. A day with
+  // genuinely no data at all (never synced) stays on the empty "tenMin"
+  // series — `foldedPulseRows` is empty there too, so `hourlySeries` is
+  // empty and the branch below is skipped.
+  const useHourlyFallback = tenMinSeries.length === 0;
+  const hourlySeries = useHourlyFallback
+    ? computeHourlyMeanSeries(
+        foldedPulseRows.map((r) => ({
+          measuredAt: r.measuredAt,
+          value: r.value,
+        })),
+        dateKey,
+        localOf,
+      )
+    : [];
+
+  const resolution: IntradayResolution =
+    useHourlyFallback && hourlySeries.length > 0 ? "hourly" : "tenMin";
+  const series = resolution === "hourly" ? hourlySeries : tenMinSeries;
 
   // Intraday step buckets — EXCLUDE the consolidated `stats:` daily totals, or a
   // single day-sum row would dump the whole day's steps into one bucket and
@@ -197,22 +246,30 @@ export async function loadIntradayPulse(
     .map((w) => workoutToInterval(w.startedAt, w.endedAt, dateKey, localOf))
     .filter((w): w is WorkoutInterval => w !== null);
 
-  const tension = detectTensionWindow({
-    buckets: series,
-    baseline: baseline.baseline,
-    baselineMature: baseline.mature,
-    stepBuckets,
-    workouts,
-    hrvConfirmMinutes: [],
-  });
+  // Tension needs per-sample resolution (see `detectTensionWindow`'s
+  // docblock) — never compute it against the hourly fallback, regardless of
+  // what the (independently folded) step tier happens to report.
+  const tension =
+    resolution === "tenMin"
+      ? detectTensionWindow({
+          buckets: series,
+          baseline: baseline.baseline,
+          baselineMature: baseline.mature,
+          stepBuckets,
+          workouts,
+          hrvConfirmMinutes: [],
+        })
+      : null;
 
   return {
     dateKey,
     timezone,
-    bucketMinutes: BUCKET_MINUTES,
+    bucketMinutes:
+      resolution === "hourly" ? HOURLY_BUCKET_MINUTES : BUCKET_MINUTES,
     series,
     baseline: baseline.baseline,
     baselineSource: baseline.source,
     tension,
+    resolution,
   };
 }

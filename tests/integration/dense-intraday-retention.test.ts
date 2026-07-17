@@ -356,7 +356,7 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
 
     const summary = await runDenseIntradayRetention(prisma, {
       userId: TEST_USER_ID,
-      // Default 14-day window — both rows are inside it.
+      // Default 90-day window — both rows are inside it.
       log: () => {},
     });
     expect(summary.totals.daysConsolidated).toBe(0);

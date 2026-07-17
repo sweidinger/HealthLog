@@ -3869,8 +3869,12 @@
     "intradayPulse": {
       "title": "La forma de tu día",
       "caption": "Tu frecuencia cardíaca a lo largo del día, promediada en tramos de 10 minutos.",
-      "empty": "Aún no hay suficientes lecturas de hoy para mostrar la forma del día.",
+      "hourlyNote": "Mostrando el promedio por hora de este día — los días recientes muestran el detalle completo de 10 minutos.",
+      "empty": "Aún no hay suficientes lecturas para este día para mostrar su forma.",
       "baseline": "Reposo",
+      "today": "Hoy",
+      "previousDay": "Día anterior",
+      "nextDay": "Día siguiente",
       "tension": {
         "morning": "Un tramo elevado en reposo esta mañana; posiblemente algo de tensión.",
         "afternoon": "Un tramo elevado en reposo esta tarde; posiblemente algo de tensión.",

@@ -3869,8 +3869,12 @@
     "intradayPulse": {
       "title": "Der Verlauf deines Tages",
       "caption": "Dein Puls über den Tag, gemittelt in 10-Minuten-Schritten.",
-      "empty": "Heute noch nicht genug Pulswerte, um den Tagesverlauf zu zeigen.",
+      "hourlyNote": "Stündlicher Durchschnitt für diesen Tag — aktuelle Tage zeigen das volle 10-Minuten-Detail.",
+      "empty": "Für diesen Tag noch nicht genug Pulswerte, um den Tagesverlauf zu zeigen.",
       "baseline": "Ruhe",
+      "today": "Heute",
+      "previousDay": "Vorheriger Tag",
+      "nextDay": "Nächster Tag",
       "tension": {
         "morning": "Eine anhaltend erhöhte Ruhephase heute Vormittag — möglicherweise etwas Anspannung.",
         "afternoon": "Eine anhaltend erhöhte Ruhephase heute Nachmittag — möglicherweise etwas Anspannung.",

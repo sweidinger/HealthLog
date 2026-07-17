@@ -3869,8 +3869,12 @@
     "intradayPulse": {
       "title": "Your day's shape",
       "caption": "Your heart rate through the day, averaged in 10-minute steps.",
-      "empty": "Not enough heart-rate readings today to show the day's shape yet.",
+      "hourlyNote": "Showing this day's hourly average — recent days show the full 10-minute detail.",
+      "empty": "Not enough heart-rate readings for this day to show its shape yet.",
       "baseline": "Resting",
+      "today": "Today",
+      "previousDay": "Previous day",
+      "nextDay": "Next day",
       "tension": {
         "morning": "A sustained elevated-at-rest stretch this morning — possibly some tension.",
         "afternoon": "A sustained elevated-at-rest stretch this afternoon — possibly some tension.",

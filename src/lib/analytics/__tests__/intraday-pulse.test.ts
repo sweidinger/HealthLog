@@ -13,6 +13,7 @@ import {
   BUCKET_MINUTES,
   ELEVATION_MARGIN_BPM,
   MIN_STEP_COVERAGE_BUCKETS,
+  computeHourlyMeanSeries,
   computeTenMinuteMeanSeries,
   detectTensionWindow,
   makeLocalResolver,
@@ -111,6 +112,50 @@ describe("computeTenMinuteMeanSeries", () => {
     expect(computeTenMinuteMeanSeries(s, "2026-04-30", nyOf)).toEqual([
       { startMinute: 1350, mean: 72, count: 1 },
     ]);
+  });
+});
+
+describe("computeHourlyMeanSeries", () => {
+  it("means folded stats: rows landing in the same local hour", () => {
+    const series = computeHourlyMeanSeries(
+      [
+        sample("2026-05-01T10:30:00Z", 70), // hour 10
+        sample("2026-05-01T10:45:00Z", 80), // same hour 10 (defensive dup)
+        sample("2026-05-01T14:30:00Z", 90), // hour 14
+      ],
+      "2026-05-01",
+      utcOf,
+    );
+    expect(series).toEqual([
+      { startMinute: 600, mean: 75, count: 2 },
+      { startMinute: 840, mean: 90, count: 1 },
+    ]);
+  });
+
+  it("excludes samples from other local days (no next-day bleed)", () => {
+    const series = computeHourlyMeanSeries(
+      [
+        sample("2026-05-01T23:30:00Z", 70), // stays on 05-01, hour 23
+        sample("2026-05-02T00:30:00Z", 90), // 05-02, hour 0
+      ],
+      "2026-05-01",
+      utcOf,
+    );
+    expect(series).toEqual([{ startMinute: 1380, mean: 70, count: 1 }]);
+  });
+
+  it("buckets on the USER's local day, not UTC (tz-correct windows)", () => {
+    const nyOf = makeLocalResolver("America/New_York");
+    // 02:30Z on 05-01 is 22:30 EDT on 04-30 → hour 22, prior day.
+    const s = [sample("2026-05-01T02:30:00Z", 72)];
+    expect(computeHourlyMeanSeries(s, "2026-05-01", nyOf)).toEqual([]);
+    expect(computeHourlyMeanSeries(s, "2026-04-30", nyOf)).toEqual([
+      { startMinute: 1320, mean: 72, count: 1 },
+    ]);
+  });
+
+  it("returns an empty series for a day with no folded rows", () => {
+    expect(computeHourlyMeanSeries([], "2026-05-01", utcOf)).toEqual([]);
   });
 });
 
