@@ -42,3 +42,4 @@ export { DoseStrengthCurve } from "@/components/medications/dose-strength-curve"
 export { DrugLevelChart } from "@/components/medications/drug-level-chart";
 export { EfficacyChart } from "@/components/medications/detail/efficacy/efficacy-chart";
 export { AssessmentHistoryChart } from "@/components/mental-health/assessment-history-chart";
+export { IntradayPulseChart } from "@/components/insights/intraday-pulse-chart";

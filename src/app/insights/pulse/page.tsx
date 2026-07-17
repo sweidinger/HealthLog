@@ -20,7 +20,21 @@ import { MetricTargetSummary } from "@/components/insights/metric-target-summary
 import { EcgCrossLink } from "@/components/insights/ecg-cross-link";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { TileHeader } from "@/components/insights/tile-header";
-import { IntradayPulseChart } from "@/components/insights/intraday-pulse-chart";
+import dynamic from "next/dynamic";
+import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+
+// Load the intraday area chart through the shared chart-runtime boundary (the
+// one recharts chunk), not as a direct import — a direct `from "recharts"`
+// import would mint a second recharts fingerprint chunk and trip the bundle
+// budget. Same `dynamic(() => import("@/components/charts/chart-runtime"))`
+// pattern every other chart uses.
+const IntradayPulseChart = dynamic(
+  () =>
+    import("@/components/charts/chart-runtime").then((mod) => ({
+      default: mod.IntradayPulseChart,
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> },
+);
 import {
   getAgeFromDateOfBirth,
   getPersonalizedPulseTarget,
