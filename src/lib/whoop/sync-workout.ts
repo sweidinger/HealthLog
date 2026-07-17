@@ -12,6 +12,12 @@
  * A WHOOP run and the same run via Apple Health remain two distinct `Workout`
  * rows (different `source`); the read-time `pickCanonicalWorkoutRows` picker
  * (E-slice, W6) collapses the cross-source twin at read time.
+ *
+ * `sportType` writes the canonical `WorkoutSportType` bucket via
+ * `mapWhoopSportType()` (`./sport-map.ts`) — mirroring the Fitbit / Google
+ * Health mappers — so a WHOOP row clusters and icons the same as any other
+ * source's. Raw `sport_id` / `sport_name` still live in `Workout.metadata`
+ * for traceability.
  */
 import {
   fetchWorkouts,
@@ -27,16 +33,10 @@ import {
   resolveResourceCursor,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
 } from "./sync";
+import { mapWhoopSportType } from "./sport-map";
 import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
 import type { Prisma } from "@/generated/prisma/client";
-
-/** WHOOP reports a numeric `sport_id`; fall back to a generic label. */
-function sportLabel(sportId: number | undefined, sportName?: string): string {
-  if (sportName) return sportName;
-  if (typeof sportId === "number") return `whoop_sport_${sportId}`;
-  return "workout";
-}
 
 export async function syncUserWorkout(
   userId: string,
@@ -140,10 +140,16 @@ export async function upsertWhoopWorkout(
     ...(w.score.zone_durations
       ? { zoneDurations: w.score.zone_durations }
       : {}),
+    // Raw WHOOP sport fields, kept for traceability once mapWhoopSportType()
+    // has resolved `Workout.sportType` to a canonical bucket — a support
+    // request about a misclassified sport can trace back to exactly what
+    // WHOOP sent without re-fetching the workout.
+    ...(w.sport_id != null ? { whoopSportId: w.sport_id } : {}),
+    ...(w.sport_name ? { whoopSportName: w.sport_name } : {}),
   };
 
   const row = {
-    sportType: sportLabel(w.sport_id, w.sport_name),
+    sportType: mapWhoopSportType(w.sport_id, w.sport_name),
     startedAt,
     endedAt,
     durationSec,
