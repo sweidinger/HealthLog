@@ -3857,6 +3857,18 @@
       "waveform": {
         "ariaLabel": "Zapis EKG zarejestrowany {date}, czas trwania {duration}, średnie tętno {heartRate}, zarejestrowany wynik: {result}."
       }
+    },
+    "intradayPulse": {
+      "title": "Przebieg Twojego dnia",
+      "caption": "Twoje tętno w ciągu dnia, uśrednione w 10-minutowych odcinkach.",
+      "empty": "Za mało dzisiejszych pomiarów, aby pokazać przebieg dnia.",
+      "baseline": "Spoczynek",
+      "tension": {
+        "morning": "Utrzymujący się podwyższony spoczynek rano — możliwe napięcie.",
+        "afternoon": "Utrzymujący się podwyższony spoczynek po południu — możliwe napięcie.",
+        "evening": "Utrzymujący się podwyższony spoczynek wieczorem — możliwe napięcie.",
+        "night": "Utrzymujący się podwyższony spoczynek w nocy — możliwe napięcie."
+      }
     }
   },
   "thresholds": {
@@ -8549,6 +8561,15 @@
         "title": "Czas przyjrzeć się planowi",
         "body": "Minął mniej więcej tydzień, odkąd ustaliłeś ten plan — zachowaj go, dostosuj lub odpuść. Bez presji.",
         "bodyPlan": "Około tygodnia temu postanowiłeś: „{plan}”. Zachowaj to, dostosuj lub odpuść — bez presji."
+      },
+      "tensionWindow": {
+        "title": "Może chwila napięcia dzisiaj",
+        "body": {
+          "morning": "Twoje tętno przez dłuższą chwilę rano utrzymywało się powyżej wartości spoczynkowej, gdy byłeś w bezruchu — możliwe napięcie.",
+          "afternoon": "Twoje tętno przez dłuższą chwilę po południu utrzymywało się powyżej wartości spoczynkowej, gdy byłeś w bezruchu — możliwe napięcie.",
+          "evening": "Twoje tętno przez dłuższą chwilę wieczorem utrzymywało się powyżej wartości spoczynkowej, gdy byłeś w bezruchu — możliwe napięcie.",
+          "night": "Twoje tętno przez dłuższą chwilę w nocy utrzymywało się powyżej wartości spoczynkowej, gdy byłeś w bezruchu — możliwe napięcie."
+        }
       }
     },
     "action": {
@@ -8558,7 +8579,8 @@
       "checkinKeep": "Zachowaj",
       "checkinAdjust": "Dostosuj",
       "checkinLetGo": "Odpuść",
-      "viewMilestone": "Zobacz"
+      "viewMilestone": "Zobacz",
+      "viewPulse": "Zobacz tętno"
     },
     "today": {
       "scoreLabel": "Wynik zdrowia",

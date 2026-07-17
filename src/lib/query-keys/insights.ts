@@ -85,6 +85,15 @@ export const insightsKeys = {
   insightsEcgDetail: (id: string, full: boolean) =>
     ["insights", "ecg", id, full ? "full" : "overview"] as const,
   /**
+   * S11 — the intraday pulse / tension layer (`/api/insights/pulse/intraday`).
+   * Keyed by the viewed local day so each day's 10-minute-mean shape caches
+   * independently and yesterday's curve never poisons today's. Under the
+   * `["insights"]` prefix so a fresh PULSE write busts it via the standard
+   * insights invalidation fan-out.
+   */
+  insightsPulseIntraday: (dateKey: string) =>
+    ["insights", "pulse-intraday", dateKey] as const,
+  /**
    * v1.10.0 — derived-wellness metrics. One generic route
    * (`/api/insights/derived?metric=…[&type=…]`) backs the vitals
    * dashboard tiles, the composite score-anatomy view, and the home

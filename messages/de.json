@@ -3857,6 +3857,18 @@
       "waveform": {
         "ariaLabel": "EKG-Streifen aufgezeichnet {date}, Dauer {duration}, durchschnittliche Herzfrequenz {heartRate}, aufgezeichnetes Ergebnis: {result}."
       }
+    },
+    "intradayPulse": {
+      "title": "Der Verlauf deines Tages",
+      "caption": "Dein Puls über den Tag, gemittelt in 10-Minuten-Schritten.",
+      "empty": "Heute noch nicht genug Pulswerte, um den Tagesverlauf zu zeigen.",
+      "baseline": "Ruhe",
+      "tension": {
+        "morning": "Eine anhaltend erhöhte Ruhephase heute Vormittag — möglicherweise etwas Anspannung.",
+        "afternoon": "Eine anhaltend erhöhte Ruhephase heute Nachmittag — möglicherweise etwas Anspannung.",
+        "evening": "Eine anhaltend erhöhte Ruhephase heute Abend — möglicherweise etwas Anspannung.",
+        "night": "Eine anhaltend erhöhte Ruhephase in der Nacht — möglicherweise etwas Anspannung."
+      }
     }
   },
   "thresholds": {
@@ -8549,6 +8561,15 @@
         "title": "Zeit, einen Plan anzuschauen",
         "body": "Es ist etwa eine Woche her, seit du diesen Plan gesetzt hast — behalte ihn, passe ihn an oder lass ihn los. Ganz ohne Druck.",
         "bodyPlan": "Vor etwa einer Woche hast du dir vorgenommen: „{plan}“. Behalte es, passe es an oder lass es los — ganz ohne Druck."
+      },
+      "tensionWindow": {
+        "title": "Vielleicht eine angespannte Phase",
+        "body": {
+          "morning": "Dein Puls lag heute Vormittag über längere Zeit über deinem Ruhewert, während du ruhig warst — möglicherweise etwas Anspannung.",
+          "afternoon": "Dein Puls lag heute Nachmittag über längere Zeit über deinem Ruhewert, während du ruhig warst — möglicherweise etwas Anspannung.",
+          "evening": "Dein Puls lag heute Abend über längere Zeit über deinem Ruhewert, während du ruhig warst — möglicherweise etwas Anspannung.",
+          "night": "Dein Puls lag in der Nacht über längere Zeit über deinem Ruhewert, während du ruhig warst — möglicherweise etwas Anspannung."
+        }
       }
     },
     "action": {
@@ -8558,7 +8579,8 @@
       "checkinKeep": "Behalten",
       "checkinAdjust": "Anpassen",
       "checkinLetGo": "Loslassen",
-      "viewMilestone": "Ansehen"
+      "viewMilestone": "Ansehen",
+      "viewPulse": "Puls ansehen"
     },
     "today": {
       "scoreLabel": "Gesundheitsscore",

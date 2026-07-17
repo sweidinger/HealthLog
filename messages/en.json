@@ -3857,6 +3857,18 @@
       "waveform": {
         "ariaLabel": "ECG strip recorded {date}, duration {duration}, average heart rate {heartRate}, recorded result: {result}."
       }
+    },
+    "intradayPulse": {
+      "title": "Your day's shape",
+      "caption": "Your heart rate through the day, averaged in 10-minute steps.",
+      "empty": "Not enough heart-rate readings today to show the day's shape yet.",
+      "baseline": "Resting",
+      "tension": {
+        "morning": "A sustained elevated-at-rest stretch this morning — possibly some tension.",
+        "afternoon": "A sustained elevated-at-rest stretch this afternoon — possibly some tension.",
+        "evening": "A sustained elevated-at-rest stretch this evening — possibly some tension.",
+        "night": "A sustained elevated-at-rest stretch overnight — possibly some tension."
+      }
     }
   },
   "thresholds": {
@@ -8549,6 +8561,15 @@
         "title": "Time to check in on a plan",
         "body": "It's been about a week since you set this plan — keep it, adjust it, or let it go. No pressure either way.",
         "bodyPlan": "About a week ago you set: “{plan}”. Keep it, adjust it, or let it go — no pressure either way."
+      },
+      "tensionWindow": {
+        "title": "Possible tension today",
+        "body": {
+          "morning": "Your heart rate sat above its resting baseline for a sustained stretch this morning while you were still — possibly some tension.",
+          "afternoon": "Your heart rate sat above its resting baseline for a sustained stretch this afternoon while you were still — possibly some tension.",
+          "evening": "Your heart rate sat above its resting baseline for a sustained stretch this evening while you were still — possibly some tension.",
+          "night": "Your heart rate sat above its resting baseline for a sustained stretch overnight while you were still — possibly some tension."
+        }
       }
     },
     "action": {
@@ -8558,7 +8579,8 @@
       "checkinKeep": "Keep it",
       "checkinAdjust": "Adjust",
       "checkinLetGo": "Let it go",
-      "viewMilestone": "View"
+      "viewMilestone": "View",
+      "viewPulse": "View pulse"
     },
     "today": {
       "scoreLabel": "Health score",

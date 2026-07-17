@@ -3857,6 +3857,18 @@
       "waveform": {
         "ariaLabel": "Tracé ECG enregistré le {date}, durée {duration}, fréquence cardiaque moyenne {heartRate}, résultat enregistré : {result}."
       }
+    },
+    "intradayPulse": {
+      "title": "Le rythme de votre journée",
+      "caption": "Votre fréquence cardiaque au fil de la journée, moyennée par tranches de 10 minutes.",
+      "empty": "Pas encore assez de mesures aujourd'hui pour afficher le rythme de la journée.",
+      "baseline": "Repos",
+      "tension": {
+        "morning": "Une période élevée au repos ce matin — peut-être un peu de tension.",
+        "afternoon": "Une période élevée au repos cet après-midi — peut-être un peu de tension.",
+        "evening": "Une période élevée au repos ce soir — peut-être un peu de tension.",
+        "night": "Une période élevée au repos cette nuit — peut-être un peu de tension."
+      }
     }
   },
   "thresholds": {
@@ -8549,6 +8561,15 @@
         "title": "Il est temps de revoir un plan",
         "body": "Cela fait environ une semaine que vous avez défini ce plan : gardez-le, ajustez-le ou laissez-le. Sans pression.",
         "bodyPlan": "Il y a environ une semaine, vous vous étiez fixé : « {plan} ». Gardez-le, ajustez-le ou laissez-le, sans pression."
+      },
+      "tensionWindow": {
+        "title": "Peut-être un peu de tension",
+        "body": {
+          "morning": "Votre fréquence cardiaque est restée au-dessus de votre valeur de repos un bon moment ce matin alors que vous étiez au calme — peut-être un peu de tension.",
+          "afternoon": "Votre fréquence cardiaque est restée au-dessus de votre valeur de repos un bon moment cet après-midi alors que vous étiez au calme — peut-être un peu de tension.",
+          "evening": "Votre fréquence cardiaque est restée au-dessus de votre valeur de repos un bon moment ce soir alors que vous étiez au calme — peut-être un peu de tension.",
+          "night": "Votre fréquence cardiaque est restée au-dessus de votre valeur de repos un bon moment cette nuit alors que vous étiez au calme — peut-être un peu de tension."
+        }
       }
     },
     "action": {
@@ -8558,7 +8579,8 @@
       "checkinKeep": "Garder",
       "checkinAdjust": "Ajuster",
       "checkinLetGo": "Laisser tomber",
-      "viewMilestone": "Voir"
+      "viewMilestone": "Voir",
+      "viewPulse": "Voir le pouls"
     },
     "today": {
       "scoreLabel": "Score de santé",
