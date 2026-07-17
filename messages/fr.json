@@ -4386,7 +4386,8 @@
           },
           "fullBackup": {
             "title": "Sauvegarde complète",
-            "description": "Un seul fichier JSON contenant tout — même format que la sauvegarde automatique hebdomadaire. Utile pour une restauration personnelle via le téléversement administrateur.",
+            "description": "Toutes vos données dans un seul fichier JSON : mesures, médicaments, humeur, cycle, analyses de laboratoire, épisodes de maladie, allergies, antécédents familiaux et entraînements. Même format que la sauvegarde automatique hebdomadaire.",
+            "scopeNote": "Les fichiers originaux des documents ainsi que les tracés GPS/données d'échantillons des entraînements ne sont pas inclus — téléchargez-les séparément depuis le coffre de documents ou l'export des entraînements.",
             "encryptToggle": "Chiffrer avec une phrase secrète",
             "passphrasePlaceholder": "Phrase secrète (12 caractères min.)",
             "passphraseHelp": "Dérive la clé de l'archive avec Argon2id et la scelle avec AES-256-GCM. Enregistrez le fichier avec l'extension .hlx.",

@@ -18,7 +18,7 @@
  * of bubbling out of `prisma.createMany` with a useless message.
  */
 import { describe, expect, it } from "vitest";
-import { backupPayloadSchema } from "../backup";
+import { backupPayloadSchema, summarizeBackup } from "../backup";
 
 const baseEntry = {
   date: "2026-05-08",
@@ -146,5 +146,240 @@ describe("backupPayloadSchema — v1.15.0 cycle round-trip", () => {
       expect(r.data.cycleDayLogs[0].notesEncrypted).toBe("v1:deadbeef:cipher");
       expect(r.data.cycleDayLogs[0].symptomKeys).toEqual(["cramps", "fatigue"]);
     }
+  });
+});
+
+describe("backupPayloadSchema — v1.28 backup-completeness domains", () => {
+  it("defaults every records field when a pre-v1.28 blob omits them", () => {
+    const r = backupPayloadSchema.safeParse({
+      schemaVersion: "1",
+      exportedAt: "2026-05-08T07:00:00.000Z",
+      userId: "u1",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.labResults).toEqual([]);
+      expect(r.data.biomarkers).toEqual([]);
+      expect(r.data.illnessEpisodes).toEqual([]);
+      expect(r.data.allergies).toEqual([]);
+      expect(r.data.familyHistory).toEqual([]);
+      expect(r.data.workouts).toEqual([]);
+      expect(r.data.documents).toEqual([]);
+      expect(r.data.manifest).toBeNull();
+    }
+  });
+
+  it("round-trips a lab result cross-referencing a biomarker by name", () => {
+    const r = backupPayloadSchema.safeParse({
+      schemaVersion: "1",
+      exportedAt: "2026-05-08T07:00:00.000Z",
+      userId: "u1",
+      biomarkers: [
+        {
+          name: "LDL Cholesterol",
+          unit: "mg/dL",
+          lowerBound: null,
+          upperBound: 130,
+          panel: "Lipid panel",
+          hidden: false,
+          context: "Low-density lipoprotein.",
+        },
+      ],
+      labResults: [
+        {
+          panel: "Lipid panel",
+          analyte: "LDL Cholesterol",
+          value: 118,
+          valueText: null,
+          unit: "mg/dL",
+          referenceLow: null,
+          referenceHigh: 130,
+          takenAt: "2026-04-01T09:00:00.000Z",
+          source: "MANUAL",
+          biomarkerName: "LDL Cholesterol",
+          note: "Fasted draw.",
+        },
+      ],
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.biomarkers[0].name).toBe("LDL Cholesterol");
+      expect(r.data.labResults[0].biomarkerName).toBe("LDL Cholesterol");
+      expect(r.data.labResults[0].note).toBe("Fasted draw.");
+    }
+  });
+
+  it("round-trips an illness episode with a flare referencing its parent + nested day-logs", () => {
+    const r = backupPayloadSchema.safeParse({
+      schemaVersion: "1",
+      exportedAt: "2026-05-08T07:00:00.000Z",
+      userId: "u1",
+      illnessEpisodes: [
+        {
+          id: "ep-1",
+          label: "Migraine",
+          type: "CHRONIC",
+          lifecycle: "CHRONIC_ONGOING",
+          onsetAt: "2026-01-01T00:00:00.000Z",
+          resolvedAt: null,
+          parentConditionId: null,
+          note: null,
+          dayLogs: [],
+        },
+        {
+          id: "ep-2",
+          label: "Migraine flare",
+          type: "CHRONIC",
+          lifecycle: "FLARE",
+          onsetAt: "2026-04-10T00:00:00.000Z",
+          resolvedAt: "2026-04-12T00:00:00.000Z",
+          parentConditionId: "ep-1",
+          note: "Triggered by travel.",
+          dayLogs: [
+            {
+              date: "2026-04-10",
+              functionalImpact: 2,
+              feverC: null,
+              symptoms: [{ key: "headache", severity: 3 }],
+              note: "Bad day.",
+            },
+          ],
+        },
+      ],
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.illnessEpisodes).toHaveLength(2);
+      expect(r.data.illnessEpisodes[1].parentConditionId).toBe("ep-1");
+      expect(r.data.illnessEpisodes[1].dayLogs[0].symptoms[0].key).toBe(
+        "headache",
+      );
+    }
+  });
+
+  it("round-trips allergies, family history, workouts, documents, and the manifest", () => {
+    const r = backupPayloadSchema.safeParse({
+      schemaVersion: "1",
+      exportedAt: "2026-05-08T07:00:00.000Z",
+      userId: "u1",
+      allergies: [
+        {
+          id: "al-1",
+          substance: "Penicillin",
+          category: "MEDICATION",
+          type: "ALLERGY",
+          severity: "SEVERE",
+          status: "ACTIVE",
+          onsetAt: null,
+          reaction: "Hives",
+          note: null,
+        },
+      ],
+      familyHistory: [
+        {
+          id: "fh-1",
+          relationship: "MOTHER",
+          condition: "Type 2 diabetes",
+          ageAtOnset: 52,
+          note: null,
+        },
+      ],
+      workouts: [
+        {
+          sportType: "running",
+          startedAt: "2026-04-01T07:00:00.000Z",
+          endedAt: "2026-04-01T08:00:00.000Z",
+          durationSec: 3600,
+          totalEnergyKcal: 600,
+          totalDistanceM: 10000,
+          avgHeartRate: 150,
+          maxHeartRate: 175,
+          minHeartRate: 110,
+          stepCount: 9000,
+          elevationM: 80,
+          pauseDurationSec: 0,
+          source: "APPLE_HEALTH",
+          externalId: "hk-1",
+        },
+      ],
+      documents: [
+        {
+          id: "doc-1",
+          kind: "LAB_RESULT",
+          title: "Blood panel",
+          filename: "panel.pdf",
+          mimeType: "application/pdf",
+          byteSize: 12345,
+          status: "STORED",
+          reportDate: "2026-03-30",
+          documentDate: "2026-03-30",
+          summary: "Routine panel.",
+        },
+      ],
+      manifest: {
+        documents: { included: "metadata-only", note: "Files excluded." },
+        workouts: { included: "summary-only", note: "Routes excluded." },
+      },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.allergies[0].substance).toBe("Penicillin");
+      expect(r.data.familyHistory[0].relationship).toBe("MOTHER");
+      expect(r.data.workouts[0].sportType).toBe("running");
+      expect(r.data.documents[0].id).toBe("doc-1");
+      // A document manifest entry never carries the raw file bytes — the
+      // schema simply has no field for it, so an attacker-supplied
+      // `contentEncrypted` key on upload is dropped as passthrough noise,
+      // never parsed into a typed field a restore path could act on.
+      expect(r.data.documents[0]).not.toHaveProperty("contentEncrypted");
+      expect(r.data.manifest?.documents.included).toBe("metadata-only");
+      expect(r.data.manifest?.workouts.included).toBe("summary-only");
+    }
+  });
+
+  it("summarizeBackup reports counts for every v1.28 domain, incl. nested day-logs", () => {
+    const parsed = backupPayloadSchema.parse({
+      schemaVersion: "1",
+      exportedAt: "2026-05-08T07:00:00.000Z",
+      userId: "u1",
+      labResults: [
+        {
+          analyte: "HbA1c",
+          unit: "%",
+          takenAt: "2026-04-01T09:00:00.000Z",
+          source: "MANUAL",
+        },
+      ],
+      illnessEpisodes: [
+        {
+          id: "ep-1",
+          label: "Cold",
+          type: "INFECTION",
+          lifecycle: "ACUTE",
+          onsetAt: "2026-04-01T00:00:00.000Z",
+          dayLogs: [
+            { date: "2026-04-01", symptoms: [] },
+            { date: "2026-04-02", symptoms: [] },
+          ],
+        },
+      ],
+      workouts: [
+        {
+          sportType: "cycling",
+          startedAt: "2026-04-01T07:00:00.000Z",
+          endedAt: "2026-04-01T08:00:00.000Z",
+          durationSec: 3600,
+          source: "MANUAL",
+        },
+      ],
+    });
+    const summary = summarizeBackup(parsed);
+    expect(summary.labResults).toBe(1);
+    expect(summary.illnessEpisodes).toBe(1);
+    expect(summary.illnessDayLogs).toBe(2);
+    expect(summary.workouts).toBe(1);
+    expect(summary.allergies).toBe(0);
+    expect(summary.familyHistory).toBe(0);
+    expect(summary.documents).toBe(0);
   });
 });

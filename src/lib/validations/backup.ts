@@ -177,6 +177,160 @@ const cycleProfileSchema = z
   })
   .passthrough();
 
+/* ── v1.28 backup-completeness shapes ──────────────────────────────
+ *
+ * Labs, illness episodes (+ flares/exacerbations), allergies, family
+ * history, workouts, and the documents manifest. Written by
+ * `buildRecordsBackupSection` (`src/lib/export/records-backup.ts`) — shared
+ * by the on-demand export routes AND the weekly `data-backup` worker.
+ *
+ * EXPORT-ONLY today: `POST /api/admin/backups/[id]/restore` does not yet
+ * recreate these domains on restore (only measurements / medications /
+ * mood / cycle round-trip). The schemas below exist so the payload
+ * validates + parses with real types (an admin reviewing an uploaded
+ * backup sees accurate counts) even though restore ignores them for now.
+ */
+
+const labResultBackupSchema = z
+  .object({
+    panel: z.string().nullable().optional(),
+    analyte: z.string().min(1),
+    value: z.number().nullable().optional(),
+    valueText: z.string().nullable().optional(),
+    unit: z.string().min(1),
+    referenceLow: z.number().nullable().optional(),
+    referenceHigh: z.number().nullable().optional(),
+    takenAt: isoDateTime,
+    source: z.string().min(1),
+    biomarkerName: z.string().nullable().optional(),
+    note: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+const biomarkerBackupSchema = z
+  .object({
+    name: z.string().min(1),
+    unit: z.string().min(1),
+    lowerBound: z.number().nullable().optional(),
+    upperBound: z.number().nullable().optional(),
+    panel: z.string().nullable().optional(),
+    hidden: z.boolean().optional(),
+    context: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+const illnessSymptomBackupSchema = z
+  .object({
+    key: z.string().min(1),
+    severity: z.number().int().nullable().optional(),
+  })
+  .passthrough();
+
+const illnessDayLogBackupSchema = z
+  .object({
+    id: z.string().min(1).optional(),
+    episodeId: z.string().min(1).optional(),
+    date: z.string().min(1),
+    functionalImpact: z.number().int().nullable().optional(),
+    feverC: z.number().nullable().optional(),
+    symptoms: z.array(illnessSymptomBackupSchema).default([]),
+    note: z.string().nullable().optional(),
+    updatedAt: isoDateTime.optional(),
+  })
+  .passthrough();
+
+const illnessEpisodeBackupSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    type: z.string().min(1),
+    lifecycle: z.string().min(1),
+    onsetAt: isoDateTime,
+    resolvedAt: isoDateTime.nullable().optional(),
+    // Self-referencing flare/exacerbation link, carried as the exported
+    // episode's own id — never resolved against another user's rows.
+    parentConditionId: z.string().nullable().optional(),
+    note: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
+    dayLogs: z.array(illnessDayLogBackupSchema).default([]),
+  })
+  .passthrough();
+
+const allergyBackupSchema = z
+  .object({
+    id: z.string().min(1),
+    substance: z.string().min(1),
+    category: z.string().min(1),
+    type: z.string().min(1),
+    severity: z.string().nullable().optional(),
+    status: z.string().min(1),
+    onsetAt: isoDateTime.nullable().optional(),
+    reaction: z.string().nullable().optional(),
+    note: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
+  })
+  .passthrough();
+
+const familyHistoryBackupSchema = z
+  .object({
+    id: z.string().min(1),
+    relationship: z.string().min(1),
+    condition: z.string().min(1),
+    ageAtOnset: z.number().int().nullable().optional(),
+    note: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
+  })
+  .passthrough();
+
+const workoutBackupSchema = z
+  .object({
+    sportType: z.string().min(1),
+    startedAt: isoDateTime,
+    endedAt: isoDateTime,
+    durationSec: z.number().int(),
+    totalEnergyKcal: z.number().nullable().optional(),
+    totalDistanceM: z.number().nullable().optional(),
+    avgHeartRate: z.number().int().nullable().optional(),
+    maxHeartRate: z.number().int().nullable().optional(),
+    minHeartRate: z.number().int().nullable().optional(),
+    stepCount: z.number().int().nullable().optional(),
+    elevationM: z.number().nullable().optional(),
+    pauseDurationSec: z.number().int().nullable().optional(),
+    source: z.string().min(1),
+    externalId: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+const documentBackupSchema = z
+  .object({
+    id: z.string().min(1),
+    kind: z.string().min(1),
+    title: z.string().nullable().optional(),
+    filename: z.string().nullable().optional(),
+    mimeType: z.string().min(1),
+    byteSize: z.number().int(),
+    status: z.string().min(1),
+    reportDate: z.string().nullable().optional(),
+    documentDate: z.string().nullable().optional(),
+    summary: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+  })
+  .passthrough();
+
+const backupManifestSchema = z
+  .object({
+    documents: z
+      .object({ included: z.string().min(1), note: z.string().min(1) })
+      .passthrough(),
+    workouts: z
+      .object({ included: z.string().min(1), note: z.string().min(1) })
+      .passthrough(),
+  })
+  .passthrough();
+
 /**
  * Wire shape — exactly what the pg-boss worker writes today, plus a
  * `schemaVersion` field that newer writers stamp explicitly. Older blobs
@@ -196,6 +350,17 @@ export const backupPayloadSchema = z
     cycleProfile: cycleProfileSchema.nullable().default(null),
     cycles: z.array(cycleSpanSchema).default([]),
     cycleDayLogs: z.array(cycleDayLogSchema).default([]),
+    // v1.28 backup-completeness — export-only for now (see the block
+    // comment above). Default to empty arrays / null so a pre-v1.28 backup
+    // (no records keys) still round-trips unchanged.
+    labResults: z.array(labResultBackupSchema).default([]),
+    biomarkers: z.array(biomarkerBackupSchema).default([]),
+    illnessEpisodes: z.array(illnessEpisodeBackupSchema).default([]),
+    allergies: z.array(allergyBackupSchema).default([]),
+    familyHistory: z.array(familyHistoryBackupSchema).default([]),
+    workouts: z.array(workoutBackupSchema).default([]),
+    documents: z.array(documentBackupSchema).default([]),
+    manifest: backupManifestSchema.nullable().default(null),
   })
   .passthrough();
 
@@ -218,6 +383,22 @@ export interface BackupSummary {
   cycles: number;
   /** v1.15.0 — cycle day-logs in the backup. */
   cycleDayLogs: number;
+  /** v1.28 — lab results in the backup (export-only, see above). */
+  labResults: number;
+  /** v1.28 — biomarker catalog entries in the backup (export-only). */
+  biomarkers: number;
+  /** v1.28 — illness episodes, incl. flares/exacerbations (export-only). */
+  illnessEpisodes: number;
+  /** v1.28 — illness day-logs across every episode (export-only). */
+  illnessDayLogs: number;
+  /** v1.28 — allergy/intolerance records in the backup (export-only). */
+  allergies: number;
+  /** v1.28 — family-history entries in the backup (export-only). */
+  familyHistory: number;
+  /** v1.28 — workout summary records in the backup (export-only). */
+  workouts: number;
+  /** v1.28 — document manifest entries (metadata only, export-only). */
+  documents: number;
 }
 
 export function summarizeBackup(payload: BackupPayload): BackupSummary {
@@ -231,6 +412,17 @@ export function summarizeBackup(payload: BackupPayload): BackupSummary {
     moodEntries: payload.moodEntries.length,
     cycles: payload.cycles.length,
     cycleDayLogs: payload.cycleDayLogs.length,
+    labResults: payload.labResults.length,
+    biomarkers: payload.biomarkers.length,
+    illnessEpisodes: payload.illnessEpisodes.length,
+    illnessDayLogs: payload.illnessEpisodes.reduce(
+      (sum, e) => sum + e.dayLogs.length,
+      0,
+    ),
+    allergies: payload.allergies.length,
+    familyHistory: payload.familyHistory.length,
+    workouts: payload.workouts.length,
+    documents: payload.documents.length,
   };
 }
 

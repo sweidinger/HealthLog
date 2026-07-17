@@ -4386,7 +4386,8 @@
           },
           "fullBackup": {
             "title": "Voll-Backup",
-            "description": "Eine einzige JSON-Datei mit allen Daten — gleiches Format wie das wöchentliche Auto-Backup. Praktisch zum Selbst-Wiederherstellen via Admin-Upload.",
+            "description": "Alle deine Daten in einer JSON-Datei — Messwerte, Medikamente, Stimmung, Zyklus, Laborwerte, Krankheitsepisoden, Allergien, Familienanamnese und Workouts. Gleiches Format wie das wöchentliche Auto-Backup.",
+            "scopeNote": "Die Originaldateien der Dokumente sowie GPS-Routen und Einzelmesswerte von Workouts sind nicht enthalten — lade diese separat aus dem Dokumententresor bzw. dem Workout-Export herunter.",
             "encryptToggle": "Mit einer Passphrase verschlüsseln",
             "passphrasePlaceholder": "Passphrase (mind. 12 Zeichen)",
             "passphraseHelp": "Leitet den Archivschlüssel per Argon2id ab und versiegelt ihn mit AES-256-GCM. Speichere die Datei mit der Endung .hlx.",

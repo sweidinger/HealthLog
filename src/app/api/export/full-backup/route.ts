@@ -11,6 +11,16 @@
  * `.json` so the browser writes a `.json` file even though the route
  * segment doesn't carry the extension.
  *
+ * Backup-completeness — the payload also carries lab results, the
+ * biomarker catalog, illness episodes (incl. flares/exacerbations) with
+ * their day-logs, allergies, family history, and workout summaries. These
+ * domains are EXPORT-ONLY today: `POST /api/admin/backups/[id]/restore`
+ * only re-creates the original measurements/medications/mood/cycle
+ * domains, so restoring a snapshot does not (yet) recreate these sections
+ * — see `src/lib/export/records-backup.ts`. Document original files and
+ * workout GPS/sample time series are never included; the payload's
+ * `manifest` field discloses both, and the export UI states this too.
+ *
  * Auth: cookie session OR Bearer token (`requireAuth`).
  * Rate-limit: shared `export:<userId>` bucket (10/h).
  * Audit: `user.export.full-backup` with the row counts.
@@ -34,7 +44,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
   }
 
   // v1.23 — the payload builder is shared with the passphrase-encrypted
-  // export route so both emit the byte-for-byte same restore-compatible shape.
+  // export route so both emit the byte-for-byte same shape (the measurement/
+  // medication/mood/cycle domains are restore-compatible; the newer records
+  // domains are export-only for now — see the module doc comment above).
   const { payload, counts } = await buildFullBackupPayload(prisma, user.id);
 
   await auditLog("user.export.full-backup", {
@@ -51,6 +63,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
       export_mood_count: counts.moodEntries,
       export_cycle_count: counts.cycles,
       export_cycle_day_log_count: counts.cycleDayLogs,
+      export_lab_result_count: counts.labResults,
+      export_biomarker_count: counts.biomarkers,
+      export_illness_episode_count: counts.illnessEpisodes,
+      export_illness_day_log_count: counts.illnessDayLogs,
+      export_allergy_count: counts.allergies,
+      export_family_history_count: counts.familyHistory,
+      export_workout_count: counts.workouts,
+      export_document_count: counts.documents,
     },
   });
 

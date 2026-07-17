@@ -57,6 +57,12 @@ export const dynamic = "force-dynamic";
 
 interface RestoreResponse {
   restored: true;
+  // v1.28 — `summary` reports every domain PRESENT in the uploaded file
+  // (informational — it now includes labs/illness/allergies/family-history/
+  // workouts/documents counts too). `cleared` below is the narrower,
+  // authoritative list of what this restore actually wiped + recreated —
+  // those newer domains are export-only for now and are NOT touched by a
+  // restore, so they are deliberately absent from `cleared`.
   summary: BackupSummary;
   cleared: {
     measurements: number;

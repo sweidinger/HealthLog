@@ -4386,7 +4386,8 @@
           },
           "fullBackup": {
             "title": "Copia completa",
-            "description": "Un único archivo JSON con todo — el mismo formato que la copia automática semanal. Útil para restaurar tú mismo mediante la carga de administrador.",
+            "description": "Todos tus datos en un único archivo JSON: mediciones, medicamentos, estado de ánimo, ciclo, analíticas, episodios de enfermedad, alergias, antecedentes familiares y entrenamientos. Mismo formato que la copia automática semanal.",
+            "scopeNote": "Los archivos originales de los documentos y los datos de rutas GPS/muestras de los entrenamientos no están incluidos — descárgalos por separado desde el archivo de documentos o la exportación de entrenamientos.",
             "encryptToggle": "Cifrar con una contraseña",
             "passphrasePlaceholder": "Contraseña (mín. 12 caracteres)",
             "passphraseHelp": "Deriva la clave del archivo con Argon2id y lo sella con AES-256-GCM. Guarda el archivo con la extensión .hlx.",

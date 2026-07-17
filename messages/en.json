@@ -4386,7 +4386,8 @@
           },
           "fullBackup": {
             "title": "Full backup",
-            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload.",
+            "description": "Every record you own in one JSON file — measurements, medications, mood, cycle, labs, illness episodes, allergies, family history, and workouts. Same shape as the weekly auto-backup.",
+            "scopeNote": "Original document files and workout GPS/sample data are not included — download those separately from the vault or the workout export.",
             "encryptToggle": "Encrypt with a passphrase",
             "passphrasePlaceholder": "Passphrase (min. 12 characters)",
             "passphraseHelp": "Derives the archive key with Argon2id and seals it with AES-256-GCM. Save the file with a .hlx extension.",

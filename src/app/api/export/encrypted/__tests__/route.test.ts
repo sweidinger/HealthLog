@@ -17,6 +17,15 @@ vi.mock("@/lib/db", () => ({
     cycleProfile: { findUnique: vi.fn().mockResolvedValue(null) },
     menstrualCycle: { findMany: vi.fn().mockResolvedValue([]) },
     cycleDayLog: { findMany: vi.fn().mockResolvedValue([]) },
+    // v1.28 backup-completeness — the records section the shared payload
+    // builder now also reads (`buildRecordsBackupSection`).
+    labResult: { findMany: vi.fn().mockResolvedValue([]) },
+    biomarker: { findMany: vi.fn().mockResolvedValue([]) },
+    illnessEpisode: { findMany: vi.fn().mockResolvedValue([]) },
+    allergy: { findMany: vi.fn().mockResolvedValue([]) },
+    familyHistoryEntry: { findMany: vi.fn().mockResolvedValue([]) },
+    workout: { findMany: vi.fn().mockResolvedValue([]) },
+    inboundDocument: { findMany: vi.fn().mockResolvedValue([]) },
     session: { findUnique: vi.fn() },
     webauthnMfaCredential: { count: vi.fn() },
   },
@@ -77,6 +86,18 @@ describe("POST /api/export/encrypted", () => {
     const payload = JSON.parse(plaintext);
     expect(payload).toHaveProperty("schemaVersion");
     expect(payload).toHaveProperty("measurements");
+    // v1.28 backup-completeness — the encrypted archive carries the same
+    // records domains as the plaintext export.
+    expect(payload).toHaveProperty("labResults");
+    expect(payload).toHaveProperty("illnessEpisodes");
+    expect(payload).toHaveProperty("allergies");
+    expect(payload).toHaveProperty("familyHistory");
+    expect(payload).toHaveProperty("workouts");
+    expect(payload).toHaveProperty("documents");
+    expect(payload.manifest).toMatchObject({
+      documents: { included: "metadata-only" },
+      workouts: { included: "summary-only" },
+    });
   });
 
   it("blocks an MFA account without a fresh second factor (401 step-up)", async () => {

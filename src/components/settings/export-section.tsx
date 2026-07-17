@@ -494,6 +494,17 @@ function FullBackupCard() {
         </Button>
       }
     >
+      {/* v1.28 backup-completeness — the description above lists what's
+          included; this line honestly discloses what isn't (document
+          binaries, workout GPS/sample series) rather than implying
+          "everything" is in the file. Always visible, not gated on the
+          encrypt toggle. */}
+      <p
+        data-testid="export-full-backup-scope-note"
+        className="text-muted-foreground text-xs"
+      >
+        {t("settings.sections.export.cards.fullBackup.scopeNote")}
+      </p>
       <label
         htmlFor="export-full-backup-encrypt"
         className="flex min-h-11 cursor-pointer items-center gap-3 text-xs"

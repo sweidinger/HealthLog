@@ -4386,7 +4386,8 @@
           },
           "fullBackup": {
             "title": "Backup completo",
-            "description": "Un unico file JSON con tutto — stesso formato del backup automatico settimanale. Utile per il ripristino autonomo tramite il caricamento da amministratore.",
+            "description": "Tutti i tuoi dati in un unico file JSON: misurazioni, farmaci, umore, ciclo, esami di laboratorio, episodi di malattia, allergie, anamnesi familiare e allenamenti. Stesso formato del backup automatico settimanale.",
+            "scopeNote": "I file originali dei documenti e i dati di percorso GPS/campionamento degli allenamenti non sono inclusi — scaricali separatamente dall'archivio documenti o dall'esportazione degli allenamenti.",
             "encryptToggle": "Cifra con una passphrase",
             "passphrasePlaceholder": "Passphrase (min. 12 caratteri)",
             "passphraseHelp": "Deriva la chiave dell'archivio con Argon2id e lo sigilla con AES-256-GCM. Salva il file con estensione .hlx.",

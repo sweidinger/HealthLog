@@ -229,6 +229,16 @@ export function BackupsSection() {
           moodEntries: number;
           cycles?: number;
           cycleDayLogs?: number;
+          // v1.28 backup-completeness — optional so an older-schema upload
+          // (pre-v1.28) still totals correctly without these keys.
+          labResults?: number;
+          biomarkers?: number;
+          illnessEpisodes?: number;
+          illnessDayLogs?: number;
+          allergies?: number;
+          familyHistory?: number;
+          workouts?: number;
+          documents?: number;
         };
       }>("/api/admin/backups/upload", { method: "POST", body: fd });
     },
@@ -239,7 +249,15 @@ export function BackupsSection() {
         data.summary.intakeEvents +
         data.summary.moodEntries +
         (data.summary.cycles ?? 0) +
-        (data.summary.cycleDayLogs ?? 0);
+        (data.summary.cycleDayLogs ?? 0) +
+        (data.summary.labResults ?? 0) +
+        (data.summary.biomarkers ?? 0) +
+        (data.summary.illnessEpisodes ?? 0) +
+        (data.summary.illnessDayLogs ?? 0) +
+        (data.summary.allergies ?? 0) +
+        (data.summary.familyHistory ?? 0) +
+        (data.summary.workouts ?? 0) +
+        (data.summary.documents ?? 0);
       toast.success(
         t("admin.section.backups.uploadSuccess", { count: String(total) }),
       );
