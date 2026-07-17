@@ -11,6 +11,12 @@ vi.mock("@/lib/db", () => ({
     // back to the all-on default so existing assertions ride
     // through unchanged.
     appSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+    // v1.28 perf — PULSE now reads through the DAY-rollup read-swap
+    // (`probeRollupCoverage` + `readDayMeanSeries`). An empty coverage
+    // probe sends every test down the live-fallback branch, which itself
+    // reads via the already-mocked `measurement.findMany` — no rollup
+    // rows needed for these tests.
+    $queryRaw: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -69,6 +75,10 @@ beforeEach(() => {
     aiProvider: null,
   } as never);
   vi.mocked(prisma.appSettings.findUnique).mockResolvedValue(null as never);
+  // v1.28 perf — empty coverage probe routes PULSE through the
+  // live-fallback branch of `readDayMeanSeries`, which reads via the
+  // already-mocked `measurement.findMany` above.
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
 });
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;
@@ -163,6 +173,57 @@ describe("GET /api/insights/cards", () => {
     expect(body.data.length).toBeGreaterThan(0);
     expect(body.data[0].provider).toBe("anthropic");
     expect(body.data.some((c) => c.severity === "alert")).toBe(true);
+  });
+
+  it("reads PULSE through the day-rollup read-swap, never the manual raw-row query (perf)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+
+    // 27 quiet days + 3 outlier days, one raw sample per day — a large
+    // enough quiet cluster that the 3 outliers still clear the z-score > 2
+    // threshold once folded into day means by the live-fallback branch of
+    // `readDayMeanSeries` (a small n dilutes the mean/stddev too much for
+    // the outliers to stand out).
+    const pulseRows: Array<{ value: number; measuredAt: Date }> = [];
+    const now = new Date();
+    for (let i = 0; i < 30; i++) {
+      const at = new Date(now.getTime() - i * 86_400_000);
+      pulseRows.push({ value: i < 3 ? 300 : 68, measuredAt: at });
+    }
+
+    vi.mocked(prisma.measurement.findMany).mockImplementation(
+      (async (args: { where?: { type?: unknown } }) => {
+        // `readDayMeanSeries`'s live-fallback probes a single `type`
+        // equality filter; the manual WEIGHT/BP query below probes an
+        // `{ in: [...] }` list — the two calls are distinguishable by shape.
+        if (args?.where?.type === "PULSE") return pulseRows;
+        return [];
+      }) as never,
+    );
+
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: Array<{ title: string; summary: string }>;
+    };
+    expect(
+      body.data.some((c) => c.summary.includes("unusual pulse readings")),
+    ).toBe(true);
+
+    // The bounded manual-measurements query (WEIGHT / BP) must never ask
+    // for PULSE — a dense wearable account's raw PULSE rows only ever
+    // reach this route through the day-mean rollup read.
+    const manualCall = vi
+      .mocked(prisma.measurement.findMany)
+      .mock.calls.find(
+        (call) =>
+          typeof (call[0] as { where?: { type?: { in?: unknown[] } } })
+            ?.where?.type === "object",
+      );
+    expect(manualCall).toBeDefined();
+    const typeIn = (
+      manualCall?.[0] as { where: { type: { in: string[] } } }
+    ).where.type.in;
+    expect(typeIn).not.toContain("PULSE");
   });
 
   it("does NOT flag a fully-adherent weekly injectable as low compliance (#214 regression)", async () => {
