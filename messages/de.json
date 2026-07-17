@@ -91,7 +91,7 @@
     "colShare": "Anteil",
     "footerDisclaimer1": "Dieser Bericht wurde automatisch aus selbst erfassten Daten generiert und dient ausschließlich zur Unterstützung",
     "footerDisclaimer2": "des Arzt-Patienten-Gesprächs. Er ersetzt keine ärztliche Diagnose. Korrelationen implizieren keine Kausalität.",
-    "footerSource": "Quelle: HealthLog | Zeitzone: Europe/Berlin | Erstellt: {timestamp}",
+    "footerSource": "Quelle: HealthLog | Zeitzone: {timezone} | Erstellt: {timestamp}",
     "typeWeight": "Körpergewicht",
     "typeBpSys": "Systolischer Blutdruck",
     "typeBpDia": "Diastolischer Blutdruck",

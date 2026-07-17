@@ -91,7 +91,7 @@
     "colShare": "Share",
     "footerDisclaimer1": "This report was generated automatically from self-tracked data and is intended to support",
     "footerDisclaimer2": "the doctor–patient conversation. It does not replace a medical diagnosis. Correlations do not imply causation.",
-    "footerSource": "Source: HealthLog | Timezone: Europe/Berlin | Created: {timestamp}",
+    "footerSource": "Source: HealthLog | Timezone: {timezone} | Created: {timestamp}",
     "typeWeight": "Body weight",
     "typeBpSys": "Systolic blood pressure",
     "typeBpDia": "Diastolic blood pressure",

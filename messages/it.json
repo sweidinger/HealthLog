@@ -91,7 +91,7 @@
     "colShare": "Quota",
     "footerDisclaimer1": "Questo rapporto è stato generato automaticamente da dati auto-registrati ed è destinato a supportare",
     "footerDisclaimer2": "il dialogo medico-paziente. Non sostituisce una diagnosi medica. Le correlazioni non implicano causalità.",
-    "footerSource": "Fonte: HealthLog | Fuso orario: Europe/Berlin | Creato: {timestamp}",
+    "footerSource": "Fonte: HealthLog | Fuso orario: {timezone} | Creato: {timestamp}",
     "typeWeight": "Peso corporeo",
     "typeBpSys": "Pressione arteriosa sistolica",
     "typeBpDia": "Pressione arteriosa diastolica",

@@ -91,7 +91,7 @@
     "colShare": "Part",
     "footerDisclaimer1": "Ce rapport a été généré automatiquement à partir de données auto-déclarées et vise à soutenir",
     "footerDisclaimer2": "la conversation médecin-patient. Il ne remplace pas un diagnostic médical. Les corrélations n'impliquent pas la causalité.",
-    "footerSource": "Source : HealthLog | Fuseau horaire : Europe/Berlin | Créé : {timestamp}",
+    "footerSource": "Source : HealthLog | Fuseau horaire : {timezone} | Créé : {timestamp}",
     "typeWeight": "Poids corporel",
     "typeBpSys": "Tension artérielle systolique",
     "typeBpDia": "Tension artérielle diastolique",

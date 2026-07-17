@@ -91,7 +91,7 @@
     "colShare": "Udział",
     "footerDisclaimer1": "Ten raport został wygenerowany automatycznie z danych samodzielnie rejestrowanych i ma na celu wspierać",
     "footerDisclaimer2": "rozmowę lekarza z pacjentem. Nie zastępuje diagnozy medycznej. Korelacje nie oznaczają związku przyczynowego.",
-    "footerSource": "Źródło: HealthLog | Strefa czasowa: Europe/Berlin | Utworzono: {timestamp}",
+    "footerSource": "Źródło: HealthLog | Strefa czasowa: {timezone} | Utworzono: {timestamp}",
     "typeWeight": "Masa ciała",
     "typeBpSys": "Ciśnienie skurczowe",
     "typeBpDia": "Ciśnienie rozkurczowe",

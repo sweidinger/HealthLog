@@ -91,7 +91,7 @@
     "colShare": "Porcentaje",
     "footerDisclaimer1": "Este informe se generó automáticamente a partir de datos autorregistrados y está destinado a apoyar",
     "footerDisclaimer2": "la conversación entre médico y paciente. No sustituye un diagnóstico médico. Las correlaciones no implican causalidad.",
-    "footerSource": "Fuente: HealthLog | Zona horaria: Europe/Berlin | Creado: {timestamp}",
+    "footerSource": "Fuente: HealthLog | Zona horaria: {timezone} | Creado: {timestamp}",
     "typeWeight": "Peso corporal",
     "typeBpSys": "Tensión arterial sistólica",
     "typeBpDia": "Tensión arterial diastólica",
