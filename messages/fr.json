@@ -8331,6 +8331,10 @@
     },
     "detail": {
       "title": "Détails du document",
+      "summary": {
+        "title": "Résumé",
+        "pending": "Le résumé est en cours de préparation."
+      },
       "loadError": "Impossible de charger ce document.",
       "saveError": "Impossible d'enregistrer la modification.",
       "deleteError": "Impossible de supprimer le document.",

@@ -8331,6 +8331,10 @@
     },
     "detail": {
       "title": "Detalles del documento",
+      "summary": {
+        "title": "Resumen",
+        "pending": "Se está preparando el resumen."
+      },
       "loadError": "No se pudo cargar este documento.",
       "saveError": "No se pudo guardar el cambio.",
       "deleteError": "No se pudo eliminar el documento.",

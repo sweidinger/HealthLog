@@ -8331,6 +8331,10 @@
     },
     "detail": {
       "title": "Szczegóły dokumentu",
+      "summary": {
+        "title": "Podsumowanie",
+        "pending": "Podsumowanie jest przygotowywane."
+      },
       "loadError": "Nie udało się wczytać tego dokumentu.",
       "saveError": "Nie udało się zapisać zmiany.",
       "deleteError": "Nie udało się usunąć dokumentu.",

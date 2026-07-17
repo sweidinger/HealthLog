@@ -570,6 +570,35 @@ export function DocumentDetailSheet({
               </div>
             )}
 
+            {doc.summary ? (
+              // Persisted background summary — generated once at upload when the
+              // auto-read opt-in is on. AI narrative body → foreground content;
+              // the generation date is muted meta (UI-STANDARDS §3).
+              <section
+                className="space-y-1.5"
+                data-slot="document-detail-summary"
+              >
+                <p className="text-sm leading-none font-medium">
+                  {t("documents.detail.summary.title")}
+                </p>
+                <p className="text-foreground text-sm">{doc.summary}</p>
+                {doc.summaryGeneratedAt ? (
+                  <p className="text-muted-foreground text-xs">
+                    {format.date(doc.summaryGeneratedAt)}
+                  </p>
+                ) : null}
+              </section>
+            ) : autoReadEnabled ? (
+              // Auto-read is on but no summary yet (still generating, or the
+              // provider could not read this file) — one calm muted hint.
+              <p
+                className="text-muted-foreground text-xs"
+                data-slot="document-detail-summary-pending"
+              >
+                {t("documents.detail.summary.pending")}
+              </p>
+            ) : null}
+
             <DocumentAiSection
               aiEnabled={aiEnabled}
               autoReadEnabled={autoReadEnabled}

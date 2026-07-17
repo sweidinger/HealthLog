@@ -161,8 +161,16 @@ const inboundDocument = z
   });
 
 const inboundDocumentDetail = inboundDocument
-  .extend({ facts: z.array(extractedFact) })
-  .meta({ id: "InboundDocumentDetail" });
+  .extend({
+    facts: z.array(extractedFact),
+    summary: z.string().nullable(),
+    summaryGeneratedAt: z.string().nullable(),
+  })
+  .meta({
+    id: "InboundDocumentDetail",
+    description:
+      "A stored document plus its staged facts. `summary` is a short (3-4 sentence) plain-language description of WHAT the document is, generated once in the background right after upload when the `documentsAutoAiRead` opt-in is ON (that flag is also the standing AI-egress consent); it is descriptive only, never a diagnosis, and is null when auto-read is OFF, no provider is configured, or the background summary has not run yet. `summaryGeneratedAt` is when it was generated (null until then).",
+  });
 
 const listResponse = z
   .object({

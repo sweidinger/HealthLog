@@ -88,6 +88,12 @@ import {
   type DocumentThumbnailPayload,
 } from "@/lib/jobs/document-thumbnail";
 import {
+  DOCUMENT_SUMMARY_QUEUE,
+  DOCUMENT_SUMMARY_CONCURRENCY,
+  runDocumentSummaryJob,
+  type DocumentSummaryPayload,
+} from "@/lib/jobs/document-summary";
+import {
   DOCUMENT_THUMBNAIL_BACKFILL_QUEUE,
   DOCUMENT_THUMBNAIL_BACKFILL_CONCURRENCY,
   runThumbnailBackfillForUser,
@@ -344,6 +350,11 @@ const allQueues = [
   // thumbnail jobs. Without this entry pg-boss never provisions the queue and
   // the boot discovery silently no-ops.
   DOCUMENT_THUMBNAIL_BACKFILL_QUEUE,
+  // Document AI — automatic per-document plain-language summary, enqueued on
+  // upload. Provider (vision) only, gated on the `documentsAutoAiRead` opt-in +
+  // egress consent + budget; persists the summary encrypted. Without this entry
+  // pg-boss never provisions the queue and every upload enqueue silently no-ops.
+  DOCUMENT_SUMMARY_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -760,6 +771,33 @@ export async function registerMaintenanceQueues(
           workerLog(
             "error",
             `[document-thumbnail] user=${userId} document=${documentId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
+  // Document AI — automatic per-document plain-language summary. Enqueued on
+  // upload (one job per stored document); runs the vision provider ONLY when
+  // the `documentsAutoAiRead` opt-in is ON (egress consent + budget gated) and
+  // persists the summary encrypted. Serial concurrency so the provider call
+  // never crowds the request pool.
+  await boss.work<DocumentSummaryPayload>(
+    DOCUMENT_SUMMARY_QUEUE,
+    { localConcurrency: DOCUMENT_SUMMARY_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId, documentId } = job.data;
+        if (!userId || !documentId) continue;
+        try {
+          await runDocumentSummaryJob(job.data);
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[document-summary] user=${userId} document=${documentId} failed`,
             err,
           );
           throw err;

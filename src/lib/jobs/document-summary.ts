@@ -1,0 +1,243 @@
+/**
+ * Automatic per-document plain-language summary, enqueued the moment a document
+ * is stored (`POST /api/documents/inbound`). Fire-and-forget: the upload
+ * response never blocks on or fails because of it.
+ *
+ * Unlike the on-demand summary route (which is transient — nothing persisted),
+ * THIS path persists a short (3-4 sentence) descriptive summary ENCRYPTED on the
+ * document row, generated ONCE. It runs ONLY when the user's `documentsAutoAiRead`
+ * opt-in is ON — that flag is the standing AI-egress consent that removes the
+ * per-document friction. With the opt-in OFF the job is a strict no-op and the
+ * on-demand route stays the only way to get a summary.
+ *
+ * The gate order mirrors the vault's other AI paths (module gate is enforced at
+ * the enqueueing upload route): load → opt-in ON → provider resolved (DOCUMENT
+ * order, local-first) → egress consent re-asserted → budget reserved → generate
+ * → persist encrypted. Every skip is graceful (no throw, no retry): an already-
+ * summarised document, no configured provider, a spent budget, or a document the
+ * picked provider cannot read all resolve to a clean no-op. The summary is
+ * DESCRIPTIVE ONLY (interpretation boundary G7, enforced by `runDocumentSummary`).
+ *
+ * The queue MUST be registered in the maintenance registrar
+ * (`src/lib/jobs/reminder/register-maintenance.ts`) so pg-boss provisions it.
+ */
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
+import {
+  assertDocumentEgressConsent,
+  ConsentRequiredError,
+} from "@/lib/ai/consent-guard";
+import {
+  buildDateKey,
+  reconcileSpend,
+  reserveBudget,
+  resolveDailyCap,
+} from "@/lib/ai/coach/budget";
+import {
+  loadOwnedDocument,
+  prepareVisionInput,
+} from "@/lib/documents/ai-route-support";
+import { runDocumentSummary } from "@/lib/documents/describe";
+import { documentAutoReadEnabled } from "@/lib/documents/document-settings";
+import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
+import { encryptDocumentSummary } from "@/lib/documents/store";
+import { prisma } from "@/lib/db";
+import { getGlobalBoss } from "@/lib/jobs/boss-instance";
+import { annotate } from "@/lib/logging/context";
+
+export const DOCUMENT_SUMMARY_QUEUE = "document-summary";
+
+/** Serial concurrency — provider calls, kept off the request pool. */
+export const DOCUMENT_SUMMARY_CONCURRENCY = 1;
+
+export interface DocumentSummaryPayload {
+  userId: string;
+  documentId: string;
+  enqueuedAt?: string;
+}
+
+/**
+ * Generate + persist ONE document's background summary (owner-scoped). Never
+ * throws for an expected outcome — every gate that fails resolves to a tagged
+ * no-op so pg-boss does not retry a document that simply has no provider or a
+ * user who opted out. Idempotent: a document that already carries a summary is
+ * skipped, and the final write only lands when the column is still null.
+ */
+export async function runDocumentSummaryJob(
+  payload: DocumentSummaryPayload,
+): Promise<void> {
+  const { userId, documentId } = payload;
+  if (!userId || !documentId) return;
+
+  // Idempotency: a document that already has a summary is a cheap no-op (a
+  // re-enqueue after a duplicate upload, or a boot backfill overlap).
+  const existing = await prisma.inboundDocument.findFirst({
+    where: { id: documentId, userId, deletedAt: null },
+    select: { id: true, summaryEncrypted: true },
+  });
+  if (!existing || existing.summaryEncrypted) {
+    annotate({
+      action: { name: "documents.summary.autoSkipped" },
+      meta: { documentId, reason: !existing ? "not-found" : "exists" },
+    });
+    return;
+  }
+
+  // The opt-in IS the trigger: when it is OFF the auto path does nothing (the
+  // on-demand route stays the only way to summarise). Fail-closed on a missing
+  // row.
+  if (!(await documentAutoReadEnabled(userId))) {
+    annotate({
+      action: { name: "documents.summary.autoSkipped" },
+      meta: { documentId, reason: "opt-out" },
+    });
+    return;
+  }
+
+  // Resolve the DOCUMENT-order vision provider (local-first, codex last). No
+  // vision-capable provider configured → graceful no-op (unlike the index job,
+  // there is no local text-layer fallback for a descriptive summary).
+  const { pick } = await resolveDocumentVisionProvider(userId);
+  if (!pick) {
+    annotate({
+      action: { name: "documents.summary.autoSkipped" },
+      meta: { documentId, reason: "no-provider" },
+    });
+    return;
+  }
+
+  // Re-assert egress consent for the picked provider. A local pick is ungated;
+  // an external pick is authorised by the `documentsAutoAiRead` opt-in checked
+  // above (the toggle short-circuits the gate). Belt-and-braces: a consent race
+  // (opt-out flipped mid-flight) resolves to a no-op, never an egress.
+  try {
+    await assertDocumentEgressConsent({
+      userId,
+      providerType: pick.providerType,
+      surface: "insights",
+    });
+  } catch (err) {
+    annotate({
+      action: { name: "documents.summary.autoSkipped" },
+      meta: {
+        documentId,
+        reason:
+          err instanceof ConsentRequiredError ? "consent" : "consent-error",
+      },
+    });
+    return;
+  }
+
+  const document = await loadOwnedDocument(userId, documentId);
+  if (!document) return;
+
+  const vision = await prepareVisionInput(document, pick.pdfSupported);
+  if (!vision.ok) {
+    // Cannot read this file with the picked provider (decrypt miss, unsupported
+    // type, or a PDF needing an Anthropic provider). Graceful no-op.
+    annotate({
+      action: { name: "documents.summary.autoSkipped" },
+      meta: { documentId, reason: vision.reason },
+    });
+    return;
+  }
+
+  const dateKey = buildDateKey();
+  const reservation = await reserveBudget(
+    userId,
+    AI_BUDGETS.documentSummary.maxTokens,
+    dateKey,
+    resolveDailyCap([{ providerType: pick.entry.providerType }]),
+  );
+  // Budget exhausted → skip (no local fallback for a summary).
+  if (!reservation.allowed) {
+    annotate({
+      action: { name: "documents.summary.autoSkipped" },
+      meta: { documentId, reason: "budget" },
+    });
+    return;
+  }
+
+  try {
+    const { summary } = await runDocumentSummary({
+      provider: pick.entry.instance,
+      providerType: pick.providerType,
+      images: vision.images,
+      documents: vision.documents,
+    });
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      reservation.reserved,
+      dateKey,
+    );
+    // Persist ENCRYPTED. `updateMany` scoped to `summaryEncrypted: null` so a
+    // racing writer (a re-enqueue) never overwrites an existing summary — the
+    // first write wins and a second run is a no-op.
+    const written = await prisma.inboundDocument.updateMany({
+      where: {
+        id: documentId,
+        userId,
+        deletedAt: null,
+        summaryEncrypted: null,
+      },
+      data: {
+        summaryEncrypted: encryptDocumentSummary(summary),
+        summaryGeneratedAt: new Date(),
+      },
+    });
+    annotate({
+      action: { name: "documents.summary.autoGenerated" },
+      meta: {
+        documentId,
+        providerType: pick.providerType,
+        length: summary.length,
+        persisted: written.count > 0,
+      },
+    });
+  } catch {
+    // Refund the reservation on a provider miss; the document keeps no summary
+    // (the on-demand route remains the manual fallback). Never rethrow — a
+    // transient provider error must not retry-loop or fail the queue.
+    await reconcileSpend(userId, reservation.reserved, 0, dateKey);
+    annotate({
+      action: { name: "documents.summary.autoFailed" },
+      meta: { documentId, reason: "provider_error" },
+    });
+  }
+}
+
+/**
+ * Enqueue a per-document summary job. Coalesced by `singletonKey` per document
+ * so a duplicate/idempotent re-upload cannot pile up parallel runs. Fire-and-
+ * forget — a missing boss (worker not up) is a no-op, and a `boss.send` failure
+ * (a transient DB hiccup) is swallowed to a no-op too, so enqueue can NEVER fail
+ * an already-stored upload. The summary is a background nicety; the stored
+ * document is the contract.
+ */
+export async function enqueueDocumentSummary(
+  userId: string,
+  documentId: string,
+): Promise<{ enqueued: boolean }> {
+  const boss = getGlobalBoss();
+  if (!boss) return { enqueued: false };
+  const payload: DocumentSummaryPayload = {
+    userId,
+    documentId,
+    enqueuedAt: new Date().toISOString(),
+  };
+  try {
+    const jobId = await boss.send(DOCUMENT_SUMMARY_QUEUE, payload, {
+      retryLimit: 2,
+      retryDelay: 30,
+      retryBackoff: true,
+      singletonKey: `document-summary|${documentId}`,
+    });
+    return { enqueued: Boolean(jobId) };
+  } catch (err) {
+    annotate({
+      action: { name: "documents.summary.enqueueFailed" },
+      meta: { documentId, reason: err instanceof Error ? err.name : "unknown" },
+    });
+    return { enqueued: false };
+  }
+}

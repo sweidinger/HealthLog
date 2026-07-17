@@ -42,6 +42,7 @@ import {
   type SerialisableDocument,
 } from "@/lib/documents/store";
 import { enqueueDocumentIndex } from "@/lib/jobs/document-index";
+import { enqueueDocumentSummary } from "@/lib/jobs/document-summary";
 import { enqueueDocumentThumbnail } from "@/lib/jobs/document-thumbnail";
 import {
   detectDocumentType,
@@ -377,6 +378,13 @@ async function postUpload(request: Request): Promise<Response> {
   // because of it, and a dropped enqueue is recoverable via the boot backfill.
   // Only fresh inserts reach here (a duplicate returns early above).
   void enqueueDocumentThumbnail(user.id, document.id);
+
+  // Summarise the freshly stored document in the background — but ONLY when the
+  // `documentsAutoAiRead` opt-in is ON (the job re-checks it and the egress
+  // consent, and no-ops otherwise). The persisted summary shows on the detail
+  // view. Same fire-and-forget contract: the upload never blocks on or fails
+  // because of it. Only fresh inserts reach here (a duplicate returns early).
+  void enqueueDocumentSummary(user.id, document.id);
 
   const links = await loadConditionLinks(user.id, [document.id]);
   return apiSuccess(

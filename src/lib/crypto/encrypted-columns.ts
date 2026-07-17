@@ -229,6 +229,12 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   // document itself rather than persisting as plaintext JSONB.
   { model: "ExtractedFact", field: "dataEncrypted", kind: "bytes" },
   { model: "ExtractedFact", field: "provenanceEncrypted", kind: "bytes" },
+  // The short plain-language document summary, generated once in the background
+  // after upload. Stored as the `encrypt()`-string-as-UTF-8 Bytes shape (the
+  // same codec the content index + note columns use), so the generic Bytes walk
+  // re-encrypts it. Nullable — pre-summary and opt-out rows are skipped
+  // generically, as for every other nullable Bytes column.
+  { model: "InboundDocument", field: "summaryEncrypted", kind: "bytes" },
 
   // ───── v1.27.22 document content-search index (Bytes text) ─────
   // The normalised extracted text of an indexed document, AES-256-GCM at rest
