@@ -17,6 +17,11 @@ import {
 } from "@/lib/daily/coach-checkin-intents";
 import type { Milestone } from "@/lib/daily/milestones";
 import type { PriorityItem } from "@/lib/daily/priority-item";
+import {
+  ecgItemKey,
+  milestoneItemKey,
+  tensionWindowItemKey,
+} from "@/lib/daily/priority-item-key";
 
 const t = getServerTranslator("en").t;
 const NOW = new Date("2026-07-16T09:00:00.000Z");
@@ -62,6 +67,8 @@ function input(over: Partial<DailyDigestInput> = {}): DailyDigestInput {
     preventiveDue: [],
     coachPlans: [],
     tensionWindow: null,
+    todayLocalDate: "2026-07-16",
+    dismissedItemKeys: new Set<string>(),
     ...over,
   };
 }
@@ -483,6 +490,25 @@ describe("S12 — the milestone reward card", () => {
     expect(item?.title).not.toMatch(forbidden);
     expect(item?.body ?? "").not.toMatch(forbidden);
   });
+
+  it("stamps a deterministic dismiss key namespaced by kind", () => {
+    const item = milestone(
+      buildDailyDigest(input({ milestone: RECORD_MILESTONE }), t),
+    );
+    expect(item?.itemKey).toBe(milestoneItemKey(RECORD_MILESTONE));
+    expect(item?.itemKey).toMatch(/^milestone:/);
+  });
+
+  it("is dropped from the rail once its dismiss key is in the dismissed set", () => {
+    const d = buildDailyDigest(
+      input({
+        milestone: RECORD_MILESTONE,
+        dismissedItemKeys: new Set([milestoneItemKey(RECORD_MILESTONE)]),
+      }),
+      t,
+    );
+    expect(milestone(d)).toBeUndefined();
+  });
 });
 
 describe("buildDailyDigest — S11 tension_window item", () => {
@@ -533,6 +559,33 @@ describe("buildDailyDigest — S11 tension_window item", () => {
     );
     // dose + 2 sync fill the cap; the calm tension marker waits.
     expect(d.worthALook).toHaveLength(MAX_WORTH_A_LOOK);
+    expect(tension(d)).toBeUndefined();
+  });
+
+  it("stamps a dismiss key namespaced by kind, folding in the local day + part of day", () => {
+    const d = buildDailyDigest(
+      input({
+        tensionWindow: { partOfDay: "afternoon" },
+        todayLocalDate: "2026-07-16",
+      }),
+      t,
+    );
+    const item = tension(d);
+    expect(item?.itemKey).toBe(tensionWindowItemKey("2026-07-16", "afternoon"));
+    expect(item?.itemKey).toMatch(/^tension_window:/);
+  });
+
+  it("is dropped from the rail once its dismiss key is in the dismissed set", () => {
+    const d = buildDailyDigest(
+      input({
+        tensionWindow: { partOfDay: "afternoon" },
+        todayLocalDate: "2026-07-16",
+        dismissedItemKeys: new Set([
+          tensionWindowItemKey("2026-07-16", "afternoon"),
+        ]),
+      }),
+      t,
+    );
     expect(tension(d)).toBeUndefined();
   });
 });
@@ -653,5 +706,47 @@ describe("buildDailyDigest — ecg_new_recording (S10)", () => {
     const d = buildDailyDigest(input({ latestEcg }), t);
     const serialised = JSON.stringify(ecgItem(d));
     expect(serialised).not.toMatch(/waveform|sample|signal|voltage|microvolt/i);
+  });
+
+  it("stamps a dismiss key namespaced by kind, folding in the recording's own timestamp", () => {
+    const recordedAt = new Date(NOW.getTime() - 60 * 60 * 1000);
+    const d = buildDailyDigest(
+      input({ latestEcg: { recordedAt, deviceVerdict: "IRREGULAR" } }),
+      t,
+    );
+    const item = ecgItem(d);
+    expect(item?.itemKey).toBe(ecgItemKey(recordedAt));
+    expect(item?.itemKey).toMatch(/^ecg_new_recording:/);
+  });
+
+  it("is dropped from the rail once its dismiss key is in the dismissed set", () => {
+    const recordedAt = new Date(NOW.getTime() - 60 * 60 * 1000);
+    const d = buildDailyDigest(
+      input({
+        latestEcg: { recordedAt, deviceVerdict: "IRREGULAR" },
+        dismissedItemKeys: new Set([ecgItemKey(recordedAt)]),
+      }),
+      t,
+    );
+    expect(ecgItem(d)).toBeUndefined();
+  });
+});
+
+describe("buildDailyDigest — dismiss filtering never touches actionable kinds", () => {
+  it("ignores a dismissed key that happens to collide with an actionable item's shape (they never carry one)", () => {
+    // Actionable items never stamp an `itemKey`, so filtering can never match
+    // them regardless of what the dismissed set contains — a dose-window item
+    // stays on the rail even with an arbitrary set of dismissed keys.
+    const d = buildDailyDigest(
+      input({
+        medsToday: meds({ nextDueOverdue: true, nextDueMedicationName: "X" }),
+        dismissedItemKeys: new Set(["dose_window:anything", "sync_issue:x"]),
+      }),
+      t,
+    );
+    expect(d.worthALook.some((i) => i.kind === "dose_window")).toBe(true);
+    expect(
+      d.worthALook.find((i) => i.kind === "dose_window")?.itemKey,
+    ).toBeUndefined();
   });
 });

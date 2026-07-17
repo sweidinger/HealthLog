@@ -28,6 +28,11 @@ import {
   type PriorityItem,
 } from "@/lib/daily/priority-item";
 import {
+  ecgItemKey,
+  milestoneItemKey,
+  tensionWindowItemKey,
+} from "@/lib/daily/priority-item-key";
+import {
   milestoneCopy,
   milestoneHref,
   type Milestone,
@@ -184,6 +189,19 @@ export interface DailyDigestInput {
    * builder treats a missing value as "no recent recording".
    */
   latestEcg?: DailyDigestEcg | null;
+  /**
+   * The caller's local calendar day (profile tz), used ONLY to stamp the
+   * tension-window item's dismiss key (`tensionWindowItemKey`) — the same day
+   * space `loadIntradayPulse` already computed the window against.
+   */
+  todayLocalDate: string;
+  /**
+   * Item keys the user has already dismissed (`DismissedPriorityItem`),
+   * scoped to today's OWN candidate keys by the IO seam — never a full
+   * history read. A dismissed item is dropped from `worthALook` entirely,
+   * never rendered with its actions suppressed.
+   */
+  dismissedItemKeys: ReadonlySet<string>;
 }
 
 export interface DailyDigest {
@@ -323,6 +341,7 @@ function buildMilestoneItem(
   const { title, body } = milestoneCopy(milestone, t);
   return {
     kind: "milestone",
+    itemKey: milestoneItemKey(milestone),
     title,
     body,
     status: "success",
@@ -348,12 +367,14 @@ function buildMilestoneItem(
 function buildTensionWindowItem(
   window: DailyDigestTensionWindow | null,
   modules: DigestModuleMap,
+  todayLocalDate: string,
   t: Translate,
 ): PriorityItem | null {
   if (!moduleEnabled(modules, "insights")) return null;
   if (!window) return null;
   return {
     kind: "tension_window",
+    itemKey: tensionWindowItemKey(todayLocalDate, window.partOfDay),
     title: t("daily.item.tensionWindow.title"),
     body: t(`daily.item.tensionWindow.body.${window.partOfDay}`),
     status: "info",
@@ -497,6 +518,7 @@ function buildEcgNewRecordingItem(
 
   return {
     kind: "ecg_new_recording",
+    itemKey: ecgItemKey(ecg.recordedAt),
     title: t("daily.item.ecgNewRecording.title"),
     body,
     status: "info",
@@ -584,13 +606,29 @@ export function buildDailyDigest(
   // S11 — the calm, informational tension marker sits last: it is context, not
   // an action that expires, so a time-sensitive dose / sync / check-in wins the
   // bounded rail ahead of it.
-  const tension = buildTensionWindowItem(input.tensionWindow, input.modules, t);
+  const tension = buildTensionWindowItem(
+    input.tensionWindow,
+    input.modules,
+    input.todayLocalDate,
+    t,
+  );
   if (tension) worthALook.push(tension);
 
   // Defence-in-depth: no card ever exceeds the P1 action cap.
   for (const item of worthALook) {
     item.actions = item.actions.slice(0, MAX_PRIORITY_ACTIONS);
   }
+
+  // Drop anything the user already dismissed (observational kinds only — an
+  // actionable item never carries an `itemKey`, so it can never match here).
+  // Filtered BEFORE the bounded slice, so a dismissal reliably makes room for
+  // the next candidate rather than leaving a gap.
+  const visible =
+    input.dismissedItemKeys.size === 0
+      ? worthALook
+      : worthALook.filter(
+          (item) => !item.itemKey || !input.dismissedItemKeys.has(item.itemKey),
+        );
 
   return {
     generatedAt: input.now.toISOString(),
@@ -600,6 +638,6 @@ export function buildDailyDigest(
     topSignal,
     briefingLead,
     line: composeLine(briefingLead, topSignal, input.score, t),
-    worthALook: worthALook.slice(0, MAX_WORTH_A_LOOK),
+    worthALook: visible.slice(0, MAX_WORTH_A_LOOK),
   };
 }
