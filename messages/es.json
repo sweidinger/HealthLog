@@ -3856,6 +3856,13 @@
       },
       "waveform": {
         "ariaLabel": "Tira de ECG registrada el {date}, duración {duration}, frecuencia cardíaca media {heartRate}, resultado registrado: {result}."
+      },
+      "crossLink": {
+        "title": "Registros de ECG",
+        "recordingsOne": "1 registro guardado.",
+        "recordingsMany": "{count} registros guardados.",
+        "latestResult": "Último resultado del dispositivo: {result}.",
+        "cta": "Ver registros"
       }
     }
   },
@@ -8549,6 +8556,16 @@
         "title": "Es buen momento para revisar un plan",
         "body": "Ha pasado alrededor de una semana desde que definiste este plan: consérvalo, ajústalo o déjalo ir. Sin presión.",
         "bodyPlan": "Hace aproximadamente una semana te propusiste: «{plan}». Consérvalo, ajústalo o déjalo ir, sin presión."
+      },
+      "ecgNewRecording": {
+        "title": "Nuevo registro de ECG",
+        "body": "Tu dispositivo registró un nuevo ECG: está listo para verlo.",
+        "bodyVerdict": "Tu dispositivo registró un nuevo ECG e informó: {verdict}.",
+        "verdict": {
+          "irregular": "un posible ritmo irregular",
+          "notDetected": "ningún ritmo irregular",
+          "inconclusive": "un resultado no concluyente"
+        }
       }
     },
     "action": {
@@ -8557,7 +8574,8 @@
       "viewCheckups": "Ver revisiones",
       "checkinKeep": "Conservar",
       "checkinAdjust": "Ajustar",
-      "checkinLetGo": "Dejarlo ir"
+      "checkinLetGo": "Dejarlo ir",
+      "viewEcg": "Ver registro"
     },
     "today": {
       "scoreLabel": "Puntuación de salud",

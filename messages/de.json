@@ -3856,6 +3856,13 @@
       },
       "waveform": {
         "ariaLabel": "EKG-Streifen aufgezeichnet {date}, Dauer {duration}, durchschnittliche Herzfrequenz {heartRate}, aufgezeichnetes Ergebnis: {result}."
+      },
+      "crossLink": {
+        "title": "EKG-Aufzeichnungen",
+        "recordingsOne": "1 Aufzeichnung vorhanden.",
+        "recordingsMany": "{count} Aufzeichnungen vorhanden.",
+        "latestResult": "Letztes Geräte-Ergebnis: {result}.",
+        "cta": "Aufzeichnungen ansehen"
       }
     }
   },
@@ -8549,6 +8556,16 @@
         "title": "Zeit, einen Plan anzuschauen",
         "body": "Es ist etwa eine Woche her, seit du diesen Plan gesetzt hast — behalte ihn, passe ihn an oder lass ihn los. Ganz ohne Druck.",
         "bodyPlan": "Vor etwa einer Woche hast du dir vorgenommen: „{plan}“. Behalte es, passe es an oder lass es los — ganz ohne Druck."
+      },
+      "ecgNewRecording": {
+        "title": "Neue EKG-Aufzeichnung",
+        "body": "Dein Gerät hat ein neues EKG aufgezeichnet — bereit zum Ansehen.",
+        "bodyVerdict": "Dein Gerät hat ein neues EKG aufgezeichnet und meldet: {verdict}.",
+        "verdict": {
+          "irregular": "einen möglichen unregelmäßigen Rhythmus",
+          "notDetected": "keinen unregelmäßigen Rhythmus",
+          "inconclusive": "ein nicht eindeutiges Ergebnis"
+        }
       }
     },
     "action": {
@@ -8557,7 +8574,8 @@
       "viewCheckups": "Vorsorge ansehen",
       "checkinKeep": "Behalten",
       "checkinAdjust": "Anpassen",
-      "checkinLetGo": "Loslassen"
+      "checkinLetGo": "Loslassen",
+      "viewEcg": "Aufzeichnung ansehen"
     },
     "today": {
       "scoreLabel": "Gesundheitsscore",

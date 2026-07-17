@@ -3856,6 +3856,13 @@
       },
       "waveform": {
         "ariaLabel": "Zapis EKG zarejestrowany {date}, czas trwania {duration}, średnie tętno {heartRate}, zarejestrowany wynik: {result}."
+      },
+      "crossLink": {
+        "title": "Zapisy EKG",
+        "recordingsOne": "1 zapis w kartotece.",
+        "recordingsMany": "Zapisy w kartotece: {count}.",
+        "latestResult": "Ostatni wynik urządzenia: {result}.",
+        "cta": "Zobacz zapisy"
       }
     }
   },
@@ -8549,6 +8556,16 @@
         "title": "Czas przyjrzeć się planowi",
         "body": "Minął mniej więcej tydzień, odkąd ustaliłeś ten plan — zachowaj go, dostosuj lub odpuść. Bez presji.",
         "bodyPlan": "Około tygodnia temu postanowiłeś: „{plan}”. Zachowaj to, dostosuj lub odpuść — bez presji."
+      },
+      "ecgNewRecording": {
+        "title": "Nowy zapis EKG",
+        "body": "Twoje urządzenie zarejestrowało nowe EKG — gotowe do podglądu.",
+        "bodyVerdict": "Twoje urządzenie zarejestrowało nowe EKG i zgłosiło: {verdict}.",
+        "verdict": {
+          "irregular": "możliwy nieregularny rytm",
+          "notDetected": "brak nieregularnego rytmu",
+          "inconclusive": "wynik niejednoznaczny"
+        }
       }
     },
     "action": {
@@ -8557,7 +8574,8 @@
       "viewCheckups": "Zobacz badania",
       "checkinKeep": "Zachowaj",
       "checkinAdjust": "Dostosuj",
-      "checkinLetGo": "Odpuść"
+      "checkinLetGo": "Odpuść",
+      "viewEcg": "Zobacz zapis"
     },
     "today": {
       "scoreLabel": "Wynik zdrowia",

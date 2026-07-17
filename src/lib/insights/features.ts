@@ -33,6 +33,7 @@ import {
 import {
   readAllTimeExtremes,
   readBucketedSeries,
+  readEcgBriefingBlock,
   readLabsBriefingBlock,
   readPreventiveCareBlock,
   readWorkoutsBlock,
@@ -320,6 +321,33 @@ export interface AggregatedFeatures {
       durationMin: number;
       distanceKm: number | null;
     } | null;
+  };
+  /**
+   * S10 — ECG recording descriptor (device-verdict only, NON-DIAGNOSTIC). A
+   * bounded, existence-and-count read of the user's on-device ECG recordings so
+   * the nightly narrative can reference them FACTUALLY and attributed to the
+   * device. `deviceVerdicts` / `latestDeviceVerdict` are the RECORDING DEVICE's
+   * OWN classifications — HealthLog never re-classifies, never reads the
+   * waveform (it never enters this payload), and never emits a verdict of its
+   * own. The prompt constrains any mention to the device's attribution; the
+   * grounding gate constrains any restated count. Omitted when no recordings
+   * fall in the window.
+   */
+  ecg?: {
+    /** Number of ECG recordings in the trailing window. */
+    recordingCount: number;
+    /** Distribution of the DEVICE's own verdicts across the window. */
+    deviceVerdicts: {
+      irregular: number;
+      notDetected: number;
+      inconclusive: number;
+    };
+    /** The latest recording's DEVICE verdict, or null when unclassified. */
+    latestDeviceVerdict: "IRREGULAR" | "NOT_DETECTED" | "INCONCLUSIVE" | null;
+    /** Days since the latest recording. */
+    latestRecordedDaysAgo: number;
+    /** The latest recording's device-reported average HR, or null. */
+    latestAverageHeartRate: number | null;
   };
 }
 
@@ -1316,14 +1344,19 @@ export async function extractFeatures(
     (typeof sinceDays === "number" &&
       sinceDays >= INTEGRATION_BLOCK_MIN_WINDOW_DAYS);
   if (includeIntegrations) {
-    const [labs, preventiveCare, workouts] = await Promise.all([
+    const [labs, preventiveCare, workouts, ecg] = await Promise.all([
       readLabsBriefingBlock(userId, now),
       readPreventiveCareBlock(userId, now),
       readWorkoutsBlock(userId, now),
+      // S10 — ECG device-verdict descriptor (never the waveform). Weaves the
+      // ECG silo into the narrative; the model may reference it, attributed to
+      // the device, but never interprets the trace (it never sees one).
+      readEcgBriefingBlock(userId, now),
     ]);
     if (labs) features.labs = labs;
     if (preventiveCare) features.preventiveCare = preventiveCare;
     if (workouts) features.workouts = workouts;
+    if (ecg) features.ecg = ecg;
   }
 
   // v1.4.36 W3 T1 — "raw" mode no longer dumps every measurement row

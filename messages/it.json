@@ -3856,6 +3856,13 @@
       },
       "waveform": {
         "ariaLabel": "Tracciato ECG registrato il {date}, durata {duration}, frequenza cardiaca media {heartRate}, risultato registrato: {result}."
+      },
+      "crossLink": {
+        "title": "Registrazioni ECG",
+        "recordingsOne": "1 registrazione disponibile.",
+        "recordingsMany": "{count} registrazioni disponibili.",
+        "latestResult": "Ultimo risultato del dispositivo: {result}.",
+        "cta": "Vedi registrazioni"
       }
     }
   },
@@ -8549,6 +8556,16 @@
         "title": "È il momento di rivedere un piano",
         "body": "È passata circa una settimana da quando hai definito questo piano: mantienilo, modificalo o lascialo andare. Senza pressioni.",
         "bodyPlan": "Circa una settimana fa ti eri proposto: «{plan}». Mantienilo, modificalo o lascialo andare, senza pressioni."
+      },
+      "ecgNewRecording": {
+        "title": "Nuova registrazione ECG",
+        "body": "Il tuo dispositivo ha registrato un nuovo ECG: è pronto da vedere.",
+        "bodyVerdict": "Il tuo dispositivo ha registrato un nuovo ECG e ha segnalato: {verdict}.",
+        "verdict": {
+          "irregular": "un possibile ritmo irregolare",
+          "notDetected": "nessun ritmo irregolare",
+          "inconclusive": "un risultato non conclusivo"
+        }
       }
     },
     "action": {
@@ -8557,7 +8574,8 @@
       "viewCheckups": "Vedi controlli",
       "checkinKeep": "Mantieni",
       "checkinAdjust": "Modifica",
-      "checkinLetGo": "Lascia andare"
+      "checkinLetGo": "Lascia andare",
+      "viewEcg": "Vedi registrazione"
     },
     "today": {
       "scoreLabel": "Punteggio di salute",

@@ -93,6 +93,18 @@ export interface DailyDigestPreventiveDue {
 }
 
 /**
+ * S10 — the latest ECG recording, for the `ecg_new_recording` rail item. Only
+ * ever the DEVICE's verdict + when it was recorded — NEVER the waveform (the
+ * DTO carries no samples). The builder decides "new" from `recordedAt`; the
+ * card attributes any verdict to the recording device.
+ */
+export interface DailyDigestEcg {
+  recordedAt: Date;
+  /** The recording device's OWN verdict, or null when unclassified. */
+  deviceVerdict: "IRREGULAR" | "NOT_DETECTED" | "INCONCLUSIVE" | null;
+}
+
+/**
  * A standing coach plan the IO seam offers as a check-in candidate (§2.3). The
  * builder computes due-ness deterministically from the plain columns — it never
  * needs a fresh AI call, reading only the existing plan lifecycle. `planText`
@@ -135,6 +147,12 @@ export interface DailyDigestInput {
   preventiveDue: DailyDigestPreventiveDue[];
   /** Standing coach plans (active + reviewed) — check-in candidates (§2.3). */
   coachPlans: DailyDigestCoachPlan[];
+  /**
+   * S10 — the freshest ECG recording (device verdict + recordedAt only), or
+   * null. Optional so consumers that predate the ECG weave stay valid; the
+   * builder treats a missing value as "no recent recording".
+   */
+  latestEcg?: DailyDigestEcg | null;
 }
 
 export interface DailyDigest {
@@ -337,6 +355,69 @@ function buildCoachCheckinItem(
 }
 
 /**
+ * S10 — how recently an ECG recording must have landed to count as "new" for
+ * the rail (§3.5.3). A calendar-day window: a recording synced within the last
+ * day surfaces once, then retires on its own (no persisted "seen" marker, no
+ * migration). The 24h window is itself the one/day cap — at most one recording
+ * is the freshest, and it drops off the rail after a day.
+ */
+const ECG_NEW_WINDOW_MS = MS_PER_DAY;
+
+/** Device verdict → the calm, device-attributed verdict key for the card body. */
+const ECG_VERDICT_KEYS: Record<
+  NonNullable<DailyDigestEcg["deviceVerdict"]>,
+  string
+> = {
+  IRREGULAR: "daily.item.ecgNewRecording.verdict.irregular",
+  NOT_DETECTED: "daily.item.ecgNewRecording.verdict.notDetected",
+  INCONCLUSIVE: "daily.item.ecgNewRecording.verdict.inconclusive",
+};
+
+/**
+ * The one ECG "new recording" item (§3.5.3). Gated on the `insights` module
+ * (the ECG viewer's own gate). Fires ONLY when the freshest recording landed
+ * within the last day — a calm "a new ECG recording is ready to view" pointer
+ * into the viewer. NON-DIAGNOSTIC: the body echoes ONLY the RECORDING DEVICE's
+ * verdict, attributed to the device; HealthLog never interprets the trace (the
+ * DTO carries no waveform). The 24h window caps it at one/day and retires it on
+ * its own without a persisted seen-marker.
+ */
+function buildEcgNewRecordingItem(
+  ecg: DailyDigestEcg | null | undefined,
+  modules: DigestModuleMap,
+  now: Date,
+  t: Translate,
+): PriorityItem | null {
+  if (!moduleEnabled(modules, "insights")) return null;
+  if (!ecg) return null;
+  const age = now.getTime() - ecg.recordedAt.getTime();
+  // Skip a future-dated row (clock skew) and anything older than the window.
+  if (age < 0 || age > ECG_NEW_WINDOW_MS) return null;
+
+  const verdictKey = ecg.deviceVerdict
+    ? ECG_VERDICT_KEYS[ecg.deviceVerdict]
+    : null;
+  const body = verdictKey
+    ? t("daily.item.ecgNewRecording.bodyVerdict", { verdict: t(verdictKey) })
+    : t("daily.item.ecgNewRecording.body");
+
+  return {
+    kind: "ecg_new_recording",
+    title: t("daily.item.ecgNewRecording.title"),
+    body,
+    status: "info",
+    actions: [
+      {
+        labelKey: "daily.action.viewEcg",
+        intent: "ecg.view",
+        href: "/insights#ecg",
+      },
+    ],
+    moduleKey: "insights",
+  };
+}
+
+/**
  * The push / lock-screen line: prefer the warmer cached briefing lead, fall
  * back to the top signal's headline, then a deterministic score floor, then
  * the honest all-clear. NEVER a fresh AI call — every branch reads cache or a
@@ -392,6 +473,13 @@ export function buildDailyDigest(
     t,
   );
   if (checkin) worthALook.push(checkin);
+  const ecg = buildEcgNewRecordingItem(
+    input.latestEcg,
+    input.modules,
+    input.now,
+    t,
+  );
+  if (ecg) worthALook.push(ecg);
   const preventive = buildPreventiveCareItem(input.preventiveDue, t);
   if (preventive) worthALook.push(preventive);
 

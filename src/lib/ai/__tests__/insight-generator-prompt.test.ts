@@ -52,6 +52,22 @@ describe("scope-hardened system prompt", () => {
     expect(prompt).toMatch(/verschreibst NICHT/);
   });
 
+  it("English prompt keeps ECG device-verdict-only and forbids interpretation", () => {
+    const prompt = getStrictInsightsSystemPrompt("en");
+    // Attribution + existence allowed; interpretation of the trace forbidden.
+    expect(prompt).toMatch(/ECG recordings are DEVICE-VERDICT ONLY/);
+    expect(prompt).toMatch(/never read morphology/i);
+    expect(prompt).toMatch(/never measure intervals/i);
+    expect(prompt).toMatch(/attribute its result to the device/i);
+  });
+
+  it("German prompt keeps ECG device-verdict-only and forbids interpretation", () => {
+    const prompt = getStrictInsightsSystemPrompt("de");
+    expect(prompt).toMatch(/EKG-Aufzeichnungen sind NUR das GERÄTE-URTEIL/);
+    expect(prompt).toMatch(/keine Morphologie/i);
+    expect(prompt).toMatch(/dem Gerät zuschreiben/i);
+  });
+
   it("English prompt instructs the doctor-consult call-to-action", () => {
     const prompt = getStrictInsightsSystemPrompt("en");
     expect(prompt).toMatch(/consult your doctor/i);

@@ -3856,6 +3856,13 @@
       },
       "waveform": {
         "ariaLabel": "ECG strip recorded {date}, duration {duration}, average heart rate {heartRate}, recorded result: {result}."
+      },
+      "crossLink": {
+        "title": "ECG recordings",
+        "recordingsOne": "1 recording on file.",
+        "recordingsMany": "{count} recordings on file.",
+        "latestResult": "Latest device result: {result}.",
+        "cta": "View recordings"
       }
     }
   },
@@ -8549,6 +8556,16 @@
         "title": "Time to check in on a plan",
         "body": "It's been about a week since you set this plan — keep it, adjust it, or let it go. No pressure either way.",
         "bodyPlan": "About a week ago you set: “{plan}”. Keep it, adjust it, or let it go — no pressure either way."
+      },
+      "ecgNewRecording": {
+        "title": "New ECG recording",
+        "body": "Your device recorded a new ECG — it's ready to view.",
+        "bodyVerdict": "Your device recorded a new ECG and reported: {verdict}.",
+        "verdict": {
+          "irregular": "a possible irregular rhythm",
+          "notDetected": "no irregular rhythm",
+          "inconclusive": "an inconclusive result"
+        }
       }
     },
     "action": {
@@ -8557,7 +8574,8 @@
       "viewCheckups": "View check-ups",
       "checkinKeep": "Keep it",
       "checkinAdjust": "Adjust",
-      "checkinLetGo": "Let it go"
+      "checkinLetGo": "Let it go",
+      "viewEcg": "View recording"
     },
     "today": {
       "scoreLabel": "Health score",
