@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.29.4] — 2026-07-17
+
+- **The workouts list shows the most recent first.** The list was ordered
+  oldest-first, so on a longer history the newest sessions never made the first
+  page. It now leads with the latest workout.
+- **Past-year dates show the year.** A workout from a previous year now carries
+  its year in the list, so a December date is never mistaken for this year's.
+
 ## [1.29.3] — 2026-07-17
 
 - **Hydration and micronutrients now have a home.** Your fluid intake and the

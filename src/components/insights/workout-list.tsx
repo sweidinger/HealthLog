@@ -87,10 +87,14 @@ function formatDate(
   timeFormat: TimeFormatPreference,
 ): string {
   const d = new Date(iso);
+  // Show the year whenever the workout is not from the current year, so a
+  // "Do., 16. Dez." from a previous year is never mistaken for this year's.
+  const showYear = d.getFullYear() !== new Date().getFullYear();
   return getDateTimeFormat(locale, {
     weekday: "short",
     day: "2-digit",
     month: "short",
+    ...(showYear ? { year: "numeric" as const } : {}),
     hour: "2-digit",
     minute: "2-digit",
     ...hourCycleOptions(timeFormat),

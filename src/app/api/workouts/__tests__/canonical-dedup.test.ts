@@ -147,6 +147,28 @@ describe("GET /api/workouts — canonical dedup", () => {
     expect(body.data.meta.droppedDuplicates).toBe(1);
   });
 
+  it("returns the most recent workouts first", async () => {
+    // The canonical picker re-sorts its output to startedAt ASC (its rollup
+    // contract), so the list route must re-establish newest-first AFTER the
+    // pick — otherwise offset/limit slice the OLDEST page and recent workouts
+    // never surface. These two never cluster (different day + slot).
+    const older = makeRow("w-old", "APPLE_HEALTH", "2026-01-01T07:00:00Z");
+    const newer = makeRow("w-new", "APPLE_HEALTH", "2026-07-01T07:00:00Z");
+    vi.mocked(prisma.workout.findMany).mockResolvedValueOnce([
+      newer,
+      older,
+    ] as never);
+
+    const res = await GET(makeRequest());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.workouts.map((w: { id: string }) => w.id)).toEqual([
+      "w-new",
+      "w-old",
+    ]);
+  });
+
   it("returns 401 without a session", async () => {
     vi.mocked(getSession).mockResolvedValueOnce(null);
     const res = await GET(makeRequest());
