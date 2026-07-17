@@ -119,7 +119,12 @@ export type InsightMetric =
   | "GRIP_STRENGTH"
   | "PAIN_NRS"
   | "WAIST_CIRCUMFERENCE"
-  | "WAIST_TO_HEIGHT";
+  | "WAIST_TO_HEIGHT"
+  // v1.29 — nutrient intake (hydration + micronutrients). Event/store
+  // driven (`NutrientIntakeDay`, not a `Measurement` series) like
+  // `MOOD` / `MEDICATION` / `WORKOUTS`, so it reads the boolean
+  // `hasNutrients` flag rather than a `summaries[…].count`.
+  | "NUTRIENTS";
 
 /**
  * Inputs the gating helper consumes. The `summaries` shape mirrors
@@ -141,6 +146,13 @@ export interface InsightInputs {
    * the helper treats `undefined` as "not available".
    */
   hasWorkouts?: boolean;
+  /**
+   * v1.29 — whether the user has at least one `NutrientIntakeDay` row in
+   * the probe window (any nutrient, any source). Drives the nutrients
+   * pill. Optional so legacy mounts keep type-checking; the helper
+   * treats `undefined` as "not available".
+   */
+  hasNutrients?: boolean;
 }
 
 /**
@@ -156,6 +168,7 @@ export function hasMetricData(
   if (metric === "MOOD") return inputs.hasMood;
   if (metric === "MEDICATION") return inputs.hasMedication;
   if (metric === "WORKOUTS") return inputs.hasWorkouts === true;
+  if (metric === "NUTRIENTS") return inputs.hasNutrients === true;
   if (metric === "BMI") {
     // BMI is derived from WEIGHT + the profile height. The chart
     // mounts even at one weight reading; the gate matches.

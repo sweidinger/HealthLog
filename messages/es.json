@@ -2486,6 +2486,7 @@
     "navPulse": "Pulso",
     "navMood": "Estado de ánimo",
     "navMedication": "Medicamento",
+    "navNutrients": "Nutrientes",
     "navBmi": "IMC",
     "navSleep": "Sueño",
     "navHrv": "VFC",
@@ -8548,7 +8549,36 @@
       "iodine": "Yodo",
       "water": "Agua",
       "caffeine": "Cafeína"
-    }
+    },
+    "page": {
+      "title": "Ingesta de nutrientes",
+      "description": "Hidratación e ingesta de vitaminas/minerales sincronizadas desde la app de salud de tu teléfono, más entradas manuales de agua.",
+      "moduleOffTitle": "La ingesta de nutrientes está desactivada",
+      "moduleOffDescription": "Activa el módulo de nutrientes para ver aquí la hidratación y la ingesta de vitaminas/minerales. Los datos sincronizados pasarán a formar parte del registro que el Coach puede leer.",
+      "moduleOffCta": "Activar nutrientes",
+      "emptyTitle": "Aún no hay datos de nutrientes",
+      "emptyDescription": "Los datos llegan desde la sincronización de la app de salud de tu teléfono o desde una entrada manual de agua."
+    },
+    "hydration": {
+      "referenceMeta": "Ingesta de referencia {value} {unit}/día · EFSA",
+      "quickAddTitle": "Añadir agua",
+      "quickAddCustomLabel": "Cantidad personalizada (mL)",
+      "quickAddCustomPlaceholder": "250",
+      "quickAddSubmit": "Añadir",
+      "quickAddError": "No se pudo guardar. Inténtalo de nuevo.",
+      "editTotal": "Editar el total de hoy"
+    },
+    "caffeine": {
+      "ceilingMeta": "Límite de seguridad {value} {unit}/día · EFSA"
+    },
+    "micronutrients": {
+      "title": "Vitaminas y minerales",
+      "rowMeta": "{days} de {window} días · ref. {value} {unit} (EFSA)",
+      "rowMetaNoRef": "{days} de {window} días",
+      "footer": "{tracked} de {total} micronutrientes registrados tienen datos en este periodo.",
+      "emptyTitle": "Aún no hay datos de micronutrientes sincronizados"
+    },
+    "sparseNote": "Un valor bajo aquí suele significar un registro escaso, no una deficiencia: los totales diarios de Apple Health reflejan lo que registraron tus apps, no la ingesta dietética total."
   },
   "daily": {
     "line": {

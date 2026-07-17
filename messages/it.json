@@ -2486,6 +2486,7 @@
     "navPulse": "Polso",
     "navMood": "Umore",
     "navMedication": "Farmaco",
+    "navNutrients": "Nutrienti",
     "navBmi": "IMC",
     "navSleep": "Sonno",
     "navHrv": "HRV",
@@ -8548,7 +8549,36 @@
       "iodine": "Iodio",
       "water": "Acqua",
       "caffeine": "Caffeina"
-    }
+    },
+    "page": {
+      "title": "Apporto di nutrienti",
+      "description": "Idratazione e apporto di vitamine/minerali sincronizzati dall'app salute del telefono, più le voci di acqua inserite manualmente.",
+      "moduleOffTitle": "L'apporto di nutrienti è disattivato",
+      "moduleOffDescription": "Attiva il modulo nutrienti per vedere qui idratazione e apporto di vitamine/minerali. I dati sincronizzati diventano parte dei dati che il Coach può leggere.",
+      "moduleOffCta": "Attiva nutrienti",
+      "emptyTitle": "Ancora nessun dato sui nutrienti",
+      "emptyDescription": "I dati arrivano dalla sincronizzazione dell'app salute del telefono o da una voce di acqua inserita manualmente."
+    },
+    "hydration": {
+      "referenceMeta": "Apporto di riferimento {value} {unit}/giorno · EFSA",
+      "quickAddTitle": "Aggiungi acqua",
+      "quickAddCustomLabel": "Quantità personalizzata (mL)",
+      "quickAddCustomPlaceholder": "250",
+      "quickAddSubmit": "Aggiungi",
+      "quickAddError": "Salvataggio non riuscito. Riprova.",
+      "editTotal": "Modifica il totale di oggi"
+    },
+    "caffeine": {
+      "ceilingMeta": "Limite di sicurezza {value} {unit}/giorno · EFSA"
+    },
+    "micronutrients": {
+      "title": "Vitamine e minerali",
+      "rowMeta": "{days} di {window} giorni · rif. {value} {unit} (EFSA)",
+      "rowMetaNoRef": "{days} di {window} giorni",
+      "footer": "{tracked} di {total} micronutrienti monitorati hanno dati in questo periodo.",
+      "emptyTitle": "Nessun dato sui micronutrienti ancora sincronizzato"
+    },
+    "sparseNote": "Un valore basso qui di solito indica una registrazione poco frequente, non una carenza — i totali giornalieri di Apple Health riflettono ciò che le tue app hanno registrato, non l'apporto alimentare totale."
   },
   "daily": {
     "line": {

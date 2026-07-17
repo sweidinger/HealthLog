@@ -2486,6 +2486,7 @@
     "navPulse": "Pulse",
     "navMood": "Mood",
     "navMedication": "Medication",
+    "navNutrients": "Nutrients",
     "navBmi": "BMI",
     "navSleep": "Sleep",
     "navHrv": "HRV",
@@ -8548,7 +8549,36 @@
       "iodine": "Iodine",
       "water": "Water",
       "caffeine": "Caffeine"
-    }
+    },
+    "page": {
+      "title": "Nutrient intake",
+      "description": "Hydration and vitamin/mineral intake synced from your phone's health app, plus manual water entries.",
+      "moduleOffTitle": "Nutrient intake is off",
+      "moduleOffDescription": "Turn on the nutrients module to see hydration and vitamin/mineral intake here. Synced intake becomes part of the record the Coach can read.",
+      "moduleOffCta": "Turn on nutrients",
+      "emptyTitle": "No nutrient data yet",
+      "emptyDescription": "Data arrives from your phone's health app sync or a manual water entry."
+    },
+    "hydration": {
+      "referenceMeta": "Reference intake {value} {unit}/day · EFSA",
+      "quickAddTitle": "Add water",
+      "quickAddCustomLabel": "Custom amount (mL)",
+      "quickAddCustomPlaceholder": "250",
+      "quickAddSubmit": "Add",
+      "quickAddError": "Couldn't save that — try again.",
+      "editTotal": "Edit today's total"
+    },
+    "caffeine": {
+      "ceilingMeta": "Safe-level ceiling {value} {unit}/day · EFSA"
+    },
+    "micronutrients": {
+      "title": "Vitamins & minerals",
+      "rowMeta": "{days} of {window} days · ref {value} {unit} (EFSA)",
+      "rowMetaNoRef": "{days} of {window} days",
+      "footer": "{tracked} of {total} tracked micronutrients have data in this window.",
+      "emptyTitle": "No micronutrient data synced yet"
+    },
+    "sparseNote": "A low number here usually means sparse logging, not a deficiency — Apple Health day totals reflect what your apps logged, not total dietary intake."
   },
   "daily": {
     "line": {

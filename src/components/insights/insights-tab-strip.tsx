@@ -343,6 +343,8 @@ export const SUB_PAGE_TABS: Record<
   mood: { labelKey: "insights.navMood", metric: "MOOD" },
   // ── events ──
   medications: { labelKey: "insights.navMedication", metric: "MEDICATION" },
+  // v1.29 — nutrient intake (hydration + micronutrients).
+  nutrients: { labelKey: "insights.navNutrients", metric: "NUTRIENTS" },
 };
 
 /**
@@ -364,6 +366,9 @@ const SUB_PAGE_MODULE: Partial<Record<SubPageSlug, ModuleKey>> = {
   "breathing-disturbances": "sleep",
   "blood-glucose": "glucose",
   workouts: "workouts",
+  // v1.29 — the nutrients pill gates on the opt-in `nutrients` module on
+  // top of the `hasNutrients` data floor.
+  nutrients: "nutrients",
 };
 
 /**
