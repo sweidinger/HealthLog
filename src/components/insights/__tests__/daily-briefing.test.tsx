@@ -247,7 +247,7 @@ describe("<DailyBriefing>", () => {
   it("renders the shimmer skeleton when loading", () => {
     const html = render(<DailyBriefing briefing={null} loading />);
     expect(html).toMatch(/data-slot="daily-briefing-skeleton"/);
-    expect(html).toContain("animate-pulse");
+    expect(html).toContain("skeleton-shimmer");
     // Empty state must NOT render while loading.
     expect(html).not.toContain('data-slot="daily-briefing-empty"');
   });

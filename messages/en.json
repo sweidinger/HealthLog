@@ -8607,7 +8607,9 @@
       "sleepPending": "Last night's sleep isn't in yet — today's read is provisional.",
       "readFullBriefing": "Read the full briefing",
       "worthALook": "Worth a look",
-      "allClear": "Nothing needs your attention today."
+      "allClear": "Nothing needs your attention today.",
+      "ringLink": "Open {metric} details",
+      "ringDosesAria": "{taken} of {scheduled} doses taken today"
     },
     "milestone": {
       "metric": {

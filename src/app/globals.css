@@ -897,6 +897,113 @@
   }
 }
 
+/*
+ * ── v1.29.0 cohesion pass — the daily-value system's finishing layer ──
+ *
+ * Four small surface treatments, all expressed through the existing
+ * token/motion vocabulary (no new palette, no new easing):
+ *
+ *   `.today-hero-wash`   — the ONE sanctioned Today atmosphere: a faint
+ *                          `--primary` mix over the theme `--card` in the
+ *                          `.wellness-tile` pattern, leaning toward the
+ *                          ring corner. Softer than the insights
+ *                          `.hero-gradient` (8% → 0 vs 18/12) so the
+ *                          promoted hero reads as the calm first surface,
+ *                          not a banner. Static — nothing to motion-gate.
+ *   `.metric-accent`     — per-metric identity edge for rail cards and
+ *                          cross-link pointers. Reads `--tile-hue` (set
+ *                          inline from the SAME `--tile-*` vocabulary the
+ *                          wellness tiles use; `--primary` for the med /
+ *                          coach family) and paints a soft inset edge on
+ *                          the reading side via a ::before overlay, so it
+ *                          composes with the card's own `shadow-sm` and
+ *                          the semantic status washes (which keep the
+ *                          background). No layout width is added; the
+ *                          inset shadow follows the border radius.
+ *   `.milestone-reached` — the S12 quiet celebration: a soft `--success`
+ *                          halo over the theme `--card` plus a one-shot
+ *                          spring reveal on the shared `--ring-spring`
+ *                          curve. No confetti, no loop; reduced-motion
+ *                          paints the settled card at once.
+ *   `.skeleton-shimmer`  — the loading language upgrade: a single soft
+ *                          `--foreground`-mix sweep across the muted
+ *                          skeleton base instead of the whole-block
+ *                          `animate-pulse` throb. Load-terminating by
+ *                          construction (skeletons unmount with the data);
+ *                          reduced-motion collapses to the static base.
+ */
+.today-hero-wash {
+  background: radial-gradient(
+    120% 150% at 100% 0%,
+    color-mix(in srgb, var(--primary) 8%, var(--card)) 0%,
+    var(--card) 60%
+  );
+}
+
+.metric-accent {
+  position: relative;
+}
+.metric-accent::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 3px 0 0 0
+    color-mix(in srgb, var(--tile-hue, var(--primary)) 55%, transparent);
+}
+
+.milestone-reached {
+  background: radial-gradient(
+    130% 130% at 85% 0%,
+    color-mix(in srgb, var(--success) 14%, var(--card)) 0%,
+    color-mix(in srgb, var(--success) 4%, var(--card)) 60%,
+    var(--card) 100%
+  );
+  animation: milestone-reached-in 640ms var(--ring-spring) both;
+}
+@keyframes milestone-reached-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .milestone-reached {
+    animation: none;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.skeleton-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 36%,
+    color-mix(in srgb, var(--foreground) 6%, transparent) 50%,
+    transparent 64%
+  );
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+    background-image: none;
+  }
+}
+
 /* ── Global reduced-motion backstop ──────────────────────────────────
  * Defensive catch-all so any animation/transition we forget to gate
  * per-component still collapses to near-instant when the user has asked

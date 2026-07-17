@@ -64,6 +64,27 @@ const STATUS_WASH: Record<PriorityItemStatus, string> = {
   destructive: "bg-destructive/10 border-destructive/25",
 };
 
+/**
+ * v1.29.0 cohesion — per-kind metric identity, drawn from the SAME `--tile-*`
+ * hue vocabulary the wellness tiles paint (plus `--primary` for the med and
+ * coach families, the tone every medication / coach surface in Insights
+ * already carries). Rendered as the `.metric-accent` inset edge — a quiet
+ * identity mark, never a fill — so a pulse card, an ECG card, and a dose card
+ * each read as their metric family while staying one card system.
+ *
+ * Deliberately partial: `preventive_care` and `sync_issue` are utility items
+ * with no metric family, and `milestone` belongs to the celebration layer
+ * (`.milestone-reached`, `--success`) rather than to one metric — those three
+ * stay accent-less. Values are token references only (`var(--…)`), the
+ * `RingTile` / `TILE_HUE` pattern.
+ */
+const KIND_HUE: Partial<Record<PriorityItemKind, string>> = {
+  dose_window: "var(--primary)",
+  coach_checkin: "var(--primary)",
+  ecg_new_recording: "var(--tile-strain)",
+  tension_window: "var(--tile-stress)",
+};
+
 export interface PriorityCardProps {
   item: PriorityItem;
   /**
@@ -82,16 +103,27 @@ export function PriorityCard({ item, onAction, className }: PriorityCardProps) {
   const { t } = useTranslations();
   const Icon = KIND_ICON[item.kind];
   const actions = item.actions.slice(0, 3);
+  const hue = KIND_HUE[item.kind];
+  // S12 — the quiet "reached" moment: the milestone card swaps the generic
+  // fade-in for the `.milestone-reached` treatment (a soft `--success` halo
+  // over the theme card + a one-shot spring reveal on `--ring-spring`;
+  // reduced-motion fallback lives beside the keyframes in globals.css). The
+  // halo's background wins over the status wash's flat `bg-success/10`
+  // (unlayered CSS beats utilities); the wash keeps the success border.
+  const isMilestone = item.kind === "milestone";
 
   return (
     <Card
       data-slot="priority-card"
       data-kind={item.kind}
       className={cn(
-        "animate-insight-in gap-2 py-3 md:gap-2 md:py-4",
+        isMilestone ? "milestone-reached" : "animate-insight-in",
+        "gap-2 py-3 md:gap-2 md:py-4",
         item.status ? STATUS_WASH[item.status] : null,
+        hue ? "metric-accent" : null,
         className,
       )}
+      style={hue ? ({ "--tile-hue": hue } as React.CSSProperties) : undefined}
     >
       <CardContent className="flex flex-col gap-2">
         <TileHeader icon={Icon} title={item.title} size="sm" />

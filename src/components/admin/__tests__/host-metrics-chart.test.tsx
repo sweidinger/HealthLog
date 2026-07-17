@@ -122,6 +122,6 @@ describe("<HostMetricsChart>", () => {
     const html = render(<HostMetricsChart />);
     expect(html).toContain("admin-host-metrics-heading");
     expect(html).toContain("Host load");
-    expect(html).toContain("animate-pulse");
+    expect(html).toContain("skeleton-shimmer");
   });
 });

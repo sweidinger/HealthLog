@@ -9,18 +9,19 @@ import { Skeleton } from "@/components/ui/skeleton";
  * two-card rail row — so the swap to the loaded hero happens in place
  * with zero layout shift.
  *
- * The shimmer rides the `<Skeleton>` primitive (`animate-pulse`), which is
- * reduced-motion safe by construction (`motion-reduce:animate-none`).
- * Always `aria-hidden`: the tile-strip skeleton alongside carries the
- * page's loading semantics, so a second announcement here would double up
- * for screen readers.
+ * The shimmer rides the `<Skeleton>` primitive (`skeleton-shimmer`), which
+ * is reduced-motion safe via its own CSS guard in `globals.css`. The shell
+ * carries the same `.today-hero-wash` atmosphere as the loaded hero so the
+ * swap changes content, never the surface. Always `aria-hidden`: the
+ * tile-strip skeleton alongside carries the page's loading semantics, so a
+ * second announcement here would double up for screen readers.
  */
 export function TodayHeroSkeleton() {
   return (
     <div
       aria-hidden="true"
       data-slot="today-hero-skeleton"
-      className="bg-card border-border relative isolate overflow-hidden rounded-xl border p-4 md:p-6"
+      className="bg-card today-hero-wash border-border relative isolate overflow-hidden rounded-xl border p-4 md:p-6"
     >
       <div className="flex flex-col gap-4 md:gap-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">

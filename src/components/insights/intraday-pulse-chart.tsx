@@ -90,7 +90,13 @@ export function IntradayPulseChart({
   return (
     <div
       data-slot="intraday-pulse-chart"
-      className="bg-card space-y-1.5 rounded-xl border p-4"
+      // `.metric-accent` — the tension layer's identity edge on the CARD
+      // shell only (`--tile-stress`, the wellness vocabulary's autonomic
+      // hue, per the plan's §3.6 hue-family call); the chart inside stays
+      // untouched. The same hue marks the `tension_window` rail card, so
+      // the two S11 surfaces read as one family.
+      className="bg-card metric-accent space-y-1.5 rounded-xl border p-4"
+      style={{ "--tile-hue": "var(--tile-stress)" } as React.CSSProperties}
     >
       <TileHeader icon={Activity} title={t("insights.intradayPulse.title")} />
       <p className="text-muted-foreground text-xs leading-snug">{caption}</p>

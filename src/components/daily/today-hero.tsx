@@ -14,6 +14,10 @@
  *   - the day's read: the health `ScoreRing` (`flat`, md) with its
  *     server-computed band and an honest provisional/final face — a null
  *     score paints the ring's own provisional state, never a zero;
+ *   - the selected score rings (v1.29.0): the user's Settings-picked hero
+ *     rings (max 3), resolved + gated by the dashboard snapshot and ordered
+ *     by `resolveHeroRingOrder`, as a calm sm-ring cluster beneath the
+ *     health ring — the picker configures the web hero again;
  *   - the briefing lead in plain language (via `ProseBlocks`, no markdown)
  *     with a "read the full briefing" affordance, plus the top signal's
  *     present-tense headline + delta when the digest carries one;
@@ -34,16 +38,54 @@ import { Moon } from "lucide-react";
 
 import { ScoreRing } from "@/components/insights/derived/score-ring";
 import type { ScoreBand } from "@/components/insights/derived/band-tokens";
+import type { RingHue } from "@/components/insights/derived/ring-hues";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { PriorityCard } from "@/components/daily/priority-card";
 import { useCoachCheckinAction } from "@/hooks/use-coach-checkin";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import type { ScoreRingId } from "@/lib/dashboard-layout";
+import type { DashboardScoreRing } from "@/lib/dashboard/score-rings";
 import {
   COACH_CHECKIN_KEEP_INTENT,
   COACH_CHECKIN_LETGO_INTENT,
   type DailyDigest,
 } from "@/lib/daily/digest";
+
+/**
+ * v1.29.0 — the selected score rings return to the hero. The maps mirror the
+ * retired legacy-hero renderer verbatim so every ring paints EXACTLY the hue,
+ * label, and destination its insights sibling owns:
+ *
+ *   - hue: the wellness-strip vocabulary (readiness green / recovery cyan /
+ *     sleep purple); `MED_COMPLIANCE` rides `meds` = `--primary`, the one
+ *     constant tone every medication surface paints — never a band gradient
+ *     that would flash yellow over pending morning doses.
+ *   - label: the existing score labels; the dose ring names today's tally.
+ *   - href: each ring opens the SAME detail surface the wellness strip /
+ *     medications page already own — the picker configures real navigation,
+ *     not decoration.
+ */
+const RING_HUE_BY_ID: Partial<Record<ScoreRingId, RingHue>> = {
+  READINESS: "readiness",
+  RECOVERY_SCORE: "recovery",
+  SLEEP_SCORE: "sleep",
+  MED_COMPLIANCE: "meds",
+};
+
+const RING_LABEL_KEY: Record<ScoreRingId, string> = {
+  READINESS: "insights.derived.composite.READINESS.title",
+  RECOVERY_SCORE: "insights.derived.scores.recovery",
+  SLEEP_SCORE: "insights.derived.composite.SLEEP_SCORE.title",
+  MED_COMPLIANCE: "dashboard.hero.ringDoses",
+};
+
+const RING_HREF: Record<ScoreRingId, string> = {
+  READINESS: "/insights/scores/readiness",
+  RECOVERY_SCORE: "/insights/scores/recovery",
+  SLEEP_SCORE: "/insights/scores/sleep",
+  MED_COMPLIANCE: "/medications",
+};
 
 /** Format the server-computed score delta as a signed, muted chip string. */
 function formatDelta(
@@ -56,7 +98,22 @@ function formatDelta(
   return t("daily.today.deltaVsBaseline", { delta: signed });
 }
 
-export function TodayHero({ digest }: { digest: DailyDigest }) {
+export function TodayHero({
+  digest,
+  rings = [],
+}: {
+  digest: DailyDigest;
+  /**
+   * v1.29.0 — the user's selected hero score rings (Settings → Dashboard),
+   * resolved server-side by the dashboard snapshot (data- and module-gated)
+   * and ordered by the caller via `resolveHeroRingOrder`, so the Settings
+   * picker's selection + drag order configure the web hero again. The
+   * health-score ring stays the hero's fixed anchor; this cluster renders
+   * beneath it. Optional and additive — an empty selection (or the legacy
+   * non-snapshot path) keeps the hero exactly as before.
+   */
+  rings?: DashboardScoreRing[];
+}) {
   const { t } = useTranslations();
   const { keep, letGo } = useCoachCheckinAction();
 
@@ -95,11 +152,12 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
       data-slot="today-hero"
       data-phase={digest.phase}
       className={cn(
-        // Same surface as the tile strip + chart cards: plain `bg-card`
-        // with the shared border/radius/padding — the calm token system,
-        // no gradient, no glow. The hero reads as one of the dashboard's
-        // own tiles, just larger.
-        "bg-card border-border relative isolate overflow-hidden rounded-xl border",
+        // The tile strip's surface plus the ONE sanctioned Today atmosphere:
+        // `.today-hero-wash` leans a faint `--primary` mix over the theme
+        // `--card` toward the ring corner (the `.wellness-tile` color-mix
+        // pattern, softer than the insights hero) so the promoted day's read
+        // carries a quiet identity without a banner gradient or glow.
+        "bg-card today-hero-wash border-border relative isolate overflow-hidden rounded-xl border",
         "p-4 md:p-6",
       )}
     >
@@ -150,15 +208,26 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
               at the same footprint, so the column never collapses. */}
           <div className="flex shrink-0 flex-col items-center gap-1 md:items-end">
             <div data-slot="today-hero-score">
-              <ScoreRing
-                score={digest.score?.value ?? null}
-                band={
-                  digest.score ? (digest.score.band as ScoreBand) : undefined
-                }
-                size="md"
-                flat
-                label={t("daily.today.scoreLabel")}
-              />
+              {/* The ring opens the Insights overview — the destination the
+                  health-score card owns — matching the cluster rings' tap
+                  behaviour, so every hero ring is a door, not a poster. */}
+              <Link
+                href="/insights"
+                aria-label={t("daily.today.ringLink", {
+                  metric: t("daily.today.scoreLabel"),
+                })}
+                className="focus-visible:ring-ring/50 block rounded-full focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <ScoreRing
+                  score={digest.score?.value ?? null}
+                  band={
+                    digest.score ? (digest.score.band as ScoreBand) : undefined
+                  }
+                  size="md"
+                  flat
+                  label={t("daily.today.scoreLabel")}
+                />
+              </Link>
             </div>
             {digest.score && digest.score.delta !== null ? (
               <span
@@ -170,6 +239,62 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
             ) : null}
           </div>
         </div>
+
+        {/* v1.29.0 — the selected score rings, resurfaced. A calm inline
+            cluster beneath the health ring (right-aligned with it on md+,
+            centred on mobile), honouring the user's Settings selection and
+            drag order. Each ring is the shared `ScoreRing` primitive in its
+            wellness hue, `flat` (no sweep) so the cluster paints at once,
+            and links to the metric's existing detail surface. Selection
+            empty → the row simply isn't there — the hero reads as before. */}
+        {rings.length > 0 ? (
+          <div
+            data-slot="today-hero-ring-cluster"
+            className="flex flex-wrap items-start justify-center gap-x-4 gap-y-3 md:justify-end"
+          >
+            {rings.map((ring) => (
+              <Link
+                key={ring.id}
+                href={RING_HREF[ring.id]}
+                data-slot="today-hero-ring"
+                data-ring={ring.id}
+                aria-label={t("daily.today.ringLink", {
+                  metric: t(RING_LABEL_KEY[ring.id]),
+                })}
+                className="focus-visible:ring-ring/50 rounded-full focus-visible:ring-2 focus-visible:outline-none"
+              >
+                {ring.id === "MED_COMPLIANCE" && ring.doses ? (
+                  // Dose ring — today's tally ("1/3") over the constant
+                  // med-family arc; the arc sweeps on the 0..100 progress.
+                  // `band="green"` stays the stable data-band anchor — a
+                  // pending morning dose is not an alert state.
+                  <ScoreRing
+                    score={ring.score}
+                    band="green"
+                    hue="meds"
+                    valueText={`${ring.doses.taken}/${ring.doses.scheduled}`}
+                    ariaLabel={t("daily.today.ringDosesAria", {
+                      taken: ring.doses.taken,
+                      scheduled: ring.doses.scheduled,
+                    })}
+                    size="sm"
+                    flat
+                    label={t(RING_LABEL_KEY[ring.id])}
+                  />
+                ) : (
+                  <ScoreRing
+                    score={ring.score}
+                    band={ring.band}
+                    size="sm"
+                    flat
+                    hue={RING_HUE_BY_ID[ring.id]}
+                    label={t(RING_LABEL_KEY[ring.id])}
+                  />
+                )}
+              </Link>
+            ))}
+          </div>
+        ) : null}
 
         {/* Freshness note (plan §2.4) — provisional day, last night's sleep
             not yet folded in. Muted, non-blocking, refreshes in place when

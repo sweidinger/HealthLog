@@ -89,9 +89,14 @@ export function EcgCrossLink({ enabled = true, className }: EcgCrossLinkProps) {
       href="/insights#ecg"
       data-slot="ecg-cross-link"
       className={cn(
-        "bg-card hover:bg-accent/40 focus-visible:ring-ring/50 block space-y-1.5 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none",
+        // `.metric-accent` — the heart-family identity edge (`--tile-strain`,
+        // the wellness vocabulary's cardiovascular hue), the same mark the
+        // `ecg_new_recording` rail card carries, so the two ECG pointers
+        // read as one family.
+        "bg-card hover:bg-accent/40 focus-visible:ring-ring/50 metric-accent block space-y-1.5 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none",
         className,
       )}
+      style={{ "--tile-hue": "var(--tile-strain)" } as React.CSSProperties}
     >
       <TileHeader icon={HeartPulse} title={t("insights.ecg.crossLink.title")} />
       <span className="text-muted-foreground block text-xs leading-snug">
