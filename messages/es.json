@@ -7693,7 +7693,10 @@
       "notePlaceholder": "Algo que valga la pena recordar (cifrado).",
       "saveError": "No se pudo guardar el episodio. Inténtalo de nuevo.",
       "parent": "Parte de",
-      "parentNone": "Sin vincular"
+      "parentNone": "Sin vincular",
+      "resolved": "Finalizó el",
+      "resolvedHelp": "Déjalo vacío mientras el episodio siga en curso.",
+      "markOngoing": "Aún en curso"
     },
     "sheet": {
       "title": "Registrar {date}",
@@ -7745,7 +7748,8 @@
       "direction": {
         "above": "por encima de lo habitual",
         "below": "por debajo de lo habitual"
-      }
+      },
+      "settled": "Durante este episodio nada destacó respecto a tu rango habitual."
     },
     "insights": {
       "title": "Tu historial de enfermedades",

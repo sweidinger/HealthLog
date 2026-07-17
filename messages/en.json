@@ -7693,7 +7693,10 @@
       "notePlaceholder": "Anything worth remembering (encrypted).",
       "saveError": "Could not save the episode. Please try again.",
       "parent": "Part of",
-      "parentNone": "Not linked"
+      "parentNone": "Not linked",
+      "resolved": "Ended on",
+      "resolvedHelp": "Leave empty while the episode is still ongoing.",
+      "markOngoing": "Still ongoing"
     },
     "sheet": {
       "title": "Log {date}",
@@ -7745,7 +7748,8 @@
       "direction": {
         "above": "above your usual",
         "below": "below your usual"
-      }
+      },
+      "settled": "Nothing notable stood out from your usual range during this episode."
     },
     "insights": {
       "title": "Your illness history",

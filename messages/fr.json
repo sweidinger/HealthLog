@@ -7693,7 +7693,10 @@
       "notePlaceholder": "Ce qui mérite d'être noté (chiffré).",
       "saveError": "Impossible d'enregistrer l'épisode. Veuillez réessayer.",
       "parent": "Fait partie de",
-      "parentNone": "Non lié"
+      "parentNone": "Non lié",
+      "resolved": "Terminée le",
+      "resolvedHelp": "Laissez vide tant que l'épisode est en cours.",
+      "markOngoing": "Toujours en cours"
     },
     "sheet": {
       "title": "Enregistrer {date}",
@@ -7745,7 +7748,8 @@
       "direction": {
         "above": "au-dessus de ton habituel",
         "below": "en dessous de ton habituel"
-      }
+      },
+      "settled": "Rien de notable ne s'est écarté de ta plage habituelle pendant cet épisode."
     },
     "insights": {
       "title": "Ton historique de maladies",

@@ -353,23 +353,18 @@ describe("resolveModuleEnabled — mcp module (opt-in, default-OFF)", () => {
 });
 
 describe("registry — opt-in marker", () => {
-  // The opt-in modules ship dark because they open an egress/attack surface or
-  // are highly sensitive: `mcp` (remote external-assistant endpoint),
-  // `environment` (outbound weather fetch tied to a coarse location),
-  // `inboundDocuments` (sends an uploaded clinical document to the OCR/vision
-  // provider), `mentalHealth` (a depression / anxiety self-assessment — at
-  // least as sensitive as mood, surfaced only on explicit opt-in), and
+  // v1.29.1 — a fresh install defaults every TRACKING module on so the app is
+  // usable without enabling each one. Only two modules stay opt-in (ship dark),
+  // because each opens a channel that must be turned on deliberately:
+  // `mcp` (the remote external-assistant endpoint — a new attack surface) and
   // `nutrients` (supplement-pattern intake synced from the phone's health
   // store — the device-side HealthKit permission is not visible consent to
-  // server/AI-side storage, so ingest refuses while off). Every other
-  // module is the default-on disabled-allowlist.
-  const OPT_IN_KEYS = new Set([
-    "mcp",
-    "environment",
-    "inboundDocuments",
-    "mentalHealth",
-    "nutrients",
-  ]);
+  // server/AI-side storage, so ingest refuses while off). Everything else —
+  // including `environment`, `inboundDocuments`, and `mentalHealth` — is the
+  // default-on disabled-allowlist now; their egress channels (the weather
+  // fetch, the document AI-read, the AI Coach exposure) are separately gated
+  // and stay off until explicitly configured.
+  const OPT_IN_KEYS = new Set(["mcp", "nutrients"]);
 
   it("marks only the egress-surface modules opt-in (every other is default-on)", () => {
     for (const key of MODULE_KEYS) {
@@ -379,35 +374,36 @@ describe("registry — opt-in marker", () => {
 });
 
 describe("resolveModuleEnabled — inboundDocuments module (document vault)", () => {
-  // Parked in code from v1.25.3; the document vault re-enabled it. Normal
-  // two-layer opt-in resolution applies again: dark by default, ON only on
-  // an explicit per-user opt-in, and an operator `false` still wins.
+  // v1.29.1 — default-on now (a fresh install can store + organise documents
+  // out of the box). The AI READ of a document is a separate per-user opt-in
+  // (`documentsAutoAiRead`), so default-on carries no silent egress. Normal
+  // disabled-allowlist resolution: ON unless an explicit `false`, operator wins.
   it("is no longer flagged as code-disabled in the registry", () => {
     expect(isCodeDisabledModule("inboundDocuments")).toBe(false);
   });
 
-  it("is OFF when no preference is recorded (opt-in ships dark)", () => {
+  it("is ON when no preference is recorded (default-on like its siblings)", () => {
     expect(
       resolveModuleEnabled("inboundDocuments", inputs(), false, ALL_AVAILABLE),
-    ).toBe(false);
-  });
-
-  it("is ON when the user opted in", () => {
-    expect(
-      resolveModuleEnabled(
-        "inboundDocuments",
-        inputs({ modulePreferences: { inboundDocuments: true } }),
-        false,
-        ALL_AVAILABLE,
-      ),
     ).toBe(true);
   });
 
-  it("stays OFF when the operator disabled it, even with a user opt-in", () => {
+  it("is OFF when the user opted out", () => {
     expect(
       resolveModuleEnabled(
         "inboundDocuments",
-        inputs({ modulePreferences: { inboundDocuments: true } }),
+        inputs({ modulePreferences: { inboundDocuments: false } }),
+        false,
+        ALL_AVAILABLE,
+      ),
+    ).toBe(false);
+  });
+
+  it("stays OFF when the operator disabled it, even without a user opt-out", () => {
+    expect(
+      resolveModuleEnabled(
+        "inboundDocuments",
+        inputs(),
         false,
         operator({ inboundDocuments: false }),
       ),

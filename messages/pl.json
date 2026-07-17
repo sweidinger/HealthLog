@@ -7693,7 +7693,10 @@
       "notePlaceholder": "Cokolwiek wartego zapamiętania (zaszyfrowane).",
       "saveError": "Nie udało się zapisać epizodu. Spróbuj ponownie.",
       "parent": "Część",
-      "parentNone": "Niepowiązane"
+      "parentNone": "Niepowiązane",
+      "resolved": "Zakończono",
+      "resolvedHelp": "Pozostaw puste, dopóki epizod nadal trwa.",
+      "markOngoing": "Nadal trwa"
     },
     "sheet": {
       "title": "Zapisz {date}",
@@ -7745,7 +7748,8 @@
       "direction": {
         "above": "powyżej Twojej normy",
         "below": "poniżej Twojej normy"
-      }
+      },
+      "settled": "Podczas tego epizodu nic istotnego nie odbiegało od twojego zwykłego zakresu."
     },
     "insights": {
       "title": "Twoja historia chorób",

@@ -59,6 +59,9 @@ export interface IllnessEpisodeCreateInput {
   type: IllnessType;
   lifecycle?: IllnessLifecycle;
   onsetAt?: string;
+  /** Optional resolved/end instant — set to backdate an already-recovered
+   *  episode captured after the fact; omit/null for an ongoing episode. */
+  resolvedAt?: string | null;
   parentConditionId?: string | null;
   note?: string | null;
 }

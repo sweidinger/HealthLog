@@ -118,11 +118,11 @@ export const MODULE_KEYS = [
   // re-enabling finds the rows intact.
   "medications",
   "doctorReport",
-  // v1.25.0 (W-ENV) — environmental-context module. Like `mcp`, it is OPT-IN
-  // (off by default): it performs an outbound weather fetch tied to where the
-  // user physically is (a coarse home / travel location), so opt-in is the
-  // right privacy default. With it off no job runs, no row is written, and no
-  // egress happens. The `optIn` marker inverts the per-user default.
+  // v1.25.0 (W-ENV) — environmental-context module. Default-on since v1.29.1
+  // (a fresh install is usable without a per-module opt-in); the outbound
+  // weather fetch only runs once the user configures a home / travel location
+  // on the Environment settings surface, so default-on carries no silent
+  // egress. No `optIn` marker → the ordinary default-on disabled-allowlist.
   "environment",
   // v1.22.0 — the remote Model Context Protocol endpoint (`/mcp`). Unlike
   // every other module this is OPT-IN (off by default): it exposes a new
@@ -133,19 +133,17 @@ export const MODULE_KEYS = [
   // reuses the existing module machinery unchanged.
   "mcp",
   // v1.25.0 (W-DOCS-IN) — inbound clinical documents (`/documents/inbound`).
-  // Like `mcp` this is OPT-IN (off by default): ingesting a doctor report /
-  // discharge letter sends the document to the configured OCR/vision provider,
-  // so the surface ships dark and the user turns it on deliberately. The
-  // `optIn` marker on its registry entry inverts the per-user default;
-  // everything else reuses the existing module machinery unchanged.
+  // Default-on since v1.29.1: a fresh install can store + organise documents
+  // in the vault out of the box. The AI READ of a document (the egress to the
+  // OCR/vision provider) stays a SEPARATE per-user opt-in
+  // (`documentsAutoAiRead`), so the module being on never egresses on its own.
+  // No `optIn` marker → the ordinary default-on disabled-allowlist.
   "inboundDocuments",
-  // v1.25.0 — opt-in mental-health screeners (PHQ-9 / GAD-7), beside mood
-  // tracking. OPT-IN (off by default): a depression / anxiety self-assessment
-  // is at least as sensitive as mood, so it ships dark and the user turns it on
-  // deliberately. The `optIn` marker inverts the per-user default; with it off
-  // the `/mental-wellbeing` surface is hidden from nav and the
-  // assessment routes refuse server-side. Item answers are always encrypted and
-  // always excluded from the AI Coach / MCP regardless of this toggle.
+  // v1.25.0 — mental-health screeners (WHO-5 / PHQ-9 / GAD-7), beside mood
+  // tracking. Default-on since v1.29.1: the `/mental-wellbeing` check-in is
+  // available on a fresh install alongside mood. Item answers are always
+  // encrypted and always excluded from the AI Coach / MCP regardless of this
+  // toggle. No `optIn` marker → the ordinary default-on disabled-allowlist.
   "mentalHealth",
   // v1.28 — micronutrient-intake sync (vitamins, minerals, water,
   // caffeine as day totals from Apple Health). OPT-IN (off by default):
@@ -296,11 +294,13 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       labelKey: "modules.environment.label",
       descriptionKey: "modules.environment.description",
       category: "device",
-      // Off by default: performs an outbound weather fetch tied to a coarse
-      // location, so it ships dark and the user turns it on deliberately. The
-      // home location + travel overrides + backfill live on the dedicated
-      // Environment settings surface (rendered when the module is on).
-      optIn: true,
+      // Default-on tracking module (v1.29.1): a fresh install ships the
+      // environmental-context surface usable without a separate opt-in. No
+      // egress happens until the user configures a home location on the
+      // dedicated Environment settings surface, so default-on carries no
+      // silent outbound fetch. The MCP endpoint + the auto-AI-read of
+      // documents stay opt-in — those are the surfaces that open an egress /
+      // attack channel the moment they are on.
     },
     mcp: {
       key: "mcp",
@@ -316,21 +316,22 @@ export const MODULE_REGISTRY: Readonly<Record<ModuleKey, ModuleDefinition>> =
       labelKey: "modules.inboundDocuments.label",
       descriptionKey: "modules.inboundDocuments.description",
       category: "tracking",
-      // Off by default: ingesting a clinical document egresses it to the
-      // configured OCR/vision provider, so the user turns it on deliberately.
-      optIn: true,
+      // Default-on tracking module (v1.29.1): a fresh install can store and
+      // organise clinical documents in the vault out of the box. The AI READ
+      // of a document (the egress to the OCR/vision provider) is a SEPARATE
+      // per-user opt-in (`documentsAutoAiRead`), so the module being on never
+      // sends a document anywhere on its own.
     },
     mentalHealth: {
       key: "mentalHealth",
       labelKey: "modules.mentalHealth.label",
       descriptionKey: "modules.mentalHealth.description",
       category: "tracking",
-      // Off by default: a depression / anxiety screener is highly sensitive, so
-      // the surface ships dark and the user opts in deliberately. Turning it on
-      // reveals the `/mental-wellbeing` check-in and lets the screener
-      // total ride the doctor-report export; item answers stay encrypted and
-      // off the AI Coach / MCP regardless.
-      optIn: true,
+      // Default-on tracking module (v1.29.1): the `/mental-wellbeing` check-in
+      // (WHO-5 / PHQ-9 / GAD-7) is available on a fresh install alongside mood.
+      // Item answers stay encrypted at rest and remain excluded from the AI
+      // Coach / MCP regardless of this toggle — the screener total may ride the
+      // doctor-report export the user assembles.
     },
     nutrients: {
       key: "nutrients",

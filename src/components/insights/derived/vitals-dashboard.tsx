@@ -288,7 +288,14 @@ function BaselineTile({
         framing={framing}
         directionSentiment={vitalSentiment(type)}
         provenance={
-          <MetricProvenance metric={metric} provenance={data.provenance} />
+          // v1.29.1 — the VITALS_BASELINE "typical range = median ± MAD" method
+          // caption is suppressed on its own tiles: it repeated across every
+          // vital baseline tile and read as out-of-place clutter at the top of
+          // the vitals surface. The dedicated bands (wrist-temp, stair speed,
+          // 6-min walk) keep their method copy — only VITALS_BASELINE is muted.
+          metric === "VITALS_BASELINE" ? undefined : (
+            <MetricProvenance metric={metric} provenance={data.provenance} />
+          )
         }
         footer={<LearnMoreLink concept={tileId} />}
       />

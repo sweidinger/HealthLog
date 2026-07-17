@@ -7693,7 +7693,10 @@
       "notePlaceholder": "Qualcosa da ricordare (cifrato).",
       "saveError": "Impossibile salvare l'episodio. Riprova.",
       "parent": "Parte di",
-      "parentNone": "Non collegato"
+      "parentNone": "Non collegato",
+      "resolved": "Conclusa il",
+      "resolvedHelp": "Lascia vuoto finché l'episodio è ancora in corso.",
+      "markOngoing": "Ancora in corso"
     },
     "sheet": {
       "title": "Registra {date}",
@@ -7745,7 +7748,8 @@
       "direction": {
         "above": "sopra il tuo solito",
         "below": "sotto il tuo solito"
-      }
+      },
+      "settled": "Durante questo episodio nulla si è discostato in modo evidente dal tuo intervallo abituale."
     },
     "insights": {
       "title": "La tua storia di malattie",
