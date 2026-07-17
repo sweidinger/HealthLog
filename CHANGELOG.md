@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.29.3] — 2026-07-17
+
+- **Hydration and micronutrients now have a home.** Your fluid intake and the
+  vitamins and minerals your device records get a surface. A water tile on the
+  dashboard shows the day's total with quick-add amounts; a new **Nutrients**
+  page under Insights shows hydration over the last month, caffeine when you
+  record it, and the vitamins and minerals you actually have data for — each
+  against its reference daily intake where that applies, shown as context, never
+  as a verdict. Manual water entries and device-synced totals now coexist
+  instead of overwriting each other. Sparse logging is never read as a
+  deficiency.
+
+  The nutrients tracking stays opt-in — enable it in Settings, or with the
+  one-tap prompt on the page. Device-synced micronutrients flow once your client
+  sends them.
+
+One migration (0249). No breaking changes.
+
 ## [1.29.2] — 2026-07-17
 
 - **WHOOP workouts carry their real sport.** WHOOP was the only source that
