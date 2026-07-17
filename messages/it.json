@@ -6056,6 +6056,7 @@
         "colAction": "Azione",
         "colDuration": "Durata",
         "colTraceId": "Trace",
+        "viewDetails": "Visualizza i dettagli di {action} alle {timestamp}",
         "showing": "Visualizzati {count} di un massimo di {bufferMax} eventi nel buffer",
         "empty": "Il buffer è vuoto",
         "emptyDescription": "Nessun evento corrisponde ancora ai filtri attuali. Premi Aggiorna dopo aver generato un po' di traffico.",

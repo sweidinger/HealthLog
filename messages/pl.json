@@ -6056,6 +6056,7 @@
         "colAction": "Akcja",
         "colDuration": "Czas trwania",
         "colTraceId": "Trace",
+        "viewDetails": "Zobacz szczegóły dla {action} o {timestamp}",
         "showing": "Wyświetlono {count} z maksymalnie {bufferMax} buforowanych zdarzeń",
         "empty": "Bufor jest pusty",
         "emptyDescription": "Żadne zdarzenie nie pasuje jeszcze do bieżących filtrów. Kliknij Odśwież po wygenerowaniu ruchu.",

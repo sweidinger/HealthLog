@@ -57,4 +57,16 @@ describe("<RangeBar>", () => {
     });
     expect(html).toContain("var(--destructive)");
   });
+
+  it("makes the marker focusable with a text alternative for the value + range (2026-07-17 a11y audit M1)", () => {
+    const html = render({
+      value: 72,
+      min: 60,
+      max: 100,
+      unit: "bpm",
+    });
+    expect(html).toContain('tabindex="0"');
+    expect(html).toContain('role="img"');
+    expect(html).toContain('aria-label="Current: 72 bpm');
+  });
 });

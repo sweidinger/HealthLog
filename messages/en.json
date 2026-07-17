@@ -6056,6 +6056,7 @@
         "colAction": "Action",
         "colDuration": "Duration",
         "colTraceId": "Trace",
+        "viewDetails": "View details for {action} at {timestamp}",
         "showing": "Showing {count} of up to {bufferMax} buffered events",
         "empty": "Buffer is empty",
         "emptyDescription": "No events match the current filters yet. Hit refresh after triggering some traffic.",

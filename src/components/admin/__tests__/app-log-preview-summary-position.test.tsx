@@ -98,3 +98,16 @@ describe("AppLogPreviewSection — summary lives outside the scroll wrapper", ()
     expect(wrapper![0]).not.toContain("app-log-preview-summary");
   });
 });
+
+describe("AppLogPreviewSection — row detail is keyboard-reachable (2026-07-17 a11y audit H1)", () => {
+  // The row itself stays a pointer-only convenience (`onClick` on the
+  // `<tr>`); a real `<button>` in the Action cell gives keyboard / switch
+  // users a focusable, activatable path to the same detail dialog.
+  it("renders a real button carrying the action label and a descriptive aria-label", () => {
+    const html = render();
+    expect(html).toMatch(
+      /<button[^>]*type="button"[^>]*>auth\.login\.success</,
+    );
+    expect(html).toContain('aria-label="View details for auth.login.success');
+  });
+});

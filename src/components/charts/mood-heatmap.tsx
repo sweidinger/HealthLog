@@ -90,6 +90,20 @@ export function MoodHeatmap({
     };
   }, [tooltip?.pinned]);
 
+  // 2026-07-17 a11y audit (M2) — Escape dismisses any open tooltip
+  // (pinned touch tooltip or keyboard-focus tooltip), matching 1.4.13's
+  // "dismissible" requirement.
+  useEffect(() => {
+    if (!tooltip) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setTooltip(null);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [tooltip]);
+
   const WEEKDAY_LABELS = [
     t("charts.weekdays.mon"),
     "",
@@ -287,7 +301,14 @@ export function MoodHeatmap({
                 // mood band reads clearly; only the no-entry cells stay the
                 // quiet `--secondary` empty-state tint.
                 fillOpacity={1}
-                className="cursor-pointer"
+                className="cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
+                // 2026-07-17 a11y audit (M2) — the aggregate `role="img"` on
+                // the whole SVG summarises the window; each cell also gets
+                // its own per-day label so a screen-reader / keyboard user
+                // can reach the same value the pointer-only tooltip shows.
+                tabIndex={0}
+                role="img"
+                aria-label={buildText()}
                 onPointerEnter={(e) => {
                   if (e.pointerType === "touch") return;
                   setTooltip({
@@ -308,6 +329,17 @@ export function MoodHeatmap({
                     text: buildText(),
                     pinned: true,
                   });
+                }}
+                onFocus={(e) => {
+                  const box = e.currentTarget.getBoundingClientRect();
+                  setTooltip({
+                    x: box.left + box.width / 2,
+                    y: box.top,
+                    text: buildText(),
+                  });
+                }}
+                onBlur={() => {
+                  setTooltip((prev) => (prev?.pinned ? prev : null));
                 }}
               />
             );

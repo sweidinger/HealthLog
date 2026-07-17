@@ -92,6 +92,17 @@ export function RangeBar({
         : t("targets.aboveTarget", { delta: delta.toFixed(1), unit })
       : t("targets.inTarget");
 
+  // 2026-07-17 a11y audit (M1) — the marker's value + range live only in a
+  // hover-only Radix tooltip on a non-focusable `<div>`. Reusing the same
+  // three strings the tooltip already shows as one text alternative closes
+  // 1.1.1 (no separate copy to drift) — `tabIndex` below makes the trigger
+  // focusable, which is all Radix needs to also open the tooltip on focus.
+  const markerAriaLabel = [
+    t("targets.currentValue", { value: String(value), unit }),
+    t("targets.targetRangeValue", { min: String(min), max: String(max), unit }),
+    deltaText,
+  ].join(". ");
+
   return (
     <div className="space-y-1.5" data-slot="target-range-bar">
       <div className="bg-muted/50 relative h-3 w-full overflow-hidden rounded-full">
@@ -129,7 +140,10 @@ export function RangeBar({
           <Tooltip>
             <TooltipTrigger asChild>
               <div
-                className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full border-2 shadow-sm"
+                role="img"
+                tabIndex={0}
+                aria-label={markerAriaLabel}
+                className="focus-visible:ring-ring absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full border-2 shadow-sm focus-visible:ring-2 focus-visible:outline-none"
                 style={{
                   left: `${position}%`,
                   backgroundColor: markerColor,
