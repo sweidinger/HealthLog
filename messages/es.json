@@ -2491,7 +2491,8 @@
         "documentsAttachedOne": "1 documento adjunto",
         "documentsAttachedOther": "{count} documentos adjuntos",
         "railBadge": "Chat de documento aislado",
-        "uploadError": "Error al subir. Inténtalo de nuevo."
+        "uploadError": "Error al subir. Inténtalo de nuevo.",
+        "notFoundError": "Ese enlace de documento ya no es válido: se iniciará un chat normal."
       }
     },
     "relativeJustNow": "ahora mismo",
@@ -8327,7 +8328,9 @@
       "openLabel": "Abrir {title}",
       "attachmentBadge": "Solo descarga",
       "uploading": "Subiendo…",
-      "dismissFailed": "Descartar subida fallida"
+      "dismissFailed": "Descartar subida fallida",
+      "processing": "Procesando…",
+      "ready": "Listo"
     },
     "error": {
       "fileTooLarge": "Este archivo supera el límite de {maxSize}.",

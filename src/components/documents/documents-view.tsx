@@ -65,6 +65,7 @@ import {
   countActiveFilters,
   documentDateKey,
   expandRangeSelection,
+  hasProcessingDocument,
   parseVaultSearchParams,
   resolveBulkShareDocuments,
   SHARE_LINK_MAX_DOCUMENTS,
@@ -213,6 +214,18 @@ export function DocumentsView() {
       ),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    // v1.29.x — the auto-index (+ optional AI summary) job that lands right
+    // after upload is fire-and-forget server-side; nothing pushes its
+    // completion to the client. Poll while any loaded document is still
+    // inside its recent-upload processing window (see `hasProcessingDocument`
+    // — bounded, so an old/permanently-unindexed document never keeps this
+    // polling forever) so the card's "Processing…" chip clears on its own
+    // once the index lands, without a manual refresh.
+    refetchInterval: (query) => {
+      const pages = query.state.data?.pages ?? [];
+      const docs = pages.flatMap((p) => p.documents);
+      return hasProcessingDocument(docs) ? 4000 : false;
+    },
   });
 
   const documents = useMemo(

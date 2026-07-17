@@ -16,8 +16,8 @@
  * whole card is clickable through an invisible overlay button; the checkbox
  * floats above it.
  */
-import { Download, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { Check, Download, Loader2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,14 @@ import { cn } from "@/lib/utils";
 import type { InboundDocumentDto } from "@/lib/validations/inbound-documents";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
 import type { UploadQueueItem } from "./use-document-upload";
-import { documentDateKey, formatBytes } from "./vault-utils";
+import {
+  documentDateKey,
+  formatBytes,
+  isDocumentProcessing,
+} from "./vault-utils";
+
+/** How long the "Ready" chip stays up after a card's index lands. */
+const READY_FLASH_MS = 3000;
 
 /** Press-and-hold duration that flips a touch press into "select" mode. */
 const LONG_PRESS_MS = 500;
@@ -85,6 +92,27 @@ export function DocumentCard({
   const size = formatBytes(document.byteSize, locale);
   const showFilename =
     document.filename !== null && document.filename !== title;
+
+  // v1.29.x — processing/ready feedback for the fire-and-forget auto-index
+  // (+ optional AI summary) job that starts right after upload. `processing`
+  // is derived straight from the DTO (bounded to the recent-upload window, so
+  // an old/never-indexed document never shows a stuck spinner). `justIndexed`
+  // is local: it flashes once when a card that WAS processing on this page
+  // transitions to indexed (the poll in `documents-view.tsx` is what drives
+  // the transition), then clears on its own — a one-time "it landed" cue,
+  // not a permanent tint.
+  const processing = isDocumentProcessing(document);
+  const wasProcessingRef = useRef(processing);
+  const [justIndexed, setJustIndexed] = useState(false);
+  useEffect(() => {
+    if (wasProcessingRef.current && !processing) {
+      setJustIndexed(true);
+      const timer = setTimeout(() => setJustIndexed(false), READY_FLASH_MS);
+      wasProcessingRef.current = processing;
+      return () => clearTimeout(timer);
+    }
+    wasProcessingRef.current = processing;
+  }, [processing]);
 
   return (
     <Card
@@ -163,7 +191,9 @@ export function DocumentCard({
           />
         </div>
         {document.conditionLinks.length > 0 ||
-        document.servingClass === "attachment" ? (
+        document.servingClass === "attachment" ||
+        processing ||
+        justIndexed ? (
           <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
             {document.conditionLinks.map((link) => (
               <span
@@ -180,6 +210,28 @@ export function DocumentCard({
               >
                 <Download className="size-3" aria-hidden />
                 {t("documents.card.attachmentBadge")}
+              </Badge>
+            ) : null}
+            {processing ? (
+              <Badge
+                variant="outline"
+                data-slot="document-processing-badge"
+                className="text-muted-foreground gap-1 text-xs font-normal"
+              >
+                <Loader2
+                  className="size-3 animate-spin motion-reduce:animate-none"
+                  aria-hidden
+                />
+                {t("documents.card.processing")}
+              </Badge>
+            ) : justIndexed ? (
+              <Badge
+                variant="outline"
+                data-slot="document-ready-badge"
+                className="text-success gap-1 text-xs font-normal"
+              >
+                <Check className="size-3" aria-hidden />
+                {t("documents.card.ready")}
               </Badge>
             ) : null}
           </div>

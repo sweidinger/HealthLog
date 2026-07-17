@@ -175,6 +175,57 @@ describe("<DocumentCard>", () => {
     expect(html).toContain("Untitled document");
     expect(html).toContain("ring-2");
   });
+
+  // v1.29.x — the fire-and-forget auto-index job is invisible otherwise;
+  // the card surfaces its own "Processing…" chip for a freshly uploaded,
+  // not-yet-indexed document. `isDocumentProcessing` (vault-utils) bounds
+  // this to the recent-upload window; `doc()`'s default `createdAt` is old,
+  // so the baseline render above never shows the chip.
+  it("shows the Processing… chip for a freshly uploaded, not-yet-indexed document", () => {
+    const html = render(
+      <DocumentCard
+        document={doc({
+          createdAt: new Date().toISOString(),
+          hasContentIndex: false,
+        })}
+        selected={false}
+        onToggleSelected={noop}
+        onOpen={noop}
+        highlighted={false}
+      />,
+    );
+    expect(html).toContain('data-slot="document-processing-badge"');
+    expect(html).toContain("Processing");
+  });
+
+  it("shows no Processing… chip once the document is indexed", () => {
+    const html = render(
+      <DocumentCard
+        document={doc({
+          createdAt: new Date().toISOString(),
+          hasContentIndex: true,
+        })}
+        selected={false}
+        onToggleSelected={noop}
+        onOpen={noop}
+        highlighted={false}
+      />,
+    );
+    expect(html).not.toContain('data-slot="document-processing-badge"');
+  });
+
+  it("shows no Processing… chip for an old, never-indexed document (outside the window)", () => {
+    const html = render(
+      <DocumentCard
+        document={doc({ hasContentIndex: false })}
+        selected={false}
+        onToggleSelected={noop}
+        onOpen={noop}
+        highlighted={false}
+      />,
+    );
+    expect(html).not.toContain('data-slot="document-processing-badge"');
+  });
 });
 
 describe("<UploadStateCard>", () => {

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { launchScopeToCoachScope } from "../coach-conversation";
+import {
+  dropInvalidStagedAttachments,
+  launchScopeToCoachScope,
+} from "../coach-conversation";
 import {
   metricScopeFromExplainer,
   scopeSourceFromMetricKey,
@@ -58,6 +61,30 @@ describe("metricScopeFromExplainer", () => {
   it("returns null for an unmapped / undefined token", () => {
     expect(metricScopeFromExplainer("walkingAsymmetry")).toBeNull();
     expect(metricScopeFromExplainer(undefined)).toBeNull();
+  });
+});
+
+describe("dropInvalidStagedAttachments (v1.29.x — bad ?doc= deep-link)", () => {
+  it("returns an empty list when nothing errored", () => {
+    expect(
+      dropInvalidStagedAttachments(["doc-1", "doc-2"], [false, false]),
+    ).toEqual([]);
+  });
+
+  it("returns the id whose detail fetch settled into an error (404)", () => {
+    expect(dropInvalidStagedAttachments(["bad-doc"], [true])).toEqual([
+      "bad-doc",
+    ]);
+  });
+
+  it("only drops the errored id, keeping a still-resolving/valid sibling staged", () => {
+    expect(
+      dropInvalidStagedAttachments(["good-doc", "bad-doc"], [false, true]),
+    ).toEqual(["bad-doc"]);
+  });
+
+  it("returns an empty list for an empty staged set", () => {
+    expect(dropInvalidStagedAttachments([], [])).toEqual([]);
   });
 });
 

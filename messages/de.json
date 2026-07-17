@@ -2491,7 +2491,8 @@
         "documentsAttachedOne": "1 Dokument angehängt",
         "documentsAttachedOther": "{count} Dokumente angehängt",
         "railBadge": "Dokument-Chat (abgeschottet)",
-        "uploadError": "Upload fehlgeschlagen. Bitte versuche es erneut."
+        "uploadError": "Upload fehlgeschlagen. Bitte versuche es erneut.",
+        "notFoundError": "Dieser Dokumentlink ist nicht mehr gültig – es wird ein normaler Chat gestartet."
       }
     },
     "relativeJustNow": "gerade eben",
@@ -8327,7 +8328,9 @@
       "openLabel": "{title} öffnen",
       "attachmentBadge": "Nur Download",
       "uploading": "Wird hochgeladen…",
-      "dismissFailed": "Fehlgeschlagenen Upload ausblenden"
+      "dismissFailed": "Fehlgeschlagenen Upload ausblenden",
+      "processing": "Wird verarbeitet…",
+      "ready": "Bereit"
     },
     "error": {
       "fileTooLarge": "Diese Datei ist größer als das Limit von {maxSize}.",

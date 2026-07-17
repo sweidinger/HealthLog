@@ -2491,7 +2491,8 @@
         "documentsAttachedOne": "1 document joint",
         "documentsAttachedOther": "{count} documents joints",
         "railBadge": "Chat de document cloisonné",
-        "uploadError": "Échec du téléversement. Veuillez réessayer."
+        "uploadError": "Échec du téléversement. Veuillez réessayer.",
+        "notFoundError": "Ce lien de document n'est plus valide : une conversation normale démarre à la place."
       }
     },
     "relativeJustNow": "à l’instant",
@@ -8327,7 +8328,9 @@
       "openLabel": "Ouvrir {title}",
       "attachmentBadge": "Téléchargement uniquement",
       "uploading": "Téléversement…",
-      "dismissFailed": "Ignorer le téléversement échoué"
+      "dismissFailed": "Ignorer le téléversement échoué",
+      "processing": "Traitement en cours…",
+      "ready": "Prêt"
     },
     "error": {
       "fileTooLarge": "Ce fichier dépasse la limite de {maxSize}.",

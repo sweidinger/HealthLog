@@ -2491,7 +2491,8 @@
         "documentsAttachedOne": "1 załączony dokument",
         "documentsAttachedOther": "Załączone dokumenty: {count}",
         "railBadge": "Odizolowany czat dokumentu",
-        "uploadError": "Przesyłanie nie powiodło się. Spróbuj ponownie."
+        "uploadError": "Przesyłanie nie powiodło się. Spróbuj ponownie.",
+        "notFoundError": "Ten link do dokumentu jest już nieprawidłowy – zamiast tego rozpoczynamy zwykły czat."
       }
     },
     "relativeJustNow": "przed chwilą",
@@ -8327,7 +8328,9 @@
       "openLabel": "Otwórz {title}",
       "attachmentBadge": "Tylko do pobrania",
       "uploading": "Przesyłanie…",
-      "dismissFailed": "Odrzuć nieudane przesyłanie"
+      "dismissFailed": "Odrzuć nieudane przesyłanie",
+      "processing": "Przetwarzanie…",
+      "ready": "Gotowe"
     },
     "error": {
       "fileTooLarge": "Ten plik przekracza limit {maxSize}.",

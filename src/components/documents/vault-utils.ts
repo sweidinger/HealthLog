@@ -116,6 +116,49 @@ export function documentMonthKey(doc: InboundDocumentDto): string {
 }
 
 /**
+ * v1.29.x — bounded "still processing" window for a freshly uploaded
+ * document. `hasContentIndex` stays false until the fire-and-forget
+ * auto-index job (`enqueueDocumentIndex`, `src/app/api/documents/inbound/
+ * route.ts`) lands — which for some documents (an unsupported format,
+ * content indexing disabled entirely) never happens. Gating the vault's
+ * "Processing…" chip AND the timeline's poll-while-processing refetch on
+ * this window means an old, permanently-unindexed document never shows a
+ * stuck spinner and the list never polls forever.
+ */
+export const RECENT_UPLOAD_WINDOW_MS = 3 * 60 * 1000;
+
+/** True while `createdAt` is still inside the recent-upload processing window. */
+export function isRecentlyUploaded(
+  createdAt: string,
+  now: number = Date.now(),
+): boolean {
+  const ageMs = now - new Date(createdAt).getTime();
+  return ageMs >= 0 && ageMs < RECENT_UPLOAD_WINDOW_MS;
+}
+
+/**
+ * True while a recently-uploaded document's content index has not landed
+ * yet — the vault card's "Processing…" chip condition.
+ */
+export function isDocumentProcessing(
+  doc: Pick<InboundDocumentDto, "createdAt" | "hasContentIndex">,
+  now: number = Date.now(),
+): boolean {
+  return !doc.hasContentIndex && isRecentlyUploaded(doc.createdAt, now);
+}
+
+/**
+ * Whether ANY document in the list is still inside its processing window —
+ * drives the vault list query's poll-while-indexing `refetchInterval`.
+ */
+export function hasProcessingDocument(
+  documents: InboundDocumentDto[],
+  now: number = Date.now(),
+): boolean {
+  return documents.some((doc) => isDocumentProcessing(doc, now));
+}
+
+/**
  * One flat item in the virtualized timeline: a month section label or one
  * grid row of up to `columns` documents. The virtualizer windows over this
  * flat list so the mounted DOM stays bounded regardless of corpus size.

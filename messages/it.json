@@ -2491,7 +2491,8 @@
         "documentsAttachedOne": "1 documento allegato",
         "documentsAttachedOther": "{count} documenti allegati",
         "railBadge": "Chat documento isolata",
-        "uploadError": "Caricamento non riuscito. Riprova."
+        "uploadError": "Caricamento non riuscito. Riprova.",
+        "notFoundError": "Quel link al documento non è più valido: verrà avviata una chat normale."
       }
     },
     "relativeJustNow": "proprio ora",
@@ -8327,7 +8328,9 @@
       "openLabel": "Apri {title}",
       "attachmentBadge": "Solo download",
       "uploading": "Caricamento…",
-      "dismissFailed": "Ignora caricamento non riuscito"
+      "dismissFailed": "Ignora caricamento non riuscito",
+      "processing": "Elaborazione…",
+      "ready": "Pronto"
     },
     "error": {
       "fileTooLarge": "Questo file supera il limite di {maxSize}.",

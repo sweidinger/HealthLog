@@ -2491,7 +2491,8 @@
         "documentsAttachedOne": "1 document attached",
         "documentsAttachedOther": "{count} documents attached",
         "railBadge": "Fenced document chat",
-        "uploadError": "Upload failed. Please try again."
+        "uploadError": "Upload failed. Please try again.",
+        "notFoundError": "That document link is no longer valid — starting a normal chat instead."
       }
     },
     "relativeJustNow": "just now",
@@ -8327,7 +8328,9 @@
       "openLabel": "Open {title}",
       "attachmentBadge": "Download only",
       "uploading": "Uploading…",
-      "dismissFailed": "Dismiss failed upload"
+      "dismissFailed": "Dismiss failed upload",
+      "processing": "Processing…",
+      "ready": "Ready"
     },
     "error": {
       "fileTooLarge": "This file is larger than the {maxSize} limit.",
