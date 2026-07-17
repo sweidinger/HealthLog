@@ -10,10 +10,14 @@
  * Upsert key = the composite PK (userId, day, nutrient). Re-post
  * replaces amount / unit / externalSourceVersion — last-writer-wins,
  * the day-total contract; per-entry status is `updated` then, never
- * `duplicate`. Per-entry failures come back `skipped` with a reason
- * (`unit_mismatch` | `value_out_of_range` | `day_invalid` |
- * `upsert_failed`), never a batch failure — the measurements-batch
- * posture.
+ * `duplicate`. Validation failures (`unit_mismatch` | `value_out_of_range`
+ * | `day_invalid`) are always isolated per entry. The DB write itself runs
+ * as two batched groups — a single indexed existence read splits valid
+ * entries into a bulk `createMany` (new pairs) and a `$transaction` of
+ * per-row updates (existing pairs), the measurements-batch shape. A write
+ * failure marks its WHOLE group `skipped upsert_failed` rather than
+ * isolating the one entry that would have caused it (unavoidable once the
+ * write is batched) — the request itself never fails.
  *
  * Module gate FIRST: the opt-in `nutrients` module (default off)
  * refuses ingest with the 403 `module.disabled` envelope, so a phone
@@ -130,10 +134,20 @@ async function postBatch(request: NextRequest): Promise<Response> {
   const { entries } = parsed.data;
   const dayCeiling = maxAcceptableDay(new Date());
 
-  const results: EntryResult[] = [];
+  const results: EntryResult[] = new Array(entries.length);
   const skipped: Array<{ index: number; reason: string }> = [];
   let inserted = 0;
   let updated = 0;
+
+  interface ValidEntry {
+    index: number;
+    day: string;
+    nutrient: (typeof entries)[number]["nutrient"];
+    amount: number;
+    unit: string;
+    externalSourceVersion: string | null;
+  }
+  const validEntries: ValidEntry[] = [];
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
@@ -144,86 +158,158 @@ async function postBatch(request: NextRequest): Promise<Response> {
     // unit skips the entry rather than converting.
     if (entry.unit !== definition.unit) {
       skipped.push({ index: i, reason: "unit_mismatch" });
-      results.push({ index: i, status: "skipped", reason: "unit_mismatch" });
+      results[i] = { index: i, status: "skipped", reason: "unit_mismatch" };
       continue;
     }
 
     if (entry.amount > definition.plausibleDailyMax) {
       skipped.push({ index: i, reason: "value_out_of_range" });
-      results.push({
+      results[i] = {
         index: i,
         status: "skipped",
         reason: "value_out_of_range",
-      });
+      };
       continue;
     }
 
     if (!isRealCalendarDay(entry.day) || entry.day > dayCeiling) {
       skipped.push({ index: i, reason: "day_invalid" });
-      results.push({ index: i, status: "skipped", reason: "day_invalid" });
+      results[i] = { index: i, status: "skipped", reason: "day_invalid" };
       continue;
     }
 
-    try {
-      // v1.29 — `source` joined the composite PK (migration 0249) so a
-      // manual water entry (source=MANUAL, written by
-      // `POST /api/nutrients/water`) coexists with the Apple-synced day
-      // total instead of one clobbering the other on the next sync. The
-      // batch route always owns the APPLE_HEALTH row — byte-identical
-      // upsert behaviour to pre-0249, just against the wider key.
-      const key = {
-        userId_day_nutrient_source: {
-          userId: user.id,
-          day: entry.day,
-          nutrient: entry.nutrient,
-          source: "APPLE_HEALTH",
-        },
-      };
+    validEntries.push({
+      index: i,
+      day: entry.day,
+      nutrient: entry.nutrient,
+      amount: entry.amount,
+      unit: definition.unit,
+      externalSourceVersion: entry.externalSourceVersion ?? null,
+    });
+  }
 
-      // Probe-then-upsert so the response reliably distinguishes
-      // `inserted` from `updated` (the mood-bulk pattern; two round
-      // trips per entry is fine under the 500-entry cap).
-      const existing = await prisma.nutrientIntakeDay.findUnique({
-        where: key,
-        select: { userId: true },
-      });
+  // v1.29 — `source` joined the composite PK (migration 0249) so a manual
+  // water entry (source=MANUAL, written by `POST /api/nutrients/water`)
+  // coexists with the Apple-synced day total instead of one clobbering the
+  // other on the next sync. The batch route always owns the APPLE_HEALTH
+  // row.
+  //
+  // Perf (measurements/batch shape): ONE indexed existence read replaces the
+  // per-entry probe-then-upsert (up to 1000 sequential round trips pre-fix).
+  // Genuinely new (day, nutrient) pairs land via a single chunked
+  // `createMany`; pairs that already exist update via a batched
+  // `$transaction` of per-row `update` calls (values differ per row, so a
+  // single bulk statement isn't available without raw SQL — this still
+  // collapses the per-entry PROBE, and pipelines the writes through one
+  // transaction instead of N standalone round trips).
+  if (validEntries.length > 0) {
+    const existing = await prisma.nutrientIntakeDay.findMany({
+      where: {
+        userId: user.id,
+        source: "APPLE_HEALTH",
+        OR: validEntries.map((e) => ({ day: e.day, nutrient: e.nutrient })),
+      },
+      select: { day: true, nutrient: true },
+    });
+    const existingKeys = new Set(
+      existing.map((r) => `${r.day}::${r.nutrient}`),
+    );
 
-      await prisma.nutrientIntakeDay.upsert({
-        where: key,
-        create: {
-          userId: user.id,
-          day: entry.day,
-          nutrient: entry.nutrient,
-          amount: entry.amount,
-          unit: definition.unit,
-          source: "APPLE_HEALTH",
-          externalSourceVersion: entry.externalSourceVersion ?? null,
-        },
-        update: {
-          // Last-writer-wins on the day total: iOS re-posts the current
-          // and previous local day on every sync as the totals grow.
-          amount: entry.amount,
-          unit: definition.unit,
-          externalSourceVersion: entry.externalSourceVersion ?? null,
-        },
-      });
+    const toInsert: ValidEntry[] = [];
+    const toUpdate: ValidEntry[] = [];
+    for (const e of validEntries) {
+      (existingKeys.has(`${e.day}::${e.nutrient}`) ? toUpdate : toInsert).push(
+        e,
+      );
+    }
 
-      if (existing) {
-        updated += 1;
-        results.push({ index: i, status: "updated" });
-      } else {
-        inserted += 1;
-        results.push({ index: i, status: "inserted" });
+    if (toInsert.length > 0) {
+      try {
+        const result = await prisma.nutrientIntakeDay.createMany({
+          data: toInsert.map((e) => ({
+            userId: user.id,
+            day: e.day,
+            nutrient: e.nutrient,
+            amount: e.amount,
+            unit: e.unit,
+            source: "APPLE_HEALTH" as const,
+            externalSourceVersion: e.externalSourceVersion,
+          })),
+          skipDuplicates: true,
+        });
+        inserted += result.count;
+        for (const e of toInsert) {
+          results[e.index] = { index: e.index, status: "inserted" };
+        }
+        // Rare race: a concurrent request claimed one of these keys between
+        // our existence probe and this createMany, so skipDuplicates
+        // silently dropped that row's write here — measurements/batch
+        // accepts the same count-only trade-off for its own createMany race.
+        // The DB itself stays consistent (the racing writer's row is
+        // stored); only this response's per-row label may be stale for
+        // that one entry.
+        if (result.count < toInsert.length) {
+          annotate({
+            action: { name: "nutrient.batch.insert_race" },
+            meta: { attempted: toInsert.length, stored: result.count },
+          });
+        }
+      } catch (err: unknown) {
+        console.error("[nutrient-batch] bulk insert failed", err);
+        for (const e of toInsert) {
+          skipped.push({ index: e.index, reason: "upsert_failed" });
+          results[e.index] = {
+            index: e.index,
+            status: "skipped",
+            reason: "upsert_failed",
+          };
+        }
       }
-    } catch (err: unknown) {
-      // The client-facing `reason` is a closed set (see the file header) —
-      // never echo raw exception text into it. Log the real error
-      // server-side only (SWC keeps `console.error` in prod) and return the
-      // fixed `upsert_failed` member.
-      console.error("[nutrient-batch] upsert failed", err);
-      const reason = "upsert_failed";
-      skipped.push({ index: i, reason });
-      results.push({ index: i, status: "skipped", reason });
+    }
+
+    if (toUpdate.length > 0) {
+      try {
+        await prisma.$transaction(
+          toUpdate.map((e) =>
+            prisma.nutrientIntakeDay.update({
+              where: {
+                userId_day_nutrient_source: {
+                  userId: user.id,
+                  day: e.day,
+                  nutrient: e.nutrient,
+                  source: "APPLE_HEALTH",
+                },
+              },
+              data: {
+                // Last-writer-wins on the day total: iOS re-posts the
+                // current and previous local day on every sync as the
+                // totals grow.
+                amount: e.amount,
+                unit: e.unit,
+                externalSourceVersion: e.externalSourceVersion,
+              },
+            }),
+          ),
+        );
+        updated += toUpdate.length;
+        for (const e of toUpdate) {
+          results[e.index] = { index: e.index, status: "updated" };
+        }
+      } catch (err: unknown) {
+        // The client-facing `reason` is a closed set (see the file header) —
+        // never echo raw exception text into it. Log the real error
+        // server-side only (SWC keeps `console.error` in prod) and return
+        // the fixed `upsert_failed` member.
+        console.error("[nutrient-batch] bulk update failed", err);
+        for (const e of toUpdate) {
+          skipped.push({ index: e.index, reason: "upsert_failed" });
+          results[e.index] = {
+            index: e.index,
+            status: "skipped",
+            reason: "upsert_failed",
+          };
+        }
+      }
     }
   }
 

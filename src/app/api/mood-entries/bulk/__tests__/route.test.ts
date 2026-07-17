@@ -1,6 +1,14 @@
 /**
  * v1.4.43 W6 — multi-issue 422 envelope on POST /api/mood-entries/bulk.
  * Preserves the `mood.bulk.invalid` errorCode meta passthrough.
+ *
+ * v1.29 perf fix — the per-entry `findUnique` probe was replaced by one
+ * batched `findMany` existence read (a single indexed OR query); every
+ * entry still resolves its own "inserted" / "duplicate" state through the
+ * exact key its dedup contract uses (externalId when carried, else the
+ * legacy date+moodLoggedAt key). The per-entry `upsert` + tombstone check +
+ * tag links + reverse push are unchanged. Tests below drive `findMany`
+ * instead of `findUnique`.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
@@ -8,7 +16,7 @@ import { NextRequest } from "next/server";
 vi.mock("@/lib/db", () => ({
   prisma: {
     moodEntry: {
-      findUnique: vi.fn(),
+      findMany: vi.fn(),
       upsert: vi.fn(),
     },
     auditLog: { create: vi.fn() },
@@ -82,6 +90,29 @@ function postReq(body: unknown): NextRequest {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+/**
+ * Shape the bulk pre-read's `findMany` select always returns. Every mocked
+ * "existing row" needs every field the route registers into its two lookup
+ * maps, even when a test only cares about one of them.
+ */
+function existingRow(overrides: {
+  id: string;
+  deletedAt?: Date | null;
+  source?: string;
+  externalId?: string | null;
+  date?: string;
+  moodLoggedAt?: Date;
+}) {
+  return {
+    deletedAt: null,
+    source: "MANUAL",
+    externalId: null,
+    date: "2026-05-16",
+    moodLoggedAt: new Date("2026-05-16T08:00:00.000Z"),
+    ...overrides,
+  };
 }
 
 beforeEach(() => {
@@ -190,7 +221,7 @@ describe("POST /api/mood-entries/bulk — 422 multi-issue (v1.4.43 W6)", () => {
 
 describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
   beforeEach(() => {
-    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([]);
     vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
       id: "entry-1",
     } as never);
@@ -272,11 +303,7 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     );
   });
 
-  it("dedups on (userId, source, externalId) when an entry carries externalId", async () => {
-    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue(null as never);
-    vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
-      id: "entry-ext",
-    } as never);
+  it("reads existence once via a batched findMany, keyed on (source, externalId) when the entry carries one", async () => {
     const res = await POST(
       postReq({
         entries: [
@@ -293,11 +320,15 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
       data: { inserted: number; entries: Array<{ externalId?: string }> };
     };
     expect(json.data.inserted).toBe(1);
-    // The probe + upsert both key on the externalId compound, not the
-    // legacy wall-clock tuple.
-    const probeWhere = vi.mocked(prisma.moodEntry.findUnique).mock.calls[0]?.[0]
-      ?.where as Record<string, unknown>;
-    expect(probeWhere).toHaveProperty("userId_source_externalId");
+    expect(prisma.moodEntry.findMany).toHaveBeenCalledTimes(1);
+    const findManyArg = vi.mocked(prisma.moodEntry.findMany).mock.calls[0]?.[0] as {
+      where: { userId: string; OR: Array<Record<string, unknown>> };
+    };
+    expect(findManyArg.where.OR).toContainEqual({
+      source: "MANUAL",
+      externalId: "ios-uuid-1",
+    });
+    // The per-entry upsert still keys on the compound unique.
     const upsertArg = vi.mocked(prisma.moodEntry.upsert).mock.calls[0]?.[0] as {
       where: Record<string, unknown>;
       create: { externalId: string | null; source: string };
@@ -308,11 +339,7 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     expect(json.data.entries[0].externalId).toBe("ios-uuid-1");
   });
 
-  it("uses the legacy wall-clock key and omits externalId when none is sent", async () => {
-    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue(null as never);
-    vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
-      id: "entry-legacy",
-    } as never);
+  it("keys the batched existence read on (date, moodLoggedAt) and omits externalId when none is sent", async () => {
     const res = await POST(
       postReq({
         entries: [{ mood: "OKAY", moodLoggedAt: "2026-05-16T08:00:00.000Z" }],
@@ -322,18 +349,30 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     const json = (await res.json()) as {
       data: { entries: Array<{ externalId?: string }> };
     };
-    const probeWhere = vi.mocked(prisma.moodEntry.findUnique).mock.calls[0]?.[0]
-      ?.where as Record<string, unknown>;
-    expect(probeWhere).toHaveProperty("userId_date_moodLoggedAt");
+    const findManyArg = vi.mocked(prisma.moodEntry.findMany).mock.calls[0]?.[0] as {
+      where: { OR: Array<Record<string, unknown>> };
+    };
+    expect(findManyArg.where.OR).toContainEqual({
+      date: "2026-05-16",
+      moodLoggedAt: new Date("2026-05-16T08:00:00.000Z"),
+    });
+    const upsertArg = vi.mocked(prisma.moodEntry.upsert).mock.calls[0]?.[0] as {
+      where: Record<string, unknown>;
+    };
+    expect(upsertArg.where).toHaveProperty("userId_date_moodLoggedAt");
     expect(json.data.entries[0].externalId).toBeUndefined();
   });
 
   it("reports a re-posted externalId entry as a duplicate (idempotent)", async () => {
-    // Probe finds the row → the response classifies it duplicate, not
-    // inserted, and the upsert update branch refreshes it in place.
-    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue({
-      id: "entry-ext",
-    } as never);
+    // The batched pre-read finds the row → the response classifies it
+    // duplicate, not inserted, and the upsert update branch refreshes it.
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([
+      existingRow({
+        id: "entry-ext",
+        source: "MANUAL",
+        externalId: "ios-uuid-1",
+      }),
+    ] as never);
     vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
       id: "entry-ext",
     } as never);
@@ -416,13 +455,17 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
 
 describe("POST /api/mood-entries/bulk — tombstone suppression", () => {
   it("keeps a tombstoned match deleted: true no-op reported as duplicate", async () => {
-    // A soft-deleted row under the probe key: the sync feed already
+    // A soft-deleted row under the batched pre-read: the sync feed already
     // surfaced the deletion to paired clients, so a stale offline re-post
     // must NOT resurrect it — and must not churn the hidden row either.
-    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue({
-      id: "entry-tomb",
-      deletedAt: new Date("2026-05-01T00:00:00.000Z"),
-    } as never);
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([
+      existingRow({
+        id: "entry-tomb",
+        deletedAt: new Date("2026-05-01T00:00:00.000Z"),
+        source: "MANUAL",
+        externalId: "ios-uuid-tomb",
+      }),
+    ] as never);
     const res = await POST(
       postReq({
         entries: [
@@ -455,10 +498,14 @@ describe("POST /api/mood-entries/bulk — tombstone suppression", () => {
   });
 
   it("still refreshes a LIVE match in place (duplicate + upsert runs)", async () => {
-    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue({
-      id: "entry-live",
-      deletedAt: null,
-    } as never);
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([
+      existingRow({
+        id: "entry-live",
+        deletedAt: null,
+        source: "MANUAL",
+        externalId: "ios-uuid-live",
+      }),
+    ] as never);
     vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
       id: "entry-live",
     } as never);
