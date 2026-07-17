@@ -35,6 +35,7 @@ function meds(over: Partial<MedsTodayBlock> = {}): MedsTodayBlock {
     nextDueAt: null,
     nextDueOverdue: false,
     nextDueMedicationName: null,
+    nextDueMedicationId: null,
     ...over,
   };
 }
@@ -201,6 +202,7 @@ describe("buildDailyDigest — worth-a-look rail item builders", () => {
         medsToday: meds({
           nextDueOverdue: true,
           nextDueMedicationName: "Ramipril",
+          nextDueMedicationId: "med-ramipril",
         }),
       }),
       t,
@@ -213,6 +215,24 @@ describe("buildDailyDigest — worth-a-look rail item builders", () => {
     expect(dose?.body).toBe("Ramipril is due today.");
     expect(dose?.actions).toHaveLength(1);
     expect(dose?.actions[0].intent).toBe("dose.log");
+    // Deep-links straight to the overdue medication's card, not the bare
+    // list — the tap should land on the right med.
+    expect(dose?.actions[0].href).toBe("/medications?highlight=med-ramipril");
+  });
+
+  it("falls back to the bare medications list when no id is known (older cached block)", () => {
+    const d = buildDailyDigest(
+      input({
+        medsToday: meds({
+          nextDueOverdue: true,
+          nextDueMedicationName: "Ramipril",
+          nextDueMedicationId: null,
+        }),
+      }),
+      t,
+    );
+    const dose = d.worthALook.find((i) => i.kind === "dose_window");
+    expect(dose?.actions[0].href).toBe("/medications");
   });
 
   it("does NOT emit a dose-window item when the medications module is off", () => {

@@ -258,6 +258,7 @@ function buildDoseWindowItem(
   if (!moduleEnabled(modules, "medications")) return null;
   if (!meds.nextDueOverdue) return null;
   const name = meds.nextDueMedicationName;
+  const id = meds.nextDueMedicationId;
   return {
     kind: "dose_window",
     title: t("daily.item.doseWindow.title"),
@@ -269,7 +270,12 @@ function buildDoseWindowItem(
       {
         labelKey: "daily.action.logDose",
         intent: "dose.log",
-        href: "/medications",
+        // Deep-link straight to the overdue medication's card so the tap
+        // lands on the right one instead of a generic list the user then
+        // has to scan (the id is known server-side whenever the name is).
+        // The bare list stays the honest fallback for an older cached
+        // block that predates the id field.
+        href: id ? `/medications?highlight=${id}` : "/medications",
       },
     ],
     moduleKey: "medications",

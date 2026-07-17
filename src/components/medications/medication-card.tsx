@@ -121,12 +121,18 @@ interface MedicationCardProps {
    * (`/medications/{id}?tab=verlauf`). The parent owns the navigation.
    */
   onOpenHistory: (med: Medication) => void;
+  /**
+   * v1.29.x — briefly ringed when this card is the Today digest's "Log
+   * dose" deep-link target (`/medications?highlight=<id>`).
+   */
+  highlighted?: boolean;
 }
 
 export function MedicationCard({
   medication,
   onEdit,
   onOpenHistory,
+  highlighted = false,
 }: MedicationCardProps) {
   const queryClient = useQueryClient();
   const { t, locale } = useTranslations();
@@ -463,6 +469,8 @@ export function MedicationCard({
 
   return (
     <MedicationCardBody
+      id={medication.id}
+      highlighted={highlighted}
       name={medication.name}
       dose={formatDose(medication.dose, t)}
       categoryLabel={categoryLabel}

@@ -896,9 +896,10 @@ export const dashboardSnapshotResponse = z
         nextDueAt: z.string().nullable(),
         nextDueOverdue: z.boolean(),
         nextDueMedicationName: z.string().nullable(),
+        nextDueMedicationId: z.string().nullable(),
       })
       .describe(
-        "Today's medication block: active-medication count, today-window tally (scheduled / taken / skipped), and the earliest next-due slot across active medications. `nextDueOverdue: true` marks an OPEN overdue slot (anchor passed, still inside its catch-up band). Staleness contract: the snapshot is cache-served, so a `nextDueAt` in the past with `nextDueOverdue: false` means the anchor passed after the snapshot was built — render the plain day summary, never an overdue state.",
+        "Today's medication block: active-medication count, today-window tally (scheduled / taken / skipped), and the earliest next-due slot across active medications. `nextDueOverdue: true` marks an OPEN overdue slot (anchor passed, still inside its catch-up band). `nextDueMedicationId` deep-links a consumer straight to the overdue medication's card. Staleness contract: the snapshot is cache-served, so a `nextDueAt` in the past with `nextDueOverdue: false` means the anchor passed after the snapshot was built — render the plain day summary, never an overdue state.",
       ),
     // Dashboard hero — health score (warm phase, nullable on a
     // rollup-coverage miss). Score + band + delta only; the per-pillar

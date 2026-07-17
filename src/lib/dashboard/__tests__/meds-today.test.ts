@@ -207,6 +207,7 @@ describe("buildMedsTodayBlock — tally", () => {
       nextDueAt: null,
       nextDueOverdue: false,
       nextDueMedicationName: null,
+      nextDueMedicationId: null,
     });
   });
 
@@ -259,6 +260,7 @@ describe("buildMedsTodayBlock — next due (real engine)", () => {
     expect(block.nextDueAt).toBe("2026-06-10T16:00:00.000Z");
     expect(block.nextDueOverdue).toBe(false);
     expect(block.nextDueMedicationName).toBe("Abendmittel");
+    expect(block.nextDueMedicationId).toBe("med-evening");
   });
 
   it("surfaces an open overdue slot (anchor passed, band still open)", async () => {
@@ -282,6 +284,7 @@ describe("buildMedsTodayBlock — next due (real engine)", () => {
     expect(block.nextDueAt).toBe("2026-06-10T09:00:00.000Z");
     expect(block.nextDueOverdue).toBe(true);
     expect(block.nextDueMedicationName).toBe("Mittagsmittel");
+    expect(block.nextDueMedicationId).toBe("med-1");
   });
 
   it("advances past a RESOLVED slot to the next future anchor", async () => {
@@ -329,5 +332,6 @@ describe("buildMedsTodayBlock — next due (real engine)", () => {
     expect(block.nextDueAt).toBeNull();
     expect(block.nextDueOverdue).toBe(false);
     expect(block.nextDueMedicationName).toBeNull();
+    expect(block.nextDueMedicationId).toBeNull();
   });
 });

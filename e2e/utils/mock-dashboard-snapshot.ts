@@ -279,6 +279,7 @@ export function buildMockSnapshot(
       nextDueAt: null,
       nextDueOverdue: false,
       nextDueMedicationName: null,
+      nextDueMedicationId: null,
     },
     healthScore: options.briefing
       ? { score: 84, band: "green", delta: -2, restMode: null }

@@ -169,6 +169,14 @@ export default function MedicationsPage() {
   // the param from the URL so a manual close + refresh stays closed.
   const shouldOpenFromUrl = searchParams?.get("new") === "1";
   const [dialogOpen, setDialogOpen] = useState(shouldOpenFromUrl);
+  // v1.29.x — the Today digest's "Log dose" action deep-links straight to
+  // the overdue medication (`/medications?highlight=<id>`) instead of the
+  // bare list. Read once on mount; a scroll effect below (once the list
+  // resolves) brings the target card into view and rings it briefly, then
+  // clears the state so the ring doesn't linger indefinitely.
+  const [highlightId, setHighlightId] = useState<string | null>(
+    () => searchParams?.get("highlight") ?? null,
+  );
   // v1.14.0 — the medications-page "Add" choice. The top button now offers
   // two paths: log an intake (incl. a backdated one) against an existing
   // medication, or create a new medication (the existing wizard).
@@ -212,6 +220,21 @@ export default function MedicationsPage() {
     // cheap. Mutation-driven invalidation still covers same-tab writes.
     refetchOnMount: "always",
   });
+
+  // v1.29.x — once the highlighted card is in the DOM, scroll it into view
+  // and clear the highlight state after a few seconds so the ring is a
+  // one-time "you tapped here" cue, not a permanent tint (mirrors the
+  // vault's upload-duplicate flash-highlight, `HIGHLIGHT_MS` in
+  // `use-document-upload.ts`).
+  useEffect(() => {
+    if (!highlightId || !medications?.length) return;
+    const card = document.querySelector(
+      `[data-medication-id="${highlightId}"]`,
+    );
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(timer);
+  }, [highlightId, medications]);
 
   // v1.16.11 — the same reminder-thresholds read the cards make (shared
   // key + cache), so the header's due-set derivation tiers late /
@@ -468,6 +491,7 @@ export default function MedicationsPage() {
         <MedicationTable
           activeMedications={activeMeds}
           inactiveMedications={inactiveMeds}
+          highlightId={highlightId}
         />
       ) : (
         <div className="space-y-6">
@@ -485,6 +509,7 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
+                      highlighted={highlightId === med.id}
                     />
                   ) : (
                     <MedicationCard
@@ -492,6 +517,7 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
+                      highlighted={highlightId === med.id}
                     />
                   ),
                 )}
@@ -513,6 +539,7 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
+                      highlighted={highlightId === med.id}
                     />
                   ) : (
                     <MedicationCard
@@ -520,6 +547,7 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
+                      highlighted={highlightId === med.id}
                     />
                   ),
                 )}
