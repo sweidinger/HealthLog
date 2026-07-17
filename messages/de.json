@@ -2184,6 +2184,7 @@
       "docScope": {
         "badge": "Dokument",
         "chattingAbout": "Chat über: {title}",
+        "chattingAboutMore": "Chat über: {titles} und {count} weitere",
         "notIndexedHint": "Lies dieses Dokument zuerst im Archiv mit KI ein, damit der Coach dazu antworten kann."
       },
       "actionsMenu": "Aktionen",
@@ -7692,7 +7693,10 @@
       "notePlaceholder": "Was erwähnenswert ist (verschlüsselt).",
       "saveError": "Die Episode konnte nicht gespeichert werden. Bitte erneut versuchen.",
       "parent": "Teil von",
-      "parentNone": "Nicht verknüpft"
+      "parentNone": "Nicht verknüpft",
+      "resolved": "Beendet am",
+      "resolvedHelp": "Leer lassen, solange die Episode noch andauert.",
+      "markOngoing": "Noch andauernd"
     },
     "sheet": {
       "title": "{date} erfassen",
@@ -7744,7 +7748,8 @@
       "direction": {
         "above": "über deinem Üblichen",
         "below": "unter deinem Üblichen"
-      }
+      },
+      "settled": "Während dieser Episode wich nichts Auffälliges von deinem üblichen Bereich ab."
     },
     "insights": {
       "title": "Dein Krankheitsverlauf",
@@ -8608,8 +8613,7 @@
       "readFullBriefing": "Vollständiges Briefing lesen",
       "worthALook": "Einen Blick wert",
       "allClear": "Heute braucht nichts deine Aufmerksamkeit.",
-      "ringLink": "{metric}-Details öffnen",
-      "ringDosesAria": "{taken} von {scheduled} Dosen heute genommen"
+      "ringLink": "{metric}-Details öffnen"
     },
     "milestone": {
       "metric": {

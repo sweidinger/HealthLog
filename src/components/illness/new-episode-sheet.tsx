@@ -83,6 +83,10 @@ export function NewEpisodeSheet({
   const [type, setType] = useState<IllnessType>("INFECTION");
   const [lifecycle, setLifecycle] = useState<IllnessLifecycle>("ACUTE");
   const [onset, setOnset] = useState(today);
+  // Resolved/end date — "" means the episode is still ongoing (open-ended).
+  // Backdating both onset and this end date lets a whole past episode be
+  // recorded after the fact.
+  const [resolved, setResolved] = useState("");
   const [parentId, setParentId] = useState<string>(NONE);
   const [note, setNote] = useState("");
 
@@ -96,6 +100,9 @@ export function NewEpisodeSheet({
     setType(editEpisode?.type ?? "INFECTION");
     setLifecycle(editEpisode?.lifecycle ?? "ACUTE");
     setOnset(editEpisode ? editEpisode.onsetAt.slice(0, 10) : today);
+    setResolved(
+      editEpisode?.resolvedAt ? editEpisode.resolvedAt.slice(0, 10) : "",
+    );
     setParentId(editEpisode?.parentConditionId ?? NONE);
     setNote(editEpisode?.note ?? "");
   } else if (!open && wasOpen) {
@@ -104,9 +111,17 @@ export function NewEpisodeSheet({
 
   const showParent = PARENTABLE.includes(lifecycle);
 
+  // The end date can never precede the start; the field is min-bounded to the
+  // onset, and this guard belts-and-braces the same invariant the server holds.
+  const endBeforeStart = resolved !== "" && resolved < onset;
+
   async function handleSave() {
-    if (label.trim() === "") return;
+    if (label.trim() === "" || endBeforeStart) return;
     const onsetAt = new Date(`${onset}T12:00:00`).toISOString();
+    // "" ⇒ ongoing (null clears any stored end). Anchor to local noon so the
+    // UTC instant lands on the intended calendar day regardless of offset.
+    const resolvedAt =
+      resolved === "" ? null : new Date(`${resolved}T12:00:00`).toISOString();
     const parentConditionId = showParent && parentId !== NONE ? parentId : null;
     try {
       if (isEdit && editEpisode) {
@@ -117,6 +132,7 @@ export function NewEpisodeSheet({
             type,
             lifecycle,
             onsetAt,
+            resolvedAt,
             parentConditionId,
             note: note.trim() === "" ? null : note,
           },
@@ -126,9 +142,8 @@ export function NewEpisodeSheet({
           label: label.trim(),
           type,
           lifecycle,
-          // Anchor to local noon so the UTC instant lands on the intended
-          // calendar day regardless of the viewer's offset.
           onsetAt,
+          resolvedAt,
           parentConditionId,
           note: note.trim() === "" ? null : note,
         });
@@ -154,7 +169,7 @@ export function NewEpisodeSheet({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={pending || label.trim() === ""}
+            disabled={pending || label.trim() === "" || endBeforeStart}
           >
             {t("common.save")}
           </Button>
@@ -238,6 +253,33 @@ export function NewEpisodeSheet({
             onChange={setOnset}
             className="max-w-44"
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="illness-resolved">{t("illness.new.resolved")}</Label>
+          <div className="flex items-center gap-2">
+            <DateField
+              id="illness-resolved"
+              value={resolved}
+              min={onset}
+              max={today}
+              onChange={setResolved}
+              className="max-w-44"
+            />
+            {resolved !== "" ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setResolved("")}
+              >
+                {t("illness.new.markOngoing")}
+              </Button>
+            ) : null}
+          </div>
+          <p className="text-muted-foreground text-xs">
+            {t("illness.new.resolvedHelp")}
+          </p>
         </div>
 
         <div className="space-y-1.5">

@@ -47,6 +47,7 @@ import {
   recomputeBucketsForMeasurement,
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 import {
   sweepStaleSleepSegments,
   type SleepSegmentSweep,
@@ -368,6 +369,16 @@ export async function syncUserOura(
   // Import everything the healthy collections returned regardless of whether a
   // sibling collection failed — one bad collection must not blank the source.
   const imported = await upsertOuraMeasurements(userId, result.readings);
+
+  // S4 — trigger the debounced morning refresh on a last-night segment landing
+  // (mirrors the Withings / WHOOP / Apple seams). Fires whether or not a
+  // sibling collection failed, since the sleep readings were still imported.
+  void maybeEnqueueMorningRefresh(
+    userId,
+    result.readings
+      .filter((r) => r.type === "SLEEP_DURATION")
+      .map((r) => r.measuredAt),
+  ).catch(() => {});
 
   if (result.failures.length > 0) {
     // Partial failure: keep the cycle honest. Record the failure and do NOT

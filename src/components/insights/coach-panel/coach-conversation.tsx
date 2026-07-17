@@ -954,20 +954,35 @@ export function CoachConversation({
   // ONLY the attached documents, and counts the attachments. Rendered in BOTH
   // surfaces (page + drawer) above the thread so the fence is always visible.
   // Null on a normal health thread.
-  const attachedCount = attachmentPills.length;
+  // v1.29.1 — name the attached document(s) in the banner so returning to a
+  // fenced thread later is clear about what it is about, instead of a generic
+  // "N documents attached". One doc → its title; two → both, comma-joined
+  // through the reused `docScope.chattingAbout` phrasing; three or more → the
+  // first two plus an "and N more" tail. Falls back to the plain count only when
+  // no title has resolved yet (a sticky-fenced thread whose attachment is still
+  // in flight), so the banner is never empty.
+  const attachedTitles = attachmentPills.map((pill) => pill.title);
+  const attachedCount = attachedTitles.length;
+  const docScopeText =
+    attachedCount === 0
+      ? t("insights.coach.attach.documentsAttachedOther", { count: 0 })
+      : attachedCount <= 2
+        ? t("insights.coach.docScope.chattingAbout", {
+            title: attachedTitles.join(", "),
+          })
+        : t("insights.coach.docScope.chattingAboutMore", {
+            titles: attachedTitles.slice(0, 2).join(", "),
+            count: attachedCount - 2,
+          });
   const docScopeBanner = fenced ? (
     <div
       data-slot="coach-doc-scope"
       className="border-border/70 bg-muted/20 flex shrink-0 flex-col gap-1 border-b px-4 py-2 sm:px-6"
     >
       <div className="flex min-w-0 items-center gap-2 text-xs">
-        <span className="bg-primary/15 text-primary inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-medium">
-          <Paperclip className="size-3" aria-hidden="true" />
-          {attachedCount === 1
-            ? t("insights.coach.attach.documentsAttachedOne")
-            : t("insights.coach.attach.documentsAttachedOther", {
-                count: attachedCount,
-              })}
+        <span className="bg-primary/15 text-primary inline-flex min-w-0 items-center gap-1 rounded-full px-2 py-0.5 font-medium">
+          <Paperclip className="size-3 shrink-0" aria-hidden="true" />
+          <span className="truncate">{docScopeText}</span>
         </span>
       </div>
       <p className="text-muted-foreground text-[11px] leading-snug">

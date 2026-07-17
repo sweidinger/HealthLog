@@ -2184,6 +2184,7 @@
       "docScope": {
         "badge": "Document",
         "chattingAbout": "Chatting about: {title}",
+        "chattingAboutMore": "Chatting about: {titles} and {count} more",
         "notIndexedHint": "Read this document with AI first in the vault so the Coach can answer about it."
       },
       "actionsMenu": "Actions",
@@ -7692,7 +7693,10 @@
       "notePlaceholder": "Anything worth remembering (encrypted).",
       "saveError": "Could not save the episode. Please try again.",
       "parent": "Part of",
-      "parentNone": "Not linked"
+      "parentNone": "Not linked",
+      "resolved": "Ended on",
+      "resolvedHelp": "Leave empty while the episode is still ongoing.",
+      "markOngoing": "Still ongoing"
     },
     "sheet": {
       "title": "Log {date}",
@@ -7744,7 +7748,8 @@
       "direction": {
         "above": "above your usual",
         "below": "below your usual"
-      }
+      },
+      "settled": "Nothing notable stood out from your usual range during this episode."
     },
     "insights": {
       "title": "Your illness history",
@@ -8608,8 +8613,7 @@
       "readFullBriefing": "Read the full briefing",
       "worthALook": "Worth a look",
       "allClear": "Nothing needs your attention today.",
-      "ringLink": "Open {metric} details",
-      "ringDosesAria": "{taken} of {scheduled} doses taken today"
+      "ringLink": "Open {metric} details"
     },
     "milestone": {
       "metric": {

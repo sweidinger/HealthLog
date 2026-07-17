@@ -27,11 +27,8 @@ import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import { cn } from "@/lib/utils";
 import {
   resolveDashboardLayout,
-  resolveHeroRingOrder,
-  HEALTH_SCORE_RING_ID,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
-import type { DashboardScoreRing } from "@/lib/dashboard/score-rings";
 import type { DashboardAnalyticsData as AnalyticsData } from "@/types/analytics";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -235,31 +232,10 @@ export default function DashboardPageClient() {
   const insightsEnabled = useModuleEnabled("insights");
   const digestQuery = useDailyDigest(isAuthenticated && insightsEnabled);
 
-  // v1.29.0 — the Settings-picked hero score rings, resurfaced on the Today
-  // hero. The snapshot resolves the selection server-side (data- and
-  // module-gated, selection order preserved); `resolveHeroRingOrder`
-  // reconciles the user's persisted drag order against what actually
-  // resolved — the SAME reconciler the Settings picker uses. The
-  // health-score ring stays the hero's fixed anchor, so its position in the
-  // stored order is skipped here; the legacy non-snapshot path carries no
-  // resolved rings and degrades to the health ring alone.
-  const heroScoreRings = useMemo<DashboardScoreRing[]>(() => {
-    const snap = snapshotQuery.data;
-    const rings = snap?.scoreRings ?? [];
-    if (rings.length === 0) return [];
-    const order = resolveHeroRingOrder(
-      snap?.layout?.heroRingOrder,
-      rings.map((r) => r.id),
-    );
-    const byId = new Map(rings.map((r) => [r.id, r]));
-    const ordered: DashboardScoreRing[] = [];
-    for (const id of order) {
-      if (id === HEALTH_SCORE_RING_ID) continue;
-      const ring = byId.get(id);
-      if (ring) ordered.push(ring);
-    }
-    return ordered;
-  }, [snapshotQuery.data]);
+  // v1.29.1 — the v1.29.0 selected-score-ring cluster is removed from the web
+  // hero (Marc, live-use: uneven, wasted tile space). The snapshot still
+  // resolves `scoreRings` server-side for the iOS selection contract; the web
+  // hero just no longer renders them, so no client-side ring ordering here.
 
   const analyticsSlimQuery = useAnalyticsQuery({
     slice: "summaries",
@@ -812,7 +788,7 @@ export default function DashboardPageClient() {
         (!mounted || digestQuery.isLoading ? (
           <TodayHeroSkeleton />
         ) : digestQuery.data ? (
-          <TodayHero digest={digestQuery.data} rings={heroScoreRings} />
+          <TodayHero digest={digestQuery.data} />
         ) : null)}
 
       {/* v1.18.6 — the spotlight tour launcher moved to the app-shell

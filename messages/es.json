@@ -2184,6 +2184,7 @@
       "docScope": {
         "badge": "Documento",
         "chattingAbout": "Hablando sobre: {title}",
+        "chattingAboutMore": "Hablando sobre: {titles} y {count} más",
         "notIndexedHint": "Primero lee este documento con IA en el archivo para que el Coach pueda responder sobre él."
       },
       "actionsMenu": "Acciones",
@@ -7692,7 +7693,10 @@
       "notePlaceholder": "Algo que valga la pena recordar (cifrado).",
       "saveError": "No se pudo guardar el episodio. Inténtalo de nuevo.",
       "parent": "Parte de",
-      "parentNone": "Sin vincular"
+      "parentNone": "Sin vincular",
+      "resolved": "Finalizó el",
+      "resolvedHelp": "Déjalo vacío mientras el episodio siga en curso.",
+      "markOngoing": "Aún en curso"
     },
     "sheet": {
       "title": "Registrar {date}",
@@ -7744,7 +7748,8 @@
       "direction": {
         "above": "por encima de lo habitual",
         "below": "por debajo de lo habitual"
-      }
+      },
+      "settled": "Durante este episodio nada destacó respecto a tu rango habitual."
     },
     "insights": {
       "title": "Tu historial de enfermedades",
@@ -8608,8 +8613,7 @@
       "readFullBriefing": "Leer el informe completo",
       "worthALook": "Merece un vistazo",
       "allClear": "Hoy nada necesita tu atención.",
-      "ringLink": "Abrir detalles de {metric}",
-      "ringDosesAria": "{taken} de {scheduled} dosis tomadas hoy"
+      "ringLink": "Abrir detalles de {metric}"
     },
     "milestone": {
       "metric": {

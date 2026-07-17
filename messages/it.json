@@ -2184,6 +2184,7 @@
       "docScope": {
         "badge": "Documento",
         "chattingAbout": "Stai parlando di: {title}",
+        "chattingAboutMore": "Stai parlando di: {titles} e altri {count}",
         "notIndexedHint": "Leggi prima questo documento con l'IA nell'archivio così il Coach può rispondere."
       },
       "actionsMenu": "Azioni",
@@ -7692,7 +7693,10 @@
       "notePlaceholder": "Qualcosa da ricordare (cifrato).",
       "saveError": "Impossibile salvare l'episodio. Riprova.",
       "parent": "Parte di",
-      "parentNone": "Non collegato"
+      "parentNone": "Non collegato",
+      "resolved": "Conclusa il",
+      "resolvedHelp": "Lascia vuoto finché l'episodio è ancora in corso.",
+      "markOngoing": "Ancora in corso"
     },
     "sheet": {
       "title": "Registra {date}",
@@ -7744,7 +7748,8 @@
       "direction": {
         "above": "sopra il tuo solito",
         "below": "sotto il tuo solito"
-      }
+      },
+      "settled": "Durante questo episodio nulla si è discostato in modo evidente dal tuo intervallo abituale."
     },
     "insights": {
       "title": "La tua storia di malattie",
@@ -8608,8 +8613,7 @@
       "readFullBriefing": "Leggi il briefing completo",
       "worthALook": "Da tenere d'occhio",
       "allClear": "Oggi nulla richiede la tua attenzione.",
-      "ringLink": "Apri i dettagli di {metric}",
-      "ringDosesAria": "{taken} di {scheduled} dosi assunte oggi"
+      "ringLink": "Apri i dettagli di {metric}"
     },
     "milestone": {
       "metric": {

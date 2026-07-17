@@ -57,6 +57,25 @@ function CorrelationBody({ value }: { value: IllnessCorrelationValue }) {
   // the engine on thin data — never a recovery claim, never a second gap.
   const sleep = value.sleepContext;
 
+  // The engine can return `ok` with NO findings — a mild episode where nothing
+  // strayed notably from the personal band, still active with no recovery gap,
+  // and no red flag. Without this the card body rendered empty under its "how
+  // it progressed" heading, reading as if nothing was recorded at all. Show a
+  // calm, honest line instead (retrospective, never a fabricated finding).
+  const hasContent =
+    value.redFlags.length > 0 ||
+    gap !== null ||
+    value.preOnset.length > 0 ||
+    value.nadir.length > 0;
+
+  if (!hasContent) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        {t("illness.correlation.settled")}
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-5">
       {value.redFlags.length > 0 ? (

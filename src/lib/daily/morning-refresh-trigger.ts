@@ -4,18 +4,18 @@
  * The nightly insight pre-pass (`insight-pregenerate`, 04:30) runs before last
  * night's sleep has synced, so the morning digest + health score reference the
  * day WITHOUT the current sleep. This trigger closes that gap the event-driven
- * way: when a completed sleep segment for LAST NIGHT lands from any of the
- * three sleep transports (Withings sync-sleep / the WHOOP sync / the
- * Apple-Health measurement batch), it enqueues a debounced
+ * way: when a completed sleep segment for LAST NIGHT lands from any sleep
+ * transport (Withings sync-sleep / the WHOOP sync / the Apple-Health
+ * measurement batch / Google Health / Fitbit / Oura / Polar), it enqueues a debounced
  * `morning-digest-refresh` job that re-runs the sleep-dependent generation and
  * flips the day `provisional → final`.
  *
  * There is no single canonical sleep-persist function in the tree — each
- * transport upserts through its own helper — so the three write seams each call
- * `maybeEnqueueMorningRefresh` with the measuredAt of every sleep row they just
+ * transport upserts through its own helper — so every write seam calls
+ * `maybeEnqueueMorningRefresh` with the measuredAt of every sleep row it just
  * wrote. The debounce (queue `singletonKey` + the `User.morningDigestRefreshedOn`
- * marker) collapses the many samples of one night, and across all three
- * sources, into ONE refresh per user per local morning.
+ * marker) collapses the many samples of one night, and across all sources,
+ * into ONE refresh per user per local morning.
  *
  * Timezone correctness is load-bearing: "last night" is judged in the user's
  * PROFILE timezone, never UTC, so a 30-day backfill re-sync never re-triggers
@@ -76,24 +76,64 @@ export async function maybeEnqueueMorningRefresh(
   now: Date = new Date(),
 ): Promise<void> {
   try {
-    if (sleepMeasuredAts.length === 0) return;
+    // Gate 1 — nothing to refresh on. Every early return annotates a distinct
+    // `reason` so a real landing shows exactly which gate fired (the gates were
+    // silent before, so a "insight stuck on the nightly stamp" report could not
+    // be traced to a gate without a code change).
+    if (sleepMeasuredAts.length === 0) {
+      annotate({
+        action: { name: "daily.morning_refresh.skipped" },
+        meta: { reason: "no_sleep_rows" },
+      });
+      return;
+    }
 
     const modules = await resolveModuleMap(userId);
-    if (modules.sleep === false) return;
+    if (modules.sleep === false) {
+      annotate({
+        action: { name: "daily.morning_refresh.skipped" },
+        meta: { reason: "sleep_module_off" },
+      });
+      return;
+    }
 
     const tz = await resolveUserTimezone(userId);
+    const todayKey = userDayKey(now, tz);
     const hasLastNight = sleepMeasuredAts.some((at) =>
       isLastNightLocal(at, now, tz),
     );
-    if (!hasLastNight) return;
+    if (!hasLastNight) {
+      // The most diagnostic gate: carry the samples' resolved LOCAL dates (up
+      // to 5) alongside today's key + tz, so the next real landing tells us
+      // exactly why `isLastNightLocal` rejected every segment (a tz mismatch, a
+      // backfill of only-old nights, or a clock-skewed future sample).
+      annotate({
+        action: { name: "daily.morning_refresh.skipped" },
+        meta: {
+          reason: "not_last_night",
+          today: todayKey,
+          tz,
+          sample_local_dates: sleepMeasuredAts
+            .slice(0, 5)
+            .map((at) => userDayKey(at, tz)),
+        },
+      });
+      return;
+    }
 
-    const localDate = userDayKey(now, tz);
+    const localDate = todayKey;
 
     const row = await prisma.user.findUnique({
       where: { id: userId },
       select: { morningDigestRefreshedOn: true },
     });
-    if (row?.morningDigestRefreshedOn === localDate) return;
+    if (row?.morningDigestRefreshedOn === localDate) {
+      annotate({
+        action: { name: "daily.morning_refresh.skipped" },
+        meta: { reason: "already_refreshed", local_date: localDate },
+      });
+      return;
+    }
 
     await enqueueMorningDigestRefresh({ userId, localDate });
     annotate({

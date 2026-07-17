@@ -33,6 +33,7 @@ import {
 } from "./sync";
 import { annotate } from "@/lib/logging/context";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 
 export async function syncUserSleep(
   userId: string,
@@ -78,6 +79,16 @@ export async function syncUserSleep(
     })
   ).imported;
   // `markSynced` is owned by the orchestrator (`syncUserFitbit`).
+
+  // S4 — trigger the debounced morning refresh on a last-night segment landing
+  // (mirrors the Withings / WHOOP / Apple seams).
+  void maybeEnqueueMorningRefresh(
+    userId,
+    readings
+      .filter((r) => r.type === "SLEEP_DURATION")
+      .map((r) => r.measuredAt),
+  ).catch(() => {});
+
   annotate({ action: { name: "fitbit.sleep.sync", details: { imported } } });
   return imported;
 }

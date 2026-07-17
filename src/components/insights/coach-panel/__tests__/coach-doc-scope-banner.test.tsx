@@ -18,7 +18,7 @@ import { CoachConversation } from "../coach-conversation";
  * When the Coach is fenced — here seeded via the `/coach?doc=<id>` hand-off,
  * which stages ONE document as a pending first-turn attachment before any
  * thread exists — the shared `<CoachConversation>` surface paints the
- * `coach-doc-scope` banner: a paperclip + "N documents attached" count and the
+ * `coach-doc-scope` banner: a paperclip + the attached document name(s) and the
  * honest fencing line (the coach runs WITHOUT access to health data and reads
  * only the attached documents). While a staged attachment is still being
  * content-indexed the banner adds the "still being indexed" hint. On a normal
@@ -73,8 +73,8 @@ describe("<CoachConversation> fenced banner (S7)", () => {
       makeClient(true),
     );
     expect(html).toContain('data-slot="coach-doc-scope"');
-    // Exactly one document staged → the singular count.
-    expect(html).toContain("1 document attached");
+    // Exactly one document staged → the banner names it, not a generic count.
+    expect(html).toContain(`Chatting about: ${TITLE}`);
     // The honest fencing line is always present on a fenced conversation.
     expect(html).toContain(FENCING_LINE);
     // Indexed → no "still being indexed" hint.

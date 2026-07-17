@@ -176,6 +176,38 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
     });
   });
 
+  it("forces the inactive Today digest to refetch so the dose-window item clears without a reload (v1.29.1)", async () => {
+    // The Today hero's digest reads meds from the same server snapshot the
+    // intake route hard-evicts, but it lives on the dashboard — unmounted while
+    // the user is on the medication card. Without an explicit inactive refetch
+    // the digest's "dose due" rail item lingered until a hard reload.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ data: { id: "evt-1" } }),
+        text: vi
+          .fn()
+          .mockResolvedValue(JSON.stringify({ data: { id: "evt-1" } })),
+      }),
+    );
+    const queryClient = fakeQueryClient();
+
+    await runRecordIntake({
+      medication,
+      skipped: false,
+      t,
+      queryClient,
+      setIntakeLoading: vi.fn(),
+      undoIntake: vi.fn(),
+    });
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.dailyDigest(),
+      refetchType: "inactive",
+    });
+  });
+
   it("sends the displayed dose's scheduledFor on the POST so the server marks THAT slot (v1.12.3)", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

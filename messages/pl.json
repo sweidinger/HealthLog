@@ -2184,6 +2184,7 @@
       "docScope": {
         "badge": "Dokument",
         "chattingAbout": "Rozmowa o: {title}",
+        "chattingAboutMore": "Rozmowa o: {titles} i {count} więcej",
         "notIndexedHint": "Najpierw wczytaj ten dokument z pomocą AI w archiwum, aby Coach mógł na jego temat odpowiadać."
       },
       "actionsMenu": "Działania",
@@ -7692,7 +7693,10 @@
       "notePlaceholder": "Cokolwiek wartego zapamiętania (zaszyfrowane).",
       "saveError": "Nie udało się zapisać epizodu. Spróbuj ponownie.",
       "parent": "Część",
-      "parentNone": "Niepowiązane"
+      "parentNone": "Niepowiązane",
+      "resolved": "Zakończono",
+      "resolvedHelp": "Pozostaw puste, dopóki epizod nadal trwa.",
+      "markOngoing": "Nadal trwa"
     },
     "sheet": {
       "title": "Zapisz {date}",
@@ -7744,7 +7748,8 @@
       "direction": {
         "above": "powyżej Twojej normy",
         "below": "poniżej Twojej normy"
-      }
+      },
+      "settled": "Podczas tego epizodu nic istotnego nie odbiegało od twojego zwykłego zakresu."
     },
     "insights": {
       "title": "Twoja historia chorób",
@@ -8608,8 +8613,7 @@
       "readFullBriefing": "Przeczytaj pełny briefing",
       "worthALook": "Warto sprawdzić",
       "allClear": "Dziś nic nie wymaga Twojej uwagi.",
-      "ringLink": "Otwórz szczegóły: {metric}",
-      "ringDosesAria": "Przyjęto {taken} z {scheduled} dawek dzisiaj"
+      "ringLink": "Otwórz szczegóły: {metric}"
     },
     "milestone": {
       "metric": {
