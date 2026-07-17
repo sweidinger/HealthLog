@@ -82,6 +82,10 @@ export interface UseWorkoutsResult {
   isLoading: boolean;
   isEmpty: boolean;
   error: Error | null;
+  /** True once the query has exhausted retries and settled on a failure. */
+  isError: boolean;
+  /** Re-runs the query — the retry action for a failed fetch. */
+  refetch: () => void;
 }
 
 export function useWorkouts(opts: UseWorkoutsOptions = {}): UseWorkoutsResult {
@@ -109,6 +113,8 @@ export function useWorkouts(opts: UseWorkoutsOptions = {}): UseWorkoutsResult {
     isLoading: query.isLoading,
     isEmpty,
     error: query.error as Error | null,
+    isError: query.isError,
+    refetch: () => void query.refetch(),
   };
 }
 

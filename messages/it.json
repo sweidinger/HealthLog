@@ -405,7 +405,6 @@
     "recentWorkouts": {
       "title": "Allenamenti recenti",
       "viewAll": "Vedi tutti",
-      "loading": "Caricamento allenamenti…",
       "empty": {
         "title": "Nessun allenamento",
         "cta": "Apri l'app Salute di Apple sull'iPhone per sincronizzare gli allenamenti."
@@ -3879,6 +3878,8 @@
       "caption": "La tua frequenza cardiaca durante il giorno, mediata in intervalli di 10 minuti.",
       "hourlyNote": "Media oraria per questo giorno — i giorni recenti mostrano il dettaglio completo a 10 minuti.",
       "empty": "Non ci sono ancora abbastanza misurazioni per questo giorno per mostrarne l'andamento.",
+      "coverageOne": "Basato su 1 misurazione in {hours}h.",
+      "coverageMany": "Basato su {count} misurazioni in {hours}h.",
       "baseline": "Riposo",
       "today": "Oggi",
       "previousDay": "Giorno precedente",

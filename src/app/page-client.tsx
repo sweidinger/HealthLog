@@ -35,6 +35,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { ChartErrorBoundary } from "@/components/charts/chart-error-state";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
@@ -790,8 +791,11 @@ export default function DashboardPageClient() {
           decision 1). Renders the S1 daily digest: the day's read, the
           honest score/freshness face, and the worth-a-look rail. Shimmer
           skeleton while the cached digest loads; a genuinely empty account
-          degrades to nothing (the hero itself returns null). The dense
-          tile grid + charts below are untouched. */}
+          degrades to nothing (the hero itself returns null). A FAILED fetch
+          is a distinct state from that honest empty degrade — it renders
+          `<QueryErrorCard>` with a retry action rather than silently
+          falling through to nothing. The dense tile grid + charts below
+          are untouched. */}
       {insightsEnabled &&
         // `!mounted` pins the SSR pass AND the first hydration render to the
         // skeleton (v1.16.4 pattern): the digest query rehydrates from the
@@ -800,6 +804,8 @@ export default function DashboardPageClient() {
         // skeleton — a text-content hydration mismatch (React #418).
         (!mounted || digestQuery.isLoading ? (
           <TodayHeroSkeleton />
+        ) : digestQuery.isError ? (
+          <QueryErrorCard onRetry={() => digestQuery.refetch()} />
         ) : digestQuery.data ? (
           <TodayHero digest={digestQuery.data} />
         ) : null)}

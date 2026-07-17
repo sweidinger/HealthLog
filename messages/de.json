@@ -405,7 +405,6 @@
     "recentWorkouts": {
       "title": "Letzte Workouts",
       "viewAll": "Alle anzeigen",
-      "loading": "Workouts werden geladen…",
       "empty": {
         "title": "Noch keine Workouts",
         "cta": "Öffne die Apple-Health-App auf dem iPhone, damit Workouts hier erscheinen."
@@ -3879,6 +3878,8 @@
       "caption": "Dein Puls über den Tag, gemittelt in 10-Minuten-Schritten.",
       "hourlyNote": "Stündlicher Durchschnitt für diesen Tag — aktuelle Tage zeigen das volle 10-Minuten-Detail.",
       "empty": "Für diesen Tag noch nicht genug Pulswerte, um den Tagesverlauf zu zeigen.",
+      "coverageOne": "Basierend auf 1 Messung über {hours}h.",
+      "coverageMany": "Basierend auf {count} Messungen über {hours}h.",
       "baseline": "Ruhe",
       "today": "Heute",
       "previousDay": "Vorheriger Tag",

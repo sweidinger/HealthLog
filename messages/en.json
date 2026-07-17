@@ -405,7 +405,6 @@
     "recentWorkouts": {
       "title": "Recent workouts",
       "viewAll": "View all",
-      "loading": "Loading workouts…",
       "empty": {
         "title": "No workouts yet",
         "cta": "Open Apple Health on your iPhone to sync workouts here."
@@ -3879,6 +3878,8 @@
       "caption": "Your heart rate through the day, averaged in 10-minute steps.",
       "hourlyNote": "Showing this day's hourly average — recent days show the full 10-minute detail.",
       "empty": "Not enough heart-rate readings for this day to show its shape yet.",
+      "coverageOne": "Based on 1 reading across {hours}h.",
+      "coverageMany": "Based on {count} readings across {hours}h.",
       "baseline": "Resting",
       "today": "Today",
       "previousDay": "Previous day",

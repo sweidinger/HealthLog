@@ -405,7 +405,6 @@
     "recentWorkouts": {
       "title": "Ostatnie treningi",
       "viewAll": "Zobacz wszystkie",
-      "loading": "Wczytywanie treningów…",
       "empty": {
         "title": "Brak treningów",
         "cta": "Otwórz aplikację Apple Zdrowie na iPhonie, aby zsynchronizować treningi."
@@ -3879,6 +3878,8 @@
       "caption": "Twoje tętno w ciągu dnia, uśrednione w 10-minutowych odcinkach.",
       "hourlyNote": "Pokazano średnią godzinową dla tego dnia — ostatnie dni pokazują pełny, 10-minutowy szczegół.",
       "empty": "Za mało pomiarów z tego dnia, aby pokazać jego przebieg.",
+      "coverageOne": "Na podstawie 1 pomiaru w ciągu {hours}h.",
+      "coverageMany": "Na podstawie {count} pomiarów w ciągu {hours}h.",
       "baseline": "Spoczynek",
       "today": "Dziś",
       "previousDay": "Poprzedni dzień",

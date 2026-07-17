@@ -405,7 +405,6 @@
     "recentWorkouts": {
       "title": "Entrenamientos recientes",
       "viewAll": "Ver todos",
-      "loading": "Cargando entrenamientos…",
       "empty": {
         "title": "Aún no hay entrenamientos",
         "cta": "Abre la app Apple Salud en el iPhone para sincronizar los entrenamientos."
@@ -3879,6 +3878,8 @@
       "caption": "Tu frecuencia cardíaca a lo largo del día, promediada en tramos de 10 minutos.",
       "hourlyNote": "Mostrando el promedio por hora de este día — los días recientes muestran el detalle completo de 10 minutos.",
       "empty": "Aún no hay suficientes lecturas para este día para mostrar su forma.",
+      "coverageOne": "Basado en 1 lectura a lo largo de {hours}h.",
+      "coverageMany": "Basado en {count} lecturas a lo largo de {hours}h.",
       "baseline": "Reposo",
       "today": "Hoy",
       "previousDay": "Día anterior",
