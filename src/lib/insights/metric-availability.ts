@@ -123,7 +123,8 @@ export type InsightMetric =
   // v1.29 — nutrient intake (hydration + micronutrients). Event/store
   // driven (`NutrientIntakeDay`, not a `Measurement` series) like
   // `MOOD` / `MEDICATION` / `WORKOUTS`, so it reads the boolean
-  // `hasNutrients` flag rather than a `summaries[…].count`.
+  // `hasNutrients` flag rather than a `summaries[…].count` — and unlike
+  // those, the flag tracks the opt-in module toggle, not row presence.
   | "NUTRIENTS";
 
 /**
@@ -147,10 +148,13 @@ export interface InsightInputs {
    */
   hasWorkouts?: boolean;
   /**
-   * v1.29 — whether the user has at least one `NutrientIntakeDay` row in
-   * the probe window (any nutrient, any source). Drives the nutrients
-   * pill. Optional so legacy mounts keep type-checking; the helper
-   * treats `undefined` as "not available".
+   * v1.29 — whether the opt-in `nutrients` module is on. Drives the
+   * nutrients pill directly (no row-count floor on top): the module is
+   * a deliberate user choice, and the in-context enable CTA lives on
+   * `/insights/nutrients` itself, so the pill must stay reachable the
+   * moment the module is on even with zero rows recorded yet. Optional
+   * so legacy mounts keep type-checking; the helper treats `undefined`
+   * as "not available".
    */
   hasNutrients?: boolean;
 }

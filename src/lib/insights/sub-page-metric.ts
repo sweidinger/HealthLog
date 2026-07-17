@@ -138,8 +138,8 @@ const SUB_PAGE_METRIC = {
   // v1.29 — nutrient intake (hydration + micronutrients). Backed by
   // `NutrientIntakeDay`, not a `Measurement` series, so the metric list
   // stays empty like `medications` / `workouts`; the tab-strip pill gates
-  // on `hasNutrients` (threaded from a lightweight probe read) instead of
-  // a `summaries[…].count`.
+  // on `hasNutrients`, which tracks the opt-in module toggle rather than
+  // a `summaries[…].count` or a row-presence probe.
   nutrients: [],
 } as const satisfies Record<string, readonly string[]>;
 

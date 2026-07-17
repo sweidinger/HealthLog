@@ -366,8 +366,10 @@ const SUB_PAGE_MODULE: Partial<Record<SubPageSlug, ModuleKey>> = {
   "breathing-disturbances": "sleep",
   "blood-glucose": "glucose",
   workouts: "workouts",
-  // v1.29 — the nutrients pill gates on the opt-in `nutrients` module on
-  // top of the `hasNutrients` data floor.
+  // v1.29 — the nutrients pill gates on the opt-in `nutrients` module
+  // alone; there is no data floor on top (see `hasNutrients` in
+  // `insights-layout-shell.tsx` — reachability, not row count, is the
+  // gate once the user has opted in).
   nutrients: "nutrients",
 };
 
