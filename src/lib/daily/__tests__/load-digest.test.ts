@@ -35,9 +35,7 @@ vi.mock("@/lib/rollups/measurement-coverage", () => ({
 }));
 
 vi.mock("@/lib/insights/derived/baseline", () => ({
-  readDayMeanSeries: vi
-    .fn()
-    .mockResolvedValue({ points: [], source: "none" }),
+  readDayMeanSeries: vi.fn().mockResolvedValue({ points: [], source: "none" }),
 }));
 
 vi.mock("@/lib/analytics/intraday-pulse-io", () => ({

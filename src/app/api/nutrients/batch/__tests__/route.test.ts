@@ -113,9 +113,8 @@ beforeEach(() => {
   vi.mocked(prisma.nutrientIntakeDay.update).mockResolvedValue({} as never);
   // Real Prisma resolves every promise in the `$transaction([...])` array;
   // the mock does the same so the update path actually runs in these tests.
-  vi.mocked(prisma.$transaction).mockImplementation(
-    (async (ops: unknown[]) => Promise.all(ops)) as never,
-  );
+  vi.mocked(prisma.$transaction).mockImplementation((async (ops: unknown[]) =>
+    Promise.all(ops)) as never);
 });
 
 describe("POST /api/nutrients/batch — module gate", () => {

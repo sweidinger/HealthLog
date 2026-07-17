@@ -209,7 +209,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
   > = entries.map((entry) =>
     entry.externalId
       ? { source: entry.source, externalId: entry.externalId }
-      : { date: moodDateKey(entry.moodLoggedAt, tz), moodLoggedAt: entry.moodLoggedAt },
+      : {
+          date: moodDateKey(entry.moodLoggedAt, tz),
+          moodLoggedAt: entry.moodLoggedAt,
+        },
   );
   const existingRows =
     orClauses.length > 0
@@ -231,7 +234,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
     if (row.externalId !== null) {
       existingByExternalKey.set(`${row.source}::${row.externalId}`, row);
     }
-    existingByDateKey.set(`${row.date}::${row.moodLoggedAt.toISOString()}`, row);
+    existingByDateKey.set(
+      `${row.date}::${row.moodLoggedAt.toISOString()}`,
+      row,
+    );
   }
 
   for (let i = 0; i < entries.length; i++) {
@@ -271,8 +277,9 @@ async function postBulk(request: NextRequest): Promise<Response> {
       const existing =
         (entry.externalId
           ? existingByExternalKey.get(`${resolvedSource}::${entry.externalId}`)
-          : existingByDateKey.get(`${date}::${entry.moodLoggedAt.toISOString()}`)) ??
-        null;
+          : existingByDateKey.get(
+              `${date}::${entry.moodLoggedAt.toISOString()}`,
+            )) ?? null;
 
       // Tombstone suppression: a soft-deleted match stays deleted. The
       // user-facing DELETE route flips `deletedAt` so the `/api/sync/changes`

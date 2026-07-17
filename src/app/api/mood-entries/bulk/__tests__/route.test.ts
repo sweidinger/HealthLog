@@ -321,7 +321,8 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     };
     expect(json.data.inserted).toBe(1);
     expect(prisma.moodEntry.findMany).toHaveBeenCalledTimes(1);
-    const findManyArg = vi.mocked(prisma.moodEntry.findMany).mock.calls[0]?.[0] as {
+    const findManyArg = vi.mocked(prisma.moodEntry.findMany).mock
+      .calls[0]?.[0] as {
       where: { userId: string; OR: Array<Record<string, unknown>> };
     };
     expect(findManyArg.where.OR).toContainEqual({
@@ -349,7 +350,8 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     const json = (await res.json()) as {
       data: { entries: Array<{ externalId?: string }> };
     };
-    const findManyArg = vi.mocked(prisma.moodEntry.findMany).mock.calls[0]?.[0] as {
+    const findManyArg = vi.mocked(prisma.moodEntry.findMany).mock
+      .calls[0]?.[0] as {
       where: { OR: Array<Record<string, unknown>> };
     };
     expect(findManyArg.where.OR).toContainEqual({

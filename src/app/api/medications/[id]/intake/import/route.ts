@@ -99,6 +99,20 @@ export const POST = apiHandler(
     // so the rollup pass fires once per day rather than once per row.
     const touchedDays = new Set<string>();
 
+    // Perf — a CSV import can carry up to 1000 rows; the pre-fix loop ran a
+    // `findUnique` duplicate probe before every single `create`, up to 2000
+    // sequential round trips. Resolve `takenAt` + the dedup key for every
+    // row first, then read every key's existence in ONE indexed query
+    // (`idempotencyKey` carries its own unique index) before the write
+    // loop. `create` + `consumeForIntake` (inventory decrement) stay
+    // per-row — each has a real side effect keyed off the freshly-created
+    // event's id, so they aren't safely batchable without a deeper change
+    // to the inventory-consumption path.
+    interface PreparedIntake {
+      takenAt: Date;
+      idempotencyKey: string;
+    }
+    const prepared: PreparedIntake[] = [];
     for (const entry of entries) {
       // Parse as local datetime first; if invalid, fall back to CET offset.
       let takenAt = new Date(`${entry.datum}T${entry.uhrzeit}`);
@@ -115,10 +129,26 @@ export const POST = apiHandler(
         ? `import-${id}-${String(entry.zaehler)}`
         : `import-${id}-${takenAt.getTime()}`;
 
-      const existing = await prisma.medicationIntakeEvent.findUnique({
-        where: { idempotencyKey },
-      });
-      if (existing) {
+      prepared.push({ takenAt, idempotencyKey });
+    }
+
+    const existingRows =
+      prepared.length > 0
+        ? await prisma.medicationIntakeEvent.findMany({
+            where: {
+              idempotencyKey: { in: prepared.map((p) => p.idempotencyKey) },
+            },
+            select: { idempotencyKey: true },
+          })
+        : [];
+    const existingKeys = new Set(
+      existingRows
+        .map((r) => r.idempotencyKey)
+        .filter((k): k is string => k !== null),
+    );
+
+    for (const { takenAt, idempotencyKey } of prepared) {
+      if (existingKeys.has(idempotencyKey)) {
         skippedDuplicates++;
         continue;
       }

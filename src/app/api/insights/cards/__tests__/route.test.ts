@@ -190,15 +190,15 @@ describe("GET /api/insights/cards", () => {
       pulseRows.push({ value: i < 3 ? 300 : 68, measuredAt: at });
     }
 
-    vi.mocked(prisma.measurement.findMany).mockImplementation(
-      (async (args: { where?: { type?: unknown } }) => {
-        // `readDayMeanSeries`'s live-fallback probes a single `type`
-        // equality filter; the manual WEIGHT/BP query below probes an
-        // `{ in: [...] }` list — the two calls are distinguishable by shape.
-        if (args?.where?.type === "PULSE") return pulseRows;
-        return [];
-      }) as never,
-    );
+    vi.mocked(prisma.measurement.findMany).mockImplementation((async (args: {
+      where?: { type?: unknown };
+    }) => {
+      // `readDayMeanSeries`'s live-fallback probes a single `type`
+      // equality filter; the manual WEIGHT/BP query below probes an
+      // `{ in: [...] }` list — the two calls are distinguishable by shape.
+      if (args?.where?.type === "PULSE") return pulseRows;
+      return [];
+    }) as never);
 
     const res = await callGet(makeReq());
     expect(res.status).toBe(200);
@@ -216,13 +216,12 @@ describe("GET /api/insights/cards", () => {
       .mocked(prisma.measurement.findMany)
       .mock.calls.find(
         (call) =>
-          typeof (call[0] as { where?: { type?: { in?: unknown[] } } })
-            ?.where?.type === "object",
+          typeof (call[0] as { where?: { type?: { in?: unknown[] } } })?.where
+            ?.type === "object",
       );
     expect(manualCall).toBeDefined();
-    const typeIn = (
-      manualCall?.[0] as { where: { type: { in: string[] } } }
-    ).where.type.in;
+    const typeIn = (manualCall?.[0] as { where: { type: { in: string[] } } })
+      .where.type.in;
     expect(typeIn).not.toContain("PULSE");
   });
 
