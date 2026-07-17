@@ -8331,6 +8331,10 @@
     },
     "detail": {
       "title": "Dettagli del documento",
+      "summary": {
+        "title": "Riepilogo",
+        "pending": "Il riepilogo è in preparazione."
+      },
       "loadError": "Impossibile caricare questo documento.",
       "saveError": "Impossibile salvare la modifica.",
       "deleteError": "Impossibile eliminare il documento.",

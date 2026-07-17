@@ -8331,6 +8331,10 @@
     },
     "detail": {
       "title": "Dokumentdetails",
+      "summary": {
+        "title": "Zusammenfassung",
+        "pending": "Die Zusammenfassung wird erstellt."
+      },
       "loadError": "Dieses Dokument konnte nicht geladen werden.",
       "saveError": "Die Änderung konnte nicht gespeichert werden.",
       "deleteError": "Das Dokument konnte nicht gelöscht werden.",

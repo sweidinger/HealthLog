@@ -114,6 +114,25 @@ export function decryptThumbnail(buf: Uint8Array): Buffer {
 }
 
 /**
+ * Encrypt a document's short plain-language summary into the `Bytes` payload
+ * the schema stores (`InboundDocument.summaryEncrypted`). Uses the shared
+ * AES-256-GCM string codec (`encrypt()` string → UTF-8 bytes), the same shape
+ * `DocumentContentIndex.textEncrypted` uses — so the standard key-rotation walk
+ * (`rotateBytesColumn`) covers it. The summary is descriptive PHI; same posture
+ * (versioned key id, fail-closed decrypt) as every other encrypted column.
+ */
+export function encryptDocumentSummary(
+  summary: string,
+): Uint8Array<ArrayBuffer> {
+  return encryptToBytes(summary);
+}
+
+/** Decrypt a stored document summary's `Bytes` payload. Throws on a bad key. */
+export function decryptDocumentSummary(buf: Uint8Array): string {
+  return decryptFromBytes(buf);
+}
+
+/**
  * Encrypt a staged fact's FHIR-staged payload into the `Bytes` column the
  * schema stores. The structured clinical values (diagnosis text, lab values,
  * medication names, stated codes) are PHI, so they ride the shared AES-256-GCM
@@ -217,6 +236,18 @@ export function serialiseDocumentDetail(
   // `factCount` excludes REJECTED facts (a rejected fact is discarded, not part
   // of the document's tally) so the badge matches the list query.
   const factCount = facts.filter((f) => f.status !== "REJECTED").length;
+  // Decrypt the persisted background summary for the detail view. A decrypt
+  // failure (a rotated-away legacy key) degrades to no summary rather than
+  // failing the whole detail load — the field is descriptive, not load-bearing,
+  // and the ciphertext is never returned (fail-closed to null).
+  let summary: string | null = null;
+  if (doc.summaryEncrypted && doc.summaryEncrypted.byteLength > 0) {
+    try {
+      summary = decryptDocumentSummary(doc.summaryEncrypted);
+    } catch {
+      summary = null;
+    }
+  }
   return {
     ...serialiseDocument(
       doc,
@@ -227,5 +258,9 @@ export function serialiseDocumentDetail(
       hasThumbnail,
     ),
     facts: facts.map(serialiseFact),
+    summary,
+    summaryGeneratedAt: doc.summaryGeneratedAt
+      ? doc.summaryGeneratedAt.toISOString()
+      : null,
   };
 }

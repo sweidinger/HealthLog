@@ -8331,6 +8331,10 @@
     },
     "detail": {
       "title": "Document details",
+      "summary": {
+        "title": "Summary",
+        "pending": "The summary is being prepared."
+      },
       "loadError": "Couldn't load this document.",
       "saveError": "Couldn't save the change.",
       "deleteError": "Couldn't delete the document.",

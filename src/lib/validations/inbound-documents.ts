@@ -292,6 +292,15 @@ export interface InboundDocumentDto {
 
 export interface InboundDocumentDetailDto extends InboundDocumentDto {
   facts: ExtractedFactDto[];
+  /**
+   * Short (3-4 sentence) plain-language summary of WHAT the document is,
+   * generated once in the background after upload when the `documentsAutoAiRead`
+   * opt-in is ON. Null when auto-read is OFF, no provider is configured, or the
+   * background summary has not run yet. Descriptive only — never a diagnosis.
+   */
+  summary: string | null;
+  /** When the background summary was generated (ISO 8601), or null. */
+  summaryGeneratedAt: string | null;
 }
 
 // ─── Edit (correction before approval) ─────────────────────────────────────

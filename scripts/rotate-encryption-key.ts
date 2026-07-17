@@ -540,6 +540,18 @@ async function main() {
       prisma.extractedFact,
     ),
   );
+  // The short background document summary. Small `encrypt()`-string-as-UTF-8
+  // Bytes payload (never the multi-megabyte original blob — the select is
+  // scoped to id + this column), so the generic Bytes walk covers it. NULL on
+  // rows uploaded with auto-read OFF / no provider — `rotateBytesColumn` skips
+  // those.
+  results.push(
+    await rotateBytesColumn(
+      "InboundDocument",
+      "summaryEncrypted",
+      prisma.inboundDocument,
+    ),
+  );
 
   // ───── v1.27.22 document content-search index (Bytes text + re-tokenise) ─────
   // The blind content index carries TWO coupled artefacts under the index key
