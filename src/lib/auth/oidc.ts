@@ -74,6 +74,22 @@ export function getOidcRedirectUri(): string {
 }
 
 /**
+ * Build a browser-facing redirect target from the trusted, operator-set
+ * `NEXT_PUBLIC_APP_URL` — never from the incoming request's own URL/Host.
+ * Behind a reverse proxy that doesn't forward the original host (Coolify,
+ * Traefik, etc. proxying to the container's bind address), `req.url`
+ * reflects what the Next.js process itself was addressed as (e.g.
+ * `http://0.0.0.0:3000/...`), not the public-facing URL — sending that
+ * back to the browser in a `Location` header redirects real users to an
+ * address only reachable from inside the deployment. Every OIDC redirect
+ * back to the app must be built from this, mirroring the convention
+ * `src/app/api/withings/callback/route.ts` already uses.
+ */
+export function oidcAppUrl(path: string): URL {
+  return new URL(path, process.env.NEXT_PUBLIC_APP_URL);
+}
+
+/**
  * Resolve a caller-supplied post-login `next` path against the request's own
  * origin and only accept it if it stays there — see
  * `sanitizeSameOriginPath` for why a plain `startsWith` check isn't enough.

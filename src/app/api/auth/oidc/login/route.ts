@@ -11,6 +11,7 @@ import {
   discoverOidcMetadata,
   getOidcConfig,
   getOidcRedirectUri,
+  oidcAppUrl,
   sanitizeOidcNextPath,
 } from "@/lib/auth/oidc";
 import {
@@ -30,9 +31,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
 
   const config = getOidcConfig();
   if (!config) {
-    return NextResponse.redirect(
-      new URL("/auth/login?error=oidc_disabled", req.url),
-    );
+    return NextResponse.redirect(oidcAppUrl("/auth/login?error=oidc_disabled"));
   }
 
   const rl = await checkAuthSurfaceRateLimit(
@@ -43,7 +42,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
   );
   if (!rl.allowed) {
     return NextResponse.redirect(
-      new URL("/auth/login?error=oidc_rate_limited", req.url),
+      oidcAppUrl("/auth/login?error=oidc_rate_limited"),
     );
   }
 
@@ -52,9 +51,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
     metadata = await discoverOidcMetadata(config);
   } catch (err) {
     getEvent()?.setError(err);
-    return NextResponse.redirect(
-      new URL("/auth/login?error=oidc_failed", req.url),
-    );
+    return NextResponse.redirect(oidcAppUrl("/auth/login?error=oidc_failed"));
   }
 
   const state = randomBytes(32).toString("base64url");

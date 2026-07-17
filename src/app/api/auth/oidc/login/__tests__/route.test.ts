@@ -34,6 +34,8 @@ vi.mock("@/lib/auth/oidc", async () => {
     buildAuthorizationUrl: vi.fn(() => "https://idp.example.com/authorize?x=1"),
     getOidcRedirectUri: () =>
       "https://healthlog.example.com/api/auth/oidc/callback",
+    oidcAppUrl: (path: string) =>
+      new URL(path, "https://healthlog.example.com"),
     sanitizeOidcNextPath: actual.sanitizeOidcNextPath,
   };
 });
