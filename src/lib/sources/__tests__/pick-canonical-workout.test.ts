@@ -28,11 +28,13 @@ const row = (
   source: WorkoutPickerRow["source"],
   startedAt: string,
   sportType: WorkoutPickerRow["sportType"] = "running",
+  extra: Partial<WorkoutPickerRow> = {},
 ): WorkoutPickerRow => ({
   id,
   source,
   startedAt: D(startedAt),
   sportType,
+  ...extra,
 });
 
 describe("DEFAULT_WORKOUT_SOURCE_PRIORITY", () => {
@@ -211,5 +213,127 @@ describe("pickCanonicalWorkout — determinism", () => {
     // independent of the caller's input order.
     expect(result.canonical).toHaveLength(1);
     expect(result.canonical[0].id).toBe("a-1");
+  });
+});
+
+describe("pickCanonicalWorkout — field-merge (v1.29.x, WHOOP HR-loss fix)", () => {
+  it("backfills avgHeartRate/maxHeartRate from a lower-priority twin when the winner's is null", () => {
+    // Regression fixture from the brief: a WHOOP cycling row carries live
+    // HR; a higher-priority Apple Health twin for the SAME ride has no HR
+    // (e.g. a manually-logged / GPS-only Apple entry). Before the merge,
+    // the picker kept the Apple row whole and threw the WHOOP HR away.
+    const result = pickCanonicalWorkout([
+      row("apple-1", "APPLE_HEALTH", "2026-05-14T07:30:00.000Z", "cycling", {
+        avgHeartRate: null,
+        maxHeartRate: null,
+      }),
+      row("whoop-1", "WHOOP", "2026-05-14T07:31:00.000Z", "cycling", {
+        avgHeartRate: 142,
+        maxHeartRate: 168,
+      }),
+    ]);
+    expect(result.canonical).toHaveLength(1);
+    const winner = result.canonical[0];
+    expect(winner.id).toBe("apple-1"); // ladder winner stays the base row
+    expect(winner.avgHeartRate).toBe(142);
+    expect(winner.maxHeartRate).toBe(168);
+    expect(result.clusters[0].picked.avgHeartRate).toBe(142);
+  });
+
+  it("never overwrites a field the base row already has", () => {
+    const result = pickCanonicalWorkout([
+      row("apple-1", "APPLE_HEALTH", "2026-05-14T07:30:00.000Z", "cycling", {
+        avgHeartRate: 120,
+      }),
+      row("whoop-1", "WHOOP", "2026-05-14T07:31:00.000Z", "cycling", {
+        avgHeartRate: 142,
+      }),
+    ]);
+    expect(result.canonical[0].avgHeartRate).toBe(120);
+  });
+
+  it("backfills totalEnergyKcal, totalDistanceM, and elevationM independently", () => {
+    const result = pickCanonicalWorkout([
+      row("apple-1", "APPLE_HEALTH", "2026-05-14T07:30:00.000Z", "cycling", {
+        totalEnergyKcal: null,
+        totalDistanceM: 15000,
+        elevationM: null,
+      }),
+      row("whoop-1", "WHOOP", "2026-05-14T07:31:00.000Z", "cycling", {
+        totalEnergyKcal: 480,
+        totalDistanceM: 14800,
+        elevationM: 220,
+      }),
+    ]);
+    const winner = result.canonical[0];
+    expect(winner.totalEnergyKcal).toBe(480); // backfilled
+    expect(winner.totalDistanceM).toBe(15000); // base row's own value kept
+    expect(winner.elevationM).toBe(220); // backfilled
+  });
+
+  it("prefers the ladder-highest member that HAS a field over a lower one, when the base row lacks it", () => {
+    const result = pickCanonicalWorkout([
+      row("apple-1", "APPLE_HEALTH", "2026-05-14T07:30:00.000Z", "cycling", {
+        avgHeartRate: null,
+      }),
+      row("whoop-1", "WHOOP", "2026-05-14T07:30:30.000Z", "cycling", {
+        avgHeartRate: 142,
+      }),
+      row("withings-1", "WITHINGS", "2026-05-14T07:31:00.000Z", "cycling", {
+        avgHeartRate: 99,
+      }),
+    ]);
+    // WHOOP outranks WITHINGS on the default ladder — its HR wins the
+    // backfill even though WITHINGS also had one.
+    expect(result.canonical[0].avgHeartRate).toBe(142);
+  });
+
+  it("adopts a specific sport type from a member when the base row's own sportType is generic", () => {
+    // The confirmed bug's downstream symptom: before the WHOOP sport-map
+    // fix, a WHOOP cycling workout could carry sportType "other" (or a
+    // non-canonical raw label) while a lower-priority twin correctly
+    // tagged "cycling". The merge adopts the specific sport so the
+    // cluster still surfaces as a bike ride.
+    const result = pickCanonicalWorkout([
+      row("apple-1", "APPLE_HEALTH", "2026-05-14T07:30:00.000Z", "other"),
+      row("whoop-1", "WHOOP", "2026-05-14T07:31:00.000Z", "cycling"),
+    ]);
+    expect(result.canonical[0].sportType).toBe("cycling");
+  });
+
+  it("keeps the base row's own specific sportType even when a member disagrees", () => {
+    const result = pickCanonicalWorkout([
+      row("apple-1", "APPLE_HEALTH", "2026-05-14T07:30:00.000Z", "cycling"),
+      row("whoop-1", "WHOOP", "2026-05-14T07:31:00.000Z", "cycling"),
+    ]);
+    expect(result.canonical[0].sportType).toBe("cycling");
+  });
+
+  it("does not run the merge on a single-element cluster", () => {
+    const result = pickCanonicalWorkout([
+      row("apple-1", "APPLE_HEALTH", "2026-05-14T07:30:00.000Z", "cycling", {
+        avgHeartRate: null,
+      }),
+    ]);
+    expect(result.canonical[0].avgHeartRate).toBeNull();
+  });
+
+  it("end-to-end: a WHOOP-cycling+HR row clustered with a generic no-HR twin yields a cycling canonical row WITH the HR", () => {
+    const result = pickCanonicalWorkout([
+      row("apple-1", "APPLE_HEALTH", "2026-05-14T07:30:00.000Z", "other", {
+        avgHeartRate: null,
+        totalEnergyKcal: null,
+      }),
+      row("whoop-1", "WHOOP", "2026-05-14T07:31:00.000Z", "cycling", {
+        avgHeartRate: 145,
+        totalEnergyKcal: 512,
+      }),
+    ]);
+    expect(result.canonical).toHaveLength(1);
+    const winner = result.canonical[0];
+    expect(winner.source).toBe("APPLE_HEALTH"); // ladder still picks Apple as the base
+    expect(winner.sportType).toBe("cycling"); // adopted from WHOOP
+    expect(winner.avgHeartRate).toBe(145); // backfilled from WHOOP
+    expect(winner.totalEnergyKcal).toBe(512); // backfilled from WHOOP
   });
 });
