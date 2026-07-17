@@ -22,10 +22,19 @@ export function sanitizeSameOriginPath(
 ): string {
   if (!next) return "/";
   try {
-    const resolved = new URL(next, baseUrl);
     const base = new URL(baseUrl);
+    const resolved = new URL(next, baseUrl);
     if (resolved.origin !== base.origin) return "/";
-    return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+    const result = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+    // Consumers commonly RE-RESOLVE the returned value against the origin
+    // (`new URL(result, base)` in the OIDC callback redirect, `router.push()`
+    // on the login page). A same-origin `next` can still leave a pathname
+    // like `//evil.com` — e.g. `/..//evil.com` resolves on-origin here (the
+    // `..` collapses at root) yet its pathname is protocol-relative, so the
+    // re-resolve escapes to `https://evil.com`. Re-verify that the
+    // reconstructed path itself still resolves on-origin; reject otherwise.
+    if (new URL(result, base).origin !== base.origin) return "/";
+    return result;
   } catch {
     return "/";
   }
