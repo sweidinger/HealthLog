@@ -2184,6 +2184,7 @@
       "docScope": {
         "badge": "Dokument",
         "chattingAbout": "Chat über: {title}",
+        "chattingAboutMore": "Chat über: {titles} und {count} weitere",
         "notIndexedHint": "Lies dieses Dokument zuerst im Archiv mit KI ein, damit der Coach dazu antworten kann."
       },
       "actionsMenu": "Aktionen",

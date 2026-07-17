@@ -2184,6 +2184,7 @@
       "docScope": {
         "badge": "Document",
         "chattingAbout": "Chatting about: {title}",
+        "chattingAboutMore": "Chatting about: {titles} and {count} more",
         "notIndexedHint": "Read this document with AI first in the vault so the Coach can answer about it."
       },
       "actionsMenu": "Actions",

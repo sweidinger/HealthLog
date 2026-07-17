@@ -595,13 +595,19 @@ export function CoachInput({
             <Paperclip className="size-5 sm:size-4" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="top" className="w-56">
+        {/* v1.29.1 — the item labels shrink + truncate within the popover width
+            (`min-w-0` + a `truncate` span) so a long localised label — e.g.
+            "Neues Dokument hochladen" — can never overflow past the menu edge.
+            Mirrors the vault picker items' width handling. */}
+        <DropdownMenuContent align="start" side="top" className="w-60">
           <DropdownMenuItem
             data-slot="coach-input-attach-vault"
             onSelect={() => onPickFromVault?.()}
           >
-            <FolderOpen className="size-4" aria-hidden="true" />
-            {t("insights.coach.attach.menuChooseFromDocuments")}
+            <FolderOpen className="size-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">
+              {t("insights.coach.attach.menuChooseFromDocuments")}
+            </span>
           </DropdownMenuItem>
           <DropdownMenuItem
             data-slot="coach-input-attach-upload"
@@ -611,8 +617,10 @@ export function CoachInput({
               setTimeout(() => attachFileInputRef.current?.click(), 0)
             }
           >
-            <Upload className="size-4" aria-hidden="true" />
-            {t("insights.coach.attach.menuUploadNew")}
+            <Upload className="size-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">
+              {t("insights.coach.attach.menuUploadNew")}
+            </span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
