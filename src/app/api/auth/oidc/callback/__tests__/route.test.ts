@@ -64,6 +64,7 @@ vi.mock("@/lib/auth/oidc", () => ({
   fetchUserinfoEmail: vi.fn(),
   getOidcRedirectUri: () =>
     "https://healthlog.example.com/api/auth/oidc/callback",
+  oidcAppUrl: (path: string) => new URL(path, "https://healthlog.example.com"),
   deriveUniqueUsername: vi.fn(async (email: string) => email.split("@")[0]),
 }));
 

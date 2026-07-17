@@ -15,6 +15,7 @@ import {
   fetchUserinfoEmail,
   getOidcConfig,
   getOidcRedirectUri,
+  oidcAppUrl,
   verifyIdToken,
 } from "@/lib/auth/oidc";
 import {
@@ -31,9 +32,9 @@ import { resolveServerDefaultTimezone } from "@/lib/tz/resolver";
 
 const LOGIN_ERROR_URL = "/auth/login";
 
-function errorRedirect(req: NextRequest, reason: string): NextResponse {
+function errorRedirect(reason: string): NextResponse {
   const response = NextResponse.redirect(
-    new URL(`${LOGIN_ERROR_URL}?error=${reason}`, req.url),
+    oidcAppUrl(`${LOGIN_ERROR_URL}?error=${reason}`),
   );
   deleteStateCookie(response);
   return response;
@@ -106,7 +107,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
   annotate({ action: { name: "auth.oidc.callback" } });
 
   const config = getOidcConfig();
-  if (!config) return errorRedirect(req, "oidc_disabled");
+  if (!config) return errorRedirect("oidc_disabled");
 
   const rl = await checkAuthSurfaceRateLimit(
     req,
@@ -115,7 +116,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
     15 * 60 * 1000,
   );
   const ip = rl.ip ?? "unknown";
-  if (!rl.allowed) return errorRedirect(req, "oidc_rate_limited");
+  if (!rl.allowed) return errorRedirect("oidc_rate_limited");
 
   const { searchParams } = req.nextUrl;
   const idpError = searchParams.get("error");
@@ -126,12 +127,12 @@ export const GET = apiHandler(async (req: NextRequest) => {
         idpError: KNOWN_IDP_ERROR_CODES.has(idpError) ? idpError : "other",
       },
     });
-    return errorRedirect(req, "oidc_denied");
+    return errorRedirect("oidc_denied");
   }
 
   const code = searchParams.get("code");
   const state = searchParams.get("state");
-  if (!code || !state) return errorRedirect(req, "oidc_state");
+  if (!code || !state) return errorRedirect("oidc_state");
 
   const rawCookie = req.cookies.get(OIDC_STATE_COOKIE)?.value;
   let stored: StoredOidcState | null = null;
@@ -143,7 +144,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
       stored = null;
     }
   }
-  if (!stored) return errorRedirect(req, "oidc_state");
+  if (!stored) return errorRedirect("oidc_state");
 
   // CSRF check — timing-safe, byte-for-byte, mirroring the Withings callback.
   if (
@@ -151,7 +152,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
     !timingSafeEqual(Buffer.from(state), Buffer.from(stored.state))
   ) {
     annotate({ meta: { reason: "csrf" } });
-    return errorRedirect(req, "oidc_state");
+    return errorRedirect("oidc_state");
   }
 
   try {
@@ -165,7 +166,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
       codeVerifier: stored.codeVerifier,
       redirectUri,
     });
-    if (!tokens.id_token) return errorRedirect(req, "oidc_failed");
+    if (!tokens.id_token) return errorRedirect("oidc_failed");
 
     const identity = await verifyIdToken({
       metadata,
@@ -228,11 +229,11 @@ export const GET = apiHandler(async (req: NextRequest) => {
       // health record.
       if (!email) {
         annotate({ meta: { reason: "no_email" } });
-        return errorRedirect(req, "oidc_no_email");
+        return errorRedirect("oidc_no_email");
       }
       if (emailVerified !== true) {
         annotate({ meta: { reason: "email_unverified" } });
-        return errorRedirect(req, "oidc_email_unverified");
+        return errorRedirect("oidc_email_unverified");
       }
 
       const byEmail = await prisma.user.findFirst({
@@ -250,7 +251,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
             ipAddress: ip,
           });
           annotate({ meta: { reason: "identity_conflict" } });
-          return errorRedirect(req, "oidc_identity_conflict");
+          return errorRedirect("oidc_identity_conflict");
         }
         user = await prisma.user.update({
           where: { id: byEmail.id },
@@ -276,7 +277,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
         }
         if (!registrationEnabled) {
           annotate({ meta: { reason: "registration_disabled" } });
-          return errorRedirect(req, "oidc_registration_disabled");
+          return errorRedirect("oidc_registration_disabled");
         }
 
         const username = await deriveUniqueUsername(email, (candidate) =>
@@ -361,7 +362,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
         action: { name: "auth.mfa.challenge" },
         meta: { mfa_required: true },
       });
-      const loginUrl = new URL(LOGIN_ERROR_URL, req.url);
+      const loginUrl = oidcAppUrl(LOGIN_ERROR_URL);
       if (stored.next !== "/") {
         loginUrl.searchParams.set("next", stored.next);
       }
@@ -407,12 +408,12 @@ export const GET = apiHandler(async (req: NextRequest) => {
 
     await auditLog("auth.oidc.login", { userId: user.id, ipAddress: ip });
 
-    const response = NextResponse.redirect(new URL(stored.next, req.url));
+    const response = NextResponse.redirect(oidcAppUrl(stored.next));
     deleteStateCookie(response);
     return response;
   } catch (err) {
     getEvent()?.setError(err);
     annotate({ meta: { reason: "exchange_or_verify_failed" } });
-    return errorRedirect(req, "oidc_failed");
+    return errorRedirect("oidc_failed");
   }
 });
