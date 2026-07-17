@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+## [1.29.1] — 2026-07-17
+
+A round of fixes and small refinements from living with the daily view.
+
+- **Today refreshes right after a dose.** Logging or undoing a medication now
+  updates the day's read immediately — the medication line no longer lingers on
+  a stale count until the next reload.
+- **A calmer Today hero.** The extra score rings are gone; the hero keeps the
+  one health-score ring and a tighter layout.
+- **The Coach names the document you attached.** Asking about a document now
+  shows its title in the chat instead of a plain "1 document" count, and the
+  attach menu stays within its popover on long labels.
+- **A fresh install starts with tracking on.** New installs now enable the
+  tracking modules by default — you can still switch any of them off. The
+  external-AI options and the daily push stay off until you turn them on.
+- **Insights vitals lose the explainer line.** The "your personal normal range
+  is the median…" caption is removed from the baseline tiles.
+- **Illness journal: set and edit the end.** You can mark an episode's end date,
+  clear it back to ongoing, and backdate the start. When nothing strayed from
+  your personal range, the course section now reads a short settled line instead
+  of appearing empty.
+- **The morning refresh covers every sleep source.** The refresh that folds last
+  night's sleep into the day now triggers from Google Health, Fitbit, Oura, and
+  Polar as well, not only Withings, WHOOP, and Apple Health. Each skipped refresh
+  is now recorded so a stale morning read can be traced to its cause.
+
+No new data is collected and there is no migration.
+
 ## [1.29.0] — 2026-07-17 — A daily health companion
 
 This release draws a line under a run of work that turns HealthLog from a place
