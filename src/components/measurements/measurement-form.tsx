@@ -24,7 +24,11 @@ import {
 import { Loader2, MoreHorizontal, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "@/lib/i18n/context";
-import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  measurementDependentKeys,
+  refetchInactiveDailyReads,
+} from "@/lib/query-keys";
 import { ApiError, apiPost } from "@/lib/api/api-fetch";
 import { MEASUREMENT_NOTES_MAX_LENGTH } from "@/lib/validations/measurement";
 
@@ -326,6 +330,7 @@ export function MeasurementForm({
       setPulse("");
       setNotes("");
       await invalidateKeys(queryClient, measurementDependentKeys);
+      await refetchInactiveDailyReads(queryClient);
       toast.success(t("common.saved"));
       onSuccess?.();
     } catch (err) {

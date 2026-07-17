@@ -62,7 +62,12 @@ import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { MOOD_LABEL_KEYS, MOOD_SCORE_BY_ENUM } from "@/lib/mood/labels";
-import { invalidateKeys, moodDependentKeys, queryKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  moodDependentKeys,
+  queryKeys,
+  refetchInactiveDailyReads,
+} from "@/lib/query-keys";
 import { moodSourceEnum } from "@/lib/validations/moodlog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -268,6 +273,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       try {
         await apiPost("/api/mood-entries/restore", { ids });
         await invalidateKeys(queryClient, moodDependentKeys);
+        await refetchInactiveDailyReads(queryClient);
         toast.success(t("mood.restoredToast"));
       } catch {
         toast.error(t("mood.restoreError"));
@@ -282,6 +288,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     },
     onSuccess: (_data, id) => {
       void invalidateKeys(queryClient, moodDependentKeys);
+      void refetchInactiveDailyReads(queryClient);
       toast.success(t("mood.deletedToast"), {
         action: {
           label: t("common.undo"),
@@ -309,6 +316,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     },
     onSuccess: async (deleted, ids) => {
       await invalidateKeys(queryClient, moodDependentKeys);
+      await refetchInactiveDailyReads(queryClient);
       clearSelection();
       toast.success(t("mood.bulkDeleteSuccess", { count: String(deleted) }), {
         action: {
@@ -369,6 +377,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     },
     onSuccess: async () => {
       await invalidateKeys(queryClient, moodDependentKeys);
+      await refetchInactiveDailyReads(queryClient);
       setEditing(null);
       setEditError(null);
     },

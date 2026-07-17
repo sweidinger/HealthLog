@@ -7,6 +7,7 @@ import {
   moodDependentKeys,
   medicationDependentKeys,
   invalidateKeys,
+  refetchInactiveDailyReads,
 } from "../query-keys";
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
@@ -262,6 +263,15 @@ describe("dependent-key bundles", () => {
     expect(keyStrings).toContain(JSON.stringify(["dashboard", "snapshot"]));
   });
 
+  // v1.29.x — a manual measurement write never invalidated the Today
+  // digest, so its score / rail items lingered stale after a save from
+  // the values list or the dashboard quick-entry sheet. Mirror the
+  // v1.29.1 medication fix.
+  it("measurementDependentKeys bundles the daily digest", () => {
+    const keyStrings = measurementDependentKeys.map((k) => JSON.stringify(k));
+    expect(keyStrings).toContain(JSON.stringify(["daily", "digest"]));
+  });
+
   it("moodDependentKeys bundle covers mood + analytics + targets", () => {
     const keyStrings = moodDependentKeys.map((k) => JSON.stringify(k));
     expect(keyStrings).toContain(JSON.stringify(["mood-entries"]));
@@ -277,6 +287,13 @@ describe("dependent-key bundles", () => {
   it("moodDependentKeys bundles the dashboard snapshot (v1.28.42)", () => {
     const keyStrings = moodDependentKeys.map((k) => JSON.stringify(k));
     expect(keyStrings).toContain(JSON.stringify(["dashboard", "snapshot"]));
+  });
+
+  // v1.29.x — mirrors the measurement fix: a manual mood write never
+  // invalidated the Today digest.
+  it("moodDependentKeys bundles the daily digest", () => {
+    const keyStrings = moodDependentKeys.map((k) => JSON.stringify(k));
+    expect(keyStrings).toContain(JSON.stringify(["daily", "digest"]));
   });
 
   it("medicationDependentKeys bundle covers medications + analytics + achievements", () => {
@@ -465,5 +482,30 @@ describe("invalidateKeys", () => {
     expect(results[0].status).toBe("fulfilled");
     expect(results[1].status).toBe("rejected");
     expect(results[2].status).toBe("fulfilled");
+  });
+});
+
+// v1.29.x — the shared helper behind the measurement / mood / water fix.
+// `invalidateKeys` (default `refetchType: "active"`) only refetches MOUNTED
+// queries, so the dashboard hero and Today digest — both typically unmounted
+// while the user is on the measurement/mood/nutrients surface — are marked
+// stale but never refetched. Mirrors the v1.29.1 medication-intake fix
+// (`invalidateMedicationReads`); this is the shared version every other
+// write seam now calls alongside its own `*DependentKeys` bundle.
+describe("refetchInactiveDailyReads", () => {
+  it("forces an inactive refetch of both the dashboard snapshot and the Today digest", async () => {
+    const invalidate = vi.fn().mockResolvedValue(undefined);
+    const client = { invalidateQueries: invalidate } as unknown as QueryClient;
+
+    await refetchInactiveDailyReads(client);
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.dashboardSnapshot(),
+      refetchType: "inactive",
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.dailyDigest(),
+      refetchType: "inactive",
+    });
   });
 });

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiPost } from "@/lib/api/api-fetch";
-import { queryKeys } from "@/lib/query-keys";
+import { queryKeys, refetchInactiveDailyReads } from "@/lib/query-keys";
 
 /**
  * v1.29 — manual water quick-add sheet, opened from the hydration card.
@@ -45,11 +45,21 @@ export function WaterQuickAddSheet({
   const [editMode, setEditMode] = useState(false);
   const [editAmount, setEditAmount] = useState(() => String(todayTotalMl));
 
+  // v1.29.x — the Today digest joins the invalidation. The write route
+  // already hard-evicts the server snapshot bucket
+  // (`invalidateUserDashboardSnapshot`), but the client digest/snapshot
+  // queries are typically unmounted while this sheet is open (the user is
+  // on `/insights/nutrients`, not the dashboard), so a default ("active")
+  // invalidation would mark them stale without refetching them —
+  // `refetchInactiveDailyReads` forces the inactive refetch, mirroring the
+  // measurement / mood / medication fix.
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["nutrients"] });
     void queryClient.invalidateQueries({
       queryKey: queryKeys.dashboardSnapshot(),
     });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.dailyDigest() });
+    void refetchInactiveDailyReads(queryClient);
   };
 
   const addMutation = useMutation({

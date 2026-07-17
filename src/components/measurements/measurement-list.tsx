@@ -66,6 +66,7 @@ import {
   invalidateKeys,
   measurementDependentKeys,
   queryKeys,
+  refetchInactiveDailyReads,
 } from "@/lib/query-keys";
 import {
   MEASUREMENT_NOTES_MAX_LENGTH,
@@ -544,6 +545,7 @@ export function MeasurementList({
       try {
         await apiPost("/api/measurements/restore", { ids });
         await invalidateKeys(queryClient, measurementDependentKeys);
+        await refetchInactiveDailyReads(queryClient);
         toast.success(t("measurements.restoredToast"));
       } catch {
         toast.error(t("measurements.restoreError"));
@@ -558,6 +560,7 @@ export function MeasurementList({
     },
     onSuccess: (_data, id) => {
       void invalidateKeys(queryClient, measurementDependentKeys);
+      void refetchInactiveDailyReads(queryClient);
       toast.success(t("measurements.deletedToast"), {
         action: {
           label: t("common.undo"),
@@ -587,6 +590,7 @@ export function MeasurementList({
     },
     onSuccess: async (deleted, ids) => {
       await invalidateKeys(queryClient, measurementDependentKeys);
+      await refetchInactiveDailyReads(queryClient);
       clearSelection();
       toast.success(
         t("measurements.bulkDeleteSuccess", { count: String(deleted) }),
@@ -649,6 +653,7 @@ export function MeasurementList({
     },
     onSuccess: async () => {
       await invalidateKeys(queryClient, measurementDependentKeys);
+      await refetchInactiveDailyReads(queryClient);
       setEditing(null);
       setEditError(null);
     },
