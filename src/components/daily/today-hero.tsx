@@ -46,11 +46,11 @@ import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import type { ScoreRingId } from "@/lib/dashboard-layout";
 import type { DashboardScoreRing } from "@/lib/dashboard/score-rings";
+import type { DailyDigest } from "@/lib/daily/digest";
 import {
   COACH_CHECKIN_KEEP_INTENT,
   COACH_CHECKIN_LETGO_INTENT,
-  type DailyDigest,
-} from "@/lib/daily/digest";
+} from "@/lib/daily/coach-checkin-intents";
 
 /**
  * v1.29.0 — the selected score rings return to the hero. The maps mirror the

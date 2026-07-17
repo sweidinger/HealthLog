@@ -32,6 +32,12 @@ import {
   milestoneHref,
   type Milestone,
 } from "@/lib/daily/milestones";
+import {
+  COACH_CHECKIN_REVIEW_DAYS,
+  COACH_CHECKIN_KEEP_INTENT,
+  COACH_CHECKIN_LETGO_INTENT,
+  COACH_CHECKIN_ADJUST_INTENT,
+} from "@/lib/daily/coach-checkin-intents";
 
 /** At most three rail items — a glance, never a wall (§2.5, never padded). */
 export const MAX_WORTH_A_LOOK = 3;
@@ -47,7 +53,7 @@ const MS_PER_DAY = 86_400_000;
  * ones the coach explicitly dated. The PATCH-to-`active` route defaults
  * `reviewDate` to `+COACH_CHECKIN_REVIEW_DAYS`; this constant is the one source.
  */
-export const COACH_CHECKIN_REVIEW_DAYS = 7;
+// COACH_CHECKIN_REVIEW_DAYS lives in ./coach-checkin-intents (client-safe).
 
 /**
  * After a check-in comes due, it resurfaces for at most this many days before
@@ -65,9 +71,9 @@ export const COACH_CHECKIN_RESURFACE_DAYS = 14;
  * and PATCHes the existing plan-lifecycle route. "Adjust" is navigation (an
  * `href` into the coach), so it carries no plan id and never mutates here.
  */
-export const COACH_CHECKIN_KEEP_INTENT = "coach.checkin.keep";
-export const COACH_CHECKIN_LETGO_INTENT = "coach.checkin.letGo";
-export const COACH_CHECKIN_ADJUST_INTENT = "coach.checkin.adjust";
+// The check-in intents live in ./coach-checkin-intents (client-safe) and are
+// imported above, so the client Today surface can use them without pulling this
+// server-side builder into its bundle.
 
 type Translate = ServerTranslator["t"];
 

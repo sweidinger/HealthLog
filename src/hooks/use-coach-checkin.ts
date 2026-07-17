@@ -22,7 +22,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { apiPatch } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
-import { COACH_CHECKIN_REVIEW_DAYS } from "@/lib/daily/digest";
+import { COACH_CHECKIN_REVIEW_DAYS } from "@/lib/daily/coach-checkin-intents";
 
 export function useCoachCheckinAction() {
   const queryClient = useQueryClient();

@@ -5,14 +5,16 @@ import type { DailyBriefing } from "@/lib/ai/schema";
 import type { MedsTodayBlock } from "@/lib/dashboard/meds-today";
 import {
   buildDailyDigest,
-  COACH_CHECKIN_KEEP_INTENT,
-  COACH_CHECKIN_LETGO_INTENT,
   COACH_CHECKIN_RESURFACE_DAYS,
-  COACH_CHECKIN_REVIEW_DAYS,
   MAX_WORTH_A_LOOK,
   type DailyDigestCoachPlan,
   type DailyDigestInput,
 } from "@/lib/daily/digest";
+import {
+  COACH_CHECKIN_KEEP_INTENT,
+  COACH_CHECKIN_LETGO_INTENT,
+  COACH_CHECKIN_REVIEW_DAYS,
+} from "@/lib/daily/coach-checkin-intents";
 import type { Milestone } from "@/lib/daily/milestones";
 import type { PriorityItem } from "@/lib/daily/priority-item";
 
