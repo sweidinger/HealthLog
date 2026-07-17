@@ -12,6 +12,7 @@ const {
   fetchVo2MaxMock,
   fetchCardioAgeMock,
   fetchResilienceMock,
+  fetchCyclePhasesMock,
   refreshMock,
   upsertMock,
   updateManyMock,
@@ -31,6 +32,7 @@ const {
   fetchVo2MaxMock: vi.fn(),
   fetchCardioAgeMock: vi.fn(),
   fetchResilienceMock: vi.fn(),
+  fetchCyclePhasesMock: vi.fn(),
   refreshMock: vi.fn(),
   upsertMock: vi.fn(),
   updateManyMock: vi.fn(),
@@ -78,6 +80,7 @@ vi.mock("../client", async (importOriginal) => {
     fetchVo2Max: fetchVo2MaxMock,
     fetchCardiovascularAge: fetchCardioAgeMock,
     fetchResilience: fetchResilienceMock,
+    fetchDailyCyclePhases: fetchCyclePhasesMock,
     refreshAccessToken: refreshMock,
   };
 });
@@ -107,6 +110,7 @@ beforeEach(() => {
   fetchVo2MaxMock.mockReset().mockResolvedValue([]);
   fetchCardioAgeMock.mockReset().mockResolvedValue([]);
   fetchResilienceMock.mockReset().mockResolvedValue([]);
+  fetchCyclePhasesMock.mockReset().mockResolvedValue([]);
   refreshMock.mockReset();
   upsertMock.mockReset().mockResolvedValue({});
   updateManyMock.mockReset().mockResolvedValue({ count: 0 });
@@ -478,5 +482,52 @@ describe("syncUserOura", () => {
     expect(written).toContain("OXYGEN_SATURATION");
     expect(recordFailureMock).toHaveBeenCalled();
     expect(recordSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("degrades gracefully when daily_cycle_phases 403s — the measurement sync still succeeds (F4/cycle)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchReadinessMock.mockResolvedValue([
+      { id: "1", day: "2026-06-10", score: 70 },
+    ]);
+    // The endpoint is undocumented / gated for most connections — a 403 here
+    // must never surface as a whole-connection reauth prompt.
+    fetchCyclePhasesMock.mockRejectedValue(
+      new OuraApiError({
+        verb: "fetchDailyCyclePhases",
+        classification: "reauth_required",
+        httpStatus: 403,
+        reason: "http_403",
+      }),
+    );
+    const imported = await syncUserOura("u1");
+    expect(imported).toBe(1);
+    expect(recordSuccessMock).toHaveBeenCalledWith("u1", "oura");
+    expect(recordFailureMock).not.toHaveBeenCalled();
+  });
+
+  it("re-reads the connection for the cycle-phases fetch (picks up a rotated token)", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    await syncUserOura("u1");
+    expect(fetchCyclePhasesMock).toHaveBeenCalledWith(
+      CONN.accessToken,
+      expect.objectContaining({
+        startDate: expect.any(String),
+        endDate: expect.any(String),
+      }),
+    );
+    // Once for the measurement-sync token, once more for the cycle-phases
+    // fetch's fresh read.
+    expect(getConnMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("a cycle-phases fetch error never blocks morning-refresh / rollup tail work", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchDailySleepMock.mockResolvedValue([
+      { id: "s", day: "2026-06-10", score: 80 },
+    ]);
+    fetchCyclePhasesMock.mockRejectedValue(new Error("boom"));
+    const imported = await syncUserOura("u1");
+    expect(imported).toBe(1);
+    expect(recordSuccessMock).toHaveBeenCalledWith("u1", "oura");
   });
 });

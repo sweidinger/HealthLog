@@ -78,6 +78,7 @@ import {
   storeOuraTokens,
 } from "./credentials";
 import { OuraApiError, classifyOuraError } from "./response-classifier";
+import { syncUserOuraCyclePhases } from "./cycle-sync";
 
 /** Default lookback window (days) for an incremental sync. Oura finalises a
  * night's scores hours after wake; 7 days re-fetches a handful of records (the
@@ -369,6 +370,28 @@ export async function syncUserOura(
   // Import everything the healthy collections returned regardless of whether a
   // sibling collection failed — one bad collection must not blank the source.
   const imported = await upsertOuraMeasurements(userId, result.readings);
+
+  // v1.29.x — best-effort Cycle Insights import. Fully isolated from the
+  // measurement sync's status ledger on purpose: `daily_cycle_phases` sits
+  // outside the scope most self-registered Oura apps are granted (see the
+  // `OuraCyclePhase` docstring in `./client`), so a 403/404 here is the
+  // COMMON case for a typical connection. Re-reads the connection so a
+  // reactive refresh `fetchAll` just performed is picked up rather than the
+  // (now possibly stale) token captured before it ran.
+  try {
+    const freshConn = await getOuraConnection(userId);
+    if (freshConn) {
+      await syncUserOuraCyclePhases(
+        userId,
+        freshConn.accessToken,
+        opts.lookbackDays ?? OURA_SYNC_LOOKBACK_DAYS,
+      );
+    }
+  } catch (err) {
+    getEvent()?.addWarning(
+      `oura: cycle-phases import skipped for ${userId}: ${err}`,
+    );
+  }
 
   // S4 — trigger the debounced morning refresh on a last-night segment landing
   // (mirrors the Withings / WHOOP / Apple seams). Fires whether or not a

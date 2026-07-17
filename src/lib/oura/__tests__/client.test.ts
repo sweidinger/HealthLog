@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   OURA_OAUTH_SCOPE,
   RESILIENCE_LEVELS,
+  derivePeriodDaysFromCyclePhases,
   exchangeCode,
   fetchCardiovascularAge,
+  fetchDailyCyclePhases,
   fetchReadiness,
   fetchResilience,
   fetchVo2Max,
@@ -522,5 +524,103 @@ describe("mapResilience", () => {
 describe("OURA_OAUTH_SCOPE", () => {
   it("requests daily + personal", () => {
     expect(OURA_OAUTH_SCOPE).toBe("daily personal");
+  });
+});
+
+describe("fetchDailyCyclePhases", () => {
+  it("reads the daily_cycle_phases collection path", async () => {
+    const fetchMock = installFetchMock([
+      {
+        status: 200,
+        body: {
+          data: [{ id: "1", day: "2026-06-10", phase: "follicular" }],
+          next_token: null,
+        },
+      },
+    ]);
+    const r = await fetchDailyCyclePhases("tok", {
+      startDate: "2026-06-01",
+      endDate: "2026-06-10",
+    });
+    expect(r).toHaveLength(1);
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url).toContain("/v2/usercollection/daily_cycle_phases");
+  });
+
+  it("propagates a 403 (the undocumented / scope-gated case) as an OuraApiError", async () => {
+    installFetchMock([{ status: 403, body: { detail: "forbidden" } }]);
+    await expect(
+      fetchDailyCyclePhases("tok", {
+        startDate: "2026-06-01",
+        endDate: "2026-06-10",
+      }),
+    ).rejects.toBeInstanceOf(OuraApiError);
+  });
+});
+
+describe("derivePeriodDaysFromCyclePhases", () => {
+  it("marks a literal 'menstrual' phase day directly", () => {
+    const days = derivePeriodDaysFromCyclePhases([
+      { day: "2026-06-05", phase: "menstrual" },
+      { day: "2026-06-10", phase: "follicular" },
+    ]);
+    expect(days).toEqual(["2026-06-05"]);
+  });
+
+  it("marks the single day a luteal phase transitions into a follicular phase", () => {
+    const days = derivePeriodDaysFromCyclePhases([
+      { day: "2026-06-08", phase: "luteal" },
+      { day: "2026-06-09", phase: "luteal" },
+      { day: "2026-06-10", phase: "follicular" },
+      { day: "2026-06-11", phase: "follicular" },
+    ]);
+    expect(days).toEqual(["2026-06-10"]);
+  });
+
+  it("does NOT mark a luteal→follicular transition across a gap in the series", () => {
+    const days = derivePeriodDaysFromCyclePhases([
+      { day: "2026-06-08", phase: "luteal" },
+      // 2026-06-09 missing — not calendar-adjacent.
+      { day: "2026-06-10", phase: "follicular" },
+    ]);
+    expect(days).toEqual([]);
+  });
+
+  it("is order-independent — sorts records by day before scanning", () => {
+    const days = derivePeriodDaysFromCyclePhases([
+      { day: "2026-06-10", phase: "follicular" },
+      { day: "2026-06-09", phase: "luteal" },
+    ]);
+    expect(days).toEqual(["2026-06-10"]);
+  });
+
+  it("ignores an unrecognised / missing phase string (never guesses)", () => {
+    const days = derivePeriodDaysFromCyclePhases([
+      { day: "2026-06-08", phase: "luteal" },
+      { day: "2026-06-09", phase: "unknown_future_phase" },
+      { day: "2026-06-10", phase: "follicular" },
+    ]);
+    // The unrecognised phase still updates the "previous phase" tracker (to
+    // a value that is neither luteal nor follicular), so the 06-09→06-10
+    // step is no longer a luteal→follicular transition and nothing fires.
+    expect(days).toEqual([]);
+  });
+
+  it("returns [] for an empty or all-ovulatory/all-luteal series (no transition, no direct hit)", () => {
+    expect(derivePeriodDaysFromCyclePhases([])).toEqual([]);
+    expect(
+      derivePeriodDaysFromCyclePhases([
+        { day: "2026-06-08", phase: "luteal" },
+        { day: "2026-06-09", phase: "luteal" },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("skips records with a missing/empty day string", () => {
+    const days = derivePeriodDaysFromCyclePhases([
+      { day: "", phase: "menstrual" },
+      { day: "2026-06-10", phase: "menstrual" },
+    ] as never);
+    expect(days).toEqual(["2026-06-10"]);
   });
 });
