@@ -143,6 +143,17 @@ async function buildWorkoutsResponse(
     userRow?.sourcePriorityJson ?? null,
   );
 
+  // `pickCanonicalWorkoutRows` re-sorts its output to `startedAt ASC` (its
+  // documented contract for the rollup callers). This surface is a
+  // most-recent-first list, so the DB `orderBy startedAt desc` must be
+  // re-established AFTER the pick — otherwise `offset`/`limit` slice the
+  // OLDEST page and a user with a long history never sees recent workouts.
+  canonical.sort((a, b) => {
+    const delta = (b.startedAt?.getTime() ?? 0) - (a.startedAt?.getTime() ?? 0);
+    if (delta !== 0) return delta;
+    return a.id.localeCompare(b.id);
+  });
+
   const page = canonical.slice(offset, offset + limit).map((row) => ({
     id: row.id,
     sportType: row.sportType,
