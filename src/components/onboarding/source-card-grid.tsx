@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  pickStatus,
+  useIntegrationStatuses,
+} from "@/components/settings/integrations/shared";
+import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { apiPost } from "@/lib/api/api-fetch";
@@ -26,8 +31,12 @@ import { queryKeys } from "@/lib/query-keys";
  * Presents the data sources HealthLog ships today. The headline cards
  * cover the two paths most people start on:
  *   1. Manual entry (enabled, recommended — works on any device)
- *   2. Withings (enabled — opens OAuth `/api/withings/connect` in a new
- *      tab; the callback flips the connection server-side)
+ *   2. Withings — opens OAuth `/api/withings/connect` in a new tab once
+ *      the account has its own Withings developer app configured; the
+ *      callback flips the connection server-side. Before that, the card
+ *      is honest about the prerequisite (v1.29.x, UX audit H1/H2): the
+ *      CTA reads "Set up in Settings" and points at the credentials form
+ *      instead of launching an OAuth handshake that can only 400.
  *
  * Below them a calm "more sources" row lists the remaining shipped
  * integrations (Apple Health, WHOOP, Oura, Polar, Nightscout, Fitbit),
@@ -97,9 +106,19 @@ export function SourceCardGrid() {
   const { t } = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
 
   const [selected, setSelected] = useState<SourceCard["slug"]>("manual");
   const [advancing, setAdvancing] = useState(false);
+
+  // v1.29.x — the wizard's "Connect Withings" card must not launch an OAuth
+  // handshake that can only fail: Withings credentials are per-user BYO with
+  // no env fallback, and a brand-new account never has them yet. Read the
+  // same consolidated envelope Settings → Integrations uses so the card
+  // knows whether the handshake can actually succeed.
+  const { data: integrationStatus } = useIntegrationStatuses(isAuthenticated);
+  const withingsConfigured =
+    pickStatus(integrationStatus, "withings")?.configured ?? false;
 
   async function advance() {
     if (advancing) return;
@@ -144,6 +163,9 @@ export function SourceCardGrid() {
               card.recommendedKey ? t(card.recommendedKey) : null
             }
             withingsCtaLabel={t("onboarding.source.withings.cta")}
+            withingsConfigured={withingsConfigured}
+            withingsSetupCtaLabel={t("onboarding.source.withings.setupCta")}
+            withingsSetupHint={t("onboarding.source.withings.setupHint")}
           />
         ))}
       </div>
@@ -234,6 +256,14 @@ interface SourceCardItemProps {
   bodyLabel: string;
   recommendedLabel: string | null;
   withingsCtaLabel: string;
+  /** Whether the account already has its own Withings developer-app
+   *  credentials saved — i.e. whether `/api/withings/connect` can
+   *  actually succeed right now. */
+  withingsConfigured: boolean;
+  /** CTA label shown instead of "Connect Withings" when unconfigured. */
+  withingsSetupCtaLabel: string;
+  /** One-sentence explanation of the BYO credential prerequisite. */
+  withingsSetupHint: string;
 }
 
 function SourceCardItem({
@@ -244,6 +274,9 @@ function SourceCardItem({
   bodyLabel,
   recommendedLabel,
   withingsCtaLabel,
+  withingsConfigured,
+  withingsSetupCtaLabel,
+  withingsSetupHint,
 }: SourceCardItemProps) {
   const Icon = card.Icon;
 
@@ -292,20 +325,40 @@ function SourceCardItem({
       >
         {headerRow}
         {body}
-        <div className="flex items-center gap-2 pt-1">
-          <Button asChild variant="outline" size="sm">
-            <a
-              href={card.href}
-              target="_blank"
-              rel="noopener"
-              onClick={onSelect}
-              className="inline-flex items-center gap-1.5"
-            >
-              <Wifi className="size-3.5" />
-              {withingsCtaLabel}
-            </a>
-          </Button>
-        </div>
+        {withingsConfigured ? (
+          <div className="flex items-center gap-2 pt-1">
+            <Button asChild variant="outline" size="sm">
+              <a
+                href={card.href}
+                target="_blank"
+                rel="noopener"
+                onClick={onSelect}
+                className="inline-flex items-center gap-1.5"
+              >
+                <Wifi className="size-3.5" />
+                {withingsCtaLabel}
+              </a>
+            </Button>
+          </div>
+        ) : (
+          // No per-user Withings credentials yet — an OAuth handshake here
+          // can only 400 (Withings has no env fallback). Point at the
+          // credentials form instead of launching a doomed connect flow.
+          <div className="space-y-2 pt-1">
+            <p className="text-muted-foreground text-xs">{withingsSetupHint}</p>
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href="/settings/integrations#withings"
+                onClick={onSelect}
+                className="inline-flex items-center gap-1.5"
+                data-testid="source-card-withings-setup"
+              >
+                <Wifi className="size-3.5" />
+                {withingsSetupCtaLabel}
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
     );
   }

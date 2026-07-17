@@ -4016,7 +4016,7 @@
     },
     "source": {
       "title": "Conectar una fuente",
-      "body": "Importa las mediciones automáticamente o sigue con la entrada manual. Aquí no se configura nada por ti: cada tarjeta solo muestra dónde conectarla.",
+      "body": "Importa las mediciones automáticamente o sigue con la entrada manual. Aquí no se configura nada por ti: cada tarjeta solo muestra dónde conectarla. Las fuentes de dispositivo necesitan una app de desarrollador gratuita en tu propia cuenta (unos 5 minutos); la guía de cada tarjeta te lo explica.",
       "recommended": "Recomendado",
       "manual": {
         "title": "Entrada manual",
@@ -4024,12 +4024,14 @@
       },
       "withings": {
         "title": "Withings",
-        "body": "Las básculas, los tensiómetros y los trackers de Withings se sincronizan automáticamente.",
-        "cta": "Conectar Withings"
+        "body": "Las básculas, los tensiómetros y los trackers de Withings se sincronizan automáticamente una vez conectados.",
+        "cta": "Conectar Withings",
+        "setupCta": "Configurar en Ajustes",
+        "setupHint": "Necesita primero tu propia app de desarrollador de Withings, gratuita — unos 5 minutos, una sola vez."
       },
       "more": {
         "title": "Más fuentes",
-        "body": "Conecta cualquiera de ellas en Ajustes cuando quieras.",
+        "body": "Conecta cualquiera de ellas en Ajustes cuando quieras — la mayoría necesita antes una app de desarrollador gratuita en tu propia cuenta.",
         "appleHealth": "Apple Health",
         "whoop": "WHOOP",
         "oura": "Oura",
@@ -5389,6 +5391,12 @@
     "ouraDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
     "nightscoutDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
     "integrationCredentialsHint": "Dónde encontrar estas credenciales y cómo registrar tu propia aplicación se explica en la guía de configuración de arriba.",
+    "integrationRedirectGuide": {
+      "intro": "Esto se conecta mediante tu propia app de desarrollador de {provider} — unos 5 minutos de configuración:",
+      "step1": "Crea una app en el portal de desarrolladores de {provider}.",
+      "step2": "Configura su URL de redirección/callback en:",
+      "step3": "Pega arriba el ID de cliente y el secreto de cliente que te da."
+    },
     "security": {
       "sessionsTitle": "Sesiones activas",
       "sessionsDescription": "Dispositivos y navegadores con sesión iniciada en tu cuenta.",

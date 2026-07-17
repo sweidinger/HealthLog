@@ -37,7 +37,10 @@ import {
   pillStateFor,
   type IntegrationStatusViewModel,
 } from "./shared";
-import { IntegrationCardDescription } from "./setup-guide-link";
+import {
+  IntegrationCardDescription,
+  IntegrationRedirectGuide,
+} from "./setup-guide-link";
 
 export function WithingsCard({
   viewModel,
@@ -299,6 +302,12 @@ export function WithingsCard({
           <h3 className="text-sm font-semibold">
             {t("settings.withingsCredentials")}
           </h3>
+          {!status?.configured && (
+            <IntegrationRedirectGuide
+              provider="withings"
+              providerLabel={t("settings.withings")}
+            />
+          )}
           <form onSubmit={handleSaveCredentials} className="space-y-3">
             {/* v1.4.27 MB7 / CF-53 — the credentials grid drops from
                 a 3-column row (client-id / secret / save) to a

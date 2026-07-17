@@ -44,7 +44,10 @@ import {
   pillStateFor,
   type IntegrationStatusViewModel,
 } from "./shared";
-import { IntegrationCardDescription } from "./setup-guide-link";
+import {
+  IntegrationCardDescription,
+  IntegrationRedirectGuide,
+} from "./setup-guide-link";
 
 export function WhoopCard({
   viewModel,
@@ -264,6 +267,12 @@ export function WhoopCard({
           <h3 className="text-sm font-semibold">
             {t("settings.whoopCredentials")}
           </h3>
+          {!status?.configured && (
+            <IntegrationRedirectGuide
+              provider="whoop"
+              providerLabel={t("settings.whoop")}
+            />
+          )}
           <form onSubmit={handleSaveCredentials} className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">

@@ -1,5 +1,4 @@
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiError } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -32,7 +31,8 @@ import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
  * Rate-limited per user (10 calls / 60 s) so a logged-in session can't spam
  * ledger rows for the full 10-min TTL window. Both the rate-limit and
  * create-failure paths redirect (not JSON) because the entry point is a browser
- * navigation — a 429 envelope would surface as a blank page.
+ * navigation — a 429 envelope would surface as a blank page. The
+ * no-credentials branch redirects too (v1.29.x), matching Withings/WHOOP.
  */
 const CONNECT_RATE_LIMIT = 10;
 const CONNECT_WINDOW_MS = 60_000;
@@ -58,9 +58,9 @@ export const GET = apiHandler(async (req: NextRequest) => {
 
   const creds = await getUserFitbitCredentials(user.id);
   if (!creds) {
-    return apiError(
-      "Please configure your Fitbit OAuth Client ID and Client Secret in Settings first.",
-      400,
+    annotate({ action: { name: "fitbit.connect.no_credentials" } });
+    return NextResponse.redirect(
+      new URL("/settings/integrations?fitbit=error&reason=nocreds", req.url),
     );
   }
 

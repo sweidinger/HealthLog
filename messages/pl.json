@@ -4016,7 +4016,7 @@
     },
     "source": {
       "title": "Połącz źródło",
-      "body": "Pobieraj pomiary automatycznie lub zostań przy wpisywaniu ręcznym. Nic nie jest tu konfigurowane za Ciebie — każda karta pokazuje tylko, gdzie to połączyć.",
+      "body": "Pobieraj pomiary automatycznie lub zostań przy wpisywaniu ręcznym. Nic nie jest tu konfigurowane za Ciebie — każda karta pokazuje tylko, gdzie to połączyć. Źródła sprzętowe wymagają darmowej aplikacji deweloperskiej na Twoim własnym koncie (około 5 minut); przewodnik na każdej karcie prowadzi krok po kroku.",
       "recommended": "Polecane",
       "manual": {
         "title": "Wpis ręczny",
@@ -4024,12 +4024,14 @@
       },
       "withings": {
         "title": "Withings",
-        "body": "Wagi, ciśnieniomierze i trackery Withings synchronizują się automatycznie.",
-        "cta": "Połącz Withings"
+        "body": "Wagi, ciśnieniomierze i trackery Withings synchronizują się automatycznie po połączeniu.",
+        "cta": "Połącz Withings",
+        "setupCta": "Skonfiguruj w Ustawieniach",
+        "setupHint": "Najpierw wymaga własnej, darmowej aplikacji deweloperskiej Withings — około 5 minut, jednorazowo."
       },
       "more": {
         "title": "Więcej źródeł",
-        "body": "Połącz dowolne z nich w Ustawieniach, gdy zechcesz.",
+        "body": "Połącz dowolne z nich w Ustawieniach, gdy zechcesz — większość wymaga najpierw darmowej aplikacji deweloperskiej na Twoim własnym koncie.",
         "appleHealth": "Apple Health",
         "whoop": "WHOOP",
         "oura": "Oura",
@@ -5389,6 +5391,12 @@
     "ouraDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "nightscoutDescriptionSecondary": "Odczyty trafiają do panelu w tle. Pierwszy raz? Skorzystaj z",
     "integrationCredentialsHint": "Gdzie znaleźć te dane logowania i jak zarejestrować własną aplikację, opisano w przewodniku konfiguracji powyżej.",
+    "integrationRedirectGuide": {
+      "intro": "To połączenie działa przez Twoją własną aplikację deweloperską {provider} — około 5 minut konfiguracji:",
+      "step1": "Utwórz aplikację w portalu deweloperskim {provider}.",
+      "step2": "Ustaw jej URL przekierowania/callback na:",
+      "step3": "Wklej powyżej otrzymany identyfikator klienta i sekret klienta."
+    },
     "security": {
       "sessionsTitle": "Aktywne sesje",
       "sessionsDescription": "Urządzenia i przeglądarki obecnie zalogowane na Twoje konto.",

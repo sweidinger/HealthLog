@@ -4016,7 +4016,7 @@
     },
     "source": {
       "title": "Quelle verbinden",
-      "body": "Werte automatisch übernehmen oder weiter manuell eintragen. Hier wird nichts für dich eingerichtet – jede Karte zeigt nur, wo du sie verbindest.",
+      "body": "Werte automatisch übernehmen oder weiter manuell eintragen. Hier wird nichts für dich eingerichtet – jede Karte zeigt nur, wo du sie verbindest. Geräte-Quellen brauchen eine kostenlose Entwickler-App auf deinem eigenen Konto (etwa 5 Minuten); die Anleitung auf jeder Karte führt dich durch.",
       "recommended": "Empfohlen",
       "manual": {
         "title": "Manuelle Eingabe",
@@ -4024,12 +4024,14 @@
       },
       "withings": {
         "title": "Withings",
-        "body": "Waagen, Blutdruckmesser und Tracker von Withings synchronisieren automatisch.",
-        "cta": "Withings verbinden"
+        "body": "Waagen, Blutdruckmesser und Tracker von Withings synchronisieren automatisch, sobald verbunden.",
+        "cta": "Withings verbinden",
+        "setupCta": "In den Einstellungen einrichten",
+        "setupHint": "Braucht zuerst deine eigene, kostenlose Withings-Entwickler-App – etwa 5 Minuten, einmalig."
       },
       "more": {
         "title": "Weitere Quellen",
-        "body": "Verbinde eine davon in den Einstellungen, wann immer du bereit bist.",
+        "body": "Verbinde eine davon in den Einstellungen, wann immer du bereit bist – die meisten brauchen zuerst eine kostenlose Entwickler-App auf deinem eigenen Konto.",
         "appleHealth": "Apple Health",
         "whoop": "WHOOP",
         "oura": "Oura",
@@ -5389,6 +5391,12 @@
     "ouraDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "nightscoutDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben.",
+    "integrationRedirectGuide": {
+      "intro": "Die Verbindung läuft über deine eigene {provider}-Entwickler-App – etwa 5 Minuten Einrichtung:",
+      "step1": "Erstelle eine App im {provider}-Entwicklerportal.",
+      "step2": "Setze deren Weiterleitungs-/Callback-URL auf:",
+      "step3": "Trage die dort erhaltene Client-ID und das Client-Secret oben ein."
+    },
     "security": {
       "sessionsTitle": "Aktive Sitzungen",
       "sessionsDescription": "Geräte und Browser, die aktuell bei deinem Konto angemeldet sind.",

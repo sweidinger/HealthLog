@@ -4016,7 +4016,7 @@
     },
     "source": {
       "title": "Connetti una sorgente",
-      "body": "Importa le misurazioni in automatico oppure resta sull'inserimento manuale. Qui non viene configurato nulla al posto tuo: ogni scheda mostra solo dove collegarla.",
+      "body": "Importa le misurazioni in automatico oppure resta sull'inserimento manuale. Qui non viene configurato nulla al posto tuo: ogni scheda mostra solo dove collegarla. Le fonti su dispositivo richiedono un'app sviluppatore gratuita sul tuo account (circa 5 minuti); la guida su ogni scheda ti accompagna.",
       "recommended": "Consigliato",
       "manual": {
         "title": "Inserimento manuale",
@@ -4024,12 +4024,14 @@
       },
       "withings": {
         "title": "Withings",
-        "body": "Bilance, misuratori di pressione e tracker Withings si sincronizzano automaticamente.",
-        "cta": "Connetti Withings"
+        "body": "Bilance, misuratori di pressione e tracker Withings si sincronizzano automaticamente una volta collegati.",
+        "cta": "Connetti Withings",
+        "setupCta": "Configura nelle Impostazioni",
+        "setupHint": "Richiede prima la tua app sviluppatore Withings gratuita — circa 5 minuti, una tantum."
       },
       "more": {
         "title": "Altre fonti",
-        "body": "Collega una di queste nelle Impostazioni quando vuoi.",
+        "body": "Collega una di queste nelle Impostazioni quando vuoi — la maggior parte richiede prima un'app sviluppatore gratuita sul tuo account.",
         "appleHealth": "Apple Health",
         "whoop": "WHOOP",
         "oura": "Oura",
@@ -5389,6 +5391,12 @@
     "ouraDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
     "nightscoutDescriptionSecondary": "Le misurazioni arrivano nella dashboard in background. È la prima volta? Segui la",
     "integrationCredentialsHint": "Dove trovare queste credenziali e come registrare la tua app è spiegato nella guida alla configurazione qui sopra.",
+    "integrationRedirectGuide": {
+      "intro": "Questa connessione passa dalla tua app sviluppatore {provider} — circa 5 minuti di configurazione:",
+      "step1": "Crea un'app nel portale sviluppatori {provider}.",
+      "step2": "Imposta il suo URL di reindirizzamento/callback su:",
+      "step3": "Incolla qui sopra l'ID client e il client secret ricevuti."
+    },
     "security": {
       "sessionsTitle": "Sessioni attive",
       "sessionsDescription": "Dispositivi e browser attualmente connessi al tuo account.",

@@ -12,6 +12,10 @@
  *      redirects to
  *      `/settings/integrations?withings=error&reason=connect`
  *      instead of bubbling a 500.
+ *   4. No credentials: redirects to
+ *      `/settings/integrations?withings=error&reason=nocreds` instead of
+ *      returning a raw JSON 400 (v1.29.x — the flagship onboarding CTA
+ *      dead-ended in an unstyled JSON tab for every brand-new account).
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
@@ -131,5 +135,18 @@ describe("GET /api/withings/connect", () => {
     expect(location).toContain("/settings/integrations");
     expect(location).toContain("withings=error");
     expect(location).toContain("reason=connect");
+  });
+
+  it("redirects to reason=nocreds when no per-user credentials are stored", async () => {
+    vi.mocked(getUserWithingsCredentials).mockResolvedValueOnce(null);
+
+    const response = await GET(connectRequest());
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get("location") ?? "";
+    expect(location).toContain("/settings/integrations");
+    expect(location).toContain("withings=error");
+    expect(location).toContain("reason=nocreds");
+    expect(prisma.withingsOAuthState.create).not.toHaveBeenCalled();
   });
 });

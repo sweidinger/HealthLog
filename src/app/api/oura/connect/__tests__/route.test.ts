@@ -5,7 +5,7 @@ const { rateLimitMock, getCredsMock, mintMock, authUrlMock } = vi.hoisted(
     rateLimitMock: vi.fn(),
     getCredsMock: vi.fn(),
     mintMock: vi.fn(() => "signed-state"),
-    authUrlMock: vi.fn(() => "https://flow.polar.com/oauth2/authorization?x=1"),
+    authUrlMock: vi.fn(() => "https://cloud.ouraring.com/oauth/authorize?x=1"),
   }),
 );
 
@@ -18,14 +18,14 @@ vi.mock("@/lib/auth/secure-cookie", () => ({
   shouldEmitSecureCookie: () => true,
 }));
 vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: rateLimitMock }));
-vi.mock("@/lib/polar/client", () => ({ getAuthorizationUrl: authUrlMock }));
-vi.mock("@/lib/polar/credentials", () => ({
-  getPolarClientCredentials: getCredsMock,
+vi.mock("@/lib/oura/client", () => ({ getAuthorizationUrl: authUrlMock }));
+vi.mock("@/lib/oura/credentials", () => ({
+  getOuraClientCredentials: getCredsMock,
 }));
 vi.mock("@/lib/oauth/signed-state", () => ({
   OAUTH_STATE_TTL_MS: 600_000,
   mintSignedState: mintMock,
-  oauthStateCookieName: () => "polar_oauth_state",
+  oauthStateCookieName: () => "oura_oauth_state",
 }));
 
 import { GET } from "../route";
@@ -44,11 +44,11 @@ beforeEach(() => {
   getCredsMock.mockResolvedValue({ clientId: "c", clientSecret: "s" });
 });
 
-describe("GET /api/polar/connect", () => {
+describe("GET /api/oura/connect", () => {
   it("redirects to the consent screen and sets the state cookie", async () => {
     const res = await run();
-    expect(res.headers.get("location")).toContain("flow.polar.com");
-    expect(res.cookies.get("polar_oauth_state")?.value).toBe("signed-state");
+    expect(res.headers.get("location")).toContain("cloud.ouraring.com");
+    expect(res.cookies.get("oura_oauth_state")?.value).toBe("signed-state");
   });
 
   it("redirects to an error when the bucket is exhausted", async () => {
@@ -63,7 +63,7 @@ describe("GET /api/polar/connect", () => {
     const res = await run();
     const location = res.headers.get("location") ?? "";
     expect(location).toContain("/settings/integrations");
-    expect(location).toContain("polar=error");
+    expect(location).toContain("oura=error");
     expect(location).toContain("reason=nocreds");
   });
 });

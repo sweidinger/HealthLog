@@ -4016,7 +4016,7 @@
     },
     "source": {
       "title": "Connecter une source",
-      "body": "Importez les mesures automatiquement ou conservez la saisie manuelle. Rien n'est configuré à votre place : chaque carte indique simplement où la connecter.",
+      "body": "Importez les mesures automatiquement ou conservez la saisie manuelle. Rien n'est configuré à votre place : chaque carte indique simplement où la connecter. Les sources d'appareil nécessitent une application développeur gratuite sur votre propre compte (environ 5 minutes) ; le guide de chaque carte vous accompagne.",
       "recommended": "Recommandé",
       "manual": {
         "title": "Saisie manuelle",
@@ -4024,12 +4024,14 @@
       },
       "withings": {
         "title": "Withings",
-        "body": "Balances, tensiomètres et trackers Withings se synchronisent automatiquement.",
-        "cta": "Connecter Withings"
+        "body": "Balances, tensiomètres et trackers Withings se synchronisent automatiquement une fois connectés.",
+        "cta": "Connecter Withings",
+        "setupCta": "Configurer dans les Réglages",
+        "setupHint": "Nécessite d'abord votre propre application développeur Withings, gratuite — environ 5 minutes, une seule fois."
       },
       "more": {
         "title": "Autres sources",
-        "body": "Connectez l'une d'elles dans les Réglages quand vous le souhaitez.",
+        "body": "Connectez l'une d'elles dans les Réglages quand vous le souhaitez — la plupart nécessitent d'abord une application développeur gratuite sur votre propre compte.",
         "appleHealth": "Apple Health",
         "whoop": "WHOOP",
         "oura": "Oura",
@@ -5389,6 +5391,12 @@
     "ouraDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "nightscoutDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus.",
+    "integrationRedirectGuide": {
+      "intro": "Cette connexion passe par votre propre application développeur {provider} — environ 5 minutes de configuration :",
+      "step1": "Créez une application dans le portail développeur {provider}.",
+      "step2": "Réglez son URL de redirection/callback sur :",
+      "step3": "Collez ci-dessus l'ID client et le secret client fournis."
+    },
     "security": {
       "sessionsTitle": "Sessions actives",
       "sessionsDescription": "Appareils et navigateurs actuellement connectés à votre compte.",
