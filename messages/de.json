@@ -2486,6 +2486,7 @@
     "navPulse": "Puls",
     "navMood": "Stimmung",
     "navMedication": "Medikamente",
+    "navNutrients": "Nährstoffe",
     "navBmi": "BMI",
     "navSleep": "Schlaf",
     "navHrv": "HRV",
@@ -8548,7 +8549,36 @@
       "iodine": "Jod",
       "water": "Wasser",
       "caffeine": "Koffein"
-    }
+    },
+    "page": {
+      "title": "Nährstoffaufnahme",
+      "description": "Flüssigkeits- und Vitamin-/Mineralstoffaufnahme aus der Gesundheits-App deines Telefons, plus manuelle Wassereinträge.",
+      "moduleOffTitle": "Nährstoffaufnahme ist aus",
+      "moduleOffDescription": "Aktiviere das Nährstoffe-Modul, um Flüssigkeits- und Vitamin-/Mineralstoffaufnahme hier zu sehen. Synchronisierte Werte werden Teil der Aufzeichnung, die der Coach lesen kann.",
+      "moduleOffCta": "Nährstoffe aktivieren",
+      "emptyTitle": "Noch keine Nährstoffdaten",
+      "emptyDescription": "Daten kommen aus der Synchronisierung der Gesundheits-App deines Telefons oder einem manuellen Wassereintrag."
+    },
+    "hydration": {
+      "referenceMeta": "Richtwert {value} {unit}/Tag · EFSA",
+      "quickAddTitle": "Wasser hinzufügen",
+      "quickAddCustomLabel": "Eigene Menge (ml)",
+      "quickAddCustomPlaceholder": "250",
+      "quickAddSubmit": "Hinzufügen",
+      "quickAddError": "Konnte nicht gespeichert werden — versuch's noch mal.",
+      "editTotal": "Heutige Summe bearbeiten"
+    },
+    "caffeine": {
+      "ceilingMeta": "Sichere Obergrenze {value} {unit}/Tag · EFSA"
+    },
+    "micronutrients": {
+      "title": "Vitamine & Mineralstoffe",
+      "rowMeta": "{days} von {window} Tagen · Richtwert {value} {unit} (EFSA)",
+      "rowMetaNoRef": "{days} von {window} Tagen",
+      "footer": "{tracked} von {total} erfassten Mikronährstoffen haben Daten in diesem Zeitraum.",
+      "emptyTitle": "Noch keine Mikronährstoffdaten synchronisiert"
+    },
+    "sparseNote": "Ein niedriger Wert bedeutet hier meist lückenhafte Erfassung, keinen Mangel — die Tagessummen aus Apple Health spiegeln wider, was deine Apps erfasst haben, nicht die gesamte Nahrungsaufnahme."
   },
   "daily": {
     "line": {

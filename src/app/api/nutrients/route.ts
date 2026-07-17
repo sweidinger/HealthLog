@@ -49,23 +49,29 @@ export const GET = apiHandler(async (request: NextRequest) => {
     select: { nutrient: true, unit: true, day: true, amount: true },
   });
 
-  // Fold to one summary row per nutrient. Rows arrive day-DESC inside
-  // each nutrient, so the first row seen per code is the latest.
+  // v1.29 — `source` joined the PK (migration 0249): a day can now carry
+  // an APPLE_HEALTH row AND a MANUAL row, so the fold sums amounts
+  // WITHIN (nutrient, day) before folding across days. Rows arrive
+  // day-DESC inside each nutrient, so the first DAY seen per code is
+  // the latest; a second row for that same day (the other source) adds
+  // to the running total instead of opening a new "day".
   const byCode = new Map<
     string,
     { unit: string; latestDay: string; latestAmount: number; days: number }
   >();
   for (const row of rows) {
     const existing = byCode.get(row.nutrient);
-    if (existing) {
-      existing.days += 1;
-    } else {
+    if (!existing) {
       byCode.set(row.nutrient, {
         unit: row.unit,
         latestDay: row.day,
         latestAmount: row.amount,
         days: 1,
       });
+    } else if (row.day === existing.latestDay) {
+      existing.latestAmount += row.amount;
+    } else {
+      existing.days += 1;
     }
   }
 

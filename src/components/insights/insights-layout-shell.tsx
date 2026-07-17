@@ -106,6 +106,21 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   // dashboard tile so navigation between surfaces is a free cache hit.
   const workoutsProbe = useWorkouts({ limit: 1 });
 
+  // v1.29 — nutrients-presence gate. The nutrients pill gates on at
+  // least one `NutrientIntakeDay` row in a 1-day probe window (any
+  // nutrient, any source). Enabled only when the opt-in module is on —
+  // the route 403s "module.disabled" otherwise, so probing while off
+  // would just burn a request every mount.
+  const nutrientsEnabled = user?.modules?.nutrients === true;
+  const nutrientsProbe = useQuery({
+    queryKey: queryKeys.nutrientIntake(1),
+    queryFn: () =>
+      apiGet<{ nutrients: Array<{ nutrient: string }> }>(
+        "/api/nutrients?days=1",
+      ),
+    enabled: isAuthenticated && nutrientsEnabled,
+  });
+
   // v1.4.31 — memoise the `availability` prop so an unchanged
   // payload doesn't recreate the object on every cache-write of
   // analytics or comprehensive. The strip is wrapped in
@@ -117,10 +132,18 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   const hasMood = (comprehensiveQuery.data?.moodSummary?.count ?? 0) > 0;
   const hasMedication = (comprehensiveQuery.data?.medications?.length ?? 0) > 0;
   const hasWorkouts = (workoutsProbe.data?.workouts.length ?? 0) > 0;
+  const hasNutrients = (nutrientsProbe.data?.nutrients.length ?? 0) > 0;
   const availability: InsightInputs | undefined = useMemo(() => {
     if (!isAuthenticated) return undefined;
-    return { summaries, hasMood, hasMedication, hasWorkouts };
-  }, [isAuthenticated, summaries, hasMood, hasMedication, hasWorkouts]);
+    return { summaries, hasMood, hasMedication, hasWorkouts, hasNutrients };
+  }, [
+    isAuthenticated,
+    summaries,
+    hasMood,
+    hasMedication,
+    hasWorkouts,
+    hasNutrients,
+  ]);
 
   // v1.15.14 W2 — couple the tab strip to the saved insights layout.
   // A sub-page pill now shows iff its metric has data AND its slug is

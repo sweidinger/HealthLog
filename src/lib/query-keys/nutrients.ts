@@ -6,4 +6,11 @@
 export const nutrientKeys = {
   /** Per-nutrient window summary from `GET /api/nutrients?days=N`. */
   nutrientIntake: (days: number) => ["nutrients", "intake", days] as const,
+  /**
+   * v1.29 — one nutrient's day-bucketed series from
+   * `GET /api/nutrients/daily?nutrient=<code>&days=N`. Feeds the
+   * `/insights/nutrients` hydration + caffeine charts.
+   */
+  nutrientDaily: (nutrient: string, days: number) =>
+    ["nutrients", "daily", nutrient, days] as const,
 };

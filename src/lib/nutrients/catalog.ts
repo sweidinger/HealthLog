@@ -305,3 +305,38 @@ const NUTRIENT_CODE_SET: ReadonlySet<string> = new Set(NUTRIENT_CODES);
 export function isNutrientCode(code: string): code is NutrientCode {
   return NUTRIENT_CODE_SET.has(code);
 }
+
+/** A catalog reference resolved to one concrete number for a profile. */
+export interface ResolvedNutrientReference {
+  kind: NutrientReference["kind"];
+  direction: NutrientReference["direction"];
+  value: number;
+  source: string;
+}
+
+/**
+ * Resolve a catalog reference against the user's profile sex (v1.29).
+ *
+ * `adult` values (uniform across sexes) resolve unconditionally. A
+ * sex-split reference (`male` / `female`, no `adult`) resolves only
+ * when `sex` is known — a profile without sex on file OMITS the
+ * reference rather than guessing, the catalog's own documented
+ * contract (see the module docblock). Every insights surface honours
+ * this: no reference line, no meta sentence, nothing inferred.
+ */
+export function resolveNutrientReference(
+  code: NutrientCode,
+  sex: "MALE" | "FEMALE" | null,
+): ResolvedNutrientReference | null {
+  const ref = NUTRIENT_CATALOG[code].reference;
+  const value =
+    ref.adult ??
+    (sex === "MALE" ? ref.male : sex === "FEMALE" ? ref.female : undefined);
+  if (value === undefined) return null;
+  return {
+    kind: ref.kind,
+    direction: ref.direction,
+    value,
+    source: ref.source,
+  };
+}

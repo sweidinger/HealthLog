@@ -2486,6 +2486,7 @@
     "navPulse": "Tętno",
     "navMood": "Nastrój",
     "navMedication": "Lek",
+    "navNutrients": "Składniki odżywcze",
     "navBmi": "BMI",
     "navSleep": "Sen",
     "navHrv": "HRV",
@@ -8548,7 +8549,36 @@
       "iodine": "Jod",
       "water": "Woda",
       "caffeine": "Kofeina"
-    }
+    },
+    "page": {
+      "title": "Spożycie składników odżywczych",
+      "description": "Nawodnienie oraz spożycie witamin/minerałów zsynchronizowane z aplikacji zdrowia telefonu, plus ręczne wpisy wody.",
+      "moduleOffTitle": "Śledzenie składników odżywczych jest wyłączone",
+      "moduleOffDescription": "Włącz moduł składników odżywczych, aby zobaczyć tu nawodnienie i spożycie witamin/minerałów. Zsynchronizowane dane staną się częścią zapisu, który może odczytać Coach.",
+      "moduleOffCta": "Włącz składniki odżywcze",
+      "emptyTitle": "Brak jeszcze danych o składnikach odżywczych",
+      "emptyDescription": "Dane pochodzą z synchronizacji aplikacji zdrowia telefonu lub z ręcznego wpisu wody."
+    },
+    "hydration": {
+      "referenceMeta": "Zalecane spożycie {value} {unit}/dzień · EFSA",
+      "quickAddTitle": "Dodaj wodę",
+      "quickAddCustomLabel": "Własna ilość (mL)",
+      "quickAddCustomPlaceholder": "250",
+      "quickAddSubmit": "Dodaj",
+      "quickAddError": "Nie udało się zapisać — spróbuj ponownie.",
+      "editTotal": "Edytuj dzisiejszą sumę"
+    },
+    "caffeine": {
+      "ceilingMeta": "Bezpieczny limit {value} {unit}/dzień · EFSA"
+    },
+    "micronutrients": {
+      "title": "Witaminy i minerały",
+      "rowMeta": "{days} z {window} dni · zalecane {value} {unit} (EFSA)",
+      "rowMetaNoRef": "{days} z {window} dni",
+      "footer": "{tracked} z {total} śledzonych mikroskładników ma dane w tym okresie.",
+      "emptyTitle": "Brak jeszcze zsynchronizowanych danych o mikroskładnikach"
+    },
+    "sparseNote": "Niska wartość zwykle oznacza tu rzadkie zapisywanie, a nie niedobór — dzienne sumy z Apple Health odzwierciedlają to, co zapisały twoje aplikacje, a nie całkowite spożycie w diecie."
   },
   "daily": {
     "line": {

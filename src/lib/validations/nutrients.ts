@@ -9,7 +9,7 @@
  */
 import { z } from "zod/v4";
 
-import { NUTRIENT_CODES } from "@/lib/nutrients/catalog";
+import { NUTRIENT_CATALOG, NUTRIENT_CODES } from "@/lib/nutrients/catalog";
 
 export const MAX_NUTRIENT_ENTRIES_PER_BATCH = 500;
 
@@ -105,4 +105,73 @@ export const nutrientOverviewSchema = z
     id: "NutrientIntakeOverview",
     description:
       "Per-nutrient window summary in catalog order: latest synced day + total, and the count of days carrying data inside the window. Nutrients without data in the window are omitted.",
+  });
+
+/**
+ * `POST /api/nutrients/water` body (v1.29) — manual water quick-add.
+ *
+ * Water only in slice 1 (manual vitamin entry is out of scope — see
+ * the design memo). `amountMl` is bounded to the catalog's own
+ * per-day plausibility cap for water; `mode: "add"` increments the
+ * MANUAL row for `day`, `mode: "set"` overwrites it (the "edit
+ * today's total" undo path). `day` defaults server-side to the
+ * caller's current local day when omitted.
+ */
+export const nutrientWaterWriteSchema = z
+  .object({
+    amountMl: z
+      .number()
+      .finite()
+      .min(1)
+      .max(NUTRIENT_CATALOG.water.plausibleDailyMax),
+    mode: z.enum(["add", "set"]),
+    day: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+  })
+  .meta({
+    id: "NutrientWaterWriteRequest",
+    description:
+      "Manual water quick-add against the MANUAL source row. add increments today's manual total; set overwrites it. Never touches the APPLE_HEALTH row.",
+  });
+
+export const nutrientWaterWriteResponseSchema = z
+  .object({
+    day: z.string(),
+    nutrient: z.literal("water"),
+    source: z.literal("MANUAL"),
+    amount: z.number(),
+    unit: z.string(),
+  })
+  .meta({
+    id: "NutrientWaterWriteResponse",
+    description: "The MANUAL water row after the add/set write.",
+  });
+
+/** `GET /api/nutrients/daily` query — one nutrient's day-bucketed series. */
+export const nutrientDailyQuerySchema = z.object({
+  nutrient: nutrientCodeEnum,
+  days: z.coerce.number().int().min(1).max(90).default(30),
+});
+
+const resolvedNutrientReferenceSchema = z.object({
+  kind: z.enum(["PRI", "AI", "safeLevel"]),
+  direction: z.enum(["target", "upperGuidance"]),
+  value: z.number(),
+  source: z.string(),
+});
+
+export const nutrientDailySeriesSchema = z
+  .object({
+    nutrient: nutrientCodeEnum,
+    unit: z.string(),
+    windowDays: z.number().int().min(1),
+    days: z.array(z.object({ day: z.string(), amount: z.number() })),
+    reference: resolvedNutrientReferenceSchema.nullable(),
+  })
+  .meta({
+    id: "NutrientDailySeries",
+    description:
+      "Dense day-bucketed series (one entry per day in the window, 0 for a day with no data) summed across sources, plus the EFSA reference resolved against the caller's profile sex (null when sex is unknown on the profile).",
   });

@@ -1,0 +1,112 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Leaf } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SubPageShell } from "@/components/insights/sub-page-shell";
+import { HydrationCard } from "@/components/insights/nutrients/hydration-card";
+import { CaffeineCard } from "@/components/insights/nutrients/caffeine-card";
+import { MicronutrientsCard } from "@/components/insights/nutrients/micronutrients-card";
+import { useAuth } from "@/hooks/use-auth";
+import { useTranslations } from "@/lib/i18n/context";
+import { apiGet, apiPatch } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import type { NutrientIntakeOverview } from "@/components/insights/nutrients/types";
+
+const WINDOW_DAYS = 30;
+
+/**
+ * `/insights/nutrients` — hydration + micronutrients (v1.29).
+ *
+ * Custom sub-page (NOT `HealthKitMetricPage` — that scaffold is
+ * Measurement-backed; this store is `NutrientIntakeDay`). Three cards:
+ * hydration hero (always renders once the module is on — even at 0 mL,
+ * the quick-add entry point IS the first-run invitation), caffeine
+ * (self-gates to nothing without data), micronutrients (self-gates to
+ * an EmptyState without data). Degradation ladder:
+ *
+ *   - module off → one EmptyState with an in-context enable CTA. The
+ *     module STAYS opt-in (2026-07-17 memo — the HealthKit read prompt
+ *     on the device is not visible consent to a server / Coach holding
+ *     a supplement pattern); this page just makes the toggle
+ *     discoverable in context instead of buried in Settings.
+ *   - module on, zero rows anywhere in the window → one EmptyState
+ *     explaining where data comes from (phone health-app sync or
+ *     manual water entry) instead of three near-empty cards.
+ *   - otherwise → the three-card spine.
+ */
+export default function InsightsNutrientsPage() {
+  const { t } = useTranslations();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const nutrientsEnabled = user?.modules?.nutrients === true;
+
+  const overview = useQuery({
+    queryKey: queryKeys.nutrientIntake(WINDOW_DAYS),
+    queryFn: () =>
+      apiGet<NutrientIntakeOverview>(`/api/nutrients?days=${WINDOW_DAYS}`),
+    enabled: nutrientsEnabled,
+  });
+
+  const enableModule = useMutation({
+    mutationFn: () => apiPatch("/api/auth/me/modules", { nutrients: true }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.authMe() });
+    },
+    onError: () => toast.error(t("nutrients.hydration.quickAddError")),
+  });
+
+  if (!nutrientsEnabled) {
+    return (
+      <SubPageShell title={t("nutrients.page.title")}>
+        <EmptyState
+          icon={<Leaf className="size-6" />}
+          title={t("nutrients.page.moduleOffTitle")}
+          description={t("nutrients.page.moduleOffDescription")}
+          ctaSize="lg"
+          action={
+            <Button
+              size="sm"
+              onClick={() => enableModule.mutate()}
+              disabled={enableModule.isPending}
+              data-slot="nutrients-enable-module"
+            >
+              {t("nutrients.page.moduleOffCta")}
+            </Button>
+          }
+        />
+      </SubPageShell>
+    );
+  }
+
+  const hasAnyData = (overview.data?.nutrients.length ?? 0) > 0;
+  if (!overview.isLoading && !hasAnyData) {
+    return (
+      <SubPageShell
+        title={t("nutrients.page.title")}
+        description={t("nutrients.page.description")}
+      >
+        <EmptyState
+          icon={<Leaf className="size-6" />}
+          title={t("nutrients.page.emptyTitle")}
+          description={t("nutrients.page.emptyDescription")}
+        />
+      </SubPageShell>
+    );
+  }
+
+  return (
+    <SubPageShell
+      title={t("nutrients.page.title")}
+      description={t("nutrients.page.description")}
+    >
+      <HydrationCard />
+      <CaffeineCard />
+      <MicronutrientsCard />
+    </SubPageShell>
+  );
+}

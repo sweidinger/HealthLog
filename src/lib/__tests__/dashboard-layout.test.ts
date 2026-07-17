@@ -447,10 +447,13 @@ describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
     // web-writable (iOS-only 11 → 9), and muscle mass is a brand-new
     // writable id, so the server-known set grew 25 → 28 and the catalogue
     // 36 → 37.
-    expect(DASHBOARD_WIDGET_IDS).toHaveLength(28);
+    // v1.29 — the nutrients-store-backed fluid-intake strip tile
+    // (`waterIntake`) added one server-known id, so the catalogue grew
+    // 37 → 38.
+    expect(DASHBOARD_WIDGET_IDS).toHaveLength(29);
     expect(DASHBOARD_IOS_ONLY_WIDGET_IDS).toHaveLength(9);
-    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(37);
-    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(37);
+    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(38);
+    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(38);
   });
 
   it("ships the sleep / steps / glucose strip tiles default-on (v1.20.0)", () => {
@@ -677,17 +680,17 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
     expect(ids).not.toContain("totally-made-up");
   });
 
-  it("keeps the default layout at the 28 web tiles (no iOS-only seeded)", () => {
+  it("keeps the default layout at the 29 web tiles (no iOS-only seeded)", () => {
     const ids = DEFAULT_DASHBOARD_LAYOUT.widgets.map((w) => w.id);
-    expect(ids).toHaveLength(28);
+    expect(ids).toHaveLength(29);
     for (const iosId of DASHBOARD_IOS_ONLY_WIDGET_IDS) {
       expect(ids).not.toContain(iosId);
     }
   });
 
   it("does NOT auto-append iOS-only ids when a web-only layout is read", () => {
-    // A web account that saved only `weight` must auto-upgrade to the 28
-    // web defaults — never to the 37 catalogue. iOS-only ids appear only
+    // A web account that saved only `weight` must auto-upgrade to the 29
+    // web defaults — never to the 38 catalogue. iOS-only ids appear only
     // once a native client has explicitly sent them.
     const partial = {
       version: 1,
@@ -695,7 +698,7 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
     };
     const resolved = resolveDashboardLayout(partial);
     const ids = resolved.widgets.map((w) => w.id);
-    expect(ids).toHaveLength(28);
+    expect(ids).toHaveLength(29);
     for (const iosId of DASHBOARD_IOS_ONLY_WIDGET_IDS) {
       expect(ids).not.toContain(iosId);
     }

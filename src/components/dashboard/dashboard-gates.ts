@@ -64,6 +64,9 @@ const TILE_CAPABLE_WIDGET_IDS = new Set<string>([
   "muscleMass",
   "totalBodyWater",
   "boneMass",
+  // v1.29 — fluid intake strip tile: paints one strip card and self-gates
+  // on having a NUTRIENT_WATER sample.
+  "waterIntake",
 ]);
 
 /**

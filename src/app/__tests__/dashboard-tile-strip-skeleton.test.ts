@@ -111,8 +111,9 @@ describe("resolveConfiguredTileCount (v1.16.8)", () => {
     // silhouette. bp paints sys + dia = 2. v1.28.52 added seven vitals +
     // body-composition strip tiles (hrv, oxygenSaturation, respiratoryRate,
     // wristTemperature, muscleMass, totalBodyWater, boneMass), each
-    // single-count: 11 + 7 = 18.
-    expect(resolveConfiguredTileCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(18);
+    // single-count: 11 + 7 = 18. v1.29 added the fluid-intake strip tile
+    // (waterIntake), single-count: 18 + 1 = 19.
+    expect(resolveConfiguredTileCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(19);
   });
 
   it("ignores chart-only and iOS-pin-only widget ids", () => {

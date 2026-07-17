@@ -135,6 +135,12 @@ const SUB_PAGE_METRIC = {
   mood: ["MOOD"],
   // ── events (medication adherence is event-driven; no measurement series) ──
   medications: [],
+  // v1.29 — nutrient intake (hydration + micronutrients). Backed by
+  // `NutrientIntakeDay`, not a `Measurement` series, so the metric list
+  // stays empty like `medications` / `workouts`; the tab-strip pill gates
+  // on `hasNutrients` (threaded from a lightweight probe read) instead of
+  // a `summaries[…].count`.
+  nutrients: [],
 } as const satisfies Record<string, readonly string[]>;
 
 export type SubPageSlug = keyof typeof SUB_PAGE_METRIC;
@@ -305,6 +311,9 @@ const FLAT_SLUG_MANAGER_GROUP: Partial<Record<SubPageSlug, ManagerGroup>> = {
   sleep: "sleep",
   mood: "mood",
   medications: "events",
+  // v1.29 — nutrient intake filed with the metabolic cluster (alongside
+  // blood glucose / skin / wrist temperature).
+  nutrients: "metabolic",
 };
 
 /**
