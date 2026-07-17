@@ -45,7 +45,9 @@ import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import { getPRDirection, isPRTrackable } from "./pr-direction";
 import {
+  Prisma,
   PersonalRecordDirection,
+  type MeasurementSource,
   type MeasurementType,
   type PrismaClient,
 } from "@/generated/prisma/client";
@@ -93,7 +95,7 @@ interface MeasurementCandidate {
   value: number;
   unit: string;
   measuredAt: Date;
-  source: string;
+  source: MeasurementSource;
   externalId: string | null;
 }
 
@@ -103,7 +105,7 @@ interface WorkoutCandidate {
   startedAt: Date;
   durationSec: number;
   totalDistanceM: number | null;
-  source: string;
+  source: MeasurementSource;
   externalId: string | null;
 }
 
@@ -298,7 +300,7 @@ export async function detectPersonalRecordsForUser(
           unit: best.unit,
           achievedAt: best.measuredAt,
           sourceMeasurementId: best.id,
-          source: best.source as never,
+          source: best.source,
           externalId: best.externalId,
         },
       ],
@@ -384,7 +386,7 @@ export async function detectPersonalRecordsForUser(
           unit: slot.unit,
           achievedAt: best.startedAt,
           sourceMeasurementId: null,
-          source: best.source as never,
+          source: best.source,
           externalId: best.externalId,
         },
       ],
@@ -614,15 +616,18 @@ async function findBestCumulativeDay(
 
 async function findBestWorkout(
   prisma: PrismaClient,
-  where: Record<string, unknown>,
+  where: Prisma.WorkoutWhereInput,
   slot: WorkoutSlotDefinition,
 ): Promise<WorkoutCandidate | null> {
+  const dir: Prisma.SortOrder =
+    slot.direction === PersonalRecordDirection.MAX ? "desc" : "asc";
+  const orderBy: Prisma.WorkoutOrderByWithRelationInput =
+    slot.field === "durationSec"
+      ? { durationSec: dir }
+      : { totalDistanceM: dir };
   const row = await prisma.workout.findFirst({
-    where: where as never,
-    orderBy:
-      slot.direction === PersonalRecordDirection.MAX
-        ? ({ [slot.field]: "desc" } as never)
-        : ({ [slot.field]: "asc" } as never),
+    where,
+    orderBy,
     select: {
       id: true,
       sportType: true,
