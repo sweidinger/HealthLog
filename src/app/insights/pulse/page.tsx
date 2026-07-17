@@ -17,6 +17,7 @@ import { CoachReadStrip } from "@/components/insights/derived/coach-read-strip";
 import { MetricCorrelationCard } from "@/components/insights/metric-correlation-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
+import { EcgCrossLink } from "@/components/insights/ecg-cross-link";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { TileHeader } from "@/components/insights/tile-header";
 import { IntradayPulseChart } from "@/components/insights/intraday-pulse-chart";
@@ -193,6 +194,12 @@ export default function InsightsPulsPage() {
         slug="pulse"
         icon={<Heart className="h-5 w-5" />}
       />
+
+      {/* S10 — device-attributed pointer into the ECG viewer, in the
+          resting-HR / pulse context. Un-mounts when the user has no ECG
+          recordings; surfaces only that recordings exist + the device's own
+          latest result, never a HealthLog interpretation. */}
+      <EcgCrossLink enabled={isAuthenticated} />
 
       {/* VO₂ max is a cardio-fitness metric (Apple's Health app surfaces it
           under "Heart"), so the pulse page links across to its dedicated

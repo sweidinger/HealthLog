@@ -3856,6 +3856,13 @@
       },
       "waveform": {
         "ariaLabel": "Tracciato ECG registrato il {date}, durata {duration}, frequenza cardiaca media {heartRate}, risultato registrato: {result}."
+      },
+      "crossLink": {
+        "title": "Registrazioni ECG",
+        "recordingsOne": "1 registrazione disponibile.",
+        "recordingsMany": "{count} registrazioni disponibili.",
+        "latestResult": "Ultimo risultato del dispositivo: {result}.",
+        "cta": "Vedi registrazioni"
       }
     },
     "intradayPulse": {
@@ -8570,6 +8577,16 @@
           "evening": "La tua frequenza cardiaca è rimasta sopra il valore a riposo per un tratto prolungato stasera mentre eri fermo — forse un po' di tensione.",
           "night": "La tua frequenza cardiaca è rimasta sopra il valore a riposo per un tratto prolungato durante la notte mentre eri fermo — forse un po' di tensione."
         }
+      },
+      "ecgNewRecording": {
+        "title": "Nuova registrazione ECG",
+        "body": "Il tuo dispositivo ha registrato un nuovo ECG: è pronto da vedere.",
+        "bodyVerdict": "Il tuo dispositivo ha registrato un nuovo ECG e ha segnalato: {verdict}.",
+        "verdict": {
+          "irregular": "un possibile ritmo irregolare",
+          "notDetected": "nessun ritmo irregolare",
+          "inconclusive": "un risultato non conclusivo"
+        }
       }
     },
     "action": {
@@ -8580,7 +8597,8 @@
       "checkinAdjust": "Modifica",
       "checkinLetGo": "Lascia andare",
       "viewMilestone": "Vedi",
-      "viewPulse": "Vedi battito"
+      "viewPulse": "Vedi battito",
+      "viewEcg": "Vedi registrazione"
     },
     "today": {
       "scoreLabel": "Punteggio di salute",

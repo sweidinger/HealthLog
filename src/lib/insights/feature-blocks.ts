@@ -114,6 +114,12 @@ const LABS_LOOKBACK_MONTHS = 12;
 /** Trailing window (days) for the workout aggregate. */
 const WORKOUT_WINDOW_DAYS = 90;
 
+/** Trailing window (days) for the ECG recording descriptor. */
+const ECG_WINDOW_DAYS = 90;
+
+/** Defensive cap on ECG rows read for the descriptor (a bound, not a ceiling). */
+const ECG_MAX_ROWS = 500;
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
@@ -345,6 +351,68 @@ export async function readWorkoutsBlock(
   };
 
   return { last7: tally(7), last30: tally(30), latest };
+}
+
+/**
+ * S10 — ECG recording descriptor for the briefing narrative (device-verdict
+ * only). A bounded, non-diagnostic snapshot of the user's on-device ECG
+ * recordings over the trailing window: how many exist, the distribution of the
+ * RECORDING DEVICE's OWN verdicts (never HealthLog's), and the latest
+ * recording's device verdict + average heart rate. The waveform is NEVER read
+ * (no decrypt on this path) and NEVER enters the payload — the trace does not
+ * cross into the prompt, so the model cannot interpret morphology. The prompt
+ * (insight-generator rule) constrains any mention to the device's attribution;
+ * the grounding gate constrains any restated count. Returns `undefined` when no
+ * recordings fall in the window, so the block is omitted rather than emitting an
+ * empty shape.
+ */
+export async function readEcgBriefingBlock(
+  userId: string,
+  now: number,
+): Promise<AggregatedFeatures["ecg"] | undefined> {
+  const since = new Date(now - ECG_WINDOW_DAYS * MS_PER_DAY);
+  const rows = await prisma.ecgRecording.findMany({
+    where: { userId, recordedAt: { gte: since } },
+    orderBy: { recordedAt: "desc" },
+    take: ECG_MAX_ROWS,
+    // Descriptors only — the encrypted waveform blob is never selected, so no
+    // decrypt happens and no trace can reach the narrative.
+    select: {
+      recordedAt: true,
+      rhythmClassification: true,
+      averageHeartRate: true,
+    },
+  });
+  if (rows.length === 0) return undefined;
+
+  const deviceVerdicts = { irregular: 0, notDetected: 0, inconclusive: 0 };
+  for (const r of rows) {
+    if (r.rhythmClassification === "IRREGULAR") deviceVerdicts.irregular += 1;
+    else if (r.rhythmClassification === "NOT_DETECTED")
+      deviceVerdicts.notDetected += 1;
+    else if (r.rhythmClassification === "INCONCLUSIVE")
+      deviceVerdicts.inconclusive += 1;
+  }
+
+  // An ECG row only ever carries an AFib-screening verdict; the shared enum's
+  // other members (walking-steadiness / event codes) never apply here, so
+  // anything else narrows to null.
+  const latest = rows[0];
+  const latestVerdict = latest.rhythmClassification;
+  return {
+    recordingCount: rows.length,
+    deviceVerdicts,
+    latestDeviceVerdict:
+      latestVerdict === "IRREGULAR" ||
+      latestVerdict === "NOT_DETECTED" ||
+      latestVerdict === "INCONCLUSIVE"
+        ? latestVerdict
+        : null,
+    latestRecordedDaysAgo: Math.round(
+      (now - latest.recordedAt.getTime()) / MS_PER_DAY,
+    ),
+    latestAverageHeartRate: latest.averageHeartRate,
+  };
 }
 
 /**

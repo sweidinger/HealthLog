@@ -3856,6 +3856,13 @@
       },
       "waveform": {
         "ariaLabel": "ECG strip recorded {date}, duration {duration}, average heart rate {heartRate}, recorded result: {result}."
+      },
+      "crossLink": {
+        "title": "ECG recordings",
+        "recordingsOne": "1 recording on file.",
+        "recordingsMany": "{count} recordings on file.",
+        "latestResult": "Latest device result: {result}.",
+        "cta": "View recordings"
       }
     },
     "intradayPulse": {
@@ -8570,6 +8577,16 @@
           "evening": "Your heart rate sat above its resting baseline for a sustained stretch this evening while you were still — possibly some tension.",
           "night": "Your heart rate sat above its resting baseline for a sustained stretch overnight while you were still — possibly some tension."
         }
+      },
+      "ecgNewRecording": {
+        "title": "New ECG recording",
+        "body": "Your device recorded a new ECG — it's ready to view.",
+        "bodyVerdict": "Your device recorded a new ECG and reported: {verdict}.",
+        "verdict": {
+          "irregular": "a possible irregular rhythm",
+          "notDetected": "no irregular rhythm",
+          "inconclusive": "an inconclusive result"
+        }
       }
     },
     "action": {
@@ -8580,7 +8597,8 @@
       "checkinAdjust": "Adjust",
       "checkinLetGo": "Let it go",
       "viewMilestone": "View",
-      "viewPulse": "View pulse"
+      "viewPulse": "View pulse",
+      "viewEcg": "View recording"
     },
     "today": {
       "scoreLabel": "Health score",

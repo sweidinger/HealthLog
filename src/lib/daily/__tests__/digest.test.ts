@@ -534,3 +534,122 @@ describe("buildDailyDigest — S11 tension_window item", () => {
     expect(tension(d)).toBeUndefined();
   });
 });
+
+describe("buildDailyDigest — ecg_new_recording (S10)", () => {
+  const ecgItem = (d: ReturnType<typeof buildDailyDigest>) =>
+    d.worthALook.find((i) => i.kind === "ecg_new_recording");
+
+  it("emits ONE calm item for a recording within the last day", () => {
+    const d = buildDailyDigest(
+      input({
+        latestEcg: {
+          recordedAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000),
+          deviceVerdict: "NOT_DETECTED",
+        },
+      }),
+      t,
+    );
+    const item = ecgItem(d);
+    expect(item).toBeDefined();
+    expect(item?.status).toBe("info");
+    expect(item?.moduleKey).toBe("insights");
+    // Single action, deep-linking the ECG viewer.
+    expect(item?.actions).toHaveLength(1);
+    expect(item?.actions[0].intent).toBe("ecg.view");
+    expect(item?.actions[0].href).toBe("/insights#ecg");
+  });
+
+  it("attributes the verdict to the DEVICE (never a HealthLog reading)", () => {
+    const d = buildDailyDigest(
+      input({
+        latestEcg: {
+          recordedAt: new Date(NOW.getTime() - 60 * 60 * 1000),
+          deviceVerdict: "IRREGULAR",
+        },
+      }),
+      t,
+    );
+    const item = ecgItem(d);
+    // Copy leads with the device as the actor, echoes only its verdict, and
+    // never claims HealthLog interpreted the trace.
+    expect(item?.body).toContain("Your device recorded");
+    expect(item?.body).toContain("possible irregular rhythm");
+    expect(item?.body).not.toMatch(/we (detected|found|think)|HealthLog/i);
+  });
+
+  it("does not emit for an OLD recording (outside the last-day window)", () => {
+    const d = buildDailyDigest(
+      input({
+        latestEcg: {
+          recordedAt: new Date(NOW.getTime() - 2 * DAY),
+          deviceVerdict: "IRREGULAR",
+        },
+      }),
+      t,
+    );
+    expect(ecgItem(d)).toBeUndefined();
+  });
+
+  it("does not emit a future-dated recording (clock-skew guard)", () => {
+    const d = buildDailyDigest(
+      input({
+        latestEcg: {
+          recordedAt: new Date(NOW.getTime() + 60 * 60 * 1000),
+          deviceVerdict: "NOT_DETECTED",
+        },
+      }),
+      t,
+    );
+    expect(ecgItem(d)).toBeUndefined();
+  });
+
+  it("does not emit when the insights module is off", () => {
+    const d = buildDailyDigest(
+      input({
+        modules: { insights: false },
+        latestEcg: {
+          recordedAt: new Date(NOW.getTime() - 60 * 60 * 1000),
+          deviceVerdict: "IRREGULAR",
+        },
+      }),
+      t,
+    );
+    expect(ecgItem(d)).toBeUndefined();
+  });
+
+  it("emits nothing when there is no recent recording", () => {
+    const d = buildDailyDigest(input({ latestEcg: null }), t);
+    expect(ecgItem(d)).toBeUndefined();
+  });
+
+  it("uses the calm, verdict-less body when the device gave no verdict", () => {
+    const d = buildDailyDigest(
+      input({
+        latestEcg: {
+          recordedAt: new Date(NOW.getTime() - 60 * 60 * 1000),
+          deviceVerdict: null,
+        },
+      }),
+      t,
+    );
+    const item = ecgItem(d);
+    expect(item?.body).toBe(
+      "Your device recorded a new ECG — it's ready to view.",
+    );
+  });
+
+  it("carries no waveform / sample data on the item or its input DTO", () => {
+    const latestEcg = {
+      recordedAt: new Date(NOW.getTime() - 60 * 60 * 1000),
+      deviceVerdict: "NOT_DETECTED" as const,
+    };
+    // The input DTO is verdict + recordedAt only — no waveform channel exists.
+    expect(Object.keys(latestEcg).sort()).toEqual([
+      "deviceVerdict",
+      "recordedAt",
+    ]);
+    const d = buildDailyDigest(input({ latestEcg }), t);
+    const serialised = JSON.stringify(ecgItem(d));
+    expect(serialised).not.toMatch(/waveform|sample|signal|voltage|microvolt/i);
+  });
+});

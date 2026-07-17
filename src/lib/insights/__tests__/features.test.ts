@@ -13,6 +13,7 @@ vi.mock("@/lib/db", () => ({
     labResult: { findMany: vi.fn() },
     measurementReminder: { findMany: vi.fn() },
     workout: { findMany: vi.fn() },
+    ecgRecording: { findMany: vi.fn() },
     $queryRawUnsafe: vi.fn(),
   },
 }));
@@ -63,6 +64,7 @@ const prismaMock = prisma as unknown as {
   labResult: { findMany: ReturnType<typeof vi.fn> };
   measurementReminder: { findMany: ReturnType<typeof vi.fn> };
   workout: { findMany: ReturnType<typeof vi.fn> };
+  ecgRecording: { findMany: ReturnType<typeof vi.fn> };
 };
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -100,6 +102,7 @@ beforeEach(() => {
   prismaMock.labResult.findMany.mockResolvedValue([]);
   prismaMock.measurementReminder.findMany.mockResolvedValue([]);
   prismaMock.workout.findMany.mockResolvedValue([]);
+  prismaMock.ecgRecording.findMany.mockResolvedValue([]);
 });
 
 describe("extractFeatures — v1.4.36 W3 bucketed payload", () => {
@@ -433,6 +436,8 @@ describe("extractFeatures — v1.22 integration blocks are briefing-scoped", () 
     expect(prismaMock.labResult.findMany).not.toHaveBeenCalled();
     expect(prismaMock.measurementReminder.findMany).not.toHaveBeenCalled();
     expect(prismaMock.workout.findMany).not.toHaveBeenCalled();
+    // S10 — the ECG descriptor rides the same briefing-scoped gate.
+    expect(prismaMock.ecgRecording.findMany).not.toHaveBeenCalled();
   });
 
   it("runs the extra reads on the wide briefing window (sinceDays: 400)", async () => {
@@ -440,5 +445,53 @@ describe("extractFeatures — v1.22 integration blocks are briefing-scoped", () 
     expect(prismaMock.labResult.findMany).toHaveBeenCalled();
     expect(prismaMock.measurementReminder.findMany).toHaveBeenCalled();
     expect(prismaMock.workout.findMany).toHaveBeenCalled();
+    expect(prismaMock.ecgRecording.findMany).toHaveBeenCalled();
+  });
+});
+
+describe("extractFeatures — S10 ECG device-verdict descriptor", () => {
+  const DAY = 86_400_000;
+
+  it("emits a device-verdict descriptor and NEVER a waveform", async () => {
+    const now = Date.now();
+    prismaMock.ecgRecording.findMany.mockResolvedValue([
+      {
+        recordedAt: new Date(now - 2 * DAY),
+        rhythmClassification: "IRREGULAR",
+        averageHeartRate: 72,
+      },
+      {
+        recordedAt: new Date(now - 10 * DAY),
+        rhythmClassification: "NOT_DETECTED",
+        averageHeartRate: 61,
+      },
+    ]);
+    const f = await extractFeatures("user-1", false);
+    expect(f.ecg?.recordingCount).toBe(2);
+    expect(f.ecg?.deviceVerdicts).toEqual({
+      irregular: 1,
+      notDetected: 1,
+      inconclusive: 0,
+    });
+    // The LATEST recording's device verdict + HR (newest-first ordering).
+    expect(f.ecg?.latestDeviceVerdict).toBe("IRREGULAR");
+    expect(f.ecg?.latestAverageHeartRate).toBe(72);
+    // The waveform never reaches the payload — only descriptors.
+    expect(JSON.stringify(f.ecg)).not.toMatch(
+      /waveform|sample|signal|voltage|microvolt/i,
+    );
+  });
+
+  it("omits the ECG block entirely when the user has no recordings", async () => {
+    const f = await extractFeatures("user-1", false);
+    expect(f.ecg).toBeUndefined();
+  });
+
+  it("only ever reads descriptor columns, never the encrypted waveform", async () => {
+    await extractFeatures("user-1", false);
+    const call = prismaMock.ecgRecording.findMany.mock.calls[0]?.[0];
+    expect(call?.select?.waveformEncrypted).toBeUndefined();
+    expect(call?.select?.recordedAt).toBe(true);
+    expect(call?.select?.rhythmClassification).toBe(true);
   });
 });

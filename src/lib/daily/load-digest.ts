@@ -26,6 +26,7 @@ import {
   buildDailyDigest,
   type DailyDigest,
   type DailyDigestCoachPlan,
+  type DailyDigestEcg,
   type DailyDigestPreventiveDue,
   type DailyDigestScore,
   type DailyDigestSyncIssue,
@@ -134,6 +135,9 @@ async function gatherFreshMilestone(
   return selectFreshMilestone(candidates, todayKey);
 }
 
+/** S10 — how recently an ECG recording counts as "new" for the rail read. */
+const ECG_NEW_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 interface CoachPlanRow {
   id: string;
   status: string;
@@ -183,6 +187,7 @@ export async function loadDailyDigest(
     syncRows,
     dueReminders,
     planRows,
+    ecgRow,
   ] = await Promise.all([
     readDashboardSnapshotCached(user),
     resolveModuleMap(user.id),
@@ -224,6 +229,18 @@ export async function loadDailyDigest(
       orderBy: { updatedAt: "desc" },
       take: CHECKIN_PLAN_READ_LIMIT,
     }),
+    // S10 — the freshest ECG recording within the last-day window, for the
+    // `ecg_new_recording` rail item. Descriptors only (verdict + recordedAt) —
+    // the encrypted waveform is never selected, so no decrypt and no trace
+    // crosses into the digest. The builder gates on the `insights` module.
+    prisma.ecgRecording.findFirst({
+      where: {
+        userId: user.id,
+        recordedAt: { gte: new Date(now.getTime() - ECG_NEW_WINDOW_MS) },
+      },
+      orderBy: { recordedAt: "desc" },
+      select: { recordedAt: true, rhythmClassification: true },
+    }),
   ]);
 
   const score: DailyDigestScore | null = snapshot.healthScore
@@ -255,6 +272,24 @@ export async function loadDailyDigest(
   const preventiveDue: DailyDigestPreventiveDue[] = dueReminders.map((row) => ({
     label: row.label,
   }));
+
+  // S10 — the freshest ECG recording (device verdict + recordedAt only). The
+  // builder decides "new" and gates on the `insights` module. An ECG row only
+  // ever carries an AFib-screening verdict; the shared enum's other members
+  // (walking-steadiness / event codes) never apply, so anything else maps to
+  // null rather than leaking into the device-verdict copy.
+  const verdict = ecgRow?.rhythmClassification;
+  const latestEcg: DailyDigestEcg | null = ecgRow
+    ? {
+        recordedAt: ecgRow.recordedAt,
+        deviceVerdict:
+          verdict === "IRREGULAR" ||
+          verdict === "NOT_DETECTED" ||
+          verdict === "INCONCLUSIVE"
+            ? verdict
+            : null,
+      }
+    : null;
 
   // Only decrypt plan prose for a coach-enabled account; the builder gates on
   // the module too, so a disabled coach never surfaces a check-in either way.
@@ -297,6 +332,7 @@ export async function loadDailyDigest(
       coachPlans,
       milestone,
       tensionWindow,
+      latestEcg,
     },
     t,
   );

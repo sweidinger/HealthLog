@@ -3856,6 +3856,13 @@
       },
       "waveform": {
         "ariaLabel": "EKG-Streifen aufgezeichnet {date}, Dauer {duration}, durchschnittliche Herzfrequenz {heartRate}, aufgezeichnetes Ergebnis: {result}."
+      },
+      "crossLink": {
+        "title": "EKG-Aufzeichnungen",
+        "recordingsOne": "1 Aufzeichnung vorhanden.",
+        "recordingsMany": "{count} Aufzeichnungen vorhanden.",
+        "latestResult": "Letztes Geräte-Ergebnis: {result}.",
+        "cta": "Aufzeichnungen ansehen"
       }
     },
     "intradayPulse": {
@@ -8570,6 +8577,16 @@
           "evening": "Dein Puls lag heute Abend über längere Zeit über deinem Ruhewert, während du ruhig warst — möglicherweise etwas Anspannung.",
           "night": "Dein Puls lag in der Nacht über längere Zeit über deinem Ruhewert, während du ruhig warst — möglicherweise etwas Anspannung."
         }
+      },
+      "ecgNewRecording": {
+        "title": "Neue EKG-Aufzeichnung",
+        "body": "Dein Gerät hat ein neues EKG aufgezeichnet — bereit zum Ansehen.",
+        "bodyVerdict": "Dein Gerät hat ein neues EKG aufgezeichnet und meldet: {verdict}.",
+        "verdict": {
+          "irregular": "einen möglichen unregelmäßigen Rhythmus",
+          "notDetected": "keinen unregelmäßigen Rhythmus",
+          "inconclusive": "ein nicht eindeutiges Ergebnis"
+        }
       }
     },
     "action": {
@@ -8580,7 +8597,8 @@
       "checkinAdjust": "Anpassen",
       "checkinLetGo": "Loslassen",
       "viewMilestone": "Ansehen",
-      "viewPulse": "Puls ansehen"
+      "viewPulse": "Puls ansehen",
+      "viewEcg": "Aufzeichnung ansehen"
     },
     "today": {
       "scoreLabel": "Gesundheitsscore",

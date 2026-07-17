@@ -118,9 +118,10 @@ export function EcgSection({ enabled = true, className }: EcgSectionProps) {
 
   return (
     <section
+      id="ecg"
       data-slot="ecg-section"
       aria-label={t("insights.ecg.sectionTitle")}
-      className={cn("space-y-3", className)}
+      className={cn("scroll-mt-24 space-y-3", className)}
     >
       <SectionHeading icon={Activity} title={t("insights.ecg.sectionTitle")} />
       <div

@@ -3856,6 +3856,13 @@
       },
       "waveform": {
         "ariaLabel": "Zapis EKG zarejestrowany {date}, czas trwania {duration}, średnie tętno {heartRate}, zarejestrowany wynik: {result}."
+      },
+      "crossLink": {
+        "title": "Zapisy EKG",
+        "recordingsOne": "1 zapis w kartotece.",
+        "recordingsMany": "Zapisy w kartotece: {count}.",
+        "latestResult": "Ostatni wynik urządzenia: {result}.",
+        "cta": "Zobacz zapisy"
       }
     },
     "intradayPulse": {
@@ -8570,6 +8577,16 @@
           "evening": "Twoje tętno przez dłuższą chwilę wieczorem utrzymywało się powyżej wartości spoczynkowej, gdy byłeś w bezruchu — możliwe napięcie.",
           "night": "Twoje tętno przez dłuższą chwilę w nocy utrzymywało się powyżej wartości spoczynkowej, gdy byłeś w bezruchu — możliwe napięcie."
         }
+      },
+      "ecgNewRecording": {
+        "title": "Nowy zapis EKG",
+        "body": "Twoje urządzenie zarejestrowało nowe EKG — gotowe do podglądu.",
+        "bodyVerdict": "Twoje urządzenie zarejestrowało nowe EKG i zgłosiło: {verdict}.",
+        "verdict": {
+          "irregular": "możliwy nieregularny rytm",
+          "notDetected": "brak nieregularnego rytmu",
+          "inconclusive": "wynik niejednoznaczny"
+        }
       }
     },
     "action": {
@@ -8580,7 +8597,8 @@
       "checkinAdjust": "Dostosuj",
       "checkinLetGo": "Odpuść",
       "viewMilestone": "Zobacz",
-      "viewPulse": "Zobacz tętno"
+      "viewPulse": "Zobacz tętno",
+      "viewEcg": "Zobacz zapis"
     },
     "today": {
       "scoreLabel": "Wynik zdrowia",
