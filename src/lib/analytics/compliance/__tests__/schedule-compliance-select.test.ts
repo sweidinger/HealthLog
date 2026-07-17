@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { SCHEDULE_COMPLIANCE_SELECT } from "../compliance";
+import { SCHEDULE_COMPLIANCE_SELECT } from "@/lib/analytics/compliance";
 
 describe("SCHEDULE_COMPLIANCE_SELECT", () => {
   it("selects every schedule field the compliance engine consumes", () => {
