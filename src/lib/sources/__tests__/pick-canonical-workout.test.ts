@@ -337,3 +337,42 @@ describe("pickCanonicalWorkout — field-merge (v1.29.x, WHOOP HR-loss fix)", ()
     expect(winner.totalEnergyKcal).toBe(512); // backfilled from WHOOP
   });
 });
+
+describe("pickCanonicalWorkout — Strava brick-workout collapse (data-integrity audit H4)", () => {
+  // Before the Strava sport-map fix, `mapActivity()` wrote the raw Strava
+  // label ("Ride", "Run") straight into `sportType` — neither string is a
+  // member of `workoutSportTypeEnum`, so `isSpecificSportType()` classified
+  // BOTH rows as generic. Two generic rows are always sport-compatible
+  // (`genericPairing` in pick-canonical-workout.ts), so a same-source brick
+  // session — a Strava ride ending ~15:00 immediately followed by a Strava
+  // run starting 15:03 — clustered into ONE cluster and the ladder pick
+  // kept only one leg, silently dropping the other from every list, tile,
+  // and total.
+  it("pre-fix: two raw (non-canonical) Strava labels close in time COLLAPSE into one cluster", () => {
+    const result = pickCanonicalWorkout([
+      row("strava-ride", "STRAVA", "2026-06-01T15:00:00.000Z", "Ride"),
+      row("strava-run", "STRAVA", "2026-06-01T15:03:00.000Z", "Run"),
+    ]);
+    // This is the confirmed bug, pinned so a future change can't silently
+    // "fix" clustering itself and mask a regression in the sport-map layer.
+    expect(result.clusters).toHaveLength(1);
+    expect(result.canonical).toHaveLength(1);
+  });
+
+  it("post-fix: a canonical Strava Ride + Run pair survives as two distinct rows", () => {
+    // Same timing as the pre-fix fixture above, but with the sportType
+    // values `mapActivity()` now writes (via `mapStravaSportType()`):
+    // "Ride" → "cycling", "Run" → "running". Both are SPECIFIC canonical
+    // buckets and differ from each other, so `isSpecificSportType()` no
+    // longer treats them as sport-compatible and the brick session
+    // survives as two workouts.
+    const result = pickCanonicalWorkout([
+      row("strava-ride", "STRAVA", "2026-06-01T15:00:00.000Z", "cycling"),
+      row("strava-run", "STRAVA", "2026-06-01T15:03:00.000Z", "running"),
+    ]);
+    expect(result.clusters).toHaveLength(2);
+    expect(result.canonical).toHaveLength(2);
+    const sports = result.canonical.map((w) => w.sportType).sort();
+    expect(sports).toEqual(["cycling", "running"]);
+  });
+});

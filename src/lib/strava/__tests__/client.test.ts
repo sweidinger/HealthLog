@@ -29,7 +29,8 @@ describe("mapActivity", () => {
     });
     expect(row).not.toBeNull();
     expect(row!.externalId).toBe("123456");
-    expect(row!.sportType).toBe("TrailRun");
+    // sport_type "TrailRun" maps to the canonical "running" bucket.
+    expect(row!.sportType).toBe("running");
     expect(row!.startedAt.toISOString()).toBe("2026-07-01T06:30:00.000Z");
     // endedAt = start + elapsed_time (clock window), not moving_time.
     expect(row!.endedAt.toISOString()).toBe("2026-07-01T06:56:40.000Z");
@@ -66,15 +67,38 @@ describe("mapActivity", () => {
     expect((row as unknown as Record<string, unknown>).name).toBeUndefined();
   });
 
-  it("falls back to `type` then a generic label for the sport", () => {
+  it("falls back to `type` then a generic label for the sport, always canonical", () => {
     const noSport: StravaSummaryActivity = { ...baseSummary };
     delete (noSport as unknown as Record<string, unknown>).sport_type;
-    expect(mapActivity(noSport)!.sportType).toBe("Run");
+    // Falls back to `type: "Run"` → canonical "running".
+    expect(mapActivity(noSport)!.sportType).toBe("running");
+    const meta = mapActivity(noSport)!.metadata as Record<string, unknown>;
+    expect(meta.stravaType).toBe("Run");
 
     const noneAtAll: StravaSummaryActivity = { ...baseSummary };
     delete (noneAtAll as unknown as Record<string, unknown>).sport_type;
     delete (noneAtAll as unknown as Record<string, unknown>).type;
-    expect(mapActivity(noneAtAll)!.sportType).toBe("workout");
+    // No sport info at all → generic "Workout" fallback → canonical "other".
+    expect(mapActivity(noneAtAll)!.sportType).toBe("other");
+    const noneMeta = mapActivity(noneAtAll)!.metadata as Record<
+      string,
+      unknown
+    >;
+    expect(noneMeta.stravaType).toBe("Workout");
+  });
+
+  it("keeps the raw sport_type label in metadata even though sportType is canonical", () => {
+    const row = mapActivity(baseSummary); // sport_type: "TrailRun"
+    const meta = row!.metadata as Record<string, unknown>;
+    expect(row!.sportType).toBe("running");
+    expect(meta.stravaType).toBe("TrailRun");
+  });
+
+  it("never writes a raw Strava sport label into sportType, even for an unrecognised value", () => {
+    const row = mapActivity({ ...baseSummary, sport_type: "SomeNewSport" });
+    expect(row!.sportType).toBe("other");
+    const meta = row!.metadata as Record<string, unknown>;
+    expect(meta.stravaType).toBe("SomeNewSport");
   });
 
   it("returns null for an activity with no id or no start instant", () => {
