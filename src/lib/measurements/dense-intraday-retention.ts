@@ -138,11 +138,18 @@ export const DENSE_INTRADAY_RETENTION_TYPES: ReadonlySet<MeasurementType> =
  * fold to hourly-mean rows and the raw rows tombstone; rows inside the
  * window stay raw so the Stress engine has its intra-day inputs.
  *
- * 14 days covers the Stress engine's 7-day reference window plus a margin
- * for late watch syncs and a backfilled gap, while keeping the raw
- * per-sample volume bounded to roughly two weeks of samples per dense type.
+ * 90 days comfortably covers the Stress engine's 7-day reference window and
+ * lets the intraday pulse day-navigator (S11) page back through a full
+ * quarter of true 10-minute-resolution days before it hits the coarser
+ * hourly fold. Raised from the original 14-day bound deliberately: a
+ * self-hoster's own Postgres volume is the trade-off, not a shared resource,
+ * so trading roughly six extra weeks of raw per-sample rows per dense type
+ * for three months of full-resolution history is the right default. Days
+ * outside the window still fold to hourly means rather than disappearing —
+ * `loadIntradayPulse` falls back to that hourly tier so the navigator never
+ * renders an empty chart for an older day.
  */
-export const DENSE_INTRADAY_RETENTION_DAYS = 14;
+export const DENSE_INTRADAY_RETENTION_DAYS = 90;
 
 /** The stats externalId prefix marks an already-collapsed row. */
 const DAILY_STATS_PREFIX = "stats:";

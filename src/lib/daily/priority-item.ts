@@ -41,6 +41,45 @@ export const PRIORITY_ITEM_KINDS = [
 export type PriorityItemKind = (typeof PRIORITY_ITEM_KINDS)[number];
 
 /**
+ * The OBSERVATIONAL kinds — a durable-state reward, a new-ECG pointer, an
+ * elevated-at-rest window. These carry no pending action; the user can only
+ * acknowledge them, so they're the only kinds the Today rail lets you
+ * dismiss. The remaining kinds (`dose_window`, `sync_issue`,
+ * `preventive_care`, `coach_checkin`) are ACTIONABLE — they clear on their
+ * own once the user acts (logs the dose, reconnects the integration, …) and
+ * are never dismissible; offering a dismiss on them would just let a user
+ * silence a still-open action item.
+ */
+export const DISMISSIBLE_PRIORITY_ITEM_KINDS = [
+  "milestone",
+  "ecg_new_recording",
+  "tension_window",
+] as const satisfies readonly PriorityItemKind[];
+
+export type DismissiblePriorityItemKind =
+  (typeof DISMISSIBLE_PRIORITY_ITEM_KINDS)[number];
+
+/** Whether `kind` is one of the dismissible observational kinds. */
+export function isDismissibleKind(
+  kind: PriorityItemKind,
+): kind is DismissiblePriorityItemKind {
+  return (DISMISSIBLE_PRIORITY_ITEM_KINDS as readonly string[]).includes(kind);
+}
+
+/**
+ * The dismiss ledger's natural key is namespaced by kind (`<kind>:...`), so
+ * the prefix alone tells the server the key names a dismissible instance —
+ * no separate `kind` field needs to cross the wire. Shared by the digest
+ * builder (which stamps the key) and the dismiss route's Zod schema (which
+ * rejects anything else structurally, before a lookup ever runs).
+ */
+export function isDismissibleItemKey(itemKey: string): boolean {
+  return DISMISSIBLE_PRIORITY_ITEM_KINDS.some((kind) =>
+    itemKey.startsWith(`${kind}:`),
+  );
+}
+
+/**
  * Semantic status — meaning, not decoration. Maps to a `text-<status>` plus a
  * `bg-<status>/10` wash in the card (§3 status-colour tier), never raw palette.
  */
@@ -68,6 +107,13 @@ export interface PriorityItemAction {
  */
 export interface PriorityItem {
   kind: PriorityItemKind;
+  /**
+   * Stable identity for THIS item instance, namespaced `<kind>:...` — present
+   * only on the dismissible observational kinds (see
+   * `DISMISSIBLE_PRIORITY_ITEM_KINDS`). The client only offers a dismiss
+   * affordance when this is set; the actionable kinds never carry one.
+   */
+  itemKey?: string;
   /** i18n-resolved headline (server-side). */
   title: string;
   /** Optional grounded one-liner — a plain string rendered via `ProseBlocks`. */

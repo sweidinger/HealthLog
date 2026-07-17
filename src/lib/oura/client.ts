@@ -15,6 +15,7 @@
  */
 import { getEvent } from "@/lib/logging/context";
 import { canonicalDailyTimestamp } from "@/lib/measurements/consolidation-tz";
+import { dayDiff } from "@/lib/cycle/day-math";
 import { safeFetch } from "@/lib/safe-fetch";
 import { OuraApiError, classifyOuraResponse } from "./response-classifier";
 
@@ -256,6 +257,37 @@ export interface OuraResilience {
   level?: string | null;
 }
 
+/**
+ * Oura `daily_cycle_phases` — the per-day Cycle Insights phase estimate
+ * (temperature-deviation-derived). UNDOCUMENTED in the published OpenAPI
+ * spec at `cloud.ouraring.com/v2/docs` as of this writing — the route was
+ * confirmed live against the production API (`GET
+ * /v2/usercollection/daily_cycle_phases` 400s "Token is missing" identically
+ * to every documented `daily_*` collection when called unauthenticated, vs a
+ * genuine 404 for an unknown path) but sits outside the spec dump alongside
+ * every other Oura reproductive-health resource (`period_start`,
+ * `pregnancy`, `fertile_window`, `ovulation_confirmed`, `blood_glucose` — all
+ * listed as valid webhook subscription data types, none with a documented
+ * read schema). These look gated behind an approval Oura does not extend to
+ * a self-registered OAuth app by default, so a 403/404 here is the EXPECTED
+ * outcome for most connections, not an anomaly — see `syncUserOuraCyclePhases`
+ * in `./cycle-sync` for how that is swallowed without touching the rest of
+ * the Oura connection's health status. Re-verify the `phase` field name +
+ * value set against `cloud.ouraring.com/v2/docs` once Oura documents it.
+ */
+export interface OuraCyclePhase {
+  id?: string;
+  day: string;
+  /**
+   * Oura's public Cycle Insights copy describes exactly two ring-observable
+   * phases (`follicular` / `luteal`, temperature-derived); some algorithm
+   * versions may additionally emit `menstrual` directly. Kept as a loose
+   * string — an unrecognised / missing value is skipped, never guessed (see
+   * `derivePeriodDaysFromCyclePhases`).
+   */
+  phase?: string | null;
+}
+
 export interface OuraDailyActivity {
   id: string;
   day: string;
@@ -425,6 +457,19 @@ export function fetchResilience(
     "/v2/usercollection/daily_resilience",
     accessToken,
     "fetchResilience",
+    query,
+  );
+}
+
+/** See the `OuraCyclePhase` docstring for the endpoint's documentation gap. */
+export function fetchDailyCyclePhases(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraCyclePhase[]> {
+  return fetchCollection<OuraCyclePhase>(
+    "/v2/usercollection/daily_cycle_phases",
+    accessToken,
+    "fetchDailyCyclePhases",
     query,
   );
 }
@@ -831,4 +876,70 @@ export function mapResilience(r: OuraResilience): MappedMeasurement[] {
       fieldTag: "resilience",
     },
   ];
+}
+
+// ─── Cycle-phase → CycleDayLog mapping (v1.29.x) ───────────────────
+//
+// `daily_cycle_phases` does NOT feed `Measurement` like every collection
+// above — it feeds the cycle tracker's `CycleDayLog` via
+// `syncUserOuraCyclePhases` in `./cycle-sync`, which owns the write-side
+// "manual always wins" guard. This module only derives WHICH days look like
+// a period day; it never touches the database.
+
+const OURA_MENSTRUAL_PHASE = "menstrual";
+const OURA_FOLLICULAR_PHASE = "follicular";
+const OURA_LUTEAL_PHASE = "luteal";
+
+/**
+ * Derive the (sparse) set of `YYYY-MM-DD` days that look like a period day
+ * from a `daily_cycle_phases` series. The endpoint reports only the PHASE,
+ * not menstrual flow directly, so a period day is inferred two ways:
+ *
+ *   1. A record whose `phase` is literally `"menstrual"` — some algorithm
+ *      versions / accounts may emit this directly.
+ *   2. The single day a `"luteal"` phase is immediately (calendar-adjacent)
+ *      followed by a `"follicular"` phase. Oura's own definition of the
+ *      follicular phase is "from the first day of menstruation to
+ *      ovulation", so this transition day is the best period-start signal
+ *      the two-phase (follicular/luteal) shape carries.
+ *
+ * Records are sorted by `day` internally (the collection's page order is not
+ * guaranteed to be chronological). Returns bare day strings — the caller
+ * writes each as a single-day conservative `flow: LIGHT` marker (the same
+ * "logged but unspecified intensity" boundary the HealthKit `unspecified`
+ * flow mapping uses), never a multi-day bleed span this endpoint gives no
+ * evidence for.
+ */
+export function derivePeriodDaysFromCyclePhases(
+  records: readonly OuraCyclePhase[],
+): string[] {
+  const sorted = [...records]
+    .filter((r) => typeof r.day === "string" && r.day.length > 0)
+    .sort((a, b) => dayDiff(a.day, b.day));
+
+  const days = new Set<string>();
+  let prevPhase: string | null = null;
+  let prevDay: string | null = null;
+
+  for (const r of sorted) {
+    const phase = typeof r.phase === "string" ? r.phase.toLowerCase() : null;
+
+    if (phase === OURA_MENSTRUAL_PHASE) {
+      days.add(r.day);
+    } else if (
+      phase === OURA_FOLLICULAR_PHASE &&
+      prevPhase === OURA_LUTEAL_PHASE &&
+      prevDay !== null &&
+      dayDiff(r.day, prevDay) === 1
+    ) {
+      days.add(r.day);
+    }
+
+    if (phase) {
+      prevPhase = phase;
+      prevDay = r.day;
+    }
+  }
+
+  return Array.from(days);
 }

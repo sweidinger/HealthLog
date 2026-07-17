@@ -21,14 +21,31 @@
  *      ScanWatch passthrough lag plus a small clock-skew buffer).
  *      Sport type must match across the cluster; a "Walking" workout
  *      and a "Running" workout starting at the same instant stay
- *      distinct rows so the cardio-vs-strength split stays clean.
+ *      distinct rows so the cardio-vs-strength split stays clean. Once
+ *      an integration writes a canonical `sportType` (every source does,
+ *      as of the WHOOP fix below), a cross-source pair of the SAME
+ *      workout always shares a sport bucket and clusters correctly —
+ *      before that fix a WHOOP "whoop_sport_1" row could never cluster
+ *      with an Apple Health "cycling" row.
  *   2. Per cluster, walk the per-user source-priority ladder for
  *      workouts (default `APPLE_HEALTH > WITHINGS > MANUAL > IMPORT`)
- *      and keep the first source that has a row in the cluster. All
- *      other rows from the same cluster are dropped from the
- *      canonical list.
- *   3. Single-element clusters (no near-duplicate) pass through
- *      unchanged regardless of source.
+ *      and keep the first source that has a row in the cluster as the
+ *      BASE of the canonical row. All other rows from the same cluster
+ *      are dropped from the canonical list.
+ *   3. Field-merge (multi-element clusters only): the base row is
+ *      backfilled with any of `avgHeartRate`, `maxHeartRate`,
+ *      `totalEnergyKcal`, `totalDistanceM`, `elevationM` it is itself
+ *      missing, from the ladder-highest cluster member that HAS that
+ *      field — so a higher-priority twin with a null HR (e.g. a
+ *      Withings summary) doesn't discard the HR a lower-priority twin
+ *      (e.g. WHOOP) actually recorded. The same step adopts a specific
+ *      sport type from a member when the base row's own sportType is
+ *      generic (`"other"` / unrecognised). Every OTHER field on the
+ *      base row (id, source, startedAt, route, metadata, ...) is
+ *      untouched — the merge only ever fills a gap, never overwrites a
+ *      value the base row already has.
+ *   4. Single-element clusters (no near-duplicate) pass through
+ *      unchanged regardless of source — no merge step runs.
  *
  * Rationale for the default ladder
  * ────────────────────────────────
@@ -55,14 +72,18 @@
 
 import type { MeasurementSource } from "@/generated/prisma/client";
 
-import type { WorkoutSportType } from "@/lib/validations/workout";
+import {
+  workoutSportTypeEnum,
+  type WorkoutSportType,
+} from "@/lib/validations/workout";
 
 /**
  * Minimum row shape the helper consults. Exposed as an interface so the
  * Prisma `Workout` model and the not-yet-existing ingest DTO both
  * compose with the picker without a transform step. Anything else on
- * the row (totals, HR aggregates, route blob, metadata) flows through
- * untouched — the picker filters but never mutates.
+ * the row (route blob, metadata, ...) flows through untouched — ONLY the
+ * fields declared below are eligible for the step-3 field-merge, and even
+ * those are backfilled (fills a gap on the base row), never overwritten.
  */
 export interface WorkoutPickerRow {
   /** Stable identifier — `id` for DB rows, externalId+source for
@@ -72,8 +93,108 @@ export interface WorkoutPickerRow {
   startedAt: Date;
   source: MeasurementSource;
   /** Canonical sport string. Workouts of different sport types never
-   *  collapse into one cluster — see step 1 of the algorithm. */
+   *  collapse into one cluster — see step 1 of the algorithm. May be
+   *  adopted from a losing cluster member by the step-3 merge when the
+   *  base row's own value is generic — see `mergeClusterFields()`. */
   sportType: WorkoutSportType | string;
+  /** Backfillable richer fields — present when the source carries live
+   *  sensor data (HR strap, GPS), absent/null on a coarser summary from
+   *  another source recording the same workout. */
+  avgHeartRate?: number | null;
+  maxHeartRate?: number | null;
+  totalEnergyKcal?: number | null;
+  totalDistanceM?: number | null;
+  elevationM?: number | null;
+}
+
+/**
+ * The numeric fields step 3 of the algorithm may backfill onto the base
+ * row. Listed explicitly (not derived via `keyof`) so each field's copy
+ * stays independently type-checked in `mergeClusterFields()`.
+ */
+const MERGEABLE_NUMERIC_FIELDS = [
+  "avgHeartRate",
+  "maxHeartRate",
+  "totalEnergyKcal",
+  "totalDistanceM",
+  "elevationM",
+] as const;
+
+/**
+ * `true` for a specific canonical sport bucket; `false` for the generic
+ * `"other"` bucket or a string outside `workoutSportTypeEnum` entirely (a
+ * not-yet-normalised integration's raw label). Drives the sport-type
+ * adoption half of the merge.
+ */
+function isSpecificSportType(value: string): boolean {
+  return (
+    value !== "other" &&
+    (workoutSportTypeEnum.options as readonly string[]).includes(value)
+  );
+}
+
+/** Ladder position of `source`, or `ladder.length` (last) when the source
+ *  isn't on the ladder at all — an unranked source only wins a merge field
+ *  when no ranked member has it. */
+function ladderRank(
+  source: MeasurementSource,
+  ladder: readonly MeasurementSource[],
+): number {
+  const idx = ladder.indexOf(source);
+  return idx === -1 ? ladder.length : idx;
+}
+
+/**
+ * Step 3 of the algorithm: backfill the ladder-winning base row's missing
+ * richer fields, and its generic sport type, from other cluster members.
+ *
+ * Deterministic: for each candidate field, the ladder-highest member that
+ * HAS a non-null value wins that field. `members` is already
+ * startedAt/id-sorted by the caller, so a same-rank tie resolves to
+ * whichever member sorts first.
+ *
+ * A single-element cluster returns `winning` unchanged — nothing to merge.
+ */
+function mergeClusterFields<T extends WorkoutPickerRow>(
+  winning: T,
+  members: readonly T[],
+  ladder: readonly MeasurementSource[],
+): T {
+  if (members.length <= 1) return winning;
+
+  const merged: T = { ...winning };
+
+  for (const field of MERGEABLE_NUMERIC_FIELDS) {
+    if (merged[field] != null) continue;
+    let best: T | undefined;
+    let bestRank = Infinity;
+    for (const member of members) {
+      const value = member[field];
+      if (value == null) continue;
+      const rank = ladderRank(member.source, ladder);
+      if (rank < bestRank) {
+        bestRank = rank;
+        best = member;
+      }
+    }
+    if (best) merged[field] = best[field];
+  }
+
+  if (!isSpecificSportType(merged.sportType)) {
+    let best: T | undefined;
+    let bestRank = Infinity;
+    for (const member of members) {
+      if (!isSpecificSportType(member.sportType)) continue;
+      const rank = ladderRank(member.source, ladder);
+      if (rank < bestRank) {
+        bestRank = rank;
+        best = member;
+      }
+    }
+    if (best) merged.sportType = best.sportType;
+  }
+
+  return merged;
 }
 
 /**
@@ -149,8 +270,12 @@ export function pickCanonicalWorkout<T extends WorkoutPickerRow>(
    * without re-running the picker.
    */
   clusters: Array<{
+    /** Every row that clustered together, UNMERGED — the raw inputs the
+     *  merge step read from. */
     members: T[];
     pickedSource: MeasurementSource;
+    /** The ladder winner AFTER the step-3 field-merge — the same object
+     *  that landed in `canonical` for this cluster. */
     picked: T;
   }>;
 } {
@@ -175,11 +300,19 @@ export function pickCanonicalWorkout<T extends WorkoutPickerRow>(
 
   // Build clusters keyed by sport type (a Walking + Running pair
   // starting at the same instant must stay distinct — different
-  // workouts entirely).
+  // workouts entirely) — WITH one relaxation: a GENERIC sport
+  // ("other" / an unrecognised raw string) is treated as compatible
+  // with any SPECIFIC sport, so a thinly-classified row from one
+  // source (an unmapped import, a not-yet-normalised integration) can
+  // still cluster with a specific-sport twin from another source
+  // recording the SAME real-world workout — the merge step below then
+  // adopts the specific sport onto the canonical row. Two DIFFERENT
+  // specific sports (Walking vs Running) never become compatible this
+  // way — the core invariant is unchanged.
   const clusters: T[][] = [];
   for (const row of sorted) {
-    // Find an existing cluster of the same sport type whose latest
-    // member is within the proximity window. Walking from the most
+    // Find an existing cluster whose latest member is within the
+    // proximity window and sport-compatible. Walking from the most
     // recent cluster backward is O(k) per row where k is the open
     // cluster count; for the workout volume HealthLog ingests (single
     // user, tens of workouts per week) this is well below the
@@ -188,16 +321,25 @@ export function pickCanonicalWorkout<T extends WorkoutPickerRow>(
     for (let i = clusters.length - 1; i >= 0; i--) {
       const cluster = clusters[i];
       const head = cluster[0];
-      if (head.sportType !== row.sportType) continue;
+      const sameSport = head.sportType === row.sportType;
+      if (!sameSport) {
+        const genericPairing =
+          !isSpecificSportType(head.sportType) ||
+          !isSpecificSportType(row.sportType);
+        if (!genericPairing) continue;
+      }
       const last = cluster[cluster.length - 1];
       if (row.startedAt.getTime() - last.startedAt.getTime() <= proximityMs) {
         cluster.push(row);
         placed = true;
         break;
       }
-      // Sorted input + outside-window: every earlier cluster of the
-      // same sport is even further away, no point continuing.
-      if (head.sportType === row.sportType) break;
+      // Sorted input + outside-window, exact sport match: every
+      // earlier cluster of the same sport is even further away, no
+      // point continuing. A generic↔specific pairing has no such
+      // monotonic guarantee once different-sport clusters interleave
+      // in time, so keep scanning rather than abort the whole search.
+      if (sameSport) break;
     }
     if (!placed) {
       clusters.push([row]);
@@ -247,11 +389,12 @@ export function pickCanonicalWorkout<T extends WorkoutPickerRow>(
       continue;
     }
     const winning = cluster.find((row) => row.source === pickedSource)!;
-    canonical.push(winning);
+    const merged = mergeClusterFields(winning, cluster, ladder);
+    canonical.push(merged);
     clusterRecords.push({
       members: cluster,
       pickedSource,
-      picked: winning,
+      picked: merged,
     });
   }
 

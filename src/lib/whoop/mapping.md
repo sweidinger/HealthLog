@@ -53,14 +53,30 @@ plain integer, stored as-is.
 
 ## Workout (`/v2/activity/workout`) — into `Workout`, not `Measurement`
 
-| Source field                                                                | Destination                                                                  | Unit  | Note                                                                          |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------- |
-| `workout.score.strain`                                                      | `Workout.metadata` (`WORKOUT_STRAIN` type exists for the rare detached case) | score | Tied to the workout row so a phantom strain row never survives workout dedup. |
-| `workout.score.kilojoule`                                                   | `Workout.totalEnergyKcal`                                                    | kcal  | kJ→kcal (`÷ 4.184`).                                                          |
-| `workout.score.{zone_durations,percent_recorded,distance_meter,altitude_*}` | `Workout.metadata`                                                           | —     | HR-zone durations + recording quality + altitude.                             |
+| Source field                                                                | Destination                                                                  | Unit  | Note                                                                                                                                                                 |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `workout.sport_id` / `workout.sport_name`                                   | `Workout.sportType`                                                          | —     | Canonical `WorkoutSportType` via `mapWhoopSportType()` (`sport-map.ts`) — see below. Raw values also kept in `Workout.metadata` (`whoopSportId` / `whoopSportName`). |
+| `workout.score.strain`                                                      | `Workout.metadata` (`WORKOUT_STRAIN` type exists for the rare detached case) | score | Tied to the workout row so a phantom strain row never survives workout dedup.                                                                                        |
+| `workout.score.kilojoule`                                                   | `Workout.totalEnergyKcal`                                                    | kcal  | kJ→kcal (`÷ 4.184`).                                                                                                                                                 |
+| `workout.score.{zone_durations,percent_recorded,distance_meter,altitude_*}` | `Workout.metadata`                                                           | —     | HR-zone durations + recording quality + altitude.                                                                                                                    |
 
 Workout ingest + dedup lands in W3/W6 (the E-slice); this module only owns the
 fetch + the score→energy conversion factor (`KJ_TO_KCAL`).
+
+### Sport mapping (`sport-map.ts`)
+
+WHOOP's `sport_id` (int, documented as retired past 2025-09-01) and
+`sport_name` (string, its replacement) both resolve to a canonical
+`WorkoutSportType` via `WHOOP_SPORT_TABLE` in `sport-map.ts` — ~120 entries
+sourced from WHOOP's public Workout-object reference
+(https://developer.whoop.com/docs/developing/user-data/workout/). `sport_id`
+is preferred when present (exact key, no normalisation guess); `sport_name`
+is normalised (lowercased, non-alphanumeric runs collapsed to `_`) before the
+fallback lookup. Anything neither table recognises resolves to `"other"` —
+the mapper never emits a `whoop_sport_<n>` placeholder. The one-shot backfill
+at `prisma/migrations/0247_backfill_whoop_workout_sport` re-derives every
+pre-existing WHOOP `Workout` row from the same table so the historical data
+and the live mapper never drift apart.
 
 ## Body / profile (single objects, no pagination)
 

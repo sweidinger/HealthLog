@@ -192,6 +192,21 @@ export function userDayKey(date: Date, tz: string): string {
 }
 
 /**
+ * Shift a `YYYY-MM-DD` day key by `deltaDays` (negative steps back). Pure
+ * calendar-day arithmetic, UTC-anchored so it never touches a timezone
+ * offset or DST edge — the key is already a resolved local calendar date,
+ * not an instant, so incrementing it needs no `tz` argument. Used by the
+ * intraday-pulse day navigator (S11) to page `?date=` a day at a time
+ * without re-deriving the viewer's timezone for a pure string increment.
+ */
+export function shiftDateKey(dateKey: string, deltaDays: number): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + deltaDays);
+  return dt.toISOString().slice(0, 10);
+}
+
+/**
  * Wall-clock hour (0–23) an observer in `tz` reads off the clock at
  * `date`. Used for the time-of-day greeting so a traveller whose device
  * clock differs from their configured HealthLog zone still sees the right

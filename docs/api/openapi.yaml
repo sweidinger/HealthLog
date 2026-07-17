@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.29.1
+  version: 1.29.2
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -10844,6 +10844,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DailyDigestEnvelope"
+        "401": *a1
+        "403": *a5
+        "422": *a3
+        "429": *a4
+  /api/daily/digest/dismiss:
+    post:
+      tags:
+        - Insights
+      summary: Dismiss a Today rail item
+      description: "\"Dismiss / mark seen\" for the Today rail's OBSERVATIONAL PriorityItem kinds only — milestone,
+        ecg_new_recording, tension_window. The ACTIONABLE kinds (dose_window, sync_issue, preventive_care,
+        coach_checkin) are structurally unreachable: itemKey must be namespaced under one of the three dismissible kinds
+        or the request 422s before any lookup runs. Persisted server-side so the dismissal survives reload / a second
+        device; an upsert, so a repeat dismiss of the same instance is a no-op. Requires the insights module. Cookie or
+        Bearer auth."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                itemKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+              required:
+                - itemKey
+              additionalProperties: false
+      responses:
+        "200":
+          description: The item is dismissed (idempotent).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DismissPriorityItemEnvelope"
         "401": *a1
         "403": *a5
         "422": *a3
@@ -30150,6 +30186,10 @@ components:
             - ecg_new_recording
             - tension_window
           description: Closed rail-item kind.
+        itemKey:
+          description: Stable dismiss identity, namespaced `<kind>:...`. Present only on the observational kinds (milestone /
+            ecg_new_recording / tension_window) — absent on the actionable kinds, which are never dismissible.
+          type: string
         title:
           type: string
           description: Localised headline (resolved server-side).
@@ -30193,6 +30233,30 @@ components:
         - actions
       additionalProperties: false
       description: One 'worth a look' rail item. The single model every daily-value consumer renders through PriorityCard.
+    DismissPriorityItemEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            dismissed:
+              type: boolean
+              const: true
+          required:
+            - dismissed
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     MedicationScheduleOutput:
       type: object
       properties:

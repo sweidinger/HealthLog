@@ -31,6 +31,26 @@ import { formatInUserTz } from "@/lib/tz/format";
 export const BUCKET_MINUTES = 10;
 
 /**
+ * S11 day-navigator fallback bucket width, in minutes. Days older than
+ * `DENSE_INTRADAY_RETENTION_DAYS` (`dense-intraday-retention.ts`) have their
+ * raw per-sample rows folded to one `stats:` hourly-mean row per local hour;
+ * `computeHourlyMeanSeries` re-buckets those at this coarser grain instead of
+ * pretending they carry 10-minute resolution.
+ */
+export const HOURLY_BUCKET_MINUTES = 60;
+
+/**
+ * The resolution the intraday series was actually computed at — surfaced on
+ * the DTO so the chart can label a folded, older day honestly instead of
+ * implying every day carries the same 10-minute detail. `"tenMin"` reads
+ * raw per-sample rows; `"hourly"` reads the folded `stats:` tier
+ * (`loadIntradayPulse`'s fallback for a day outside the dense retention
+ * window). The tension-window detector requires `"tenMin"` resolution — see
+ * `detectTensionWindow`'s docblock.
+ */
+export type IntradayResolution = "tenMin" | "hourly";
+
+/**
  * A 10-minute bucket needs at least this many raw samples before it is
  * TRUSTED as a mean. A lone reading is a point, not a bucket — trusting it
  * would let a single spike masquerade as a sustained stretch. Sub-floor
@@ -185,6 +205,48 @@ export function computeTenMinuteMeanSeries(
     .sort((a, b) => a.startMinute - b.startMinute);
 }
 
+/**
+ * Fold a day's already-folded `stats:` hourly-mean rows into ascending
+ * per-local-hour buckets — the day-navigator's fallback shape for a day
+ * outside the dense retention window, where the raw per-sample rows are
+ * long tombstoned and only the hourly means survive live. Only samples
+ * whose LOCAL day matches `dayKey` participate, same as
+ * `computeTenMinuteMeanSeries`. Bucket `count` reflects how many `stats:`
+ * rows landed in that local hour — normally exactly one (the dense-tier
+ * fold mints at most one hourly row per hour), so the density gate in
+ * `detectTensionWindow` would reject every bucket outright; callers must
+ * not feed this series into tension detection regardless (see
+ * `IntradayResolution`).
+ */
+export function computeHourlyMeanSeries(
+  samples: ReadonlyArray<IntradaySample>,
+  dayKey: string,
+  localOf: LocalResolver,
+): IntradayHrBucket[] {
+  const acc = new Map<number, { sum: number; count: number }>();
+  for (const s of samples) {
+    const local = localOf(s.measuredAt);
+    if (local.dayKey !== dayKey) continue;
+    const startMinute =
+      Math.floor(local.minuteOfDay / HOURLY_BUCKET_MINUTES) *
+      HOURLY_BUCKET_MINUTES;
+    const bucket = acc.get(startMinute);
+    if (bucket) {
+      bucket.sum += s.value;
+      bucket.count += 1;
+    } else {
+      acc.set(startMinute, { sum: s.value, count: 1 });
+    }
+  }
+  return [...acc.entries()]
+    .map(([startMinute, { sum, count }]) => ({
+      startMinute,
+      mean: round1(sum / count),
+      count,
+    }))
+    .sort((a, b) => a.startMinute - b.startMinute);
+}
+
 /** Coarse part-of-day for a minute-of-day (drives the cautious copy). */
 export function partOfDayForMinute(minute: number): PartOfDay {
   const hour = Math.floor(minute / 60);
@@ -226,6 +288,14 @@ export interface DetectTensionInput {
  * reading. The longest run of ≥ `MIN_SUSTAINED_BUCKETS` consecutive qualifying
  * buckets becomes the window (earliest wins a tie). Every gate must hold; when
  * any fails, the honest answer is no window.
+ *
+ * Callers must only invoke this against `"tenMin"`-resolution buckets
+ * (`computeTenMinuteMeanSeries`) — never the `"hourly"` day-navigator
+ * fallback (`computeHourlyMeanSeries`). A tension read needs per-sample
+ * resolution to sustain the run/density gates honestly; an hourly mean would
+ * either starve every bucket via the density gate (misleadingly silent) or,
+ * worse, pass it on a coincidence of the hourly average. `loadIntradayPulse`
+ * enforces this by only calling `detectTensionWindow` for `"tenMin"` days.
  */
 export function detectTensionWindow(
   input: DetectTensionInput,

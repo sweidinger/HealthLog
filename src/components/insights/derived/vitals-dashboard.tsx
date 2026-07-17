@@ -16,7 +16,7 @@ import { SectionHeading } from "@/components/insights/section-heading";
 import { SparklineDeltaTile } from "./sparkline-delta-tile";
 import { LearnMoreLink } from "@/components/ui/learn-more-link";
 import { CoverageMeter } from "./coverage-meter";
-import { ProvenanceExplainer } from "./provenance-explainer";
+import { VitalsInfoTip } from "./vitals-info-tip";
 import { METRIC_PROVENANCE } from "./standards";
 import { type DerivedBatchRead } from "./use-derived-metric";
 import {
@@ -169,10 +169,16 @@ function tileOrder(layout: InsightsLayout | undefined, tileId: string): number {
   return resolveTileLayout(layout, tileId).order;
 }
 
-/** The provenance ⓘ explainer for one derived metric, wired from the map. */
+/**
+ * The (i) info-tip trigger for one derived metric, wired from the map.
+ * `provenance` (inputs / source / window / asOf) isn't rendered here —
+ * `VitalsInfoTip` carries only the method/caveat + cited standard, mirroring
+ * what `ProvenanceExplainer` itself renders today — but the param is kept so
+ * every call site (which already reads `data.provenance` off the derived
+ * batch) doesn't need touching if a future pass restores the detail.
+ */
 function MetricProvenance({
   metric,
-  provenance,
 }: {
   metric: keyof typeof METRIC_PROVENANCE;
   provenance: DerivedProvenance;
@@ -189,13 +195,7 @@ function MetricProvenance({
       {t(meta.methodKey)}
     </>
   );
-  return (
-    <ProvenanceExplainer
-      provenance={provenance}
-      method={method}
-      standard={meta.standard}
-    />
-  );
+  return <VitalsInfoTip method={method} standard={meta.standard} />;
 }
 
 interface TileProps {
@@ -288,14 +288,14 @@ function BaselineTile({
         framing={framing}
         directionSentiment={vitalSentiment(type)}
         provenance={
-          // v1.29.1 — the VITALS_BASELINE "typical range = median ± MAD" method
-          // caption is suppressed on its own tiles: it repeated across every
-          // vital baseline tile and read as out-of-place clutter at the top of
-          // the vitals surface. The dedicated bands (wrist-temp, stair speed,
-          // 6-min walk) keep their method copy — only VITALS_BASELINE is muted.
-          metric === "VITALS_BASELINE" ? undefined : (
-            <MetricProvenance metric={metric} provenance={data.provenance} />
-          )
+          // v1.29.1 muted this on VITALS_BASELINE tiles because the always-on
+          // "typical range = median ± MAD" caption repeated across every vital
+          // baseline tile and read as clutter. v1.29.2 restores the context —
+          // now behind the compact (i) trigger (`VitalsInfoTip`) instead of a
+          // full-width caption, so every baseline tile carries it again
+          // without the repetition or the header-row squeeze that clipped the
+          // cardio-fitness heading.
+          <MetricProvenance metric={metric} provenance={data.provenance} />
         }
         footer={<LearnMoreLink concept={tileId} />}
       />

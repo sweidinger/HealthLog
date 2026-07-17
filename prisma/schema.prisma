@@ -719,6 +719,8 @@ model User {
   // ships with v1.4.25 so the iOS app can build its query path
   // against a stable contract.
   personalRecords             PersonalRecord[]
+  // Today rail dismiss ledger — observational PriorityItem kinds only.
+  dismissedPriorityItems      DismissedPriorityItem[]
   // v1.4.25 W19b — per-pen / per-vial inventory entities, the
   // companion to the running-sum MedicationInventoryEvent ledger.
   // Carries the EMA §6.3 30-day in-use clock per opened pen.
@@ -2098,6 +2100,34 @@ model PersonalRecord {
   /// ASC LIMIT 1 (MIN direction). Index covers both.
   @@index([userId, metricType, value])
   @@map("personal_records")
+}
+
+/// The Today rail's server-side "dismiss / mark seen" ledger — OBSERVATIONAL
+/// `PriorityItem` kinds only (`milestone`, `ecg_new_recording`,
+/// `tension_window`). The ACTIONABLE kinds (dose_window, sync_issue,
+/// preventive_care, coach_checkin) never write a row here — they clear on
+/// their own once the user acts, so a dismiss affordance on them would just
+/// duplicate the existing resolution path.
+///
+/// `itemKey` is a deterministic identity for the candidate INSTANCE the
+/// digest builder already computes (kind + metric + reach day for a
+/// milestone, the recording's own timestamp for an ECG, the local day for a
+/// tension window) — not the bare `kind` — so dismissing today's milestone
+/// never suppresses tomorrow's; the underlying item's own freshness window
+/// (reached-once / 24h / one-per-day) is what actually retires the row's
+/// relevance, this table only fast-forwards that for the rest of today.
+model DismissedPriorityItem {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  itemKey     String   @map("item_key")
+  dismissedAt DateTime @default(now()) @map("dismissed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The dismiss upsert's natural key + the digest read's
+  /// `userId + itemKey IN (...)` lookup.
+  @@unique([userId, itemKey])
+  @@map("dismissed_priority_items")
 }
 
 // ─── Medications ───────────────────────────────────────────

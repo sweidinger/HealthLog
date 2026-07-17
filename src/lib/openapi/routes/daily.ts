@@ -12,11 +12,18 @@ import { z } from "zod/v4";
 import type { ZodOpenApiObject } from "zod-openapi";
 
 import { PRIORITY_ITEM_KINDS } from "@/lib/daily/priority-item";
+import { dismissPriorityItemSchema } from "@/lib/validations/daily";
 import { dataEnvelope, moduleDisabledResponse, stdResponses } from "./shared";
 
 const priorityItemSchema = z
   .object({
     kind: z.enum([...PRIORITY_ITEM_KINDS]).describe("Closed rail-item kind."),
+    itemKey: z
+      .string()
+      .optional()
+      .describe(
+        "Stable dismiss identity, namespaced `<kind>:...`. Present only on the observational kinds (milestone / ecg_new_recording / tension_window) — absent on the actionable kinds, which are never dismissible.",
+      ),
     title: z.string().describe("Localised headline (resolved server-side)."),
     body: z
       .string()
@@ -108,6 +115,35 @@ export const dailyPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           content: {
             "application/json": {
               schema: dataEnvelope(dailyDigestResponse, "DailyDigestEnvelope"),
+            },
+          },
+        },
+        ...moduleDisabledResponse,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/daily/digest/dismiss": {
+    post: {
+      tags: ["Insights"],
+      summary: "Dismiss a Today rail item",
+      description:
+        '"Dismiss / mark seen" for the Today rail\'s OBSERVATIONAL PriorityItem kinds only — milestone, ecg_new_recording, tension_window. The ACTIONABLE kinds (dose_window, sync_issue, preventive_care, coach_checkin) are structurally unreachable: itemKey must be namespaced under one of the three dismissible kinds or the request 422s before any lookup runs. Persisted server-side so the dismissal survives reload / a second device; an upsert, so a repeat dismiss of the same instance is a no-op. Requires the insights module. Cookie or Bearer auth.',
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: dismissPriorityItemSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The item is dismissed (idempotent).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ dismissed: z.literal(true) }),
+                "DismissPriorityItemEnvelope",
+              ),
             },
           },
         },

@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.29.2] — 2026-07-17
+
+- **WHOOP workouts carry their real sport.** WHOOP was the only source that
+  didn't translate its activity into the app's own sport names, so
+  WHOOP-tracked rides and runs landed unlabelled instead of as cycling or
+  running. New and existing WHOOP workouts are now mapped, so your bike rides
+  show up as cycling — history included. When the same session comes in from two
+  sources, the canonical row now keeps the richest reading (heart rate, energy,
+  distance) instead of dropping it.
+- **Scroll back through the day's heart rate.** The intraday heart-rate view
+  gains a day navigator to step through previous days. The fine-grained history
+  now stays for 90 days (was 14); older days show the coarser hourly shape.
+- **Clear a card from Today.** A milestone, a new ECG, or a tension note can be
+  dismissed from the Today rail once you've seen it; the section tightens when
+  the last one is gone. The cards that need an action stay until you act.
+- **Vitals context moves into an info tap.** The vitals tiles carry an (i) with
+  the context — your reading against your personal range, and against your age
+  where that applies — instead of a permanent caption. The VO₂ max heading no
+  longer gets cut off.
+- **Oura cycle phases feed the cycle tracker.** Where your Oura connection
+  provides cycle-phase data, it now fills the cycle tracker as a background
+  source; your own entries always win.
+
+Two migrations (0247, 0248). No breaking changes.
+
 ## [1.29.1] — 2026-07-17
 
 A round of fixes and small refinements from living with the daily view.

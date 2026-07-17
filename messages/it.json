@@ -3397,6 +3397,7 @@
         "sectionSubtitle": "Segnali cardiovascolari e respiratori a riposo rispetto alla tua baseline personale",
         "loadingLabel": "Caricamento dei tuoi parametri vitali",
         "loadError": "Al momento non è stato possibile caricare i tuoi parametri vitali.",
+        "infoLabel": "Come viene calcolato questo dato?",
         "building": "Creazione del tuo intervallo abituale — {count} di {target} giorni",
         "typicalRange": "Abituale per te: {low}–{high}",
         "fitnessYounger": "Forma cardio di chi ha ~{years} anni in meno",
@@ -3869,8 +3870,12 @@
     "intradayPulse": {
       "title": "L'andamento della tua giornata",
       "caption": "La tua frequenza cardiaca durante il giorno, mediata in intervalli di 10 minuti.",
-      "empty": "Non ci sono ancora abbastanza misurazioni di oggi per mostrare l'andamento della giornata.",
+      "hourlyNote": "Media oraria per questo giorno — i giorni recenti mostrano il dettaglio completo a 10 minuti.",
+      "empty": "Non ci sono ancora abbastanza misurazioni per questo giorno per mostrarne l'andamento.",
       "baseline": "Riposo",
+      "today": "Oggi",
+      "previousDay": "Giorno precedente",
+      "nextDay": "Giorno successivo",
       "tension": {
         "morning": "Un tratto elevato a riposo stamattina — forse un po' di tensione.",
         "afternoon": "Un tratto elevato a riposo questo pomeriggio — forse un po' di tensione.",

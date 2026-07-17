@@ -10,7 +10,11 @@
  * Cookie OR Bearer auth via `requireAuth()`; `userId` is narrowed from the
  * resolved session — never a body field. Gated on the `insights` module. The
  * `date` defaults to the user's local today; anything but a `YYYY-MM-DD`
- * literal is a 422 via `returnAllZodIssues`.
+ * literal is a 422 via `returnAllZodIssues`. The frontend day navigator
+ * pages this same route backward through prior days — a day outside
+ * `DENSE_INTRADAY_RETENTION_DAYS` (`dense-intraday-retention.ts`) reads back
+ * at the coarser hourly grain instead of an empty series; the response's
+ * `resolution` field tells the caller which.
  */
 import { z } from "zod";
 
@@ -54,6 +58,7 @@ export const GET = apiHandler(async (req: Request) => {
       buckets: result.series.length,
       baseline_source: result.baselineSource,
       tension: result.tension !== null,
+      resolution: result.resolution,
     },
   });
 

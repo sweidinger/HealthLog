@@ -134,4 +134,61 @@ describe("<PriorityCard>", () => {
     );
     expect(html).toContain("View check-ups");
   });
+
+  describe("dismiss affordance — observational kinds only", () => {
+    const DISMISSIBLE: PriorityItemKind[] = [
+      "milestone",
+      "ecg_new_recording",
+      "tension_window",
+    ];
+    const ACTIONABLE: PriorityItemKind[] = [
+      "dose_window",
+      "sync_issue",
+      "preventive_care",
+      "coach_checkin",
+    ];
+
+    it("renders the dismiss button on every observational kind that carries an itemKey", () => {
+      for (const kind of DISMISSIBLE) {
+        const html = render(
+          <PriorityCard
+            item={item({ kind, itemKey: `${kind}:instance-1` })}
+            onDismiss={() => {}}
+          />,
+        );
+        expect(html).toContain('data-slot="priority-card-dismiss"');
+      }
+    });
+
+    it("never renders the dismiss button on an actionable kind, even if a caller wires onDismiss", () => {
+      for (const kind of ACTIONABLE) {
+        const html = render(
+          <PriorityCard
+            item={item({ kind, itemKey: `${kind}:instance-1` })}
+            onDismiss={() => {}}
+          />,
+        );
+        expect(html).not.toContain('data-slot="priority-card-dismiss"');
+      }
+    });
+
+    it("does not render the dismiss button when the item carries no itemKey (server didn't stamp one)", () => {
+      const html = render(
+        <PriorityCard
+          item={item({ kind: "milestone" })}
+          onDismiss={() => {}}
+        />,
+      );
+      expect(html).not.toContain('data-slot="priority-card-dismiss"');
+    });
+
+    it("does not render the dismiss button when the caller passes no onDismiss handler", () => {
+      const html = render(
+        <PriorityCard
+          item={item({ kind: "milestone", itemKey: "milestone:instance-1" })}
+        />,
+      );
+      expect(html).not.toContain('data-slot="priority-card-dismiss"');
+    });
+  });
 });

@@ -42,6 +42,7 @@ import type { ScoreBand } from "@/components/insights/derived/band-tokens";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { PriorityCard } from "@/components/daily/priority-card";
 import { useCoachCheckinAction } from "@/hooks/use-coach-checkin";
+import { usePriorityItemDismiss } from "@/hooks/use-priority-item-dismiss";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import type { DailyDigest } from "@/lib/daily/digest";
@@ -64,6 +65,7 @@ function formatDelta(
 export function TodayHero({ digest }: { digest: DailyDigest }) {
   const { t } = useTranslations();
   const { keep, letGo } = useCoachCheckinAction();
+  const dismissItem = usePriorityItemDismiss();
 
   // The coach check-in card's keep / let-go intents carry the plan id after the
   // ":" (a closed two-intent allowlist); adjust is an href handled by the card
@@ -220,6 +222,7 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
                   key={`${item.kind}-${i}`}
                   item={item}
                   onAction={handleAction}
+                  onDismiss={(itemKey) => dismissItem.mutate(itemKey)}
                 />
               ))}
             </div>

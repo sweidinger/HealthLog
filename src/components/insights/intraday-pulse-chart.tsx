@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -18,11 +18,13 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { apiGet } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
-import { useTranslations } from "@/lib/i18n/context";
-import { userDayKey } from "@/lib/tz/format";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { userDayKey, shiftDateKey } from "@/lib/tz/format";
 import { TileHeader } from "@/components/insights/tile-header";
+import { Button } from "@/components/ui/button";
 import type {
   IntradayHrBucket,
+  IntradayResolution,
   TensionWindow,
 } from "@/lib/analytics/intraday-pulse";
 
@@ -34,6 +36,7 @@ interface IntradayPulseDto {
   baseline: number | null;
   baselineSource: "resting" | "proxy" | "none";
   tension: TensionWindow | null;
+  resolution: IntradayResolution;
 }
 
 /** Minutes-since-midnight → "HH:mm" wall-clock label. */
@@ -53,6 +56,14 @@ const AXIS_TICKS = [0, 360, 720, 1080, 1440];
  * detected elevated-at-rest ("tension") window softly shaded. Copy is cautious
  * and non-diagnostic — "possible tension", never a stress score. Empty / no-
  * baseline days render an honest one-liner rather than an empty grid.
+ *
+ * v1.29.x — a day navigator (`TileHeader`'s `right` slot, per UI-STANDARDS
+ * §11) pages the same route backward through prior days; "next" is disabled
+ * at today, so the view can never step into the future. A day outside the
+ * dense retention window (`DENSE_INTRADAY_RETENTION_DAYS`) reads back at the
+ * coarser hourly grain instead of an empty chart — `resolution` on the DTO
+ * tells the caption which, and the tension read is always absent on an
+ * hourly day (it needs per-sample resolution to stay honest).
  */
 export function IntradayPulseChart({
   userTimezone,
@@ -61,8 +72,24 @@ export function IntradayPulseChart({
 }) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const tz = userTimezone ?? "Europe/Berlin";
-  const dateKey = userDayKey(new Date(), tz);
+  const todayKey = userDayKey(new Date(), tz);
+  // `null` tracks "today" live (so a session left open across midnight keeps
+  // following the current day); a non-null value pins the viewed day once
+  // the user has navigated away from today.
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const dateKey = selectedDateKey ?? todayKey;
+  const isToday = dateKey === todayKey;
+
+  const goToPreviousDay = () => setSelectedDateKey(shiftDateKey(dateKey, -1));
+  const goToNextDay = () => {
+    const next = shiftDateKey(dateKey, 1);
+    // Defence in depth alongside the button's `disabled` — never step past
+    // today regardless of how the handler is reached.
+    if (next > todayKey) return;
+    setSelectedDateKey(next === todayKey ? null : next);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.insightsPulseIntraday(dateKey),
@@ -85,7 +112,13 @@ export function IntradayPulseChart({
 
   const caption = data?.tension
     ? t(`insights.intradayPulse.tension.${data.tension.partOfDay}`)
-    : t("insights.intradayPulse.caption");
+    : data?.resolution === "hourly"
+      ? t("insights.intradayPulse.hourlyNote")
+      : t("insights.intradayPulse.caption");
+
+  const dayLabel = isToday
+    ? t("insights.intradayPulse.today")
+    : fmt.dateShort(new Date(`${dateKey}T12:00:00.000Z`));
 
   return (
     <div
@@ -98,7 +131,41 @@ export function IntradayPulseChart({
       className="bg-card metric-accent space-y-1.5 rounded-xl border p-4"
       style={{ "--tile-hue": "var(--tile-stress)" } as React.CSSProperties}
     >
-      <TileHeader icon={Activity} title={t("insights.intradayPulse.title")} />
+      <TileHeader
+        icon={Activity}
+        title={t("insights.intradayPulse.title")}
+        right={
+          <div
+            data-slot="intraday-pulse-day-nav"
+            className="flex items-center gap-0.5"
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="min-h-11 min-w-11 sm:size-8"
+              onClick={goToPreviousDay}
+              aria-label={t("insights.intradayPulse.previousDay")}
+            >
+              <ChevronLeft className="size-4" aria-hidden="true" />
+            </Button>
+            <span className="text-muted-foreground min-w-14 text-center text-xs tabular-nums">
+              {dayLabel}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="min-h-11 min-w-11 sm:size-8"
+              onClick={goToNextDay}
+              disabled={isToday}
+              aria-label={t("insights.intradayPulse.nextDay")}
+            >
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
+        }
+      />
       <p className="text-muted-foreground text-xs leading-snug">{caption}</p>
 
       {isLoading ? (

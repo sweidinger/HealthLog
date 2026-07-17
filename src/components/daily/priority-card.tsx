@@ -26,6 +26,7 @@ import {
   MessageCircle,
   Pill,
   RefreshCw,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,11 +36,12 @@ import { ProseBlocks } from "@/components/insights/prose-blocks";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-import type {
-  PriorityItem,
-  PriorityItemAction,
-  PriorityItemKind,
-  PriorityItemStatus,
+import {
+  isDismissibleKind,
+  type PriorityItem,
+  type PriorityItemAction,
+  type PriorityItemKind,
+  type PriorityItemStatus,
 } from "@/lib/daily/priority-item";
 
 /** Deterministic glyph per kind — the icon the serialisable item cannot hold. */
@@ -93,13 +95,27 @@ export interface PriorityCardProps {
    * links and do not call this.
    */
   onAction?: (intent: string) => void;
+  /**
+   * Dismiss handler for the OBSERVATIONAL kinds only (`milestone`,
+   * `ecg_new_recording`, `tension_window`). Receives the item's own
+   * `itemKey`. The card renders the affordance ONLY when the kind is
+   * dismissible AND the item actually carries a key — an actionable item (no
+   * `itemKey` by construction) never shows one, no matter what the caller
+   * passes.
+   */
+  onDismiss?: (itemKey: string) => void;
   className?: string;
 }
 
 /** Tap-target floor per P1: `min-h-11` on touch, `min-h-9` on pointer. */
 const ACTION_SIZE = "min-h-11 sm:min-h-9";
 
-export function PriorityCard({ item, onAction, className }: PriorityCardProps) {
+export function PriorityCard({
+  item,
+  onAction,
+  onDismiss,
+  className,
+}: PriorityCardProps) {
   const { t } = useTranslations();
   const Icon = KIND_ICON[item.kind];
   const actions = item.actions.slice(0, 3);
@@ -111,6 +127,13 @@ export function PriorityCard({ item, onAction, className }: PriorityCardProps) {
   // halo's background wins over the status wash's flat `bg-success/10`
   // (unlayered CSS beats utilities); the wash keeps the success border.
   const isMilestone = item.kind === "milestone";
+  // Dismiss is offered ONLY on the observational kinds, and only once the
+  // server has actually stamped an identity onto this instance — the
+  // actionable kinds never carry an `itemKey`, so this is structurally false
+  // for them regardless of what the caller wires up. Held as its own const
+  // (rather than re-checked inline) so the narrowed `string` type carries
+  // into the click handler below without a non-null assertion.
+  const dismissKey = isDismissibleKind(item.kind) ? item.itemKey : undefined;
 
   return (
     <Card
@@ -126,7 +149,26 @@ export function PriorityCard({ item, onAction, className }: PriorityCardProps) {
       style={hue ? ({ "--tile-hue": hue } as React.CSSProperties) : undefined}
     >
       <CardContent className="flex flex-col gap-2">
-        <TileHeader icon={Icon} title={item.title} size="sm" />
+        <TileHeader
+          icon={Icon}
+          title={item.title}
+          size="sm"
+          right={
+            dismissKey && onDismiss ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                data-slot="priority-card-dismiss"
+                className="text-muted-foreground hover:text-foreground -my-2 -mr-2 min-h-11 min-w-11 shrink-0 sm:h-8 sm:min-h-0 sm:w-8 sm:min-w-0"
+                onClick={() => onDismiss(dismissKey)}
+                aria-label={t("common.dismiss")}
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            ) : undefined
+          }
+        />
         {item.body ? (
           <div className="text-foreground text-sm">
             <ProseBlocks text={item.body} strip={false} linkify={false} />

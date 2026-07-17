@@ -195,7 +195,7 @@ describe("runDenseIntradayHourlyRebuild (real Postgres)", () => {
 
   it("never touches days inside the retention window", async () => {
     const prisma = getPrismaClient();
-    // A daily row anchored 2 days ago — inside the default 14-day window.
+    // A daily row anchored 2 days ago — inside the default 90-day window.
     // (Synthetic: the real fold never produces one this recent, but the
     // window bound must hold regardless of how the row got there.)
     const recentNoon = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);

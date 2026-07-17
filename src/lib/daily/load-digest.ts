@@ -32,6 +32,11 @@ import {
   type DailyDigestSyncIssue,
   type DailyDigestTensionWindow,
 } from "@/lib/daily/digest";
+import {
+  ecgItemKey,
+  milestoneItemKey,
+  tensionWindowItemKey,
+} from "@/lib/daily/priority-item-key";
 import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
 import { readDayMeanSeries } from "@/lib/insights/derived/baseline";
 import { detectStreak, type StreakPoint } from "@/lib/insights/streak-detector";
@@ -316,6 +321,27 @@ export async function loadDailyDigest(
         .catch(() => null)
     : null;
 
+  // Dismiss ledger (P — Today rail dismiss). Only the OBSERVATIONAL kinds
+  // (milestone / ecg_new_recording / tension_window) can ever be dismissed, so
+  // only their candidate keys are worth looking up — never a full per-user
+  // history read. At most 3 keys, so this is a single indexed `IN (...)`.
+  const candidateItemKeys = [
+    milestone ? milestoneItemKey(milestone) : null,
+    latestEcg ? ecgItemKey(latestEcg.recordedAt) : null,
+    tensionWindow
+      ? tensionWindowItemKey(todayLocalDate, tensionWindow.partOfDay)
+      : null,
+  ].filter((k): k is string => k !== null);
+
+  const dismissedRows =
+    candidateItemKeys.length > 0
+      ? await prisma.dismissedPriorityItem.findMany({
+          where: { userId: user.id, itemKey: { in: candidateItemKeys } },
+          select: { itemKey: true },
+        })
+      : [];
+  const dismissedItemKeys = new Set(dismissedRows.map((r) => r.itemKey));
+
   const { t } = getServerTranslator(resolveLocale(locale));
 
   const digest = buildDailyDigest(
@@ -333,6 +359,8 @@ export async function loadDailyDigest(
       milestone,
       tensionWindow,
       latestEcg,
+      todayLocalDate,
+      dismissedItemKeys,
     },
     t,
   );

@@ -1,0 +1,82 @@
+/**
+ * POST /api/daily/digest/dismiss
+ *
+ * "Dismiss / mark seen" for the Today rail's OBSERVATIONAL `PriorityItem`
+ * kinds only — `milestone`, `ecg_new_recording`, `tension_window`. The
+ * ACTIONABLE kinds (`dose_window`, `sync_issue`, `preventive_care`,
+ * `coach_checkin`) are never reachable here: `dismissPriorityItemSchema`
+ * rejects any `itemKey` that doesn't carry one of the three dismissible
+ * kind-prefixes before a lookup ever runs (§`isDismissibleItemKey`).
+ *
+ * Persisted server-side (`DismissedPriorityItem`, composite-unique on
+ * `userId` + `itemKey`) so the dismissal survives reload / a second device —
+ * an upsert, so a repeat dismiss of the same instance is a no-op rather than
+ * a conflict. `userId` is narrowed from `requireAuth()` only; the body never
+ * carries one. Cookie OR Bearer, mirroring the digest GET route's own auth
+ * policy, and gated on the same `insights` module (the daily rail's host
+ * surface).
+ */
+import type { NextRequest } from "next/server";
+
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import {
+  apiError,
+  apiSuccess,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
+import { annotate } from "@/lib/logging/context";
+import { prisma } from "@/lib/db";
+import { requireModuleEnabled } from "@/lib/modules/gate";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { dismissPriorityItemSchema } from "@/lib/validations/daily";
+
+export const dynamic = "force-dynamic";
+
+// A cheap, owner-scoped upsert; the limit only caps a runaway client loop.
+const DISMISS_RATE_LIMIT = 40;
+const DISMISS_WINDOW_MS = 60_000;
+
+export const POST = apiHandler(async (req: NextRequest) => {
+  const { user } = await requireAuth();
+  const gate = await requireModuleEnabled(user.id, "insights");
+  if (!gate.enabled) return gate.response;
+
+  const rl = await checkRateLimit(
+    `daily-digest-dismiss:${user.id}`,
+    DISMISS_RATE_LIMIT,
+    DISMISS_WINDOW_MS,
+  );
+  if (!rl.allowed) {
+    const response = apiError("Too many requests", 429);
+    for (const [k, v] of Object.entries(rateLimitHeaders(rl))) {
+      response.headers.set(k, v);
+    }
+    return response;
+  }
+
+  const { data: body, error: jsonError } = await safeJson(req, {
+    maxBytes: 1024,
+  });
+  if (jsonError) return jsonError;
+
+  const parsed = dismissPriorityItemSchema.safeParse(body);
+  if (!parsed.success) {
+    return returnAllZodIssues(parsed.error, 422);
+  }
+
+  const { itemKey } = parsed.data;
+
+  await prisma.dismissedPriorityItem.upsert({
+    where: { userId_itemKey: { userId: user.id, itemKey } },
+    update: {},
+    create: { userId: user.id, itemKey },
+  });
+
+  annotate({
+    action: { name: "daily.digest.item.dismissed" },
+    meta: { daily_digest_item_kind: itemKey.split(":")[0] },
+  });
+
+  return apiSuccess({ dismissed: true });
+});
