@@ -38,6 +38,18 @@ import {
   type SymptomEpisodeSpan,
 } from "@/lib/insights/correlation-series-builders";
 import type { DoseHistoryRow } from "@/lib/medications/scheduling/dose-history";
+import { CUMULATIVE_HK_TYPES } from "@/lib/measurements/apple-health-mapping";
+import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
+import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
+import {
+  reconstructSleepSessions,
+  pickMainNightAndNaps,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
+import type {
+  MeasurementSource,
+  MeasurementType,
+} from "@/generated/prisma/client";
 
 /**
  * v1.21.0 (FDREXTEND) — build the user's MEDICATION_COMPLIANCE daily series.
@@ -242,6 +254,148 @@ export async function fetchEnvironmentSeries(
 function tzDayKey(at: Date, tz: string): string {
   const { year, month, day } = wallClockInTz(at, tz);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * v1.29.6 — collapse rows to per-day MEANS keyed in the user's tz. This is
+ * the correct grain for spot metrics (BP, glucose, HRV, resting HR, weight,
+ * mood) where a day's reduction is the average of its readings. Cumulative
+ * metrics and sleep must NOT use this — see `buildMeasurementDailySeries`.
+ *
+ * Hoisted here from the two former call sites (`/api/insights/correlations`
+ * and `metric-correlation-context.ts`) so both surfaces stay byte-identical
+ * instead of drifting as two independently-maintained copies — the same
+ * class of drift that let the cumulative/sleep grain bug below slip into
+ * one file and not the other.
+ */
+export function toDailyMeans(
+  rows: Array<{ value: number; at: Date }>,
+  tz: string,
+): DailySeriesPoint[] {
+  const byDay = new Map<string, { sum: number; count: number }>();
+  for (const r of rows) {
+    if (!Number.isFinite(r.value)) continue;
+    const day = tzDayKey(r.at, tz);
+    const acc = byDay.get(day) ?? { sum: 0, count: 0 };
+    acc.sum += r.value;
+    acc.count += 1;
+    byDay.set(day, acc);
+  }
+  return [...byDay.entries()]
+    .map(([day, acc]) => ({ day, value: acc.sum / acc.count }))
+    .sort((a, b) => (a.day < b.day ? -1 : 1));
+}
+
+/** Minimum row shape `buildMeasurementDailySeries` needs per raw reading. */
+export interface MeasurementSeriesRow {
+  value: number;
+  at: Date;
+  source: MeasurementSource;
+  deviceType: string | null;
+  /** Only populated (and only consulted) for SLEEP_DURATION rows. */
+  sleepStage: SleepStageRow["sleepStage"] | null;
+}
+
+/**
+ * v1.29.6 — collapse one MeasurementType's raw rows to a single-grain daily
+ * series, keyed in the user's tz. Fixes a correlation-discovery distortion:
+ * `ACTIVITY_STEPS` and other cumulative HK types were being reduced with
+ * `toDailyMeans`, which blends per-sample chunk averages (~350 steps, from
+ * the not-yet-nightly-drained window) with drained `stats:` daily totals
+ * (~8400 steps) into one meaningless per-day figure. `SLEEP_DURATION` was
+ * averaging per-STAGE segment durations (~45 min) instead of summing a
+ * night's total time asleep, and without collapsing overlapping sources
+ * first (a WHOOP + Apple Health night double-counted).
+ *
+ *  - `SLEEP_DURATION` → per-night TOTAL time asleep for the MAIN session
+ *    (naps excluded, matching the dashboard/list convention), via
+ *    `reconstructSleepSessions` — the same writer-dedup + per-night
+ *    collapse the sleep list route and dashboard tile use.
+ *  - `CUMULATIVE_HK_TYPES` (steps, active energy, distance, flights,
+ *    daylight, falls) → source-collapsed per-day SUM, via
+ *    `pickCanonicalSourceRows` (a type with no ladder passes every row
+ *    through unchanged, matching the picker's documented fallback).
+ *  - everything else → per-day MEAN via `toDailyMeans` (unchanged).
+ */
+export function buildMeasurementDailySeries(
+  type: MeasurementType,
+  rows: MeasurementSeriesRow[],
+  tz: string,
+  priorityJson: unknown,
+): DailySeriesPoint[] {
+  if (type === "SLEEP_DURATION") {
+    return buildSleepDailySeries(rows, tz, priorityJson);
+  }
+  if (CUMULATIVE_HK_TYPES.has(type)) {
+    return buildCumulativeDailySeries(type, rows, tz, priorityJson);
+  }
+  return toDailyMeans(
+    rows.map((r) => ({ value: r.value, at: r.at })),
+    tz,
+  );
+}
+
+function buildSleepDailySeries(
+  rows: MeasurementSeriesRow[],
+  tz: string,
+  priorityJson: unknown,
+): DailySeriesPoint[] {
+  const stageRows: SleepStageRow[] = rows.map((r) => ({
+    value: r.value,
+    measuredAt: r.at,
+    sleepStage: r.sleepStage,
+    source: r.source,
+    deviceType: r.deviceType,
+  }));
+  const sessions = reconstructSleepSessions(stageRows, tz, priorityJson);
+
+  const byNight = new Map<string, typeof sessions>();
+  for (const s of sessions) {
+    const list = byNight.get(s.night) ?? [];
+    list.push(s);
+    byNight.set(s.night, list);
+  }
+
+  const points: DailySeriesPoint[] = [];
+  for (const [night, nightSessions] of byNight) {
+    const { main } = pickMainNightAndNaps(nightSessions);
+    if (!main) continue;
+    points.push({ day: night, value: main.asleepMinutes });
+  }
+  return points.sort((a, b) => (a.day < b.day ? -1 : 1));
+}
+
+function buildCumulativeDailySeries(
+  type: MeasurementType,
+  rows: MeasurementSeriesRow[],
+  tz: string,
+  priorityJson: unknown,
+): DailySeriesPoint[] {
+  const metricKey = metricKeyForType(type);
+  const canonicalRows = metricKey
+    ? pickCanonicalSourceRows(
+        rows.map((r) => ({
+          measuredAt: r.at,
+          source: r.source,
+          deviceType: r.deviceType,
+          type,
+          value: r.value,
+        })),
+        metricKey,
+        priorityJson,
+        (d) => tzDayKey(d, tz),
+      ).canonicalRows
+    : rows.map((r) => ({ measuredAt: r.at, value: r.value }));
+
+  const byDay = new Map<string, number>();
+  for (const row of canonicalRows) {
+    if (!Number.isFinite(row.value)) continue;
+    const key = tzDayKey(row.measuredAt, tz);
+    byDay.set(key, (byDay.get(key) ?? 0) + row.value);
+  }
+  return [...byDay.entries()]
+    .map(([day, value]) => ({ day, value }))
+    .sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
 /**

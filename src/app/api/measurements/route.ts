@@ -21,6 +21,8 @@ import {
   type AggregateGrain,
 } from "@/lib/measurements/range-aggregation";
 import { CUMULATIVE_HK_TYPES } from "@/lib/measurements/apple-health-mapping";
+import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
+import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
 import {
   canonicalDailyTimestamp,
   dayKeyForUserTz,
@@ -214,9 +216,17 @@ export const GET = apiHandler(async (request: NextRequest) => {
       user.timezone && user.timezone.length > 0
         ? user.timezone
         : "Europe/Berlin";
+    // v1.29.6 — DESC + take so a long history returns the MOST RECENT
+    // window of raw samples for bucketing. The previous `orderBy: asc`
+    // + `take: limit` sliced the OLDEST page of rows before the
+    // day-bucketing loop ran below — on an account with more than
+    // `limit` cumulative samples in its history, the buckets were built
+    // entirely from year-old rows and the recent days silently never
+    // appeared. Mirrors the workouts-list ordering fix (05f80ad37):
+    // re-establish "most recent" as the page the caller actually gets.
     const rows = await prisma.measurement.findMany({
       where,
-      orderBy: { measuredAt: "asc" },
+      orderBy: { measuredAt: "desc" },
       // Per-sample row scan within the requested window — bounded by
       // the existing `limit` cap (default 100, max 5000) so a wide
       // multi-year window can still walk the whole range when the
@@ -230,8 +240,33 @@ export const GET = apiHandler(async (request: NextRequest) => {
         source: true,
         measuredAt: true,
         notes: true,
+        deviceType: true,
       },
     });
+
+    // v1.29.6 — collapse overlapping sources to the ladder-canonical
+    // reading per day BEFORE summing. Without this, a day with both an
+    // Apple Health AND a Withings write for the same cumulative metric
+    // (e.g. steps) summed BOTH sources into one inflated total — a day
+    // the dashboard tile (which reads through the source-collapsed
+    // rollup, `collapseRollupRowsBySource` in
+    // `src/lib/rollups/measurement-read.ts`) showed correctly. Uses the
+    // same `metricKeyForType` ladder lookup the rollup collapse uses, so
+    // this list and the tile agree on which source wins. A type with no
+    // ladder (e.g. TIME_IN_DAYLIGHT, FALL_COUNT) has nothing to collapse
+    // against — every row passes through unchanged, matching the
+    // pass-through fallback used at the other `pickCanonicalSourceRows`
+    // call sites.
+    const metricKey = metricKeyForType(type as MeasurementType);
+    const priorityJson = await loadUserSourcePriority(user.id);
+    const canonicalRows = metricKey
+      ? pickCanonicalSourceRows(
+          rows.map((r) => ({ ...r, type: r.type as MeasurementType })),
+          metricKey,
+          priorityJson,
+          (d) => dayKeyForUserTz(d, tz),
+        ).canonicalRows
+      : rows;
 
     // Group by the user's calendar day, sum values, keep a representative
     // unit/source from the bucket's first row so the rendered row carries
@@ -245,7 +280,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       source: string;
     };
     const buckets = new Map<string, Bucket>();
-    for (const row of rows) {
+    for (const row of canonicalRows) {
       const key = dayKeyForUserTz(row.measuredAt, tz);
       const slot = buckets.get(key);
       if (!slot) {
@@ -293,6 +328,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         type,
         groupBy: "day",
         rowsScanned: rows.length,
+        droppedDuplicates: rows.length - canonicalRows.length,
       },
     });
     return apiSuccess({
@@ -302,6 +338,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         limit,
         offset: 0,
         groupBy: "day",
+        droppedDuplicates: rows.length - canonicalRows.length,
       },
     });
   }

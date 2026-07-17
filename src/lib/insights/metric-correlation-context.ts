@@ -22,15 +22,19 @@
  */
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   discoverCorrelations,
   discoveryMeasurementTypes,
   DISCOVERY_BEHAVIOURS,
   DISCOVERY_OUTCOMES,
-  type DailySeriesPoint,
   type NamedSeries,
 } from "@/lib/insights/correlation-discovery";
+import {
+  buildMeasurementDailySeries,
+  toDailyMeans,
+  type MeasurementSeriesRow,
+} from "@/lib/insights/correlation-channel-series";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import type { RelevantCorrelation } from "@/lib/insights/assessment-context";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -53,31 +57,6 @@ function channelKeyForType(type: MeasurementType): string | null {
     return key;
   }
   return null;
-}
-
-/** Day key (YYYY-MM-DD) for an instant in the user's display timezone. */
-function tzDayKey(at: Date, tz: string): string {
-  const { year, month, day } = wallClockInTz(at, tz);
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-/** Collapse rows to per-day means keyed in the user's tz. */
-function toDailyMeans(
-  rows: Array<{ value: number; at: Date }>,
-  tz: string,
-): DailySeriesPoint[] {
-  const byDay = new Map<string, { sum: number; count: number }>();
-  for (const r of rows) {
-    if (!Number.isFinite(r.value)) continue;
-    const day = tzDayKey(r.at, tz);
-    const acc = byDay.get(day) ?? { sum: 0, count: 0 };
-    acc.sum += r.value;
-    acc.count += 1;
-    byDay.set(day, acc);
-  }
-  return [...byDay.entries()]
-    .map(([day, acc]) => ({ day, value: acc.sum / acc.count }))
-    .sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
 /**
@@ -117,7 +96,10 @@ export async function getRelevantCorrelationsForMetric(
       DISCOVERY_OUTCOMES,
     ) as MeasurementType[];
 
-    const [measurements, moodEntries] = await Promise.all([
+    // v1.29.6 — `source` + `deviceType` + `sleepStage` feed
+    // `buildMeasurementDailySeries`'s per-type grain resolution below (see
+    // the route's identical comment for why).
+    const [measurements, moodEntries, priorityJson] = await Promise.all([
       prisma.measurement.findMany({
         where: {
           userId,
@@ -127,7 +109,14 @@ export async function getRelevantCorrelationsForMetric(
         },
         orderBy: { measuredAt: "asc" },
         take: 20000,
-        select: { type: true, value: true, measuredAt: true },
+        select: {
+          type: true,
+          value: true,
+          measuredAt: true,
+          source: true,
+          deviceType: true,
+          sleepStage: true,
+        },
       }),
       prisma.moodEntry.findMany({
         where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
@@ -135,12 +124,19 @@ export async function getRelevantCorrelationsForMetric(
         take: 5000,
         select: { score: true, moodLoggedAt: true },
       }),
+      loadUserSourcePriority(userId),
     ]);
 
-    const byType = new Map<string, Array<{ value: number; at: Date }>>();
+    const byType = new Map<string, MeasurementSeriesRow[]>();
     for (const m of measurements) {
       const list = byType.get(m.type) ?? [];
-      list.push({ value: m.value, at: m.measuredAt });
+      list.push({
+        value: m.value,
+        at: m.measuredAt,
+        source: m.source,
+        deviceType: m.deviceType,
+        sleepStage: m.sleepStage,
+      });
       byType.set(m.type, list);
     }
     const moodDaily = toDailyMeans(
@@ -148,16 +144,22 @@ export async function getRelevantCorrelationsForMetric(
       tz,
     );
 
+    const points = (key: string) =>
+      key === "MOOD"
+        ? moodDaily
+        : buildMeasurementDailySeries(
+            key as MeasurementType,
+            byType.get(key) ?? [],
+            tz,
+            priorityJson,
+          );
+
     const series: NamedSeries[] = [];
     for (const key of DISCOVERY_BEHAVIOURS) {
-      const points =
-        key === "MOOD" ? moodDaily : toDailyMeans(byType.get(key) ?? [], tz);
-      series.push({ key, role: "behaviour", points });
+      series.push({ key, role: "behaviour", points: points(key) });
     }
     for (const key of DISCOVERY_OUTCOMES) {
-      const points =
-        key === "MOOD" ? moodDaily : toDailyMeans(byType.get(key) ?? [], tz);
-      series.push({ key, role: "outcome", points });
+      series.push({ key, role: "outcome", points: points(key) });
     }
 
     const result = discoverCorrelations(series);
