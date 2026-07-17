@@ -8557,7 +8557,8 @@
       "viewCheckups": "Voir les examens",
       "checkinKeep": "Garder",
       "checkinAdjust": "Ajuster",
-      "checkinLetGo": "Laisser tomber"
+      "checkinLetGo": "Laisser tomber",
+      "viewMilestone": "Voir"
     },
     "today": {
       "scoreLabel": "Score de santé",
@@ -8567,6 +8568,41 @@
       "readFullBriefing": "Lire le briefing complet",
       "worthALook": "À regarder",
       "allClear": "Rien ne requiert ton attention aujourd'hui."
+    },
+    "milestone": {
+      "metric": {
+        "restingHeartRate": "fréquence cardiaque au repos",
+        "heartRateVariability": "variabilité de la fréquence cardiaque",
+        "respiratoryRate": "fréquence respiratoire",
+        "weight": "poids",
+        "generic": "cette valeur"
+      },
+      "record": {
+        "title": "Nouveau record : {metric}",
+        "body": "Vous avez atteint un record personnel de {metric} aujourd'hui. Noté en toute tranquillité, rien à faire."
+      },
+      "returnToBaseline": {
+        "title": "De retour dans votre plage : {metric}",
+        "body": "Votre {metric} est revenue dans votre plage habituelle. Quoi que ce fût, c'est passé."
+      },
+      "sustainedInRange": {
+        "week1": {
+          "title": "Une semaine dans la plage",
+          "body": "Votre {metric} reste dans votre plage habituelle depuis une semaine. Bien régulier."
+        },
+        "week2": {
+          "title": "Deux semaines dans la plage",
+          "body": "Votre {metric} reste dans votre plage habituelle depuis deux semaines. Calme et régulier."
+        },
+        "week3": {
+          "title": "Trois semaines dans la plage",
+          "body": "Trois semaines avec votre {metric} dans votre plage habituelle. Une vraie période de stabilité."
+        },
+        "week4": {
+          "title": "Un mois dans la plage",
+          "body": "Un mois entier avec votre {metric} dans votre plage habituelle. Merveilleusement stable."
+        }
+      }
     }
   }
 }

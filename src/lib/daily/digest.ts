@@ -27,6 +27,11 @@ import {
   MAX_PRIORITY_ACTIONS,
   type PriorityItem,
 } from "@/lib/daily/priority-item";
+import {
+  milestoneCopy,
+  milestoneHref,
+  type Milestone,
+} from "@/lib/daily/milestones";
 
 /** At most three rail items — a glance, never a wall (§2.5, never padded). */
 export const MAX_WORTH_A_LOOK = 3;
@@ -135,6 +140,13 @@ export interface DailyDigestInput {
   preventiveDue: DailyDigestPreventiveDue[];
   /** Standing coach plans (active + reviewed) — check-in candidates (§2.3). */
   coachPlans: DailyDigestCoachPlan[];
+  /**
+   * S12 — the single freshly-reached durable milestone for today, or null. The
+   * IO seam gathers candidates from the existing streak / personal-record
+   * engines and applies the reached-once gate (`selectFreshMilestone`), so the
+   * builder only ever sees a milestone worth celebrating today.
+   */
+  milestone?: Milestone | null;
 }
 
 export interface DailyDigest {
@@ -253,6 +265,38 @@ function buildPreventiveCareItem(
         href: "/checkups",
       },
     ],
+  };
+}
+
+/**
+ * S12 — the calm reward card. Emits ONE `milestone` PriorityItem when a durable
+ * state was reached TODAY (the IO seam already applied the reached-once gate).
+ * Gated on the `insights` module — the daily narrative layer that hosts it.
+ * Celebratory-but-quiet: `success` status, a single "view" action into the
+ * metric's insight, and copy that marks arrival at a state, never a maintained
+ * count. Shown the day reached and never again — never a "you broke it" note.
+ */
+function buildMilestoneItem(
+  milestone: Milestone | null | undefined,
+  modules: DigestModuleMap,
+  t: Translate,
+): PriorityItem | null {
+  if (!milestone) return null;
+  if (!moduleEnabled(modules, "insights")) return null;
+  const { title, body } = milestoneCopy(milestone, t);
+  return {
+    kind: "milestone",
+    title,
+    body,
+    status: "success",
+    actions: [
+      {
+        labelKey: "daily.action.viewMilestone",
+        intent: "milestone.view",
+        href: milestoneHref(milestone),
+      },
+    ],
+    moduleKey: "insights",
   };
 }
 
@@ -384,6 +428,11 @@ export function buildDailyDigest(
   const worthALook: PriorityItem[] = [];
   const dose = buildDoseWindowItem(input.medsToday, input.modules, t);
   if (dose) worthALook.push(dose);
+  // A freshly-reached milestone is rare and one-per-day — surface it ahead of
+  // the ambient sync / check-in items so the calm reward is not buried, but
+  // below an overdue dose (the one genuinely time-critical daily action).
+  const milestone = buildMilestoneItem(input.milestone, input.modules, t);
+  if (milestone) worthALook.push(milestone);
   worthALook.push(...buildSyncIssueItems(input.syncIssues, t));
   const checkin = buildCoachCheckinItem(
     input.coachPlans,

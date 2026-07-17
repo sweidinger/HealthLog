@@ -8557,7 +8557,8 @@
       "viewCheckups": "Vorsorge ansehen",
       "checkinKeep": "Behalten",
       "checkinAdjust": "Anpassen",
-      "checkinLetGo": "Loslassen"
+      "checkinLetGo": "Loslassen",
+      "viewMilestone": "Ansehen"
     },
     "today": {
       "scoreLabel": "Gesundheitsscore",
@@ -8567,6 +8568,41 @@
       "readFullBriefing": "Vollständiges Briefing lesen",
       "worthALook": "Einen Blick wert",
       "allClear": "Heute braucht nichts deine Aufmerksamkeit."
+    },
+    "milestone": {
+      "metric": {
+        "restingHeartRate": "Ruhepuls",
+        "heartRateVariability": "Herzfrequenzvariabilität",
+        "respiratoryRate": "Atemfrequenz",
+        "weight": "Gewicht",
+        "generic": "dieser Wert"
+      },
+      "record": {
+        "title": "Neue Bestmarke: {metric}",
+        "body": "Heute ein persönlicher Bestwert für {metric} — ganz ruhig festgehalten, du musst nichts tun."
+      },
+      "returnToBaseline": {
+        "title": "Wieder im Bereich: {metric}",
+        "body": "{metric} liegt wieder in deinem gewohnten Bereich. Was auch immer es war — es ist vorbei."
+      },
+      "sustainedInRange": {
+        "week1": {
+          "title": "Eine Woche im Bereich",
+          "body": "{metric} liegt seit einer Woche in deinem gewohnten Bereich. Schön gleichmäßig."
+        },
+        "week2": {
+          "title": "Zwei Wochen im Bereich",
+          "body": "{metric} bleibt seit zwei Wochen in deinem gewohnten Bereich. Ruhig und stetig."
+        },
+        "week3": {
+          "title": "Drei Wochen im Bereich",
+          "body": "Drei Wochen, in denen {metric} in deinem gewohnten Bereich liegt. Eine echte ruhige Strecke."
+        },
+        "week4": {
+          "title": "Ein Monat im Bereich",
+          "body": "Ein ganzer Monat mit {metric} in deinem gewohnten Bereich. Wunderbar gleichmäßig."
+        }
+      }
     }
   }
 }

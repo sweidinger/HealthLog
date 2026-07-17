@@ -30,6 +30,16 @@ import {
   type DailyDigestScore,
   type DailyDigestSyncIssue,
 } from "@/lib/daily/digest";
+import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
+import { readDayMeanSeries } from "@/lib/insights/derived/baseline";
+import { detectStreak, type StreakPoint } from "@/lib/insights/streak-detector";
+import {
+  MILESTONE_SALIENT_TYPES,
+  milestoneFromRecord,
+  milestonesFromStreak,
+  selectFreshMilestone,
+  type Milestone,
+} from "@/lib/daily/milestones";
 
 /** Integration states that mean "your action is needed to keep data flowing". */
 const SYNC_ISSUE_STATES = ["error_reauth", "parked"] as const;
@@ -42,6 +52,85 @@ const CHECKIN_PLAN_STATES = ["active", "reviewed"] as const;
 
 /** Cap on plans scanned for the (one/day) check-in candidate. */
 const CHECKIN_PLAN_READ_LIMIT = 50;
+
+/** Trailing window the milestone streak read uses (matches score-narrative). */
+const MILESTONE_STREAK_WINDOW_DAYS = 30;
+
+/** How far back to scan for a just-set personal best (a couple of days is ample). */
+const MILESTONE_RECORD_LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000;
+
+/** UTC-ISO day key — the space the streak series + rollup tier already emit. */
+function utcDayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * S12 — gather today's single freshly-reached milestone (or null) from the
+ * engines that ALREADY exist. Two cheap, fail-soft reads reused verbatim:
+ *   - `detectStreak` over the salient vitals' day-mean series (the exact
+ *     `score-narrative` pattern) → return-to-range + sustained-in-range states;
+ *   - a bounded `PersonalRecord` scan (the `pr-detection` output) → new bests.
+ * The reached-once gate (`selectFreshMilestone`) admits at most one, only on the
+ * day it was reached. Any failure leaves the reward quiet rather than guessing.
+ */
+async function gatherFreshMilestone(
+  userId: string,
+  now: Date,
+): Promise<Milestone | null> {
+  const todayKey = utcDayKey(now);
+  const candidates: Milestone[] = [];
+
+  const coverage = await probeRollupCoverage(userId).catch(() => null);
+  if (coverage) {
+    const perMetric = await Promise.all(
+      MILESTONE_SALIENT_TYPES.map(async (type) => {
+        try {
+          const { points } = await readDayMeanSeries(
+            userId,
+            type,
+            MILESTONE_STREAK_WINDOW_DAYS,
+            now,
+            coverage,
+          );
+          if (points.length === 0) return [] as Milestone[];
+          const series: StreakPoint[] = points.map((p) => ({
+            day: p.day,
+            value: p.mean,
+          }));
+          const latestDayKey = points[points.length - 1].day;
+          return milestonesFromStreak(type, detectStreak(series), latestDayKey);
+        } catch {
+          return [] as Milestone[];
+        }
+      }),
+    );
+    candidates.push(...perMetric.flat());
+  }
+
+  try {
+    const records = await prisma.personalRecord.findMany({
+      where: {
+        userId,
+        metricType: { in: [...MILESTONE_SALIENT_TYPES] },
+        achievedAt: {
+          gte: new Date(now.getTime() - MILESTONE_RECORD_LOOKBACK_MS),
+        },
+      },
+      select: { metricType: true, achievedAt: true },
+      orderBy: { achievedAt: "desc" },
+      take: 10,
+    });
+    for (const record of records) {
+      candidates.push(
+        milestoneFromRecord(record.metricType, utcDayKey(record.achievedAt)),
+      );
+    }
+  } catch {
+    // A read hiccup just leaves the reward quiet — never a fabricated one.
+  }
+
+  return selectFreshMilestone(candidates, todayKey);
+}
 
 interface CoachPlanRow {
   id: string;
@@ -172,6 +261,14 @@ export async function loadDailyDigest(
     ? planRows.map((row) => toCoachPlanCandidate(row as CoachPlanRow))
     : [];
 
+  // S12 — the calm reward layer. Only gather when the insights module (the
+  // narrative layer that hosts the milestone card) is on; the builder gates on
+  // it too, so a disabled account never surfaces one either way.
+  const insightsEnabled = modules.insights !== false;
+  const milestone = insightsEnabled
+    ? await gatherFreshMilestone(user.id, now)
+    : null;
+
   const { t } = getServerTranslator(resolveLocale(locale));
 
   const digest = buildDailyDigest(
@@ -186,6 +283,7 @@ export async function loadDailyDigest(
       syncIssues,
       preventiveDue,
       coachPlans,
+      milestone,
     },
     t,
   );
@@ -199,6 +297,9 @@ export async function loadDailyDigest(
       daily_digest_has_score: digest.score !== null,
       daily_digest_has_checkin: digest.worthALook.some(
         (i) => i.kind === "coach_checkin",
+      ),
+      daily_digest_has_milestone: digest.worthALook.some(
+        (i) => i.kind === "milestone",
       ),
     },
   });

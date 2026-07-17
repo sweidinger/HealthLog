@@ -8557,7 +8557,8 @@
       "viewCheckups": "View check-ups",
       "checkinKeep": "Keep it",
       "checkinAdjust": "Adjust",
-      "checkinLetGo": "Let it go"
+      "checkinLetGo": "Let it go",
+      "viewMilestone": "View"
     },
     "today": {
       "scoreLabel": "Health score",
@@ -8567,6 +8568,41 @@
       "readFullBriefing": "Read the full briefing",
       "worthALook": "Worth a look",
       "allClear": "Nothing needs your attention today."
+    },
+    "milestone": {
+      "metric": {
+        "restingHeartRate": "resting heart rate",
+        "heartRateVariability": "heart-rate variability",
+        "respiratoryRate": "respiratory rate",
+        "weight": "weight",
+        "generic": "this metric"
+      },
+      "record": {
+        "title": "A new {metric} best",
+        "body": "A personal best for your {metric} today — quietly noted, nothing to do."
+      },
+      "returnToBaseline": {
+        "title": "Back in range: {metric}",
+        "body": "Your {metric} has settled back inside your usual range. Whatever that was, it has passed."
+      },
+      "sustainedInRange": {
+        "week1": {
+          "title": "A week in range",
+          "body": "Your {metric} has held inside your usual range for a week now. Nice and steady."
+        },
+        "week2": {
+          "title": "Two weeks in range",
+          "body": "Your {metric} has stayed in your usual range for two weeks. Calm and steady."
+        },
+        "week3": {
+          "title": "Three weeks in range",
+          "body": "Three weeks of your {metric} sitting in your usual range. A real stretch of steadiness."
+        },
+        "week4": {
+          "title": "A month in range",
+          "body": "A full month with your {metric} in your usual range. Beautifully steady."
+        }
+      }
     }
   }
 }

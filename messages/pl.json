@@ -8557,7 +8557,8 @@
       "viewCheckups": "Zobacz badania",
       "checkinKeep": "Zachowaj",
       "checkinAdjust": "Dostosuj",
-      "checkinLetGo": "Odpuść"
+      "checkinLetGo": "Odpuść",
+      "viewMilestone": "Zobacz"
     },
     "today": {
       "scoreLabel": "Wynik zdrowia",
@@ -8567,6 +8568,41 @@
       "readFullBriefing": "Przeczytaj pełny briefing",
       "worthALook": "Warto sprawdzić",
       "allClear": "Dziś nic nie wymaga Twojej uwagi."
+    },
+    "milestone": {
+      "metric": {
+        "restingHeartRate": "tętno spoczynkowe",
+        "heartRateVariability": "zmienność rytmu serca",
+        "respiratoryRate": "częstość oddechów",
+        "weight": "waga",
+        "generic": "ta wartość"
+      },
+      "record": {
+        "title": "Nowy rekord: {metric}",
+        "body": "Dziś osiągnięto Twój najlepszy wynik dla {metric}. Spokojnie odnotowane, nic nie musisz robić."
+      },
+      "returnToBaseline": {
+        "title": "Znów w Twoim zakresie: {metric}",
+        "body": "Twoja {metric} wróciła do zwykłego zakresu. Cokolwiek to było, minęło."
+      },
+      "sustainedInRange": {
+        "week1": {
+          "title": "Tydzień w zakresie",
+          "body": "Twoja {metric} od tygodnia mieści się w zwykłym zakresie. Ładnie i spokojnie."
+        },
+        "week2": {
+          "title": "Dwa tygodnie w zakresie",
+          "body": "Twoja {metric} od dwóch tygodni mieści się w zwykłym zakresie. Spokojnie i stabilnie."
+        },
+        "week3": {
+          "title": "Trzy tygodnie w zakresie",
+          "body": "Trzy tygodnie z {metric} w zwykłym zakresie. Naprawdę spokojny odcinek."
+        },
+        "week4": {
+          "title": "Miesiąc w zakresie",
+          "body": "Cały miesiąc z {metric} w zwykłym zakresie. Wspaniale stabilnie."
+        }
+      }
     }
   }
 }

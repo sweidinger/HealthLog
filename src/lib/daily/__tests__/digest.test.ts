@@ -13,6 +13,8 @@ import {
   type DailyDigestCoachPlan,
   type DailyDigestInput,
 } from "@/lib/daily/digest";
+import type { Milestone } from "@/lib/daily/milestones";
+import type { PriorityItem } from "@/lib/daily/priority-item";
 
 const t = getServerTranslator("en").t;
 const NOW = new Date("2026-07-16T09:00:00.000Z");
@@ -411,5 +413,71 @@ describe("buildDailyDigest — coach check-in (S3)", () => {
     expect(d.worthALook).toHaveLength(MAX_WORTH_A_LOOK);
     expect(checkin(d)).toBeUndefined();
     expect(d.worthALook[0].kind).toBe("dose_window");
+  });
+});
+
+const milestone = (
+  d: ReturnType<typeof buildDailyDigest>,
+): PriorityItem | undefined => d.worthALook.find((i) => i.kind === "milestone");
+
+const RECORD_MILESTONE: Milestone = {
+  kind: "record_first",
+  metricType: "RESTING_HEART_RATE",
+  sinceDate: "2026-07-16",
+  copyKey: "daily.milestone.record",
+};
+
+describe("S12 — the milestone reward card", () => {
+  it("emits ONE calm success card when a milestone was freshly reached", () => {
+    const d = buildDailyDigest(input({ milestone: RECORD_MILESTONE }), t);
+    const item = milestone(d);
+    expect(item).toBeDefined();
+    expect(item?.status).toBe("success");
+    expect(item?.title.length).toBeGreaterThan(0);
+    expect(item?.body?.length).toBeGreaterThan(0);
+    // Single calm action deep-linking into the metric's insight.
+    expect(item?.actions).toHaveLength(1);
+    expect(item?.actions[0].intent).toBe("milestone.view");
+    expect(item?.actions[0].href).toBe("/insights/resting-pulse");
+    // One per day — never two milestone cards.
+    expect(d.worthALook.filter((i) => i.kind === "milestone")).toHaveLength(1);
+  });
+
+  it("shows nothing when no milestone was reached today (data-gated)", () => {
+    expect(
+      milestone(buildDailyDigest(input({ milestone: null }), t)),
+    ).toBeUndefined();
+    expect(milestone(buildDailyDigest(input(), t))).toBeUndefined();
+  });
+
+  it("is suppressed when the insights module is off (module-gated)", () => {
+    const d = buildDailyDigest(
+      input({ milestone: RECORD_MILESTONE, modules: { insights: false } }),
+      t,
+    );
+    expect(milestone(d)).toBeUndefined();
+  });
+
+  it("sits just below an overdue dose and above ambient items", () => {
+    const d = buildDailyDigest(
+      input({
+        milestone: RECORD_MILESTONE,
+        medsToday: meds({ nextDueOverdue: true, nextDueMedicationName: "X" }),
+        syncIssues: [{ integration: "withings", state: "error_reauth" }],
+      }),
+      t,
+    );
+    expect(d.worthALook[0].kind).toBe("dose_window");
+    expect(d.worthALook[1].kind).toBe("milestone");
+    expect(d.worthALook[2].kind).toBe("sync_issue");
+  });
+
+  it("carries no streak / loss vocabulary in its copy", () => {
+    const item = milestone(
+      buildDailyDigest(input({ milestone: RECORD_MILESTONE }), t),
+    );
+    const forbidden = /streak|flame|broke|broken|lost|missed|fail/i;
+    expect(item?.title).not.toMatch(forbidden);
+    expect(item?.body ?? "").not.toMatch(forbidden);
   });
 });

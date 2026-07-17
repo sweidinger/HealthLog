@@ -8557,7 +8557,8 @@
       "viewCheckups": "Ver revisiones",
       "checkinKeep": "Conservar",
       "checkinAdjust": "Ajustar",
-      "checkinLetGo": "Dejarlo ir"
+      "checkinLetGo": "Dejarlo ir",
+      "viewMilestone": "Ver"
     },
     "today": {
       "scoreLabel": "Puntuación de salud",
@@ -8567,6 +8568,41 @@
       "readFullBriefing": "Leer el informe completo",
       "worthALook": "Merece un vistazo",
       "allClear": "Hoy nada necesita tu atención."
+    },
+    "milestone": {
+      "metric": {
+        "restingHeartRate": "frecuencia cardíaca en reposo",
+        "heartRateVariability": "variabilidad de la frecuencia cardíaca",
+        "respiratoryRate": "frecuencia respiratoria",
+        "weight": "peso",
+        "generic": "este valor"
+      },
+      "record": {
+        "title": "Nuevo récord: {metric}",
+        "body": "Hoy has alcanzado tu mejor marca de {metric}. Anotado con calma, sin nada que hacer."
+      },
+      "returnToBaseline": {
+        "title": "De nuevo en tu rango: {metric}",
+        "body": "Tu {metric} ha vuelto a tu rango habitual. Fuera lo que fuera, ya pasó."
+      },
+      "sustainedInRange": {
+        "week1": {
+          "title": "Una semana en rango",
+          "body": "Tu {metric} lleva una semana dentro de tu rango habitual. Con buena estabilidad."
+        },
+        "week2": {
+          "title": "Dos semanas en rango",
+          "body": "Tu {metric} lleva dos semanas dentro de tu rango habitual. Tranquilo y constante."
+        },
+        "week3": {
+          "title": "Tres semanas en rango",
+          "body": "Tres semanas con tu {metric} dentro de tu rango habitual. Un buen tramo de calma."
+        },
+        "week4": {
+          "title": "Un mes en rango",
+          "body": "Un mes entero con tu {metric} dentro de tu rango habitual. Maravillosamente estable."
+        }
+      }
     }
   }
 }
