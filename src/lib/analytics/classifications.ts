@@ -101,9 +101,25 @@ export interface PulseClassification {
   severity: "info" | "normal" | "warning" | "danger";
 }
 
+/**
+ * v1.29.6 — dropped the bare clinical-diagnosis nouns ("Bradycardia" /
+ * "Tachycardia"). This is the same resting-pulse signal the interpretation
+ * layer (`insight-interpretation.ts` → `RESTING_HEART_RATE`) already frames
+ * neutrally ("below the standard resting range (common in trained hearts)",
+ * valence *neutral*) — a trained user at 55 bpm resting must not read a
+ * diagnosis-shaped verdict on one surface and a calm contextual band on the
+ * other. Category wording now mirrors that framing (and the "typical range"
+ * phrasing this codebase already uses in `pulse-targets.ts`); the < 60 band
+ * keeps its existing non-danger "info" tone, and the > 120 band steps down
+ * from destructive/"danger" to warning/amber — still flagged, never a verdict.
+ */
 export function classifyPulse(bpm: number): PulseClassification {
   if (bpm < 60) {
-    return { category: "Bradycardia", color: "var(--info)", severity: "info" };
+    return {
+      category: "Below typical range",
+      color: "var(--info)",
+      severity: "info",
+    };
   }
   if (bpm <= 100) {
     return { category: "Normal", color: "var(--success)", severity: "normal" };
@@ -116,9 +132,9 @@ export function classifyPulse(bpm: number): PulseClassification {
     };
   }
   return {
-    category: "Tachycardia",
-    color: "var(--destructive)",
-    severity: "danger",
+    category: "Above typical range",
+    color: "var(--warning)",
+    severity: "warning",
   };
 }
 

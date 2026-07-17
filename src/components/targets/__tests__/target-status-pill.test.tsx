@@ -33,7 +33,14 @@ describe("statusGroupForCategory", () => {
   it("paints far-out categories red", () => {
     expect(statusGroupForCategory("Hypertension Grade 3")).toBe("out");
     expect(statusGroupForCategory("Significantly elevated")).toBe("out");
-    expect(statusGroupForCategory("Tachycardia")).toBe("out");
+  });
+
+  it("falls back to amber for the resting-pulse bands (no clinical-verdict red)", () => {
+    // v1.29.6 — "Below typical range" / "Above typical range" replaced the
+    // diagnosis-shaped "Bradycardia" / "Tachycardia" categories and no
+    // longer paint the pill destructive-red.
+    expect(statusGroupForCategory("Below typical range")).toBe("near");
+    expect(statusGroupForCategory("Above typical range")).toBe("near");
   });
 
   it("falls back to amber for caution + unmapped categories", () => {
