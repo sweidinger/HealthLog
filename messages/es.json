@@ -3857,6 +3857,18 @@
       "waveform": {
         "ariaLabel": "Tira de ECG registrada el {date}, duración {duration}, frecuencia cardíaca media {heartRate}, resultado registrado: {result}."
       }
+    },
+    "intradayPulse": {
+      "title": "La forma de tu día",
+      "caption": "Tu frecuencia cardíaca a lo largo del día, promediada en tramos de 10 minutos.",
+      "empty": "Aún no hay suficientes lecturas de hoy para mostrar la forma del día.",
+      "baseline": "Reposo",
+      "tension": {
+        "morning": "Un tramo elevado en reposo esta mañana; posiblemente algo de tensión.",
+        "afternoon": "Un tramo elevado en reposo esta tarde; posiblemente algo de tensión.",
+        "evening": "Un tramo elevado en reposo al anochecer; posiblemente algo de tensión.",
+        "night": "Un tramo elevado en reposo por la noche; posiblemente algo de tensión."
+      }
     }
   },
   "thresholds": {
@@ -8549,6 +8561,15 @@
         "title": "Es buen momento para revisar un plan",
         "body": "Ha pasado alrededor de una semana desde que definiste este plan: consérvalo, ajústalo o déjalo ir. Sin presión.",
         "bodyPlan": "Hace aproximadamente una semana te propusiste: «{plan}». Consérvalo, ajústalo o déjalo ir, sin presión."
+      },
+      "tensionWindow": {
+        "title": "Quizá algo de tensión hoy",
+        "body": {
+          "morning": "Tu frecuencia cardíaca estuvo por encima de tu valor en reposo durante un buen rato esta mañana mientras estabas en calma; posiblemente algo de tensión.",
+          "afternoon": "Tu frecuencia cardíaca estuvo por encima de tu valor en reposo durante un buen rato esta tarde mientras estabas en calma; posiblemente algo de tensión.",
+          "evening": "Tu frecuencia cardíaca estuvo por encima de tu valor en reposo durante un buen rato al anochecer mientras estabas en calma; posiblemente algo de tensión.",
+          "night": "Tu frecuencia cardíaca estuvo por encima de tu valor en reposo durante un buen rato por la noche mientras estabas en calma; posiblemente algo de tensión."
+        }
       }
     },
     "action": {
@@ -8557,7 +8578,8 @@
       "viewCheckups": "Ver revisiones",
       "checkinKeep": "Conservar",
       "checkinAdjust": "Ajustar",
-      "checkinLetGo": "Dejarlo ir"
+      "checkinLetGo": "Dejarlo ir",
+      "viewPulse": "Ver pulso"
     },
     "today": {
       "scoreLabel": "Puntuación de salud",

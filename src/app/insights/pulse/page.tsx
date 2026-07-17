@@ -19,6 +19,7 @@ import { MeasurementDiversityNudge } from "@/components/insights/measurement-div
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { TileHeader } from "@/components/insights/tile-header";
+import { IntradayPulseChart } from "@/components/insights/intraday-pulse-chart";
 import {
   getAgeFromDateOfBirth,
   getPersonalizedPulseTarget,
@@ -173,6 +174,11 @@ export default function InsightsPulsPage() {
         userTimezone={user?.timezone}
         onVisibleStats={onVisibleStats}
       />
+
+      {/* S11 — the intraday "shape of the day" layer: 10-minute mean heart
+          rate with the resting baseline and any cautious elevated-at-rest
+          window. Computed on demand from raw for today; non-diagnostic. */}
+      <IntradayPulseChart userTimezone={user?.timezone} />
 
       <MetricTargetSummary slug="pulse" />
 

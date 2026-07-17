@@ -57,6 +57,7 @@ function input(over: Partial<DailyDigestInput> = {}): DailyDigestInput {
     syncIssues: [],
     preventiveDue: [],
     coachPlans: [],
+    tensionWindow: null,
     ...over,
   };
 }
@@ -411,5 +412,57 @@ describe("buildDailyDigest — coach check-in (S3)", () => {
     expect(d.worthALook).toHaveLength(MAX_WORTH_A_LOOK);
     expect(checkin(d)).toBeUndefined();
     expect(d.worthALook[0].kind).toBe("dose_window");
+  });
+});
+
+describe("buildDailyDigest — S11 tension_window item", () => {
+  function tension(d: ReturnType<typeof buildDailyDigest>) {
+    return d.worthALook.find((i) => i.kind === "tension_window");
+  }
+
+  it("emits a calm, non-diagnostic tension card when a window is present", () => {
+    const d = buildDailyDigest(
+      input({ tensionWindow: { partOfDay: "afternoon" } }),
+      t,
+    );
+    const item = tension(d);
+    expect(item).toBeDefined();
+    expect(item?.status).toBe("info");
+    expect(item?.actions[0].intent).toBe("pulse.view");
+    expect(item?.actions[0].href).toBe("/insights/pulse");
+    expect(item?.body).toContain("afternoon");
+  });
+
+  it("emits nothing when there is no window (honest-absent)", () => {
+    const d = buildDailyDigest(input({ tensionWindow: null }), t);
+    expect(tension(d)).toBeUndefined();
+  });
+
+  it("stays silent when the insights module is off", () => {
+    const d = buildDailyDigest(
+      input({
+        modules: { insights: false },
+        tensionWindow: { partOfDay: "morning" },
+      }),
+      t,
+    );
+    expect(tension(d)).toBeUndefined();
+  });
+
+  it("yields the bounded rail to time-sensitive actions first", () => {
+    const d = buildDailyDigest(
+      input({
+        medsToday: meds({ nextDueOverdue: true, nextDueMedicationName: "X" }),
+        syncIssues: [
+          { integration: "withings", state: "error_reauth" },
+          { integration: "moodlog", state: "parked" },
+        ],
+        tensionWindow: { partOfDay: "evening" },
+      }),
+      t,
+    );
+    // dose + 2 sync fill the cap; the calm tension marker waits.
+    expect(d.worthALook).toHaveLength(MAX_WORTH_A_LOOK);
+    expect(tension(d)).toBeUndefined();
   });
 });

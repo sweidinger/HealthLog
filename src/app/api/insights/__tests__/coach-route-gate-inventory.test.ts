@@ -112,6 +112,12 @@ const NOT_COACH_OWNED_ROUTES: ReadonlyArray<string> = [
   "src/app/api/insights/health-status/route.ts",
   "src/app/api/insights/breathing-screening/route.ts",
   "src/app/api/insights/labs-changes/route.ts",
+  // S11 — the intraday pulse / tension read. Deterministic compute over the
+  // day's raw PULSE / steps / workouts (10-minute mean shape + the cautious
+  // elevated-at-rest window); it carries no assistant prose and gates on the
+  // `insights` module, not the Coach surface. Same posture as health-status /
+  // labs-changes directly above — disabling Coach must not wedge this read.
+  "src/app/api/insights/pulse/intraday/route.ts",
   // v1.29.x (S7) — the FENCED multi-document coach chat + its attach/detach
   // mutations. These live under /insights/chat for URL grouping but are
   // DOCUMENT-surface routes: they gate on the `inboundDocuments` module

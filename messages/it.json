@@ -3857,6 +3857,18 @@
       "waveform": {
         "ariaLabel": "Tracciato ECG registrato il {date}, durata {duration}, frequenza cardiaca media {heartRate}, risultato registrato: {result}."
       }
+    },
+    "intradayPulse": {
+      "title": "L'andamento della tua giornata",
+      "caption": "La tua frequenza cardiaca durante il giorno, mediata in intervalli di 10 minuti.",
+      "empty": "Non ci sono ancora abbastanza misurazioni di oggi per mostrare l'andamento della giornata.",
+      "baseline": "Riposo",
+      "tension": {
+        "morning": "Un tratto elevato a riposo stamattina — forse un po' di tensione.",
+        "afternoon": "Un tratto elevato a riposo questo pomeriggio — forse un po' di tensione.",
+        "evening": "Un tratto elevato a riposo stasera — forse un po' di tensione.",
+        "night": "Un tratto elevato a riposo durante la notte — forse un po' di tensione."
+      }
     }
   },
   "thresholds": {
@@ -8549,6 +8561,15 @@
         "title": "È il momento di rivedere un piano",
         "body": "È passata circa una settimana da quando hai definito questo piano: mantienilo, modificalo o lascialo andare. Senza pressioni.",
         "bodyPlan": "Circa una settimana fa ti eri proposto: «{plan}». Mantienilo, modificalo o lascialo andare, senza pressioni."
+      },
+      "tensionWindow": {
+        "title": "Forse un po' di tensione oggi",
+        "body": {
+          "morning": "La tua frequenza cardiaca è rimasta sopra il valore a riposo per un tratto prolungato stamattina mentre eri fermo — forse un po' di tensione.",
+          "afternoon": "La tua frequenza cardiaca è rimasta sopra il valore a riposo per un tratto prolungato questo pomeriggio mentre eri fermo — forse un po' di tensione.",
+          "evening": "La tua frequenza cardiaca è rimasta sopra il valore a riposo per un tratto prolungato stasera mentre eri fermo — forse un po' di tensione.",
+          "night": "La tua frequenza cardiaca è rimasta sopra il valore a riposo per un tratto prolungato durante la notte mentre eri fermo — forse un po' di tensione."
+        }
       }
     },
     "action": {
@@ -8557,7 +8578,8 @@
       "viewCheckups": "Vedi controlli",
       "checkinKeep": "Mantieni",
       "checkinAdjust": "Modifica",
-      "checkinLetGo": "Lascia andare"
+      "checkinLetGo": "Lascia andare",
+      "viewPulse": "Vedi battito"
     },
     "today": {
       "scoreLabel": "Punteggio di salute",

@@ -29,7 +29,9 @@ import {
   type DailyDigestPreventiveDue,
   type DailyDigestScore,
   type DailyDigestSyncIssue,
+  type DailyDigestTensionWindow,
 } from "@/lib/daily/digest";
+import { loadIntradayPulse } from "@/lib/analytics/intraday-pulse-io";
 
 /** Integration states that mean "your action is needed to keep data flowing". */
 const SYNC_ISSUE_STATES = ["error_reauth", "parked"] as const;
@@ -172,6 +174,17 @@ export async function loadDailyDigest(
     ? planRows.map((row) => toCoachPlanCandidate(row as CoachPlanRow))
     : [];
 
+  // S11 — the day's elevated-at-rest window, computed on demand from raw for
+  // TODAY only (read-swap, one bounded day-read; never persisted). Gated on the
+  // insights module and fault-isolated: a tension-read failure must never break
+  // the digest (a hot, must-not-fail path), it just omits the calm marker.
+  const tensionWindow: DailyDigestTensionWindow | null =
+    modules.insights !== false
+      ? await loadIntradayPulse(user.id, user.timezone, todayLocalDate)
+          .then((r) => (r.tension ? { partOfDay: r.tension.partOfDay } : null))
+          .catch(() => null)
+      : null;
+
   const { t } = getServerTranslator(resolveLocale(locale));
 
   const digest = buildDailyDigest(
@@ -186,6 +199,7 @@ export async function loadDailyDigest(
       syncIssues,
       preventiveDue,
       coachPlans,
+      tensionWindow,
     },
     t,
   );

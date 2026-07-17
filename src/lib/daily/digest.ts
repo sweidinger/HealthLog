@@ -93,6 +93,17 @@ export interface DailyDigestPreventiveDue {
 }
 
 /**
+ * S11 — a confident elevated-at-rest ("tension") window for the day, already
+ * detected server-side (`loadIntradayPulse`) under its full confidence gate.
+ * The builder only formats it; the signal correctness lives in the analytics
+ * layer, and a null here means the honest "no window" — nothing is emitted.
+ */
+export interface DailyDigestTensionWindow {
+  /** Part of day the window's midpoint fell in — drives the cautious copy. */
+  partOfDay: "morning" | "afternoon" | "evening" | "night";
+}
+
+/**
  * A standing coach plan the IO seam offers as a check-in candidate (§2.3). The
  * builder computes due-ness deterministically from the plain columns — it never
  * needs a fresh AI call, reading only the existing plan lifecycle. `planText`
@@ -135,6 +146,8 @@ export interface DailyDigestInput {
   preventiveDue: DailyDigestPreventiveDue[];
   /** Standing coach plans (active + reviewed) — check-in candidates (§2.3). */
   coachPlans: DailyDigestCoachPlan[];
+  /** S11 — the day's detected elevated-at-rest window, or null (honest-absent). */
+  tensionWindow: DailyDigestTensionWindow | null;
 }
 
 export interface DailyDigest {
@@ -253,6 +266,37 @@ function buildPreventiveCareItem(
         href: "/checkups",
       },
     ],
+  };
+}
+
+/**
+ * S11 — the elevated-at-rest ("tension") card. Emitted at most once per day
+ * (the window is already the day's single most confident stretch), gated on
+ * the `insights` module and on a non-null window (the analytics layer stays
+ * silent unless every confidence gate holds). Cautious, non-diagnostic copy:
+ * "possible tension", never a clinical stress verdict. The one action deep-
+ * links into the pulse insight where the intraday shape is charted.
+ */
+function buildTensionWindowItem(
+  window: DailyDigestTensionWindow | null,
+  modules: DigestModuleMap,
+  t: Translate,
+): PriorityItem | null {
+  if (!moduleEnabled(modules, "insights")) return null;
+  if (!window) return null;
+  return {
+    kind: "tension_window",
+    title: t("daily.item.tensionWindow.title"),
+    body: t(`daily.item.tensionWindow.body.${window.partOfDay}`),
+    status: "info",
+    actions: [
+      {
+        labelKey: "daily.action.viewPulse",
+        intent: "pulse.view",
+        href: "/insights/pulse",
+      },
+    ],
+    moduleKey: "insights",
   };
 }
 
@@ -394,6 +438,11 @@ export function buildDailyDigest(
   if (checkin) worthALook.push(checkin);
   const preventive = buildPreventiveCareItem(input.preventiveDue, t);
   if (preventive) worthALook.push(preventive);
+  // S11 — the calm, informational tension marker sits last: it is context, not
+  // an action that expires, so a time-sensitive dose / sync / check-in wins the
+  // bounded rail ahead of it.
+  const tension = buildTensionWindowItem(input.tensionWindow, input.modules, t);
+  if (tension) worthALook.push(tension);
 
   // Defence-in-depth: no card ever exceeds the P1 action cap.
   for (const item of worthALook) {
