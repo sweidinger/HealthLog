@@ -51,6 +51,8 @@ import { resolveMedicationTargets } from "@/lib/medications/med-target-map";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
 import { DoseHistoryLedger } from "@/components/medications/dose-history-ledger";
+import { IntakeHistoryListV2 } from "@/components/medications/intake-history-list-v2";
+import { SegmentedToggle } from "@/components/medications/detail/segmented-toggle";
 import { ScheduleTimesEditor } from "@/components/medications/scheduling/schedule-times-editor";
 import { ScheduleHistoryTimeline } from "@/components/medications/scheduling/schedule-history-timeline";
 import type { DoseWindowEntry } from "@/components/medications/scheduling/dose-window";
@@ -232,6 +234,10 @@ export function MedicationDetailTabs({
   const [editOpen, setEditOpen] = useState(shouldOpenEditFromUrl);
   const [importOpen, setImportOpen] = useState(false);
   const [phaseSheetOpen, setPhaseSheetOpen] = useState(false);
+  // Verlauf tab: the schedule-expanded ledger covers only a trailing 90-day
+  // window; "all" swaps in the full paginated intake history so older doses
+  // stay reachable.
+  const [historyView, setHistoryView] = useState<"recent" | "all">("recent");
 
   const id = medication.id;
   const oneShot = medication.oneShot === true;
@@ -682,22 +688,44 @@ export function MedicationDetailTabs({
             Slot zuordnen?" nudge). CSV import lives under Erweitert →
             Daten (the DataPortabilityRow), not in this header. */}
         <TabsContent value="verlauf" className="space-y-6 pt-2">
-          <MedicationDetailSection
-            titleId="medication-verlauf-heading"
-            title={t("medications.detail.intake.title")}
-            dataSlot="medication-verlauf-section"
-          >
-            <DoseHistoryLedger
-              medicationId={id}
-              medicationName={medication.name}
-              schedules={medication.schedules.map((s) => ({
-                windowStart: s.windowStart,
-                label: s.label,
-                dose: s.dose,
-                timesOfDay: s.timesOfDay,
-              }))}
+          <div className="flex justify-end">
+            <SegmentedToggle
+              value={historyView}
+              options={[
+                {
+                  value: "recent",
+                  label: t("medications.detail.intake.viewRecent90"),
+                },
+                {
+                  value: "all",
+                  label: t("medications.detail.intake.viewAll"),
+                },
+              ]}
+              onChange={setHistoryView}
+              ariaLabel={t("medications.detail.intake.viewToggleLabel")}
+              dataSlot="medication-verlauf-view-toggle"
             />
-          </MedicationDetailSection>
+          </div>
+          {historyView === "recent" ? (
+            <MedicationDetailSection
+              titleId="medication-verlauf-heading"
+              title={t("medications.detail.intake.title")}
+              dataSlot="medication-verlauf-section"
+            >
+              <DoseHistoryLedger
+                medicationId={id}
+                medicationName={medication.name}
+                schedules={medication.schedules.map((s) => ({
+                  windowStart: s.windowStart,
+                  label: s.label,
+                  dose: s.dose,
+                  timesOfDay: s.timesOfDay,
+                }))}
+              />
+            </MedicationDetailSection>
+          ) : (
+            <IntakeHistoryListV2 medicationId={id} />
+          )}
         </TabsContent>
 
         {/* INJEKTION — injectable routes only. Current GLP-1 charts +

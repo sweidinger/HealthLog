@@ -15,6 +15,7 @@ import { Activity, TrendingUp } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
+import { SegmentedToggle } from "@/components/medications/detail/segmented-toggle";
 import { TileHeader } from "@/components/insights/tile-header";
 import { Glp1PlateauNote } from "@/components/insights/glp1-plateau-note";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -206,6 +207,9 @@ function TargetCard({
   timezone: string;
 }) {
   const { t } = useTranslations();
+  const [scaleMode, setScaleMode] = useState<"absolute" | "percent">(
+    "absolute",
+  );
   const startMs = dto.markers.start ? Date.parse(dto.markers.start) : null;
 
   return (
@@ -225,25 +229,47 @@ function TargetCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {target.series.length > 0 ? (
-          <EfficacyChart
-            target={{
-              label: target.label,
-              unit: target.unit,
-              referenceBand: target.referenceBand,
-              series: target.series.map((p) => ({ t: p.t, value: p.value })),
-            }}
-            startMs={startMs}
-            doseChanges={dto.markers.doseChanges}
-            pauses={dto.markers.pauses}
-            adherence={dto.adherence.map((a) => ({
-              date: a.date,
-              rate: a.rate,
-            }))}
-            timezone={timezone}
-            startLabel={t("medications.efficacy.startMarker")}
-            adherenceLabel={t("medications.efficacy.adherenceLane")}
-            typicalRangeLabel={t("medications.efficacy.typicalRange")}
-          />
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <SegmentedToggle
+                value={scaleMode}
+                options={[
+                  {
+                    value: "absolute",
+                    label:
+                      target.unit ?? t("medications.efficacy.scaleAbsolute"),
+                  },
+                  {
+                    value: "percent",
+                    label: t("medications.efficacy.scalePercentSinceStart"),
+                  },
+                ]}
+                onChange={setScaleMode}
+                ariaLabel={t("medications.efficacy.scaleToggleLabel")}
+                dataSlot="medication-wirkung-scale-toggle"
+              />
+            </div>
+            <EfficacyChart
+              target={{
+                label: target.label,
+                unit: target.unit,
+                referenceBand: target.referenceBand,
+                series: target.series.map((p) => ({ t: p.t, value: p.value })),
+              }}
+              startMs={startMs}
+              doseChanges={dto.markers.doseChanges}
+              pauses={dto.markers.pauses}
+              adherence={dto.adherence.map((a) => ({
+                date: a.date,
+                rate: a.rate,
+              }))}
+              timezone={timezone}
+              startLabel={t("medications.efficacy.startMarker")}
+              adherenceLabel={t("medications.efficacy.adherenceLane")}
+              typicalRangeLabel={t("medications.efficacy.typicalRange")}
+              mode={scaleMode}
+            />
+          </div>
         ) : (
           <p className="text-muted-foreground text-sm">
             {t("medications.efficacy.noSeries")}

@@ -1403,7 +1403,10 @@
           "confirmAction": "Usuń",
           "toast": "Przyjęcie usunięte",
           "failed": "Nie udało się usunąć przyjęcia."
-        }
+        },
+        "viewRecent90": "Ostatnie 90 dni",
+        "viewAll": "Pełna historia",
+        "viewToggleLabel": "Zakres historii"
       },
       "verlauf": {
         "loading": "Wczytywanie historii …",
@@ -1806,7 +1809,10 @@
         "subtitle": "Co zbiega się w czasie z pomiarami, na które celują Twoje leki — tylko powiązanie, nigdy werdykt.",
         "link": "Otwórz widok działania",
         "empty": "Za mało danych, aby powiązać Twoje leki z docelowymi pomiarami."
-      }
+      },
+      "scaleAbsolute": "Bezwzględne",
+      "scalePercentSinceStart": "% od początku",
+      "scaleToggleLabel": "Skala wykresu"
     }
   },
   "charts": {

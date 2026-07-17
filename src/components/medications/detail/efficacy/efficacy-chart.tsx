@@ -44,6 +44,12 @@ export interface EfficacyChartProps {
   startLabel: string;
   adherenceLabel: string;
   typicalRangeLabel: string;
+  /**
+   * "absolute" plots the raw target values on the target's own unit;
+   * "percent" reindexes the series to a percentage of a start-anchored
+   * baseline and hides the (now meaningless) population reference band.
+   */
+  mode?: "absolute" | "percent";
 }
 
 const toMs = (iso: string): number => Date.parse(iso);
@@ -58,6 +64,7 @@ export function EfficacyChart({
   startLabel,
   adherenceLabel,
   typicalRangeLabel,
+  mode = "absolute",
 }: EfficacyChartProps) {
   const { locale } = useTranslations();
   const fmt = useMemo(
@@ -91,7 +98,43 @@ export function EfficacyChart({
     return [Math.min(...xs), Math.max(...xs)];
   }, [seriesData, adherenceData]);
 
+  // The plotted target series. In "percent" mode each point is reindexed to a
+  // percentage of the baseline value at/nearest the start (first point when
+  // the start is unknown), so a small relative trend reads at full scale.
+  const displaySeries = useMemo(() => {
+    if (mode !== "percent" || seriesData.length === 0) return seriesData;
+    const baselinePoint =
+      startMs === null
+        ? seriesData[0]
+        : seriesData.reduce((best, p) =>
+            Math.abs(p.t - startMs) < Math.abs(best.t - startMs) ? p : best,
+          );
+    const baseline = baselinePoint.value;
+    // A zero/non-finite baseline can't anchor a ratio; leave the series
+    // untouched rather than emit Infinity/NaN (target values are ~never 0).
+    if (!Number.isFinite(baseline) || baseline === 0) return seriesData;
+    return seriesData.map((p) => ({
+      t: p.t,
+      value: Math.round((p.value / baseline) * 1000) / 10,
+    }));
+  }, [seriesData, mode, startMs]);
+
+  // Padded data-range domain for the target axis, computed from the currently
+  // displayed series (never the reference band) so a real trend fills the plot
+  // instead of compressing against a zero-based axis. The band may clip.
+  const targetDomain = useMemo<[number, number]>(() => {
+    const values = displaySeries.map((p) => p.value);
+    if (values.length === 0) return [0, 1];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    if (min === max) return [min - 1, max + 1];
+    const pad = Math.max((max - min) * 0.12, 1);
+    return [Math.floor(min - pad), Math.ceil(max + pad)];
+  }, [displaySeries]);
+
   if (seriesData.length === 0 || !domain) return null;
+
+  const unitSuffix = mode === "percent" ? "%" : target.unit;
 
   // An open pause runs to the chart's right edge (the latest datum); using the
   // domain max keeps the render pure (no `Date.now()` in the render body).
@@ -117,11 +160,12 @@ export function EfficacyChart({
           />
           <YAxis
             yAxisId="target"
+            domain={targetDomain}
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             tickLine={false}
             axisLine={false}
             width={40}
-            unit={target.unit ? ` ${target.unit}` : undefined}
+            unit={unitSuffix ? ` ${unitSuffix}` : undefined}
           />
           <YAxis
             yAxisId="adherence"
@@ -131,8 +175,9 @@ export function EfficacyChart({
           />
 
           {/* Population reference band — faint context, labelled "typical
-              range", explicitly NOT a target line. */}
-          {target.referenceBand ? (
+              range", explicitly NOT a target line. Hidden in percent mode:
+              an absolute band is meaningless once the series is normalized. */}
+          {mode === "absolute" && target.referenceBand ? (
             <ReferenceArea
               yAxisId="target"
               y1={target.referenceBand.low}
@@ -180,7 +225,7 @@ export function EfficacyChart({
           {/* The target series. */}
           <Line
             yAxisId="target"
-            data={seriesData}
+            data={displaySeries}
             dataKey="value"
             name={target.label}
             type="monotone"
@@ -230,9 +275,12 @@ export function EfficacyChart({
             labelFormatter={(v) => fmt.date(new Date(Number(v)))}
             formatter={(value, name) => {
               const num = Number(value);
+              if (name === adherenceLabel) {
+                return [`${Math.round(num)}%`, String(name)];
+              }
               const text =
-                name === adherenceLabel
-                  ? `${Math.round(num)}%`
+                mode === "percent"
+                  ? `${num}%`
                   : `${num}${target.unit ? ` ${target.unit}` : ""}`;
               return [text, String(name)];
             }}

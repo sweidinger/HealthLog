@@ -1403,7 +1403,10 @@
           "confirmAction": "Löschen",
           "toast": "Einnahme gelöscht",
           "failed": "Einnahme konnte nicht gelöscht werden."
-        }
+        },
+        "viewRecent90": "Letzte 90 Tage",
+        "viewAll": "Komplette Historie",
+        "viewToggleLabel": "Verlaufsbereich"
       },
       "verlauf": {
         "loading": "Verlauf wird geladen…",
@@ -1806,7 +1809,10 @@
         "subtitle": "Was mit den Zielwerten deiner Medikamente zeitlich zusammenfällt – nur ein Zusammenhang, kein Urteil.",
         "link": "Wirkung öffnen",
         "empty": "Noch nicht genug Daten, um deine Medikamente mit ihren Zielwerten in Beziehung zu setzen."
-      }
+      },
+      "scaleAbsolute": "Absolut",
+      "scalePercentSinceStart": "% seit Start",
+      "scaleToggleLabel": "Diagrammskala"
     }
   },
   "charts": {
