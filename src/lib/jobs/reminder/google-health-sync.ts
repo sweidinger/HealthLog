@@ -5,6 +5,7 @@
  * queue names, cron schedules, and boss.work registrations.
  */
 import { type Job } from "pg-boss";
+import { fireAndForget } from "@/lib/logging/fire-and-forget";
 import { recordError } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { runGoogleHealthPollCohort } from "@/lib/google-health/sync";
@@ -56,7 +57,9 @@ export async function handleGoogleHealthSync(
             // eventfully. Fire-and-forget; the cron is the net.
             onUserSynced: (userId, imported) => {
               if (imported > 0) {
-                void enqueueReminderSatisfy(userId).catch(() => {});
+                fireAndForget(enqueueReminderSatisfy(userId), {
+                  action: "reminder.satisfy.enqueue",
+                });
               }
             },
           },

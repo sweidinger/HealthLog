@@ -83,7 +83,22 @@ export const GET = apiHandler(async () => {
       // the sync path does.
       const message = error instanceof Error ? error.message : String(error);
       if (isWithingsRefreshReauthFailure(message)) {
-        await markReauthRequired(user.id, "withings", message).catch(() => {});
+        // Awaited so the persisted re-auth state is reflected in this same
+        // status response — but a persistence failure must not fail the read.
+        // Breadcrumb it instead of swallowing silently (the message rides the
+        // central annotate/redact path, never the raw console).
+        await markReauthRequired(user.id, "withings", message).catch(
+          (error: unknown) => {
+            annotate({
+              meta: {
+                "fire_and_forget.integration.reauth.mark": {
+                  error: error instanceof Error ? error.message : String(error),
+                  provider: "withings",
+                },
+              },
+            });
+          },
+        );
       }
     }
   }

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { fireAndForget } from "@/lib/logging/fire-and-forget";
 import { auditLog } from "@/lib/auth/audit";
 import {
   apiSuccess,
@@ -820,7 +821,9 @@ async function postMeasurement(request: NextRequest) {
 
     // v1.18.1 — eventful Vorsorge satisfaction. Resolve the user's
     // reminders against the just-landed readings now. Fire-and-forget.
-    void enqueueReminderSatisfy(user.id).catch(() => {});
+    fireAndForget(enqueueReminderSatisfy(user.id), {
+      action: "reminder.satisfy.enqueue",
+    });
 
     // v1.18.6 — absolute clinical safety-floor check on the just-written
     // readings (confirm-gated, module-gated, never diagnoses). The combined
@@ -828,19 +831,22 @@ async function postMeasurement(request: NextRequest) {
     // The transient per-entry `symptomsPresent` flag (ORed across the batch)
     // lifts a confirmed breach to the symptom-coupled emergency copy.
     // Fire-and-forget — a notification failure never fails the write.
-    void runSafetyFloorCheck({
-      userId: user.id,
-      written: results.map((r) => ({
-        type: r.type,
-        value: r.value,
-        measuredAt: r.measuredAt,
-        glucoseContext: r.glucoseContext,
-      })),
-      symptomsPresent: parsed.data.measurements.some(
-        (m) => m.symptomsPresent === true,
-      ),
-      timezone: user.timezone ?? undefined,
-    }).catch(() => {});
+    fireAndForget(
+      runSafetyFloorCheck({
+        userId: user.id,
+        written: results.map((r) => ({
+          type: r.type,
+          value: r.value,
+          measuredAt: r.measuredAt,
+          glucoseContext: r.glucoseContext,
+        })),
+        symptomsPresent: parsed.data.measurements.some(
+          (m) => m.symptomsPresent === true,
+        ),
+        timezone: user.timezone ?? undefined,
+      }),
+      { action: "measurement.safety_floor.check" },
+    );
 
     // v1.5.0 — refresh the persistent rollup table for every distinct
     // (type, day) the batch touched so the next analytics / coach read
@@ -967,7 +973,9 @@ async function postMeasurement(request: NextRequest) {
 
   // v1.18.1 — eventful Vorsorge satisfaction. Resolve the user's reminders
   // against the just-landed reading now. Fire-and-forget.
-  void enqueueReminderSatisfy(user.id).catch(() => {});
+  fireAndForget(enqueueReminderSatisfy(user.id), {
+    action: "reminder.satisfy.enqueue",
+  });
 
   // v1.18.6 — absolute clinical safety-floor check (confirm-gated,
   // module-gated, never diagnoses). A single-entry POST carries only one arm
@@ -975,19 +983,22 @@ async function postMeasurement(request: NextRequest) {
   // batch path; a lone glucose reading is evaluated here. The transient
   // `symptomsPresent` flag lifts a confirmed breach to the emergency copy.
   // Fire-and-forget — a notification failure never fails the write.
-  void runSafetyFloorCheck({
-    userId: user.id,
-    written: [
-      {
-        type: measurement.type,
-        value: measurement.value,
-        measuredAt: measurement.measuredAt,
-        glucoseContext: measurement.glucoseContext,
-      },
-    ],
-    symptomsPresent,
-    timezone: user.timezone ?? undefined,
-  }).catch(() => {});
+  fireAndForget(
+    runSafetyFloorCheck({
+      userId: user.id,
+      written: [
+        {
+          type: measurement.type,
+          value: measurement.value,
+          measuredAt: measurement.measuredAt,
+          glucoseContext: measurement.glucoseContext,
+        },
+      ],
+      symptomsPresent,
+      timezone: user.timezone ?? undefined,
+    }),
+    { action: "measurement.safety_floor.check" },
+  );
 
   // v1.5.0 — refresh the persistent rollup row for the affected
   // (type, day) tuple. Runs inline so the next read of the
