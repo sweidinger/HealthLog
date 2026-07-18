@@ -28,6 +28,7 @@ import {
   type NarrativeGenerateOutcome,
 } from "@/lib/insights/narrative/period-narrative-generate";
 import type { NarrativePeriod } from "@/lib/insights/narrative/period-narrative";
+import { locales, defaultLocale, type Locale } from "@/lib/i18n/config";
 import {
   PERIOD_NARRATIVE_QUEUE,
   PERIOD_NARRATIVE_CRON,
@@ -128,11 +129,16 @@ export async function findNarrativeCandidates(
 }
 
 /**
- * Non-German locales resolve to ENGLISH (matching
- * `status-shared.normalizeLocale` and the no-key fallback routing).
+ * The user's stored locale, validated against the shipped UI locale union.
+ *
+ * The narrative row is keyed `(user, period, locale)`, so the nightly warm has
+ * to write the SAME key the read route reads. Collapsing fr/es/it/pl to `en`
+ * here would leave those users' rows permanently cold on the nightly path.
+ * An unset or unknown value falls back to the app default (`en`), never to
+ * German.
  */
-function normalizeLocale(value: string | null): "de" | "en" {
-  return value === "de" ? "de" : "en";
+function normalizeLocale(value: string | null): Locale {
+  return locales.includes(value as Locale) ? (value as Locale) : defaultLocale;
 }
 
 /**
@@ -254,7 +260,7 @@ export async function warmOneNarrative(
   if (!flags.briefing && !flags.insightStatus) return null;
   return generatePeriodNarrative(payload.userId, {
     period: payload.period,
-    locale: payload.locale ?? "de",
+    locale: payload.locale ?? defaultLocale,
     force: true,
   });
 }

@@ -14,6 +14,7 @@
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
 import type { NarrativePeriod } from "@/lib/insights/narrative/period-narrative";
+import type { Locale } from "@/lib/i18n/config";
 
 export const PERIOD_NARRATIVE_QUEUE = "period-narrative-warm";
 
@@ -33,8 +34,8 @@ export interface PeriodNarrativePayload {
   userId?: string;
   /** Period to warm on the single-user path. */
   period?: NarrativePeriod;
-  /** Locale to warm; defaults to "de" when absent. */
-  locale?: "de" | "en";
+  /** Locale to warm; defaults to the app default (`en`) when absent. */
+  locale?: Locale;
 }
 
 /**
@@ -47,7 +48,7 @@ export interface PeriodNarrativePayload {
 export async function enqueueNarrativeWarm(payload: {
   userId: string;
   period: NarrativePeriod;
-  locale: "de" | "en";
+  locale: Locale;
 }): Promise<void> {
   const boss = getGlobalBoss();
   if (!boss) return;

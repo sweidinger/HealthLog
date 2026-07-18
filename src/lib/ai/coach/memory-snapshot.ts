@@ -38,6 +38,7 @@ import {
   type BandTransition,
 } from "@/lib/insights/narrative/period-narrative";
 import type { BaselineProfile } from "@/lib/insights/derived";
+import type { Locale } from "@/lib/i18n/config";
 import { buildCoachFactsBlock } from "./facts";
 import {
   buildCoachPlansBlock,
@@ -138,7 +139,12 @@ export async function buildCoachMemoryBlock(
   userId: string,
   _profile: BaselineProfile,
   now: Date,
-  locale: "de" | "en",
+  /**
+   * The reader's UI locale — the narrative row is keyed by it, across the full
+   * six-locale union. Narrowing it here would read a row the narrative
+   * pipeline never writes for that user.
+   */
+  locale: Locale,
 ): Promise<CoachMemoryBlock | null> {
   let priorNarrative: PriorNarrativeRecall | undefined;
   // Sub-source 1: the latest period-narrative headline + driver recall.

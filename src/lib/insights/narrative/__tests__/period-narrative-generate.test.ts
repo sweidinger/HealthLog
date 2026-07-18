@@ -115,7 +115,7 @@ describe("buildNarrativeUserPrompt", () => {
     expect(prompt).toContain("WEIGHT");
     expect(prompt).toContain("ACTIVITY_STEPS ~ SLEEP_DURATION");
     expect(prompt).toContain("12 pairs tested");
-    expect(NARRATIVE_PROMPT_VERSION).toBe("1.13.0");
+    expect(NARRATIVE_PROMPT_VERSION).toBe("1.14.0");
   });
 });
 

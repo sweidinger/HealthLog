@@ -19,7 +19,10 @@ export async function runCoachMemoryRefresh(
   payload: CoachMemoryRefreshPayload,
 ): Promise<void> {
   const { conversationId, userId } = payload;
-  const locale = payload.locale ?? "de";
+  // A payload without a locale (an older queued job) composes ENGLISH memory,
+  // not German — the memory prose is model-facing context and English is the
+  // fallback body for every locale that has no reviewed one.
+  const locale = payload.locale ?? "en";
 
   let summaryStatus = "error";
   try {

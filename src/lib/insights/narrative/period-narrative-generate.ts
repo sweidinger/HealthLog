@@ -43,6 +43,12 @@ import {
 } from "@/lib/insights/narrative/period-narrative-deterministic";
 import { composeSharedContracts } from "@/lib/ai/prompts/shared-contracts";
 import {
+  instructionLocale,
+  targetLanguageName,
+  withOutputLanguage,
+} from "@/lib/ai/prompts/output-language";
+import type { Locale } from "@/lib/i18n/config";
+import {
   validateNarrativeText,
   buildNarrativeCorrection,
 } from "@/lib/insights/narrative/narrative-grounding";
@@ -51,8 +57,15 @@ import {
  * Stable identifier for the narrative prompt revision. Bumped whenever the
  * prompt below changes so the cross-feature attribution aggregator can slice
  * quality per (provider × prompt) and a prompt change is observable.
+ *
+ * 1.14.0 — output language: French, Spanish, Italian and Polish readers used
+ * to fall to the German instruction body (the route narrowed every non-`en`
+ * locale to `de`), so they received German retrospectives. They now compose
+ * the English body with their language named in an added rule and the
+ * locale's own reply-language directive appended last. The German and English
+ * prompts are unchanged apart from this version string (test-pinned).
  */
-export const NARRATIVE_PROMPT_VERSION = "1.13.0" as const;
+export const NARRATIVE_PROMPT_VERSION = "1.14.0" as const;
 
 /** A narrative cached this recently is served without regenerating. */
 const NARRATIVE_FRESH_MS = 20 * 60 * 60 * 1000;
@@ -67,8 +80,14 @@ export type NarrativeGenerateOutcome =
 interface GenerateOptions {
   /** Which period to narrate. */
   period: NarrativePeriod;
-  /** Resolved UI locale for the prompt + row. */
-  locale: "de" | "en";
+  /**
+   * Resolved UI locale for the prompt + row.
+   *
+   * The full six-locale union: the row is keyed `(user, period, locale)`, so a
+   * French reader's French retrospective is stored under `fr` rather than
+   * mislabelled as German or English prose.
+   */
+  locale: Locale;
   /** Skip the freshness short-circuit and force a fresh generation. */
   force?: boolean;
   /** Injected clock for deterministic tests; defaults to now. */
@@ -105,7 +124,24 @@ function dateKeyFor(now: Date, tz: string): string {
 
 // ── prompt ──────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT_EN = `You summarise one person's health-tracking PERIOD (a week or a month) for that person.
+/**
+ * Placeholder for the extra output-language rule inside the English body.
+ *
+ * Empty for `en` (whose body is written in the language it asks for), so the
+ * composed English prompt stays byte-stable; for the four locales that ride
+ * the English body it renders one more hard rule naming the reader's
+ * language. The German body carries no token — it names its language by being
+ * written in it.
+ */
+const LANGUAGE_RULE_TOKEN = "{{LANGUAGE_RULE}}";
+
+function languageRule(locale: Locale): string {
+  return locale === "de" || locale === "en"
+    ? ""
+    : `\n- Write the summary in ${targetLanguageName(locale)}.`;
+}
+
+const SYSTEM_PROMPT_EN_TEMPLATE = `You summarise one person's health-tracking PERIOD (a week or a month) for that person.
 Prompt version: ${NARRATIVE_PROMPT_VERSION}.
 
 Hard rules:
@@ -115,7 +151,7 @@ Hard rules:
 - No diagnosis, no medical advice, no alarm. Calm, factual, second person ("your"). When the period earned it, name one genuine win plainly; keep it warm and second-person, never a reflexive compliment.
 - SHAPE: lead with the period's one-line verdict (the overall read in plain words), then connect the top movers and surviving associations into a short arc, and close on continuity or one watch-item — synthesize, do not list each metric in turn.
 - 2 to 4 short sentences. Plain text only — no markdown, no headings, no bullet points, no emojis.
-- If the context is thin, say plainly that there is little to report this period rather than inventing detail.
+- If the context is thin, say plainly that there is little to report this period rather than inventing detail.${LANGUAGE_RULE_TOKEN}
 
 ${composeSharedContracts("en", ["toneContract", "grounding", "openingShape", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller", "formattingContract"])}`;
 
@@ -134,13 +170,32 @@ Feste Regeln:
 ${composeSharedContracts("de", ["toneContract", "grounding", "openingShape", "safetyGlp1", "safetyAcute", "metricIdentifierBan", "forbiddenFiller", "formattingContract"])}`;
 
 /**
+ * The system prompt for one reader.
+ *
+ * German readers compose the reviewed German body; every other locale
+ * composes the English body and is told, in its own language, which language
+ * to write in. The former `locale === "de" ? DE : EN` binary was fed by a
+ * route that narrowed every non-`en` locale to `de`, so French, Spanish,
+ * Italian and Polish readers received German retrospectives.
+ */
+export function buildNarrativeSystemPrompt(locale: Locale): string {
+  const body =
+    instructionLocale(locale) === "de"
+      ? SYSTEM_PROMPT_DE
+      : SYSTEM_PROMPT_EN_TEMPLATE.split(LANGUAGE_RULE_TOKEN).join(
+          languageRule(locale),
+        );
+  return withOutputLanguage(body, locale);
+}
+
+/**
  * Test-only view of the composed system prompts (incl. the appended shared
  * contracts), so the cross-surface coverage test can assert fragment presence
  * without re-deriving the composition.
  */
 export const SYSTEM_PROMPTS_FOR_TEST: Record<"de" | "en", string> = {
-  de: SYSTEM_PROMPT_DE,
-  en: SYSTEM_PROMPT_EN,
+  de: buildNarrativeSystemPrompt("de"),
+  en: buildNarrativeSystemPrompt("en"),
 };
 
 /** Render the typed context into a compact, model-readable block. */
@@ -249,6 +304,10 @@ export async function generatePeriodNarrative(
   options: GenerateOptions,
 ): Promise<NarrativeGenerateOutcome> {
   const { locale } = options;
+  // The de/en body language the user prompt, the deterministic fallback and
+  // the grounding correction are composed in. The ROW stays keyed by the full
+  // `locale`; only the prose scaffolding collapses to a reviewed body.
+  const bodyLocale = instructionLocale(locale);
   const force = options.force === true;
   const now = options.now ?? new Date();
   const prisma = options.prisma ?? defaultPrisma;
@@ -289,8 +348,8 @@ export async function generatePeriodNarrative(
     userId,
     cacheAction: `insights.narrative.${period}.${locale}`,
     consentSurface: "insights",
-    systemPrompt: locale === "de" ? SYSTEM_PROMPT_DE : SYSTEM_PROMPT_EN,
-    userPrompt: buildNarrativeUserPrompt(context, locale),
+    systemPrompt: buildNarrativeSystemPrompt(locale),
+    userPrompt: buildNarrativeUserPrompt(context, bodyLocale),
     temperature: AI_BUDGETS.narrative.temperature,
     maxTokens: AI_BUDGETS.narrative.maxTokens,
     // v1.18.7 / v1.22 (W6) — the reference/diff path pins the deterministic
@@ -363,7 +422,7 @@ export async function generatePeriodNarrative(
   // the same structured context, so the retrospective card is never empty for
   // an active account (iOS H2). A later AI warm overwrites this row in place.
   if (completion.kind === "none") {
-    const text = buildDeterministicNarrative(context, locale);
+    const text = buildDeterministicNarrative(context, bodyLocale);
     await persist(text, DETERMINISTIC_PROVIDER_TYPE);
     return { status: "generated", providerType: DETERMINISTIC_PROVIDER_TYPE };
   }
@@ -395,10 +454,10 @@ export async function generatePeriodNarrative(
       userId,
       cacheAction: `insights.narrative.${period}.${locale}`,
       consentSurface: "insights",
-      systemPrompt: locale === "de" ? SYSTEM_PROMPT_DE : SYSTEM_PROMPT_EN,
+      systemPrompt: buildNarrativeSystemPrompt(locale),
       userPrompt:
-        buildNarrativeUserPrompt(context, locale) +
-        buildNarrativeCorrection(findings, locale),
+        buildNarrativeUserPrompt(context, bodyLocale) +
+        buildNarrativeCorrection(findings, bodyLocale),
       temperature: AI_BUDGETS.narrative.temperature,
       maxTokens: AI_BUDGETS.narrative.maxTokens,
       seed: REFERENCE_AI_SEED,
@@ -430,7 +489,7 @@ export async function generatePeriodNarrative(
 /** The narrative row, decrypted for a read. */
 export interface NarrativeRead {
   period: NarrativePeriod;
-  locale: "de" | "en";
+  locale: Locale;
   text: string;
   dateKey: string;
   provenance: NarrativeProvenancePayload | null;
@@ -448,7 +507,7 @@ export interface NarrativeRead {
 export async function readPeriodNarrative(
   userId: string,
   period: NarrativePeriod,
-  locale: "de" | "en",
+  locale: Locale,
   prisma: PrismaClient = defaultPrisma,
 ): Promise<NarrativeRead | null> {
   const row = await prisma.insightNarrative.findUnique({
@@ -475,7 +534,7 @@ export async function readPeriodNarrative(
 
   return {
     period: row.period as NarrativePeriod,
-    locale: row.locale as "de" | "en",
+    locale: row.locale as Locale,
     text,
     dateKey: row.dateKey,
     provenance,
