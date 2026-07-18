@@ -25,7 +25,13 @@ describe("resolveMcpAuthContext", () => {
     const ctx = await resolveMcpAuthContext("  hlk_abc  ");
 
     // Trimmed token resolved through the shared validator (no requiredPermission for reads).
-    expect(resolveBearerToken).toHaveBeenCalledWith("hlk_abc");
+    // `any-valid-token` is the one deliberate fail-open posture in the tree:
+    // `/mcp` authenticates here and authorises downstream (audience binding +
+    // `tokenAllowsWrite`). Asserted explicitly so a silent switch to another
+    // posture — in either direction — shows up as a failing test.
+    expect(resolveBearerToken).toHaveBeenCalledWith("hlk_abc", {
+      kind: "any-valid-token",
+    });
     expect(ctx.userId).toBe("user-1");
     expect(ctx.tokenId).toBe("token-9");
     expect(ctx.binding).toBe("user-1:token-9");

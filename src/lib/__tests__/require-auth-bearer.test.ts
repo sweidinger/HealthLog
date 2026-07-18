@@ -200,12 +200,17 @@ describe("requireAuth — Bearer token path", () => {
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
-  // v1.4.25 W10 reconcile (code-review H2): a route that does NOT declare
-  // a scope is content with any authenticated token. The previous policy
-  // 403'd every narrow-scope token here and broke `/api/measurements/by-
-  // external-ids`, `/api/personal-records`, `/api/medications/[id]/glp1`,
-  // and `/api/dashboard/glp1` — all four were called without a scope.
-  it("accepts a narrow-scope Bearer token when the route did not declare a scope", async () => {
+  // Supersedes the v1.4.25 "a route that declares no scope is content with any
+  // authenticated token" policy. That policy was adopted to unbreak four
+  // scopeless routes for narrow-token callers, and in doing so it handed every
+  // narrow token the full authenticated surface — the escalation this replaces.
+  // The right fix for a route that genuinely wants a narrow token is for that
+  // route to name the scope, which is a visible diff.
+  //
+  // The fail-closed default. Bare `requireAuth()` means "cookie session or
+  // cookie-equivalent token" — a narrow token is refused, and the audit row
+  // says why so an operator can name the token and its owner.
+  it("refuses a narrow-scope Bearer token when the route declared no scope", async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     setBearerHeader(`Bearer ${RAW_TOKEN}`);
 
@@ -218,14 +223,40 @@ describe("requireAuth — Bearer token path", () => {
     } as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(FAKE_USER as never);
 
-    const ctx = await requireAuth();
-    expect(ctx.user.id).toBe("user-1");
-    expect(ctx.session.id).toBe("token-5a");
-    // v1.25 — no per-request success audit row on the accept path.
-    expect(auditLog).not.toHaveBeenCalledWith(
-      "auth.bearer.success",
-      expect.anything(),
+    await expect(requireAuth()).rejects.toMatchObject({
+      statusCode: 403,
+      message: "Insufficient permissions",
+    } satisfies Partial<HttpError>);
+    expect(auditLog).toHaveBeenCalledWith(
+      "auth.bearer.failure",
+      expect.objectContaining({
+        userId: "user-1",
+        details: expect.objectContaining({
+          reason: "undeclared_scope",
+          tokenId: "token-5a",
+        }),
+      }),
     );
+    // The user row is never loaded — the deny happens on the token alone.
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("admits a narrow-scope Bearer token on a route that names its scope", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    setBearerHeader(`Bearer ${RAW_TOKEN}`);
+
+    vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
+      id: "token-5a2",
+      userId: "user-1",
+      permissions: ["fhir:read"],
+      revoked: false,
+      expiresAt: null,
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(FAKE_USER as never);
+
+    const ctx = await requireAuth("fhir:read");
+    expect(ctx.user.id).toBe("user-1");
+    expect(ctx.session.id).toBe("token-5a2");
   });
 
   it("accepts a wildcard Bearer token when the route did not declare a scope", async () => {
@@ -273,10 +304,18 @@ describe("requireAuth — Bearer token path", () => {
   });
 });
 
-describe("requireAuth — H1 MCP health:read audience binding on REST", () => {
-  // Drive the FULL apiHandler path so the request method is in event context —
-  // the H1 check reads it to allow safe reads but block writes.
-  const route = apiHandler(async (req: Request) => {
+describe("requireAuth — MCP-audience tokens have no REST reach", () => {
+  // Before the fail-closed default, an MCP-audience token (`health:read`, or
+  // `health:read health:write`) was admitted on safe REST methods and refused
+  // on writes by the `isMcpAudienceToken` guard. It now carries no `*` grant
+  // and no REST route names `health:read`, so the resolver refuses it on EVERY
+  // method — reads included. Its audience narrows from "/mcp + REST reads" to
+  // "/mcp only", which is what RFC 8707 audience binding asked for.
+  //
+  // The `isMcpAudienceToken` guard is retained in `api-handler.ts` as defence
+  // in depth; it is unreachable on this path, which is exactly why these tests
+  // assert `undeclared_scope` rather than `mcp_audience_write_blocked`.
+  const route = apiHandler(async (req) => {
     await requireAuth();
     return Response.json({ ok: true, method: req.method });
   });
@@ -295,41 +334,36 @@ describe("requireAuth — H1 MCP health:read audience binding on REST", () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(FAKE_USER as never);
   });
 
-  function mockHealthReadToken(): void {
+  function mockMcpToken(permissions: string[]): void {
     vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
       id: "mcp-token",
       userId: "user-1",
-      permissions: ["health:read"],
+      permissions,
       revoked: false,
       expiresAt: null,
     } as never);
   }
 
-  it("accepts a health:read token on a GET read route", async () => {
-    mockHealthReadToken();
-    const res = await call("GET");
-    expect(res.status).toBe(200);
-  });
+  for (const permissions of [
+    ["health:read"],
+    ["health:read", "health:write"],
+  ]) {
+    const label = permissions.join(" ");
 
-  it("rejects a health:read token on POST with 403", async () => {
-    mockHealthReadToken();
-    const res = await call("POST");
-    expect(res.status).toBe(403);
-    expect(auditLog).toHaveBeenCalledWith(
-      "auth.bearer.failure",
-      expect.objectContaining({
-        details: expect.objectContaining({
-          reason: "mcp_audience_write_blocked",
-        }),
-      }),
-    );
-  });
-
-  it("rejects a health:read token on DELETE with 403", async () => {
-    mockHealthReadToken();
-    const res = await call("DELETE");
-    expect(res.status).toBe(403);
-  });
+    for (const method of ["GET", "POST", "DELETE"]) {
+      it(`refuses a ${label} token on REST ${method} with 403`, async () => {
+        mockMcpToken(permissions);
+        const res = await call(method);
+        expect(res.status).toBe(403);
+        expect(auditLog).toHaveBeenCalledWith(
+          "auth.bearer.failure",
+          expect.objectContaining({
+            details: expect.objectContaining({ reason: "undeclared_scope" }),
+          }),
+        );
+      });
+    }
+  }
 
   it("does NOT restrict a wildcard token on POST (not MCP-audience)", async () => {
     vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
@@ -340,41 +374,6 @@ describe("requireAuth — H1 MCP health:read audience binding on REST", () => {
       expiresAt: null,
     } as never);
     const res = await call("POST");
-    expect(res.status).toBe(200);
-  });
-
-  it("rejects a health:read+write token on POST with 403 (writes are /mcp-only)", async () => {
-    // A write-scoped MCP token is STILL audience-bound: its `health:write`
-    // grant admits the confirmed in-process `/mcp` write tools, never a REST
-    // write/delete. So it gets the same 403 as a read-only MCP token here.
-    vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
-      id: "rw",
-      userId: "user-1",
-      permissions: ["health:read", "health:write"],
-      revoked: false,
-      expiresAt: null,
-    } as never);
-    const res = await call("POST");
-    expect(res.status).toBe(403);
-    expect(auditLog).toHaveBeenCalledWith(
-      "auth.bearer.failure",
-      expect.objectContaining({
-        details: expect.objectContaining({
-          reason: "mcp_audience_write_blocked",
-        }),
-      }),
-    );
-  });
-
-  it("accepts a health:read+write token on a GET read route", async () => {
-    vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
-      id: "rw",
-      userId: "user-1",
-      permissions: ["health:read", "health:write"],
-      revoked: false,
-      expiresAt: null,
-    } as never);
-    const res = await call("GET");
     expect(res.status).toBe(200);
   });
 });

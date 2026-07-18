@@ -8,7 +8,11 @@ import { emitIfSampled } from "./logging/transports";
 import { redactOptional, redactSecrets } from "./logging/redact";
 import { getSession } from "./auth/session";
 import { auditLog } from "./auth/audit";
-import { resolveBearerToken, BearerAuthError } from "./auth/bearer";
+import {
+  resolveBearerToken,
+  BearerAuthError,
+  type ScopeRequirement,
+} from "./auth/bearer";
 import { AssistantDisabledError } from "./feature-flags";
 import { ConsentRequiredError } from "./ai/consent-guard";
 import { SCOPE_HEALTH_READ, SCOPE_HEALTH_WRITE } from "./mcp/oauth/config";
@@ -295,8 +299,12 @@ export type AuthContext = {
  *   3. Neither → 401.
  *
  * @param requiredPermission Optional permission scope. Only enforced for Bearer
- *   auth — cookie sessions always pass (full user access). When set and missing
- *   from `ApiToken.permissions`, throws HttpError(403).
+ *   auth — cookie sessions always pass (full user access). Omitting it is a
+ *   positive declaration: the route accepts cookie sessions and cookie-
+ *   equivalent (`["*"]`) tokens ONLY, and refuses a narrow-scope token with
+ *   HttpError(403). Naming a scope additionally admits narrow tokens that list
+ *   it. A token that lists neither `*` nor the named scope throws
+ *   HttpError(403).
  */
 export async function requireAuth(
   requiredPermission?: string,
@@ -346,17 +354,24 @@ export async function requireAuth(
  * annotation, then maps the result onto the `AuthContext` contract
  * (`session.id` carries the token id).
  *
- * Authorisation contract (unchanged): a route that declares no
- * `requiredPermission` accepts any valid token; one that declares a scope
- * accepts wildcard (`["*"]`) tokens and narrow-scope tokens that list it.
+ * Authorisation contract (fail-closed): a route that declares no
+ * `requiredPermission` accepts cookie sessions and cookie-equivalent (`["*"]`)
+ * tokens only — a narrow-scope token is refused 403 with an `undeclared_scope`
+ * audit row. A route that declares a scope additionally accepts narrow tokens
+ * that list it. The absence of an argument is a positive statement, not an
+ * omission, which is what makes the default safe for routes nobody has thought
+ * about yet.
  */
 async function authenticateBearer(
   rawToken: string,
   requiredPermission: string | undefined,
 ): Promise<AuthContext> {
+  const requirement: ScopeRequirement = requiredPermission
+    ? { kind: "scope", scope: requiredPermission }
+    : { kind: "wildcard-only" };
   let resolution;
   try {
-    resolution = await resolveBearerToken(rawToken, requiredPermission);
+    resolution = await resolveBearerToken(rawToken, requirement);
   } catch (err) {
     if (err instanceof BearerAuthError) {
       auditLog("auth.bearer.failure", {
@@ -393,6 +408,13 @@ async function authenticateBearer(
   // which always sets the method — an unknown method means we cannot prove a
   // read, so we deny. This is RFC 8707 audience binding on the credential the
   // client actually holds, not only during the OAuth exchange.
+  //
+  // Since the fail-closed scope default landed, this guard is unreachable on
+  // the deny path: an MCP-audience token carries no `*`, so `wildcard-only`
+  // already refused it in `resolveBearerToken` before we get here (an MCP
+  // token's REST reach is now nil, not "safe methods"). It is kept as defence
+  // in depth — it still holds the line if a future REST route ever declares
+  // `health:read` and so admits the token past the resolver.
   if (isMcpAudienceToken(permissions)) {
     const method = (getEvent()?.getHttpMethod() ?? "").toUpperCase();
     if (!READ_HTTP_METHODS.has(method)) {
