@@ -646,7 +646,7 @@ export function CoachInput({
         className={cn(
           "border-border/60 bg-muted/40 group rounded-2xl border",
           "shadow-sm transition-colors",
-          "focus-within:border-primary/50 focus-within:ring-primary/15 focus-within:bg-background focus-within:ring-2",
+          "focus-within:border-primary/50 focus-within:ring-primary/50 focus-within:bg-background focus-within:ring-2",
           // Both surfaces share ONE baseline row: the drawer flanks the
           // textarea with mic (left) + send (right); the page leads with a
           // `+` actions menu, then the textarea, then mic + send. `items-end`

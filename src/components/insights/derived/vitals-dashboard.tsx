@@ -262,7 +262,12 @@ function BaselineTile({
         data-state="provisional"
         className="bg-card border-border flex h-full w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6"
       >
-        <TileHeader icon={Icon} title={label} titleClassName="truncate" />
+        <TileHeader
+          icon={Icon}
+          title={label}
+          titleAs="h2"
+          titleClassName="truncate"
+        />
         <p
           className="text-muted-foreground text-sm"
           data-slot="vitals-tile-building"
@@ -457,6 +462,7 @@ function HrvBalanceTile({ read, isLoading }: TileProps) {
         <TileHeader
           icon={HeartPulse}
           title={t("measurements.typeHeartRateVariability")}
+          titleAs="h2"
           titleClassName="truncate"
         />
         <p className="text-muted-foreground text-sm">

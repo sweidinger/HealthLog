@@ -1825,6 +1825,7 @@ export function HealthChart({
               <ComposedChart
                 data={chartDataWithCompare ?? chartData}
                 margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
+                accessibilityLayer
               >
                 <CartesianGrid
                   strokeDasharray="3 3"

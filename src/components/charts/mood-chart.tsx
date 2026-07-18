@@ -733,6 +733,7 @@ export function MoodChart({
         <ComposedChart
           data={chartDataWithCompare ?? chartData}
           margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
+          accessibilityLayer
         >
           {/* v1.4.25 W3 — the mood chart's YAxis is pinned to
                     five mood-score ticks ([1,2,3,4,5]), which Recharts

@@ -84,6 +84,7 @@ export function RecentWorkoutsTile() {
         icon={Activity}
         size="sm"
         title={t("dashboard.recentWorkouts.title")}
+        titleAs="h2"
         right={
           <Link
             href="/insights/workouts"
