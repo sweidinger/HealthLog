@@ -39,6 +39,7 @@ import {
 } from "@/lib/insights/derived";
 import { resolveDeterministicAssessment } from "@/lib/insights/derived/derived-assessment";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { instructionLocale } from "@/lib/ai/prompts/output-language";
 import { requireModuleEnabled, resolveModuleMap } from "@/lib/modules/gate";
 import { DERIVED_MODULE } from "../route";
 
@@ -177,7 +178,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
     userLocale: user.locale ?? null,
     override: request.nextUrl.searchParams.get("locale"),
   });
-  const assessmentLocale = locale === "de" ? "de" : "en";
+  // This grid only carries the DETERMINISTIC assessment, whose templates ship
+  // de/en bodies — so the same instruction-body rule the prompts use applies:
+  // German for a German reader, English for everyone else. Deliberately NOT
+  // widened to the six; the AI-warm prose (which does carry the full locale)
+  // is served lazily by the per-score route.
+  const assessmentLocale = instructionLocale(locale);
 
   // v1.16.8 — read-through the per-user derived cache with
   // stale-while-revalidate. The cold build below walks the rollup tier
@@ -244,7 +250,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 async function buildDerivedBatch(input: {
   userId: string;
   items: BatchItem[];
-  assessmentLocale: "de" | "en";
+  assessmentLocale: ReturnType<typeof instructionLocale>;
 }) {
   const { userId, items, assessmentLocale } = input;
 
