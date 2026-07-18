@@ -269,6 +269,32 @@ export function ComplianceHeatmap({
   const svgWidth = labelWidth + weeks * cellSize + Math.max(0, weeks - 1) * GAP;
   const svgHeight = headerHeight + 7 * cellSize + 6 * GAP;
 
+  // Per-day text alternative, shared by the pointer tooltip and the
+  // visually-hidden day list below the grid (M2). One source of truth so
+  // the sr-only list never drifts from what a pointer user reads.
+  const describeCell = (cell: (typeof cells)[number]): string => {
+    const rate =
+      cell.data.expected > 0
+        ? Math.min(
+            100,
+            Math.round((cell.data.taken / cell.data.expected) * 100),
+          )
+        : 0;
+    const hasTimingData =
+      cell.data.onTime !== undefined ||
+      cell.data.late !== undefined ||
+      cell.data.veryLate !== undefined;
+    const timingInfo = hasTimingData
+      ? ` | ${cell.data.onTime ?? 0} ${t("charts.heatmapOnTime")}, ${cell.data.late ?? 0} ${t("charts.heatmapLate")}, ${cell.data.veryLate ?? 0} ${t("charts.heatmapVeryLate")}`
+      : "";
+    return `${formatDay(cell.dateKey)}: ${cell.data.taken}/${cell.data.expected} (${rate}%)${timingInfo}`;
+  };
+  // Only days that carried a scheduled or taken dose go into the sr-only
+  // list; empty days are covered by the aggregate summary on the SVG.
+  const activeCells = cells.filter(
+    (cell) => cell.data.expected > 0 || cell.data.taken > 0,
+  );
+
   return (
     <div className={`relative ${stretch ? "w-full" : ""}`} ref={containerRef}>
       {/* v1.4.27 MB7 / CF-10 — `overflow-x-auto` on `<sm` so the heatmap
@@ -336,23 +362,7 @@ export function ComplianceHeatmap({
               cell) to move/clear. `pointerType === "touch"` discriminates
               so a hover dismiss never wipes a pinned tooltip. */}
           {cells.map((cell) => {
-            const buildText = (): string => {
-              const rate =
-                cell.data.expected > 0
-                  ? Math.min(
-                      100,
-                      Math.round((cell.data.taken / cell.data.expected) * 100),
-                    )
-                  : 0;
-              const hasTimingData =
-                cell.data.onTime !== undefined ||
-                cell.data.late !== undefined ||
-                cell.data.veryLate !== undefined;
-              const timingInfo = hasTimingData
-                ? ` | ${cell.data.onTime ?? 0} ${t("charts.heatmapOnTime")}, ${cell.data.late ?? 0} ${t("charts.heatmapLate")}, ${cell.data.veryLate ?? 0} ${t("charts.heatmapVeryLate")}`
-                : "";
-              return `${formatDay(cell.dateKey)}: ${cell.data.taken}/${cell.data.expected} (${rate}%)${timingInfo}`;
-            };
+            const buildText = (): string => describeCell(cell);
             return (
               <rect
                 key={cell.dateKey}
@@ -362,14 +372,13 @@ export function ComplianceHeatmap({
                 height={cellSize}
                 rx={2}
                 fill={cell.color}
-                className="cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
-                // 2026-07-17 a11y audit (M2) — the aggregate `role="img"` on
-                // the whole SVG summarises the window; each cell also gets
-                // its own per-day label so a screen-reader / keyboard user
-                // can reach the same value the pointer-only tooltip shows.
-                tabIndex={0}
-                role="img"
-                aria-label={buildText()}
+                className="cursor-pointer"
+                // 2026-07-17 a11y audit (M2) — the per-day values reach
+                // assistive tech through the visually-hidden day list below
+                // the grid, not through the rects: a cell subtree nested
+                // under the SVG's `role="img"` is pruned from the a11y tree,
+                // and per-cell tab stops would flood the keyboard order on a
+                // year-long grid. The rects stay a pure pointer affordance.
                 onPointerEnter={(e) => {
                   // Touch enter fires synthetically immediately before
                   // `pointerdown`; skip it so the pinned tooltip below
@@ -394,22 +403,23 @@ export function ComplianceHeatmap({
                     pinned: true,
                   });
                 }}
-                onFocus={(e) => {
-                  const box = e.currentTarget.getBoundingClientRect();
-                  setTooltip({
-                    x: box.left + box.width / 2,
-                    y: box.top,
-                    text: buildText(),
-                  });
-                }}
-                onBlur={() => {
-                  setTooltip((prev) => (prev?.pinned ? prev : null));
-                }}
               />
             );
           })}
         </svg>
       </div>
+
+      {/* 2026-07-17 a11y audit (M2) — visually-hidden per-day list. The SVG
+          carries an aggregate `role="img"` summary; this list is the
+          keyboard/screen-reader path to the same granular values the pointer
+          tooltip shows, without adding a tab stop per cell. */}
+      {activeCells.length > 0 && (
+        <ul className="sr-only" data-slot="compliance-heatmap-day-list">
+          {activeCells.map((cell) => (
+            <li key={cell.dateKey}>{describeCell(cell)}</li>
+          ))}
+        </ul>
+      )}
 
       {/* Tooltip */}
       {tooltip && (
