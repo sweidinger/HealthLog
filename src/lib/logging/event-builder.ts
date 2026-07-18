@@ -5,6 +5,36 @@ import { getDeployContext } from "./config";
 import { redactOptional, redactSecrets } from "./redact";
 
 /**
+ * Apply `redactSecrets` to every string a value contains, at any depth.
+ *
+ * The builder's contract is that nothing leaves through it unscrubbed. Strings
+ * nested inside an object or array are just as visible in the emitted JSON as a
+ * top-level one, so the walk has to reach them. Non-strings pass through
+ * untouched; the structure is rebuilt rather than mutated so a caller's object
+ * is never modified behind its back.
+ *
+ * The depth bound stops a cyclic or pathologically nested value from turning a
+ * log write into a stack overflow. Anything past it is dropped rather than
+ * emitted unscrubbed — an unreadable log line is recoverable, a leaked
+ * credential is not.
+ */
+function redactDeep<T>(value: T, depth = 0): T {
+  if (depth > 8) return "[redacted: too deep]" as unknown as T;
+  if (typeof value === "string") return redactSecrets(value) as unknown as T;
+  if (Array.isArray(value)) {
+    return value.map((v) => redactDeep(v, depth + 1)) as unknown as T;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = redactDeep(v, depth + 1);
+    }
+    return out as unknown as T;
+  }
+  return value;
+}
+
+/**
  * Baut ein Wide Event Schritt fuer Schritt auf.
  * Wird am Anfang eines Requests/Tasks erstellt und am Ende emittiert.
  */
@@ -97,7 +127,13 @@ export class WideEventBuilder {
 
   addExternalCall(call: NonNullable<WideEvent["external_calls"]>[0]): this {
     if (!this.event.external_calls) this.event.external_calls = [];
-    this.event.external_calls.push(call);
+    // An outbound failure carries whatever the remote said, and for several
+    // integrations that is the request URL — which for Telegram embeds the bot
+    // token. `setError` and `setHttp` scrub on the way in; this entry point did
+    // not, so a credential that is encrypted at rest reached stdout and the log
+    // store in plaintext. Scrub here too: the redaction contract is the
+    // builder's, not each caller's.
+    this.event.external_calls.push(redactDeep(call));
     return this;
   }
 
@@ -116,7 +152,13 @@ export class WideEventBuilder {
 
   addMeta(key: string, value: unknown): this {
     if (!this.event.meta) this.event.meta = {};
-    this.event.meta[key] = value;
+    // Meta is emitted verbatim: the finished event is JSON-stringified whole to
+    // stdout and the log store. It was the one builder entry point that did not
+    // scrub, which made it a trusted sink by accident rather than by design —
+    // and the AI provider chain feeds upstream error bodies through it, so a
+    // gateway that echoes the offending request put prompt content and
+    // non-standard credentials into the logs. Scrub every string, at any depth.
+    this.event.meta[key] = redactDeep(value);
     return this;
   }
 
