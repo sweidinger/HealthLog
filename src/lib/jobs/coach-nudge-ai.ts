@@ -9,6 +9,13 @@
  * model's output.
  *
  * Hard guards (non-negotiable):
+ *   - a CONSENT gate: a chain that could egress via the operator's
+ *     server-managed credential requires an active `ai_coach` / `ai_full`
+ *     receipt. The PHI volume here is small (an abstract trigger topic plus
+ *     the deterministic template body) but it is still the user's health
+ *     situation leaving the server on a credential they did not contract, and
+ *     this tick runs unattended — so it carries the same receipt requirement
+ *     as the interactive Coach;
  *   - per-user daily BUDGET gate (the same reserve/reconcile ledger the Coach
  *     chat uses, with the chain-aware daily cap);
  *   - a tight per-call TIMEOUT (≤ ~9 s) on both the provider `timeoutMs` and a
@@ -28,6 +35,10 @@
 import type { CoachNudgeTrigger } from "@/lib/jobs/coach-nudge";
 import type { Locale } from "@/lib/i18n/config";
 import { resolveProviderChain } from "@/lib/ai/provider";
+import {
+  chainRequiresServerManagedConsent,
+  hasActiveConsentForSurface,
+} from "@/lib/ai/consent-guard";
 import {
   buildDateKey,
   reconcileSpend,
@@ -155,6 +166,19 @@ export const composeNudgeWithAI: ComposeNudgeWithAI = async (params) => {
   try {
     const chain = await resolveProviderChain(params.userId);
     if (chain.length === 0) return null;
+
+    // Consent gate — before the budget reservation, so a user without a
+    // receipt never spends a slot or a token. Skip-shaped like every other
+    // guard here: no receipt → return null and the caller ships the
+    // deterministic template, so the nudge itself is never lost. BYOK / local
+    // / ChatGPT-OAuth chains are the user's own egress and stay ungated.
+    if (
+      chainRequiresServerManagedConsent(chain) &&
+      !(await hasActiveConsentForSurface(params.userId, "coach"))
+    ) {
+      annotate({ action: { name: "coach.nudge.ai.consent_required" } });
+      return null;
+    }
 
     const budget = AI_BUDGETS.coachNudge;
     const maxTokens = budget.maxTokens ?? 160;
