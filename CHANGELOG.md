@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.30.12] — 2026-07-18
+
+Faster medication reads.
+
+- **The dashboard's medication section stays fast as your log grows.** Its reads now use dedicated indexes instead of scanning the full intake history on every load, so a long history no longer slows down the daily view.
+
+No breaking changes.
+
 ## [1.30.11] — 2026-07-18
 
 Native single sign-on.
