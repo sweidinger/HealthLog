@@ -600,7 +600,7 @@
     },
     "watchdog": {
       "title": "Supervisión automática",
-      "description": "HealthLog también vigila en segundo plano — notificaciones de ritmo irregular y alteraciones respiratorias de un reloj conectado, alertas de desviación de tu valor de referencia, y cambios destacables entre tus dos últimos paneles de laboratorio — y solo muestra una tarjeta cuando algo destaca. Que no aparezca ninguna tarjeta es una buena señal, no una función ausente."
+      "description": "HealthLog también vigila en segundo plano — notificaciones de ritmo irregular y alteraciones respiratorias de un reloj conectado, alertas de desviación de tu valor de referencia, y cambios destacables entre tus dos últimos paneles de laboratorio — y solo muestra una tarjeta cuando algo destaca. Si al menos una de esas fuentes está conectada, que no aparezca ninguna tarjeta es una buena señal, no una función ausente; si todavía no hay ninguna conectada, sencillamente no se está vigilando nada."
     }
   },
   "mood": {
@@ -2666,11 +2666,11 @@
         "fatFreeMassTitle": "Masa libre de grasa",
         "fatFreeMassBody": "La masa libre de grasa es todo lo que en tu cuerpo no es grasa: músculo, hueso, órganos y agua. Mantenerla o aumentarla mientras pierdes peso suele indicar una composición corporal más sana.",
         "fatMassTitle": "Masa grasa",
-        "fatMassBody": "La masa grasa es el peso total de la grasa de tu cuerpo. Algo de grasa es esencial para las hormonas y la reserva de energía, pero un exceso —sobre todo en el abdomen— eleva el riesgo para la salud a largo plazo.",
+        "fatMassBody": "La masa grasa es el peso total de la grasa de tu cuerpo. Algo de grasa es esencial para las hormonas y la reserva de energía, pero un exceso —sobre todo en el abdomen— eleva el riesgo para la salud a largo plazo (WHO 2024).",
         "muscleMassTitle": "Masa muscular",
         "muscleMassBody": "La masa muscular es el peso estimado del músculo de tu cuerpo. Más músculo favorece la fuerza, el metabolismo y la movilidad, y suele requerir esfuerzo activo para conservarse con la edad.",
         "visceralFatTitle": "Grasa visceral",
-        "visceralFatBody": "La grasa visceral es la grasa almacenada en lo profundo del abdomen, alrededor de los órganos. A diferencia de la grasa bajo la piel, un nivel alto se asocia estrechamente con enfermedad cardíaca y diabetes tipo 2, por lo que cuanto más baja, mejor.",
+        "visceralFatBody": "La grasa visceral es la grasa almacenada en lo profundo del abdomen, alrededor de los órganos. A diferencia de la grasa bajo la piel, un nivel alto se asocia estrechamente con enfermedad cardíaca y diabetes tipo 2 (AHA, Circulation 2021), por lo que cuanto más baja, mejor. La escala muestra una puntuación sin unidades (aproximadamente 1–12 es el rango saludable, 13 o más se considera elevado); es una escala distinta de los umbrales en cm² por imagen que usan los profesionales clínicos y no es intercambiable con ellos.",
         "leanBodyMassTitle": "Masa magra corporal",
         "leanBodyMassBody": "La masa magra corporal es tu peso total menos la grasa: músculo, hueso, órganos y agua en conjunto. Seguirla junto al peso muestra si los cambios vienen del músculo o de la grasa.",
         "flightsClimbedTitle": "Pisos subidos",
@@ -2700,7 +2700,7 @@
         "audioEventsTitle": "Eventos de sonido fuerte",
         "audioEventsBody": "Los eventos de sonido fuerte señalan momentos en que el ruido a tu alrededor alcanzó un nivel que puede dañar la audición con suficiente exposición. Los eventos frecuentes son una señal para buscar un entorno más silencioso o protección auditiva.",
         "daylightTitle": "Tiempo a la luz del día",
-        "daylightBody": "El tiempo a la luz del día es cuánto pasas bajo luz exterior cada día. La luz diurna regular favorece un ritmo sueño-vigilia y un estado de ánimo saludables, y el tiempo al aire libre se asocia con la salud ocular.",
+        "daylightBody": "El tiempo a la luz del día es cuánto pasas bajo luz exterior cada día. La luz diurna regular favorece un ritmo sueño-vigilia y un estado de ánimo saludables (CDC 2024), y el tiempo al aire libre se asocia con la salud ocular.",
         "bloodGlucoseTitle": "Glucosa en sangre",
         "bloodGlucoseBody": "La glucosa en sangre es la cantidad de azúcar en tu sangre, la principal fuente de energía del cuerpo. Sube tras comer y se estabiliza entre comidas; valores que se mantienen altos con el tiempo pueden indicar diabetes o prediabetes.",
         "skinTemperatureTitle": "Temperatura de la piel",
@@ -2712,7 +2712,7 @@
         "wristTemperatureTitle": "Temperatura de muñeca",
         "wristTemperatureBody": "La temperatura de muñeca se mide mientras duermes y se indica como la diferencia respecto a tu valor de referencia, no como un valor absoluto. Un valor estable es normal, mientras que una subida sostenida puede indicar enfermedad, entrenamiento intenso o un cambio del ciclo.",
         "fallsTitle": "Caídas",
-        "fallsBody": "Esto cuenta las caídas fuertes que detecta tu wearable. El objetivo es cero; un número creciente es una señal de riesgo de movilidad que conviene comentar con un profesional, sobre todo en personas mayores.",
+        "fallsBody": "Esto cuenta las caídas fuertes que detecta tu wearable. El objetivo es cero; un número creciente es una señal de riesgo de movilidad que conviene comentar con un profesional, sobre todo en personas mayores (CDC STEADI 2024).",
         "sixMinuteWalkTitle": "Distancia en marcha de 6 minutos",
         "sixMinuteWalkBody": "Es una estimación de cuánto podrías caminar en seis minutos, una prueba clínica clásica de movilidad y resistencia cardiopulmonar. El valor del wearable es una aproximación, no la prueba clínica supervisada; lo útil es la tendencia estable o en aumento.",
         "stairAscentSpeedTitle": "Velocidad subiendo escaleras",
@@ -4398,7 +4398,7 @@
           "fullBackup": {
             "title": "Copia completa",
             "description": "Todos tus datos en un único archivo JSON: mediciones, medicamentos, estado de ánimo, ciclo, analíticas, episodios de enfermedad, alergias, antecedentes familiares y entrenamientos. Mismo formato que la copia automática semanal.",
-            "scopeNote": "Los archivos originales de los documentos y los datos de rutas GPS/muestras de los entrenamientos no están incluidos — descárgalos por separado desde el archivo de documentos o la exportación de entrenamientos.",
+            "scopeNote": "Los metadatos de los documentos y el resumen de IA, si existe, se incluyen en texto plano; los archivos originales de los documentos y los datos de rutas GPS/muestras de los entrenamientos no están incluidos — descárgalos por separado desde el archivo de documentos o la exportación de entrenamientos.",
             "encryptToggle": "Cifrar con una contraseña",
             "passphrasePlaceholder": "Contraseña (mín. 12 caracteres)",
             "passphraseHelp": "Deriva la clave del archivo con Argon2id y lo sella con AES-256-GCM. Guarda el archivo con la extensión .hlx.",

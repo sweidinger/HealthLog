@@ -600,7 +600,7 @@
     },
     "watchdog": {
       "title": "Automatic screening",
-      "description": "HealthLog also watches quietly in the background — irregular-rhythm and breathing-disturbance notifications from a connected watch, baseline-drift health-status alerts, and notable shifts between your two most recent lab panels — and surfaces a card only when something stands out. No card showing is a good sign, not a missing feature."
+      "description": "HealthLog also watches quietly in the background — irregular-rhythm and breathing-disturbance notifications from a connected watch, baseline-drift health-status alerts, and notable shifts between your two most recent lab panels — and surfaces a card only when something stands out. With at least one of those sources connected, no card showing is a good sign, not a missing feature; with none connected yet, there's simply nothing being watched."
     }
   },
   "mood": {
@@ -4398,7 +4398,7 @@
           "fullBackup": {
             "title": "Full backup",
             "description": "Every record you own in one JSON file — measurements, medications, mood, cycle, labs, illness episodes, allergies, family history, and workouts. Same shape as the weekly auto-backup.",
-            "scopeNote": "Original document files and workout GPS/sample data are not included — download those separately from the vault or the workout export.",
+            "scopeNote": "Document metadata and the AI-generated summary, if one exists, are included as plain text; original document files and workout GPS/sample data are not — download those separately from the vault or the workout export.",
             "encryptToggle": "Encrypt with a passphrase",
             "passphrasePlaceholder": "Passphrase (min. 12 characters)",
             "passphraseHelp": "Derives the archive key with Argon2id and seals it with AES-256-GCM. Save the file with a .hlx extension.",
