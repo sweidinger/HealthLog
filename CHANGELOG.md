@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.30.1] — 2026-07-18
+
+Polish and small fixes.
+
+- **Mobile.** Coach and document text wraps instead of overflowing; the intake history is a card list on small screens instead of a sideways-scrolling table; tap targets meet the minimum size; two dialogs became bottom sheets; the workout detail header stacks cleanly.
+- **Feedback.** Loading skeletons match the content that replaces them (no more layout jump), and the Today priority-card actions show a pending state and can’t fire twice on a double-tap.
+- **Remembered choices.** A chart’s time range and the measurement type you last logged are remembered; a coach chat deletes with an Undo; a backdated dose can be undone; lab panels get “Save & add another”; pull-to-refresh works on more pages (and a scroll-position bug that made it fire anywhere is fixed).
+- **Consistency, accessibility, wording.** Spacing and contrast tidied, more empty states use the shared component, headings and focus rings improved, a few German phrasings corrected, the daily line reads more calmly, and several explanations gained their guideline citation.
+
+No migration. No breaking changes.
+
 ## [1.30.0] — 2026-07-18 — Quality pass
 
 A broad correctness, performance, and polish release, plus two new features. Nothing new is required of you; existing data is untouched.
