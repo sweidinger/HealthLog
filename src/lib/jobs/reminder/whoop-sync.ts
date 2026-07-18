@@ -5,6 +5,7 @@
  * schedules, and boss.work registrations.
  */
 import { type Job } from "pg-boss";
+import { fireAndForget } from "@/lib/logging/fire-and-forget";
 import { recordError } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import {
@@ -101,7 +102,9 @@ export async function runWhoopResourceSync(
           // v1.18.1 — a fresh reading landed; resolve this user's Vorsorge
           // reminders eventfully. Fire-and-forget; the cron is the net.
           if (imported > 0) {
-            void enqueueReminderSatisfy(userId).catch(() => {});
+            fireAndForget(enqueueReminderSatisfy(userId), {
+              action: "reminder.satisfy.enqueue",
+            });
           }
         } catch (err) {
           evt.addWarning(`${taskName} failed for user ${userId}: ${err}`);

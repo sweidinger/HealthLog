@@ -9,6 +9,7 @@
  */
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { fireAndForget } from "@/lib/logging/fire-and-forget";
 import {
   apiError,
   apiSuccess,
@@ -56,10 +57,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // reconstruct "who minted this and when" even if the receipts table
   // is rebuilt from a backup. Fire-and-forget; audit failures must
   // never bubble into a user-facing 500.
-  auditLog("consent.ai.grant", {
-    userId: user.id,
-    details: { kind, receiptId: receipt.id },
-  }).catch(() => {});
+  fireAndForget(
+    auditLog("consent.ai.grant", {
+      userId: user.id,
+      details: { kind, receiptId: receipt.id },
+    }),
+    { action: "consent.ai.audit" },
+  );
 
   annotate({
     action: { name: "consent.ai.grant" },

@@ -50,6 +50,12 @@ import type { MedicationWindowStatus } from "@/lib/medications/window-status";
  *   - `upcoming` / `taken_*` / `skipped` → no escalation; the card stays calm.
  */
 export interface MedicationCardBodyProps {
+  /**
+   * Medication id. Rendered as `data-medication-id` so a deep-link (e.g. the
+   * Today digest's "Log dose" action, `/medications?highlight=<id>`) can
+   * locate + scroll to the right card.
+   */
+  id: string;
   /** Medication name shown on the header's line 1. */
   name: string;
   /** Dose shown beside the name on line 1. */
@@ -140,9 +146,18 @@ export interface MedicationCardBodyProps {
 
   /** GLP-1 variant mounts its post-dose injection-site dialog here. */
   children?: ReactNode;
+
+  /**
+   * v1.29.x — briefly ringed when this card is the Today digest's
+   * "Log dose" deep-link target (`/medications?highlight=<id>`), mirroring
+   * the vault's `<DocumentCard highlighted>` treatment. Transient — the
+   * page clears it a few seconds after scrolling the card into view.
+   */
+  highlighted?: boolean;
 }
 
 export function MedicationCardBody({
+  id,
   name,
   dose,
   categoryLabel,
@@ -164,6 +179,7 @@ export function MedicationCardBody({
   intakeLoading,
   onRecordIntake,
   children,
+  highlighted = false,
 }: MedicationCardBodyProps) {
   const { t, locale } = useTranslations();
 
@@ -227,6 +243,7 @@ export function MedicationCardBody({
 
   return (
     <Card
+      data-medication-id={id}
       // The card surface is a constant neutral surface — dose status is never
       // expressed as a background / border tint (the maintainer, recurring): only the
       // discreet status line / pill below communicates take-now / overdue.
@@ -236,7 +253,16 @@ export function MedicationCardBody({
       // the first content line; tightened to a uniform `gap-3` here (the
       // header keeps its own `pb-2.5`) so the name / class / next-intake block
       // reads as one tight stack without touching the shared primitive.
-      className={cn("h-full gap-3 md:gap-3", active ? "" : "opacity-60")}
+      //
+      // v1.29.x — `highlighted` adds a transient ring (mirrors
+      // `<DocumentCard highlighted>`) for the Today digest's deep-link
+      // target. Never a persistent tint — the neutral-card rule above still
+      // holds for dose STATUS; this is a one-time "you tapped here" cue.
+      className={cn(
+        "h-full gap-3 md:gap-3",
+        active ? "" : "opacity-60",
+        highlighted && "ring-primary ring-2",
+      )}
     >
       <MedicationCardHeader
         name={name}

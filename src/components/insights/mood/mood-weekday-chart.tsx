@@ -39,11 +39,13 @@ const WEEKDAY_LABEL_KEYS = [
   "charts.weekdaysFull.sun",
 ] as const;
 
+// v1.28.17 — semantic tokens, not raw `--dracula-*` primitives (see
+// mood-distribution-chart's `BAR_COLOR_BY_SCORE` for the same swap).
 function colorForScore(score: number): string {
-  if (score < 2) return "var(--dracula-red)";
-  if (score < 3) return "var(--dracula-orange)";
+  if (score < 2) return "var(--destructive)";
+  if (score < 3) return "var(--warning)";
   if (score < 3.5) return "var(--dracula-yellow)";
-  return "var(--dracula-green)";
+  return "var(--success)";
 }
 
 export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
@@ -88,7 +90,8 @@ export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
               // v1.15.14 — theme-aware axis text (see mood-distribution-chart).
               // `--dracula-fg` was white-on-white on the light-mode card; switch
               // to the shared `--muted-foreground` axis-tick token. Bar mood
-              // hues stay `--dracula-*`; dark mode is unchanged.
+              // hues route through semantic tokens (see `colorForScore`);
+              // dark mode is unchanged.
               tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               stroke="var(--muted-foreground)"
               interval={0}
@@ -99,7 +102,8 @@ export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
               // v1.15.14 — theme-aware axis text (see mood-distribution-chart).
               // `--dracula-fg` was white-on-white on the light-mode card; switch
               // to the shared `--muted-foreground` axis-tick token. Bar mood
-              // hues stay `--dracula-*`; dark mode is unchanged.
+              // hues route through semantic tokens (see `colorForScore`);
+              // dark mode is unchanged.
               tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               stroke="var(--muted-foreground)"
               width={24}

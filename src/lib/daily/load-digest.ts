@@ -22,6 +22,8 @@ import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { userDayKey } from "@/lib/tz/format";
+import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
 import {
   buildDailyDigest,
   type DailyDigest,
@@ -138,6 +140,61 @@ async function gatherFreshMilestone(
   }
 
   return selectFreshMilestone(candidates, todayKey);
+}
+
+/**
+ * P — the milestone gather (~8.5k rows via the streak/PR reads) and the
+ * intraday-tension read (a bounded but real per-sample day read) are the two
+ * heaviest inputs the digest computes on every request, yet both are usually
+ * null and change at most once per local day. Every open tab's 120 s poll
+ * (`DASHBOARD_REFETCH_INTERVAL_MS`) was re-deriving them from scratch.
+ *
+ * Cached together in ONE cell — keyed `${userId}|daily-digest-extras|${dateKey}`
+ * under the shared `analytics` bucket so the write-invalidation semantics
+ * `readDashboardSnapshotCached` already relies on cover this cell too: every
+ * measurement write sweeps the `${userId}|` prefix (mark-stale for a
+ * background sync, hard-evict for an interactive write — see
+ * `invalidateUserMeasurements`), so a fresh sleep/vitals landing still
+ * refreshes this within the same SWR contract the snapshot cell uses. TTL
+ * mirrors `SNAPSHOT_CACHE_TTL_MS` — strictly greater than the client poll
+ * interval so a scheduled refetch lands warm.
+ */
+const DIGEST_EXTRAS_CACHE_TTL_MS = DASHBOARD_REFETCH_INTERVAL_MS + 60_000;
+
+interface DailyDigestExtras {
+  milestone: Milestone | null;
+  tensionWindow: DailyDigestTensionWindow | null;
+}
+
+function digestExtrasCacheKey(userId: string, dateKey: string): string {
+  return `${userId}|daily-digest-extras|${dateKey}`;
+}
+
+async function loadDailyDigestExtrasCached(
+  userId: string,
+  timezone: string,
+  todayLocalDate: string,
+  now: Date,
+): Promise<DailyDigestExtras> {
+  return cachedSwr(
+    caches.analytics as ServerCache<DailyDigestExtras>,
+    digestExtrasCacheKey(userId, todayLocalDate),
+    async () => {
+      // S11 / S12 — independent reads, hoisted into one Promise.all (a prior
+      // revision ran them sequentially). Each is already fault-isolated
+      // internally (a milestone read-hiccup or a tension-read failure leaves
+      // its own field quiet rather than breaking the other).
+      const [milestone, tensionWindow] = await Promise.all([
+        gatherFreshMilestone(userId, now),
+        loadIntradayPulse(userId, timezone, todayLocalDate)
+          .then((r) => (r.tension ? { partOfDay: r.tension.partOfDay } : null))
+          .catch(() => null),
+      ]);
+      return { milestone, tensionWindow };
+    },
+    annotate,
+    DIGEST_EXTRAS_CACHE_TTL_MS,
+  );
 }
 
 /** S10 — how recently an ECG recording counts as "new" for the rail read. */
@@ -306,20 +363,25 @@ export async function loadDailyDigest(
   // S12 — the calm reward layer. Only gather when the insights module (the
   // narrative layer that hosts the milestone card) is on; the builder gates on
   // it too, so a disabled account never surfaces one either way.
-  const insightsEnabled = modules.insights !== false;
-  const milestone = insightsEnabled
-    ? await gatherFreshMilestone(user.id, now)
-    : null;
-
+  //
   // S11 — the day's elevated-at-rest window, computed on demand from raw for
   // TODAY only (read-swap, one bounded day-read; never persisted). Gated on the
   // insights module and fault-isolated: a tension-read failure must never break
   // the digest (a hot, must-not-fail path), it just omits the calm marker.
-  const tensionWindow: DailyDigestTensionWindow | null = insightsEnabled
-    ? await loadIntradayPulse(user.id, user.timezone, todayLocalDate)
-        .then((r) => (r.tension ? { partOfDay: r.tension.partOfDay } : null))
-        .catch(() => null)
-    : null;
+  //
+  // Both ride the cached, single-flight `loadDailyDigestExtrasCached` cell so
+  // a 120 s poll of every open tab doesn't re-run the ~8.5k-row streak +
+  // per-sample tension reads on every request — see its docblock for the
+  // cache/invalidation contract.
+  const insightsEnabled = modules.insights !== false;
+  const { milestone, tensionWindow } = insightsEnabled
+    ? await loadDailyDigestExtrasCached(
+        user.id,
+        user.timezone,
+        todayLocalDate,
+        now,
+      )
+    : { milestone: null, tensionWindow: null };
 
   // Dismiss ledger (P — Today rail dismiss). Only the OBSERVATIONAL kinds
   // (milestone / ecg_new_recording / tension_window) can ever be dismissed, so

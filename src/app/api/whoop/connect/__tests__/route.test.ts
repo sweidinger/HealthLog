@@ -53,6 +53,7 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/api-handler";
 import { consumeWhoopConnectTicket } from "@/lib/whoop/connect-ticket";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getUserWhoopCredentials } from "@/lib/whoop/credentials";
 import type { NextRequest } from "next/server";
 
 const create = prisma.whoopOAuthState.create as ReturnType<typeof vi.fn>;
@@ -131,6 +132,17 @@ describe("GET /api/whoop/connect", () => {
       makeReq("https://app.example/api/whoop/connect?return_scheme=javascript"),
     );
     expect(create.mock.calls[0][0].data.returnScheme).toBeNull();
+  });
+
+  it("redirects to reason=nocreds when no per-user credentials are stored", async () => {
+    vi.mocked(getUserWhoopCredentials).mockResolvedValueOnce(null);
+    const res = await GET(makeReq("https://app.example/api/whoop/connect"));
+    expect(res.status).toBe(307);
+    const location = res.headers.get("location") ?? "";
+    expect(location).toContain("/settings/integrations");
+    expect(location).toContain("whoop=error");
+    expect(location).toContain("reason=nocreds");
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("ticket + return_scheme combine", async () => {

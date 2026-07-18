@@ -189,6 +189,57 @@ async function postBulk(request: NextRequest): Promise<Response> {
   let duplicates = 0;
   const skipped: Array<{ index: number; reason: string }> = [];
 
+  // Perf — a single indexed existence read replaces the per-entry
+  // `findUnique` probe (up to 500 sequential round trips pre-fix). Every
+  // entry still resolves through exactly the key its own dedup contract
+  // uses (externalId when carried, else the legacy date+moodLoggedAt key),
+  // so lookups below are byte-identical to the per-entry probe — only the
+  // read is now batched. The per-entry `upsert` + tombstone check + tag
+  // links + reverse push all stay unchanged; batching those further would
+  // risk the correctness-sensitive per-row side effects for a write path
+  // that is usually small (a normal sync posts the current + previous
+  // local day, not a full historical backfill).
+  interface ExistingMoodRow {
+    id: string;
+    deletedAt: Date | null;
+  }
+  const orClauses: Array<
+    | { source: string; externalId: string }
+    | { date: string; moodLoggedAt: Date }
+  > = entries.map((entry) =>
+    entry.externalId
+      ? { source: entry.source, externalId: entry.externalId }
+      : {
+          date: moodDateKey(entry.moodLoggedAt, tz),
+          moodLoggedAt: entry.moodLoggedAt,
+        },
+  );
+  const existingRows =
+    orClauses.length > 0
+      ? await prisma.moodEntry.findMany({
+          where: { userId: user.id, OR: orClauses },
+          select: {
+            id: true,
+            deletedAt: true,
+            source: true,
+            externalId: true,
+            date: true,
+            moodLoggedAt: true,
+          },
+        })
+      : [];
+  const existingByExternalKey = new Map<string, ExistingMoodRow>();
+  const existingByDateKey = new Map<string, ExistingMoodRow>();
+  for (const row of existingRows) {
+    if (row.externalId !== null) {
+      existingByExternalKey.set(`${row.source}::${row.externalId}`, row);
+    }
+    existingByDateKey.set(
+      `${row.date}::${row.moodLoggedAt.toISOString()}`,
+      row,
+    );
+  }
+
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
     const date = moodDateKey(entry.moodLoggedAt, tz);
@@ -220,15 +271,15 @@ async function postBulk(request: NextRequest): Promise<Response> {
             },
           };
 
-      // Probe-then-upsert so the response reliably distinguishes
-      // "inserted" from "duplicate". Two round-trips per entry is
-      // acceptable given the 500-entry cap; a more cache-friendly
-      // shape (batched probe) is a v1.4.31 optimisation if the cap
-      // grows.
-      const existing = await prisma.moodEntry.findUnique({
-        where: probeWhere,
-        select: { id: true, deletedAt: true },
-      });
+      // The response reliably distinguishes "inserted" from "duplicate"
+      // via the batched pre-read above (keyed exactly like `probeWhere`),
+      // so the per-entry probe here is now a Map lookup, not a round trip.
+      const existing =
+        (entry.externalId
+          ? existingByExternalKey.get(`${resolvedSource}::${entry.externalId}`)
+          : existingByDateKey.get(
+              `${date}::${entry.moodLoggedAt.toISOString()}`,
+            )) ?? null;
 
       // Tombstone suppression: a soft-deleted match stays deleted. The
       // user-facing DELETE route flips `deletedAt` so the `/api/sync/changes`

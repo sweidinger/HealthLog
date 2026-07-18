@@ -82,7 +82,7 @@ import {
   useFormatters,
   useDateFormatPreference,
 } from "@/lib/i18n/context";
-import { formatDateWithWeekday } from "@/lib/date-format";
+import { formatDateWithWeekdaySmart } from "@/lib/date-format";
 import {
   invalidateKeys,
   medicationDependentKeys,
@@ -448,7 +448,7 @@ export function DoseHistoryLedger({
                   the DEVICE zone and could shift the heading a day when
                   browser ≠ profile zone; the day-key label renders
                   UTC-pinned instead (zone-independent, weekday included). */}
-              {formatDateWithWeekday(group.dayKey, dateFormatPref, locale)}
+              {formatDateWithWeekdaySmart(group.dayKey, dateFormatPref, locale)}
             </h3>
             <ul className="border-border/60 divide-border/60 divide-y rounded-md border">
               {group.rows.map((row, i) => (

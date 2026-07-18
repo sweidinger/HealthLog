@@ -168,6 +168,31 @@ export function formatDateWithWeekday(
 }
 
 /**
+ * Same field set as {@link formatDateWithWeekday}, but adds the year
+ * whenever `value`'s UTC calendar year differs from the current UTC year
+ * — issue #66 (date-format sweep). A day group from a previous year (e.g.
+ * the dose-history ledger scrolled past a year boundary) must not read as
+ * this year's "Di., 16.12.".
+ */
+export function formatDateWithWeekdaySmart(
+  value: Date | string | null | undefined,
+  pref: DateFormatPreference,
+  locale: Locale,
+): string {
+  if (value === null || value === undefined || value === "") return "";
+  const date = value instanceof Date ? value : parseIsoDate(value);
+  if (date === null || Number.isNaN(date.getTime())) return "";
+  const showYear = date.getUTCFullYear() !== new Date().getUTCFullYear();
+  return date.toLocaleDateString(resolveDateLocale(pref, locale), {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    ...(showYear ? { year: "numeric" as const } : {}),
+  });
+}
+
+/**
  * Parse a `yyyy-MM-dd` string to a UTC `Date` at midnight. Returns null on
  * a value that is not exactly the ISO calendar-date shape so callers can
  * fall back to the placeholder rather than rendering "Invalid Date".

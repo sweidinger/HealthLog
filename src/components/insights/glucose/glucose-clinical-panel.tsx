@@ -6,7 +6,7 @@ import { Activity, Droplet, FlaskConical, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { TileHeader } from "@/components/insights/tile-header";
-import { InfoHint } from "@/components/ui/info-hint";
+import { InfoPopover } from "@/components/ui/info-popover";
 import { LearningGate } from "@/components/ui/learning-gate";
 import { LearnMoreLink } from "@/components/ui/learn-more-link";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -198,7 +198,9 @@ export function GlucoseClinicalPanel() {
             <div className="space-y-0.5" data-slot="glucose-cv">
               <span className="text-muted-foreground flex items-center gap-1 text-xs">
                 {t("insights.bloodGlucose.clinical.cv.label")}
-                <InfoHint label={t("insights.bloodGlucose.clinical.cv.help")} />
+                <InfoPopover
+                  content={t("insights.bloodGlucose.clinical.cv.help")}
+                />
               </span>
               <div className="flex items-center gap-1.5">
                 <span className="text-foreground text-lg font-semibold tabular-nums">
@@ -285,7 +287,7 @@ function Metric({
       <span className="text-muted-foreground flex items-center gap-1 text-xs">
         {icon}
         {label}
-        {help ? <InfoHint label={help} /> : null}
+        {help ? <InfoPopover content={help} /> : null}
       </span>
       <span className="text-foreground flex items-baseline gap-1">
         <span className="text-lg font-semibold tabular-nums">{value}</span>

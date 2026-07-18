@@ -11,6 +11,7 @@
  * `data` object is built field-by-field (no mass assignment).
  */
 import { NextRequest } from "next/server";
+import { fireAndForget } from "@/lib/logging/fire-and-forget";
 
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import {
@@ -210,7 +211,9 @@ async function commitOcrRows(request: NextRequest) {
   // A lab panel just landed — resolve any "annual blood panel" reminders now
   // rather than waiting on the cron. Fire-and-forget.
   if (inserted.length > 0) {
-    void enqueueReminderSatisfy(user.id).catch(() => {});
+    fireAndForget(enqueueReminderSatisfy(user.id), {
+      action: "reminder.satisfy.enqueue",
+    });
   }
 
   return apiSuccess({ inserted, skipped });

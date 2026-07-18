@@ -10,8 +10,12 @@ import {
   expandRangeSelection,
   formatBytes,
   formatMonthLabel,
+  hasProcessingDocument,
+  isDocumentProcessing,
+  isRecentlyUploaded,
   parseUploadResponse,
   parseVaultSearchParams,
+  RECENT_UPLOAD_WINDOW_MS,
   resolveBulkShareDocuments,
   SHARE_LINK_MAX_DOCUMENTS,
   vaultFiltersToSearch,
@@ -341,5 +345,69 @@ describe("resolveBulkShareDocuments", () => {
     expect(result.overCap).toBe(false);
     if (result.overCap) throw new Error("unexpected over-cap");
     expect(result.documents).toHaveLength(SHARE_LINK_MAX_DOCUMENTS);
+  });
+});
+
+// v1.29.x — the vault's "Processing…" / "Ready" chip + the poll-while-
+// indexing refetch both key off the bounded recent-upload window rather than
+// a bare `!hasContentIndex`, so an old / permanently-unindexed document never
+// shows a stuck spinner and the list query never polls forever.
+describe("isRecentlyUploaded / isDocumentProcessing / hasProcessingDocument", () => {
+  const NOW = new Date("2026-03-11T08:10:00.000Z").getTime();
+
+  it("is recently-uploaded just inside the window, not right at/after it", () => {
+    const justInside = new Date(
+      NOW - RECENT_UPLOAD_WINDOW_MS + 1000,
+    ).toISOString();
+    expect(isRecentlyUploaded(justInside, NOW)).toBe(true);
+
+    const atTheEdge = new Date(NOW - RECENT_UPLOAD_WINDOW_MS).toISOString();
+    expect(isRecentlyUploaded(atTheEdge, NOW)).toBe(false);
+  });
+
+  it("is never recently-uploaded for a future createdAt (clock skew defensiveness)", () => {
+    const future = new Date(NOW + 1000).toISOString();
+    expect(isRecentlyUploaded(future, NOW)).toBe(false);
+  });
+
+  it("is processing only while unindexed AND inside the recent-upload window", () => {
+    const fresh = new Date(NOW - 1000).toISOString();
+    expect(
+      isDocumentProcessing({ createdAt: fresh, hasContentIndex: false }, NOW),
+    ).toBe(true);
+    // Indexed already — done, not processing, regardless of age.
+    expect(
+      isDocumentProcessing({ createdAt: fresh, hasContentIndex: true }, NOW),
+    ).toBe(false);
+    // Old and never indexed (unsupported format, content index disabled,
+    // …) — outside the window, so it does NOT read as "still processing".
+    const old = new Date(NOW - RECENT_UPLOAD_WINDOW_MS - 1000).toISOString();
+    expect(
+      isDocumentProcessing({ createdAt: old, hasContentIndex: false }, NOW),
+    ).toBe(false);
+  });
+
+  it("hasProcessingDocument is true when ANY loaded document is still processing", () => {
+    const fresh = new Date(NOW - 1000).toISOString();
+    const old = new Date(NOW - RECENT_UPLOAD_WINDOW_MS - 1000).toISOString();
+    const docs = [
+      doc({ id: "d1", createdAt: old, hasContentIndex: false }),
+      doc({ id: "d2", createdAt: fresh, hasContentIndex: false }),
+    ];
+    expect(hasProcessingDocument(docs, NOW)).toBe(true);
+  });
+
+  it("hasProcessingDocument is false when every document is indexed or outside the window", () => {
+    const fresh = new Date(NOW - 1000).toISOString();
+    const old = new Date(NOW - RECENT_UPLOAD_WINDOW_MS - 1000).toISOString();
+    const docs = [
+      doc({ id: "d1", createdAt: old, hasContentIndex: false }),
+      doc({ id: "d2", createdAt: fresh, hasContentIndex: true }),
+    ];
+    expect(hasProcessingDocument(docs, NOW)).toBe(false);
+  });
+
+  it("hasProcessingDocument is false for an empty list", () => {
+    expect(hasProcessingDocument([], NOW)).toBe(false);
   });
 });

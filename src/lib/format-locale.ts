@@ -120,6 +120,23 @@ function asDate(value: DateInput): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
+/**
+ * True when `date` falls in the same calendar year as "now", both read in
+ * `tz`. Backs the `*Smart` conditional-year formatters below — a date is
+ * compared in the SAME timezone the formatter renders it in (rather than
+ * the runtime's local timezone) so a UTC-pinned bucket-label formatter
+ * (`makeBucketLabelFormatters`, chart axes) and a profile-timezone
+ * formatter agree with what they actually print. `getDateTimeFormat` is
+ * the same process-wide cache the rest of this module uses, so the extra
+ * lookup is cheap.
+ */
+function isCurrentYearInTz(date: Date, tz: string, localeTag: string): boolean {
+  const yearOnly = { timeZone: tz, year: "numeric" as const };
+  const target = getDateTimeFormat(localeTag, yearOnly).format(date);
+  const now = getDateTimeFormat(localeTag, yearOnly).format(new Date());
+  return target === now;
+}
+
 export interface Formatters {
   /** Integer or decimal with the active locale's decimal separator. */
   number: (value: number, fractionDigits?: number) => string;
@@ -131,12 +148,27 @@ export interface Formatters {
   date: (value: DateInput) => string;
   /** Short date without year, e.g. "19.02." / "Feb 19". */
   dateShort: (value: DateInput) => string;
+  /**
+   * Short date that adds the year whenever `value` falls outside the
+   * current calendar year, e.g. "19.02." this year vs. "19.02.2025" for
+   * a date from last year. Use this instead of `dateShort` on any
+   * surface that can render a date older than the current year (chart
+   * axes/tooltips, history lists, timelines) — see the "generell
+   * überall" year-disambiguation rule.
+   */
+  dateShortSmart: (value: DateInput) => string;
   /** Full date + time; hour cycle follows the `timeFormat` preference. */
   dateTime: (value: DateInput) => string;
   /** Time only, e.g. "14:30" or "2:30 PM" per the `timeFormat` preference. */
   time: (value: DateInput) => string;
   /** Short weekday + date, e.g. "Do., 19.02." / "Thu, Feb 19". */
   dateWithWeekday: (value: DateInput) => string;
+  /**
+   * Short weekday + date that adds the year whenever `value` falls
+   * outside the current calendar year, e.g. "Do., 19.02." this year vs.
+   * "Do., 19.02.2025" for a date from last year.
+   */
+  dateWithWeekdaySmart: (value: DateInput) => string;
   /** For axis labels: 3-letter month abbreviation. */
   monthShort: (value: DateInput) => string;
 }
@@ -205,6 +237,18 @@ export function makeFormatters(
         month: "2-digit",
       }).format(asDate(value)),
 
+    dateShortSmart: (value) => {
+      const d = asDate(value);
+      return getDateTimeFormat(dateLocale, {
+        timeZone: tz,
+        day: "2-digit",
+        month: "2-digit",
+        ...(isCurrentYearInTz(d, tz, dateLocale)
+          ? {}
+          : { year: "numeric" as const }),
+      }).format(d);
+    },
+
     dateTime: (value) =>
       getDateTimeFormat(dateLocale, {
         timeZone: tz,
@@ -231,6 +275,19 @@ export function makeFormatters(
         day: "2-digit",
         month: "2-digit",
       }).format(asDate(value)),
+
+    dateWithWeekdaySmart: (value) => {
+      const d = asDate(value);
+      return getDateTimeFormat(dateLocale, {
+        timeZone: tz,
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+        ...(isCurrentYearInTz(d, tz, dateLocale)
+          ? {}
+          : { year: "numeric" as const }),
+      }).format(d);
+    },
 
     monthShort: (value) =>
       getDateTimeFormat(intlLocale, {

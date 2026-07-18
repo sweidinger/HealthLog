@@ -39,11 +39,15 @@
  */
 import { prisma as defaultPrisma } from "@/lib/db";
 import { CUMULATIVE_HK_TYPES } from "@/lib/measurements/apple-health-mapping";
+import { dayKeyForUserTz } from "@/lib/measurements/consolidation-tz";
+import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
+import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import { getPRDirection, isPRTrackable } from "./pr-direction";
 import {
-  PersonalRecordDirection,
   Prisma,
+  PersonalRecordDirection,
+  type MeasurementSource,
   type MeasurementType,
   type PrismaClient,
 } from "@/generated/prisma/client";
@@ -91,7 +95,7 @@ interface MeasurementCandidate {
   value: number;
   unit: string;
   measuredAt: Date;
-  source: string;
+  source: MeasurementSource;
   externalId: string | null;
 }
 
@@ -101,7 +105,7 @@ interface WorkoutCandidate {
   startedAt: Date;
   durationSec: number;
   totalDistanceM: number | null;
-  source: string;
+  source: MeasurementSource;
   externalId: string | null;
 }
 
@@ -207,6 +211,26 @@ export async function detectPersonalRecordsForUser(
   let ties = 0;
   let scanned = 0;
 
+  // v1.29.6 — resolved once per run and threaded into the cumulative-day
+  // picker: the source-collapse ladder needs the user's priority JSON, and
+  // the day bucketing needs the user's IANA timezone so a "best day" lines
+  // up with the calendar day the user actually experienced, matching every
+  // other cumulative-day surface (the `groupBy=day` list branch, the
+  // dashboard tile). Read directly via the injected `prisma` client
+  // (not `resolveUserTimezone` / `loadUserSourcePriority`, which both
+  // reach for the module-level singleton) so the worker's Prisma
+  // dependency injection — the whole reason `options.prisma` exists —
+  // stays intact for tests.
+  const userRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { timezone: true, sourcePriorityJson: true },
+  });
+  const tz =
+    userRow?.timezone && userRow.timezone.length > 0
+      ? userRow.timezone
+      : "Europe/Berlin";
+  const priorityJson = userRow?.sourcePriorityJson ?? null;
+
   // ── Measurement-driven PRs (metricSlot = null) ─────────────
   for (const type of measurementTypeEnum.options) {
     const metricType = type as MeasurementType;
@@ -228,6 +252,8 @@ export async function detectPersonalRecordsForUser(
       userId,
       metricType,
       direction,
+      tz,
+      priorityJson,
     );
     if (!best) continue;
 
@@ -274,7 +300,7 @@ export async function detectPersonalRecordsForUser(
           unit: best.unit,
           achievedAt: best.measuredAt,
           sourceMeasurementId: best.id,
-          source: best.source as never,
+          source: best.source,
           externalId: best.externalId,
         },
       ],
@@ -360,7 +386,7 @@ export async function detectPersonalRecordsForUser(
           unit: slot.unit,
           achievedAt: best.startedAt,
           sourceMeasurementId: null,
-          source: best.source as never,
+          source: best.source,
           externalId: best.externalId,
         },
       ],
@@ -404,6 +430,8 @@ async function findBestMeasurement(
   userId: string,
   type: MeasurementType,
   direction: PersonalRecordDirection,
+  tz: string,
+  priorityJson: unknown,
 ): Promise<MeasurementCandidate | null> {
   // REG-9 (v1.4.46): cumulative HealthKit kinds (ACTIVITY_STEPS,
   // ACTIVE_ENERGY_BURNED, FLIGHTS_CLIMBED, WALKING_RUNNING_DISTANCE,
@@ -414,23 +442,30 @@ async function findBestMeasurement(
   // 4 000 steps plus every other slice on the same calendar day) was
   // ignored.
   //
-  // For cumulative kinds we instead bucket-and-sum per calendar day
-  // (UTC for now — analytics surfaces still day-bucket in UTC; the
-  // dashboard tile already runs the same shape via
-  // `pickCumulativeDaySum`). The picked row's `measuredAt` is the
-  // latest slice on the winning day so the PR's `achievedAt`
-  // timestamp still points at a real ingested sample (the unique
-  // index `(userId, metricType, metricSlot, achievedAt)` needs a
-  // stable timestamp). For MAX-direction cumulative kinds — which is
-  // every cumulative type today per `pr-direction.ts` — we pick the
-  // day with the largest sum. The MIN branch is wired symmetrically
-  // for future-proofing; if a MIN cumulative kind ever lands the
-  // worker will pick the day with the smallest sum.
+  // For cumulative kinds we instead bucket-and-sum per calendar day,
+  // anchored to the user's IANA timezone (matches every other
+  // cumulative-day surface — the `groupBy=day` list branch, the
+  // dashboard tile). The picked row's `measuredAt` is the latest
+  // slice on the winning day so the PR's `achievedAt` timestamp
+  // still points at a real ingested sample (the unique index
+  // `(userId, metricType, metricSlot, achievedAt)` needs a stable
+  // timestamp). For MAX-direction cumulative kinds — which is every
+  // cumulative type today per `pr-direction.ts` — we pick the day
+  // with the largest sum. The MIN branch is wired symmetrically for
+  // future-proofing; if a MIN cumulative kind ever lands the worker
+  // will pick the day with the smallest sum.
   //
   // Spot kinds (resting HR, VO2 max, HRV, body composition) keep the
   // existing per-row pick — each row is already the day's measurement.
   if (CUMULATIVE_HK_TYPES.has(type)) {
-    return findBestCumulativeDay(prisma, userId, type, direction);
+    return findBestCumulativeDay(
+      prisma,
+      userId,
+      type,
+      direction,
+      tz,
+      priorityJson,
+    );
   }
 
   const row = await prisma.measurement.findFirst({
@@ -460,54 +495,93 @@ async function findBestMeasurement(
 }
 
 /**
- * REG-9 (v1.4.46): day-bucket SUM picker for cumulative HK kinds.
+ * REG-9 (v1.4.46) / v1.29.6 — day-bucket SUM picker for cumulative HK
+ * kinds.
  *
- * Postgres `date_trunc('day', measured_at)` groups every slice on the
- * same UTC calendar day. The outer `ORDER BY day_sum {DESC|ASC} LIMIT 1`
- * picks the winning day; the inner `MAX(measured_at)` returns a
- * stable timestamp for the PR's `achievedAt`. The latest slice on the
- * winning day also carries the row's `unit / source / externalId` —
- * we re-read it as a separate `findFirst` so the response shape
- * stays identical to the spot-kind path (the caller's downstream
- * `personalRecord.create` reaches for the original row's metadata).
+ * v1.29.6 fix: the original implementation summed EVERY row on a
+ * calendar day regardless of source. A day with both an Apple Health
+ * AND a Withings write for the same cumulative metric (e.g. steps)
+ * summed both sources into one inflated total — a false "record" day
+ * that could permanently outrank a later day's real single-source
+ * total, which would never win the comparison again. The fix
+ * collapses overlapping sources to the ladder-canonical reading per
+ * day BEFORE summing (`pickCanonicalSourceRows`, the same picker the
+ * doctor report and mood crosstab use), and buckets on the user's
+ * IANA timezone instead of the UTC calendar day, matching every other
+ * cumulative-day surface.
  *
  * Order of operations:
- *   1. Sum-per-day aggregate via `$queryRaw` (one round-trip).
- *   2. Re-read the slice at `MAX(measured_at)` on the winning day
- *      to recover the row's metadata.
+ *   1. Read every row for the type (already scoped by the caller's
+ *      warm-up gate to a metric with at least
+ *      `PR_DETECTION_WARMUP_THRESHOLD` samples).
+ *   2. Collapse to the canonical source per local day.
+ *   3. Bucket-and-sum the canonical rows per local day; pick the
+ *      winning day by `direction`.
+ *   4. Re-read the winning day's latest slice so the PR row carries a
+ *      real row's unit/source/externalId (the day-sum overrides
+ *      `value` below).
  * The unique-index contract is unaffected — a re-run picks the same
- * day and the same MAX-slice, so `achievedAt` is stable.
+ * day and the same latest-slice timestamp, so `achievedAt` is stable.
  */
 async function findBestCumulativeDay(
   prisma: PrismaClient,
   userId: string,
   type: MeasurementType,
   direction: PersonalRecordDirection,
+  tz: string,
+  priorityJson: unknown,
 ): Promise<MeasurementCandidate | null> {
-  const orderDir =
-    direction === PersonalRecordDirection.MAX
-      ? Prisma.sql`DESC`
-      : Prisma.sql`ASC`;
+  const rows = await prisma.measurement.findMany({
+    where: { userId, type, deletedAt: null },
+    orderBy: { measuredAt: "asc" },
+    select: {
+      id: true,
+      value: true,
+      unit: true,
+      measuredAt: true,
+      source: true,
+      externalId: true,
+      deviceType: true,
+    },
+  });
+  if (rows.length === 0) return null;
 
-  const rows = await prisma.$queryRaw<
-    Array<{ day_total: number; max_measured_at: Date }>
-  >(
-    Prisma.sql`
-      SELECT
-        SUM(m."value")::double precision  AS day_total,
-        MAX(m."measured_at")              AS max_measured_at
-      FROM measurements m
-      WHERE m."user_id" = ${userId}
-        AND m."type"::text = ${type}
-        AND m."deleted_at" IS NULL
-      GROUP BY date_trunc('day', m."measured_at")
-      ORDER BY day_total ${orderDir}
-      LIMIT 1
-    `,
-  );
+  const metricKey = metricKeyForType(type);
+  const canonicalRows = metricKey
+    ? pickCanonicalSourceRows(
+        rows.map((r) => ({ ...r, type })),
+        metricKey,
+        priorityJson,
+        (d) => dayKeyForUserTz(d, tz),
+      ).canonicalRows
+    : rows;
 
-  const winner = rows[0];
-  if (!winner) return null;
+  const byDay = new Map<string, { total: number; latest: Date }>();
+  for (const row of canonicalRows) {
+    const key = dayKeyForUserTz(row.measuredAt, tz);
+    const slot = byDay.get(key);
+    if (!slot) {
+      byDay.set(key, { total: row.value, latest: row.measuredAt });
+    } else {
+      slot.total += row.value;
+      if (row.measuredAt > slot.latest) slot.latest = row.measuredAt;
+    }
+  }
+
+  let winnerTotal: number | null = null;
+  let winnerLatest: Date | null = null;
+  for (const { total, latest } of byDay.values()) {
+    const better =
+      winnerTotal === null ||
+      (direction === PersonalRecordDirection.MAX
+        ? total > winnerTotal
+        : total < winnerTotal);
+    if (better) {
+      winnerTotal = total;
+      winnerLatest = latest;
+    }
+  }
+  if (winnerTotal === null || winnerLatest === null) return null;
 
   // Re-read the latest slice on the winning day so the PR row carries
   // a real row's unit/source/externalId. The slice's `value` is the
@@ -518,7 +592,7 @@ async function findBestCumulativeDay(
       userId,
       type,
       deletedAt: null,
-      measuredAt: winner.max_measured_at,
+      measuredAt: winnerLatest,
     },
     select: {
       id: true,
@@ -532,7 +606,7 @@ async function findBestCumulativeDay(
 
   return {
     id: slice.id,
-    value: winner.day_total,
+    value: winnerTotal,
     unit: slice.unit,
     measuredAt: slice.measuredAt,
     source: slice.source,
@@ -542,15 +616,18 @@ async function findBestCumulativeDay(
 
 async function findBestWorkout(
   prisma: PrismaClient,
-  where: Record<string, unknown>,
+  where: Prisma.WorkoutWhereInput,
   slot: WorkoutSlotDefinition,
 ): Promise<WorkoutCandidate | null> {
+  const dir: Prisma.SortOrder =
+    slot.direction === PersonalRecordDirection.MAX ? "desc" : "asc";
+  const orderBy: Prisma.WorkoutOrderByWithRelationInput =
+    slot.field === "durationSec"
+      ? { durationSec: dir }
+      : { totalDistanceM: dir };
   const row = await prisma.workout.findFirst({
-    where: where as never,
-    orderBy:
-      slot.direction === PersonalRecordDirection.MAX
-        ? ({ [slot.field]: "desc" } as never)
-        : ({ [slot.field]: "asc" } as never),
+    where,
+    orderBy,
     select: {
       id: true,
       sportType: true,

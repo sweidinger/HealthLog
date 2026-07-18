@@ -92,6 +92,14 @@ export const measurementDependentKeys = [
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),
   queryKeys.dashboardSnapshot(),
+  // v1.29.x — the Today digest reads the same snapshot ingredients a
+  // manual measurement write already hard-evicts server-side; joins the
+  // bundle so the digest's score / rail items refresh in lockstep with
+  // the tile strip. Call sites also force an inactive refetch (see
+  // `refetchInactiveDailyReads` below) since a default invalidation only
+  // refetches MOUNTED queries and the digest is typically unmounted
+  // while the user is on the measurement surface.
+  queryKeys.dailyDigest(),
   ["chart-data"] as const,
   // v1.8.5 — re-run the diversity-nudge clustering when readings change.
   ["measurement-diversity"] as const,
@@ -127,6 +135,11 @@ export const moodDependentKeys = [
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),
   queryKeys.dashboardSnapshot(),
+  // v1.29.x — mirrors the measurement fix above: the Today digest reads
+  // the same snapshot mood block a mood write already hard-evicts
+  // server-side. Call sites force an inactive refetch too (see
+  // `refetchInactiveDailyReads`).
+  queryKeys.dailyDigest(),
 ];
 
 /**
@@ -207,4 +220,36 @@ export function invalidateKeys(
   return Promise.allSettled(
     keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
   );
+}
+
+/**
+ * Force the dashboard snapshot AND the Today digest to refetch even while
+ * unmounted. `invalidateKeys` (and every `*DependentKeys` bundle above) marks
+ * a query stale with the default `refetchType: "active"`, which only
+ * refetches MOUNTED queries — so a write made from the measurement / mood /
+ * medication surface leaves the dashboard hero and the Today digest (both
+ * typically unmounted while the user is elsewhere) stale until a manual
+ * remount re-fetches under `refetchOnMount: false`.
+ *
+ * Originates from the v1.16.11 dashboard-snapshot fix and the v1.29.1
+ * medication-intake fix (`invalidateMedicationReads` in
+ * `components/medications/use-medication-intake.ts`, which predates this
+ * shared helper and keeps its own inline copy). Call this alongside
+ * `invalidateKeys(queryClient, xDependentKeys)` from any write whose server
+ * route already hard-evicts the snapshot bucket — the forced refetch then
+ * returns post-write data immediately, no server change needed.
+ */
+export async function refetchInactiveDailyReads(
+  queryClient: QueryClient,
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.dashboardSnapshot(),
+      refetchType: "inactive",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.dailyDigest(),
+      refetchType: "inactive",
+    }),
+  ]);
 }

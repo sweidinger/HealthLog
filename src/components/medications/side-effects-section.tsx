@@ -324,7 +324,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
                       className="text-muted-foreground w-14 shrink-0 text-right text-xs tabular-nums"
                       data-slot="side-effect-row-date"
                     >
-                      {fmt.dateShort(new Date(row.occurredAt))}
+                      {fmt.dateShortSmart(new Date(row.occurredAt))}
                     </p>
                   </div>
                   {row.notes && (

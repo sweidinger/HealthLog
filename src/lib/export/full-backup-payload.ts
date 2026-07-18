@@ -15,8 +15,13 @@ import { readNote } from "@/lib/crypto/note-cipher";
 import { findMeasurementsPaged } from "@/lib/export/paged-measurements";
 import { BACKUP_SCHEMA_VERSION } from "@/lib/validations/backup";
 import { buildCycleBackupSection } from "@/lib/cycle/backup";
+import {
+  buildRecordsBackupSection,
+  countRecordsBackupSection,
+  type RecordsBackupCounts,
+} from "@/lib/export/records-backup";
 
-export interface FullBackupCounts {
+export interface FullBackupCounts extends RecordsBackupCounts {
   measurements: number;
   medications: number;
   intakeEvents: number;
@@ -38,7 +43,7 @@ export async function buildFullBackupPayload(
   prisma: PrismaClient,
   userId: string,
 ): Promise<FullBackupResult> {
-  const [measurements, medications, intakeEvents, moodEntries, cycle] =
+  const [measurements, medications, intakeEvents, moodEntries, cycle, records] =
     await Promise.all([
       // v1.28.25 — keyset-paginated read with a narrow select. The backup
       // is inherently whole-history, so on a CGM / per-sample-HR account the
@@ -88,6 +93,7 @@ export async function buildFullBackupPayload(
         orderBy: { moodLoggedAt: "desc" },
       }),
       buildCycleBackupSection(prisma, userId),
+      buildRecordsBackupSection(prisma, userId),
     ]);
 
   const payload = {
@@ -131,6 +137,18 @@ export async function buildFullBackupPayload(
     cycleProfile: cycle.cycleProfile,
     cycles: cycle.cycles,
     cycleDayLogs: cycle.cycleDayLogs,
+    // v1.28 backup-completeness — the domains the pre-existing shape never
+    // covered. `manifest` discloses the two deliberate exclusions (document
+    // binaries, workout GPS/sample time series) inline in the file itself,
+    // not just in the export UI copy.
+    labResults: records.labResults,
+    biomarkers: records.biomarkers,
+    illnessEpisodes: records.illnessEpisodes,
+    allergies: records.allergies,
+    familyHistory: records.familyHistory,
+    workouts: records.workouts,
+    documents: records.documents,
+    manifest: records.manifest,
   };
 
   return {
@@ -142,6 +160,7 @@ export async function buildFullBackupPayload(
       moodEntries: moodEntries.length,
       cycles: cycle.cycles.length,
       cycleDayLogs: cycle.cycleDayLogs.length,
+      ...countRecordsBackupSection(records),
     },
   };
 }

@@ -2,6 +2,47 @@
 
 ## [Unreleased]
 
+## [1.30.0] — 2026-07-18 — Quality pass
+
+A broad correctness, performance, and polish release, plus two new features. Nothing new is required of you; existing data is untouched.
+
+### Added
+
+- **Document summaries.** An uploaded document can get a short plain-language summary, generated once at upload and stored encrypted. It runs only when the external-AI document reading you already opted into is on, and never touches older documents.
+- **Efficacy chart, readable.** The medication efficacy chart scales its axis to the data (a real trend no longer looks flat), gains a “% since start” view, and the history tab reaches your full intake history, not just the last 90 days.
+- **A metric catalog.** A quiet “All metrics” view lists everything HealthLog can track and which device supplies each — so a metric you don’t have data for stays out of your daily views but is still discoverable in one place.
+
+### Fixed — correctness
+
+- **The number shown matches reality.** The workouts and measurements lists now lead with the most recent entries (a long history no longer hid recent days), and a metric recorded by two devices on the same day is counted once, matching the dashboard — instead of being summed twice.
+- **Strava workouts carry their real sport** (cycling, running, …) — like WHOOP already did — with a history backfill, and back-to-back rides no longer collapse into one.
+- **Personal records and correlations** no longer double-count multi-source days or mix per-reading and daily-total values.
+
+### Fixed — medical safety
+
+- The hypoglycemia alert now uses your own glucose unit; the doctor-report PDF states your own timezone; the crisis card offers Austrian and Swiss lines, not only German ones; and resting-pulse labels drop clinical-verdict wording for calmer, neutral framing.
+
+### Fixed — the daily view
+
+- The Today view is faster (its heaviest reads are now cached instead of recomputed on every refresh) and updates immediately after you log a measurement, mood, or water — not only medication.
+- The intraday heart-rate chart no longer draws a continuous shape across gaps in sparse data, and shows how many readings it’s based on. A failed load shows a retry instead of an empty state.
+
+### Fixed — onboarding, dates, consistency, accessibility
+
+- Connecting a device no longer dead-ends on a fresh account, and the setup steps (including the callback URL) are shown up front.
+- A date from a previous year now shows the year, everywhere it’s displayed.
+- Contrast, chart colours in the light theme, and a handful of duplicated components were tidied; keyboard access and headings improved on several surfaces; the insights and settings menus are grouped more sensibly.
+
+### Changed
+
+- **A fuller backup.** The full backup now also includes lab results, illness episodes, allergies, family history, workouts, and a documents list. What isn’t included (raw document files, workout GPS/heart-rate detail) is stated plainly.
+
+### Performance
+
+- The Today digest and the insights cards read through the pre-aggregated tier instead of scanning raw rows; batch imports write in one pass.
+
+Two migrations (0250, 0251). No breaking changes.
+
 ## [1.29.5] — 2026-07-17
 
 ### Security

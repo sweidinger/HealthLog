@@ -77,6 +77,54 @@ const eslintConfig = defineConfig([
       "healthlog/spacing-scale": "error",
     },
   },
+  // v1.28.17 — every recharts-rendering component funnels through the
+  // shared `chart-runtime.ts` barrel (see its file header): pointing N
+  // `next/dynamic` boundaries at N different modules mints a separate
+  // ~312 KB recharts chunk per boundary, a regression the project already
+  // paid for once. Direct `from "recharts"` imports outside the barrel's
+  // own static import graph previously only tripped the bundle-budget
+  // gate at PR-CI; this rule catches the same mistake at local lint,
+  // mirroring how `healthlog/safe-fetch-required` scopes its own
+  // wrapper-internals exemption by file list.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/components/charts/chart-runtime.ts",
+      "src/components/admin/host-metrics-chart.tsx",
+      "src/components/charts/health-chart.tsx",
+      "src/components/charts/medication-compliance-chart.tsx",
+      "src/components/charts/mood-chart.tsx",
+      "src/components/charts/nutrient-daily-bar-chart.tsx",
+      "src/components/charts/scatter-correlation-chart.tsx",
+      "src/components/custom-metrics/custom-metric-chart.tsx",
+      "src/components/cycle/bbt-chart.tsx",
+      "src/components/insights/derived/delta-sparkline.tsx",
+      "src/components/insights/intraday-pulse-chart.tsx",
+      "src/components/insights/mood/mood-distribution-chart.tsx",
+      "src/components/insights/mood/mood-time-of-day-chart.tsx",
+      "src/components/insights/mood/mood-weekday-chart.tsx",
+      "src/components/insights/sleep-stage-stacked-bar.tsx",
+      "src/components/labs/lab-biomarker-chart.tsx",
+      "src/components/medications/detail/efficacy/efficacy-chart.tsx",
+      "src/components/medications/dose-strength-curve.tsx",
+      "src/components/medications/drug-level-chart.tsx",
+      "src/components/mental-health/assessment-history-chart.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "recharts",
+              message:
+                "Import chart components through @/components/charts/chart-runtime (the shared dynamic-import barrel), not recharts directly — a second static import mints a duplicate recharts chunk. Add the component to chart-runtime.ts's export list if it's a new chart.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

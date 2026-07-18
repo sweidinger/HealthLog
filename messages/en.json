@@ -91,7 +91,7 @@
     "colShare": "Share",
     "footerDisclaimer1": "This report was generated automatically from self-tracked data and is intended to support",
     "footerDisclaimer2": "the doctor–patient conversation. It does not replace a medical diagnosis. Correlations do not imply causation.",
-    "footerSource": "Source: HealthLog | Timezone: Europe/Berlin | Created: {timestamp}",
+    "footerSource": "Source: HealthLog | Timezone: {timezone} | Created: {timestamp}",
     "typeWeight": "Body weight",
     "typeBpSys": "Systolic blood pressure",
     "typeBpDia": "Diastolic blood pressure",
@@ -405,7 +405,6 @@
     "recentWorkouts": {
       "title": "Recent workouts",
       "viewAll": "View all",
-      "loading": "Loading workouts…",
       "empty": {
         "title": "No workouts yet",
         "cta": "Open Apple Health on your iPhone to sync workouts here."
@@ -586,6 +585,22 @@
     "unitRatio": "ratio",
     "typeWho5Score": "WHO-5 score",
     "typeSciScore": "SCI score"
+  },
+  "metricCatalog": {
+    "title": "What HealthLog can track",
+    "description": "Every metric domain HealthLog supports, whether or not you have data for it yet — and what would supply it.",
+    "statusPresent": "Tracked",
+    "statusAbsent": "Not tracked yet",
+    "statusModuleOff": "Off",
+    "connectCta": "Connect a source",
+    "viewCta": "View",
+    "ecg": {
+      "source": "Single-lead ECG strips from a compatible watch — Withings ScanWatch today — synced automatically."
+    },
+    "watchdog": {
+      "title": "Automatic screening",
+      "description": "HealthLog also watches quietly in the background — irregular-rhythm and breathing-disturbance notifications from a connected watch, plus baseline-drift alerts — and surfaces a card only when something stands out. No card showing is a good sign, not a missing feature."
+    }
   },
   "mood": {
     "title": "Mood",
@@ -2476,7 +2491,8 @@
         "documentsAttachedOne": "1 document attached",
         "documentsAttachedOther": "{count} documents attached",
         "railBadge": "Fenced document chat",
-        "uploadError": "Upload failed. Please try again."
+        "uploadError": "Upload failed. Please try again.",
+        "notFoundError": "That document link is no longer valid — starting a normal chat instead."
       }
     },
     "relativeJustNow": "just now",
@@ -2487,6 +2503,7 @@
     "relativeDaysAgoOne": "{count} day ago",
     "relativeDaysAgoOther": "{count} days ago",
     "navOverview": "Overview",
+    "navCatalog": "All metrics",
     "navBloodPressure": "Blood Pressure",
     "navWeight": "Weight",
     "navPulse": "Pulse",
@@ -2517,9 +2534,9 @@
         "label": "Activity",
         "header": "Activity & mobility"
       },
-      "cardiovascularParent": {
-        "label": "Cardiovascular",
-        "header": "Cardiovascular markers"
+      "heartParent": {
+        "label": "Heart",
+        "header": "Heart health"
       },
       "hearingParent": {
         "label": "Hearing",
@@ -3879,6 +3896,8 @@
       "caption": "Your heart rate through the day, averaged in 10-minute steps.",
       "hourlyNote": "Showing this day's hourly average — recent days show the full 10-minute detail.",
       "empty": "Not enough heart-rate readings for this day to show its shape yet.",
+      "coverageOne": "Based on 1 reading across {hours}h.",
+      "coverageMany": "Based on {count} readings across {hours}h.",
       "baseline": "Resting",
       "today": "Today",
       "previousDay": "Previous day",
@@ -4016,7 +4035,7 @@
     },
     "source": {
       "title": "Connect a source",
-      "body": "Bring in measurements automatically, or stay on manual entry. Nothing here is configured for you — each card just shows where to connect it.",
+      "body": "Bring in measurements automatically, or stay on manual entry. Nothing here is configured for you — each card just shows where to connect it. Device sources need a free developer app registered on your own account (about 5 minutes); the setup guide on each card walks through it.",
       "recommended": "Recommended",
       "manual": {
         "title": "Manual entry",
@@ -4024,12 +4043,14 @@
       },
       "withings": {
         "title": "Withings",
-        "body": "Scales, blood-pressure cuffs and trackers from Withings sync automatically.",
-        "cta": "Connect Withings"
+        "body": "Scales, blood-pressure cuffs and trackers from Withings sync automatically once connected.",
+        "cta": "Connect Withings",
+        "setupCta": "Set up in Settings",
+        "setupHint": "Needs your own free Withings developer app first — about 5 minutes, one time."
       },
       "more": {
         "title": "More sources",
-        "body": "Connect any of these in Settings whenever you're ready.",
+        "body": "Connect any of these in Settings whenever you're ready — most need a free developer app registered on your own account first.",
         "appleHealth": "Apple Health",
         "whoop": "WHOOP",
         "oura": "Oura",
@@ -4171,7 +4192,16 @@
       "disableError": "Could not disable Research Mode. Please try again."
     },
     "shell": {
-      "sectionsNav": "Settings sections"
+      "sectionsNav": "Settings sections",
+      "groups": {
+        "account": "Account",
+        "yourData": "Your data",
+        "display": "Display",
+        "healthProfile": "Health profile",
+        "ai": "AI",
+        "connectivity": "Connectivity",
+        "system": "System"
+      }
     },
     "sections": {
       "account": {
@@ -4356,7 +4386,8 @@
           },
           "fullBackup": {
             "title": "Full backup",
-            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload.",
+            "description": "Every record you own in one JSON file — measurements, medications, mood, cycle, labs, illness episodes, allergies, family history, and workouts. Same shape as the weekly auto-backup.",
+            "scopeNote": "Original document files and workout GPS/sample data are not included — download those separately from the vault or the workout export.",
             "encryptToggle": "Encrypt with a passphrase",
             "passphrasePlaceholder": "Passphrase (min. 12 characters)",
             "passphraseHelp": "Derives the archive key with Argon2id and seals it with AES-256-GCM. Save the file with a .hlx extension.",
@@ -5389,6 +5420,12 @@
     "ouraDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
     "nightscoutDescriptionSecondary": "Readings flow into your dashboard in the background. New to the setup? Follow the",
     "integrationCredentialsHint": "Where to find these credentials and how to register your own app is covered in the setup guide above.",
+    "integrationRedirectGuide": {
+      "intro": "This connects through your own {provider} developer app — about 5 minutes to set up:",
+      "step1": "Create an app in the {provider} developer portal.",
+      "step2": "Set its redirect / callback URL to:",
+      "step3": "Paste the client ID and client secret it gives you above."
+    },
     "security": {
       "sessionsTitle": "Active sessions",
       "sessionsDescription": "Devices and browsers currently signed in to your account.",
@@ -6029,6 +6066,7 @@
         "colAction": "Action",
         "colDuration": "Duration",
         "colTraceId": "Trace",
+        "viewDetails": "View details for {action} at {timestamp}",
         "showing": "Showing {count} of up to {bufferMax} buffered events",
         "empty": "Buffer is empty",
         "emptyDescription": "No events match the current filters yet. Hit refresh after triggering some traffic.",
@@ -6649,9 +6687,9 @@
       "hypertensionGrade1": "Hypertension Grade 1",
       "hypertensionGrade2": "Hypertension Grade 2",
       "hypertensionGrade3": "Hypertension Grade 3",
-      "bradycardia": "Bradycardia",
+      "belowTypicalRange": "Below typical range",
       "elevated": "Elevated",
-      "tachycardia": "Tachycardia",
+      "aboveTypicalRange": "Above typical range",
       "significantlyLow": "Significantly low",
       "slightlyLow": "Slightly low",
       "onTarget": "On target",
@@ -7898,14 +7936,14 @@
       "bpLowDoctor": "Two recent readings had a systolic below {systolic} mmHg. If you feel dizzy or faint, sit or lie down, and contact your doctor if it continues.",
       "bpLowEmergency": "Two recent readings had a systolic below {systolic} mmHg and you noted symptoms. If you feel faint, confused, or have cold clammy skin, call emergency services now.",
       "glucoseLowTitle": "Low blood sugar",
-      "glucoseLowDoctor": "Two recent readings were below 70 mg/dL ({value} mg/dL). Take fast-acting carbohydrate, re-check in 15 minutes, and contact your doctor if lows continue.",
-      "glucoseLowEmergency": "Two recent readings were below 70 mg/dL ({value} mg/dL) and you noted symptoms. Treat now with fast-acting sugar; if you cannot, or you feel very unwell, call emergency services.",
+      "glucoseLowDoctor": "Two recent readings were below {threshold} {unit} ({value} {unit}). Take fast-acting carbohydrate, re-check in 15 minutes, and contact your doctor if lows continue.",
+      "glucoseLowEmergency": "Two recent readings were below {threshold} {unit} ({value} {unit}) and you noted symptoms. Treat now with fast-acting sugar; if you cannot, or you feel very unwell, call emergency services.",
       "glucoseLowSevereTitle": "Very low blood sugar",
-      "glucoseLowSevereDoctor": "Two recent readings were below 54 mg/dL ({value} mg/dL). Treat immediately with fast-acting carbohydrate, re-check in 15 minutes, and contact your doctor.",
-      "glucoseLowSevereEmergency": "Two recent readings were below 54 mg/dL ({value} mg/dL) and you noted symptoms. Treat now; if you cannot keep food down or feel very unwell, call emergency services.",
+      "glucoseLowSevereDoctor": "Two recent readings were below {threshold} {unit} ({value} {unit}). Treat immediately with fast-acting carbohydrate, re-check in 15 minutes, and contact your doctor.",
+      "glucoseLowSevereEmergency": "Two recent readings were below {threshold} {unit} ({value} {unit}) and you noted symptoms. Treat now; if you cannot keep food down or feel very unwell, call emergency services.",
       "glucoseHighTitle": "Very high blood sugar",
-      "glucoseHighDoctor": "Two recent readings were {value} mg/dL or higher. Re-check, hydrate, and contact your doctor as soon as possible if it stays this high.",
-      "glucoseHighEmergency": "Two recent readings were {value} mg/dL or higher and you noted symptoms. If you have vomiting, fast breathing, or confusion, call emergency services now."
+      "glucoseHighDoctor": "Two recent readings were {value} {unit} or higher. Re-check, hydrate, and contact your doctor as soon as possible if it stays this high.",
+      "glucoseHighEmergency": "Two recent readings were {value} {unit} or higher and you noted symptoms. If you have vomiting, fast breathing, or confusion, call emergency services now."
     }
   },
   "version": {
@@ -8041,6 +8079,12 @@
       },
       "nummerGegenKummer": {
         "name": "Nummer gegen Kummer (for young people)"
+      },
+      "telefonSeelsorgeAt": {
+        "name": "Telefonseelsorge Österreich (24/7, free, confidential)"
+      },
+      "dargeboteneHand": {
+        "name": "Die Dargebotene Hand (24/7, free, confidential)"
       },
       "krisenchat": {
         "name": "krisenchat (24/7 chat, young people)"
@@ -8295,7 +8339,9 @@
       "openLabel": "Open {title}",
       "attachmentBadge": "Download only",
       "uploading": "Uploading…",
-      "dismissFailed": "Dismiss failed upload"
+      "dismissFailed": "Dismiss failed upload",
+      "processing": "Processing…",
+      "ready": "Ready"
     },
     "error": {
       "fileTooLarge": "This file is larger than the {maxSize} limit.",

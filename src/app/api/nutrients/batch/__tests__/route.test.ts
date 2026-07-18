@@ -3,8 +3,15 @@
  *
  * Pins the ingest posture: module gate first (403 `module.disabled`),
  * per-entry skip guards (unit mismatch / plausibility / day key), the
- * insert-vs-update statuses off the composite-PK probe, and the batch
- * envelope errors (`too_large`, multi-issue `invalid`).
+ * insert-vs-update statuses off a single bulk existence probe, and the
+ * batch envelope errors (`too_large`, multi-issue `invalid`).
+ *
+ * v1.29 perf fix — the probe-then-upsert-per-entry pattern (up to 1000
+ * sequential round trips) was replaced by one indexed `findMany` existence
+ * read + a bulk `createMany` for new pairs + a `$transaction` of per-row
+ * `update` calls for existing pairs. `$transaction` is mocked to actually
+ * run the array of promises it's handed so the update path executes for
+ * real in these tests.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
@@ -12,9 +19,11 @@ import { NextRequest } from "next/server";
 vi.mock("@/lib/db", () => ({
   prisma: {
     nutrientIntakeDay: {
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
+      findMany: vi.fn(),
+      createMany: vi.fn(),
+      update: vi.fn(),
     },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -93,8 +102,19 @@ beforeEach(() => {
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
   vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true });
   vi.mocked(auditLog).mockResolvedValue(undefined as never);
-  vi.mocked(prisma.nutrientIntakeDay.findUnique).mockResolvedValue(null);
-  vi.mocked(prisma.nutrientIntakeDay.upsert).mockResolvedValue({} as never);
+  // No existing (day, nutrient) pairs by default — every valid entry
+  // takes the insert path unless a test overrides this.
+  vi.mocked(prisma.nutrientIntakeDay.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.nutrientIntakeDay.createMany).mockImplementation(
+    (async (args: { data: unknown[] }) => ({
+      count: args.data.length,
+    })) as never,
+  );
+  vi.mocked(prisma.nutrientIntakeDay.update).mockResolvedValue({} as never);
+  // Real Prisma resolves every promise in the `$transaction([...])` array;
+  // the mock does the same so the update path actually runs in these tests.
+  vi.mocked(prisma.$transaction).mockImplementation((async (ops: unknown[]) =>
+    Promise.all(ops)) as never);
 });
 
 describe("POST /api/nutrients/batch — module gate", () => {
@@ -122,7 +142,7 @@ describe("POST /api/nutrients/batch — module gate", () => {
     expect(body.data).toBeNull();
     expect(body.meta?.errorCode).toBe("module.disabled");
     expect(body.meta?.module).toBe("nutrients");
-    expect(prisma.nutrientIntakeDay.upsert).not.toHaveBeenCalled();
+    expect(prisma.nutrientIntakeDay.createMany).not.toHaveBeenCalled();
   });
 });
 
@@ -190,7 +210,8 @@ describe("POST /api/nutrients/batch — per-entry skip guards", () => {
       reason: "unit_mismatch",
     });
     expect(body.data.skipped).toEqual([{ index: 0, reason: "unit_mismatch" }]);
-    expect(prisma.nutrientIntakeDay.upsert).not.toHaveBeenCalled();
+    expect(prisma.nutrientIntakeDay.findMany).not.toHaveBeenCalled();
+    expect(prisma.nutrientIntakeDay.createMany).not.toHaveBeenCalled();
   });
 
   it("skips a value above the plausibility cap", async () => {
@@ -205,7 +226,7 @@ describe("POST /api/nutrients/batch — per-entry skip guards", () => {
     const body = (await res.json()) as BatchResponse;
     expect(body.data.entries[0].status).toBe("skipped");
     expect(body.data.entries[0].reason).toBe("value_out_of_range");
-    expect(prisma.nutrientIntakeDay.upsert).not.toHaveBeenCalled();
+    expect(prisma.nutrientIntakeDay.createMany).not.toHaveBeenCalled();
   });
 
   it("skips an impossible calendar day and a far-future day as day_invalid", async () => {
@@ -224,7 +245,7 @@ describe("POST /api/nutrients/batch — per-entry skip guards", () => {
       "day_invalid",
       "day_invalid",
     ]);
-    expect(prisma.nutrientIntakeDay.upsert).not.toHaveBeenCalled();
+    expect(prisma.nutrientIntakeDay.createMany).not.toHaveBeenCalled();
   });
 
   it("a skipped entry never fails the batch — siblings still land", async () => {
@@ -240,12 +261,13 @@ describe("POST /api/nutrients/batch — per-entry skip guards", () => {
     expect(body.data.processed).toBe(2);
     expect(body.data.inserted).toBe(1);
     expect(body.data.skipped).toHaveLength(1);
-    expect(prisma.nutrientIntakeDay.upsert).toHaveBeenCalledTimes(1);
+    // One bulk createMany call carries the single valid entry.
+    expect(prisma.nutrientIntakeDay.createMany).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("POST /api/nutrients/batch — upsert semantics", () => {
-  it("reports inserted for a fresh (day, nutrient) and writes the catalog's canonical unit", async () => {
+describe("POST /api/nutrients/batch — write semantics", () => {
+  it("reports inserted for a fresh (day, nutrient), reads existence once, and writes the catalog's canonical unit", async () => {
     const day = recentDay();
     const res = await POST(
       postReq({
@@ -265,42 +287,43 @@ describe("POST /api/nutrients/batch — upsert semantics", () => {
     expect(body.data.updated).toBe(0);
     expect(body.data.entries[0].status).toBe("inserted");
 
-    expect(prisma.nutrientIntakeDay.upsert).toHaveBeenCalledWith({
+    // Single indexed existence read, not a per-entry probe.
+    expect(prisma.nutrientIntakeDay.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.nutrientIntakeDay.findMany).toHaveBeenCalledWith({
       where: {
-        userId_day_nutrient_source: {
+        userId: "user-1",
+        source: "APPLE_HEALTH",
+        OR: [{ day, nutrient: "vitamin_d" }],
+      },
+      select: { day: true, nutrient: true },
+    });
+
+    expect(prisma.nutrientIntakeDay.createMany).toHaveBeenCalledWith({
+      data: [
+        {
           userId: "user-1",
           day,
           nutrient: "vitamin_d",
+          amount: 22.5,
+          unit: "ug",
           source: "APPLE_HEALTH",
+          externalSourceVersion: "yazio-9.9",
         },
-      },
-      create: {
-        userId: "user-1",
-        day,
-        nutrient: "vitamin_d",
-        amount: 22.5,
-        unit: "ug",
-        source: "APPLE_HEALTH",
-        externalSourceVersion: "yazio-9.9",
-      },
-      update: {
-        amount: 22.5,
-        unit: "ug",
-        externalSourceVersion: "yazio-9.9",
-      },
+      ],
+      skipDuplicates: true,
     });
+    expect(prisma.nutrientIntakeDay.update).not.toHaveBeenCalled();
   });
 
   it("reports updated (never duplicate) when the composite key already exists", async () => {
-    vi.mocked(prisma.nutrientIntakeDay.findUnique).mockResolvedValue({
-      userId: "user-1",
-    } as never);
+    const day = recentDay();
+    vi.mocked(prisma.nutrientIntakeDay.findMany).mockResolvedValue([
+      { day, nutrient: "caffeine" },
+    ] as never);
 
     const res = await POST(
       postReq({
-        entries: [
-          { day: recentDay(), nutrient: "caffeine", unit: "mg", amount: 310 },
-        ],
+        entries: [{ day, nutrient: "caffeine", unit: "mg", amount: 310 }],
       }),
     );
     const body = (await res.json()) as BatchResponse;
@@ -310,6 +333,20 @@ describe("POST /api/nutrients/batch — upsert semantics", () => {
     expect(
       body.data.entries.some((e) => e.status === ("duplicate" as string)),
     ).toBe(false);
+
+    expect(prisma.nutrientIntakeDay.createMany).not.toHaveBeenCalled();
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.nutrientIntakeDay.update).toHaveBeenCalledWith({
+      where: {
+        userId_day_nutrient_source: {
+          userId: "user-1",
+          day,
+          nutrient: "caffeine",
+          source: "APPLE_HEALTH",
+        },
+      },
+      data: { amount: 310, unit: "mg", externalSourceVersion: null },
+    });
   });
 
   it("writes the audit-ledger breadcrumb only when at least one row landed", async () => {
@@ -335,19 +372,24 @@ describe("POST /api/nutrients/batch — upsert semantics", () => {
     );
   });
 
-  it("a thrown upsert marks only that entry skipped upsert_failed without leaking the raw error", async () => {
+  it("a failed bulk insert marks only the insert group skipped, without touching the update group", async () => {
     // The exception message must never reach the client — the per-entry
-    // `reason` is a closed set. A raw-message echo was a v1.28.48 fix.
+    // `reason` is a closed set.
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(prisma.nutrientIntakeDay.upsert)
-      .mockRejectedValueOnce(new Error("boom: sensitive db detail"))
-      .mockResolvedValueOnce({} as never);
+    const day = recentDay();
+    // `zinc` is new (insert path); `iron` already exists (update path).
+    vi.mocked(prisma.nutrientIntakeDay.findMany).mockResolvedValue([
+      { day, nutrient: "iron" },
+    ] as never);
+    vi.mocked(prisma.nutrientIntakeDay.createMany).mockRejectedValue(
+      new Error("boom: sensitive db detail"),
+    );
 
     const res = await POST(
       postReq({
         entries: [
-          { day: recentDay(), nutrient: "zinc", unit: "mg", amount: 10 },
-          { day: recentDay(), nutrient: "iron", unit: "mg", amount: 12 },
+          { day, nutrient: "zinc", unit: "mg", amount: 10 },
+          { day, nutrient: "iron", unit: "mg", amount: 12 },
         ],
       }),
     );
@@ -358,8 +400,29 @@ describe("POST /api/nutrients/batch — upsert semantics", () => {
     // The raw exception text is logged server-side only, never echoed.
     expect(JSON.stringify(body)).not.toContain("sensitive db detail");
     expect(spy).toHaveBeenCalled();
-    expect(body.data.entries[1].status).toBe("inserted");
-    expect(body.data.inserted).toBe(1);
+    // The independent update group still lands.
+    expect(body.data.entries[1].status).toBe("updated");
+    expect(body.data.updated).toBe(1);
     spy.mockRestore();
+  });
+
+  it("a race that drops one createMany row still counts consistently and is observable", async () => {
+    vi.mocked(prisma.nutrientIntakeDay.createMany).mockResolvedValue({
+      count: 1,
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          { day: recentDay(), nutrient: "zinc", unit: "mg", amount: 10 },
+          { day: recentDay(2), nutrient: "iron", unit: "mg", amount: 12 },
+        ],
+      }),
+    );
+    const body = (await res.json()) as BatchResponse;
+    // Both entries are still labelled inserted (count-only trade-off,
+    // documented at the call site) — the response never fails.
+    expect(body.data.inserted).toBe(1);
+    expect(res.status).toBe(200);
   });
 });

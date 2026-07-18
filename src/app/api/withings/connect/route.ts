@@ -1,5 +1,4 @@
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiError } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -32,6 +31,12 @@ import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
  * instead of bubbling a 500. Both rate-limit and create-failure paths
  * redirect rather than returning JSON because the entry point is a
  * browser navigation — a 429 envelope would surface as a blank page.
+ *
+ * v1.29.x — the no-credentials branch redirects too, matching every
+ * other failure path in this route. It used to return a raw JSON 400,
+ * which every browser navigation into this route (onboarding's
+ * "Connect Withings" tap included) surfaced as an unstyled JSON page —
+ * the first "connect a device" moment for a brand-new self-hoster.
  */
 
 const CONNECT_RATE_LIMIT = 10;
@@ -58,9 +63,9 @@ export const GET = apiHandler(async (req: NextRequest) => {
 
   const creds = await getUserWithingsCredentials(user.id);
   if (!creds) {
-    return apiError(
-      "Please configure your Withings Client ID and Client Secret in Settings first.",
-      400,
+    annotate({ action: { name: "withings.connect.no_credentials" } });
+    return NextResponse.redirect(
+      new URL("/settings/integrations?withings=error&reason=nocreds", req.url),
     );
   }
 

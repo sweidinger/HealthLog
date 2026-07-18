@@ -16,8 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CHART_HEIGHT_PX } from "@/lib/charts/constants";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
-import { formatDateShort } from "@/lib/format";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 
 import { RichChartTooltip, type RichTooltipRow } from "../charts/chart-tooltip";
 import { formatMetricValue } from "./format-value";
@@ -62,6 +61,7 @@ export function CustomMetricChart({
   decimals: number | null;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const [range, setRange] = useState<RangeKey>("365");
   const [nowMs] = useState(() => Date.now());
 
@@ -136,7 +136,7 @@ export function CustomMetricChart({
                 type="number"
                 scale="time"
                 domain={["dataMin", "dataMax"]}
-                tickFormatter={(ts: number) => formatDateShort(new Date(ts))}
+                tickFormatter={(ts: number) => fmt.dateShortSmart(new Date(ts))}
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                 stroke="var(--border)"
                 minTickGap={32}
@@ -192,7 +192,7 @@ export function CustomMetricChart({
                   return (
                     <RichChartTooltip
                       active
-                      label={formatDateShort(new Date(point.timestamp))}
+                      label={fmt.dateShortSmart(new Date(point.timestamp))}
                       rows={rows}
                     />
                   );

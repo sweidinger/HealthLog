@@ -91,7 +91,7 @@
     "colShare": "Part",
     "footerDisclaimer1": "Ce rapport a été généré automatiquement à partir de données auto-déclarées et vise à soutenir",
     "footerDisclaimer2": "la conversation médecin-patient. Il ne remplace pas un diagnostic médical. Les corrélations n'impliquent pas la causalité.",
-    "footerSource": "Source : HealthLog | Fuseau horaire : Europe/Berlin | Créé : {timestamp}",
+    "footerSource": "Source : HealthLog | Fuseau horaire : {timezone} | Créé : {timestamp}",
     "typeWeight": "Poids corporel",
     "typeBpSys": "Tension artérielle systolique",
     "typeBpDia": "Tension artérielle diastolique",
@@ -405,7 +405,6 @@
     "recentWorkouts": {
       "title": "Entraînements récents",
       "viewAll": "Tout voir",
-      "loading": "Chargement des entraînements…",
       "empty": {
         "title": "Aucun entraînement",
         "cta": "Ouvre l'app Apple Santé sur ton iPhone pour synchroniser les entraînements."
@@ -586,6 +585,22 @@
     "unitRatio": "ratio",
     "typeWho5Score": "Score WHO-5",
     "typeSciScore": "Score SCI"
+  },
+  "metricCatalog": {
+    "title": "Ce que HealthLog peut suivre",
+    "description": "Tous les domaines de mesures pris en charge par HealthLog, que tu aies déjà des données ou non — et ce qui les fournirait.",
+    "statusPresent": "Suivi",
+    "statusAbsent": "Pas encore suivi",
+    "statusModuleOff": "Désactivé",
+    "connectCta": "Connecter une source",
+    "viewCta": "Voir",
+    "ecg": {
+      "source": "Tracés ECG à une dérivation depuis une montre compatible — Withings ScanWatch aujourd'hui — synchronisés automatiquement."
+    },
+    "watchdog": {
+      "title": "Surveillance automatique",
+      "description": "HealthLog surveille aussi discrètement en arrière-plan — notifications de rythme irrégulier et de perturbations respiratoires envoyées par une montre connectée, ainsi que des alertes d'écart par rapport à ta valeur de référence — et n'affiche une carte que si quelque chose se démarque. L'absence de carte est bon signe, pas une fonctionnalité manquante."
+    }
   },
   "mood": {
     "title": "Humeur",
@@ -2476,7 +2491,8 @@
         "documentsAttachedOne": "1 document joint",
         "documentsAttachedOther": "{count} documents joints",
         "railBadge": "Chat de document cloisonné",
-        "uploadError": "Échec du téléversement. Veuillez réessayer."
+        "uploadError": "Échec du téléversement. Veuillez réessayer.",
+        "notFoundError": "Ce lien de document n'est plus valide : une conversation normale démarre à la place."
       }
     },
     "relativeJustNow": "à l’instant",
@@ -2487,6 +2503,7 @@
     "relativeDaysAgoOne": "il y a {count} jour",
     "relativeDaysAgoOther": "il y a {count} jours",
     "navOverview": "Vue d'ensemble",
+    "navCatalog": "Toutes les mesures",
     "navBloodPressure": "Tension artérielle",
     "navWeight": "Poids",
     "navPulse": "Pouls",
@@ -2517,9 +2534,9 @@
         "label": "Activité",
         "header": "Activité et mobilité"
       },
-      "cardiovascularParent": {
-        "label": "Cardiovasculaire",
-        "header": "Marqueurs cardiovasculaires"
+      "heartParent": {
+        "label": "Cœur",
+        "header": "Santé cardiaque"
       },
       "hearingParent": {
         "label": "Audition",
@@ -3879,6 +3896,8 @@
       "caption": "Votre fréquence cardiaque au fil de la journée, moyennée par tranches de 10 minutes.",
       "hourlyNote": "Moyenne horaire affichée pour cette journée — les jours récents affichent le détail complet par tranches de 10 minutes.",
       "empty": "Pas encore assez de mesures pour cette journée pour en afficher le rythme.",
+      "coverageOne": "Basé sur 1 mesure sur {hours}h.",
+      "coverageMany": "Basé sur {count} mesures sur {hours}h.",
       "baseline": "Repos",
       "today": "Aujourd'hui",
       "previousDay": "Jour précédent",
@@ -4016,7 +4035,7 @@
     },
     "source": {
       "title": "Connecter une source",
-      "body": "Importez les mesures automatiquement ou conservez la saisie manuelle. Rien n'est configuré à votre place : chaque carte indique simplement où la connecter.",
+      "body": "Importez les mesures automatiquement ou conservez la saisie manuelle. Rien n'est configuré à votre place : chaque carte indique simplement où la connecter. Les sources d'appareil nécessitent une application développeur gratuite sur votre propre compte (environ 5 minutes) ; le guide de chaque carte vous accompagne.",
       "recommended": "Recommandé",
       "manual": {
         "title": "Saisie manuelle",
@@ -4024,12 +4043,14 @@
       },
       "withings": {
         "title": "Withings",
-        "body": "Balances, tensiomètres et trackers Withings se synchronisent automatiquement.",
-        "cta": "Connecter Withings"
+        "body": "Balances, tensiomètres et trackers Withings se synchronisent automatiquement une fois connectés.",
+        "cta": "Connecter Withings",
+        "setupCta": "Configurer dans les Réglages",
+        "setupHint": "Nécessite d'abord votre propre application développeur Withings, gratuite — environ 5 minutes, une seule fois."
       },
       "more": {
         "title": "Autres sources",
-        "body": "Connectez l'une d'elles dans les Réglages quand vous le souhaitez.",
+        "body": "Connectez l'une d'elles dans les Réglages quand vous le souhaitez — la plupart nécessitent d'abord une application développeur gratuite sur votre propre compte.",
         "appleHealth": "Apple Health",
         "whoop": "WHOOP",
         "oura": "Oura",
@@ -4171,7 +4192,16 @@
       "disableError": "Impossible de désactiver le mode Recherche. Veuillez réessayer."
     },
     "shell": {
-      "sectionsNav": "Sections des réglages"
+      "sectionsNav": "Sections des réglages",
+      "groups": {
+        "account": "Compte",
+        "yourData": "Vos données",
+        "display": "Affichage",
+        "healthProfile": "Profil de santé",
+        "ai": "IA",
+        "connectivity": "Connectivité",
+        "system": "Système"
+      }
     },
     "sections": {
       "account": {
@@ -4356,7 +4386,8 @@
           },
           "fullBackup": {
             "title": "Sauvegarde complète",
-            "description": "Un seul fichier JSON contenant tout — même format que la sauvegarde automatique hebdomadaire. Utile pour une restauration personnelle via le téléversement administrateur.",
+            "description": "Toutes vos données dans un seul fichier JSON : mesures, médicaments, humeur, cycle, analyses de laboratoire, épisodes de maladie, allergies, antécédents familiaux et entraînements. Même format que la sauvegarde automatique hebdomadaire.",
+            "scopeNote": "Les fichiers originaux des documents ainsi que les tracés GPS/données d'échantillons des entraînements ne sont pas inclus — téléchargez-les séparément depuis le coffre de documents ou l'export des entraînements.",
             "encryptToggle": "Chiffrer avec une phrase secrète",
             "passphrasePlaceholder": "Phrase secrète (12 caractères min.)",
             "passphraseHelp": "Dérive la clé de l'archive avec Argon2id et la scelle avec AES-256-GCM. Enregistrez le fichier avec l'extension .hlx.",
@@ -5389,6 +5420,12 @@
     "ouraDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "nightscoutDescriptionSecondary": "Les mesures arrivent dans ton tableau de bord en arrière-plan. Première fois ? Suis le",
     "integrationCredentialsHint": "Où trouver ces identifiants et comment enregistrer ta propre application est expliqué dans le guide de configuration ci-dessus.",
+    "integrationRedirectGuide": {
+      "intro": "Cette connexion passe par votre propre application développeur {provider} — environ 5 minutes de configuration :",
+      "step1": "Créez une application dans le portail développeur {provider}.",
+      "step2": "Réglez son URL de redirection/callback sur :",
+      "step3": "Collez ci-dessus l'ID client et le secret client fournis."
+    },
     "security": {
       "sessionsTitle": "Sessions actives",
       "sessionsDescription": "Appareils et navigateurs actuellement connectés à votre compte.",
@@ -6029,6 +6066,7 @@
         "colAction": "Action",
         "colDuration": "Durée",
         "colTraceId": "Trace",
+        "viewDetails": "Voir les détails de {action} à {timestamp}",
         "showing": "Affichage de {count} sur jusqu'à {bufferMax} événements en mémoire tampon",
         "empty": "Le tampon est vide",
         "emptyDescription": "Aucun événement ne correspond encore aux filtres actuels. Cliquez sur Actualiser après avoir généré du trafic.",
@@ -6649,9 +6687,9 @@
       "hypertensionGrade1": "Hypertension grade 1",
       "hypertensionGrade2": "Hypertension grade 2",
       "hypertensionGrade3": "Hypertension grade 3",
-      "bradycardia": "Bradycardie",
+      "belowTypicalRange": "En dessous de la plage habituelle",
       "elevated": "Élevé",
-      "tachycardia": "Tachycardie",
+      "aboveTypicalRange": "Au-dessus de la plage habituelle",
       "significantlyLow": "Nettement bas",
       "slightlyLow": "Légèrement bas",
       "onTarget": "Dans la plage cible",
@@ -7898,14 +7936,14 @@
       "bpLowDoctor": "Deux mesures récentes avaient une systolique inférieure à {systolic} mmHg. Si tu te sens étourdi ou faible, assieds-toi ou allonge-toi et contacte ton médecin si cela persiste.",
       "bpLowEmergency": "Deux mesures récentes avaient une systolique inférieure à {systolic} mmHg et tu as signalé des symptômes. Si tu te sens près de t'évanouir, confus ou as la peau froide et moite, appelle les secours immédiatement.",
       "glucoseLowTitle": "Glycémie basse",
-      "glucoseLowDoctor": "Deux mesures récentes étaient en dessous de 70 mg/dL ({value} mg/dL). Prends des glucides à action rapide, remesure dans 15 minutes et contacte ton médecin si les baisses persistent.",
-      "glucoseLowEmergency": "Deux mesures récentes étaient en dessous de 70 mg/dL ({value} mg/dL) et tu as signalé des symptômes. Traite maintenant avec du sucre rapide ; si tu ne peux pas ou te sens très mal, appelle les secours.",
+      "glucoseLowDoctor": "Deux mesures récentes étaient en dessous de {threshold} {unit} ({value} {unit}). Prends des glucides à action rapide, remesure dans 15 minutes et contacte ton médecin si les baisses persistent.",
+      "glucoseLowEmergency": "Deux mesures récentes étaient en dessous de {threshold} {unit} ({value} {unit}) et tu as signalé des symptômes. Traite maintenant avec du sucre rapide ; si tu ne peux pas ou te sens très mal, appelle les secours.",
       "glucoseLowSevereTitle": "Glycémie très basse",
-      "glucoseLowSevereDoctor": "Deux mesures récentes étaient en dessous de 54 mg/dL ({value} mg/dL). Traite immédiatement avec des glucides à action rapide, remesure dans 15 minutes et contacte ton médecin.",
-      "glucoseLowSevereEmergency": "Deux mesures récentes étaient en dessous de 54 mg/dL ({value} mg/dL) et tu as signalé des symptômes. Traite maintenant ; si tu ne gardes pas la nourriture ou te sens très mal, appelle les secours.",
+      "glucoseLowSevereDoctor": "Deux mesures récentes étaient en dessous de {threshold} {unit} ({value} {unit}). Traite immédiatement avec des glucides à action rapide, remesure dans 15 minutes et contacte ton médecin.",
+      "glucoseLowSevereEmergency": "Deux mesures récentes étaient en dessous de {threshold} {unit} ({value} {unit}) et tu as signalé des symptômes. Traite maintenant ; si tu ne gardes pas la nourriture ou te sens très mal, appelle les secours.",
       "glucoseHighTitle": "Glycémie très élevée",
-      "glucoseHighDoctor": "Deux mesures récentes étaient à {value} mg/dL ou plus. Remesure, hydrate-toi et contacte ton médecin dès que possible si cela reste aussi élevé.",
-      "glucoseHighEmergency": "Deux mesures récentes étaient à {value} mg/dL ou plus et tu as signalé des symptômes. En cas de vomissements, de respiration rapide ou de confusion, appelle les secours immédiatement."
+      "glucoseHighDoctor": "Deux mesures récentes étaient à {value} {unit} ou plus. Remesure, hydrate-toi et contacte ton médecin dès que possible si cela reste aussi élevé.",
+      "glucoseHighEmergency": "Deux mesures récentes étaient à {value} {unit} ou plus et tu as signalé des symptômes. En cas de vomissements, de respiration rapide ou de confusion, appelle les secours immédiatement."
     }
   },
   "version": {
@@ -8041,6 +8079,12 @@
       },
       "nummerGegenKummer": {
         "name": "Nummer gegen Kummer (pour les jeunes)"
+      },
+      "telefonSeelsorgeAt": {
+        "name": "Telefonseelsorge Österreich (24h/24, 7j/7, gratuit et confidentiel)"
+      },
+      "dargeboteneHand": {
+        "name": "Die Dargebotene Hand (24h/24, 7j/7, gratuit et confidentiel)"
       },
       "krisenchat": {
         "name": "krisenchat (chat 24h/24, 7j/7, pour les jeunes)"
@@ -8295,7 +8339,9 @@
       "openLabel": "Ouvrir {title}",
       "attachmentBadge": "Téléchargement uniquement",
       "uploading": "Téléversement…",
-      "dismissFailed": "Ignorer le téléversement échoué"
+      "dismissFailed": "Ignorer le téléversement échoué",
+      "processing": "Traitement en cours…",
+      "ready": "Prêt"
     },
     "error": {
       "fileTooLarge": "Ce fichier dépasse la limite de {maxSize}.",

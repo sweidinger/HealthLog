@@ -40,7 +40,10 @@ import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
  * Rate-limited per user (10 calls / 60 s) so a logged-in session can't spam
  * ledger rows for the full 10-min TTL window. Both the rate-limit and
  * create-failure paths redirect (not JSON) because the cookie entry point is a
- * browser navigation — a 429 envelope would surface as a blank page.
+ * browser navigation — a 429 envelope would surface as a blank page. The
+ * no-credentials branch redirects too (v1.29.x), matching Withings — only the
+ * ticket-invalid branch stays a typed 401 JSON response, since that path is
+ * consumed by a native client, not a browser navigation.
  */
 const CONNECT_RATE_LIMIT = 10;
 const CONNECT_WINDOW_MS = 60_000;
@@ -89,9 +92,9 @@ export const GET = apiHandler(async (req: NextRequest) => {
 
   const creds = await getUserWhoopCredentials(userId);
   if (!creds) {
-    return apiError(
-      "Please configure your WHOOP Client ID and Client Secret in Settings first.",
-      400,
+    annotate({ action: { name: "whoop.connect.no_credentials" } });
+    return NextResponse.redirect(
+      new URL("/settings/integrations?whoop=error&reason=nocreds", req.url),
     );
   }
 

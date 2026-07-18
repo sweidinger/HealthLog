@@ -22,7 +22,7 @@ import {
   tallyComplianceFromLedger,
   tallyLedgerRows,
   type ComplianceSchedule,
-} from "../compliance";
+} from "@/lib/analytics/compliance";
 import type { DoseHistoryRow } from "@/lib/medications/scheduling/dose-history";
 import { zonedWallClockToUtc } from "@/lib/tz/wall-clock";
 

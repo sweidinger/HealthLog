@@ -37,7 +37,11 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "@/lib/i18n/context";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
-import { invalidateKeys, moodDependentKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  moodDependentKeys,
+  refetchInactiveDailyReads,
+} from "@/lib/query-keys";
 import { ApiError, apiPost } from "@/lib/api/api-fetch";
 import { SheetSection, SheetSectionCount } from "@/components/ui/sheet-section";
 import { MoodTagPicker, type RatedFactor } from "./mood-tag-picker";
@@ -216,6 +220,7 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
       resetForm();
       setMoreTagsOpen(false);
       await invalidateKeys(queryClient, moodDependentKeys);
+      await refetchInactiveDailyReads(queryClient);
       toast.success(t("common.saved"));
       onSuccess?.();
     } catch (err) {

@@ -13,6 +13,8 @@ import { apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
+import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
+import { readDayMeanSeries } from "@/lib/insights/derived/baseline";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import {
@@ -72,43 +74,66 @@ export const GET = apiHandler(async () => {
   await requireAssistantSurface("insightStatus");
   annotate({ action: { name: "insights.cards" } });
 
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 86_400_000);
+  const NINETY_DAY_WINDOW = 90;
+  const ninetyDaysAgo = new Date(Date.now() - NINETY_DAY_WINDOW * 86_400_000);
 
-  const [dbUser, allMeasurements, medications] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: user.id },
-      select: { heightCm: true, dateOfBirth: true, aiProvider: true },
-    }),
-    prisma.measurement.findMany({
-      where: {
-        userId: user.id,
-        type: {
-          in: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA", "PULSE"],
+  const [dbUser, manualMeasurements, medications, rollupCoverage] =
+    await Promise.all([
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { heightCm: true, dateOfBirth: true, aiProvider: true },
+      }),
+      // WEIGHT + BP are manual entries (low volume, and BP needs exact-
+      // timestamp pairing below for `bpPctInTarget`), so a bounded raw read
+      // stays cheap. PULSE is excluded here — a continuously-synced wearable
+      // account can carry 100k+ raw rows in the window; it reads through the
+      // rollup tier below instead.
+      prisma.measurement.findMany({
+        where: {
+          userId: user.id,
+          type: { in: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"] },
+          measuredAt: { gte: ninetyDaysAgo },
+          deletedAt: null,
         },
-        measuredAt: { gte: ninetyDaysAgo },
-        deletedAt: null,
-      },
-      orderBy: { measuredAt: "asc" },
-      select: { type: true, value: true, measuredAt: true },
-    }),
-    prisma.medication.findMany({
-      // v1.16.11 — as-needed (PRN) medications never surface a compliance
-      // rate (no expected doses).
-      where: { userId: user.id, active: true, asNeeded: false },
-      include: {
-        // Schedules through the shared compliance select so the configured
-        // per-dose windows reach the engine like every other surface.
-        schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
-        // v1.16.3 — archived schedule eras for era-aware expected counts.
-        scheduleRevisions: { orderBy: { validFrom: "asc" } },
-        // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
-        pauseEras: { select: { pausedAt: true, resumedAt: true } },
-      },
-    }),
-  ]);
+        orderBy: { measuredAt: "asc" },
+        select: { type: true, value: true, measuredAt: true },
+      }),
+      prisma.medication.findMany({
+        // v1.16.11 — as-needed (PRN) medications never surface a compliance
+        // rate (no expected doses).
+        where: { userId: user.id, active: true, asNeeded: false },
+        include: {
+          // Schedules through the shared compliance select so the configured
+          // per-dose windows reach the engine like every other surface.
+          schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
+          // v1.16.3 — archived schedule eras for era-aware expected counts.
+          scheduleRevisions: { orderBy: { validFrom: "asc" } },
+          // v1.25 H-MED1 — pause eras so paused days drop out of the denominator.
+          pauseEras: { select: { pausedAt: true, resumedAt: true } },
+        },
+      }),
+      probeRollupCoverage(user.id),
+    ]);
+
+  // v1.28 perf — PULSE reads the DAY-rollup tier (read-swap; falls back to a
+  // bounded per-day-grouped live read on a coverage miss) instead of pulling
+  // every raw sample into JS. `pulseAvg30` / `pulseAnomalyCount` derive from
+  // the resulting day-mean series, so a dense wearable account's anomaly
+  // count reflects daily outliers rather than every noisy raw sample.
+  const { points: pulseDayMeans } = await readDayMeanSeries(
+    user.id,
+    "PULSE",
+    NINETY_DAY_WINDOW,
+    new Date(),
+    rollupCoverage,
+  );
+  const pulseData: DataPoint[] = pulseDayMeans.map((p) => ({
+    date: new Date(`${p.day}T00:00:00.000Z`),
+    value: p.mean,
+  }));
 
   const byType = (t: MeasurementType): DataPoint[] =>
-    allMeasurements
+    manualMeasurements
       .filter((m) => m.type === t)
       .map((m) => ({ date: m.measuredAt, value: m.value }));
 
@@ -119,11 +144,11 @@ export const GET = apiHandler(async () => {
     "WEIGHT",
     "BLOOD_PRESSURE_SYS",
     "BLOOD_PRESSURE_DIA",
-    "PULSE",
   ] as MeasurementType[]) {
     const data = byType(t);
     if (data.length > 0) summaries[t] = summarize(data);
   }
+  if (pulseData.length > 0) summaries.PULSE = summarize(pulseData);
 
   let bmi: number | null = null;
   if (dbUser?.heightCm && summaries.WEIGHT?.latest) {

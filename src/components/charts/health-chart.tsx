@@ -952,7 +952,7 @@ export function HealthChart({
       const allData: ChartDataPoint[] = Array.from(dailyAggregates.values())
         .map((bucket) => {
           const point: ChartDataPoint = {
-            date: tzFmt.dateShort(new Date(bucket.timestamp)),
+            date: tzFmt.dateShortSmart(new Date(bucket.timestamp)),
             timestamp: bucket.timestamp,
           };
 
@@ -1079,7 +1079,7 @@ export function HealthChart({
           ).points.map<ChartDataPoint>((point) => {
             const date = new Date(point.timestamp);
             const out: ChartDataPoint = {
-              date: tzFmt.dateShort(date),
+              date: tzFmt.dateShortSmart(date),
               timestamp: point.timestamp,
             };
             for (const [type, value] of Object.entries(point.values)) {
@@ -1209,7 +1209,7 @@ export function HealthChart({
     // Index shifted rows by the same day-key the chart already uses.
     const shiftedByDay = new Map<string, Record<string, number>>();
     for (const row of shifted) {
-      const dayKey = tzFmt.dateShort(new Date(row.timestamp));
+      const dayKey = tzFmt.dateShortSmart(new Date(row.timestamp));
       const slot = shiftedByDay.get(dayKey) ?? {};
       for (const [type, value] of Object.entries(row.values)) {
         if (typeof value === "number" && Number.isFinite(value)) {

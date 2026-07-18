@@ -42,6 +42,18 @@ vi.mock("@/lib/db", () => ({
     auditLog: { findMany: vi.fn() },
     userHealthProfile: { findUnique: vi.fn() },
     illnessEpisode: { findMany: vi.fn() },
+    // v1.28 backup-completeness — the cycle + records sections the
+    // full-backup builder now also reads (`buildCycleBackupSection` /
+    // `buildRecordsBackupSection`).
+    cycleProfile: { findUnique: vi.fn() },
+    menstrualCycle: { findMany: vi.fn() },
+    cycleDayLog: { findMany: vi.fn() },
+    labResult: { findMany: vi.fn() },
+    biomarker: { findMany: vi.fn() },
+    allergy: { findMany: vi.fn() },
+    familyHistoryEntry: { findMany: vi.fn() },
+    workout: { findMany: vi.fn() },
+    inboundDocument: { findMany: vi.fn() },
   },
 }));
 
@@ -125,6 +137,18 @@ beforeEach(() => {
     null as never,
   );
   vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([] as never);
+  // v1.28 backup-completeness — the full-backup route now also reads the
+  // cycle + records sections; let them resolve to empty so the route
+  // completes instead of rejecting on an unmocked delegate.
+  vi.mocked(prisma.cycleProfile.findUnique).mockResolvedValue(null as never);
+  vi.mocked(prisma.menstrualCycle.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.cycleDayLog.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.labResult.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.biomarker.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.allergy.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.familyHistoryEntry.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.workout.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([] as never);
 });
 
 describe("v1.4.41 W-DELETED-2 — soft-delete invisibility", () => {
@@ -146,6 +170,48 @@ describe("v1.4.41 W-DELETED-2 — soft-delete invisibility", () => {
         where: expect.objectContaining({ deletedAt: null }),
       }),
     );
+  });
+
+  it("/api/export/full-backup scopes every v1.28 records domain to userId + deletedAt: null", async () => {
+    const { GET } = await import("../full-backup/route");
+    await GET(mkReq("http://localhost/api/export/full-backup"));
+
+    expect(prisma.labResult.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", deletedAt: null },
+      }),
+    );
+    expect(prisma.illnessEpisode.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", deletedAt: null },
+      }),
+    );
+    expect(prisma.allergy.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", deletedAt: null },
+      }),
+    );
+    expect(prisma.familyHistoryEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", deletedAt: null },
+      }),
+    );
+    expect(prisma.inboundDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", deletedAt: null },
+      }),
+    );
+    // Biomarker + Workout carry no soft-delete tombstone — userId-only scope.
+    expect(prisma.biomarker.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: "user-1" } }),
+    );
+    expect(prisma.workout.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: "user-1" } }),
+    );
+    // The document read must never select the encrypted content blob.
+    const documentCall = vi.mocked(prisma.inboundDocument.findMany).mock
+      .calls[0][0] as { select?: Record<string, unknown> };
+    expect(documentCall.select).not.toHaveProperty("contentEncrypted");
   });
 
   it("/api/export (legacy) scopes the measurement read to deletedAt: null", async () => {

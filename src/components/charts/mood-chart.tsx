@@ -400,7 +400,7 @@ export function MoodChart({
 
     const allPoints: ChartDataPoint[] = data.entries
       .map((entry) => ({
-        date: tzFmt.dateShort(new Date(dayKeyToTimestamp(entry.date))),
+        date: tzFmt.dateShortSmart(new Date(dayKeyToTimestamp(entry.date))),
         timestamp: dayKeyToTimestamp(entry.date),
         pointIndex: 0,
         score: entry.score,
@@ -436,7 +436,7 @@ export function MoodChart({
             })),
             { bucket: bucketType },
           ).points.map((point) => ({
-            date: tzFmt.dateShort(new Date(point.timestamp)),
+            date: tzFmt.dateShortSmart(new Date(point.timestamp)),
             timestamp: point.timestamp,
             pointIndex: 0,
             score: point.values.score,
@@ -513,7 +513,7 @@ export function MoodChart({
 
     const shiftedByDay = new Map<string, number>();
     for (const row of shifted) {
-      const dayKey = tzFmt.dateShort(new Date(row.timestamp));
+      const dayKey = tzFmt.dateShortSmart(new Date(row.timestamp));
       if (typeof row.score === "number" && Number.isFinite(row.score)) {
         shiftedByDay.set(dayKey, row.score);
       }

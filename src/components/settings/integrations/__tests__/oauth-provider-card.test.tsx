@@ -148,3 +148,33 @@ describe("OAuthProviderCard — per-user BYO credentials form (v1.17.1)", () => 
     expect(html).toContain("Saved — enter new to replace");
   });
 });
+
+describe("OAuthProviderCard — redirect-URI mini-guide (v1.29.x, UX audit H2)", () => {
+  it("shows the callback URL guide before the user has BYO credentials", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.example";
+    statusPayload = {
+      connected: false,
+      configured: false,
+      available: true,
+      hasOwnCredentials: false,
+    };
+    const html = render({ credentials: true });
+    expect(html).toContain('data-testid="polar-redirect-guide"');
+    expect(html).toContain('data-testid="polar-redirect-uri"');
+    expect(html).toContain("https://app.example/api/polar/callback");
+  });
+
+  it("hides the guide once the user has stored their own credentials", () => {
+    statusPayload = {
+      connected: true,
+      configured: true,
+      available: true,
+      hasOwnCredentials: true,
+      state: "connected",
+      lastSuccessAt: null,
+      lastError: null,
+    };
+    const html = render({ credentials: true });
+    expect(html).not.toContain('data-testid="polar-redirect-guide"');
+  });
+});

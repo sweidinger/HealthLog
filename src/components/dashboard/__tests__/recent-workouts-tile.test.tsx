@@ -32,11 +32,15 @@ let mockResult: {
   isLoading: boolean;
   isEmpty: boolean;
   error: Error | null;
+  isError: boolean;
+  refetch: () => void;
 } = {
   data: undefined,
   isLoading: false,
   isEmpty: false,
   error: null,
+  isError: false,
+  refetch: () => {},
 };
 
 vi.mock("@/hooks/use-workouts", async () => {
@@ -66,15 +70,26 @@ beforeEach(() => {
     isLoading: false,
     isEmpty: false,
     error: null,
+    isError: false,
+    refetch: () => {},
   };
 });
 
 describe("<RecentWorkoutsTile>", () => {
-  it("renders the loading placeholder while the query is in flight", () => {
+  it("renders row-shaped skeletons while the query is in flight", () => {
     mockResult.isLoading = true;
     const html = render();
     expect(html).toContain('data-slot="recent-workouts-loading"');
-    expect(html).toContain("Loading workouts");
+    expect(html).toContain('data-slot="skeleton"');
+  });
+
+  it("renders a retry card instead of the empty state on a failed fetch", () => {
+    mockResult.isError = true;
+    const html = render();
+    expect(html).toContain('data-slot="query-error-card"');
+    // A failed fetch must never read as the honest "no workouts yet"
+    // empty state — that would misreport an outage as an empty account.
+    expect(html).not.toContain('data-slot="recent-workouts-empty"');
   });
 
   it("renders the empty-state with the Apple-Health onboarding cue", () => {

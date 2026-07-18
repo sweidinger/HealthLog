@@ -68,6 +68,13 @@ export interface MedsTodayBlock {
   nextDueOverdue: boolean;
   /** Name of the medication carrying `nextDueAt`; null when none due. */
   nextDueMedicationName: string | null;
+  /**
+   * Id of the medication carrying `nextDueAt`; null when none due. Threaded
+   * through so a consumer (the Today digest's dose-window rail item) can
+   * deep-link straight to the overdue medication's card instead of the bare
+   * list.
+   */
+  nextDueMedicationId: string | null;
 }
 
 export async function buildMedsTodayBlock(
@@ -182,6 +189,7 @@ export async function buildMedsTodayBlock(
   let nextDueAt: Date | null = null;
   let nextDueOverdue = false;
   let nextDueMedicationName: string | null = null;
+  let nextDueMedicationId: string | null = null;
   for (const m of medications) {
     const display = computeDisplayDue({
       medication: {
@@ -203,6 +211,7 @@ export async function buildMedsTodayBlock(
       nextDueAt = display.at;
       nextDueOverdue = display.overdue;
       nextDueMedicationName = m.name;
+      nextDueMedicationId = m.id;
     }
   }
 
@@ -214,5 +223,6 @@ export async function buildMedsTodayBlock(
     nextDueAt: nextDueAt ? nextDueAt.toISOString() : null,
     nextDueOverdue,
     nextDueMedicationName,
+    nextDueMedicationId,
   };
 }

@@ -81,7 +81,17 @@ describe("notifySafetyFloor", () => {
     const opts = dispatchMock.mock.calls[0][0];
     expect(opts.messageKey).toBe("safety.floor.glucoseLowSevereEmergency");
     expect(opts.titleKey).toBe("safety.floor.glucoseLowSevereTitle");
-    expect(opts.params).toEqual({ value: 48 });
+    expect(opts.params).toEqual({ value: 48, unit: "mg/dL", threshold: 54 });
+  });
+
+  it("converts the glucose value + threshold to the caller's display unit", async () => {
+    await notifySafetyFloor({
+      userId: "u1",
+      decision: glucoseLowSymptomatic,
+      glucoseUnit: "mmol/L",
+    });
+    const opts = dispatchMock.mock.calls[0][0];
+    expect(opts.params).toEqual({ value: 2.7, unit: "mmol/L", threshold: 3 });
   });
 
   it("de-dupes by reason when a recent ledger row exists", async () => {

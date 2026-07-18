@@ -2,17 +2,12 @@
 
 import type { ReactNode } from "react";
 import {
-  Activity,
-  Bike,
-  Dumbbell,
   Flame,
   Footprints,
   HeartPulse,
   Map,
   Mountain,
-  PersonStanding,
   Timer,
-  type LucideIcon,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +18,7 @@ import {
   hourCycleOptions,
   type TimeFormatPreference,
 } from "@/lib/format-locale";
+import { iconForSport } from "@/lib/workouts/sport-icons";
 import type { WorkoutDetailPayload } from "@/hooks/use-workouts";
 
 /**
@@ -34,33 +30,6 @@ import type { WorkoutDetailPayload } from "@/hooks/use-workouts";
  * component below is a pure render primitive over a non-null
  * `WorkoutDetailPayload`.
  */
-
-const SPORT_TYPE_ICON: Record<string, LucideIcon> = {
-  walking: Footprints,
-  running: PersonStanding,
-  cycling: Bike,
-  hiking: Mountain,
-  swimming: Activity,
-  rowing: Activity,
-  elliptical: Activity,
-  stairClimber: Activity,
-  yoga: PersonStanding,
-  mindAndBody: PersonStanding,
-  strength: Dumbbell,
-  hiit: Activity,
-  dance: Activity,
-  golf: Activity,
-  tennis: Activity,
-  basketball: Activity,
-  soccer: Activity,
-  crossTraining: Activity,
-  mixedCardio: HeartPulse,
-  other: Activity,
-};
-
-function iconForSport(sportType: string): LucideIcon {
-  return SPORT_TYPE_ICON[sportType] ?? Activity;
-}
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);

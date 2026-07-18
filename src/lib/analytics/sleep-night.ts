@@ -309,10 +309,11 @@ const RECONSTRUCTED_TIMELINE_SOURCES: ReadonlySet<string> = new Set<string>([
 
 /**
  * Separator between the source and device-type parts of a writer key.
- * ` ` cannot appear in a `MeasurementSource` enum literal or a
- * device-type tag, so the split-back is unambiguous.
+ * The unit-separator character (U+241F) cannot appear in a
+ * `MeasurementSource` enum literal or a device-type tag, so the
+ * split-back is unambiguous.
  */
-const WRITER_KEY_SEP = " ";
+const WRITER_KEY_SEP = "\u241F";
 
 /**
  * Writer-bucket key of a stage row: the source, refined by the device-type

@@ -28,12 +28,17 @@ export interface MoodDistributionRow {
   count: number;
 }
 
+// v1.28.17 — semantic tokens, not raw `--dracula-*` primitives: every one of
+// these already carries an AA-tuned Alucard (light-theme) override, but
+// routing through the meaning-bearing alias (destructive/warning/yellow/
+// success) keeps this map legible as a severity ladder rather than an
+// arbitrary palette pick, matching the `no-raw-palette-color` discipline.
 const BAR_COLOR_BY_SCORE: Record<number, string> = {
-  1: "var(--dracula-red)",
-  2: "var(--dracula-orange)",
+  1: "var(--destructive)",
+  2: "var(--warning)",
   3: "var(--dracula-yellow)",
-  4: "var(--dracula-green)",
-  5: "var(--dracula-green)",
+  4: "var(--success)",
+  5: "var(--success)",
 };
 
 export function MoodDistributionChart({
@@ -68,8 +73,8 @@ export function MoodDistributionChart({
             // not overridden in `:root.light` (Alucard white card) → white-on-
             // white. `--muted-foreground` is the token every other in-app chart
             // uses for axis ticks and is legible in both themes; dark mode is
-            // unchanged. The mood-hue bar Cells stay on `--dracula-*` — only the
-            // axis text legibility changes here.
+            // unchanged. The mood-hue bar Cells route through semantic tokens
+            // (see `BAR_COLOR_BY_SCORE`), AA-tuned per theme too.
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             stroke="var(--muted-foreground)"
             interval={0}
@@ -80,8 +85,8 @@ export function MoodDistributionChart({
             // not overridden in `:root.light` (Alucard white card) → white-on-
             // white. `--muted-foreground` is the token every other in-app chart
             // uses for axis ticks and is legible in both themes; dark mode is
-            // unchanged. The mood-hue bar Cells stay on `--dracula-*` — only the
-            // axis text legibility changes here.
+            // unchanged. The mood-hue bar Cells route through semantic tokens
+            // (see `BAR_COLOR_BY_SCORE`), AA-tuned per theme too.
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             stroke="var(--muted-foreground)"
             width={28}
@@ -117,7 +122,7 @@ export function MoodDistributionChart({
             {data.map((row) => (
               <Cell
                 key={row.score}
-                fill={BAR_COLOR_BY_SCORE[row.score] ?? "var(--dracula-purple)"}
+                fill={BAR_COLOR_BY_SCORE[row.score] ?? "var(--primary)"}
               />
             ))}
           </Bar>

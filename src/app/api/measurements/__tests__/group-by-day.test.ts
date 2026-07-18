@@ -27,6 +27,11 @@ vi.mock("@/lib/db", () => ({
     measurementRollup: {
       findMany: vi.fn(),
     },
+    // v1.29.6 — the groupBy=day branch now runs its raw rows through
+    // `pickCanonicalSourceRows`, which loads the user's source-priority
+    // blob via `loadUserSourcePriority` (prisma.user.findUnique). `null`
+    // resolves to the default ladders.
+    user: { findUnique: vi.fn() },
     // v1.4.43 W6 — validation-failed paths write an audit breadcrumb.
     auditLog: { create: vi.fn().mockResolvedValue({}) },
     $queryRaw: vi.fn(),
@@ -75,6 +80,9 @@ beforeEach(() => {
   // write; the route swallows rejections so the test only needs a
   // resolved mock to keep the catch-block silent.
   vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
+  // v1.29.6 — null source-priority blob → default rank ladders for the
+  // groupBy=day canonical-source collapse.
+  vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
 });
 
 describe("GET /api/measurements — groupBy=day (W7c collapsed list)", () => {
@@ -163,6 +171,80 @@ describe("GET /api/measurements — groupBy=day (W7c collapsed list)", () => {
     // row sorts cleanly between same-day spot samples (canonical
     // daily-timestamp contract shared with the drain helper).
     expect(day15.measuredAt).toContain("2026-05-15T10:00:00");
+  });
+
+  // v1.29.6 — the raw-row scan must read the MOST RECENT window before
+  // bucketing, mirroring the workouts-list ordering fix (05f80ad37): the
+  // canonical/day-bucket picker doesn't reorder its input, but the
+  // underlying `orderBy: asc` + `take: limit` sliced the OLDEST page of
+  // rows before the day-bucketing loop ran — on a long history the most
+  // recent days never appeared at all.
+  it("scans the raw rows newest-first before bucketing", async () => {
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+
+    await GET(getRequest("type=ACTIVITY_STEPS&groupBy=day"));
+
+    const call = vi.mocked(prisma.measurement.findMany).mock.calls[0]?.[0] as {
+      orderBy?: { measuredAt?: "asc" | "desc" };
+    };
+    expect(call.orderBy).toEqual({ measuredAt: "desc" });
+  });
+
+  // v1.29.6 — a day with both an Apple Health AND a Withings write for the
+  // same cumulative metric must collapse to the ladder-canonical source
+  // before summing, exactly like the dashboard rollup tile
+  // (`collapseRollupRowsBySource`) does. Without the collapse, 9000
+  // Apple-Health steps + 8800 Withings steps summed to a fabricated 17800 —
+  // a number the tile never showed.
+  it("collapses cross-source rows to the ladder-canonical source before summing", async () => {
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        id: "m-apple",
+        type: "ACTIVITY_STEPS",
+        value: 9000,
+        unit: "steps",
+        source: "APPLE_HEALTH",
+        measuredAt: new Date("2026-05-15T08:00:00.000Z"),
+        notes: null,
+        deviceType: null,
+      },
+      {
+        id: "m-withings",
+        type: "ACTIVITY_STEPS",
+        value: 8800,
+        unit: "steps",
+        source: "WITHINGS",
+        measuredAt: new Date("2026-05-15T09:00:00.000Z"),
+        notes: null,
+        deviceType: null,
+      },
+    ] as never);
+
+    const res = await GET(
+      getRequest(
+        "type=ACTIVITY_STEPS&groupBy=day&from=2026-05-15T00:00:00Z&to=2026-05-16T00:00:00Z",
+      ),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: {
+        measurements: Array<{
+          dayKey: string;
+          value: number;
+          source: string;
+          sampleCount: number;
+        }>;
+        meta: { droppedDuplicates?: number };
+      };
+    };
+    expect(json.data.measurements.length).toBe(1);
+    const [day] = json.data.measurements;
+    // APPLE_HEALTH beats WITHINGS on the default `steps` ladder — the
+    // Withings row drops out of the sum entirely rather than adding on top.
+    expect(day.value).toBe(9000);
+    expect(day.source).toBe("APPLE_HEALTH");
+    expect(day.sampleCount).toBe(1);
+    expect(json.data.meta.droppedDuplicates).toBe(1);
   });
 
   it("falls back to the legacy findMany path when groupBy=day is set on a non-cumulative type", async () => {

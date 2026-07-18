@@ -5,6 +5,7 @@
  * schedules, and boss.work registrations.
  */
 import { type Job } from "pg-boss";
+import { fireAndForget } from "@/lib/logging/fire-and-forget";
 import { recordError, recordWithingsSync } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { syncUserMeasurements } from "@/lib/withings/sync";
@@ -68,7 +69,9 @@ export async function handleWithingsFallbackSync(
           // v1.18.1 — a fresh reading landed; resolve this user's Vorsorge
           // reminders eventfully. Fire-and-forget; the cron is the net.
           if (imported > 0) {
-            void enqueueReminderSatisfy(connection.userId).catch(() => {});
+            fireAndForget(enqueueReminderSatisfy(connection.userId), {
+              action: "reminder.satisfy.enqueue",
+            });
           }
         } catch (err) {
           evt.addWarning(
@@ -138,7 +141,9 @@ export async function handleWithingsActivitySync(
           usersSynced++;
           measurementsImported += imported;
           if (imported > 0) {
-            void enqueueReminderSatisfy(userId).catch(() => {});
+            fireAndForget(enqueueReminderSatisfy(userId), {
+              action: "reminder.satisfy.enqueue",
+            });
           }
         } catch (err) {
           evt.addWarning(
@@ -196,7 +201,9 @@ export async function handleWithingsSleepSync(
           usersSynced++;
           measurementsImported += imported;
           if (imported > 0) {
-            void enqueueReminderSatisfy(userId).catch(() => {});
+            fireAndForget(enqueueReminderSatisfy(userId), {
+              action: "reminder.satisfy.enqueue",
+            });
           }
         } catch (err) {
           evt.addWarning(

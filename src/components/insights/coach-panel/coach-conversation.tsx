@@ -103,6 +103,24 @@ export function launchScopeToCoachScope(
 }
 
 /**
+ * v1.29.x — a stale/invalid `?doc=<id>` deep-link (a deleted document, a
+ * mistyped id, someone else's document) 404s the staged detail fetch
+ * forever, which used to trap every send behind a phantom "untitled"
+ * attachment that could never resolve (the fenced gate never clears).
+ * Pure so the drop decision is unit-testable without mounting the
+ * component: given the currently staged ids and which of their detail
+ * fetches settled into an error (index-aligned with `pendingAttachmentIds`,
+ * matching `useQueries`' `isError`), returns the ids that should fall out of
+ * staging. A bad link degrades to a normal chat instead of a dead end.
+ */
+export function dropInvalidStagedAttachments(
+  pendingAttachmentIds: string[],
+  isErrorByIndex: boolean[],
+): string[] {
+  return pendingAttachmentIds.filter((_, i) => isErrorByIndex[i] === true);
+}
+
+/**
  * v1.21.4 (C2) — the localStorage key that records the seeded "worth a look"
  * opener as dismissed for a given LOCAL calendar day. Date-stamped so the
  * dismissal resets at midnight: a new day mints a new key the flag has not
@@ -357,6 +375,43 @@ export function CoachConversation({
     const d = stagedDetailById.get(id);
     return d?.title ?? d?.filename ?? t("documents.card.untitled");
   };
+
+  // v1.29.x — a stale/invalid `?doc=<id>` deep-link (a deleted document, a
+  // mistyped id, someone else's document) 404s the detail fetch above
+  // forever. `refetchInterval` reads `false` once a query has no data, so the
+  // fetch never retries on its own — `isStagedIndexed` stayed permanently
+  // false and the fenced send-gate (`fenced && anyPendingUnindexed` below)
+  // trapped every message behind a phantom "untitled" attachment that could
+  // never resolve. Drop a staged id the moment its detail fetch settles into
+  // an error instead: the doc-scope clears, the banner disappears, and the
+  // surface degrades to a normal chat rather than a dead end.
+  //
+  // The drop itself runs in the render-phase-update pattern (mirrors
+  // `autoOpenResolved` below) rather than an effect: `react-hooks/set-state-
+  // in-effect` rejects a setState call inside an effect whose source is a
+  // query result. It is self-limiting without a ref guard: once an id drops
+  // out of `pendingAttachmentIds`, React's render-phase-update loop
+  // re-renders BEFORE committing, and on that re-render the id is no longer
+  // in `pendingAttachmentIds` at all, so `dropInvalidStagedAttachments` can
+  // never surface it again. The toast is the one genuine side effect and
+  // stays in its own effect (no setState inside it), keyed on the ids just
+  // dropped so it fires exactly once per distinct drop.
+  const invalidStagedIds = dropInvalidStagedAttachments(
+    pendingAttachmentIds,
+    stagedDetailResults.map((q) => q.isError === true),
+  );
+  const [invalidToastKey, setInvalidToastKey] = useState("");
+  if (invalidStagedIds.length > 0) {
+    setPendingAttachmentIds((prev) =>
+      prev.filter((id) => !invalidStagedIds.includes(id)),
+    );
+    const key = invalidStagedIds.join(",");
+    if (key !== invalidToastKey) setInvalidToastKey(key);
+  }
+  useEffect(() => {
+    if (!invalidToastKey) return;
+    toast.error(t("insights.coach.attach.notFoundError"));
+  }, [invalidToastKey, t]);
 
   // The pills row above the composer. On a fresh chat every pill is a staged id;
   // on an existing conversation the server attachments are the live pills and any

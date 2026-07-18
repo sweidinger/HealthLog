@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   hourCycleOptions,
   makeFormatters,
@@ -210,6 +210,60 @@ describe("makeFormatters", () => {
       // 01:30 UTC = 02:30 CET (second pass).
       expect(fmt.time(new Date("2026-10-25T01:30:00Z"))).toBe("02:30");
       expect(fmt.date(new Date("2026-10-25T01:30:00Z"))).toBe("25.10.2026");
+    });
+  });
+
+  // Issue #66 (date-format sweep) — `dateShortSmart` / `dateWithWeekdaySmart`
+  // add the year only when it differs from "now"'s year, so a chart axis,
+  // history list, or timeline never reads a bare "19.02." for a reading
+  // from a prior year and mistakes it for this year's. "Now" is faked so
+  // the boundary is deterministic regardless of the day this suite runs.
+  describe("conditional-year formatters (#66)", () => {
+    const RIGHT_NOW = new Date("2026-07-10T12:00:00Z");
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(RIGHT_NOW);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("dateShortSmart omits the year for a date in the current year", () => {
+      const de = makeFormatters("de");
+      const en = makeFormatters("en");
+      const thisYear = new Date("2026-02-19T10:00:00Z");
+      expect(de.dateShortSmart(thisYear)).toBe("19.02.");
+      expect(en.dateShortSmart(thisYear)).not.toContain("2026");
+    });
+
+    it("dateShortSmart includes the year for a date from a prior year", () => {
+      const de = makeFormatters("de");
+      const en = makeFormatters("en");
+      // A December-of-last-year date — the exact regression this guards.
+      const lastDecember = new Date("2025-12-16T10:00:00Z");
+      expect(de.dateShortSmart(lastDecember)).toBe("16.12.2025");
+      expect(en.dateShortSmart(lastDecember)).toContain("2025");
+    });
+
+    it("dateWithWeekdaySmart mirrors the same boundary", () => {
+      const de = makeFormatters("de");
+      const thisYear = new Date("2026-02-19T10:00:00Z");
+      const lastDecember = new Date("2025-12-16T10:00:00Z");
+      expect(de.dateWithWeekdaySmart(thisYear)).not.toContain("2026");
+      expect(de.dateWithWeekdaySmart(lastDecember)).toContain("2025");
+    });
+
+    it("compares the year in the formatter's own timezone, not the host's", () => {
+      // 2026-01-01T00:30Z is still 2025-12-31 in America/New_York (UTC-5) —
+      // the profile-tz formatter must agree with what it actually prints,
+      // not with a UTC or host-local read of "now"/the value.
+      const nyFmt = makeFormatters("en", "America/New_York");
+      const newYearUtcEve = new Date("2026-01-01T00:30:00Z");
+      // RIGHT_NOW (2026-07-10) is year 2026 in New York too, so a value
+      // that prints as 2025 in New York must carry the year.
+      expect(nyFmt.dateShortSmart(newYearUtcEve)).toContain("2025");
     });
   });
 });

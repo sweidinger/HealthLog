@@ -22,7 +22,7 @@ import {
   tallyComplianceFromLedger,
   type ComplianceSchedule,
   type MedicationPauseEraLike,
-} from "../compliance";
+} from "@/lib/analytics/compliance";
 import type { ScheduleRevisionLike } from "@/lib/medications/scheduling/schedule-eras";
 
 const TZ = "UTC";

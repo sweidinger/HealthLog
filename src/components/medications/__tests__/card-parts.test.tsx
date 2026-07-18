@@ -420,9 +420,15 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
  * structural identity that makes the two variants impossible to diverge.
  */
 describe("medication card body — shared shell + dose-state presentation", () => {
-  function renderBody(doseStatus: DoseStatus, active = true) {
+  function renderBody(
+    doseStatus: DoseStatus,
+    active = true,
+    highlighted = false,
+  ) {
     return render(
       <MedicationCardBody
+        id="m1"
+        highlighted={highlighted}
         name="Ramipril"
         dose="5 mg"
         categoryLabel="Blood Pressure"
@@ -498,6 +504,26 @@ describe("medication card body — shared shell + dose-state presentation", () =
     expect(html).not.toContain("ring-success/40");
     expect(html).not.toContain("bg-success/5");
     expect(html).toContain("opacity-60");
+  });
+
+  // v1.29.x — the Today digest's "Log dose" deep-link
+  // (`/medications?highlight=<id>`) rings the target card, mirroring
+  // `<DocumentCard highlighted>`. Carries the id for the page's
+  // scroll-into-view lookup regardless of highlight state.
+  it("carries the medication id for the deep-link target lookup", () => {
+    const html = renderBody("upcoming");
+    expect(html).toContain('data-medication-id="m1"');
+  });
+
+  it("rings the card when it is the deep-link highlight target", () => {
+    const html = renderBody("upcoming", true, true);
+    expect(html).toContain("ring-primary");
+    expect(html).toContain("ring-2");
+  });
+
+  it("does not ring the card when it is not the highlight target", () => {
+    const html = renderBody("upcoming", true, false);
+    expect(html).not.toContain("ring-primary");
   });
 
   it("renders the decisive next + last lines exactly once each", () => {
@@ -605,6 +631,7 @@ describe("compliance error fallback (v1.16.8)", () => {
   }) {
     return render(
       <MedicationCardBody
+        id="m1"
         name="Ramipril"
         dose="5 mg"
         categoryLabel="Blood Pressure"

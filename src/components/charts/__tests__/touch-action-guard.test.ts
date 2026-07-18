@@ -24,7 +24,6 @@ const CHART_FILES = [
   "health-chart.tsx",
   "mood-chart.tsx",
   "medication-compliance-chart.tsx",
-  "compliance-line-chart.tsx",
   "scatter-correlation-chart.tsx",
 ];
 

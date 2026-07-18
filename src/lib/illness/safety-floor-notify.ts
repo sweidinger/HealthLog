@@ -20,9 +20,12 @@
 import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
 import { dispatchLocalisedNotification } from "@/lib/notifications/dispatch-localised";
-import type {
-  SafetyFloorDecision,
-  SafetyFloorReason,
+import { convertGlucose, type GlucoseUnit } from "@/lib/glucose";
+import {
+  GLUCOSE_HYPO,
+  GLUCOSE_HYPO_SEVERE,
+  type SafetyFloorDecision,
+  type SafetyFloorReason,
 } from "@/lib/illness/safety-floors";
 
 /** One escalation per (user, reason) per this window. */
@@ -55,9 +58,20 @@ function copyKeysFor(decision: SafetyFloorDecision): {
   };
 }
 
-/** Body params — the re-confirmed reading value(s) echoed into the copy. */
+/**
+ * Body params — the re-confirmed reading value(s) echoed into the copy.
+ *
+ * Glucose is stored canonically in mg/dL (`decision.value`), but the escalation
+ * push must speak the user's own display unit — a mmol/L user reading "70
+ * mg/dL" mid-hypo is the wrong unit at the single most safety-critical moment.
+ * `glucoseUnit` is resolved by the caller (`safety-floor-check.ts`) from
+ * `User.glucoseUnit`; every glucose copy key takes `{value} {unit}` and the
+ * hypo variants also take `{threshold} {unit}` for the "below X" clause —
+ * the literal "70 mg/dL" / "54 mg/dL" text no longer lives in the bundle.
+ */
 function paramsFor(
   decision: SafetyFloorDecision,
+  glucoseUnit: GlucoseUnit,
 ): Record<string, string | number> {
   if (decision.kind === "BLOOD_PRESSURE") {
     return {
@@ -65,17 +79,35 @@ function paramsFor(
       diastolic: decision.diastolic ?? 0,
     };
   }
-  return { value: decision.value };
+  const params: Record<string, string | number> = {
+    value: convertGlucose(decision.value, glucoseUnit),
+    unit: glucoseUnit,
+  };
+  if (
+    decision.reason === "glucose_hypo" ||
+    decision.reason === "glucose_hypo_severe"
+  ) {
+    const thresholdMgdl =
+      decision.reason === "glucose_hypo_severe"
+        ? GLUCOSE_HYPO_SEVERE
+        : GLUCOSE_HYPO;
+    params.threshold = convertGlucose(thresholdMgdl, glucoseUnit);
+  }
+  return params;
 }
 
 /**
  * Emit an urgent escalation push for a confirmed safety-floor breach, at most
  * once per (user, reason) per `DEDUPE_WINDOW_MS`. No-op when `decision` is
  * null. Never throws.
+ *
+ * `glucoseUnit` is only consulted for `GLUCOSE` decisions; defaults to
+ * canonical mg/dL when the caller omits it (BP-only callers never need it).
  */
 export async function notifySafetyFloor(input: {
   userId: string;
   decision: SafetyFloorDecision | null;
+  glucoseUnit?: GlucoseUnit;
 }): Promise<void> {
   const { userId, decision } = input;
   if (!decision) return;
@@ -107,7 +139,7 @@ export async function notifySafetyFloor(input: {
       userId,
       titleKey,
       messageKey,
-      params: paramsFor(decision),
+      params: paramsFor(decision, input.glucoseUnit ?? "mg/dL"),
       eventType: "SYSTEM_ALERT",
       urgent: true,
     });

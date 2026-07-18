@@ -19,6 +19,7 @@ import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
 import { isModuleEnabled } from "@/lib/modules/gate";
+import { resolveGlucoseUnit } from "@/lib/glucose";
 import { FEVER_RED_FLAG_C, SPO2_RED_FLAG_PCT } from "@/lib/clinical-floors";
 import {
   evaluateBloodPressure,
@@ -194,7 +195,17 @@ async function checkGlucose(
     mgdl: r.value,
   }));
   const decision = evaluateGlucose({ candidate, recent, symptomCoupled });
-  await notifySafetyFloor({ userId, decision });
+  if (!decision) return;
+
+  // Resolve the user's display unit only when there's actually a breach to
+  // report — the escalation push must speak the user's own unit (mmol/L
+  // users get "3.9 mmol/L", not a raw mg/dL figure mid-hypo).
+  const profile = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { glucoseUnit: true },
+  });
+  const glucoseUnit = resolveGlucoseUnit(profile?.glucoseUnit ?? null);
+  await notifySafetyFloor({ userId, decision, glucoseUnit });
 }
 
 /* ── sustained fever / low-SpO2 (multi-day calendar runs) ─────────────── */

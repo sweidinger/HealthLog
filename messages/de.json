@@ -91,7 +91,7 @@
     "colShare": "Anteil",
     "footerDisclaimer1": "Dieser Bericht wurde automatisch aus selbst erfassten Daten generiert und dient ausschließlich zur Unterstützung",
     "footerDisclaimer2": "des Arzt-Patienten-Gesprächs. Er ersetzt keine ärztliche Diagnose. Korrelationen implizieren keine Kausalität.",
-    "footerSource": "Quelle: HealthLog | Zeitzone: Europe/Berlin | Erstellt: {timestamp}",
+    "footerSource": "Quelle: HealthLog | Zeitzone: {timezone} | Erstellt: {timestamp}",
     "typeWeight": "Körpergewicht",
     "typeBpSys": "Systolischer Blutdruck",
     "typeBpDia": "Diastolischer Blutdruck",
@@ -405,7 +405,6 @@
     "recentWorkouts": {
       "title": "Letzte Workouts",
       "viewAll": "Alle anzeigen",
-      "loading": "Workouts werden geladen…",
       "empty": {
         "title": "Noch keine Workouts",
         "cta": "Öffne die Apple-Health-App auf dem iPhone, damit Workouts hier erscheinen."
@@ -586,6 +585,22 @@
     "unitRatio": "Verhältnis",
     "typeWho5Score": "WHO-5-Wert",
     "typeSciScore": "SCI-Wert"
+  },
+  "metricCatalog": {
+    "title": "Was HealthLog erfassen kann",
+    "description": "Alle Messwert-Bereiche, die HealthLog unterstützt — auch die, für die noch keine Daten vorliegen — und was sie liefert.",
+    "statusPresent": "Erfasst",
+    "statusAbsent": "Noch nicht erfasst",
+    "statusModuleOff": "Aus",
+    "connectCta": "Quelle verbinden",
+    "viewCta": "Ansehen",
+    "ecg": {
+      "source": "Einkanal-EKG-Streifen von einer kompatiblen Uhr — aktuell Withings ScanWatch — werden automatisch synchronisiert."
+    },
+    "watchdog": {
+      "title": "Automatische Überwachung",
+      "description": "HealthLog beobachtet außerdem still im Hintergrund — Benachrichtigungen zu unregelmäßigem Rhythmus und Atemstörungen von einer verbundenen Uhr sowie Warnungen bei Abweichungen von deiner Baseline — und zeigt eine Karte nur, wenn etwas auffällt. Keine Karte ist ein gutes Zeichen, kein fehlendes Feature."
+    }
   },
   "mood": {
     "title": "Stimmung",
@@ -2476,7 +2491,8 @@
         "documentsAttachedOne": "1 Dokument angehängt",
         "documentsAttachedOther": "{count} Dokumente angehängt",
         "railBadge": "Dokument-Chat (abgeschottet)",
-        "uploadError": "Upload fehlgeschlagen. Bitte versuche es erneut."
+        "uploadError": "Upload fehlgeschlagen. Bitte versuche es erneut.",
+        "notFoundError": "Dieser Dokumentlink ist nicht mehr gültig – es wird ein normaler Chat gestartet."
       }
     },
     "relativeJustNow": "gerade eben",
@@ -2487,6 +2503,7 @@
     "relativeDaysAgoOne": "vor {count} Tag",
     "relativeDaysAgoOther": "vor {count} Tagen",
     "navOverview": "Übersicht",
+    "navCatalog": "Alle Messwerte",
     "navBloodPressure": "Blutdruck",
     "navWeight": "Gewicht",
     "navPulse": "Puls",
@@ -2517,9 +2534,9 @@
         "label": "Aktivität",
         "header": "Aktivität & Mobilität"
       },
-      "cardiovascularParent": {
-        "label": "Herz-Kreislauf",
-        "header": "Herz-Kreislauf-Marker"
+      "heartParent": {
+        "label": "Herz",
+        "header": "Herzgesundheit"
       },
       "hearingParent": {
         "label": "Gehör",
@@ -3879,6 +3896,8 @@
       "caption": "Dein Puls über den Tag, gemittelt in 10-Minuten-Schritten.",
       "hourlyNote": "Stündlicher Durchschnitt für diesen Tag — aktuelle Tage zeigen das volle 10-Minuten-Detail.",
       "empty": "Für diesen Tag noch nicht genug Pulswerte, um den Tagesverlauf zu zeigen.",
+      "coverageOne": "Basierend auf 1 Messung über {hours}h.",
+      "coverageMany": "Basierend auf {count} Messungen über {hours}h.",
       "baseline": "Ruhe",
       "today": "Heute",
       "previousDay": "Vorheriger Tag",
@@ -4016,7 +4035,7 @@
     },
     "source": {
       "title": "Quelle verbinden",
-      "body": "Werte automatisch übernehmen oder weiter manuell eintragen. Hier wird nichts für dich eingerichtet – jede Karte zeigt nur, wo du sie verbindest.",
+      "body": "Werte automatisch übernehmen oder weiter manuell eintragen. Hier wird nichts für dich eingerichtet – jede Karte zeigt nur, wo du sie verbindest. Geräte-Quellen brauchen eine kostenlose Entwickler-App auf deinem eigenen Konto (etwa 5 Minuten); die Anleitung auf jeder Karte führt dich durch.",
       "recommended": "Empfohlen",
       "manual": {
         "title": "Manuelle Eingabe",
@@ -4024,12 +4043,14 @@
       },
       "withings": {
         "title": "Withings",
-        "body": "Waagen, Blutdruckmesser und Tracker von Withings synchronisieren automatisch.",
-        "cta": "Withings verbinden"
+        "body": "Waagen, Blutdruckmesser und Tracker von Withings synchronisieren automatisch, sobald verbunden.",
+        "cta": "Withings verbinden",
+        "setupCta": "In den Einstellungen einrichten",
+        "setupHint": "Braucht zuerst deine eigene, kostenlose Withings-Entwickler-App – etwa 5 Minuten, einmalig."
       },
       "more": {
         "title": "Weitere Quellen",
-        "body": "Verbinde eine davon in den Einstellungen, wann immer du bereit bist.",
+        "body": "Verbinde eine davon in den Einstellungen, wann immer du bereit bist – die meisten brauchen zuerst eine kostenlose Entwickler-App auf deinem eigenen Konto.",
         "appleHealth": "Apple Health",
         "whoop": "WHOOP",
         "oura": "Oura",
@@ -4171,7 +4192,16 @@
       "disableError": "Forschungsmodus konnte nicht deaktiviert werden. Bitte erneut versuchen."
     },
     "shell": {
-      "sectionsNav": "Einstellungs-Bereiche"
+      "sectionsNav": "Einstellungs-Bereiche",
+      "groups": {
+        "account": "Konto",
+        "yourData": "Deine Daten",
+        "display": "Anzeige",
+        "healthProfile": "Gesundheitsprofil",
+        "ai": "KI",
+        "connectivity": "Konnektivität",
+        "system": "System"
+      }
     },
     "sections": {
       "account": {
@@ -4356,7 +4386,8 @@
           },
           "fullBackup": {
             "title": "Voll-Backup",
-            "description": "Eine einzige JSON-Datei mit allen Daten — gleiches Format wie das wöchentliche Auto-Backup. Praktisch zum Selbst-Wiederherstellen via Admin-Upload.",
+            "description": "Alle deine Daten in einer JSON-Datei — Messwerte, Medikamente, Stimmung, Zyklus, Laborwerte, Krankheitsepisoden, Allergien, Familienanamnese und Workouts. Gleiches Format wie das wöchentliche Auto-Backup.",
+            "scopeNote": "Die Originaldateien der Dokumente sowie GPS-Routen und Einzelmesswerte von Workouts sind nicht enthalten — lade diese separat aus dem Dokumententresor bzw. dem Workout-Export herunter.",
             "encryptToggle": "Mit einer Passphrase verschlüsseln",
             "passphrasePlaceholder": "Passphrase (mind. 12 Zeichen)",
             "passphraseHelp": "Leitet den Archivschlüssel per Argon2id ab und versiegelt ihn mit AES-256-GCM. Speichere die Datei mit der Endung .hlx.",
@@ -5389,6 +5420,12 @@
     "ouraDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "nightscoutDescriptionSecondary": "Werte fließen im Hintergrund in dein Dashboard. Neu beim Einrichten? Folge der",
     "integrationCredentialsHint": "Wo du diese Zugangsdaten findest und wie du deine eigene App registrierst, steht in der Einrichtungsanleitung oben.",
+    "integrationRedirectGuide": {
+      "intro": "Die Verbindung läuft über deine eigene {provider}-Entwickler-App – etwa 5 Minuten Einrichtung:",
+      "step1": "Erstelle eine App im {provider}-Entwicklerportal.",
+      "step2": "Setze deren Weiterleitungs-/Callback-URL auf:",
+      "step3": "Trage die dort erhaltene Client-ID und das Client-Secret oben ein."
+    },
     "security": {
       "sessionsTitle": "Aktive Sitzungen",
       "sessionsDescription": "Geräte und Browser, die aktuell bei deinem Konto angemeldet sind.",
@@ -6029,6 +6066,7 @@
         "colAction": "Aktion",
         "colDuration": "Dauer",
         "colTraceId": "Trace",
+        "viewDetails": "Details anzeigen für {action} um {timestamp}",
         "showing": "{count} von bis zu {bufferMax} gepufferten Events angezeigt",
         "empty": "Puffer ist leer",
         "emptyDescription": "Es passen noch keine Events zu den Filtern. Nach etwas Traffic auf Aktualisieren tippen.",
@@ -6649,9 +6687,9 @@
       "hypertensionGrade1": "Hypertonie Grad 1",
       "hypertensionGrade2": "Hypertonie Grad 2",
       "hypertensionGrade3": "Hypertonie Grad 3",
-      "bradycardia": "Bradykardie",
+      "belowTypicalRange": "Unter dem typischen Bereich",
       "elevated": "Erhöht",
-      "tachycardia": "Tachykardie",
+      "aboveTypicalRange": "Über dem typischen Bereich",
       "significantlyLow": "Deutlich niedrig",
       "slightlyLow": "Leicht niedrig",
       "onTarget": "Im Zielbereich",
@@ -7898,14 +7936,14 @@
       "bpLowDoctor": "Zwei aktuelle Messungen hatten einen systolischen Wert unter {systolic} mmHg. Wenn dir schwindelig oder schummrig ist, setz oder leg dich hin und kontaktiere deine Ärztin oder deinen Arzt, wenn es anhält.",
       "bpLowEmergency": "Zwei aktuelle Messungen hatten einen systolischen Wert unter {systolic} mmHg und du hast Beschwerden angegeben. Bei Ohnmachtsgefühl, Verwirrtheit oder kalter, feuchter Haut sofort den Notruf wählen.",
       "glucoseLowTitle": "Niedriger Blutzucker",
-      "glucoseLowDoctor": "Zwei aktuelle Messungen lagen unter 70 mg/dL ({value} mg/dL). Nimm schnell wirkende Kohlenhydrate, miss in 15 Minuten erneut und kontaktiere deine Ärztin oder deinen Arzt, wenn die Tiefs anhalten.",
-      "glucoseLowEmergency": "Zwei aktuelle Messungen lagen unter 70 mg/dL ({value} mg/dL) und du hast Beschwerden angegeben. Behandle jetzt mit schnellem Zucker; wenn das nicht geht oder dir sehr unwohl ist, wähle den Notruf.",
+      "glucoseLowDoctor": "Zwei aktuelle Messungen lagen unter {threshold} {unit} ({value} {unit}). Nimm schnell wirkende Kohlenhydrate, miss in 15 Minuten erneut und kontaktiere deine Ärztin oder deinen Arzt, wenn die Tiefs anhalten.",
+      "glucoseLowEmergency": "Zwei aktuelle Messungen lagen unter {threshold} {unit} ({value} {unit}) und du hast Beschwerden angegeben. Behandle jetzt mit schnellem Zucker; wenn das nicht geht oder dir sehr unwohl ist, wähle den Notruf.",
       "glucoseLowSevereTitle": "Sehr niedriger Blutzucker",
-      "glucoseLowSevereDoctor": "Zwei aktuelle Messungen lagen unter 54 mg/dL ({value} mg/dL). Behandle sofort mit schnell wirkenden Kohlenhydraten, miss in 15 Minuten erneut und kontaktiere deine Ärztin oder deinen Arzt.",
-      "glucoseLowSevereEmergency": "Zwei aktuelle Messungen lagen unter 54 mg/dL ({value} mg/dL) und du hast Beschwerden angegeben. Behandle jetzt; wenn du nichts bei dir behalten kannst oder dir sehr unwohl ist, wähle den Notruf.",
+      "glucoseLowSevereDoctor": "Zwei aktuelle Messungen lagen unter {threshold} {unit} ({value} {unit}). Behandle sofort mit schnell wirkenden Kohlenhydraten, miss in 15 Minuten erneut und kontaktiere deine Ärztin oder deinen Arzt.",
+      "glucoseLowSevereEmergency": "Zwei aktuelle Messungen lagen unter {threshold} {unit} ({value} {unit}) und du hast Beschwerden angegeben. Behandle jetzt; wenn du nichts bei dir behalten kannst oder dir sehr unwohl ist, wähle den Notruf.",
       "glucoseHighTitle": "Sehr hoher Blutzucker",
-      "glucoseHighDoctor": "Zwei aktuelle Messungen lagen bei {value} mg/dL oder höher. Miss erneut, trink ausreichend und kontaktiere möglichst bald deine Ärztin oder deinen Arzt, wenn es so hoch bleibt.",
-      "glucoseHighEmergency": "Zwei aktuelle Messungen lagen bei {value} mg/dL oder höher und du hast Beschwerden angegeben. Bei Erbrechen, schneller Atmung oder Verwirrtheit sofort den Notruf wählen."
+      "glucoseHighDoctor": "Zwei aktuelle Messungen lagen bei {value} {unit} oder höher. Miss erneut, trink ausreichend und kontaktiere möglichst bald deine Ärztin oder deinen Arzt, wenn es so hoch bleibt.",
+      "glucoseHighEmergency": "Zwei aktuelle Messungen lagen bei {value} {unit} oder höher und du hast Beschwerden angegeben. Bei Erbrechen, schneller Atmung oder Verwirrtheit sofort den Notruf wählen."
     }
   },
   "version": {
@@ -8041,6 +8079,12 @@
       },
       "nummerGegenKummer": {
         "name": "Nummer gegen Kummer (für junge Menschen)"
+      },
+      "telefonSeelsorgeAt": {
+        "name": "Telefonseelsorge Österreich (rund um die Uhr, kostenlos, vertraulich)"
+      },
+      "dargeboteneHand": {
+        "name": "Die Dargebotene Hand (rund um die Uhr, kostenlos, vertraulich)"
       },
       "krisenchat": {
         "name": "krisenchat (24/7-Chat, junge Menschen)"
@@ -8295,7 +8339,9 @@
       "openLabel": "{title} öffnen",
       "attachmentBadge": "Nur Download",
       "uploading": "Wird hochgeladen…",
-      "dismissFailed": "Fehlgeschlagenen Upload ausblenden"
+      "dismissFailed": "Fehlgeschlagenen Upload ausblenden",
+      "processing": "Wird verarbeitet…",
+      "ready": "Bereit"
     },
     "error": {
       "fileTooLarge": "Diese Datei ist größer als das Limit von {maxSize}.",

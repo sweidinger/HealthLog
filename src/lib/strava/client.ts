@@ -25,6 +25,8 @@ import { getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
 import type { Prisma } from "@/generated/prisma/client";
 import { StravaApiError, classifyStravaResponse } from "./response-classifier";
+import { mapStravaSportType } from "./sport-map";
+import type { WorkoutSportType } from "@/lib/validations/workout";
 
 const STRAVA_API_BASE = "https://www.strava.com/api/v3";
 const STRAVA_OAUTH_AUTH_URL = "https://www.strava.com/oauth/authorize";
@@ -294,7 +296,7 @@ export function fetchActivityById(
  * `externalId` and upserts on `(userId, source, externalId)`. */
 export interface StravaWorkoutRow {
   externalId: string;
-  sportType: string;
+  sportType: WorkoutSportType;
   startedAt: Date;
   endedAt: Date;
   durationSec: number;
@@ -318,9 +320,13 @@ function nonNegFloat(n: number | null | undefined): number | null {
 
 /**
  * Map one Strava activity into a `Workout` row. `sport_type` is preferred over
- * the legacy `type`; free-text at the DB layer. Duration uses `moving_time`
- * (active duration) with `elapsed_time` kept in `metadata`. HR / calories come
- * from the summary when present, else from the optional `DetailedActivity`.
+ * the legacy `type`, then mapped through `mapStravaSportType()` to a canonical
+ * `WorkoutSportType` — the raw Strava label is never written to `sportType`
+ * directly (see `src/lib/strava/sport-map.ts` for why). The raw label is kept
+ * verbatim in `metadata.stravaType` for provenance/debugging. Duration uses
+ * `moving_time` (active duration) with `elapsed_time` kept in `metadata`. HR /
+ * calories come from the summary when present, else from the optional
+ * `DetailedActivity`.
  *
  * The activity `name` / `description` are the user's own free-text DATA — they
  * are stored in `metadata` only and NEVER interpolated into any prompt as an
@@ -355,15 +361,18 @@ export function mapActivity(
   );
   const calories = nonNegFloat(detail?.calories);
 
-  const sportType =
-    summary.sport_type ?? summary.type ?? detail?.sport_type ?? "workout";
+  const rawSportType =
+    summary.sport_type ?? summary.type ?? detail?.sport_type ?? "Workout";
+  const sportType = mapStravaSportType(rawSportType);
 
   const metadata: Prisma.InputJsonValue = {
     // Activity name/description are user free-text → DATA, never instructions.
     ...(summary.name ? { stravaName: summary.name } : {}),
     ...(detail?.description ? { stravaDescription: detail.description } : {}),
     ...(elapsedSec != null ? { elapsedTimeSec: elapsedSec } : {}),
-    ...(summary.type ? { stravaType: summary.type } : {}),
+    // Raw pre-mapping label, kept for provenance/debugging — never used as
+    // the canonical `sportType` itself (see `mapStravaSportType()`).
+    ...(rawSportType ? { stravaType: rawSportType } : {}),
     ...(typeof summary.average_watts === "number"
       ? { averageWatts: summary.average_watts }
       : {}),

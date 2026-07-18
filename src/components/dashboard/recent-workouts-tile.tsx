@@ -1,22 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Activity,
-  Bike,
-  Dumbbell,
-  Footprints,
-  HeartPulse,
-  Mountain,
-  PersonStanding,
-  type LucideIcon,
-} from "lucide-react";
+import { Activity } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { useWorkouts, type WorkoutListEntry } from "@/hooks/use-workouts";
 import { cn } from "@/lib/utils";
 import { TileHeader } from "@/components/insights/tile-header";
 import { getDateTimeFormat } from "@/lib/intl/formatter-cache";
+import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
+import { iconForSport } from "@/lib/workouts/sport-icons";
 
 /**
  * v1.4.32 — `<RecentWorkoutsTile>`.
@@ -35,33 +29,6 @@ import { getDateTimeFormat } from "@/lib/intl/formatter-cache";
  * between the dashboard and `/insights/workouts` is a single
  * round-trip per session.
  */
-
-const SPORT_TYPE_ICON: Record<string, LucideIcon> = {
-  walking: Footprints,
-  running: PersonStanding,
-  cycling: Bike,
-  hiking: Mountain,
-  swimming: Activity,
-  rowing: Activity,
-  elliptical: Activity,
-  stairClimber: Activity,
-  yoga: PersonStanding,
-  mindAndBody: PersonStanding,
-  strength: Dumbbell,
-  hiit: Activity,
-  dance: Activity,
-  golf: Activity,
-  tennis: Activity,
-  basketball: Activity,
-  soccer: Activity,
-  crossTraining: Activity,
-  mixedCardio: HeartPulse,
-  other: Activity,
-};
-
-function iconForSport(sportType: string): LucideIcon {
-  return SPORT_TYPE_ICON[sportType] ?? Activity;
-}
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -99,7 +66,7 @@ function renderRow(workout: WorkoutListEntry, sportName: string) {
 
 export function RecentWorkoutsTile() {
   const { t, locale } = useTranslations();
-  const { data, isLoading } = useWorkouts({ limit: 3 });
+  const { data, isLoading, isError, refetch } = useWorkouts({ limit: 3 });
   const workouts = data?.workouts ?? [];
 
   return (
@@ -131,12 +98,24 @@ export function RecentWorkoutsTile() {
         // v1.4.43 W11-L6 — reserve roughly the loaded tile height
         // (3 workouts × ~3 rem rows + spacing) so the surrounding
         // dashboard layout doesn't reflow once the data lands.
-        <p
-          data-slot="recent-workouts-loading"
-          className="text-muted-foreground min-h-[10rem] text-xs"
-        >
-          {t("dashboard.recentWorkouts.loading")}
-        </p>
+        // v1.29.x — row-shaped skeletons instead of a "loading…" text
+        // line, matching the sport-icon + label + day + duration shape
+        // the loaded rows render.
+        <div data-slot="recent-workouts-loading" className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3 px-1 py-1">
+              <Skeleton className="size-7 shrink-0 rounded-full" />
+              <Skeleton className="h-4 min-w-0 flex-1" />
+              <Skeleton className="h-4 w-12 shrink-0" />
+              <Skeleton className="h-4 w-8 shrink-0" />
+            </div>
+          ))}
+        </div>
+      ) : isError ? (
+        <QueryErrorCard
+          onRetry={() => refetch()}
+          className="border-0 bg-transparent shadow-none"
+        />
       ) : workouts.length === 0 ? (
         <div data-slot="recent-workouts-empty" className="space-y-1">
           <p className="text-sm">{t("dashboard.recentWorkouts.empty.title")}</p>

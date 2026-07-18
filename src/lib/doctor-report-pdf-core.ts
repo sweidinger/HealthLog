@@ -12,9 +12,14 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DOCTOR_REPORT_TYPE_LABEL_KEYS } from "./doctor-report/type-label-keys";
-import { makeFormatters, type TimeFormatPreference } from "./format-locale";
+import {
+  makeFormatters,
+  DISPLAY_TIMEZONE,
+  type TimeFormatPreference,
+} from "./format-locale";
 import type { Locale } from "./i18n/config";
 import { convertGlucose, resolveGlucoseUnit } from "./glucose";
+import { isValidTimezone } from "./tz/format";
 import {
   classifyReferenceRange,
   formatReferenceRange,
@@ -505,6 +510,13 @@ export function buildDoctorReportPdfDocument(
   const num = (value: number, decimals = 1) =>
     formatters.number(value, decimals);
   const fmtDate = (iso: string) => formatters.date(iso);
+  // Same resolution `makeFormatters` applies internally (valid IANA name or
+  // the Europe/Berlin fallback) — the footer must state the SAME zone the
+  // timestamps above it were actually rendered in, not a maintainer-anchored
+  // default. A clinician reading a non-Berlin operator's PDF needs the real
+  // provenance of every timestamp on the page.
+  const footerTz =
+    userTz && isValidTimezone(userTz) ? userTz : DISPLAY_TIMEZONE;
 
   const unitFor = (type: string): string => {
     const staticUnit = DOCTOR_REPORT_TYPE_UNIT_KEYS[type];
@@ -1797,6 +1809,7 @@ export function buildDoctorReportPdfDocument(
     pageDoc.text(t("doctorReport.footerDisclaimer2"), margin, pageHeight - 10);
     pageDoc.text(
       t("doctorReport.footerSource", {
+        timezone: footerTz,
         timestamp: formatters.dateTime(now),
       }),
       margin,

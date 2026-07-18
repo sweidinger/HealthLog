@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { fireAndForget } from "@/lib/logging/fire-and-forget";
 
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import {
@@ -271,7 +272,9 @@ async function postLabResult(request: NextRequest) {
   // v1.18.1 (D2) — eventful Lab↔Vorsorge satisfaction. A lab panel just
   // landed; resolve the user's free-text "annual blood panel" reminders
   // now rather than waiting on the 15-min cron. Fire-and-forget.
-  void enqueueReminderSatisfy(user.id).catch(() => {});
+  fireAndForget(enqueueReminderSatisfy(user.id), {
+    action: "reminder.satisfy.enqueue",
+  });
 
   return apiSuccess(serialiseLabResult(created, biomarker), 201);
 }

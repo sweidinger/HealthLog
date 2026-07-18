@@ -36,6 +36,7 @@ interface FakeMeasurementRow {
   source: string;
   externalId: string | null;
   userId: string;
+  deviceType?: string | null;
 }
 
 interface FakeWorkoutRow {
@@ -100,14 +101,6 @@ function makeFakePrisma(state: {
     return true;
   }
 
-  // REG-9 day bucket key. Mirrors `date_trunc('day', measured_at)` on
-  // UTC — the production query and this fake share the same bucket
-  // contract so a day-sum test exercises the same partitioning the
-  // SQL aggregate performs.
-  function dayKey(d: Date): string {
-    return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
-  }
-
   function matchesWorkoutWhere(row: FakeWorkoutRow, where: FakeWhere): boolean {
     if (where.userId !== undefined && row.userId !== where.userId) return false;
     if (where.sportType !== undefined && row.sportType !== where.sportType)
@@ -140,78 +133,32 @@ function makeFakePrisma(state: {
     return true;
   }
 
-  // REG-9 (v1.4.46): the cumulative-kind path runs a `$queryRaw`
-  // template that SUMs each `(user_id, type)` partition by
-  // `date_trunc('day', measured_at)` and `ORDER BY day_total {DESC|ASC}`.
-  // The fake re-implements the same shape against the in-memory rows
-  // so the worker-level tests exercise the real day-bucket reducer
-  // logic, not a stub.
-  function runCumulativeDaySum(
-    userId: string,
-    type: MeasurementType,
-    direction: "desc" | "asc",
-  ): Array<{ day_total: number; max_measured_at: Date }> {
-    const matches = state.measurements.filter(
-      (r) => r.userId === userId && r.type === type,
-    );
-    if (matches.length === 0) return [];
-
-    const byDay = new Map<
-      string,
-      { day_total: number; max_measured_at: Date }
-    >();
-    for (const r of matches) {
-      const key = dayKey(r.measuredAt);
-      const slot = byDay.get(key) ?? {
-        day_total: 0,
-        max_measured_at: r.measuredAt,
-      };
-      slot.day_total += r.value;
-      if (r.measuredAt > slot.max_measured_at) {
-        slot.max_measured_at = r.measuredAt;
-      }
-      byDay.set(key, slot);
-    }
-
-    const sorted = Array.from(byDay.values()).sort((a, b) =>
-      direction === "desc"
-        ? b.day_total - a.day_total
-        : a.day_total - b.day_total,
-    );
-    return [sorted[0]];
-  }
-
   return {
-    $queryRaw: vi.fn(
-      async (sql: { strings: string[]; values: unknown[]; sql?: string }) => {
-        // Prisma.sql flattens nested fragments at construction time —
-        // the ASC/DESC fragment is inlined into `strings`, only the
-        // userId + type land in the bound `values` list. We detect the
-        // cumulative day-sum probe by the SQL preamble and read the
-        // direction off the flattened SQL text.
-        const fullSql = sql.sql ?? sql.strings.join("?");
-        if (!fullSql.includes("date_trunc('day', m.\"measured_at\")")) {
-          throw new Error(`Unhandled $queryRaw in fake Prisma:\n${fullSql}`);
-        }
-        const [userIdVal, typeVal] = sql.values as [string, string];
-        // The ORDER BY direction was interpolated as a literal — recover
-        // it from the flattened SQL so the fake exercises the same
-        // direction the worker asked for.
-        const dirMatch = /ORDER BY day_total\s+(ASC|DESC)/i.exec(fullSql);
-        const direction: "asc" | "desc" =
-          dirMatch?.[1]?.toUpperCase() === "ASC" ? "asc" : "desc";
-        return runCumulativeDaySum(
-          userIdVal,
-          typeVal as MeasurementType,
-          direction,
-        );
-      },
-    ),
+    // v1.29.6 — the cumulative-kind path no longer runs a `$queryRaw`
+    // UTC `date_trunc` aggregate; it reads every matching row via
+    // `measurement.findMany` and does the source-collapse + tz-aware
+    // day-bucket SUM in JS (`pickCanonicalSourceRows` +
+    // `dayKeyForUserTz`), matching every other cumulative-day surface.
+    user: {
+      findUnique: vi.fn(async () => ({
+        // Every fixture in this file is written in `Date.UTC(...)` —
+        // "UTC" as the resolved IANA zone keeps the day-bucket keys
+        // identical to the pre-fix UTC `date_trunc` partitioning, so
+        // the existing day-sum assertions stay valid.
+        timezone: "UTC",
+        sourcePriorityJson: null,
+      })),
+    },
     measurement: {
       count: vi.fn(async ({ where }: { where: FakeWhere }) => {
         return state.measurements.filter((r) =>
           matchesMeasurementWhere(r, where),
         ).length;
+      }),
+      findMany: vi.fn(async ({ where }: { where: FakeWhere }) => {
+        return state.measurements.filter((r) =>
+          matchesMeasurementWhere(r, where),
+        );
       }),
       findFirst: vi.fn(
         async ({
@@ -899,6 +846,84 @@ describe("detectPersonalRecordsForUser — REG-9 cumulative day-sum (v1.4.46)", 
         getPRDirection(type) === PersonalRecordDirection.MIN ? 100 : 500;
       expect(pr?.value, `${type} day-sum`).toBe(expectedValue);
     }
+  });
+
+  // v1.29.6 — a day with both an Apple Health AND a Withings write for
+  // the same cumulative metric must NOT be double-counted into a false
+  // "record" day. Before the fix, the day-sum probe summed every row on
+  // the day regardless of source, so 9 000 Apple-Health steps + 8 800
+  // Withings steps on one day (17 800) could out-rank a later day's real
+  // 12 000-step single-source total — a fabricated record that also
+  // suppressed the later, genuine best.
+  it("does not double-count an Apple Health + Withings write on the same day into a false record", async () => {
+    const samples: FakeMeasurementRow[] = [];
+    for (let i = 0; i < PR_DETECTION_WARMUP_THRESHOLD; i++) {
+      samples.push({
+        id: `m-seed-${i}`,
+        type: "ACTIVITY_STEPS",
+        value: 4000 + i * 100,
+        unit: "x",
+        measuredAt: new Date(Date.UTC(2026, 4, 4 + i, 12, 0, 0)),
+        source: "APPLE_HEALTH",
+        externalId: null,
+        userId: USER,
+      });
+    }
+    // Cross-source day: Apple Health (the higher-priority default ladder
+    // source) and Withings both write the SAME day's steps. Summed
+    // naively this is 17 800 — bigger than any single-source day below.
+    // Canonically collapsed (Apple Health wins), it is 9 000.
+    samples.push({
+      id: "m-dual-apple",
+      type: "ACTIVITY_STEPS",
+      value: 9000,
+      unit: "x",
+      measuredAt: new Date(Date.UTC(2026, 4, 11, 8, 0, 0)),
+      source: "APPLE_HEALTH",
+      externalId: null,
+      userId: USER,
+    });
+    samples.push({
+      id: "m-dual-withings",
+      type: "ACTIVITY_STEPS",
+      value: 8800,
+      unit: "x",
+      measuredAt: new Date(Date.UTC(2026, 4, 11, 8, 5, 0)),
+      source: "WITHINGS",
+      externalId: null,
+      userId: USER,
+    });
+    // A later, genuine single-source day that beats the collapsed
+    // cross-source day (9 000) but NOT the naive double-counted sum
+    // (17 800). A pre-fix worker would suppress this as "no improvement".
+    samples.push({
+      id: "m-later-best",
+      type: "ACTIVITY_STEPS",
+      value: 12000,
+      unit: "x",
+      measuredAt: new Date(Date.UTC(2026, 4, 13, 9, 0, 0)),
+      source: "APPLE_HEALTH",
+      externalId: null,
+      userId: USER,
+    });
+
+    const state = {
+      measurements: samples,
+      workouts: [],
+      personalRecords: [] as FakePersonalRecordRow[],
+    };
+    const prisma = makeFakePrisma(state);
+
+    await detectPersonalRecordsForUser(USER, { prisma });
+
+    const stepsPR = state.personalRecords.find(
+      (r) => r.metricType === "ACTIVITY_STEPS" && r.metricSlot === null,
+    );
+    expect(stepsPR).toBeDefined();
+    expect(stepsPR?.value).toBe(12000);
+    expect(stepsPR?.achievedAt.getTime()).toBe(
+      new Date(Date.UTC(2026, 4, 13, 9, 0, 0)).getTime(),
+    );
   });
 });
 

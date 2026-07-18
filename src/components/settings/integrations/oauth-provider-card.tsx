@@ -51,6 +51,7 @@ import {
 } from "@/lib/query-keys";
 import {
   IntegrationCardDescription,
+  IntegrationRedirectGuide,
   type IntegrationDocsProvider,
 } from "./setup-guide-link";
 
@@ -277,6 +278,12 @@ export function OAuthProviderCard({
             <h3 className="text-sm font-semibold">
               {t(`${i18nPrefix}Credentials`)}
             </h3>
+            {!status?.hasOwnCredentials && (
+              <IntegrationRedirectGuide
+                provider={provider}
+                providerLabel={t(i18nPrefix)}
+              />
+            )}
             <form onSubmit={handleSaveCredentials} className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">

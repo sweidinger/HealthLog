@@ -16,9 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { CHART_HEIGHT_PX } from "@/lib/charts/constants";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
-import { formatDateShort } from "@/lib/format";
 import { formatLabValue } from "@/lib/labs/format-value";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 
 import { RichChartTooltip, type RichTooltipRow } from "../charts/chart-tooltip";
 import type { LabResultDto } from "./types";
@@ -62,6 +61,7 @@ export function LabBiomarkerChart({
   upperBound: number | null;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const [range, setRange] = useState<RangeKey>("365");
   // Capture "now" once at mount so the recency filter stays pure across
   // re-renders (an inline `Date.now()` in render is impure).
@@ -145,7 +145,7 @@ export function LabBiomarkerChart({
                 type="number"
                 scale="time"
                 domain={["dataMin", "dataMax"]}
-                tickFormatter={(ts: number) => formatDateShort(new Date(ts))}
+                tickFormatter={(ts: number) => fmt.dateShortSmart(new Date(ts))}
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                 stroke="var(--border)"
                 minTickGap={32}
@@ -204,7 +204,7 @@ export function LabBiomarkerChart({
                   return (
                     <RichChartTooltip
                       active
-                      label={formatDateShort(new Date(point.timestamp))}
+                      label={fmt.dateShortSmart(new Date(point.timestamp))}
                       rows={rows}
                     />
                   );

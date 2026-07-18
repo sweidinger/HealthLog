@@ -53,6 +53,7 @@ function medsToday(partial: Partial<MedsTodayBlock> = {}): MedsTodayBlock {
     nextDueAt: null,
     nextDueOverdue: false,
     nextDueMedicationName: null,
+    nextDueMedicationId: null,
     ...partial,
   };
 }

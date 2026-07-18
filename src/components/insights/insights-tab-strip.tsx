@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import {
   INSIGHTS_OVERVIEW_PATH,
+  PINNED_SUB_PAGE_SLUGS,
   SUB_PAGE_GROUP,
   SUB_PAGE_GROUP_ORDER,
   SUB_PAGE_SLUGS,
@@ -366,8 +367,10 @@ const SUB_PAGE_MODULE: Partial<Record<SubPageSlug, ModuleKey>> = {
   "breathing-disturbances": "sleep",
   "blood-glucose": "glucose",
   workouts: "workouts",
-  // v1.29 — the nutrients pill gates on the opt-in `nutrients` module on
-  // top of the `hasNutrients` data floor.
+  // v1.29 — the nutrients pill gates on the opt-in `nutrients` module
+  // alone; there is no data floor on top (see `hasNutrients` in
+  // `insights-layout-shell.tsx` — reachability, not row count, is the
+  // gate once the user has opted in).
   nutrients: "nutrients",
 };
 
@@ -393,10 +396,12 @@ function isSlugModuleEnabled(
 /**
  * v1.4.34 IW-D — group metadata (label + popover header) keyed by
  * `SubPageGroup`. The strip renders one parent pill per group. v1.7.0
- * adds the body / activity / cardiovascular / hearing / environment /
- * metabolic clusters as the previously-orphan metrics each get a
- * sub-page; collapsing them behind a parent pill keeps the strip
- * scannable.
+ * adds the body / activity / hearing / environment / metabolic clusters
+ * as the previously-orphan metrics each get a sub-page; collapsing them
+ * behind a parent pill keeps the strip scannable. The 2026-07-17 UX/IA
+ * audit (H2) replaced the old "Cardiovascular" group — which only ever
+ * held three rare Withings markers — with a unified "Heart" group that
+ * also carries pulse, resting HR, HRV and cardio recovery.
  */
 const SUB_PAGE_GROUP_META: Record<
   SubPageGroup,
@@ -414,9 +419,9 @@ const SUB_PAGE_GROUP_META: Record<
     labelKey: "insights.tabStrip.activityParent.label",
     headerKey: "insights.tabStrip.activityParent.header",
   },
-  cardiovascular: {
-    labelKey: "insights.tabStrip.cardiovascularParent.label",
-    headerKey: "insights.tabStrip.cardiovascularParent.header",
+  heart: {
+    labelKey: "insights.tabStrip.heartParent.label",
+    headerKey: "insights.tabStrip.heartParent.header",
   },
   hearing: {
     labelKey: "insights.tabStrip.hearingParent.label",
@@ -515,7 +520,13 @@ function buildTabs(
   const emittedGroups = new Set<SubPageGroup>();
 
   for (const slug of orderedSlugs) {
-    const group = SUB_PAGE_GROUP[slug];
+    // 2026-07-17 UX/IA audit (H2/M1) — a pinned slug always renders as
+    // its own flat pill, even if it carries a `SUB_PAGE_GROUP` entry (for
+    // manager/catalog purposes). It is also excluded below from its
+    // group's popover children so it never appears twice.
+    const group = PINNED_SUB_PAGE_SLUGS.has(slug)
+      ? undefined
+      : SUB_PAGE_GROUP[slug];
     if (group) {
       if (emittedGroups.has(group)) continue;
       emittedGroups.add(group);
@@ -527,7 +538,10 @@ function buildTabs(
           )
         : SUB_PAGE_GROUP_ORDER[group];
       const children = orderedChildren
-        .filter((childSlug) => visibleSet.has(childSlug))
+        .filter(
+          (childSlug) =>
+            visibleSet.has(childSlug) && !PINNED_SUB_PAGE_SLUGS.has(childSlug),
+        )
         .map((childSlug) => ({
           slug: childSlug,
           href: `${INSIGHTS_OVERVIEW_PATH}/${childSlug}`,
@@ -549,6 +563,19 @@ function buildTabs(
       labelKey: SUB_PAGE_TABS[slug].labelKey,
     });
   }
+
+  // 2026-07-17 discoverability audit (R1) — a quiet, always-present pill
+  // trailing every other pill, linking to the "what can HealthLog track"
+  // catalog. Unlike every metric pill above, it carries no availability
+  // gate (like Overview / Recovery): the catalog's whole purpose is
+  // listing the metrics that AREN'T visible elsewhere yet, so gating its
+  // own entry point on data would defeat it.
+  entries.push({
+    kind: "link",
+    href: `${INSIGHTS_OVERVIEW_PATH}/catalog`,
+    labelKey: "insights.navCatalog",
+  });
+
   return entries;
 }
 

@@ -34,6 +34,7 @@
  *     contract.
  */
 import { NextRequest } from "next/server";
+import { fireAndForget } from "@/lib/logging/fire-and-forget";
 import { z } from "zod/v4";
 
 import { prisma } from "@/lib/db";
@@ -682,7 +683,9 @@ async function postBatch(request: NextRequest): Promise<Response> {
     // v1.18.1 — eventful Vorsorge satisfaction. A matching reading just
     // landed; resolve the user's reminders now rather than waiting on the
     // 15-min cron. Fire-and-forget — the cron reconciles on enqueue miss.
-    void enqueueReminderSatisfy(user.id).catch(() => {});
+    fireAndForget(enqueueReminderSatisfy(user.id), {
+      action: "reminder.satisfy.enqueue",
+    });
     try {
       await enqueuePrDetection(user.id, { silent });
       await auditLog("personal_records.detection_enqueued", {

@@ -32,7 +32,17 @@ import { prisma } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { getOrCreateCycleProfile } from "@/lib/cycle/profile";
 import type { CycleDayLogInput } from "@/lib/validations/cycle";
-import type { Prisma } from "@/generated/prisma/client";
+import type {
+  CervicalMucus,
+  CervixFirmness,
+  CervixOpening,
+  CervixPosition,
+  ContraceptiveKind,
+  FlowLevel,
+  HomeTestResult,
+  OvulationTest,
+  Prisma,
+} from "@/generated/prisma/client";
 
 export interface DayLogWriteResult {
   id: string;
@@ -45,9 +55,9 @@ export interface DayLogWriteResult {
 interface SensitiveFields {
   sexualActivity: boolean;
   protectedSex: boolean | null;
-  pregnancyTest: string | null;
-  progesteroneTest: string | null;
-  contraceptive: string | null;
+  pregnancyTest: HomeTestResult | null;
+  progesteroneTest: HomeTestResult | null;
+  contraceptive: ContraceptiveKind | null;
 }
 
 /** A symptom selection carrying its catalog key + optional 1-4 severity. */
@@ -146,20 +156,20 @@ function decryptNoteSoft(notesEncrypted: string | null): string | null {
 type ExistingRow = {
   id: string;
   date: string;
-  flow: string | null;
+  flow: FlowLevel | null;
   intermenstrualBleeding: boolean;
   basalBodyTempC: number | null;
   temperatureExcluded: boolean;
-  ovulationTest: string | null;
-  cervicalMucus: string | null;
-  cervixPosition: string | null;
-  cervixFirmness: string | null;
-  cervixOpening: string | null;
+  ovulationTest: OvulationTest | null;
+  cervicalMucus: CervicalMucus | null;
+  cervixPosition: CervixPosition | null;
+  cervixFirmness: CervixFirmness | null;
+  cervixOpening: CervixOpening | null;
   sexualActivity: boolean;
   protectedSex: boolean | null;
-  pregnancyTest: string | null;
-  progesteroneTest: string | null;
-  contraceptive: string | null;
+  pregnancyTest: HomeTestResult | null;
+  progesteroneTest: HomeTestResult | null;
+  contraceptive: ContraceptiveKind | null;
   sensitiveEncrypted: string | null;
   notesEncrypted: string | null;
   deletedAt: Date | null;
@@ -418,20 +428,20 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
     : { ...resolvedSensitive };
 
   const baseData: Prisma.CycleDayLogUncheckedUpdateInput = {
-    flow: flow as never,
+    flow,
     intermenstrualBleeding,
     basalBodyTempC,
     temperatureExcluded,
-    ovulationTest: ovulationTest as never,
-    cervicalMucus: cervicalMucus as never,
-    cervixPosition: cervixPosition as never,
-    cervixFirmness: cervixFirmness as never,
-    cervixOpening: cervixOpening as never,
+    ovulationTest,
+    cervicalMucus,
+    cervixPosition,
+    cervixFirmness,
+    cervixOpening,
     sexualActivity: sensitivePlaintext.sexualActivity,
     protectedSex: sensitivePlaintext.protectedSex,
-    pregnancyTest: sensitivePlaintext.pregnancyTest as never,
-    progesteroneTest: sensitivePlaintext.progesteroneTest as never,
-    contraceptive: sensitivePlaintext.contraceptive as never,
+    pregnancyTest: sensitivePlaintext.pregnancyTest,
+    progesteroneTest: sensitivePlaintext.progesteroneTest,
+    contraceptive: sensitivePlaintext.contraceptive,
     sensitiveEncrypted,
     notesEncrypted,
   };
@@ -489,20 +499,20 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
         source,
         externalId: entry.externalId ?? null,
         cycleId,
-        flow: baseData.flow as never,
-        intermenstrualBleeding: baseData.intermenstrualBleeding as never,
-        basalBodyTempC: baseData.basalBodyTempC as never,
-        temperatureExcluded: baseData.temperatureExcluded as never,
-        ovulationTest: baseData.ovulationTest as never,
-        cervicalMucus: baseData.cervicalMucus as never,
-        cervixPosition: baseData.cervixPosition as never,
-        cervixFirmness: baseData.cervixFirmness as never,
-        cervixOpening: baseData.cervixOpening as never,
+        flow,
+        intermenstrualBleeding,
+        basalBodyTempC,
+        temperatureExcluded,
+        ovulationTest,
+        cervicalMucus,
+        cervixPosition,
+        cervixFirmness,
+        cervixOpening,
         sexualActivity: sensitivePlaintext.sexualActivity,
         protectedSex: sensitivePlaintext.protectedSex,
-        pregnancyTest: sensitivePlaintext.pregnancyTest as never,
-        progesteroneTest: sensitivePlaintext.progesteroneTest as never,
-        contraceptive: sensitivePlaintext.contraceptive as never,
+        pregnancyTest: sensitivePlaintext.pregnancyTest,
+        progesteroneTest: sensitivePlaintext.progesteroneTest,
+        contraceptive: sensitivePlaintext.contraceptive,
         sensitiveEncrypted,
         notesEncrypted,
       },

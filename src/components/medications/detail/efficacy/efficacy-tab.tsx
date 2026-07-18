@@ -20,6 +20,7 @@ import { TileHeader } from "@/components/insights/tile-header";
 import { Glp1PlateauNote } from "@/components/insights/glp1-plateau-note";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import {
   Select,
   SelectContent,
@@ -85,7 +86,7 @@ export function EfficacyTab({
   const timezone = user?.timezone || DEFAULT_TIMEZONE;
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.medicationEfficacy(medicationId),
     queryFn: () =>
       apiGet<MedicationEfficacyDTO>(
@@ -95,7 +96,7 @@ export function EfficacyTab({
     staleTime: 60_000,
   });
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <MedicationDetailSection
         titleId="medication-wirkung-heading"
@@ -103,6 +104,21 @@ export function EfficacyTab({
         dataSlot="medication-wirkung-section"
       >
         <ChartSkeleton />
+      </MedicationDetailSection>
+    );
+  }
+
+  // A failed fetch previously fell through to the loading skeleton forever
+  // (the guard above checked `isLoading || !data`, and `data` never
+  // arrives on error) — an honest retry surface instead of a silent hang.
+  if (isError || !data) {
+    return (
+      <MedicationDetailSection
+        titleId="medication-wirkung-heading"
+        title={t("medications.efficacy.title")}
+        dataSlot="medication-wirkung-section"
+      >
+        <QueryErrorCard onRetry={() => refetch()} />
       </MedicationDetailSection>
     );
   }

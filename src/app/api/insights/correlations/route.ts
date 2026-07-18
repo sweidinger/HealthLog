@@ -38,11 +38,15 @@ import {
   type NamedSeries,
 } from "@/lib/insights/correlation-discovery";
 import {
+  buildMeasurementDailySeries,
   fetchComplianceSeries,
   fetchEnvironmentSeries,
   fetchLabDraws,
   fetchSymptomSeries,
+  toDailyMeans,
+  type MeasurementSeriesRow,
 } from "@/lib/insights/correlation-channel-series";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 
 export const dynamic = "force-dynamic";
 
@@ -56,25 +60,6 @@ function tzDayKey(at: Date, tz: string): string {
   const mm = String(month).padStart(2, "0");
   const dd = String(day).padStart(2, "0");
   return `${year}-${mm}-${dd}`;
-}
-
-/** Collapse rows to per-day means keyed in the user's tz. */
-function toDailyMeans(
-  rows: Array<{ value: number; at: Date }>,
-  tz: string,
-): DailySeriesPoint[] {
-  const byDay = new Map<string, { sum: number; count: number }>();
-  for (const r of rows) {
-    if (!Number.isFinite(r.value)) continue;
-    const day = tzDayKey(r.at, tz);
-    const acc = byDay.get(day) ?? { sum: 0, count: 0 };
-    acc.sum += r.value;
-    acc.count += 1;
-    byDay.set(day, acc);
-  }
-  return [...byDay.entries()]
-    .map(([day, acc]) => ({ day, value: acc.sum / acc.count }))
-    .sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
 export const GET = apiHandler(async () => {
@@ -112,7 +97,11 @@ export const GET = apiHandler(async () => {
     DISCOVERY_OUTCOMES,
   ) as MeasurementType[];
 
-  const [measurements, moodEntries] = await Promise.all([
+  // v1.29.6 — `source` + `deviceType` + `sleepStage` feed
+  // `buildMeasurementDailySeries`'s per-type grain resolution below (source
+  // collapse for cumulative types, per-night reconstruction for sleep); the
+  // rest of the channels never look at them.
+  const [measurements, moodEntries, priorityJson] = await Promise.all([
     prisma.measurement.findMany({
       where: {
         userId: user.id,
@@ -122,7 +111,14 @@ export const GET = apiHandler(async () => {
       },
       orderBy: { measuredAt: "asc" },
       take: 20000,
-      select: { type: true, value: true, measuredAt: true },
+      select: {
+        type: true,
+        value: true,
+        measuredAt: true,
+        source: true,
+        deviceType: true,
+        sleepStage: true,
+      },
     }),
     prisma.moodEntry.findMany({
       where: { userId: user.id, deletedAt: null, moodLoggedAt: { gte: since } },
@@ -130,15 +126,19 @@ export const GET = apiHandler(async () => {
       take: 5000,
       select: { score: true, moodLoggedAt: true },
     }),
+    loadUserSourcePriority(user.id),
   ]);
 
-  const measurementsByType = new Map<
-    string,
-    Array<{ value: number; at: Date }>
-  >();
+  const measurementsByType = new Map<string, MeasurementSeriesRow[]>();
   for (const m of measurements) {
     const list = measurementsByType.get(m.type) ?? [];
-    list.push({ value: m.value, at: m.measuredAt });
+    list.push({
+      value: m.value,
+      at: m.measuredAt,
+      source: m.source,
+      deviceType: m.deviceType,
+      sleepStage: m.sleepStage,
+    });
     measurementsByType.set(m.type, list);
   }
 
@@ -167,7 +167,12 @@ export const GET = apiHandler(async () => {
   const points = (key: string): DailySeriesPoint[] =>
     key === "MOOD"
       ? moodDaily
-      : toDailyMeans(measurementsByType.get(key) ?? [], tz);
+      : buildMeasurementDailySeries(
+          key as MeasurementType,
+          measurementsByType.get(key) ?? [],
+          tz,
+          priorityJson,
+        );
 
   const series: NamedSeries[] = [];
   for (const key of DISCOVERY_BEHAVIOURS) {

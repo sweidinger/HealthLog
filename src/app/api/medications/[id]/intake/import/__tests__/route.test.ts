@@ -3,6 +3,10 @@
  * /api/medications/[id]/intake/import. Preserves the
  * `medication.intake.import.invalid_format` errorCode meta so the CSV
  * import client UI can branch on the prefix semantics.
+ *
+ * v1.29 perf fix — the per-row `findUnique` duplicate probe was replaced by
+ * one indexed `findMany` existence read over every row's idempotencyKey
+ * before the write loop. `create` + `consumeForIntake` stay per-row.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
@@ -13,7 +17,7 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(),
     },
     medicationIntakeEvent: {
-      findUnique: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
     },
     auditLog: { create: vi.fn() },
@@ -74,6 +78,12 @@ function postReq(body: unknown): NextRequest {
 }
 
 const ROUTE_CTX = { params: Promise.resolve({ id: "m1" }) };
+
+/** Mirrors the route's own dedup-key derivation for a zaehler-less row. */
+function keyFor(medId: string, datum: string, uhrzeit: string): string {
+  const takenAt = new Date(`${datum}T${uhrzeit}`);
+  return `import-${medId}-${takenAt.getTime()}`;
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -172,10 +182,9 @@ describe("POST /api/medications/[id]/intake/import — 422 multi-issue (v1.4.43 
 
 describe("POST /api/medications/[id]/intake/import — inventory consumption", () => {
   beforeEach(() => {
-    // Fresh imports: no pre-existing dedup row, and create echoes an id.
-    vi.mocked(prisma.medicationIntakeEvent.findUnique).mockResolvedValue(
-      null as never,
-    );
+    // Fresh imports: the batched existence read finds no prior rows, and
+    // create echoes an id.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([]);
     let n = 0;
     vi.mocked(prisma.medicationIntakeEvent.create).mockImplementation(
       (async () => ({ id: `evt-${++n}`, takenAt: new Date() })) as never,
@@ -200,16 +209,24 @@ describe("POST /api/medications/[id]/intake/import — inventory consumption", (
     expect(call?.userId).toBe("user-1");
     expect(call?.eventId).toBe("evt-1");
 
+    // The three-row import reads existence in ONE indexed query, not one
+    // findUnique probe per row.
+    expect(prisma.medicationIntakeEvent.findMany).toHaveBeenCalledTimes(1);
+    const findManyArg = vi.mocked(prisma.medicationIntakeEvent.findMany).mock
+      .calls[0]?.[0] as { where: { idempotencyKey: { in: string[] } } };
+    expect(findManyArg.where.idempotencyKey.in).toHaveLength(3);
+
     // (#22) — the whole import queues exactly ONE cross-device sync
     // fan-out, not one per imported row.
     expect(queueMedicationIntakeSync).toHaveBeenCalledTimes(1);
   });
 
   it("does not consume for duplicate (already-imported) rows", async () => {
-    // First entry is a duplicate (existing dedup row), second is fresh.
-    vi.mocked(prisma.medicationIntakeEvent.findUnique)
-      .mockResolvedValueOnce({ id: "existing" } as never)
-      .mockResolvedValueOnce(null as never);
+    // First entry's key is already present — the batched existence read
+    // reports it, the second entry's key is absent (fresh).
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      { idempotencyKey: keyFor("m1", "2026-01-01", "07:00:00") },
+    ] as never);
     const res = await POST(
       postReq([
         { datum: "2026-01-01", uhrzeit: "07:00:00" },

@@ -51,9 +51,9 @@ const STATUS_CATEGORY_KEY: Record<string, string> = {
   "Hypertension Grade 1": "hypertensionGrade1",
   "Hypertension Grade 2": "hypertensionGrade2",
   "Hypertension Grade 3": "hypertensionGrade3",
-  Bradycardia: "bradycardia",
+  "Below typical range": "belowTypicalRange",
   Elevated: "elevated",
-  Tachycardia: "tachycardia",
+  "Above typical range": "aboveTypicalRange",
   "Significantly low": "significantlyLow",
   "Slightly low": "slightlyLow",
   "On target": "onTarget",
@@ -128,6 +128,13 @@ export function statusGroupForCategory(
     "Moderately active",
     "Essential",
   ]);
+  // Note: "Below typical range" / "Above typical range" (resting pulse,
+  // v1.29.6) are deliberately absent from both sets — they fall through to
+  // the default "near" (amber) group below, same as "Elevated" already
+  // does. The prior "Bradycardia" / "Tachycardia" categories painted this
+  // pill destructive-red, a diagnosis-shaped verdict that contradicted the
+  // calmer, neutral framing the interpretation layer uses for the identical
+  // signal (see `insight-interpretation.ts` → `RESTING_HEART_RATE`).
   const redCategories = new Set([
     "Obesity Grade III",
     "Hypertension Grade 3",
@@ -135,8 +142,6 @@ export function statusGroupForCategory(
     "Significantly low",
     "Far too short",
     "Far too long",
-    "Tachycardia",
-    "Bradycardia",
     "Low",
     "High",
     "Fluctuating",

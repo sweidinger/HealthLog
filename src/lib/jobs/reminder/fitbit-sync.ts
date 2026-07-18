@@ -5,6 +5,7 @@
  * schedules, and boss.work registrations.
  */
 import { type Job } from "pg-boss";
+import { fireAndForget } from "@/lib/logging/fire-and-forget";
 import { recordError } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { runFitbitPollCohort } from "@/lib/fitbit/sync";
@@ -50,7 +51,9 @@ export async function handleFitbitSync(jobs: Job<FitbitSyncPayload>[]) {
           // reminders eventfully. Fire-and-forget; the cron is the net.
           onUserSynced: (userId, imported) => {
             if (imported > 0) {
-              void enqueueReminderSatisfy(userId).catch(() => {});
+              fireAndForget(enqueueReminderSatisfy(userId), {
+                action: "reminder.satisfy.enqueue",
+              });
             }
           },
         },

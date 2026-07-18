@@ -191,7 +191,9 @@ export function BbtChart({
                     scale="time"
                     domain={["dataMin", "dataMax"]}
                     ticks={ticks}
-                    tickFormatter={(v) => fmt.dateShort(new Date(v as number))}
+                    tickFormatter={(v) =>
+                      fmt.dateShortSmart(new Date(v as number))
+                    }
                     tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                     tickLine={false}
                     axisLine={false}
@@ -285,7 +287,9 @@ function BbtTooltip(props: {
         "bg-popover border-border rounded-md border px-2.5 py-2 text-xs shadow-md",
       )}
     >
-      <p className="text-muted-foreground">{fmt.dateShort(new Date(p.t))}</p>
+      <p className="text-muted-foreground">
+        {fmt.dateShortSmart(new Date(p.t))}
+      </p>
       <p className="text-foreground font-medium tabular-nums">
         {t("cycle.bbt.tooltipTemp", { temp: fmt.number(p.temp) })}
       </p>

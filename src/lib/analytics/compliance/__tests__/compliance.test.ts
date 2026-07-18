@@ -28,8 +28,8 @@ import {
   tallyComplianceFromLedger,
   type ComplianceMedicationContext,
   type ComplianceSchedule,
-} from "../compliance";
-import type { IntakeTimingClass } from "../compliance";
+} from "@/lib/analytics/compliance";
+import type { IntakeTimingClass } from "@/lib/analytics/compliance";
 import { buildCadenceTimeline } from "@/lib/medications/scheduling/cadence";
 import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { userDayKey } from "@/lib/tz/format";

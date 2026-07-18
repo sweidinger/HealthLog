@@ -221,9 +221,11 @@ export function TitrationTimeline({
                     </p>
                     <p className="text-muted-foreground shrink-0 text-xs">
                       {step.isPast
-                        ? fmt.dateShort(new Date(step.effectiveFrom))
+                        ? fmt.dateShortSmart(new Date(step.effectiveFrom))
                         : t("medications.titration.plannedFor", {
-                            date: fmt.dateShort(new Date(step.effectiveFrom)),
+                            date: fmt.dateShortSmart(
+                              new Date(step.effectiveFrom),
+                            ),
                           })}
                     </p>
                   </div>

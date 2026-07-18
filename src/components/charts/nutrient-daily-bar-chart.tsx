@@ -14,7 +14,7 @@ import {
 
 import { CHART_HEIGHT_PX } from "@/lib/charts/constants";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
-import { formatDateShort } from "@/lib/format";
+import { useFormatters } from "@/lib/i18n/context";
 
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 
@@ -49,6 +49,7 @@ export function NutrientDailyBarChart({
   valueLabel,
   referenceValue,
 }: NutrientDailyBarChartProps) {
+  const fmt = useFormatters();
   const points = useMemo(
     () => days.map((d) => ({ day: d.day, amount: Math.round(d.amount) })),
     [days],
@@ -77,7 +78,7 @@ export function NutrientDailyBarChart({
         />
         <XAxis
           dataKey="day"
-          tickFormatter={(day: string) => formatDateShort(dayToDate(day))}
+          tickFormatter={(day: string) => fmt.dateShortSmart(dayToDate(day))}
           tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           stroke="var(--border)"
           minTickGap={24}
@@ -116,7 +117,7 @@ export function NutrientDailyBarChart({
             return (
               <RichChartTooltip
                 active
-                label={formatDateShort(dayToDate(point.day))}
+                label={fmt.dateShortSmart(dayToDate(point.day))}
                 rows={rows}
               />
             );

@@ -91,7 +91,7 @@
     "colShare": "Porcentaje",
     "footerDisclaimer1": "Este informe se generó automáticamente a partir de datos autorregistrados y está destinado a apoyar",
     "footerDisclaimer2": "la conversación entre médico y paciente. No sustituye un diagnóstico médico. Las correlaciones no implican causalidad.",
-    "footerSource": "Fuente: HealthLog | Zona horaria: Europe/Berlin | Creado: {timestamp}",
+    "footerSource": "Fuente: HealthLog | Zona horaria: {timezone} | Creado: {timestamp}",
     "typeWeight": "Peso corporal",
     "typeBpSys": "Tensión arterial sistólica",
     "typeBpDia": "Tensión arterial diastólica",
@@ -405,7 +405,6 @@
     "recentWorkouts": {
       "title": "Entrenamientos recientes",
       "viewAll": "Ver todos",
-      "loading": "Cargando entrenamientos…",
       "empty": {
         "title": "Aún no hay entrenamientos",
         "cta": "Abre la app Apple Salud en el iPhone para sincronizar los entrenamientos."
@@ -586,6 +585,22 @@
     "unitRatio": "ratio",
     "typeWho5Score": "Puntuación WHO-5",
     "typeSciScore": "Puntuación SCI"
+  },
+  "metricCatalog": {
+    "title": "Lo que HealthLog puede registrar",
+    "description": "Todos los ámbitos de métricas que admite HealthLog, tengas datos o no todavía, y qué los proporciona.",
+    "statusPresent": "Registrado",
+    "statusAbsent": "Aún sin registrar",
+    "statusModuleOff": "Desactivado",
+    "connectCta": "Conectar una fuente",
+    "viewCta": "Ver",
+    "ecg": {
+      "source": "Tiras de ECG de una derivación desde un reloj compatible — hoy, Withings ScanWatch — sincronizadas automáticamente."
+    },
+    "watchdog": {
+      "title": "Supervisión automática",
+      "description": "HealthLog también vigila en segundo plano — notificaciones de ritmo irregular y alteraciones respiratorias de un reloj conectado, además de alertas de desviación de tu valor de referencia — y solo muestra una tarjeta cuando algo destaca. Que no aparezca ninguna tarjeta es una buena señal, no una función ausente."
+    }
   },
   "mood": {
     "title": "Estado de ánimo",
@@ -2476,7 +2491,8 @@
         "documentsAttachedOne": "1 documento adjunto",
         "documentsAttachedOther": "{count} documentos adjuntos",
         "railBadge": "Chat de documento aislado",
-        "uploadError": "Error al subir. Inténtalo de nuevo."
+        "uploadError": "Error al subir. Inténtalo de nuevo.",
+        "notFoundError": "Ese enlace de documento ya no es válido: se iniciará un chat normal."
       }
     },
     "relativeJustNow": "ahora mismo",
@@ -2487,6 +2503,7 @@
     "relativeDaysAgoOne": "hace {count} día",
     "relativeDaysAgoOther": "hace {count} días",
     "navOverview": "Resumen",
+    "navCatalog": "Todas las métricas",
     "navBloodPressure": "Presión arterial",
     "navWeight": "Peso",
     "navPulse": "Pulso",
@@ -2517,9 +2534,9 @@
         "label": "Actividad",
         "header": "Actividad y movilidad"
       },
-      "cardiovascularParent": {
-        "label": "Cardiovascular",
-        "header": "Marcadores cardiovasculares"
+      "heartParent": {
+        "label": "Corazón",
+        "header": "Salud cardíaca"
       },
       "hearingParent": {
         "label": "Audición",
@@ -3879,6 +3896,8 @@
       "caption": "Tu frecuencia cardíaca a lo largo del día, promediada en tramos de 10 minutos.",
       "hourlyNote": "Mostrando el promedio por hora de este día — los días recientes muestran el detalle completo de 10 minutos.",
       "empty": "Aún no hay suficientes lecturas para este día para mostrar su forma.",
+      "coverageOne": "Basado en 1 lectura a lo largo de {hours}h.",
+      "coverageMany": "Basado en {count} lecturas a lo largo de {hours}h.",
       "baseline": "Reposo",
       "today": "Hoy",
       "previousDay": "Día anterior",
@@ -4016,7 +4035,7 @@
     },
     "source": {
       "title": "Conectar una fuente",
-      "body": "Importa las mediciones automáticamente o sigue con la entrada manual. Aquí no se configura nada por ti: cada tarjeta solo muestra dónde conectarla.",
+      "body": "Importa las mediciones automáticamente o sigue con la entrada manual. Aquí no se configura nada por ti: cada tarjeta solo muestra dónde conectarla. Las fuentes de dispositivo necesitan una app de desarrollador gratuita en tu propia cuenta (unos 5 minutos); la guía de cada tarjeta te lo explica.",
       "recommended": "Recomendado",
       "manual": {
         "title": "Entrada manual",
@@ -4024,12 +4043,14 @@
       },
       "withings": {
         "title": "Withings",
-        "body": "Las básculas, los tensiómetros y los trackers de Withings se sincronizan automáticamente.",
-        "cta": "Conectar Withings"
+        "body": "Las básculas, los tensiómetros y los trackers de Withings se sincronizan automáticamente una vez conectados.",
+        "cta": "Conectar Withings",
+        "setupCta": "Configurar en Ajustes",
+        "setupHint": "Necesita primero tu propia app de desarrollador de Withings, gratuita — unos 5 minutos, una sola vez."
       },
       "more": {
         "title": "Más fuentes",
-        "body": "Conecta cualquiera de ellas en Ajustes cuando quieras.",
+        "body": "Conecta cualquiera de ellas en Ajustes cuando quieras — la mayoría necesita antes una app de desarrollador gratuita en tu propia cuenta.",
         "appleHealth": "Apple Health",
         "whoop": "WHOOP",
         "oura": "Oura",
@@ -4171,7 +4192,16 @@
       "disableError": "No se pudo desactivar el modo Investigación. Inténtalo de nuevo."
     },
     "shell": {
-      "sectionsNav": "Secciones de ajustes"
+      "sectionsNav": "Secciones de ajustes",
+      "groups": {
+        "account": "Cuenta",
+        "yourData": "Tus datos",
+        "display": "Visualización",
+        "healthProfile": "Perfil de salud",
+        "ai": "IA",
+        "connectivity": "Conectividad",
+        "system": "Sistema"
+      }
     },
     "sections": {
       "account": {
@@ -4356,7 +4386,8 @@
           },
           "fullBackup": {
             "title": "Copia completa",
-            "description": "Un único archivo JSON con todo — el mismo formato que la copia automática semanal. Útil para restaurar tú mismo mediante la carga de administrador.",
+            "description": "Todos tus datos en un único archivo JSON: mediciones, medicamentos, estado de ánimo, ciclo, analíticas, episodios de enfermedad, alergias, antecedentes familiares y entrenamientos. Mismo formato que la copia automática semanal.",
+            "scopeNote": "Los archivos originales de los documentos y los datos de rutas GPS/muestras de los entrenamientos no están incluidos — descárgalos por separado desde el archivo de documentos o la exportación de entrenamientos.",
             "encryptToggle": "Cifrar con una contraseña",
             "passphrasePlaceholder": "Contraseña (mín. 12 caracteres)",
             "passphraseHelp": "Deriva la clave del archivo con Argon2id y lo sella con AES-256-GCM. Guarda el archivo con la extensión .hlx.",
@@ -5389,6 +5420,12 @@
     "ouraDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
     "nightscoutDescriptionSecondary": "Las lecturas llegan a tu panel en segundo plano. ¿Es tu primera vez? Sigue la",
     "integrationCredentialsHint": "Dónde encontrar estas credenciales y cómo registrar tu propia aplicación se explica en la guía de configuración de arriba.",
+    "integrationRedirectGuide": {
+      "intro": "Esto se conecta mediante tu propia app de desarrollador de {provider} — unos 5 minutos de configuración:",
+      "step1": "Crea una app en el portal de desarrolladores de {provider}.",
+      "step2": "Configura su URL de redirección/callback en:",
+      "step3": "Pega arriba el ID de cliente y el secreto de cliente que te da."
+    },
     "security": {
       "sessionsTitle": "Sesiones activas",
       "sessionsDescription": "Dispositivos y navegadores con sesión iniciada en tu cuenta.",
@@ -6029,6 +6066,7 @@
         "colAction": "Acción",
         "colDuration": "Duración",
         "colTraceId": "Trace",
+        "viewDetails": "Ver detalles de {action} a las {timestamp}",
         "showing": "Mostrando {count} de hasta {bufferMax} eventos en búfer",
         "empty": "El búfer está vacío",
         "emptyDescription": "Aún no hay eventos que coincidan con los filtros actuales. Pulsa actualizar tras generar algo de tráfico.",
@@ -6649,9 +6687,9 @@
       "hypertensionGrade1": "Hipertensión grado 1",
       "hypertensionGrade2": "Hipertensión grado 2",
       "hypertensionGrade3": "Hipertensión grado 3",
-      "bradycardia": "Bradicardia",
+      "belowTypicalRange": "Por debajo del rango típico",
       "elevated": "Elevado",
-      "tachycardia": "Taquicardia",
+      "aboveTypicalRange": "Por encima del rango típico",
       "significantlyLow": "Significativamente bajo",
       "slightlyLow": "Ligeramente bajo",
       "onTarget": "En rango objetivo",
@@ -7898,14 +7936,14 @@
       "bpLowDoctor": "Dos lecturas recientes tuvieron una sistólica por debajo de {systolic} mmHg. Si te mareas o te sientes débil, siéntate o recuéstate y contacta a tu médico si continúa.",
       "bpLowEmergency": "Dos lecturas recientes tuvieron una sistólica por debajo de {systolic} mmHg e indicaste síntomas. Si te sientes a punto de desmayar, confuso o con piel fría y húmeda, llama a emergencias ya.",
       "glucoseLowTitle": "Glucosa baja",
-      "glucoseLowDoctor": "Dos lecturas recientes estuvieron por debajo de 70 mg/dL ({value} mg/dL). Toma carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico si los bajones continúan.",
-      "glucoseLowEmergency": "Dos lecturas recientes estuvieron por debajo de 70 mg/dL ({value} mg/dL) e indicaste síntomas. Trátalo ahora con azúcar rápida; si no puedes o te sientes muy mal, llama a emergencias.",
+      "glucoseLowDoctor": "Dos lecturas recientes estuvieron por debajo de {threshold} {unit} ({value} {unit}). Toma carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico si los bajones continúan.",
+      "glucoseLowEmergency": "Dos lecturas recientes estuvieron por debajo de {threshold} {unit} ({value} {unit}) e indicaste síntomas. Trátalo ahora con azúcar rápida; si no puedes o te sientes muy mal, llama a emergencias.",
       "glucoseLowSevereTitle": "Glucosa muy baja",
-      "glucoseLowSevereDoctor": "Dos lecturas recientes estuvieron por debajo de 54 mg/dL ({value} mg/dL). Trátalo de inmediato con carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico.",
-      "glucoseLowSevereEmergency": "Dos lecturas recientes estuvieron por debajo de 54 mg/dL ({value} mg/dL) e indicaste síntomas. Trátalo ahora; si no retienes alimentos o te sientes muy mal, llama a emergencias.",
+      "glucoseLowSevereDoctor": "Dos lecturas recientes estuvieron por debajo de {threshold} {unit} ({value} {unit}). Trátalo de inmediato con carbohidratos de acción rápida, vuelve a medir en 15 minutos y contacta a tu médico.",
+      "glucoseLowSevereEmergency": "Dos lecturas recientes estuvieron por debajo de {threshold} {unit} ({value} {unit}) e indicaste síntomas. Trátalo ahora; si no retienes alimentos o te sientes muy mal, llama a emergencias.",
       "glucoseHighTitle": "Glucosa muy alta",
-      "glucoseHighDoctor": "Dos lecturas recientes fueron de {value} mg/dL o más. Vuelve a medir, hidrátate y contacta a tu médico cuanto antes si sigue así de alta.",
-      "glucoseHighEmergency": "Dos lecturas recientes fueron de {value} mg/dL o más e indicaste síntomas. Si tienes vómitos, respiración rápida o confusión, llama a emergencias ya."
+      "glucoseHighDoctor": "Dos lecturas recientes fueron de {value} {unit} o más. Vuelve a medir, hidrátate y contacta a tu médico cuanto antes si sigue así de alta.",
+      "glucoseHighEmergency": "Dos lecturas recientes fueron de {value} {unit} o más e indicaste síntomas. Si tienes vómitos, respiración rápida o confusión, llama a emergencias ya."
     }
   },
   "version": {
@@ -8041,6 +8079,12 @@
       },
       "nummerGegenKummer": {
         "name": "Nummer gegen Kummer (para jóvenes)"
+      },
+      "telefonSeelsorgeAt": {
+        "name": "Telefonseelsorge Österreich (24/7, gratuito y confidencial)"
+      },
+      "dargeboteneHand": {
+        "name": "Die Dargebotene Hand (24/7, gratuito y confidencial)"
       },
       "krisenchat": {
         "name": "krisenchat (chat 24/7, para jóvenes)"
@@ -8295,7 +8339,9 @@
       "openLabel": "Abrir {title}",
       "attachmentBadge": "Solo descarga",
       "uploading": "Subiendo…",
-      "dismissFailed": "Descartar subida fallida"
+      "dismissFailed": "Descartar subida fallida",
+      "processing": "Procesando…",
+      "ready": "Listo"
     },
     "error": {
       "fileTooLarge": "Este archivo supera el límite de {maxSize}.",

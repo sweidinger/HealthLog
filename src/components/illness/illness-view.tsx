@@ -103,7 +103,7 @@ function EpisodeCard({
                   : t("illness.status.recovered")}
               </Badge>
               <span className="text-muted-foreground">
-                {fmt.dateShort(new Date(episode.onsetAt))}
+                {fmt.dateShortSmart(new Date(episode.onsetAt))}
               </span>
             </div>
           </div>
@@ -167,11 +167,11 @@ function EpisodeCard({
 
         <p className="text-muted-foreground text-xs">
           {t("illness.onsetOn", {
-            date: fmt.dateShort(new Date(episode.onsetAt)),
+            date: fmt.dateShortSmart(new Date(episode.onsetAt)),
           })}
           {episode.resolvedAt
             ? ` · ${t("illness.recoveredOn", {
-                date: fmt.dateShort(new Date(episode.resolvedAt)),
+                date: fmt.dateShortSmart(new Date(episode.resolvedAt)),
               })}`
             : ""}
         </p>
@@ -192,7 +192,7 @@ function EpisodeCard({
                   >
                     <span className="truncate">{flare.label}</span>
                     <span className="text-muted-foreground shrink-0">
-                      {fmt.dateShort(new Date(flare.onsetAt))}
+                      {fmt.dateShortSmart(new Date(flare.onsetAt))}
                     </span>
                   </Link>
                 </li>

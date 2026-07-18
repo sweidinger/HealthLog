@@ -22,10 +22,12 @@ import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { userDayKey, shiftDateKey } from "@/lib/tz/format";
 import { TileHeader } from "@/components/insights/tile-header";
 import { Button } from "@/components/ui/button";
-import type {
-  IntradayHrBucket,
-  IntradayResolution,
-  TensionWindow,
+import { QueryErrorCard } from "@/components/ui/query-error-card";
+import {
+  BUCKET_MINUTES,
+  type IntradayHrBucket,
+  type IntradayResolution,
+  type TensionWindow,
 } from "@/lib/analytics/intraday-pulse";
 
 /** Slim DTO the intraday route returns (type-only — no server code bundled). */
@@ -57,13 +59,23 @@ const AXIS_TICKS = [0, 360, 720, 1080, 1440];
  * and non-diagnostic — "possible tension", never a stress score. Empty / no-
  * baseline days render an honest one-liner rather than an empty grid.
  *
+ * The area never interpolates across a gap of missing buckets — `chartData`
+ * is a full-day grid with `null` for every absent bucket and the `Area`
+ * renders with `connectNulls={false}`, so a handful of spot readings shows
+ * as isolated points rather than a fabricated smooth curve. Whenever that
+ * produces a visible break, a small "based on N readings across M hours"
+ * line discloses the coverage so the shape doesn't read as more continuous
+ * than it is.
+ *
  * v1.29.x — a day navigator (`TileHeader`'s `right` slot, per UI-STANDARDS
  * §11) pages the same route backward through prior days; "next" is disabled
  * at today, so the view can never step into the future. A day outside the
  * dense retention window (`DENSE_INTRADAY_RETENTION_DAYS`) reads back at the
  * coarser hourly grain instead of an empty chart — `resolution` on the DTO
  * tells the caption which, and the tension read is always absent on an
- * hourly day (it needs per-sample resolution to stay honest).
+ * hourly day (it needs per-sample resolution to stay honest). A failed fetch
+ * renders `<QueryErrorCard>` with a retry action instead of falling through
+ * to the empty-day copy.
  */
 export function IntradayPulseChart({
   userTimezone,
@@ -91,7 +103,7 @@ export function IntradayPulseChart({
     setSelectedDateKey(next === todayKey ? null : next);
   };
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.insightsPulseIntraday(dateKey),
     queryFn: () =>
       apiGet<IntradayPulseDto>(`/api/insights/pulse/intraday?date=${dateKey}`),
@@ -100,15 +112,51 @@ export function IntradayPulseChart({
     refetchOnWindowFocus: false,
   });
 
-  const chartData = useMemo(
-    () =>
-      (data?.series ?? []).map((b) => ({
-        minute: b.startMinute,
-        label: minuteLabel(b.startMinute),
-        bpm: b.mean,
-      })),
-    [data?.series],
-  );
+  const bucketMinutes = data?.bucketMinutes ?? BUCKET_MINUTES;
+
+  // A handful of spot readings scattered across the day must never read as
+  // a smooth, continuous curve — that fabricates a shape the data doesn't
+  // support. Building one grid point per possible bucket (present buckets
+  // carry their mean, absent ones are `null`) lets `connectNulls={false}`
+  // below break the area over any missing bucket instead of interpolating
+  // across it, so only genuinely adjacent readings connect.
+  const chartData = useMemo(() => {
+    const series = data?.series;
+    if (!series || series.length === 0) return [];
+    const byMinute = new Map(series.map((b) => [b.startMinute, b.mean]));
+    const points: Array<{ minute: number; label: string; bpm: number | null }> =
+      [];
+    for (let minute = 0; minute < 1440; minute += bucketMinutes) {
+      points.push({
+        minute,
+        label: minuteLabel(minute),
+        bpm: byMinute.get(minute) ?? null,
+      });
+    }
+    return points;
+  }, [data?.series, bucketMinutes]);
+
+  // The coverage disclosure only fires when the chart actually contains a
+  // break — a fully contiguous day already reads honestly without it. Whole
+  // hours (not fractional) keep the copy simple across locales.
+  const coverage = useMemo(() => {
+    const series = data?.series;
+    if (!series || series.length < 2) return null;
+    const sorted = [...series].sort((a, b) => a.startMinute - b.startMinute);
+    let hasGap = false;
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].startMinute - sorted[i - 1].startMinute > bucketMinutes) {
+        hasGap = true;
+        break;
+      }
+    }
+    if (!hasGap) return null;
+    const readingCount = sorted.reduce((sum, b) => sum + b.count, 0);
+    const first = sorted[0].startMinute;
+    const last = sorted[sorted.length - 1].startMinute + bucketMinutes;
+    const hours = Math.max(1, Math.round((last - first) / 60));
+    return { readingCount, hours };
+  }, [data?.series, bucketMinutes]);
 
   const caption = data?.tension
     ? t(`insights.intradayPulse.tension.${data.tension.partOfDay}`)
@@ -116,9 +164,18 @@ export function IntradayPulseChart({
       ? t("insights.intradayPulse.hourlyNote")
       : t("insights.intradayPulse.caption");
 
+  const coverageNote = coverage
+    ? coverage.readingCount === 1
+      ? t("insights.intradayPulse.coverageOne", { hours: coverage.hours })
+      : t("insights.intradayPulse.coverageMany", {
+          count: coverage.readingCount,
+          hours: coverage.hours,
+        })
+    : null;
+
   const dayLabel = isToday
     ? t("insights.intradayPulse.today")
-    : fmt.dateShort(new Date(`${dateKey}T12:00:00.000Z`));
+    : fmt.dateShortSmart(new Date(`${dateKey}T12:00:00.000Z`));
 
   return (
     <div
@@ -167,9 +224,22 @@ export function IntradayPulseChart({
         }
       />
       <p className="text-muted-foreground text-xs leading-snug">{caption}</p>
+      {coverageNote ? (
+        <p
+          data-slot="intraday-pulse-coverage"
+          className="text-muted-foreground text-xs leading-snug"
+        >
+          {coverageNote}
+        </p>
+      ) : null}
 
       {isLoading ? (
         <div className="bg-muted/40 h-44 animate-pulse rounded-lg motion-reduce:animate-none" />
+      ) : isError ? (
+        <QueryErrorCard
+          onRetry={() => refetch()}
+          className="border-0 bg-transparent shadow-none"
+        />
       ) : chartData.length === 0 ? (
         <div className="text-muted-foreground flex h-44 items-center justify-center rounded-lg border border-dashed text-sm">
           {t("insights.intradayPulse.empty")}
@@ -254,15 +324,22 @@ export function IntradayPulseChart({
                   }}
                 />
               ) : null}
+              {/* `connectNulls={false}` (the default, spelled out here for
+                  intent) is the honesty fix: `chartData` carries one point
+                  per possible bucket, `null` where no reading exists, so a
+                  gap of missing buckets breaks the line/fill instead of
+                  interpolating a shape across hours of silence. `dot`
+                  keeps an isolated reading visible as a point even where
+                  it has no neighbour to connect to. */}
               <Area
                 type="monotone"
                 dataKey="bpm"
                 stroke="var(--chart-1)"
                 strokeWidth={2}
                 fill="url(#intradayPulseFill)"
-                dot={false}
+                dot={{ r: 2, fill: "var(--chart-1)", strokeWidth: 0 }}
                 activeDot={{ r: 4 }}
-                connectNulls
+                connectNulls={false}
               />
             </AreaChart>
           </ResponsiveContainer>

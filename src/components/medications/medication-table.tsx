@@ -172,12 +172,19 @@ interface MedicationTableProps {
   inactiveMedications: TableMedication[];
   /** SSR-pinnable initial sort (tests); the header buttons own it after mount. */
   initialSort?: MedicationTableSort | null;
+  /**
+   * v1.29.x — the Today digest's "Log dose" deep-link target
+   * (`/medications?highlight=<id>`). The matching row rings briefly,
+   * mirroring the card grid's `<MedicationCard highlighted>`.
+   */
+  highlightId?: string | null;
 }
 
 export function MedicationTable({
   activeMedications,
   inactiveMedications,
   initialSort = null,
+  highlightId = null,
 }: MedicationTableProps) {
   const { t, locale } = useTranslations();
   const { user } = useAuth();
@@ -350,6 +357,7 @@ export function MedicationTable({
               lateMinutes={lateMinutes}
               missedMinutes={missedMinutes}
               lowStockRunwayDays={lowStockRunwayDays}
+              highlighted={highlightId === med.id}
             />
           ))}
           {sortedInactive.map((med) => (
@@ -360,6 +368,7 @@ export function MedicationTable({
               lateMinutes={lateMinutes}
               missedMinutes={missedMinutes}
               lowStockRunwayDays={lowStockRunwayDays}
+              highlighted={highlightId === med.id}
             />
           ))}
         </TableBody>
@@ -375,6 +384,8 @@ interface MedicationTableRowItemProps {
   missedMinutes: number;
   /** Per-user low-stock runway threshold in days; null = alert off. */
   lowStockRunwayDays: number | null;
+  /** v1.29.x — the deep-link highlight target (see `MedicationTableProps`). */
+  highlighted?: boolean;
 }
 
 function MedicationTableRowItem({
@@ -383,6 +394,7 @@ function MedicationTableRowItem({
   lateMinutes,
   missedMinutes,
   lowStockRunwayDays,
+  highlighted = false,
 }: MedicationTableRowItemProps) {
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
@@ -539,7 +551,7 @@ function MedicationTableRowItem({
             ? t("medications.tomorrow")
             : diffDays <= 5
               ? weekdayLabel(nextDate.getDay())
-              : fmt.dateWithWeekday(nextDate);
+              : fmt.dateWithWeekdaySmart(nextDate);
       nextCell = (
         <span>
           {dayLabel}, {formatTime(new Date(nextAt).toISOString())}
@@ -637,7 +649,15 @@ function MedicationTableRowItem({
     );
 
   return (
-    <TableRow className={cn(!medication.active && "opacity-60")}>
+    <TableRow
+      data-medication-id={medication.id}
+      className={cn(
+        !medication.active && "opacity-60",
+        // v1.29.x — mirrors the card grid's transient highlight ring for
+        // the Today digest's "Log dose" deep-link target.
+        highlighted && "ring-primary ring-2",
+      )}
+    >
       {/* Sticky name column — opaque background so scrolled content
           passes underneath, not through. */}
       <TableCell className="bg-card sticky left-0 z-10">

@@ -2,9 +2,10 @@
  * POST /api/export/encrypted
  *
  * v1.23 — passphrase-encrypted variant of the full-backup export. Returns the
- * same restore-compatible payload as `GET /api/export/full-backup`, but sealed
- * into an `HLX1` archive (Argon2id-derived key + AES-256-GCM) under a passphrase
- * the caller supplies in the request body. The binary archive is returned as
+ * same payload as `GET /api/export/full-backup` (see that route's doc comment
+ * for which domains restore recreates vs. export-only), sealed into an
+ * `HLX1` archive (Argon2id-derived key + AES-256-GCM) under a passphrase the
+ * caller supplies in the request body. The binary archive is returned as
  * `application/octet-stream`.
  *
  * SECURITY:
@@ -107,6 +108,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
       export_mood_count: counts.moodEntries,
       export_cycle_count: counts.cycles,
       export_cycle_day_log_count: counts.cycleDayLogs,
+      export_lab_result_count: counts.labResults,
+      export_biomarker_count: counts.biomarkers,
+      export_illness_episode_count: counts.illnessEpisodes,
+      export_illness_day_log_count: counts.illnessDayLogs,
+      export_allergy_count: counts.allergies,
+      export_family_history_count: counts.familyHistory,
+      export_workout_count: counts.workouts,
+      export_document_count: counts.documents,
       export_archive_bytes: archive.byteLength,
     },
   });

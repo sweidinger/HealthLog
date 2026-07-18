@@ -1,5 +1,4 @@
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiError } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -22,7 +21,10 @@ import { NextResponse } from "next/server";
  * same token is the `state` URL param AND an httpOnly cookie, and the callback
  * enforces both signature validity and a byte-exact cookie match.
  *
- * Rate-limited per user so a session can't spam the consent redirect.
+ * Rate-limited per user so a session can't spam the consent redirect. The
+ * no-credentials branch redirects too (v1.29.x) rather than returning a raw
+ * JSON 400 — every other failure path here already redirects, and a
+ * browser-navigation entry point should never surface an unstyled JSON page.
  */
 const CONNECT_RATE_LIMIT = 10;
 const CONNECT_WINDOW_MS = 60_000;
@@ -48,7 +50,13 @@ export const GET = apiHandler(async () => {
 
   const creds = await getPolarClientCredentials(user.id);
   if (!creds) {
-    return apiError("Polar integration is not configured on this server.", 400);
+    annotate({ action: { name: "polar.connect.no_credentials" } });
+    return NextResponse.redirect(
+      new URL(
+        "/settings/integrations?polar=error&reason=nocreds",
+        process.env.NEXT_PUBLIC_APP_URL!,
+      ),
+    );
   }
 
   const state = mintSignedState("polar", user.id);

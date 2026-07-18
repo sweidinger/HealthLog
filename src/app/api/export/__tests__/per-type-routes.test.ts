@@ -7,7 +7,7 @@
  * action name, and rate-limit wiring. The full DB round-trip lives in
  * the integration suite (`tests/integration/export-per-type.test.ts`).
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
@@ -20,6 +20,15 @@ vi.mock("@/lib/db", () => ({
     cycleProfile: { findUnique: vi.fn() },
     menstrualCycle: { findMany: vi.fn() },
     cycleDayLog: { findMany: vi.fn() },
+    // v1.28 backup-completeness — the records section the full-backup
+    // helper now also reads (`buildRecordsBackupSection`).
+    labResult: { findMany: vi.fn() },
+    biomarker: { findMany: vi.fn() },
+    illnessEpisode: { findMany: vi.fn() },
+    allergy: { findMany: vi.fn() },
+    familyHistoryEntry: { findMany: vi.fn() },
+    workout: { findMany: vi.fn() },
+    inboundDocument: { findMany: vi.fn() },
     user: { findUnique: vi.fn() },
     auditLog: { create: vi.fn() },
   },
@@ -61,6 +70,13 @@ function mkReq(url: string): NextRequest {
 
 beforeEach(() => {
   vi.resetAllMocks();
+});
+
+afterEach(() => {
+  // The v1.28 records-domain end-to-end test stubs ENCRYPTION_KEY to
+  // exercise the real crypto path; unstub unconditionally (harmless no-op
+  // for every other test) so a stub never leaks past its own test.
+  vi.unstubAllEnvs();
 });
 
 describe("GET /api/export/measurements", () => {
@@ -385,6 +401,15 @@ describe("GET /api/export/full-backup", () => {
     vi.mocked(prisma.cycleProfile.findUnique).mockResolvedValue(null as never);
     vi.mocked(prisma.menstrualCycle.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.cycleDayLog.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.labResult.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.biomarker.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.allergy.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.familyHistoryEntry.findMany).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.workout.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([] as never);
 
     const { GET } = await import("../full-backup/route");
     const res = await GET(mkReq("http://localhost/api/export/full-backup"));
@@ -402,11 +427,102 @@ describe("GET /api/export/full-backup", () => {
       medications: [],
       intakeEvents: [],
       moodEntries: [],
+      // v1.28 backup-completeness — the newer domains round-trip to empty
+      // arrays (not undefined/missing) when the account has no records,
+      // and the manifest still discloses the two deliberate exclusions.
+      labResults: [],
+      biomarkers: [],
+      illnessEpisodes: [],
+      allergies: [],
+      familyHistory: [],
+      workouts: [],
+      documents: [],
+      manifest: {
+        documents: { included: "metadata-only" },
+        workouts: { included: "summary-only" },
+      },
     });
     expect(typeof json.exportedAt).toBe("string");
     expect(auditLog).toHaveBeenCalledWith(
       "user.export.full-backup",
       expect.objectContaining({ userId: "user-1" }),
     );
+  });
+
+  it("includes decrypted v1.28 records-domain data end-to-end", async () => {
+    vi.stubEnv("ENCRYPTION_KEYS", "");
+    vi.stubEnv("ENCRYPTION_ACTIVE_KEY_ID", "");
+    vi.stubEnv("ENCRYPTION_KEY", "a".repeat(64));
+
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetAt: Date.now() + 3600_000,
+    });
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.cycleProfile.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.menstrualCycle.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.cycleDayLog.findMany).mockResolvedValue([] as never);
+
+    const { encryptToBytes } = await import("@/lib/ai/coach/bytes-codec");
+    vi.mocked(prisma.labResult.findMany).mockResolvedValue([
+      {
+        panel: null,
+        analyte: "HbA1c",
+        value: 5.4,
+        valueText: null,
+        unit: "%",
+        referenceLow: null,
+        referenceHigh: null,
+        takenAt: new Date("2026-04-01T09:00:00.000Z"),
+        source: "MANUAL",
+        biomarker: null,
+        noteEncrypted: null,
+      },
+    ] as never);
+    vi.mocked(prisma.biomarker.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.illnessEpisode.findMany).mockResolvedValue([
+      {
+        id: "ep-1",
+        label: "Migraine flare",
+        type: "CHRONIC",
+        lifecycle: "FLARE",
+        onsetAt: new Date("2026-04-10T00:00:00.000Z"),
+        resolvedAt: null,
+        parentConditionId: "ep-parent",
+        noteEncrypted: encryptToBytes("Triggered by travel."),
+        createdAt: new Date("2026-04-10T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-10T00:00:00.000Z"),
+        dayLogs: [],
+      },
+    ] as never);
+    vi.mocked(prisma.allergy.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.familyHistoryEntry.findMany).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.workout.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.inboundDocument.findMany).mockResolvedValue([] as never);
+
+    const { GET } = await import("../full-backup/route");
+    const res = await GET(mkReq("http://localhost/api/export/full-backup"));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+
+    expect(json.labResults).toEqual([
+      expect.objectContaining({ analyte: "HbA1c", value: 5.4 }),
+    ]);
+    // The flare's parent link + decrypted note round-trip in the JSON —
+    // never the ciphertext.
+    expect(json.illnessEpisodes[0].parentConditionId).toBe("ep-parent");
+    expect(json.illnessEpisodes[0].note).toBe("Triggered by travel.");
+    // The raw ciphertext column never leaves the server — only the
+    // decrypted `note` field is present on the DTO.
+    expect(json.illnessEpisodes[0]).not.toHaveProperty("noteEncrypted");
   });
 });

@@ -302,6 +302,45 @@ describe("<MedicationTable> — structure + shared payloads", () => {
     expect(html).not.toContain('aria-label="Take – Amoxicillin"');
   });
 
+  // v1.29.x — the Today digest's "Log dose" deep-link
+  // (`/medications?highlight=<id>`) rings the matching row, mirroring the
+  // card grid's transient highlight.
+  it("carries the medication id and rings the row matching highlightId", () => {
+    const client = makeClient();
+    seedCompliance(client, "m1", 90, 88);
+    seedCompliance(client, "m2", 90, 88);
+    const html = render(
+      <MedicationTable
+        activeMedications={[
+          med({ id: "m1", name: "Ramipril" }),
+          med({ id: "m2", name: "Metformin" }),
+        ]}
+        inactiveMedications={[]}
+        highlightId="m2"
+      />,
+      client,
+    );
+
+    expect(html).toContain('data-medication-id="m1"');
+    expect(html).toContain('data-medication-id="m2"');
+    expect(html).toContain("ring-primary");
+  });
+
+  it("rings no row when highlightId matches nothing", () => {
+    const client = makeClient();
+    seedCompliance(client, "m1", 90, 88);
+    const html = render(
+      <MedicationTable
+        activeMedications={[med({ id: "m1", name: "Ramipril" })]}
+        inactiveMedications={[]}
+        highlightId="does-not-exist"
+      />,
+      client,
+    );
+
+    expect(html).not.toContain("ring-primary");
+  });
+
   it("renders a GLP-1 medication like any other row", () => {
     const client = makeClient();
     seedCompliance(client, "g1", 100, 100);

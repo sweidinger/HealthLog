@@ -230,29 +230,46 @@ export function AppLogPreviewSection() {
                 </tr>
               </thead>
               <tbody className="divide-border divide-y">
-                {events.map((event, i) => (
-                  <tr
-                    key={`${event.request_id}-${i}`}
-                    className={`${i % 2 === 0 ? "bg-muted/30" : ""} hover:bg-muted cursor-pointer`}
-                    onClick={() => setSelected(event)}
-                  >
-                    <td className="px-2 py-2">{levelIcon(event.level)}</td>
-                    <td className="text-muted-foreground px-2 py-2 text-xs whitespace-nowrap">
-                      {formatDateTime(event.timestamp)}
-                    </td>
-                    <td className="px-2 py-2 text-xs">
-                      {event.action?.name ??
-                        (`${event.http?.method ?? ""} ${event.http?.path ?? ""}`.trim() ||
-                          event.kind)}
-                    </td>
-                    <td className="text-muted-foreground px-2 py-2 text-right font-mono text-xs">
-                      {event.duration_ms} ms
-                    </td>
-                    <td className="text-muted-foreground px-2 py-2 font-mono text-xs">
-                      {event.trace_id.slice(0, 8)}…
-                    </td>
-                  </tr>
-                ))}
+                {events.map((event, i) => {
+                  const actionLabel =
+                    event.action?.name ??
+                    (`${event.http?.method ?? ""} ${event.http?.path ?? ""}`.trim() ||
+                      event.kind);
+                  return (
+                    <tr
+                      key={`${event.request_id}-${i}`}
+                      className={`${i % 2 === 0 ? "bg-muted/30" : ""} hover:bg-muted cursor-pointer`}
+                      // Pointer convenience only — the row itself is not
+                      // keyboard-reachable; the real interactive control is
+                      // the button below (2026-07-17 a11y audit H1).
+                      onClick={() => setSelected(event)}
+                    >
+                      <td className="px-2 py-2">{levelIcon(event.level)}</td>
+                      <td className="text-muted-foreground px-2 py-2 text-xs whitespace-nowrap">
+                        {formatDateTime(event.timestamp)}
+                      </td>
+                      <td className="px-2 py-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setSelected(event)}
+                          className="focus-visible:ring-ring w-full rounded text-left underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+                          aria-label={t("admin.section.app-logs.viewDetails", {
+                            action: actionLabel,
+                            timestamp: formatDateTime(event.timestamp),
+                          })}
+                        >
+                          {actionLabel}
+                        </button>
+                      </td>
+                      <td className="text-muted-foreground px-2 py-2 text-right font-mono text-xs">
+                        {event.duration_ms} ms
+                      </td>
+                      <td className="text-muted-foreground px-2 py-2 font-mono text-xs">
+                        {event.trace_id.slice(0, 8)}…
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

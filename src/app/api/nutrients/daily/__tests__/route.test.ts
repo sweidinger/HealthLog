@@ -118,17 +118,23 @@ describe("GET /api/nutrients/daily", () => {
   });
 
   it("sums amounts across sources within the same day before bucketing", async () => {
+    // Relative day-keys — a fixed literal slides out of the window as the
+    // calendar advances (a `?days=3` window only ever holds today..today-2).
+    const utcDay = (offset: number) =>
+      new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10);
+    const today = utcDay(0);
+    const yesterday = utcDay(1);
     vi.mocked(prisma.nutrientIntakeDay.findMany).mockResolvedValue([
-      { day: "2026-07-16", amount: 900 },
-      { day: "2026-07-16", amount: 600 },
-      { day: "2026-07-15", amount: 400 },
+      { day: today, amount: 900 },
+      { day: today, amount: 600 },
+      { day: yesterday, amount: 400 },
     ] as never);
 
     const res = await GET(getReq("?nutrient=water&days=3"));
     const body = (await res.json()) as DailyResponse;
     const byDay = new Map(body.data.days.map((d) => [d.day, d.amount]));
-    expect(byDay.get("2026-07-16")).toBe(1500);
-    expect(byDay.get("2026-07-15")).toBe(400);
+    expect(byDay.get(today)).toBe(1500);
+    expect(byDay.get(yesterday)).toBe(400);
   });
 
   it("resolves the sex-split reference against the caller's profile sex", async () => {

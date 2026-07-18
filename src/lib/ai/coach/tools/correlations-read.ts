@@ -35,14 +35,17 @@ import {
   EARLY_WINDOW_DAYS,
   MEDICATION_COMPLIANCE_CHANNEL_KEY,
   SYMPTOM_SEVERITY_CHANNEL_KEY,
-  type DailySeriesPoint,
   type NamedSeries,
 } from "@/lib/insights/correlation-discovery";
 import {
+  buildMeasurementDailySeries,
   fetchComplianceSeries,
   fetchLabDraws,
   fetchSymptomSeries,
+  toDailyMeans,
+  type MeasurementSeriesRow,
 } from "@/lib/insights/correlation-channel-series";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import {
   computeCoincidentDeviation,
   loadBaselineProfile,
@@ -127,25 +130,6 @@ function tzDayKey(at: Date, tz: string): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-/** Collapse rows to per-day means keyed in the user's tz. */
-function toDailyMeans(
-  rows: Array<{ value: number; at: Date }>,
-  tz: string,
-): DailySeriesPoint[] {
-  const byDay = new Map<string, { sum: number; count: number }>();
-  for (const r of rows) {
-    if (!Number.isFinite(r.value)) continue;
-    const day = tzDayKey(r.at, tz);
-    const acc = byDay.get(day) ?? { sum: 0, count: 0 };
-    acc.sum += r.value;
-    acc.count += 1;
-    byDay.set(day, acc);
-  }
-  return [...byDay.entries()]
-    .map(([day, acc]) => ({ day, value: acc.sum / acc.count }))
-    .sort((a, b) => (a.day < b.day ? -1 : 1));
-}
-
 /** Natural labels for the non-measurement channel keys (read cleanly in prose). */
 const CHANNEL_LABELS: Record<string, string> = {
   [MEDICATION_COMPLIANCE_CHANNEL_KEY]: "medication adherence",
@@ -186,41 +170,68 @@ export async function readCoachCorrelations(
       DISCOVERY_OUTCOMES,
     ) as MeasurementType[];
 
-    const [measurements, moodEntries, coincidentDerived] = await Promise.all([
-      prisma.measurement.findMany({
-        where: {
-          userId,
-          deletedAt: null,
-          measuredAt: { gte: since },
-          type: { in: [...behaviourTypes, ...outcomeTypes] },
-        },
-        orderBy: { measuredAt: "asc" },
-        take: 20000,
-        select: { type: true, value: true, measuredAt: true },
-      }),
-      prisma.moodEntry.findMany({
-        where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
-        orderBy: { moodLoggedAt: "asc" },
-        take: 5000,
-        select: { score: true, moodLoggedAt: true },
-      }),
-      // Coincident-deviation is its own derived metric — fail-soft to null so a
-      // baseline hiccup never sinks the whole correlations read. D2-8: pass the
-      // user's tz so the "today" grouping matches the user's calendar day, not
-      // UTC's, before the fired flag is narrated as "out of band TODAY".
-      computeCoincidentDeviation(userId, profile, { tz }).catch(() => null),
-    ]);
+    // v1.29.6 — `source` + `deviceType` + `sleepStage` feed
+    // `buildMeasurementDailySeries`'s per-type grain resolution below (see
+    // the insights route's identical comment for why).
+    const [measurements, moodEntries, coincidentDerived, priorityJson] =
+      await Promise.all([
+        prisma.measurement.findMany({
+          where: {
+            userId,
+            deletedAt: null,
+            measuredAt: { gte: since },
+            type: { in: [...behaviourTypes, ...outcomeTypes] },
+          },
+          orderBy: { measuredAt: "asc" },
+          take: 20000,
+          select: {
+            type: true,
+            value: true,
+            measuredAt: true,
+            source: true,
+            deviceType: true,
+            sleepStage: true,
+          },
+        }),
+        prisma.moodEntry.findMany({
+          where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
+          orderBy: { moodLoggedAt: "asc" },
+          take: 5000,
+          select: { score: true, moodLoggedAt: true },
+        }),
+        // Coincident-deviation is its own derived metric — fail-soft to null so a
+        // baseline hiccup never sinks the whole correlations read. D2-8: pass the
+        // user's tz so the "today" grouping matches the user's calendar day, not
+        // UTC's, before the fired flag is narrated as "out of band TODAY".
+        computeCoincidentDeviation(userId, profile, { tz }).catch(() => null),
+        loadUserSourcePriority(userId),
+      ]);
 
-    const byType = new Map<string, Array<{ value: number; at: Date }>>();
+    const byType = new Map<string, MeasurementSeriesRow[]>();
     for (const m of measurements) {
       const list = byType.get(m.type) ?? [];
-      list.push({ value: m.value, at: m.measuredAt });
+      list.push({
+        value: m.value,
+        at: m.measuredAt,
+        source: m.source,
+        deviceType: m.deviceType,
+        sleepStage: m.sleepStage,
+      });
       byType.set(m.type, list);
     }
     const moodDaily = toDailyMeans(
       moodEntries.map((e) => ({ value: e.score, at: e.moodLoggedAt })),
       tz,
     );
+    const seriesPoints = (key: string) =>
+      key === "MOOD"
+        ? moodDaily
+        : buildMeasurementDailySeries(
+            key as MeasurementType,
+            byType.get(key) ?? [],
+            tz,
+            priorityJson,
+          );
 
     // The two non-measurement, non-mood channels come from their own sources
     // (the dose-history ledger + the illness day-log), folded in below exactly
@@ -241,18 +252,14 @@ export async function readCoachCorrelations(
       } else if (key === SYMPTOM_SEVERITY_CHANNEL_KEY) {
         series.push({ ...symptomSeries, role: "behaviour" });
       } else {
-        const points =
-          key === "MOOD" ? moodDaily : toDailyMeans(byType.get(key) ?? [], tz);
-        series.push({ key, role: "behaviour", points });
+        series.push({ key, role: "behaviour", points: seriesPoints(key) });
       }
     }
     for (const key of DISCOVERY_OUTCOMES) {
       if (key === SYMPTOM_SEVERITY_CHANNEL_KEY) {
         series.push({ ...symptomSeries, role: "outcome" });
       } else {
-        const points =
-          key === "MOOD" ? moodDaily : toDailyMeans(byType.get(key) ?? [], tz);
-        series.push({ key, role: "outcome", points });
+        series.push({ key, role: "outcome", points: seriesPoints(key) });
       }
     }
 

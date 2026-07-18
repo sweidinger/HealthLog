@@ -150,6 +150,11 @@ interface Glp1MedicationCardProps {
    */
   onOpenHistory: (med: Glp1Medication) => void;
   onLogSideEffect?: (med: Glp1Medication) => void;
+  /**
+   * v1.29.x — briefly ringed when this card is the Today digest's "Log
+   * dose" deep-link target (`/medications?highlight=<id>`).
+   */
+  highlighted?: boolean;
 }
 
 function diffDays(target: Date, from: Date): number {
@@ -182,6 +187,7 @@ export function Glp1MedicationCard({
   onEdit,
   onOpenHistory,
   onLogSideEffect,
+  highlighted = false,
 }: Glp1MedicationCardProps) {
   const queryClient = useQueryClient();
   const { t } = useTranslations();
@@ -414,7 +420,7 @@ export function Glp1MedicationCard({
     if (next.daysAway === 0) return t("medications.glp1NextInjectionToday");
     if (next.daysAway === 1) return t("medications.glp1NextInjectionTomorrow");
     const dayName = weekdayLabel(getDayOfWeekInTz(next.date, displayTz));
-    const dateShort = fmt.dateShort(next.date);
+    const dateShort = fmt.dateShortSmart(next.date);
     return t("medications.glp1NextInjectionDays", {
       label: `${dayName}, ${dateShort}`,
       days: next.daysAway,
@@ -463,7 +469,7 @@ export function Glp1MedicationCard({
     medication.nextDueOverdue && next
       ? diffDays(next.date, now) === 0
         ? formatTime(next.date.toISOString())
-        : `${weekdayLabel(getDayOfWeekInTz(next.date, displayTz))}, ${fmt.dateShort(next.date)}`
+        : `${weekdayLabel(getDayOfWeekInTz(next.date, displayTz))}, ${fmt.dateShortSmart(next.date)}`
       : null;
 
   const nextLine =
@@ -493,6 +499,8 @@ export function Glp1MedicationCard({
 
   return (
     <MedicationCardBody
+      id={medication.id}
+      highlighted={highlighted}
       name={medication.name}
       dose={formatDose(medication.dose, t)}
       categoryLabel={categoryLabel}

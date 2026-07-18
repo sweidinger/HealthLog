@@ -218,7 +218,7 @@ export function DoseStrengthCurve({
             scale="time"
             domain={["dataMin", "dataMax"]}
             ticks={ticks}
-            tickFormatter={(v) => fmt.dateShort(new Date(v as number))}
+            tickFormatter={(v) => fmt.dateShortSmart(new Date(v as number))}
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             tickLine={false}
             axisLine={false}
@@ -237,7 +237,7 @@ export function DoseStrengthCurve({
               strokeOpacity: 0.3,
               strokeDasharray: "3 3",
             }}
-            labelFormatter={(v) => fmt.dateShort(new Date(v as number))}
+            labelFormatter={(v) => fmt.dateShortSmart(new Date(v as number))}
             formatter={(value) => [
               `${fmt.number(value as number)} ${unit}`,
               t("medications.doseStrength.tooltipLabel"),

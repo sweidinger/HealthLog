@@ -13,9 +13,6 @@ vi.mock("@/lib/api-handler", () => ({
   apiHandler: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
   requireAuth: vi.fn(async () => ({ user: { id: "u1" } })),
 }));
-vi.mock("@/lib/api-response", () => ({
-  apiError: (error: string, status: number) => ({ data: null, error, status }),
-}));
 vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
 vi.mock("@/lib/auth/secure-cookie", () => ({
   shouldEmitSecureCookie: () => true,
@@ -61,9 +58,12 @@ describe("GET /api/polar/connect", () => {
     expect(getCredsMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when neither BYO nor env credentials resolve", async () => {
+  it("redirects to reason=nocreds when neither BYO nor env credentials resolve", async () => {
     getCredsMock.mockResolvedValue(null);
-    const res = (await run()) as unknown as { status: number };
-    expect(res.status).toBe(400);
+    const res = await run();
+    const location = res.headers.get("location") ?? "";
+    expect(location).toContain("/settings/integrations");
+    expect(location).toContain("polar=error");
+    expect(location).toContain("reason=nocreds");
   });
 });

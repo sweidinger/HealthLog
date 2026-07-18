@@ -10,7 +10,21 @@
  * the day-log note, so a wrong-surface plaintext leak is impossible and the
  * owner's note round-trips encrypted at rest.
  */
-import type { PrismaClient, Prisma } from "@/generated/prisma/client";
+import type {
+  CervicalMucus,
+  CervixFirmness,
+  CervixOpening,
+  CervixPosition,
+  ContraceptiveKind,
+  CycleTrackingGoal,
+  FlowLevel,
+  HomeTestResult,
+  MeasurementSource,
+  OvulationTest,
+  Prisma,
+  PrismaClient,
+  SecondarySymptom,
+} from "@/generated/prisma/client";
 import type { BackupPayload } from "@/lib/validations/backup";
 
 /** The cycle slice of a backup payload. */
@@ -150,26 +164,36 @@ export interface CycleRestoreCleared {
 // few enum columns up-front (mirrors the measurement-type guard in the
 // restore route). Unknown values are coerced to null rather than failing
 // the whole restore — a single drifted field shouldn't strand the rest.
-const FLOW_LEVELS = new Set(["NONE", "SPOTTING", "LIGHT", "MEDIUM", "HEAVY"]);
-const OVULATION_TESTS = new Set([
+const FLOW_LEVELS = new Set<FlowLevel>([
+  "NONE",
+  "SPOTTING",
+  "LIGHT",
+  "MEDIUM",
+  "HEAVY",
+]);
+const OVULATION_TESTS = new Set<OvulationTest>([
   "NEGATIVE",
   "POSITIVE_LH_SURGE",
   "ESTROGEN_SURGE",
   "INDETERMINATE",
 ]);
-const CERVICAL_MUCUS = new Set([
+const CERVICAL_MUCUS = new Set<CervicalMucus>([
   "DRY",
   "STICKY",
   "CREAMY",
   "WATERY",
   "EGG_WHITE",
 ]);
-const SECONDARY_SYMPTOMS = new Set(["MUCUS", "CERVIX"]);
-const CERVIX_POSITIONS = new Set(["LOW", "HIGH"]);
-const CERVIX_FIRMNESSES = new Set(["FIRM", "SOFT"]);
-const CERVIX_OPENINGS = new Set(["CLOSED", "OPEN"]);
-const HOME_TESTS = new Set(["NEGATIVE", "POSITIVE", "INDETERMINATE"]);
-const CONTRACEPTIVES = new Set([
+const SECONDARY_SYMPTOMS = new Set<SecondarySymptom>(["MUCUS", "CERVIX"]);
+const CERVIX_POSITIONS = new Set<CervixPosition>(["LOW", "HIGH"]);
+const CERVIX_FIRMNESSES = new Set<CervixFirmness>(["FIRM", "SOFT"]);
+const CERVIX_OPENINGS = new Set<CervixOpening>(["CLOSED", "OPEN"]);
+const HOME_TESTS = new Set<HomeTestResult>([
+  "NEGATIVE",
+  "POSITIVE",
+  "INDETERMINATE",
+]);
+const CONTRACEPTIVES = new Set<ContraceptiveKind>([
   "NONE",
   "UNSPECIFIED",
   "IMPLANT",
@@ -180,8 +204,13 @@ const CONTRACEPTIVES = new Set([
   "PATCH",
   "EMERGENCY",
 ]);
-const CYCLE_SOURCES = new Set(["MANUAL", "WITHINGS", "IMPORT", "APPLE_HEALTH"]);
-const CYCLE_GOALS = new Set([
+const CYCLE_SOURCES = new Set<MeasurementSource>([
+  "MANUAL",
+  "WITHINGS",
+  "IMPORT",
+  "APPLE_HEALTH",
+]);
+const CYCLE_GOALS = new Set<CycleTrackingGoal>([
   "GENERAL_HEALTH",
   "AVOID_PREGNANCY",
   "TRYING_TO_CONCEIVE",
@@ -191,9 +220,11 @@ const CYCLE_GOALS = new Set([
 
 function enumOrNull<T extends string>(
   value: string | null | undefined,
-  allow: Set<string>,
+  allow: ReadonlySet<T>,
 ): T | null {
-  return value != null && allow.has(value) ? (value as T) : null;
+  return value != null && (allow as ReadonlySet<string>).has(value)
+    ? (value as T)
+    : null;
 }
 
 /**
@@ -228,13 +259,13 @@ export async function restoreCycleData(
     await tx.cycleProfile.create({
       data: {
         userId: ownerId,
-        goal: (enumOrNull(p.goal, CYCLE_GOALS) ?? "GENERAL_HEALTH") as never,
+        goal: enumOrNull(p.goal, CYCLE_GOALS) ?? "GENERAL_HEALTH",
         cycleTrackingEnabled: p.cycleTrackingEnabled ?? null,
         typicalCycleLength: p.typicalCycleLength ?? null,
         typicalPeriodLength: p.typicalPeriodLength ?? null,
         lutealPhaseLength: p.lutealPhaseLength ?? null,
-        secondarySymptom: (enumOrNull(p.secondarySymptom, SECONDARY_SYMPTOMS) ??
-          "MUCUS") as never,
+        secondarySymptom:
+          enumOrNull(p.secondarySymptom, SECONDARY_SYMPTOMS) ?? "MUCUS",
         predictionEnabled: p.predictionEnabled ?? true,
         rawChartMode: p.rawChartMode ?? false,
         discreetNotifications: p.discreetNotifications ?? false,
@@ -302,27 +333,24 @@ export async function restoreCycleData(
         userId: ownerId,
         date: d.date,
         cycleId: owningCycleId(d.date),
-        flow: enumOrNull(d.flow, FLOW_LEVELS) as never,
+        flow: enumOrNull(d.flow, FLOW_LEVELS),
         intermenstrualBleeding: d.intermenstrualBleeding ?? false,
         basalBodyTempC: d.basalBodyTempC ?? null,
         temperatureExcluded: d.temperatureExcluded ?? false,
-        ovulationTest: enumOrNull(d.ovulationTest, OVULATION_TESTS) as never,
-        cervicalMucus: enumOrNull(d.cervicalMucus, CERVICAL_MUCUS) as never,
-        cervixPosition: enumOrNull(d.cervixPosition, CERVIX_POSITIONS) as never,
-        cervixFirmness: enumOrNull(
-          d.cervixFirmness,
-          CERVIX_FIRMNESSES,
-        ) as never,
-        cervixOpening: enumOrNull(d.cervixOpening, CERVIX_OPENINGS) as never,
+        ovulationTest: enumOrNull(d.ovulationTest, OVULATION_TESTS),
+        cervicalMucus: enumOrNull(d.cervicalMucus, CERVICAL_MUCUS),
+        cervixPosition: enumOrNull(d.cervixPosition, CERVIX_POSITIONS),
+        cervixFirmness: enumOrNull(d.cervixFirmness, CERVIX_FIRMNESSES),
+        cervixOpening: enumOrNull(d.cervixOpening, CERVIX_OPENINGS),
         sexualActivity: d.sexualActivity ?? false,
         protectedSex: d.protectedSex ?? null,
-        pregnancyTest: enumOrNull(d.pregnancyTest, HOME_TESTS) as never,
-        progesteroneTest: enumOrNull(d.progesteroneTest, HOME_TESTS) as never,
-        contraceptive: enumOrNull(d.contraceptive, CONTRACEPTIVES) as never,
+        pregnancyTest: enumOrNull(d.pregnancyTest, HOME_TESTS),
+        progesteroneTest: enumOrNull(d.progesteroneTest, HOME_TESTS),
+        contraceptive: enumOrNull(d.contraceptive, CONTRACEPTIVES),
         // Both ciphertext envelopes written back verbatim — never re-encrypted.
         sensitiveEncrypted: d.sensitiveEncrypted ?? null,
         notesEncrypted: d.notesEncrypted ?? null,
-        source: (enumOrNull(d.source, CYCLE_SOURCES) ?? "MANUAL") as never,
+        source: enumOrNull(d.source, CYCLE_SOURCES) ?? "MANUAL",
         externalId: d.externalId ?? null,
         tz: d.tz ?? null,
         ...(symptomIds.length > 0
