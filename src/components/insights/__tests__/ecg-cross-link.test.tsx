@@ -62,7 +62,7 @@ describe("<EcgCrossLink>", () => {
       hasRecordings: true,
     });
     expect(html).toContain('data-slot="ecg-cross-link"');
-    expect(html).toContain('href="/insights#ecg"');
+    expect(html).toContain('href="/insights/ecg"');
     expect(html).toContain("2 recordings on file.");
     // The latest (first) recording's DEVICE result, attributed to the device.
     expect(html).toContain("Latest device result:");

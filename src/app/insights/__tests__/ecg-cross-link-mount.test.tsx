@@ -89,12 +89,12 @@ describe("EcgCrossLink mount on Heart sub-pages (H1)", () => {
   it("mounts the ECG cross-link on the resting-pulse page", () => {
     const html = render(<RestingPulsePage />);
     expect(html).toContain('data-slot="ecg-cross-link"');
-    expect(html).toContain('href="/insights#ecg"');
+    expect(html).toContain('href="/insights/ecg"');
   });
 
   it("mounts the ECG cross-link on the HRV page", () => {
     const html = render(<HrvPage />);
     expect(html).toContain('data-slot="ecg-cross-link"');
-    expect(html).toContain('href="/insights#ecg"');
+    expect(html).toContain('href="/insights/ecg"');
   });
 });
