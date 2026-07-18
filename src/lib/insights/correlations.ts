@@ -34,8 +34,44 @@
  *
  * Conservative phrasing — interpretations always read as "a pattern worth
  * watching" or similar, never "X causes Y". Causation language is banned
- * from this module by code-review convention.
+ * from this module by code-review convention. Every user-facing interpretation
+ * is assembled from locale-keyed templates under `insights.correlation.*` so
+ * the never-causal framing survives verbatim in all six locales rather than
+ * leaking English into a non-English UI.
  */
+import { defaultLocale } from "@/lib/i18n/config";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
+
+/** Locale-aware string builder — mirrors the server translator's `t`. */
+type Translate = (
+  key: string,
+  params?: Record<string, string | number>,
+) => string;
+
+/**
+ * English by default so the pure callers + unit tests that pass no locale keep
+ * their existing (English) output; the analytics route threads the reader's
+ * locale through the fast-path so the cards render in the reader's language.
+ */
+function defaultTranslate(): Translate {
+  return getServerTranslator(defaultLocale).t;
+}
+
+/**
+ * Weekday index (0 = Monday … 6 = Sunday, the order the ANOVA outlier index
+ * uses) → the shared `charts.weekdaysFull.*` label key, reused so the weekday
+ * name is already localised in every bundle.
+ */
+const WEEKDAY_LABEL_KEYS = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+] as const;
+
 export type CorrelationKind = "bp-compliance" | "mood-pulse" | "weight-weekday";
 
 export interface CorrelationConfidenceBand {
@@ -612,6 +648,7 @@ export interface BpComplianceInput {
  */
 export function correlateBpCompliance(
   input: BpComplianceInput,
+  t: Translate = defaultTranslate(),
 ): CorrelationResult {
   const points = input.daily.map((d) => ({
     x: d.compliancePct,
@@ -640,10 +677,10 @@ export function correlateBpCompliance(
   }
   const interpretation =
     r.r < -0.1
-      ? "Higher medication compliance lines up with lower systolic readings — a pattern worth watching."
+      ? t("insights.correlation.hypothesis.bpCompliance.support")
       : r.r > 0.1
-        ? "Compliance and systolic move together in your data — surprising; talk to your doctor before adjusting anything."
-        : "Compliance and systolic do not move together strongly in this window.";
+        ? t("insights.correlation.hypothesis.bpCompliance.surprising")
+        : t("insights.correlation.hypothesis.bpCompliance.none");
   return {
     kind: "bp-compliance",
     status: "ok",
@@ -673,7 +710,10 @@ export interface MoodPulseInput {
  * Runs Pearson on (mood, restingPulse). A negative r supports the
  * hypothesis (mood down → pulse up).
  */
-export function correlateMoodPulse(input: MoodPulseInput): CorrelationResult {
+export function correlateMoodPulse(
+  input: MoodPulseInput,
+  t: Translate = defaultTranslate(),
+): CorrelationResult {
   const points = input.daily.map((d) => ({ x: d.mood, y: d.restingPulse }));
   const xs = points.map((p) => p.x);
   const ys = points.map((p) => p.y);
@@ -698,10 +738,10 @@ export function correlateMoodPulse(input: MoodPulseInput): CorrelationResult {
   }
   const interpretation =
     r.r < -0.1
-      ? "Lower-mood days line up with higher resting pulse — a pattern worth watching."
+      ? t("insights.correlation.hypothesis.moodPulse.support")
       : r.r > 0.1
-        ? "Higher-mood days line up with higher resting pulse in your data — surprising."
-        : "Mood and resting pulse do not move together strongly in this window.";
+        ? t("insights.correlation.hypothesis.moodPulse.surprising")
+        : t("insights.correlation.hypothesis.moodPulse.none");
   return {
     kind: "mood-pulse",
     status: "ok",
@@ -726,16 +766,6 @@ export interface WeightWeekdayInput {
   daily: ReadonlyArray<{ weekday: number; weight: number }>;
 }
 
-const WEEKDAY_LABELS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const;
-
 /**
  * Hypothesis #3 — weight has a weekly pattern (e.g. Monday spikes
  * after weekends).
@@ -745,6 +775,7 @@ const WEEKDAY_LABELS = [
  */
 export function correlateWeightWeekday(
   input: WeightWeekdayInput,
+  t: Translate = defaultTranslate(),
 ): CorrelationResult {
   const points = input.daily.map((d) => ({ x: d.weekday, y: d.weight }));
   const anova = weekdayAnova(
@@ -768,13 +799,21 @@ export function correlateWeightWeekday(
       points,
     };
   }
-  const dayLabel = WEEKDAY_LABELS[anova.outlierIndex];
+  const dayLabel = t(
+    `charts.weekdaysFull.${WEEKDAY_LABEL_KEYS[anova.outlierIndex]}`,
+  );
   const grandMean =
     input.daily.reduce((s, p) => s + p.weight, 0) / input.daily.length;
   const outlierMean = anova.means[anova.outlierIndex] ?? grandMean;
-  const direction = outlierMean > grandMean ? "above" : "below";
+  const direction = t(
+    `insights.correlation.weekdayDirection.${outlierMean > grandMean ? "above" : "below"}`,
+  );
   const delta = Math.abs(outlierMean - grandMean).toFixed(1);
-  const interpretation = `${dayLabel} weights run ${delta} kg ${direction} your other-day average — a pattern worth watching.`;
+  const interpretation = t("insights.correlation.hypothesis.weightWeekday", {
+    weekday: dayLabel,
+    delta,
+    direction,
+  });
 
   return {
     kind: "weight-weekday",

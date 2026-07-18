@@ -1979,6 +1979,61 @@
     "notAvailableForCompliance": "Confronto non disponibile per l’aderenza"
   },
   "insights": {
+    "correlation": {
+      "direction": {
+        "higher": "salire",
+        "lower": "scendere"
+      },
+      "weekdayDirection": {
+        "above": "sopra",
+        "below": "sotto"
+      },
+      "channelFactor": "la valutazione di {factor}",
+      "channel": {
+        "WEIGHT": "il peso",
+        "BLOOD_GLUCOSE": "la glicemia",
+        "BLOOD_PRESSURE_SYS": "la pressione sistolica",
+        "BLOOD_PRESSURE_DIA": "la pressione diastolica",
+        "ACTIVITY_STEPS": "i passi giornalieri",
+        "SLEEP_DURATION": "la durata del sonno",
+        "HEART_RATE_VARIABILITY": "la variabilità della frequenza cardiaca",
+        "RESTING_HEART_RATE": "la frequenza cardiaca a riposo",
+        "TIME_IN_DAYLIGHT": "il tempo alla luce del giorno",
+        "MOOD": "l'umore",
+        "PULSE": "il polso a riposo",
+        "MEDICATION_COMPLIANCE": "l'aderenza ai farmaci",
+        "SYMPTOM_SEVERITY": "la gravità dei sintomi",
+        "ENV_TEMP_MEAN": "la temperatura giornaliera",
+        "ENV_TEMP_MIN": "la temperatura minima notturna",
+        "ENV_SUNSHINE": "il soleggiamento",
+        "ENV_DAYLIGHT": "la luce del giorno",
+        "ENV_PRECIP": "le precipitazioni",
+        "ENV_PRESSURE_MEAN": "la pressione atmosferica",
+        "ENV_PRESSURE_DELTA": "l'oscillazione di pressione nella giornata"
+      },
+      "daily": {
+        "high": "Quando {behaviour} sale, {outcome} del giorno dopo tende a {direction} nei tuoi dati — un andamento da osservare, non una causa.",
+        "moderate": "Quando {behaviour} sale, {outcome} del giorno dopo sembra tendere a {direction}, per quanto emerge finora — un andamento da osservare, non una causa.",
+        "faint": "Quando {behaviour} sale, al più si intravede un debole indizio che {outcome} del giorno dopo tenda a {direction} nei tuoi dati — troppo lieve per farci affidamento, mai una causa."
+      },
+      "lab": {
+        "default": "Valori di {lab} più alti si accompagnano al fatto che {outcome} tende a {direction} negli stessi periodi dei tuoi dati — un'associazione da tenere d'occhio con il tuo medico, mai una causa.",
+        "faint": "Valori di {lab} più alti lasciano al più intravedere che {outcome} tenda a {direction} negli stessi periodi dei tuoi dati — troppo lieve per farci affidamento, un'associazione da discutere con il tuo medico, mai una causa."
+      },
+      "hypothesis": {
+        "bpCompliance": {
+          "support": "Una maggiore aderenza ai farmaci si accompagna a valori sistolici più bassi — un andamento da osservare.",
+          "surprising": "L'aderenza e la sistolica si muovono insieme nei tuoi dati — sorprendente; parlane con il tuo medico prima di modificare qualcosa.",
+          "none": "L'aderenza e la sistolica non si muovono insieme in modo marcato in questo periodo."
+        },
+        "moodPulse": {
+          "support": "I giorni di umore più basso si accompagnano a un polso a riposo più alto — un andamento da osservare.",
+          "surprising": "I giorni di umore migliore si accompagnano a un polso a riposo più alto nei tuoi dati — sorprendente.",
+          "none": "L'umore e il polso a riposo non si muovono insieme in modo marcato in questo periodo."
+        },
+        "weightWeekday": "Il peso del {weekday} è {delta} kg {direction} la tua media degli altri giorni — un andamento da osservare."
+      }
+    },
     "noAnalysisYet": "Ancora nessuna valutazione.",
     "assessmentPreparing": "Preparazione della valutazione…",
     "emptyTitle": "Dati ancora insufficienti",

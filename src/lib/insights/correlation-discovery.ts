@@ -39,10 +39,19 @@
  * link. The series builders live in `correlation-series-builders.ts`.
  */
 import { pearson, MIN_PAIRED_N } from "@/lib/insights/correlations";
-import {
-  getEnvironmentField,
-  isEnvironmentChannelKey,
-} from "@/lib/environment/fields";
+import { defaultLocale, type Locale } from "@/lib/i18n/config";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
+
+/**
+ * Locale-aware string builder — the same signature the server translator
+ * exposes. Every user-facing narration in this module routes through one of
+ * these so the sentence is emitted in the reader's language, not hardcoded
+ * English. Falls back to English (then the raw key) inside the translator.
+ */
+type Translate = (
+  key: string,
+  params?: Record<string, string | number>,
+) => string;
 
 /** Default Benjamini-Hochberg target false-discovery rate. */
 export const FDR_Q = 0.1;
@@ -288,46 +297,64 @@ export function benjaminiHochberg(
  * Sign of `r` flips the direction; the `tier` (RECON1 D2-2 / D2-6) flips the
  * CONFIDENCE of the phrasing so a faint effect reads as "a faint hint, if
  * anything" rather than a confident "tends to go with". Never claims causation.
+ *
+ * The sentence is assembled from locale-keyed templates under
+ * `insights.correlation.daily.*` (+ a per-locale direction word) so the calm,
+ * never-causal framing survives verbatim in every language rather than leaking
+ * English into a non-English UI.
  */
 function interpret(
   behaviour: string,
   outcome: string,
   r: number,
   tier: ConfidenceTier,
+  t: Translate,
 ): string {
-  const b = humanise(behaviour);
-  const o = humanise(outcome);
-  const lower = r < 0 ? "lower" : "higher";
-  if (tier === "faint") {
-    // Below the confident effect-size threshold: a real-but-small signal,
-    // hedged so the narrated confidence never outruns the effect.
-    return `Higher ${b} shows a faint hint, if anything, of ${lower} next-day ${o} in your data — too small to lean on, never a cause.`;
-  }
-  const lead =
-    tier === "high"
-      ? `Higher ${b} tends to go with ${lower} next-day ${o} in your data`
-      : `Higher ${b} looks like it goes with ${lower} next-day ${o} in your data, on the evidence so far`;
-  return `${lead} — a pattern worth watching, not a cause.`;
+  const params = {
+    behaviour: humanise(behaviour, t),
+    outcome: humanise(outcome, t),
+    direction: t(
+      `insights.correlation.direction.${r < 0 ? "lower" : "higher"}`,
+    ),
+  };
+  // faint = below the confident effect-size threshold (a real-but-small signal,
+  // hedged); high = confident "tends to go with"; moderate = the in-between
+  // "on the evidence so far" phrasing. Each tier keeps its own template.
+  const tierKey =
+    tier === "faint" ? "faint" : tier === "high" ? "high" : "moderate";
+  return t(`insights.correlation.daily.${tierKey}`, params);
 }
 
 /**
- * Lower-case, space-separated label from a channel key.
+ * Localised, human-readable label for a channel key.
  *
  * v1.14.0 — a `FACTOR:<key>` channel (a RATED mood factor folded into the
  * matrix) strips its namespace prefix so the phrasing reads "rated <factor>"
  * rather than leaking the raw key. The prefix exists only to keep a factor
- * key from colliding with a `MeasurementType` in the channel set.
+ * key from colliding with a `MeasurementType` in the channel set. The factor
+ * name itself is user data, kept verbatim (lower-cased) inside the localised
+ * `channelFactor` frame.
+ *
+ * Every other channel (measurement types, MOOD, medication compliance, symptom
+ * severity, and the ENV_* exposure channels) resolves through a stable
+ * `insights.correlation.channel.<KEY>` label, translated in all six locales.
+ * An unknown key falls back to its prettified form so a newly-added channel
+ * never blanks.
  */
-function humanise(key: string): string {
-  if (key.startsWith("FACTOR:")) {
-    return `rated ${key.slice("FACTOR:".length).replace(/[_-]/g, " ").toLowerCase()}`;
+function humanise(key: string, t: Translate): string {
+  if (key.startsWith(FACTOR_CHANNEL_PREFIX)) {
+    const factor = key
+      .slice(FACTOR_CHANNEL_PREFIX.length)
+      .replace(/[_-]/g, " ")
+      .toLowerCase();
+    return t("insights.correlation.channelFactor", { factor });
   }
-  // v1.25 (W-ENV) — env channels read with their descriptive label ("daily
-  // temperature", "daylight") rather than the raw "env temp mean" key.
-  if (isEnvironmentChannelKey(key)) {
-    return getEnvironmentField(key)?.narrationLabel ?? key.toLowerCase();
-  }
-  return key.replace(/_/g, " ").toLowerCase();
+  const labelKey = `insights.correlation.channel.${key}`;
+  const label = t(labelKey);
+  // The server translator echoes the key on a miss; fall back to a readable
+  // prettified form so an unmapped channel degrades gracefully, never English-
+  // leaks a raw key.
+  return label === labelKey ? key.replace(/_/g, " ").toLowerCase() : label;
 }
 
 /** Namespace prefix for a RATED-mood-factor discovery channel (v1.14.0). */
@@ -402,11 +429,26 @@ export function discoveryMeasurementTypes(keys: readonly string[]): string[] {
  */
 export function discoverCorrelations(
   series: NamedSeries[],
-  opts: { lagDays?: number; minPairs?: number; fdrQ?: number } = {},
+  opts: {
+    lagDays?: number;
+    minPairs?: number;
+    fdrQ?: number;
+    /**
+     * Reader's locale for the narrated `interpretation`. Defaults to English
+     * so the many server callers that feed the string into an LLM prompt (which
+     * re-localises) keep their existing behaviour; the user-facing correlations
+     * route passes the resolved locale so the card renders in the reader's
+     * language.
+     */
+    locale?: Locale;
+  } = {},
 ): CorrelationDiscoveryResult {
   const lagDays = opts.lagDays ?? 1;
   const minPairs = opts.minPairs ?? MIN_PAIRED_N;
   const fdrQ = opts.fdrQ ?? FDR_Q;
+  // Named `translate` (not `t`) — the pair-mapping callbacks below bind `t` to
+  // the RawPair element, so the translator must not shadow-collide with them.
+  const { t: translate } = getServerTranslator(opts.locale ?? defaultLocale);
 
   const behaviours = series.filter((s) => s.role === "behaviour");
   const outcomes = series.filter((s) => s.role === "outcome");
@@ -469,7 +511,7 @@ export function discoverCorrelations(
       qValue: Math.round(t.qValue * 1000) / 1000,
       shrunkR: Math.round(t.shrunkR * 1000) / 1000,
       tier: t.tier,
-      interpretation: interpret(t.behaviour, t.outcome, t.r, t.tier),
+      interpretation: interpret(t.behaviour, t.outcome, t.r, t.tier, translate),
       lagDays,
     }))
     // RECON1 (D2-2 / D4) — rank by the SHRUNK effect magnitude (a deep, strong
@@ -650,6 +692,8 @@ export function discoverEmergingCorrelations(
     lagDays?: number;
     minPairs?: number;
     fdrQ?: number;
+    /** Reader's locale, threaded to the inner scan's narration. */
+    locale?: Locale;
   },
 ): EmergingCorrelationResult {
   const windowDays = opts.windowDays ?? EARLY_WINDOW_DAYS;
@@ -661,6 +705,7 @@ export function discoverEmergingCorrelations(
     lagDays: opts.lagDays,
     minPairs,
     fdrQ,
+    locale: opts.locale,
   });
 
   const established = new Set(
@@ -810,12 +855,16 @@ export function discoverLabOutcomeCorrelations(
     minDraws?: number;
     minWindowPoints?: number;
     fdrQ?: number;
+    /** Reader's locale for the narrated `interpretation`. Defaults to English. */
+    locale?: Locale;
   } = {},
 ): LabCorrelationResult {
   const windowDays = opts.windowDays ?? LAB_OUTCOME_WINDOW_DAYS;
   const minDraws = opts.minDraws ?? LAB_MIN_DRAWS;
   const minWindowPoints = opts.minWindowPoints ?? LAB_MIN_WINDOW_POINTS;
   const fdrQ = opts.fdrQ ?? FDR_Q;
+  // Named `translate` — the pair-mapping callback below binds `t` to its element.
+  const { t: translate } = getServerTranslator(opts.locale ?? defaultLocale);
 
   // Group draws by biomarker key (newest-irrelevant; Pearson is order-free).
   const drawsByLab = new Map<string, LabDrawPoint[]>();
@@ -902,7 +951,7 @@ export function discoverLabOutcomeCorrelations(
       pValue: t.pValue,
       qValue: Math.round(t.qValue * 1000) / 1000,
       windowDays,
-      interpretation: interpretLab(t.lab, t.outcome, t.r, t.tier),
+      interpretation: interpretLab(t.lab, t.outcome, t.r, t.tier, translate),
     }))
     .sort((a, b) => Math.abs(b.r) - Math.abs(a.r) || a.qValue - b.qValue);
 
@@ -928,12 +977,16 @@ function interpretLab(
   outcome: string,
   r: number,
   tier: ConfidenceTier,
+  t: Translate,
 ): string {
-  const l = humaniseLab(lab);
-  const o = humanise(outcome);
-  const dir = r < 0 ? "lower" : "higher";
-  if (tier === "faint") {
-    return `Higher ${l} readings show a faint hint, if anything, of ${dir} ${o} over the same periods in your data — too small to lean on, an association to raise with your clinician, never a cause.`;
-  }
-  return `Higher ${l} readings line up with ${dir} ${o} over the same periods in your data — an association worth watching with your clinician, never a cause.`;
+  const params = {
+    // The analyte name is user data — kept verbatim inside the localised frame.
+    lab: humaniseLab(lab),
+    outcome: humanise(outcome, t),
+    direction: t(
+      `insights.correlation.direction.${r < 0 ? "lower" : "higher"}`,
+    ),
+  };
+  const tierKey = tier === "faint" ? "faint" : "default";
+  return t(`insights.correlation.lab.${tierKey}`, params);
 }

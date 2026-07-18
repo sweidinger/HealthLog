@@ -21,6 +21,7 @@ import { annotate } from "@/lib/logging/context";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { prisma } from "@/lib/db";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import type { MeasurementType } from "@/generated/prisma/client";
@@ -82,6 +83,11 @@ export const GET = apiHandler(async () => {
     select: { timezone: true },
   });
   const tz = profile?.timezone ?? "Europe/Berlin";
+  // Reader's locale for the narrated `interpretation` — the correlation cards
+  // render this string verbatim, so it MUST be localised (cookie / User.locale /
+  // Accept-Language). Without it the never-causal sentence leaked English into a
+  // non-English UI.
+  const locale = await resolveServerLocale({ userLocale: user.locale ?? null });
   const now = new Date();
   const since = new Date(now.getTime() - WINDOW_DAYS * MS_PER_DAY);
 
@@ -165,7 +171,7 @@ export const GET = apiHandler(async () => {
     series.push(envSeries);
   }
 
-  const result = discoverCorrelations(series);
+  const result = discoverCorrelations(series, { locale });
 
   // v1.22 — rolling early-detection pass over the trailing window, re-using
   // the already-built series (no extra DB read). Emerging pairs exclude anything
@@ -176,11 +182,14 @@ export const GET = apiHandler(async () => {
   );
   const emerging = discoverEmergingCorrelations(series, result, {
     recentFromDayKey,
+    locale,
   });
 
   // v1.22 — labs ↔ outcome pass (point-vs-window over sparse draws). Degrades
   // to absent when the user has too few draws to clear the per-pair floor.
-  const labCorrelations = discoverLabOutcomeCorrelations(labDraws, series);
+  const labCorrelations = discoverLabOutcomeCorrelations(labDraws, series, {
+    locale,
+  });
 
   annotate({
     action: { name: "insights.correlations.discover" },

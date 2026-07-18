@@ -22,6 +22,8 @@ import { resolveRestMode } from "@/lib/illness/rest-mode";
 import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
 import { deriveBpWindow90 } from "@/lib/analytics/window-confidence";
 import { computeCorrelationHypothesesFastPath } from "@/lib/analytics/correlations-fast-path";
+import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { type Locale } from "@/lib/i18n/config";
 import {
   computeGlucoseClinicalMetrics,
   GLUCOSE_PANEL_WINDOW_DAYS,
@@ -96,12 +98,18 @@ export const GET = apiHandler(async (request?: Request) => {
   // thick body is the 30-query chain feeding the dashboard + insights
   // hero score; after a measurement sync the next mount serves the
   // prior body instantly while one background recompute refreshes it.
+  // v1.30.10 — the `correlations` block carries user-facing narration that is
+  // localised per reader, so the cache key MUST include the locale; otherwise a
+  // language switch would serve another locale's cached interpretation for up to
+  // the TTL. Every other block is locale-independent, so per-locale entries only
+  // cost a little duplication (most users have one locale).
+  const locale = await resolveServerLocale({ userLocale: user.locale ?? null });
   const cachedBody = await cachedSwr(
     caches.analytics as ServerCache<
       Awaited<ReturnType<typeof buildAnalyticsResponse>>
     >,
-    `${user.id}|default`,
-    () => buildAnalyticsResponse(user),
+    `${user.id}|default|${locale}`,
+    () => buildAnalyticsResponse(user, locale),
     annotate,
   );
 
@@ -173,7 +181,7 @@ function enrichLastSeenDaysAgo<
  * matches the v1.4.33 snapshot LRU's `buildCoachSnapshot` →
  * `buildCoachSnapshotImpl` shape.
  */
-async function buildAnalyticsResponse(user: AuthedUser) {
+async function buildAnalyticsResponse(user: AuthedUser, locale: Locale) {
   // v1.4.37.1 hotfix — fire-and-forget the rollup-fresh check.
   // Awaiting it on the read path can stall the Node event loop for
   // 30–60 s on a power-user account whose iOS step samples keep the
@@ -405,6 +413,7 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     userTz,
     now: new Date(),
     coverage,
+    locale,
   });
 
   // v1.4.20 phase B5 — Personal Health Score. Server-deterministic

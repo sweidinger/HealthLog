@@ -63,6 +63,8 @@ import {
 import { resolveRestingPulseSeries } from "@/lib/analytics/resting-pulse";
 import { isNearUtc, userDayKey } from "@/lib/tz/resolver";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
+import { defaultLocale, type Locale } from "@/lib/i18n/config";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
 
 /**
  * v1.4.37 W2 — cold-path correlation window. Trim from 30 to 28 days
@@ -120,6 +122,12 @@ export interface CorrelationsFastPathInput {
   userTz: string;
   now: Date;
   coverage?: RollupCoverageMap;
+  /**
+   * Reader's locale for the three hypotheses' narrated `interpretation`. The
+   * correlation cards render these verbatim, so they must be localised. Defaults
+   * to English.
+   */
+  locale?: Locale;
 }
 
 export async function computeCorrelationHypothesesFastPath(
@@ -127,6 +135,7 @@ export async function computeCorrelationHypothesesFastPath(
 ): Promise<CorrelationHypothesesResult> {
   const DAY_MS = 24 * 60 * 60 * 1000;
   const { userId, userTz, now } = input;
+  const { t } = getServerTranslator(input.locale ?? defaultLocale);
   const since = new Date(now.getTime() - CORRELATION_WINDOW_DAYS * DAY_MS);
 
   const coverage = input.coverage ?? (await probeRollupCoverage(userId));
@@ -303,7 +312,7 @@ export async function computeCorrelationHypothesesFastPath(
       compliancePct,
     });
   }
-  const bpCompliance = correlateBpCompliance({ daily: bpCompliancePairs });
+  const bpCompliance = correlateBpCompliance({ daily: bpCompliancePairs }, t);
 
   // ── Hypothesis 2: Mood × resting pulse ──────────────────────
   const dailyMood = new Map<string, number[]>();
@@ -328,7 +337,7 @@ export async function computeCorrelationHypothesesFastPath(
       restingPulse,
     });
   }
-  const moodPulse = correlateMoodPulse({ daily: moodPulsePairs });
+  const moodPulse = correlateMoodPulse({ daily: moodPulsePairs }, t);
 
   // ── Hypothesis 3: Weight × weekday ──────────────────────────
   const weightWeekdayPairs: Array<{ weekday: number; weight: number }> = [];
@@ -339,7 +348,10 @@ export async function computeCorrelationHypothesesFastPath(
       weight: row.value,
     });
   }
-  const weightWeekday = correlateWeightWeekday({ daily: weightWeekdayPairs });
+  const weightWeekday = correlateWeightWeekday(
+    { daily: weightWeekdayPairs },
+    t,
+  );
 
   annotate({
     meta: {

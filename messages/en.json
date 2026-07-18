@@ -1979,6 +1979,61 @@
     "notAvailableForCompliance": "Comparison N/A for adherence"
   },
   "insights": {
+    "correlation": {
+      "direction": {
+        "higher": "higher",
+        "lower": "lower"
+      },
+      "weekdayDirection": {
+        "above": "above",
+        "below": "below"
+      },
+      "channelFactor": "rated {factor}",
+      "channel": {
+        "WEIGHT": "weight",
+        "BLOOD_GLUCOSE": "blood glucose",
+        "BLOOD_PRESSURE_SYS": "systolic blood pressure",
+        "BLOOD_PRESSURE_DIA": "diastolic blood pressure",
+        "ACTIVITY_STEPS": "daily steps",
+        "SLEEP_DURATION": "sleep duration",
+        "HEART_RATE_VARIABILITY": "heart-rate variability",
+        "RESTING_HEART_RATE": "resting heart rate",
+        "TIME_IN_DAYLIGHT": "time in daylight",
+        "MOOD": "mood",
+        "PULSE": "resting pulse",
+        "MEDICATION_COMPLIANCE": "medication compliance",
+        "SYMPTOM_SEVERITY": "symptom severity",
+        "ENV_TEMP_MEAN": "daily temperature",
+        "ENV_TEMP_MIN": "overnight low temperature",
+        "ENV_SUNSHINE": "sunshine",
+        "ENV_DAYLIGHT": "daylight",
+        "ENV_PRECIP": "precipitation",
+        "ENV_PRESSURE_MEAN": "barometric pressure",
+        "ENV_PRESSURE_DELTA": "intraday pressure swing"
+      },
+      "daily": {
+        "high": "Higher {behaviour} tends to go with {direction} next-day {outcome} in your data — a pattern worth watching, not a cause.",
+        "moderate": "Higher {behaviour} looks like it goes with {direction} next-day {outcome} in your data, on the evidence so far — a pattern worth watching, not a cause.",
+        "faint": "Higher {behaviour} shows a faint hint, if anything, of {direction} next-day {outcome} in your data — too small to lean on, never a cause."
+      },
+      "lab": {
+        "default": "Higher {lab} readings line up with {direction} {outcome} over the same periods in your data — an association worth watching with your clinician, never a cause.",
+        "faint": "Higher {lab} readings show a faint hint, if anything, of {direction} {outcome} over the same periods in your data — too small to lean on, an association to raise with your clinician, never a cause."
+      },
+      "hypothesis": {
+        "bpCompliance": {
+          "support": "Higher medication compliance lines up with lower systolic readings — a pattern worth watching.",
+          "surprising": "Compliance and systolic move together in your data — surprising; talk to your doctor before adjusting anything.",
+          "none": "Compliance and systolic do not move together strongly in this window."
+        },
+        "moodPulse": {
+          "support": "Lower-mood days line up with higher resting pulse — a pattern worth watching.",
+          "surprising": "Higher-mood days line up with higher resting pulse in your data — surprising.",
+          "none": "Mood and resting pulse do not move together strongly in this window."
+        },
+        "weightWeekday": "{weekday} weights run {delta} kg {direction} your other-day average — a pattern worth watching."
+      }
+    },
     "noAnalysisYet": "No assessment yet.",
     "assessmentPreparing": "Preparing your assessment…",
     "emptyTitle": "Not enough data yet",
