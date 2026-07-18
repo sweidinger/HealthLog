@@ -1809,7 +1809,8 @@
         "label": "Non è la misurazione giusta?",
         "placeholder": "Monitora in base a…",
         "apply": "Applica",
-        "reset": "Ripristina predefinito"
+        "reset": "Ripristina predefinito",
+        "error": "Impossibile salvare questa modifica. Riprova."
       },
       "beforeAfter": {
         "summary": "Ø {before} prima → Ø {after} da allora — una variazione di {delta}.",

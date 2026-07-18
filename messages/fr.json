@@ -1809,7 +1809,8 @@
         "label": "Ce n'est pas la bonne mesure ?",
         "placeholder": "Suivre selon…",
         "apply": "Appliquer",
-        "reset": "Réinitialiser par défaut"
+        "reset": "Réinitialiser par défaut",
+        "error": "Impossible d'enregistrer cette modification. Réessaie."
       },
       "beforeAfter": {
         "summary": "Ø {before} avant → Ø {after} depuis — un écart de {delta}.",

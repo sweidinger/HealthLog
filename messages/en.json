@@ -1809,7 +1809,8 @@
         "label": "Not the right measurement?",
         "placeholder": "Track against…",
         "apply": "Apply",
-        "reset": "Reset to default"
+        "reset": "Reset to default",
+        "error": "Could not save that change. Try again."
       },
       "beforeAfter": {
         "summary": "Ø {before} before → Ø {after} since — a change of {delta}.",

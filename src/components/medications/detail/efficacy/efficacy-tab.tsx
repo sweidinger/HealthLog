@@ -13,12 +13,14 @@ import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Activity, TrendingUp } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 import { SegmentedToggle } from "@/components/medications/detail/segmented-toggle";
 import { TileHeader } from "@/components/insights/tile-header";
 import { Glp1PlateauNote } from "@/components/insights/glp1-plateau-note";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QueryErrorCard } from "@/components/ui/query-error-card";
 import {
@@ -29,9 +31,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet, apiPut } from "@/lib/api/api-fetch";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 import type {
@@ -39,12 +42,18 @@ import type {
   EfficacyTargetView,
 } from "@/lib/medications/efficacy/build-efficacy";
 
+// v1.30 UI audit (M8) — `EfficacyChart` mounts inside `TargetCard`'s own
+// `<Card>` as a bare 220px `ResponsiveContainer` with no chrome of its own.
+// The default `<ChartSkeleton>` fallback is a rounded-xl bordered card with
+// faux header + a 240/280px band — a card nested in a card, then a ~100px
+// height snap when the real chart mounts. A chrome-less skeleton sized to
+// the actual chart avoids both.
 const EfficacyChart = dynamic(
   () =>
     import("@/components/charts/chart-runtime").then((mod) => ({
       default: mod.EfficacyChart,
     })),
-  { ssr: false, loading: () => <ChartSkeleton /> },
+  { ssr: false, loading: () => <Skeleton className="h-[220px] w-full" /> },
 );
 
 // v1.28.20 — the estimated active-substance curve (Wirkstoffverlauf) also
@@ -223,6 +232,7 @@ function TargetCard({
   timezone: string;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const [scaleMode, setScaleMode] = useState<"absolute" | "percent">(
     "absolute",
   );
@@ -236,9 +246,9 @@ function TargetCard({
           title={target.label}
           right={
             target.primary ? (
-              <span className="text-muted-foreground text-xs">
+              <Badge variant="outline" className="text-xs font-normal">
                 {t("medications.efficacy.primaryBadge")}
-              </span>
+              </Badge>
             ) : undefined
           }
         />
@@ -294,13 +304,15 @@ function TargetCard({
 
         <BeforeAfterCard target={target} minWeeks={dto.minWeeksPerSide} />
 
-        {target.levelShift?.present && target.levelShift.nearStart ? (
+        {target.levelShift?.present &&
+        target.levelShift.nearStart &&
+        target.levelShift.at ? (
           <p
             className="text-muted-foreground text-xs"
             data-slot="medication-wirkung-levelshift"
           >
             {t("medications.efficacy.levelShift", {
-              date: formatShort(target.levelShift.at),
+              date: fmt.date(target.levelShift.at),
             })}
           </p>
         ) : null}
@@ -414,6 +426,12 @@ function RetargetControl({
       await apiPut(`/api/medications/${medicationId}/efficacy/target`, body);
       onChanged();
       if (clear) setValue("");
+    } catch {
+      // v1.30 UI audit (M9) — the save previously failed silently: the
+      // buttons re-enabled with no toast, no inline alert, and the
+      // rejection escaped as an unhandled promise. The user could not
+      // tell the override was not saved.
+      toast.error(t("medications.efficacy.retarget.error"));
     } finally {
       setBusy(false);
     }
@@ -464,10 +482,4 @@ function RetargetControl({
       ) : null}
     </div>
   );
-}
-
-function formatShort(iso?: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
 }

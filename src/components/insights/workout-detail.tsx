@@ -124,26 +124,33 @@ export function WorkoutDetailHeader({ workout }: WorkoutDetailHeaderProps) {
   return (
     <header
       data-slot="workout-detail-header"
-      className="flex items-start gap-4"
+      // v1.30 mobile audit (W-1) — the three columns (icon + title block +
+      // duration) held at every width, so at 360px the middle column got
+      // ~120px and the long-format date line wrapped 4-5 lines beside a
+      // text-2xl duration. Stack below sm: duration drops under the title
+      // block as its own row instead of squeezing beside it.
+      className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4"
     >
-      {renderSportIconBadge(workout.sportType)}
-      <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-muted-foreground text-xs tracking-wide uppercase">
-          {workout.source}
-        </p>
-        <h2 className="truncate text-lg font-semibold sm:text-xl">
-          {sportName}
-        </h2>
-        <p className="text-muted-foreground text-sm">
-          {formatDateRange(
-            workout.startedAt,
-            workout.endedAt,
-            locale,
-            timeFormat,
-          )}
-        </p>
+      <div className="flex min-w-0 items-start gap-4">
+        {renderSportIconBadge(workout.sportType)}
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-muted-foreground text-xs tracking-wide uppercase">
+            {workout.source}
+          </p>
+          <h2 className="truncate text-lg font-semibold sm:text-xl">
+            {sportName}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            {formatDateRange(
+              workout.startedAt,
+              workout.endedAt,
+              locale,
+              timeFormat,
+            )}
+          </p>
+        </div>
       </div>
-      <div className="flex flex-col items-end text-right">
+      <div className="flex items-center gap-2 sm:flex-col sm:items-end sm:gap-0 sm:text-right">
         <span className="text-2xl font-semibold tabular-nums">
           {formatDuration(workout.durationSec)}
         </span>
@@ -180,7 +187,7 @@ function StatTile({ icon, label, value, hint }: StatTileProps) {
       </span>
       <span className="text-base font-semibold tabular-nums">{value}</span>
       {hint ? (
-        <span className="text-muted-foreground text-[11px]">{hint}</span>
+        <span className="text-muted-foreground text-xs">{hint}</span>
       ) : null}
     </div>
   );

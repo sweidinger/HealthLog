@@ -1809,7 +1809,8 @@
         "label": "Nicht der richtige Messwert?",
         "placeholder": "Verfolgen anhand…",
         "apply": "Übernehmen",
-        "reset": "Auf Standard zurücksetzen"
+        "reset": "Auf Standard zurücksetzen",
+        "error": "Diese Änderung konnte nicht gespeichert werden. Bitte erneut versuchen."
       },
       "beforeAfter": {
         "summary": "Ø {before} davor → Ø {after} seitdem – eine Veränderung von {delta}.",

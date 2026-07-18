@@ -33,6 +33,13 @@ export function CaffeineCard() {
       apiGet<NutrientDailySeries>(
         `/api/nutrients/daily?nutrient=caffeine&days=${WINDOW_DAYS}`,
       ),
+    // v1.30 UI audit (M7) — this card unmounts entirely on a no-data window
+    // (`hasData` gate below), so a self-hoster who never logs caffeine saw
+    // the 280px skeleton collapse on every `/insights/nutrients` visit. A
+    // 60s `staleTime` (the "route swing within a minute is a free cache
+    // hit" convention used across the insights queries) keeps the flash to
+    // once per session rather than once per mount.
+    staleTime: 60_000,
   });
 
   if (isLoading) {

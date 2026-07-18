@@ -1809,7 +1809,8 @@
         "label": "To nie ten pomiar?",
         "placeholder": "Śledź według…",
         "apply": "Zastosuj",
-        "reset": "Przywróć domyślne"
+        "reset": "Przywróć domyślne",
+        "error": "Nie udało się zapisać tej zmiany. Spróbuj ponownie."
       },
       "beforeAfter": {
         "summary": "Ø {before} przedtem → Ø {after} od tego czasu — zmiana o {delta}.",
