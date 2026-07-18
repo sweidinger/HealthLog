@@ -117,5 +117,3 @@ export const ENVIRONMENT_FIELDS: readonly EnvironmentField[] = [
 ] as const;
 
 /** The correlation channel keys, in declaration order. */
-export const ENVIRONMENT_CHANNEL_KEYS: readonly string[] =
-  ENVIRONMENT_FIELDS.map((f) => f.key);
