@@ -123,6 +123,26 @@ describe("buildCoachSnapshot — Apple Health additive metrics (v1.4.23)", () =>
     expect(out.provenance.counts?.hrv).toBe(2);
   });
 
+  // v1.30.4 (G4/HRV union) — Oura / Polar / WHOOP write nightly HRV as RMSSD
+  // (`HRV_RMSSD`) only, never SDNN (`HEART_RATE_VARIABILITY`). Before this
+  // fix the snapshot's `hrv` source only queried SDNN, so a ring/strap-only
+  // account got a false empty hrv block even though the app's HRV sub-page
+  // charts the RMSSD rows. Pin the RMSSD-only path resolving.
+  it("emits the hrv block from HRV_RMSSD rows alone (ring/strap-only account)", async () => {
+    const rows = [daysAgo(2, 38, "HRV_RMSSD"), daysAgo(5, 41, "HRV_RMSSD")];
+    prismaMock.measurement.findMany.mockResolvedValue(rows);
+
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ["hrv"],
+      window: "last30days",
+    });
+    const snapshot = JSON.parse(out.snapshotJson) as Record<string, unknown>;
+
+    expect(snapshot.heartRateVariability).toBeDefined();
+    expect(out.provenance.metrics).toContain("hrv");
+    expect(out.provenance.counts?.hrv).toBe(2);
+  });
+
   it("emits a sleep timeline block on SLEEP_DURATION rows", async () => {
     const rows = [
       daysAgo(1, 420, "SLEEP_DURATION"),
@@ -337,6 +357,64 @@ describe("buildCoachSnapshot — Apple Health additive metrics (v1.4.23)", () =>
     expect(snapshot.workouts?.totalInWindow).toBe(25);
     expect(snapshot.workouts?.perSport?.length).toBe(2);
     expect(out.provenance.metrics).toContain("workouts");
+  });
+
+  // v1.30.4 (C1) — `GET /api/workouts` collapses a dual-source recording of
+  // the SAME session (e.g. Apple Watch + Withings both logging one run) with
+  // `pickCanonicalWorkoutRows` before the UI ever counts it. The Coach
+  // snapshot (and the `get_workouts` MCP tool, which re-exports this same
+  // block) used to read `prisma.workout.findMany` raw with no read-time
+  // collapse, so a dual-device user's Coach prompt double-counted the
+  // session and inflated `perSport`/`totalInWindow` vs. the app. Pin the fix.
+  it("collapses a same-session cross-source workout pair to one, matching the UI", async () => {
+    const sharedStart = new Date("2026-06-03T06:30:00Z");
+    const workouts = [
+      {
+        sportType: "RUNNING",
+        startedAt: sharedStart,
+        durationSec: 1800,
+        totalEnergyKcal: 400,
+        totalDistanceM: 5000,
+        avgHeartRate: 140,
+        maxHeartRate: 175,
+        source: "APPLE_HEALTH",
+      },
+      {
+        sportType: "RUNNING",
+        // 90 s apart — same 5-minute bucket the picker uses.
+        startedAt: new Date(sharedStart.getTime() + 90_000),
+        durationSec: 1780,
+        totalEnergyKcal: 390,
+        totalDistanceM: 4950,
+        avgHeartRate: 138,
+        maxHeartRate: 172,
+        source: "WITHINGS",
+      },
+    ];
+    prismaMock.workout.findMany.mockResolvedValue(workouts);
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ["workouts"],
+      window: "last30days",
+    });
+    const snapshot = JSON.parse(out.snapshotJson) as {
+      workouts?: {
+        recent?: Array<{ sport: string }>;
+        perSport?: Array<{ sport: string; count: number }>;
+        totalInWindow?: number;
+      };
+    };
+    // Collapsed to the one Apple Health row (default ladder: Apple Health
+    // outranks Withings) — never two.
+    expect(snapshot.workouts?.totalInWindow).toBe(1);
+    expect(snapshot.workouts?.recent?.length).toBe(1);
+    expect(snapshot.workouts?.perSport).toEqual([
+      {
+        sport: "RUNNING",
+        count: 1,
+        totalDurationMin: 30,
+        totalEnergyKcal: 400,
+      },
+    ]);
   });
 
   it("subtracts an excluded metric inside an otherwise-enabled cluster", async () => {

@@ -591,7 +591,13 @@ async function buildCoachSnapshotImpl(
     pulse: ["PULSE"],
     mood: [],
     compliance: [],
-    hrv: ["HEART_RATE_VARIABILITY"],
+    // v1.30.4 (HRV union) — Oura / Polar / WHOOP write nightly HRV as RMSSD
+    // (`HRV_RMSSD`), never SDNN (`HEART_RATE_VARIABILITY`, Apple / Fitbit).
+    // The app's HRV surface already unions both (`sub-page-metric.ts`);
+    // resolving SDNN alone here made a ring/strap-only user's Coach context
+    // + the `get_metric_series`/rich-read MCP paths report a false
+    // `{present:false}` for HRV even though the app charts it.
+    hrv: ["HEART_RATE_VARIABILITY", "HRV_RMSSD"],
     sleep: ["SLEEP_DURATION"],
     resting_hr: ["RESTING_HEART_RATE"],
     steps: ["ACTIVITY_STEPS"],
@@ -843,6 +849,10 @@ async function buildCoachSnapshotImpl(
           totalDistanceM: true,
           avgHeartRate: true,
           maxHeartRate: true,
+          // v1.30.4 (C1) — needed by `pickCanonicalWorkoutRows` in the block
+          // builder to collapse a dual-source session (e.g. Apple Watch +
+          // WHOOP recording the same run) to one, matching `GET /api/workouts`.
+          source: true,
         },
       })
     : null;
@@ -974,13 +984,19 @@ async function buildCoachSnapshotImpl(
     labsBlockPromise,
   ]);
 
-  const byType = (t: string) =>
-    measurementRows
-      .filter((r) => r.type === t)
+  // v1.30.4 (HRV union) — accepts either a single `MeasurementType` or a
+  // union of types (e.g. HRV's SDNN + RMSSD flavours) so a caller can
+  // resolve "whichever the user actually has" the same way the app's HRV
+  // sub-page does, without a second query.
+  const byType = (t: string | readonly string[]) => {
+    const wanted = Array.isArray(t) ? new Set(t) : null;
+    return measurementRows
+      .filter((r) => (wanted ? wanted.has(r.type) : r.type === t))
       .map((r) => ({
         measuredAt: r.measuredAt,
         value: r.value,
       }));
+  };
 
   if (wantsBp && features.bloodPressure) {
     const sysRows = byType("BLOOD_PRESSURE_SYS");
@@ -1132,7 +1148,9 @@ async function buildCoachSnapshotImpl(
     metric: ValueMetric;
     source: CoachScopeSource;
     snapshotKey: string;
-    type: string;
+    // v1.30.4 (HRV union) — most metrics are a single `MeasurementType`;
+    // hrv resolves a union of SDNN + RMSSD (see `byType` above).
+    type: string | readonly string[];
   };
   // v1.4.23 W6 (S-04) / v1.7.0 — every single-`MeasurementType`
   // additive series ships as a timeline-only block (recent day rows +
@@ -1149,7 +1167,7 @@ async function buildCoachSnapshotImpl(
       metric: "hrv",
       source: "hrv",
       snapshotKey: "heartRateVariability",
-      type: "HEART_RATE_VARIABILITY",
+      type: ["HEART_RATE_VARIABILITY", "HRV_RMSSD"],
     },
     {
       metric: "resting_hr",
@@ -1370,7 +1388,14 @@ async function buildCoachSnapshotImpl(
     registerBlock(block.snapshotKey, block.source);
     // W7 grounding: when this additive series maps to a reference metric,
     // record the recent daily mean (same per-day means the timeline shows).
-    const refMetric = TYPE_TO_REFERENCE_METRIC[block.type];
+    // Union-type blocks (hrv) never carry a reference-metric grounding
+    // entry today, so the lookup only fires for a plain string type.
+    // (`typeof === "string"` narrows cleanly here; `Array.isArray` does not
+    // exclude a `readonly string[]` arm from the `string` union.)
+    const refMetric =
+      typeof block.type === "string"
+        ? TYPE_TO_REFERENCE_METRIC[block.type]
+        : undefined;
     if (refMetric) {
       const recentRows = buildDailyValueRows(rows, recentCutoff, userTz);
       const mean = recentRowsMean(recentRows);
@@ -1436,6 +1461,7 @@ async function buildCoachSnapshotImpl(
   if (sources.has("workouts") && workoutRows) {
     buildWorkoutsBlock({
       workoutRows,
+      sourcePriorityJson: prefsRow?.sourcePriorityJson ?? null,
       userTz,
       snapshot,
       metrics,

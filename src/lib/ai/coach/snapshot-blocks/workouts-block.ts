@@ -10,7 +10,18 @@
  * Split out of `snapshot.ts`; the builder passes the rows it already
  * read plus the shared accumulators, so the emitted shape and ordering
  * are unchanged.
+ *
+ * v1.30.4 (C1) — `GET /api/workouts` collapses cross-source duplicate
+ * sessions (e.g. Apple Watch + WHOOP recording the same run) with
+ * `pickCanonicalWorkoutRows()` before the UI ever sees them; this block
+ * read `prisma.workout.findMany` raw, so a dual-source user's Coach
+ * prompt (and the `get_workouts` MCP tool, which re-exports this same
+ * block) double-counted sessions and inflated the per-sport rollup vs.
+ * the UI. Run the SAME picker here, keyed off the user's own
+ * `sourcePriorityJson`, so both surfaces agree.
  */
+import { pickCanonicalWorkoutRows } from "@/lib/measurements/pick-canonical-workout-rows";
+import type { MeasurementSource } from "@/generated/prisma/client";
 import { annotate } from "@/lib/logging/context";
 import { tzDayKey, tzWeekday } from "../snapshot-series";
 import type {
@@ -35,7 +46,12 @@ interface WorkoutsBlockContext {
     totalDistanceM: number | null;
     avgHeartRate: number | null;
     maxHeartRate: number | null;
+    source: MeasurementSource;
   }>;
+  // v1.30.4 (C1) — the user's own source-priority blob, same shape
+  // `pickCanonicalWorkoutRows` and the sleep block already consume.
+  // `null` falls back to the canonical default ladder.
+  sourcePriorityJson: unknown;
   userTz: string;
   snapshot: Record<string, unknown>;
   metrics: Set<CoachProvenanceMetric>;
@@ -44,8 +60,26 @@ interface WorkoutsBlockContext {
 }
 
 export function buildWorkoutsBlock(ctx: Readonly<WorkoutsBlockContext>): void {
-  const { workoutRows, userTz, snapshot, metrics, counts, registerBlock } = ctx;
-  // The workout sessions are read in parallel by the builder.
+  const {
+    workoutRows: rawWorkoutRows,
+    sourcePriorityJson,
+    userTz,
+    snapshot,
+    metrics,
+    counts,
+    registerBlock,
+  } = ctx;
+  // The workout sessions are read in parallel by the builder, raw
+  // (every source, every duplicate). Collapse cross-source duplicates
+  // with the same picker the UI uses before narrating anything.
+  // `pickCanonicalWorkoutRows` always returns its output sorted
+  // `startedAt` ASC (its documented contract) — the builder wants
+  // most-recent-first for the capped `recent` list, so re-establish
+  // DESC order after the pick, same as `GET /api/workouts` does.
+  const workoutRows = pickCanonicalWorkoutRows(
+    rawWorkoutRows,
+    sourcePriorityJson ?? null,
+  ).sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
   if (workoutRows.length === 0) {
     annotate({
       action: { name: "coach.cluster.empty_skipped" },

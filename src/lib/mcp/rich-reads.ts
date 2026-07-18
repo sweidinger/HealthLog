@@ -96,6 +96,28 @@ const WINDOW_DAYS: Record<CoachScopeWindow, number> = {
   allTime: 365,
 };
 
+// v1.30.4 (C3, documented not fixed) — the trailing windows above resolve to
+// `since = now − N·86400_000ms` (`readBestGranularityRollups`,
+// `measurement-read-wmy.ts`), a raw-instant cutoff with no timezone
+// awareness. The Coach snapshot path (`get_metric_series`) builds its
+// timelines on user-tz day keys (`tzDayKey(userTz)`, the v1.30.3 pattern also
+// used by `metric-status.ts`'s cache rollover / `bp-in-target.ts`'s same-day
+// pairing); these rich reads (`compare_metric` / `detect_changepoints` /
+// `get_metric_baseline`) do not, so a user far from UTC can see a ±1-day edge
+// wobble vs. the app for a window boundary that lands mid-day in their own
+// tz. This is INTENTIONALLY left as a raw-instant cutoff rather than patched
+// with a tz-shifted `since` here: the underlying `MeasurementRollup` DAY /
+// WEEK / MONTH / YEAR buckets themselves are written on UTC calendar
+// boundaries (`measurement-rollups.ts` buckets on `Date.UTC(...)` /
+// `getUTCDay()`), not the user's own tz, so shifting only the outer window
+// boundary would not eliminate the wobble — it would just move which
+// UTC-anchored bucket sits at the edge, trading one one-sided inconsistency
+// for another. A real fix needs the rollup tier itself to bucket per-user-tz,
+// which is a write-side change (affecting every rollup consumer, not just
+// the rich MCP reads) — out of scope here. Practical impact stays small: the
+// exposed windows are all ≥7-day means, so a single boundary day shifts the
+// mean by well under its own noise floor.
+
 function windowToDays(window: CoachScopeWindow | undefined): number {
   return WINDOW_DAYS[window ?? "last30days"];
 }
@@ -117,6 +139,17 @@ export interface RichMetric {
   unit: string;
   /** Population reference band, or `null` when no universal band exists. */
   band: { low: number; high: number } | null;
+  /**
+   * v1.30.4 (G4/HRV union) — a secondary `MeasurementType` to read instead of
+   * `measurementType` when the user has ZERO rows of the primary type. HRV is
+   * the only metric that carries one today: Apple Health / Fitbit write SDNN
+   * (`HEART_RATE_VARIABILITY`); Oura / Polar / WHOOP write nightly RMSSD
+   * (`HRV_RMSSD`) only. Mirrors the app's HRV sub-page fallback
+   * (`HealthKitMetricPage`'s `fallbackMeasurementType` prop) so a ring/strap
+   * -only account resolves over MCP the same data it sees in the app instead
+   * of a false `{ present: false }`.
+   */
+  fallbackMeasurementType?: MeasurementType;
 }
 
 /** Headline specialised metrics the status registry does not carry. */
@@ -168,7 +201,24 @@ const ALIASES: Record<string, string> = {
 function fromRegistry(id: string): RichMetric | null {
   const meta = getMetricStatusMeta(id);
   if (!meta) return null;
-  return {
+  // v1.30.4 (C2) — the signal registry's `surfaces.mcp` flag is documented as
+  // the SINGLE source of truth for MCP exposure, but the metric-status
+  // registry (this function's own source) carries no `surfaces` facet of its
+  // own, so an id the signal registry marks `mcp:false` (e.g.
+  // `CARDIO_RECOVERY`, `WRIST_TEMPERATURE`, `SLEEP_SCORE`, `DAY_STRAIN`, the
+  // stair speeds, …) still resolved here — the two registries disagreeing
+  // about the exposure contract, not a live leak (none of those ids are
+  // actually sensitive) but a future signal added `mcp:false` + a
+  // metric-status entry would leak silently. Treat an EXPLICIT `mcp:false` on
+  // the SAME id in the signal registry as a hard veto over a metric-status
+  // hit; an id absent from the signal registry (most of `METRIC_STATUS_IDS`)
+  // is unaffected — metric-status stays authoritative when the two don't
+  // disagree.
+  const sig = getSignal(id);
+  if (sig && sig.kind === "measurement" && sig.surfaces.mcp === false) {
+    return null;
+  }
+  const metric: RichMetric = {
     measurementType: meta.measurementType,
     label: meta.displayName,
     unit: meta.unit,
@@ -176,6 +226,38 @@ function fromRegistry(id: string): RichMetric | null {
       ? { low: meta.normalRange.low, high: meta.normalRange.high }
       : null,
   };
+  // v1.30.4 (G4/HRV union) — single choke point every registry-backed
+  // resolution path (alias / exact id / display-name match) flows through,
+  // so the RMSSD fallback attaches uniformly regardless of how the caller
+  // phrased the metric.
+  if (metric.measurementType === "HEART_RATE_VARIABILITY") {
+    return { ...metric, fallbackMeasurementType: "HRV_RMSSD" };
+  }
+  return metric;
+}
+
+/**
+ * v1.30.4 (G4/HRV union) — swap `metric` to its `fallbackMeasurementType`
+ * when the user has zero rows of the primary type but has rows of the
+ * fallback. Same primary-then-fallback rule the HRV sub-page applies
+ * (`usingFallback = primaryCount === 0 && fallbackCount > 0`); a no-op for
+ * every metric that doesn't carry a fallback (i.e. everything but HRV
+ * today), and for an HRV account that has SDNN data at all.
+ */
+async function withHrvFallback(
+  userId: string,
+  metric: RichMetric,
+): Promise<RichMetric> {
+  if (!metric.fallbackMeasurementType) return metric;
+  const primaryCount = await prisma.measurement.count({
+    where: { userId, type: metric.measurementType, deletedAt: null },
+  });
+  if (primaryCount > 0) return metric;
+  const fallbackCount = await prisma.measurement.count({
+    where: { userId, type: metric.fallbackMeasurementType, deletedAt: null },
+  });
+  if (fallbackCount === 0) return metric;
+  return { ...metric, measurementType: metric.fallbackMeasurementType };
 }
 
 // ── v1.25 clinical signals (registry-grounded, MCP-owned exposure) ────
@@ -577,10 +659,11 @@ export async function compareMetric(
     rangeB?: DateRange;
   },
 ): Promise<CompareMetricResult> {
-  const metricA = resolveRichMetric(args.metric);
-  if (!metricA) {
+  const resolvedA = resolveRichMetric(args.metric);
+  if (!resolvedA) {
     return { present: false, reason: "unknown_metric" };
   }
+  const metricA = await withHrvFallback(userId, resolvedA);
   const sideA: SideSpec = { window: args.window, range: args.range };
 
   const annotateMiss = () =>
@@ -601,7 +684,7 @@ export async function compareMetric(
     }
     // Both metrics share side A's horizon (window or range).
     mode = "metric_vs_metric";
-    metricB = resolvedB;
+    metricB = await withHrvFallback(userId, resolvedB);
     sideB = sideA;
   } else if (args.rangeB || args.windowB) {
     mode = "window_vs_window";
@@ -675,10 +758,11 @@ export async function getMetricBaseline(
   userId: string,
   args: { metric: string },
 ): Promise<MetricBaselineResult> {
-  const metric = resolveRichMetric(args.metric);
-  if (!metric) {
+  const resolved = resolveRichMetric(args.metric);
+  if (!resolved) {
     return { present: false, reason: "unknown_metric" };
   }
+  const metric = await withHrvFallback(userId, resolved);
 
   const strip = await buildCoachReadStrip(userId, metric.measurementType);
 
@@ -819,10 +903,11 @@ export async function detectChangepoints(
   userId: string,
   args: { metric: string; window?: CoachScopeWindow; range?: DateRange },
 ): Promise<ChangepointsResult> {
-  const metric = resolveRichMetric(args.metric);
-  if (!metric) {
+  const resolved = resolveRichMetric(args.metric);
+  if (!resolved) {
     return { present: false, reason: "unknown_metric" };
   }
+  const metric = await withHrvFallback(userId, resolved);
 
   // Either an explicit `{from,to}` range (reach-back + filter) or one of the
   // five fixed trailing windows — both land on the same rollup reader.

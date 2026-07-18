@@ -15,10 +15,14 @@ vi.mock("@/lib/rollups/measurement-read-wmy", async (importOriginal) => {
     await importOriginal<typeof import("@/lib/rollups/measurement-read-wmy")>();
   return { ...actual, readBestGranularityRollups: vi.fn() };
 });
-const { labResult } = vi.hoisted(() => ({
+const { labResult, measurement } = vi.hoisted(() => ({
   labResult: { findMany: vi.fn() },
+  // v1.30.4 (G4) — `withHrvFallback`'s presence probe. Unused by every
+  // metric that doesn't carry a `fallbackMeasurementType` (everything but
+  // HRV today); those tests never touch this mock.
+  measurement: { count: vi.fn() },
 }));
-vi.mock("@/lib/db", () => ({ prisma: { labResult } }));
+vi.mock("@/lib/db", () => ({ prisma: { labResult, measurement } }));
 
 import {
   getCorrelation,
@@ -123,6 +127,28 @@ describe("resolveRichMetric", () => {
     ]) {
       expect(resolveRichMetric(off)).toBeNull();
     }
+  });
+
+  // v1.30.4 (C2) — the signal registry's `surfaces.mcp` flag is documented as
+  // the SINGLE source of truth for MCP exposure, but `resolveRichMetric`'s
+  // metric-status-registry path (exact id / display-name match) used to
+  // resolve an id regardless of that flag. `CARDIO_RECOVERY` /
+  // `WRIST_TEMPERATURE` / `SLEEP_SCORE` are all valid `METRIC_STATUS_IDS`
+  // entries but carry `mcp:false` in the signal registry — pin that they
+  // now stay unreachable, closing the contract gap (no PHI actually leaked
+  // through it, but a future `mcp:false` signal without this guard would).
+  it("honours the signal registry's mcp:false as a hard veto over a metric-status hit", () => {
+    expect(resolveRichMetric("CARDIO_RECOVERY")).toBeNull();
+    expect(resolveRichMetric("cardio recovery")).toBeNull();
+    expect(resolveRichMetric("WRIST_TEMPERATURE")).toBeNull();
+    expect(resolveRichMetric("SLEEP_SCORE")).toBeNull();
+  });
+
+  it("still resolves a metric-status id the signal registry does NOT mark mcp:false", () => {
+    // VO2 max also has a signal-registry entry, but it's `mcp: true` there —
+    // the C2 guard only vetoes an EXPLICIT `mcp:false`, so this stays
+    // resolvable exactly as before.
+    expect(resolveRichMetric("vo2_max")?.measurementType).toBe("VO2_MAX");
   });
 });
 
@@ -320,6 +346,57 @@ describe("get_metric_baseline", () => {
     const res = await getMetricBaseline(USER, { metric: "bananas" });
     expect(res.present).toBe(false);
     expect(res.reason).toBe("unknown_metric");
+  });
+
+  // v1.30.4 (G4/HRV union) — Oura / Polar / WHOOP write nightly HRV as RMSSD
+  // (`HRV_RMSSD`) only, never SDNN (`HEART_RATE_VARIABILITY`). Before this
+  // fix `resolveRichMetric("hrv")` always read SDNN, so a ring/strap-only
+  // account got a false `{present:false}` even though the app's HRV
+  // sub-page charts the RMSSD rows. Pin the RMSSD-only path resolving.
+  it("resolves hrv from HRV_RMSSD rows when the user has zero SDNN rows", async () => {
+    measurement.count.mockImplementation(
+      async ({ where }: { where: { type: string } }) =>
+        where.type === "HEART_RATE_VARIABILITY" ? 0 : 6,
+    );
+    vi.mocked(buildCoachReadStrip).mockResolvedValue({
+      baseline: {
+        low: 30,
+        high: 45,
+        latest: 38,
+        placement: "within",
+        sampleDays: 30,
+      },
+      learning: false,
+      driver: null,
+    });
+
+    const res = await getMetricBaseline(USER, { metric: "hrv" });
+
+    expect(res.present).toBe(true);
+    expect(buildCoachReadStrip).toHaveBeenCalledWith(USER, "HRV_RMSSD");
+  });
+
+  it("stays on SDNN when the user has any HEART_RATE_VARIABILITY rows", async () => {
+    measurement.count.mockResolvedValue(3); // primary count > 0, short-circuits
+    vi.mocked(buildCoachReadStrip).mockResolvedValue({
+      baseline: {
+        low: 55,
+        high: 65,
+        latest: 60,
+        placement: "within",
+        sampleDays: 30,
+      },
+      learning: false,
+      driver: null,
+    });
+
+    const res = await getMetricBaseline(USER, { metric: "hrv" });
+
+    expect(res.present).toBe(true);
+    expect(buildCoachReadStrip).toHaveBeenCalledWith(
+      USER,
+      "HEART_RATE_VARIABILITY",
+    );
   });
 });
 
