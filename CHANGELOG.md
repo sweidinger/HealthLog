@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.30.7] — 2026-07-18
+
+Groundwork for a tidier heart-rate history.
+
+- **The server accepts a 10-minute aggregated heart-rate upload.** A watch records heart rate every few seconds, and uploading one row per raw sample fills the measurements list with the same value repeated many times a minute. The server now takes one row per 10-minute window — its average, with the low and high of the window — and the within-day pulse curve reads it directly, so the detailed 10-minute chart and the elevated-at-rest note are preserved. The de-duplication reaches the list once the mobile app sends the aggregated shape; existing per-sample history is unaffected and reconciles itself over time.
+- **The daily high/low reflects the true spread.** A day built from 10-minute windows now reports the real intra-window extremes, not the range of the averages.
+
+No migration. No breaking changes.
+
 ## [1.30.6] — 2026-07-18
 
 Accessibility pass.
