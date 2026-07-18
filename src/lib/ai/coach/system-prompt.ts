@@ -19,6 +19,7 @@
 import type { Locale } from "@/lib/i18n/config";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/insight-generator";
 import { buildNativeCoachPrompt } from "@/lib/ai/prompts/native-prompts";
+import { instructionLocale } from "@/lib/ai/prompts/output-language";
 import { learnCatalogPromptBlock } from "./learn-catalog";
 import {
   DEFAULT_COACH_PREFS,
@@ -1224,7 +1225,7 @@ function buildCoachV122Addendum(
   locale: Locale,
   personalization: CoachPersonalization,
 ): string {
-  const isDe = locale === "de";
+  const isDe = instructionLocale(locale) === "de";
   const parts: string[] = [];
   parts.push(isDe ? "COACH-ZUSATZ (v1.22)" : "COACH ADDENDUM (v1.22)");
 
@@ -1347,7 +1348,11 @@ ${fenceSelfReport(aboutMe)}`;
  */
 function buildPrefsPrefix(locale: Locale, prefs: CoachPrefs): string {
   const parts: string[] = [];
-  const isEn = locale === "en";
+  // These override lines are internal instructions, so they follow the same
+  // routing as every other prompt body: German only for German readers,
+  // English for everyone else. The former `locale === "en"` sent a French
+  // Coach prompt a German tone override on top of its French body.
+  const isEn = instructionLocale(locale) === "en";
 
   // Tone
   if (prefs.tone === "neutral") {

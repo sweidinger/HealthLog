@@ -11,6 +11,19 @@ import {
   forbiddenFiller,
   formattingContract,
 } from "./shared-contracts";
+import {
+  instructionLocale,
+  targetLanguageName,
+  withOutputLanguage,
+} from "./output-language";
+
+/**
+ * Placeholder for the reply language inside the English output clause.
+ *
+ * Kept as a token (rather than a template literal in the section array) so the
+ * section array stays a plain data structure the parity tests can iterate.
+ */
+const OUTPUT_LANGUAGE_TOKEN = "{{OUTPUT_LANGUAGE}}";
 
 /**
  * Version of the per-metric assessment base prompt + its signal contract.
@@ -42,8 +55,13 @@ import {
  * rotation. This activates the dormant "do NOT open with the number" branch so
  * the per-metric card reads as warm as the overview. Clause ORDER only —
  * grounding, non-diagnostic framing, and every safety contract are unchanged.
+ * 6.2.0 — output language: French, Spanish, Italian and Polish readers used to
+ * fall to the German instruction body, whose output clause asks for German
+ * prose. They now compose the English body with their language named in the
+ * output clause and the locale's own reply-language directive appended last.
+ * The German and English prompts are byte-identical to 6.1.0 (test-pinned).
  */
-export const PROMPT_VERSION = "6.1.0" as const;
+export const PROMPT_VERSION = "6.2.0" as const;
 
 /**
  * Base system prompt for the per-metric Insights *assessment* cards.
@@ -245,16 +263,30 @@ Synthese statt Aufzählung: die Geschichte dessen, was die Daten bedeuten, zähl
   },
   {
     id: "output",
-    en: `OUTPUT FORMAT: Reply with valid JSON only, in exactly this schema. The "summary" field holds the complete assessment in English: 1-3 short paragraphs of 1-3 sentences each, separated by a blank line written as \\n\\n INSIDE the JSON string. A steady one-liner stays a single paragraph:
+    // The language name is interpolated so a locale riding the English
+    // instruction body still asks for prose in the reader's own language. For
+    // `en` it renders "English" — byte-identical to the pre-6.2.0 literal.
+    en: `OUTPUT FORMAT: Reply with valid JSON only, in exactly this schema. The "summary" field holds the complete assessment in ${OUTPUT_LANGUAGE_TOKEN}: 1-3 short paragraphs of 1-3 sentences each, separated by a blank line written as \\n\\n INSIDE the JSON string. A steady one-liner stays a single paragraph:
 { "summary": "..." }`,
     de: `AUSGABEFORMAT: Antworte ausschließlich mit validem JSON in genau diesem Schema. Das Feld "summary" enthält die komplette Einschätzung auf Deutsch: 1-3 kurze Absätze mit je 1-3 Sätzen, getrennt durch eine Leerzeile als \\n\\n INNERHALB des JSON-Strings. Ein stabiler Einzeiler bleibt EIN Absatz:
 { "summary": "..." }`,
   },
 ];
 
-/** The locale text fragments are joined by a blank line, in section order. */
-function composeAssessmentPrompt(locale: "en" | "de"): string {
-  return ASSESSMENT_SECTIONS.map((s) => s[locale]).join("\n\n");
+/**
+ * The locale text fragments are joined by a blank line, in section order.
+ *
+ * `languageName` fills the output clause's language token on the English body.
+ * The German body names its language natively and carries no token, so the
+ * replacement is a no-op there.
+ */
+function composeAssessmentPrompt(
+  instructionBody: "en" | "de",
+  languageName: string,
+): string {
+  return ASSESSMENT_SECTIONS.map((s) =>
+    s[instructionBody].split(OUTPUT_LANGUAGE_TOKEN).join(languageName),
+  ).join("\n\n");
 }
 
 /**
@@ -271,6 +303,26 @@ export const ASSESSMENT_SECTION_PAIRS: readonly {
   de: string;
 }[] = ASSESSMENT_SECTIONS;
 
+export function getBaseSystemPromptBody(locale: Locale): string {
+  // German readers compose the German body; every other locale composes the
+  // English body and is told, in its own language, which language to write in.
+  // The former `locale === "en" ? "en" : "de"` sent French, Spanish, Italian
+  // and Polish readers a German prompt that asked for German prose.
+  return composeAssessmentPrompt(
+    instructionLocale(locale),
+    targetLanguageName(locale),
+  );
+}
+
+/**
+ * The base prompt as a STANDALONE system prompt, language directive included.
+ *
+ * Use this only when the result is handed to the provider as-is. A module that
+ * appends its own metric section must instead compose
+ * `getBaseSystemPromptBody` and wrap the finished string in
+ * `withOutputLanguage`, so the directive stays the last instruction the model
+ * reads rather than being buried mid-prompt by the appended section.
+ */
 export function getBaseSystemPrompt(locale: Locale): string {
-  return composeAssessmentPrompt(locale === "en" ? "en" : "de");
+  return withOutputLanguage(getBaseSystemPromptBody(locale), locale);
 }

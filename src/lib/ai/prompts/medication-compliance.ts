@@ -1,5 +1,7 @@
 import type { Locale } from "@/lib/i18n/config";
-import { getBaseSystemPrompt } from "./base-system";
+import { getBaseSystemPromptBody } from "./base-system";
+import { withOutputLanguage } from "./output-language";
+import { instructionLocale } from "./output-language";
 
 const MEDCO_SECTION_DE = `METRIK — MEDIKAMENTEN-EINNAHMETREUE:
 - Der Snapshot trägt overall (medicationCount, averageCompliance7, averageCompliance30) und medications[] je Medikament mit name, dose, schedulesPerDay, compliance7, compliance30, streak, taken7/skipped7/missed7, signal (der fertige Trend-Vergleich), dailySeries (graded) und latestDay.
@@ -20,10 +22,16 @@ const MEDCO_SECTION_EN = `METRIC — MEDICATION ADHERENCE:
 - One message: close with ONE doable step that fits the gap ONLY when the finding implies one (e.g. evening doses are missed more often — a fixed routine or a reminder at the critical time can help). When adherence is consistently high, acknowledge that honestly rather than manufacturing a step. No blame.`;
 
 export function getMedicationComplianceSystemPrompt(locale: Locale): string {
-  const section = locale === "en" ? MEDCO_SECTION_EN : MEDCO_SECTION_DE;
-  return `${getBaseSystemPrompt(locale)}
+  // fr/es/it/pl compose the ENGLISH body (the base prompt names their
+  // language and appends their own directive); only de takes the German one.
+  const section =
+    instructionLocale(locale) === "en" ? MEDCO_SECTION_EN : MEDCO_SECTION_DE;
+  return withOutputLanguage(
+    `${getBaseSystemPromptBody(locale)}
 
-${section}`;
+${section}`,
+    locale,
+  );
 }
 
 export function getMedicationComplianceUserPrompt(
@@ -48,7 +56,7 @@ export function getMedicationComplianceUserPrompt(
     openerHint && openerHint.trim().length > 0
       ? `\nOPENER HINT: ${openerHint}`
       : "";
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `Date: ${todayKey} (Europe/Berlin)${openerLine}
 Write one short assessment of this person's medication adherence. Open with what it MEANS in plain words — how reliable the routine is looking, not the number (e.g. "your routine's been rock-solid", "a few doses have slipped lately") — then bring in the recent rate right after as support, placed against their own baseline (compliance7 vs compliance30); never lead with the value. Close with one doable, blame-free step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the event count and recency.${ctxBlock}${extraBlock}
 

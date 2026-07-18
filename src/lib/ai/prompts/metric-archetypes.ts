@@ -21,14 +21,15 @@
  * block, exactly like the specialised generators.
  */
 import type { Locale } from "@/lib/i18n/config";
-import { getBaseSystemPrompt } from "./base-system";
+import { getBaseSystemPromptBody } from "./base-system";
+import { instructionLocale, withOutputLanguage } from "./output-language";
 import type {
   MetricArchetype,
   MetricStatusMeta,
 } from "@/lib/insights/metric-status-registry";
 
 function directionPhrase(meta: MetricStatusMeta, locale: Locale): string {
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     switch (meta.direction) {
       case "higher-better":
         return "Higher values are generally more favourable for this metric.";
@@ -55,13 +56,13 @@ function directionPhrase(meta: MetricStatusMeta, locale: Locale): string {
  */
 function metaBlock(meta: MetricStatusMeta, locale: Locale): string {
   const range = meta.normalRange
-    ? locale === "en"
+    ? instructionLocale(locale) === "en"
       ? `Coarse population reference band: ${meta.normalRange.low}–${meta.normalRange.high} ${meta.unit} (a placement aid only — the user's OWN baseline leads).`
       : `Grobes Referenzband (Population): ${meta.normalRange.low}–${meta.normalRange.high} ${meta.unit} (nur Orientierung — die EIGENE Baseline führt).`
-    : locale === "en"
+    : instructionLocale(locale) === "en"
       ? "No fixed population band applies — judge purely against the user's own baseline."
       : "Kein festes Referenzband — beurteile rein gegen die eigene Baseline der Person.";
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return [
       `METRIC: ${meta.displayName} (unit: ${meta.unit}).`,
       directionPhrase(meta, locale),
@@ -107,12 +108,16 @@ export function getMetricArchetypeSystemPrompt(
   locale: Locale,
 ): string {
   const section = ARCHETYPE_SECTION[meta.archetype];
-  const archetypeText = locale === "en" ? section.en : section.de;
-  return `${getBaseSystemPrompt(locale)}
+  const archetypeText =
+    instructionLocale(locale) === "en" ? section.en : section.de;
+  return withOutputLanguage(
+    `${getBaseSystemPromptBody(locale)}
 
 ${archetypeText}
 
-${metaBlock(meta, locale)}`;
+${metaBlock(meta, locale)}`,
+    locale,
+  );
 }
 
 export function getMetricArchetypeUserPrompt(
@@ -159,7 +164,7 @@ export function getMetricArchetypeUserPrompt(
     openerHint && openerHint.trim().length > 0
       ? `\nOPENER HINT: ${openerHint}`
       : "";
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `Date: ${todayKey} (Europe/Berlin)${openerLine}
 Write one short assessment of this person's ${meta.displayName.toLowerCase()}. Open with what it MEANS in plain words — the read, not the number (e.g. "running a little calmer than usual", "steady and right where it's been") — then bring in ONE concrete number from the snapshot right after as support, placed against their own weekly/monthly baseline; never lead with the value. Close with one doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}${interpBlock}
 

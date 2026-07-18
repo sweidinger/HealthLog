@@ -558,7 +558,10 @@ function deterministicFactText(
   subject: string,
   locale: string | undefined,
 ): string {
-  const de = locale?.toLowerCase().startsWith("de") ?? true;
+  // German only for a German reader; every other locale — and an absent one —
+  // composes ENGLISH. The fact text is model-facing memory, so English is the
+  // fallback body; the previous `?? true` made an unknown locale German.
+  const de = locale?.toLowerCase().startsWith("de") ?? false;
   switch (kind) {
     case "allergy":
       return de

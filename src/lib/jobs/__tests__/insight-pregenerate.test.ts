@@ -783,6 +783,36 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
     });
   });
 
+  it("carries a fr locale into the comprehensive and status warms instead of collapsing it", async () => {
+    // The regression this pins: the warm typed its locale `de | en`, so a
+    // French account's warm ran (and cached) in the wrong language — and the
+    // prompt layer's output-language directive never saw `fr` to act on.
+    const { prisma } = makePrisma([]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "generated", providerType: "x" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: false }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(3);
+
+    await forceWarmUser(prisma as never, "u1", "fr", {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    expect(generate).toHaveBeenCalledWith("u1", {
+      locale: "fr",
+      force: true,
+      signal: expect.any(AbortSignal),
+    });
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledWith("u1", { locale: "fr", force: false });
+    }
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["fr"]);
+  });
+
   it("skips the comprehensive when the cache was warmed within the freshness window (idempotent re-enqueue)", async () => {
     // A revalidation poll that outlives the enqueue singleton can stack
     // several force jobs; the job-start freshness re-check collapses the

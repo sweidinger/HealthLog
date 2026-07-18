@@ -1,5 +1,7 @@
 import type { Locale } from "@/lib/i18n/config";
-import { getBaseSystemPrompt } from "./base-system";
+import { getBaseSystemPromptBody } from "./base-system";
+import { withOutputLanguage } from "./output-language";
+import { instructionLocale } from "./output-language";
 
 const MOOD_SECTION_DE = `METRIK — STIMMUNG / WOHLBEFINDEN:
 - Skala 1 (sehr schlecht) bis 5 (sehr gut). Der Snapshot trägt mood.signal (der fertige Vergleich) + mood.summary + mood.series (graded, Tagesmittel), mood.target (grünes/oranges Band), mood.latestDayFocus und ggf. mood.tags (häufigste Stimmungs-Tags).
@@ -20,10 +22,16 @@ const MOOD_SECTION_EN = `METRIC — MOOD / WELL-BEING:
 - One message: close with ONE doable, kind step ONLY when the finding implies one (e.g. on good days, briefly note what helped). When mood is steadily good, acknowledge that honestly and name one thing worth keeping an eye on instead of manufacturing a step.`;
 
 export function getMoodSystemPrompt(locale: Locale): string {
-  const section = locale === "en" ? MOOD_SECTION_EN : MOOD_SECTION_DE;
-  return `${getBaseSystemPrompt(locale)}
+  // fr/es/it/pl compose the ENGLISH body (the base prompt names their
+  // language and appends their own directive); only de takes the German one.
+  const section =
+    instructionLocale(locale) === "en" ? MOOD_SECTION_EN : MOOD_SECTION_DE;
+  return withOutputLanguage(
+    `${getBaseSystemPromptBody(locale)}
 
-${section}`;
+${section}`,
+    locale,
+  );
 }
 
 export function getMoodUserPrompt(
@@ -48,7 +56,7 @@ export function getMoodUserPrompt(
     openerHint && openerHint.trim().length > 0
       ? `\nOPENER HINT: ${openerHint}`
       : "";
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `Date: ${todayKey} (Europe/Berlin)${openerLine}
 Write one short assessment of this person's mood. Open with what the recent pattern MEANS in plain words — the read, not the number (e.g. "a brighter stretch than usual", "steady, holding where it's been") — then bring in the recent level right after as support, placed against their own weekly/monthly baseline; never lead with the value. Close with one kind, doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the entry count and recency.${ctxBlock}${extraBlock}
 

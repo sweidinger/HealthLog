@@ -17,6 +17,7 @@ import { apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { locales, defaultLocale, type Locale } from "@/lib/i18n/config";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { readPeriodNarrative } from "@/lib/insights/narrative/period-narrative-generate";
@@ -37,8 +38,17 @@ const narrativeQuerySchema = z.object({
 /** A narrative read this recently is considered fresh; no warm is enqueued. */
 const NARRATIVE_FRESH_MS = 20 * 60 * 60 * 1000;
 
-function narrowLocale(locale: string): "de" | "en" {
-  return locale === "en" ? "en" : "de";
+/**
+ * The narrative row is keyed `(user, period, locale)` across the full UI
+ * locale union, so the resolved locale is carried through as-is.
+ *
+ * This used to be `locale === "en" ? "en" : "de"` — which sent every French,
+ * Spanish, Italian and Polish reader to the German narrative row and the
+ * German prompt behind it. `resolveServerLocale` already returns a validated
+ * `Locale`; an unknown value falls back to the app default (`en`) there.
+ */
+function narrowLocale(locale: Locale): Locale {
+  return locales.includes(locale) ? locale : defaultLocale;
 }
 
 export const GET = apiHandler(async (request: NextRequest) => {

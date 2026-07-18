@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.30.15] — 2026-07-18
+
+Generated health texts now come in the language you set.
+
+- **French, Spanish, Italian and Polish accounts get their assessments in their own language.** Every locale other than English previously fell back to the German instruction set, so those four either read German text or — where the pipeline narrowed them earlier — English text. Insight cards, the per-metric assessments, derived scores, the biomarker card, the period narrative and the assistant's tone settings all now follow the account's own language, with the wording rules that were already translated for each of the six languages. German and English output is unchanged, character for character.
+- **The language instruction is the last thing the model reads**, rather than being buried before the metric-specific section that follows it.
+- Under the hood: one shared resolver replaces the scattered English-or-else-German branches, and the locale now survives the whole generation path instead of being narrowed on the way in. Stored texts for the four languages regenerate on their next scheduled run; German and English keep reading exactly the rows they already had.
+
+No breaking changes.
+
 ## [1.30.14] — 2026-07-18
 
 The workouts page joins the pages that paint on first load.

@@ -13,6 +13,7 @@
  * name + payload type + enqueue helper in the generator-free module, the
  * concrete dispatch in the worker module.
  */
+import type { SupportedLocale } from "@/lib/insights/status-shared";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
 
@@ -29,8 +30,12 @@ export interface InsightPregeneratePayload {
    */
   userId?: string;
   force?: boolean;
-  /** Locale to warm on the forced path; defaults to "de" when absent. */
-  locale?: "de" | "en";
+  /**
+   * Locale to warm on the forced path. Carries the reader's full UI locale
+   * (one of the six); the handler validates it and defaults an absent or
+   * unrecognised value to English.
+   */
+  locale?: SupportedLocale;
 }
 
 /**
@@ -48,7 +53,7 @@ export interface InsightPregeneratePayload {
  */
 export async function enqueueForceWarm(payload: {
   userId: string;
-  locale: "de" | "en";
+  locale: SupportedLocale;
 }): Promise<void> {
   const boss = getGlobalBoss();
   if (!boss) {
@@ -119,7 +124,7 @@ export const PREGENERATE_RETRY_DELAY_SECONDS = 45 * 60;
  */
 export async function enqueuePregenerateFailureRetry(payload: {
   userId: string;
-  locale: "de" | "en";
+  locale: SupportedLocale;
 }): Promise<void> {
   const boss = getGlobalBoss();
   if (!boss) {

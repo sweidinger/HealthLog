@@ -168,4 +168,19 @@ describe("buildCoachMemoryBlock", () => {
     await buildCoachMemoryBlock(USER, PROFILE, NOW, "en");
     expect(readPeriodNarrative).toHaveBeenCalledWith(USER, "month", "en");
   });
+
+  // The narrative row is keyed by the full UI locale union. A French account's
+  // recall must read the `fr` row — narrowing it to `de` (the old behaviour)
+  // recalled a German narrative, and narrowing it to `en` would read a row
+  // that account never has.
+  it.each(["fr", "es", "it", "pl"] as const)(
+    "reads the %s narrative row without narrowing the locale",
+    async (locale) => {
+      readPeriodNarrative.mockResolvedValue(null);
+      buildPeriodNarrativeContext.mockResolvedValue(readyContext([]));
+
+      await buildCoachMemoryBlock(USER, PROFILE, NOW, locale);
+      expect(readPeriodNarrative).toHaveBeenCalledWith(USER, "month", locale);
+    },
+  );
 });

@@ -23,6 +23,7 @@ import {
   type CoachDataCluster,
 } from "@/lib/validations/coach-prefs";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import { locales, defaultLocale, type Locale } from "@/lib/i18n/config";
 import { resolveGlucoseUnit } from "@/lib/glucose";
 import type { SleepStageRow } from "@/lib/analytics/sleep-night";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
@@ -339,9 +340,13 @@ async function buildCoachSnapshotImpl(
   );
   const prefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
   // Resolve the UI locale for the rolling-profile narrative recall. The
-  // narrative rows are keyed by ("de" | "en"); default to "de" (the app
-  // default locale) when the user never picked one.
-  const coachLocale: "de" | "en" = prefsRow?.locale === "en" ? "en" : "de";
+  // narrative rows are keyed by the full UI locale union, so the stored value
+  // is carried through as-is; an unset or unknown value falls back to the app
+  // default (`en`), never to German. The former `=== "en" ? "en" : "de"`
+  // binary made a French account recall a German narrative row.
+  const coachLocale: Locale = locales.includes(prefsRow?.locale as Locale)
+    ? (prefsRow?.locale as Locale)
+    : defaultLocale;
   const clusterDefault = clusterSourcesFromPrefs(prefs.dataClusters);
   const { sources: scopedSources, window } = resolveScope(
     scope,

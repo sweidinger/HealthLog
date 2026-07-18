@@ -1,5 +1,7 @@
 import type { Locale } from "@/lib/i18n/config";
-import { getBaseSystemPrompt } from "./base-system";
+import { getBaseSystemPromptBody } from "./base-system";
+import { withOutputLanguage } from "./output-language";
+import { instructionLocale } from "./output-language";
 
 const BMI_SECTION_DE = `METRIK — BMI:
 - Der Snapshot trägt bmi.signal (der fertige Vergleich) + bmi.summary + bmi.series (graded). bmi.latestDayFocus zeigt den jüngsten Wert, dessen WHO-Klassifikation und den Schritt zum Vortag; bmi.target ist das grüne Band (18.5-24.9).
@@ -18,10 +20,16 @@ const BMI_SECTION_EN = `METRIC — BMI:
 - One message: close with ONE doable step that fits the band placement ONLY when the finding implies one — when the value is stable in the favourable band, acknowledge that honestly and name one thing worth keeping an eye on rather than forcing a finding or a step.`;
 
 export function getBmiSystemPrompt(locale: Locale): string {
-  const section = locale === "en" ? BMI_SECTION_EN : BMI_SECTION_DE;
-  return `${getBaseSystemPrompt(locale)}
+  // fr/es/it/pl compose the ENGLISH body (the base prompt names their
+  // language and appends their own directive); only de takes the German one.
+  const section =
+    instructionLocale(locale) === "en" ? BMI_SECTION_EN : BMI_SECTION_DE;
+  return withOutputLanguage(
+    `${getBaseSystemPromptBody(locale)}
 
-${section}`;
+${section}`,
+    locale,
+  );
 }
 
 export function getBmiUserPrompt(
@@ -46,7 +54,7 @@ export function getBmiUserPrompt(
     openerHint && openerHint.trim().length > 0
       ? `\nOPENER HINT: ${openerHint}`
       : "";
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `Date: ${todayKey} (Europe/Berlin)${openerLine}
 Write one short assessment of this person's BMI. Open with what its band placement MEANS in plain words — where it sits and whether that's holding or shifting, not the number (e.g. "sitting comfortably in the healthy band", "edging toward the next band up") — then bring in the current value and WHO band right after as support, saying against their own weekly/monthly baseline whether it has crossed a band or is nearing a boundary; never lead with the value. Close with one doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Leave the weight pace to the weight card. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 

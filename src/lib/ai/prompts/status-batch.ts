@@ -18,7 +18,8 @@
  * very snapshot + per-metric suffix it would have sent on its own.
  */
 import type { Locale } from "@/lib/i18n/config";
-import { getBaseSystemPrompt } from "./base-system";
+import { getBaseSystemPromptBody } from "./base-system";
+import { instructionLocale, withOutputLanguage } from "./output-language";
 
 /**
  * The stable per-metric output keys the batch envelope uses. The InsightStatus
@@ -46,7 +47,7 @@ export function getStatusBatchSystemPrompt(
   locale: Locale,
   presentKeys: readonly string[],
 ): string {
-  const base = getBaseSystemPrompt(locale);
+  const base = getBaseSystemPromptBody(locale);
   const keyList = presentKeys.join(", ");
   const en = `BATCHED OUTPUT — you are assessing SEVERAL of this user's metrics in one pass. Each metric below carries its OWN graded snapshot under a "### <key>" heading; assess each one STRICTLY from its own snapshot block, applying every rule above per metric. Do NOT let one metric's finding leak into another. Do NOT invent a metric: assess ONLY the keys present below.
 
@@ -58,7 +59,10 @@ Include a key ONLY if its snapshot block is present below (keys present: ${keyLi
 AUSGABEFORMAT: Antworte ausschließlich mit validem JSON in genau diesem Schema. "perMetric" enthält je vorhandenem Key eine kurze Einschätzung (je 2-4 Sätze, derselbe Vertrag wie eine Einzelkarte):
 { "perMetric": { ${presentKeys.map((k) => `"${k}": "..."`).join(", ")} } }
 Nimm einen Key NUR auf, wenn sein Snapshot-Block unten vorhanden ist (vorhandene Keys: ${keyList}). Lass jede Metrik ohne Block weg — erfinde niemals eine.`;
-  return `${base}\n\n${locale === "en" ? en : de}`;
+  return withOutputLanguage(
+    `${base}\n\n${instructionLocale(locale) === "en" ? en : de}`,
+    locale,
+  );
 }
 
 /**

@@ -9,17 +9,28 @@
  * to the rounding precision, the chart-token scrub, or the cache-row
  * shape lands once rather than seven times.
  *
- * The shapes are intentionally narrow — `SupportedLocale` is `de | en`
- * because the status prompts ship only those two locales. The
+ * `SupportedLocale` is the full six-locale UI union. The status prompts
+ * compose one of two reviewed instruction bodies (de / en) but name the
+ * reader's own language in an explicit output directive, so the reader's
+ * locale must survive the whole pipeline rather than being collapsed to a
+ * binary on the way in. The
  * medication-compliance generator writes a richer cache `details` shape
  * (it carries a per-medication array), so it shares `round`,
  * `normalizeSummaryText`, `normalizeLocale`, and `parseSummaryFromContent`
  * but keeps its own `auditLog.create`.
  */
 import { prisma } from "@/lib/db";
+import { locales, type Locale } from "@/lib/i18n/config";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 
-export type SupportedLocale = "de" | "en";
+/**
+ * The locales the assessment pipeline carries end-to-end — all six the UI
+ * ships. Aliased to the i18n `Locale` so adding a UI locale widens the
+ * pipeline in one place rather than needing a second edit here.
+ */
+export type SupportedLocale = Locale;
+
+const SUPPORTED_LOCALES: ReadonlySet<string> = new Set(locales);
 
 /** Round to `digits` decimal places. */
 export function round(value: number, digits = 1): number {
@@ -33,15 +44,20 @@ export function normalizeSummaryText(value: string): string {
 }
 
 /**
- * Narrow an arbitrary locale string to the two the prompts support.
- * Non-German locales (fr/es/it/pl, unknown values) resolve to ENGLISH —
- * the same routing the no-key fallbacks use — so a French UI never
- * receives German AI prose just because the prompts ship DE + EN only.
+ * Validate an arbitrary locale string against the six the UI ships.
+ *
+ * A recognised locale passes through UNCHANGED — that is the whole point:
+ * the former `value === "de" ? "de" : "en"` binary erased a French reader's
+ * locale before any prompt saw it, so the output-language directive could
+ * never fire. An unrecognised or missing value defaults to ENGLISH, never
+ * German; a German default is the bug class this replaces.
  */
 export function normalizeLocale(
   value: string | null | undefined,
 ): SupportedLocale {
-  return value === "de" ? "de" : "en";
+  return typeof value === "string" && SUPPORTED_LOCALES.has(value)
+    ? (value as SupportedLocale)
+    : "en";
 }
 
 export interface SeriesSummary {
