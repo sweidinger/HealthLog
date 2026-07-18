@@ -5,14 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -128,18 +121,39 @@ export function AttachmentPicker({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={t("insights.coach.attach.pickerTitle")}
+      description={t("insights.coach.attach.pickerDescription")}
+      contentWidth="lg"
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => handleOpenChange(false)}
+            data-slot="coach-attachment-picker-cancel"
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="button"
+            onClick={handleConfirm}
+            disabled={selected.length === 0}
+            data-slot="coach-attachment-picker-confirm"
+          >
+            {t("insights.coach.attach.pickerConfirm", {
+              count: selected.length,
+            })}
+          </Button>
+        </>
+      }
+    >
+      <div
         data-slot="coach-attachment-picker"
-        className="flex max-h-[85vh] flex-col sm:max-w-lg"
+        className="flex flex-col gap-3"
       >
-        <DialogHeader>
-          <DialogTitle>{t("insights.coach.attach.pickerTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("insights.coach.attach.pickerDescription")}
-          </DialogDescription>
-        </DialogHeader>
-
         <div className="relative">
           <Search
             className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
@@ -163,97 +177,74 @@ export function AttachmentPicker({
           {t("insights.coach.attach.pickerCap", { max: remainingSlots })}
         </p>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {list.isPending && open ? (
-            <div className="space-y-2">
-              {Array.from({ length: 4 }, (_, i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : list.isError ? (
-            <p role="alert" className="text-destructive text-sm">
-              {t("documents.list.loadError")}
-            </p>
-          ) : documents.length === 0 ? (
-            <p className="text-muted-foreground py-6 text-center text-sm">
-              {t("insights.coach.attach.pickerEmpty")}
-            </p>
-          ) : (
-            <ul className="space-y-1.5">
-              {documents.map((doc) => {
-                const isSelected = selected.includes(doc.id);
-                const selectable = doc.hasContentIndex;
-                const disabled = !selectable || (!isSelected && capReached);
-                const title =
-                  doc.title ?? doc.filename ?? t("documents.card.untitled");
-                const Icon = DOCUMENT_KIND_ICONS[doc.kind];
-                return (
-                  <li key={doc.id}>
-                    <button
-                      type="button"
-                      aria-pressed={isSelected}
-                      disabled={disabled}
-                      onClick={() => selectable && toggle(doc.id)}
-                      data-slot="coach-attachment-picker-item"
-                      data-selected={isSelected ? "true" : undefined}
-                      className={cn(
-                        "border-border hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg border p-3 text-left",
-                        "focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none",
-                        isSelected && "border-primary/40 bg-primary/5",
-                        disabled &&
-                          "cursor-not-allowed opacity-60 hover:bg-transparent",
-                      )}
-                    >
-                      <Icon
-                        className="text-foreground size-5 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">
-                          {title}
-                        </span>
-                        {!selectable ? (
-                          <span className="text-muted-foreground block text-xs">
-                            {t("insights.coach.attach.pickerNotIndexed")}
-                          </span>
-                        ) : null}
+        {list.isPending && open ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }, (_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+        ) : list.isError ? (
+          <p role="alert" className="text-destructive text-sm">
+            {t("documents.list.loadError")}
+          </p>
+        ) : documents.length === 0 ? (
+          <p className="text-muted-foreground py-6 text-center text-sm">
+            {t("insights.coach.attach.pickerEmpty")}
+          </p>
+        ) : (
+          <ul className="max-h-[50vh] space-y-1.5 overflow-y-auto overscroll-contain">
+            {documents.map((doc) => {
+              const isSelected = selected.includes(doc.id);
+              const selectable = doc.hasContentIndex;
+              const disabled = !selectable || (!isSelected && capReached);
+              const title =
+                doc.title ?? doc.filename ?? t("documents.card.untitled");
+              const Icon = DOCUMENT_KIND_ICONS[doc.kind];
+              return (
+                <li key={doc.id}>
+                  <button
+                    type="button"
+                    aria-pressed={isSelected}
+                    disabled={disabled}
+                    onClick={() => selectable && toggle(doc.id)}
+                    data-slot="coach-attachment-picker-item"
+                    data-selected={isSelected ? "true" : undefined}
+                    className={cn(
+                      "border-border hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg border p-3 text-left",
+                      "focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none",
+                      isSelected && "border-primary/40 bg-primary/5",
+                      disabled &&
+                        "cursor-not-allowed opacity-60 hover:bg-transparent",
+                    )}
+                  >
+                    <Icon
+                      className="text-foreground size-5 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {title}
                       </span>
-                      <Check
-                        className={cn(
-                          "text-primary size-4 shrink-0",
-                          isSelected ? "opacity-100" : "opacity-0",
-                        )}
-                        aria-hidden="true"
-                      />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => handleOpenChange(false)}
-            data-slot="coach-attachment-picker-cancel"
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="button"
-            onClick={handleConfirm}
-            disabled={selected.length === 0}
-            data-slot="coach-attachment-picker-confirm"
-          >
-            {t("insights.coach.attach.pickerConfirm", {
-              count: selected.length,
+                      {!selectable ? (
+                        <span className="text-muted-foreground block text-xs">
+                          {t("insights.coach.attach.pickerNotIndexed")}
+                        </span>
+                      ) : null}
+                    </span>
+                    <Check
+                      className={cn(
+                        "text-primary size-4 shrink-0",
+                        isSelected ? "opacity-100" : "opacity-0",
+                      )}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </li>
+              );
             })}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </ul>
+        )}
+      </div>
+    </ResponsiveSheet>
   );
 }

@@ -28,7 +28,7 @@
  * common case. Dates convert to instants at the browser's local
  * midnight, matching the user's wall clock like every schedule input.
  */
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
@@ -51,14 +51,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { TimesOfDayChips } from "@/components/medications/scheduling/times-of-day-chips";
@@ -421,6 +414,12 @@ function EraDialog({
 }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  // v1.30 mobile audit (M-4) — the footer's submit Button lives outside the
+  // form's DOM subtree once the sheet swaps to `ResponsiveSheet` (the
+  // Sheet/Dialog primitive owns the footer slot), so it associates via the
+  // native `form` attribute rather than nesting inside `<form>` — the same
+  // pattern `log-intake-dialog.tsx` uses.
+  const formId = useId();
   const [times, setTimes] = useState<string[]>(() =>
     target ? eraTimes(target.entries) : [],
   );
@@ -504,116 +503,116 @@ function EraDialog({
   }
 
   return (
-    <Dialog
+    <ResponsiveSheet
       open={open}
       onOpenChange={(next) => {
         onOpenChange(next);
         if (!next) reset();
       }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {target
-              ? t("medications.detail.zeitplan.history.editEraTitle")
-              : t("medications.detail.zeitplan.history.addEraTitle")}
-          </DialogTitle>
-          <DialogDescription>
-            {target
-              ? t("medications.detail.zeitplan.history.editEraDescription")
-              : t("medications.detail.zeitplan.history.addEraDescription")}
-          </DialogDescription>
-        </DialogHeader>
-        {target?.source === "ARCHIVED" && (
-          <p
-            className="text-muted-foreground text-xs"
-            data-slot="zeitplan-history-archived-hint"
+      title={
+        target
+          ? t("medications.detail.zeitplan.history.editEraTitle")
+          : t("medications.detail.zeitplan.history.addEraTitle")
+      }
+      description={
+        target
+          ? t("medications.detail.zeitplan.history.editEraDescription")
+          : t("medications.detail.zeitplan.history.addEraDescription")
+      }
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
           >
-            {t("medications.detail.zeitplan.history.archivedEditHint")}
+            {t("medications.detail.zeitplan.history.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={create.isPending}
+            aria-busy={create.isPending || undefined}
+            data-slot="zeitplan-history-submit"
+          >
+            {create.isPending ? (
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
+            ) : (
+              <History className="size-4" aria-hidden="true" />
+            )}
+            {t("medications.detail.zeitplan.history.submit")}
+          </Button>
+        </>
+      }
+    >
+      {target?.source === "ARCHIVED" && (
+        <p
+          className="text-muted-foreground mb-3 text-xs"
+          data-slot="zeitplan-history-archived-hint"
+        >
+          {t("medications.detail.zeitplan.history.archivedEditHint")}
+        </p>
+      )}
+      <form
+        id={formId}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (create.isPending) return;
+          submit();
+        }}
+        className="space-y-4"
+      >
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium">
+            {t("medications.detail.zeitplan.history.timesLabel")}
+          </p>
+          <TimesOfDayChips value={times} onChange={setTimes} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="zeitplan-history-from">
+              {t("medications.detail.zeitplan.history.fromLabel")}
+            </Label>
+            <DateField
+              id="zeitplan-history-from"
+              value={fromDate}
+              onChange={setFromDate}
+              data-testid="zeitplan-history-from"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="zeitplan-history-until">
+              {t("medications.detail.zeitplan.history.untilLabel")}
+            </Label>
+            <DateField
+              id="zeitplan-history-until"
+              value={untilDate}
+              onChange={setUntilDate}
+              data-testid="zeitplan-history-until"
+            />
+          </div>
+        </div>
+        <p className="text-muted-foreground text-xs">
+          {t("medications.detail.zeitplan.history.untilHint")}
+        </p>
+        {validationKey !== null && (
+          <p
+            className="text-destructive text-sm"
+            role="alert"
+            data-slot="zeitplan-history-validation"
+          >
+            {validationKey === "timesMissing" &&
+              t("medications.detail.zeitplan.history.validationTimes")}
+            {validationKey === "rangeMissing" &&
+              t("medications.detail.zeitplan.history.validationRangeMissing")}
+            {validationKey === "rangeOrder" &&
+              t("medications.detail.zeitplan.history.validationRangeOrder")}
           </p>
         )}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (create.isPending) return;
-            submit();
-          }}
-          className="space-y-4"
-        >
-          <div className="space-y-1.5">
-            <p className="text-sm font-medium">
-              {t("medications.detail.zeitplan.history.timesLabel")}
-            </p>
-            <TimesOfDayChips value={times} onChange={setTimes} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="zeitplan-history-from">
-                {t("medications.detail.zeitplan.history.fromLabel")}
-              </Label>
-              <DateField
-                id="zeitplan-history-from"
-                value={fromDate}
-                onChange={setFromDate}
-                data-testid="zeitplan-history-from"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="zeitplan-history-until">
-                {t("medications.detail.zeitplan.history.untilLabel")}
-              </Label>
-              <DateField
-                id="zeitplan-history-until"
-                value={untilDate}
-                onChange={setUntilDate}
-                data-testid="zeitplan-history-until"
-              />
-            </div>
-          </div>
-          <p className="text-muted-foreground text-xs">
-            {t("medications.detail.zeitplan.history.untilHint")}
-          </p>
-          {validationKey !== null && (
-            <p
-              className="text-destructive text-sm"
-              role="alert"
-              data-slot="zeitplan-history-validation"
-            >
-              {validationKey === "timesMissing" &&
-                t("medications.detail.zeitplan.history.validationTimes")}
-              {validationKey === "rangeMissing" &&
-                t("medications.detail.zeitplan.history.validationRangeMissing")}
-              {validationKey === "rangeOrder" &&
-                t("medications.detail.zeitplan.history.validationRangeOrder")}
-            </p>
-          )}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-            >
-              {t("medications.detail.zeitplan.history.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              disabled={create.isPending}
-              aria-busy={create.isPending || undefined}
-              data-slot="zeitplan-history-submit"
-            >
-              {create.isPending ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                  aria-hidden="true"
-                />
-              ) : (
-                <History className="size-4" aria-hidden="true" />
-              )}
-              {t("medications.detail.zeitplan.history.submit")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      </form>
+    </ResponsiveSheet>
   );
 }

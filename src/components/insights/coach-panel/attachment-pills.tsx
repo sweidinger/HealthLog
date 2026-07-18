@@ -85,7 +85,12 @@ export function AttachmentPills({
               title: item.title,
             })}
             title={t("insights.coach.attach.pillRemove", { title: item.title })}
-            className="text-muted-foreground hover:text-foreground size-5 shrink-0 rounded-full"
+            // v1.30 mobile audit (C-4) — the visible glyph stays a compact
+            // size-5 pill control, but the actual hit area extends to the
+            // 44px floor via an invisible `after` hit-slop (the same
+            // `measurement-list.tsx` checkbox trick) rather than growing the
+            // pill's visual footprint in the composer's attach row.
+            className="text-muted-foreground hover:text-foreground relative size-5 shrink-0 rounded-full after:absolute after:-inset-3"
           >
             <X className="size-3" aria-hidden="true" />
           </Button>

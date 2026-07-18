@@ -371,6 +371,7 @@ export default function InsightsPage() {
         icon={<TrendingUp className="size-6" />}
         title={t("insights.emptyTitle")}
         description={t("insights.emptyDescription")}
+        ctaSize="lg"
         action={
           <Button size="sm" asChild>
             <Link href="/measurements">
@@ -568,6 +569,7 @@ export default function InsightsPage() {
           icon={<SlidersHorizontal className="size-6" />}
           title={t("insights.editMode.emptyTitle")}
           description={t("insights.editMode.emptyDescription")}
+          ctaSize="lg"
           action={
             <Button size="sm" asChild>
               <Link href="/settings/layout/insights">

@@ -15,12 +15,14 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ListRow } from "@/components/ui/list-row";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -160,6 +162,12 @@ export function IntakeHistoryListV2({
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
   const formatters = useFormatters();
+  // v1.30 mobile audit (M-2) — the desktop table carries two full datetime
+  // columns plus status + source + kebab, forcing horizontal scroll on
+  // every phone. SSR-safe gate (mirrors `measurement-list.tsx`'s H3 split):
+  // resolves to the desktop table on the server + first paint, then flips
+  // to the stacked list after hydration.
+  const isMobile = useIsMobile("md");
 
   // v1.5.5 F-1 C-2 — the kebab + checkbox columns are gated by the
   // caller-passed callbacks. The list never assumes a wrapper; it
@@ -265,182 +273,266 @@ export function IntakeHistoryListV2({
           />
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {showSelection && (
-                    <TableHead
-                      className="w-8"
-                      data-slot="intake-history-select-col"
-                    />
-                  )}
-                  <TableHead>
-                    <button
-                      type="button"
-                      onClick={() => toggleSort("takenAt")}
-                      className="focus-visible:ring-ring inline-flex min-h-11 items-center rounded-md font-medium hover:underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-9"
-                      aria-label={t("medications.intakeHistorySortByTaken")}
-                    >
-                      {t("medications.intakeHistoryColTaken")}
-                      {sortIndicator("takenAt")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      type="button"
-                      onClick={() => toggleSort("scheduledFor")}
-                      className="focus-visible:ring-ring inline-flex min-h-11 items-center rounded-md font-medium hover:underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-9"
-                      aria-label={t("medications.intakeHistorySortByScheduled")}
-                    >
-                      {t("medications.intakeHistoryColScheduled")}
-                      {sortIndicator("scheduledFor")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    {t("medications.intakeHistoryColStatus")}
-                  </TableHead>
-                  <TableHead>
-                    {t("medications.intakeHistoryColSource")}
-                  </TableHead>
-                  {showRowActions && (
-                    <TableHead
-                      className="w-8"
-                      data-slot="intake-history-actions-col"
-                    />
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {events.map((event) => {
-                  // v1.4.37 W3 — `status=completed` server filter
-                  // guarantees that every row is either a taken or a
-                  // skipped event. We derive the branch from the data
-                  // itself rather than trusting a single `skipped`
-                  // flag so a malformed row (e.g. `skipped:false` with
-                  // `takenAt:null`, the v1.4.36 regression) never
-                  // sneaks past as "Eingenommen".
-                  const isTaken = !event.skipped && !!event.takenAt;
-                  const isSkipped = event.skipped;
-                  const isSelected = selection?.selected.has(event.id) ?? false;
-                  return (
-                    <TableRow key={event.id}>
-                      {showSelection && (
-                        <TableCell className="w-8">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() =>
-                              selection?.onToggle(event.id)
-                            }
-                            aria-label={t(
-                              "medications.detail.intake.selection.rowToggleLabel",
-                            )}
-                            data-slot="intake-history-row-select"
-                          />
-                        </TableCell>
-                      )}
-                      <TableCell className="text-sm">
-                        {/* v1.7.0 — the date column is always populated:
-                            taken rows show `takenAt`, skipped rows fall
-                            back to `scheduledFor` with a muted
-                            "(planned)" suffix so the chronological
-                            order stays clean and no `—` row floats. */}
-                        {event.takenAt ? (
-                          formatters.dateTime(event.takenAt)
-                        ) : (
-                          <>
-                            {formatters.dateTime(event.scheduledFor)}{" "}
-                            <span className="text-muted-foreground text-xs">
-                              ({t("medications.detail.history.plannedSuffix")})
-                            </span>
-                          </>
+            {/* v1.30 mobile audit (M-2) — the two-datetime-column table is
+                contained (Table self-wraps in overflow-x-auto) but forces
+                sideways scroll of a primary history surface on every phone.
+                Below `md` it swaps for a stacked card list (the
+                `measurement-list.tsx` pattern); only the active layout
+                mounts, mirroring that component's SSR-safe gate. */}
+            {!isMobile && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {showSelection && (
+                      <TableHead
+                        className="w-8"
+                        data-slot="intake-history-select-col"
+                      />
+                    )}
+                    <TableHead>
+                      <button
+                        type="button"
+                        onClick={() => toggleSort("takenAt")}
+                        className="focus-visible:ring-ring inline-flex min-h-11 items-center rounded-md font-medium hover:underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-9"
+                        aria-label={t("medications.intakeHistorySortByTaken")}
+                      >
+                        {t("medications.intakeHistoryColTaken")}
+                        {sortIndicator("takenAt")}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button
+                        type="button"
+                        onClick={() => toggleSort("scheduledFor")}
+                        className="focus-visible:ring-ring inline-flex min-h-11 items-center rounded-md font-medium hover:underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-9"
+                        aria-label={t(
+                          "medications.intakeHistorySortByScheduled",
                         )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {formatters.dateTime(event.scheduledFor)}
-                      </TableCell>
-                      <TableCell>
-                        {isTaken ? (
-                          <Badge
-                            variant="secondary"
-                            className="bg-success/15 text-success gap-1 text-xs"
-                          >
-                            <Check aria-hidden="true" className="h-3 w-3" />
-                            {t("medications.intakeHistoryStatusTaken")}
-                          </Badge>
-                        ) : isSkipped ? (
+                      >
+                        {t("medications.intakeHistoryColScheduled")}
+                        {sortIndicator("scheduledFor")}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      {t("medications.intakeHistoryColStatus")}
+                    </TableHead>
+                    <TableHead>
+                      {t("medications.intakeHistoryColSource")}
+                    </TableHead>
+                    {showRowActions && (
+                      <TableHead
+                        className="w-8"
+                        data-slot="intake-history-actions-col"
+                      />
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {events.map((event) => {
+                    // v1.4.37 W3 — `status=completed` server filter
+                    // guarantees that every row is either a taken or a
+                    // skipped event. We derive the branch from the data
+                    // itself rather than trusting a single `skipped`
+                    // flag so a malformed row (e.g. `skipped:false` with
+                    // `takenAt:null`, the v1.4.36 regression) never
+                    // sneaks past as "Eingenommen".
+                    const isTaken = !event.skipped && !!event.takenAt;
+                    const isSkipped = event.skipped;
+                    const isSelected =
+                      selection?.selected.has(event.id) ?? false;
+                    return (
+                      <TableRow key={event.id}>
+                        {showSelection && (
+                          <TableCell className="w-8">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() =>
+                                selection?.onToggle(event.id)
+                              }
+                              aria-label={t(
+                                "medications.detail.intake.selection.rowToggleLabel",
+                              )}
+                              data-slot="intake-history-row-select"
+                            />
+                          </TableCell>
+                        )}
+                        <TableCell className="text-sm">
+                          {/* v1.7.0 — the date column is always populated:
+                              taken rows show `takenAt`, skipped rows fall
+                              back to `scheduledFor` with a muted
+                              "(planned)" suffix so the chronological
+                              order stays clean and no `—` row floats. */}
+                          {event.takenAt ? (
+                            formatters.dateTime(event.takenAt)
+                          ) : (
+                            <>
+                              {formatters.dateTime(event.scheduledFor)}{" "}
+                              <span className="text-muted-foreground text-xs">
+                                (
+                                {t(
+                                  "medications.detail.history.plannedSuffix",
+                                )}
+                                )
+                              </span>
+                            </>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {formatters.dateTime(event.scheduledFor)}
+                        </TableCell>
+                        <TableCell>
+                          {isTaken ? (
+                            <Badge
+                              variant="secondary"
+                              className="bg-success/15 text-success gap-1 text-xs"
+                            >
+                              <Check aria-hidden="true" className="h-3 w-3" />
+                              {t("medications.intakeHistoryStatusTaken")}
+                            </Badge>
+                          ) : isSkipped ? (
+                            <Badge
+                              variant="outline"
+                              className="text-muted-foreground gap-1 text-xs"
+                            >
+                              <SkipForward
+                                aria-hidden="true"
+                                className="h-3 w-3"
+                              />
+                              {t("medications.intakeHistoryStatusSkipped")}
+                            </Badge>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
                           <Badge
                             variant="outline"
-                            className="text-muted-foreground gap-1 text-xs"
+                            className="text-muted-foreground text-xs font-normal"
                           >
-                            <SkipForward
-                              aria-hidden="true"
-                              className="h-3 w-3"
-                            />
-                            {t("medications.intakeHistoryStatusSkipped")}
+                            {t("medications.intakeSourceVia", {
+                              origin:
+                                sourceLabels[event.source] ?? event.source,
+                            })}
                           </Badge>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className="text-muted-foreground text-xs font-normal"
-                        >
-                          {t("medications.intakeSourceVia", {
-                            origin: sourceLabels[event.source] ?? event.source,
-                          })}
-                        </Badge>
-                      </TableCell>
-                      {showRowActions && (
-                        <TableCell className="w-8 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                aria-label={t(
-                                  "medications.detail.intake.rowActions.openMenu",
-                                )}
-                                data-slot="intake-history-row-kebab"
-                              >
-                                <MoreHorizontal
-                                  aria-hidden="true"
-                                  className="h-4 w-4"
-                                />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {onEditIntake && (
-                                <DropdownMenuItem
-                                  onSelect={() => onEditIntake(event)}
-                                  data-slot="intake-history-row-edit"
-                                >
-                                  {t(
-                                    "medications.detail.intake.rowActions.edit",
-                                  )}
-                                </DropdownMenuItem>
-                              )}
-                              {onDeleteIntake && (
-                                <DropdownMenuItem
-                                  onSelect={() => onDeleteIntake(event.id)}
-                                  data-slot="intake-history-row-delete"
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  {t(
-                                    "medications.detail.intake.rowActions.delete",
-                                  )}
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
                         </TableCell>
-                      )}
-                    </TableRow>
+                        {showRowActions && (
+                          <TableCell className="w-8 text-right">
+                            <IntakeRowActions
+                              event={event}
+                              onEditIntake={onEditIntake}
+                              onDeleteIntake={onDeleteIntake}
+                              t={t}
+                            />
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+
+            {isMobile && (
+              <div className="space-y-2" data-slot="intake-history-mobile">
+                {events.map((event) => {
+                  const isTaken = !event.skipped && !!event.takenAt;
+                  const isSkipped = event.skipped;
+                  const isSelected =
+                    selection?.selected.has(event.id) ?? false;
+                  return (
+                    <ListRow
+                      key={event.id}
+                      data-state={isSelected ? "selected" : undefined}
+                      className="bg-card border-border data-[state=selected]:border-primary/60 data-[state=selected]:bg-primary/5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex min-w-0 items-start gap-2">
+                          {showSelection && (
+                            <div className="flex size-11 shrink-0 items-center justify-center">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() =>
+                                  selection?.onToggle(event.id)
+                                }
+                                aria-label={t(
+                                  "medications.detail.intake.selection.rowToggleLabel",
+                                )}
+                                data-slot="intake-history-row-select"
+                                className="relative after:absolute after:-inset-3.5"
+                              />
+                            </div>
+                          )}
+                          <div className="min-w-0 space-y-1">
+                            <p className="text-sm font-medium">
+                              {event.takenAt ? (
+                                formatters.dateTime(event.takenAt)
+                              ) : (
+                                <>
+                                  {formatters.dateTime(event.scheduledFor)}{" "}
+                                  <span className="text-muted-foreground text-xs font-normal">
+                                    (
+                                    {t(
+                                      "medications.detail.history.plannedSuffix",
+                                    )}
+                                    )
+                                  </span>
+                                </>
+                              )}
+                            </p>
+                            <p className="text-muted-foreground text-xs">
+                              {t("medications.intakeHistoryColScheduled")}:{" "}
+                              {formatters.dateTime(event.scheduledFor)}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              {isTaken ? (
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-success/15 text-success gap-1 text-xs"
+                                >
+                                  <Check
+                                    aria-hidden="true"
+                                    className="h-3 w-3"
+                                  />
+                                  {t("medications.intakeHistoryStatusTaken")}
+                                </Badge>
+                              ) : isSkipped ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-muted-foreground gap-1 text-xs"
+                                >
+                                  <SkipForward
+                                    aria-hidden="true"
+                                    className="h-3 w-3"
+                                  />
+                                  {t(
+                                    "medications.intakeHistoryStatusSkipped",
+                                  )}
+                                </Badge>
+                              ) : null}
+                              <Badge
+                                variant="outline"
+                                className="text-muted-foreground text-xs font-normal"
+                              >
+                                {t("medications.intakeSourceVia", {
+                                  origin:
+                                    sourceLabels[event.source] ?? event.source,
+                                })}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        {showRowActions && (
+                          <IntakeRowActions
+                            event={event}
+                            onEditIntake={onEditIntake}
+                            onDeleteIntake={onDeleteIntake}
+                            t={t}
+                          />
+                        )}
+                      </div>
+                    </ListRow>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </div>
+            )}
 
             {totalPages > 1 && (
               <div className="text-muted-foreground mt-3 flex items-center justify-between text-xs">
@@ -479,5 +571,60 @@ export function IntakeHistoryListV2({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Per-row Bearbeiten/Löschen kebab, shared by the desktop table row and the
+ * mobile stacked-card row. v1.30 mobile audit (M-1) — was a hard `h-8 w-8`
+ * (32 px), sub-floor in an edit flow and inconsistent with the sort headers
+ * in this same file and the dose-history ledger's kebab; now `size-11
+ * sm:size-9` like the rest of the app's icon-button floor.
+ */
+function IntakeRowActions({
+  event,
+  onEditIntake,
+  onDeleteIntake,
+  t,
+}: {
+  event: IntakeEvent;
+  onEditIntake?: (event: IntakeEvent) => void;
+  onDeleteIntake?: (eventId: string) => void;
+  t: ReturnType<typeof useTranslations>["t"];
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-11 sm:size-9"
+          aria-label={t("medications.detail.intake.rowActions.openMenu")}
+          data-slot="intake-history-row-kebab"
+        >
+          <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {onEditIntake && (
+          <DropdownMenuItem
+            onSelect={() => onEditIntake(event)}
+            data-slot="intake-history-row-edit"
+          >
+            {t("medications.detail.intake.rowActions.edit")}
+          </DropdownMenuItem>
+        )}
+        {onDeleteIntake && (
+          <DropdownMenuItem
+            onSelect={() => onDeleteIntake(event.id)}
+            data-slot="intake-history-row-delete"
+            className="text-destructive focus:text-destructive"
+          >
+            {t("medications.detail.intake.rowActions.delete")}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
