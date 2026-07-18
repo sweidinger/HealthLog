@@ -128,8 +128,10 @@ describe("base system prompt — every locale", () => {
 
   it("ends the four non-de/en prompts with their own directive", () => {
     for (const locale of ["fr", "es", "it", "pl"] as const) {
+      // `[\s\S]` rather than `.` + the `s` flag — the compile target predates
+      // dotAll, and the directive can span lines.
       expect(getBaseSystemPrompt(locale).trimEnd()).toMatch(
-        /OUTPUT LANGUAGE: .+$/s,
+        /OUTPUT LANGUAGE: [\s\S]+$/,
       );
     }
   });

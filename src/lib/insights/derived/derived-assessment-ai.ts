@@ -25,6 +25,7 @@ import {
   getBaseSystemPrompt,
   PROMPT_VERSION,
 } from "@/lib/ai/prompts/base-system";
+import { instructionLocale } from "@/lib/ai/prompts/output-language";
 import {
   normalizeLocale,
   normalizeSummaryText,
@@ -87,10 +88,20 @@ const SCORE_INPUT_TYPES: readonly MeasurementType[] = [
 
 // ── prompt ────────────────────────────────────────────────────────────────
 
-function scoreSystemPrompt(locale: SupportedLocale): string {
+/**
+ * The archetype section rides on top of `getBaseSystemPrompt`, which already
+ * appends the reader's own output-language directive — so this composer must
+ * NOT append one of its own. It only picks the instruction body: German for
+ * German readers, English for every other locale.
+ *
+ * The parameter is the full `Locale` rather than `SupportedLocale` so the
+ * routing is correct the moment the pipeline stops collapsing fr/es/it/pl on
+ * the way in; today's callers still pass a narrowed locale.
+ */
+function scoreSystemPrompt(locale: Locale): string {
   const base = getBaseSystemPrompt(locale);
   const section =
-    locale === "en"
+    instructionLocale(locale) === "en"
       ? `ARCHETYPE — COMPOSITE WELLNESS SCORE (write like a premium recovery coach — WHOOP / Oura — who genuinely wants this person to do well). This is a 0–100 composite, not a raw measurement. Weave these FOUR beats into varied, connected prose (NOT a fixed template, NOT a labelled list) — lead per the OPENER HINT if one is given:
 - STANDING — the score and its band, in one short clause.
 - WHAT DROVE IT — name the contributor(s) in \`signal.contributors[]\` that HELPED (the strongest, highest values) AND the one(s) that HURT (the weakest, lowest values), so a good score earns its win and a soft score is explained honestly. Each contributor is itself 0–100; a low value drags the score down, a high one carries it. Never invent a contributor that is not listed. When none are listed, use the trend (signal.delta) instead.
@@ -110,7 +121,7 @@ function scoreUserPrompt(
   signal: MetricSignal,
   band: string,
   todayKey: string,
-  locale: SupportedLocale,
+  locale: Locale,
   openerHint: string,
   /** v1.30.3 (QA F5) — the user's own IANA tz; was hardcoded "Europe/Berlin". */
   tz: string,
@@ -120,7 +131,7 @@ function scoreUserPrompt(
     null,
     2,
   );
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `Date: ${todayKey} (${tz})
 OPENER HINT: ${openerHint}
 Write an assessment of ${signal.metric} today across the four beats — the standing, what helped AND what hurt it, what the band means for the day, and one grounded nudge. Aim for 3–5 sentences, roughly 45–75 words (this overrides the shorter base length cap). Connected prose, not a checklist.

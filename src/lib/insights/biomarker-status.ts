@@ -22,6 +22,11 @@
  */
 import { prisma } from "@/lib/db";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/base-system";
+import {
+  instructionLocale,
+  withOutputLanguage,
+} from "@/lib/ai/prompts/output-language";
+import type { Locale } from "@/lib/i18n/config";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
@@ -82,8 +87,21 @@ function insufficient(): BiomarkerStatusResult {
   };
 }
 
-function getSystemPrompt(locale: SupportedLocale, markerName: string): string {
-  if (locale === "de") {
+/**
+ * Unlike every other assessment prompt in the family, this one does NOT
+ * compose `getBaseSystemPrompt` — it is a self-contained inline scaffold. So
+ * the reader's output-language directive, which the base prompt would have
+ * carried, has to be appended here. When this prompt moves onto the shared
+ * base scaffold the append collapses into the shared path and this call goes
+ * away; until then it is the only thing making a non-de/en reader's language
+ * explicit on this surface.
+ *
+ * The parameter is the full `Locale` rather than `SupportedLocale` so the
+ * routing is correct the moment the pipeline stops collapsing fr/es/it/pl on
+ * the way in; today's callers still pass a narrowed locale.
+ */
+function getSystemPrompt(locale: Locale, markerName: string): string {
+  if (instructionLocale(locale) === "de") {
     return [
       `Du bist ein vorsichtiger, faktenbasierter Gesundheitsbegleiter und beurteilst den Laborwert „${markerName}" einer Person.`,
       "Beziehe dich AUSSCHLIESSLICH auf die im Snapshot gelieferten Zahlen. Erfinde keine Werte, keine Diagnosen und keine Medikamente.",
@@ -92,21 +110,24 @@ function getSystemPrompt(locale: SupportedLocale, markerName: string): string {
       'Antworte als JSON-Objekt der Form { "summary": "…" } ohne weiteren Text.',
     ].join(" ");
   }
-  return [
-    `You are a careful, fact-based health companion assessing a person's lab marker "${markerName}".`,
-    "Use ONLY the figures provided in the snapshot. Do not invent values, diagnoses, or medications.",
-    "Write 2 to 4 calm sentences in plain language: state the current value and how it sits against the reference range, place the trend across recent readings, and add at most one factual pointer.",
-    "No alarmism, no marketing tone, no commands. For notably out-of-range values, refer neutrally to a clinician for interpretation.",
-    'Respond as a JSON object of the form { "summary": "…" } with no other text.',
-  ].join(" ");
+  return withOutputLanguage(
+    [
+      `You are a careful, fact-based health companion assessing a person's lab marker "${markerName}".`,
+      "Use ONLY the figures provided in the snapshot. Do not invent values, diagnoses, or medications.",
+      "Write 2 to 4 calm sentences in plain language: state the current value and how it sits against the reference range, place the trend across recent readings, and add at most one factual pointer.",
+      "No alarmism, no marketing tone, no commands. For notably out-of-range values, refer neutrally to a clinician for interpretation.",
+      'Respond as a JSON object of the form { "summary": "…" } with no other text.',
+    ].join(" "),
+    locale,
+  );
 }
 
 function getUserPrompt(
   snapshotJson: string,
   todayKey: string,
-  locale: SupportedLocale,
+  locale: Locale,
 ): string {
-  return locale === "de"
+  return instructionLocale(locale) === "de"
     ? `Heutiges Datum: ${todayKey}. Beurteile den folgenden Laborwert-Snapshot:\n${snapshotJson}`
     : `Today's date: ${todayKey}. Assess the following lab-marker snapshot:\n${snapshotJson}`;
 }
