@@ -596,9 +596,17 @@ export function filterSeriesToWindow(
   }));
 }
 
+/**
+ * Separator joining the two channel names into a stable pair key. The
+ * unit-separator character (U+241F) cannot appear in a correlation-channel
+ * name, so two distinct pairs never collide. The key is used only for Set
+ * membership (never split back), and lives for one discovery pass.
+ */
+const PAIR_KEY_SEP = "\u241F";
+
 /** Stable pair identity for double-count exclusion. */
 function pairKey(behaviour: string, outcome: string): string {
-  return `${behaviour} ${outcome}`;
+  return `${behaviour}${PAIR_KEY_SEP}${outcome}`;
 }
 
 export interface EmergingCorrelationResult {
