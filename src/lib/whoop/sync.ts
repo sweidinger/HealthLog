@@ -525,6 +525,37 @@ export async function syncUserWhoop(
 }
 
 /**
+ * Run a SINGLE WHOOP resource sync (webhook-driven refresh or the per-resource
+ * cron walk) under the soft-skip tracker and stamp `recordSyncSuccess` iff the
+ * resource actually reached WHOOP — it did not throw and was not a pure
+ * soft-skip (an all-403 grant-revoke that imported nothing).
+ *
+ * The per-resource path (`runWhoopResourceSync`) advances the resource cursor
+ * via `markResourceSynced` but historically never touched `IntegrationStatus`,
+ * so `lastSuccessAt` stayed frozen at the last full `syncUserWhoop` run — the
+ * Settings "last synced" pill and the MCP `get_integration_status` read lied
+ * for up to an hour after a webhook already landed last night's data. Stamp it
+ * here, reusing `syncUserWhoop`'s exact success guard scoped to one resource:
+ * a genuine import clears the error state; a 403 soft-skip leaves the
+ * "looks-healthy" window closed.
+ */
+export async function syncWhoopResourceWithStatus(
+  userId: string,
+  run: () => Promise<number>,
+): Promise<number> {
+  const tracker: SoftSkipTracker = { count: 0 };
+  let imported = 0;
+  await softSkipStorage.run(tracker, async () => {
+    imported = await run();
+  });
+  const softSkippedOnly = tracker.count > 0 && imported === 0;
+  if (!softSkippedOnly) {
+    await recordSyncSuccess(userId, "whoop");
+  }
+  return imported;
+}
+
+/**
  * Map a WHOOP response classification onto a `FailureKind` and record it.
  * Shared by every per-resource catch-block and the token-refresh path.
  */
