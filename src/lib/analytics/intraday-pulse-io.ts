@@ -18,6 +18,8 @@
 import { prisma } from "@/lib/db";
 import { percentile } from "@/lib/insights/strain-score";
 import { resolveRestingPulseSeries } from "@/lib/analytics/resting-pulse";
+import { localDayWindow } from "@/lib/measurements/consolidation-tz";
+import { userDayKey } from "@/lib/tz/format";
 import {
   BUCKET_MINUTES,
   HOURLY_BUCKET_MINUTES,
@@ -73,8 +75,18 @@ function median(values: number[]): number | null {
  * baseline is the median of the resolved daily series — robust to the odd
  * outlier — and is "mature" only once at least `MIN_BASELINE_DAYS` distinct
  * daily points exist.
+ *
+ * `timezone` buckets the PULSE-proxy fallback in the USER's local day
+ * (DATAINT M5) — the caller previously omitted it, so
+ * `deriveRestingProxyFromPulse` defaulted to Berlin-day buckets for every
+ * user. A non-Berlin user's late-evening (often workout-heavy) samples then
+ * folded into the wrong day's bucket, shifting the daily floor the tension
+ * detector's `baseline + 12 bpm` threshold judges the day against.
  */
-async function resolveBaseline(userId: string): Promise<{
+async function resolveBaseline(
+  userId: string,
+  timezone: string,
+): Promise<{
   baseline: number | null;
   mature: boolean;
   source: "resting" | "proxy" | "none";
@@ -106,6 +118,7 @@ async function resolveBaseline(userId: string): Promise<{
       measuredAt: r.measuredAt,
       value: r.value,
     })),
+    dayKeyOf: (d) => userDayKey(d, timezone),
   });
 
   const recent = resolved.series.slice(-30).map((p) => p.value);
@@ -148,6 +161,18 @@ export async function loadIntradayPulse(
   const anchorMs = new Date(`${dateKey}T00:00:00.000Z`).getTime();
   const start = new Date(anchorMs - WINDOW_LEAD_MS);
   const end = new Date(anchorMs + WINDOW_TRAIL_MS);
+  // DATAINT M2 — PULSE/step reads are bounded to the EXACT local-day window
+  // (DST-aware; 23/24/25h), not the ±15h/39h padded superset. The prior
+  // padded read meant `take: MAX_DAY_*_ROWS` (an ascending cap) could be
+  // entirely consumed by the PREVIOUS local day's samples (e.g. a
+  // workout-heavy evening) before reaching the viewed day at all on a dense
+  // account — the cap now only ever spends against rows that are actually
+  // inside `dateKey`. `computeTenMinuteMeanSeries` / the step-bucket loop
+  // already re-filter by `dayKey` defensively, so this is a pure narrowing.
+  // The workout-overlap read keeps the wider padded window: it has no `take`
+  // cap, so there is no truncation risk, and a workout can legitimately
+  // start the local-day before or end the local-day after.
+  const { dayStart, dayEnd } = localDayWindow(dateKey, timezone);
 
   const [pulseRows, stepRows, workoutRows, baseline] = await Promise.all([
     prisma.measurement.findMany({
@@ -155,7 +180,7 @@ export async function loadIntradayPulse(
         userId,
         type: "PULSE",
         deletedAt: null,
-        measuredAt: { gte: start, lte: end },
+        measuredAt: { gte: dayStart, lt: dayEnd },
       },
       orderBy: { measuredAt: "asc" },
       take: MAX_DAY_PULSE_ROWS,
@@ -166,7 +191,7 @@ export async function loadIntradayPulse(
         userId,
         type: "ACTIVITY_STEPS",
         deletedAt: null,
-        measuredAt: { gte: start, lte: end },
+        measuredAt: { gte: dayStart, lt: dayEnd },
       },
       orderBy: { measuredAt: "asc" },
       take: MAX_DAY_STEP_ROWS,
@@ -180,7 +205,7 @@ export async function loadIntradayPulse(
       },
       select: { startedAt: true, endedAt: true },
     }),
-    resolveBaseline(userId),
+    resolveBaseline(userId, timezone),
   ]);
 
   // Split live PULSE rows into raw per-sample rows and already-folded
