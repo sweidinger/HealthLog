@@ -141,7 +141,7 @@
     "aiSummaryDisclaimer": "Dieser Abschnitt wurde automatisch von einem KI-Modell erzeugt und ist nicht klinisch validiert. Er ersetzt keine ärztliche Beurteilung.",
     "packageReadme": "HealthLog Gesundheitsakte\n\nDieses Paket enthält:\n- report.pdf: den Gesundheitsbericht für die ärztliche Vorlage.\n- bundle.json: dieselben Daten als HL7-FHIR-R4-Dokument (Bundle), ePA-kompatibel.\n\nErstellt mit HealthLog.",
     "wellnessTitle": "Wellness-Zusammenfassung",
-    "wellnessDisclaimer": "Dies sind beschreibende Wellness-Werte, die aus deinen erfassten Signalen berechnet werden (0–100). Sie sind keine klinischen Beurteilungen oder Diagnosen.",
+    "wellnessDisclaimer": "Dies sind beschreibende Wellness-Werte, die aus den erfassten Signalen berechnet werden (0–100). Sie sind keine klinischen Beurteilungen oder Diagnosen.",
     "wellnessRecovery": "Erholung",
     "wellnessStress": "Stress",
     "wellnessStrain": "Belastung",
@@ -5296,7 +5296,7 @@
       "statusRevoked": "Widerrufen",
       "statusExpired": "Abgelaufen",
       "inactiveTitle": "Widerrufen und abgelaufen ({count})",
-      "shownOnce": "Nur einmal sichtbar. Erfassen Sie QR-Code und Passphrase jetzt — beide lassen sich später nicht wiederherstellen.",
+      "shownOnce": "Nur einmal sichtbar. Erfasse QR-Code und Passphrase jetzt — beide lassen sich später nicht wiederherstellen.",
       "qrLabel": "QR-Code",
       "qrAlt": "QR-Code mit Freigabelink und Passphrase",
       "linkLabel": "Link",
@@ -6856,7 +6856,7 @@
       "title": "Dokumente",
       "untitled": "Unbenanntes Dokument",
       "download": "Herunterladen",
-      "attachmentHint": "Diese Datei wird auf dein Gerät heruntergeladen (keine Vorschau in der Seite).",
+      "attachmentHint": "Diese Datei wird auf Ihr Gerät heruntergeladen (keine Vorschau in der Seite).",
       "exifNote": "Kamera-Metadaten (EXIF/GPS) wurden aus geteilten JPEG-, PNG- und WebP-Bildern entfernt."
     }
   },
@@ -8642,7 +8642,7 @@
   "daily": {
     "line": {
       "score": "Dein Gesundheitsscore heute liegt bei {score}.",
-      "allClear": "Heute braucht nichts deine Aufmerksamkeit — alles verläuft normal."
+      "allClear": "Heute braucht nichts deine Aufmerksamkeit."
     },
     "push": {
       "title": "Dein Morgenüberblick",

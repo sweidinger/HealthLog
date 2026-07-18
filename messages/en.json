@@ -2662,11 +2662,11 @@
         "fatFreeMassTitle": "Fat-free mass",
         "fatFreeMassBody": "Fat-free mass is everything in your body that is not fat — muscle, bone, organs, and water. Holding or building it while losing weight usually signals healthier body composition.",
         "fatMassTitle": "Fat mass",
-        "fatMassBody": "Fat mass is the total weight of fat in your body. Some fat is essential for hormones and energy storage, but too much — especially around the abdomen — raises long-term health risk.",
+        "fatMassBody": "Fat mass is the total weight of fat in your body. Some fat is essential for hormones and energy storage, but too much — especially around the abdomen — raises long-term health risk (WHO 2024).",
         "muscleMassTitle": "Muscle mass",
         "muscleMassBody": "Muscle mass is the estimated weight of the muscle in your body. More muscle supports strength, metabolism, and mobility, and it tends to need active effort to preserve as you age.",
         "visceralFatTitle": "Visceral fat",
-        "visceralFatBody": "Visceral fat is the fat stored deep in the abdomen around your organs. Unlike fat under the skin, a high level is closely linked to heart disease and type 2 diabetes, so lower is generally better. The scale shows a unitless rating (about 1–12 is the healthy range, 13 and up elevated); this is a separate scale from the imaging cm² thresholds clinicians use and is not interchangeable with them.",
+        "visceralFatBody": "Visceral fat is the fat stored deep in the abdomen around your organs. Unlike fat under the skin, a high level is closely linked to heart disease and type 2 diabetes (AHA, Circulation 2021), so lower is generally better. The scale shows a unitless rating (about 1–12 is the healthy range, 13 and up elevated); this is a separate scale from the imaging cm² thresholds clinicians use and is not interchangeable with them.",
         "leanBodyMassTitle": "Lean body mass",
         "leanBodyMassBody": "Lean body mass is your total weight minus body fat — muscle, bone, organs, and water combined. Tracking it alongside weight shows whether changes come from muscle or from fat.",
         "flightsClimbedTitle": "Flights climbed",
@@ -2696,7 +2696,7 @@
         "audioEventsTitle": "Loud sound events",
         "audioEventsBody": "Loud sound events flag moments when noise around you reached a level that can harm hearing with enough exposure. Frequent events are a cue to seek quieter surroundings or hearing protection.",
         "daylightTitle": "Time in daylight",
-        "daylightBody": "Time in daylight is how long you spend in outdoor light each day. Regular daylight supports a healthy sleep-wake rhythm and mood, and time outdoors is linked to eye health.",
+        "daylightBody": "Time in daylight is how long you spend in outdoor light each day. Regular daylight supports a healthy sleep-wake rhythm and mood (CDC 2024), and time outdoors is linked to eye health.",
         "bloodGlucoseTitle": "Blood glucose",
         "bloodGlucoseBody": "Blood glucose is the amount of sugar in your blood, the body's main energy source. It rises after eating and settles between meals. As general guidance for adults without diabetes, a fasting reading under 100 mg/dL is normal, 100–125 is prediabetes, and 126 or above falls in the diabetes range (ADA 2024). A single high reading does not diagnose — a clinician confirms with a repeat test, and people managing diabetes use different, clinician-set targets.",
         "skinTemperatureTitle": "Skin temperature",
@@ -2708,7 +2708,7 @@
         "wristTemperatureTitle": "Wrist temperature",
         "wristTemperatureBody": "Wrist temperature is measured while you sleep and reported as the difference from your personal baseline, not an absolute value. A steady reading is normal, while a sustained rise can hint at illness, intense training, or a menstrual-cycle change.",
         "fallsTitle": "Falls",
-        "fallsBody": "This counts the hard falls your wearable detects. Zero is the goal; a rising count is a mobility-risk signal worth raising with a clinician, especially for older adults.",
+        "fallsBody": "This counts the hard falls your wearable detects. Zero is the goal; a rising count is a mobility-risk signal worth raising with a clinician, especially for older adults (CDC STEADI 2024).",
         "sixMinuteWalkTitle": "Six-minute walk distance",
         "sixMinuteWalkBody": "This is an estimate of how far you could walk in six minutes — a long-standing clinical test of mobility and cardiopulmonary endurance. The wearable figure is a proxy, not the supervised clinical test; a steady or rising trend is the useful read.",
         "stairAscentSpeedTitle": "Stair ascent speed",
@@ -8642,7 +8642,7 @@
   "daily": {
     "line": {
       "score": "Your health score today is {score}.",
-      "allClear": "Nothing needs your attention today — everything's tracking normally."
+      "allClear": "Nothing needs your attention today."
     },
     "push": {
       "title": "Your morning briefing",

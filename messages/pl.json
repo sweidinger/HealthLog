@@ -8642,7 +8642,7 @@
   "daily": {
     "line": {
       "score": "Twój dzisiejszy wynik zdrowia to {score}.",
-      "allClear": "Dziś nic nie wymaga Twojej uwagi — wszystko przebiega normalnie."
+      "allClear": "Dziś nic nie wymaga Twojej uwagi."
     },
     "push": {
       "title": "Twoje poranne podsumowanie",

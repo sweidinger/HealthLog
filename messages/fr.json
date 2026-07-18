@@ -8642,7 +8642,7 @@
   "daily": {
     "line": {
       "score": "Ton score de santé aujourd'hui est de {score}.",
-      "allClear": "Rien ne requiert ton attention aujourd'hui — tout évolue normalement."
+      "allClear": "Rien ne requiert ton attention aujourd'hui."
     },
     "push": {
       "title": "Votre résumé du matin",
