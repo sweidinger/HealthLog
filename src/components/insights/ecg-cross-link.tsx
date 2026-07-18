@@ -13,7 +13,9 @@ import { TileHeader } from "@/components/insights/tile-header";
 
 /**
  * S10 — ECG cross-link, the pointer from the resting-HR / pulse context into
- * the ECG viewer (`/insights#ecg`).
+ * the ECG viewer (`/insights/ecg`). Points at the routed sub-page, which
+ * always mounts, rather than the overview `#ecg` fragment, which is absent
+ * until the overview section's own fetch resolves (UX-flows finding F1-1).
  *
  * NON-DIAGNOSTIC (load-bearing, mirrors `EcgSection` / `RhythmEventsCard`): the
  * card surfaces ONLY that recordings exist + the RECORDING DEVICE's OWN latest
@@ -86,7 +88,7 @@ export function EcgCrossLink({ enabled = true, className }: EcgCrossLinkProps) {
 
   return (
     <Link
-      href="/insights#ecg"
+      href="/insights/ecg"
       data-slot="ecg-cross-link"
       className={cn(
         // `.metric-accent` — the heart-family identity edge (`--tile-strain`,

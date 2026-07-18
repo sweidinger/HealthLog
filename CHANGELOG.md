@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.30.5] — 2026-07-18
+
+Making a shipped feature findable, and a sync-status fix.
+
+- **ECG has a home you can reach.** Recordings now have their own page in Insights, a pill in the Heart group that appears once you have a recording, and links to it from the resting-pulse and heart-rate-variability pages. Before this they were reachable from a single spot, and a deep link into the overview could land before the section had drawn. The page is unchanged in substance — the same non-diagnostic, device-attributed view.
+- **The "last synced" time stops lagging.** A sync driven by an incoming update now records the connection's last-success time straight away, instead of leaving it frozen until the next full poll — so the Settings status and the assistant's integration read reflect a sync that already happened.
+
+No migration. No breaking changes.
+
 ## [1.30.4] — 2026-07-18
 
 The read-only assistant connector now reaches the full record.

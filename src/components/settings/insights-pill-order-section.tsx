@@ -108,14 +108,31 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
   // ref) keeps the reseed render-safe and idempotent while leaving in-flight
   // drag edits untouched: the baseline only advances when the *server* order
   // differs from what we last seeded from.
-  const serverSignature = layoutSignature(layout.tiles);
+  // v1.30 (UX/IA audit H1) — ECG has no `MeasurementType` and therefore no
+  // sub-page tile; its overview presence is the `"ecg"` SECTION. Surface it
+  // here as a Heart-group row so hiding the ECG surface is reversible from the
+  // same place the user manages every other Heart detail page. The eye toggles
+  // the `"ecg"` section's `visible` flag (the exact flag a user flips in the
+  // overview "Anpassen" editor). The tab-strip ECG pill stays a permanent,
+  // data-gated route back and is deliberately NOT gated on this flag, so
+  // hiding the overview card can never orphan a user's recordings again.
+  const serverEcgVisible =
+    layout.sections.find((s) => s.id === "ecg")?.visible ?? true;
+  // Fold the ECG section flag into the re-seed fingerprint so a server-side
+  // change to it (e.g. saved from the overview arrange editor) re-seeds the
+  // ECG draft too, not just tile edits.
+  const serverSignature = `${layoutSignature(layout.tiles)}|ecg:${
+    serverEcgVisible ? 1 : 0
+  }`;
   const [seededSignature, setSeededSignature] = useState(serverSignature);
   const [draftTiles, setDraftTiles] = useState<InsightsTileConfig[]>(() =>
     [...layout.tiles].sort((a, b) => a.order - b.order),
   );
+  const [ecgVisibleDraft, setEcgVisibleDraft] = useState(serverEcgVisible);
   if (isSuccess && serverSignature !== seededSignature) {
     setSeededSignature(serverSignature);
     setDraftTiles([...layout.tiles].sort((a, b) => a.order - b.order));
+    setEcgVisibleDraft(serverEcgVisible);
   }
 
   const sensors = useSensors(
@@ -127,11 +144,19 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
 
   const saveMutation = useMutation({
     mutationFn: async (tiles: InsightsTileConfig[]) => {
+      // Preserve the overview section order/visibility verbatim — this surface
+      // owns the PILL order. The ONE exception is the `"ecg"` section, whose
+      // eye lives in this manager (H1); override it only when the user actually
+      // flipped it so an unchanged save stays a section no-op.
+      const sections =
+        ecgVisibleDraft !== serverEcgVisible
+          ? layout.sections.map((s) =>
+              s.id === "ecg" ? { ...s, visible: ecgVisibleDraft } : s,
+            )
+          : layout.sections;
       return apiPut<InsightsLayout>("/api/insights/layout", {
         version: 2,
-        // Preserve the overview section order/visibility verbatim — this
-        // surface owns the PILL order only.
-        sections: layout.sections,
+        sections,
         tiles,
       });
     },
@@ -200,8 +225,10 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
   }
 
   const dirty = useMemo(
-    () => layoutSignature(layout.tiles) !== layoutSignature(draftTiles),
-    [layout.tiles, draftTiles],
+    () =>
+      layoutSignature(layout.tiles) !== layoutSignature(draftTiles) ||
+      ecgVisibleDraft !== serverEcgVisible,
+    [layout.tiles, draftTiles, ecgVisibleDraft, serverEcgVisible],
   );
 
   return (
@@ -284,6 +311,22 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
                   </div>
                 </SortableContext>
               </DndContext>
+              {/* v1.30 (H1) — ECG rides the Heart group as a non-sortable row:
+                  it has no `MeasurementType` and no tile order, so there is
+                  nothing to drag. The eye toggles the `"ecg"` overview section
+                  (see the draft plumbing above). */}
+              {group === "heart" && (
+                <div className="mt-1.5">
+                  <EcgManagerRow
+                    title={t("insights.navEcg")}
+                    visible={ecgVisibleDraft}
+                    disabled={busy}
+                    showLabel={t("insights.editMode.show")}
+                    hideLabel={t("insights.editMode.hide")}
+                    onToggle={() => setEcgVisibleDraft((v) => !v)}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -294,6 +337,61 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
 
 const DRAG_HANDLE_CLASS =
   "text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background relative inline-flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center rounded transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none sm:h-9 sm:w-9 sm:before:absolute sm:before:inset-[-6px] sm:before:content-['']";
+
+const EYE_TOGGLE_CLASS =
+  "text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background inline-flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none sm:h-9 sm:w-9";
+
+/**
+ * v1.30 (H1) — the ECG row in the Heart group. Unlike {@link SortablePillRow}
+ * it is not draggable (ECG has no tile order), so it carries an aligned spacer
+ * where the drag handle sits on its siblings and only the eye toggle. The eye
+ * flips the `"ecg"` overview section's visibility.
+ */
+function EcgManagerRow({
+  title,
+  visible,
+  disabled,
+  showLabel,
+  hideLabel,
+  onToggle,
+}: {
+  title: string;
+  visible: boolean;
+  disabled: boolean;
+  showLabel: string;
+  hideLabel: string;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      data-slot="insights-pill-order-row"
+      data-tile="ecg"
+      className="border-border bg-background/30 flex items-center gap-2 rounded-md border px-2 py-1.5"
+    >
+      {/* Alignment spacer standing in for the sortable rows' drag handle. */}
+      <span
+        aria-hidden="true"
+        className="inline-flex h-11 w-11 shrink-0 sm:h-9 sm:w-9"
+      />
+      <span className="min-w-0 flex-1 truncate text-sm" title={title}>
+        {title}
+      </span>
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        aria-pressed={visible}
+        aria-label={`${visible ? hideLabel : showLabel} — ${title}`}
+        title={visible ? hideLabel : showLabel}
+        data-slot="insights-pill-order-eye"
+        data-visible={visible ? "true" : "false"}
+        className={EYE_TOGGLE_CLASS}
+      >
+        {visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
 
 function SortablePillRow({
   id,

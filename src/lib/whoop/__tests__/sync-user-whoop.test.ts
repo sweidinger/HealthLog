@@ -71,7 +71,11 @@ vi.mock("../sync-body", () => ({
   syncUserBody: (...a: unknown[]) => syncUserBody(...a),
 }));
 
-import { handleCollectionFetchError, syncUserWhoop } from "../sync";
+import {
+  handleCollectionFetchError,
+  syncUserWhoop,
+  syncWhoopResourceWithStatus,
+} from "../sync";
 import { WhoopApiError } from "../response-classifier";
 
 /** A resource sync that 403s its collection and soft-skips, like the real one. */
@@ -166,5 +170,42 @@ describe("syncUserWhoop — all-403 looks-healthy guard", () => {
     expect(total).toBe(0);
     expect(recordSyncSuccess).not.toHaveBeenCalled();
     expect(syncUserRecovery).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncWhoopResourceWithStatus — per-resource lastSuccessAt stamp", () => {
+  it("stamps success when the resource imported rows", async () => {
+    const imported = await syncWhoopResourceWithStatus("user1", async () => 5);
+
+    expect(imported).toBe(5);
+    expect(recordSyncSuccess).toHaveBeenCalledWith("user1", "whoop");
+  });
+
+  it("stamps success on a clean fetch that imported nothing new", async () => {
+    // No 403 soft-skip → a genuine "nothing changed" webhook/cron tick still
+    // proves the connection is alive, so `lastSuccessAt` advances.
+    const imported = await syncWhoopResourceWithStatus("user1", async () => 0);
+
+    expect(imported).toBe(0);
+    expect(recordSyncSuccess).toHaveBeenCalledWith("user1", "whoop");
+  });
+
+  it("does NOT stamp success when the resource soft-skipped a 403 and imported nothing", async () => {
+    const imported = await syncWhoopResourceWithStatus("user1", () =>
+      softSkip403("user1"),
+    );
+
+    expect(imported).toBe(0);
+    expect(recordSyncSuccess).not.toHaveBeenCalled();
+    expect(recordSyncFailure).not.toHaveBeenCalled();
+  });
+
+  it("propagates a hard failure without stamping success", async () => {
+    await expect(
+      syncWhoopResourceWithStatus("user1", async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+    expect(recordSyncSuccess).not.toHaveBeenCalled();
   });
 });

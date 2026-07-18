@@ -116,6 +116,20 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   // degrades from "enable" → "no rows yet" → the three-card spine.
   const nutrientsEnabled = user?.modules?.nutrients === true;
 
+  // v1.30 (UX/IA audit H1) — ECG recording presence for the Heart-group ECG
+  // pill. ECG carries no `MeasurementType`, so the metric `availability`
+  // model can't gate it; it rides its own `hasRecordings` probe instead. The
+  // query shares `queryKeys.insightsEcgList()` with `<EcgSection>` and the
+  // ECG page, so the flag lands once per route (dedup-shared, no extra
+  // traffic). Undefined until it resolves → the pill stays off on first paint,
+  // exactly like the metric pills light up as their summaries land.
+  const ecgProbe = useQuery({
+    queryKey: queryKeys.insightsEcgList(),
+    queryFn: () => apiGet<{ hasRecordings: boolean }>("/api/insights/ecg"),
+    enabled: isAuthenticated,
+  });
+  const hasEcgRecordings = ecgProbe.data?.hasRecordings === true;
+
   // v1.4.31 — memoise the `availability` prop so an unchanged
   // payload doesn't recreate the object on every cache-write of
   // analytics or comprehensive. The strip is wrapped in
@@ -175,6 +189,7 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
         visibleTileIds={visibleTileIds}
         tileOrder={tileOrder}
         modules={user?.modules}
+        hasEcgRecordings={hasEcgRecordings}
       />
       {children}
     </div>

@@ -2760,7 +2760,8 @@
       },
       "valuesBack": "Powrót do Insights",
       "valuesBackToMetric": "Powrót do {metric}",
-      "scoresBack": "Powrót do Insights"
+      "scoresBack": "Powrót do Insights",
+      "ecgDescription": "Zapisy EKG jednoodprowadzeniowe z Twojego urządzenia, każdy z wynikiem samego urządzenia. HealthLog pokazuje przebieg i zapis — nie interpretuje krzywej."
     },
     "sleep": {
       "title": "Sen",
@@ -3899,7 +3900,10 @@
         "recordingsMany": "Zapisy w kartotece: {count}.",
         "latestResult": "Ostatni wynik urządzenia: {result}.",
         "cta": "Zobacz zapisy"
-      }
+      },
+      "emptyTitle": "Brak zapisów EKG",
+      "emptyDescription": "Zapisy EKG synchronizują się z kompatybilnego urządzenia jednoodprowadzeniowego. Gdy urządzenie prześle zapis, pojawi się tutaj.",
+      "emptyCta": "Połącz urządzenie"
     },
     "intradayPulse": {
       "title": "Przebieg Twojego dnia",
@@ -3918,7 +3922,8 @@
         "evening": "Utrzymujący się podwyższony spoczynek wieczorem — możliwe napięcie.",
         "night": "Utrzymujący się podwyższony spoczynek w nocy — możliwe napięcie."
       }
-    }
+    },
+    "navEcg": "EKG"
   },
   "thresholds": {
     "defaultLabel": "Domyślne",

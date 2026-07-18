@@ -174,6 +174,15 @@ export interface HealthKitMetricPageProps {
    * omits it and renders byte-identically.
    */
   afterChart?: ReactNode;
+  /**
+   * v1.30 (UX/IA audit H1) — optional content rendered at the very foot of the
+   * data-bearing spine, AFTER the metric-status assessment card. The
+   * resting-pulse + HRV pages mount `<EcgCrossLink>` here so the ECG pointer
+   * trails the assessment, matching the placement it has on `/insights/pulse`.
+   * Self-gating nodes only (the cross-link un-mounts without recordings), so
+   * the empty / loading / error branches skip it and no void card appears.
+   */
+  afterAssessment?: ReactNode;
 }
 
 export function HealthKitMetricPage({
@@ -198,6 +207,7 @@ export function HealthKitMetricPage({
   statFractionDigits,
   statMedianLabel,
   afterChart,
+  afterAssessment,
 }: HealthKitMetricPageProps) {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -397,6 +407,9 @@ export function HealthKitMetricPage({
           enabled={!isEmpty}
         />
       ) : null}
+      {/* v1.30 (H1) — foot-of-spine slot, after the assessment card. The
+          resting-pulse + HRV pages mount the ECG cross-link here. */}
+      {afterAssessment}
     </SubPageShell>
   );
 }

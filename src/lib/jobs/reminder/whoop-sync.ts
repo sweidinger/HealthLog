@@ -21,6 +21,7 @@ import {
   syncUserWorkout,
   syncWhoopWorkoutById,
 } from "@/lib/whoop/sync-workout";
+import { syncWhoopResourceWithStatus } from "@/lib/whoop/sync";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { getWorkerPrisma } from "./shared";
 
@@ -93,10 +94,12 @@ export async function runWhoopResourceSync(
       let measurementsImported = 0;
       for (const { userId, resourceId } of targets) {
         try {
-          const imported =
-            resourceId && byIdFn
-              ? await byIdFn(userId, resourceId)
-              : await syncFn(userId);
+          // Stamp `IntegrationStatus.lastSuccessAt` on a genuine per-resource
+          // import — a webhook-driven refresh advanced the cursor but used to
+          // leave the sync-status ledger frozen until the next full poll.
+          const imported = await syncWhoopResourceWithStatus(userId, () =>
+            resourceId && byIdFn ? byIdFn(userId, resourceId) : syncFn(userId),
+          );
           measurementsImported += imported;
           usersSynced++;
           // v1.18.1 — a fresh reading landed; resolve this user's Vorsorge

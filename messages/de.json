@@ -2760,7 +2760,8 @@
       },
       "valuesBack": "Zurück zu Insights",
       "valuesBackToMetric": "Zurück zu {metric}",
-      "scoresBack": "Zurück zu Insights"
+      "scoresBack": "Zurück zu Insights",
+      "ecgDescription": "Einkanal-EKG-Aufzeichnungen deines Geräts, jeweils mit dem Ergebnis des Geräts. HealthLog zeigt die Kurve und die Aufzeichnung – die Kurve wird nicht interpretiert."
     },
     "sleep": {
       "title": "Schlaf",
@@ -3899,7 +3900,10 @@
         "recordingsMany": "{count} Aufzeichnungen vorhanden.",
         "latestResult": "Letztes Geräte-Ergebnis: {result}.",
         "cta": "Aufzeichnungen ansehen"
-      }
+      },
+      "emptyTitle": "Noch keine EKG-Aufzeichnungen",
+      "emptyDescription": "EKG-Aufzeichnungen werden von einem kompatiblen Einkanal-Gerät synchronisiert. Sobald dein Gerät eine Aufzeichnung überträgt, erscheint sie hier.",
+      "emptyCta": "Gerät verbinden"
     },
     "intradayPulse": {
       "title": "Der Verlauf deines Tages",
@@ -3918,7 +3922,8 @@
         "evening": "Eine anhaltend erhöhte Ruhephase heute Abend — möglicherweise etwas Anspannung.",
         "night": "Eine anhaltend erhöhte Ruhephase in der Nacht — möglicherweise etwas Anspannung."
       }
-    }
+    },
+    "navEcg": "EKG"
   },
   "thresholds": {
     "defaultLabel": "Default",

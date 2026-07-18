@@ -3,6 +3,7 @@
 import { Activity } from "lucide-react";
 
 import { HealthKitMetricPage } from "@/components/insights/healthkit-metric-page";
+import { EcgCrossLink } from "@/components/insights/ecg-cross-link";
 
 /**
  * v1.4.32 — `/insights/hrv`.
@@ -33,6 +34,9 @@ export default function InsightsHrvPage() {
       emptyStateIcon={<Activity className="size-6" />}
       emptyStateCtaType={null}
       coachPrefill="I haven't logged any HRV data yet — what does heart-rate variability tell me, and how do I capture it?"
+      // S10 / H1 — device-attributed pointer into the ECG viewer, in the
+      // HRV / heart context. Self-gates to nothing without recordings.
+      afterAssessment={<EcgCrossLink />}
     />
   );
 }
