@@ -123,6 +123,9 @@ export function CoachReadStrip({
         <TileHeader
           icon={Sparkles}
           title={t("insights.coach.readStrip.label")}
+          // L3 — top-level section on every metric sub-page, sibling of the
+          // already-`h2` stat strip directly under the page `h1`.
+          titleAs="h2"
         />
       </CardHeader>
       <CardContent>
