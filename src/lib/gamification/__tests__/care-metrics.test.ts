@@ -73,6 +73,22 @@ describe("getMissFreeDayKeys", () => {
     ]);
     expect(keys).toEqual(["2026-05-01"]);
   });
+
+  it("buckets by the CALLER's timezone when supplied (DATAINT M4)", () => {
+    // 2026-05-01T23:30:00Z: Berlin (CEST, UTC+2) reads 2026-05-02T01:30 —
+    // the NEXT day. A resolved slot at that instant must key to 05-01 for
+    // an America/New_York (UTC-4 in May) caller, not 05-02.
+    const lateEvent: CareIntakeEventRecord = {
+      scheduledFor: new Date("2026-05-01T23:30:00Z"),
+      takenAt: new Date("2026-05-01T23:35:00Z"),
+      skipped: false,
+      autoMissed: false,
+    };
+    const berlinDefault = getMissFreeDayKeys([lateEvent]);
+    const newYork = getMissFreeDayKeys([lateEvent], "America/New_York");
+    expect(berlinDefault).toEqual(["2026-05-02"]);
+    expect(newYork).toEqual(["2026-05-01"]);
+  });
 });
 
 describe("getWeeklyConsistency", () => {

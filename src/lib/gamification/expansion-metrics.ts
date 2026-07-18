@@ -7,35 +7,27 @@
  * `evaluateAchievementsWithCompletionDates` evaluates the new
  * achievements with no further plumbing.
  */
-import {
-  calculateLongestStreak,
-  toBerlinDayKey,
-  type EarnabilityFlags,
-} from "./achievements";
+import { calculateLongestStreak, type EarnabilityFlags } from "./achievements";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 
-const BERLIN_TIMEZONE = "Europe/Berlin";
-
-const BERLIN_HOUR_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  timeZone: BERLIN_TIMEZONE,
-  hour: "2-digit",
-  hour12: false,
-});
-
-function berlinHour(date: Date): number {
-  const value = BERLIN_HOUR_FORMATTER.format(date);
-  // formatToParts is more reliable across runtimes — split + parseInt
-  // works because the formatter uses 24-hour with no extra tokens.
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? 0 : parsed;
+/**
+ * v1.30 (DATAINT M4) — day-key / hour derivation now takes the CALLER's
+ * timezone (`User.timezone`), defaulting to `DEFAULT_TIMEZONE` ("Europe/
+ * Berlin") when omitted so every existing fixture/caller that never set a
+ * `tz` keeps its prior (Berlin-anchored) behaviour byte-for-byte. Before
+ * this, every derivation hardcoded Berlin regardless of the achievement
+ * owner's real timezone — a non-CET user's evening entries could fold
+ * into the wrong calendar day (or merge two real days into one), silently
+ * breaking day-streak badges (`entryDayStreak`, `weekendStreakCount`) and
+ * the hidden night-owl / early-bird triggers for every non-CET account.
+ */
+function hourInTz(date: Date, tz: string): number {
+  return wallClockInTz(date, tz).hour;
 }
 
-const BERLIN_WEEKDAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  timeZone: BERLIN_TIMEZONE,
-  weekday: "short",
-});
-
-function berlinWeekday(date: Date): string {
-  return BERLIN_WEEKDAY_FORMATTER.format(date);
+function isSaturdayInTz(date: Date, tz: string): boolean {
+  return wallClockInTz(date, tz).weekday === 6;
 }
 
 export interface MoodEntryRecord {
@@ -165,30 +157,33 @@ export function getEngagementMetrics(input: {
   moodEntries: MoodEntryRecord[];
   intakeEvents: IntakeEventRecord[];
   /**
-   * v1.18.11 (W5 perf) — Berlin day-keys for `measurements`, precomputed
-   * once by the caller and passed in parallel to the array. When present the
-   * measurement rows reuse these instead of re-deriving a `toBerlinDayKey`
-   * per row; mood / intake timestamps (far fewer) still derive inline. Falls
-   * back to per-row derivation when absent — byte-identical result either way.
+   * v1.18.11 (W5 perf) — day-keys for `measurements`, precomputed once by
+   * the caller and passed in parallel to the array. When present the
+   * measurement rows reuse these instead of re-deriving a day key per row;
+   * mood / intake timestamps (far fewer) still derive inline. Falls back to
+   * per-row derivation when absent — byte-identical result either way.
    */
   measurementDayKeys?: string[];
+  /** v1.30 (DATAINT M4) — day-key timezone; defaults to Berlin (see file docblock). */
+  tz?: string;
 }): {
   consistentMonthCount: number;
   entryDayStreak: number;
   weekendStreakCount: number;
 } {
+  const tz = input.tz ?? DEFAULT_TIMEZONE;
   const dayKeyAccum: string[] = [];
   for (let i = 0; i < input.measurements.length; i++) {
     dayKeyAccum.push(
       input.measurementDayKeys?.[i] ??
-        toBerlinDayKey(input.measurements[i].measuredAt),
+        userDayKey(input.measurements[i].measuredAt, tz),
     );
   }
   for (const e of input.moodEntries)
-    dayKeyAccum.push(toBerlinDayKey(e.moodLoggedAt));
+    dayKeyAccum.push(userDayKey(e.moodLoggedAt, tz));
   for (const i of input.intakeEvents) {
-    if (i.takenAt) dayKeyAccum.push(toBerlinDayKey(i.takenAt));
-    else if (i.skipped) dayKeyAccum.push(toBerlinDayKey(i.scheduledFor));
+    if (i.takenAt) dayKeyAccum.push(userDayKey(i.takenAt, tz));
+    else if (i.skipped) dayKeyAccum.push(userDayKey(i.scheduledFor, tz));
   }
 
   if (dayKeyAccum.length === 0) {
@@ -238,20 +233,20 @@ export function getEngagementMetrics(input: {
   let weekendStreakCount = 0;
   let weekendRun = 0;
   // Walk one Saturday at a time. Use a simple `Date` cursor; the
-  // Berlin TZ formatter resolves the weekday so DST shifts are safe.
+  // caller's tz formatter resolves the weekday so DST shifts are safe.
   const cursor = parseDayKey(firstDay);
   const end = parseDayKey(lastDay);
   // Snap cursor to the next Saturday at 12:00 UTC (avoids DST edges).
   cursor.setUTCHours(12, 0, 0, 0);
-  while (berlinWeekday(cursor) !== "Sat") {
+  while (!isSaturdayInTz(cursor, tz)) {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
     if (cursor > end) break;
   }
   while (cursor <= end) {
-    const sat = toBerlinDayKey(cursor);
+    const sat = userDayKey(cursor, tz);
     const sunDate = new Date(cursor);
     sunDate.setUTCDate(sunDate.getUTCDate() + 1);
-    const sun = toBerlinDayKey(sunDate);
+    const sun = userDayKey(sunDate, tz);
     if (daySet.has(sat) && daySet.has(sun)) {
       weekendRun += 1;
       weekendStreakCount = Math.max(weekendStreakCount, weekendRun);
@@ -290,6 +285,8 @@ export function getHiddenMetrics(input: {
    */
   measurementDayKeys?: string[];
   measurementHours?: number[];
+  /** v1.30 (DATAINT M4) — day-key timezone; defaults to Berlin (see file docblock). */
+  tz?: string;
 }): {
   nightOwlCount: number;
   earlyBirdCount: number;
@@ -297,6 +294,7 @@ export function getHiddenMetrics(input: {
   doctorPdfCount: number;
   localeFlipCount: number;
 } {
+  const tz = input.tz ?? DEFAULT_TIMEZONE;
   let nightOwl = 0;
   let earlyBird = 0;
   let leapDay = 0;
@@ -314,16 +312,16 @@ export function getHiddenMetrics(input: {
   for (let i = 0; i < input.measurements.length; i++) {
     const m = input.measurements[i];
     tally(
-      input.measurementHours?.[i] ?? berlinHour(m.measuredAt),
-      input.measurementDayKeys?.[i] ?? toBerlinDayKey(m.measuredAt),
+      input.measurementHours?.[i] ?? hourInTz(m.measuredAt, tz),
+      input.measurementDayKeys?.[i] ?? userDayKey(m.measuredAt, tz),
       m.count ?? 1,
     );
   }
   for (const e of input.moodEntries) {
-    tally(berlinHour(e.moodLoggedAt), toBerlinDayKey(e.moodLoggedAt));
+    tally(hourInTz(e.moodLoggedAt, tz), userDayKey(e.moodLoggedAt, tz));
   }
   for (const i of input.intakeEvents) {
-    if (i.takenAt) tally(berlinHour(i.takenAt), toBerlinDayKey(i.takenAt));
+    if (i.takenAt) tally(hourInTz(i.takenAt, tz), userDayKey(i.takenAt, tz));
   }
 
   let doctorPdfCount = 0;
@@ -412,22 +410,26 @@ export function buildExpansionMetricValues(input: {
    * hours derive from `measuredAt` exactly as before.
    */
   measurementHours?: number[];
+  /** v1.30 (DATAINT M4) — day-key timezone; defaults to Berlin (see file docblock). */
+  tz?: string;
 }): ExpansionMetrics {
+  const tz = input.tz ?? DEFAULT_TIMEZONE;
   const counts = countMeasurementsByType(input.measurements);
   const mood = getMoodMetrics(input.moodEntries);
-  // The hidden pass also needs the per-row Berlin hour; derive it once here
-  // (only when the caller supplied day-keys, i.e. on the hot achievements
-  // path) so a single hour pass replaces the per-pass re-derivation.
+  // The hidden pass also needs the per-row hour; derive it once here (only
+  // when the caller supplied day-keys, i.e. on the hot achievements path) so
+  // a single hour pass replaces the per-pass re-derivation.
   const measurementHours =
     input.measurementHours ??
     (input.measurementDayKeys
-      ? input.measurements.map((m) => berlinHour(m.measuredAt))
+      ? input.measurements.map((m) => hourInTz(m.measuredAt, tz))
       : undefined);
   const engagement = getEngagementMetrics({
     measurements: input.measurements,
     moodEntries: input.moodEntries,
     intakeEvents: input.intakeEvents,
     measurementDayKeys: input.measurementDayKeys,
+    tz,
   });
   const hidden = getHiddenMetrics({
     measurements: input.measurements,
@@ -436,6 +438,7 @@ export function buildExpansionMetricValues(input: {
     auditEvents: input.auditEvents,
     measurementDayKeys: input.measurementDayKeys,
     measurementHours,
+    tz,
   });
 
   return {

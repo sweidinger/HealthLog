@@ -268,6 +268,61 @@ describe("getHiddenMetrics", () => {
   });
 });
 
+describe("getEngagementMetrics — tz threading (DATAINT M4)", () => {
+  it("buckets entry-day-streak by the CALLER's timezone, not a hardcoded Berlin default", () => {
+    // Two instants 2.5h apart in UTC. Under Berlin (CEST, UTC+2 in June)
+    // they straddle a MIDNIGHT boundary and land on two DIFFERENT
+    // consecutive local days (streak 2). Under Kiritimati (UTC+14) both
+    // fall on the SAME local day (streak 1). If `tz` were silently ignored
+    // (still hardcoded Berlin), both calls would report streak 2.
+    const measurements = [
+      { type: "WEIGHT", measuredAt: new Date("2026-06-10T21:00:00.000Z") },
+      { type: "PULSE", measuredAt: new Date("2026-06-10T23:30:00.000Z") },
+    ];
+    const berlinDefault = getEngagementMetrics({
+      measurements,
+      moodEntries: [],
+      intakeEvents: [],
+    });
+    const kiritimati = getEngagementMetrics({
+      measurements,
+      moodEntries: [],
+      intakeEvents: [],
+      tz: "Pacific/Kiritimati",
+    });
+    expect(berlinDefault.entryDayStreak).toBe(2);
+    expect(kiritimati.entryDayStreak).toBe(1);
+  });
+});
+
+describe("getHiddenMetrics — tz threading (DATAINT M4)", () => {
+  it("classifies night-owl/early-bird hours against the caller's own timezone", () => {
+    // 2026-04-15T00:30:00Z: Berlin (CEST, UTC+2) reads 02:30 → night-owl.
+    // The same instant in America/Los_Angeles (PDT, UTC-7) reads 17:30 the
+    // PREVIOUS day → neither night-owl nor early-bird. If `tz` were still
+    // hardcoded Berlin, both calls would report the same night-owl count.
+    const measurements = [
+      { type: "WEIGHT", measuredAt: new Date("2026-04-15T00:30:00Z") },
+    ];
+    const berlin = getHiddenMetrics({
+      measurements,
+      moodEntries: [],
+      intakeEvents: [],
+      auditEvents: [],
+    });
+    const losAngeles = getHiddenMetrics({
+      measurements,
+      moodEntries: [],
+      intakeEvents: [],
+      auditEvents: [],
+      tz: "America/Los_Angeles",
+    });
+    expect(berlin.nightOwlCount).toBe(1);
+    expect(losAngeles.nightOwlCount).toBe(0);
+    expect(losAngeles.earlyBirdCount).toBe(0);
+  });
+});
+
 describe("getEarnabilityFlags", () => {
   it("flags categories the user has data for", () => {
     expect(
