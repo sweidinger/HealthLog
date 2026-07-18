@@ -306,11 +306,24 @@ export const CHART_OVERLAY_KEYS = [
 ] as const;
 export type ChartOverlayKey = (typeof CHART_OVERLAY_KEYS)[number];
 
+/**
+ * v1.30.1 — the range tabs (`7 / 30 / 90 / All`) every chart card
+ * exposes. `0` means "All". Shared here so both the client hook and
+ * the server route validate against the same closed set instead of
+ * each chart component re-declaring it.
+ */
+export const CHART_RANGE_POINTS = [0, 7, 30, 90] as const;
+export type ChartRangePoints = (typeof CHART_RANGE_POINTS)[number];
+
 export interface ChartOverlayPrefs {
   showTrendIndicator: boolean;
   showTrendArrow: boolean;
   showTargetRange: boolean;
   comparisonBaseline: ComparisonBaseline;
+  // v1.30.1 — persisted range-tab selection. Undefined = never saved
+  // for this chart yet, so the chart falls back to its own 30 d
+  // default rather than forcing every unopened chart to look "saved".
+  rangePoints?: ChartRangePoints;
 }
 
 export const DEFAULT_CHART_OVERLAY_PREFS: ChartOverlayPrefs = {
@@ -319,6 +332,13 @@ export const DEFAULT_CHART_OVERLAY_PREFS: ChartOverlayPrefs = {
   showTargetRange: false,
   comparisonBaseline: "none",
 };
+
+function isChartRangePoints(value: unknown): value is ChartRangePoints {
+  return (
+    typeof value === "number" &&
+    (CHART_RANGE_POINTS as readonly number[]).includes(value)
+  );
+}
 
 export type ChartOverlayPrefsMap = Partial<
   Record<ChartOverlayKey, ChartOverlayPrefs>
@@ -338,6 +358,9 @@ function coerceChartOverlayPrefs(value: unknown): ChartOverlayPrefs {
     comparisonBaseline: isComparisonBaseline(candidate.comparisonBaseline)
       ? candidate.comparisonBaseline
       : "none",
+    rangePoints: isChartRangePoints(candidate.rangePoints)
+      ? candidate.rangePoints
+      : undefined,
   };
 }
 

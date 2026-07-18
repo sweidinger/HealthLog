@@ -44,6 +44,12 @@ const prefsSchema = z.object({
     comparisonBaseline: z
       .enum(["none", "lastMonth", "lastYear"])
       .default("none"),
+    // v1.30.1 — persisted range-tab selection (M2 QoL fix). Optional so
+    // a client on an older cached bundle that never sends it doesn't
+    // 422. Literal set mirrors `CHART_RANGE_POINTS` in dashboard-layout.
+    rangePoints: z
+      .union([z.literal(0), z.literal(7), z.literal(30), z.literal(90)])
+      .optional(),
   }),
 });
 
