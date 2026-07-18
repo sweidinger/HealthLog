@@ -22,10 +22,14 @@
  * Server-only — reads the DB + the provider chain.
  */
 import {
-  getBaseSystemPrompt,
+  getBaseSystemPromptBody,
   PROMPT_VERSION,
 } from "@/lib/ai/prompts/base-system";
-import { instructionLocale } from "@/lib/ai/prompts/output-language";
+import type { Locale } from "@/lib/i18n/config";
+import {
+  instructionLocale,
+  withOutputLanguage,
+} from "@/lib/ai/prompts/output-language";
 import {
   normalizeLocale,
   normalizeSummaryText,
@@ -43,7 +47,6 @@ import {
 import type { MeasurementType } from "@/generated/prisma/client";
 import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 import { annotate } from "@/lib/logging/context";
-import { instructionLocale } from "@/lib/ai/prompts/output-language";
 import {
   openerArchetypeHint,
   dayRotatedSeed,
@@ -98,7 +101,7 @@ const SCORE_INPUT_TYPES: readonly MeasurementType[] = [
  * the way in; today's callers still pass a narrowed locale.
  */
 function scoreSystemPrompt(locale: Locale): string {
-  const base = getBaseSystemPrompt(locale);
+  const base = getBaseSystemPromptBody(locale);
   // The archetype section rides the same reviewed instruction body the base
   // composes: German for a German reader, English for everyone else. The base
   // already names the reader's own language, so a French reader gets the
@@ -118,7 +121,7 @@ This is a daily wellness proxy, not a clinical or training-recovery verdict. Sta
 - WAS ES HEUTE BEDEUTET — übersetze das Band in einen Ausblick: ein starker Tagesform-/Erholungs-Score → ein guter Tag, um mehr zu wagen / etwas zu pushen; ein schwacher Score → ein ruhigerer Tag tut gut, nimm ihn als Erholungshinweis. Das ist eine band-bedingte Deutung, KEINE neue Zahl — erfinde dafür keine Zahl.
 - EIN ANSTOSS — schließe mit dem einen gegroundeten nächsten Schritt am schwächsten verhaltens-adressierbaren Beitrag. Ist nichts verhaltens-adressierbar (der schwache Treiber ist reine Physiologie), bestätige und nenne einen Punkt zum Beobachten, statt einen Schritt zu erfinden.
 Das ist ein täglicher Wellness-Indikator, kein klinisches Urteil und keine Trainings-Recovery-Bewertung. Bleibe beschreibend, nie diagnostisch, nie alarmierend; die Ermutigung ist durch die Beiträge / den Trend verdient, nie ein reflexhaftes Kompliment und nie bloße Zahlenwiederholung.`;
-  return `${base}\n\n${section}`;
+  return withOutputLanguage(`${base}\n\n${section}`, locale);
 }
 
 function scoreUserPrompt(

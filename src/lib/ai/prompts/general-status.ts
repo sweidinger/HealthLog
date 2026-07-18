@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/config";
-import { getBaseSystemPrompt } from "./base-system";
+import { getBaseSystemPromptBody } from "./base-system";
+import { withOutputLanguage } from "./output-language";
 import { instructionLocale } from "./output-language";
 
 const GENERAL_SECTION_DE = `METRIK — GESAMTBEWERTUNG:
@@ -27,9 +28,12 @@ export function getGeneralStatusSystemPrompt(locale: Locale): string {
     instructionLocale(locale) === "en"
       ? GENERAL_SECTION_EN
       : GENERAL_SECTION_DE;
-  return `${getBaseSystemPrompt(locale)}
+  return withOutputLanguage(
+    `${getBaseSystemPromptBody(locale)}
 
-${section}`;
+${section}`,
+    locale,
+  );
 }
 
 export function getGeneralStatusUserPrompt(

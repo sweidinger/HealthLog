@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/config";
-import { getBaseSystemPrompt } from "./base-system";
+import { getBaseSystemPromptBody } from "./base-system";
+import { withOutputLanguage } from "./output-language";
 import { instructionLocale } from "./output-language";
 
 const BMI_SECTION_DE = `METRIK — BMI:
@@ -23,9 +24,12 @@ export function getBmiSystemPrompt(locale: Locale): string {
   // language and appends their own directive); only de takes the German one.
   const section =
     instructionLocale(locale) === "en" ? BMI_SECTION_EN : BMI_SECTION_DE;
-  return `${getBaseSystemPrompt(locale)}
+  return withOutputLanguage(
+    `${getBaseSystemPromptBody(locale)}
 
-${section}`;
+${section}`,
+    locale,
+  );
 }
 
 export function getBmiUserPrompt(

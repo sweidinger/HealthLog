@@ -303,14 +303,26 @@ export const ASSESSMENT_SECTION_PAIRS: readonly {
   de: string;
 }[] = ASSESSMENT_SECTIONS;
 
-export function getBaseSystemPrompt(locale: Locale): string {
+export function getBaseSystemPromptBody(locale: Locale): string {
   // German readers compose the German body; every other locale composes the
   // English body and is told, in its own language, which language to write in.
   // The former `locale === "en" ? "en" : "de"` sent French, Spanish, Italian
   // and Polish readers a German prompt that asked for German prose.
-  const composed = composeAssessmentPrompt(
+  return composeAssessmentPrompt(
     instructionLocale(locale),
     targetLanguageName(locale),
   );
-  return withOutputLanguage(composed, locale);
+}
+
+/**
+ * The base prompt as a STANDALONE system prompt, language directive included.
+ *
+ * Use this only when the result is handed to the provider as-is. A module that
+ * appends its own metric section must instead compose
+ * `getBaseSystemPromptBody` and wrap the finished string in
+ * `withOutputLanguage`, so the directive stays the last instruction the model
+ * reads rather than being buried mid-prompt by the appended section.
+ */
+export function getBaseSystemPrompt(locale: Locale): string {
+  return withOutputLanguage(getBaseSystemPromptBody(locale), locale);
 }

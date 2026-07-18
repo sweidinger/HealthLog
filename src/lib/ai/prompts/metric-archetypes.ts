@@ -21,8 +21,8 @@
  * block, exactly like the specialised generators.
  */
 import type { Locale } from "@/lib/i18n/config";
-import { getBaseSystemPrompt } from "./base-system";
-import { instructionLocale } from "./output-language";
+import { getBaseSystemPromptBody } from "./base-system";
+import { instructionLocale, withOutputLanguage } from "./output-language";
 import type {
   MetricArchetype,
   MetricStatusMeta,
@@ -110,11 +110,14 @@ export function getMetricArchetypeSystemPrompt(
   const section = ARCHETYPE_SECTION[meta.archetype];
   const archetypeText =
     instructionLocale(locale) === "en" ? section.en : section.de;
-  return `${getBaseSystemPrompt(locale)}
+  return withOutputLanguage(
+    `${getBaseSystemPromptBody(locale)}
 
 ${archetypeText}
 
-${metaBlock(meta, locale)}`;
+${metaBlock(meta, locale)}`,
+    locale,
+  );
 }
 
 export function getMetricArchetypeUserPrompt(

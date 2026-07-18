@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/config";
-import { getBaseSystemPrompt } from "./base-system";
+import { getBaseSystemPromptBody } from "./base-system";
+import { withOutputLanguage } from "./output-language";
 import { instructionLocale } from "./output-language";
 
 const MEDCO_SECTION_DE = `METRIK — MEDIKAMENTEN-EINNAHMETREUE:
@@ -25,9 +26,12 @@ export function getMedicationComplianceSystemPrompt(locale: Locale): string {
   // language and appends their own directive); only de takes the German one.
   const section =
     instructionLocale(locale) === "en" ? MEDCO_SECTION_EN : MEDCO_SECTION_DE;
-  return `${getBaseSystemPrompt(locale)}
+  return withOutputLanguage(
+    `${getBaseSystemPromptBody(locale)}
 
-${section}`;
+${section}`,
+    locale,
+  );
 }
 
 export function getMedicationComplianceUserPrompt(
