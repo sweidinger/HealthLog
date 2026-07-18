@@ -5177,7 +5177,8 @@
       "resumeError": "Reconexión fallida"
     },
     "apiTokens": "Tokens de API",
-    "apiTokensDescription": "Crea tokens de API para registrar tomas de medicación externas (p. ej., Atajos, automatizaciones).",
+    "apiTokensDescription": "Revisa y revoca tokens de API para el registro externo de tomas de medicación. Los tokens se emiten por medicamento desde su interruptor de endpoint de API.",
+    "tokenMintMovedDescription": "Los tokens se emiten por medicamento. Abre un medicamento y activa su endpoint de API para obtener un token limitado únicamente a ese medicamento.",
     "tokenNamePlaceholder": "Nombre del token (p. ej., Atajo de iPhone)",
     "tokenCreated": "Token creado — ¡cópialo ahora! No se mostrará de nuevo.",
     "tokenCopy": "Copiar token",

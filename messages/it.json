@@ -5177,7 +5177,8 @@
       "resumeError": "Riconnessione fallita"
     },
     "apiTokens": "Token API",
-    "apiTokensDescription": "Crea token API per registrare assunzioni di farmaci esterne (ad es. Comandi rapidi, automazioni).",
+    "apiTokensDescription": "Rivedi e revoca i token API per la registrazione esterna delle assunzioni di farmaci. I token vengono emessi per singolo farmaco dal relativo interruttore dell’endpoint API.",
+    "tokenMintMovedDescription": "I token vengono emessi per singolo farmaco. Apri un farmaco e attiva il suo endpoint API per ottenere un token valido solo per quel farmaco.",
     "tokenNamePlaceholder": "Nome del token (ad es. Comando rapido iPhone)",
     "tokenCreated": "Token creato — copialo ora! Non verrà mostrato di nuovo.",
     "tokenCopy": "Copia token",

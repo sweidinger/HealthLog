@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronDown, Copy, Key, Loader2, Trash2 } from "lucide-react";
+import { ChevronDown, Key, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
@@ -149,12 +148,7 @@ function ApiTokensCard() {
   const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
-  const [newName, setNewName] = useState("");
-  const [newToken, setNewToken] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [tokenMsg, setTokenMsg] = useState<string | null>(null);
   const [showRevokedTokens, setShowRevokedTokens] = useState(false);
-  const [tokenCopied, setTokenCopied] = useState(false);
 
   const { data: tokens } = useQuery({
     queryKey: queryKeys.tokens(),
@@ -163,47 +157,6 @@ function ApiTokensCard() {
     },
     enabled: isAuthenticated,
   });
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setCreating(true);
-    setTokenMsg(null);
-    setNewToken(null);
-
-    try {
-      const res = await apiFetchRaw("/api/tokens", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
-      });
-      const json = await res.json();
-      if (res.ok) {
-        setNewToken(json.data.token);
-        setNewName("");
-        queryClient.invalidateQueries({ queryKey: queryKeys.tokens() });
-      } else {
-        setTokenMsg(json.error || t("common.error"));
-      }
-    } catch {
-      setTokenMsg(t("common.networkError"));
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function handleCopyToken() {
-    if (!newToken) return;
-    try {
-      await navigator.clipboard.writeText(newToken);
-      setTokenCopied(true);
-      toast.success(t("settings.tokenCopied"));
-      // Revert the inline check affordance after a short beat so a
-      // second copy reads as a fresh action.
-      setTimeout(() => setTokenCopied(false), 2_000);
-    } catch {
-      toast.error(t("settings.tokenCopyFailed"));
-    }
-  }
 
   async function handleRevoke(tokenId: string) {
     try {
@@ -254,66 +207,15 @@ function ApiTokensCard() {
       />
 
       <div className="mt-4 space-y-4 pl-7">
-        {/* The button mirrors the Input's responsive height (h-11 / sm:h-10)
-            so the row reads as one aligned control group instead of a tall
-            input next to a shorter `sm` button. */}
-        <form onSubmit={handleCreate} className="flex items-center gap-2">
-          <Input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder={t("settings.tokenNamePlaceholder")}
-            maxLength={100}
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            variant="outline"
-            className="h-11 sm:h-10"
-            disabled={creating || !newName.trim()}
-          >
-            {creating && (
-              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-            )}
-            {t("common.create")}
-          </Button>
-        </form>
-
-        {newToken && (
-          <div
-            className="bg-success/10 rounded-lg p-3 text-sm"
-            data-slot="settings-api-token-created"
-          >
-            <p className="text-success mb-1 font-medium">
-              {t("settings.tokenCreated")}
-            </p>
-            <div className="flex items-start gap-2">
-              <code className="bg-muted block flex-1 rounded p-2 font-mono text-xs break-all">
-                {newToken}
-              </code>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="min-h-11 min-w-11 shrink-0 sm:h-9 sm:w-9"
-                onClick={() => void handleCopyToken()}
-                aria-label={t("settings.tokenCopy")}
-                data-slot="settings-api-token-copy"
-              >
-                {tokenCopied ? (
-                  <Check className="text-success h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {tokenMsg && (
-          <p role="alert" className="text-destructive text-sm">
-            {tokenMsg}
-          </p>
-        )}
+        {/* Tokens are no longer minted here. The generic mint issued a
+            `medication:ingest` token that the ingest endpoint refused (it
+            gates on the per-medication grant too) and that every other
+            authenticated route accepted. The per-medication API-endpoint
+            toggle issues the pair that actually works, scoped to one
+            medication. This card lists and revokes. */}
+        <p className="text-muted-foreground text-sm">
+          {t("settings.tokenMintMovedDescription")}
+        </p>
 
         <div>
           <p className="mb-2 text-sm font-medium">

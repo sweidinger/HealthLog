@@ -5177,7 +5177,8 @@
       "resumeError": "Reconnect failed"
     },
     "apiTokens": "API Tokens",
-    "apiTokensDescription": "Create API tokens for external medication intake (e.g., Shortcuts, automations).",
+    "apiTokensDescription": "Review and revoke API tokens for external medication intake. Tokens are issued per medication from the medication's API endpoint toggle.",
+    "tokenMintMovedDescription": "Tokens are issued per medication. Open a medication and enable its API endpoint to get a token scoped to that medication alone.",
     "tokenNamePlaceholder": "Token name (e.g., iPhone Shortcut)",
     "tokenCreated": "Token created — copy it now! It won't be shown again.",
     "tokenCopy": "Copy token",
