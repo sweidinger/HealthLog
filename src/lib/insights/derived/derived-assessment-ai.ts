@@ -43,7 +43,7 @@ import {
 import type { MeasurementType } from "@/generated/prisma/client";
 import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 import { annotate } from "@/lib/logging/context";
-import type { Locale } from "@/lib/i18n/config";
+import { instructionLocale } from "@/lib/ai/prompts/output-language";
 import {
   openerArchetypeHint,
   dayRotatedSeed,
@@ -99,6 +99,11 @@ const SCORE_INPUT_TYPES: readonly MeasurementType[] = [
  */
 function scoreSystemPrompt(locale: Locale): string {
   const base = getBaseSystemPrompt(locale);
+  // The archetype section rides the same reviewed instruction body the base
+  // composes: German for a German reader, English for everyone else. The base
+  // already names the reader's own language, so a French reader gets the
+  // English archetype and French prose. The former `locale === "en" ? EN : DE`
+  // handed fr/es/it/pl the GERMAN section.
   const section =
     instructionLocale(locale) === "en"
       ? `ARCHETYPE — COMPOSITE WELLNESS SCORE (write like a premium recovery coach — WHOOP / Oura — who genuinely wants this person to do well). This is a 0–100 composite, not a raw measurement. Weave these FOUR beats into varied, connected prose (NOT a fixed template, NOT a labelled list) — lead per the OPENER HINT if one is given:
@@ -162,10 +167,11 @@ export async function resolveDerivedAssessment(args: {
   const now = args.now ?? new Date();
   const locale = normalizeLocale(args.locale);
 
+  // Deterministic templates ship de/en only — same instruction-body rule.
   const deterministic = resolveDeterministicAssessment(
     args.metric,
     args.derived,
-    locale,
+    instructionLocale(locale),
     now,
   );
   // Not assessable, or status !== ok → no field (the locked contract).
@@ -224,7 +230,13 @@ export async function generateDerivedScoreAssessment(args: {
   if (!isAssessableDerivedScore(args.metric)) return;
   if (args.derived.status !== "ok") return;
 
-  const signal = buildScoreSignal(args.metric, args.derived.value, locale);
+  // The deterministic signal labels ship de/en templates only; route them
+  // through the same instruction-body rule rather than a German default.
+  const signal = buildScoreSignal(
+    args.metric,
+    args.derived.value,
+    instructionLocale(locale),
+  );
   if (!signal) return;
   const band = (args.derived.value as { band?: string }).band ?? "yellow";
 
@@ -240,7 +252,7 @@ export async function generateDerivedScoreAssessment(args: {
   // assessment varies across scores and across days instead of riding the
   // fixed reference seed. The key is per (user, score, day).
   const seedKey = `${args.userId}:${scope}:${todayKey}`;
-  const openerHint = openerArchetypeHint(seedKey, locale as Locale);
+  const openerHint = openerArchetypeHint(seedKey, locale);
 
   // v1.22 (W6) — score-warm input-hash gate. A score is re-warmed daily even on
   // a day with no new wearable data; this skips the LLM and re-stamps the cached

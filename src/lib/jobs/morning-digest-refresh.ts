@@ -35,7 +35,10 @@ import {
   type GenerateOutcome,
 } from "@/lib/insights/comprehensive-generate";
 import { enqueuePregenerateFailureRetry } from "@/lib/jobs/insight-pregenerate-shared";
-import { normalizeLocale } from "@/lib/insights/status-shared";
+import {
+  normalizeLocale,
+  type SupportedLocale,
+} from "@/lib/insights/status-shared";
 import {
   MORNING_DIGEST_REFRESH_QUEUE,
   type MorningDigestRefreshPayload,
@@ -52,7 +55,7 @@ export interface MorningDigestRefreshResult {
 
 type GenerateFn = (
   userId: string,
-  options: { locale: "de" | "en"; force?: boolean },
+  options: { locale: SupportedLocale; force?: boolean },
 ) => Promise<GenerateOutcome>;
 
 /**
@@ -70,7 +73,7 @@ export async function runMorningDigestRefresh(
     generate?: GenerateFn;
     enqueueRetry?: (args: {
       userId: string;
-      locale: "de" | "en";
+      locale: SupportedLocale;
     }) => Promise<void>;
   } = {},
 ): Promise<MorningDigestRefreshResult> {

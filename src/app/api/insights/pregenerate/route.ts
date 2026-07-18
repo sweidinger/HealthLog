@@ -30,6 +30,7 @@ import { requireModuleEnabled } from "@/lib/modules/gate";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { normalizeLocale } from "@/lib/insights/status-shared";
 import { enqueueForceWarm } from "@/lib/jobs/insight-pregenerate-shared";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +60,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
     request,
     userLocale: user.locale ?? null,
   });
-  const locale = resolved === "en" ? "en" : "de";
+  // Carry the reader's ACTUAL locale into the warm payload. The former
+  // `resolved === "en" ? "en" : "de"` sent every fr/es/it/pl account down the
+  // German warm, so the whole warmed cache family was in the wrong language.
+  const locale = normalizeLocale(resolved);
 
   await enqueueForceWarm({ userId, locale });
 

@@ -18,6 +18,8 @@
  */
 
 import { prisma } from "@/lib/db";
+import { instructionLocale } from "@/lib/ai/prompts/output-language";
+import type { SupportedLocale } from "@/lib/insights/status-shared";
 
 /**
  * Stable identifiers for the seven insight scopes. The string MUST
@@ -70,7 +72,7 @@ export interface PreviousInsightContext {
 export async function getPreviousInsightContext(
   userId: string,
   scope: PreviousContextScope,
-  locale: "de" | "en",
+  locale: SupportedLocale,
   minAgeHours: number = 12,
 ): Promise<PreviousInsightContext | null> {
   const action = `insights.${scope}.${locale}`;
@@ -125,7 +127,15 @@ export async function getPreviousInsightContext(
 
 /**
  * Format a previous-context block for direct injection into the user
- * prompt. Output already locale-aware.
+ * prompt.
+ *
+ * The block is written in the same reviewed instruction body the prompt
+ * composes (`instructionLocale`): German for a German reader, English for
+ * everyone else. It is an INSTRUCTION to the model, not user-facing prose —
+ * the reader's own language is named by the prompt's output-language
+ * directive, so a French reader gets the English instruction block and a
+ * French assessment. The former `locale === "en" ? EN : DE` handed the
+ * GERMAN block to fr/es/it/pl.
  *
  * Example (de):
  *   "VORHERIGE ANALYSE (vor 7 Tagen, 2026-05-01):
@@ -133,16 +143,17 @@ export async function getPreviousInsightContext(
  */
 export function formatPreviousContextForPrompt(
   ctx: PreviousInsightContext | null,
-  locale: "de" | "en",
+  locale: SupportedLocale,
 ): string {
+  const body = instructionLocale(locale);
   if (!ctx) {
-    return locale === "en"
+    return body === "en"
       ? "PREVIOUS ANALYSIS: none on file. Treat this as the user's first analysis for this domain — no improvement/regression delta to surface."
       : "VORHERIGE ANALYSE: keine vorhanden. Behandle dies als erste Analyse in diesem Bereich — kein Verbesserungs-/Verschlechterungs-Delta zu nennen.";
   }
 
   const dateLabel = ctx.generatedAt.slice(0, 10);
-  if (locale === "en") {
+  if (body === "en") {
     const ageLabel =
       ctx.ageDays === 0
         ? "earlier today"

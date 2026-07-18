@@ -15,6 +15,7 @@ import {
   DISCOVERY_OUTCOMES,
 } from "@/lib/insights/correlation-discovery";
 import { annotate } from "@/lib/logging/context";
+import type { SupportedLocale } from "@/lib/insights/status-shared";
 
 /**
  * v1.18.11 (P6-tighten) — the measurement types the FDR correlation-discovery
@@ -499,7 +500,7 @@ export type ReadOnlyMissOutcome =
 export async function resolveReadOnlyStatusMiss(args: {
   userId: string;
   metric: InsightStatusScope;
-  locale: "de" | "en";
+  locale: SupportedLocale;
 }): Promise<ReadOnlyMissOutcome> {
   const hasProvider = await hasUsableStatusProvider(args.userId);
   if (!hasProvider) return { kind: "no-provider" };

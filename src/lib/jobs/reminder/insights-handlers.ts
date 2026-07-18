@@ -6,6 +6,7 @@
  */
 import { type Job } from "pg-boss";
 import { reportWorkerError } from "@/lib/jobs/report-worker-error";
+import { normalizeLocale } from "@/lib/insights/status-shared";
 import { recordError, recordInsightsRun } from "@/lib/jobs/worker-status";
 import {
   INSIGHT_PREGENERATE_QUEUE,
@@ -142,9 +143,10 @@ async function runStatusBatchCron(taskName: string): Promise<void> {
       for (const user of users) {
         try {
           const result = await generateStatusBatchForUser(user.id, {
-            // The batch needs a concrete `de`/`en`; the per-metric generators
-            // normalise the same way (de stays de, everything else English).
-            locale: user.locale === "de" ? "de" : "en",
+            // Validate against the six UI locales rather than collapsing to a
+            // binary — the per-metric generators normalise identically, and the
+            // prompt names the reader's own language from this value.
+            locale: normalizeLocale(user.locale),
             force: false,
           });
           generated += result.batched + result.fellBack;
@@ -238,7 +240,9 @@ export async function handleInsightPregenerateJob(
 
     for (const job of forced) {
       const userId = job.data.userId as string;
-      const locale = job.data.locale === "en" ? "en" : "de";
+      // The former `=== "en" ? "en" : "de"` defaulted a fr/es/it/pl payload to
+      // GERMAN, so a forced warm produced German prose for a French reader.
+      const locale = normalizeLocale(job.data.locale);
       try {
         const summary = await forceWarmUser(getWorkerPrisma(), userId, locale);
         evt.addMeta(

@@ -10,6 +10,9 @@
  * concrete generators) lives in `insight-status-generate.ts` and is
  * imported solely by the worker boot file.
  */
+// Type-only — erased at compile time, so the generator-free boundary of
+// this module (see the header) is preserved.
+import type { SupportedLocale } from "@/lib/insights/status-shared";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
 
@@ -87,7 +90,7 @@ export interface InsightStatusGeneratePayload {
    */
   metric: InsightStatusScope;
   /** Resolved client locale — the cache key the route reads against. */
-  locale: "de" | "en";
+  locale: SupportedLocale;
 }
 
 /**

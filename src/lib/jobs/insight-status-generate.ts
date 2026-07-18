@@ -27,6 +27,7 @@
  * import cycle). This module re-exports them for the worker's convenience.
  */
 import { annotate } from "@/lib/logging/context";
+import type { SupportedLocale } from "@/lib/insights/status-shared";
 import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
 import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
 import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
@@ -70,7 +71,7 @@ export type { InsightStatusMetric, InsightStatusGeneratePayload };
  */
 type StatusGenerator = (
   userId: string,
-  options: { locale: "de" | "en"; force: boolean },
+  options: { locale: SupportedLocale; force: boolean },
 ) => Promise<unknown>;
 
 const GENERATORS: Record<InsightStatusMetric, StatusGenerator> = {

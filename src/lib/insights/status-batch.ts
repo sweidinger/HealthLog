@@ -39,7 +39,10 @@ import {
   type PreparedStatusCard,
 } from "@/lib/insights/status-card-generation";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
-import { stripJsonFences } from "@/lib/insights/status-shared";
+import {
+  stripJsonFences,
+  type SupportedLocale,
+} from "@/lib/insights/status-shared";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import {
   buildStatusBatchUserPrompt,
@@ -53,7 +56,7 @@ import { annotate } from "@/lib/logging/context";
 const PREPARES: ReadonlyArray<
   (
     userId: string,
-    options: { locale: "de" | "en"; force?: boolean },
+    options: { locale: SupportedLocale; force?: boolean },
   ) => Promise<PreparedStatusCard>
 > = [
   prepareBloodPressureStatusForUser,
@@ -109,7 +112,7 @@ function parsePerMetric(content: string): Record<string, string> | null {
  */
 export async function generateStatusBatchForUser(
   userId: string,
-  options: { locale: "de" | "en"; force?: boolean },
+  options: { locale: SupportedLocale; force?: boolean },
 ): Promise<StatusBatchResult> {
   const result: StatusBatchResult = {
     served: 0,
