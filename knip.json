@@ -47,7 +47,6 @@
     ".next/**",
     "**/__mocks__/**",
     "e2e/setup/test-helpers.ts",
-    "src/components/charts/compliance-line-chart.tsx",
     "src/lib/logging/index.ts"
   ],
   "ignoreDependencies": [

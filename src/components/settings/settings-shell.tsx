@@ -81,16 +81,6 @@ export type SettingsSectionGroup =
   | "connectivity"
   | "system";
 
-export const SETTINGS_SECTION_GROUP_ORDER: readonly SettingsSectionGroup[] = [
-  "account",
-  "yourData",
-  "display",
-  "healthProfile",
-  "ai",
-  "connectivity",
-  "system",
-];
-
 /** i18n key for each group's header label, under `settings.shell.groups.*`. */
 export const SETTINGS_SECTION_GROUP_LABEL_KEYS: Record<
   SettingsSectionGroup,
@@ -130,9 +120,9 @@ interface SettingsSection {
  * order with no visual structure (19 entries deep, the AI cluster and the
  * programmatic-access cluster interleaved, the health-profile pair split
  * across the list). It is now clustered into the seven
- * `SettingsSectionGroup`s (`SETTINGS_SECTION_GROUP_ORDER`), each entry
- * carrying its `group`; the shell inserts a non-interactive header before
- * the first VISIBLE entry of each group. This is a presentation-only
+ * `SettingsSectionGroup`s, each entry carrying its `group`; the list is
+ * pre-ordered by group and the shell inserts a non-interactive header
+ * before the first VISIBLE entry of each group. This is a presentation-only
  * reorder — no slug, route, or redirect changed, and `SETTINGS_SECTION_SLUGS`
  * (`section-slugs.ts`, which also carries the page-only slugs and drives
  * `generateStaticParams()`) is untouched.
