@@ -172,6 +172,39 @@ describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)
     expect(rows[0].valueMax).toBe(96);
   });
 
+  it.each([
+    // out-of-plausible-range spread (a sensor glitch / spurious discreteMax)
+    { valueMin: 58, valueMax: 99999 },
+    { valueMin: -9999, valueMax: 96 },
+    // mis-ordered: valueMin above the average, or valueMax below it
+    { valueMin: 80, valueMax: 96 },
+    { valueMin: 58, valueMax: 70 },
+  ])(
+    "v1.30.8 — drops an out-of-range or mis-ordered spread to null but keeps the average %o",
+    async (spread) => {
+      vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
+      const res = await POST(
+        makeRequest({ entries: [hrBucketEntry(HR_BUCKET_ID, 72, spread)] }),
+      );
+      expect(res.status).toBe(200);
+      const createArg = vi.mocked(prisma.measurement.createMany).mock
+        .calls[0][0];
+      const rows = (
+        createArg as {
+          data: {
+            value: number;
+            valueMin: number | null;
+            valueMax: number | null;
+          }[];
+        }
+      ).data;
+      // The trustworthy average survives; the invalid spread is dropped.
+      expect(rows[0].value).toBe(72);
+      expect(rows[0].valueMin).toBeNull();
+      expect(rows[0].valueMax).toBeNull();
+    },
+  );
+
   it("overwrites min/max alongside the average on a re-post", async () => {
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([
       { type: "PULSE", source: "APPLE_HEALTH", externalId: HR_BUCKET_ID },

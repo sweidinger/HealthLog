@@ -897,7 +897,14 @@ export function isAggregatedBucketExternalId(
     const suffix = externalId.slice(prefix.length);
     if (!AGGREGATED_BUCKET_SUFFIX_RE.test(suffix)) return false;
     const parsed = new Date(suffix);
-    return !Number.isNaN(parsed.getTime());
+    if (Number.isNaN(parsed.getTime())) return false;
+    // Reject a non-canonical instant that PARSES via V8's silent rollover
+    // (`T24:00`, `2026-04-31`, a non-leap `02-29`) — it would key a row under
+    // a literal string the canonical client (`heartRateBucketExternalId`, which
+    // mints via `toISOString()`) never emits, so the two would never collapse
+    // on the overwrite key. Round-trip equality pins the suffix to the one
+    // canonical form.
+    return parsed.toISOString() === suffix;
   }
   return false;
 }
@@ -937,7 +944,10 @@ export function parseAggregatedBucketStart(
     const suffix = externalId.slice(prefix.length);
     if (!AGGREGATED_BUCKET_SUFFIX_RE.test(suffix)) return null;
     const parsed = new Date(suffix);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    if (Number.isNaN(parsed.getTime())) return null;
+    // Canonical-form gate (mirrors `isAggregatedBucketExternalId`): a rolled-over
+    // instant would place the bucket on the wrong local day.
+    return parsed.toISOString() === suffix ? parsed : null;
   }
   return null;
 }
