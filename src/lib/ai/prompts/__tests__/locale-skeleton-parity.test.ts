@@ -40,11 +40,26 @@ describe("base-system assessment prompt — locale skeleton parity", () => {
   });
 
   it("the composed prompt equals the fragments joined by a blank line", () => {
+    // The English output clause carries a language token so a locale riding
+    // the English body can name its own language. For these two locales the
+    // substitution is their own language name — written as a literal here, not
+    // read from the module under test, so the assertion stays independent.
+    const EXPECTED_LANGUAGE_NAME = { en: "English", de: "German" } as const;
     for (const locale of ["en", "de"] as const) {
-      const expected = ASSESSMENT_SECTION_PAIRS.map((s) => s[locale]).join(
-        "\n\n",
-      );
+      const expected = ASSESSMENT_SECTION_PAIRS.map((s) =>
+        s[locale]
+          .split("{{OUTPUT_LANGUAGE}}")
+          .join(EXPECTED_LANGUAGE_NAME[locale]),
+      ).join("\n\n");
       expect(getBaseSystemPrompt(locale)).toBe(expected);
+    }
+  });
+
+  it("de and en carry no appended output-language directive", () => {
+    // Their bodies name the language natively; appending a directive would
+    // change two prompts that are deliberately byte-stable across this change.
+    for (const locale of ["en", "de"] as const) {
+      expect(getBaseSystemPrompt(locale)).not.toContain("OUTPUT LANGUAGE:");
     }
   });
 });
