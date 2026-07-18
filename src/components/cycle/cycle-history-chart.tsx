@@ -360,7 +360,7 @@ function StatChip({
         style={{ backgroundColor: hue }}
       />
       <span className="flex flex-col">
-        <span className="text-muted-foreground text-[11px] leading-tight">
+        <span className="text-muted-foreground text-xs leading-tight">
           {label}
         </span>
         <span className="text-foreground text-sm font-semibold tabular-nums">

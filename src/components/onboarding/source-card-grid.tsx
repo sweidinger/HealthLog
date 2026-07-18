@@ -323,7 +323,7 @@ function SourceCardItem({
       <div className="min-w-0 flex-1">
         <h2 className="text-base font-semibold tracking-tight">{titleLabel}</h2>
         {recommendedLabel ? (
-          <span className="bg-primary/10 text-primary mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+          <span className="bg-primary/10 text-primary mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium tracking-wide uppercase">
             {recommendedLabel}
           </span>
         ) : null}

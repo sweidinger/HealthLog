@@ -328,13 +328,13 @@ export function ApiTokenOverviewSection() {
                           </Badge>
                         ))}
                       </div>
-                      <p className="text-muted-foreground mt-2 text-[11px]">
+                      <p className="text-muted-foreground mt-2 text-xs">
                         {t("admin.tokenLastUsed")}:{" "}
                         {token.lastUsedAt
                           ? formatDateTime(token.lastUsedAt)
                           : t("admin.tokenNeverUsed")}
                       </p>
-                      <p className="text-muted-foreground text-[11px]">
+                      <p className="text-muted-foreground text-xs">
                         {t("admin.tokenCreated")}: {formatDate(token.createdAt)}
                       </p>
                     </li>

@@ -248,7 +248,7 @@ export function ChartOverlayControlsBody({
                   prefs.comparisonBaseline === value ? "default" : "outline"
                 }
                 size="sm"
-                className={`min-h-11 px-2 text-[11px] sm:min-h-9 ${isGreyed ? "opacity-50" : ""}`.trim()}
+                className={`min-h-11 px-2 text-xs sm:min-h-9 ${isGreyed ? "opacity-50" : ""}`.trim()}
                 onClick={() => setComparisonBaseline(value)}
                 aria-pressed={prefs.comparisonBaseline === value}
                 aria-disabled={isGreyed || undefined}
@@ -263,7 +263,7 @@ export function ChartOverlayControlsBody({
         </div>
         {comparisonGreyOut && (
           <p
-            className="text-muted-foreground text-[10px] leading-snug"
+            className="text-muted-foreground text-xs leading-snug"
             data-slot="chart-overlay-comparison-unavailable-hint"
           >
             {disabledTooltip}

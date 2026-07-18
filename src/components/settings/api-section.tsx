@@ -119,7 +119,7 @@ function ApiEndpointsCard() {
             className="bg-muted/30 border-border space-y-1.5 rounded-lg border p-3 text-xs"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary" className="text-[10px]">
+              <Badge variant="secondary" className="text-xs">
                 {endpoint.method}
               </Badge>
               <code className="font-mono break-all">{endpoint.path}</code>
@@ -457,11 +457,11 @@ function ApiTokensCard() {
                         {tok.name}
                       </p>
                       {isExpired ? (
-                        <Badge variant="destructive" className="text-[10px]">
+                        <Badge variant="destructive" className="text-xs">
                           {t("settings.tokenExpired")}
                         </Badge>
                       ) : (
-                        <Badge className="bg-success/15 text-success text-[10px]">
+                        <Badge className="bg-success/15 text-success text-xs">
                           {t("settings.tokenActive")}
                         </Badge>
                       )}

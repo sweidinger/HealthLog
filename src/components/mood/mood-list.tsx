@@ -1107,7 +1107,7 @@ function MoodNoteText({
           aria-expanded={expanded}
           aria-controls={noteId}
           data-testid="mood-note-toggle"
-          className="text-primary cursor-pointer text-[11px] font-medium"
+          className="text-primary cursor-pointer text-xs font-medium"
         >
           {expanded ? t("mood.noteCollapse") : t("mood.noteExpand")}
         </button>

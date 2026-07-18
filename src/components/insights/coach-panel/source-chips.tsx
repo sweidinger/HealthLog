@@ -88,7 +88,7 @@ export function SourceChips({ provenance, className }: SourceChipsProps) {
           className={cn(
             "border-info/25 text-info/90",
             "inline-flex items-center gap-1 rounded-full border bg-transparent",
-            "px-2 py-0.5 text-[11px] leading-none",
+            "px-2 py-0.5 text-xs leading-none",
           )}
         >
           <Link2 className="h-2.5 w-2.5" aria-hidden="true" />
