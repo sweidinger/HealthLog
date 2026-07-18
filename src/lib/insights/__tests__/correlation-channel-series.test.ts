@@ -1,7 +1,19 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { SleepStage } from "@/generated/prisma/client";
+
+const measurementFindMany = vi.fn();
+const moodFindMany = vi.fn();
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    measurement: { findMany: (a: unknown) => measurementFindMany(a) },
+    moodEntry: { findMany: (a: unknown) => moodFindMany(a) },
+  },
+}));
+
 import {
   buildMeasurementDailySeries,
+  fetchMeasurementWindowSeries,
+  fetchMoodWindowSeries,
   toDailyMeans,
   type MeasurementSeriesRow,
 } from "@/lib/insights/correlation-channel-series";
@@ -128,5 +140,101 @@ describe("buildMeasurementDailySeries — grain consistency (v1.29.6)", () => {
     const points = buildMeasurementDailySeries("PULSE", rows, "UTC", null);
 
     expect(points).toEqual([{ day: "2026-06-04", value: 62 }]);
+  });
+});
+
+describe("fetchMeasurementWindowSeries — desc+cap+resort (v1.30.3 QA F1/F2/F3)", () => {
+  beforeEach(() => {
+    measurementFindMany.mockReset();
+    moodFindMany.mockReset();
+  });
+
+  it("orders the read DESC so a capped window keeps the NEWEST rows, then resorts ASC before grouping", async () => {
+    const since = new Date("2026-01-01T00:00:00.000Z");
+    // Simulate a dense account hitting the cap: the mocked DESC read
+    // returns exactly MEASUREMENT_READ_CAP (20000) rows, newest first —
+    // the shape a real `orderBy: desc, take: 20000` would produce once the
+    // in-window count crosses the cap.
+    const CAP = 20000;
+    const rowsDesc = Array.from({ length: CAP }, (_, i) => ({
+      type: "PULSE",
+      value: 60 + (i % 5),
+      // i=0 is the NEWEST (closest to now); i=CAP-1 is the oldest kept row.
+      measuredAt: new Date(Date.now() - i * 60_000),
+      source: "APPLE_HEALTH",
+      deviceType: null,
+      sleepStage: null,
+    }));
+    measurementFindMany.mockResolvedValue(rowsDesc);
+
+    const { byType, measurementsCapped } = await fetchMeasurementWindowSeries(
+      "u1",
+      since,
+      ["PULSE"],
+    );
+
+    expect(measurementsCapped).toBe(true);
+    expect(measurementFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { measuredAt: "desc" }, take: CAP }),
+    );
+    const pulseRows = byType.get("PULSE")!;
+    expect(pulseRows).toHaveLength(CAP);
+    // Resorted ASCENDING before being handed to callers — the oldest row
+    // in the (capped, most-recent) window comes first.
+    for (let i = 1; i < pulseRows.length; i++) {
+      expect(pulseRows[i].at.getTime()).toBeGreaterThanOrEqual(
+        pulseRows[i - 1].at.getTime(),
+      );
+    }
+    // The NEWEST row (i=0 in the desc mock) must have survived the cap —
+    // a naive `orderBy: asc, take: N` would have dropped it instead.
+    const newest = pulseRows[pulseRows.length - 1];
+    expect(newest.at.getTime()).toBe(rowsDesc[0].measuredAt.getTime());
+  });
+
+  it("reports measurementsCapped:false when the read comes in under the cap", async () => {
+    measurementFindMany.mockResolvedValue([
+      {
+        type: "PULSE",
+        value: 60,
+        measuredAt: new Date(),
+        source: "MANUAL",
+        deviceType: null,
+        sleepStage: null,
+      },
+    ]);
+    const { measurementsCapped } = await fetchMeasurementWindowSeries(
+      "u1",
+      new Date(),
+      ["PULSE"],
+    );
+    expect(measurementsCapped).toBe(false);
+  });
+});
+
+describe("fetchMoodWindowSeries — desc+cap+resort", () => {
+  beforeEach(() => {
+    measurementFindMany.mockReset();
+    moodFindMany.mockReset();
+  });
+
+  it("orders the mood read DESC so a capped window keeps the NEWEST entries", async () => {
+    const CAP = 5000;
+    const rowsDesc = Array.from({ length: CAP }, (_, i) => ({
+      score: 3 + (i % 3),
+      moodLoggedAt: new Date(Date.now() - i * 60_000),
+    }));
+    moodFindMany.mockResolvedValue(rowsDesc);
+
+    const { moodCapped } = await fetchMoodWindowSeries(
+      "u1",
+      "UTC",
+      new Date("2026-01-01T00:00:00.000Z"),
+    );
+
+    expect(moodCapped).toBe(true);
+    expect(moodFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { moodLoggedAt: "desc" }, take: CAP }),
+    );
   });
 });
