@@ -21,6 +21,7 @@ import { Leaf } from "lucide-react";
 
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
@@ -85,9 +86,11 @@ export function NutrientIntakeCard() {
           <Skeleton className="h-9 w-full rounded-md" />
         </div>
       ) : rows.length === 0 ? (
-        <p className="text-muted-foreground pl-7 text-sm">
-          {t("settings.sections.sources.nutrients.empty")}
-        </p>
+        <EmptyState
+          variant="plain"
+          size="compact"
+          title={t("settings.sections.sources.nutrients.empty")}
+        />
       ) : (
         <ul className="divide-border divide-y rounded-md border" role="list">
           {rows.map((row) => (

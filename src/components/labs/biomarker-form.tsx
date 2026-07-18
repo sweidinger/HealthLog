@@ -163,7 +163,7 @@ export function BiomarkerForm({
   );
 
   return (
-    <form id={formId} onSubmit={handleSubmit} className="space-y-5">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       {!existing ? (
         <div className="space-y-1.5">
           <Label htmlFor="biomarker-seed">

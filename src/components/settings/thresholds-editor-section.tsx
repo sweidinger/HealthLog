@@ -225,6 +225,32 @@ function MetricRow({
     String(override?.max ?? effective?.default?.greenMax ?? bounds.max),
   );
 
+  // v1.30.1 M9 — the row is keyed on the stable `metric`, so a per-row
+  // reset (or "reset all") that lands a NEW `override` (typically
+  // `null`) never re-runs the `useState` initializers above: the
+  // component instance survives the refetch. Pre-fix the switch and
+  // min/max fields kept showing the stale override after the server
+  // confirmed it was cleared, while the "Überschrieben" badge (driven
+  // straight off the `hasOverride` prop, not state) vanished — a
+  // contradictory row until a hard reload. Re-derive an identity string
+  // from the override prop and resync local state during render
+  // whenever it actually changes; typing in the fields never changes
+  // `overrideIdentity`, so this never fights a live edit.
+  const overrideIdentity = override
+    ? `${override.min}:${override.max}`
+    : "unset";
+  const [syncedIdentity, setSyncedIdentity] = useState(overrideIdentity);
+  if (overrideIdentity !== syncedIdentity) {
+    setSyncedIdentity(overrideIdentity);
+    setOverrideMode(hasOverride);
+    setMinStr(
+      String(override?.min ?? effective?.default?.greenMin ?? bounds.min),
+    );
+    setMaxStr(
+      String(override?.max ?? effective?.default?.greenMax ?? bounds.max),
+    );
+  }
+
   const minNum = parseFloat(minStr);
   const maxNum = parseFloat(maxStr);
   const valid =

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
@@ -56,6 +56,17 @@ interface LabFormProps {
   onSuccess?: (created: LabResultDto) => void;
   onCancel?: () => void;
   /**
+   * v1.30.1 (H3 QoL fix) — "Save & add another": the sheet stays open, the
+   * reading is cleared for the next entry, and `takenAt` is PRESERVED (a
+   * real lab report is 10-20 analytes sharing one blood-draw date, usually
+   * in the past — re-picking that date for every row was the pain point).
+   * Optional and additive: the second button only renders when the caller
+   * wires this up, so a consumer that never passes it keeps the single-Save
+   * form unchanged. The caller's only job is invalidating the list read —
+   * the form itself, not the caller, owns the "stay open + reset" behaviour.
+   */
+  onSavedKeepOpen?: (created: LabResultDto) => void;
+  /**
    * When mounted inside a `<ResponsiveSheet>` the caller passes the sheet's
    * footer slot element here. The Cancel / Save action row is portalled into
    * it so the bottom-sheet branch can sticky-pin it above the keyboard; the
@@ -79,6 +90,7 @@ export function LabForm({
   lockedBiomarkerId,
   onSuccess,
   onCancel,
+  onSavedKeepOpen,
   footerSlot,
 }: LabFormProps) {
   const { t } = useTranslations();
@@ -103,12 +115,19 @@ export function LabForm({
   const [valueText, setValueText] = useState("");
   const [takenAt, setTakenAt] = useState(defaultTakenAtValue);
   const [note, setNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  // v1.30.1 H3 — which submit button is in flight, so the OTHER one doesn't
+  // also show a spinner. `!== null` replaces the old plain `submitting`
+  // boolean for every disabled check below.
+  const [pendingAction, setPendingAction] = useState<
+    "save" | "saveAndAddAnother" | null
+  >(null);
+  const submitting = pendingAction !== null;
   const [error, setError] = useState<string | null>(null);
   const [defineOpen, setDefineOpen] = useState(false);
   const [defineFooterEl, setDefineFooterEl] = useState<HTMLDivElement | null>(
     null,
   );
+  const biomarkerTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const allMarkers = catalog?.biomarkers ?? [];
   const selected = allMarkers.find((m) => m.id === biomarkerId);
@@ -132,9 +151,19 @@ export function LabForm({
     setBiomarkerId(created.id);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+
+    // v1.30.1 H3 — both Save and Save & add another are `type="submit"`
+    // buttons tied to this one `<form>` via the HTML `form` attribute (they
+    // render portalled into the sheet's footer, outside the `<form>` tag
+    // itself); `submitter` distinguishes which one fired this submit.
+    const submitter = (e.nativeEvent as SubmitEvent)
+      .submitter as HTMLButtonElement | null;
+    const keepOpen =
+      onSavedKeepOpen != null &&
+      submitter?.dataset.action === "save-and-add-another";
 
     if (!biomarkerId) {
       setError(t("labs.form.pickBiomarkerError"));
@@ -159,7 +188,7 @@ export function LabForm({
       }
     }
 
-    setSubmitting(true);
+    setPendingAction(keepOpen ? "saveAndAddAnother" : "save");
     try {
       const created = await apiPost<LabResultDto>("/api/labs", {
         biomarkerId,
@@ -170,13 +199,38 @@ export function LabForm({
         ...(note.trim() ? { note: note.trim() } : {}),
       });
       toast.success(t("labs.form.savedToast"));
-      onSuccess?.(created);
+      if (keepOpen) {
+        // A real lab report shares one blood-draw date across every
+        // analyte — clear the reading but deliberately KEEP `takenAt` so
+        // the next row doesn't need it re-set away from "now" again.
+        // The biomarker resets too (unless locked to one detail page)
+        // since the whole point is entering the NEXT analyte.
+        if (!lockedBiomarkerId) setBiomarkerId("");
+        setValue("");
+        setValueText("");
+        setNote("");
+        setError(null);
+        onSavedKeepOpen?.(created);
+        // Return focus to wherever the next entry starts so the flow
+        // stays keyboard/screen-reader friendly across repeated saves.
+        if (!lockedBiomarkerId) {
+          biomarkerTriggerRef.current?.focus();
+        } else {
+          document
+            .getElementById(
+              resultType === "numeric" ? "lab-value" : "lab-valueText",
+            )
+            ?.focus();
+        }
+      } else {
+        onSuccess?.(created);
+      }
     } catch (err) {
       const message =
         err instanceof ApiError ? err.message : t("labs.form.saveError");
       setError(message);
     } finally {
-      setSubmitting(false);
+      setPendingAction(null);
     }
   }
 
@@ -200,8 +254,25 @@ export function LabForm({
           {t("common.cancel")}
         </Button>
       ) : null}
+      {/* v1.30.1 H3 — additive: only renders when the caller wires up
+          `onSavedKeepOpen`. `data-action` is how `handleSubmit` tells this
+          button apart from the plain Save below via `event.submitter`. */}
+      {onSavedKeepOpen ? (
+        <Button
+          type="submit"
+          form={formId}
+          variant="outline"
+          data-action="save-and-add-another"
+          disabled={submitting}
+        >
+          {pendingAction === "saveAndAddAnother" ? (
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+          ) : null}
+          {t("labs.form.saveAndAddAnother")}
+        </Button>
+      ) : null}
       <Button type="submit" form={formId} disabled={submitting}>
-        {submitting ? (
+        {pendingAction === "save" ? (
           <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
         ) : null}
         {t("labs.form.save")}
@@ -211,7 +282,7 @@ export function LabForm({
 
   return (
     <>
-      <form id={formId} onSubmit={handleSubmit} className="space-y-5">
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="lab-biomarker">{t("labs.form.biomarker")}</Label>
           <Select
@@ -219,7 +290,11 @@ export function LabForm({
             onValueChange={handleSelect}
             disabled={!!lockedBiomarkerId || catalogLoading}
           >
-            <SelectTrigger id="lab-biomarker" className="w-full">
+            <SelectTrigger
+              id="lab-biomarker"
+              ref={biomarkerTriggerRef}
+              className="w-full"
+            >
               <SelectValue placeholder={t("labs.form.biomarkerPlaceholder")} />
             </SelectTrigger>
             <SelectContent>

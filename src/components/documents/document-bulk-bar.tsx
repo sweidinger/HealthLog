@@ -75,11 +75,23 @@ export function DocumentBulkBar({
       </p>
 
       <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
+        {/* v1.30 mobile audit (DO-1) — five labelled buttons wrapped into a
+            2–3-row floating slab at ~360 px. Below `sm` every verb collapses
+            to icon-only (`aria-label` carries the accessible name; the
+            visible label returns at `sm+`) — the `document-detail-sheet`
+            footer's established icon-collapse pattern. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" disabled={busy}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              aria-label={t("documents.bulk.setKind")}
+            >
               <Tag className="size-4" aria-hidden />
-              {t("documents.bulk.setKind")}
+              <span className="hidden sm:inline">
+                {t("documents.bulk.setKind")}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -98,9 +110,16 @@ export function DocumentBulkBar({
         {episodes.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={busy}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                aria-label={t("documents.bulk.linkCondition")}
+              >
                 <FolderPlus className="size-4" aria-hidden />
-                {t("documents.bulk.linkCondition")}
+                <span className="hidden sm:inline">
+                  {t("documents.bulk.linkCondition")}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -122,9 +141,10 @@ export function DocumentBulkBar({
           disabled={busy}
           onClick={onShare}
           data-slot="document-bulk-share"
+          aria-label={t("documents.bulk.share")}
         >
           <Share2 className="size-4" aria-hidden />
-          {t("documents.bulk.share")}
+          <span className="hidden sm:inline">{t("documents.bulk.share")}</span>
         </Button>
 
         {/* Solid destructive (matching the detail sheet's Delete) — the
@@ -135,9 +155,10 @@ export function DocumentBulkBar({
           size="sm"
           disabled={busy}
           onClick={onDelete}
+          aria-label={t("documents.bulk.delete")}
         >
           <Trash2 className="size-4" aria-hidden />
-          {t("documents.bulk.delete")}
+          <span className="hidden sm:inline">{t("documents.bulk.delete")}</span>
         </Button>
 
         <Button
@@ -145,9 +166,12 @@ export function DocumentBulkBar({
           size="sm"
           className="text-muted-foreground"
           onClick={onClear}
+          aria-label={t("documents.selection.clear")}
         >
           <X className="size-3.5" aria-hidden />
-          {t("documents.selection.clear")}
+          <span className="hidden sm:inline">
+            {t("documents.selection.clear")}
+          </span>
         </Button>
       </div>
     </div>

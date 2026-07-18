@@ -10,6 +10,7 @@ import {
   Target,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,7 @@ import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { COACH_SCROLLBAR } from "@/components/insights/coach-panel/message-thread";
 import {
   useCoachConversations,
-  useDeleteCoachConversation,
+  useDeleteCoachConversationWithUndo,
 } from "@/components/insights/coach-panel/use-coach";
 import type { CoachConversationDTO } from "@/lib/ai/coach/types";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
@@ -102,16 +103,17 @@ function CoachConversationsBody() {
   const router = useRouter();
   const { conversations, isLoading, isError, refetch } =
     useCoachConversations();
-  const deleteMutation = useDeleteCoachConversation();
+  const { pendingDeleteIds, requestDelete, undoDelete } =
+    useDeleteCoachConversationWithUndo();
   const [filter, setFilter] = useState<string>("");
-  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   // Mirror the rail's title substring filter.
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return conversations;
-    return conversations.filter((c) => c.title.toLowerCase().includes(q));
-  }, [conversations, filter]);
+    const visible = conversations.filter((c) => !pendingDeleteIds.has(c.id));
+    if (!q) return visible;
+    return visible.filter((c) => c.title.toLowerCase().includes(q));
+  }, [conversations, filter, pendingDeleteIds]);
 
   const groups = useMemo(() => groupByRecency(filtered), [filtered]);
 
@@ -120,13 +122,17 @@ function CoachConversationsBody() {
     router.push(`/coach?c=${id}`);
   }
 
+  // v1.30.1 M5 — one tap deletes (with an Undo toast); see
+  // `use-coach.ts`'s `useDeleteCoachConversationWithUndo` for the
+  // rationale — this mirrors the rail's identical fix.
   function handleDeleteRequest(id: string) {
-    if (confirmId === id) {
-      deleteMutation.mutate(id);
-      setConfirmId(null);
-    } else {
-      setConfirmId(id);
-    }
+    requestDelete(id);
+    toast.success(t("insights.coach.historyDeleted"), {
+      action: {
+        label: t("common.undo"),
+        onClick: () => undoDelete(id),
+      },
+    });
   }
 
   return (
@@ -171,7 +177,7 @@ function CoachConversationsBody() {
       <div
         data-slot="coach-conversations-list"
         className={cn(
-          "-mx-1 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1",
+          "-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1",
           COACH_SCROLLBAR,
         )}
       >
@@ -212,7 +218,6 @@ function CoachConversationsBody() {
               </h2>
               <ul className="flex flex-col gap-1">
                 {group.conversations.map((c) => {
-                  const isConfirming = confirmId === c.id;
                   return (
                     <li
                       key={c.id}
@@ -260,18 +265,9 @@ function CoachConversationsBody() {
                         variant="ghost"
                         size="icon-lg"
                         onClick={() => handleDeleteRequest(c.id)}
-                        aria-label={
-                          isConfirming
-                            ? t("insights.coach.historyDeleteConfirm")
-                            : t("insights.coach.historyDeleteAria")
-                        }
+                        aria-label={t("insights.coach.historyDeleteAria")}
                         data-slot="coach-conversations-delete"
-                        data-confirming={isConfirming ? "true" : undefined}
-                        className={cn(
-                          "shrink-0",
-                          isConfirming &&
-                            "text-destructive hover:text-destructive",
-                        )}
+                        className="shrink-0"
                       >
                         <Trash2 className="size-4" aria-hidden="true" />
                       </Button>

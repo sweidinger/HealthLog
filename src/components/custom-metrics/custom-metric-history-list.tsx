@@ -266,7 +266,7 @@ export function CustomMetricHistoryList({
         title={t("customMetrics.entry.editTitle")}
         description={t("customMetrics.entry.editDescription")}
       >
-        <form onSubmit={submitEdit} className="space-y-5">
+        <form onSubmit={submitEdit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="custom-metric-edit-value">

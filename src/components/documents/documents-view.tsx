@@ -38,6 +38,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, queryKeys } from "@/lib/query-keys";
@@ -232,6 +234,18 @@ export function DocumentsView() {
     () => list.data?.pages.flatMap((p) => p.documents) ?? [],
     [list.data],
   );
+
+  // v1.30.1 M12 — pull-to-refresh parity with labs/checkups/mood/
+  // measurements/medications. The vault is one of the sharpest PWA-resume-
+  // staleness surfaces named in the audit: a document indexed server-side
+  // while the tab was backgrounded (auto-index / AI summary) otherwise
+  // stays invisible until the bounded processing poll above happens to
+  // catch it or the user navigates away and back.
+  const refreshDocuments = useCallback(
+    () => Promise.all([list.refetch(), usage.refetch()]),
+    [list, usage],
+  );
+  const pull = usePullToRefresh({ onRefresh: refreshDocuments });
 
   const upload = useDocumentUpload(
     usage.data ? { maxFileBytes: usage.data.maxFileBytes } : undefined,
@@ -595,6 +609,7 @@ export function DocumentsView() {
 
   return (
     <div className="space-y-6">
+      <PullToRefreshIndicator {...pull} />
       <PageHeader
         title={t("documents.title")}
         description={t("documents.subtitle")}

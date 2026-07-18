@@ -165,7 +165,7 @@ export function AboutMeSection({
       as="section"
       aria-labelledby="settings-ai-about-me-title"
       data-testid="settings-about-me-card"
-      className="space-y-5"
+      className="space-y-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SettingsCardHeader

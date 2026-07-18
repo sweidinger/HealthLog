@@ -1809,7 +1809,8 @@
         "label": "Ce n'est pas la bonne mesure ?",
         "placeholder": "Suivre selon…",
         "apply": "Appliquer",
-        "reset": "Réinitialiser par défaut"
+        "reset": "Réinitialiser par défaut",
+        "error": "Impossible d'enregistrer cette modification. Réessaie."
       },
       "beforeAfter": {
         "summary": "Ø {before} avant → Ø {after} depuis — un écart de {delta}.",
@@ -2261,7 +2262,7 @@
       "historySearchPlaceholder": "Rechercher dans les conversations…",
       "historyEmpty": "Tes conversations s’affichent ici. Lance une question pour commencer.",
       "historyDeleteAria": "Supprimer la conversation",
-      "historyDeleteConfirm": "Supprimer cette conversation ? Action irréversible.",
+      "historyDeleted": "Conversation supprimée",
       "sourcesTitle": "Ce à quoi j’accède",
       "sourcesFresh": "À jour",
       "sourcesStale": "Obsolètes",
@@ -3548,6 +3549,7 @@
         "sectionTitle": "Tes indicateurs de santé",
         "sectionSubtitle": "Valeurs combinées de récupération, de stress et d'effort issues de tes appareils connectés",
         "loadError": "Impossible de charger vos scores de bien-être pour le moment.",
+        "loadingLabel": "Chargement de tes indicateurs de santé",
         "recovery": "Récupération",
         "stress": "Stress",
         "strain": "Effort"
@@ -7395,6 +7397,7 @@
       "notePlaceholder": "Contexte facultatif pour ce résultat",
       "requiredError": "Saisissez une valeur.",
       "save": "Enregistrer",
+      "saveAndAddAnother": "Enregistrer et ajouter un autre",
       "savedToast": "Résultat enregistré",
       "saveError": "Impossible d'enregistrer le résultat",
       "biomarker": "Biomarqueur",
@@ -8639,7 +8642,7 @@
   "daily": {
     "line": {
       "score": "Ton score de santé aujourd'hui est de {score}.",
-      "allClear": "Rien ne requiert ton attention aujourd'hui — tout évolue normalement."
+      "allClear": "Rien ne requiert ton attention aujourd'hui."
     },
     "push": {
       "title": "Votre résumé du matin",

@@ -215,6 +215,12 @@ export async function runLogIntake(deps: {
   doseTaken?: string;
   t: Translator;
   queryClient: QueryClient;
+  /**
+   * v1.30.1 M7 — reverse the just-logged intake. Optional so existing
+   * unit tests that don't care about Undo can omit it; the toast simply
+   * carries no action when it's absent.
+   */
+  undoIntake?: (eventId: string) => void | Promise<void>;
 }): Promise<boolean> {
   const {
     medication,
@@ -224,22 +230,42 @@ export async function runLogIntake(deps: {
     doseTaken,
     t,
     queryClient,
+    undoIntake,
   } = deps;
   try {
     const body: Record<string, unknown> = { skipped };
     if (!skipped) body.takenAt = takenAt;
     if (scheduledFor) body.scheduledFor = scheduledFor;
     if (!skipped && doseTaken) body.doseTaken = doseTaken;
-    await apiPost(`/api/medications/${medication.id}/intake`, body);
-    await invalidateMedicationReads(queryClient);
-    toast.success(
-      t(
-        skipped
-          ? "medications.intakeToastSkipped"
-          : "medications.intakeToastTaken",
-        { name: medication.name },
-      ),
+    // v1.30.1 M7 — the route returns the created event
+    // (`apiSuccess(event, 201)`, same as the card's `runRecordIntake`);
+    // its id drives the Undo action below.
+    const created = await apiPost<{ id?: string } | undefined>(
+      `/api/medications/${medication.id}/intake`,
+      body,
     );
+    const eventId = created?.id;
+    await invalidateMedicationReads(queryClient);
+    const message = t(
+      skipped
+        ? "medications.intakeToastSkipped"
+        : "medications.intakeToastTaken",
+      { name: medication.name },
+    );
+    // v1.30.1 M7 — only pass a second `toast.success` argument when there's
+    // a real Undo action to attach; keeps the no-undo call signature
+    // identical to the pre-fix behaviour (existing unit tests assert the
+    // single-argument call).
+    if (eventId && undoIntake) {
+      toast.success(message, {
+        action: {
+          label: t("medications.intakeUndo"),
+          onClick: () => void undoIntake(eventId),
+        },
+      });
+    } else {
+      toast.success(message);
+    }
     return true;
   } catch {
     toast.error(t("medications.intakeToastFailed", { name: medication.name }));

@@ -30,6 +30,7 @@ import {
 } from "@/lib/medications/window-status";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiError, apiGet, apiPost } from "@/lib/api/api-fetch";
+import { runUndoIntake } from "@/components/medications/use-medication-intake";
 
 /**
  * v1.4.37 W7b — dashboard "Hinzufügen" → "Medikamenteneinnahme" quick-add.
@@ -271,11 +272,18 @@ export function MedicationIntakeQuickAdd({
       const doseDeviates =
         trimmedDose.length > 0 &&
         trimmedDose !== (selectedMedication?.dose ?? "").trim();
-      await apiPost(`/api/medications/${medicationId}/intake`, {
-        takenAt: timestamp,
-        skipped: false,
-        ...(doseDeviates && { doseTaken: trimmedDose }),
-      });
+      // v1.30.1 M7 — the route returns the created event
+      // (`apiSuccess(event, 201)`), same shape the card's take/skip path
+      // already reads; the id drives the new Undo action below.
+      const created = await apiPost<{ id?: string } | undefined>(
+        `/api/medications/${medicationId}/intake`,
+        {
+          takenAt: timestamp,
+          skipped: false,
+          ...(doseDeviates && { doseTaken: trimmedDose }),
+        },
+      );
+      const eventId = created?.id;
 
       await invalidateKeys(queryClient, medicationDependentKeys);
       // Fan-out to every inline compliance chart key (one per medication)
@@ -284,7 +292,26 @@ export function MedicationIntakeQuickAdd({
         queryKey: queryKeys.complianceChartInline(),
       });
 
-      toast.success(t("common.saved"));
+      toast.success(
+        t("common.saved"),
+        eventId && selectedMedication
+          ? {
+              action: {
+                label: t("medications.intakeUndo"),
+                onClick: () =>
+                  void runUndoIntake({
+                    medication: {
+                      id: medicationId,
+                      name: selectedMedication.name,
+                    },
+                    eventId,
+                    t,
+                    queryClient,
+                  }),
+              },
+            }
+          : undefined,
+      );
       onSuccess?.();
     } catch (err) {
       setError(

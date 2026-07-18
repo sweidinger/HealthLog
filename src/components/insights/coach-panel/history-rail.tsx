@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MessagesSquare, Paperclip, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,10 @@ import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
 
 import { COACH_SCROLLBAR } from "./message-thread";
-import { useCoachConversations, useDeleteCoachConversation } from "./use-coach";
+import {
+  useCoachConversations,
+  useDeleteCoachConversationWithUndo,
+} from "./use-coach";
 
 /**
  * v1.4.20 phase B2b — conversation history rail.
@@ -52,26 +56,31 @@ export function HistoryRail({
 }: HistoryRailProps) {
   const { t } = useTranslations();
   const { conversations, isLoading } = useCoachConversations();
-  const deleteMutation = useDeleteCoachConversation();
+  const { pendingDeleteIds, requestDelete, undoDelete } =
+    useDeleteCoachConversationWithUndo();
   const [filter, setFilter] = useState<string>("");
-  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return conversations;
-    return conversations.filter((c) => c.title.toLowerCase().includes(q));
-  }, [conversations, filter]);
+    const visible = conversations.filter((c) => !pendingDeleteIds.has(c.id));
+    if (!q) return visible;
+    return visible.filter((c) => c.title.toLowerCase().includes(q));
+  }, [conversations, filter, pendingDeleteIds]);
 
+  // v1.30.1 M5 — a single tap hides the row and schedules the real
+  // delete; the toast's Undo action cancels it within the grace
+  // window. Replaces the old arm-then-tap-again confirm, which never
+  // disarmed. If the user just deleted the active thread, the drawer
+  // is listening to `onSelect` for navigation; we leave it to the
+  // parent to clear `activeId` when the conversation disappears.
   function handleDeleteRequest(id: string) {
-    if (confirmId === id) {
-      deleteMutation.mutate(id);
-      setConfirmId(null);
-      // If the user just deleted the active thread, the drawer is
-      // listening to `onSelect` for navigation; we leave it to the
-      // parent to clear `activeId` when the conversation disappears.
-    } else {
-      setConfirmId(id);
-    }
+    requestDelete(id);
+    toast.success(t("insights.coach.historyDeleted"), {
+      action: {
+        label: t("common.undo"),
+        onClick: () => undoDelete(id),
+      },
+    });
   }
 
   return (
@@ -141,7 +150,6 @@ export function HistoryRail({
         ) : (
           filtered.map((c) => {
             const isActive = c.id === activeId;
-            const isConfirming = confirmId === c.id;
             return (
               <div
                 key={c.id}
@@ -187,26 +195,18 @@ export function HistoryRail({
                 </button>
                 {/* v1.4.27 R3d MB2 — drop the hover-only `opacity-0`
                     reveal: touch surfaces have no hover, so the delete
-                    affordance was invisible on mobile. The button now
+                    affordance was invisible on mobile. The button
                     sits at 44 px always-visible per the WCAG 2.5.5
-                    floor; confirming state stays styled via the
-                    `data-confirming` attribute. */}
+                    floor. v1.30.1 M5 — one tap deletes (with an Undo
+                    toast); the old arm/confirm double-tap is gone. */}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDeleteRequest(c.id)}
-                  aria-label={
-                    isConfirming
-                      ? t("insights.coach.historyDeleteConfirm")
-                      : t("insights.coach.historyDeleteAria")
-                  }
+                  aria-label={t("insights.coach.historyDeleteAria")}
                   data-slot="coach-history-delete"
-                  data-confirming={isConfirming ? "true" : undefined}
-                  className={cn(
-                    "size-11 shrink-0",
-                    isConfirming && "text-destructive hover:text-destructive",
-                  )}
+                  className="size-11 shrink-0"
                 >
                   <Trash2 className="size-4" aria-hidden="true" />
                 </Button>

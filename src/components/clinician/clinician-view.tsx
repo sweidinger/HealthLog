@@ -262,7 +262,7 @@ export function ClinicianView({
         </p>
       </header>
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         {/* ── Clinical vitals ─────────────────────────────────────── */}
         {measurementEntries.length > 0 ? (
           <Section title={t("clinicianView.vitals")}>

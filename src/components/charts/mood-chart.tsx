@@ -323,6 +323,25 @@ export function MoodChart({
   const effectiveCompareBaseline =
     !mini && chartKey ? overlayPrefs.prefs.comparisonBaseline : compareBaseline;
 
+  // v1.30.1 M2 — hydrate the range tab from the persisted prefs once
+  // they arrive; see health-chart.tsx for the full rationale (the
+  // dashboard-layout query resolves after mount, and `rangePoints`
+  // stays local state because several memos depend on it by identity).
+  // Adjusted during render, not an effect — React's documented "adjust
+  // state during render" pattern (a second state flag rather than a
+  // ref, since the lint rule bans ref reads during render).
+  const [rangeHydrated, setRangeHydrated] = useState(false);
+  if (
+    !mini &&
+    !windowOverride &&
+    chartKey &&
+    !rangeHydrated &&
+    typeof overlayPrefs.prefs.rangePoints === "number"
+  ) {
+    setRangeHydrated(true);
+    setRangePoints(overlayPrefs.prefs.rangePoints);
+  }
+
   // v1.4.19 A2 — viewport-aware tick density helper.
   const viewportWidth = useViewportWidth();
 
@@ -714,6 +733,7 @@ export function MoodChart({
         <ComposedChart
           data={chartDataWithCompare ?? chartData}
           margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
+          accessibilityLayer
         >
           {/* v1.4.25 W3 — the mood chart's YAxis is pinned to
                     five mood-score ticks ([1,2,3,4,5]), which Recharts
@@ -1047,7 +1067,18 @@ export function MoodChart({
                 aria-pressed={rangePoints === r.points}
                 size="sm"
                 className="min-h-11 px-2 text-xs sm:px-3"
-                onClick={() => setRangePoints(r.points)}
+                onClick={() => {
+                  setRangeHydrated(true);
+                  setRangePoints(r.points);
+                  // v1.30.1 M2 — persist the pick per chart, same
+                  // model as the overlay toggles.
+                  if (chartKey && !windowOverride) {
+                    overlayPrefs.setPrefs({
+                      ...overlayPrefs.prefs,
+                      rangePoints: r.points,
+                    });
+                  }
+                }}
                 title={t(r.titleKey)}
                 data-slot="chart-range-tab"
               >

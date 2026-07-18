@@ -23,9 +23,9 @@ export function TodayHeroSkeleton() {
       data-slot="today-hero-skeleton"
       className="bg-card today-hero-wash border-border relative isolate overflow-hidden rounded-xl border p-4 md:p-6"
     >
-      <div className="flex flex-col gap-4 md:gap-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
-          <div className="min-w-0 flex-1 space-y-3">
+      <div className="flex flex-col gap-3 md:gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-6">
+          <div className="min-w-0 flex-1 space-y-2">
             {/* Lead read (two lines) + top signal + briefing link. */}
             <Skeleton className="h-6 w-3/4 max-w-full" />
             <Skeleton className="h-4 w-56 max-w-full" />
@@ -36,10 +36,14 @@ export function TodayHeroSkeleton() {
             <Skeleton className="size-[168px] rounded-full" />
           </div>
         </div>
-        {/* Worth-a-look rail — two placeholder cards. */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-24 w-full rounded-xl" />
+        {/* Worth-a-look rail — heading bar + two placeholder cards, matching
+            the loaded rail's uppercase heading row and `xl:grid-cols-3` step. */}
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
         </div>
       </div>
     </div>

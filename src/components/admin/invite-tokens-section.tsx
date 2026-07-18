@@ -562,7 +562,7 @@ export function InviteTokensSection() {
                 }}
                 className="space-y-4"
               >
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <fieldset>
                     <legend className="text-sm font-medium">
                       {t("admin.invites.ttlLegend")}

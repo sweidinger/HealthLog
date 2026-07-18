@@ -157,7 +157,7 @@ export function SourcesRail({ className, activeScopeLabel }: SourcesRailProps) {
       <div data-slot="coach-sources-window" className="flex flex-col gap-1">
         <label
           htmlFor="coach-sources-window-select"
-          className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase"
+          className="text-muted-foreground text-xs font-medium tracking-wide uppercase"
         >
           {t("insights.coach.windowLabel")}
         </label>
@@ -215,7 +215,7 @@ export function SourcesRail({ className, activeScopeLabel }: SourcesRailProps) {
                 >
                   {t(`insights.coach.cluster.${cluster}.label`)}
                 </label>
-                <span className="text-muted-foreground text-[11px] leading-snug">
+                <span className="text-muted-foreground text-xs leading-snug">
                   {t("insights.coach.sourcesMemberCount", {
                     count: memberCount,
                   })}
@@ -242,10 +242,13 @@ export function SourcesRail({ className, activeScopeLabel }: SourcesRailProps) {
         })}
       </ul>
       {/* v1.12.0 — the clinical-decisions disclaimer used to render
-          here AND at the bottom of the message thread. Both are now
-          consolidated into a single line directly above the composer
-          (always visible, every viewport), so the rail no longer
-          carries its own copy. */}
+          here AND at the bottom of the message thread. DISC-01
+          (v1.18.6) dropped both per-page copies in favour of the
+          one-time onboarding acknowledgment
+          (`onboarding.disclaimer.acknowledge`); the guard stack
+          (system prompt, prose-grounding check, outbound refusal)
+          carries the real non-diagnostic boundary. The rail renders
+          no disclaimer of its own. */}
     </div>
   );
 }

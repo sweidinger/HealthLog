@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useAuth } from "@/hooks/use-auth";
@@ -124,13 +125,13 @@ function ApiEndpointsCard() {
               <code className="font-mono break-all">{endpoint.path}</code>
             </div>
             <div>
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 {t("settings.apiEndpointAuth")}
               </p>
               <code className="font-mono break-all">{endpoint.auth}</code>
             </div>
             <div>
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+              <p className="text-muted-foreground text-xs tracking-wide uppercase">
                 {t("settings.apiEndpointExample")}
               </p>
               <code className="block font-mono break-all">
@@ -432,12 +433,12 @@ function ApiTokensCard() {
               narrow viewport. The revoke action stays full-width to
               clear the 44pt tap-target floor. */}
           {activeTokens.length === 0 ? (
-            <p
-              className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm md:hidden"
+            <EmptyState
+              className="md:hidden"
+              size="compact"
               data-testid="settings-api-tokens-active-empty"
-            >
-              {t("settings.noActiveTokens")}
-            </p>
+              title={t("settings.noActiveTokens")}
+            />
           ) : (
             <ul
               className="space-y-2 md:hidden"
@@ -465,19 +466,19 @@ function ApiTokensCard() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-muted-foreground text-[11px]">
+                    <p className="text-muted-foreground text-xs">
                       <span className="font-medium">
                         {t("settings.tokenTablePermissions")}:
                       </span>{" "}
                       {tok.permissions.join(", ")}
                     </p>
-                    <p className="text-muted-foreground text-[11px]">
+                    <p className="text-muted-foreground text-xs">
                       <span className="font-medium">
                         {t("settings.tokenTableCreated")}:
                       </span>{" "}
                       {formatDate(tok.createdAt)}
                     </p>
-                    <p className="text-muted-foreground text-[11px]">
+                    <p className="text-muted-foreground text-xs">
                       <span className="font-medium">
                         {t("settings.tokenTableLastUsed")}:
                       </span>{" "}
@@ -599,19 +600,19 @@ function ApiTokensCard() {
                       <p className="text-sm font-medium break-all">
                         {tok.name}
                       </p>
-                      <p className="text-muted-foreground text-[11px]">
+                      <p className="text-muted-foreground text-xs">
                         <span className="font-medium">
                           {t("settings.tokenTablePermissions")}:
                         </span>{" "}
                         {tok.permissions.join(", ")}
                       </p>
-                      <p className="text-muted-foreground text-[11px]">
+                      <p className="text-muted-foreground text-xs">
                         <span className="font-medium">
                           {t("settings.tokenTableCreated")}:
                         </span>{" "}
                         {formatDate(tok.createdAt)}
                       </p>
-                      <p className="text-muted-foreground text-[11px]">
+                      <p className="text-muted-foreground text-xs">
                         <span className="font-medium">
                           {t("settings.tokenTableLastUsed")}:
                         </span>{" "}

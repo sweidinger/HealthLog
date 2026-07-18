@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { ScoreRing } from "./score-ring";
@@ -168,6 +169,32 @@ function RingTile({
   );
 }
 
+/**
+ * Loading placeholder mirroring `RingTile`'s footprint (icon+label row, the
+ * `size="sm"` 120 px ring, band word) so the strip reserves its final height
+ * while the shared derived batch loads — matching the `VitalsTileSkeleton`
+ * pattern instead of the strip vanishing (`return null`) and popping in once
+ * data resolves. Decorative — `aria-hidden`.
+ */
+function WellnessScoreTileSkeleton() {
+  return (
+    <div
+      data-slot="wellness-score-tile-skeleton"
+      aria-hidden="true"
+      className="bg-card border-border flex flex-col gap-4 rounded-xl border p-4 md:p-6"
+    >
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-5 w-5 rounded" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+      <div className="flex flex-col items-center gap-1.5">
+        <Skeleton className="size-[120px] rounded-full" />
+        <Skeleton className="h-3 w-12" />
+      </div>
+    </div>
+  );
+}
+
 export function WellnessScores({
   read,
   isLoading,
@@ -197,6 +224,39 @@ export function WellnessScores({
       return true;
     }
   });
+
+  // While the shared derived batch loads, every per-score gate below is
+  // `!isLoading && …`, so `tiles` stays empty and the strip used to
+  // `return null` — a late pop-in that pushed the briefing + everything
+  // below it down on every cold visit. Render the section heading + a row
+  // of tile-shaped skeletons instead, the same shape `VitalsDashboard`
+  // already uses for its grid.
+  if (isLoading) {
+    return (
+      <section
+        data-slot="wellness-scores"
+        aria-label={t("insights.derived.scores.sectionTitle")}
+        className={cn("space-y-3", className)}
+      >
+        <SectionHeading
+          icon={Activity}
+          title={t("insights.derived.scores.sectionTitle")}
+          subtitle={t("insights.derived.scores.sectionSubtitle")}
+        />
+        <div
+          data-slot="wellness-scores-grid"
+          aria-busy="true"
+          aria-live="polite"
+          aria-label={t("insights.derived.scores.loadingLabel")}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+        >
+          {Array.from({ length: 5 }).map((_, i) => (
+            <WellnessScoreTileSkeleton key={`wellness-skeleton-${i}`} />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   // A failed shared batch must read as an error, not as "no scores" — the
   // strip is top-of-page, so the only Retry lives here (mirrors the Vitals

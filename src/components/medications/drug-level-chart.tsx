@@ -62,7 +62,10 @@ import { parseDoseMg } from "@/lib/medications/dose-string";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 
-const CHART_COLOR = "var(--dracula-purple)";
+// --chart-1 is the light/dark-aware alias for this hue (dracula-purple in
+// dark mode); raw --dracula-purple has no light-theme override and mis-
+// renders on the light card.
+const CHART_COLOR = "var(--chart-1)";
 const CHART_FILL_OPACITY = 0.18;
 const HOURS_PER_DAY = 24;
 /** 21 days back, 0 days forward — three weekly cycles of history with

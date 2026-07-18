@@ -1809,7 +1809,8 @@
         "label": "¿No es la medición correcta?",
         "placeholder": "Seguir según…",
         "apply": "Aplicar",
-        "reset": "Restablecer al valor predeterminado"
+        "reset": "Restablecer al valor predeterminado",
+        "error": "No se pudo guardar ese cambio. Inténtalo de nuevo."
       },
       "beforeAfter": {
         "summary": "Ø {before} antes → Ø {after} desde entonces: un cambio de {delta}.",
@@ -2261,7 +2262,7 @@
       "historySearchPlaceholder": "Buscar en las conversaciones…",
       "historyEmpty": "Tus conversaciones aparecen aquí. Lanza una pregunta para empezar.",
       "historyDeleteAria": "Eliminar conversación",
-      "historyDeleteConfirm": "¿Eliminar esta conversación? No se puede deshacer.",
+      "historyDeleted": "Conversación eliminada",
       "sourcesTitle": "A qué accedo",
       "sourcesFresh": "Actuales",
       "sourcesStale": "Desactualizados",
@@ -3548,6 +3549,7 @@
         "sectionTitle": "Tus indicadores de salud",
         "sectionSubtitle": "Valores combinados de recuperación, estrés y esfuerzo leídos de tus dispositivos conectados",
         "loadError": "No se pudieron cargar tus puntuaciones de bienestar en este momento.",
+        "loadingLabel": "Cargando tus indicadores de salud",
         "recovery": "Recuperación",
         "stress": "Estrés",
         "strain": "Esfuerzo"
@@ -7395,6 +7397,7 @@
       "notePlaceholder": "Contexto opcional para este resultado",
       "requiredError": "Introduce un valor.",
       "save": "Guardar",
+      "saveAndAddAnother": "Guardar y añadir otro",
       "savedToast": "Resultado guardado",
       "saveError": "No se pudo guardar el resultado",
       "biomarker": "Biomarcador",
@@ -8639,7 +8642,7 @@
   "daily": {
     "line": {
       "score": "Tu puntuación de salud hoy es {score}.",
-      "allClear": "Hoy nada requiere tu atención: todo evoluciona con normalidad."
+      "allClear": "Hoy nada necesita tu atención."
     },
     "push": {
       "title": "Tu resumen matinal",

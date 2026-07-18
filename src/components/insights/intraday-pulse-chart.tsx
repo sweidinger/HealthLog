@@ -23,6 +23,7 @@ import { userDayKey, shiftDateKey } from "@/lib/tz/format";
 import { TileHeader } from "@/components/insights/tile-header";
 import { Button } from "@/components/ui/button";
 import { QueryErrorCard } from "@/components/ui/query-error-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BUCKET_MINUTES,
   type IntradayHrBucket,
@@ -185,7 +186,7 @@ export function IntradayPulseChart({
       // hue, per the plan's §3.6 hue-family call); the chart inside stays
       // untouched. The same hue marks the `tension_window` rail card, so
       // the two S11 surfaces read as one family.
-      className="bg-card metric-accent space-y-1.5 rounded-xl border p-4"
+      className="bg-card metric-accent space-y-1.5 rounded-xl border p-4 md:p-6"
       style={{ "--tile-hue": "var(--tile-stress)" } as React.CSSProperties}
     >
       <TileHeader
@@ -234,7 +235,7 @@ export function IntradayPulseChart({
       ) : null}
 
       {isLoading ? (
-        <div className="bg-muted/40 h-44 animate-pulse rounded-lg motion-reduce:animate-none" />
+        <Skeleton className="h-[180px] w-full rounded-lg" />
       ) : isError ? (
         <QueryErrorCard
           onRetry={() => refetch()}

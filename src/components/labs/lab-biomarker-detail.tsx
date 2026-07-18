@@ -230,6 +230,13 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
     queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
   }
 
+  // v1.30.1 H3 — "Save & add another": same invalidation as `afterAdd`,
+  // minus the close. Useful here too — logging several past readings for
+  // this one biomarker back-to-back without re-opening the sheet each time.
+  function afterAddKeepOpen() {
+    queryClient.invalidateQueries({ queryKey: queryKeys.labResults() });
+  }
+
   function afterEditMarker() {
     setEditOpen(false);
     queryClient.invalidateQueries({
@@ -482,6 +489,7 @@ export function LabBiomarkerDetail({ biomarkerId }: { biomarkerId: string }) {
           lockedBiomarkerId={biomarkerId}
           footerSlot={addFooterEl}
           onSuccess={afterAdd}
+          onSavedKeepOpen={afterAddKeepOpen}
           onCancel={() => setAddOpen(false)}
         />
       </ResponsiveSheet>

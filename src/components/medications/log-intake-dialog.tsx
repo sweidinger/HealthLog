@@ -33,7 +33,10 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatDose } from "@/lib/medications/format-dose";
-import { runLogIntake } from "@/components/medications/use-medication-intake";
+import {
+  runLogIntake,
+  runUndoIntake,
+} from "@/components/medications/use-medication-intake";
 
 interface LogIntakeSchedule {
   windowStart: string;
@@ -194,6 +197,15 @@ export function LogIntakeDialog({
         ...(doseDeviates && { doseTaken: trimmedDose }),
         t,
         queryClient,
+        // v1.30.1 M7 — a backdated/manual intake now gets the same
+        // Undo affordance the card's take/skip path already has.
+        undoIntake: (eventId) =>
+          runUndoIntake({
+            medication: { id: med.id, name: med.name },
+            eventId,
+            t,
+            queryClient,
+          }),
       });
       if (ok) onOpenChange(false);
     } finally {

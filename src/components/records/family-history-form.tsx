@@ -131,7 +131,7 @@ export function FamilyHistoryForm({
   );
 
   return (
-    <form id={formId} onSubmit={handleSubmit} className="space-y-5">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="family-relationship">

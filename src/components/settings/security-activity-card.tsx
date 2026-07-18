@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Loader2, ShieldCheck } from "lucide-react";
 
 import { SettingsCard } from "@/components/settings/settings-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -112,9 +113,11 @@ export function SecurityActivityCard({
         )}
 
         {!isLoading && !isError && events.length === 0 && (
-          <p className="text-muted-foreground text-sm">
-            {t("settings.security.activityEmpty")}
-          </p>
+          <EmptyState
+            variant="plain"
+            size="compact"
+            title={t("settings.security.activityEmpty")}
+          />
         )}
 
         {events.length > 0 && (

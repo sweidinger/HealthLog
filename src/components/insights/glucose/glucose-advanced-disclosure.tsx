@@ -84,7 +84,7 @@ export function GlucoseAdvancedDisclosure({
           {t("insights.bloodGlucose.clinical.advanced.intro")}
         </p>
 
-        <dl className="grid grid-cols-3 gap-3">
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <AdvancedStat
             label={t("insights.bloodGlucose.clinical.advanced.jIndex.label")}
             help={t("insights.bloodGlucose.clinical.advanced.jIndex.help")}

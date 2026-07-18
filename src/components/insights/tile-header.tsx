@@ -54,9 +54,11 @@ interface TileHeaderProps {
   /**
    * Render the title as a real heading element (e.g. `"h2"`) instead of the
    * default presentational `CardTitle` div, keeping the identical CardTitle
-   * styling. Use only where the tile owns the ONLY heading on its subpage
-   * branch (the recovery blocks) so the `h1 → h2` outline stays nested with no
-   * skipped level. Default (unset) keeps every other tile a plain CardTitle.
+   * styling. Use on tiles that sit directly under the page's `h1` — a single
+   * owning block (the recovery blocks) or a grid of sibling tiles (dashboard
+   * tiles, insights overview grids) both nest correctly as `h1 → h2, h2, …`;
+   * just don't nest a `titleAs="h2"` tile inside another heading's own
+   * subsection. Default (unset) keeps every other tile a plain CardTitle.
    */
   titleAs?: "h2";
 }

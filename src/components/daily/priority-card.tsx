@@ -104,6 +104,14 @@ export interface PriorityCardProps {
    * passes.
    */
   onDismiss?: (itemKey: string) => void;
+  /**
+   * True while a non-navigation action on THIS card has a mutation in
+   * flight (e.g. the coach check-in's keep/let-go). Disables the
+   * button-rendered actions (`aria-busy` + `disabled`) so a slow round trip
+   * can't be double-tapped into firing the mutation twice; pure `href`
+   * actions stay live since they're navigation, not a mutation.
+   */
+  actionsPending?: boolean;
   className?: string;
 }
 
@@ -114,6 +122,7 @@ export function PriorityCard({
   item,
   onAction,
   onDismiss,
+  actionsPending,
   className,
 }: PriorityCardProps) {
   const { t } = useTranslations();
@@ -182,6 +191,7 @@ export function PriorityCard({
                 action={action}
                 label={t(action.labelKey)}
                 onAction={onAction}
+                pending={actionsPending}
               />
             ))}
           </div>
@@ -195,10 +205,12 @@ function ActionButton({
   action,
   label,
   onAction,
+  pending,
 }: {
   action: PriorityItemAction;
   label: string;
   onAction?: (intent: string) => void;
+  pending?: boolean;
 }) {
   if (action.href) {
     return (
@@ -218,6 +230,8 @@ function ActionButton({
       variant="outline"
       size="sm"
       className={ACTION_SIZE}
+      disabled={pending}
+      aria-busy={pending || undefined}
       onClick={() => onAction?.(action.intent)}
     >
       {label}

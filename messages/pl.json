@@ -1809,7 +1809,8 @@
         "label": "To nie ten pomiar?",
         "placeholder": "Śledź według…",
         "apply": "Zastosuj",
-        "reset": "Przywróć domyślne"
+        "reset": "Przywróć domyślne",
+        "error": "Nie udało się zapisać tej zmiany. Spróbuj ponownie."
       },
       "beforeAfter": {
         "summary": "Ø {before} przedtem → Ø {after} od tego czasu — zmiana o {delta}.",
@@ -2261,7 +2262,7 @@
       "historySearchPlaceholder": "Szukaj w rozmowach…",
       "historyEmpty": "Twoje rozmowy pojawią się tutaj. Zadaj pytanie, aby zacząć.",
       "historyDeleteAria": "Usuń rozmowę",
-      "historyDeleteConfirm": "Usunąć tę rozmowę? Tego nie da się cofnąć.",
+      "historyDeleted": "Rozmowa usunięta",
       "sourcesTitle": "Do czego mam dostęp",
       "sourcesFresh": "Aktualne",
       "sourcesStale": "Nieaktualne",
@@ -3548,6 +3549,7 @@
         "sectionTitle": "Twoje wskaźniki zdrowia",
         "sectionSubtitle": "Złożone wartości regeneracji, stresu i obciążenia odczytane z Twoich połączonych urządzeń",
         "loadError": "Nie udało się teraz wczytać Twoich wyników dobrostanu.",
+        "loadingLabel": "Wczytywanie Twoich wskaźników zdrowia",
         "recovery": "Regeneracja",
         "stress": "Stres",
         "strain": "Obciążenie"
@@ -7395,6 +7397,7 @@
       "notePlaceholder": "Opcjonalny kontekst tego wyniku",
       "requiredError": "Podaj wartość.",
       "save": "Zapisz",
+      "saveAndAddAnother": "Zapisz i dodaj kolejny",
       "savedToast": "Wynik zapisany",
       "saveError": "Nie udało się zapisać wyniku",
       "biomarker": "Biomarker",
@@ -8639,7 +8642,7 @@
   "daily": {
     "line": {
       "score": "Twój dzisiejszy wynik zdrowia to {score}.",
-      "allClear": "Dziś nic nie wymaga Twojej uwagi — wszystko przebiega normalnie."
+      "allClear": "Dziś nic nie wymaga Twojej uwagi."
     },
     "push": {
       "title": "Twoje poranne podsumowanie",

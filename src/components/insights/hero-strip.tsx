@@ -257,7 +257,7 @@ export function HeroStrip({
         // it the shadow bled through the sticky section nav below
         // (the nav uses bg-background/80 + backdrop-blur, which the
         // shadow leaked through).
-        "relative isolate overflow-hidden rounded-xl px-4 py-4 sm:px-6 sm:py-6",
+        "relative isolate overflow-hidden rounded-xl px-4 py-4 md:px-6 md:py-6",
       )}
     >
       {/*

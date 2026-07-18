@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import {
@@ -107,12 +108,11 @@ function ShareLinksCard() {
           {t("settings.sharing.activeTitle")}
         </h3>
         {activeLinks.length === 0 ? (
-          <p
-            className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm"
+          <EmptyState
+            size="compact"
             data-testid="share-active-empty"
-          >
-            {t("settings.sharing.noActive")}
-          </p>
+            title={t("settings.sharing.noActive")}
+          />
         ) : (
           <ul className="space-y-2" data-testid="share-active-list">
             {activeLinks.map((link) => (
@@ -158,19 +158,19 @@ function ShareLinksCard() {
                     )}
                   </div>
                 </div>
-                <p className="text-muted-foreground text-[11px]">
+                <p className="text-muted-foreground text-xs">
                   <span className="font-medium">
                     {t("settings.sharing.created")}:
                   </span>{" "}
                   {formatDate(link.createdAt)}
                 </p>
-                <p className="text-muted-foreground text-[11px]">
+                <p className="text-muted-foreground text-xs">
                   <span className="font-medium">
                     {t("settings.sharing.expires")}:
                   </span>{" "}
                   {formatDateTime(link.expiresAt)}
                 </p>
-                <p className="text-muted-foreground text-[11px]">
+                <p className="text-muted-foreground text-xs">
                   <span className="font-medium">
                     {t("settings.sharing.accessCount")}:
                   </span>{" "}
@@ -246,7 +246,7 @@ function ShareLinksCard() {
                         : t("settings.sharing.statusExpired")}
                     </Badge>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">
+                  <p className="text-muted-foreground text-xs">
                     <span className="font-medium">
                       {t("settings.sharing.accessCount")}:
                     </span>{" "}

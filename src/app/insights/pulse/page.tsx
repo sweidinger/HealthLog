@@ -228,7 +228,7 @@ export default function InsightsPulsPage() {
         <Link
           href="/insights/cardio-fitness"
           data-slot="vo2-cardio-link"
-          className="bg-card hover:bg-accent/40 focus-visible:ring-ring/50 block space-y-1.5 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-card hover:bg-accent/40 focus-visible:ring-ring/50 block space-y-1.5 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none md:p-6"
         >
           <TileHeader
             icon={Gauge}

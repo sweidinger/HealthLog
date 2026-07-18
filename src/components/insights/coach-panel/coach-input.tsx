@@ -49,8 +49,13 @@ import { useTranslations } from "@/lib/i18n/context";
  * fire two requests in parallel.
  *
  * v1.4.22 B4: the disclaimer ("Coach replies are generated …") moved
- * out of the composer and into the sources rail footer, so the
- * composer stays focused on the input affordance.
+ * out of the composer and into the sources rail footer. DISC-01
+ * (v1.18.6) later dropped that per-page copy too, in favour of the
+ * one-time onboarding acknowledgment; the only in-surface "not medical
+ * advice" text left in this namespace is `errorNoProvider`, shown only
+ * when no provider is connected. The real non-diagnostic boundary is
+ * the guard stack (system prompt, prose-grounding check, outbound
+ * refusal), not a rendered disclaimer line.
  *
  * v1.18.7 (W-coach C-UI): voice dictation returns to the web composer.
  * The earlier placeholder mic was dropped in v1.4.25 because it did
@@ -646,7 +651,7 @@ export function CoachInput({
         className={cn(
           "border-border/60 bg-muted/40 group rounded-2xl border",
           "shadow-sm transition-colors",
-          "focus-within:border-primary/50 focus-within:ring-primary/15 focus-within:bg-background focus-within:ring-2",
+          "focus-within:border-primary/50 focus-within:ring-primary/50 focus-within:bg-background focus-within:ring-2",
           // Both surfaces share ONE baseline row: the drawer flanks the
           // textarea with mic (left) + send (right); the page leads with a
           // `+` actions menu, then the textarea, then mic + send. `items-end`

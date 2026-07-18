@@ -450,7 +450,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
                     aria-checked={selected}
                     onClick={() => setEntry(candidate)}
                     {...getEntryRadioProps(index)}
-                    className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                    className={`flex min-h-11 items-center justify-center rounded-full border px-2.5 py-1 text-xs transition-colors sm:min-h-9 ${
                       selected
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background text-foreground hover:bg-muted"

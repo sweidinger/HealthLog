@@ -128,6 +128,87 @@ export function useDeleteCoachConversation() {
   });
 }
 
+// v1.30.1 M5 — delayed-commit delete window, in milliseconds. Long
+// enough to read + tap Undo, short enough that the eventual DELETE
+// isn't a surprise days later.
+const CONVERSATION_DELETE_UNDO_MS = 6000;
+
+/**
+ * v1.30.1 M5 — replaces the old "tap once to arm, tap the same row
+ * again to delete" confirm, which never disarmed (a row armed minutes
+ * earlier deleted on a later stray tap) and had no way back once fired.
+ * Mirrors the Documents delete-with-undo pattern instead: a single tap
+ * hides the row immediately and schedules the real
+ * `DELETE /api/insights/chat/[id]` after `CONVERSATION_DELETE_UNDO_MS`;
+ * calling `undoDelete` within that window cancels the network call and
+ * un-hides the row. `pendingDeleteIds` is a client-only hide filter —
+ * consumers subtract it from whatever list they render.
+ *
+ * Centralised here (rather than duplicated in the rail + the standalone
+ * `/coach/conversations` page, which previously carried byte-identical
+ * arm/confirm logic) so both surfaces share one implementation.
+ */
+export function useDeleteCoachConversationWithUndo() {
+  const deleteMutation = useDeleteCoachConversation();
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  useEffect(() => {
+    // A closed drawer / unmounted page must not silently lose a
+    // scheduled delete: fire any still-pending ones immediately rather
+    // than leaking the timer (or worse, never deleting at all).
+    const timerMap = timers.current;
+    return () => {
+      for (const [id, timer] of timerMap) {
+        clearTimeout(timer);
+        deleteMutation.mutate(id);
+      }
+      timerMap.clear();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on unmount only
+  }, []);
+
+  const requestDelete = useCallback(
+    (id: string) => {
+      setPendingDeleteIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      const timer = setTimeout(() => {
+        timers.current.delete(id);
+        setPendingDeleteIds((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        deleteMutation.mutate(id);
+      }, CONVERSATION_DELETE_UNDO_MS);
+      timers.current.set(id, timer);
+    },
+    [deleteMutation],
+  );
+
+  const undoDelete = useCallback((id: string) => {
+    const timer = timers.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timers.current.delete(id);
+    }
+    setPendingDeleteIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  return { pendingDeleteIds, requestDelete, undoDelete };
+}
+
 /**
  * v1.29.x (S7) — attach a stored document to an EXISTING fenced (or about-to-be-
  * fenced) conversation. On success invalidates the conversation detail + rail so

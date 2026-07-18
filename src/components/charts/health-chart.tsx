@@ -632,6 +632,32 @@ export function HealthChart({
     ? overlayPrefs.prefs.comparisonBaseline
     : compareBaseline;
 
+  // v1.30.1 M2 — hydrate the range tab from the persisted prefs once
+  // they arrive, mirroring the overlay toggles above. A plain
+  // `useState(30)` initializer can't see the persisted value because
+  // the dashboard-layout query resolves after mount; `rangePoints` also
+  // drives several derived memos below by identity, so it stays local
+  // state (unlike the toggles, which read `overlayPrefs.prefs` live)
+  // and is synced in exactly once. `windowOverride` charts (mini mode)
+  // are pinned and never adopt a persisted range. Adjusted during
+  // render (React's documented "adjust state during render" escape
+  // hatch, not an effect — the lint rule that bans ref reads during
+  // render is why this is a second piece of state rather than a ref)
+  // so the very first render that sees the resolved prefs already
+  // reflects them; `rangeHydrated` guards against re-running past the
+  // first hit, so a later cache refetch can't stomp a range the user
+  // already picked this session.
+  const [rangeHydrated, setRangeHydrated] = useState(false);
+  if (
+    !windowOverride &&
+    chartKey &&
+    !rangeHydrated &&
+    typeof overlayPrefs.prefs.rangePoints === "number"
+  ) {
+    setRangeHydrated(true);
+    setRangePoints(overlayPrefs.prefs.rangePoints);
+  }
+
   // v1.4.19 A2 — viewport-aware tick density. Recharts' default is one
   // tick per data point; the helper caps that at 4-10 visible labels
   // depending on viewport width so the X-axis reads consistently across
@@ -1674,7 +1700,17 @@ export function HealthChart({
                   // v1.12.8 — a range-tab change re-slices `chartData`; the
                   // visible-range stats memo recomputes off the new slice and
                   // the stat strip follows automatically.
+                  setRangeHydrated(true);
                   setRangePoints(r.points);
+                  // v1.30.1 M2 — persist the pick per chart, same model
+                  // as the overlay toggles, so the range survives a
+                  // remount instead of resetting to 30 d every visit.
+                  if (chartKey && !windowOverride) {
+                    overlayPrefs.setPrefs({
+                      ...overlayPrefs.prefs,
+                      rangePoints: r.points,
+                    });
+                  }
                 }}
                 title={t(r.titleKey)}
                 data-slot="chart-range-tab"
@@ -1789,6 +1825,7 @@ export function HealthChart({
               <ComposedChart
                 data={chartDataWithCompare ?? chartData}
                 margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
+                accessibilityLayer
               >
                 <CartesianGrid
                   strokeDasharray="3 3"

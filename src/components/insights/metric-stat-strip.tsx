@@ -219,7 +219,7 @@ function SeriesBlock({
             data-stat={cell.key}
             className="space-y-0.5"
           >
-            <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+            <p className="text-muted-foreground text-xs tracking-wide uppercase">
               {cell.label}
             </p>
             <p className="text-base font-semibold tabular-nums">
