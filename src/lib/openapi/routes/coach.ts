@@ -642,7 +642,7 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Insights"],
       summary: "List the caller's Coach conversations",
       description:
-        'v1.18.0 — cursor-paginated list of the caller\'s Coach conversations for the history rail, most-recent activity first. Metadata only (id, title, timestamps, message count); message bodies are not decrypted here. `limit` defaults to 20, capped at 50; pass the returned `nextCursor` back as `cursor` for the next page (null at the end). Coach-gated (`requireAssistantSurface("coach")`); a disabled surface 403s. Auth via cookie or Bearer; the owner is narrowed from the session.',
+        'v1.18.0 — cursor-paginated list of the caller\'s Coach conversations for the history rail, most-recent activity first. Metadata only (id, title, timestamps, message count); message bodies are not decrypted here. `limit` defaults to 20, capped at 50; pass the returned `nextCursor` back as `cursor` for the next page (null at the end). v1.30.2 — optional `q` narrows the page to conversations whose TITLE contains the text (case-insensitive substring, capped at 200 chars); message bodies are encrypted at rest and are not searched. Coach-gated (`requireAssistantSurface("coach")`); a disabled surface 403s. Auth via cookie or Bearer; the owner is narrowed from the session.',
       parameters: [
         {
           name: "cursor",
@@ -658,6 +658,14 @@ export const coachPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           required: false,
           schema: { type: "integer", minimum: 1, maximum: 50, default: 20 },
           description: "Page size. Defaults to 20, capped at 50.",
+        },
+        {
+          name: "q",
+          in: "query",
+          required: false,
+          schema: { type: "string", maxLength: 200 },
+          description:
+            "v1.30.2 — case-insensitive substring filter over the conversation TITLE only (message bodies are encrypted and not searched). Omit for the unfiltered list.",
         },
       ],
       responses: {

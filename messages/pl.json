@@ -599,7 +599,7 @@
     },
     "watchdog": {
       "title": "Automatyczny nadzór",
-      "description": "HealthLog dyskretnie obserwuje też dane w tle — powiadomienia o nieregularnym rytmie i zaburzeniach oddychania z podłączonego zegarka, a także alerty o odchyleniu od Twojej wartości bazowej — i pokazuje kartę tylko wtedy, gdy coś zwraca uwagę. Brak karty to dobry znak, a nie brakująca funkcja."
+      "description": "HealthLog dyskretnie obserwuje też dane w tle — powiadomienia o nieregularnym rytmie i zaburzeniach oddychania z podłączonego zegarka, alerty o odchyleniu od Twojej wartości bazowej oraz zauważalne zmiany między dwoma ostatnimi panelami badań laboratoryjnych — i pokazuje kartę tylko wtedy, gdy coś zwraca uwagę. Brak karty to dobry znak, a nie brakująca funkcja."
     }
   },
   "mood": {
@@ -2264,6 +2264,8 @@
       "historyEmpty": "Twoje rozmowy pojawią się tutaj. Zadaj pytanie, aby zacząć.",
       "historyDeleteAria": "Usuń rozmowę",
       "historyDeleted": "Rozmowa usunięta",
+      "historySearchEmpty": "Żadna rozmowa nie pasuje do wyszukiwania.",
+      "historyLoadingMore": "Wczytywanie…",
       "sourcesTitle": "Do czego mam dostęp",
       "sourcesFresh": "Aktualne",
       "sourcesStale": "Nieaktualne",

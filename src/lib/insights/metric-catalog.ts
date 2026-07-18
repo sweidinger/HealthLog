@@ -209,11 +209,14 @@ const ECG_ENTRY: CatalogEntry = {
 /**
  * Discoverability audit finding A5 — the alert-style watchdogs (rhythm-
  * event notifications, breathing-disturbance screening, baseline-drift
- * health status) are CORRECT to stay unmounted when there is nothing to
- * flag ("no alert" must not render an alarming empty shell), but nothing
- * anywhere told the user they were running. This is the "single line"
- * fix the audit recommended in place of per-card empty states: an
- * always-shown info row, no present/absent gate, no CTA.
+ * health status, and the labs "what changed since your last panel" card)
+ * are CORRECT to stay unmounted when there is nothing to flag ("no
+ * alert" must not render an alarming empty shell), but nothing anywhere
+ * told the user they were running. This is the "single line" fix the
+ * audit recommended in place of per-card empty states: an always-shown
+ * info row, no present/absent gate, no CTA. The description copy covers
+ * all four watchdogs — extend it (not a new catalog row) if a fifth one
+ * ships.
  */
 const WATCHDOG_ENTRY: CatalogEntry = {
   id: "watchdog",

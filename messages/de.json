@@ -599,7 +599,7 @@
     },
     "watchdog": {
       "title": "Automatische Überwachung",
-      "description": "HealthLog beobachtet außerdem still im Hintergrund — Benachrichtigungen zu unregelmäßigem Rhythmus und Atemstörungen von einer verbundenen Uhr sowie Warnungen bei Abweichungen von deiner Baseline — und zeigt eine Karte nur, wenn etwas auffällt. Keine Karte ist ein gutes Zeichen, kein fehlendes Feature."
+      "description": "HealthLog beobachtet außerdem still im Hintergrund — Benachrichtigungen zu unregelmäßigem Rhythmus und Atemstörungen von einer verbundenen Uhr, Warnungen bei Abweichungen von deiner Baseline sowie auffällige Veränderungen zwischen deinen letzten beiden Laborwerten — und zeigt eine Karte nur, wenn etwas auffällt. Keine Karte ist ein gutes Zeichen, kein fehlendes Feature."
     }
   },
   "mood": {
@@ -2264,6 +2264,8 @@
       "historyEmpty": "Deine Unterhaltungen erscheinen hier. Stell eine Frage, um zu starten.",
       "historyDeleteAria": "Unterhaltung löschen",
       "historyDeleted": "Unterhaltung gelöscht",
+      "historySearchEmpty": "Keine Unterhaltungen entsprechen deiner Suche.",
+      "historyLoadingMore": "Mehr wird geladen…",
       "sourcesTitle": "Worauf ich zugreife",
       "sourcesFresh": "Aktuell",
       "sourcesStale": "Veraltet",

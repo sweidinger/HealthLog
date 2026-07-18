@@ -599,7 +599,7 @@
     },
     "watchdog": {
       "title": "Automatic screening",
-      "description": "HealthLog also watches quietly in the background — irregular-rhythm and breathing-disturbance notifications from a connected watch, plus baseline-drift alerts — and surfaces a card only when something stands out. No card showing is a good sign, not a missing feature."
+      "description": "HealthLog also watches quietly in the background — irregular-rhythm and breathing-disturbance notifications from a connected watch, baseline-drift health-status alerts, and notable shifts between your two most recent lab panels — and surfaces a card only when something stands out. No card showing is a good sign, not a missing feature."
     }
   },
   "mood": {
@@ -2264,6 +2264,8 @@
       "historyEmpty": "Your conversations will appear here. Ask anything to start.",
       "historyDeleteAria": "Delete conversation",
       "historyDeleted": "Conversation deleted",
+      "historySearchEmpty": "No conversations match your search.",
+      "historyLoadingMore": "Loading more…",
       "sourcesTitle": "What I can see",
       "sourcesFresh": "Fresh",
       "sourcesStale": "Stale",

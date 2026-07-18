@@ -103,6 +103,32 @@ describe("listConversations — filter + DTO", () => {
     expect(where.attachments).toEqual({ some: { documentId: "doc-9" } });
   });
 
+  // v1.30.2 (QoL H1) — server-side title search for the full-history rail.
+  it("applies a case-insensitive title-contains filter when q is given", async () => {
+    findMany.mockResolvedValue([]);
+    await listConversations({ userId: "user-1", q: "blood pressure" });
+    const where = findMany.mock.calls[0][0].where;
+    expect(where.userId).toBe("user-1");
+    expect(where.title).toEqual({
+      contains: "blood pressure",
+      mode: "insensitive",
+    });
+  });
+
+  it("trims q and omits the title filter for an empty/whitespace-only query", async () => {
+    findMany.mockResolvedValue([]);
+    await listConversations({ userId: "user-1", q: "   " });
+    const where = findMany.mock.calls[0][0].where;
+    expect("title" in where).toBe(false);
+  });
+
+  it("omits the title filter entirely when q is not given (existing behaviour unchanged)", async () => {
+    findMany.mockResolvedValue([]);
+    await listConversations({ userId: "user-1" });
+    const where = findMany.mock.calls[0][0].where;
+    expect("title" in where).toBe(false);
+  });
+
   it("falls back to filename when the first attachment has no title", async () => {
     findMany.mockResolvedValue([
       {

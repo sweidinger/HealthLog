@@ -3,23 +3,46 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { I18nProvider } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 import { HistoryRail } from "../history-rail";
 import type { CoachConversationsPage } from "@/lib/ai/coach/types";
 
 /**
  * v1.4.20 phase B2b — history-rail render snapshot.
+ * v1.30.2 (QoL H1) — the rail now reads `useCoachConversationHistory`
+ * (`useInfiniteQuery`), so the seeded cache shape moved from a single
+ * `CoachConversationsPage` under the flat `coachConversations()` key to the
+ * `{ pages, pageParams }` infinite-query shape under
+ * `queryKeys.coachConversationHistory(search)`.
  *
  * The rail mounts a TanStack Query subscription so we have to wrap it
- * in a `<QueryClientProvider>`. We seed the cache with a synthetic
- * conversations page so the rail renders the populated state in one
- * pass — server-side rendering doesn't drive a real network call.
+ * in a `<QueryClientProvider>`. We seed the cache with synthetic page(s)
+ * so the rail renders the populated state in one pass — server-side
+ * rendering doesn't drive a real network call.
  */
 
-function makeClientWithConversations(page: CoachConversationsPage) {
+function makeClientWithConversations(
+  page: CoachConversationsPage,
+  search = "",
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  client.setQueryData(["coachConversations"], page);
+  client.setQueryData(queryKeys.coachConversationHistory(search), {
+    pages: [page],
+    pageParams: [null],
+  });
+  return client;
+}
+
+function makeClientWithPages(pages: CoachConversationsPage[], search = "") {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  client.setQueryData(queryKeys.coachConversationHistory(search), {
+    pages,
+    pageParams: pages.map((_, i) => (i === 0 ? null : `cursor-${i}`)),
+  });
   return client;
 }
 
@@ -151,5 +174,56 @@ describe("<HistoryRail>", () => {
     );
     const buttons = html.match(/data-slot="coach-history-delete"/g) ?? [];
     expect(buttons.length).toBe(2);
+  });
+
+  // v1.30.2 (QoL H1) — infinite history: reachability beyond the first page.
+  it("renders every conversation across multiple cached pages (not just page one)", () => {
+    const client = makeClientWithPages([
+      samplePage,
+      {
+        conversations: [
+          {
+            id: "c3",
+            title: "A much older thread",
+            createdAt: "2026-01-01T08:00:00.000Z",
+            updatedAt: "2026-01-01T08:01:00.000Z",
+            messageCount: 1,
+            fenced: false,
+          },
+        ],
+        nextCursor: null,
+      },
+    ]);
+    const html = render(
+      <HistoryRail activeId={null} onSelect={() => {}} />,
+      client,
+    );
+    const rows = html.match(/data-slot="coach-history-item"/g) ?? [];
+    expect(rows.length).toBe(3);
+    expect(html).toContain("A much older thread");
+  });
+
+  it("renders the load-more sentinel when a cached page still carries a nextCursor", () => {
+    const client = makeClientWithConversations({
+      ...samplePage,
+      nextCursor: "c2",
+    });
+    const html = render(
+      <HistoryRail activeId={null} onSelect={() => {}} />,
+      client,
+    );
+    // The sentinel div is aria-hidden — IntersectionObserver never fires
+    // during a static SSR render, but the element itself must be present
+    // for the rail to ever pull the next page in a real browser.
+    expect(html).toMatch(/aria-hidden="true"[^>]*class="h-px"/);
+  });
+
+  it("does not render the load-more sentinel once the caller has reached the end", () => {
+    const client = makeClientWithConversations(samplePage); // nextCursor: null
+    const html = render(
+      <HistoryRail activeId={null} onSelect={() => {}} />,
+      client,
+    );
+    expect(html).not.toMatch(/class="h-px"/);
   });
 });

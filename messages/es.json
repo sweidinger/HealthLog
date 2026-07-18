@@ -599,7 +599,7 @@
     },
     "watchdog": {
       "title": "Supervisión automática",
-      "description": "HealthLog también vigila en segundo plano — notificaciones de ritmo irregular y alteraciones respiratorias de un reloj conectado, además de alertas de desviación de tu valor de referencia — y solo muestra una tarjeta cuando algo destaca. Que no aparezca ninguna tarjeta es una buena señal, no una función ausente."
+      "description": "HealthLog también vigila en segundo plano — notificaciones de ritmo irregular y alteraciones respiratorias de un reloj conectado, alertas de desviación de tu valor de referencia, y cambios destacables entre tus dos últimos paneles de laboratorio — y solo muestra una tarjeta cuando algo destaca. Que no aparezca ninguna tarjeta es una buena señal, no una función ausente."
     }
   },
   "mood": {
@@ -2264,6 +2264,8 @@
       "historyEmpty": "Tus conversaciones aparecen aquí. Lanza una pregunta para empezar.",
       "historyDeleteAria": "Eliminar conversación",
       "historyDeleted": "Conversación eliminada",
+      "historySearchEmpty": "Ninguna conversación coincide con tu búsqueda.",
+      "historyLoadingMore": "Cargando más…",
       "sourcesTitle": "A qué accedo",
       "sourcesFresh": "Actuales",
       "sourcesStale": "Desactualizados",

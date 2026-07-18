@@ -599,7 +599,7 @@
     },
     "watchdog": {
       "title": "Surveillance automatique",
-      "description": "HealthLog surveille aussi discrètement en arrière-plan — notifications de rythme irrégulier et de perturbations respiratoires envoyées par une montre connectée, ainsi que des alertes d'écart par rapport à ta valeur de référence — et n'affiche une carte que si quelque chose se démarque. L'absence de carte est bon signe, pas une fonctionnalité manquante."
+      "description": "HealthLog surveille aussi discrètement en arrière-plan — notifications de rythme irrégulier et de perturbations respiratoires envoyées par une montre connectée, alertes d'écart par rapport à ta valeur de référence, ainsi que des changements notables entre tes deux derniers bilans de laboratoire — et n'affiche une carte que si quelque chose se démarque. L'absence de carte est bon signe, pas une fonctionnalité manquante."
     }
   },
   "mood": {
@@ -2264,6 +2264,8 @@
       "historyEmpty": "Tes conversations s’affichent ici. Lance une question pour commencer.",
       "historyDeleteAria": "Supprimer la conversation",
       "historyDeleted": "Conversation supprimée",
+      "historySearchEmpty": "Aucune conversation ne correspond à ta recherche.",
+      "historyLoadingMore": "Chargement…",
       "sourcesTitle": "Ce à quoi j’accède",
       "sourcesFresh": "À jour",
       "sourcesStale": "Obsolètes",

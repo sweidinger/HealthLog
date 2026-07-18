@@ -21,6 +21,18 @@ export const coachKeys = {
    */
   coachConversations: () => ["coachConversations"] as const,
   /**
+   * v1.30.2 — the full, paginated + searchable rail history
+   * (`useInfiniteQuery` over `GET /api/insights/chat?cursor&q`). Nested under
+   * the `coachConversations` prefix (not a sibling key) so the existing
+   * delete-mutation + post-turn invalidation (`coachConversations()`) still
+   * reaches every cached search variant of this infinite list — TanStack's
+   * default `invalidateQueries` match is prefix-based, so no extra
+   * invalidation call site was needed. `search` is the trimmed query text;
+   * empty string keys the unfiltered ("browse everything") variant.
+   */
+  coachConversationHistory: (search = "") =>
+    ["coachConversations", "history", search.trim()] as const,
+  /**
    * v1.18.7 — one decrypted Coach conversation (`GET /api/insights/chat/[id]`).
    * Keyed on the conversation id so two open threads never share a cache slot;
    * the streaming hook invalidates this slot once the persisted twin lands.

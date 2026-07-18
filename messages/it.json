@@ -599,7 +599,7 @@
     },
     "watchdog": {
       "title": "Monitoraggio automatico",
-      "description": "HealthLog osserva anche silenziosamente in background — notifiche di ritmo irregolare e disturbi respiratori da un orologio connesso, oltre ad avvisi di scostamento dalla tua base di riferimento — mostrando una scheda solo quando qualcosa emerge. Nessuna scheda visibile è un buon segno, non una funzione mancante."
+      "description": "HealthLog osserva anche silenziosamente in background — notifiche di ritmo irregolare e disturbi respiratori da un orologio connesso, avvisi di scostamento dalla tua base di riferimento, e variazioni degne di nota tra i tuoi due ultimi pannelli di laboratorio — mostrando una scheda solo quando qualcosa emerge. Nessuna scheda visibile è un buon segno, non una funzione mancante."
     }
   },
   "mood": {
@@ -2264,6 +2264,8 @@
       "historyEmpty": "Le tue conversazioni compaiono qui. Fai una domanda per iniziare.",
       "historyDeleteAria": "Elimina conversazione",
       "historyDeleted": "Conversazione eliminata",
+      "historySearchEmpty": "Nessuna conversazione corrisponde alla tua ricerca.",
+      "historyLoadingMore": "Caricamento…",
       "sourcesTitle": "A cosa accedo",
       "sourcesFresh": "Aggiornate",
       "sourcesStale": "Datate",
