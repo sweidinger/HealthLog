@@ -2733,6 +2733,12 @@ model MedicationIntakeEvent {
   // v1.7.0 sync — keyset support for the `/api/sync/changes` intake feed
   // (`where userId` ordered by `(updatedAt asc, id asc)`).
   @@index([userId, updatedAt, id])
+  // v1.30.12 perf — the dashboard "meds today" read fires sibling queries that
+  // filter `(userId, scheduledFor)` WITHOUT `medicationId` (the composite above
+  // cannot range-seek those) and a per-medication `_max(takenAt)` group-by that
+  // scanned the whole intake history. These two let both index-seek instead.
+  @@index([userId, scheduledFor])
+  @@index([userId, medicationId, takenAt])
   @@map("medication_intake_events")
 }
 
