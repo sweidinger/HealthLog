@@ -16,6 +16,10 @@ vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/modules/gate", () => ({
+  requireModuleEnabled: vi.fn(),
+  isModuleEnabled: vi.fn(),
+}));
 vi.mock("@/lib/fhir/rest", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/fhir/rest")>();
   return { ...actual, loadFhirContext: vi.fn() };
@@ -36,6 +40,7 @@ import { GET as observationGet } from "../Observation/route";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { loadFhirContext, MAX_COUNT } from "@/lib/fhir/rest";
+import { requireModuleEnabled, isModuleEnabled } from "@/lib/modules/gate";
 import { observationsFromReportData } from "@/lib/fhir/resources";
 
 const SESSION_OK = {
@@ -65,6 +70,10 @@ beforeEach(() => {
     count: 1,
     resetAt: Date.now(),
   } as never);
+  // The doctorReport module is ON for the contract assertions below; the
+  // OFF behaviour is pinned in `module-gate.test.ts`.
+  vi.mocked(requireModuleEnabled).mockResolvedValue({ enabled: true });
+  vi.mocked(isModuleEnabled).mockResolvedValue(true);
   vi.mocked(loadFhirContext).mockResolvedValue({
     data: {} as never,
     identity: { insuranceNumber: null },
