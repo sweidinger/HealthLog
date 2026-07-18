@@ -318,15 +318,25 @@ async function postBatch(request: NextRequest): Promise<Response> {
     // per-day cumulative `stats:` total, or a manual entry never carries a
     // spread, so we pin them to null there even if a client mis-sends the
     // fields — `value` stays the single source of truth for those rows.
+    //
+    // v1.30.8 — validate the spread the same way `value` is guarded (above):
+    // it now drives the DAY min/max band + the intraday envelope, so an
+    // out-of-range or mis-ordered spread (a spurious `discreteMin` of 0, a
+    // sensor glitch) would poison the aggregate exactly like a bogus `value`
+    // would. Persist the spread ONLY when both extremes are present, in range,
+    // and correctly ordered around `value`; otherwise drop to null and keep the
+    // trustworthy average. Partial or invalid spread → avg-only, still valid.
     const isHrBucket = isAggregatedBucketExternalId(entry.externalId);
-    const valueMin =
-      isHrBucket && typeof mapped.valueMin === "number"
-        ? mapped.valueMin
-        : null;
-    const valueMax =
-      isHrBucket && typeof mapped.valueMax === "number"
-        ? mapped.valueMax
-        : null;
+    const spreadValid =
+      isHrBucket &&
+      typeof mapped.valueMin === "number" &&
+      typeof mapped.valueMax === "number" &&
+      validateMeasurementRange(mapped.type, mapped.valueMin) === null &&
+      validateMeasurementRange(mapped.type, mapped.valueMax) === null &&
+      mapped.valueMin <= mapped.value &&
+      mapped.value <= mapped.valueMax;
+    const valueMin = spreadValid ? mapped.valueMin : null;
+    const valueMax = spreadValid ? mapped.valueMax : null;
 
     prepared.push({
       index,

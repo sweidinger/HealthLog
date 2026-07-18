@@ -90,6 +90,19 @@ describe("isAggregatedBucketExternalId", () => {
   ])("returns false for a non-bucket externalId %s", (id) => {
     expect(isAggregatedBucketExternalId(id as string | null)).toBe(false);
   });
+
+  it.each([
+    // v1.30.8 — these PARSE via V8's silent rollover but are NOT canonical, so
+    // they'd key a row the canonical (toISOString) client never emits → an
+    // un-mergeable duplicate + wrong-day placement. Must be rejected.
+    "stats:HKQuantityTypeIdentifierHeartRate:2026-07-18T24:00:00.000Z", // → 07-19T00
+    "stats:HKQuantityTypeIdentifierHeartRate:2026-04-31T14:30:00.000Z", // → 05-01
+    "stats:HKQuantityTypeIdentifierHeartRate:2026-02-29T14:30:00.000Z", // non-leap → 03-01
+    "stats:HKQuantityTypeIdentifierHeartRate:2026-12-31T24:00:00.000Z", // → 2027-01-01
+  ])("rejects a non-canonical rollover instant %s", (id) => {
+    expect(isAggregatedBucketExternalId(id)).toBe(false);
+    expect(parseAggregatedBucketStart(id)).toBeNull();
+  });
 });
 
 describe("targetsAggregatedBucket", () => {
