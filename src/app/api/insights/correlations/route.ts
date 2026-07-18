@@ -101,7 +101,17 @@ export const GET = apiHandler(async () => {
   // `buildMeasurementDailySeries`'s per-type grain resolution below (source
   // collapse for cumulative types, per-night reconstruction for sleep); the
   // rest of the channels never look at them.
-  const [measurements, moodEntries, priorityJson] = await Promise.all([
+  // v1.30 (PERFAUDIT M1) — `orderBy asc` + `take` truncates from the START
+  // of the window. A dense account (unconsolidated step chunks alone can
+  // run ~200 rows/day → 36 000 rows over 180 days) can exceed the cap, and
+  // an ascending order then drops the NEWEST rows — exactly backwards for
+  // `discoverEmergingCorrelations`, whose entire job is the recent window.
+  // Order DESC so the cap keeps the most-recent rows, then re-sort ASC in
+  // JS before folding into per-type series (every downstream day-bucketing
+  // pass is order-insensitive, but callers document an ascending contract).
+  const MEASUREMENT_READ_CAP = 20000;
+  const MOOD_READ_CAP = 5000;
+  const [measurementsDesc, moodEntriesDesc, priorityJson] = await Promise.all([
     prisma.measurement.findMany({
       where: {
         userId: user.id,
@@ -109,8 +119,8 @@ export const GET = apiHandler(async () => {
         measuredAt: { gte: since },
         type: { in: [...behaviourTypes, ...outcomeTypes] },
       },
-      orderBy: { measuredAt: "asc" },
-      take: 20000,
+      orderBy: { measuredAt: "desc" },
+      take: MEASUREMENT_READ_CAP,
       select: {
         type: true,
         value: true,
@@ -122,12 +132,20 @@ export const GET = apiHandler(async () => {
     }),
     prisma.moodEntry.findMany({
       where: { userId: user.id, deletedAt: null, moodLoggedAt: { gte: since } },
-      orderBy: { moodLoggedAt: "asc" },
-      take: 5000,
+      orderBy: { moodLoggedAt: "desc" },
+      take: MOOD_READ_CAP,
       select: { score: true, moodLoggedAt: true },
     }),
     loadUserSourcePriority(user.id),
   ]);
+  const measurementsCapped = measurementsDesc.length >= MEASUREMENT_READ_CAP;
+  const moodCapped = moodEntriesDesc.length >= MOOD_READ_CAP;
+  const measurements = [...measurementsDesc].sort(
+    (a, b) => a.measuredAt.getTime() - b.measuredAt.getTime(),
+  );
+  const moodEntries = [...moodEntriesDesc].sort(
+    (a, b) => a.moodLoggedAt.getTime() - b.moodLoggedAt.getTime(),
+  );
 
   const measurementsByType = new Map<string, MeasurementSeriesRow[]>();
   for (const m of measurements) {
@@ -221,6 +239,13 @@ export const GET = apiHandler(async () => {
       pairs_tested: result.pairsTested,
       discovered: result.discovered.length,
       fdr_q: result.fdrQ,
+      // PERFAUDIT M1 — surfaces when a dense account's window exceeded the
+      // read cap. The cap now falls on the OLDEST rows (desc + take), so a
+      // capped read still covers the recent window `discoverEmergingCorrelations`
+      // needs; this only tells a dashboard the retrospective scan's older
+      // half of the window may be thin.
+      measurements_capped: measurementsCapped,
+      mood_entries_capped: moodCapped,
       // FDREXTEND — per-channel day-counts so a dashboard can see whether the
       // two sparse new channels reached the n ≥ 20 floor or degraded to absent.
       compliance_days: complianceSeries.points.length,
