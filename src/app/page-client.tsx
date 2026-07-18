@@ -1,9 +1,11 @@
 "use client";
 
-import React, { Suspense, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { Suspense, useCallback, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useMounted } from "@/hooks/use-mounted";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import {
   Activity,
   Bone,
@@ -190,8 +192,23 @@ export default function DashboardPageClient() {
   const mounted = useMounted();
   const { t } = useTranslations();
   const fmt = useFormatters();
+  const queryClient = useQueryClient();
   const [quickEntryDialog, setQuickEntryDialog] =
     useState<QuickEntryDialog>(null);
+
+  // v1.30.1 M12 — pull-to-refresh parity for the dashboard, named as one
+  // of the sharpest PWA-resume-staleness surfaces in the audit (it
+  // already opts back into `refetchOnWindowFocus`, but a PWA resumed
+  // from the home screen/app-switcher, not a browser tab focus event,
+  // is the more common mobile path and that never fires a focus event).
+  // The dashboard fans out into a dozen-plus independent per-tile/chart
+  // queries, so — like `/insights` — refetching every currently-active
+  // query is the only tractable "refresh everything visible" shape.
+  const refreshDashboard = useCallback(
+    () => queryClient.refetchQueries({ type: "active" }),
+    [queryClient],
+  );
+  const pull = usePullToRefresh({ onRefresh: refreshDashboard });
   // v1.4.29 M5 — the three inline dashboard queries default to a
   // 0-ms `staleTime`, so a tab-focus-and-return triggered a refetch
   // storm. None of these are real-time data; minute-scale staleness
@@ -785,6 +802,7 @@ export default function DashboardPageClient() {
 
   return (
     <div className="space-y-6">
+      <PullToRefreshIndicator {...pull} />
       <DashboardHeader onQuickEntry={setQuickEntryDialog} />
 
       {/* S2 — the Today hero, promoted above the tile strip (MARC sign-off

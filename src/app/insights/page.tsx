@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { Fragment, useCallback, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { SlidersHorizontal, TrendingUp } from "lucide-react";
@@ -11,6 +11,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import {
   orderedVisibleSectionIds,
   type InsightsSectionId,
@@ -263,6 +265,20 @@ export default function InsightsPage() {
   const { isAuthenticated, user } = useAuth();
   const mounted = useMounted();
   const { t } = useTranslations();
+  const queryClient = useQueryClient();
+
+  // v1.30.1 M12 — the overview fans out into ~6 independent queries
+  // (comprehensive / advisor / analytics / snapshot / derived batch /
+  // layout) mounted by different hooks below, so there's no single
+  // `refetch()` that covers the page. Refetching every currently-mounted
+  // ("active") query is the same blanket approach the audit's fallback
+  // suggests for PWA-resume staleness, and it's the right shape here
+  // regardless of resume vs. an explicit pull.
+  const refreshInsights = useCallback(
+    () => queryClient.refetchQueries({ type: "active" }),
+    [queryClient],
+  );
+  const pull = usePullToRefresh({ onRefresh: refreshInsights });
 
   // v1.4.33 IW9 — scroll-to-top on route mount centralised in the
   // shared `useScrollResetOnRoute()` hook. The mother page + the
@@ -531,6 +547,7 @@ export default function InsightsPage() {
     // zero-gap). Each section owns its OWN `SectionHeading` + `space-y-3` to its
     // card, so the rhythm is even regardless of which sections are present.
     <div className="space-y-6">
+      <PullToRefreshIndicator {...pull} />
       <HeroStrip
         briefing={briefingPayload}
         updatedAt={heroStripUpdatedAt}

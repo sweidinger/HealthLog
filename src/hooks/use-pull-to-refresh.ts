@@ -60,8 +60,22 @@ export function usePullToRefresh({
     let busy = false;
     let lastDistance = 0;
 
-    const atTop = () =>
-      (document.scrollingElement?.scrollTop ?? window.scrollY) <= 0;
+    // v1.30.1 M12 — the authenticated shell's actual scroll container is
+    // `<main id="main-content">` (`AuthShell` sets it `overflow-y-auto`
+    // inside a height-locked `h-dvh` layout); `document.scrollingElement`
+    // never moves there; it stays permanently at 0. Checking the document
+    // root meant "at top" was always true regardless of how far the user
+    // had actually scrolled a long list — a downward drag mid-scroll could
+    // arm the pull gesture instead of just scrolling the list. Falls back
+    // to the document root for the few body-scrolled surfaces (public
+    // pages) that render outside the shell's `#main-content`.
+    const atTop = () => {
+      const main = document.getElementById("main-content");
+      const scrollTop = main
+        ? main.scrollTop
+        : (document.scrollingElement?.scrollTop ?? window.scrollY);
+      return scrollTop <= 0;
+    };
 
     const reset = () => {
       startY = null;

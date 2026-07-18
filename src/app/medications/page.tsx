@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
-import { queryKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  medicationDependentKeys,
+  queryKeys,
+} from "@/lib/query-keys";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { MedicationWizardDialog } from "@/components/medications/wizard/medication-wizard-dialog";
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
@@ -221,6 +227,17 @@ export default function MedicationsPage() {
     refetchOnMount: "always",
   });
 
+  // v1.30.1 M12 — pull-to-refresh parity with labs/checkups/mood/measurements.
+  // Medications is one of the sharpest PWA-resume-staleness surfaces (a
+  // background-refreshed take/skip from a notification, or a cross-device
+  // write, wouldn't otherwise show up until the 5-min staleTime lapses or a
+  // full remount re-triggers `refetchOnMount: "always"` above).
+  const refreshMedications = useCallback(
+    () => invalidateKeys(queryClient, medicationDependentKeys),
+    [queryClient],
+  );
+  const pull = usePullToRefresh({ onRefresh: refreshMedications });
+
   // v1.29.x — once the highlighted card is in the DOM, scroll it into view
   // and clear the highlight state after a few seconds so the ring is a
   // one-time "you tapped here" cue, not a permanent tint (mirrors the
@@ -363,6 +380,7 @@ export default function MedicationsPage() {
 
   return (
     <div className="space-y-6">
+      <PullToRefreshIndicator {...pull} />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <h1
