@@ -26,6 +26,7 @@ import {
   MIN_BASELINE_DAYS,
   computeHourlyMeanSeries,
   computeTenMinuteMeanSeries,
+  computeUploadedBucketSeries,
   detectTensionWindow,
   makeLocalResolver,
   type IntradayHrBucket,
@@ -34,6 +35,10 @@ import {
   type TensionWindow,
   type WorkoutInterval,
 } from "@/lib/analytics/intraday-pulse";
+import {
+  isAggregatedBucketExternalId,
+  parseAggregatedBucketStart,
+} from "@/lib/measurements/apple-health-mapping";
 
 /** UTC padding around the local calendar day so the query is a safe superset. */
 const WINDOW_LEAD_MS = 15 * 60 * 60 * 1000; // covers UTC−14…+12 day starts
@@ -184,7 +189,13 @@ export async function loadIntradayPulse(
       },
       orderBy: { measuredAt: "asc" },
       take: MAX_DAY_PULSE_ROWS,
-      select: { value: true, measuredAt: true, externalId: true },
+      select: {
+        value: true,
+        valueMin: true,
+        valueMax: true,
+        measuredAt: true,
+        externalId: true,
+      },
     }),
     prisma.measurement.findMany({
       where: {
@@ -208,24 +219,57 @@ export async function loadIntradayPulse(
     resolveBaseline(userId, timezone),
   ]);
 
-  // Split live PULSE rows into raw per-sample rows and already-folded
-  // `stats:` hourly-mean rows (the dense-intraday-retention fold's output —
-  // see `dense-intraday-retention.ts`). A day's raw rows are folded and
-  // tombstoned atomically as a whole, so in practice a day is either wholly
-  // raw or wholly folded; the split still guards against ever mixing the two
-  // grains into one mislabeled series.
+  // v1.30.7 (iOS #34) — classify the day's PULSE rows three ways by externalId
+  // shape (the shapes are disjoint, so this is unambiguous):
+  //   · raw per-sample        — no `stats:` prefix;
+  //   · uploaded 10-min bucket — `stats:HK…:<10-min ISO instant with Z>`
+  //     (the go-forward aggregated wire contract);
+  //   · server-folded hourly  — any other `stats:` row (the dense-intraday
+  //     retention fold's `stats:<HK>:<day>T<HH>` local-hour output).
+  // Per the per-day-exclusive cutover invariant a day is normally single-grain;
+  // the one cutover-straddling local day is handled by the overlay below.
   const rawPulseRows = pulseRows.filter(
     (r) => !r.externalId?.startsWith("stats:"),
   );
-  const foldedPulseRows = pulseRows.filter((r) =>
-    r.externalId?.startsWith("stats:"),
+  const uploadedBucketRows = pulseRows.filter((r) =>
+    isAggregatedBucketExternalId(r.externalId),
+  );
+  const foldedPulseRows = pulseRows.filter(
+    (r) =>
+      r.externalId?.startsWith("stats:") &&
+      !isAggregatedBucketExternalId(r.externalId),
   );
 
-  const tenMinSeries = computeTenMinuteMeanSeries(
+  const rawSeries = computeTenMinuteMeanSeries(
     rawPulseRows.map((r) => ({ measuredAt: r.measuredAt, value: r.value })),
     dateKey,
     localOf,
   );
+  const bucketSeries = computeUploadedBucketSeries(
+    uploadedBucketRows.flatMap((r) => {
+      const bucketStart = parseAggregatedBucketStart(r.externalId);
+      return bucketStart
+        ? [{ bucketStart, mean: r.value, min: r.valueMin, max: r.valueMax }]
+        : [];
+    }),
+    dateKey,
+    localOf,
+  );
+
+  // Merge the two 10-min grains. Normal days are single-grain, so one of the
+  // two is empty. The cutover-straddling local day is the only mix: overlay the
+  // uploaded buckets onto the raw slots, bucket authoritative on collision
+  // (the aggregate is the intended go-forward value for that slot).
+  let tenMinSeries: IntradayHrBucket[];
+  if (bucketSeries.length > 0 && rawSeries.length > 0) {
+    const bySlot = new Map(rawSeries.map((b) => [b.startMinute, b]));
+    for (const b of bucketSeries) bySlot.set(b.startMinute, b);
+    tenMinSeries = [...bySlot.values()].sort(
+      (a, b) => a.startMinute - b.startMinute,
+    );
+  } else {
+    tenMinSeries = bucketSeries.length > 0 ? bucketSeries : rawSeries;
+  }
 
   // Day-navigator fallback (S11 / v1.29.x): a day outside
   // `DENSE_INTRADAY_RETENTION_DAYS` has its raw rows tombstoned by the

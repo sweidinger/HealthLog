@@ -416,8 +416,8 @@ async function runRollupAggregate(input: {
         ${dateTrunc}                                              AS bucket_start,
         COUNT(*)                                                  AS count,
         AVG(m."value")::double precision                          AS mean,
-        MIN(m."value")::double precision                          AS min_value,
-        MAX(m."value")::double precision                          AS max_value,
+        MIN(COALESCE(m."value_min", m."value"))::double precision AS min_value,
+        MAX(COALESCE(m."value_max", m."value"))::double precision AS max_value,
         SUM(m."value")::double precision                          AS sum_value,
         STDDEV_POP(m."value")::double precision                   AS sd,
         REGR_SLOPE(
@@ -464,8 +464,8 @@ async function runRollupAggregate(input: {
       ${dateTrunc}                                              AS bucket_start,
       COUNT(*)                                                  AS count,
       AVG(m."value")::double precision                          AS mean,
-      MIN(m."value")::double precision                          AS min_value,
-      MAX(m."value")::double precision                          AS max_value,
+      MIN(COALESCE(m."value_min", m."value"))::double precision AS min_value,
+      MAX(COALESCE(m."value_max", m."value"))::double precision AS max_value,
       SUM(m."value")::double precision                          AS sum_value,
       STDDEV_POP(m."value")::double precision                   AS sd,
       REGR_SLOPE(

@@ -112,6 +112,14 @@ export interface IntradayHrBucket {
   mean: number;
   /** Raw sample count — buckets below `MIN_SAMPLES_PER_BUCKET` are gaps. */
   count: number;
+  /**
+   * v1.30.7 — the bucket's low / high bpm, when known: the min/max of the raw
+   * samples (raw path) or the device-supplied `discreteMin`/`discreteMax` (an
+   * uploaded 10-min bucket). Absent when the source carries no spread. Drives
+   * the intraday envelope band around `mean`.
+   */
+  min?: number;
+  max?: number;
 }
 
 /** A workout's local-day span, in minutes since local midnight. */
@@ -182,7 +190,10 @@ export function computeTenMinuteMeanSeries(
   dayKey: string,
   localOf: LocalResolver,
 ): IntradayHrBucket[] {
-  const acc = new Map<number, { sum: number; count: number }>();
+  const acc = new Map<
+    number,
+    { sum: number; count: number; min: number; max: number }
+  >();
   for (const s of samples) {
     const local = localOf(s.measuredAt);
     if (local.dayKey !== dayKey) continue;
@@ -192,17 +203,72 @@ export function computeTenMinuteMeanSeries(
     if (bucket) {
       bucket.sum += s.value;
       bucket.count += 1;
+      bucket.min = Math.min(bucket.min, s.value);
+      bucket.max = Math.max(bucket.max, s.value);
     } else {
-      acc.set(startMinute, { sum: s.value, count: 1 });
+      acc.set(startMinute, {
+        sum: s.value,
+        count: 1,
+        min: s.value,
+        max: s.value,
+      });
     }
   }
   return [...acc.entries()]
-    .map(([startMinute, { sum, count }]) => ({
+    .map(([startMinute, { sum, count, min, max }]) => ({
       startMinute,
       mean: round1(sum / count),
       count,
+      // v1.30.7 — carry the raw spread for the envelope band, for parity with
+      // an uploaded bucket's device-supplied min/max.
+      min: round1(min),
+      max: round1(max),
     }))
     .sort((a, b) => a.startMinute - b.startMinute);
+}
+
+/**
+ * v1.30.7 (iOS #34) — build the 10-minute series directly from UPLOADED
+ * aggregated HR buckets (`stats:HKQuantityTypeIdentifierHeartRate:<10-min-Z>`
+ * rows), one bucket per slot. Each row already IS a 10-minute mean, so it maps
+ * 1:1 to a plotted point; `min`/`max` carry the device's `discreteMin`/`Max`.
+ *
+ * A device-computed bucket statistic summarises many raw samples the client
+ * aggregated on-device, so it is treated as DENSE — assigned a synthetic
+ * `count` of `MIN_SAMPLES_PER_BUCKET` so tension detection stays enabled on a
+ * bucket-native day (the wire carries no sample count; see the contract doc's
+ * open-risks note on the density gate).
+ *
+ * `bucketStart` is the canonical UTC 10-min boundary from the externalId
+ * (resolved to the local slot), NOT the row's `measuredAt` (which carries the
+ * display offset). Last write wins on the rare slot collision (:45-offset
+ * zones can skew two UTC buckets toward one local slot).
+ */
+export function computeUploadedBucketSeries(
+  buckets: ReadonlyArray<{
+    bucketStart: Date;
+    mean: number;
+    min: number | null;
+    max: number | null;
+  }>,
+  dayKey: string,
+  localOf: LocalResolver,
+): IntradayHrBucket[] {
+  const acc = new Map<number, IntradayHrBucket>();
+  for (const b of buckets) {
+    const local = localOf(b.bucketStart);
+    if (local.dayKey !== dayKey) continue;
+    const startMinute =
+      Math.floor(local.minuteOfDay / BUCKET_MINUTES) * BUCKET_MINUTES;
+    acc.set(startMinute, {
+      startMinute,
+      mean: round1(b.mean),
+      count: MIN_SAMPLES_PER_BUCKET,
+      ...(b.min != null ? { min: round1(b.min) } : {}),
+      ...(b.max != null ? { max: round1(b.max) } : {}),
+    });
+  }
+  return [...acc.values()].sort((a, b) => a.startMinute - b.startMinute);
 }
 
 /**

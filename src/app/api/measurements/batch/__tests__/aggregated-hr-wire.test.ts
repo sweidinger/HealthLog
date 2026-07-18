@@ -3,10 +3,10 @@
  * `POST /api/measurements/batch`.
  *
  * Asserts:
- *   - a fresh hourly HR bucket inserts;
- *   - a re-post of the same hour OVERWRITES (status `updated`, not a
+ *   - a fresh 10-min HR bucket inserts;
+ *   - a re-post of the same bucket OVERWRITES (status `updated`, not a
  *     duplicate row);
- *   - a malformed hourly-HR bucket externalId is `skipped`;
+ *   - a malformed aggregated HR bucket externalId is `skipped`;
  *   - the per-sample uuid HR path is unaffected (immutable duplicate);
  *   - the existing per-day step `stats:` overwrite path is unaffected.
  */
@@ -131,8 +131,8 @@ beforeEach(() => {
   vi.mocked(prisma.measurement.updateMany).mockResolvedValue({ count: 1 });
 });
 
-describe("POST /api/measurements/batch — hourly HR wire contract (iOS #34)", () => {
-  it("inserts a fresh hourly HR bucket as a PULSE row", async () => {
+describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)", () => {
+  it("inserts a fresh 10-min HR bucket as a PULSE row", async () => {
     vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
     const res = await POST(
       makeRequest({ entries: [hrBucketEntry(HR_BUCKET_ID, 72)] }),
@@ -143,7 +143,7 @@ describe("POST /api/measurements/batch — hourly HR wire contract (iOS #34)", (
     expect(data.updated).toBe(0);
     expect(data.entries[0].status).toBe("inserted");
 
-    // Stored as a PULSE row carrying the hourly average value.
+    // Stored as a PULSE row carrying the 10-min average value.
     const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
     const rows = (createArg as { data: { type: string; value: number }[] })
       .data;
@@ -151,7 +151,7 @@ describe("POST /api/measurements/batch — hourly HR wire contract (iOS #34)", (
     expect(rows[0].value).toBe(72);
   });
 
-  it("persists per-bucket min/max on a fresh hourly HR bucket (iOS #34 ext)", async () => {
+  it("persists per-bucket min/max on a fresh 10-min HR bucket (iOS #34 ext)", async () => {
     vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
     const res = await POST(
       makeRequest({
@@ -214,8 +214,8 @@ describe("POST /api/measurements/batch — hourly HR wire contract (iOS #34)", (
     expect(rows[0].valueMax).toBeNull();
   });
 
-  it("overwrites the same hour bucket on a re-post (updated, not duplicate)", async () => {
-    // The bucket already exists from an earlier within-hour post.
+  it("overwrites the same bucket on a re-post (updated, not duplicate)", async () => {
+    // The bucket already exists from an earlier within-bucket post.
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([
       {
         type: "PULSE",
@@ -234,19 +234,19 @@ describe("POST /api/measurements/batch — hourly HR wire contract (iOS #34)", (
     expect(data.duplicates).toBe(0);
     expect(data.entries[0].status).toBe("updated");
 
-    // The overwrite went through updateMany with the new hourly average.
+    // The overwrite went through updateMany with the new 10-min average.
     expect(prisma.measurement.updateMany).toHaveBeenCalledTimes(1);
     const updateArg = vi.mocked(prisma.measurement.updateMany).mock.calls[0][0];
     expect((updateArg as { data: { value: number } }).data.value).toBe(78);
     expect(prisma.measurement.createMany).not.toHaveBeenCalled();
   });
 
-  it("skips a malformed hourly HR bucket externalId", async () => {
+  it("skips a malformed aggregated HR bucket externalId", async () => {
     const res = await POST(
       makeRequest({
         entries: [
           hrBucketEntry(
-            "stats:HKQuantityTypeIdentifierHeartRate:2026-06-21T14:30:00.000Z",
+            "stats:HKQuantityTypeIdentifierHeartRate:2026-06-21T14:35:00.000Z",
             70,
           ),
         ],

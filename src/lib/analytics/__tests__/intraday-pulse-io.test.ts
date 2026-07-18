@@ -154,4 +154,59 @@ describe("loadIntradayPulse", () => {
     );
     expect(result.baseline).not.toBe(buggyBaseline);
   });
+
+  it("v1.30.7 — classifies uploaded 10-min HR buckets to a tenMin series with the envelope", async () => {
+    const tz = "UTC";
+    const dateKey = "2026-06-15";
+
+    // A bucket-native day: the view-day PULSE read returns uploaded 10-min
+    // `stats:<HK>:<ISO-Z>` rows (avg in `value`, spread in valueMin/valueMax),
+    // no raw per-sample rows. Mature resting baseline so nothing falls back.
+    const restingRows = Array.from({ length: 20 }, (_, i) => ({
+      value: 55,
+      measuredAt: new Date(
+        `2026-05-${String((i % 28) + 1).padStart(2, "0")}T06:00:00.000Z`,
+      ),
+    }));
+    const bucketRows = [
+      {
+        value: 72,
+        valueMin: 64,
+        valueMax: 88,
+        measuredAt: new Date("2026-06-15T08:09:00.000Z"),
+        externalId:
+          "stats:HKQuantityTypeIdentifierHeartRate:2026-06-15T08:00:00.000Z",
+      },
+      {
+        value: 75,
+        valueMin: 70,
+        valueMax: 81,
+        measuredAt: new Date("2026-06-15T08:19:00.000Z"),
+        externalId:
+          "stats:HKQuantityTypeIdentifierHeartRate:2026-06-15T08:10:00.000Z",
+      },
+    ];
+
+    findManyMock.mockImplementation(
+      async (args: {
+        where: { type: string; measuredAt?: unknown };
+        take?: number;
+      }) => {
+        if (args.where.type === "RESTING_HEART_RATE") return restingRows;
+        if (args.where.type === "PULSE" && args.where.measuredAt) {
+          return bucketRows; // the view-day-windowed read
+        }
+        return [];
+      },
+    );
+
+    const result = await loadIntradayPulse("user-1", tz, dateKey);
+
+    expect(result.resolution).toBe("tenMin");
+    expect(result.bucketMinutes).toBe(10);
+    expect(result.series).toEqual([
+      { startMinute: 480, mean: 72, count: 2, min: 64, max: 88 },
+      { startMinute: 490, mean: 75, count: 2, min: 70, max: 81 },
+    ]);
+  });
 });

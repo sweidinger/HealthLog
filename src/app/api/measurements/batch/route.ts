@@ -50,8 +50,8 @@ import {
 import { withIdempotency } from "@/lib/idempotency";
 import {
   mapAppleHealthEntry,
-  isHourlyHeartRateStatsExternalId,
-  targetsHourlyHeartRateBucket,
+  isAggregatedBucketExternalId,
+  targetsAggregatedBucket,
 } from "@/lib/measurements/apple-health-mapping";
 import {
   MEASURED_AT_TOLERANCE_MS,
@@ -292,19 +292,18 @@ async function postBatch(request: NextRequest): Promise<Response> {
       continue;
     }
 
-    // v1.19.0 (iOS #34) — go-forward aggregated heart-rate wire
-    // contract. A `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row
-    // is the hourly-average PULSE bucket; it rides the generic `stats:`
-    // overwrite path below so a within-hour re-post (the running mean
-    // shifts) replaces the value instead of duplicating. Reject a row
-    // that targets the HR-bucket prefix but carries a malformed hour
-    // suffix — a garbage suffix would mint an un-overwriteable row that
-    // the next hour's re-post can't collapse onto. A well-formed bucket
-    // (and every non-HR `stats:` / per-sample `uuid` externalId) passes
-    // through unchanged.
+    // v1.30.7 (iOS #34) — go-forward aggregated heart-rate wire
+    // contract. A `stats:HKQuantityTypeIdentifierHeartRate:<10-min-ISO-Z>`
+    // row is the 10-minute-average PULSE bucket; it rides the generic
+    // `stats:` overwrite path below so a within-bucket re-post (the running
+    // mean shifts) replaces the value instead of duplicating. Reject a row
+    // that targets a bucket prefix but carries a malformed suffix — a
+    // garbage suffix would mint an un-overwriteable row the next re-post
+    // can't collapse onto. A well-formed bucket (and every non-bucket
+    // `stats:` / per-sample `uuid` externalId) passes through unchanged.
     if (
-      targetsHourlyHeartRateBucket(entry.externalId) &&
-      !isHourlyHeartRateStatsExternalId(entry.externalId)
+      targetsAggregatedBucket(entry.externalId) &&
+      !isAggregatedBucketExternalId(entry.externalId)
     ) {
       results[index] = {
         index,
@@ -314,12 +313,12 @@ async function postBatch(request: NextRequest): Promise<Response> {
       continue;
     }
 
-    // v1.19.2 (iOS #34 extension) — the per-bucket MIN / MAX are persisted
-    // ONLY on a well-formed hourly HR bucket row. A per-sample reading, a
+    // v1.30.7 (iOS #34) — the per-bucket MIN / MAX are persisted ONLY on a
+    // well-formed 10-min aggregated bucket row. A per-sample reading, a
     // per-day cumulative `stats:` total, or a manual entry never carries a
     // spread, so we pin them to null there even if a client mis-sends the
     // fields — `value` stays the single source of truth for those rows.
-    const isHrBucket = isHourlyHeartRateStatsExternalId(entry.externalId);
+    const isHrBucket = isAggregatedBucketExternalId(entry.externalId);
     const valueMin =
       isHrBucket && typeof mapped.valueMin === "number"
         ? mapped.valueMin
