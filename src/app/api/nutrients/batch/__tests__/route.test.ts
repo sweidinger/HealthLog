@@ -46,6 +46,9 @@ vi.mock("@/lib/idempotency", () => ({
       fn(...args),
 }));
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
+vi.mock("@/lib/cache/invalidate", () => ({
+  invalidateUserDashboardSnapshot: vi.fn(),
+}));
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
@@ -65,6 +68,7 @@ import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { auditLog } from "@/lib/auth/audit";
+import { invalidateUserDashboardSnapshot } from "@/lib/cache/invalidate";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -313,6 +317,40 @@ describe("POST /api/nutrients/batch — write semantics", () => {
       skipDuplicates: true,
     });
     expect(prisma.nutrientIntakeDay.update).not.toHaveBeenCalled();
+  });
+
+  // v1.30.3 (QA F9) — a landed row must evict the dashboard snapshot so
+  // the water/nutrient tile reflects the new total on the very next read,
+  // matching the manual water POST's own posture (`nutrients/water/route.ts`).
+  it("evicts the dashboard snapshot when a row lands", async () => {
+    const day = recentDay();
+    const res = await POST(
+      postReq({
+        entries: [{ day, nutrient: "vitamin_d", unit: "ug", amount: 22.5 }],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(invalidateUserDashboardSnapshot).toHaveBeenCalledTimes(1);
+    expect(invalidateUserDashboardSnapshot).toHaveBeenCalledWith("user-1");
+  });
+
+  it("does NOT evict the dashboard snapshot when nothing lands (every entry skipped)", async () => {
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            day: recentDay(),
+            nutrient: "vitamin_d",
+            unit: "mg", // wrong unit vs the catalog's canonical "ug" — skipped
+            amount: 22.5,
+          },
+        ],
+      }),
+    );
+    const body = (await res.json()) as BatchResponse;
+    expect(body.data.inserted).toBe(0);
+    expect(body.data.updated).toBe(0);
+    expect(invalidateUserDashboardSnapshot).not.toHaveBeenCalled();
   });
 
   it("reports updated (never duplicate) when the composite key already exists", async () => {

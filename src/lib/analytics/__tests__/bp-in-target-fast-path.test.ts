@@ -422,6 +422,42 @@ describe("computeBpInTargetFastPath", () => {
       expect(ROLLUP_FIND_MANY).not.toHaveBeenCalled();
     });
 
+    // v1.30.3 (QA F7) — the guard force-routes a non-near-UTC user to the
+    // live path specifically so their pairing is computed correctly; before
+    // this fix the live path's same-day fallback still hardcoded the Berlin
+    // day, undoing exactly the protection the guard exists to provide.
+    it("pairs on the user's OWN tz on the live path it was force-routed to (Tokyo)", async () => {
+      const coverage = new Map<string, boolean>([
+        ["BLOOD_PRESSURE_SYS", true],
+        ["BLOOD_PRESSURE_DIA", true],
+      ]);
+      FULLY_COVERED.mockReturnValue(true);
+      PROBE.mockResolvedValue(coverage);
+
+      // 2026-05-14T21:50Z = 23:50 Berlin (05-14) / 06:50 Tokyo (05-15).
+      // 2026-05-14T22:10Z = 00:10 Berlin (05-15, the NEXT Berlin day) /
+      // 07:10 Tokyo (05-15, the SAME Tokyo day). >5-min gap, so only the
+      // same-calendar-day fallback can pair them — and only Tokyo agrees.
+      QUERY_RAW.mockResolvedValueOnce([
+        { measured_at: new Date("2026-05-14T21:50:00.000Z"), value: 125 },
+      ]).mockResolvedValueOnce([
+        { measured_at: new Date("2026-05-14T22:10:00.000Z"), value: 75 },
+      ]);
+
+      const result = await computeBpInTargetFastPath({
+        userId: "user-tokyo-pair",
+        targets: TARGETS_UNDER_65,
+        now: new Date("2026-05-17T12:00:00.000Z"),
+        coverage,
+        userTz: "Asia/Tokyo",
+      });
+
+      expect(result.path).toBe("live");
+      // A Berlin-day pairing would reject this pair (different Berlin
+      // calendar days) and every window would read null/no-pairs.
+      expect(result.last30Days).toEqual({ pct: 100, pairs: 1 });
+    });
+
     it("defaults to near-UTC when the caller omits userTz (legacy compat)", async () => {
       const coverage = new Map<string, boolean>([
         ["BLOOD_PRESSURE_SYS", true],

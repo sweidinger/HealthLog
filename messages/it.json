@@ -592,6 +592,7 @@
     "statusPresent": "Monitorato",
     "statusAbsent": "Non ancora monitorato",
     "statusModuleOff": "Disattivato",
+    "loadError": "Impossibile caricare lo stato di monitoraggio.",
     "connectCta": "Collega una fonte",
     "viewCta": "Visualizza",
     "ecg": {
@@ -599,7 +600,7 @@
     },
     "watchdog": {
       "title": "Monitoraggio automatico",
-      "description": "HealthLog osserva anche silenziosamente in background — notifiche di ritmo irregolare e disturbi respiratori da un orologio connesso, avvisi di scostamento dalla tua base di riferimento, e variazioni degne di nota tra i tuoi due ultimi pannelli di laboratorio — mostrando una scheda solo quando qualcosa emerge. Nessuna scheda visibile è un buon segno, non una funzione mancante."
+      "description": "HealthLog osserva anche silenziosamente in background — notifiche di ritmo irregolare e disturbi respiratori da un orologio connesso, avvisi di scostamento dalla tua base di riferimento, e variazioni degne di nota tra i tuoi due ultimi pannelli di laboratorio — mostrando una scheda solo quando qualcosa emerge. Se almeno una di queste fonti è collegata, nessuna scheda visibile è un buon segno, non una funzione mancante; se non ne è ancora collegata nessuna, semplicemente non c'è ancora nulla sotto controllo."
     }
   },
   "mood": {
@@ -2665,11 +2666,11 @@
         "fatFreeMassTitle": "Massa magra",
         "fatFreeMassBody": "La massa magra è tutto ciò che nel corpo non è grasso: muscoli, ossa, organi e acqua. Mantenerla o aumentarla mentre si perde peso indica di solito una composizione corporea più sana.",
         "fatMassTitle": "Massa grassa",
-        "fatMassBody": "La massa grassa è il peso totale del grasso nel corpo. Un po' di grasso è essenziale per gli ormoni e le riserve di energia, ma un eccesso — soprattutto sull'addome — aumenta il rischio per la salute a lungo termine.",
+        "fatMassBody": "La massa grassa è il peso totale del grasso nel corpo. Un po' di grasso è essenziale per gli ormoni e le riserve di energia, ma un eccesso — soprattutto sull'addome — aumenta il rischio per la salute a lungo termine (WHO 2024).",
         "muscleMassTitle": "Massa muscolare",
         "muscleMassBody": "La massa muscolare è il peso stimato dei muscoli del corpo. Più muscolo sostiene forza, metabolismo e mobilità, e di solito richiede impegno attivo per essere mantenuto con l'età.",
         "visceralFatTitle": "Grasso viscerale",
-        "visceralFatBody": "Il grasso viscerale è il grasso depositato in profondità nell'addome, intorno agli organi. A differenza del grasso sottocutaneo, un livello elevato è strettamente legato a malattie cardiache e diabete di tipo 2, quindi più basso è in genere meglio.",
+        "visceralFatBody": "Il grasso viscerale è il grasso depositato in profondità nell'addome, intorno agli organi. A differenza del grasso sottocutaneo, un livello elevato è strettamente legato a malattie cardiache e diabete di tipo 2 (AHA, Circulation 2021), quindi più basso è in genere meglio. La scala mostra un valore senza unità di misura (circa 1–12 è l'intervallo salutare, 13 e oltre è elevato); si tratta di una scala distinta dalle soglie in cm² ottenute per immagini che i clinici utilizzano, e non è intercambiabile con esse.",
         "leanBodyMassTitle": "Massa magra corporea",
         "leanBodyMassBody": "La massa magra corporea è il peso totale meno il grasso: muscoli, ossa, organi e acqua insieme. Seguirla accanto al peso mostra se i cambiamenti derivano dal muscolo o dal grasso.",
         "flightsClimbedTitle": "Piani saliti",
@@ -2699,7 +2700,7 @@
         "audioEventsTitle": "Eventi sonori intensi",
         "audioEventsBody": "Gli eventi sonori intensi segnalano i momenti in cui il rumore intorno a te ha raggiunto un livello che può danneggiare l'udito con esposizione sufficiente. Eventi frequenti sono un invito a cercare un ambiente più silenzioso o protezioni acustiche.",
         "daylightTitle": "Tempo alla luce del giorno",
-        "daylightBody": "Il tempo alla luce del giorno è quanto trascorri sotto la luce esterna ogni giorno. La luce diurna regolare sostiene un sano ritmo sonno-veglia e l'umore, e il tempo all'aperto è collegato alla salute degli occhi.",
+        "daylightBody": "Il tempo alla luce del giorno è quanto trascorri sotto la luce esterna ogni giorno. La luce diurna regolare sostiene un sano ritmo sonno-veglia e l'umore (CDC 2024), e il tempo all'aperto è collegato alla salute degli occhi.",
         "bloodGlucoseTitle": "Glicemia",
         "bloodGlucoseBody": "La glicemia è la quantità di zucchero nel sangue, la principale fonte di energia del corpo. Sale dopo i pasti e si stabilizza tra un pasto e l'altro; valori che restano alti nel tempo possono indicare diabete o prediabete.",
         "skinTemperatureTitle": "Temperatura cutanea",
@@ -2711,7 +2712,7 @@
         "wristTemperatureTitle": "Temperatura del polso",
         "wristTemperatureBody": "La temperatura del polso viene misurata mentre dormi ed è indicata come differenza dal tuo valore di riferimento, non come valore assoluto. Un valore stabile è normale, mentre un aumento prolungato può indicare malattia, allenamento intenso o un cambiamento del ciclo.",
         "fallsTitle": "Cadute",
-        "fallsBody": "Qui vengono contate le cadute forti rilevate dal tuo wearable. L'obiettivo è zero; un numero in aumento è un segnale di rischio di mobilità da segnalare a un medico, soprattutto per le persone anziane.",
+        "fallsBody": "Qui vengono contate le cadute forti rilevate dal tuo wearable. L'obiettivo è zero; un numero in aumento è un segnale di rischio di mobilità da segnalare a un medico, soprattutto per le persone anziane (CDC STEADI 2024).",
         "sixMinuteWalkTitle": "Distanza nel cammino di 6 minuti",
         "sixMinuteWalkBody": "È una stima di quanto potresti camminare in sei minuti, un classico test clinico di mobilità e resistenza cardiopolmonare. Il valore del wearable è un'approssimazione, non il test clinico supervisionato; ciò che conta è la tendenza stabile o in aumento.",
         "stairAscentSpeedTitle": "Velocità in salita scale",
@@ -4397,7 +4398,7 @@
           "fullBackup": {
             "title": "Backup completo",
             "description": "Tutti i tuoi dati in un unico file JSON: misurazioni, farmaci, umore, ciclo, esami di laboratorio, episodi di malattia, allergie, anamnesi familiare e allenamenti. Stesso formato del backup automatico settimanale.",
-            "scopeNote": "I file originali dei documenti e i dati di percorso GPS/campionamento degli allenamenti non sono inclusi — scaricali separatamente dall'archivio documenti o dall'esportazione degli allenamenti.",
+            "scopeNote": "I metadati dei documenti e il riepilogo IA, se presente, sono inclusi in chiaro; i file originali dei documenti e i dati di percorso GPS/campionamento degli allenamenti non lo sono — scaricali separatamente dall'archivio documenti o dall'esportazione degli allenamenti.",
             "encryptToggle": "Cifra con una passphrase",
             "passphrasePlaceholder": "Passphrase (min. 12 caratteri)",
             "passphraseHelp": "Deriva la chiave dell'archivio con Argon2id e lo sigilla con AES-256-GCM. Salva il file con estensione .hlx.",

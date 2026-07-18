@@ -592,6 +592,7 @@
     "statusPresent": "Śledzone",
     "statusAbsent": "Jeszcze nieśledzone",
     "statusModuleOff": "Wyłączone",
+    "loadError": "Nie udało się załadować statusu śledzenia.",
     "connectCta": "Połącz źródło",
     "viewCta": "Zobacz",
     "ecg": {
@@ -599,7 +600,7 @@
     },
     "watchdog": {
       "title": "Automatyczny nadzór",
-      "description": "HealthLog dyskretnie obserwuje też dane w tle — powiadomienia o nieregularnym rytmie i zaburzeniach oddychania z podłączonego zegarka, alerty o odchyleniu od Twojej wartości bazowej oraz zauważalne zmiany między dwoma ostatnimi panelami badań laboratoryjnych — i pokazuje kartę tylko wtedy, gdy coś zwraca uwagę. Brak karty to dobry znak, a nie brakująca funkcja."
+      "description": "HealthLog dyskretnie obserwuje też dane w tle — powiadomienia o nieregularnym rytmie i zaburzeniach oddychania z podłączonego zegarka, alerty o odchyleniu od Twojej wartości bazowej oraz zauważalne zmiany między dwoma ostatnimi panelami badań laboratoryjnych — i pokazuje kartę tylko wtedy, gdy coś zwraca uwagę. Jeśli podłączone jest co najmniej jedno z tych źródeł, brak karty to dobry znak, a nie brakująca funkcja; jeśli żadne nie jest jeszcze podłączone, po prostu nic nie jest jeszcze monitorowane."
     }
   },
   "mood": {
@@ -2665,11 +2666,11 @@
         "fatFreeMassTitle": "Masa beztłuszczowa",
         "fatFreeMassBody": "Masa beztłuszczowa to wszystko w ciele, co nie jest tłuszczem — mięśnie, kości, narządy i woda. Utrzymanie lub jej budowanie przy spadku wagi zwykle wskazuje na zdrowszy skład ciała.",
         "fatMassTitle": "Masa tłuszczowa",
-        "fatMassBody": "Masa tłuszczowa to łączna waga tłuszczu w ciele. Pewna ilość tłuszczu jest niezbędna dla hormonów i magazynowania energii, ale jego nadmiar — zwłaszcza w okolicy brzucha — zwiększa długoterminowe ryzyko zdrowotne.",
+        "fatMassBody": "Masa tłuszczowa to łączna waga tłuszczu w ciele. Pewna ilość tłuszczu jest niezbędna dla hormonów i magazynowania energii, ale jego nadmiar — zwłaszcza w okolicy brzucha — zwiększa długoterminowe ryzyko zdrowotne (WHO 2024).",
         "muscleMassTitle": "Masa mięśniowa",
         "muscleMassBody": "Masa mięśniowa to szacowana waga mięśni w ciele. Więcej mięśni wspiera siłę, metabolizm i sprawność, a ich utrzymanie z wiekiem zwykle wymaga aktywnego wysiłku.",
         "visceralFatTitle": "Tłuszcz trzewny",
-        "visceralFatBody": "Tłuszcz trzewny to tłuszcz gromadzony głęboko w jamie brzusznej wokół narządów. W odróżnieniu od tłuszczu podskórnego jego wysoki poziom jest ściśle powiązany z chorobami serca i cukrzycą typu 2, więc im niżej, tym lepiej.",
+        "visceralFatBody": "Tłuszcz trzewny to tłuszcz gromadzony głęboko w jamie brzusznej wokół narządów. W odróżnieniu od tłuszczu podskórnego jego wysoki poziom jest ściśle powiązany z chorobami serca i cukrzycą typu 2 (AHA, Circulation 2021), więc im niżej, tym lepiej. Skala pokazuje wartość bezjednostkową (mniej więcej 1–12 to zakres zdrowy, 13 i więcej to wartość podwyższona); to inna skala niż progi w cm² z badań obrazowych stosowane przez klinicystów i nie należy jej traktować z nimi zamiennie.",
         "leanBodyMassTitle": "Beztłuszczowa masa ciała",
         "leanBodyMassBody": "Beztłuszczowa masa ciała to całkowita waga pomniejszona o tłuszcz — mięśnie, kości, narządy i woda razem. Śledzenie jej obok wagi pokazuje, czy zmiany wynikają z mięśni, czy z tłuszczu.",
         "flightsClimbedTitle": "Pokonane piętra",
@@ -2699,7 +2700,7 @@
         "audioEventsTitle": "Zdarzenia głośnego dźwięku",
         "audioEventsBody": "Zdarzenia głośnego dźwięku oznaczają momenty, gdy hałas wokół ciebie osiągnął poziom mogący przy wystarczającej ekspozycji uszkodzić słuch. Częste zdarzenia to sygnał, by poszukać cichszego otoczenia lub ochrony słuchu.",
         "daylightTitle": "Czas w świetle dziennym",
-        "daylightBody": "Czas w świetle dziennym to ilość czasu spędzanego w świetle na zewnątrz każdego dnia. Regularne światło dzienne wspiera zdrowy rytm snu i czuwania oraz nastrój, a czas na świeżym powietrzu wiąże się ze zdrowiem oczu.",
+        "daylightBody": "Czas w świetle dziennym to ilość czasu spędzanego w świetle na zewnątrz każdego dnia. Regularne światło dzienne wspiera zdrowy rytm snu i czuwania oraz nastrój (CDC 2024), a czas na świeżym powietrzu wiąże się ze zdrowiem oczu.",
         "bloodGlucoseTitle": "Poziom glukozy we krwi",
         "bloodGlucoseBody": "Poziom glukozy we krwi to ilość cukru we krwi, głównego źródła energii organizmu. Rośnie po jedzeniu i ustala się między posiłkami; wartości utrzymujące się wysoko mogą sygnalizować cukrzycę lub stan przedcukrzycowy.",
         "skinTemperatureTitle": "Temperatura skóry",
@@ -2711,7 +2712,7 @@
         "wristTemperatureTitle": "Temperatura nadgarstka",
         "wristTemperatureBody": "Temperatura nadgarstka jest mierzona podczas snu i podawana jako różnica względem Twojej wartości bazowej, a nie jako wartość bezwzględna. Stabilny odczyt jest normalny, a utrzymujący się wzrost może wskazywać na chorobę, intensywny trening lub zmianę cyklu.",
         "fallsTitle": "Upadki",
-        "fallsBody": "Tutaj liczone są poważne upadki wykryte przez urządzenie noszone. Celem jest zero; rosnąca liczba to sygnał ryzyka związanego z mobilnością, który warto omówić z lekarzem, zwłaszcza u osób starszych.",
+        "fallsBody": "Tutaj liczone są poważne upadki wykryte przez urządzenie noszone. Celem jest zero; rosnąca liczba to sygnał ryzyka związanego z mobilnością, który warto omówić z lekarzem, zwłaszcza u osób starszych (CDC STEADI 2024).",
         "sixMinuteWalkTitle": "Dystans marszu 6-minutowego",
         "sixMinuteWalkBody": "To szacunek, jak daleko mógłbyś przejść w sześć minut — klasyczny test kliniczny mobilności i wydolności krążeniowo-oddechowej. Wartość z urządzenia noszonego to przybliżenie, a nie nadzorowany test kliniczny; liczy się stały lub rosnący trend.",
         "stairAscentSpeedTitle": "Prędkość wchodzenia po schodach",
@@ -4397,7 +4398,7 @@
           "fullBackup": {
             "title": "Pełna kopia zapasowa",
             "description": "Wszystkie Twoje dane w jednym pliku JSON — pomiary, leki, nastrój, cykl, wyniki badań laboratoryjnych, epizody chorobowe, alergie, wywiad rodzinny i treningi. Taki sam format jak cotygodniowa automatyczna kopia.",
-            "scopeNote": "Oryginalne pliki dokumentów oraz dane tras GPS/próbek treningów nie są uwzględnione — pobierz je osobno z archiwum dokumentów lub eksportu treningów.",
+            "scopeNote": "Metadane dokumentów oraz podsumowanie AI, jeśli istnieje, są uwzględnione jako czysty tekst; oryginalne pliki dokumentów oraz dane tras GPS/próbek treningów nie są uwzględnione — pobierz je osobno z archiwum dokumentów lub eksportu treningów.",
             "encryptToggle": "Zaszyfruj hasłem-frazą",
             "passphrasePlaceholder": "Hasło-fraza (min. 12 znaków)",
             "passphraseHelp": "Wyprowadza klucz archiwum za pomocą Argon2id i pieczętuje je AES-256-GCM. Zapisz plik z rozszerzeniem .hlx.",

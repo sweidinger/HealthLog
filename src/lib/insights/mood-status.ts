@@ -64,7 +64,7 @@ import {
 import { annotate } from "@/lib/logging/context";
 import { createCustomLabelResolver } from "@/lib/mood/custom-tags";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
-import { resolveUserTimezone, toBerlinDayKey } from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 
 /**
  * Drop the ranking-only `pooledSd` before a tag-influence row enters the
@@ -149,7 +149,12 @@ export async function prepareMoodStatusForUser(
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
   const cacheAction = statusCacheAction("mood", locale);
-  const todayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — resolve the user's own tz BEFORE the day-key so the
+  // cache rolls over at the user's local midnight, not Berlin's. Has to
+  // happen ahead of the cache read below (the earliest possible return
+  // path), not just the later day-bucketing reads.
+  const userTz = await resolveUserTimezone(userId);
+  const todayKey = userDayKey(new Date(), userTz);
 
   const cached = await readFreshStatusText({
     userId,
@@ -291,9 +296,8 @@ export async function prepareMoodStatusForUser(
 
   const now = new Date();
 
-  // v1.2.5 (M-TZ3) — resolve the user's timezone so every day-bucketing
-  // pass below keys on the user's own calendar day.
-  const userTz = await resolveUserTimezone(userId);
+  // v1.2.5 (M-TZ3) — every day-bucketing pass below keys on the user's own
+  // calendar day. `userTz` was already resolved above for the cache day-key.
 
   const moodPoints = entries.map((entry) => ({
     measuredAt: entry.moodLoggedAt,

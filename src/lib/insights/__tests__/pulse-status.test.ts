@@ -210,6 +210,46 @@ describe("generatePulseStatusForUser — A2 resting-target in-target %", () => {
   });
 });
 
+describe("generatePulseStatusForUser — per-user tz (QA F5)", () => {
+  it("rolls the cache over at the USER's own midnight, not Berlin's", async () => {
+    // A moment that is already "tomorrow" in Berlin (UTC+2 summer) but still
+    // "today" in New York (UTC-4 summer). Before the fix, `todayKey` was
+    // computed from `toBerlinDayKey(new Date())` BEFORE the user's profile
+    // (and its timezone) was even read.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T23:30:00.000Z")); // Berlin: 06-21 01:30
+    const nyToday = "2026-06-20"; // New York: 06-20 19:30
+    try {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({
+        dateOfBirth: null,
+        gender: null,
+        timezone: "America/New_York",
+      } as never);
+      vi.mocked(prisma.auditLog.findFirst).mockResolvedValue({
+        createdAt: new Date(),
+        details: JSON.stringify({
+          dateKey: nyToday,
+          locale: "en",
+          text: "NY-anchored cached pulse text.",
+          model: "x",
+        }),
+      } as never);
+
+      const result = await generatePulseStatusForUser("user-ny", {
+        locale: "en",
+      });
+
+      // If the day-key were still Berlin-pinned, this NY-dated row would
+      // MISS (today in Berlin is 06-21) and a real generation would run.
+      expect(result.cached).toBe(true);
+      expect(result.text).toBe("NY-anchored cached pulse text.");
+      expect(runStatusCompletion).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("generatePulseStatusForUser — cache-read skips a stub", () => {
   it("regenerates when the only cached row is a timeout stub", async () => {
     const now = new Date();

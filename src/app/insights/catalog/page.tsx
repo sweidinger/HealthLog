@@ -21,6 +21,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { TileHeader } from "@/components/insights/tile-header";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { useAuth } from "@/hooks/use-auth";
@@ -102,6 +104,29 @@ function StatusBadge({ present }: { present: boolean }) {
     <span className="text-muted-foreground shrink-0 text-xs">
       {t("metricCatalog.statusAbsent")}
     </span>
+  );
+}
+
+/**
+ * Row placeholder shown while the availability probes are still
+ * in flight — same anatomy as a loaded `CatalogRow` (name line + a
+ * trailing action-sized block) so the group cards don't reflow when
+ * the real status lands. Never renders the "Not tracked yet" copy or
+ * a CTA — an in-flight probe is not the same thing as a confirmed
+ * absence (M1, `.planning/audits/2026-07-18-qa-ui.md`).
+ */
+function CatalogRowSkeleton() {
+  return (
+    <div
+      data-slot="catalog-row-skeleton"
+      className="flex items-start justify-between gap-3 py-2"
+    >
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-48" />
+      </div>
+      <Skeleton className="h-8 w-20 shrink-0" />
+    </div>
   );
 }
 
@@ -218,6 +243,51 @@ export default function MetricCatalogPage() {
     return hasMetricData(entry.metric, availability);
   }
 
+  // M1 fix (`.planning/audits/2026-07-18-qa-ui.md`) — every probe backing
+  // `availability` is async; while any of them is still in flight,
+  // `hasMetricData()` reads an undefined summary and reports "absent" for
+  // every metric. Gate the rows on the probes' aggregate loading/error
+  // state instead of letting a cold load or a failed batch masquerade as
+  // an honest "Not tracked yet".
+  const isLoading = Boolean(
+    isAuthenticated &&
+    (analyticsQuery.isLoading ||
+      comprehensiveQuery.isLoading ||
+      workoutsProbe.isLoading ||
+      ecgQuery.isLoading ||
+      (nutrientsModuleEnabled && nutrientsProbe.isLoading)),
+  );
+
+  const isError = Boolean(
+    analyticsQuery.isError ||
+    comprehensiveQuery.isError ||
+    workoutsProbe.isError ||
+    ecgQuery.isError ||
+    (nutrientsModuleEnabled && nutrientsProbe.isError),
+  );
+
+  function retryAll() {
+    void analyticsQuery.refetch();
+    void comprehensiveQuery.refetch();
+    workoutsProbe.refetch();
+    void ecgQuery.refetch();
+    if (nutrientsModuleEnabled) void nutrientsProbe.refetch();
+  }
+
+  if (isError) {
+    return (
+      <SubPageShell
+        title={t("metricCatalog.title")}
+        description={t("metricCatalog.description")}
+      >
+        <QueryErrorCard
+          description={t("metricCatalog.loadError")}
+          onRetry={retryAll}
+        />
+      </SubPageShell>
+    );
+  }
+
   return (
     <SubPageShell
       title={t("metricCatalog.title")}
@@ -277,6 +347,9 @@ export default function MetricCatalogPage() {
                           </div>
                         </div>
                       );
+                    }
+                    if (isLoading && entry.kind !== "info") {
+                      return <CatalogRowSkeleton key={entry.id} />;
                     }
                     return (
                       <CatalogRow

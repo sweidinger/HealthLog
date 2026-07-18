@@ -12,7 +12,7 @@ import {
   lastNonSkippedTakenAt,
   SCHEDULE_COMPLIANCE_SELECT,
 } from "@/lib/analytics/compliance";
-import { resolveUserTimezone } from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 import { getMedicationCategories } from "@/lib/medication-category";
 import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import { getNoKeyMedicationComplianceStatusText } from "@/lib/insights/no-key-fallbacks";
@@ -47,7 +47,6 @@ import {
   type PreparedStatusCard,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
 
 // 360 daily days + 24 monthly windows ≈ 1080 days of intake history.
 const COMPLIANCE_HISTORY_DAYS = 360 + 24 * 30;
@@ -113,7 +112,12 @@ export async function prepareMedicationComplianceStatusForUser(
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
   const cacheAction = statusCacheAction("medication-compliance", locale);
-  const todayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — resolve the user's own tz BEFORE the day-key so the
+  // cache rolls over at the user's local midnight, not Berlin's. Has to
+  // happen ahead of the cache read below (the earliest possible return
+  // path), not just the later day-bucketing reads.
+  const userTz = await resolveUserTimezone(userId);
+  const todayKey = userDayKey(new Date(), userTz);
 
   // This route carries a richer cached envelope (`summary` +
   // `medications`) than the standard `text`-only generators, so it
@@ -264,9 +268,9 @@ export async function prepareMedicationComplianceStatusForUser(
     },
   });
 
-  // v1.7.0 SB-SCHED-2 — resolve the user timezone once so the
-  // compliance-pillar denominators route through the canonical engine.
-  const userTz = await resolveUserTimezone(userId);
+  // v1.7.0 SB-SCHED-2 — the compliance-pillar denominators route through
+  // the canonical engine on the user's own tz. `userTz` was already
+  // resolved above for the cache day-key.
 
   const medicationSnapshots = medications.map((medication) => {
     const events = medicationEvents.filter(

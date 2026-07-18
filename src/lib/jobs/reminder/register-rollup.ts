@@ -68,6 +68,13 @@ import {
   type StepConsolidationRepairPayload,
 } from "@/lib/jobs/step-consolidation-repair";
 import {
+  CUMULATIVE_PR_REDERIVE_QUEUE,
+  CUMULATIVE_PR_REDERIVE_CONCURRENCY,
+  runCumulativePrRederivationForUser,
+  enqueueBootTimeCumulativePrRederivation,
+  type CumulativePrRederivePayload,
+} from "@/lib/personal-records/cumulative-pr-rederivation";
+import {
   MEAN_CONSOLIDATION_QUEUE,
   MEAN_CONSOLIDATION_CONCURRENCY,
   runMeanConsolidationForUser,
@@ -132,6 +139,10 @@ const allQueues = [
   // v1.28.37 — one-shot repair for the provider step rows the pre-fix
   // consolidation swept. Boot-discovery driven, self-converging.
   STEP_CONSOLIDATION_REPAIR_QUEUE,
+  // v1.30.3 — one-shot repair for the cumulative-type PersonalRecord rows
+  // the pre-fix multi-source SUM inflated. Boot-discovery driven,
+  // self-converging (QA F4).
+  CUMULATIVE_PR_REDERIVE_QUEUE,
   // v1.7.0 — daily-mean consolidation for high-frequency spot HealthKit
   // metrics (walking speed/step length, respiratory rate, audio exposure).
   MEAN_CONSOLIDATION_QUEUE,
@@ -243,6 +254,27 @@ export async function registerRollupQueues(
         workerLog(
           "info",
           `[step-consolidation-repair] user=${userId} resurrected=${summary.rowsResurrected} wedgeSkipped=${summary.wedgeSkipped} manualMintsRemoved=${summary.manualMintsRemoved} daysRecomputed=${summary.daysRecomputed} failures=${summary.failures}`,
+        );
+      }
+    },
+  );
+
+  // v1.30.3 — cumulative-PersonalRecord rederivation worker (QA F4). The
+  // boot enqueue helper below sends one job per user still holding a
+  // suspect pre-fix inflated cumulative-type record; this handler deletes
+  // it and re-runs detection silently so the honest re-derived best takes
+  // its place. Serial concurrency so the repair never crowds the
+  // dashboard request pool.
+  await boss.work<CumulativePrRederivePayload>(
+    CUMULATIVE_PR_REDERIVE_QUEUE,
+    { localConcurrency: CUMULATIVE_PR_REDERIVE_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const summary = await runCumulativePrRederivationForUser(userId);
+        workerLog(
+          "info",
+          `[cumulative-pr-rederive] user=${userId} rowsDeleted=${summary.rowsDeleted} rowsReinserted=${summary.rowsReinserted}`,
         );
       }
     },
@@ -768,6 +800,37 @@ export async function enqueueRollupBootDiscovery(): Promise<void> {
     workerLog(
       "error",
       "[step-consolidation-repair] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.30.3 (QA F4) — cumulative-PersonalRecord rederivation. Finds every
+  // account still holding a suspect measurement-driven cumulative-type
+  // record created before the source-collapse fix landed and enqueues one
+  // repair job per account. Self-converging: a deleted-and-redetected
+  // record's `createdAt` sits after the fix cutoff, so the account drops
+  // out of the discovery predicate for good.
+  try {
+    // Stage 6.
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeCumulativePrRederivation(
+        BOOT_BACKFILL_STAGGER_SECONDS * 6,
+      );
+    if (error) {
+      workerLog(
+        "error",
+        `[cumulative-pr-rederive] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[cumulative-pr-rederive] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[cumulative-pr-rederive] boot discovery threw an unexpected error",
       err,
     );
   }

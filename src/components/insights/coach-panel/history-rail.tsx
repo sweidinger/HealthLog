@@ -122,7 +122,9 @@ export function HistoryRail({
       data-slot="coach-history-rail"
       // v1.18.1 (W-COACH-UI C1/C3) — a touch more horizontal padding so
       // the list rows clear the rail edge and the search field breathes.
-      className={cn("flex h-full min-h-0 flex-col gap-2.5 p-3.5", className)}
+      // L5 fix (`.planning/audits/2026-07-18-qa-ui.md`) — `gap-2.5 p-3.5`
+      // was off the `1/1.5/2/3/4/6/8/10` spacing scale.
+      className={cn("flex h-full min-h-0 flex-col gap-2 p-3", className)}
     >
       {/* v1.4.33 — promote the rail label from a `<span>` to a real
           `<h3>` so the drawer carries a semantic outline on desktop
@@ -239,7 +241,7 @@ export function HistoryRail({
                     ) : null}
                     <span className="truncate">{c.title}</span>
                   </span>
-                  <span className="text-muted-foreground block text-[11px]">
+                  <span className="text-muted-foreground block text-xs">
                     {formatRelativeTime(c.updatedAt, t)}
                   </span>
                 </button>

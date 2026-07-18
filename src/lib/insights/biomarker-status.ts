@@ -42,7 +42,7 @@ import {
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 
 export interface BiomarkerStatusResult {
   hasProvider: boolean;
@@ -148,7 +148,12 @@ export async function generateBiomarkerStatus(args: {
   const readOnly = args.readOnly === true;
   const scope = biomarkerStatusScope(marker.id);
   const cacheAction = statusCacheAction(scope, locale);
-  const todayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — resolve the user's own tz BEFORE the day-key so the
+  // cache rolls over at the user's local midnight, not Berlin's. Has to
+  // happen ahead of the cache read below (the earliest possible return
+  // path).
+  const userTz = await resolveUserTimezone(args.userId);
+  const todayKey = userDayKey(new Date(), userTz);
 
   const cached = await readFreshStatusText({
     userId: args.userId,
@@ -302,7 +307,7 @@ export async function generateBiomarkerStatus(args: {
     },
     summary,
     series: ascending.map((r) => ({
-      day: toBerlinDayKey(r.takenAt),
+      day: userDayKey(r.takenAt, userTz),
       value: r.value,
     })),
   };

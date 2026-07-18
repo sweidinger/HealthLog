@@ -187,7 +187,7 @@ export async function computeBpInTargetFastPath(input: {
   if (userNearUtc && sysCovered && diaCovered) {
     return computeFromRollups(userId, targets, now, tzGuard);
   }
-  return computeFromLive(userId, targets, now, tzGuard);
+  return computeFromLive(userId, targets, now, tzGuard, userTz);
 }
 
 /**
@@ -454,6 +454,15 @@ async function computeFromLive(
   targets: BpTargets,
   now: Date,
   tzGuard: "near-utc" | "non-utc-live-fallback",
+  /**
+   * v1.30.3 (QA F7) — the user's own IANA tz, threaded into the pairing
+   * fallback (`computeBpInTargetWindows` / `collectBpPairs`). This is
+   * exactly the guard's protected population: a non-near-UTC user gets
+   * force-routed HERE specifically so their pairs are computed correctly
+   * — keying the fallback on Berlin instead of their own tz undid that
+   * protection.
+   */
+  userTz: string | undefined,
 ): Promise<BpInTargetEnvelope> {
   const DAY_MS = 24 * 60 * 60 * 1000;
   const bpInTargetSince = new Date(now.getTime() - 365 * DAY_MS);
@@ -504,11 +513,20 @@ async function computeFromLive(
     },
   });
 
-  const windows = computeBpInTargetWindows(sysData, diaData, targets, now);
+  // v1.30.3 (QA F7) — `undefined` falls through to each helper's own
+  // Berlin default (unchanged behaviour for legacy callers that never
+  // pass a userTz); a real tz here overrides it.
+  const windows = computeBpInTargetWindows(
+    sysData,
+    diaData,
+    targets,
+    now,
+    userTz,
+  );
   // v1.15.12 A1 — graded BP pillar score from the recency-weighted
   // representative of every accepted per-event pair over the read window.
   const gradedScore = gradeBpScoreFromSeries({
-    pairs: collectBpPairs(sysData, diaData),
+    pairs: collectBpPairs(sysData, diaData, userTz),
     target: targets,
     now,
   });

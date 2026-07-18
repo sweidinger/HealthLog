@@ -25,9 +25,10 @@ export interface ViewToggleProps<T extends string> {
  * two-segment control: the active segment carries the filled surface, the
  * inactive one stays ghost. `aria-pressed` announces the state per segment;
  * the group is named for screen readers. Segments keep the 44-px mobile tap
- * floor (`size-11` via `size-10` + the `sm:size-8` desktop step), shrinking
- * to the standard 36-px control height on desktop like a neighbouring Add
- * button.
+ * floor (`size-11`), shrinking to the 36-px control height on desktop
+ * (`sm:size-9`) like a neighbouring Add button — the same floor the intake
+ * kebab and history-rail delete controls raised in this release window
+ * (L3, `.planning/audits/2026-07-18-qa-ui.md`).
  *
  * Previously forked between the medications module
  * (`medications/medication-view-toggle.tsx`) and the Vorsorge/Illness/Labs
@@ -62,7 +63,7 @@ export function ViewToggle<T extends string>({
             title={label}
             data-slot={`${dataSlotPrefix}-${value}`}
             className={cn(
-              "focus-visible:ring-ring inline-flex size-10 items-center justify-center rounded-[5px] transition-colors focus-visible:ring-2 focus-visible:outline-none motion-reduce:transition-none sm:size-8",
+              "focus-visible:ring-ring inline-flex size-11 items-center justify-center rounded-[5px] transition-colors focus-visible:ring-2 focus-visible:outline-none motion-reduce:transition-none sm:size-9",
               active
                 ? "bg-secondary text-secondary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",

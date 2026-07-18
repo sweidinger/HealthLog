@@ -42,9 +42,9 @@ import {
   fetchComplianceSeries,
   fetchEnvironmentSeries,
   fetchLabDraws,
+  fetchMeasurementWindowSeries,
+  fetchMoodWindowSeries,
   fetchSymptomSeries,
-  toDailyMeans,
-  type MeasurementSeriesRow,
 } from "@/lib/insights/correlation-channel-series";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 
@@ -97,75 +97,24 @@ export const GET = apiHandler(async () => {
     DISCOVERY_OUTCOMES,
   ) as MeasurementType[];
 
-  // v1.29.6 — `source` + `deviceType` + `sleepStage` feed
-  // `buildMeasurementDailySeries`'s per-type grain resolution below (source
-  // collapse for cumulative types, per-night reconstruction for sleep); the
-  // rest of the channels never look at them.
-  // v1.30 (PERFAUDIT M1) — `orderBy asc` + `take` truncates from the START
-  // of the window. A dense account (unconsolidated step chunks alone can
-  // run ~200 rows/day → 36 000 rows over 180 days) can exceed the cap, and
-  // an ascending order then drops the NEWEST rows — exactly backwards for
-  // `discoverEmergingCorrelations`, whose entire job is the recent window.
-  // Order DESC so the cap keeps the most-recent rows, then re-sort ASC in
-  // JS before folding into per-type series (every downstream day-bucketing
-  // pass is order-insensitive, but callers document an ascending contract).
-  const MEASUREMENT_READ_CAP = 20000;
-  const MOOD_READ_CAP = 5000;
-  const [measurementsDesc, moodEntriesDesc, priorityJson] = await Promise.all([
-    prisma.measurement.findMany({
-      where: {
-        userId: user.id,
-        deletedAt: null,
-        measuredAt: { gte: since },
-        type: { in: [...behaviourTypes, ...outcomeTypes] },
-      },
-      orderBy: { measuredAt: "desc" },
-      take: MEASUREMENT_READ_CAP,
-      select: {
-        type: true,
-        value: true,
-        measuredAt: true,
-        source: true,
-        deviceType: true,
-        sleepStage: true,
-      },
-    }),
-    prisma.moodEntry.findMany({
-      where: { userId: user.id, deletedAt: null, moodLoggedAt: { gte: since } },
-      orderBy: { moodLoggedAt: "desc" },
-      take: MOOD_READ_CAP,
-      select: { score: true, moodLoggedAt: true },
-    }),
+  // v1.30.3 (QA F1) — the fetch + desc/cap/resort discipline now lives in
+  // `fetchMeasurementWindowSeries` / `fetchMoodWindowSeries`
+  // (`correlation-channel-series.ts`), shared with the Coach tool, the
+  // per-metric card, and the period narrative so a fourth independently-
+  // maintained copy can't drift the way the period-narrative one did.
+  const [
+    { byType: measurementsByType, measurementsCapped },
+    moodWindow,
+    priorityJson,
+  ] = await Promise.all([
+    fetchMeasurementWindowSeries(user.id, since, [
+      ...behaviourTypes,
+      ...outcomeTypes,
+    ]),
+    fetchMoodWindowSeries(user.id, tz, since),
     loadUserSourcePriority(user.id),
   ]);
-  const measurementsCapped = measurementsDesc.length >= MEASUREMENT_READ_CAP;
-  const moodCapped = moodEntriesDesc.length >= MOOD_READ_CAP;
-  const measurements = [...measurementsDesc].sort(
-    (a, b) => a.measuredAt.getTime() - b.measuredAt.getTime(),
-  );
-  const moodEntries = [...moodEntriesDesc].sort(
-    (a, b) => a.moodLoggedAt.getTime() - b.moodLoggedAt.getTime(),
-  );
-
-  const measurementsByType = new Map<string, MeasurementSeriesRow[]>();
-  for (const m of measurements) {
-    const list = measurementsByType.get(m.type) ?? [];
-    list.push({
-      value: m.value,
-      at: m.measuredAt,
-      source: m.source,
-      deviceType: m.deviceType,
-      sleepStage: m.sleepStage,
-    });
-    measurementsByType.set(m.type, list);
-  }
-
-  // MOOD's daily-mean series is shared between its behaviour and outcome
-  // roles (computed once).
-  const moodDaily = toDailyMeans(
-    moodEntries.map((e) => ({ value: e.score, at: e.moodLoggedAt })),
-    tz,
-  );
+  const { moodDaily, moodCapped } = moodWindow;
 
   // v1.21.0 (FDREXTEND) — build the two non-measurement, non-mood channels from
   // their own sources. Each degrades to an empty series when the user has no

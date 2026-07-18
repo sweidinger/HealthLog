@@ -31,8 +31,8 @@ import {
 } from "@/lib/insights/correlation-discovery";
 import {
   buildMeasurementDailySeries,
-  toDailyMeans,
-  type MeasurementSeriesRow,
+  fetchMeasurementWindowSeries,
+  fetchMoodWindowSeries,
 } from "@/lib/insights/correlation-channel-series";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import type { RelevantCorrelation } from "@/lib/insights/assessment-context";
@@ -96,53 +96,19 @@ export async function getRelevantCorrelationsForMetric(
       DISCOVERY_OUTCOMES,
     ) as MeasurementType[];
 
-    // v1.29.6 — `source` + `deviceType` + `sleepStage` feed
-    // `buildMeasurementDailySeries`'s per-type grain resolution below (see
-    // the route's identical comment for why).
-    const [measurements, moodEntries, priorityJson] = await Promise.all([
-      prisma.measurement.findMany({
-        where: {
-          userId,
-          deletedAt: null,
-          measuredAt: { gte: since },
-          type: { in: [...behaviourTypes, ...outcomeTypes] },
-        },
-        orderBy: { measuredAt: "asc" },
-        take: 20000,
-        select: {
-          type: true,
-          value: true,
-          measuredAt: true,
-          source: true,
-          deviceType: true,
-          sleepStage: true,
-        },
-      }),
-      prisma.moodEntry.findMany({
-        where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
-        orderBy: { moodLoggedAt: "asc" },
-        take: 5000,
-        select: { score: true, moodLoggedAt: true },
-      }),
+    // v1.30.3 (QA F1) — the fetch + desc/cap/resort discipline (a dense
+    // account's cap must fall on the OLDEST rows, never the newest) now
+    // lives in `fetchMeasurementWindowSeries` / `fetchMoodWindowSeries`
+    // (`correlation-channel-series.ts`), shared with the route, the Coach
+    // tool, and the period narrative.
+    const [{ byType }, { moodDaily }, priorityJson] = await Promise.all([
+      fetchMeasurementWindowSeries(userId, since, [
+        ...behaviourTypes,
+        ...outcomeTypes,
+      ]),
+      fetchMoodWindowSeries(userId, tz, since),
       loadUserSourcePriority(userId),
     ]);
-
-    const byType = new Map<string, MeasurementSeriesRow[]>();
-    for (const m of measurements) {
-      const list = byType.get(m.type) ?? [];
-      list.push({
-        value: m.value,
-        at: m.measuredAt,
-        source: m.source,
-        deviceType: m.deviceType,
-        sleepStage: m.sleepStage,
-      });
-      byType.set(m.type, list);
-    }
-    const moodDaily = toDailyMeans(
-      moodEntries.map((e) => ({ value: e.score, at: e.moodLoggedAt })),
-      tz,
-    );
 
     const points = (key: string) =>
       key === "MOOD"

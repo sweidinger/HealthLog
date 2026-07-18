@@ -24,6 +24,7 @@
  */
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { annotate } from "@/lib/logging/context";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   discoverCorrelations,
@@ -41,9 +42,9 @@ import {
   buildMeasurementDailySeries,
   fetchComplianceSeries,
   fetchLabDraws,
+  fetchMeasurementWindowSeries,
+  fetchMoodWindowSeries,
   fetchSymptomSeries,
-  toDailyMeans,
-  type MeasurementSeriesRow,
 } from "@/lib/insights/correlation-channel-series";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import {
@@ -170,59 +171,30 @@ export async function readCoachCorrelations(
       DISCOVERY_OUTCOMES,
     ) as MeasurementType[];
 
-    // v1.29.6 — `source` + `deviceType` + `sleepStage` feed
-    // `buildMeasurementDailySeries`'s per-type grain resolution below (see
-    // the insights route's identical comment for why).
-    const [measurements, moodEntries, coincidentDerived, priorityJson] =
-      await Promise.all([
-        prisma.measurement.findMany({
-          where: {
-            userId,
-            deletedAt: null,
-            measuredAt: { gte: since },
-            type: { in: [...behaviourTypes, ...outcomeTypes] },
-          },
-          orderBy: { measuredAt: "asc" },
-          take: 20000,
-          select: {
-            type: true,
-            value: true,
-            measuredAt: true,
-            source: true,
-            deviceType: true,
-            sleepStage: true,
-          },
-        }),
-        prisma.moodEntry.findMany({
-          where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
-          orderBy: { moodLoggedAt: "asc" },
-          take: 5000,
-          select: { score: true, moodLoggedAt: true },
-        }),
-        // Coincident-deviation is its own derived metric — fail-soft to null so a
-        // baseline hiccup never sinks the whole correlations read. D2-8: pass the
-        // user's tz so the "today" grouping matches the user's calendar day, not
-        // UTC's, before the fired flag is narrated as "out of band TODAY".
-        computeCoincidentDeviation(userId, profile, { tz }).catch(() => null),
-        loadUserSourcePriority(userId),
-      ]);
-
-    const byType = new Map<string, MeasurementSeriesRow[]>();
-    for (const m of measurements) {
-      const list = byType.get(m.type) ?? [];
-      list.push({
-        value: m.value,
-        at: m.measuredAt,
-        source: m.source,
-        deviceType: m.deviceType,
-        sleepStage: m.sleepStage,
-      });
-      byType.set(m.type, list);
-    }
-    const moodDaily = toDailyMeans(
-      moodEntries.map((e) => ({ value: e.score, at: e.moodLoggedAt })),
-      tz,
-    );
+    // v1.30.3 (QA F1) — the fetch + desc/cap/resort discipline (a dense
+    // account's cap must fall on the OLDEST rows, never the newest — the
+    // emerging-correlations pass below is entirely about the recent window)
+    // now lives in `fetchMeasurementWindowSeries` / `fetchMoodWindowSeries`
+    // (`correlation-channel-series.ts`), shared with the route, the
+    // per-metric card, and the period narrative.
+    const [
+      { byType, measurementsCapped },
+      { moodDaily, moodCapped },
+      coincidentDerived,
+      priorityJson,
+    ] = await Promise.all([
+      fetchMeasurementWindowSeries(userId, since, [
+        ...behaviourTypes,
+        ...outcomeTypes,
+      ]),
+      fetchMoodWindowSeries(userId, tz, since),
+      // Coincident-deviation is its own derived metric — fail-soft to null so a
+      // baseline hiccup never sinks the whole correlations read. D2-8: pass the
+      // user's tz so the "today" grouping matches the user's calendar day, not
+      // UTC's, before the fired flag is narrated as "out of band TODAY".
+      computeCoincidentDeviation(userId, profile, { tz }).catch(() => null),
+      loadUserSourcePriority(userId),
+    ]);
     const seriesPoints = (key: string) =>
       key === "MOOD"
         ? moodDaily
@@ -262,6 +234,18 @@ export async function readCoachCorrelations(
         series.push({ key, role: "outcome", points: seriesPoints(key) });
       }
     }
+
+    // QA F1 — surfaces when a dense account's window exceeded the read cap,
+    // mirroring the route's identical annotation. The cap now falls on the
+    // OLDEST rows (desc + take), so a capped read still covers the recent
+    // window the emerging-correlations pass below needs.
+    annotate({
+      action: { name: "coach.correlations.read" },
+      meta: {
+        measurements_capped: measurementsCapped,
+        mood_entries_capped: moodCapped,
+      },
+    });
 
     const discovery = discoverCorrelations(series);
     const drivers: CoachCorrelationDriver[] = discovery.discovered.map((d) => ({

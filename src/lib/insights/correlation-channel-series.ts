@@ -256,6 +256,114 @@ function tzDayKey(at: Date, tz: string): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+const MEASUREMENT_READ_CAP = 20000;
+const MOOD_READ_CAP = 5000;
+
+/** One measurement-window fetch's result: per-type raw rows + the cap flag. */
+export interface MeasurementWindowFetch {
+  /** Raw rows shaped for `buildMeasurementDailySeries`, grouped by type. */
+  byType: Map<string, MeasurementSeriesRow[]>;
+  /** True when the read hit the cap — the window may be missing OLDER rows. */
+  measurementsCapped: boolean;
+}
+
+/**
+ * v1.30.3 (QA F1/F2/F3) — shared measurement-window fetch for every
+ * correlation-adjacent surface: the `/api/insights/correlations` route, the
+ * Coach `get_correlations` tool, the per-metric assessment card, and the
+ * period narrative. Hoisted here so a fourth independently-maintained copy
+ * can't drift the way the period-narrative one did.
+ *
+ * Orders DESC + caps at {@link MEASUREMENT_READ_CAP}, then re-sorts ASC in
+ * JS so a dense account's cap falls on the OLDEST rows, never the newest —
+ * the inverse of a naive `orderBy asc, take N`, which silently drops the
+ * NEWEST reads once an account's in-window row count crosses the cap
+ * (exactly backwards for a recent-window read, e.g. the Coach's emerging-
+ * correlations pass or a current-vs-prior period narrative). Selects
+ * `source` / `deviceType` / `sleepStage` unconditionally so every caller can
+ * feed `buildMeasurementDailySeries`'s per-type grain resolution (source
+ * collapse for cumulative types, per-night reconstruction for sleep)
+ * without a second query.
+ */
+export async function fetchMeasurementWindowSeries(
+  userId: string,
+  since: Date,
+  types: MeasurementType[],
+): Promise<MeasurementWindowFetch> {
+  const rowsDesc = await prisma.measurement.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      measuredAt: { gte: since },
+      type: { in: types },
+    },
+    orderBy: { measuredAt: "desc" },
+    take: MEASUREMENT_READ_CAP,
+    select: {
+      type: true,
+      value: true,
+      measuredAt: true,
+      source: true,
+      deviceType: true,
+      sleepStage: true,
+    },
+  });
+  const measurementsCapped = rowsDesc.length >= MEASUREMENT_READ_CAP;
+
+  const byType = new Map<string, MeasurementSeriesRow[]>();
+  for (const m of [...rowsDesc].sort(
+    (a, b) => a.measuredAt.getTime() - b.measuredAt.getTime(),
+  )) {
+    const list = byType.get(m.type) ?? [];
+    list.push({
+      value: m.value,
+      at: m.measuredAt,
+      source: m.source,
+      deviceType: m.deviceType,
+      sleepStage: m.sleepStage,
+    });
+    byType.set(m.type, list);
+  }
+  return { byType, measurementsCapped };
+}
+
+/** One mood-window fetch's result: the daily-mean series + the cap flag. */
+export interface MoodWindowFetch {
+  moodDaily: DailySeriesPoint[];
+  /** True when the read hit the cap — the window may be missing OLDER rows. */
+  moodCapped: boolean;
+}
+
+/**
+ * v1.30.3 (QA F1/F2/F3) — shared mood-window fetch, same desc+cap+resort
+ * discipline as {@link fetchMeasurementWindowSeries}. Callers that also need
+ * per-entry factor tag-links (the period narrative's RATED-factor channels)
+ * read `MoodEntry` themselves for the extra `tagLinks` select, but MUST
+ * apply the same desc+resort discipline — this helper only covers the
+ * plain-score case the route / coach tool / per-metric card share.
+ */
+export async function fetchMoodWindowSeries(
+  userId: string,
+  tz: string,
+  since: Date,
+): Promise<MoodWindowFetch> {
+  const rowsDesc = await prisma.moodEntry.findMany({
+    where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
+    orderBy: { moodLoggedAt: "desc" },
+    take: MOOD_READ_CAP,
+    select: { score: true, moodLoggedAt: true },
+  });
+  const moodCapped = rowsDesc.length >= MOOD_READ_CAP;
+  const rows = [...rowsDesc].sort(
+    (a, b) => a.moodLoggedAt.getTime() - b.moodLoggedAt.getTime(),
+  );
+  const moodDaily = toDailyMeans(
+    rows.map((e) => ({ value: e.score, at: e.moodLoggedAt })),
+    tz,
+  );
+  return { moodDaily, moodCapped };
+}
+
 /**
  * v1.29.6 — collapse rows to per-day MEANS keyed in the user's tz. This is
  * the correct grain for spot metrics (BP, glucose, HRV, resting HR, weight,

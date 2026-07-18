@@ -592,6 +592,7 @@
     "statusPresent": "Erfasst",
     "statusAbsent": "Noch nicht erfasst",
     "statusModuleOff": "Aus",
+    "loadError": "Erfassungsstatus konnte nicht geladen werden.",
     "connectCta": "Quelle verbinden",
     "viewCta": "Ansehen",
     "ecg": {
@@ -599,7 +600,7 @@
     },
     "watchdog": {
       "title": "Automatische Überwachung",
-      "description": "HealthLog beobachtet außerdem still im Hintergrund — Benachrichtigungen zu unregelmäßigem Rhythmus und Atemstörungen von einer verbundenen Uhr, Warnungen bei Abweichungen von deiner Baseline sowie auffällige Veränderungen zwischen deinen letzten beiden Laborwerten — und zeigt eine Karte nur, wenn etwas auffällt. Keine Karte ist ein gutes Zeichen, kein fehlendes Feature."
+      "description": "HealthLog beobachtet außerdem still im Hintergrund — Benachrichtigungen zu unregelmäßigem Rhythmus und Atemstörungen von einer verbundenen Uhr, Warnungen bei Abweichungen von deiner Baseline sowie auffällige Veränderungen zwischen deinen letzten beiden Laborwerten — und zeigt eine Karte nur, wenn etwas auffällt. Ist mindestens eine dieser Quellen verbunden, ist keine Karte ein gutes Zeichen, kein fehlendes Feature; ist noch keine verbunden, wird schlicht noch nichts überwacht."
     }
   },
   "mood": {
@@ -2665,11 +2666,11 @@
         "fatFreeMassTitle": "Fettfreie Masse",
         "fatFreeMassBody": "Die fettfreie Masse ist alles in deinem Körper, das kein Fett ist — Muskeln, Knochen, Organe und Wasser. Sie zu halten oder aufzubauen, während das Gewicht sinkt, deutet meist auf eine gesündere Körperzusammensetzung hin.",
         "fatMassTitle": "Fettmasse",
-        "fatMassBody": "Die Fettmasse ist das Gesamtgewicht des Körperfetts. Etwas Fett ist für Hormone und Energiespeicher unverzichtbar, doch zu viel — besonders am Bauch — erhöht das langfristige Gesundheitsrisiko.",
+        "fatMassBody": "Die Fettmasse ist das Gesamtgewicht des Körperfetts. Etwas Fett ist für Hormone und Energiespeicher unverzichtbar, doch zu viel — besonders am Bauch — erhöht das langfristige Gesundheitsrisiko (WHO 2024).",
         "muscleMassTitle": "Muskelmasse",
         "muscleMassBody": "Die Muskelmasse ist das geschätzte Gewicht der Muskeln in deinem Körper. Mehr Muskeln unterstützen Kraft, Stoffwechsel und Beweglichkeit und müssen mit zunehmendem Alter aktiv erhalten werden.",
         "visceralFatTitle": "Viszeralfett",
-        "visceralFatBody": "Viszeralfett ist das Fett, das tief im Bauchraum um die Organe gespeichert wird. Anders als das Unterhautfett ist ein hoher Wert eng mit Herzkrankheiten und Typ-2-Diabetes verbunden, daher ist niedriger meist besser.",
+        "visceralFatBody": "Viszeralfett ist das Fett, das tief im Bauchraum um die Organe gespeichert wird. Anders als das Unterhautfett ist ein hoher Wert eng mit Herzkrankheiten und Typ-2-Diabetes verbunden (AHA, Circulation 2021), daher ist niedriger meist besser. Die Skala zeigt einen einheitenlosen Wert (etwa 1–12 gilt als gesunder Bereich, ab 13 als erhöht); das ist eine andere Skala als die bildgebenden cm²-Schwellenwerte, die in der Klinik verwendet werden, und nicht mit ihnen austauschbar.",
         "leanBodyMassTitle": "Magermasse",
         "leanBodyMassBody": "Die Magermasse ist dein Gesamtgewicht abzüglich des Körperfetts — Muskeln, Knochen, Organe und Wasser zusammen. Sie neben dem Gewicht zu verfolgen zeigt, ob Veränderungen aus Muskeln oder aus Fett stammen.",
         "flightsClimbedTitle": "Etagen gestiegen",
@@ -2699,7 +2700,7 @@
         "audioEventsTitle": "Laute Geräuschereignisse",
         "audioEventsBody": "Laute Geräuschereignisse markieren Momente, in denen der Lärm um dich herum ein Niveau erreicht hat, das bei ausreichender Belastung das Gehör schädigen kann. Häufige Ereignisse sind ein Hinweis, eine ruhigere Umgebung oder Gehörschutz zu suchen.",
         "daylightTitle": "Zeit im Tageslicht",
-        "daylightBody": "Die Zeit im Tageslicht ist, wie lange du dich täglich im Freien im Licht aufhältst. Regelmäßiges Tageslicht unterstützt einen gesunden Schlaf-Wach-Rhythmus und die Stimmung, und Zeit im Freien ist mit der Augengesundheit verbunden.",
+        "daylightBody": "Die Zeit im Tageslicht ist, wie lange du dich täglich im Freien im Licht aufhältst. Regelmäßiges Tageslicht unterstützt einen gesunden Schlaf-Wach-Rhythmus und die Stimmung (CDC 2024), und Zeit im Freien ist mit der Augengesundheit verbunden.",
         "bloodGlucoseTitle": "Blutzucker",
         "bloodGlucoseBody": "Der Blutzucker ist die Zuckermenge in deinem Blut, die wichtigste Energiequelle des Körpers. Er steigt nach dem Essen und pendelt sich zwischen den Mahlzeiten ein; dauerhaft hohe Werte können auf Diabetes oder Prädiabetes hinweisen.",
         "skinTemperatureTitle": "Hauttemperatur",
@@ -2711,7 +2712,7 @@
         "wristTemperatureTitle": "Handgelenktemperatur",
         "wristTemperatureBody": "Die Handgelenktemperatur wird im Schlaf gemessen und als Abweichung von deinem persönlichen Ausgangswert angegeben, nicht als absoluter Wert. Ein gleichmäßiger Wert ist normal, ein anhaltender Anstieg kann auf Krankheit, intensives Training oder eine Zyklusveränderung hindeuten.",
         "fallsTitle": "Stürze",
-        "fallsBody": "Hier werden die von deinem Wearable erkannten schweren Stürze gezählt. Null ist das Ziel; eine steigende Zahl ist ein Hinweis auf ein erhöhtes Sturzrisiko, das du — besonders im höheren Alter — mit einer Ärztin oder einem Arzt besprechen solltest.",
+        "fallsBody": "Hier werden die von deinem Wearable erkannten schweren Stürze gezählt. Null ist das Ziel; eine steigende Zahl ist ein Hinweis auf ein erhöhtes Sturzrisiko, das du — besonders im höheren Alter — mit einer Ärztin oder einem Arzt besprechen solltest (CDC STEADI 2024).",
         "sixMinuteWalkTitle": "6-Minuten-Gehstrecke",
         "sixMinuteWalkBody": "Dies ist eine Schätzung, wie weit du in sechs Minuten gehen könntest — ein etablierter klinischer Test für Mobilität und kardiopulmonale Ausdauer. Der Wearable-Wert ist ein Näherungswert, nicht der überwachte klinische Test; aussagekräftig ist der gleichbleibende oder steigende Trend.",
         "stairAscentSpeedTitle": "Treppensteig-Tempo",
@@ -4397,7 +4398,7 @@
           "fullBackup": {
             "title": "Voll-Backup",
             "description": "Alle deine Daten in einer JSON-Datei — Messwerte, Medikamente, Stimmung, Zyklus, Laborwerte, Krankheitsepisoden, Allergien, Familienanamnese und Workouts. Gleiches Format wie das wöchentliche Auto-Backup.",
-            "scopeNote": "Die Originaldateien der Dokumente sowie GPS-Routen und Einzelmesswerte von Workouts sind nicht enthalten — lade diese separat aus dem Dokumententresor bzw. dem Workout-Export herunter.",
+            "scopeNote": "Dokumentmetadaten und die KI-Zusammenfassung, falls vorhanden, sind als Klartext enthalten; die Originaldateien der Dokumente sowie GPS-Routen und Einzelmesswerte von Workouts sind es nicht — lade diese separat aus dem Dokumententresor bzw. dem Workout-Export herunter.",
             "encryptToggle": "Mit einer Passphrase verschlüsseln",
             "passphrasePlaceholder": "Passphrase (mind. 12 Zeichen)",
             "passphraseHelp": "Leitet den Archivschlüssel per Argon2id ab und versiegelt ihn mit AES-256-GCM. Speichere die Datei mit der Endung .hlx.",

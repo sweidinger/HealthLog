@@ -31,6 +31,7 @@
  */
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { annotate } from "@/lib/logging/context";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   discoverCorrelations,
@@ -43,8 +44,16 @@ import {
 } from "@/lib/insights/correlation-discovery";
 import { buildBaselineBand, median } from "@/lib/insights/derived/baseline";
 import { VITALS_BASELINE_TYPES } from "@/lib/insights/derived/registry";
+import {
+  buildMeasurementDailySeries,
+  fetchMeasurementWindowSeries,
+  toDailyMeans,
+} from "@/lib/insights/correlation-channel-series";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+/** Cap on the mood-entry window read, mirroring the route / Coach tool. */
+const MOOD_READ_CAP = 5000;
 
 /** The two supported narrative periods and their length in days. */
 export const PERIOD_DAYS = { week: 7, month: 30 } as const;
@@ -179,25 +188,6 @@ export type PeriodNarrativeResult =
 function tzDayKey(at: Date, tz: string): string {
   const { year, month, day } = wallClockInTz(at, tz);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-/** Collapse raw readings to per-day means, day-keyed in the user's tz. Pure. */
-function toDailyMeans(
-  rows: Array<{ value: number; at: Date }>,
-  tz: string,
-): DailySeriesPoint[] {
-  const byDay = new Map<string, { sum: number; count: number }>();
-  for (const r of rows) {
-    if (!Number.isFinite(r.value)) continue;
-    const day = tzDayKey(r.at, tz);
-    const acc = byDay.get(day) ?? { sum: 0, count: 0 };
-    acc.sum += r.value;
-    acc.count += 1;
-    byDay.set(day, acc);
-  }
-  return [...byDay.entries()]
-    .map(([day, acc]) => ({ day, value: acc.sum / acc.count }))
-    .sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
 /**
@@ -548,58 +538,82 @@ export async function buildPeriodNarrativeContext(
     ]),
   ) as MeasurementType[];
 
-  const [measurements, moodEntries] = await Promise.all([
-    prisma.measurement.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        measuredAt: { gte: since },
-        type: { in: measurementTypes },
-      },
-      orderBy: { measuredAt: "asc" },
-      take: 20000,
-      select: { type: true, value: true, measuredAt: true },
-    }),
-    prisma.moodEntry.findMany({
-      where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
-      orderBy: { moodLoggedAt: "asc" },
-      take: 5000,
-      select: {
-        score: true,
-        moodLoggedAt: true,
-        // v1.14.0 — pull RATED-factor links so each factor the user scores
-        // (work / sleep-quality / stress …) joins the discovery matrix as a
-        // `FACTOR:<key>` channel. One extra select on the existing mood read
-        // — no new round-trip. BINARY links carry a null `rating` and are
-        // dropped below.
-        tagLinks: {
-          where: { moodTag: { kind: "RATED" }, rating: { not: null } },
-          select: {
-            rating: true,
-            moodTag: {
-              select: {
-                key: true,
-                scaleMin: true,
-                scaleMax: true,
-                inverse: true,
+  // v1.30.3 (QA F2/F3) — the fetch + desc/cap/resort discipline AND the
+  // per-type grain resolution (source-collapse sum for cumulative types,
+  // per-night reconstruction for sleep — not a blind per-row MEAN) now
+  // route through the shared `fetchMeasurementWindowSeries` +
+  // `buildMeasurementDailySeries` (`correlation-channel-series.ts`), the
+  // same helpers the route / Coach tool / per-metric card share. Before
+  // this fix the local `toDailyMeans` twin folded EVERY type through a
+  // blind per-row mean: a month's current-vs-prior period comparison for
+  // `SLEEP_DURATION` averaged per-stage segment durations (~45 min)
+  // instead of summing a night's total time asleep, and `ACTIVITY_STEPS`
+  // blended per-sample chunk means with drained daily totals — and the
+  // `asc, take 20000` cap dropped the CURRENT period first on a dense
+  // account, the worst possible direction for a current-vs-prior surface.
+  const [{ byType, measurementsCapped }, moodEntriesDesc, priorityJson] =
+    await Promise.all([
+      fetchMeasurementWindowSeries(userId, since, measurementTypes),
+      prisma.moodEntry.findMany({
+        where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
+        orderBy: { moodLoggedAt: "desc" },
+        take: MOOD_READ_CAP,
+        select: {
+          score: true,
+          moodLoggedAt: true,
+          // v1.14.0 — pull RATED-factor links so each factor the user scores
+          // (work / sleep-quality / stress …) joins the discovery matrix as a
+          // `FACTOR:<key>` channel. One extra select on the existing mood read
+          // — no new round-trip. BINARY links carry a null `rating` and are
+          // dropped below.
+          tagLinks: {
+            where: { moodTag: { kind: "RATED" }, rating: { not: null } },
+            select: {
+              rating: true,
+              moodTag: {
+                select: {
+                  key: true,
+                  scaleMin: true,
+                  scaleMax: true,
+                  inverse: true,
+                },
               },
             },
           },
         },
-      },
-    }),
-  ]);
+      }),
+      loadUserSourcePriority(userId),
+    ]);
+  // This surface reads mood alongside its RATED-factor tag-links (a select
+  // the shared `fetchMoodWindowSeries` helper does not carry), so the
+  // desc+cap+resort discipline is applied in place here rather than
+  // through that helper — same discipline, bespoke select.
+  const moodCapped = moodEntriesDesc.length >= MOOD_READ_CAP;
+  const moodEntries = [...moodEntriesDesc].sort(
+    (a, b) => a.moodLoggedAt.getTime() - b.moodLoggedAt.getTime(),
+  );
 
-  const rawByType = new Map<string, Array<{ value: number; at: Date }>>();
-  for (const m of measurements) {
-    const list = rawByType.get(m.type) ?? [];
-    list.push({ value: m.value, at: m.measuredAt });
-    rawByType.set(m.type, list);
-  }
+  // QA F2 — surfaces when a dense account's window exceeded the read cap,
+  // mirroring the route's identical annotation. The cap now falls on the
+  // OLDEST rows (desc + take), so a capped read still covers the CURRENT
+  // period this current-vs-prior surface needs.
+  annotate({
+    action: { name: "insights.period-narrative.read" },
+    meta: {
+      period,
+      measurements_capped: measurementsCapped,
+      mood_entries_capped: moodCapped,
+    },
+  });
 
   const seriesByMetric = new Map<string, DailySeriesPoint[]>();
-  for (const [type, rows] of rawByType) {
-    seriesByMetric.set(type, toDailyMeans(rows, tz));
+  for (const type of measurementTypes) {
+    const rows = byType.get(type);
+    if (!rows || rows.length === 0) continue;
+    seriesByMetric.set(
+      type,
+      buildMeasurementDailySeries(type, rows, tz, priorityJson),
+    );
   }
   const moodPoints = toDailyMeans(
     moodEntries.map((e) => ({ value: e.score, at: e.moodLoggedAt })),

@@ -120,6 +120,36 @@ describe("computeBpInTargetPct", () => {
   });
 
   /**
+   * v1.30.3 (QA F7) — the same-day pairing fallback used to hardcode the
+   * Berlin calendar day regardless of the caller's actual user. A New
+   * York user logging SYS at 17:50 and DIA at 18:10 local time (>5-min
+   * session gap) sits on 2026-05-01 in New York but straddles 23:50 →
+   * 00:10 UTC+2 Berlin — two DIFFERENT Berlin days — so the legitimate
+   * same-local-day pair was rejected. Passing the user's own tz fixes it;
+   * omitting the tz (legacy callers) keeps the old Berlin-only behaviour.
+   */
+  it("pairs on the user's own tz, not a hardcoded Berlin day", () => {
+    // 2026-05-01T21:50Z = 17:50 New York (EDT) = 23:50 Berlin (CEST).
+    // 2026-05-01T22:10Z = 18:10 New York (EDT) = 00:10 Berlin — the NEXT
+    // Berlin calendar day (2026-05-02).
+    const sys = [reading("2026-05-01T21:50:00Z", 125)];
+    const dia = [reading("2026-05-01T22:10:00Z", 75)];
+
+    // Without a tz, the legacy Berlin-day fallback rejects the pair.
+    expect(computeBpInTargetPct(sys, dia, TARGETS_UNDER_65)).toBeNull();
+
+    // With the user's own tz, both readings fall on the same New York
+    // calendar day (2026-05-01) and the pair is accepted.
+    const result = computeBpInTargetPct(
+      sys,
+      dia,
+      TARGETS_UNDER_65,
+      "America/New_York",
+    );
+    expect(result).toEqual({ pct: 100, pairs: 1 });
+  });
+
+  /**
    * Regression: the old denominator of `sysData.length` made the tile
    * report 0 % when sys+dia readings shared a calendar day but were
    * outside the 5-minute window — even though every paired reading
