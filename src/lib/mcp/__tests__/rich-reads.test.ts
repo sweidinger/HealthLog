@@ -133,16 +133,35 @@ describe("resolveRichMetric", () => {
   // v1.30.4 (C2) — the signal registry's `surfaces.mcp` flag is documented as
   // the SINGLE source of truth for MCP exposure, but `resolveRichMetric`'s
   // metric-status-registry path (exact id / display-name match) used to
-  // resolve an id regardless of that flag. `CARDIO_RECOVERY` /
-  // `WRIST_TEMPERATURE` / `SLEEP_SCORE` are all valid `METRIC_STATUS_IDS`
-  // entries but carry `mcp:false` in the signal registry — pin that they
-  // now stay unreachable, closing the contract gap (no PHI actually leaked
-  // through it, but a future `mcp:false` signal without this guard would).
+  // resolve an id regardless of that flag. `AVERAGE_HEART_RATE` /
+  // `MAX_HEART_RATE` are valid `METRIC_STATUS_IDS` entries but carry
+  // `mcp:false` in the signal registry AND are NOT on the reviewed
+  // metric-status discovery allowlist — pin that they stay unreachable,
+  // closing the contract gap (no PHI actually leaked through it, but a future
+  // `mcp:false` signal without this guard would). The reviewed discovery ids
+  // (`CARDIO_RECOVERY` / `WRIST_TEMPERATURE` / `SLEEP_SCORE` / …) are the one
+  // deliberate exemption and stay resolvable — asserted below.
   it("honours the signal registry's mcp:false as a hard veto over a metric-status hit", () => {
-    expect(resolveRichMetric("CARDIO_RECOVERY")).toBeNull();
-    expect(resolveRichMetric("cardio recovery")).toBeNull();
-    expect(resolveRichMetric("WRIST_TEMPERATURE")).toBeNull();
-    expect(resolveRichMetric("SLEEP_SCORE")).toBeNull();
+    expect(resolveRichMetric("AVERAGE_HEART_RATE")).toBeNull();
+    expect(resolveRichMetric("MAX_HEART_RATE")).toBeNull();
+    expect(resolveRichMetric("max heart rate")).toBeNull();
+  });
+
+  // v1.30.4 (coverage review) — the reviewed metric-status discovery allowlist
+  // is a deliberate MCP exposure, co-equal to a signal `mcp:true`. A
+  // `mcp:false` on the same signal must NOT strip these ids' resolvability, or
+  // `compare_metric` / `get_metric_baseline` would advertise a metric in
+  // discovery that then refuses to resolve.
+  it("exempts the reviewed metric-status discovery allowlist from the mcp:false veto", () => {
+    expect(resolveRichMetric("CARDIO_RECOVERY")?.measurementType).toBe(
+      "CARDIO_RECOVERY",
+    );
+    expect(resolveRichMetric("WRIST_TEMPERATURE")?.measurementType).toBe(
+      "WRIST_TEMPERATURE",
+    );
+    expect(resolveRichMetric("SLEEP_SCORE")?.measurementType).toBe(
+      "SLEEP_SCORE",
+    );
   });
 
   it("still resolves a metric-status id the signal registry does NOT mark mcp:false", () => {

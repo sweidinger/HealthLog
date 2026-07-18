@@ -214,9 +214,19 @@ function fromRegistry(id: string): RichMetric | null {
   // the SAME id in the signal registry as a hard veto over a metric-status
   // hit; an id absent from the signal registry (most of `METRIC_STATUS_IDS`)
   // is unaffected — metric-status stays authoritative when the two don't
-  // disagree.
+  // disagree. The one exemption is the reviewed metric-status discovery
+  // allowlist (`REVIEWED_DISCOVERY_IDS`): those ids are a deliberate,
+  // human-named MCP exposure — co-equal to a signal `mcp:true` — so a
+  // `mcp:false` on the same signal must NOT strip their resolvability, or
+  // `compare_metric` / `get_metric_baseline` would advertise a metric in
+  // discovery that then refuses to resolve.
   const sig = getSignal(id);
-  if (sig && sig.kind === "measurement" && sig.surfaces.mcp === false) {
+  if (
+    sig &&
+    sig.kind === "measurement" &&
+    sig.surfaces.mcp === false &&
+    !REVIEWED_DISCOVERY_IDS.has(id)
+  ) {
     return null;
   }
   const metric: RichMetric = {
@@ -399,6 +409,21 @@ const METRIC_STATUS_DISCOVERY_IDS = [
   "STAIR_DESCENT_SPEED",
   "ENERGY_EXPENDITURE_KJ",
 ] as const satisfies readonly MetricStatusMetricId[];
+
+/**
+ * The reviewed metric-status discovery allowlist as a membership Set. Each
+ * member is a DELIBERATE, human-named MCP exposure (v1.30.4 coverage review) —
+ * co-equal to a signal-registry `mcp:true`, just carried in the metric-status
+ * layer instead of the signal layer. `fromRegistry`'s `mcp:false` veto exempts
+ * these ids so a reviewed metric stays resolvable (`compare_metric` /
+ * `get_metric_baseline` / `detect_changepoints`); the veto still fires for any
+ * UNREVIEWED `mcp:false` signal that happens to carry a metric-status entry
+ * (the two mental-health screeners and every `ENV_*` signal are absent from
+ * this list and have no metric-status entry, so they stay unreachable).
+ */
+const REVIEWED_DISCOVERY_IDS: ReadonlySet<string> = new Set(
+  METRIC_STATUS_DISCOVERY_IDS,
+);
 
 /**
  * The metric-status-only ids `list_metrics` / the inventory resource /
