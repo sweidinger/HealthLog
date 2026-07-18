@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Map as MapIcon, HeartPulse } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { getNumberFormat, getDateTimeFormat } from "@/lib/intl/formatter-cache";
@@ -106,7 +107,26 @@ export function WorkoutList({ workouts, className }: WorkoutListProps) {
                 <Icon className="size-4" />
               </span>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate font-medium">{sportName}</span>
+                <span className="flex items-center gap-1.5 truncate font-medium">
+                  {sportName}
+                  {/* #67 — discreet glyphs flag which sessions open rich
+                      (map / HR curve). Muted so they never compete with
+                      the sport name. */}
+                  {workout.hasRoute ? (
+                    <MapIcon
+                      className="text-muted-foreground size-3.5 shrink-0"
+                      aria-hidden="true"
+                      data-slot="workout-list-glyph-route"
+                    />
+                  ) : null}
+                  {workout.hasHrSeries ? (
+                    <HeartPulse
+                      className="text-muted-foreground size-3.5 shrink-0"
+                      aria-hidden="true"
+                      data-slot="workout-list-glyph-hr"
+                    />
+                  ) : null}
+                </span>
                 <span className="text-muted-foreground truncate text-xs">
                   {formatDate(workout.startedAt, locale, timeFormat)}
                 </span>

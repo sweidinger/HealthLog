@@ -44,3 +44,5 @@ export { EfficacyChart } from "@/components/medications/detail/efficacy/efficacy
 export { AssessmentHistoryChart } from "@/components/mental-health/assessment-history-chart";
 export { IntradayPulseChart } from "@/components/insights/intraday-pulse-chart";
 export { NutrientDailyBarChart } from "./nutrient-daily-bar-chart";
+export { WorkoutHrChart } from "./workout-hr-chart";
+export { WorkoutElevationChart } from "./workout-elevation-chart";

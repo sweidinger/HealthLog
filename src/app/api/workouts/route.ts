@@ -94,6 +94,10 @@ interface CanonicalWorkoutRow {
   avgHeartRate: number | null;
   maxHeartRate: number | null;
   createdAt: Date;
+  // #67 list glyphs — cheap relation-id selects so the list can flag
+  // which sessions open into a rich detail (map / HR curve).
+  route: { id: string } | null;
+  samples: { sampleCount: number } | null;
 }
 
 /** The cached, deduped, most-recent-first row set for one filter combination. */
@@ -115,6 +119,8 @@ interface WorkoutsResult {
     maxHr: number | null;
     source: string;
     externalId: string | null;
+    hasRoute: boolean;
+    hasHrSeries: boolean;
   }>;
   meta: {
     total: number;
@@ -169,6 +175,8 @@ async function buildWorkoutsProjection(
         avgHeartRate: true,
         maxHeartRate: true,
         createdAt: true,
+        route: { select: { id: true } },
+        samples: { select: { sampleCount: true } },
       },
     }),
     prisma.user.findUnique({
@@ -215,6 +223,8 @@ function sliceWorkoutsProjection(
       maxHr: row.maxHeartRate,
       source: row.source,
       externalId: row.externalId,
+      hasRoute: row.route != null,
+      hasHrSeries: row.samples != null && row.samples.sampleCount > 0,
     }));
 
   return {

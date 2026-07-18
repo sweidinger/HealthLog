@@ -27,6 +27,9 @@ vi.mock("@/lib/db", () => ({
     user: {
       findUnique: vi.fn(),
     },
+    measurement: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -103,7 +106,14 @@ describe("GET /api/workouts/{id}", () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       sourcePriorityJson: null,
+      dateOfBirth: null,
     } as never);
+    // #67 — the enrichment reads: the HR-curve pulse-window fallback
+    // (`measurement.findMany`) and the sport-context average (a SECOND
+    // `workout.findMany`). Default both to empty; each test's
+    // `mockResolvedValueOnce` still wins for the cluster call.
+    vi.mocked(prisma.workout.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
     // clearAllMocks wipes the factory default; re-seed the gate to pass.
     vi.mocked(requireModuleEnabled).mockResolvedValue({
       enabled: true,
@@ -206,6 +216,72 @@ describe("GET /api/workouts/{id}", () => {
     expect(res.status).toBe(200);
     expect(body.data.id).toBe("w-withings");
     expect(body.data.canonicalId).toBe("w-apple");
+  });
+
+  it("adds the #67 enrichment fields and strips raw blobs under compact=1", async () => {
+    const startMs = BASE_ROW.startedAt.getTime();
+    const storedSamples = Array.from({ length: 40 }, (_, i) => ({
+      t: new Date(startMs + i * 45_000).toISOString(),
+      hr: 140 + (i % 6),
+    }));
+    vi.mocked(prisma.workout.findUnique).mockResolvedValueOnce({
+      ...BASE_ROW,
+      // WHOOP device zones win → zones render even without profile age.
+      metadata: {
+        zoneDurations: {
+          zone_one_milli: 60_000,
+          zone_two_milli: 300_000,
+          zone_three_milli: 600_000,
+          zone_four_milli: 200_000,
+          zone_five_milli: 40_000,
+        },
+      },
+      route: {
+        id: "wr-1",
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [11, 49],
+            [11.01, 49.01],
+          ],
+        },
+        sampleTimestamps: ["2026-05-15T07:00:00Z", "2026-05-15T07:01:00Z"],
+        createdAt: BASE_ROW.createdAt,
+      },
+      samples: { sampleCount: storedSamples.length, samples: storedSamples },
+    } as never);
+    vi.mocked(prisma.workout.findMany).mockResolvedValueOnce([
+      {
+        id: "w-1",
+        source: "APPLE_HEALTH",
+        startedAt: BASE_ROW.startedAt,
+        sportType: "RUNNING",
+      },
+    ] as never);
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/workouts/w-1?compact=1", {
+        method: "GET",
+      }),
+      makeParams("w-1"),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    // Stored series wins → provenance is the native workout series.
+    expect(body.data.hrSeries.source).toBe("workout_series");
+    expect(body.data.hrSeries.points.length).toBeGreaterThanOrEqual(2);
+    // WHOOP device zones.
+    expect(body.data.zones.model).toBe("whoop");
+    // Additive keys present; reserved seam is null.
+    expect(body.data).toHaveProperty("splits");
+    expect(body.data).toHaveProperty("sportContext");
+    expect(body.data.aiInsight).toBeNull();
+    // compact=1 drops the raw blobs but keeps count + geometry.
+    expect(body.data.samples.sampleCount).toBe(40);
+    expect(body.data.samples.samples).toBeNull();
+    expect(body.data.route.geometry).not.toBeNull();
+    expect(body.data.route.sampleTimestamps).toBeNull();
   });
 
   it("exposes the WorkoutRoute geometry when present", async () => {
