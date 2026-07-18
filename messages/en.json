@@ -228,7 +228,7 @@
     "logout": "Sign out",
     "login": "Sign in",
     "notifications": "Notifications",
-    "theme": "Appearance",
+    "theme": "Theme",
     "themeSystem": "System",
     "themeDark": "Dark",
     "themeLight": "Light",
@@ -599,12 +599,13 @@
     },
     "watchdog": {
       "title": "Automatic screening",
-      "description": "HealthLog also watches quietly in the background — irregular-rhythm and breathing-disturbance notifications from a connected watch, plus baseline-drift alerts — and surfaces a card only when something stands out. No card showing is a good sign, not a missing feature."
+      "description": "HealthLog also watches quietly in the background — irregular-rhythm and breathing-disturbance notifications from a connected watch, baseline-drift health-status alerts, and notable shifts between your two most recent lab panels — and surfaces a card only when something stands out. No card showing is a good sign, not a missing feature."
     }
   },
   "mood": {
     "title": "Mood",
     "subtitle": "Mood tracker and entries",
+    "mentalWellbeingLink": "Take a mental-wellbeing check-in",
     "addEntry": "Add",
     "editEntry": "Edit entry",
     "moodLevel": "Mood",
@@ -2263,6 +2264,8 @@
       "historyEmpty": "Your conversations will appear here. Ask anything to start.",
       "historyDeleteAria": "Delete conversation",
       "historyDeleted": "Conversation deleted",
+      "historySearchEmpty": "No conversations match your search.",
+      "historyLoadingMore": "Loading more…",
       "sourcesTitle": "What I can see",
       "sourcesFresh": "Fresh",
       "sourcesStale": "Stale",
@@ -2894,7 +2897,7 @@
       "sleep": {
         "title": "No sleep entries yet",
         "description": "Once sleep data lands (manual or via Withings / Apple Health), the per-night stage breakdown will appear here.",
-        "cta": "Connect Withings"
+        "cta": "Connect a source"
       }
     },
     "navWorkouts": "Workouts",
@@ -3262,6 +3265,8 @@
     },
     "navWalkingSpeed": "Walking Speed",
     "mood": {
+      "logLink": "Log a mood entry",
+      "mentalWellbeingLink": "Take a mental-wellbeing check-in",
       "heatmapTitle": "Mood calendar",
       "heatmapNoEntry": "No entry",
       "legendGreat": "Great",
@@ -3550,7 +3555,8 @@
         "sectionSubtitle": "Composite recovery, stress and strain read from your connected devices",
         "loadError": "Could not load your wellness scores right now.",
         "loadingLabel": "Loading your health scores",
-        "recovery": "Recovery",
+        "recovery": "Recovery score",
+        "recoveryCrossLink": "See your wearable's recovery & strain data",
         "stress": "Stress",
         "strain": "Strain"
       },
@@ -3721,6 +3727,7 @@
     "recovery": {
       "title": "Recovery",
       "description": "How well your body has bounced back — the recovery, strain and load signals your wearable records overnight.",
+      "scoreCrossLink": "See the composite recovery score",
       "emptyTitle": "No recovery data yet",
       "empty": "No recovery data yet. Connect a WHOOP, Polar or Oura account and these scores fill in once your device syncs.",
       "block": {
@@ -4009,7 +4016,7 @@
         },
         "wrapUp": {
           "title": "That’s the tour",
-          "body": "You can revisit any module on its own at any time (“Show this tour” on every page) or restart the whole tour under Settings → Advanced."
+          "body": "This walkthrough runs once — it won't reopen on its own. Everything it covered stays put, and you can turn features on or off any time under Settings → Modules."
         }
       }
     },
@@ -4084,7 +4091,8 @@
       "learning": "Some insights — glucose, sleep rhythm, blood-pressure trends, cycle — sharpen over the first week or two as your data builds up. Empty tiles now just mean we're still learning your baseline.",
       "connectCta": "Connect a device",
       "logCta": "Log your first measurement",
-      "importCta": "Import existing history"
+      "importCta": "Import existing history",
+      "modulesCta": "Choose your modules"
     },
     "welcomeBack": {
       "title": "Welcome back",
@@ -4549,7 +4557,7 @@
         "description": "Structured allergies and family history records."
       },
       "environment": {
-        "title": "Environment",
+        "title": "Location & weather",
         "subtitle": "Weather, daylight, and location context.",
         "disabledHint": "Turn on the Environment module to set a home location and pull in daily weather and daylight.",
         "searchPlaceholder": "Search for a city",
@@ -7959,6 +7967,7 @@
   "mentalHealth": {
     "pageTitle": "Mental wellbeing",
     "pageDescription": "Validated, opt-in self-checks — PHQ-9 (mood), GAD-7 (worry), WHO-5 (well-being) and SCI (sleep) — that sit beside your mood tracking. The value is the trend over time, not any single number.",
+    "moodLink": "View your mood history",
     "attributionLabel": "Attribution",
     "attributionShow": "Source and licence for {instrument}",
     "choosePrompt": "Choose a check-in",
@@ -8404,7 +8413,8 @@
       "noConditions": "Not linked to a condition",
       "previewUnavailable": "No inline preview for this file type",
       "uploadedMeta": "Added {date} · {size}",
-      "share": "Share"
+      "share": "Share",
+      "labValuesLink": "View {count} lab values"
     },
     "dropOverlay": {
       "title": "Drop files to upload",
@@ -8666,7 +8676,9 @@
       "coachCheckin": {
         "title": "Time to check in on a plan",
         "body": "It's been about a week since you set this plan — keep it, adjust it, or let it go. No pressure either way.",
-        "bodyPlan": "About a week ago you set: “{plan}”. Keep it, adjust it, or let it go — no pressure either way."
+        "bodyPlan": "About a week ago you set: “{plan}”. Keep it, adjust it, or let it go — no pressure either way.",
+        "adjustPrompt": "I'd like to adjust my check-in plan.",
+        "adjustPromptPlan": "I'd like to adjust this plan: “{plan}”"
       },
       "tensionWindow": {
         "title": "Possible tension today",

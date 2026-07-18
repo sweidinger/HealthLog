@@ -435,6 +435,16 @@ export interface ListConversationsParams {
    * live join row). `userId` stays narrowed regardless.
    */
   attachedDocumentId?: string;
+  /**
+   * v1.30.2 (QoL H1) — optional server-side title search for the history
+   * rail + the standalone conversations page. Case-insensitive substring
+   * match against `title` only — the only plaintext column on the row;
+   * `CoachMessage.encryptedContent` cannot be searched without decrypting
+   * every message, so message BODIES are out of scope for this pass (see
+   * the route's doc comment). Trimmed empty string is treated as "no
+   * filter", matching the pre-existing cursor/limit handling style.
+   */
+  q?: string;
 }
 
 /**
@@ -449,12 +459,14 @@ export async function listConversations(
   nextCursor: string | null;
 }> {
   const limit = Math.min(Math.max(params.limit ?? 20, 1), 50);
+  const q = params.q?.trim();
   const rows = await prisma.coachConversation.findMany({
     where: {
       userId: params.userId,
       ...(params.attachedDocumentId
         ? { attachments: { some: { documentId: params.attachedDocumentId } } }
         : {}),
+      ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
     },
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: limit + 1,

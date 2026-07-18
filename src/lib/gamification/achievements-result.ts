@@ -22,7 +22,6 @@ import {
   calculateLongestStreak,
   evaluateAchievementsWithCompletionDates,
   moduleForMetric,
-  toBerlinDayKey,
   type AchievementMetrics,
   type AchievementProgress,
 } from "@/lib/gamification/achievements";
@@ -41,6 +40,7 @@ import {
 } from "@/lib/analytics/classifications";
 import { classifyIntakeTiming } from "@/lib/analytics/compliance";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
 
 export type AuthedUser = Awaited<ReturnType<typeof requireAuth>>["user"];
 
@@ -74,22 +74,23 @@ type MedicationScheduleRecord = {
 
 /**
  * v1.28.25 — one SQL-aggregated vitals bucket: every non-deleted, non-import
- * row of `type` inside the Berlin-local hour `hour` of day `dayKey`, folded
- * to a row count + value sum by the database. The vitals window is
- * rollout-date → now and grows forever, and PULSE can be per-sample heart
- * rate (six figures on a long-tenured wearable account) — reading raw rows
- * here was the scale hazard. Every consumer's semantics survive the fold:
- * green-day classification needs the per-day per-type MEAN (= Σsum / Σcount
- * across the day's hour buckets — identical to the raw mean up to
- * floating-point summation order), the count badges need row counts, the
- * engagement / consistency series need day presence, and the hidden
+ * row of `type` inside the badge-owner's LOCAL hour `hour` of day `dayKey`
+ * (DATAINT M4 — was hardcoded Berlin; the query now binds the caller's own
+ * `User.timezone`), folded to a row count + value sum by the database. The
+ * vitals window is rollout-date → now and grows forever, and PULSE can be
+ * per-sample heart rate (six figures on a long-tenured wearable account) —
+ * reading raw rows here was the scale hazard. Every consumer's semantics
+ * survive the fold: green-day classification needs the per-day per-type MEAN
+ * (= Σsum / Σcount across the day's hour buckets — identical to the raw mean
+ * up to floating-point summation order), the count badges need row counts,
+ * the engagement / consistency series need day presence, and the hidden
  * night-owl / early-bird / leap-day tallies need per-hour row counts.
  */
 type VitalsHourBucket = {
   type: "WEIGHT" | "BLOOD_PRESSURE_SYS" | "BLOOD_PRESSURE_DIA" | "PULSE";
-  /** Berlin-local YYYY-MM-DD. */
+  /** User-local YYYY-MM-DD. */
   dayKey: string;
-  /** Berlin-local hour 0–23. */
+  /** User-local hour 0–23. */
   hour: number;
   /** Number of raw rows folded into this bucket. */
   rowCount: number;
@@ -102,21 +103,22 @@ function maxDate(a: Date, b: Date): Date {
 }
 
 /**
- * v1.18.1 P4 — every Berlin-local day key covered by an illness episode
- * (onset day through the resolved day, or through `now` while ongoing),
- * inclusive on both ends. These are the days a streak is allowed to lapse
- * across without breaking (the Rest Mode freeze). Uses the same
- * `toBerlinDayKey` day anchoring every other streak series uses, so the
+ * v1.18.1 P4 — every local day key covered by an illness episode (onset day
+ * through the resolved day, or through `now` while ongoing), inclusive on
+ * both ends. These are the days a streak is allowed to lapse across without
+ * breaking (the Rest Mode freeze). Uses the same `tz` day anchoring every
+ * other streak series uses (DATAINT M4 — was hardcoded Berlin), so the
  * frozen days line up with the qualifying days exactly.
  */
 function collectIllnessDayKeys(
   episodes: Array<{ onsetAt: Date; resolvedAt: Date | null }>,
   now: Date,
+  tz: string,
 ): Set<string> {
   const frozen = new Set<string>();
   for (const ep of episodes) {
-    const startSerial = dayKeyToSerial(toBerlinDayKey(ep.onsetAt));
-    const endSerial = dayKeyToSerial(toBerlinDayKey(ep.resolvedAt ?? now));
+    const startSerial = dayKeyToSerial(userDayKey(ep.onsetAt, tz));
+    const endSerial = dayKeyToSerial(userDayKey(ep.resolvedAt ?? now, tz));
     for (let serial = startSerial; serial <= endSerial; serial++) {
       frozen.add(serialToDayKey(serial));
     }
@@ -188,14 +190,17 @@ function toDaySeries(dayKeys: string[]): {
   };
 }
 
-function getEventDaySeries(dates: Date[]): {
+function getEventDaySeries(
+  dates: Date[],
+  tz: string,
+): {
   dayKeys: string[];
   firstDateByDay: Map<string, Date>;
 } {
   const firstDateByDay = new Map<string, Date>();
 
   for (const date of dates) {
-    const dayKey = toBerlinDayKey(date);
+    const dayKey = userDayKey(date, tz);
     const existing = firstDateByDay.get(dayKey);
 
     if (!existing || date < existing) {
@@ -288,7 +293,10 @@ function getOnTimePerfectDaySeries(
   const eventsByDay = new Map<string, IntakeEventRecord[]>();
 
   for (const event of intakeEvents) {
-    const dayKey = toBerlinDayKey(event.scheduledFor);
+    // DATAINT M4 — was `toBerlinDayKey`; this function already threads `tz`
+    // for the schedule-window classification below, but the day-BUCKETING
+    // key itself was still hardcoded Berlin.
+    const dayKey = userDayKey(event.scheduledFor, tz);
     const list = eventsByDay.get(dayKey) ?? [];
     list.push(event);
     eventsByDay.set(dayKey, list);
@@ -392,6 +400,7 @@ function getExpectedIntakesForDay(
 function getIntakeIssueMetrics(
   intakeEvents: IntakeEventRecord[],
   schedulesByMedicationId: Map<string, MedicationScheduleRecord[]>,
+  tz: string,
 ) {
   const skippedIntakeDates = intakeEvents
     .filter((event) => event.skipped)
@@ -408,7 +417,7 @@ function getIntakeIssueMetrics(
       continue;
     }
 
-    const dayKey = toBerlinDayKey(event.scheduledFor);
+    const dayKey = userDayKey(event.scheduledFor, tz);
     const byDay = eventsByMedicationDay.get(event.medicationId) ?? new Map();
     const list = byDay.get(dayKey) ?? [];
     list.push(event);
@@ -470,11 +479,12 @@ function getCompliance80DaySeries(
   intakeEvents: IntakeEventRecord[],
   startDate: Date,
   endDate: Date,
+  tz: string,
 ) {
   const perDayCounts = new Map<number, { logged: number; taken: number }>();
 
   for (const event of intakeEvents) {
-    const serial = dayKeyToSerial(toBerlinDayKey(event.scheduledFor));
+    const serial = dayKeyToSerial(userDayKey(event.scheduledFor, tz));
     const current = perDayCounts.get(serial) ?? { logged: 0, taken: 0 };
 
     const logged = event.skipped || event.takenAt !== null;
@@ -486,8 +496,8 @@ function getCompliance80DaySeries(
     perDayCounts.set(serial, current);
   }
 
-  const startSerial = dayKeyToSerial(toBerlinDayKey(startDate));
-  const endSerial = dayKeyToSerial(toBerlinDayKey(endDate));
+  const startSerial = dayKeyToSerial(userDayKey(startDate, tz));
+  const endSerial = dayKeyToSerial(userDayKey(endDate, tz));
 
   let rollingLogged = 0;
   let rollingTaken = 0;
@@ -538,6 +548,14 @@ export async function buildAchievementsResult(
   const now = new Date();
   const userId = user.id;
   const startDate = maxDate(user.createdAt, GAMIFICATION_ROLLOUT_AT);
+  // v1.30 (DATAINT M4) — every day-key derivation below anchors on the
+  // BADGE OWNER's own timezone, not a hardcoded Berlin default. Before this,
+  // a non-CET user's evening entries could fold into the wrong calendar day
+  // (or merge two real local days into one), silently breaking every
+  // day-streak badge (login, entry, weekend, miss-free, sleep-log, on-time,
+  // compliance-80) plus the hidden night-owl / early-bird / leap-day
+  // triggers for every non-CET account.
+  const tz = user.timezone || DEFAULT_TIMEZONE;
 
   const [
     vitalsBuckets,
@@ -550,7 +568,7 @@ export async function buildAchievementsResult(
     healthProfile,
     illnessEpisodes,
   ] = await Promise.all([
-    // v1.28.25 — vitals folded to (type, Berlin day, Berlin hour) buckets in
+    // v1.28.25 — vitals folded to (type, local day, local hour) buckets in
     // SQL instead of one row per sample. The window (rollout → now) grows
     // forever and PULSE can be per-sample heart rate, so the raw read ran to
     // six figures on long-tenured wearable accounts; the bucket set is
@@ -561,18 +579,21 @@ export async function buildAchievementsResult(
     // (never user input), source ≠ IMPORT, and soft-deleted rows stay
     // excluded (v1.4.41 W-DELETED-2) so deleting a row immediately rolls
     // back any streak / count badge it earned. `AT TIME ZONE 'UTC' AT TIME
-    // ZONE 'Europe/Berlin'` re-tags the naive UTC `measured_at` and converts
-    // it to the same Berlin wall clock `toBerlinDayKey` / `berlinHour`
-    // derive via Intl. Ordering pins day → hour → type for determinism.
+    // ZONE ${tz}` re-tags the naive UTC `measured_at` and converts it to the
+    // BADGE OWNER's own wall clock (DATAINT M4 — was hardcoded
+    // 'Europe/Berlin'; `tz` is bound as a query parameter, never spliced, and
+    // is only ever a value `PUT /api/auth/me/timezone` already validated
+    // against `Intl`'s IANA zone list before it reached the column).
+    // Ordering pins day → hour → type for determinism.
     prisma.$queryRaw<VitalsHourBucket[]>`
       SELECT
         m."type"::text AS "type",
         to_char(
-          (m."measured_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Berlin',
+          (m."measured_at" AT TIME ZONE 'UTC') AT TIME ZONE ${tz},
           'YYYY-MM-DD'
         ) AS "dayKey",
         EXTRACT(
-          HOUR FROM (m."measured_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Berlin'
+          HOUR FROM (m."measured_at" AT TIME ZONE 'UTC') AT TIME ZONE ${tz}
         )::int AS "hour",
         COUNT(*)::int AS "rowCount",
         SUM(m."value")::double precision AS "valueSum"
@@ -708,12 +729,12 @@ export async function buildAchievementsResult(
       : Promise.resolve([]),
   ]);
 
-  // v1.18.1 P4 — Rest Mode streak-freeze. Build the set of Berlin-local day
-  // keys covered by an illness episode (onset → resolved, or → now while
+  // v1.18.1 P4 — Rest Mode streak-freeze. Build the set of local-day keys
+  // covered by an illness episode (onset → resolved, or → now while
   // ongoing). A day-streak that lapses only across these days is bridged
   // rather than broken (see `bridgeFrozenStreakGaps`): being unwell pauses a
   // streak, it does not fail it.
-  const frozenIllnessDayKeys = collectIllnessDayKeys(illnessEpisodes, now);
+  const frozenIllnessDayKeys = collectIllnessDayKeys(illnessEpisodes, now, tz);
   const freeze = (dayKeys: string[]): string[] =>
     bridgeFrozenStreakGaps(dayKeys, frozenIllnessDayKeys);
 
@@ -723,6 +744,7 @@ export async function buildAchievementsResult(
   const intakeIssueMetrics = getIntakeIssueMetrics(
     intakeEvents,
     schedulesByMedicationId,
+    tz,
   );
 
   const takenIntakeDates = intakeEvents
@@ -735,12 +757,12 @@ export async function buildAchievementsResult(
   const passwordLoginDates = auditEvents
     .filter((event) => event.action === "auth.login.password")
     .map((event) => event.createdAt);
-  const loginDaySeries = getEventDaySeries([
-    ...passkeyLoginDates,
-    ...passwordLoginDates,
-  ]);
+  const loginDaySeries = getEventDaySeries(
+    [...passkeyLoginDates, ...passwordLoginDates],
+    tz,
+  );
 
-  // v1.28.25 — the buckets already carry the Berlin day-key + hour straight
+  // v1.28.25 — the buckets already carry the local day-key + hour straight
   // from SQL (superseding the v1.18.11 Intl-once optimisation: no Intl pass
   // over the vitals remains at all). The parallel arrays thread into every
   // consumer exactly as the per-row keys did; day-presence consumers dedup
@@ -762,21 +784,23 @@ export async function buildAchievementsResult(
   const onTimeSeries = getOnTimePerfectDaySeries(
     intakeEvents,
     schedulesByMedicationId,
-    user.timezone,
+    tz,
   );
   const complianceSeries = getCompliance80DaySeries(
     intakeEvents,
     startDate,
     now,
+    tz,
   );
 
   // v1.16.1 — care-routine series. Miss-free days and sleep-logging
   // days reuse the standard day-series plumbing; the weekly measurement
   // consistency folds distinct active vitals days into Monday-anchored
   // weeks (≥5 active days each, 4 consecutive weeks for the badge).
-  const missFreeSeries = toDaySeries(getMissFreeDayKeys(intakeEvents));
+  const missFreeSeries = toDaySeries(getMissFreeDayKeys(intakeEvents, tz));
   const sleepSeries = getEventDaySeries(
     sleepMeasurements.map((m) => m.measuredAt),
+    tz,
   );
   const weeklyConsistency = getWeeklyConsistency(
     // Bucket day-keys — `getWeeklyConsistency` dedups to distinct days, so
@@ -799,11 +823,12 @@ export async function buildAchievementsResult(
     moodEntries,
     intakeEvents,
     auditEvents,
-    // The SQL-derived Berlin day-keys + hours ride in parallel to the
+    // The SQL-derived local day-keys + hours ride in parallel to the
     // weighted bucket records — the expansion passes never touch a bucket's
     // representative `measuredAt`.
     measurementDayKeys: vitalsDayKeys,
     measurementHours: vitalsHours,
+    tz,
   });
   const earnability = getEarnabilityFlags({
     hasMedication: medications.length > 0,

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Loader2,
   MessagesSquare,
   Paperclip,
   Search,
@@ -18,13 +19,15 @@ import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { COACH_SCROLLBAR } from "@/components/insights/coach-panel/message-thread";
 import {
-  useCoachConversations,
+  useCoachConversationHistory,
   useDeleteCoachConversationWithUndo,
 } from "@/components/insights/coach-panel/use-coach";
 import type { CoachConversationDTO } from "@/lib/ai/coach/types";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useDisableCoach } from "@/hooks/use-disable-coach";
+import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
 import { cn } from "@/lib/utils";
@@ -37,8 +40,14 @@ import { cn } from "@/lib/utils";
  * sibling of the Coach page itself: a search field at the top, then the
  * recent conversations grouped by recency (Today / Yesterday / This week
  * / Earlier). Selecting a row routes to `/coach?c=<id>` — the existing
- * deep-link open mechanism — so there is NO new API and NO new state;
- * the page is a thin read over `useCoachConversations()`.
+ * deep-link open mechanism. Reuses the SAME `/coach?c=<id>` open
+ * mechanism the rail uses.
+ *
+ * v1.30.2 (QoL H1) — the page is a thin read over
+ * `useCoachConversationHistory()` (cursor-paginated + server-searched, see
+ * the route's doc comment), which the drawer's `<HistoryRail>` also
+ * consumes — the two surfaces can no longer drift onto different
+ * pagination behaviour.
  *
  * Gating mirrors `/coach`: the operator master flag OR a per-user opt-out
  * hides the Coach entirely and redirects back to `/insights` rather than
@@ -101,21 +110,42 @@ function groupByRecency(conversations: CoachConversationDTO[]): RecencyGroup[] {
 function CoachConversationsBody() {
   const { t } = useTranslations();
   const router = useRouter();
-  const { conversations, isLoading, isError, refetch } =
-    useCoachConversations();
+  const [filter, setFilter] = useState<string>("");
+  // v1.30.2 (QoL H1) — search now drives the server-side title query;
+  // debounce the keystroke draft instead of re-issuing a request per key.
+  const debouncedFilter = useDebouncedValue(filter, 200);
+  const {
+    conversations,
+    isLoading,
+    isError,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useCoachConversationHistory({ search: debouncedFilter });
   const { pendingDeleteIds, requestDelete, undoDelete } =
     useDeleteCoachConversationWithUndo();
-  const [filter, setFilter] = useState<string>("");
 
-  // Mirror the rail's title substring filter.
-  const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    const visible = conversations.filter((c) => !pendingDeleteIds.has(c.id));
-    if (!q) return visible;
-    return visible.filter((c) => c.title.toLowerCase().includes(q));
-  }, [conversations, filter, pendingDeleteIds]);
+  // pendingDeleteIds is a client-only hide filter for the just-armed undo
+  // window — the server already resolved the rest of `visible` against the
+  // search term.
+  const visible = useMemo(
+    () => conversations.filter((c) => !pendingDeleteIds.has(c.id)),
+    [conversations, pendingDeleteIds],
+  );
+  const isSearching = debouncedFilter.trim().length > 0;
 
-  const groups = useMemo(() => groupByRecency(filtered), [filtered]);
+  const groups = useMemo(() => groupByRecency(visible), [visible]);
+
+  // Same callback-ref pattern as the rail: a `useState` setter (not a plain
+  // `useRef`) so the sentinel hook's `root` re-fires its effect once the
+  // real scroll-container node exists (null on the very first render).
+  const [listNode, setListNode] = useState<HTMLDivElement | null>(null);
+  const sentinelRef = useLoadMoreSentinel({
+    enabled: hasNextPage && !isFetchingNextPage,
+    onLoadMore: fetchNextPage,
+    root: listNode,
+  });
 
   function handleSelect(id: string) {
     // Reuse the existing `?c=<id>` open mechanism on the Coach page.
@@ -175,20 +205,21 @@ function CoachConversationsBody() {
       </header>
 
       <div
+        ref={setListNode}
         data-slot="coach-conversations-list"
         className={cn(
           "-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1",
           COACH_SCROLLBAR,
         )}
       >
-        {isLoading && conversations.length === 0 ? (
+        {isLoading && visible.length === 0 ? (
           <p
             data-slot="coach-conversations-loading"
             className="text-muted-foreground px-1 py-3 text-sm"
           >
             {t("common.loading")}
           </p>
-        ) : isError && conversations.length === 0 ? (
+        ) : isError && visible.length === 0 ? (
           // A load failure must not masquerade as "no conversations yet" —
           // that reads as a data-loss scare and offers no way back. Mirror
           // /coach/plans and surface a retry.
@@ -202,7 +233,9 @@ function CoachConversationsBody() {
               <MessagesSquare className="size-6" aria-hidden="true" />
             </span>
             <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
-              {t("insights.coach.historyEmpty")}
+              {isSearching
+                ? t("insights.coach.historySearchEmpty")
+                : t("insights.coach.historyEmpty")}
             </p>
           </div>
         ) : (
@@ -278,6 +311,26 @@ function CoachConversationsBody() {
             </section>
           ))
         )}
+        {/* v1.30.2 (QoL H1) — same IntersectionObserver sentinel as the
+            drawer rail: scrolling this div into view pulls the next cursor
+            page. Empty + aria-hidden; the status row below is the a11y
+            signal. */}
+        {visible.length > 0 && hasNextPage ? (
+          <div ref={sentinelRef} aria-hidden="true" className="h-px" />
+        ) : null}
+        {isFetchingNextPage ? (
+          <div
+            data-slot="coach-conversations-loading-more"
+            role="status"
+            className="text-muted-foreground flex items-center justify-center gap-2 py-3 text-xs"
+          >
+            <Loader2
+              className="size-3.5 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+            {t("insights.coach.historyLoadingMore")}
+          </div>
+        ) : null}
       </div>
     </div>
   );

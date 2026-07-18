@@ -19,6 +19,13 @@
  *
  * `parseOAuthOutcome` / `oauthReasonKey` are re-exported from
  * `connections-panel.tsx` so existing unit-test imports keep resolving.
+ *
+ * 2026-07-17 UX/IA audit M7 — `<NutrientIntakeCard>` (v1.28) moved here from
+ * Settings → Sources. It is a read-only sync inventory (what the Apple
+ * Health nutrients opt-in has stored), not a which-connection-wins ranking —
+ * "Source priority" describes the latter only. Matches the standing
+ * providers→Integrations rule; the card still renders nothing while the
+ * `nutrients` module is off.
  */
 
 import Link from "next/link";
@@ -28,6 +35,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { ConnectionsPanel } from "@/components/settings/integrations/connections-panel";
 import { NotificationChannelsPanel } from "@/components/settings/integrations/notification-channels-panel";
+import { NutrientIntakeCard } from "@/components/settings/nutrient-intake-card";
 import { Button } from "@/components/ui/button";
 
 export {
@@ -55,6 +63,15 @@ export function IntegrationsSection() {
           )}
         />
         <ConnectionsPanel />
+
+        {/* 2026-07-17 UX/IA audit M7 — the opt-in nutrients sync inventory
+            (moved from Settings → Sources, where "source priority" only
+            ever meant which-connection-wins ranking, not a read-only sync
+            list). The card carries its own header + renders nothing while
+            the `nutrients` module is off, so it slots in as a sibling card
+            under the same Connections group rather than a new labelled
+            section that could paint an orphaned heading over nothing. */}
+        <NutrientIntakeCard />
       </section>
 
       {/* Delivery channels ("where it's delivered"). The existing channels

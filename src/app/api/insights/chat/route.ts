@@ -1435,13 +1435,25 @@ function streamProviderError(args: { code: string }): Response {
 // the conversationId existence check + 20-turn cap.
 export const POST = apiHandler(handleChatRequest);
 
+/** v1.30.2 (QoL H1) — hard cap on the `?q=` search string length. */
+const LIST_QUERY_MAX_LEN = 200;
+
 /**
- * GET /api/insights/chat?cursor=<id>&limit=<n>
+ * GET /api/insights/chat?cursor=<id>&limit=<n>&q=<text>
  *
  * Cursor-paginated list of the caller's conversations for the rail.
  * Default limit 20, hard cap 50. Cursor is the id of the last item
  * on the previous page; callers receive `{ nextCursor: null }` when
  * they have reached the end.
+ *
+ * v1.30.2 (QoL H1) — optional `q` narrows the page to conversations whose
+ * TITLE contains the text (case-insensitive substring). This makes the
+ * history rail's search reach the caller's FULL conversation set instead
+ * of only the loaded page; the client re-issues the cursor walk under the
+ * new `q` whenever the search box changes rather than filtering client-
+ * side. Message bodies are encrypted at rest and are NOT searched — a
+ * decrypt-and-scan over every message would be prohibitively expensive
+ * for a live keystroke search and is out of scope for this pass.
  */
 export const GET = apiHandler(async (request: NextRequest) => {
   const auth = await requireAuth();
@@ -1456,11 +1468,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const cursor = url.searchParams.get("cursor");
   const limitRaw = url.searchParams.get("limit");
   const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
+  const qRaw = url.searchParams.get("q");
+  const q = qRaw ? qRaw.trim().slice(0, LIST_QUERY_MAX_LEN) : undefined;
 
   const page = await listConversations({
     userId: auth.user.id,
     cursor,
     limit: Number.isFinite(limit) ? (limit as number) : undefined,
+    q,
     // v1.28.51 (Documents R3, Design A) — the rail now surfaces BOTH health
     // threads and doc-scoped threads (the DTO carries `documentId` +
     // `documentTitle` so the client badges the fenced ones). Omitting the
@@ -1472,7 +1487,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   annotate({
     action: { name: "insights.coach.list" },
-    meta: { count: page.conversations.length },
+    meta: { count: page.conversations.length, hasQuery: Boolean(q) },
   });
 
   return apiSuccess(page);

@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MessagesSquare, Paperclip, Search, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  MessagesSquare,
+  Paperclip,
+  RotateCw,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -9,10 +16,12 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
 
 import { COACH_SCROLLBAR } from "./message-thread";
 import {
-  useCoachConversations,
+  useCoachConversationHistory,
   useDeleteCoachConversationWithUndo,
 } from "./use-coach";
 
@@ -20,9 +29,10 @@ import {
  * v1.4.20 phase B2b — conversation history rail.
  *
  * Lives in the left column of the Coach drawer on `lg+`. Renders the
- * paginated list returned by `GET /api/insights/chat`, lets the user
- * filter by title (substring match), select one to resume, and delete
- * with a confirm-then-go flow.
+ * caller's FULL conversation history (v1.30.2 — cursor-paginated via
+ * `useInfiniteQuery`, loaded incrementally as the list scrolls near its
+ * end), lets the user search by title (server-side, debounced 200 ms),
+ * select one to resume, and delete with an undo-able confirm.
  *
  * Selection / activeId is a controlled prop so the drawer owns the
  * authoritative state across the message thread + composer.
@@ -55,17 +65,41 @@ export function HistoryRail({
   hideHeading = false,
 }: HistoryRailProps) {
   const { t } = useTranslations();
-  const { conversations, isLoading } = useCoachConversations();
+  const [filter, setFilter] = useState<string>("");
+  // v1.30.2 (QoL H1) — the search box now drives a SERVER-side query
+  // (title-only substring, see the route doc comment), so debounce the
+  // keystroke draft rather than re-issuing a request per character.
+  const debouncedFilter = useDebouncedValue(filter, 200);
+  const {
+    conversations,
+    isLoading,
+    isError,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useCoachConversationHistory({ search: debouncedFilter });
   const { pendingDeleteIds, requestDelete, undoDelete } =
     useDeleteCoachConversationWithUndo();
-  const [filter, setFilter] = useState<string>("");
 
-  const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    const visible = conversations.filter((c) => !pendingDeleteIds.has(c.id));
-    if (!q) return visible;
-    return visible.filter((c) => c.title.toLowerCase().includes(q));
-  }, [conversations, filter, pendingDeleteIds]);
+  // pendingDeleteIds is a client-only hide filter for the just-armed undo
+  // window — the server-side search already resolved the rest of `visible`.
+  const visible = useMemo(
+    () => conversations.filter((c) => !pendingDeleteIds.has(c.id)),
+    [conversations, pendingDeleteIds],
+  );
+  const isSearching = debouncedFilter.trim().length > 0;
+
+  // A `useState`-backed callback ref (not a plain `useRef`) so the
+  // container's assignment itself triggers a re-render — the sentinel
+  // hook's effect depends on `root` and must re-run once the real DOM
+  // node exists (it's null during the very first render pass).
+  const [listNode, setListNode] = useState<HTMLDivElement | null>(null);
+  const sentinelRef = useLoadMoreSentinel({
+    enabled: hasNextPage && !isFetchingNextPage,
+    onLoadMore: fetchNextPage,
+    root: listNode,
+  });
 
   // v1.30.1 M5 — a single tap hides the row and schedules the real
   // delete; the toast's Undo action cancels it within the grace
@@ -126,6 +160,7 @@ export function HistoryRail({
         />
       </div>
       <div
+        ref={setListNode}
         data-slot="coach-history-list"
         className={cn(
           "-mx-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-1",
@@ -133,22 +168,37 @@ export function HistoryRail({
           COACH_SCROLLBAR,
         )}
       >
-        {isLoading && conversations.length === 0 ? (
+        {isLoading && visible.length === 0 ? (
           <p
             data-slot="coach-history-loading"
             className="text-muted-foreground px-2 py-3 text-sm"
           >
             {t("common.loading")}
           </p>
-        ) : filtered.length === 0 ? (
+        ) : isError && visible.length === 0 ? (
+          // A load failure must not masquerade as "no conversations yet" —
+          // offer a retry instead of the empty copy.
+          <div
+            data-slot="coach-history-error"
+            className="text-muted-foreground flex flex-col items-start gap-2 px-2 py-3 text-sm"
+          >
+            <p>{t("common.loadFailed")}</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RotateCw className="size-3.5" aria-hidden="true" />
+              {t("common.retry")}
+            </Button>
+          </div>
+        ) : visible.length === 0 ? (
           <p
             data-slot="coach-history-empty"
             className="text-muted-foreground px-2 py-3 text-sm leading-relaxed"
           >
-            {t("insights.coach.historyEmpty")}
+            {isSearching
+              ? t("insights.coach.historySearchEmpty")
+              : t("insights.coach.historyEmpty")}
           </p>
         ) : (
-          filtered.map((c) => {
+          visible.map((c) => {
             const isActive = c.id === activeId;
             return (
               <div
@@ -214,6 +264,26 @@ export function HistoryRail({
             );
           })
         )}
+        {/* v1.30.2 (QoL H1) — IntersectionObserver sentinel: scrolling this
+            div into the rail's own scrollport pulls the next cursor page.
+            Empty + aria-hidden — the loading row right below it is the
+            a11y-visible signal. */}
+        {visible.length > 0 && hasNextPage ? (
+          <div ref={sentinelRef} aria-hidden="true" className="h-px" />
+        ) : null}
+        {isFetchingNextPage ? (
+          <div
+            data-slot="coach-history-loading-more"
+            role="status"
+            className="text-muted-foreground flex items-center justify-center gap-2 px-2 py-3 text-xs"
+          >
+            <Loader2
+              className="size-3.5 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+            {t("insights.coach.historyLoadingMore")}
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import type {
   CoachConversationAttachmentDTO,
@@ -41,10 +46,13 @@ const QUERY_KEYS = {
 };
 
 /**
- * List of conversations for the rail. Cursor pagination is exposed via
- * `loadMore` — the rail can call it when the user scrolls past the
- * end. v1.4.20 lands with default-page-only; cursors are pre-wired so
- * v1.4.21 / v1.5 can add infinite scroll without reshaping the hook.
+ * The single (first) page of conversations. Used ONLY for the
+ * auto-open-most-recent-thread behaviour on mount
+ * (`coach-conversation.tsx`), which never needs more than the rail's
+ * server-authoritative head. Every surface that lets the user BROWSE or
+ * SEARCH history (the drawer rail, the standalone conversations page) reads
+ * `useCoachConversationHistory` below instead — it walks the full cursor
+ * chain via `useInfiniteQuery` rather than stopping at page one.
  */
 export function useCoachConversations(enabled = true) {
   const query = useQuery({
@@ -63,6 +71,76 @@ export function useCoachConversations(enabled = true) {
     nextCursor: query.data?.nextCursor ?? null,
     isLoading: query.isLoading,
     isError: query.isError,
+    refetch: query.refetch,
+  };
+}
+
+const HISTORY_PAGE_LIMIT = 20;
+
+export interface UseCoachConversationHistoryOptions {
+  /**
+   * Server-side title search (see `GET /api/insights/chat?q=`). The caller
+   * debounces the raw input (`useDebouncedValue`) before passing it here —
+   * every distinct value keys its own cache page chain, so a fast typist
+   * never sees a stale search's tail page bleed into a fresh one.
+   */
+  search?: string;
+  enabled?: boolean;
+}
+
+/**
+ * v1.30.2 (QoL H1) — the full, paginated + server-searched conversation
+ * history. Replaces the old "first page only, client-side substring
+ * filter" behaviour: `useInfiniteQuery` walks the cursor chain
+ * (`nextCursor`) so every conversation the caller has ever had is
+ * reachable via `fetchNextPage`, and `search` narrows the SERVER'S query
+ * (title-only — see the route doc comment) rather than filtering an
+ * already-truncated client array.
+ *
+ * Shared by the drawer's `<HistoryRail>` and the standalone
+ * `/coach/conversations` page so the two surfaces can never drift onto
+ * different pagination behaviour again.
+ */
+export function useCoachConversationHistory(
+  options: UseCoachConversationHistoryOptions = {},
+) {
+  const { search = "", enabled = true } = options;
+  const trimmedSearch = search.trim();
+
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.coachConversationHistory(trimmedSearch),
+    queryFn: async ({
+      pageParam,
+    }: {
+      pageParam: string | null;
+    }): Promise<CoachConversationsPage> => {
+      const params = new URLSearchParams();
+      if (pageParam) params.set("cursor", pageParam);
+      params.set("limit", String(HISTORY_PAGE_LIMIT));
+      if (trimmedSearch) params.set("q", trimmedSearch);
+      return apiGet<CoachConversationsPage>(
+        `/api/insights/chat?${params.toString()}`,
+        { headers: { Accept: "application/json" } },
+      );
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled,
+    staleTime: 30 * 1000,
+  });
+
+  const conversations = useMemo(
+    () => query.data?.pages.flatMap((page) => page.conversations) ?? [],
+    [query.data],
+  );
+
+  return {
+    conversations,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    hasNextPage: query.hasNextPage,
+    isFetchingNextPage: query.isFetchingNextPage,
+    fetchNextPage: query.fetchNextPage,
     refetch: query.refetch,
   };
 }

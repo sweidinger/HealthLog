@@ -1,0 +1,157 @@
+/**
+ * Unit coverage for `loadIntradayPulse` — the two DATAINT-audit fixes:
+ *
+ *   - M2: the PULSE/step reads are bounded to the exact local-day window
+ *     (`localDayWindow`), not the ±15h/39h padded superset a dense account's
+ *     read cap could be entirely consumed by (the previous evening's
+ *     samples starving the viewed day's afternoon).
+ *   - M5: the resting-baseline PULSE-proxy fallback buckets by the CALLER's
+ *     timezone, not a hardcoded Berlin default — `resolveBaseline` now
+ *     threads `timezone` into `resolveRestingPulseSeries`'s `dayKeyOf`.
+ */
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+const findManyMock = vi.fn();
+const workoutFindManyMock = vi.fn();
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    measurement: { findMany: (...args: unknown[]) => findManyMock(...args) },
+    workout: { findMany: (...args: unknown[]) => workoutFindManyMock(...args) },
+  },
+}));
+
+import { loadIntradayPulse } from "@/lib/analytics/intraday-pulse-io";
+import {
+  resolveRestingPulseSeries,
+  type PulseSample,
+} from "@/lib/analytics/resting-pulse";
+import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { userDayKey } from "@/lib/tz/format";
+import { percentile } from "@/lib/insights/strain-score";
+import { localDayWindow } from "@/lib/measurements/consolidation-tz";
+
+/** Mirrors the private `median()` helper in `intraday-pulse-io.ts`. */
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.round(percentile(values, 50) * 10) / 10;
+}
+
+describe("loadIntradayPulse", () => {
+  beforeEach(() => {
+    findManyMock.mockReset();
+    workoutFindManyMock.mockReset();
+    workoutFindManyMock.mockResolvedValue([]);
+  });
+
+  it("M2 — queries PULSE/step rows against the exact local-day window, not the padded lead/trail superset", async () => {
+    const tz = "America/New_York";
+    const dateKey = "2026-06-15";
+    const { dayStart, dayEnd } = localDayWindow(dateKey, tz);
+
+    findManyMock.mockResolvedValue([]);
+
+    await loadIntradayPulse("user-1", tz, dateKey);
+
+    const pulseCall = findManyMock.mock.calls.find(
+      (call) => call[0]?.where?.type === "PULSE",
+    );
+    const stepCall = findManyMock.mock.calls.find(
+      (call) => call[0]?.where?.type === "ACTIVITY_STEPS",
+    );
+    expect(pulseCall).toBeDefined();
+    expect(stepCall).toBeDefined();
+    expect(pulseCall![0].where.measuredAt).toEqual({
+      gte: dayStart,
+      lt: dayEnd,
+    });
+    expect(stepCall![0].where.measuredAt).toEqual({
+      gte: dayStart,
+      lt: dayEnd,
+    });
+  });
+
+  it("M5 — the PULSE-proxy baseline buckets by the caller's timezone, not Berlin", async () => {
+    const tz = "Pacific/Kiritimati"; // UTC+14, no DST — deterministic offset
+    const dateKey = "2026-06-15";
+
+    // Two UTC instants that land on DIFFERENT Kiritimati calendar days but
+    // the SAME Berlin calendar day (Kiritimati is ~13h ahead of Berlin in
+    // June) — a clean tz-bucketing fork.
+    const dayA = [
+      new Date("2026-06-10T09:00:00.000Z"), // Kiritimati: 2026-06-10T23:00 (day A)
+      new Date("2026-06-10T10:00:00.000Z"),
+      new Date("2026-06-10T11:00:00.000Z"),
+    ];
+    const dayB = [
+      new Date("2026-06-10T12:00:00.000Z"), // Kiritimati: 2026-06-11T02:00 (day B)
+      new Date("2026-06-10T13:00:00.000Z"),
+      new Date("2026-06-10T14:00:00.000Z"),
+    ];
+    expect(userDayKey(dayA[0], tz)).not.toBe(userDayKey(dayB[0], tz));
+    // Sanity: under the OLD hardcoded-Berlin bug all six samples fall on the
+    // SAME Berlin day — proving the two tz groupings genuinely diverge.
+    const berlinDays = new Set(
+      [...dayA, ...dayB].map((d) => toBerlinDayKey(d)),
+    );
+    expect(berlinDays.size).toBe(1);
+
+    const pulseHistory: Array<{ value: number; measuredAt: Date }> = [
+      ...dayA.map((measuredAt, i) => ({ value: 50 + i, measuredAt })),
+      ...dayB.map((measuredAt, i) => ({ value: 80 + i, measuredAt })),
+    ];
+
+    findManyMock.mockImplementation(
+      async (args: { where: { type: string } }) => {
+        if (args.where.type === "PULSE") return [];
+        if (args.where.type === "RESTING_HEART_RATE") return [];
+        return [];
+      },
+    );
+    // `resolveBaseline` fires a SECOND PULSE read (take: 365, no window) when
+    // resting rows are thin — swap the mock to serve it on the second PULSE
+    // call specifically by checking call order isn't reliable, so key off
+    // `select`/`take` shape instead.
+    findManyMock.mockImplementation(
+      async (args: {
+        where: { type: string; measuredAt?: unknown };
+        take?: number;
+      }) => {
+        if (args.where.type === "RESTING_HEART_RATE") return [];
+        if (args.where.type === "PULSE" && args.take === 365) {
+          return pulseHistory;
+        }
+        // The view-day-windowed PULSE / ACTIVITY_STEPS reads — irrelevant here.
+        return [];
+      },
+    );
+
+    const result = await loadIntradayPulse("user-1", tz, dateKey);
+
+    expect(result.baselineSource).toBe("proxy");
+
+    const expected = resolveRestingPulseSeries({
+      restingSamples: [],
+      pulseSamples: pulseHistory as PulseSample[],
+      dayKeyOf: (d) => userDayKey(d, tz),
+    });
+    const expectedBaseline = median(
+      expected.series.slice(-30).map((p) => p.value),
+    );
+    expect(result.baseline).toBe(expectedBaseline);
+
+    // Regression guard: the OLD hardcoded-Berlin bucketing would have folded
+    // every sample into ONE day (see the `berlinDays.size === 1` sanity
+    // check above) and produced a materially different proxy value — assert
+    // the fixed result does NOT match that wrong grouping's outcome.
+    const buggyBerlin = resolveRestingPulseSeries({
+      restingSamples: [],
+      pulseSamples: pulseHistory as PulseSample[],
+      dayKeyOf: (d) => toBerlinDayKey(d),
+    });
+    const buggyBaseline = median(
+      buggyBerlin.series.slice(-30).map((p) => p.value),
+    );
+    expect(result.baseline).not.toBe(buggyBaseline);
+  });
+});

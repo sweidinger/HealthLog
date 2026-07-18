@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PageAuthGate } from "@/components/ui/page-auth-gate";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
-import { Plus, Wrench } from "lucide-react";
+import { ArrowRight, Plus, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useTranslations } from "@/lib/i18n/context";
@@ -120,6 +120,22 @@ export default function MoodPage() {
       </ResponsiveSheet>
 
       <MoodList onAddFirst={() => setDialogOpen(true)} />
+
+      {/* 2026-07-17 UX/IA audit M9 — mood tracking, the mental-wellbeing
+          screeners, and the mood insights page form one mental-health
+          domain but used to be three unconnected islands. A quiet pointer
+          here (module-gated — no nav change) rather than a merge: capture
+          vs. screener stay two defensible surfaces, just cross-linked. */}
+      {user?.modules?.mentalHealth === true ? (
+        <Link
+          href="/mental-wellbeing"
+          data-slot="mood-mental-wellbeing-link"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex items-center gap-1.5 text-sm underline-offset-4 transition-colors hover:underline focus-visible:ring-[3px] focus-visible:outline-none"
+        >
+          {t("mood.mentalWellbeingLink")}
+          <ArrowRight className="size-3.5" aria-hidden="true" />
+        </Link>
+      ) : null}
     </div>
   );
 }

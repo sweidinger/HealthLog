@@ -1,6 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { BackLink } from "@/components/ui/back-link";
@@ -94,6 +96,22 @@ export default function CompositeScorePage() {
       }
       coachLaunch
     >
+      {/* 2026-07-17 UX/IA audit M4 — this anatomy view and the `/insights/recovery`
+          composite-wearable page both used to render as plain "Recovery", a
+          same-name/different-content trap: the score ring here promised one
+          thing, the nav pill led somewhere else with no pointer back. The
+          label above is now "Recovery score" (matches `measurements.typeRecoveryScore`);
+          this line closes the loop with an explicit cross-link. */}
+      {metric === "RECOVERY_SCORE" ? (
+        <Link
+          href="/insights/recovery"
+          data-slot="recovery-score-cross-link"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -mt-2 inline-flex items-center gap-1.5 text-sm transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
+        >
+          {t("insights.derived.scores.recoveryCrossLink")}
+          <ArrowRight className="size-3.5" aria-hidden="true" />
+        </Link>
+      ) : null}
       <CompositeScoreAnatomy metric={metric} />
     </SubPageShell>
   );

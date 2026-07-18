@@ -228,7 +228,7 @@
     "logout": "Abmelden",
     "login": "Anmelden",
     "notifications": "Benachrichtigungen",
-    "theme": "Darstellung",
+    "theme": "Design",
     "themeSystem": "System",
     "themeDark": "Dunkel",
     "themeLight": "Hell",
@@ -599,12 +599,13 @@
     },
     "watchdog": {
       "title": "Automatische Überwachung",
-      "description": "HealthLog beobachtet außerdem still im Hintergrund — Benachrichtigungen zu unregelmäßigem Rhythmus und Atemstörungen von einer verbundenen Uhr sowie Warnungen bei Abweichungen von deiner Baseline — und zeigt eine Karte nur, wenn etwas auffällt. Keine Karte ist ein gutes Zeichen, kein fehlendes Feature."
+      "description": "HealthLog beobachtet außerdem still im Hintergrund — Benachrichtigungen zu unregelmäßigem Rhythmus und Atemstörungen von einer verbundenen Uhr, Warnungen bei Abweichungen von deiner Baseline sowie auffällige Veränderungen zwischen deinen letzten beiden Laborwerten — und zeigt eine Karte nur, wenn etwas auffällt. Keine Karte ist ein gutes Zeichen, kein fehlendes Feature."
     }
   },
   "mood": {
     "title": "Stimmung",
     "subtitle": "Stimmungsverlauf und Einträge",
+    "mentalWellbeingLink": "Check-in zum seelischen Wohlbefinden machen",
     "addEntry": "Hinzufügen",
     "editEntry": "Eintrag bearbeiten",
     "moodLevel": "Stimmung",
@@ -2263,6 +2264,8 @@
       "historyEmpty": "Deine Unterhaltungen erscheinen hier. Stell eine Frage, um zu starten.",
       "historyDeleteAria": "Unterhaltung löschen",
       "historyDeleted": "Unterhaltung gelöscht",
+      "historySearchEmpty": "Keine Unterhaltungen entsprechen deiner Suche.",
+      "historyLoadingMore": "Mehr wird geladen…",
       "sourcesTitle": "Worauf ich zugreife",
       "sourcesFresh": "Aktuell",
       "sourcesStale": "Veraltet",
@@ -2894,7 +2897,7 @@
       "sleep": {
         "title": "Noch keine Schlafwerte",
         "description": "Sobald Schlafdaten vorliegen (manuell oder via Withings / Apple Health), erscheint hier der nächtliche Stadien-Verlauf.",
-        "cta": "Withings verbinden"
+        "cta": "Quelle verbinden"
       }
     },
     "navWorkouts": "Workouts",
@@ -3262,6 +3265,8 @@
     },
     "navWalkingSpeed": "Gehgeschwindigkeit",
     "mood": {
+      "logLink": "Stimmung eintragen",
+      "mentalWellbeingLink": "Check-in zum seelischen Wohlbefinden machen",
       "heatmapTitle": "Stimmungskalender",
       "heatmapNoEntry": "Kein Eintrag",
       "legendGreat": "Super",
@@ -3550,7 +3555,8 @@
         "sectionSubtitle": "Zusammengesetzte Werte für Erholung, Stress und Belastung aus deinen verbundenen Geräten",
         "loadError": "Deine Wellness-Werte konnten gerade nicht geladen werden.",
         "loadingLabel": "Deine Gesundheitswerte werden geladen",
-        "recovery": "Erholung",
+        "recovery": "Erholungs-Score",
+        "recoveryCrossLink": "Erholungs- und Belastungsdaten deines Wearables ansehen",
         "stress": "Stress",
         "strain": "Belastung"
       },
@@ -3721,6 +3727,7 @@
     "recovery": {
       "title": "Erholung",
       "description": "Wie gut sich dein Körper erholt hat – die Erholungs-, Belastungs- und Load-Signale, die dein Wearable über Nacht aufzeichnet.",
+      "scoreCrossLink": "Den zusammengesetzten Erholungs-Score ansehen",
       "emptyTitle": "Noch keine Erholungsdaten",
       "empty": "Noch keine Erholungsdaten. Verbinde ein WHOOP-, Polar- oder Oura-Konto, dann füllen sich diese Werte, sobald dein Gerät synchronisiert.",
       "block": {
@@ -4009,7 +4016,7 @@
         },
         "wrapUp": {
           "title": "Das war die Tour",
-          "body": "Du kannst jedes Modul jederzeit einzeln erneut ansehen („Diese Tour zeigen“ auf jeder Seite) oder die komplette Tour unter Einstellungen → Erweitert neu starten."
+          "body": "Diese Führung läuft einmalig – sie öffnet sich nicht von selbst erneut. Alles Gezeigte bleibt erhalten, und du kannst Funktionen jederzeit unter Einstellungen → Module ein- oder ausschalten."
         }
       }
     },
@@ -4084,7 +4091,8 @@
       "learning": "Manche Einblicke – Glukose, Schlafrhythmus, Blutdrucktrends, Zyklus – schärfen sich in den ersten ein bis zwei Wochen, sobald sich deine Daten ansammeln. Leere Kacheln heißen jetzt nur, dass wir deine Basislinie noch lernen.",
       "connectCta": "Gerät verbinden",
       "logCta": "Ersten Wert eintragen",
-      "importCta": "Bestehende Daten importieren"
+      "importCta": "Bestehende Daten importieren",
+      "modulesCta": "Module auswählen"
     },
     "welcomeBack": {
       "title": "Willkommen zurück",
@@ -4549,7 +4557,7 @@
         "description": "Strukturierte Datensätze zu Allergien und Familienanamnese."
       },
       "environment": {
-        "title": "Umwelt",
+        "title": "Standort & Wetter",
         "subtitle": "Wetter, Tageslicht und Standort-Kontext.",
         "disabledHint": "Aktiviere das Umwelt-Modul, um einen Heimatort festzulegen und tägliches Wetter und Tageslicht abzurufen.",
         "searchPlaceholder": "Stadt suchen",
@@ -7959,6 +7967,7 @@
   "mentalHealth": {
     "pageTitle": "Seelisches Wohlbefinden",
     "pageDescription": "Vier validierte, freiwillige Selbsttests — PHQ-9 (Stimmung), GAD-7 (Sorgen), WHO-5 (Wohlbefinden) und SCI (Schlaf) — ergänzend zu deinem Stimmungstagebuch. Aussagekräftig ist der Verlauf über die Zeit, nicht ein einzelner Wert.",
+    "moodLink": "Deinen Stimmungsverlauf ansehen",
     "attributionLabel": "Quelle",
     "attributionShow": "Quelle und Lizenz für {instrument}",
     "choosePrompt": "Check-in auswählen",
@@ -8404,7 +8413,8 @@
       "noConditions": "Mit keiner Erkrankung verknüpft",
       "previewUnavailable": "Keine Inline-Vorschau für diesen Dateityp",
       "uploadedMeta": "Hinzugefügt am {date} · {size}",
-      "share": "Teilen"
+      "share": "Teilen",
+      "labValuesLink": "{count} Laborwerte ansehen"
     },
     "dropOverlay": {
       "title": "Zum Hochladen ablegen",
@@ -8666,7 +8676,9 @@
       "coachCheckin": {
         "title": "Zeit, einen Plan anzuschauen",
         "body": "Es ist etwa eine Woche her, seit du diesen Plan gesetzt hast — behalte ihn, passe ihn an oder lass ihn los. Ganz ohne Druck.",
-        "bodyPlan": "Vor etwa einer Woche hast du dir vorgenommen: „{plan}“. Behalte es, passe es an oder lass es los — ganz ohne Druck."
+        "bodyPlan": "Vor etwa einer Woche hast du dir vorgenommen: „{plan}“. Behalte es, passe es an oder lass es los — ganz ohne Druck.",
+        "adjustPrompt": "Ich möchte meinen Check-in-Plan anpassen.",
+        "adjustPromptPlan": "Ich möchte diesen Plan anpassen: „{plan}“"
       },
       "tensionWindow": {
         "title": "Vielleicht eine angespannte Phase",

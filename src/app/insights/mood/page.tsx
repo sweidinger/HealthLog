@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Smile } from "lucide-react";
+import { ArrowRight, Smile } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -41,7 +41,7 @@ interface ComprehensiveMoodData {
 }
 
 export default function InsightsStimmungPage() {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
 
@@ -101,6 +101,32 @@ export default function InsightsStimmungPage() {
           The heatmap and the assessment are lifted out of `MoodInsightsSections`
           into their own regions so they land in this exact order; all three
           regions share one `moodInsights` query (TanStack dedups the fetch). */}
+
+      {/* 2026-07-17 UX/IA audit M9 — mood, the mental-wellbeing screeners, and
+          this insights page form one mental-health domain; this cross-links
+          into the other two so the trend a user reads here can lead
+          somewhere. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <Link
+          href="/mood"
+          data-slot="insights-mood-log-link"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex items-center gap-1.5 text-sm underline-offset-4 transition-colors hover:underline focus-visible:ring-[3px] focus-visible:outline-none"
+        >
+          {t("insights.mood.logLink")}
+          <ArrowRight className="size-3.5" aria-hidden="true" />
+        </Link>
+        {user?.modules?.mentalHealth === true ? (
+          <Link
+            href="/mental-wellbeing"
+            data-slot="insights-mood-mental-wellbeing-link"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex items-center gap-1.5 text-sm underline-offset-4 transition-colors hover:underline focus-visible:ring-[3px] focus-visible:outline-none"
+          >
+            {t("insights.mood.mentalWellbeingLink")}
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        ) : null}
+      </div>
+
       <MoodInsightsSections region="heatmap" />
 
       {/* No `<MetricRangeControls>` here: mood is event-driven, not a

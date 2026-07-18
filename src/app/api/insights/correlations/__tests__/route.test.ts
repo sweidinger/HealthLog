@@ -196,6 +196,27 @@ describe("GET /api/insights/correlations", () => {
     expect(prisma.measurement.findMany).not.toHaveBeenCalled();
   });
 
+  // v1.30 (DATAINT M1) — `asc` + `take` truncated the RECENT end of the
+  // 180-day window on a dense account; the read must order `desc` so the
+  // cap keeps the newest rows (re-sorted `asc` in JS before series-building).
+  it("reads the measurement + mood window ordered desc so the cap keeps the newest rows", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    await callGet(makeReq());
+
+    expect(prisma.measurement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { measuredAt: "desc" },
+        take: 20000,
+      }),
+    );
+    expect(prisma.moodEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { moodLoggedAt: "desc" },
+        take: 5000,
+      }),
+    );
+  });
+
   // v1.18.0 (B2) — the route now also requires the `insights` module.
   it("returns 403 + module.disabled when the insights module is off", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);

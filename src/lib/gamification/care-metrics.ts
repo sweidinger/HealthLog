@@ -24,7 +24,7 @@
  *     boring, clinically useful habit of measuring most days of the
  *     week, week after week, without demanding a perfect daily streak.
  */
-import { toBerlinDayKey } from "./achievements";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
 
 export interface CareIntakeEventRecord {
   scheduledFor: Date;
@@ -37,11 +37,19 @@ export interface CareIntakeEventRecord {
  * Qualifying day keys for the miss-free streak, sorted ascending.
  * Feed the result to `calculateLongestStreak` /
  * `findStreakCompletionDate` like every other day series.
+ *
+ * `tz` defaults to `DEFAULT_TIMEZONE` ("Europe/Berlin") so every existing
+ * caller/fixture that never set one keeps its prior behaviour byte-for-
+ * byte (DATAINT M4) — the achievements builder now threads the badge
+ * owner's real `User.timezone` in.
  */
-export function getMissFreeDayKeys(events: CareIntakeEventRecord[]): string[] {
+export function getMissFreeDayKeys(
+  events: CareIntakeEventRecord[],
+  tz: string = DEFAULT_TIMEZONE,
+): string[] {
   const byDay = new Map<string, { resolved: number; missed: number }>();
   for (const event of events) {
-    const dayKey = toBerlinDayKey(event.scheduledFor);
+    const dayKey = userDayKey(event.scheduledFor, tz);
     const bucket = byDay.get(dayKey) ?? { resolved: 0, missed: 0 };
     if (event.autoMissed) {
       bucket.missed += 1;

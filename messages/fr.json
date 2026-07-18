@@ -228,7 +228,7 @@
     "logout": "Se déconnecter",
     "login": "Se connecter",
     "notifications": "Notifications",
-    "theme": "Apparence",
+    "theme": "Thème",
     "themeSystem": "Système",
     "themeDark": "Sombre",
     "themeLight": "Clair",
@@ -599,12 +599,13 @@
     },
     "watchdog": {
       "title": "Surveillance automatique",
-      "description": "HealthLog surveille aussi discrètement en arrière-plan — notifications de rythme irrégulier et de perturbations respiratoires envoyées par une montre connectée, ainsi que des alertes d'écart par rapport à ta valeur de référence — et n'affiche une carte que si quelque chose se démarque. L'absence de carte est bon signe, pas une fonctionnalité manquante."
+      "description": "HealthLog surveille aussi discrètement en arrière-plan — notifications de rythme irrégulier et de perturbations respiratoires envoyées par une montre connectée, alertes d'écart par rapport à ta valeur de référence, ainsi que des changements notables entre tes deux derniers bilans de laboratoire — et n'affiche une carte que si quelque chose se démarque. L'absence de carte est bon signe, pas une fonctionnalité manquante."
     }
   },
   "mood": {
     "title": "Humeur",
     "subtitle": "Tendance et entrées d’humeur",
+    "mentalWellbeingLink": "Faire un bilan de bien-être mental",
     "addEntry": "Ajouter",
     "editEntry": "Modifier l’entrée",
     "moodLevel": "Humeur",
@@ -2263,6 +2264,8 @@
       "historyEmpty": "Tes conversations s’affichent ici. Lance une question pour commencer.",
       "historyDeleteAria": "Supprimer la conversation",
       "historyDeleted": "Conversation supprimée",
+      "historySearchEmpty": "Aucune conversation ne correspond à ta recherche.",
+      "historyLoadingMore": "Chargement…",
       "sourcesTitle": "Ce à quoi j’accède",
       "sourcesFresh": "À jour",
       "sourcesStale": "Obsolètes",
@@ -2894,7 +2897,7 @@
       "sleep": {
         "title": "Aucune donnée de sommeil",
         "description": "Dès que des données de sommeil sont disponibles (manuel ou via Withings / Apple Health), la répartition par stade apparaîtra ici.",
-        "cta": "Connecter Withings"
+        "cta": "Connecter une source"
       }
     },
     "navWorkouts": "Entraînements",
@@ -3262,6 +3265,8 @@
     },
     "navWalkingSpeed": "Vitesse de marche",
     "mood": {
+      "logLink": "Enregistrer une humeur",
+      "mentalWellbeingLink": "Faire un bilan de bien-être mental",
       "heatmapTitle": "Calendrier d'humeur",
       "heatmapNoEntry": "Aucune entrée",
       "legendGreat": "Excellent",
@@ -3550,7 +3555,8 @@
         "sectionSubtitle": "Valeurs combinées de récupération, de stress et d'effort issues de tes appareils connectés",
         "loadError": "Impossible de charger vos scores de bien-être pour le moment.",
         "loadingLabel": "Chargement de tes indicateurs de santé",
-        "recovery": "Récupération",
+        "recovery": "Score de récupération",
+        "recoveryCrossLink": "Voir les données de récupération et d'effort de votre wearable",
         "stress": "Stress",
         "strain": "Effort"
       },
@@ -3721,6 +3727,7 @@
     "recovery": {
       "title": "Récupération",
       "description": "À quel point votre corps a récupéré : les signaux de récupération, de charge et d'effort que votre wearable enregistre la nuit.",
+      "scoreCrossLink": "Voir le score de récupération composite",
       "emptyTitle": "Pas encore de données de récupération",
       "empty": "Pas encore de données de récupération. Connectez un compte WHOOP, Polar ou Oura et ces scores se rempliront dès que votre appareil se synchronise.",
       "block": {
@@ -4009,7 +4016,7 @@
         },
         "wrapUp": {
           "title": "C’est la fin de la visite",
-          "body": "Vous pouvez revoir chaque module séparément à tout moment (« Afficher cette visite » sur chaque page) ou relancer la visite complète dans Réglages → Avancé."
+          "body": "Cette visite guidée ne s'affiche qu'une fois — elle ne se rouvrira pas d'elle-même. Tout ce qu'elle a montré reste en place, et vous pouvez activer ou désactiver des fonctionnalités à tout moment dans Réglages → Modules."
         }
       }
     },
@@ -4084,7 +4091,8 @@
       "learning": "Certaines analyses — glycémie, rythme de sommeil, tendances de tension, cycle — s'affinent au cours de la première semaine ou deux à mesure que vos données s'accumulent. Des tuiles vides signifient simplement que nous apprenons encore votre référence.",
       "connectCta": "Connecter un appareil",
       "logCta": "Enregistrez votre première mesure",
-      "importCta": "Importer un historique existant"
+      "importCta": "Importer un historique existant",
+      "modulesCta": "Choisir vos modules"
     },
     "welcomeBack": {
       "title": "Bon retour",
@@ -4549,7 +4557,7 @@
         "description": "Dossiers structurés des allergies et des antécédents familiaux."
       },
       "environment": {
-        "title": "Environnement",
+        "title": "Localisation et météo",
         "subtitle": "Contexte météo, lumière du jour et lieu.",
         "disabledHint": "Activez le module Environnement pour définir un lieu de référence et intégrer la météo et la durée du jour quotidiennes.",
         "searchPlaceholder": "Rechercher une ville",
@@ -7959,6 +7967,7 @@
   "mentalHealth": {
     "pageTitle": "Bien-être mental",
     "pageDescription": "Quatre auto-évaluations validées et facultatives — PHQ-9 (humeur), GAD-7 (inquiétude), WHO-5 (bien-être) et SCI (sommeil) — en complément de ton suivi de l'humeur. Ce qui compte, c'est la tendance dans le temps, pas un chiffre isolé.",
+    "moodLink": "Voir ton historique d'humeur",
     "attributionLabel": "Source",
     "attributionShow": "Source et licence pour {instrument}",
     "choosePrompt": "Choisis un bilan",
@@ -8404,7 +8413,8 @@
       "noConditions": "Lié à aucune affection",
       "previewUnavailable": "Pas d'aperçu intégré pour ce type de fichier",
       "uploadedMeta": "Ajouté le {date} · {size}",
-      "share": "Partager"
+      "share": "Partager",
+      "labValuesLink": "Voir {count} valeurs de laboratoire"
     },
     "dropOverlay": {
       "title": "Déposez les fichiers pour les téléverser",
@@ -8666,7 +8676,9 @@
       "coachCheckin": {
         "title": "Il est temps de revoir un plan",
         "body": "Cela fait environ une semaine que vous avez défini ce plan : gardez-le, ajustez-le ou laissez-le. Sans pression.",
-        "bodyPlan": "Il y a environ une semaine, vous vous étiez fixé : « {plan} ». Gardez-le, ajustez-le ou laissez-le, sans pression."
+        "bodyPlan": "Il y a environ une semaine, vous vous étiez fixé : « {plan} ». Gardez-le, ajustez-le ou laissez-le, sans pression.",
+        "adjustPrompt": "J'aimerais ajuster mon plan de suivi.",
+        "adjustPromptPlan": "J'aimerais ajuster ce plan : « {plan} »"
       },
       "tensionWindow": {
         "title": "Peut-être un peu de tension",
