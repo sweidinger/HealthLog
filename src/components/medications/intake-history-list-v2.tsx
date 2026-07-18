@@ -368,10 +368,7 @@ export function IntakeHistoryListV2({
                             <>
                               {formatters.dateTime(event.scheduledFor)}{" "}
                               <span className="text-muted-foreground text-xs">
-                                (
-                                {t(
-                                  "medications.detail.history.plannedSuffix",
-                                )}
+                                ({t("medications.detail.history.plannedSuffix")}
                                 )
                               </span>
                             </>
@@ -435,8 +432,7 @@ export function IntakeHistoryListV2({
                 {events.map((event) => {
                   const isTaken = !event.skipped && !!event.takenAt;
                   const isSkipped = event.skipped;
-                  const isSelected =
-                    selection?.selected.has(event.id) ?? false;
+                  const isSelected = selection?.selected.has(event.id) ?? false;
                   return (
                     <ListRow
                       key={event.id}
@@ -502,9 +498,7 @@ export function IntakeHistoryListV2({
                                     aria-hidden="true"
                                     className="h-3 w-3"
                                   />
-                                  {t(
-                                    "medications.intakeHistoryStatusSkipped",
-                                  )}
+                                  {t("medications.intakeHistoryStatusSkipped")}
                                 </Badge>
                               ) : null}
                               <Badge

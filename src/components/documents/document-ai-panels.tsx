@@ -256,7 +256,7 @@ export function DocumentSummaryPanel({
           className={cn(
             "text-foreground text-sm",
             output === "text" &&
-              "font-mono text-xs whitespace-pre-wrap break-words",
+              "font-mono text-xs break-words whitespace-pre-wrap",
           )}
         >
           {body}

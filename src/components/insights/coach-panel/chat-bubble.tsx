@@ -634,7 +634,7 @@ function ChatBubbleImpl({
             className={cn(
               "border-border/60 bg-muted/40 text-foreground",
               "rounded-xl rounded-tl-sm border px-3.5 py-2.5",
-              "text-sm leading-relaxed whitespace-pre-wrap break-words",
+              "text-sm leading-relaxed break-words whitespace-pre-wrap",
             )}
           >
             {/* v1.4.25 W5b — strip stray Metric/enum leak tokens from the
