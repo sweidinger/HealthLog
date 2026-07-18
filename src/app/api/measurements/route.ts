@@ -300,6 +300,23 @@ export const GET = apiHandler(async (request: NextRequest) => {
       }
     }
 
+    // v1.30.3 (QA F6) — the read above is DESC + take(limit), so once a
+    // dense account's in-window row count crosses the cap, the OLDEST
+    // returned row sits mid-day: every earlier sample on that same
+    // calendar day was cut off, and its bucket's SUM understates the real
+    // day total with no marker. Flag exactly that one bucket — the day
+    // containing the cutoff row (the minimum dayKey among the buckets
+    // actually built) — `partial: true` only when the cap was truly hit;
+    // a read that came in under the cap covers its whole window and no
+    // day is a truncation artifact.
+    const cappedRead = rows.length === limit;
+    let oldestDayKey: string | null = null;
+    if (cappedRead) {
+      for (const key of buckets.keys()) {
+        if (oldestDayKey === null || key < oldestDayKey) oldestDayKey = key;
+      }
+    }
+
     const measurements = Array.from(buckets.values())
       .map((b) => ({
         // Synthetic id so the list-row key stays stable across pages
@@ -316,6 +333,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         notes: null,
         dayKey: b.dayKey,
         sampleCount: b.sampleCount,
+        ...(b.dayKey === oldestDayKey ? { partial: true } : {}),
       }))
       .sort((a, b) => {
         const cmp = a.dayKey < b.dayKey ? -1 : a.dayKey > b.dayKey ? 1 : 0;
@@ -330,6 +348,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
         groupBy: "day",
         rowsScanned: rows.length,
         droppedDuplicates: rows.length - canonicalRows.length,
+        // QA F6 — surfaces when the oldest bucket in this page is a
+        // partial-day sum (the read hit the cap).
+        capped: cappedRead,
       },
     });
     return apiSuccess({

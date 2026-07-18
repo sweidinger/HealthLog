@@ -247,6 +247,99 @@ describe("GET /api/measurements — groupBy=day (W7c collapsed list)", () => {
     expect(json.data.meta.droppedDuplicates).toBe(1);
   });
 
+  // v1.30.3 (QA F6) — a capped read's oldest bucket sits mid-day: every
+  // sample on that calendar day BEFORE the cutoff row was excluded, so the
+  // bucket's SUM understates the real day total. The row must carry a
+  // `partial: true` marker instead of rendering as if it were complete.
+  it("flags the oldest bucket partial when the raw-row read hits the cap", async () => {
+    // limit=3: the DESC-ordered read returns exactly 3 rows (the cap), so
+    // the oldest of the three (2026-05-14) is a truncated day — its bucket
+    // could be missing earlier same-day samples the cap cut off.
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        id: "m-1",
+        type: "ACTIVITY_STEPS",
+        value: 3400,
+        unit: "steps",
+        source: "APPLE_HEALTH",
+        measuredAt: new Date("2026-05-15T11:00:00.000Z"),
+        notes: null,
+      },
+      {
+        id: "m-2",
+        type: "ACTIVITY_STEPS",
+        value: 2500,
+        unit: "steps",
+        source: "APPLE_HEALTH",
+        measuredAt: new Date("2026-05-15T07:00:00.000Z"),
+        notes: null,
+      },
+      {
+        id: "m-3",
+        type: "ACTIVITY_STEPS",
+        value: 800,
+        unit: "steps",
+        source: "APPLE_HEALTH",
+        measuredAt: new Date("2026-05-14T16:00:00.000Z"),
+        notes: null,
+      },
+    ] as never);
+
+    const res = await GET(
+      getRequest("type=ACTIVITY_STEPS&groupBy=day&limit=3"),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: {
+        measurements: Array<{
+          dayKey: string;
+          value: number;
+          partial?: boolean;
+        }>;
+        meta: { capped?: boolean };
+      };
+    };
+    const day15 = json.data.measurements.find((m) => m.dayKey === "2026-05-15");
+    const day14 = json.data.measurements.find((m) => m.dayKey === "2026-05-14");
+    expect(day15?.partial).toBeUndefined();
+    expect(day14?.partial).toBe(true);
+  });
+
+  it("flags no bucket partial when the read comes in under the cap (whole window covered)", async () => {
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        id: "m-1",
+        type: "ACTIVITY_STEPS",
+        value: 3400,
+        unit: "steps",
+        source: "APPLE_HEALTH",
+        measuredAt: new Date("2026-05-15T11:00:00.000Z"),
+        notes: null,
+      },
+      {
+        id: "m-3",
+        type: "ACTIVITY_STEPS",
+        value: 800,
+        unit: "steps",
+        source: "APPLE_HEALTH",
+        measuredAt: new Date("2026-05-14T16:00:00.000Z"),
+        notes: null,
+      },
+    ] as never);
+
+    // Default limit (100) is nowhere near hit by 2 rows.
+    const res = await GET(getRequest("type=ACTIVITY_STEPS&groupBy=day"));
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: {
+        measurements: Array<{ dayKey: string; partial?: boolean }>;
+      };
+    };
+    expect(json.data.measurements.every((m) => m.partial === undefined)).toBe(
+      true,
+    );
+  });
+
   it("falls back to the legacy findMany path when groupBy=day is set on a non-cumulative type", async () => {
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([
       {
