@@ -3548,6 +3548,7 @@
         "sectionTitle": "Tes indicateurs de santé",
         "sectionSubtitle": "Valeurs combinées de récupération, de stress et d'effort issues de tes appareils connectés",
         "loadError": "Impossible de charger vos scores de bien-être pour le moment.",
+        "loadingLabel": "Chargement de tes indicateurs de santé",
         "recovery": "Récupération",
         "stress": "Stress",
         "strain": "Effort"

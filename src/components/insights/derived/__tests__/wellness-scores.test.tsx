@@ -65,15 +65,20 @@ describe("<WellnessScores>", () => {
     expect(html).toBe("");
   });
 
-  it("renders nothing while loading (the page reserves the row)", () => {
+  it("renders a skeleton row while loading, not a pop-in later", () => {
     const html = render(
       <WellnessScores
         read={readFrom({ READINESS: ok({ score: 80, band: "green" }) })}
         isLoading
       />,
     );
-    // While loading no tiles resolve, so the strip stays un-mounted.
-    expect(html).toBe("");
+    // The section heading + a row of tile-shaped skeletons render
+    // immediately, so the strip reserves its final height instead of
+    // vanishing (`return null`) and popping in once the batch resolves.
+    expect(html).toContain('data-slot="wellness-scores"');
+    expect(html).toContain('data-slot="wellness-scores-grid"');
+    expect(html).toContain('data-slot="wellness-score-tile-skeleton"');
+    expect(html).not.toContain('data-slot="wellness-score-tile"');
   });
 
   it("renders a ring tile with an icon + heading on the gentle wellness surface", () => {

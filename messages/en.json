@@ -3548,6 +3548,7 @@
         "sectionTitle": "Your health scores",
         "sectionSubtitle": "Composite recovery, stress and strain read from your connected devices",
         "loadError": "Could not load your wellness scores right now.",
+        "loadingLabel": "Loading your health scores",
         "recovery": "Recovery",
         "stress": "Stress",
         "strain": "Strain"

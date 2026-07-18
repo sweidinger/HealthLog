@@ -3548,6 +3548,7 @@
         "sectionTitle": "Twoje wskaźniki zdrowia",
         "sectionSubtitle": "Złożone wartości regeneracji, stresu i obciążenia odczytane z Twoich połączonych urządzeń",
         "loadError": "Nie udało się teraz wczytać Twoich wyników dobrostanu.",
+        "loadingLabel": "Wczytywanie Twoich wskaźników zdrowia",
         "recovery": "Regeneracja",
         "stress": "Stres",
         "strain": "Obciążenie"

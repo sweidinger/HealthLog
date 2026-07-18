@@ -38,7 +38,7 @@ import { InlineLearnLink } from "@/components/ui/learn-more-link";
 /** Default paragraph styling shared by every prose surface + the Coach
  *  streaming tail, so the streamed and settled renders line up exactly. */
 export const PROSE_PARAGRAPH_CLASS =
-  "leading-relaxed [&:not(:first-child)]:mt-3";
+  "leading-relaxed break-words [&:not(:first-child)]:mt-3";
 
 /**
  * Split a trusted-as-text string into real paragraphs on blank lines.

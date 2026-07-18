@@ -3548,6 +3548,7 @@
         "sectionTitle": "Deine Gesundheitswerte",
         "sectionSubtitle": "Zusammengesetzte Werte für Erholung, Stress und Belastung aus deinen verbundenen Geräten",
         "loadError": "Deine Wellness-Werte konnten gerade nicht geladen werden.",
+        "loadingLabel": "Deine Gesundheitswerte werden geladen",
         "recovery": "Erholung",
         "stress": "Stress",
         "strain": "Belastung"

@@ -3548,6 +3548,7 @@
         "sectionTitle": "Tus indicadores de salud",
         "sectionSubtitle": "Valores combinados de recuperación, estrés y esfuerzo leídos de tus dispositivos conectados",
         "loadError": "No se pudieron cargar tus puntuaciones de bienestar en este momento.",
+        "loadingLabel": "Cargando tus indicadores de salud",
         "recovery": "Recuperación",
         "stress": "Estrés",
         "strain": "Esfuerzo"

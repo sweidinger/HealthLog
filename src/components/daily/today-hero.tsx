@@ -223,6 +223,10 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
                   item={item}
                   onAction={handleAction}
                   onDismiss={(itemKey) => dismissItem.mutate(itemKey)}
+                  actionsPending={
+                    item.kind === "coach_checkin" &&
+                    (keep.isPending || letGo.isPending)
+                  }
                 />
               ))}
             </div>
