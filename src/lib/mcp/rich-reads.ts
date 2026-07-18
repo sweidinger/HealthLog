@@ -42,6 +42,7 @@ import {
 import {
   getMetricStatusMeta,
   METRIC_STATUS_IDS,
+  type MetricStatusMetricId,
 } from "@/lib/insights/metric-status-registry";
 import { allSignals, getSignal } from "@/lib/signals/registry";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
@@ -365,6 +366,103 @@ function resolveClinicalSignal(key: string): RichMetric | null {
     }
   }
   return null;
+}
+
+// ── v1.30 coverage review (G5/C4) — metric-status-only discovery ─────
+//
+// `resolveRichMetric` already resolves any `metric-status-registry` id via an
+// exact-id or display-name match (steps 3–4 above), so `compare_metric` /
+// `get_metric_baseline` / `detect_changepoints` CAN serve these metrics today.
+// But none of them is in the Coach data inventory (`list_metrics`, the
+// `measurements-inventory` resource) or the `search` probe, so a
+// discover-before-fetch assistant — which the server's own instructions
+// direct — never learns they exist. The v1.28.52 dashboard-tile wave
+// surfaced several of these ("collected but unsurfaced") in the app; the MCP
+// wire still had that gap.
+//
+// Deliberately a fixed, reviewed allowlist (not derived from `surfaces.mcp` —
+// reconciling that flag against this resolution path is a separate follow-up)
+// so no metric becomes discoverable here without a human having named it.
+
+const METRIC_STATUS_DISCOVERY_IDS = [
+  "WRIST_TEMPERATURE",
+  "CARDIO_RECOVERY",
+  "SLEEP_SCORE",
+  "BREATHING_DISTURBANCES",
+  "ANS_CHARGE",
+  "DAY_STRAIN",
+  "WORKOUT_STRAIN",
+  "CARDIO_LOAD",
+  "FALL_COUNT",
+  "SIX_MINUTE_WALK_DISTANCE",
+  "STAIR_ASCENT_SPEED",
+  "STAIR_DESCENT_SPEED",
+  "ENERGY_EXPENDITURE_KJ",
+] as const satisfies readonly MetricStatusMetricId[];
+
+/**
+ * The metric-status-only ids `list_metrics` / the inventory resource /
+ * `search` can now discover: the registry id (also the `metric:` id `fetch`
+ * resolves), the backing `MeasurementType` (the presence probe), and the
+ * display label. Mirrors the shape of `MCP_CLINICAL_SIGNALS`.
+ */
+export const MCP_METRIC_STATUS_DISCOVERY: ReadonlyArray<{
+  key: MetricStatusMetricId;
+  measurementType: MeasurementType;
+  label: string;
+}> = METRIC_STATUS_DISCOVERY_IDS.map((id) => {
+  const meta = getMetricStatusMeta(id);
+  if (!meta) {
+    // Would only trip if the registry ever dropped one of these ids — fail
+    // loudly at module load rather than silently under-advertising.
+    throw new Error(`metric-status registry is missing discovery id ${id}`);
+  }
+  return {
+    key: id,
+    measurementType: meta.measurementType,
+    label: meta.displayName,
+  };
+});
+
+/**
+ * Presence + approximate sample count for the metric-status-only discovery
+ * set, in the `list_metrics` inventory-row shape — `tool` fixed to
+ * `compare_metric` (a resolver-closed metric with no Coach-snapshot series
+ * fetches through `compare_metric` / `get_metric_baseline`, never
+ * `get_metric_series`). One grouped presence query, mirroring the
+ * `MCP_CLINICAL_SIGNALS` `search` probe. `list_metrics` and the
+ * `measurements-inventory` resource both append these rows to their own
+ * inventory so a discover-before-fetch assistant can find a metric that IS
+ * resolvable but sits off the Coach snapshot.
+ */
+export async function metricStatusDiscoveryRows(userId: string): Promise<
+  Array<{
+    tool: string;
+    domain: string;
+    present: boolean;
+    count?: number;
+    metric: string;
+  }>
+> {
+  const rows = await prisma.measurement.groupBy({
+    by: ["type"],
+    where: {
+      userId,
+      type: { in: MCP_METRIC_STATUS_DISCOVERY.map((s) => s.measurementType) },
+    },
+    _count: { _all: true },
+  });
+  const countByType = new Map(rows.map((r) => [r.type, r._count._all]));
+  return MCP_METRIC_STATUS_DISCOVERY.map((sig) => {
+    const count = countByType.get(sig.measurementType);
+    return {
+      tool: "compare_metric",
+      domain: sig.label,
+      present: count !== undefined,
+      ...(count !== undefined ? { count } : {}),
+      metric: sig.key,
+    };
+  });
 }
 
 /**

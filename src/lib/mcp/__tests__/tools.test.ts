@@ -115,10 +115,19 @@ vi.mock("../rich-reads", () => ({
       label: "Grip strength",
     },
   ],
+  // v1.30 (G5/C4) — the metric-status-only discovery allowlist.
+  MCP_METRIC_STATUS_DISCOVERY: [
+    {
+      key: "WRIST_TEMPERATURE",
+      measurementType: "WRIST_TEMPERATURE",
+      label: "Wrist skin temperature",
+    },
+  ],
+  metricStatusDiscoveryRows: vi.fn(async () => []),
 }));
 
 import { MCP_TOOLS, MCP_TOOL_NAMES } from "../tools";
-import { getMetricBaseline } from "../rich-reads";
+import { getMetricBaseline, metricStatusDiscoveryRows } from "../rich-reads";
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
 import { buildCoachDataInventory } from "@/lib/ai/coach/tools/inventory";
 import { prisma } from "@/lib/db";
@@ -266,6 +275,42 @@ describe("list_metrics", () => {
     expect(result.present).toBe(true);
     expect(result.window).toBe("last30days");
     expect(result.metrics).toHaveLength(2);
+  });
+
+  it("appends the v1.30 metric-status-only discovery rows (G5/C4) alongside the Coach inventory", async () => {
+    vi.mocked(buildCoachDataInventory).mockResolvedValue({
+      entries: [
+        {
+          tool: "get_metric_series",
+          metric: "weight",
+          domain: "weight",
+          present: true,
+          count: 5,
+        },
+      ],
+      restMode: false,
+      cycleEnabled: false,
+      window: "last30days",
+      probeScope: { sources: [], window: "last30days" },
+    } as never);
+    vi.mocked(metricStatusDiscoveryRows).mockResolvedValue([
+      {
+        tool: "compare_metric",
+        domain: "Wrist skin temperature",
+        present: true,
+        count: 3,
+        metric: "WRIST_TEMPERATURE",
+      },
+    ] as never);
+
+    const result = (await tool("list_metrics").run(CTX, {})) as {
+      metrics: Array<Record<string, unknown>>;
+    };
+    expect(metricStatusDiscoveryRows).toHaveBeenCalledWith("user-1");
+    expect(result.metrics).toHaveLength(2);
+    expect(
+      result.metrics.find((m) => m.metric === "WRIST_TEMPERATURE"),
+    ).toMatchObject({ tool: "compare_metric", present: true });
   });
 });
 
@@ -698,6 +743,49 @@ describe("v1.25 clinical signals on the MCP surface", () => {
     expect(result.text as string).not.toContain("{");
     expect(result.text as string).toContain("34");
     expect(result.text as string).toContain("16–60");
+  });
+});
+
+describe("metric-status-only discovery on search/fetch (v1.30 coverage review G5/C4)", () => {
+  beforeEach(() => {
+    vi.mocked(buildCoachDataInventory).mockResolvedValue({
+      entries: [],
+      restMode: false,
+      cycleEnabled: false,
+      window: "last30days",
+      probeScope: { sources: [] },
+    } as never);
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.labResult.findMany).mockResolvedValue([] as never);
+  });
+
+  it("search surfaces a present metric-status-only id (undiscoverable before this wave)", async () => {
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([
+      { type: "WRIST_TEMPERATURE" },
+    ] as never);
+    const result = (await tool("search").run(CTX, { query: "wrist" })) as {
+      results: Array<{ id: string; title: string }>;
+    };
+    const hit = result.results.find((r) => r.id === "metric:WRIST_TEMPERATURE");
+    expect(hit).toBeDefined();
+  });
+
+  it("fetch hydrates a metric-status-only id via the baseline read", async () => {
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
+    vi.mocked(getMetricBaseline).mockResolvedValue({
+      present: true,
+      metric: "Wrist skin temperature",
+      unit: "°C",
+      latest: 33.2,
+    } as never);
+    const result = (await tool("fetch").run(CTX, {
+      id: "metric:WRIST_TEMPERATURE",
+    })) as Record<string, unknown>;
+    expect(getMetricBaseline).toHaveBeenCalledWith("user-1", {
+      metric: "WRIST_TEMPERATURE",
+    });
+    expect(executeCoachTool).not.toHaveBeenCalled();
+    expect(result.title).toBe("Wrist skin temperature");
   });
 });
 

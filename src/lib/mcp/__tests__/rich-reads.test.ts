@@ -17,10 +17,9 @@ vi.mock("@/lib/rollups/measurement-read-wmy", async (importOriginal) => {
 });
 const { labResult, measurement } = vi.hoisted(() => ({
   labResult: { findMany: vi.fn() },
-  // v1.30.4 (G4) — `withHrvFallback`'s presence probe. Unused by every
-  // metric that doesn't carry a `fallbackMeasurementType` (everything but
-  // HRV today); those tests never touch this mock.
-  measurement: { count: vi.fn() },
+  // `withHrvFallback`'s presence probe (`count`) + the discovery presence
+  // query (`groupBy`). Unused by metrics that don't exercise them.
+  measurement: { count: vi.fn(), groupBy: vi.fn(async () => []) },
 }));
 vi.mock("@/lib/db", () => ({ prisma: { labResult, measurement } }));
 
@@ -31,6 +30,8 @@ import {
   detectChangepoints,
   getLabHistory,
   resolveRichMetric,
+  MCP_METRIC_STATUS_DISCOVERY,
+  metricStatusDiscoveryRows,
 } from "../rich-reads";
 import { readCoachCorrelations } from "@/lib/ai/coach/tools/correlations-read";
 import { buildCoachReadStrip } from "@/lib/insights/derived/coach-read";
@@ -600,5 +601,68 @@ describe("get_lab_history", () => {
     const res = await getLabHistory(USER, { analyte: "ferritin" });
     expect(res.present).toBe(false);
     expect(res.reason).toBe("analyte_not_found");
+  });
+});
+
+// ── v1.30 coverage review (G5/C4) — metric-status-only discovery ────────
+describe("MCP_METRIC_STATUS_DISCOVERY", () => {
+  it("carries the reviewed metric-status-only allowlist with resolved units/labels", () => {
+    const keys = MCP_METRIC_STATUS_DISCOVERY.map((s) => s.key).sort();
+    expect(keys).toEqual(
+      [
+        "WRIST_TEMPERATURE",
+        "CARDIO_RECOVERY",
+        "SLEEP_SCORE",
+        "BREATHING_DISTURBANCES",
+        "ANS_CHARGE",
+        "DAY_STRAIN",
+        "WORKOUT_STRAIN",
+        "CARDIO_LOAD",
+        "FALL_COUNT",
+        "SIX_MINUTE_WALK_DISTANCE",
+        "STAIR_ASCENT_SPEED",
+        "STAIR_DESCENT_SPEED",
+        "ENERGY_EXPENDITURE_KJ",
+      ].sort(),
+    );
+    const wristTemp = MCP_METRIC_STATUS_DISCOVERY.find(
+      (s) => s.key === "WRIST_TEMPERATURE",
+    );
+    expect(wristTemp?.measurementType).toBe("WRIST_TEMPERATURE");
+    expect(wristTemp?.label).toBe("Wrist temperature");
+  });
+
+  it("every discovery id is ALSO resolvable via resolveRichMetric (compare_metric/baseline stay reachable)", () => {
+    for (const sig of MCP_METRIC_STATUS_DISCOVERY) {
+      expect(resolveRichMetric(sig.key)?.measurementType).toBe(
+        sig.measurementType,
+      );
+    }
+  });
+});
+
+describe("metricStatusDiscoveryRows", () => {
+  it("reports present:true + count for a logged id, present:false for the rest", async () => {
+    measurement.groupBy.mockResolvedValue([
+      { type: "WRIST_TEMPERATURE", _count: { _all: 7 } },
+    ] as never);
+    const rows = await metricStatusDiscoveryRows(USER);
+    expect(rows).toHaveLength(MCP_METRIC_STATUS_DISCOVERY.length);
+    const wristTemp = rows.find((r) => r.metric === "WRIST_TEMPERATURE");
+    expect(wristTemp).toMatchObject({
+      tool: "compare_metric",
+      domain: "Wrist temperature",
+      present: true,
+      count: 7,
+    });
+    const untouched = rows.find((r) => r.metric === "DAY_STRAIN");
+    expect(untouched).toMatchObject({ present: false });
+    expect(untouched).not.toHaveProperty("count");
+  });
+
+  it("reports present:false for every id when nothing is logged", async () => {
+    measurement.groupBy.mockResolvedValue([]);
+    const rows = await metricStatusDiscoveryRows(USER);
+    expect(rows.every((r) => r.present === false)).toBe(true);
   });
 });

@@ -93,6 +93,10 @@ const READ_TOOLS = [
   "get_medication_schedule",
   "get_integration_status",
   "get_preventive_care",
+  // v1.30 coverage review — nutrients, intraday pulse, ECG metadata.
+  "get_nutrients",
+  "get_intraday_pulse",
+  "get_ecg_recordings",
 ].sort();
 
 /** A valid, narrow-scope (`health:read`) token resolution. */

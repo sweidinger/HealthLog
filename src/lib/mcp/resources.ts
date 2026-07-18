@@ -37,6 +37,7 @@ import { collectDoctorReportData } from "@/lib/doctor-report-data";
 import { isModuleEnabled } from "@/lib/modules/gate";
 import { NUTRIENT_CODES, type NutrientCode } from "@/lib/nutrients/catalog";
 import { getNutrients, NUTRIENT_LABELS } from "@/lib/mcp/nutrients-read";
+import { metricStatusDiscoveryRows } from "@/lib/mcp/rich-reads";
 import { summariseForVisit } from "./doctor-visit-summary";
 import type { McpAuthContext } from "./auth";
 
@@ -241,7 +242,12 @@ export const MCP_RESOURCES: McpResourceDefinition[] = [
       "What health data the user has and which tool retrieves each domain — one row per domain with presence + approximate sample count. The same manifest list_metrics returns; read this first to discover what is available before fetching figures.",
     mimeType: "application/json",
     async read(ctx) {
-      const inventory = await buildCoachDataInventory(ctx.userId, undefined);
+      const [inventory, statusDiscoveryRows] = await Promise.all([
+        buildCoachDataInventory(ctx.userId, undefined),
+        // v1.30 coverage review (G5/C4) — mirrors the same supplement rows
+        // `list_metrics` appends, so the two discovery surfaces stay in sync.
+        metricStatusDiscoveryRows(ctx.userId),
+      ]);
       annotate({
         action: { name: "mcp.resource.read" },
         meta: { resource: "measurements-inventory", present: true },
@@ -251,7 +257,7 @@ export const MCP_RESOURCES: McpResourceDefinition[] = [
         window: inventory.window,
         restMode: inventory.restMode,
         cycleEnabled: inventory.cycleEnabled,
-        metrics: inventory.entries,
+        metrics: [...inventory.entries, ...statusDiscoveryRows],
       };
     },
   },

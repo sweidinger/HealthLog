@@ -38,6 +38,8 @@ import {
   getLabHistory,
   LAB_HISTORY_MAX_LIMIT,
   MCP_CLINICAL_SIGNALS,
+  MCP_METRIC_STATUS_DISCOVERY,
+  metricStatusDiscoveryRows,
   type DateRange,
 } from "@/lib/mcp/rich-reads";
 import {
@@ -384,20 +386,27 @@ function searchAndFetchTools(): McpToolDefinition[] {
           });
         }
 
-        // v1.25 clinical signals (grip strength, pain NRS, waist / WHtR) — off
-        // the Coach data inventory by design, so they are surfaced here directly.
-        // One grouped presence probe over their backing measurement types;
-        // present-only, in a stable (allowlist) order. `fetch metric:<KEY>`
-        // hydrates each via the rollup-backed baseline read.
-        const clinicalPresent = await prisma.measurement.groupBy({
+        // v1.25 clinical signals (grip strength, pain NRS, waist / WHtR) PLUS
+        // the v1.30 coverage-review metric-status-only set (wrist
+        // temperature, cardio recovery, sleep score, breathing disturbances,
+        // strain/load, …) — both sit off the Coach data inventory by design,
+        // so they are surfaced here directly. One grouped presence probe over
+        // the combined backing measurement types; present-only, in a stable
+        // (allowlist) order. `fetch metric:<KEY>` hydrates each via the
+        // rollup-backed baseline read.
+        const discoverableSignals = [
+          ...MCP_CLINICAL_SIGNALS,
+          ...MCP_METRIC_STATUS_DISCOVERY,
+        ];
+        const discoverablePresent = await prisma.measurement.groupBy({
           by: ["type"],
           where: {
             userId: ctx.userId,
-            type: { in: MCP_CLINICAL_SIGNALS.map((s) => s.measurementType) },
+            type: { in: discoverableSignals.map((s) => s.measurementType) },
           },
         });
-        const presentTypes = new Set(clinicalPresent.map((r) => r.type));
-        for (const sig of MCP_CLINICAL_SIGNALS) {
+        const presentTypes = new Set(discoverablePresent.map((r) => r.type));
+        for (const sig of discoverableSignals) {
           if (!presentTypes.has(sig.measurementType)) continue;
           const hay = `${sig.label} ${sig.key}`.toLowerCase();
           if (query && !hay.includes(query)) continue;
@@ -483,22 +492,24 @@ function searchAndFetchTools(): McpToolDefinition[] {
         });
 
         if (kind === "metric" && rid) {
-          // v1.25 clinical signals sit off the Coach snapshot, so hydrate them
-          // through the rollup-backed baseline read rather than the Coach
+          // v1.25 clinical signals AND the v1.30 metric-status-only discovery
+          // set both sit off the Coach snapshot, so hydrate them through the
+          // rollup-backed baseline read rather than the Coach
           // `get_metric_series` path (which would report no data for them).
-          const clinical = MCP_CLINICAL_SIGNALS.find(
-            (s) => s.key.toLowerCase() === rid.toLowerCase(),
-          );
-          if (clinical) {
+          const discoverable = [
+            ...MCP_CLINICAL_SIGNALS,
+            ...MCP_METRIC_STATUS_DISCOVERY,
+          ].find((s) => s.key.toLowerCase() === rid.toLowerCase());
+          if (discoverable) {
             const baseline = await getMetricBaseline(ctx.userId, {
-              metric: clinical.key,
+              metric: discoverable.key,
             });
             return {
               id,
-              title: clinical.label,
-              text: plainClinicalText(clinical.label, baseline),
-              url: `${origin}/insights?metric=${encodeURIComponent(clinical.key)}`,
-              metadata: { type: "metric", metric: clinical.key },
+              title: discoverable.label,
+              text: plainClinicalText(discoverable.label, baseline),
+              url: `${origin}/insights?metric=${encodeURIComponent(discoverable.key)}`,
+              metadata: { type: "metric", metric: discoverable.key },
             };
           }
           const result = await executeCoachTool({
@@ -972,7 +983,18 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     annotations: READ_ONLY_ANNOTATIONS,
     outputShape: listMetricsOutput,
     async run(ctx) {
-      const inventory = await buildCoachDataInventory(ctx.userId, undefined);
+      const [inventory, statusDiscoveryRows] = await Promise.all([
+        buildCoachDataInventory(ctx.userId, undefined),
+        // v1.30 coverage review (G5/C4) — the metric-status-only set
+        // (wrist temperature, cardio recovery, sleep score, breathing
+        // disturbances, strain/load, …) is resolvable via `compare_metric` /
+        // `get_metric_baseline` but sits off the Coach snapshot inventory, so
+        // it never advertised itself here. Appended as supplement rows
+        // rather than folded into `buildCoachDataInventory` (Coach-owned)
+        // to keep the addition MCP-side, mirroring how the `search` probe
+        // already surfaces the sibling v1.25 clinical-signal set.
+        metricStatusDiscoveryRows(ctx.userId),
+      ]);
       annotate({
         action: { name: "mcp.tool.invoked" },
         meta: { tool: "list_metrics", present: true },
@@ -982,7 +1004,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         window: inventory.window,
         restMode: inventory.restMode,
         cycleEnabled: inventory.cycleEnabled,
-        metrics: inventory.entries,
+        metrics: [...inventory.entries, ...statusDiscoveryRows],
       };
     },
   },
