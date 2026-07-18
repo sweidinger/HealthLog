@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.30.13
+  version: 1.30.14
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -11268,18 +11268,20 @@ components:
           description: HealthKit identifier (e.g. `HKQuantityTypeIdentifierBodyMass`).
         value:
           type: number
-          description: Raw HealthKit reading in Apple's native unit; the server applies any canonical scaling at ingest. For an
-            hourly heart-rate bucket (see `externalId`) this is the hour's AVERAGE bpm; the hour's spread rides
+          description: Raw HealthKit reading in Apple's native unit; the server applies any canonical scaling at ingest. For a
+            10-minute heart-rate bucket (see `externalId`) this is the bucket's AVERAGE bpm; the bucket's spread rides
             `valueMin` / `valueMax`.
         valueMin:
-          description: "v1.19.2 (iOS #34 extension) — the hour's MINIMUM bpm for an hourly heart-rate bucket (see `externalId`).
-            Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row; ignored (stored null)
-            on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract."
+          description: "v1.19.2 (iOS #34 extension) — the bucket's MINIMUM bpm for a 10-minute heart-rate bucket (see
+            `externalId`). Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start>` row;
+            ignored (stored null) on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only
+            contract."
           type: number
         valueMax:
-          description: "v1.19.2 (iOS #34 extension) — the hour's MAXIMUM bpm for an hourly heart-rate bucket (see `externalId`).
-            Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row; ignored (stored null)
-            on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract."
+          description: "v1.19.2 (iOS #34 extension) — the bucket's MAXIMUM bpm for a 10-minute heart-rate bucket (see
+            `externalId`). Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start>` row;
+            ignored (stored null) on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only
+            contract."
           type: number
         unit:
           type: string
@@ -11319,12 +11321,12 @@ components:
             • `stats:<HKQuantityTypeIdentifier>:<YYYY-MM-DD>` — a per-day cumulative total (Steps, Active Energy, Sleep
             Duration, Walking/Running Distance, Flights Climbed). A re-post OVERWRITES the row and returns `updated`.
 
-            • `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start-hour>` — v1.19.0 (iOS #34) hourly heart-rate bucket
-            carrying the hour's AVERAGE bpm as one PULSE row. `<bucket-start-hour>` is the ISO-8601 UTC hour boundary
-            with zeroed minutes/seconds/millis and a trailing `Z` (e.g. `2026-06-21T14:00:00.000Z`). A re-post within
-            the hour OVERWRITES the row and returns `updated`, so iOS uploads ~24 rows/day instead of one per raw HR
-            sample. A row that targets this prefix with a malformed hour suffix is `skipped` with reason
-            `malformed_hr_bucket_id`.
+            • `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start>` — v1.19.0 (iOS #34), refined to 10-minute
+            granularity in v1.30.7, heart-rate bucket carrying the bucket's AVERAGE bpm as one PULSE row.
+            `<bucket-start>` is the ISO-8601 UTC 10-minute boundary — zeroed seconds/millis, minutes ∈
+            {00,10,20,30,40,50}, trailing `Z` (e.g. `2026-06-21T14:10:00.000Z`). A re-post OVERWRITES the row and
+            returns `updated`, so iOS uploads ~144 rows/day instead of one per raw HR sample. A row that targets this
+            prefix with a malformed bucket-start suffix is `skipped` with reason `malformed_hr_bucket_id`.
         externalSourceVersion:
           type: string
           minLength: 1
