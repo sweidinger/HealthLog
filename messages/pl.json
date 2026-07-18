@@ -228,7 +228,7 @@
     "logout": "Wyloguj",
     "login": "Zaloguj",
     "notifications": "Powiadomienia",
-    "theme": "Wygląd",
+    "theme": "Motyw",
     "themeSystem": "Systemowy",
     "themeDark": "Ciemny",
     "themeLight": "Jasny",
@@ -605,6 +605,7 @@
   "mood": {
     "title": "Nastrój",
     "subtitle": "Trend i wpisy nastroju",
+    "mentalWellbeingLink": "Wykonaj sprawdzian dobrostanu psychicznego",
     "addEntry": "Dodaj",
     "editEntry": "Edytuj wpis",
     "moodLevel": "Nastrój",
@@ -2894,7 +2895,7 @@
       "sleep": {
         "title": "Brak danych o śnie",
         "description": "Gdy pojawią się dane o śnie (ręcznie lub przez Withings / Apple Health), wyświetli się tu rozkład faz na noc.",
-        "cta": "Połącz Withings"
+        "cta": "Połącz źródło"
       }
     },
     "navWorkouts": "Treningi",
@@ -3262,6 +3263,8 @@
     },
     "navWalkingSpeed": "Prędkość chodu",
     "mood": {
+      "logLink": "Zapisz nastrój",
+      "mentalWellbeingLink": "Wykonaj sprawdzian dobrostanu psychicznego",
       "heatmapTitle": "Kalendarz nastroju",
       "heatmapNoEntry": "Brak wpisu",
       "legendGreat": "Świetnie",
@@ -3550,7 +3553,8 @@
         "sectionSubtitle": "Złożone wartości regeneracji, stresu i obciążenia odczytane z Twoich połączonych urządzeń",
         "loadError": "Nie udało się teraz wczytać Twoich wyników dobrostanu.",
         "loadingLabel": "Wczytywanie Twoich wskaźników zdrowia",
-        "recovery": "Regeneracja",
+        "recovery": "Wynik regeneracji",
+        "recoveryCrossLink": "Zobacz dane regeneracji i obciążenia z Twojego urządzenia",
         "stress": "Stres",
         "strain": "Obciążenie"
       },
@@ -3721,6 +3725,7 @@
     "recovery": {
       "title": "Regeneracja",
       "description": "Jak dobrze Twój organizm się zregenerował – sygnały regeneracji, obciążenia i load, które Twoje urządzenie rejestruje w nocy.",
+      "scoreCrossLink": "Zobacz łączny wynik regeneracji",
       "emptyTitle": "Brak danych o regeneracji",
       "empty": "Brak danych o regeneracji. Połącz konto WHOOP, Polar lub Oura, a te wyniki uzupełnią się po synchronizacji urządzenia.",
       "block": {
@@ -4009,7 +4014,7 @@
         },
         "wrapUp": {
           "title": "To koniec przewodnika",
-          "body": "Każdy moduł możesz obejrzeć osobno w dowolnej chwili („Pokaż ten przewodnik” na każdej stronie) lub uruchomić cały przewodnik ponownie w Ustawienia → Zaawansowane."
+          "body": "Ten przewodnik pokazuje się tylko raz — nie otworzy się ponownie sam. Wszystko, co pokazał, zostaje na miejscu, a funkcje możesz włączać i wyłączać w dowolnym momencie w Ustawienia → Moduły."
         }
       }
     },
@@ -4084,7 +4089,8 @@
       "learning": "Niektóre wnioski — glukoza, rytm snu, trendy ciśnienia, cykl — wyostrzają się w ciągu pierwszego tygodnia lub dwóch, w miarę gromadzenia danych. Puste kafelki oznaczają teraz tylko, że wciąż poznajemy Twój punkt odniesienia.",
       "connectCta": "Połącz urządzenie",
       "logCta": "Zapisz pierwszy pomiar",
-      "importCta": "Importuj istniejącą historię"
+      "importCta": "Importuj istniejącą historię",
+      "modulesCta": "Wybierz swoje moduły"
     },
     "welcomeBack": {
       "title": "Witaj ponownie",
@@ -4549,7 +4555,7 @@
         "description": "Ustrukturyzowane rekordy alergii i wywiadu rodzinnego."
       },
       "environment": {
-        "title": "Środowisko",
+        "title": "Lokalizacja i pogoda",
         "subtitle": "Kontekst pogody, światła dziennego i lokalizacji.",
         "disabledHint": "Włącz moduł Środowisko, aby ustawić lokalizację domową i pobierać dzienną pogodę oraz długość dnia.",
         "searchPlaceholder": "Szukaj miasta",
@@ -7959,6 +7965,7 @@
   "mentalHealth": {
     "pageTitle": "Dobrostan psychiczny",
     "pageDescription": "Cztery zwalidowane, dobrowolne testy — PHQ-9 (nastrój), GAD-7 (lęk), WHO-5 (samopoczucie) i SCI (sen) — obok Twojego dziennika nastroju. Liczy się trend w czasie, a nie pojedynczy wynik.",
+    "moodLink": "Zobacz historię swojego nastroju",
     "attributionLabel": "Źródło",
     "attributionShow": "Źródło i licencja: {instrument}",
     "choosePrompt": "Wybierz sprawdzenie",
@@ -8404,7 +8411,8 @@
       "noConditions": "Niepowiązany ze schorzeniem",
       "previewUnavailable": "Brak podglądu dla tego typu pliku",
       "uploadedMeta": "Dodano {date} · {size}",
-      "share": "Udostępnij"
+      "share": "Udostępnij",
+      "labValuesLink": "Zobacz {count} wyników laboratoryjnych"
     },
     "dropOverlay": {
       "title": "Upuść pliki, aby je przesłać",
@@ -8666,7 +8674,9 @@
       "coachCheckin": {
         "title": "Czas przyjrzeć się planowi",
         "body": "Minął mniej więcej tydzień, odkąd ustaliłeś ten plan — zachowaj go, dostosuj lub odpuść. Bez presji.",
-        "bodyPlan": "Około tygodnia temu postanowiłeś: „{plan}”. Zachowaj to, dostosuj lub odpuść — bez presji."
+        "bodyPlan": "Około tygodnia temu postanowiłeś: „{plan}”. Zachowaj to, dostosuj lub odpuść — bez presji.",
+        "adjustPrompt": "Chciałbym dostosować mój plan kontrolny.",
+        "adjustPromptPlan": "Chciałbym dostosować ten plan: „{plan}”"
       },
       "tensionWindow": {
         "title": "Może chwila napięcia dzisiaj",

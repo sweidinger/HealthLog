@@ -335,7 +335,14 @@ describe("buildDailyDigest — coach check-in (S3)", () => {
     expect(item?.body).toContain("every morning → weigh in");
     // Keep / let-go carry the plan id; adjust is a plain navigation href.
     expect(item?.actions[0].intent).toBe(`${COACH_CHECKIN_KEEP_INTENT}:p1`);
-    expect(item?.actions[1].href).toBe("/coach");
+    // 2026-07-17 UX-flows audit F1-2 — adjust used to be a bare `/coach` link
+    // dropping all plan context; it now carries `?ask=` seeding the coach
+    // composer with the plan's own words, so the target is the coach route
+    // with the plan text echoed in the query, not a blank chat.
+    expect(item?.actions[1].href).toContain("/coach?ask=");
+    expect(item?.actions[1].href).toContain(
+      encodeURIComponent("every morning → weigh in"),
+    );
     expect(item?.actions[2].intent).toBe(`${COACH_CHECKIN_LETGO_INTENT}:p1`);
   });
 

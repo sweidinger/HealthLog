@@ -228,7 +228,7 @@
     "logout": "Esci",
     "login": "Accedi",
     "notifications": "Notifiche",
-    "theme": "Aspetto",
+    "theme": "Tema",
     "themeSystem": "Sistema",
     "themeDark": "Scuro",
     "themeLight": "Chiaro",
@@ -605,6 +605,7 @@
   "mood": {
     "title": "Umore",
     "subtitle": "Andamento e voci dell’umore",
+    "mentalWellbeingLink": "Fai un check-in sul benessere mentale",
     "addEntry": "Aggiungi",
     "editEntry": "Modifica voce",
     "moodLevel": "Umore",
@@ -2894,7 +2895,7 @@
       "sleep": {
         "title": "Nessuna voce di sonno",
         "description": "Quando saranno disponibili dati sul sonno (manuale o tramite Withings / Apple Health), qui apparirà la suddivisione per fase.",
-        "cta": "Collega Withings"
+        "cta": "Collega una fonte"
       }
     },
     "navWorkouts": "Allenamenti",
@@ -3262,6 +3263,8 @@
     },
     "navWalkingSpeed": "Velocità di cammino",
     "mood": {
+      "logLink": "Registra un umore",
+      "mentalWellbeingLink": "Fai un check-in sul benessere mentale",
       "heatmapTitle": "Calendario dell'umore",
       "heatmapNoEntry": "Nessun dato",
       "legendGreat": "Ottimo",
@@ -3550,7 +3553,8 @@
         "sectionSubtitle": "Valori combinati di recupero, stress e sforzo letti dai tuoi dispositivi connessi",
         "loadError": "Al momento non è stato possibile caricare i tuoi punteggi di benessere.",
         "loadingLabel": "Caricamento dei tuoi indicatori di salute",
-        "recovery": "Recupero",
+        "recovery": "Punteggio di recupero",
+        "recoveryCrossLink": "Vedi i dati di recupero e sforzo del tuo wearable",
         "stress": "Stress",
         "strain": "Sforzo"
       },
@@ -3721,6 +3725,7 @@
     "recovery": {
       "title": "Recupero",
       "description": "Quanto bene il tuo corpo si è ripreso: i segnali di recupero, sforzo e carico che il tuo wearable registra durante la notte.",
+      "scoreCrossLink": "Vedi il punteggio di recupero composito",
       "emptyTitle": "Ancora nessun dato di recupero",
       "empty": "Ancora nessun dato di recupero. Collega un account WHOOP, Polar o Oura e questi punteggi si popoleranno appena il dispositivo si sincronizza.",
       "block": {
@@ -4009,7 +4014,7 @@
         },
         "wrapUp": {
           "title": "Questa è la visita guidata",
-          "body": "Puoi rivedere ogni modulo singolarmente in qualsiasi momento («Mostra questa visita» su ogni pagina) o riavviare l’intera visita da Impostazioni → Avanzate."
+          "body": "Questa visita guidata viene mostrata una sola volta: non si riaprirà da sola. Tutto ciò che hai visto resta al suo posto e puoi attivare o disattivare le funzioni quando vuoi da Impostazioni → Moduli."
         }
       }
     },
@@ -4084,7 +4089,8 @@
       "learning": "Alcune analisi — glicemia, ritmo del sonno, tendenze della pressione, ciclo — si affinano nella prima settimana o due man mano che i tuoi dati si accumulano. Le caselle vuote ora indicano solo che stiamo ancora imparando il tuo riferimento.",
       "connectCta": "Collega un dispositivo",
       "logCta": "Registra la tua prima misurazione",
-      "importCta": "Importa la cronologia esistente"
+      "importCta": "Importa la cronologia esistente",
+      "modulesCta": "Scegli i tuoi moduli"
     },
     "welcomeBack": {
       "title": "Bentornato",
@@ -4549,7 +4555,7 @@
         "description": "Record strutturati di allergie e anamnesi familiare."
       },
       "environment": {
-        "title": "Ambiente",
+        "title": "Posizione e meteo",
         "subtitle": "Contesto meteo, luce del giorno e posizione.",
         "disabledHint": "Attiva il modulo Ambiente per impostare una posizione principale e integrare il meteo e le ore di luce giornaliere.",
         "searchPlaceholder": "Cerca una città",
@@ -7959,6 +7965,7 @@
   "mentalHealth": {
     "pageTitle": "Benessere mentale",
     "pageDescription": "Quattro autovalutazioni validate e facoltative — PHQ-9 (umore), GAD-7 (preoccupazione), WHO-5 (benessere) e SCI (sonno) — accanto al tuo diario dell'umore. Ciò che conta è l'andamento nel tempo, non un singolo numero.",
+    "moodLink": "Vedi il tuo andamento dell'umore",
     "attributionLabel": "Fonte",
     "attributionShow": "Fonte e licenza di {instrument}",
     "choosePrompt": "Scegli un check-in",
@@ -8404,7 +8411,8 @@
       "noConditions": "Non collegato a una patologia",
       "previewUnavailable": "Nessuna anteprima integrata per questo tipo di file",
       "uploadedMeta": "Aggiunto il {date} · {size}",
-      "share": "Condividi"
+      "share": "Condividi",
+      "labValuesLink": "Vedi {count} valori di laboratorio"
     },
     "dropOverlay": {
       "title": "Rilascia i file per caricarli",
@@ -8666,7 +8674,9 @@
       "coachCheckin": {
         "title": "È il momento di rivedere un piano",
         "body": "È passata circa una settimana da quando hai definito questo piano: mantienilo, modificalo o lascialo andare. Senza pressioni.",
-        "bodyPlan": "Circa una settimana fa ti eri proposto: «{plan}». Mantienilo, modificalo o lascialo andare, senza pressioni."
+        "bodyPlan": "Circa una settimana fa ti eri proposto: «{plan}». Mantienilo, modificalo o lascialo andare, senza pressioni.",
+        "adjustPrompt": "Vorrei modificare il mio piano di controllo.",
+        "adjustPromptPlan": "Vorrei modificare questo piano: «{plan}»"
       },
       "tensionWindow": {
         "title": "Forse un po' di tensione oggi",

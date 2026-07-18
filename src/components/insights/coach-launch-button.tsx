@@ -5,6 +5,7 @@ import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
+import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useDisableCoach } from "@/hooks/use-disable-coach";
@@ -31,6 +32,13 @@ export interface CoachLaunchButtonProps {
   label?: string;
   /** Optional prefill seed for the next Coach turn. */
   prefill?: string;
+  /**
+   * 2026-07-17 UX-flows audit F6-1 — optional scope so the conversation this
+   * button opens narrows to the relevant source(s) instead of starting from
+   * a blank, unscoped chat. Passed straight through to `askCoach`'s second
+   * argument (mirrors every other ambient-scope call site).
+   */
+  scope?: CoachLaunchScope;
   /** Optional className passthrough for inline overrides. */
   className?: string;
   /**
@@ -49,6 +57,7 @@ export interface CoachLaunchButtonProps {
 export function CoachLaunchButton({
   label,
   prefill,
+  scope,
   className,
   variant = "inline",
 }: CoachLaunchButtonProps) {
@@ -83,7 +92,7 @@ export function CoachLaunchButton({
         data-slot="coach-launch-icon"
         aria-label={accessibleLabel}
         title={accessibleLabel}
-        onClick={() => launch.askCoach(prefill ?? null)}
+        onClick={() => launch.askCoach(prefill ?? null, scope)}
         className={cn("text-muted-foreground hover:text-foreground", className)}
       >
         <Sparkles className="size-4" aria-hidden="true" />
@@ -101,7 +110,7 @@ export function CoachLaunchButton({
       variant="outline"
       size="sm"
       data-slot="coach-launch-inline"
-      onClick={() => launch.askCoach(prefill ?? null)}
+      onClick={() => launch.askCoach(prefill ?? null, scope)}
       className={cn("inline-flex h-10 gap-2 self-end", className)}
     >
       <Sparkles className="size-4" aria-hidden="true" />

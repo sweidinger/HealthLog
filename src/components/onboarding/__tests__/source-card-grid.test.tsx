@@ -15,7 +15,11 @@ const integrationStatusState = vi.hoisted(() => ({
   data: undefined as
     | {
         threshold: number;
-        integrations: Array<{ integration: string; configured?: boolean }>;
+        integrations: Array<{
+          integration: string;
+          configured?: boolean;
+          connected?: boolean;
+        }>;
       }
     | undefined,
 }));
@@ -87,5 +91,24 @@ describe("<SourceCardGrid> Withings card", () => {
     expect(html).toContain('href="/api/withings/connect"');
     expect(html).not.toContain('data-testid="source-card-withings-setup"');
     expect(html).toContain("Connect Withings");
+  });
+
+  // 2026-07-17 UX-onboarding audit M6 — the connect CTA opens OAuth in a
+  // new tab; the callback flips the connection in THAT tab while this
+  // wizard tab used to render the same unchanged button forever. Once
+  // `useIntegrationStatuses` (refetches on window focus) reports
+  // `connected: true`, the card must swap to a badge instead of a dead
+  // "Connect Withings" button that would just reopen a redundant flow.
+  it("shows a connected badge instead of the connect button once Withings is linked", () => {
+    integrationStatusState.data = {
+      threshold: 3,
+      integrations: [
+        { integration: "withings", configured: true, connected: true },
+      ],
+    };
+    const html = render();
+    expect(html).toContain('data-testid="source-card-withings-connected"');
+    expect(html).not.toContain('href="/api/withings/connect"');
+    expect(html).not.toContain("Connect Withings");
   });
 });

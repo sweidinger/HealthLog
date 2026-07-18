@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Loader2 } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { useModulePageGuard } from "@/hooks/use-module-page-guard";
@@ -46,6 +47,20 @@ export default function InsightsRecoveryPage() {
       explainerMetric="recoveryPage"
       coachLaunch
     >
+      {/* 2026-07-17 UX/IA audit M4 — reverse direction of the cross-link added
+          to the score-anatomy page: this composite wearable page shares the
+          "Recovery" nav label with the RECOVERY_SCORE anatomy view at
+          `/insights/scores/recovery`, so a user who arrived here looking for
+          the score ring / contributor breakdown gets a pointer instead of a
+          dead end. */}
+      <Link
+        href="/insights/scores/recovery"
+        data-slot="recovery-anatomy-cross-link"
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -mt-2 inline-flex items-center gap-1.5 text-sm transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
+      >
+        {t("insights.recovery.scoreCrossLink")}
+        <ArrowRight className="size-3.5" aria-hidden="true" />
+      </Link>
       <RecoverySection />
     </SubPageShell>
   );

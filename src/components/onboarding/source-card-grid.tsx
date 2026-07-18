@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  CheckCircle2,
   ClipboardCheck,
   FileUp,
   Plug,
@@ -119,6 +120,16 @@ export function SourceCardGrid() {
   const { data: integrationStatus } = useIntegrationStatuses(isAuthenticated);
   const withingsConfigured =
     pickStatus(integrationStatus, "withings")?.configured ?? false;
+  // 2026-07-17 UX-onboarding audit M6 — the connect CTA opens the OAuth
+  // handshake in a new tab; the callback lands THAT tab on
+  // Settings → Integrations while this wizard tab never learned the
+  // connection succeeded. `useIntegrationStatuses` already refetches on
+  // window focus, so returning to this tab after the OAuth round trip
+  // picks up the fresh `connected` flag for free — the only missing piece
+  // was rendering it as a badge instead of leaving the button looking
+  // untouched.
+  const withingsConnected =
+    pickStatus(integrationStatus, "withings")?.connected ?? false;
 
   async function advance() {
     if (advancing) return;
@@ -164,6 +175,8 @@ export function SourceCardGrid() {
             }
             withingsCtaLabel={t("onboarding.source.withings.cta")}
             withingsConfigured={withingsConfigured}
+            withingsConnected={withingsConnected}
+            withingsConnectedLabel={t("settings.integrationPill.connected")}
             withingsSetupCtaLabel={t("onboarding.source.withings.setupCta")}
             withingsSetupHint={t("onboarding.source.withings.setupHint")}
           />
@@ -260,6 +273,13 @@ interface SourceCardItemProps {
    *  credentials saved — i.e. whether `/api/withings/connect` can
    *  actually succeed right now. */
   withingsConfigured: boolean;
+  /** Whether Withings is already connected (OAuth completed in the tab the
+   *  connect CTA opened). Replaces the connect button with a badge so
+   *  returning to this wizard tab shows the outcome instead of an
+   *  unchanged card. */
+  withingsConnected: boolean;
+  /** Localised "Connected" label for the badge above. */
+  withingsConnectedLabel: string;
   /** CTA label shown instead of "Connect Withings" when unconfigured. */
   withingsSetupCtaLabel: string;
   /** One-sentence explanation of the BYO credential prerequisite. */
@@ -275,6 +295,8 @@ function SourceCardItem({
   recommendedLabel,
   withingsCtaLabel,
   withingsConfigured,
+  withingsConnected,
+  withingsConnectedLabel,
   withingsSetupCtaLabel,
   withingsSetupHint,
 }: SourceCardItemProps) {
@@ -325,7 +347,15 @@ function SourceCardItem({
       >
         {headerRow}
         {body}
-        {withingsConfigured ? (
+        {withingsConnected ? (
+          <div
+            className="text-primary flex items-center gap-1.5 pt-1 text-sm font-medium"
+            data-testid="source-card-withings-connected"
+          >
+            <CheckCircle2 className="size-3.5" aria-hidden="true" />
+            {withingsConnectedLabel}
+          </div>
+        ) : withingsConfigured ? (
           <div className="flex items-center gap-2 pt-1">
             <Button asChild variant="outline" size="sm">
               <a

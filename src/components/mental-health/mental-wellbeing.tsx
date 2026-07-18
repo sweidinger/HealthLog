@@ -28,7 +28,9 @@
  * the page someone arrives at to take stock.
  */
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
@@ -142,6 +144,19 @@ export function MentalWellbeing() {
               ))}
             </ul>
           </section>
+
+          {/* 2026-07-17 UX/IA audit M9 — mood tracking, this screener surface,
+              and the mood insights page form one mental-health domain but used
+              to be three unconnected islands. A quiet pointer to mood history,
+              mirroring the one added on `/mood` pointing back here. */}
+          <Link
+            href="/mood"
+            data-slot="mental-wellbeing-mood-link"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -mt-2 inline-flex items-center gap-1.5 self-start text-sm underline-offset-4 transition-colors hover:underline focus-visible:ring-[3px] focus-visible:outline-none"
+          >
+            {t("mentalHealth.moodLink")}
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
 
           {/* Per-instrument detail, opened from a card body: last result,
               trend chart, dated history, Start — the Verlauf lives here,

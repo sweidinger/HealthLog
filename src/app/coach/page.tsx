@@ -6,11 +6,13 @@ import { useQuery } from "@tanstack/react-query";
 
 import { CoachConversation } from "@/components/insights/coach-panel/coach-conversation";
 import type { CoachNudgeStatus } from "@/components/insights/layout-coach-fab";
+import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useDisableCoach } from "@/hooks/use-disable-coach";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
+import { coachScopeSourceSchema } from "@/lib/ai/coach/types";
 
 /**
  * v1.12.0 (Coach v2 #6) — full-page Coach conversation.
@@ -57,6 +59,23 @@ import { apiGet } from "@/lib/api/api-fetch";
  *     most-recent thread so the user lands on what the Coach said.
  * The search-param read sits in a Suspense child so the client-bailout
  * never de-opts the route.
+ *
+ * 2026-07-17 UX-flows audit — the route understood only `?c=` / `?doc=`, so
+ * every other cross-surface hand-off (a metric card's "ask about this", the
+ * Today check-in's "Adjust", a workout detail's coach button) dropped its
+ * context at the URL boundary and landed on a blank composer (F1-2 / F4-1 /
+ * F6-1). Two additive params close that gap, both seeding the SAME props
+ * `<CoachConversation>` already exposes for the drawer's suggested-prompt
+ * chips — no new plumbing inside the conversation surface itself:
+ *   - `?scope=<CoachScopeSource>` — narrows the snapshot the FIRST turn of a
+ *     fresh conversation reads (validated against the closed enum; an
+ *     unrecognised value is silently dropped rather than reaching the chat
+ *     route with a free-form string).
+ *   - `?ask=<text>` — seeds the composer prefill (mirrors `prefill` on the
+ *     in-app `askCoach()` launch call). The user still reviews/sends it —
+ *     this is a prefill, not an auto-send.
+ * Both are ignored once `?c=` or `?doc=` pin an existing/scoped thread — scope
+ * only ever applies to a fresh conversation's first turn.
  */
 function CoachPageBody() {
   const searchParams = useSearchParams();
@@ -71,13 +90,30 @@ function CoachPageBody() {
   const rawDoc = searchParams.get("doc");
   const seedDocumentId = deepLinkedId === null && rawDoc ? rawDoc : null;
 
+  // A fresh conversation only — an existing thread (`?c=`) or a doc-scoped
+  // chat (`?doc=`) keeps its own established scope.
+  const freshChat = deepLinkedId === null && seedDocumentId === null;
+  const rawScope = freshChat ? searchParams.get("scope") : null;
+  const scopeResult = rawScope
+    ? coachScopeSourceSchema.safeParse(rawScope)
+    : null;
+  const launchScope: CoachLaunchScope | null = scopeResult?.success
+    ? { metric: scopeResult.data }
+    : null;
+  const seedPrefill = freshChat ? searchParams.get("ask") : null;
+
   // C1 exception — an unread coach-initiated message opens the most-recent
   // conversation (which holds that proactive turn). Only consulted when the
   // entry did not pin a specific thread or ask for a fresh chat.
   // A `?doc=` open is an explicit fresh doc-scoped chat — never override it by
-  // resuming the most-recent thread on an unread nudge.
+  // resuming the most-recent thread on an unread nudge. A `?scope=`/`?ask=`
+  // hand-off is likewise an explicit fresh-chat request.
   const exceptionEligible =
-    deepLinkedId === null && rawC !== "new" && seedDocumentId === null;
+    deepLinkedId === null &&
+    rawC !== "new" &&
+    seedDocumentId === null &&
+    launchScope === null &&
+    !seedPrefill;
   const { data: nudge } = useQuery({
     queryKey: queryKeys.coachNudgeStatus(),
     queryFn: async (): Promise<CoachNudgeStatus> =>
@@ -95,6 +131,10 @@ function CoachPageBody() {
       // v1.28.51 — seed the document scope for a `?doc=<id>` open so the first
       // turn is created + sent through the hardened fenced document endpoint.
       initialDocumentId={seedDocumentId}
+      // 2026-07-17 UX-flows audit F1-2/F4-1/F6-1 — seed the scope/prefill a
+      // cross-surface hand-off carried in the URL.
+      launchScope={launchScope}
+      prefill={seedPrefill}
       // Default is the new-chat hero; only resume most-recent for the
       // unread coach-initiated exception.
       autoOpenMostRecent={hasUnreadCoachMessage}

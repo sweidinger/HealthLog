@@ -249,13 +249,19 @@ export function GettingStartedChecklist() {
     enabled: checklistRelevant,
   });
 
-  // v1.5 perf audit: skip these two fetches once the user is past
-  // onboarding. The checklist hides itself anyway via shouldShowChecklist
-  // when onboardingCompletedAt != null AND measurementCount >= 5;
+  // v1.5 perf audit: skip these two fetches once the card can't render at
+  // all (`checklistRelevant`, same gate the meds/AI queries above use).
   // withings/status and notifications/preferences are unique to this
   // component and were burning ~950 ms of network on every dashboard load
   // for established users. See docs/audit/v15-performance.md.
-  const onboardingPending = !!user && user.onboardingCompletedAt == null;
+  //
+  // 2026-07-17 UX audit M1 — this used to read a separate `onboardingPending`
+  // (`onboardingCompletedAt == null`) instead of `checklistRelevant`, so a
+  // user who finished the wizard but still had under 5 measurements kept
+  // seeing the card (`shouldShowChecklist` allows that) while these two
+  // queries stayed disabled forever: "Connect a data source" and
+  // "Configure notifications" could never flip done even after the user
+  // actually connected Withings or a push channel post-wizard.
 
   // v1.17.0 — any connected data source satisfies the step, so we read
   // the consolidated integrations envelope (Withings / WHOOP / Fitbit /
@@ -265,7 +271,7 @@ export function GettingStartedChecklist() {
     queryFn: async () => {
       return apiGet("/api/integrations/status");
     },
-    enabled: onboardingPending,
+    enabled: checklistRelevant,
   });
 
   const { data: notificationsData } = useQuery<NotificationsPreferences>({
@@ -273,7 +279,7 @@ export function GettingStartedChecklist() {
     queryFn: async () => {
       return apiGet("/api/notifications/preferences");
     },
-    enabled: onboardingPending,
+    enabled: checklistRelevant,
   });
 
   const medicationCount = medsData?.length ?? 0;

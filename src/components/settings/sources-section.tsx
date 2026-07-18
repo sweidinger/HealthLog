@@ -45,7 +45,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
-import { NutrientIntakeCard } from "@/components/settings/nutrient-intake-card";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -585,9 +584,11 @@ export function SourcesSection() {
         </p>
       </SettingsCard>
 
-      {/* v1.28 — read-only synced-nutrient list for the opt-in `nutrients`
-          module (renders nothing while the module is off). */}
-      <NutrientIntakeCard />
+      {/* v1.28 shipped `<NutrientIntakeCard>` here; the 2026-07-17 UX/IA
+          audit (M7) moved it to Settings → Integrations — it is a read-only
+          Apple-Health sync inventory, not a which-connection-wins ranking,
+          so it never belonged on the "source priority" ladder. See
+          `<IntegrationsSection>` for the card's new home. */}
     </div>
   );
 }

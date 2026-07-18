@@ -18,8 +18,10 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowRight,
   Check,
   Download,
+  FlaskConical,
   Pencil,
   Plus,
   Share2,
@@ -32,6 +34,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useIllnessEpisodes } from "@/components/illness/use-illness";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
@@ -229,6 +232,21 @@ export function DocumentDetailSheet({
       apiGet<InboundDocumentDetailDto>(`/api/documents/inbound/${documentId}`),
   });
   const doc = detail.data;
+
+  // 2026-07-17 UX/IA audit M5 / F5-5 — the document → lab-values direction
+  // had no UI link at all: an auto-staged (PENDING) or OCR-confirmed
+  // (APPROVED, see `linkOcrLabsToVaultDocument`) OBSERVATION fact already
+  // ties this document to specific lab rows, but nothing on the sheet said
+  // so. There is no per-value route yet (`/labs` has no `?analyte=`
+  // deep-link — see the labs page's own "no per-value relation" comment),
+  // so this links to the labs list rather than a single biomarker; still a
+  // real jump where there was none before.
+  const labFactCount =
+    doc?.facts.filter(
+      (fact) => fact.factType === "OBSERVATION" && fact.status !== "REJECTED",
+    ).length ?? 0;
+  const { user } = useAuth();
+  const labsModuleEnabled = user?.modules?.labs !== false;
 
   const episodes = useIllnessEpisodes(true);
 
@@ -791,6 +809,18 @@ export function DocumentDetailSheet({
                   ) : null}
                 </div>
               </div>
+
+              {labsModuleEnabled && labFactCount > 0 ? (
+                <Link
+                  href="/labs"
+                  data-slot="document-detail-lab-values-link"
+                  className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex items-center gap-1.5 self-start rounded-md text-sm transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
+                >
+                  <FlaskConical className="size-4" aria-hidden="true" />
+                  {t("documents.detail.labValuesLink", { count: labFactCount })}
+                  <ArrowRight className="size-3.5" aria-hidden="true" />
+                </Link>
+              ) : null}
 
               <p className="text-muted-foreground text-xs">
                 {t("documents.detail.uploadedMeta", {

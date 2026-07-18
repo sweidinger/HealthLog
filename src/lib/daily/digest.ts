@@ -451,6 +451,18 @@ function buildCoachCheckinItem(
     ? t("daily.item.coachCheckin.bodyPlan", { plan: plan.planText })
     : t("daily.item.coachCheckin.body");
 
+  // 2026-07-17 UX-flows audit F1-2 — "Adjust" used to be a bare `/coach`
+  // link carrying no plan context: keep/let-go both thread the plan id
+  // into their intent, but adjust dropped the user into an empty new chat
+  // with no memory of which plan prompted the tap. The coach route's
+  // full-page surface now reads `?ask=` and seeds it as the composer
+  // prefill for a fresh conversation (`CoachConversation`'s `prefill` prop,
+  // same mechanism the drawer's suggested-prompt chips use) — the user
+  // lands with the plan already named instead of a blank composer.
+  const adjustPrompt = plan.planText
+    ? t("daily.item.coachCheckin.adjustPromptPlan", { plan: plan.planText })
+    : t("daily.item.coachCheckin.adjustPrompt");
+
   return {
     kind: "coach_checkin",
     title: t("daily.item.coachCheckin.title"),
@@ -464,7 +476,7 @@ function buildCoachCheckinItem(
       {
         labelKey: "daily.action.checkinAdjust",
         intent: COACH_CHECKIN_ADJUST_INTENT,
-        href: "/coach",
+        href: `/coach?ask=${encodeURIComponent(adjustPrompt)}`,
       },
       {
         labelKey: "daily.action.checkinLetGo",

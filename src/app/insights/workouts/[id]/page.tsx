@@ -78,7 +78,11 @@ export default function InsightsWorkoutDetailPage({
           <WorkoutDetailStats workout={data} />
           <WorkoutDetailRoute workout={data} />
           <WorkoutDetailHRChart workout={data} />
-          <CoachLaunchButton />
+          {/* 2026-07-17 UX-flows audit F6-1 — the button used to open an
+              unscoped chat; the user had to restate which session they
+              meant. `workouts` narrows the snapshot the first turn reads
+              (pairs with the coach-scope param added for F4-1). */}
+          <CoachLaunchButton scope={{ metric: "workouts" }} />
         </>
       )}
     </SubPageShell>

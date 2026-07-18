@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, FileUp, PlusCircle, Plug, Sparkles } from "lucide-react";
+import {
+  CheckCircle2,
+  FileUp,
+  PlusCircle,
+  Plug,
+  Settings2,
+  Sparkles,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/common/medical-disclaimer";
@@ -220,13 +227,29 @@ export function DoneScreen() {
         </Button>
       </div>
 
-      <Link
-        href="/settings/export"
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm underline-offset-4 hover:underline"
-      >
-        <FileUp className="size-3.5" />
-        {t("onboarding.done.importCta")}
-      </Link>
+      {/* 2026-07-17 UX-onboarding audit M5 — the module system (default-on
+          set + opt-ins like nutrients / mental health / documents) is
+          otherwise undiscoverable during first-run: the wizard never
+          mentions it, and the only pointer used to be one tour stop.
+          A quiet link here, beside the existing import link, gives every
+          new account one honest pointer to Settings → Modules before they
+          leave the wizard. */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+        <Link
+          href="/settings/export"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm underline-offset-4 hover:underline"
+        >
+          <FileUp className="size-3.5" />
+          {t("onboarding.done.importCta")}
+        </Link>
+        <Link
+          href="/settings/modules"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm underline-offset-4 hover:underline"
+        >
+          <Settings2 className="size-3.5" />
+          {t("onboarding.done.modulesCta")}
+        </Link>
+      </div>
     </section>
   );
 }
