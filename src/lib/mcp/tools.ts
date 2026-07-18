@@ -46,6 +46,8 @@ import {
   type NutrientsDailyResult,
 } from "@/lib/mcp/nutrients-read";
 import { NUTRIENT_CODES } from "@/lib/nutrients/catalog";
+import { loadIntradayPulse } from "@/lib/analytics/intraday-pulse-io";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
 import { encodeOffsetCursor, decodeOffsetCursor } from "@/lib/mcp/pagination";
 import {
   computeDisplayDue,
@@ -889,6 +891,44 @@ const getNutrientsOutput: z.ZodRawShape = {
     .optional(),
 };
 
+/**
+ * Output schema for `get_intraday_pulse` — the 10-minute "shape of the day"
+ * plus, when every confidence gate holds, one cautious elevated-at-rest
+ * ("tension") window. Verbatim re-export of `IntradayPulseResult`
+ * (`intraday-pulse-io.ts`); `resolution` tells the caller whether `series` is
+ * the dense 10-minute grain or the coarser hourly fallback.
+ */
+const getIntradayPulseOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  dateKey: z.string().optional(),
+  timezone: z.string().optional(),
+  bucketMinutes: z.number().optional(),
+  resolution: z.enum(["tenMin", "hourly"]).optional(),
+  series: z
+    .array(
+      z.object({
+        startMinute: z.number(),
+        mean: z.number(),
+        count: z.number(),
+      }),
+    )
+    .optional(),
+  baseline: z.number().nullable().optional(),
+  baselineSource: z.enum(["resting", "proxy", "none"]).optional(),
+  tension: z
+    .object({
+      startMinute: z.number(),
+      endMinute: z.number(),
+      partOfDay: z.enum(["morning", "afternoon", "evening", "night"]),
+      meanHr: z.number(),
+      baseline: z.number(),
+      hrvConfirmed: z.boolean(),
+    })
+    .nullable()
+    .optional(),
+};
+
 export const MCP_TOOLS: McpToolDefinition[] = [
   {
     name: "list_metrics",
@@ -1494,6 +1534,64 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         meta: { tool: "get_nutrients", present: result.present },
       });
       return result;
+    },
+  },
+  // ── v1.30 coverage review (G2) — the intraday pulse / "shape of the day" ──
+  {
+    name: "get_intraday_pulse",
+    title: "Get the intraday pulse shape",
+    description:
+      "Fetch the user's own 10-minute heart-rate shape for ONE local day — 'what happened this afternoon?', 'was I tense during the meeting?'. When every confidence gate holds, also carries a single cautious elevated-at-rest ('tension') window: a DESCRIPTIVE pattern only, NEVER a stress diagnosis. Falls back to an hourly-grain shape for a day outside the dense-retention window — see the `resolution` field ('tenMin' vs 'hourly'); `tension` is only ever computed at the dense grain. Gated on the `insights` module. Returns { present: false, reason: \"module_disabled\" } when the module is off, or { present: false } when the day has no pulse data.",
+    inputShape: {
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe(
+          "YYYY-MM-DD in the user's own timezone. Defaults to the user's local today.",
+        ),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getIntradayPulseOutput,
+    async run(ctx, args) {
+      const enabled = await isModuleEnabled(ctx.userId, "insights");
+      if (!enabled) {
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "get_intraday_pulse", present: false },
+        });
+        return { present: false, reason: "module_disabled" };
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { timezone: true },
+      });
+      const timezone = user?.timezone || DEFAULT_TIMEZONE;
+      const dateKey =
+        typeof args.date === "string" && args.date
+          ? args.date
+          : userDayKey(new Date(), timezone);
+
+      const result = await loadIntradayPulse(ctx.userId, timezone, dateKey);
+      const present = result.series.length > 0;
+
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: { tool: "get_intraday_pulse", present },
+      });
+      return {
+        present,
+        ...(present ? {} : { reason: "no_data" }),
+        dateKey: result.dateKey,
+        timezone: result.timezone,
+        bucketMinutes: result.bucketMinutes,
+        resolution: result.resolution,
+        series: result.series,
+        baseline: result.baseline,
+        baselineSource: result.baselineSource,
+        tension: result.tension,
+      };
     },
   },
   ...searchAndFetchTools(),

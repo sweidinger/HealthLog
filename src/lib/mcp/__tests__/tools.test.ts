@@ -68,6 +68,21 @@ vi.mock("@/lib/mcp/nutrients-read", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../nutrients-read")>();
   return { ...actual, getNutrients: vi.fn(async () => ({ present: true })) };
 });
+// v1.30 (G2) — `get_intraday_pulse` delegates to the shared IO seam; stub it
+// so the tool-wiring tests below never reach a real DB read. The engine's own
+// logic (dense-90d + hourly fallback + tension) is covered elsewhere.
+vi.mock("@/lib/analytics/intraday-pulse-io", () => ({
+  loadIntradayPulse: vi.fn(async () => ({
+    dateKey: "2026-07-10",
+    timezone: "UTC",
+    bucketMinutes: 10,
+    series: [{ startMinute: 0, mean: 60, count: 3 }],
+    baseline: 58,
+    baselineSource: "resting",
+    tension: null,
+    resolution: "tenMin",
+  })),
+}));
 // Phase 4 — the deep-value reads delegate to the rich-reads engines; stub them
 // so the registry-wide loops (surface / annotation / no-verdict) never reach a
 // real engine. Their own logic is covered in `rich-reads.test.ts`.
@@ -98,6 +113,7 @@ import { getIntegrationStatus } from "@/lib/integrations/status";
 import { toMeasurementReminderDto } from "@/lib/measurement-reminders/dto";
 import { isModuleEnabled } from "@/lib/modules/gate";
 import { getNutrients } from "@/lib/mcp/nutrients-read";
+import { loadIntradayPulse } from "@/lib/analytics/intraday-pulse-io";
 import type { McpAuthContext } from "../auth";
 
 const CTX: McpAuthContext = {
@@ -150,6 +166,8 @@ describe("MCP tool registry — surface", () => {
         "get_preventive_care",
         // v1.30 coverage review (G1) — the nutrients pipeline.
         "get_nutrients",
+        // v1.30 coverage review (G2) — the intraday pulse / shape of the day.
+        "get_intraday_pulse",
       ].sort(),
     );
   });
@@ -802,5 +820,68 @@ describe("nutrients on search / fetch (v1.30 coverage review G1)", () => {
       id: "nutrient:not-a-real-code",
     })) as Record<string, unknown>;
     expect(result.title).toBe("Not found");
+  });
+});
+
+describe("get_intraday_pulse — v1.30 coverage review (G2)", () => {
+  it("returns the engine's DTO verbatim (present, resolution, tension included)", async () => {
+    const result = (await tool("get_intraday_pulse").run(CTX, {})) as {
+      present: boolean;
+      dateKey: string;
+      resolution: string;
+      series: unknown[];
+      tension: unknown;
+    };
+    // No `date` arg → today's local day; assert the session tz was threaded
+    // through without pinning a calendar date the test would rot on.
+    expect(loadIntradayPulse).toHaveBeenCalledWith(
+      "user-1",
+      "UTC",
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    );
+    expect(result.present).toBe(true);
+    // The mocked engine's own DTO carries this fixed dateKey verbatim.
+    expect(result.dateKey).toBe("2026-07-10");
+    expect(result.resolution).toBe("tenMin");
+    expect(result.series).toHaveLength(1);
+    expect(result.tension).toBeNull();
+  });
+
+  it("passes an explicit `date` arg straight through to the engine", async () => {
+    await tool("get_intraday_pulse").run(CTX, { date: "2026-06-01" });
+    expect(loadIntradayPulse).toHaveBeenCalledWith(
+      "user-1",
+      "UTC",
+      "2026-06-01",
+    );
+  });
+
+  it("returns { present: false } (never fabricates) when the day has no pulse data", async () => {
+    vi.mocked(loadIntradayPulse).mockResolvedValueOnce({
+      dateKey: "2026-07-10",
+      timezone: "UTC",
+      bucketMinutes: 10,
+      series: [],
+      baseline: null,
+      baselineSource: "none",
+      tension: null,
+      resolution: "tenMin",
+    } as never);
+    const result = (await tool("get_intraday_pulse").run(CTX, {})) as {
+      present: boolean;
+      reason?: string;
+    };
+    expect(result.present).toBe(false);
+    expect(result.reason).toBe("no_data");
+  });
+
+  it("returns { present: false, reason: module_disabled } when the `insights` module is off", async () => {
+    vi.mocked(isModuleEnabled).mockResolvedValueOnce(false);
+    const result = (await tool("get_intraday_pulse").run(CTX, {})) as {
+      present: boolean;
+      reason?: string;
+    };
+    expect(result).toEqual({ present: false, reason: "module_disabled" });
+    expect(loadIntradayPulse).not.toHaveBeenCalled();
   });
 });
