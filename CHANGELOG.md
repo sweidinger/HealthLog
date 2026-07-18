@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.30.10] — 2026-07-18
+
+Localized insight text, and a richer workout view.
+
+- **Correlation insights now read in your language.** The "this tends to go with that — a pattern worth watching, not a cause" lines under a metric were always written in English; they now render in your interface language (German, Spanish, French, Italian, Polish), with the association-not-causation framing preserved in each.
+- **A workout you open shows more of what was recorded.** The detail view now draws the session's heart-rate curve over time, its route as a clean line, the time spent in each effort zone, per-kilometre splits, and how it compares to your own average for that sport — all from data already synced, with no new connection. Anything a given workout didn't record simply isn't shown.
+
+No migration. No breaking changes.
+
 ## [1.30.9] — 2026-07-18
 
 Faster dashboard first load.
