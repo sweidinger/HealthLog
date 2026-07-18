@@ -130,7 +130,7 @@ describe("Withings OAuth nonce ledger (real Postgres)", () => {
     expect(setCookie).not.toContain(TEST_USER_ID);
   });
 
-  it("connect refuses (400) when the user has no Withings credentials — no ledger row minted", async () => {
+  it("connect redirects to the settings error page (no dead-end) when the user has no Withings credentials — no ledger row minted", async () => {
     const prisma = getPrismaClient();
     await prisma.user.update({
       where: { id: TEST_USER_ID },
@@ -145,7 +145,14 @@ describe("Withings OAuth nonce ledger (real Postgres)", () => {
       new Request("http://localhost/api/withings/connect"),
     );
 
-    expect(res.status).toBe(400);
+    // The no-credentials branch now redirects to Settings → Integrations with
+    // a toast reason instead of emitting a raw JSON 400 into a browser tab
+    // (every other failure branch already redirects). The security property —
+    // no OAuth-state ledger row minted — still holds.
+    expect(res.status).toBe(307);
+    const location = res.headers.get("location") ?? "";
+    expect(location).toContain("withings=error");
+    expect(location).toContain("reason=nocreds");
     const rows = await prisma.withingsOAuthState.findMany();
     expect(rows).toHaveLength(0);
   });
