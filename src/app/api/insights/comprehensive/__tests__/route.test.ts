@@ -305,6 +305,40 @@ describe("GET /api/insights/comprehensive — envelope shape", () => {
     expect(body.data.bpClassification?.category).toBe("Normal");
   });
 
+  // v1.30.3 (QA F7 — completes the "caller has it" pairing-tz fix across
+  // every `computeBpInTargetPct` call site, not just the fast-path).
+  it("pairs bpPctInTarget on the session user's own tz, not a hardcoded Berlin day", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      ...SESSION_OK,
+      user: { ...SESSION_OK.user, timezone: "America/New_York" },
+    } as never);
+    // 2026-05-14T21:50Z = 23:50 Berlin (05-14) / 17:50 New York (05-14).
+    // 2026-05-14T22:10Z = 00:10 Berlin (05-15, the NEXT Berlin day) /
+    // 18:10 New York (05-14, the SAME New York day). >5-min gap, so only
+    // the same-calendar-day fallback can pair them — and only New York
+    // agrees with itself.
+    (buildComprehensiveAggregate as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        summaries: {},
+        bpRawRows: {
+          sys: [{ measuredAt: new Date("2026-05-14T21:50:00Z"), value: 125 }],
+          dia: [{ measuredAt: new Date("2026-05-14T22:10:00Z"), value: 75 }],
+        },
+        dailyByType: {},
+        firstMeasurementAt: new Date("2026-05-14T21:50:00Z"),
+        totalMeasurements: 2,
+      },
+    );
+
+    const res = await callGet(makeReq());
+    const body = (await res.json()) as {
+      data: { bpPctInTarget: number | null };
+    };
+    // A Berlin-day pairing would reject this pair (different Berlin
+    // calendar days) and read null; the user's own tz accepts it.
+    expect(body.data.bpPctInTarget).toBe(100);
+  });
+
   it("consumes the mood-rollup tier and skips the raw findMany when DAY rows exist", async () => {
     // v1.4.40 W-INSIGHTS — rollup-tier read swap parity. Three DAY rows
     // populated → the route reads them directly and never touches the

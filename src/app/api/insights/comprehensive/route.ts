@@ -100,6 +100,11 @@ type AuthedUser = AuthContext["user"];
 export async function buildComprehensiveResponse(user: AuthedUser) {
   const userId = user.id;
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  // v1.30.3 (QA F8) — the one shared per-user tz for every day-bucketing
+  // pass in this route (resting-pulse proxy, medication-continuity, BP
+  // pairing). Was previously re-derived ad hoc (or hardcoded UTC) at each
+  // call site.
+  const userTz = user.timezone || "Europe/Berlin";
 
   // Fetch user profile (height + DOB drive BMI + BP targets).
   const dbUser = await prisma.user.findUnique({
@@ -221,10 +226,11 @@ export async function buildComprehensiveResponse(user: AuthedUser) {
   // sys+dia on the 5-minute window ONLY, dropping readings whose sys/dia
   // timestamps drift past 5 min on Withings / Apple-Health imports, which
   // skewed the share iOS renders on the Home Health Score). The helper
-  // adds the same-Berlin-day pairing fallback so those readings pair, and
-  // keeps the ESH-2023 band + 90/50 hypotension floor (both sys AND dia at
-  // or below the age-band ceiling). Window is the aggregator's 90-day raw
-  // pull — a "recent control" figure, not the all-time headline.
+  // adds the same-local-day pairing fallback (v1.30.3 QA F7 — keyed on
+  // the user's OWN tz, not a hardcoded Berlin day) so those readings
+  // pair, and keeps the ESH-2023 band + 90/50 hypotension floor (both sys
+  // AND dia at or below the age-band ceiling). Window is the aggregator's
+  // 90-day raw pull — a "recent control" figure, not the all-time headline.
   let bpPctInTarget: number | null = null;
   if (bpTargets) {
     bpPctInTarget =
@@ -232,6 +238,7 @@ export async function buildComprehensiveResponse(user: AuthedUser) {
         aggregate.bpRawRows.sys,
         aggregate.bpRawRows.dia,
         bpTargets,
+        userTz,
       )?.pct ?? null;
   }
 
@@ -274,6 +281,20 @@ export async function buildComprehensiveResponse(user: AuthedUser) {
   // Day keys follow this route's UTC-bucket convention (the per-user-tz
   // bucketing is the documented v1.5 follow-up) so the resting series pairs
   // against the same UTC day keys as the mood series.
+  //
+  // v1.30.3 (QA F8) — investigated switching this to `userDayKey(d, userTz)`
+  // to match the intraday page's resting-proxy bucketing (`71d7ca78c`), but
+  // `dailyMoodEntries` below (this series' ONLY pairing partner, joined by
+  // an exact YYYY-MM-DD key in `pairMoodWithDaily`) is itself UTC-anchored —
+  // it reads `moodRollupDayRows[].bucketStart.toISOString().slice(0, 10)`,
+  // a real UTC aggregation boundary, not just a display label. Moving ONLY
+  // this side to the user's tz would not fix anything: it would swap
+  // "evening readings shift a day relative to the true local day" for
+  // "evening readings mismatch their mood pairing partner, which used to
+  // line up precisely because both sides shared the same UTC convention."
+  // A genuine fix needs the mood-rollup tier itself to bucket per-user-tz
+  // (the same v1.5 follow-up the comment above already flags) — out of
+  // scope for this pass. Left UTC on both sides intentionally.
   const restingPulseRows = await prisma.measurement.findMany({
     where: {
       userId,
@@ -437,6 +458,14 @@ export async function buildComprehensiveResponse(user: AuthedUser) {
 
   if (expectedBpIntakesPerDay > 0) {
     // Daily systolic means (already keyed YYYY-MM-DD) from the SQL pass.
+    // v1.30.3 (QA F8) — `sysDaily` is UTC `date_trunc`-bucketed by the
+    // aggregator (`comprehensive-aggregator.ts`), so `takenByDay` below
+    // MUST key on the same UTC day, not the user's own tz — pairing the
+    // two on different day spaces would silently drop pairs rather than
+    // fix anything. Making this whole correlation user-tz-consistent
+    // needs the aggregator's `dailyByType` to bucket in the user's tz
+    // first (a bigger, already-flagged follow-up); until then this stays
+    // UTC to match its only pairing partner.
     const sysByDay = new Map<string, number>();
     for (const row of sysDaily) {
       sysByDay.set(row.day, row.value);

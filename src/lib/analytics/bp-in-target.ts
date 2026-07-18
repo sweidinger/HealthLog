@@ -60,7 +60,7 @@ export interface BpReading {
 export const SYS_HYPOTENSION_FLOOR = 90;
 export const DIA_HYPOTENSION_FLOOR = 50;
 
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/resolver";
 
 /**
  * Pair a systolic reading with its closest diastolic by absolute time
@@ -120,8 +120,14 @@ export function isBpReadingInTarget(
  *      delta.
  *   2. Accept the pair if `deltaMs <= 5 minutes` (legacy bound) — same
  *      session.
- *   3. Otherwise accept the pair if both share the same Berlin
- *      calendar day (handles imports rounded to the hour or to noon).
+ *   3. Otherwise accept the pair if both share the same calendar day IN
+ *      THE USER'S OWN TZ (handles imports rounded to the hour or to
+ *      noon). v1.30.3 (QA F7) — this used to hardcode the Berlin day
+ *      regardless of the caller's actual user, rejecting legitimate
+ *      same-local-day pairs for a non-Berlin user whose two readings
+ *      straddle Berlin midnight but not their own (e.g. 23:50/00:10
+ *      Berlin from a New York evening reading pair) — the in-target %
+ *      then ran on fewer pairs than it should have.
  *   4. Discard otherwise.
  *
  * Denominator is the number of accepted pairs, NOT `sysData.length` —
@@ -135,6 +141,9 @@ export function computeBpInTargetPct(
   sysSeries: BpReading[],
   diaSeries: BpReading[],
   targets: BpTargets,
+  /** v1.30.3 (QA F7) — the user's own IANA tz; defaults to Berlin for
+   *  legacy callers that haven't threaded it through yet. */
+  tz: string = DEFAULT_TIMEZONE,
 ): { pct: number; pairs: number } | null {
   if (sysSeries.length === 0 || diaSeries.length === 0) return null;
 
@@ -147,11 +156,11 @@ export function computeBpInTargetPct(
     if (!match) continue;
 
     const sameSession = match.deltaMs <= SAME_SESSION_MS;
-    const sameBerlinDay =
+    const sameLocalDay =
       !sameSession &&
-      toBerlinDayKey(sys.measuredAt) === toBerlinDayKey(match.dia.measuredAt);
+      userDayKey(sys.measuredAt, tz) === userDayKey(match.dia.measuredAt, tz);
 
-    if (!sameSession && !sameBerlinDay) continue;
+    if (!sameSession && !sameLocalDay) continue;
 
     pairs += 1;
     if (isBpReadingInTarget(sys.value, match.dia.value, targets)) {
@@ -177,6 +186,8 @@ export function computeBpInTargetPct(
 export function collectBpPairs(
   sysSeries: BpReading[],
   diaSeries: BpReading[],
+  /** v1.30.3 (QA F7) — see `computeBpInTargetPct`'s identical parameter. */
+  tz: string = DEFAULT_TIMEZONE,
 ): Array<{ at: Date; sys: number; dia: number }> {
   if (sysSeries.length === 0 || diaSeries.length === 0) return [];
   const SAME_SESSION_MS = 5 * 60 * 1000;
@@ -185,10 +196,10 @@ export function collectBpPairs(
     const match = findClosestDia(sys, diaSeries);
     if (!match) continue;
     const sameSession = match.deltaMs <= SAME_SESSION_MS;
-    const sameBerlinDay =
+    const sameLocalDay =
       !sameSession &&
-      toBerlinDayKey(sys.measuredAt) === toBerlinDayKey(match.dia.measuredAt);
-    if (!sameSession && !sameBerlinDay) continue;
+      userDayKey(sys.measuredAt, tz) === userDayKey(match.dia.measuredAt, tz);
+    if (!sameSession && !sameLocalDay) continue;
     out.push({ at: sys.measuredAt, sys: sys.value, dia: match.dia.value });
   }
   return out;
@@ -234,6 +245,8 @@ export function computeBpInTargetWindows(
   diaSeries: BpReading[],
   targets: BpTargets,
   now: Date = new Date(),
+  /** v1.30.3 (QA F7) — see `computeBpInTargetPct`'s identical parameter. */
+  tz: string = DEFAULT_TIMEZONE,
 ): {
   last7Days: { pct: number; pairs: number } | null;
   last30Days: { pct: number; pairs: number } | null;
@@ -322,7 +335,7 @@ export function computeBpInTargetWindows(
   // v1.17 W1b — oldest accepted pair inside the 90-day window for the
   // effective-span label. `collectBpPairs` applies the same pairing rules
   // as `computeBpInTargetPct`, so the anchor matches the counted pairs.
-  const pairsLast90 = collectBpPairs(sysLast90, diaLast90);
+  const pairsLast90 = collectBpPairs(sysLast90, diaLast90, tz);
   const last90EarliestAt =
     pairsLast90.length === 0
       ? null
@@ -332,16 +345,16 @@ export function computeBpInTargetWindows(
         );
 
   return {
-    last7Days: computeBpInTargetPct(sysLast7, diaLast7, targets),
-    last30Days: computeBpInTargetPct(sysLast30, diaLast30, targets),
+    last7Days: computeBpInTargetPct(sysLast7, diaLast7, targets, tz),
+    last30Days: computeBpInTargetPct(sysLast30, diaLast30, targets, tz),
     // v1.17 W1d — canonical headline / score / coach window.
-    last90Days: computeBpInTargetPct(sysLast90, diaLast90, targets),
+    last90Days: computeBpInTargetPct(sysLast90, diaLast90, targets, tz),
     last90EarliestAt,
     // v1.4.19 A1 — independent aggregate over EVERY paired reading. The
     // analytics route now routes the dashboard tile's headline through
     // this so it stops mirroring `last30Days`.
-    allTime: computeBpInTargetPct(sysSeries, diaSeries, targets),
-    priorMonth: computeBpInTargetPct(sysPriorMonth, diaPriorMonth, targets),
-    priorYear: computeBpInTargetPct(sysPriorYear, diaPriorYear, targets),
+    allTime: computeBpInTargetPct(sysSeries, diaSeries, targets, tz),
+    priorMonth: computeBpInTargetPct(sysPriorMonth, diaPriorMonth, targets, tz),
+    priorYear: computeBpInTargetPct(sysPriorYear, diaPriorYear, targets, tz),
   };
 }
