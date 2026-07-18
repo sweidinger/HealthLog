@@ -44,6 +44,12 @@
  * subsequent iOS polls inside the window hit memory. Invalidation runs
  * via the existing `invalidateUserMeasurements` + the v1.4.38-extended
  * `invalidateUserMedications` hooks.
+ *
+ * Module gate: the emitted `metrics` array is filtered against the account's
+ * module map before it leaves the handler, so a card whose measurement type
+ * belongs to a disabled module never ships. The decision comes from the same
+ * map the shared snapshot builder uses (`disabledSummaryTypes`); the filter
+ * runs OUTSIDE the cache because a module toggle does not evict it.
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";
@@ -57,6 +63,8 @@ import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { buildMedsTodayBlock } from "@/lib/dashboard/meds-today";
+import { resolveModuleMap } from "@/lib/modules/gate";
+import { gateMetricCardsByModules } from "@/lib/dashboard/widget-modules";
 import {
   summarizeSleepNights,
   reconstructSleepNights,
@@ -364,7 +372,35 @@ export const GET = apiHandler(async () => {
     annotate,
   );
 
-  return apiSuccess(body);
+  // ── module gate ───────────────────────────────────────────────────
+  // This route builds its own payload instead of going through
+  // `readDashboardSnapshotCached`, so it never picked up the module gate
+  // the shared snapshot builder applies — it emitted glucose and sleep
+  // tiles on data presence alone, while `/api/dashboard/snapshot` correctly
+  // withheld them for the same account.
+  //
+  // OMIT, NOT 403 — matching the snapshot sibling and the sync feed. This is
+  // an aggregate of ten metric cards across several domains; refusing the
+  // whole request would blank the iOS dashboard because one module is off.
+  // The card simply does not appear, which is exactly what a disabled module
+  // means on every other dashboard surface.
+  //
+  // Applied AFTER the cache read, deliberately. The analytics LRU is keyed
+  // `<userId>|dashboard-summary` with a 60 s fresh / 1 h stale window, and
+  // toggling a module does not evict it — gating inside the builder would
+  // leave the disabled tile served for up to an hour after the user turned
+  // it off. Filtering the cached body makes the toggle effective on the very
+  // next request.
+  const modules = await resolveModuleMap(user.id);
+  const metrics = gateMetricCardsByModules(body.metrics, modules);
+  annotate({
+    meta: {
+      metrics_emitted: metrics.length,
+      metrics_gated: body.metrics.length - metrics.length,
+    },
+  });
+
+  return apiSuccess({ ...body, metrics });
 });
 
 interface SummaryBuilderContext {
