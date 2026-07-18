@@ -31,6 +31,7 @@ import { prisma } from "@/lib/db";
 import { ensureDbCompatibility } from "@/lib/db-compat";
 import { checkAuthSurfaceRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { isCookielessNativeCaller } from "@/lib/auth/native-client";
+import { isNativeClientRequest } from "@/lib/auth/issue-token";
 import { finishLogin } from "@/lib/auth/login-response";
 import {
   consumeNativeHandoff,
@@ -63,10 +64,17 @@ export const POST = apiHandler(async (request: NextRequest) => {
     });
   }
 
-  // (2) Transport gate — this endpoint can only ever hand a bundle to a
-  // genuine cookie-less native caller. A browser (Mozilla UA or an inbound
-  // session cookie) is rejected before any state is touched.
-  if (!isCookielessNativeCaller(request.headers)) {
+  // (2) Transport gate — this endpoint only ever hands a native token bundle.
+  // A browser (Mozilla UA or an inbound session cookie) is rejected, AND the
+  // caller must present an explicit native marker (`isNativeClientRequest`, the
+  // SAME predicate `finishLogin` uses to pick its bearer branch) — otherwise a
+  // blank-UA caller could slip past `isCookielessNativeCaller` into the cookie
+  // branch and be handed a `Set-Cookie` session instead of the bundle. Both
+  // together make the cookie path structurally unreachable here.
+  if (
+    !isCookielessNativeCaller(request.headers) ||
+    !isNativeClientRequest(request.headers)
+  ) {
     annotate({ action: { name: "auth.oidc.native.token.wrong_transport" } });
     return invalidCode();
   }
@@ -93,11 +101,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
         annotate({ action: { name: "auth.oidc.native.token.not_found" } });
         break;
       case "replayed":
-        // Containment (revoke the issued pair) + the audit row already ran
-        // inside `consumeNativeHandoff`.
+        // Containment + the audit row already ran inside `consumeNativeHandoff`;
+        // report whether the issued pair was actually revoked (false only in the
+        // sub-ms pre-stamp window).
         annotate({
           action: { name: "auth.oidc.native.handoff_replay" },
-          meta: { revoked_issued_pair: true },
+          meta: { revoked_issued_pair: result.revokedIssuedPair },
         });
         break;
       case "expired":

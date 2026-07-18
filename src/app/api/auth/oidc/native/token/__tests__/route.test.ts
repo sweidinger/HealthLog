@@ -61,7 +61,13 @@ function makeRequest(
 ): NextRequest {
   return new NextRequest("http://localhost/api/auth/oidc/native/token", {
     method: "POST",
-    headers: { "content-type": "application/json", ...headers },
+    // The genuine iOS client always marks itself native; the transport gate
+    // requires it. A gate-rejection test overrides `x-client-type` explicitly.
+    headers: {
+      "content-type": "application/json",
+      "x-client-type": "native",
+      ...headers,
+    },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }

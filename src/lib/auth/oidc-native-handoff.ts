@@ -114,7 +114,7 @@ export async function mintNativeHandoff(input: {
 export type ConsumeHandoffResult =
   | { status: "ok"; userId: string; handoffId: string }
   | { status: "not_found" }
-  | { status: "replayed"; userId: string }
+  | { status: "replayed"; userId: string; revokedIssuedPair: boolean }
   | { status: "expired" }
   | { status: "pkce_mismatch" }
   | { status: "race_lost" };
@@ -145,14 +145,21 @@ export async function consumeNativeHandoff(
   // Revoke exactly the pair the first exchange issued and audit; the code
   // itself is already spent, so no further consume is needed.
   if (row.consumedAt !== null) {
+    // `issuedRefreshTokenHash` is null only in the sub-millisecond window
+    // between the consume and the post-`finishLogin` stamp; a replay there
+    // finds no pair to revoke (the legitimate pair stays live — a later replay
+    // once stamped triggers containment). Report what actually happened so the
+    // wide event never claims a revoke that did not occur.
+    let revokedIssuedPair = false;
     if (row.issuedRefreshTokenHash) {
       await revokeRefreshTokenByHash(row.issuedRefreshTokenHash);
+      revokedIssuedPair = true;
     }
     await auditLog("auth.oidc.native.handoff_replay", {
       userId: row.userId,
       ipAddress: row.ipAddress,
     });
-    return { status: "replayed", userId: row.userId };
+    return { status: "replayed", userId: row.userId, revokedIssuedPair };
   }
 
   // Expiry: enforced at read. Burn the row so a lingering expired code has no
