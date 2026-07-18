@@ -51,11 +51,7 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import {
-  toBerlinDayKey,
-  userDayKey,
-  DEFAULT_TIMEZONE,
-} from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 
 /**
  * Public entry — unchanged signature. Prepares the card (cache-read,
@@ -112,7 +108,12 @@ export async function preparePulseStatusForUser(
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
   const cacheAction = statusCacheAction("pulse", locale);
-  const todayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — resolve the user's own tz BEFORE the day-key so the
+  // cache rolls over at the user's local midnight, not Berlin's. This has to
+  // happen ahead of the cache read below (the earliest possible return path),
+  // not just the later day-bucketing reads.
+  const userTz = await resolveUserTimezone(userId);
+  const todayKey = userDayKey(new Date(), userTz);
 
   const cached = await readFreshStatusText({
     userId,
@@ -172,7 +173,6 @@ export async function preparePulseStatusForUser(
     select: {
       dateOfBirth: true,
       gender: true,
-      timezone: true,
     },
   });
 
@@ -180,8 +180,8 @@ export async function preparePulseStatusForUser(
   // own day boundary so this surface aligns with the targets route, which
   // passes `userDayKey(d, userTz)`. Without it the proxy bucketed on
   // Berlin-day here and on the user's TZ there, drifting the resting
-  // estimate for non-Berlin users.
-  const userTz = user?.timezone ?? DEFAULT_TIMEZONE;
+  // estimate for non-Berlin users. `userTz` was already resolved above for
+  // the cache day-key.
 
   // v1.4.28 FB-D2 — cap the snapshot input. The downstream
   // `applyPayloadBudget` trims further but the unbounded findMany was

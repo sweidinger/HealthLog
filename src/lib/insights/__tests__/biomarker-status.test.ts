@@ -5,6 +5,8 @@ vi.mock("@/lib/db", () => ({
     biomarker: { findFirst: vi.fn() },
     labResult: { findMany: vi.fn(), count: vi.fn() },
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
+    // v1.30.3 (QA F5) — `resolveUserTimezone` reads this directly.
+    user: { findUnique: vi.fn() },
   },
 }));
 
@@ -75,6 +77,9 @@ beforeEach(() => {
   vi.mocked(prisma.auditLog.create).mockResolvedValue({
     createdAt: new Date("2026-06-20T09:00:00.000Z"),
   } as never);
+  // Default: no stored timezone → resolveUserTimezone falls to the
+  // Europe/Berlin server default, matching every other fixture's assumption.
+  vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
 });
 
 describe("generateBiomarkerStatus — empty-data guard", () => {
@@ -177,6 +182,40 @@ describe("generateBiomarkerStatus — generation path", () => {
     expect(createCall.data.action).toBe("insights.biomarker:bm-1-status.en");
     const persisted = JSON.parse(createCall.data.details);
     expect(persisted.inputHash).toBe(inputHashFor(reading));
+  });
+});
+
+describe("generateBiomarkerStatus — per-user tz (QA F5)", () => {
+  it("day-keys the reading series in the USER's own tz, not Berlin's", async () => {
+    // 2026-06-20T23:30Z is 2026-06-21 01:30 in Berlin (UTC+2, DST) but still
+    // 2026-06-20 19:30 in New York (UTC-4, DST) — the two zones disagree on
+    // the calendar day. Before the fix every biomarker series day-keyed in
+    // Berlin regardless of the user's stored zone.
+    const reading = {
+      id: "r-ny",
+      value: 95,
+      takenAt: new Date("2026-06-20T23:30:00.000Z"),
+    };
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      timezone: "America/New_York",
+    } as never);
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null as never);
+    vi.mocked(prisma.labResult.findMany).mockResolvedValue([reading] as never);
+    vi.mocked(prisma.labResult.count).mockResolvedValue(1 as never);
+
+    const capture = { userPrompt: "" };
+    stubCompletion('{"summary":"Stable."}', capture);
+
+    await generateBiomarkerStatus({
+      biomarkerId: MARKER.id,
+      userId: "u-ny",
+      locale: "en",
+    });
+
+    const match = capture.userPrompt.match(/\{[\s\S]*\}/);
+    const snapshot = JSON.parse(match![0]);
+    expect(snapshot.series[0].day).toBe("2026-06-20");
+    expect(snapshot.series[0].day).not.toBe("2026-06-21");
   });
 });
 

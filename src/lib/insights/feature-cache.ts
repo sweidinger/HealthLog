@@ -29,8 +29,9 @@
  *     `getCachedFeatures` falls straight through to the computer — no global
  *     state, no cross-user leak, no stale-across-requests hazard.
  *   - The key is `(userId, day, includeRaw, sinceDays, inputHash)`. `day` is
- *     the Berlin calendar day so a scope that straddles midnight recomputes
- *     rather than serving yesterday's window. `inputHash` is a cheap
+ *     the user's own calendar day (v1.30.3 QA F5 — was Berlin-pinned for
+ *     every user) so a scope that straddles the user's local midnight
+ *     recomputes rather than serving yesterday's window. `inputHash` is a cheap
  *     count/newest fingerprint of the salient measurement + mood inputs, so a
  *     mid-scope ingest (rare, but possible on a long-running warm) recomputes
  *     instead of reusing a pre-ingest snapshot.
@@ -43,7 +44,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 import { annotate } from "@/lib/logging/context";
 
 /** One memoised feature read, with the input fingerprint it was keyed on. */
@@ -154,8 +155,14 @@ export async function getCachedFeatures<T>(args: {
     return args.compute();
   }
 
-  const inputHash = await computeFeatureInputHash(args.userId);
-  const dayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — the day-key rolls over at the USER'S own midnight, not
+  // Berlin's, so a Coach/briefing scope spanning the user's local midnight
+  // recomputes at the right instant for that user.
+  const [inputHash, userTz] = await Promise.all([
+    computeFeatureInputHash(args.userId),
+    resolveUserTimezone(args.userId),
+  ]);
+  const dayKey = userDayKey(new Date(), userTz);
   const key = `${args.userId}|${dayKey}|${args.includeRaw ? "raw" : "agg"}|${args.sinceDays}`;
 
   const hit = current.get(key);

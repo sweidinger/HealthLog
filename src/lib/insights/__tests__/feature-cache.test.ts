@@ -6,9 +6,15 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-// Berlin day key is deterministic input to the cache key; pin it.
+// The user-tz day key is deterministic input to the cache key; pin it, but
+// keep `resolveUserTimezone` spy-able so QA F5 (tz threading, not a
+// hardcoded Berlin day) has a wiring assertion below.
+const { resolveUserTimezoneMock } = vi.hoisted(() => ({
+  resolveUserTimezoneMock: vi.fn(async () => "Europe/Berlin"),
+}));
 vi.mock("@/lib/tz/resolver", () => ({
-  toBerlinDayKey: () => "2026-06-21",
+  resolveUserTimezone: resolveUserTimezoneMock,
+  userDayKey: () => "2026-06-21",
 }));
 
 vi.mock("@/lib/logging/context", () => ({
@@ -31,6 +37,7 @@ beforeEach(() => {
   vi.mocked(prisma.measurement.groupBy).mockResolvedValue(
     fingerprintRows(10) as never,
   );
+  resolveUserTimezoneMock.mockResolvedValue("Europe/Berlin");
 });
 
 describe("getCachedFeatures (P3)", () => {
@@ -196,6 +203,21 @@ describe("getCachedFeatures (P3)", () => {
 
     // Each scope has its own store, so the second scope recomputes.
     expect(compute).toHaveBeenCalledTimes(2);
+  });
+
+  it("resolves the day-key in the CALLING USER's own tz, not a hardcoded Berlin (QA F5)", async () => {
+    const compute = vi.fn().mockResolvedValue({ marker: "z" });
+
+    await withFeatureCacheScope(() =>
+      getCachedFeatures({
+        userId: "u-ny",
+        includeRaw: false,
+        sinceDays: 400,
+        compute,
+      }),
+    );
+
+    expect(resolveUserTimezoneMock).toHaveBeenCalledWith("u-ny");
   });
 
   it("recomputes on a fingerprint probe failure rather than serving a stale object", async () => {

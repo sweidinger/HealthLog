@@ -44,11 +44,7 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import {
-  resolveUserTimezone,
-  toBerlinDayKey,
-  userDayKey,
-} from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 
 // Derived from canonical enum so a new measurement type is auto-included
 // in the AI general-status fetch (V3 audit: enum drift cousins).
@@ -104,7 +100,12 @@ export async function prepareGeneralStatusForUser(
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
   const cacheAction = statusCacheAction("general", locale);
-  const todayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — resolve the user's own tz BEFORE the day-key so the
+  // cache rolls over at the user's local midnight, not Berlin's. Has to
+  // happen ahead of the cache read below (the earliest possible return
+  // path), not just the later day-bucketing reads.
+  const userTz = await resolveUserTimezone(userId);
+  const todayKey = userDayKey(new Date(), userTz);
 
   const cached = await readFreshStatusText({
     userId,
@@ -191,10 +192,10 @@ export async function prepareGeneralStatusForUser(
 
   const now = new Date();
 
-  // v1.2.5 (M-TZ3) — resolve the user's timezone so every day-bucketing
-  // pass below keys on the user's own calendar (a near-midnight reading
-  // lands on the user's day for non-Berlin self-hosters).
-  const userTz = await resolveUserTimezone(userId);
+  // v1.2.5 (M-TZ3) — every day-bucketing pass below keys on the user's own
+  // calendar (a near-midnight reading lands on the user's day for
+  // non-Berlin self-hosters). `userTz` was already resolved above for the
+  // cache day-key.
 
   // `dailyByType` keeps the `applyPayloadBudget` daily buckets for the
   // downstream BP in-target pairing; the prompt embeds the compact

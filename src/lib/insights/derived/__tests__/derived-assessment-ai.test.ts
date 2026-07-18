@@ -1,0 +1,111 @@
+/**
+ * v1.30.3 (QA F5) — the derived-score AI warm layer must roll its cache over
+ * at the USER's own midnight (not Berlin's) and label the prompt's date line
+ * with the user's actual tz (not a hardcoded "(Europe/Berlin)").
+ */
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/insights/status-provider", () => ({
+  runStatusCompletion: vi.fn(),
+}));
+
+vi.mock("@/lib/insights/status-cache", () => ({
+  readFreshStatusText: vi.fn(),
+  resolveReadOnlyStatusMiss: vi.fn(),
+  statusCacheAction: (scope: string, locale: string) =>
+    `insights.${scope}-status.${locale}`,
+  computeStatusInputFingerprint: vi.fn().mockResolvedValue("hash"),
+  gateUnchangedStatusInput: vi.fn().mockResolvedValue(null),
+}));
+
+const findUnique = vi.fn();
+vi.mock("@/lib/db", () => ({
+  prisma: { user: { findUnique: (a: unknown) => findUnique(a) } },
+}));
+
+import { readFreshStatusText } from "@/lib/insights/status-cache";
+import { runStatusCompletion } from "@/lib/insights/status-provider";
+import {
+  resolveDerivedAssessment,
+  generateDerivedScoreAssessment,
+} from "../derived-assessment-ai";
+import type { Derived } from "../types";
+
+const RECOVERY_VALUE = {
+  score: 70,
+  band: "green" as const,
+  trendDelta: null,
+  daysInWindow: 10,
+  asOf: "2026-06-20T12:00:00.000Z",
+  series: [],
+};
+
+function okDerived(): Derived<unknown> {
+  return {
+    status: "ok",
+    value: RECOVERY_VALUE,
+    coverage: {
+      requiredInputs: 1,
+      presentInputs: 1,
+      historyDays: 30,
+      missing: [],
+    },
+    confidence: { score: 90, band: "high" },
+    provenance: {
+      inputs: ["RECOVERY_SCORE"],
+      source: "DAY",
+      windowDays: 30,
+      computedAt: "x",
+    },
+  };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  findUnique.mockResolvedValue({ timezone: "America/New_York" });
+});
+
+describe("resolveDerivedAssessment — per-user tz (QA F5)", () => {
+  it("resolves the user's own tz before reading the cache", async () => {
+    vi.mocked(readFreshStatusText).mockResolvedValue(null);
+
+    await resolveDerivedAssessment({
+      metric: "RECOVERY_SCORE",
+      userId: "u-ny",
+      derived: okDerived(),
+      locale: "en",
+      now: new Date("2026-06-20T23:30:00.000Z"), // Berlin: 06-21 already
+    });
+
+    expect(findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "u-ny" } }),
+    );
+    // The cache read must have run with the NY calendar day (06-20), not the
+    // Berlin one (06-21) — the fixed pre-fix behaviour.
+    const call = vi.mocked(readFreshStatusText).mock.calls[0][0] as {
+      todayKey: string;
+    };
+    expect(call.todayKey).toBe("2026-06-20");
+  });
+});
+
+describe("generateDerivedScoreAssessment — per-user tz label (QA F5)", () => {
+  it("labels the prompt's date line with the user's actual tz, not a hardcoded Berlin", async () => {
+    let capturedPrompt = "";
+    vi.mocked(runStatusCompletion).mockImplementation(async (args) => {
+      capturedPrompt = (args as { userPrompt: string }).userPrompt;
+      return { kind: "none" } as never;
+    });
+
+    await generateDerivedScoreAssessment({
+      metric: "RECOVERY_SCORE",
+      userId: "u-ny",
+      derived: okDerived(),
+      locale: "en",
+      now: new Date("2026-06-20T23:30:00.000Z"),
+    });
+
+    expect(capturedPrompt).toContain("(America/New_York)");
+    expect(capturedPrompt).not.toContain("(Europe/Berlin)");
+  });
+});

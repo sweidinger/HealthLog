@@ -56,7 +56,7 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import { resolveUserTimezone, toBerlinDayKey } from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 
 /**
@@ -158,7 +158,12 @@ export async function prepareWeightStatusForUser(
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
   const cacheAction = statusCacheAction("weight", locale);
-  const todayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — resolve the user's own tz BEFORE the day-key so the
+  // cache rolls over at the user's local midnight, not Berlin's. Has to
+  // happen ahead of the cache read below (the earliest possible return
+  // path), not just the later day-bucketing reads.
+  const userTz = await resolveUserTimezone(userId);
+  const todayKey = userDayKey(new Date(), userTz);
 
   // Serve today's real assessment when present. The shared reader
   // rejects timeout stubs, so a single stall no longer pins the
@@ -283,9 +288,8 @@ export async function prepareWeightStatusForUser(
 
   const now = new Date();
 
-  // v1.2.5 (M-TZ3) — resolve the user's timezone so every day-bucketing
-  // pass below keys on the user's own calendar day.
-  const userTz = await resolveUserTimezone(userId);
+  // v1.2.5 (M-TZ3) — every day-bucketing pass below keys on the user's own
+  // calendar day. `userTz` was already resolved above for the cache day-key.
 
   const weightSeries = applyPayloadBudget(
     measurements

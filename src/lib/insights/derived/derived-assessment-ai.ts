@@ -41,7 +41,7 @@ import {
   gateUnchangedStatusInput,
 } from "@/lib/insights/status-cache";
 import type { MeasurementType } from "@/generated/prisma/client";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 import { annotate } from "@/lib/logging/context";
 import type { Locale } from "@/lib/i18n/config";
 import {
@@ -112,6 +112,8 @@ function scoreUserPrompt(
   todayKey: string,
   locale: SupportedLocale,
   openerHint: string,
+  /** v1.30.3 (QA F5) — the user's own IANA tz; was hardcoded "Europe/Berlin". */
+  tz: string,
 ): string {
   const snapshot = JSON.stringify(
     { promptVersion: PROMPT_VERSION, generatedForDay: todayKey, band, signal },
@@ -119,13 +121,13 @@ function scoreUserPrompt(
     2,
   );
   if (locale === "en") {
-    return `Date: ${todayKey} (Europe/Berlin)
+    return `Date: ${todayKey} (${tz})
 OPENER HINT: ${openerHint}
 Write an assessment of ${signal.metric} today across the four beats — the standing, what helped AND what hurt it, what the band means for the day, and one grounded nudge. Aim for 3–5 sentences, roughly 45–75 words (this overrides the shorter base length cap). Connected prose, not a checklist.
 
 ${snapshot}`;
   }
-  return `Datum: ${todayKey} (Europe/Berlin)
+  return `Datum: ${todayKey} (${tz})
 OPENER-HINWEIS: ${openerHint}
 Schreibe eine Einschätzung zu ${signal.metric} heute über die vier Beats — die Einordnung, was geholfen UND was gebremst hat, was das Band für den Tag bedeutet und ein gegroundeter Anstoß. Ziel sind 3–5 Sätze, rund 45–75 Wörter (das übersteuert die kürzere Basis-Längenvorgabe). Zusammenhängende Prosa, keine Checkliste.
 
@@ -161,7 +163,10 @@ export async function resolveDerivedAssessment(args: {
 
   const scope = derivedScoreScope(args.metric);
   const cacheAction = statusCacheAction(scope, locale);
-  const todayKey = toBerlinDayKey(now);
+  // v1.30.3 (QA F5) — roll the cache over at the user's own midnight, not
+  // Berlin's.
+  const userTz = await resolveUserTimezone(args.userId);
+  const todayKey = userDayKey(now, userTz);
 
   // Fresh AI text for today → serve it (warmer prose overrides the template).
   const fresh = await readFreshStatusText({
@@ -215,7 +220,11 @@ export async function generateDerivedScoreAssessment(args: {
 
   const scope = derivedScoreScope(args.metric);
   const cacheAction = statusCacheAction(scope, locale);
-  const todayKey = toBerlinDayKey(now);
+  // v1.30.3 (QA F5) — roll the cache over at the user's own midnight, not
+  // Berlin's; also threads into the prompt's date label below (was
+  // hardcoded "(Europe/Berlin)" regardless of the user's actual zone).
+  const userTz = await resolveUserTimezone(args.userId);
+  const todayKey = userDayKey(now, userTz);
 
   // v1.22 (W6) — opener-archetype rotation + a day-rotated seed so a score
   // assessment varies across scores and across days instead of riding the
@@ -254,7 +263,14 @@ export async function generateDerivedScoreAssessment(args: {
     cacheAction,
     consentSurface: "insights",
     systemPrompt: scoreSystemPrompt(locale),
-    userPrompt: scoreUserPrompt(signal, band, todayKey, locale, openerHint),
+    userPrompt: scoreUserPrompt(
+      signal,
+      band,
+      todayKey,
+      locale,
+      openerHint,
+      userTz,
+    ),
     // v1.22 (W6) — nudged up from 0.45 for variety; the grounding gate below
     // catches any number the warmer sampling might drift onto.
     temperature: 0.55,

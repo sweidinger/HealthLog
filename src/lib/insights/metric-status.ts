@@ -73,7 +73,7 @@ import {
   type SleepStageRow,
 } from "@/lib/analytics/sleep-night";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
-import { resolveUserTimezone } from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 import {
   readFreshStatusText,
   refreshUnchangedStatusInsight,
@@ -83,7 +83,6 @@ import {
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
 
 export interface MetricStatusResult {
   hasProvider: boolean;
@@ -150,7 +149,12 @@ export async function generateMetricStatus(args: {
   const readOnly = args.readOnly === true;
   const scope = metricStatusScope(meta.id);
   const cacheAction = statusCacheAction(scope, locale);
-  const todayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — resolve the user's own tz BEFORE the day-key so the
+  // cache rolls over at the user's local midnight, not Berlin's. Has to
+  // happen ahead of the cache read below (the earliest possible return
+  // path), not just the later day-bucketing reads.
+  const userTz = await resolveUserTimezone(args.userId);
+  const todayKey = userDayKey(new Date(), userTz);
 
   const cached = await readFreshStatusText({
     userId: args.userId,
@@ -239,9 +243,9 @@ export async function generateMetricStatus(args: {
   // to SLEEP_DURATION only so no other metric's status path changes.
   const isSleep = meta.measurementType === "SLEEP_DURATION";
 
-  // v1.2.5 (M-TZ3) — resolve the user's timezone up front so the day
-  // bucketing below keys on the user's own calendar regardless of branch.
-  const userTz = await resolveUserTimezone(args.userId);
+  // v1.2.5 (M-TZ3) — the day bucketing below keys on the user's own
+  // calendar regardless of branch. `userTz` was already resolved above for
+  // the cache day-key.
 
   const points: Array<{ measuredAt: Date; value: number }> = [];
   let measurements: Array<{ measuredAt: Date }> = [];

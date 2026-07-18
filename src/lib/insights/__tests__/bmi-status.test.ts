@@ -103,6 +103,49 @@ describe("generateBmiStatusForUser — graded payload", () => {
   });
 });
 
+describe("generateBmiStatusForUser — per-user tz (QA F5)", () => {
+  it("rolls the cache over at the USER's own midnight, not Berlin's", async () => {
+    // A moment that is already "tomorrow" in Berlin (UTC+2 summer) but still
+    // "today" in Los Angeles (UTC-7 summer) — the two zones disagree on the
+    // calendar day. Before the fix every card's cache day-key was Berlin-
+    // pinned regardless of the user's stored zone.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T23:30:00.000Z")); // Berlin: 06-21 01:30
+    const laToday = "2026-06-20"; // Los Angeles: 06-20 16:30
+    try {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({
+        heightCm: 175,
+        timezone: "America/Los_Angeles",
+      } as never);
+      // A cached row keyed to the LA calendar day should be served as a
+      // fresh hit even though it is already "tomorrow" in Berlin.
+      vi.mocked(prisma.auditLog.findFirst).mockResolvedValue({
+        createdAt: new Date(),
+        details: JSON.stringify({
+          dateKey: laToday,
+          locale: "en",
+          text: "LA-anchored cached BMI text.",
+          model: "x",
+        }),
+      } as never);
+
+      const result = await generateBmiStatusForUser("user-la", {
+        locale: "en",
+      });
+
+      // If the day-key were still Berlin-pinned, this LA-dated row would
+      // MISS (today in Berlin is 06-21) and a real generation would run
+      // instead, serving the deterministic/no-key fallback rather than
+      // this cached text.
+      expect(result.cached).toBe(true);
+      expect(result.text).toBe("LA-anchored cached BMI text.");
+      expect(runStatusCompletion).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("generateBmiStatusForUser — timeout/error never persists", () => {
   it("serves the fallback without writing a cache row on timeout", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({

@@ -45,7 +45,7 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import { DEFAULT_TIMEZONE, toBerlinDayKey } from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 
 /**
  * Public entry — unchanged signature. Prepares the card (cache-read,
@@ -102,7 +102,12 @@ export async function prepareBmiStatusForUser(
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
   const cacheAction = statusCacheAction("bmi", locale);
-  const todayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — resolve the user's own tz BEFORE the day-key so the
+  // cache rolls over at the user's local midnight, not Berlin's. Has to
+  // happen ahead of the cache read below (the earliest possible return
+  // path), not just the later day-bucketing reads.
+  const userTz = await resolveUserTimezone(userId);
+  const todayKey = userDayKey(new Date(), userTz);
 
   const cached = await readFreshStatusText({
     userId,
@@ -162,7 +167,6 @@ export async function prepareBmiStatusForUser(
     where: { id: userId },
     select: {
       heightCm: true,
-      timezone: true,
     },
   });
 
@@ -236,7 +240,7 @@ export async function prepareBmiStatusForUser(
   const now = new Date();
   // v1.2.5 (M-TZ3) — bucket day windows on the user's own calendar so a
   // near-midnight reading lands on the user's day for non-Berlin self-hosters.
-  const userTz = user.timezone ?? DEFAULT_TIMEZONE;
+  // `userTz` was already resolved above for the cache day-key.
   const heightFactor = (user.heightCm / 100) ** 2;
 
   const bmiPoints = measurements.map((measurement) => ({

@@ -64,11 +64,7 @@ import {
   type StatusCardResult,
 } from "@/lib/insights/status-card-generation";
 import { annotate } from "@/lib/logging/context";
-import {
-  resolveUserTimezone,
-  toBerlinDayKey,
-  userDayKey,
-} from "@/lib/tz/resolver";
+import { resolveUserTimezone, userDayKey } from "@/lib/tz/resolver";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 
 /**
@@ -164,7 +160,12 @@ export async function prepareBloodPressureStatusForUser(
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
   const cacheAction = statusCacheAction("blood-pressure", locale);
-  const todayKey = toBerlinDayKey(new Date());
+  // v1.30.3 (QA F5) — resolve the user's own tz BEFORE the day-key so the
+  // cache rolls over at the user's local midnight, not Berlin's. Has to
+  // happen ahead of the cache read below (the earliest possible return
+  // path), not just the later day-bucketing reads.
+  const userTz = await resolveUserTimezone(userId);
+  const todayKey = userDayKey(new Date(), userTz);
 
   const cached = await readFreshStatusText({
     userId,
@@ -250,11 +251,10 @@ export async function prepareBloodPressureStatusForUser(
 
   const now = new Date();
 
-  // v1.7.0 SB-SCHED-2 / v1.2.5 (M-TZ3) — resolve the user timezone once,
-  // up front, so BOTH the BP-status compliance gate AND every day-bucketing
-  // pass below (applyPayloadBudget, pairDailyBuckets, the continuity series)
-  // key on the user's own calendar day, not Berlin's.
-  const userTz = await resolveUserTimezone(userId);
+  // v1.7.0 SB-SCHED-2 / v1.2.5 (M-TZ3) — BOTH the BP-status compliance gate
+  // AND every day-bucketing pass below (applyPayloadBudget, pairDailyBuckets,
+  // the continuity series) key on the user's own calendar day, not Berlin's.
+  // `userTz` was already resolved above for the cache day-key.
 
   const weightSeries = applyPayloadBudget(
     measurements
