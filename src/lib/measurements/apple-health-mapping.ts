@@ -808,87 +808,138 @@ export function dailyStatsExternalId(
 }
 
 /**
- * v1.19.0 (iOS #34) — go-forward aggregated heart-rate wire contract.
+ * v1.30.7 (iOS #34) — go-forward aggregated heart-rate wire contract.
+ * Supersedes the v1.19.0 HOURLY shape (which no client ever adopted) —
+ * see `.planning/research/2026-07-18-hr-aggregation-contract.md`.
  *
- * iOS uploads ONE PULSE row per hourly heart-rate bucket instead of one
- * row per raw HealthKit sample (~16k rows/user/day → ~24). The bucket's
- * `value` is the hourly AVERAGE bpm; the row reuses the existing
- * `stats:` overwrite path so a re-post within the same hour (the running
- * average shifts as more samples land) OVERWRITES rather than
+ * iOS uploads ONE PULSE row per 10-MINUTE heart-rate bucket instead of
+ * one row per raw HealthKit sample (~500–16k rows/user/day → ~144). The
+ * bucket's `value` is the 10-min AVERAGE bpm (`discreteAverage`), with
+ * `valueMin`/`valueMax` the bucket spread (`discreteMin`/`discreteMax`);
+ * the row reuses the existing `stats:` overwrite path so a re-post while
+ * the bucket fills (the running mean/min/max shift) OVERWRITES rather than
  * duplicating — identical mechanics to the per-day `stats:<HK>:<day>`
- * cumulative rows, but at hourly granularity for the spot HR metric.
+ * cumulative rows, but at 10-min granularity for the spot HR metric.
+ *
+ * 10 minutes is chosen because it maps 1:1 onto the intraday-pulse tier
+ * (`BUCKET_MINUTES = 10`): one uploaded bucket = one plotted point + its
+ * min/max envelope, and `discreteAverage` over the bucket's samples is
+ * exactly the 10-min mean the raw path would compute — so tension
+ * detection and the curve are preserved, while the hourly shape would
+ * have collapsed the curve to ~24 points/day.
  *
  * Format: `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start>` where
- * `<bucket-start>` is the ISO-8601 instant of the hour boundary in UTC
- * with a literal `Z` and ZEROED minutes/seconds/millis — e.g.
- * `stats:HKQuantityTypeIdentifierHeartRate:2026-06-21T14:00:00.000Z`.
+ * `<bucket-start>` is the ISO-8601 instant of the 10-min boundary in UTC
+ * with a literal `Z`, minutes ∈ {00,10,20,30,40,50}, seconds/millis zero
+ * — e.g. `stats:HKQuantityTypeIdentifierHeartRate:2026-07-18T14:30:00.000Z`.
  *
- * The hour boundary is in UTC (not the user's local hour) so the
- * externalId is timezone-stable: a user travelling across zones never
- * re-keys the same wall-clock hour to a new bucket. The `measuredAt`
- * the client sends (`endDate`) still carries the offset for display.
+ * The boundary is in UTC (not the user's local slot) so the externalId is
+ * timezone-stable: a user travelling across zones never re-keys the same
+ * wall-clock window to a new bucket. The `measuredAt` the client sends
+ * (`endDate`) still carries the offset for display.
  *
- * AVG-ONLY in v1.19.0. The `Measurement` model carries a single `value`
- * column; hourly min/max would need a schema migration (companion
- * columns or companion `stats:` rows), which is a fast-follow — see the
- * iOS-coord note. Until then iOS uploads the hourly mean as PULSE; the
- * raw min/max is recoverable from the device's HealthKit store and the
- * server-side nightly fold of any residual raw backlog.
+ * The guard is written identifier-GENERIC over `AGGREGATED_BUCKET_HK_IDENTIFIERS`
+ * (HR-only today). respiratoryRate / SpO2 stay per-sample for now but can
+ * join the same 10-min family later by widening the allowlist — same
+ * grammar, same overwrite semantics, no renegotiation.
  */
-const HOURLY_HR_HK_IDENTIFIER = "HKQuantityTypeIdentifierHeartRate";
+const AGGREGATED_BUCKET_HK_IDENTIFIERS = new Set<string>([
+  "HKQuantityTypeIdentifierHeartRate",
+]);
 
-export function hourlyHeartRateStatsExternalId(bucketStart: Date): string {
-  const hourFloor = new Date(bucketStart);
-  hourFloor.setUTCMinutes(0, 0, 0);
-  return `stats:${HOURLY_HR_HK_IDENTIFIER}:${hourFloor.toISOString()}`;
+/** Floor a Date down to its 10-minute UTC bucket start. */
+function floorToTenMinuteUtc(at: Date): Date {
+  const floored = new Date(at);
+  floored.setUTCMinutes(Math.floor(floored.getUTCMinutes() / 10) * 10, 0, 0);
+  return floored;
+}
+
+export function heartRateBucketExternalId(bucketStart: Date): string {
+  const floor = floorToTenMinuteUtc(bucketStart);
+  return `stats:HKQuantityTypeIdentifierHeartRate:${floor.toISOString()}`;
 }
 
 /**
- * The exact ISO-hour suffix shape the hourly HR bucket externalId must
- * carry: full ISO-8601 UTC instant, minutes/seconds/millis all zero,
- * trailing `Z`. Anchored so a partial / malformed suffix is rejected.
+ * The exact ISO 10-minute suffix shape an aggregated bucket externalId must
+ * carry: full ISO-8601 UTC instant, minutes ∈ {00,10,20,30,40,50},
+ * seconds/millis zero, trailing `Z`. Anchored so a partial / malformed
+ * suffix is rejected. Distinct from the retention fold's OWN hourly shape
+ * (`stats:<HK>:<YYYY-MM-DD>T<HH>`, local hour, no `Z`) — the two suffix
+ * grammars are disjoint, which lets the intraday reader tell an uploaded
+ * 10-min bucket from a server-folded hourly mean by shape alone.
  */
-const HOURLY_HR_SUFFIX_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:00:00\.000Z$/;
+const AGGREGATED_BUCKET_SUFFIX_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:[0-5]0:00\.000Z$/;
+
+/** The `stats:<HK>:` prefix for each allowlisted aggregated-bucket identifier. */
+function aggregatedBucketPrefix(hkIdentifier: string): string {
+  return `stats:${hkIdentifier}:`;
+}
 
 /**
- * v1.19.0 (iOS #34) — well-formedness guard for the hourly HR bucket
- * externalId. Returns `true` ONLY for a `stats:` externalId that targets
- * the heart-rate identifier AND carries a zeroed ISO-hour suffix that
- * parses to a real instant. Used by the batch route to reject a
- * malformed hourly-HR bucket (`skipped:"malformed_hr_bucket_id"`) rather
- * than persisting an un-overwriteable, un-foldable garbage row.
+ * v1.30.7 (iOS #34) — well-formedness guard for an aggregated 10-min bucket
+ * externalId. Returns `true` ONLY for a `stats:` externalId that targets an
+ * allowlisted identifier AND carries a 10-min ISO-Z suffix that parses to a
+ * real instant. Used by the batch route to reject a malformed bucket
+ * (`skipped:"malformed_hr_bucket_id"`) rather than persisting an
+ * un-overwriteable, un-foldable garbage row.
  *
- * Non-HR `stats:` externalIds (the per-day cumulative rows) are NOT this
- * function's concern — it returns `false` for them so the caller leaves
- * them on the untouched path.
+ * Non-allowlisted `stats:` externalIds (the per-day cumulative rows) are NOT
+ * this function's concern — it returns `false` so the caller leaves them on
+ * the untouched path.
  */
-export function isHourlyHeartRateStatsExternalId(
+export function isAggregatedBucketExternalId(
   externalId: string | null | undefined,
 ): boolean {
   if (typeof externalId !== "string") return false;
-  const prefix = `stats:${HOURLY_HR_HK_IDENTIFIER}:`;
-  if (!externalId.startsWith(prefix)) return false;
-  const suffix = externalId.slice(prefix.length);
-  if (!HOURLY_HR_SUFFIX_RE.test(suffix)) return false;
-  const parsed = new Date(suffix);
-  return !Number.isNaN(parsed.getTime());
+  for (const hkIdentifier of AGGREGATED_BUCKET_HK_IDENTIFIERS) {
+    const prefix = aggregatedBucketPrefix(hkIdentifier);
+    if (!externalId.startsWith(prefix)) continue;
+    const suffix = externalId.slice(prefix.length);
+    if (!AGGREGATED_BUCKET_SUFFIX_RE.test(suffix)) return false;
+    const parsed = new Date(suffix);
+    return !Number.isNaN(parsed.getTime());
+  }
+  return false;
 }
 
 /**
- * v1.19.0 (iOS #34) — does this externalId CLAIM to be an hourly HR
- * bucket (right prefix + HR identifier) regardless of suffix validity?
- * The route uses this to decide a malformed-vs-valid split: a row that
- * targets the HR bucket prefix but fails `isHourlyHeartRateStatsExternalId`
- * is a malformed bucket (reject), not an unrelated `stats:` row (pass
- * through untouched).
+ * v1.30.7 (iOS #34) — does this externalId CLAIM to be an aggregated bucket
+ * (right `stats:<allowlisted-HK>:` prefix) regardless of suffix validity?
+ * The route uses this for a malformed-vs-valid split: a row that targets a
+ * bucket prefix but fails `isAggregatedBucketExternalId` is a malformed
+ * bucket (reject), not an unrelated `stats:` row (pass through untouched).
  */
-export function targetsHourlyHeartRateBucket(
+export function targetsAggregatedBucket(
   externalId: string | null | undefined,
 ): boolean {
-  return (
-    typeof externalId === "string" &&
-    externalId.startsWith(`stats:${HOURLY_HR_HK_IDENTIFIER}:`)
-  );
+  if (typeof externalId !== "string") return false;
+  for (const hkIdentifier of AGGREGATED_BUCKET_HK_IDENTIFIERS) {
+    if (externalId.startsWith(aggregatedBucketPrefix(hkIdentifier)))
+      return true;
+  }
+  return false;
+}
+
+/**
+ * v1.30.7 (iOS #34) — the canonical UTC bucket-start instant of a well-formed
+ * aggregated 10-min bucket externalId, or `null` when the id is not one. The
+ * intraday reader uses this to place an uploaded bucket into its local 10-min
+ * slot from the id's authoritative UTC start (the row's `measuredAt` carries
+ * the display offset, not the canonical bucket boundary).
+ */
+export function parseAggregatedBucketStart(
+  externalId: string | null | undefined,
+): Date | null {
+  if (typeof externalId !== "string") return null;
+  for (const hkIdentifier of AGGREGATED_BUCKET_HK_IDENTIFIERS) {
+    const prefix = aggregatedBucketPrefix(hkIdentifier);
+    if (!externalId.startsWith(prefix)) continue;
+    const suffix = externalId.slice(prefix.length);
+    if (!AGGREGATED_BUCKET_SUFFIX_RE.test(suffix)) return null;
+    const parsed = new Date(suffix);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
 }
 
 /**

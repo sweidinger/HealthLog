@@ -15,6 +15,7 @@ import {
   MIN_STEP_COVERAGE_BUCKETS,
   computeHourlyMeanSeries,
   computeTenMinuteMeanSeries,
+  computeUploadedBucketSeries,
   detectTensionWindow,
   makeLocalResolver,
   partOfDayForMinute,
@@ -78,8 +79,8 @@ describe("computeTenMinuteMeanSeries", () => {
       utcOf,
     );
     expect(series).toEqual([
-      { startMinute: 600, mean: 75, count: 2 },
-      { startMinute: 610, mean: 90, count: 1 },
+      { startMinute: 600, mean: 75, count: 2, min: 70, max: 80 },
+      { startMinute: 610, mean: 90, count: 1, min: 90, max: 90 },
     ]);
   });
 
@@ -89,7 +90,9 @@ describe("computeTenMinuteMeanSeries", () => {
       "2026-05-01",
       utcOf,
     );
-    expect(series).toEqual([{ startMinute: 480, mean: 66, count: 1 }]);
+    expect(series).toEqual([
+      { startMinute: 480, mean: 66, count: 1, min: 66, max: 66 },
+    ]);
   });
 
   it("excludes samples from other local days (no next-day bleed)", () => {
@@ -101,7 +104,9 @@ describe("computeTenMinuteMeanSeries", () => {
       "2026-05-01",
       utcOf,
     );
-    expect(series).toEqual([{ startMinute: 1430, mean: 70, count: 1 }]);
+    expect(series).toEqual([
+      { startMinute: 1430, mean: 70, count: 1, min: 70, max: 70 },
+    ]);
   });
 
   it("buckets on the USER's local day, not UTC (tz-correct windows)", () => {
@@ -110,7 +115,73 @@ describe("computeTenMinuteMeanSeries", () => {
     const s = [sample("2026-05-01T02:30:00Z", 72)];
     expect(computeTenMinuteMeanSeries(s, "2026-05-01", nyOf)).toEqual([]);
     expect(computeTenMinuteMeanSeries(s, "2026-04-30", nyOf)).toEqual([
-      { startMinute: 1350, mean: 72, count: 1 },
+      { startMinute: 1350, mean: 72, count: 1, min: 72, max: 72 },
+    ]);
+  });
+});
+
+describe("computeUploadedBucketSeries", () => {
+  it("maps each bucket to its local 10-min slot with mean, synthetic count, and envelope", () => {
+    const series = computeUploadedBucketSeries(
+      [
+        {
+          bucketStart: new Date("2026-05-01T10:00:00.000Z"),
+          mean: 72,
+          min: 64,
+          max: 88,
+        },
+        {
+          bucketStart: new Date("2026-05-01T10:10:00.000Z"),
+          mean: 75,
+          min: 70,
+          max: 81,
+        },
+      ],
+      "2026-05-01",
+      utcOf,
+    );
+    // count = MIN_SAMPLES_PER_BUCKET so a device-computed bucket passes the
+    // tension density gate (a bucket already summarises many raw samples).
+    expect(series).toEqual([
+      { startMinute: 600, mean: 72, count: 2, min: 64, max: 88 },
+      { startMinute: 610, mean: 75, count: 2, min: 70, max: 81 },
+    ]);
+  });
+
+  it("omits min/max when the bucket carries no spread (avg-only upload)", () => {
+    const series = computeUploadedBucketSeries(
+      [
+        {
+          bucketStart: new Date("2026-05-01T08:20:00.000Z"),
+          mean: 60,
+          min: null,
+          max: null,
+        },
+      ],
+      "2026-05-01",
+      utcOf,
+    );
+    expect(series).toEqual([{ startMinute: 500, mean: 60, count: 2 }]);
+    expect(series[0]).not.toHaveProperty("min");
+    expect(series[0]).not.toHaveProperty("max");
+  });
+
+  it("slots buckets by the UTC bucket-start in the user's local day, not UTC day", () => {
+    const nyOf = makeLocalResolver("America/New_York");
+    // 02:30Z on 05-01 = 22:30 EDT on 04-30 → local minute 1350, prior day.
+    const buckets = [
+      {
+        bucketStart: new Date("2026-05-01T02:30:00.000Z"),
+        mean: 55,
+        min: 52,
+        max: 60,
+      },
+    ];
+    expect(computeUploadedBucketSeries(buckets, "2026-05-01", nyOf)).toEqual(
+      [],
+    );
+    expect(computeUploadedBucketSeries(buckets, "2026-04-30", nyOf)).toEqual([
+      { startMinute: 1350, mean: 55, count: 2, min: 52, max: 60 },
     ]);
   });
 });
