@@ -10,24 +10,42 @@
  *
  * Two paths, gated in order:
  *   1. AI path — only when the user has a working provider
- *      (`hasAnyConfiguredProvider`) AND the daily Coach token budget
- *      is not exhausted. One single-shot completion (no fallback
- *      chain — this is a nicety, not a core flow); spend is recorded
- *      against the same per-day ledger the Coach uses.
+ *      (`hasAnyConfiguredProvider`), an active consent receipt covers
+ *      the egress, AND the daily Coach token budget is not exhausted.
+ *      One single-shot completion (no fallback chain — this is a
+ *      nicety, not a core flow); spend rides the same per-day ledger
+ *      the Coach uses.
  *   2. Deterministic path — two static completion hints for the first
  *      two unanswered fields, localised through the server translator.
  *      Also the landing spot for every AI-path failure (no provider,
- *      budget gone, model error, unparseable output).
+ *      consent missing, budget gone, model error, unparseable output).
+ *
+ * The prompt carries the FULL Coach snapshot, so this is a genuine PHI
+ * egress and it is gated exactly like every other Coach surface: a chain
+ * that could reach the operator's server-managed credential requires an
+ * active `ai_coach` / `ai_full` receipt. The gate is SKIP-shaped, not
+ * throw-shaped — a missing receipt lands on the deterministic hints, which
+ * is what the caller (`PUT /api/coach/about-me`) already expects for every
+ * other AI-path miss.
  *
  * Server-only — reads `@/lib/db` through the provider resolver.
  */
-import { hasAnyConfiguredProvider, resolveProvider } from "@/lib/ai/provider";
+import {
+  hasAnyConfiguredProvider,
+  resolveProvider,
+  resolveProviderChain,
+} from "@/lib/ai/provider";
+import type { ProviderChainResolved } from "@/lib/ai/provider-runner";
+import {
+  chainRequiresServerManagedConsent,
+  hasActiveConsentForSurface,
+} from "@/lib/ai/consent-guard";
 import { singleUserTurn } from "@/lib/ai/types";
 import {
   buildDateKey,
-  getDailyTokenSpend,
-  OPERATOR_COST_CAP,
-  recordSpend,
+  reconcileSpend,
+  reserveBudget,
+  resolveDailyCap,
 } from "@/lib/ai/coach/budget";
 import {
   clampPendingQuestions,
@@ -117,6 +135,27 @@ export function buildPrompts(
 }
 
 /**
+ * Resolve the chain that will serve this generation, so the consent gate and
+ * the daily cap both see the SAME provider set the call will actually use.
+ * Mirrors `resolveStatusChain` in `@/lib/insights/status-provider`: the chain
+ * first, then the legacy single provider tagged `admin-openai` — the
+ * conservative tag, because `resolveProvider`'s admin fallback returns a bare
+ * `OpenAIClient` that is indistinguishable from a BYOK key at the instance
+ * level. Tagging it as server-managed makes the gate fail closed. Returns null
+ * when nothing can serve.
+ */
+async function resolveQuestionsChain(
+  userId: string,
+): Promise<ProviderChainResolved[] | null> {
+  const chain = await resolveProviderChain(userId);
+  if (chain.length > 0) return chain;
+
+  const legacy = await resolveProvider(userId);
+  if (legacy.type === "none") return null;
+  return [{ providerType: "admin-openai", instance: legacy }];
+}
+
+/**
  * Derive the pending questions for a freshly saved self-context.
  * Never throws — every failure path lands on the deterministic
  * fallback so the PUT route stays robust.
@@ -134,12 +173,42 @@ export async function deriveClarifyingQuestions(
   try {
     if (!(await hasAnyConfiguredProvider(userId))) return fallback();
 
-    // Budget gate — same per-day ledger the Coach chat enforces.
-    const dateKey = buildDateKey();
-    const spent = await getDailyTokenSpend(userId, dateKey);
-    if (spent >= OPERATOR_COST_CAP) return fallback();
+    const chain = await resolveQuestionsChain(userId);
+    if (chain === null) return fallback();
 
-    const provider = await resolveProvider(userId);
+    // Consent gate — BEFORE the snapshot is built, let alone sent. This
+    // prompt ships the complete Coach snapshot, so a chain that could egress
+    // via the operator's server-managed credential needs an active
+    // `ai_coach` / `ai_full` receipt. BYOK / local / ChatGPT-OAuth chains are
+    // the user's own egress and stay ungated, matching every other surface.
+    if (
+      chainRequiresServerManagedConsent(chain) &&
+      !(await hasActiveConsentForSurface(userId, "coach"))
+    ) {
+      annotate({
+        action: { name: "coach.self_context.consent_required" },
+        meta: { self_context_questions_source: "fallback" },
+      });
+      return fallback();
+    }
+
+    // Budget gate — the same per-day ledger the Coach chat enforces, via the
+    // ATOMIC reserve/reconcile pair. The prior read-then-write
+    // (`getDailyTokenSpend` then `recordSpend`) let two concurrent saves both
+    // observe a sub-cap spend and both call the provider; the upsert-increment
+    // serialises them on the row's unique key instead. The cap follows the
+    // chain's cost owner, so a user on their own plan is not held to the
+    // operator-cost ceiling.
+    const dateKey = buildDateKey();
+    const reservation = await reserveBudget(
+      userId,
+      QUESTIONS_MAX_TOKENS,
+      dateKey,
+      resolveDailyCap(chain),
+    );
+    if (!reservation.allowed) return fallback();
+
+    const provider = chain[0].instance;
     // v1.16.6 — same snapshot the Coach chat rides; lets the model
     // ask about what the user actually tracks. Best-effort: a snapshot
     // failure must not cost the AI path, the prompt just stays
@@ -152,17 +221,33 @@ export async function deriveClarifyingQuestions(
       resolveLocale(locale),
       snapshotJson,
     );
-    const result = await provider.generateCompletion(
-      singleUserTurn({
-        system: systemPrompt,
-        user: userPrompt,
-        temperature: 0.4,
-        maxTokens: QUESTIONS_MAX_TOKENS,
-      }),
-    );
-    if (typeof result.tokensUsed === "number" && result.tokensUsed > 0) {
-      await recordSpend({ userId, tokens: result.tokensUsed, dateKey });
+
+    let result;
+    try {
+      result = await provider.generateCompletion(
+        singleUserTurn({
+          system: systemPrompt,
+          user: userPrompt,
+          temperature: 0.4,
+          maxTokens: QUESTIONS_MAX_TOKENS,
+        }),
+      );
+    } catch (err) {
+      // Reconcile the reservation down to zero actual spend before the
+      // failure lands on the deterministic fallback.
+      await reconcileSpend(userId, reservation.reserved, 0, dateKey).catch(
+        () => {},
+      );
+      throw err;
     }
+
+    await reconcileSpend(
+      userId,
+      reservation.reserved,
+      result.tokensUsed ?? 0,
+      dateKey,
+      result.cachedInputTokens ?? 0,
+    ).catch(() => {});
 
     const questions = parseQuestionsReply(result.content);
     if (questions.length === 0) return fallback();
