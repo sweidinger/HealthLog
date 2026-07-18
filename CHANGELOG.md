@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.30.9] — 2026-07-18
+
+Faster dashboard first load.
+
+- **The top card and the charts paint with their data on first load** instead of flashing empty and then filling in. The daily summary and the charts' 31-day series are now read on the server and handed to the page already populated, so there's no wait for a second round of requests after the page appears. The welcome/summary card, likely the slowest thing to show before, now lands with the first paint.
+
+No migration. No breaking changes.
+
 ## [1.30.8] — 2026-07-18
 
 Hardening for the new heart-rate upload validation.

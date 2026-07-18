@@ -65,6 +65,14 @@ const MAX_PERSIST_BYTES = 2 * 1024 * 1024; // 2 MB
  *  - `["user","dashboardWidgets"]` — the resolved widget layout the snapshot
  *    seeds, matched as an exact tuple so the rest of the overloaded `["user", …]`
  *    head (profile, AI provider, insights layout, thresholds) stays off disk.
+ *
+ * INVARIANT (bound to the dashboard hero): `["daily", …]` — the Today digest —
+ * is deliberately NOT here. The hero's data-first render gate in
+ * `src/app/page-client.tsx` is hydration-safe only while the digest's first-
+ * render data source is the server dehydration boundary alone, never a client-
+ * only IndexedDB restore. Adding a `daily` head here would let a restored
+ * digest paint the hero on the client while the server rendered a skeleton — a
+ * React #418 text mismatch. Do not add it without revisiting that gate.
  */
 const PERSIST_ALLOWLIST_HEADS = ["dashboard", "chart-data"] as const;
 

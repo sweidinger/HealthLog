@@ -22,28 +22,15 @@
  * client keeps sleep on the dedicated route.
  */
 import { NextRequest } from "next/server";
-import pLimit from "p-limit";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { returnAllZodIssues } from "@/lib/api-response";
 import { apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
-import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
-import {
-  readDailySeries,
-  type DailySeriesRow,
-} from "@/lib/measurements/daily-series-read";
+import { readSeriesBatch } from "@/lib/measurements/series-batch-read";
 import {
   seriesBatchQuerySchema,
   SERIES_BATCH_MAX_TYPES,
 } from "@/lib/validations/series-batch";
-import type { MeasurementType } from "@/generated/prisma/client";
-
-/**
- * Concurrency cap for the per-type rollup reads. Mirrors the W-POOL
- * `p-limit(4)` discipline applied across the analytics fan-out so a
- * wide dashboard never packs the shared Prisma pool.
- */
-const SERIES_BATCH_CONCURRENCY = 4;
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
@@ -55,49 +42,23 @@ export const GET = apiHandler(async (request: NextRequest) => {
   }
 
   const { types, from, to } = parsed.data;
-  // De-dupe while preserving order so a caller repeating a type doesn't
-  // double-read it.
-  const uniqueTypes = Array.from(new Set(types)) as MeasurementType[];
 
-  // Load the source-priority ladder ONCE and thread it across every type
-  // so the batched reader doesn't re-query it per type.
-  const priorityJson = await loadUserSourcePriority(user.id);
-
-  // Per-type isolation: a single type's transient DB reject degrades to an
-  // empty slice for THAT type only, never a 500 that blanks every chart in
-  // the row. The failing chart self-fetches through its existing fallback.
-  const limit = pLimit(SERIES_BATCH_CONCURRENCY);
-  let degradedTypes = 0;
-  const entries = await Promise.all(
-    uniqueTypes.map((type) =>
-      limit(async (): Promise<readonly [MeasurementType, DailySeriesRow[]]> => {
-        try {
-          const rows = await readDailySeries({
-            userId: user.id,
-            type,
-            from,
-            to,
-            priorityJson,
-          });
-          return [type, rows] as const;
-        } catch {
-          degradedTypes += 1;
-          return [type, []] as const;
-        }
-      }),
-    ),
+  // Shared core: priority ladder once, `p-limit(4)` per-type fan-out, per-type
+  // fault isolation to `[]`. The RSC dashboard prefetch calls the same
+  // function so the two paths never drift.
+  const { series, degradedTypes } = await readSeriesBatch(
+    user.id,
+    types,
+    from,
+    to,
   );
 
-  const series: Record<string, DailySeriesRow[]> = {};
-  for (const [type, rows] of entries) {
-    series[type] = rows;
-  }
-
+  const seriesLists = Object.values(series);
   annotate({
     action: { name: "measurement.series.batch" },
     meta: {
-      type_count: uniqueTypes.length,
-      total: entries.reduce((sum, [, rows]) => sum + rows.length, 0),
+      type_count: seriesLists.length,
+      total: seriesLists.reduce((sum, rows) => sum + rows.length, 0),
       degraded_types: degradedTypes,
     },
   });

@@ -87,10 +87,12 @@ const DASHBOARD_QUERY_OPTS = {
 // v1.19.0 — day-span the batched dashboard series (`series-batch`) fetches.
 // Threaded to every chart as `preloadedCoverageDays` so a chart reads the
 // batched slice ONLY for a range tab whose window fits within it (7 / 30);
-// the 90 / All tabs exceed it and self-fetch the wider window. Pre-fix the
-// chart trusted the batch for any window > 7 days, so 90 / All silently
-// re-rendered this ~30-day slice. Keep this in lockstep with `batchWindow`.
-const BATCH_COVERAGE_DAYS = 31;
+// the 90 / All tabs exceed it and self-fetch the wider window.
+//
+// v1.30.9 — `BATCH_COVERAGE_DAYS` + the type-set + window derivations moved to
+// the client-safe `@/lib/dashboard/batch-chart-types` module so the RSC
+// prefetch (page.tsx) and this client read the SAME code — the batched-series
+// cache key is byte-identical on both sides or the prefetch silently no-ops.
 
 // v1.16.8 — the loaders retry a rejected chunk import once (a lazy
 // import caches its rejection permanently, so a transient 404 from a
@@ -123,6 +125,17 @@ const MedicationComplianceChart = (
     <MedicationComplianceChartLazy {...props} />
   </ChartErrorBoundary>
 );
+
+// v1.30.9 — warm the shared `chart-runtime` chunk during hydration. The
+// dashboard charts mount through `ssr:false` dynamics, which begin their
+// import only at mount (post-hydration); firing the import at module
+// evaluation lets the chunk download overlap hydration instead of queueing
+// behind the first chart mount. No render-path change — the dynamics still
+// resolve through the same `importWithRetry` promise (a warm module cache),
+// and the `<ChartSkeleton>` fallback is untouched.
+if (typeof window !== "undefined") {
+  void importWithRetry(() => import("@/components/charts/chart-runtime"));
+}
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
@@ -130,6 +143,12 @@ import { useDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 import { useDailyDigest } from "@/lib/queries/use-daily-digest";
 import { useModuleEnabled } from "@/hooks/use-module-enabled";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
+import {
+  BATCH_COVERAGE_DAYS,
+  deriveBatchChartTypes,
+  computeLocalBatchWindow,
+  type BatchWindow,
+} from "@/lib/dashboard/batch-chart-types";
 import type { DataSummary } from "@/lib/analytics/trends";
 import { mergeSlimAndThickAnalytics } from "@/lib/analytics/merge-slim-thick";
 import { isWindowSufficient } from "@/lib/analytics/window-confidence";
@@ -187,7 +206,20 @@ function tileInsightHref(id: string): string | null {
   return TILE_INSIGHT_HREF[id] ?? null;
 }
 
-export default function DashboardPageClient() {
+export default function DashboardPageClient({
+  batchWindow: batchWindowProp,
+}: {
+  /**
+   * v1.30.9 — the batched-series ISO window computed server-side from the
+   * PROFILE timezone and threaded down as an RSC prop. Present only when the
+   * RSC prefetch ran (snapshot mode, `DASHBOARD_SSR_PREFETCH !== "false"`);
+   * absent on the legacy / prefetch-off / fail-soft paths, where the client
+   * falls back to its browser-local window. Adopting the prop verbatim keeps
+   * the `chartSeriesBatch` key byte-identical to the key the RSC dehydrated
+   * under, so the prefetched slice lands instead of triggering a refetch.
+   */
+  batchWindow?: BatchWindow;
+} = {}) {
   const { isAuthenticated, user } = useAuth();
   const mounted = useMounted();
   const { t } = useTranslations();
@@ -723,27 +755,28 @@ export default function DashboardPageClient() {
   // mounts them with no range-tab interaction); a chart whose window
   // widens past this slice (range tab / comparison) drops batched
   // coverage and self-fetches for the new window — see `usePreloaded`.
-  const batchTypeSet = new Set<string>();
-  if (showWeightChart) batchTypeSet.add("WEIGHT");
-  if (showBpCharts) {
-    batchTypeSet.add("BLOOD_PRESSURE_SYS");
-    batchTypeSet.add("BLOOD_PRESSURE_DIA");
-  }
-  if (showPulseChart)
-    batchTypeSet.add(hasRestingHr ? "RESTING_HEART_RATE" : "PULSE");
-  if (showBodyFatChart) batchTypeSet.add("BODY_FAT");
-  if (showStepsChart) batchTypeSet.add("ACTIVITY_STEPS");
-  const batchChartTypes = Array.from(batchTypeSet);
+  //
+  // v1.30.9 — the type-set derivation is the shared `deriveBatchChartTypes`,
+  // the SAME function the RSC prefetch runs over the SAME snapshot payload
+  // (`layout` + `data.summaries` in snapshot mode ARE the snapshot fields the
+  // server dehydrated). One implementation → the CSV, and therefore the
+  // batched-series cache key, is byte-identical on both sides by construction.
+  const batchChartTypes = deriveBatchChartTypes(layout, data?.summaries);
 
   // Stable day-bucketed window so the cache key is stable across the day
   // (mirrors the chart's own ISO-window stability contract). Computed
   // once per mount via lazy state so a re-render never re-keys the batch.
-  const [batchWindow] = useState(() => {
-    const to = new Date();
-    to.setHours(23, 59, 59, 999);
-    const from = new Date(to.getTime() - BATCH_COVERAGE_DAYS * 86_400_000);
-    return { from: from.toISOString(), to: to.toISOString() };
-  });
+  //
+  // v1.30.9 — the server-computed PROFILE-tz window wins when present (it
+  // rides the serialized RSC payload, so SSR and the first hydration render
+  // see the identical object → the `chartSeriesBatch` key matches the key the
+  // RSC dehydrated under, zero hydration seam). The browser-local fallback
+  // stands for the prefetch-off / legacy / fail-soft paths where no prop
+  // arrives. Lazy `useState` with a prop-derived initial value is
+  // deterministic across the SSR/CSR pair.
+  const [batchWindow] = useState(
+    () => batchWindowProp ?? computeLocalBatchWindow(),
+  );
 
   const { data: batchedSeries } = useQuery({
     queryKey: queryKeys.chartSeriesBatch(
@@ -815,17 +848,30 @@ export default function DashboardPageClient() {
           falling through to nothing. The dense tile grid + charts below
           are untouched. */}
       {insightsEnabled &&
-        // `!mounted` pins the SSR pass AND the first hydration render to the
-        // skeleton (v1.16.4 pattern): the digest query rehydrates from the
-        // persisted cache on the client, so without this gate the client's
-        // first render would paint the hero while the server rendered the
-        // skeleton — a text-content hydration mismatch (React #418).
-        (!mounted || digestQuery.isLoading ? (
+        // v1.30.9 — DATA-FIRST gate so the SSR pass paints the POPULATED hero
+        // (the LCP element) instead of a skeleton. This is hydration-safe ONLY
+        // because of a bound invariant: the digest is server-DEHYDRATED
+        // (`page.tsx` prefetch → `setQueryData(queryKeys.dailyDigest(), …)`),
+        // so `digestQuery.data` is present on BOTH the SSR pass AND the first
+        // hydration render (HydrationBoundary hydrates synchronously before
+        // first render; `enabled:false` only gates FETCHING, not cached-data
+        // reads) — both sides render identical HTML, no React #418.
+        //
+        // The one divergence class the old `!mounted` gate guarded against —
+        // a client-only IndexedDB-restored cache painting the hero while the
+        // server rendered a skeleton — CANNOT bite here: `["daily", …]` is NOT
+        // in the persist allowlist (`PERSIST_ALLOWLIST_HEADS` in
+        // `@/lib/pwa/query-persister` — `dashboard` / `chart-data` + the exact
+        // `["user","dashboardWidgets"]` tuple only), so the digest never
+        // rehydrates from disk. The error / empty branches stay reachable only
+        // post-mount. DO NOT add `["daily", …]` to that allowlist, or render
+        // the hero from any client-only source, without revisiting this gate.
+        (digestQuery.data ? (
+          <TodayHero digest={digestQuery.data} />
+        ) : !mounted || digestQuery.isLoading ? (
           <TodayHeroSkeleton />
         ) : digestQuery.isError ? (
           <QueryErrorCard onRetry={() => digestQuery.refetch()} />
-        ) : digestQuery.data ? (
-          <TodayHero digest={digestQuery.data} />
         ) : null)}
 
       {/* v1.18.6 — the spotlight tour launcher moved to the app-shell
