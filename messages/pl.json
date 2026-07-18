@@ -5177,7 +5177,8 @@
       "resumeError": "Ponowne połączenie nieudane"
     },
     "apiTokens": "Tokeny API",
-    "apiTokensDescription": "Twórz tokeny API do zewnętrznego rejestrowania przyjęć leków (np. Skróty, automatyzacje).",
+    "apiTokensDescription": "Przeglądaj i unieważniaj tokeny API do zewnętrznego rejestrowania przyjęć leków. Tokeny są wydawane dla pojedynczego leku z jego przełącznika punktu końcowego API.",
+    "tokenMintMovedDescription": "Tokeny są wydawane dla pojedynczego leku. Otwórz lek i włącz jego punkt końcowy API, aby otrzymać token obejmujący wyłącznie ten lek.",
     "tokenNamePlaceholder": "Nazwa tokena (np. Skrót iPhone)",
     "tokenCreated": "Token utworzony — skopiuj go teraz! Nie zostanie pokazany ponownie.",
     "tokenCopy": "Kopiuj token",

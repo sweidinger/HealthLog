@@ -9,12 +9,19 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/auth/hmac", () => ({ hashToken: vi.fn() }));
 
 import { resolveBearerToken, BearerAuthError } from "../bearer";
+import type { ScopeRequirement } from "../bearer";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/auth/hmac";
 
 const FAKE_HASH = "deadbeefcafef00d";
 const RAW_TOKEN = "hlk_" + "a".repeat(64);
 const FAKE_USER = { id: "user-1", role: "USER" };
+
+/** The REST default: cookie sessions and `["*"]` tokens only. */
+const WILDCARD_ONLY: ScopeRequirement = { kind: "wildcard-only" };
+/** The `/mcp` posture: authenticate here, authorise downstream. */
+const ANY_VALID: ScopeRequirement = { kind: "any-valid-token" };
+const scope = (s: string): ScopeRequirement => ({ kind: "scope", scope: s });
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -33,7 +40,7 @@ describe("resolveBearerToken", () => {
     } as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(FAKE_USER as never);
 
-    const res = await resolveBearerToken(RAW_TOKEN);
+    const res = await resolveBearerToken(RAW_TOKEN, WILDCARD_ONLY);
 
     expect(hashToken).toHaveBeenCalledWith(RAW_TOKEN);
     expect(prisma.apiToken.findUnique).toHaveBeenCalledWith(
@@ -50,7 +57,9 @@ describe("resolveBearerToken", () => {
 
   it("rejects an unknown token (401)", async () => {
     vi.mocked(prisma.apiToken.findUnique).mockResolvedValue(null as never);
-    await expect(resolveBearerToken(RAW_TOKEN)).rejects.toMatchObject({
+    await expect(
+      resolveBearerToken(RAW_TOKEN, WILDCARD_ONLY),
+    ).rejects.toMatchObject({
       statusCode: 401,
       reason: "unknown_token",
     } satisfies Partial<BearerAuthError>);
@@ -65,7 +74,9 @@ describe("resolveBearerToken", () => {
       revoked: true,
       expiresAt: null,
     } as never);
-    await expect(resolveBearerToken(RAW_TOKEN)).rejects.toMatchObject({
+    await expect(
+      resolveBearerToken(RAW_TOKEN, WILDCARD_ONLY),
+    ).rejects.toMatchObject({
       statusCode: 401,
       reason: "revoked",
     });
@@ -79,7 +90,9 @@ describe("resolveBearerToken", () => {
       revoked: false,
       expiresAt: new Date(Date.now() - 60_000),
     } as never);
-    await expect(resolveBearerToken(RAW_TOKEN)).rejects.toMatchObject({
+    await expect(
+      resolveBearerToken(RAW_TOKEN, WILDCARD_ONLY),
+    ).rejects.toMatchObject({
       statusCode: 401,
       reason: "expired",
     });
@@ -94,7 +107,7 @@ describe("resolveBearerToken", () => {
       expiresAt: null,
     } as never);
     await expect(
-      resolveBearerToken(RAW_TOKEN, "health:write"),
+      resolveBearerToken(RAW_TOKEN, scope("health:write")),
     ).rejects.toMatchObject({
       statusCode: 403,
       reason: "insufficient_permissions",
@@ -102,7 +115,11 @@ describe("resolveBearerToken", () => {
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
-  it("admits any valid token when no permission is required (REQ-SEC-5)", async () => {
+  // The inversion. A narrow token used to be admitted by every route that
+  // named no scope — 324 of them — which is how a token minted for medication
+  // intake reached the full-backup export. `wildcard-only` is now the default
+  // arm, so the safe outcome is the one a route gets by doing nothing.
+  it("refuses a narrow-scope token under the wildcard-only default (403)", async () => {
     vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
       id: "token-5",
       userId: "user-1",
@@ -110,8 +127,51 @@ describe("resolveBearerToken", () => {
       revoked: false,
       expiresAt: null,
     } as never);
+    await expect(
+      resolveBearerToken(RAW_TOKEN, WILDCARD_ONLY),
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      reason: "undeclared_scope",
+    });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("admits a narrow-scope token for the scope it lists", async () => {
+    vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
+      id: "token-5b",
+      userId: "user-1",
+      permissions: ["fhir:read"],
+      revoked: false,
+      expiresAt: null,
+    } as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(FAKE_USER as never);
-    const res = await resolveBearerToken(RAW_TOKEN);
+    const res = await resolveBearerToken(RAW_TOKEN, scope("fhir:read"));
+    expect(res.user.id).toBe("user-1");
+  });
+
+  it("admits any valid token under the any-valid-token posture", async () => {
+    vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
+      id: "token-5c",
+      userId: "user-1",
+      permissions: ["health:read"],
+      revoked: false,
+      expiresAt: null,
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(FAKE_USER as never);
+    const res = await resolveBearerToken(RAW_TOKEN, ANY_VALID);
+    expect(res.user.id).toBe("user-1");
+  });
+
+  it("admits a wildcard token under the wildcard-only default", async () => {
+    vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
+      id: "token-5d",
+      userId: "user-1",
+      permissions: ["*"],
+      revoked: false,
+      expiresAt: null,
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(FAKE_USER as never);
+    const res = await resolveBearerToken(RAW_TOKEN, WILDCARD_ONLY);
     expect(res.user.id).toBe("user-1");
   });
 
@@ -124,7 +184,7 @@ describe("resolveBearerToken", () => {
       expiresAt: null,
     } as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(FAKE_USER as never);
-    const res = await resolveBearerToken(RAW_TOKEN, "health:write");
+    const res = await resolveBearerToken(RAW_TOKEN, scope("health:write"));
     expect(res.user.id).toBe("user-1");
   });
 });

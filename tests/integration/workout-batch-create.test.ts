@@ -10,7 +10,8 @@
  *   - Over-cap routes return 400 with the documented error code
  *   - Idempotency-Key replay returns the cached envelope
  *   - Rate-limit kicks in at the documented ceiling
- *   - Narrow-scope Bearer tokens are admitted (W10 fix-C parity)
+ *   - Narrow-scope Bearer tokens are refused; the wildcard token iOS
+ *     actually holds is admitted
  *
  * A separate file at this directory carries the concurrent-write race
  * test so the contention assertion stays focused on the invariant that
@@ -434,34 +435,66 @@ describe("POST /api/workouts/batch (real Postgres)", () => {
     expect(stored).toBe(0);
   });
 
-  it("admits a narrow-scope Bearer token (W10 fix-C parity)", async () => {
+  it("refuses a narrow-scope Bearer token, admits the wildcard one", async () => {
+    // Supersedes the W10 fix-C case, whose comment claimed "the iOS
+    // narrow-scope sync depends on" a narrow token being admitted here. It
+    // does not: `workouts:ingest` has no mint site anywhere in the tree, and
+    // iOS holds a `["*"]` token from login / passkey / refresh rotation. What
+    // that case actually pinned was the fail-open default — a token scoped to
+    // anything at all reaching a route that named no scope.
+    //
+    // Both halves are asserted together so the real iOS contract is the thing
+    // under test, not an inference from the deny case.
     const { POST } = await import("@/app/api/workouts/batch/route");
 
-    // Drop the cookie session so the Bearer path is the ONLY auth in
-    // play. A narrow-scope token (no wildcard) MUST still admit on a
-    // route that declares no required permission — that's the W10
-    // fix-C correctness fix the iOS narrow-scope sync depends on.
+    // Drop the cookie session so the Bearer path is the ONLY auth in play.
     cookieJar.delete("healthlog_session");
 
-    const rawToken = "hlk_narrow_scope_workout_ingest_token_value_a1b2c3d4e5";
+    const narrowToken =
+      "hlk_narrow_scope_workout_ingest_token_value_a1b2c3d4e5";
     await getPrismaClient().apiToken.create({
       data: {
         userId: TEST_USER_ID,
         name: "narrow-scope-workouts",
-        tokenHash: hashToken(rawToken),
+        tokenHash: hashToken(narrowToken),
         permissions: ["workouts:ingest"], // NO wildcard
       },
     });
-    headerJar.set("authorization", `Bearer ${rawToken}`);
+    headerJar.set("authorization", `Bearer ${narrowToken}`);
 
-    const res = await POST(
+    const denied = await POST(
       makeRequest(
         { workouts: [baseWorkout("hk-uuid-narrow-1")] },
-        { bearer: rawToken },
+        { bearer: narrowToken },
       ),
     );
-    expect(res.status).toBe(200);
-    const json = (await res.json()) as { data: { inserted: number } };
+    expect(denied.status).toBe(403);
+    expect(
+      await getPrismaClient().workout.count({
+        where: { userId: TEST_USER_ID },
+      }),
+    ).toBe(0);
+
+    // The credential iOS actually holds.
+    const wildcardToken = "hlk_wildcard_workout_ingest_token_value_f6g7h8i9j0";
+    await getPrismaClient().apiToken.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "wildcard-workouts",
+        tokenHash: hashToken(wildcardToken),
+        permissions: ["*"],
+      },
+    });
+    headerJar.set("authorization", `Bearer ${wildcardToken}`);
+
+    const admitted = await POST(
+      makeRequest(
+        { workouts: [baseWorkout("hk-uuid-wildcard-1")] },
+        { bearer: wildcardToken },
+      ),
+    );
+    expect(admitted.status).toBe(200);
+    const json = (await admitted.json()) as { data: { inserted: number } };
     expect(json.data.inserted).toBe(1);
   });
 });

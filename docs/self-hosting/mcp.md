@@ -65,10 +65,10 @@ Still in **Settings → MCP → Tokens**:
 3. **Copy the `hlk_…` value now** — it is shown exactly once and cannot
    be retrieved again. Tokens default to a 90-day lifetime.
 
-The token never carries the `*` wildcard and never the
-`medication:ingest` scope the generic `/api/tokens` mints — it is the
-least-privilege MCP scope and nothing more. The same list shows
-last-used time and lets you revoke any token.
+The token never carries the `*` wildcard and never a medication-ingest
+scope — it is the least-privilege MCP scope and nothing more, and it is
+bound to the MCP surface: it is refused on every REST route. The same
+list shows last-used time and lets you revoke any token.
 
 Cloud connectors that use OAuth (next section) mint the same
 `health:read` scope automatically, so for Claude.ai / ChatGPT you do not

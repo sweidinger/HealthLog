@@ -36,8 +36,13 @@ export interface McpAuthContext {
 
 /**
  * Resolve a raw Bearer token into an `McpAuthContext`, or throw on an invalid /
- * revoked / expired token. Reads require no special scope (the underlying reads
- * are unscoped), so no `requiredPermission` is passed.
+ * revoked / expired token.
+ *
+ * This is the ONE deliberate `any-valid-token` posture in the tree: the `/mcp`
+ * transport authenticates here and authorises downstream — audience binding
+ * plus `tokenAllowsWrite` gate the write tools, so a scope check at this line
+ * would be the wrong layer. A structural test asserts this call site stays the
+ * only one, because every other wire must fail closed.
  */
 export async function resolveMcpAuthContext(
   rawToken: string,
@@ -47,7 +52,9 @@ export async function resolveMcpAuthContext(
     throw new Error("Missing MCP Bearer token");
   }
 
-  const { user, tokenId, permissions } = await resolveBearerToken(trimmed);
+  const { user, tokenId, permissions } = await resolveBearerToken(trimmed, {
+    kind: "any-valid-token",
+  });
 
   return {
     userId: user.id,

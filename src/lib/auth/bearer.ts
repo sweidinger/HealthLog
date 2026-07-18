@@ -24,7 +24,28 @@ export type BearerAuthReason =
   | "revoked"
   | "expired"
   | "insufficient_permissions"
+  | "undeclared_scope"
   | "user_missing";
+
+/**
+ * What a caller demands of a token's scope set. Required on every
+ * `resolveBearerToken` call — there is deliberately no default, so a new wire
+ * cannot re-open the fail-open hole by simply omitting the argument.
+ *
+ * - `scope` — the route names a grant; a non-wildcard token must list it.
+ * - `wildcard-only` — the REST default. A route that declares no scope accepts
+ *   cookie sessions and cookie-equivalent (`["*"]`) tokens only. A narrow token
+ *   is refused, so adding a route can never silently widen an existing token's
+ *   reach.
+ * - `any-valid-token` — authentication only; authorisation is decided by the
+ *   caller's own wire. This is the single deliberate fail-open posture in the
+ *   tree (the `/mcp` transport, which gates on audience + `tokenAllowsWrite`
+ *   downstream) and a structural test freezes it to exactly one call site.
+ */
+export type ScopeRequirement =
+  | { kind: "scope"; scope: string }
+  | { kind: "wildcard-only" }
+  | { kind: "any-valid-token" };
 
 /**
  * Thrown when a token fails validation. Carries the HTTP status the HTTP edge
@@ -59,15 +80,15 @@ export interface BearerResolution {
  * Resolve a raw `hlk_<hex>` token to its user, or throw `BearerAuthError`.
  *
  * Lookups are by HMAC hash only — the plaintext token is never compared against
- * a stored value. When `requiredPermission` is set, a non-wildcard token must
- * list it; an unset `requiredPermission` admits any valid token (matching the
- * "route declares no scope ⇒ authentication alone is sufficient" contract).
+ * a stored value. Authorisation is fail-closed: `requirement` is mandatory and
+ * a token carrying no `*` grant is admitted only when the caller names a scope
+ * the token lists, or explicitly opts into `any-valid-token`.
  *
  * `lastUsedAt` is refreshed fire-and-forget on success.
  */
 export async function resolveBearerToken(
   rawToken: string,
-  requiredPermission?: string,
+  requirement: ScopeRequirement,
 ): Promise<BearerResolution> {
   const tokenHashValue = hashToken(rawToken);
 
@@ -94,21 +115,34 @@ export async function resolveBearerToken(
     throw new BearerAuthError(401, "expired", apiToken.userId, apiToken.id);
   }
 
-  // `["*"]` is the wildcard scope. A route that declares no `requiredPermission`
-  // accepts any valid token; one that declares a scope accepts wildcard tokens
-  // and narrow-scope tokens that list that scope.
-  const hasWildcardPermission = apiToken.permissions.includes("*");
-  if (
-    requiredPermission &&
-    !hasWildcardPermission &&
-    !apiToken.permissions.includes(requiredPermission)
-  ) {
-    throw new BearerAuthError(
-      403,
-      "insufficient_permissions",
-      apiToken.userId,
-      apiToken.id,
-    );
+  // `["*"]` is the wildcard scope — cookie-equivalent, and the only shape the
+  // login / passkey / refresh paths mint. It clears every requirement.
+  //
+  // A narrow token has to be named. `wildcard-only` (the REST default, reached
+  // by every route that passes no scope) refuses it outright; `scope` admits it
+  // only when the token lists exactly that grant. The deny arm is what a route
+  // gets by doing nothing, so a newly added route cannot widen an existing
+  // token's reach without a visible diff.
+  if (!apiToken.permissions.includes("*")) {
+    if (requirement.kind === "wildcard-only") {
+      throw new BearerAuthError(
+        403,
+        "undeclared_scope",
+        apiToken.userId,
+        apiToken.id,
+      );
+    }
+    if (
+      requirement.kind === "scope" &&
+      !apiToken.permissions.includes(requirement.scope)
+    ) {
+      throw new BearerAuthError(
+        403,
+        "insufficient_permissions",
+        apiToken.userId,
+        apiToken.id,
+      );
+    }
   }
 
   const user = await prisma.user.findUnique({

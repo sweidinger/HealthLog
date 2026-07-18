@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.30.17] — 2026-07-19
+
+API tokens now enforce their scope.
+
+- **A token minted for medication intake is refused outside the ingest endpoint.** Previously any valid token reached every authenticated route regardless of the scope it carried, so a token handed to a third-party automation could read the full-account backup export, lab results, measurements and the assistant. A route that accepts a narrow-scope token now has to name that scope; a route that names none accepts browser sessions and the app's own full-access tokens only. Tokens issued to the web session, the native client and the MCP connector are unaffected.
+- **Revoke and re-issue any token you handed to a third party.** A token that could reach the backup export should be treated as having had that reach for its whole lifetime, not only from the moment it was noticed.
+- **The generic "create API token" button is gone from settings.** The token it minted never worked for the medication intake it advertised — the ingest endpoint also requires a per-medication grant that this button never issued — while reaching everything else. Tokens are issued per medication from the medication's own API-endpoint toggle, which grants exactly that one medication. Existing tokens stay listed and revocable.
+- **MCP connector tokens are now bound to the MCP endpoint alone.** They previously also passed on read-only REST requests. No connector flow used that.
+
+No breaking changes to the web session, the native client, or the MCP connector.
+
 ## [1.30.16] — 2026-07-19
 
 Stops an ongoing loss of resting heart-rate history.

@@ -5177,7 +5177,8 @@
       "resumeError": "Échec de la reconnexion"
     },
     "apiTokens": "Jetons API",
-    "apiTokensDescription": "Créez des jetons API pour enregistrer des prises de médicaments externes (par exemple Raccourcis, automatisations).",
+    "apiTokensDescription": "Consultez et révoquez les jetons API pour l’enregistrement externe des prises de médicaments. Les jetons sont émis par médicament depuis son interrupteur de point de terminaison API.",
+    "tokenMintMovedDescription": "Les jetons sont émis par médicament. Ouvrez un médicament et activez son point de terminaison API pour obtenir un jeton limité à ce seul médicament.",
     "tokenNamePlaceholder": "Nom du jeton (par exemple Raccourci iPhone)",
     "tokenCreated": "Jeton créé — copiez-le maintenant ! Il ne sera plus affiché.",
     "tokenCopy": "Copier le jeton",
