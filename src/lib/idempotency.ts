@@ -15,6 +15,7 @@ import { getSession } from "@/lib/auth/session";
 import { hashToken } from "@/lib/auth/hmac";
 import { annotate } from "@/lib/logging/context";
 import { isP2002 } from "@/lib/prisma-errors";
+import { decrypt, encrypt } from "@/lib/crypto";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 /**
@@ -97,7 +98,11 @@ async function findCached(ctx: IdempotencyContext): Promise<CacheLookup> {
 
   let parsed: unknown = null;
   try {
-    parsed = JSON.parse(row.responseBody);
+    // Rows written before the body was encrypted are plaintext JSON. Those
+    // expire within the 24h replay window, so rather than migrate them, try
+    // ciphertext first and fall back to a direct parse; the fallback becomes
+    // dead within a day of deploy and is safe to remove after that.
+    parsed = JSON.parse(decryptCachedBody(row.responseBody));
   } catch {
     parsed = null;
   }
@@ -167,6 +172,46 @@ async function releaseClaim(ctx: IdempotencyContext): Promise<void> {
     .catch(() => {});
 }
 
+/**
+ * Encrypt a cached response body at rest.
+ *
+ * The replay cache stores the response verbatim, and the PHI-returning creates
+ * echo their own decrypted DTO — cycle day-log free text, reproductive-intent
+ * fields, mood notes, allergy reactions. That is exactly what the `*Encrypted`
+ * columns exist to protect, and it was sitting in cleartext for 24 hours in a
+ * column that lands in every backup. The secret-shaped-body guard did not catch
+ * it because health data is not secret-SHAPED.
+ */
+function encryptCachedBody(body: string): string | null {
+  if (body.length === 0) return body;
+  try {
+    return encrypt(body);
+  } catch {
+    // The crypto loader is deliberately fail-closed: no key, malformed key map
+    // or unknown key id all throw rather than silently writing plaintext. The
+    // replay cache is an accelerator, not a correctness guarantee, so the right
+    // response is to skip caching — never to store the body unprotected, and
+    // never to fail the caller's write over a cache we could not populate.
+    return null;
+  }
+}
+
+/**
+ * Read a cached body back, tolerating rows written before encryption.
+ *
+ * `decrypt` throws on anything that is not a well-formed envelope, so a legacy
+ * plaintext row falls through to being returned as-is. Those rows age out
+ * within the 24h replay window.
+ */
+function decryptCachedBody(stored: string): string {
+  if (stored.length === 0) return stored;
+  try {
+    return decrypt(stored);
+  } catch {
+    return stored;
+  }
+}
+
 async function persistCached(
   ctx: IdempotencyContext,
   response: Response,
@@ -178,6 +223,16 @@ async function persistCached(
       .clone()
       .text()
       .catch(() => ""));
+
+  const storedBody = encryptCachedBody(body);
+  if (storedBody === null) {
+    // Could not encrypt — drop the claim rather than cache the body in the
+    // clear. A later retry misses and re-runs the handler, which is the same
+    // behaviour as any other cache miss.
+    annotate({ meta: { idempotency_cache_skipped: "encryption_unavailable" } });
+    await releaseClaim(ctx);
+    return;
+  }
 
   // Promote the claimed pending row to the completed response, extending
   // the TTL from the short claim window to the full 24h replay window.
@@ -193,7 +248,7 @@ async function persistCached(
       },
       data: {
         responseStatus: response.status,
-        responseBody: body,
+        responseBody: storedBody,
         expiresAt: new Date(Date.now() + TTL_MS),
       },
     })

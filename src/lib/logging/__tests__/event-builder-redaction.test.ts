@@ -1,0 +1,76 @@
+import { describe, it, expect } from "vitest";
+
+import { WideEventBuilder } from "../event-builder";
+
+/**
+ * Nothing leaves the wide-event builder unscrubbed.
+ *
+ * `setError` and `setHttp` have always scrubbed. `addMeta` and
+ * `addExternalCall` did not, which made them a trusted sink by accident: the
+ * finished event is JSON-stringified whole to stdout and the log store, so a
+ * string placed in meta is as visible as one placed in an error message.
+ *
+ * Two real feeds exploited that gap. A Telegram request timeout put the full
+ * request URL — which embeds the bot token — into `external_calls[].error`. And
+ * the AI provider chain fed upstream error bodies into meta, so a gateway that
+ * echoes the offending request on a 400 echoed prompt content.
+ *
+ * These tests fail on the previous code.
+ */
+
+/** Read the finished event the way a transport would. */
+function emitted(b: WideEventBuilder): string {
+  return JSON.stringify(b.toJSON());
+}
+
+describe("wide-event builder — redaction at every entry point", () => {
+  it("scrubs a bot token that arrives through addExternalCall", () => {
+    const b = new WideEventBuilder("http");
+    b.addExternalCall({
+      service: "telegram",
+      method: "sendMessage",
+      duration_ms: 12,
+      error:
+        "timeout of 5000ms exceeded: https://api.telegram.org/bot123456:AAH-SuperSecretBotTokenValue/sendMessage",
+    });
+    expect(emitted(b)).not.toContain("AAH-SuperSecretBotTokenValue");
+  });
+
+  it("scrubs an API key that arrives through addMeta", () => {
+    const b = new WideEventBuilder("http");
+    b.addMeta(
+      "ai_chain_hop_1_body",
+      "401 unauthorized: key sk-abcdef1234567890",
+    );
+    expect(emitted(b)).not.toContain("sk-abcdef1234567890");
+  });
+
+  it("scrubs strings nested inside an object or array", () => {
+    // The emitted JSON flattens structure — a nested string is exactly as
+    // exposed as a top-level one, so the walk has to reach it.
+    const b = new WideEventBuilder("http");
+    b.addMeta("payload", {
+      hops: [{ detail: "token sk-nested9876543210 rejected" }],
+    });
+    expect(emitted(b)).not.toContain("sk-nested9876543210");
+  });
+
+  it("leaves ordinary diagnostic values intact", () => {
+    // Over-redaction would make the logs useless, which is its own failure.
+    const b = new WideEventBuilder("http");
+    b.addMeta("count", 42);
+    b.addMeta("action", "coach.budget.exceeded");
+    const out = emitted(b);
+    expect(out).toContain("coach.budget.exceeded");
+    expect(out).toContain("42");
+  });
+
+  it("bounds pathological nesting instead of recursing without limit", () => {
+    // A cyclic or absurdly nested value must not turn a log write into a crash.
+    let deep: Record<string, unknown> = { leaf: "sk-deepvalue12345678" };
+    for (let i = 0; i < 40; i++) deep = { next: deep };
+    const b = new WideEventBuilder("http");
+    expect(() => b.addMeta("deep", deep)).not.toThrow();
+    expect(emitted(b)).not.toContain("sk-deepvalue12345678");
+  });
+});

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.30.18] — 2026-07-19
+
+Health data and credentials no longer reach the logs or the backups.
+
+- **Cached responses are encrypted at rest.** A write endpoint's response is kept for 24 hours so a retried request cannot run twice. Those responses echo what was just saved — cycle notes, mood text, allergy reactions — and were stored unencrypted, in a column that lands in every backup. They are now encrypted like every other stored health field. If encryption is unavailable the response is simply not cached, rather than being written in the clear.
+- **Diagnostic log entries are scrubbed at the point they are written.** Two of the places that build a log entry did not run the redaction the others did, so an outbound request that timed out could put a notification bot's credential into the logs verbatim.
+- **A failed AI request no longer quotes what the provider sent back.** Some providers echo the request they rejected, which on this path contains the prompt and the health figures in it. The log entry now names the kind of rejection instead of quoting the response, which answers the same diagnostic question without carrying the content.
+
+Operator note: no action required, and no configuration change. Log lines and backups written before this release may contain the values described above.
+
+No breaking changes.
+
 ## [1.30.17] — 2026-07-19
 
 API tokens now enforce their scope.

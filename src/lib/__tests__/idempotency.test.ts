@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// The replay cache encrypts the stored body (it echoes decrypted PHI on the
+// create paths). Give the suite a real key so these cases exercise the
+// encrypted path rather than the skip-caching fallback.
+vi.stubEnv("ENCRYPTION_KEYS", "");
+vi.stubEnv("ENCRYPTION_ACTIVE_KEY_ID", "");
+vi.stubEnv("ENCRYPTION_KEY", "0".repeat(64));
 import { NextRequest, NextResponse } from "next/server";
 
 vi.mock("@/lib/db", () => ({
@@ -485,5 +492,29 @@ describe("isCachableStatus do-not-cache rules (V3 audit)", () => {
     expect(isCachableStatus(502)).toBe(false);
     expect(isCachableStatus(503)).toBe(false);
     expect(isCachableStatus(504)).toBe(false);
+  });
+
+  it("never stores the response body in cleartext", async () => {
+    // The create paths echo their own decrypted DTO, so the replay cache held
+    // cycle notes, mood text and allergy reactions in the clear for 24 hours -
+    // in a column that lands in every backup. The secret-shaped-body guard did
+    // not catch it because health data is not secret-SHAPED.
+    const PHI = "felt low on Tuesday, cramps returned";
+    const handler = vi.fn(async () =>
+      NextResponse.json({ data: { note: PHI }, error: null }, { status: 201 }),
+    );
+    const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
+
+    await wrapped(makeRequest("POST", { "idempotency-key": "phi-12345678" }));
+
+    const stored = (
+      vi.mocked(prisma.idempotencyKey.updateMany).mock.calls[0][0] as {
+        data: { responseBody: string };
+      }
+    ).data.responseBody;
+
+    expect(stored).not.toContain(PHI);
+    expect(stored).not.toContain("cramps");
+    expect(stored.length).toBeGreaterThan(0);
   });
 });

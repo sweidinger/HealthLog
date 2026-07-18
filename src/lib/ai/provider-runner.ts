@@ -337,19 +337,59 @@ function summariseError(e: unknown): {
   };
   const status = typeof err.httpStatus === "number" ? err.httpStatus : null;
   const message = err.message ?? "unknown error";
-  // v1.21.3 — surface the provider's redacted response body (the codex client
-  // attaches it) so the wide-event carries the upstream's actual rejection
-  // reason, not just "HTTP 400". Already redacted of secrets at the client.
-  const bodyExcerpt =
-    typeof err.bodyExcerpt === "string" && err.bodyExcerpt.length > 0
-      ? err.bodyExcerpt.slice(0, 500)
-      : null;
+  // v1.21.3 surfaced the upstream's response body so the wide event carried the
+  // real rejection reason rather than a bare "HTTP 400". The excerpt was raw
+  // upstream text, and a gateway that echoes the offending request on a 400 —
+  // the standard shape for `context_length_exceeded` — echoes the prompt, which
+  // on this path is the coach system prompt plus the health snapshot. No
+  // pattern can make arbitrary remote text safe to log, so the body is
+  // CLASSIFIED instead of quoted: the diagnostic question ("which rejection is
+  // this, and is it the same one recurring?") is answered without the content.
+  const bodyExcerpt = classifyErrorBody(err.bodyExcerpt);
   // Cap to keep wide-event payloads bounded.
   return {
     reason: status !== null ? `HTTP ${status}: ${message}` : message,
     status,
     bodyExcerpt,
   };
+}
+
+/**
+ * Reduce an upstream error body to a non-quoting descriptor.
+ *
+ * Known rejection shapes are named — those strings are our own vocabulary, not
+ * the remote's. Anything else reports only its size, which still distinguishes
+ * "the same rejection every hop" from "a different failure each time" without
+ * carrying a single character of remote content.
+ */
+export function classifyErrorBody(body: unknown): string | null {
+  if (typeof body !== "string" || body.length === 0) return null;
+  const lowered = body.toLowerCase();
+  if (
+    lowered.includes("context_length_exceeded") ||
+    lowered.includes("too many tokens")
+  ) {
+    return "classified:context_length_exceeded";
+  }
+  if (lowered.includes("rate limit") || lowered.includes("rate_limit")) {
+    return "classified:rate_limited";
+  }
+  if (
+    lowered.includes("model_not_found") ||
+    lowered.includes("unknown model")
+  ) {
+    return "classified:model_not_found";
+  }
+  if (lowered.includes("response_format") || lowered.includes("json_schema")) {
+    return "classified:response_format_rejected";
+  }
+  if (lowered.includes("insufficient_quota") || lowered.includes("billing")) {
+    return "classified:quota_or_billing";
+  }
+  if (lowered.includes("invalid_api_key") || lowered.includes("unauthorized")) {
+    return "classified:auth_rejected";
+  }
+  return `unclassified:${body.length}chars`;
 }
 
 /**
