@@ -40,6 +40,7 @@ import {
 import { withIdempotency } from "@/lib/idempotency";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { invalidateUserDashboardSnapshot } from "@/lib/cache/invalidate";
 import { NUTRIENT_CATALOG } from "@/lib/nutrients/catalog";
 import {
   MAX_NUTRIENT_ENTRIES_PER_BATCH,
@@ -324,6 +325,13 @@ async function postBatch(request: NextRequest): Promise<Response> {
         skipped: skipped.length,
       },
     });
+    // v1.30.3 (QA F9) — a landed row changes the dashboard's water/nutrient
+    // tile; without this the snapshot kept serving the pre-sync figure
+    // until the analytics fresh TTL lapsed (~3 min). Mirrors the manual
+    // water POST's own hard-evict (`nutrients/water/route.ts`) so an
+    // Apple-Health-synced total reflects on the very next dashboard read,
+    // same as a manually logged one.
+    invalidateUserDashboardSnapshot(user.id);
   }
 
   annotate({
