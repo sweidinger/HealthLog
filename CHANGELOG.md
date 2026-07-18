@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.30.16] — 2026-07-19
+
+Stops an ongoing loss of resting heart-rate history.
+
+- **Resting heart rate is preserved again for accounts without a device-supplied resting figure.** Older heart-rate readings are condensed on a schedule to keep the database small, and a resting value is derived and stored before the raw readings go. The check that decides whether an account already has its own resting data was matching the derived values it had written itself, so from the second run onward it concluded the data was already there and stopped deriving — while the raw readings it derives from were still being cleared. Each run lost another day's resting figure permanently. The check now looks only at readings the account actually supplied.
+- Days already affected cannot be reconstructed; from this release forward, nothing further is lost.
+
+No breaking changes.
+
 ## [1.30.15] — 2026-07-18
 
 Generated health texts now come in the language you set.
