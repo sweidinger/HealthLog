@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
+// Every module is on for the aggregate assertions below; the gate's own
+// behaviour (which cards a disabled module drops) is pinned in the sibling
+// `module-gate.test.ts`.
+vi.mock("@/lib/modules/gate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/modules/gate")>();
+  return {
+    ...actual,
+    resolveModuleMap: vi.fn(async () =>
+      Object.fromEntries(actual.MODULE_KEYS.map((k) => [k, true])),
+    ),
+  };
+});
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     // v1.11.4 — `findMany` reads the raw per-stage SLEEP_DURATION rows for

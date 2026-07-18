@@ -22,6 +22,7 @@ import {
   type DoctorReportData,
 } from "@/lib/doctor-report-data";
 import { GERMAN_ATC_DEFAULT_LOCALES } from "@/lib/fhir/resources";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import type {
   FhirBundleEntry,
   FhirBundleLink,
@@ -182,12 +183,28 @@ export function operationOutcome(
  * The window matches the document export's default (`normaliseDateRange`
  * with no override). KVNR decryption is fail-soft: a key-rotation gap on a
  * single row omits the identifier rather than 500-ing the read.
+ *
+ * MODULE BACKSTOP. Every `/api/fhir/*` data route calls
+ * `requireModuleEnabled(userId, "doctorReport")` itself, which is what
+ * produces the clean 403 envelope. This assertion is the second layer: the
+ * loader is the one door to the whole-record aggregate (including the
+ * decrypted insurance number), so it refuses outright rather than trusting
+ * that every present and future caller remembered the gate. It throws
+ * instead of returning an envelope because reaching it means a caller is
+ * missing its gate — a bug to surface, not a flow to serve.
  */
 export async function loadFhirContext(userId: string): Promise<{
   data: DoctorReportData;
   identity: { insuranceNumber: string | null };
   germanAtc: boolean;
 }> {
+  if (!(await isModuleEnabled(userId, "doctorReport"))) {
+    throw new Error(
+      'loadFhirContext called with the "doctorReport" module disabled — ' +
+        "the calling route is missing its requireModuleEnabled gate",
+    );
+  }
+
   const range = normaliseDateRange(undefined);
   const [data, userRow] = await Promise.all([
     collectDoctorReportData(userId, range, {}),

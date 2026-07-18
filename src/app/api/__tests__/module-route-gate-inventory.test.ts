@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -38,13 +38,7 @@ import { MODULE_KEYS, type ModuleKey } from "@/lib/modules/registry";
  *                   `coach-route-gate-inventory.test.ts`; listed here so
  *                   coach-bearing routes are not flagged as ungated.
  *
- *   3. BUILDER-GATED — the route delegates its whole payload to an
- *      aggregator that resolves `resolveModuleMap(userId)` once and
- *      excludes disabled-module sections/resources from the build
- *      (`collectDoctorReportData`, `loadFhirContext`). The exclusion is
- *      structural at the builder, so the route carries no per-key call.
- *
- *   4. EXEMPT — an explicit, COMMENTED allowlist of routes that serve a
+ *   3. EXEMPT — an explicit, COMMENTED allowlist of routes that serve a
  *      toggleable domain but are deliberately NOT gated, each with the
  *      reason at the entry. The two reasons in play:
  *        - DATA LAYER: raw CRUD over the domain's own rows. Writing or
@@ -56,9 +50,30 @@ import { MODULE_KEYS, type ModuleKey } from "@/lib/modules/registry";
  *        - INFRA / UI-ONLY: settings, availability probes, and the static
  *          FHIR CapabilityStatement carry no module data.
  *
- * Anything that doesn't fit one of the four buckets is an orphan and
+ * Anything that doesn't fit one of the three buckets is an orphan and
  * fails the test BY NAME so the fix is one search-and-add: gate the route
  * or move it onto the EXEMPT allowlist with a documented reason.
+ *
+ * WHAT THIS TEST DOES NOT PROVE, AND WHO PROVES IT
+ * -----------------------------------------------
+ * This file is a DISCOVERY test: it proves no route escapes classification.
+ * It cannot prove a gate actually refuses, because it only reads source text.
+ *
+ * That distinction used to be blurred. A fourth "BUILDER-GATED" bucket
+ * accepted the mere MENTION of an aggregator's name (`loadFhirContext`,
+ * `collectDoctorReportData`) as proof that the route was gated. It was not
+ * proof of anything: `loadFhirContext` filtered per-domain modules but never
+ * evaluated `doctorReport`, so all five `/api/fhir/*` data routes sat in a
+ * green bucket while serving the whole record — including the decrypted
+ * insurance number — to an account that had the doctor-report module off.
+ * The bucket is gone. A route is now only counted as gated when it CALLS a
+ * gate, and `REQUIRED_TREE_MODULE` below pins which key it must name.
+ *
+ * The behaviour itself — a disabled module actually producing a 403 or an
+ * omission — is proven by the per-surface tests listed in
+ * `BEHAVIOURAL_GATE_TESTS`. This test asserts those files still exist, so
+ * deleting the behavioural coverage fails here with a pointer to what was
+ * lost rather than silently leaving only a text-match behind.
  */
 
 /**
@@ -99,9 +114,10 @@ const MODULE_ROUTE_TREES: ReadonlyArray<string> = [
   "src/app/api/medications",
   // v1.18.0 B3 — the legacy `/api/doctor-report` tree (JSON + server-PDF +
   // availability probe) was orphaned dead code (no production caller) and
-  // removed. The live doctor-report / FHIR surface is `/api/export/health-record`,
-  // which gates on the `doctorReport` module directly AND through the
-  // `collectDoctorReportData` builder.
+  // removed. The doctor-report surface is `/api/export/health-record` plus
+  // the FHIR REST face below; both gate on `doctorReport` directly. The FHIR
+  // routes previously relied on the removed builder-mention bucket and were
+  // in practice ungated — see the header note.
   "src/app/api/fhir",
   // v1.18.0 (B2) — the AI-narrative insights tree. Every status / cards /
   // correlations / derived / narrative / pregenerate / rhythm-events route
@@ -273,12 +289,55 @@ const COACH_GATE_NEEDLE = 'requireAssistantSurface("coach")';
 // `requireCycleEnabled`. Recognised as a delegated gate so illness routes
 // are not flagged as ungated.
 const ILLNESS_GATE_NEEDLE = "requireIllnessEnabled(";
-// Builder aggregators that resolve `resolveModuleMap` once and exclude
-// disabled-module sections/resources at the build boundary.
-const BUILDER_GATE_NEEDLES: ReadonlyArray<string> = [
-  "collectDoctorReportData",
-  "loadFhirContext",
-];
+
+/**
+ * Trees whose routes must gate on ONE specific module key. Naming the key
+ * here means a future route in the tree cannot satisfy the inventory by
+ * gating on some other, more permissive module — the failure mode that a
+ * generic "is there any gate?" check cannot see.
+ *
+ * `/api/fhir` is the entry that matters: every data route there serves the
+ * whole-record doctor-report aggregate, so `doctorReport` is the only
+ * correct key.
+ */
+const REQUIRED_TREE_MODULE: Readonly<Record<string, ModuleKey>> = {
+  "src/app/api/fhir": "doctorReport",
+};
+
+/**
+ * Surfaces whose module behaviour is proven by a real behavioural test
+ * (module off ⇒ 403 or omission; module on ⇒ served). Listed so that
+ * deleting the proof fails the inventory instead of quietly downgrading the
+ * guarantee back to a text match.
+ *
+ * The three aggregate surfaces below are the ones that re-served per-domain
+ * data ungated: two of them (`/api/sync/changes`, `/api/dashboard/summary`)
+ * are cross-domain feeds that live outside `MODULE_ROUTE_TREES` entirely, so
+ * without this list nothing in the inventory would notice them at all.
+ */
+const BEHAVIOURAL_GATE_TESTS: ReadonlyArray<{ path: string; proves: string }> =
+  [
+    {
+      path: "src/app/api/fhir/__tests__/module-gate.test.ts",
+      proves:
+        "every /api/fhir data route 403s with module.disabled when doctorReport is off",
+    },
+    {
+      path: "src/lib/fhir/__tests__/rest-module-backstop.test.ts",
+      proves:
+        "loadFhirContext itself refuses to assemble the record when doctorReport is off",
+    },
+    {
+      path: "src/app/api/sync/changes/__tests__/module-gate.test.ts",
+      proves:
+        "the sync delta feed omits cycleDays/cycles (and never queries them) when cycle is off",
+    },
+    {
+      path: "src/app/api/dashboard/summary/__tests__/module-gate.test.ts",
+      proves:
+        "the dashboard summary drops disabled-module metric cards while core vitals still ship",
+    },
+  ];
 
 /**
  * True when the file contains the needle on a line that is NOT a pure
@@ -373,7 +432,7 @@ describe("module API route gate inventory", () => {
     }
   });
 
-  it("every toggleable-module route is gated, delegated, builder-gated, or explicitly exempt", () => {
+  it("every toggleable-module route is gated, delegated, or explicitly exempt", () => {
     const routes = findAllModuleRouteFiles();
     expect(routes.length).toBeGreaterThan(0);
 
@@ -387,15 +446,16 @@ describe("module API route gate inventory", () => {
       if (fileHasCall(text, CYCLE_GATE_NEEDLE)) continue;
       if (fileHasCall(text, COACH_GATE_NEEDLE)) continue;
       if (fileHasCall(text, ILLNESS_GATE_NEEDLE)) continue;
-      if (BUILDER_GATE_NEEDLES.some((n) => fileHasCall(text, n))) continue;
 
       if (exempt.has(path)) continue;
 
       orphans.push({
         path,
         reason:
-          'no module gate found — add requireModuleEnabled("<key>"), a delegated gate, ' +
-          "a module-aware builder, or move the route onto EXEMPT_ROUTES with a documented reason",
+          'no module gate found — add requireModuleEnabled("<key>") or a delegated gate, ' +
+          "or move the route onto EXEMPT_ROUTES with a documented reason. " +
+          "Importing a module-aware builder is NOT a gate: a builder can filter some " +
+          "modules and never evaluate yours.",
       });
     }
 
@@ -432,6 +492,55 @@ describe("module API route gate inventory", () => {
     ).toEqual([]);
   });
 
+  it("routes in a key-pinned tree gate on that tree's module key", () => {
+    // A generic "is there any gate?" check cannot tell `doctorReport` from
+    // some other, more permissive key. Where a whole tree serves exactly one
+    // module, name it.
+    const wrong: Array<{ path: string; found: string[] }> = [];
+
+    for (const [tree, requiredKey] of Object.entries(REQUIRED_TREE_MODULE)) {
+      for (const path of findRouteFiles(tree)) {
+        if (EXEMPT_ROUTES.includes(path)) continue;
+        const text = readFileSync(resolve(repoRoot, path), "utf8");
+        const { keys } = extractModuleKeys(text);
+        if (!keys.has(requiredKey)) {
+          wrong.push({ path, found: [...keys] });
+        }
+      }
+    }
+
+    expect(
+      wrong,
+      [
+        "Routes that must gate on their tree's module key but do not:",
+        ...wrong.map(
+          (w) =>
+            `  - ${w.path}: found [${w.found.join(", ") || "no literal key"}]`,
+        ),
+      ].join("\n"),
+    ).toEqual([]);
+  });
+
+  it("the behavioural gate tests that prove refusal still exist", () => {
+    // This inventory only reads source text. The listed files are what
+    // actually exercise a disabled module end to end; losing one silently
+    // downgrades the guarantee back to a text match, which is precisely the
+    // failure this test was rewritten to prevent.
+    const missing = BEHAVIOURAL_GATE_TESTS.filter(
+      (t) => !existsSync(resolve(repoRoot, t.path)),
+    );
+
+    expect(
+      missing,
+      [
+        "Behavioural module-gate coverage has gone missing.",
+        "This inventory cannot prove a gate refuses — these tests do:",
+        ...missing.map((m) => `  - ${m.path}\n      proves: ${m.proves}`),
+        "Restore the file, or drop the entry and say what replaces it.",
+      ].join("\n"),
+    ).toEqual([]);
+  });
+
   it("EXEMPT_ROUTES does not reference deleted route files", () => {
     const known = new Set(findAllModuleRouteFiles());
     const stale = EXEMPT_ROUTES.filter((p) => !known.has(p));
@@ -457,8 +566,7 @@ describe("module API route gate inventory", () => {
         fileHasCall(text, MODULE_GATE_NEEDLE) ||
         fileHasCall(text, CYCLE_GATE_NEEDLE) ||
         fileHasCall(text, COACH_GATE_NEEDLE) ||
-        fileHasCall(text, ILLNESS_GATE_NEEDLE) ||
-        BUILDER_GATE_NEEDLES.some((n) => fileHasCall(text, n))
+        fileHasCall(text, ILLNESS_GATE_NEEDLE)
       ) {
         stillGated.push(path);
       }
