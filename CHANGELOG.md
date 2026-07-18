@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.30.11] — 2026-07-18
+
+Native single sign-on.
+
+- **The iOS app can sign in through your identity provider (OIDC SSO).** Until now, single sign-on only worked in the browser — the native app couldn't complete it, which locked native users out entirely on an SSO-only instance. The server now supports a native sign-in handoff (an in-app authorization flow that returns the app's normal token, never a cookie), so the app can offer SSO once it adopts the flow. Existing password and passkey sign-in are unchanged. Multi-factor sign-in still applies, and an SSO session never satisfies a step-up prompt — those still require your own second factor.
+
+No breaking changes.
+
 ## [1.30.10] — 2026-07-18
 
 Localized insight text, and a richer workout view.
