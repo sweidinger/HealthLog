@@ -121,6 +121,20 @@ export interface InsightsTabStripProps {
    * pill — fail-open, matching the gate's default-on contract.
    */
   modules?: InsightsModuleMap;
+  /**
+   * v1.30 (UX/IA audit H1) — true when the account has at least one ECG
+   * recording. ECG carries NO `MeasurementType`, so it can't ride the
+   * `availability` / `SUB_PAGE_METRIC` model like every metric pill; it is
+   * threaded here as a dedicated data-only signal instead. When true, an
+   * "ECG" child is appended to the Heart group's popover (and the Heart group
+   * is emitted even for an ECG-only device with no other heart-metric data).
+   * When false / absent, no ECG pill renders — we never surface a data-less
+   * ECG target on the busy nav (the metric catalog is the empty-state home).
+   * Absent until the shell's `insightsEcgList` probe resolves, so first paint
+   * is unchanged — a data-only gate, exactly like the other availability
+   * inputs.
+   */
+  hasEcgRecordings?: boolean;
 }
 
 /**
@@ -145,9 +159,25 @@ type TabEntry =
       labelKey: string;
       /** Translation key for the popover header. */
       headerKey: string;
-      /** Visible sub-pages inside the group (post-availability gating). */
-      children: Array<{ href: string; labelKey: string; slug: SubPageSlug }>;
+      /**
+       * Visible sub-pages inside the group (post-availability gating). `slug`
+       * is optional because non-metric children (the ECG entry on the Heart
+       * group) have no `SubPageSlug` — they render from `href` + `labelKey`
+       * alone and are injected outside the slug-driven availability filter.
+       */
+      children: Array<{ href: string; labelKey: string; slug?: SubPageSlug }>;
     };
+
+/**
+ * v1.30 (UX/IA audit H1) — the ECG entry injected into the Heart group's
+ * popover when the account has recordings. Not a `SubPageSlug`: ECG carries no
+ * `MeasurementType`, so it lives on its own routed page (`/insights/ecg`) and
+ * is gated on `hasEcgRecordings`, never on the metric-availability model.
+ */
+const ECG_TAB_CHILD = {
+  href: `${INSIGHTS_OVERVIEW_PATH}/ecg`,
+  labelKey: "insights.navEcg",
+} as const;
 
 /**
  * Slug → (label key, gating metric) mapping. Keeping the metric here
@@ -442,6 +472,7 @@ function buildTabs(
   visibleTileIds: ReadonlySet<string> | undefined,
   tileOrder: ReadonlyMap<string, number> | undefined,
   modules: InsightsModuleMap | undefined,
+  hasEcgRecordings: boolean | undefined,
 ): TabEntry[] {
   // v1.4.36 W4d — strict gating contract: a sub-page only surfaces a
   // pill when the availability inputs CONFIRM the metric has at
@@ -537,7 +568,11 @@ function buildTabs(
               (tileOrder.get(b) ?? Number.MAX_SAFE_INTEGER),
           )
         : SUB_PAGE_GROUP_ORDER[group];
-      const children = orderedChildren
+      const children: Array<{
+        href: string;
+        labelKey: string;
+        slug?: SubPageSlug;
+      }> = orderedChildren
         .filter(
           (childSlug) =>
             visibleSet.has(childSlug) && !PINNED_SUB_PAGE_SLUGS.has(childSlug),
@@ -547,6 +582,11 @@ function buildTabs(
           href: `${INSIGHTS_OVERVIEW_PATH}/${childSlug}`,
           labelKey: SUB_PAGE_TABS[childSlug].labelKey,
         }));
+      // v1.30 (H1) — ECG is a non-metric child of the Heart group, gated on
+      // its own `hasEcgRecordings` signal (ECG has no `MeasurementType`).
+      if (group === "heart" && hasEcgRecordings) {
+        children.push({ ...ECG_TAB_CHILD });
+      }
       if (children.length === 0) continue;
       entries.push({
         kind: "group",
@@ -561,6 +601,23 @@ function buildTabs(
       kind: "link",
       href: `${INSIGHTS_OVERVIEW_PATH}/${slug}`,
       labelKey: SUB_PAGE_TABS[slug].labelKey,
+    });
+  }
+
+  // v1.30 (H1) — an ECG-only device (a recording, but no pulse / resting-HR /
+  // HRV rows) never lit up any Heart-group member above, so the loop never
+  // emitted the group. Emit it now with ECG as its sole child so the user
+  // still has a nav home for their recordings. Positioned after the metric
+  // groups (before the catalog tail) since there is no member slug to anchor
+  // its natural position to.
+  if (hasEcgRecordings && !emittedGroups.has("heart")) {
+    emittedGroups.add("heart");
+    entries.push({
+      kind: "group",
+      group: "heart",
+      labelKey: SUB_PAGE_GROUP_META.heart.labelKey,
+      headerKey: SUB_PAGE_GROUP_META.heart.headerKey,
+      children: [{ ...ECG_TAB_CHILD }],
     });
   }
 
@@ -587,6 +644,7 @@ function InsightsTabStripImpl({
   visibleTileIds,
   tileOrder,
   modules,
+  hasEcgRecordings,
 }: InsightsTabStripProps) {
   const { t } = useTranslations();
   const pathname = usePathname();
@@ -603,8 +661,15 @@ function InsightsTabStripImpl({
   // "Anpassen". The shell memoises both props so an unchanged layout
   // doesn't churn the array.
   const tabs = useMemo(
-    () => buildTabs(availability, visibleTileIds, tileOrder, modules),
-    [availability, visibleTileIds, tileOrder, modules],
+    () =>
+      buildTabs(
+        availability,
+        visibleTileIds,
+        tileOrder,
+        modules,
+        hasEcgRecordings,
+      ),
+    [availability, visibleTileIds, tileOrder, modules, hasEcgRecordings],
   );
 
   // Fire a toast on the falling edge of `regenerating`. Same rising-edge ref

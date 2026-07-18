@@ -2760,7 +2760,8 @@
       },
       "valuesBack": "Back to insights",
       "valuesBackToMetric": "Back to {metric}",
-      "scoresBack": "Back to insights"
+      "scoresBack": "Back to insights",
+      "ecgDescription": "Single-lead ECG recordings from your device, each with the device's own result. HealthLog shows the trace and the recording — it does not interpret the waveform."
     },
     "sleep": {
       "title": "Sleep",
@@ -3899,7 +3900,10 @@
         "recordingsMany": "{count} recordings on file.",
         "latestResult": "Latest device result: {result}.",
         "cta": "View recordings"
-      }
+      },
+      "emptyTitle": "No ECG recordings yet",
+      "emptyDescription": "ECG recordings sync from a compatible single-lead device. Once your device uploads a recording, it appears here.",
+      "emptyCta": "Connect a device"
     },
     "intradayPulse": {
       "title": "Your day's shape",
@@ -3918,7 +3922,8 @@
         "evening": "A sustained elevated-at-rest stretch this evening — possibly some tension.",
         "night": "A sustained elevated-at-rest stretch overnight — possibly some tension."
       }
-    }
+    },
+    "navEcg": "ECG"
   },
   "thresholds": {
     "defaultLabel": "Default",

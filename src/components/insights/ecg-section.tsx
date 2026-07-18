@@ -82,9 +82,21 @@ function isNonNormal(classification: EcgClassification): boolean {
 interface EcgSectionProps {
   enabled?: boolean;
   className?: string;
+  /**
+   * v1.30 — suppress the internal `<SectionHeading>` when the section is
+   * hosted on the routed `/insights/ecg` sub-page, whose `<SubPageShell>`
+   * already renders the page `<h1>`. Defaults to `false` so the overview
+   * teaser keeps its own heading unchanged. Purely presentational — the
+   * non-diagnostic disclaimer + waveform logic are untouched.
+   */
+  hideHeading?: boolean;
 }
 
-export function EcgSection({ enabled = true, className }: EcgSectionProps) {
+export function EcgSection({
+  enabled = true,
+  className,
+  hideHeading = false,
+}: EcgSectionProps) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -123,7 +135,12 @@ export function EcgSection({ enabled = true, className }: EcgSectionProps) {
       aria-label={t("insights.ecg.sectionTitle")}
       className={cn("scroll-mt-24 space-y-3", className)}
     >
-      <SectionHeading icon={Activity} title={t("insights.ecg.sectionTitle")} />
+      {!hideHeading && (
+        <SectionHeading
+          icon={Activity}
+          title={t("insights.ecg.sectionTitle")}
+        />
+      )}
       <div
         data-slot="ecg-card"
         className="bg-card border-border space-y-4 rounded-xl border p-4 md:p-6"

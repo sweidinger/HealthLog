@@ -3,6 +3,7 @@
 import { Heart } from "lucide-react";
 
 import { HealthKitMetricPage } from "@/components/insights/healthkit-metric-page";
+import { EcgCrossLink } from "@/components/insights/ecg-cross-link";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
@@ -30,6 +31,9 @@ export default function InsightsRestingHrPage() {
       emptyStateIcon={<Heart className="size-6" />}
       emptyStateCtaType={null}
       coachPrefill={t("insights.restingHr.coachPrefill")}
+      // S10 / H1 — device-attributed pointer into the ECG viewer, in the
+      // resting-HR context. Self-gates to nothing without recordings.
+      afterAssessment={<EcgCrossLink />}
     />
   );
 }

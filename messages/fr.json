@@ -2760,7 +2760,8 @@
       },
       "valuesBack": "Retour aux Insights",
       "valuesBackToMetric": "Retour à {metric}",
-      "scoresBack": "Retour aux Insights"
+      "scoresBack": "Retour aux Insights",
+      "ecgDescription": "Enregistrements ECG à dérivation unique de votre appareil, chacun accompagné du résultat de l'appareil. HealthLog affiche le tracé et l'enregistrement, mais n'interprète pas la courbe."
     },
     "sleep": {
       "title": "Sommeil",
@@ -3899,7 +3900,10 @@
         "recordingsMany": "{count} enregistrements disponibles.",
         "latestResult": "Dernier résultat de l’appareil : {result}.",
         "cta": "Voir les enregistrements"
-      }
+      },
+      "emptyTitle": "Aucun enregistrement ECG pour l'instant",
+      "emptyDescription": "Les enregistrements ECG se synchronisent depuis un appareil à dérivation unique compatible. Dès que votre appareil transfère un enregistrement, il apparaît ici.",
+      "emptyCta": "Connecter un appareil"
     },
     "intradayPulse": {
       "title": "Le rythme de votre journée",
@@ -3918,7 +3922,8 @@
         "evening": "Une période élevée au repos ce soir — peut-être un peu de tension.",
         "night": "Une période élevée au repos cette nuit — peut-être un peu de tension."
       }
-    }
+    },
+    "navEcg": "ECG"
   },
   "thresholds": {
     "defaultLabel": "Par défaut",

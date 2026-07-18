@@ -2760,7 +2760,8 @@
       },
       "valuesBack": "Volver a Insights",
       "valuesBackToMetric": "Volver a {metric}",
-      "scoresBack": "Volver a Insights"
+      "scoresBack": "Volver a Insights",
+      "ecgDescription": "Registros de ECG de una derivación de tu dispositivo, cada uno con el resultado del propio dispositivo. HealthLog muestra el trazado y el registro, pero no interpreta la onda."
     },
     "sleep": {
       "title": "Sueño",
@@ -3899,7 +3900,10 @@
         "recordingsMany": "{count} registros guardados.",
         "latestResult": "Último resultado del dispositivo: {result}.",
         "cta": "Ver registros"
-      }
+      },
+      "emptyTitle": "Aún no hay registros de ECG",
+      "emptyDescription": "Los registros de ECG se sincronizan desde un dispositivo de una derivación compatible. En cuanto tu dispositivo suba un registro, aparecerá aquí.",
+      "emptyCta": "Conectar un dispositivo"
     },
     "intradayPulse": {
       "title": "La forma de tu día",
@@ -3918,7 +3922,8 @@
         "evening": "Un tramo elevado en reposo al anochecer; posiblemente algo de tensión.",
         "night": "Un tramo elevado en reposo por la noche; posiblemente algo de tensión."
       }
-    }
+    },
+    "navEcg": "ECG"
   },
   "thresholds": {
     "defaultLabel": "Por defecto",
