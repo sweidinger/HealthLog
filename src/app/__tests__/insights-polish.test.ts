@@ -29,7 +29,7 @@ import { join } from "node:path";
 
 const ROOT = join(__dirname, "../../..");
 const DASHBOARD_PATH = join(ROOT, "src/app/page-client.tsx");
-const INSIGHTS_PATH = join(ROOT, "src/app/insights/page.tsx");
+const INSIGHTS_PATH = join(ROOT, "src/app/insights/page-client.tsx");
 const INSIGHTS_LAYOUT_PATH = join(ROOT, "src/app/insights/layout.tsx");
 
 function load(path: string): string {
