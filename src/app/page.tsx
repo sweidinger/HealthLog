@@ -93,17 +93,23 @@ export default async function DashboardPage() {
       queryClient.setQueryData(queryKeys.dashboardSnapshot(locale), wireBody);
       queryClient.setQueryData(queryKeys.dashboardWidgets(), wireBody.layout);
 
-      // Above-the-fold prefetch — the profile-tz window is computed ONCE and
-      // threaded to the client so the batched-series key matches byte-for-byte.
-      batchWindow = computeBatchWindow(new Date(), user.timezone);
+      // Above-the-fold prefetch runs ONLY in snapshot mode: legacy mode derives
+      // its chart-type list from analytics queries the RSC did not run, so there
+      // is no byte-identical key to dehydrate the series under. In legacy mode
+      // `batchWindow` stays undefined and the client falls back to its own
+      // browser-local window exactly as before — no behaviour change off-flag.
+      const snapshotMode = isDashboardSnapshotEnabled();
+
+      // The profile-tz window is computed ONCE (snapshot mode only) and threaded
+      // to the client so the batched-series key matches byte-for-byte.
+      if (snapshotMode) {
+        batchWindow = computeBatchWindow(new Date(), user.timezone);
+      }
 
       const modules = await resolveModuleMap(user.id);
       const insightsEnabled = modules.insights !== false;
 
-      // Only prefetch the series in snapshot mode: legacy mode derives its
-      // type list from analytics queries the RSC did not run, so there is no
-      // byte-identical key to dehydrate under — the client fetches as before.
-      const seriesTypes = isDashboardSnapshotEnabled()
+      const seriesTypes = snapshotMode
         ? deriveBatchChartTypes(
             resolveDashboardLayout(wireBody.layout),
             (
@@ -120,7 +126,7 @@ export default async function DashboardPage() {
         ? loadDailyDigest(user).catch(() => undefined)
         : Promise.resolve(undefined);
       const seriesWork =
-        seriesTypes.length > 0
+        batchWindow && seriesTypes.length > 0
           ? readSeriesBatch(
               user.id,
               seriesTypes as MeasurementType[],
@@ -143,7 +149,9 @@ export default async function DashboardPage() {
           JSON.parse(JSON.stringify(digest)),
         );
       }
-      if (series !== undefined) {
+      // `series` is only ever set when `batchWindow` was (snapshot mode) — the
+      // explicit `batchWindow` guard just narrows the type for the key build.
+      if (series !== undefined && batchWindow) {
         queryClient.setQueryData(
           queryKeys.chartSeriesBatch(
             seriesTypes.join(","),
