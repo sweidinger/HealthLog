@@ -7397,6 +7397,7 @@
       "notePlaceholder": "Opcjonalny kontekst tego wyniku",
       "requiredError": "Podaj wartość.",
       "save": "Zapisz",
+      "saveAndAddAnother": "Zapisz i dodaj kolejny",
       "savedToast": "Wynik zapisany",
       "saveError": "Nie udało się zapisać wyniku",
       "biomarker": "Biomarker",

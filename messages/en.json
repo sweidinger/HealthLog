@@ -7397,6 +7397,7 @@
       "notePlaceholder": "Optional context for this result",
       "requiredError": "Enter a value.",
       "save": "Save",
+      "saveAndAddAnother": "Save & add another",
       "savedToast": "Result saved",
       "saveError": "Could not save the result",
       "biomarker": "Biomarker",

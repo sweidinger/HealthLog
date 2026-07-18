@@ -177,6 +177,15 @@ export default function LabsPage() {
               queryKey: queryKeys.labResults(),
             });
           }}
+          // v1.30.1 H3 — "Save & add another" keeps the sheet open; the
+          // form clears the reading itself, this callback just refreshes
+          // the list underneath so the just-saved row is there once the
+          // user is done and closes the sheet.
+          onSavedKeepOpen={() => {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.labResults(),
+            });
+          }}
           onCancel={() => setDialogOpen(false)}
         />
       </ResponsiveSheet>

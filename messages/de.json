@@ -7397,6 +7397,7 @@
       "notePlaceholder": "Optionaler Kontext zu diesem Wert",
       "requiredError": "Bitte einen Wert eingeben.",
       "save": "Speichern",
+      "saveAndAddAnother": "Speichern & nächsten Wert",
       "savedToast": "Wert gespeichert",
       "saveError": "Wert konnte nicht gespeichert werden",
       "biomarker": "Biomarker",
