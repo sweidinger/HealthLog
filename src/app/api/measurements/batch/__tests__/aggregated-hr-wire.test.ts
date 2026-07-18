@@ -1,12 +1,14 @@
 /**
- * v1.19.0 (iOS #34) — go-forward aggregated heart-rate wire contract on
- * `POST /api/measurements/batch`.
+ * v1.30.7/v1.30.8 (iOS #34) — go-forward aggregated 10-min heart-rate wire
+ * contract on `POST /api/measurements/batch`.
  *
  * Asserts:
- *   - a fresh 10-min HR bucket inserts;
+ *   - a fresh 10-min HR bucket inserts, with its per-bucket min/max spread;
  *   - a re-post of the same bucket OVERWRITES (status `updated`, not a
  *     duplicate row);
- *   - a malformed aggregated HR bucket externalId is `skipped`;
+ *   - a malformed / off-grid aggregated HR bucket externalId is `skipped`;
+ *   - v1.30.8: an out-of-range or mis-ordered spread is dropped to null while
+ *     the trustworthy average survives;
  *   - the per-sample uuid HR path is unaffected (immutable duplicate);
  *   - the existing per-day step `stats:` overwrite path is unaffected.
  */

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.30.8] — 2026-07-18
+
+Hardening for the new heart-rate upload validation.
+
+- **A malformed bucket timestamp is rejected, not silently misfiled.** A bucket whose time rolled over (a 24:00, an impossible day) is now refused rather than stored under a non-standard key, where it would have failed to merge with a re-post and could land on the wrong day.
+- **The per-window low/high is sanity-checked before it counts.** A window's low and high are kept only when they are in a plausible range and sit either side of the average; a glitched reading no longer skews the day's high/low band. The average is always kept.
+
+No migration. No breaking changes.
+
 ## [1.30.7] — 2026-07-18
 
 Groundwork for a tidier heart-rate history.
