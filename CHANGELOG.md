@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.30.3] — 2026-07-18
+
+Follow-up fixes from a full quality re-check of the app.
+
+- **Correctness reaches every surface.** The timezone, window, and grain fixes now also cover the coach's correlations, the per-metric cards, and the period narrative (they had kept an older copy). Daily insight cards roll over at your own midnight, not a fixed one. Personal records that a second device had inflated are re-derived on the next start, so a genuine record can be set again.
+- **The metrics catalog** shows a loading state and a retry on error, instead of briefly reading as "not tracked".
+- **Small.** One shared info popover, larger tap targets on the view toggles, a notch-safe height fix on the coach history page, and a few wording and translation gaps closed (a body-composition caveat, study citations, the backup scope note).
+
+No breaking changes.
+
 ## [1.30.2] — 2026-07-18
 
 More audit-backlog fixes.
