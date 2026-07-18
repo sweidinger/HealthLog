@@ -5226,7 +5226,8 @@ model InsightNarrative {
   userId           String   @map("user_id")
   /// "week" | "month".
   period           String
-  /// Resolved UI locale of the prose ("de" | "en").
+  /// Resolved UI locale of the prose — any shipped UI locale, not just de/en:
+  /// the prose is generated per locale, so the row is keyed by it.
   locale           String
   /// UTC YYYY-MM-DD boundary the narrative was generated for.
   dateKey          String   @map("date_key")
