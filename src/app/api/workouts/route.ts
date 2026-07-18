@@ -30,10 +30,18 @@
  *   slice the canonical projection. A naive `skip` + per-window dedup
  *   double-counts boundary clusters across pages because a cluster
  *   whose first member sits in page N-1 and whose later member sits in
- *   page N would be dropped on N-1 and surface again on N. Workout
- *   volume for HealthLog is bounded (single user, tens of workouts per
- *   week — single-digit MB at the table's busiest), so reading the
- *   full filtered set per request is well within budget.
+ *   page N would be dropped on N-1 and surface again on N.
+ *
+ *   The canonical projection (the deduped, sorted row set) is cached
+ *   keyed on the FILTER (`userId|since|until|sportType`) — deliberately
+ *   WITHOUT `offset`/`limit` — so every page of a drain shares one cache
+ *   entry: the first page's request builds it (one `findMany` + one
+ *   dedup pass), every later page in the same TTL window slices the
+ *   already-built array for free. Before this, each page carried its own
+ *   cache key, so a full historical drain (the iOS app's "drain
+ *   historical workouts" path, potentially thousands of rows on a
+ *   10-year Apple Health import) re-ran the full read + dedup once per
+ *   page — O(pages × rows) instead of O(rows).
  *
  * Response shape (iOS contract):
  *   - `workouts: WorkoutListEntry[]` — each entry exposes
@@ -68,6 +76,32 @@ interface WorkoutsParams {
   readonly sportType: string | null;
 }
 
+type WorkoutFilterParams = Pick<
+  WorkoutsParams,
+  "since" | "until" | "sportType"
+>;
+
+interface CanonicalWorkoutRow {
+  id: string;
+  source: string;
+  externalId: string | null;
+  sportType: string | null;
+  startedAt: Date | null;
+  endedAt: Date | null;
+  durationSec: number | null;
+  totalDistanceM: number | null;
+  totalEnergyKcal: number | null;
+  avgHeartRate: number | null;
+  maxHeartRate: number | null;
+  createdAt: Date;
+}
+
+/** The cached, deduped, most-recent-first row set for one filter combination. */
+interface WorkoutsProjection {
+  canonical: CanonicalWorkoutRow[];
+  rawCount: number;
+}
+
 interface WorkoutsResult {
   workouts: Array<{
     id: string;
@@ -90,11 +124,11 @@ interface WorkoutsResult {
   };
 }
 
-async function buildWorkoutsResponse(
+async function buildWorkoutsProjection(
   userId: string,
-  params: WorkoutsParams,
-): Promise<WorkoutsResult> {
-  const { limit, offset, since, until, sportType } = params;
+  params: WorkoutFilterParams,
+): Promise<WorkoutsProjection> {
+  const { since, until, sportType } = params;
 
   const where: Record<string, unknown> = { userId };
   if (since || until) {
@@ -115,29 +149,34 @@ async function buildWorkoutsResponse(
     where.sportType = sportType;
   }
 
-  const rows = await prisma.workout.findMany({
-    where,
-    orderBy: [{ startedAt: "desc" }, { id: "asc" }],
-    select: {
-      id: true,
-      source: true,
-      externalId: true,
-      sportType: true,
-      startedAt: true,
-      endedAt: true,
-      durationSec: true,
-      totalDistanceM: true,
-      totalEnergyKcal: true,
-      avgHeartRate: true,
-      maxHeartRate: true,
-      createdAt: true,
-    },
-  });
+  // Independent reads — the sourcePriorityJson lookup doesn't depend on the
+  // row read, so run them concurrently rather than paying two sequential
+  // round trips.
+  const [rows, userRow] = await Promise.all([
+    prisma.workout.findMany({
+      where,
+      orderBy: [{ startedAt: "desc" }, { id: "asc" }],
+      select: {
+        id: true,
+        source: true,
+        externalId: true,
+        sportType: true,
+        startedAt: true,
+        endedAt: true,
+        durationSec: true,
+        totalDistanceM: true,
+        totalEnergyKcal: true,
+        avgHeartRate: true,
+        maxHeartRate: true,
+        createdAt: true,
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { sourcePriorityJson: true },
+    }),
+  ]);
 
-  const userRow = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { sourcePriorityJson: true },
-  });
   const canonical = pickCanonicalWorkoutRows(
     rows,
     userRow?.sourcePriorityJson ?? null,
@@ -154,27 +193,37 @@ async function buildWorkoutsResponse(
     return a.id.localeCompare(b.id);
   });
 
-  const page = canonical.slice(offset, offset + limit).map((row) => ({
-    id: row.id,
-    sportType: row.sportType,
-    startedAt: row.startedAt,
-    endedAt: row.endedAt,
-    durationSec: row.durationSec,
-    distanceM: row.totalDistanceM,
-    activeEnergyKcal: row.totalEnergyKcal,
-    avgHr: row.avgHeartRate,
-    maxHr: row.maxHeartRate,
-    source: row.source,
-    externalId: row.externalId,
-  }));
+  return { canonical, rawCount: rows.length };
+}
+
+function sliceWorkoutsProjection(
+  projection: WorkoutsProjection,
+  limit: number,
+  offset: number,
+): WorkoutsResult {
+  const page = projection.canonical
+    .slice(offset, offset + limit)
+    .map((row) => ({
+      id: row.id,
+      sportType: row.sportType,
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
+      durationSec: row.durationSec,
+      distanceM: row.totalDistanceM,
+      activeEnergyKcal: row.totalEnergyKcal,
+      avgHr: row.avgHeartRate,
+      maxHr: row.maxHeartRate,
+      source: row.source,
+      externalId: row.externalId,
+    }));
 
   return {
     workouts: page,
     meta: {
-      total: canonical.length,
+      total: projection.canonical.length,
       limit,
       offset,
-      droppedDuplicates: rows.length - canonical.length,
+      droppedDuplicates: projection.rawCount - projection.canonical.length,
     },
   };
 }
@@ -207,15 +256,18 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const until = searchParams.get("until");
   const sportType = searchParams.get("sportType");
 
-  const params: WorkoutsParams = { limit, offset, since, until, sportType };
-  const cacheKey = `${user.id}|${limit}|${offset}|${since ?? ""}|${until ?? ""}|${sportType ?? ""}`;
+  // Deliberately excludes `limit`/`offset` — every page of one filter
+  // combination shares this cached projection (see the docblock above).
+  const projectionKey = `${user.id}|${since ?? ""}|${until ?? ""}|${sportType ?? ""}`;
 
-  const result = await cached(
-    caches.workouts as ServerCache<WorkoutsResult>,
-    cacheKey,
-    () => buildWorkoutsResponse(user.id, params),
+  const projection = await cached(
+    caches.workouts as ServerCache<WorkoutsProjection>,
+    projectionKey,
+    () => buildWorkoutsProjection(user.id, { since, until, sportType }),
     annotate,
   );
+
+  const result = sliceWorkoutsProjection(projection, limit, offset);
 
   return apiSuccess(result);
 });
