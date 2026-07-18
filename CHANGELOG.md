@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.30.13] — 2026-07-18
+
+More pages that paint on first load.
+
+- **The insights, medications, and coach pages open with their content already there**, the same way the dashboard now does — their above-the-fold data is read on the server and handed to the page populated, instead of a shell that fills in after a second round of requests. Nothing that would trigger AI work is pre-run: the daily briefing and the coach's own reads stay on-demand as before.
+
+No breaking changes.
+
 ## [1.30.12] — 2026-07-18
 
 Faster medication reads.
