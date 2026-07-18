@@ -2262,7 +2262,7 @@
       "historySearchPlaceholder": "Search conversations…",
       "historyEmpty": "Your conversations will appear here. Ask anything to start.",
       "historyDeleteAria": "Delete conversation",
-      "historyDeleteConfirm": "Delete this conversation? This cannot be undone.",
+      "historyDeleted": "Conversation deleted",
       "sourcesTitle": "What I can see",
       "sourcesFresh": "Fresh",
       "sourcesStale": "Stale",

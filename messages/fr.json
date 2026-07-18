@@ -2262,7 +2262,7 @@
       "historySearchPlaceholder": "Rechercher dans les conversations…",
       "historyEmpty": "Tes conversations s’affichent ici. Lance une question pour commencer.",
       "historyDeleteAria": "Supprimer la conversation",
-      "historyDeleteConfirm": "Supprimer cette conversation ? Action irréversible.",
+      "historyDeleted": "Conversation supprimée",
       "sourcesTitle": "Ce à quoi j’accède",
       "sourcesFresh": "À jour",
       "sourcesStale": "Obsolètes",

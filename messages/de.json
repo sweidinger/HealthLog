@@ -2262,7 +2262,7 @@
       "historySearchPlaceholder": "Unterhaltungen durchsuchen…",
       "historyEmpty": "Deine Unterhaltungen erscheinen hier. Stell eine Frage, um zu starten.",
       "historyDeleteAria": "Unterhaltung löschen",
-      "historyDeleteConfirm": "Diese Unterhaltung löschen? Das lässt sich nicht rückgängig machen.",
+      "historyDeleted": "Unterhaltung gelöscht",
       "sourcesTitle": "Worauf ich zugreife",
       "sourcesFresh": "Aktuell",
       "sourcesStale": "Veraltet",

@@ -2262,7 +2262,7 @@
       "historySearchPlaceholder": "Szukaj w rozmowach…",
       "historyEmpty": "Twoje rozmowy pojawią się tutaj. Zadaj pytanie, aby zacząć.",
       "historyDeleteAria": "Usuń rozmowę",
-      "historyDeleteConfirm": "Usunąć tę rozmowę? Tego nie da się cofnąć.",
+      "historyDeleted": "Rozmowa usunięta",
       "sourcesTitle": "Do czego mam dostęp",
       "sourcesFresh": "Aktualne",
       "sourcesStale": "Nieaktualne",
