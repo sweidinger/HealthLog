@@ -16,7 +16,10 @@ import {
   enqueueStatusGeneration,
   type InsightStatusScope,
 } from "@/lib/jobs/insight-status-generate-shared";
-import { normalizeLocale } from "@/lib/insights/status-shared";
+import {
+  normalizeLocale,
+  type SupportedLocale,
+} from "@/lib/insights/status-shared";
 import { isTimeoutStub, statusCacheAction } from "@/lib/insights/status-cache";
 import {
   metricIdForMeasurementType,
@@ -218,7 +221,7 @@ export async function invalidateStatusInsightsForTypes(
  */
 export async function enqueueStatusRefillForUser(
   userId: string,
-  locale: "de" | "en",
+  locale: SupportedLocale,
 ): Promise<number> {
   const scopes = new Set<InsightStatusScope>(PER_STATUS_SCOPES);
   try {
@@ -257,7 +260,7 @@ export async function enqueueStatusRefillForUser(
  */
 async function findRecentlyWarmedScopes(
   userId: string,
-  locale: "de" | "en",
+  locale: SupportedLocale,
   scopes: ReadonlySet<InsightStatusScope>,
 ): Promise<Set<InsightStatusScope>> {
   const cutoff = new Date(Date.now() - INGEST_INVALIDATE_MIN_GAP_MS);

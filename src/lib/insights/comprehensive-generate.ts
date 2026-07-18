@@ -81,7 +81,10 @@ import {
   hasActiveConsentForSurface,
 } from "@/lib/ai/consent-guard";
 import { invalidateUserInsights } from "@/lib/cache/invalidate";
-import { stripJsonFences } from "@/lib/insights/status-shared";
+import {
+  stripJsonFences,
+  type SupportedLocale,
+} from "@/lib/insights/status-shared";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { annotate } from "@/lib/logging/context";
 import { AI_BUDGETS, resolveInsightsMaxTokens } from "@/lib/ai/ai-budgets";
@@ -149,7 +152,7 @@ async function rerollBriefingParagraph(args: {
   systemPrompt: string;
   userPrompt: string;
   cachedText: string;
-  locale: "de" | "en";
+  locale: SupportedLocale;
   /**
    * v1.18.10 (MEDIUM-3) — the pre-computed signals the briefing must match.
    * The reroll runs at a higher, seedless temperature for phrasing variety,
@@ -455,7 +458,7 @@ export async function buildComparisonSnapshotForUser(
  */
 function failBeforeProvider(
   userId: string,
-  locale: "de" | "en",
+  locale: SupportedLocale,
   reason: "payload-too-large" | "features-error" | "aborted",
   err?: unknown,
 ): GenerateOutcome {
@@ -475,7 +478,7 @@ function failBeforeProvider(
 
 interface GenerateOptions {
   /** Resolved UI locale for the prompt + cache row. */
-  locale: "de" | "en";
+  locale: SupportedLocale;
   /** Skip the 24 h cache short-circuit and force a fresh generation. */
   force?: boolean;
   /**

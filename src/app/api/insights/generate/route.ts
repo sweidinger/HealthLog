@@ -71,6 +71,7 @@ import { requireAssistantSurface } from "@/lib/feature-flags";
 import { invalidateUserInsights } from "@/lib/cache/invalidate";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { normalizeLocale } from "@/lib/insights/status-shared";
 import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { enqueueForceWarm } from "@/lib/jobs/insight-pregenerate-shared";
@@ -202,7 +203,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       request,
       userLocale: dbUser?.locale ?? user.locale ?? null,
     });
-    const locale = resolved === "de" ? "de" : "en";
+    const locale = normalizeLocale(resolved);
     void enqueueForceWarm({ userId, locale });
     revalidating = true;
   }
@@ -950,7 +951,7 @@ export const POST = apiHandler((request: NextRequest) =>
     // refresh path until the next nightly warm.
     const refillScopes = await enqueueStatusRefillForUser(
       userId,
-      locale === "de" ? "de" : "en",
+      normalizeLocale(locale),
     );
     annotate({
       action: { name: "insights.generate.cards_refill" },

@@ -55,6 +55,10 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getAssistantFlags } from "@/lib/feature-flags";
 import { annotate } from "@/lib/logging/context";
 import {
+  normalizeLocale as normalizeStatusLocale,
+  type SupportedLocale,
+} from "@/lib/insights/status-shared";
+import {
   generateComprehensiveInsight,
   type GenerateOutcome,
 } from "@/lib/insights/comprehensive-generate";
@@ -301,7 +305,7 @@ export interface PregenerateRunResult {
  */
 type StatusGenerator = (
   userId: string,
-  options: { locale: "de" | "en"; force?: boolean },
+  options: { locale: SupportedLocale; force?: boolean },
 ) => Promise<{ hasProvider: boolean; cached: boolean }>;
 
 /**
@@ -323,7 +327,7 @@ type StatusGenerator = (
  */
 async function warmPerStatusCaches(
   userId: string,
-  locales: ReadonlyArray<"de" | "en">,
+  locales: ReadonlyArray<SupportedLocale>,
   generators: ReadonlyArray<StatusGenerator>,
 ): Promise<number> {
   const limit = pLimit(WARM_PASS_CONCURRENCY);
@@ -372,7 +376,7 @@ async function warmPerStatusCaches(
  */
 async function warmStatusBatch(
   userId: string,
-  locales: ReadonlyArray<"de" | "en">,
+  locales: ReadonlyArray<SupportedLocale>,
 ): Promise<number> {
   let warmed = 0;
   for (const locale of locales) {
@@ -413,7 +417,7 @@ async function warmStatusBatch(
 async function warmGenericMetricCaches(
   prisma: PrismaClient,
   userId: string,
-  locales: ReadonlyArray<"de" | "en">,
+  locales: ReadonlyArray<SupportedLocale>,
 ): Promise<number> {
   // One distinct read: the set of MeasurementTypes the user has live
   // rows for. Best-effort — a read failure (or a worker prisma surface
@@ -532,12 +536,16 @@ export async function findPregenerateCandidates(
 }
 
 /**
- * Non-German locales resolve to ENGLISH (matching
- * `status-shared.normalizeLocale` and the no-key fallback routing) so a
- * fr/es/it/pl account gets English AI prose, not German.
+ * The user's stored locale, validated against the six the UI ships.
+ *
+ * This was a local `value === "de" ? "de" : "en"` copy, which flattened a
+ * fr/es/it/pl account to English before the warm pass ever reached a prompt.
+ * It now defers to the one shared validator so the reader's locale survives
+ * into the prompt's output-language directive; an unknown value still
+ * defaults to English, never German.
  */
-function normalizeLocale(value: string | null): "de" | "en" {
-  return value === "de" ? "de" : "en";
+function normalizeLocale(value: string | null): SupportedLocale {
+  return normalizeStatusLocale(value);
 }
 
 /**
@@ -555,7 +563,7 @@ export async function runInsightPregenerate(
     /** Injected for the test — defaults to the real generator. */
     generate?: (
       userId: string,
-      opts: { locale: "de" | "en"; force?: boolean; signal?: AbortSignal },
+      opts: { locale: SupportedLocale; force?: boolean; signal?: AbortSignal },
     ) => Promise<GenerateOutcome>;
     /** Injected for the test — defaults to the seven real status generators. */
     statusGenerators?: ReadonlyArray<StatusGenerator>;
@@ -566,7 +574,7 @@ export async function runInsightPregenerate(
      */
     warmGenericMetrics?: (
       userId: string,
-      locales: ReadonlyArray<"de" | "en">,
+      locales: ReadonlyArray<SupportedLocale>,
     ) => Promise<number>;
     /**
      * v1.28.30 — injected for the test. Defaults to the real delayed
@@ -576,7 +584,7 @@ export async function runInsightPregenerate(
      */
     enqueueRetry?: (payload: {
       userId: string;
-      locale: "de" | "en";
+      locale: SupportedLocale;
     }) => Promise<void>;
   } = {},
 ): Promise<PregenerateRunResult> {
@@ -589,13 +597,16 @@ export async function runInsightPregenerate(
   // production injects nothing, so the seven warm calls collapse into ONE
   // batched generation. The injected per-card path stays the test seam.
   const injectedStatusGenerators = options.statusGenerators;
-  const warmStatus = (userId: string, locales: ReadonlyArray<"de" | "en">) =>
+  const warmStatus = (
+    userId: string,
+    locales: ReadonlyArray<SupportedLocale>,
+  ) =>
     injectedStatusGenerators
       ? warmPerStatusCaches(userId, locales, injectedStatusGenerators)
       : warmStatusBatch(userId, locales);
   const warmGenericMetrics =
     options.warmGenericMetrics ??
-    ((userId: string, locales: ReadonlyArray<"de" | "en">) =>
+    ((userId: string, locales: ReadonlyArray<SupportedLocale>) =>
       warmGenericMetricCaches(prisma, userId, locales));
 
   const result: PregenerateRunResult = {
@@ -840,16 +851,16 @@ export async function runInsightPregenerate(
 export async function forceWarmUser(
   prisma: PrismaClient,
   userId: string,
-  locale: "de" | "en",
+  locale: SupportedLocale,
   options: {
     generate?: (
       userId: string,
-      opts: { locale: "de" | "en"; force?: boolean; signal?: AbortSignal },
+      opts: { locale: SupportedLocale; force?: boolean; signal?: AbortSignal },
     ) => Promise<GenerateOutcome>;
     statusGenerators?: ReadonlyArray<StatusGenerator>;
     warmGenericMetrics?: (
       userId: string,
-      locales: ReadonlyArray<"de" | "en">,
+      locales: ReadonlyArray<SupportedLocale>,
     ) => Promise<number>;
     /** Injected for the test — defaults to `new Date()`. */
     now?: Date;
@@ -863,13 +874,16 @@ export async function forceWarmUser(
     // v1.18.7 (HIGH-1) — batch the seven status warms into ONE provider call
     // in production; keep the per-card path when a test injects generators.
     const injectedStatusGenerators = options.statusGenerators;
-    const warmStatus = (userId: string, locales: ReadonlyArray<"de" | "en">) =>
+    const warmStatus = (
+      userId: string,
+      locales: ReadonlyArray<SupportedLocale>,
+    ) =>
       injectedStatusGenerators
         ? warmPerStatusCaches(userId, locales, injectedStatusGenerators)
         : warmStatusBatch(userId, locales);
     const warmGenericMetrics =
       options.warmGenericMetrics ??
-      ((id: string, locales: ReadonlyArray<"de" | "en">) =>
+      ((id: string, locales: ReadonlyArray<SupportedLocale>) =>
         warmGenericMetricCaches(prisma, id, locales));
     const now = options.now ?? new Date();
 
@@ -896,7 +910,7 @@ export async function forceWarmUser(
     // eviction; that eviction is gone, so the other locale family's rows
     // survive untouched and a client actually reading the second locale
     // warms it lazily through the read-path enqueue on its first miss.
-    const locales: ReadonlyArray<"de" | "en"> = [locale];
+    const locales: ReadonlyArray<SupportedLocale> = [locale];
 
     // The comprehensive step gets its own bounded budget and its failure is
     // non-fatal. A slow or stalled briefing generation must not short-circuit
