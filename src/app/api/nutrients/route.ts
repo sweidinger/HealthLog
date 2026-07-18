@@ -17,6 +17,7 @@ import { annotate } from "@/lib/logging/context";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { NUTRIENT_CODES, isNutrientCode } from "@/lib/nutrients/catalog";
 import { nutrientOverviewQuerySchema } from "@/lib/validations/nutrients";
+import { DEFAULT_TIMEZONE, shiftDateKey, userDayKey } from "@/lib/tz/format";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +37,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
   }
   const { days } = parsed.data;
 
-  // Window floor as a UTC day key. The stored `day` is a local-timezone
-  // key, so the UTC floor is off by at most one calendar day at the
-  // window edge — fine for a "last N days" summary card.
-  const since = new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  // v1.30 (DATAINT L4) — window floor anchored on the caller's own local
+  // "today" (`User.timezone`), mirroring the sibling `GET
+  // /api/nutrients/daily` route. The stored `day` is a local-timezone key,
+  // so a UTC floor was off by up to a calendar day at the window edge for
+  // any non-UTC user.
+  const userTz = user.timezone || DEFAULT_TIMEZONE;
+  const todayKey = userDayKey(new Date(), userTz);
+  const since = shiftDateKey(todayKey, -(days - 1));
 
   const rows = await prisma.nutrientIntakeDay.findMany({
     where: { userId: user.id, day: { gte: since } },
@@ -50,14 +53,26 @@ export const GET = apiHandler(async (request: NextRequest) => {
   });
 
   // v1.29 — `source` joined the PK (migration 0249): a day can now carry
-  // an APPLE_HEALTH row AND a MANUAL row, so the fold sums amounts
-  // WITHIN (nutrient, day) before folding across days. Rows arrive
-  // day-DESC inside each nutrient, so the first DAY seen per code is
-  // the latest; a second row for that same day (the other source) adds
-  // to the running total instead of opening a new "day".
+  // an APPLE_HEALTH row AND a MANUAL row. Rows arrive day-DESC inside each
+  // nutrient, so the first DAY seen per code is the latest; a second row
+  // for that same day (the other source) adds to the running total instead
+  // of opening a new "day".
+  //
+  // v1.30 (DATAINT M3) — `daysWithData` used to increment on every row
+  // whose `day` differed from the PINNED `latestDay` field, so a second
+  // source's row on an already-counted OLDER day (e.g. water logged via
+  // both APPLE_HEALTH and MANUAL on the same non-latest day) opened a
+  // second "day" for that same calendar date. `daysSeen` is a per-nutrient
+  // set of distinct day keys — every row adds to it, so a repeated day
+  // (any number of source rows) is counted exactly once.
   const byCode = new Map<
     string,
-    { unit: string; latestDay: string; latestAmount: number; days: number }
+    {
+      unit: string;
+      latestDay: string;
+      latestAmount: number;
+      daysSeen: Set<string>;
+    }
   >();
   for (const row of rows) {
     const existing = byCode.get(row.nutrient);
@@ -66,12 +81,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
         unit: row.unit,
         latestDay: row.day,
         latestAmount: row.amount,
-        days: 1,
+        daysSeen: new Set([row.day]),
       });
-    } else if (row.day === existing.latestDay) {
+      continue;
+    }
+    existing.daysSeen.add(row.day);
+    if (row.day === existing.latestDay) {
       existing.latestAmount += row.amount;
-    } else {
-      existing.days += 1;
     }
   }
 
@@ -86,7 +102,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       unit: summary.unit,
       latestDay: summary.latestDay,
       latestAmount: summary.latestAmount,
-      daysWithData: summary.days,
+      daysWithData: summary.daysSeen.size,
     };
   });
 

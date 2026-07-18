@@ -132,6 +132,32 @@ describe("GET /api/nutrients", () => {
     ]);
   });
 
+  it("counts a multi-source day once (DATAINT M3 regression)", async () => {
+    // v1.29 migration 0249 lets a day carry one row per source. A non-latest
+    // day logged via both APPLE_HEALTH and MANUAL must still count as ONE
+    // day, not two.
+    vi.mocked(prisma.nutrientIntakeDay.findMany).mockResolvedValue([
+      { nutrient: "water", unit: "ml", day: "2026-07-13", amount: 900 },
+      { nutrient: "water", unit: "ml", day: "2026-07-12", amount: 600 },
+      { nutrient: "water", unit: "ml", day: "2026-07-12", amount: 400 },
+      { nutrient: "water", unit: "ml", day: "2026-07-11", amount: 500 },
+    ] as never);
+
+    const res = await GET(getReq("?days=7"));
+    const body = (await res.json()) as OverviewResponse;
+    const water = body.data.nutrients.find((n) => n.nutrient === "water");
+    expect(water).toEqual({
+      nutrient: "water",
+      unit: "ml",
+      latestDay: "2026-07-13",
+      latestAmount: 900,
+      // Three distinct days (13th, 12th, 11th) — the buggy version counted
+      // four, since the 12th's second source row didn't match the pinned
+      // `latestDay` (the 13th) and opened a phantom extra day.
+      daysWithData: 3,
+    });
+  });
+
   it("scopes the query to the authenticated user and the window floor", async () => {
     await GET(getReq("?days=14"));
     expect(prisma.nutrientIntakeDay.findMany).toHaveBeenCalledWith(
