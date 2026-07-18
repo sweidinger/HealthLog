@@ -592,6 +592,7 @@
     "statusPresent": "Registrado",
     "statusAbsent": "Aún sin registrar",
     "statusModuleOff": "Desactivado",
+    "loadError": "No se pudo cargar el estado de seguimiento.",
     "connectCta": "Conectar una fuente",
     "viewCta": "Ver",
     "ecg": {

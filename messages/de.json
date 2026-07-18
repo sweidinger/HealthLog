@@ -592,6 +592,7 @@
     "statusPresent": "Erfasst",
     "statusAbsent": "Noch nicht erfasst",
     "statusModuleOff": "Aus",
+    "loadError": "Erfassungsstatus konnte nicht geladen werden.",
     "connectCta": "Quelle verbinden",
     "viewCta": "Ansehen",
     "ecg": {

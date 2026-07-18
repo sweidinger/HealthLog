@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Info } from "lucide-react";
+import { Info, type LucideIcon } from "lucide-react";
 
 import {
   Popover,
@@ -43,6 +43,18 @@ export interface InfoPopoverProps {
    */
   label?: string;
   className?: string;
+  /**
+   * Trigger glyph. Defaults to `Info` (h-3.5 w-3.5); the compliance-tip
+   * wrapper passes `HelpCircle` at `h-3 w-3` to keep its pre-merge look.
+   */
+  icon?: LucideIcon;
+  iconClassName?: string;
+  /** Popover alignment relative to the trigger. Defaults to `"end"`. */
+  align?: "start" | "center" | "end";
+  /** `data-slot` override for the trigger button. */
+  triggerDataSlot?: string;
+  /** `data-slot` override for the popover body. */
+  bodyDataSlot?: string;
 }
 
 export function InfoPopover({
@@ -50,6 +62,11 @@ export function InfoPopover({
   link,
   label,
   className,
+  icon: Icon = Info,
+  iconClassName = "h-3.5 w-3.5",
+  align = "end",
+  triggerDataSlot = "info-popover-trigger",
+  bodyDataSlot = "info-popover-body",
 }: InfoPopoverProps) {
   const { t } = useTranslations();
   const [open, setOpen] = useState(false);
@@ -59,7 +76,7 @@ export function InfoPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          data-slot="info-popover-trigger"
+          data-slot={triggerDataSlot}
           aria-label={label ?? t("common.moreInfo")}
           aria-expanded={open}
           className={cn(
@@ -70,12 +87,12 @@ export function InfoPopover({
             className,
           )}
         >
-          <Info className="h-3.5 w-3.5" aria-hidden="true" />
+          <Icon className={iconClassName} aria-hidden="true" />
         </button>
       </PopoverTrigger>
       <PopoverContent
-        data-slot="info-popover-body"
-        align="end"
+        data-slot={bodyDataSlot}
+        align={align}
         sideOffset={6}
         className="max-w-xs space-y-1.5"
       >

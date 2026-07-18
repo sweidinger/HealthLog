@@ -592,6 +592,7 @@
     "statusPresent": "Tracked",
     "statusAbsent": "Not tracked yet",
     "statusModuleOff": "Off",
+    "loadError": "Could not load your tracking status.",
     "connectCta": "Connect a source",
     "viewCta": "View",
     "ecg": {

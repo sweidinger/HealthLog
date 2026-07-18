@@ -364,8 +364,11 @@ export default function CoachConversationsPage() {
       data-slot="coach-conversations-page"
       // Match `/coach`'s full-bleed sizing: cancel the AuthShell padding
       // and claim the viewport height below the top bar (minus the
-      // mobile-only BottomNav band).
-      className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-8rem-env(safe-area-inset-bottom,0px))] min-h-[32rem] flex-col overflow-hidden md:-mx-6 md:h-[calc(100dvh-4rem)]"
+      // mobile-only BottomNav band). L4 fix
+      // (`.planning/audits/2026-07-18-qa-ui.md`) — this had dropped the
+      // `safe-area-inset-top` term `/coach` subtracts, overshooting by
+      // ~50px on notched devices; restored to match exactly.
+      className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-8rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] min-h-[32rem] flex-col overflow-hidden md:-mx-6 md:h-[calc(100dvh-4rem)]"
     >
       <CoachConversationsBody />
     </div>

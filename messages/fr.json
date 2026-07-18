@@ -592,6 +592,7 @@
     "statusPresent": "Suivi",
     "statusAbsent": "Pas encore suivi",
     "statusModuleOff": "Désactivé",
+    "loadError": "Impossible de charger l'état de suivi.",
     "connectCta": "Connecter une source",
     "viewCta": "Voir",
     "ecg": {

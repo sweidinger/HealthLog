@@ -592,6 +592,7 @@
     "statusPresent": "Śledzone",
     "statusAbsent": "Jeszcze nieśledzone",
     "statusModuleOff": "Wyłączone",
+    "loadError": "Nie udało się załadować statusu śledzenia.",
     "connectCta": "Połącz źródło",
     "viewCta": "Zobacz",
     "ecg": {

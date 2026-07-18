@@ -592,6 +592,7 @@
     "statusPresent": "Monitorato",
     "statusAbsent": "Non ancora monitorato",
     "statusModuleOff": "Disattivato",
+    "loadError": "Impossibile caricare lo stato di monitoraggio.",
     "connectCta": "Collega una fonte",
     "viewCta": "Visualizza",
     "ecg": {

@@ -7,8 +7,10 @@ import { cn } from "@/lib/utils";
  * the icon-only `MedicationViewToggle` chrome (bordered pill group, filled
  * active segment, ghost inactive) but carries text labels. `aria-pressed`
  * announces the state per segment; the group is named for screen readers.
- * Segments keep the 40-px mobile tap floor, shrinking to the 32-px control
- * height on desktop.
+ * Segments keep the 44-px mobile tap floor, shrinking to the 36-px control
+ * height on desktop — matching the floor `ViewToggle` and the sibling
+ * intake / history-rail controls raised in this release window (L3,
+ * `.planning/audits/2026-07-18-qa-ui.md`).
  */
 export interface SegmentedToggleOption<T extends string> {
   value: T;
@@ -49,7 +51,7 @@ export function SegmentedToggle<T extends string>({
             aria-pressed={active}
             data-slot={`${dataSlot ?? "segment"}-${optionValue}`}
             className={cn(
-              "focus-visible:ring-ring inline-flex min-h-10 items-center justify-center rounded-[5px] px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none motion-reduce:transition-none sm:min-h-8",
+              "focus-visible:ring-ring inline-flex min-h-11 items-center justify-center rounded-[5px] px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none motion-reduce:transition-none sm:min-h-9",
               active
                 ? "bg-secondary text-secondary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
