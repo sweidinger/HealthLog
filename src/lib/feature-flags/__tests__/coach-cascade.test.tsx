@@ -283,7 +283,7 @@ describe("Coach disable cascade invariant", () => {
     // v1.12.0 — the full-page Coach route gates on `flags.coach` and
     // redirects to `/insights` when the operator master flag is off.
     // v1.18.0 — moved to the standalone top-level `/coach` route.
-    "src/app/coach/page.tsx",
+    "src/app/coach/page-client.tsx",
     // v1.21.4 — the dedicated conversation-history page gates on
     // `flags.coach` like the main Coach route and renders unavailable
     // when the operator master flag is off.

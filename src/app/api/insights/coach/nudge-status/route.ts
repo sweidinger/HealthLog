@@ -24,46 +24,16 @@
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";
-import { prisma } from "@/lib/db";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { readCoachNudgeStatus } from "@/lib/ai/coach/nudge-status";
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
   await requireAssistantSurface("coach");
 
-  // The newest assistant message across the caller's conversations — the
-  // proactive nudge writes one, and so does every normal Coach reply. We
-  // intentionally key on assistant (not user) messages: the unread dot
-  // means "the Coach said something", and the open-stamp clears it.
-  const [lastAssistant, seen] = await Promise.all([
-    prisma.coachMessage.findFirst({
-      where: { role: "assistant", conversation: { userId: user.id } },
-      orderBy: { createdAt: "desc" },
-      // v1.22 (W5) — also return the owning conversation id so the FAB can
-      // deep-link straight into the proactive thread (`/coach?c=<id>`)
-      // instead of opening a blank new chat and relying on a most-recent
-      // heuristic to find it.
-      select: { createdAt: true, conversationId: true },
-    }),
-    prisma.user.findUnique({
-      where: { id: user.id },
-      select: { coachLastSeenAt: true },
-    }),
-  ]);
-
-  const nudgedAt = lastAssistant?.createdAt ?? null;
-  const lastSeenAt = seen?.coachLastSeenAt ?? null;
-  const unread =
-    nudgedAt !== null && (lastSeenAt === null || lastSeenAt < nudgedAt);
-
-  return apiSuccess({
-    nudgedAt: nudgedAt ? nudgedAt.toISOString() : null,
-    unread,
-    // The conversation holding the newest assistant message. Present
-    // whenever a Coach reply exists; the FAB only consumes it on the
-    // unread path.
-    conversationId: lastAssistant?.conversationId ?? null,
-  });
+  // Shared with the `/coach` RSC prefetch (`src/app/coach/page.tsx`) so both
+  // readers compute the unread signal identically.
+  return apiSuccess(await readCoachNudgeStatus(user.id));
 });
 
 export const dynamic = "force-dynamic";

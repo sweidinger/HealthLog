@@ -34,7 +34,9 @@ vi.mock("@/components/medications/log-intake-dialog", () => ({
   LogIntakeDialog: () => null,
 }));
 
-import MedicationsPage from "@/app/medications/page";
+// v1.30.x — `@/app/medications/page` is now an async RSC prefetch wrapper; the
+// interactive surface this test renders is the client leaf it wraps.
+import MedicationsPage from "@/app/medications/page-client";
 import { I18nProvider } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import type { MedicationListLayout } from "@/lib/medication-list-layout";

@@ -1,0 +1,199 @@
+"use client";
+
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+
+import { CoachConversation } from "@/components/insights/coach-panel/coach-conversation";
+import type { CoachNudgeStatus } from "@/components/insights/layout-coach-fab";
+import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
+import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
+import { useFeatureFlags } from "@/hooks/use-feature-flags";
+import { useDisableCoach } from "@/hooks/use-disable-coach";
+import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
+import { coachScopeSourceSchema } from "@/lib/ai/coach/types";
+
+/**
+ * v1.12.0 (Coach v2 #6) — full-page Coach conversation.
+ *
+ * Renders the exact same `<CoachConversation>` surface the drawer uses
+ * (history + streaming thread + composer + provenance + settings) at
+ * full width and height. There is no forked chat logic — the page is a
+ * thin chrome wrapper around the shared surface.
+ *
+ * v1.18.0 — the route is a standalone top-level page (`/coach`), no longer
+ * nested under `app/insights/layout.tsx`, so it renders in the standard
+ * page chrome WITHOUT the Insights tab strip. It still sits inside the
+ * authenticated `<AuthShell>` (which provides the `<CoachLaunchProvider>`
+ * the bottom-right FAB drawer reopens through), so the page inherits the
+ * same Coach feature gating as every other Coach surface. When the
+ * operator's master flag is off or the user opted out, the page redirects
+ * back to `/insights` rather than painting a dead chat shell.
+ *
+ * v1.18.10 (W4) — the page is now a single full-bleed conversation
+ * surface: the inner panel chrome (the bordered/rounded card) is gone so
+ * the chat is no longer a window-inside-a-window, and the top "back to the
+ * drawer" minimize control is removed (pointless on the dedicated page —
+ * the separate bottom-right FAB drawer is the compact surface). The chat
+ * claims the full content width and the viewport height below the top bar.
+ *
+ * v1.18.11 (W11) — ChatGPT-style IA: the page drops its own header bar
+ * AND the top conversation-history strip entirely. The composer is the
+ * single control hub (leading `+` actions menu = new chat + open
+ * conversations, settings deep-link, mic, send); conversation history is a
+ * left slide-in drawer opened from that menu. The composer keeps one
+ * constant, centred, max-width-capped column across the new-chat hero and
+ * the active conversation. All of that lives in `<CoachConversation>`'s
+ * page branch, so the page stays a thin gating + sizing wrapper.
+ *
+ * v1.19.1 (C1/C5) — the Coach now DEFAULTS to the new-chat hero, reversing
+ * the v1.19.0 (W7) "always resume most-recent" default the maintainer
+ * disliked. Resolution order on mount:
+ *   - `?c=<id>` → open that specific thread (explicit deep-link, unchanged).
+ *     The dedicated conversation-history page (`/coach/conversations`, added
+ *     in v1.21.4) routes back here with `?c=<id>` when a row is selected.
+ *   - `?c=new` or no param → the new-chat hero.
+ *   - EXCEPTION: when the Coach has proactively written an UNREAD message
+ *     (`/api/insights/coach/nudge-status` → `unread`), auto-open the
+ *     most-recent thread so the user lands on what the Coach said.
+ * The search-param read sits in a Suspense child so the client-bailout
+ * never de-opts the route.
+ *
+ * 2026-07-17 UX-flows audit — the route understood only `?c=` / `?doc=`, so
+ * every other cross-surface hand-off (a metric card's "ask about this", the
+ * Today check-in's "Adjust", a workout detail's coach button) dropped its
+ * context at the URL boundary and landed on a blank composer (F1-2 / F4-1 /
+ * F6-1). Two additive params close that gap, both seeding the SAME props
+ * `<CoachConversation>` already exposes for the drawer's suggested-prompt
+ * chips — no new plumbing inside the conversation surface itself:
+ *   - `?scope=<CoachScopeSource>` — narrows the snapshot the FIRST turn of a
+ *     fresh conversation reads (validated against the closed enum; an
+ *     unrecognised value is silently dropped rather than reaching the chat
+ *     route with a free-form string).
+ *   - `?ask=<text>` — seeds the composer prefill (mirrors `prefill` on the
+ *     in-app `askCoach()` launch call). The user still reviews/sends it —
+ *     this is a prefill, not an auto-send.
+ * Both are ignored once `?c=` or `?doc=` pin an existing/scoped thread — scope
+ * only ever applies to a fresh conversation's first turn.
+ */
+function CoachPageBody() {
+  const searchParams = useSearchParams();
+  // `?c=new` is an explicit "start a fresh chat" escape hatch; any other
+  // value is treated as a conversation id to open. A blank/absent param
+  // defaults to the new-chat hero.
+  const rawC = searchParams.get("c");
+  const deepLinkedId = rawC && rawC !== "new" ? rawC : null;
+  // v1.28.51 (Documents R3, Design A) — `?doc=<id>` seeds a fresh chat SCOPED
+  // to a stored document (the vault detail sheet's "Ask the Coach" action). An
+  // explicit `?c=<id>` thread wins over it (that thread carries its own scope).
+  const rawDoc = searchParams.get("doc");
+  const seedDocumentId = deepLinkedId === null && rawDoc ? rawDoc : null;
+
+  // A fresh conversation only — an existing thread (`?c=`) or a doc-scoped
+  // chat (`?doc=`) keeps its own established scope.
+  const freshChat = deepLinkedId === null && seedDocumentId === null;
+  const rawScope = freshChat ? searchParams.get("scope") : null;
+  const scopeResult = rawScope
+    ? coachScopeSourceSchema.safeParse(rawScope)
+    : null;
+  const launchScope: CoachLaunchScope | null = scopeResult?.success
+    ? { metric: scopeResult.data }
+    : null;
+  const seedPrefill = freshChat ? searchParams.get("ask") : null;
+
+  // C1 exception — an unread coach-initiated message opens the most-recent
+  // conversation (which holds that proactive turn). Only consulted when the
+  // entry did not pin a specific thread or ask for a fresh chat.
+  // A `?doc=` open is an explicit fresh doc-scoped chat — never override it by
+  // resuming the most-recent thread on an unread nudge. A `?scope=`/`?ask=`
+  // hand-off is likewise an explicit fresh-chat request.
+  const exceptionEligible =
+    deepLinkedId === null &&
+    rawC !== "new" &&
+    seedDocumentId === null &&
+    launchScope === null &&
+    !seedPrefill;
+  const { data: nudge } = useQuery({
+    queryKey: queryKeys.coachNudgeStatus(),
+    queryFn: async (): Promise<CoachNudgeStatus> =>
+      apiGet<CoachNudgeStatus>("/api/insights/coach/nudge-status"),
+    enabled: exceptionEligible,
+    staleTime: 5 * 60 * 1000,
+  });
+  const hasUnreadCoachMessage = exceptionEligible && nudge?.unread === true;
+
+  return (
+    <CoachConversation
+      surface="page"
+      autoFocusComposer
+      initialConversationId={deepLinkedId}
+      // v1.28.51 — seed the document scope for a `?doc=<id>` open so the first
+      // turn is created + sent through the hardened fenced document endpoint.
+      initialDocumentId={seedDocumentId}
+      // 2026-07-17 UX-flows audit F1-2/F4-1/F6-1 — seed the scope/prefill a
+      // cross-surface hand-off carried in the URL.
+      launchScope={launchScope}
+      prefill={seedPrefill}
+      // Default is the new-chat hero; only resume most-recent for the
+      // unread coach-initiated exception.
+      autoOpenMostRecent={hasUnreadCoachMessage}
+    />
+  );
+}
+
+export default function CoachPageClient() {
+  const router = useRouter();
+  const launch = useCoachLaunch();
+  const flags = useFeatureFlags();
+  const disableCoach = useDisableCoach();
+
+  const coachUnavailable = !flags.coach || disableCoach;
+
+  // Coach surface gating mirrors `<CoachLaunchButton>` / `<LayoutCoachFab>`:
+  // operator master flag OR per-user opt-out hides the Coach entirely.
+  // Send a direct navigator back to the Insights mother page so the
+  // route is never a dead-end.
+  useEffect(() => {
+    if (coachUnavailable) {
+      router.replace("/insights");
+    }
+  }, [coachUnavailable, router]);
+
+  // Reopening the bottom-right FAB drawer is no longer wired to a page
+  // control, but keep the launch context referenced so the lint rule does
+  // not flag the unused hook — the drawer the page hands back to lives in
+  // the shared `<AuthShell>`.
+  void launch;
+
+  if (coachUnavailable) return null;
+
+  return (
+    <div
+      data-slot="coach-page"
+      data-tour-id="coach-hero"
+      // v1.18.10 (W4) — full-bleed conversation surface. Cancel the
+      // AuthShell container's padding (`-mt-6` top, `-mb-20` bottom,
+      // `-mx-4 md:-mx-6` sides) so the chat is edge-to-edge and claims the
+      // full viewport height minus the top bar (`4rem`). No inner card:
+      // `<CoachConversation>` paints directly onto the page so it reads as
+      // one continuous conversation, not a window inside a window. The
+      // separate bottom-right FAB/overlay drawer stays the compact surface.
+      //
+      // v1.18.10 (W10) — height is mobile-aware. The fixed `<BottomNav>`
+      // (64px + iOS home-indicator inset) is mobile-only; the desktop
+      // full-bleed layout has no bottom nav. On mobile the page must subtract
+      // the TopBar (`4rem`) AND the BottomNav band (`4rem` +
+      // `env(safe-area-inset-bottom)`) so the docked composer / Stop control
+      // always clears the nav instead of sitting under it. On `md+` the nav
+      // is hidden, so the page reclaims the full height below the TopBar.
+      className="bg-background -mx-4 -mt-6 -mb-20 flex h-[calc(100dvh-8rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] min-h-[32rem] flex-col overflow-hidden md:-mx-6 md:h-[calc(100dvh-4rem)]"
+    >
+      {/* `useSearchParams` requires a Suspense boundary so the client-search
+          bailout never opts the whole route out of static optimisation. */}
+      <Suspense fallback={null}>
+        <CoachPageBody />
+      </Suspense>
+    </div>
+  );
+}

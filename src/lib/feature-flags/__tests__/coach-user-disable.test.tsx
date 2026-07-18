@@ -297,7 +297,12 @@ describe("Coach per-user disableCoach invariant", () => {
     // FAB gate: operator master flag OR per-user opt-out redirects the
     // page back to `/insights` instead of painting a dead chat shell.
     // v1.18.0 — moved to the standalone top-level `/coach` route.
+    // v1.30.x — split into an RSC prefetch wrapper (`page.tsx`, which reads
+    // `session.user.disableCoach` to skip the nudge prefetch for an opted-out
+    // account) + the client leaf (`page-client.tsx`, the `useDisableCoach`
+    // render-path gate). Both legitimately read the per-user flag.
     "src/app/coach/page.tsx",
+    "src/app/coach/page-client.tsx",
     // v1.21.4 — the dedicated conversation-history page mirrors the
     // Coach route gate: operator master flag OR per-user opt-out marks
     // the page unavailable instead of painting a dead history shell.

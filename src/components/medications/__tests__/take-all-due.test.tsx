@@ -508,7 +508,7 @@ describe("<TakeAllDueDialog> — confirm dialog lists the due medications", () =
     "utf8",
   );
   const pageSrc = readFileSync(
-    resolve(__dirname, "../../../app/medications/page.tsx"),
+    resolve(__dirname, "../../../app/medications/page-client.tsx"),
     "utf8",
   );
 

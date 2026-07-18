@@ -25,7 +25,7 @@ import { join } from "node:path";
  */
 describe("insights mother-page dynamic-skeleton loaders use the shared BlockSkeleton", () => {
   const src = readFileSync(
-    join(process.cwd(), "src/app/insights/page.tsx"),
+    join(process.cwd(), "src/app/insights/page-client.tsx"),
     "utf8",
   );
 

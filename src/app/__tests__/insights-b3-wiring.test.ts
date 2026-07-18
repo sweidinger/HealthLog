@@ -20,7 +20,7 @@ import { join } from "node:path";
  */
 
 const ROOT = join(__dirname, "../../..");
-const INSIGHTS_PATH = join(ROOT, "src/app/insights/page.tsx");
+const INSIGHTS_PATH = join(ROOT, "src/app/insights/page-client.tsx");
 const ANALYTICS_ROUTE_PATH = join(ROOT, "src/app/api/analytics/route.ts");
 const ADVISOR_HOOK_PATH = join(
   ROOT,
