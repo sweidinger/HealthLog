@@ -27,6 +27,8 @@ import {
   coachScopeSourceSchema,
   coachScopeWindowSchema,
 } from "@/lib/ai/coach/types";
+import { isModuleEnabled } from "@/lib/modules/gate";
+import { getAssistantFlags } from "@/lib/feature-flags";
 import { resolveBaseOrigin } from "@/lib/mcp/oauth/config";
 import {
   getCorrelation,
@@ -36,8 +38,19 @@ import {
   getLabHistory,
   LAB_HISTORY_MAX_LIMIT,
   MCP_CLINICAL_SIGNALS,
+  MCP_METRIC_STATUS_DISCOVERY,
+  metricStatusDiscoveryRows,
   type DateRange,
 } from "@/lib/mcp/rich-reads";
+import {
+  getNutrients,
+  resolveNutrientCode,
+  NUTRIENT_LABELS,
+  type NutrientsDailyResult,
+} from "@/lib/mcp/nutrients-read";
+import { NUTRIENT_CODES } from "@/lib/nutrients/catalog";
+import { loadIntradayPulse } from "@/lib/analytics/intraday-pulse-io";
+import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
 import { encodeOffsetCursor, decodeOffsetCursor } from "@/lib/mcp/pagination";
 import {
   computeDisplayDue,
@@ -238,6 +251,42 @@ function plainClinicalText(
 }
 
 /**
+ * Render a `fetch` result for a nutrient code as a plain-text citation
+ * sentence: the most recent non-zero day's total plus the resolved EFSA
+ * reference (target vs upper-guidance ceiling), quoting only values the
+ * result carried. Never fabricates a figure.
+ */
+function plainNutrientText(
+  label: string,
+  result: NutrientsDailyResult,
+): string {
+  if (!result.present) {
+    return result.reason === "module_disabled"
+      ? `${label}: nutrient tracking is turned off for this account.`
+      : `No recent ${label.toLowerCase()} data is on file.`;
+  }
+  const unit = result.unit ? ` ${result.unit}` : "";
+  const latestDay = [...(result.days ?? [])]
+    .reverse()
+    .find((d) => d.amount > 0);
+  const parts: string[] = [];
+  if (latestDay) {
+    parts.push(
+      `most recent logged day ${latestDay.day}: ${round1(latestDay.amount)}${unit}`,
+    );
+  }
+  const ref = result.reference;
+  if (ref) {
+    const verb =
+      ref.direction === "upperGuidance" ? "guidance ceiling" : "target";
+    parts.push(`EFSA ${verb} ${round1(ref.value)}${unit}`);
+  }
+  return parts.length > 0
+    ? `${label}: ${parts.join(", ")}.`
+    : `${label}: data is on file for the recent window.`;
+}
+
+/**
  * The `search` + `fetch` pair — the de-facto two-tool retrieval convention and,
  * critically, the ONLY tools ChatGPT can call in its default (non-Developer)
  * mode. Without them HealthLog is invisible in default ChatGPT. The exact wire
@@ -337,20 +386,27 @@ function searchAndFetchTools(): McpToolDefinition[] {
           });
         }
 
-        // v1.25 clinical signals (grip strength, pain NRS, waist / WHtR) — off
-        // the Coach data inventory by design, so they are surfaced here directly.
-        // One grouped presence probe over their backing measurement types;
-        // present-only, in a stable (allowlist) order. `fetch metric:<KEY>`
-        // hydrates each via the rollup-backed baseline read.
-        const clinicalPresent = await prisma.measurement.groupBy({
+        // v1.25 clinical signals (grip strength, pain NRS, waist / WHtR) PLUS
+        // the v1.30 coverage-review metric-status-only set (wrist
+        // temperature, cardio recovery, sleep score, breathing disturbances,
+        // strain/load, …) — both sit off the Coach data inventory by design,
+        // so they are surfaced here directly. One grouped presence probe over
+        // the combined backing measurement types; present-only, in a stable
+        // (allowlist) order. `fetch metric:<KEY>` hydrates each via the
+        // rollup-backed baseline read.
+        const discoverableSignals = [
+          ...MCP_CLINICAL_SIGNALS,
+          ...MCP_METRIC_STATUS_DISCOVERY,
+        ];
+        const discoverablePresent = await prisma.measurement.groupBy({
           by: ["type"],
           where: {
             userId: ctx.userId,
-            type: { in: MCP_CLINICAL_SIGNALS.map((s) => s.measurementType) },
+            type: { in: discoverableSignals.map((s) => s.measurementType) },
           },
         });
-        const presentTypes = new Set(clinicalPresent.map((r) => r.type));
-        for (const sig of MCP_CLINICAL_SIGNALS) {
+        const presentTypes = new Set(discoverablePresent.map((r) => r.type));
+        for (const sig of discoverableSignals) {
           if (!presentTypes.has(sig.measurementType)) continue;
           const hay = `${sig.label} ${sig.key}`.toLowerCase();
           if (query && !hay.includes(query)) continue;
@@ -359,6 +415,35 @@ function searchAndFetchTools(): McpToolDefinition[] {
             title: sig.label,
             url: `${origin}/insights?metric=${encodeURIComponent(sig.key)}`,
           });
+        }
+
+        // v1.30 (G1) — nutrients (water/caffeine/24 micronutrients) presence
+        // probe, gated on the opt-in `nutrients` module exactly like the
+        // ingest/read routes: an account that never turned the module on gets
+        // no rows here, mirroring the module's own dark-by-default posture.
+        // One grouped presence query over the closed catalog, mirroring the
+        // clinical-signal probe above. Without this, `search("water")` /
+        // `search("magnesium")` returned `[]` even for a daily logger — a
+        // truthfulness bug under the server's own absence contract.
+        if (await isModuleEnabled(ctx.userId, "nutrients")) {
+          const nutrientPresent = await prisma.nutrientIntakeDay.groupBy({
+            by: ["nutrient"],
+            where: { userId: ctx.userId },
+          });
+          const loggedNutrients = new Set(
+            nutrientPresent.map((r) => r.nutrient),
+          );
+          for (const code of NUTRIENT_CODES) {
+            if (!loggedNutrients.has(code)) continue;
+            const label = NUTRIENT_LABELS[code];
+            const hay = `${label} ${code} nutrient nutrients`.toLowerCase();
+            if (query && !hay.includes(query)) continue;
+            results.push({
+              id: `nutrient:${code}`,
+              title: label,
+              url: `${origin}/insights/nutrients`,
+            });
+          }
         }
 
         // Cursor pagination over the assembled result set (was a silent
@@ -407,22 +492,24 @@ function searchAndFetchTools(): McpToolDefinition[] {
         });
 
         if (kind === "metric" && rid) {
-          // v1.25 clinical signals sit off the Coach snapshot, so hydrate them
-          // through the rollup-backed baseline read rather than the Coach
+          // v1.25 clinical signals AND the v1.30 metric-status-only discovery
+          // set both sit off the Coach snapshot, so hydrate them through the
+          // rollup-backed baseline read rather than the Coach
           // `get_metric_series` path (which would report no data for them).
-          const clinical = MCP_CLINICAL_SIGNALS.find(
-            (s) => s.key.toLowerCase() === rid.toLowerCase(),
-          );
-          if (clinical) {
+          const discoverable = [
+            ...MCP_CLINICAL_SIGNALS,
+            ...MCP_METRIC_STATUS_DISCOVERY,
+          ].find((s) => s.key.toLowerCase() === rid.toLowerCase());
+          if (discoverable) {
             const baseline = await getMetricBaseline(ctx.userId, {
-              metric: clinical.key,
+              metric: discoverable.key,
             });
             return {
               id,
-              title: clinical.label,
-              text: plainClinicalText(clinical.label, baseline),
-              url: `${origin}/insights?metric=${encodeURIComponent(clinical.key)}`,
-              metadata: { type: "metric", metric: clinical.key },
+              title: discoverable.label,
+              text: plainClinicalText(discoverable.label, baseline),
+              url: `${origin}/insights?metric=${encodeURIComponent(discoverable.key)}`,
+              metadata: { type: "metric", metric: discoverable.key },
             };
           }
           const result = await executeCoachTool({
@@ -437,6 +524,30 @@ function searchAndFetchTools(): McpToolDefinition[] {
             // The metric page deep-link; the insights surface renders the series.
             url: `${origin}/insights?metric=${encodeURIComponent(rid)}`,
             metadata: { type: "metric", metric: rid },
+          };
+        }
+
+        if (kind === "nutrient" && rid) {
+          const code = resolveNutrientCode(rid);
+          if (!code) {
+            return {
+              id,
+              title: "Not found",
+              text: `No nutrient matches "${rid}".`,
+              url: `${origin}/insights/nutrients`,
+              metadata: { type: "nutrient" },
+            };
+          }
+          const result = (await getNutrients(ctx.userId, {
+            nutrient: code,
+          })) as NutrientsDailyResult;
+          const label = NUTRIENT_LABELS[code];
+          return {
+            id,
+            title: label,
+            text: plainNutrientText(label, result),
+            url: `${origin}/insights/nutrients`,
+            metadata: { type: "nutrient", nutrient: code },
           };
         }
 
@@ -754,6 +865,114 @@ const getPreventiveCareOutput: z.ZodRawShape = {
     .optional(),
 };
 
+/**
+ * Output schema for `get_nutrients` — either the presence overview (no
+ * `nutrient` arg) or one nutrient's per-day series + reference. Every field
+ * beyond `present` is optional so both shapes validate against one schema.
+ */
+const getNutrientsOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  windowDays: z.number().optional(),
+  // Overview mode.
+  nutrients: z
+    .array(
+      z.object({
+        nutrient: z.string(),
+        label: z.string(),
+        unit: z.string(),
+        latestDay: z.string(),
+        latestAmount: z.number(),
+        daysWithData: z.number(),
+      }),
+    )
+    .optional(),
+  // Per-nutrient mode.
+  nutrient: z.string().optional(),
+  label: z.string().optional(),
+  unit: z.string().optional(),
+  days: z.array(z.object({ day: z.string(), amount: z.number() })).optional(),
+  reference: z
+    .object({
+      kind: z.enum(["PRI", "AI", "safeLevel"]),
+      direction: z.enum(["target", "upperGuidance"]),
+      value: z.number(),
+      source: z.string(),
+    })
+    .nullable()
+    .optional(),
+};
+
+/**
+ * Output schema for `get_intraday_pulse` — the 10-minute "shape of the day"
+ * plus, when every confidence gate holds, one cautious elevated-at-rest
+ * ("tension") window. Verbatim re-export of `IntradayPulseResult`
+ * (`intraday-pulse-io.ts`); `resolution` tells the caller whether `series` is
+ * the dense 10-minute grain or the coarser hourly fallback.
+ */
+const getIntradayPulseOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  dateKey: z.string().optional(),
+  timezone: z.string().optional(),
+  bucketMinutes: z.number().optional(),
+  resolution: z.enum(["tenMin", "hourly"]).optional(),
+  series: z
+    .array(
+      z.object({
+        startMinute: z.number(),
+        mean: z.number(),
+        count: z.number(),
+      }),
+    )
+    .optional(),
+  baseline: z.number().nullable().optional(),
+  baselineSource: z.enum(["resting", "proxy", "none"]).optional(),
+  tension: z
+    .object({
+      startMinute: z.number(),
+      endMinute: z.number(),
+      partOfDay: z.enum(["morning", "afternoon", "evening", "night"]),
+      meanHr: z.number(),
+      baseline: z.number(),
+      hrvConfirmed: z.boolean(),
+    })
+    .nullable()
+    .optional(),
+};
+
+/** Defensive cap, mirrors `GET /api/insights/ecg`'s `MAX_RECORDINGS`. */
+const MAX_ECG_RECORDINGS = 200;
+
+/**
+ * Output schema for `get_ecg_recordings` — METADATA only. `waveformEncrypted`
+ * is never selected by the underlying query, let alone shaped here.
+ * `classification` is the device's own verbatim verdict; `classificationSource`
+ * is a fixed literal so a caller can never mistake it for a HealthLog-derived
+ * read.
+ */
+const getEcgRecordingsOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  classificationSource: z.literal("device").optional(),
+  recordings: z
+    .array(
+      z.object({
+        id: z.string(),
+        recordedAt: z.string(),
+        durationSeconds: z.number().nullable(),
+        samplingFrequency: z.number(),
+        sampleCount: z.number(),
+        averageHeartRate: z.number().nullable(),
+        lead: z.string().nullable(),
+        classification: z.string().nullable(),
+        source: z.string(),
+        hasWaveform: z.boolean(),
+      }),
+    )
+    .optional(),
+};
+
 export const MCP_TOOLS: McpToolDefinition[] = [
   {
     name: "list_metrics",
@@ -764,7 +983,18 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     annotations: READ_ONLY_ANNOTATIONS,
     outputShape: listMetricsOutput,
     async run(ctx) {
-      const inventory = await buildCoachDataInventory(ctx.userId, undefined);
+      const [inventory, statusDiscoveryRows] = await Promise.all([
+        buildCoachDataInventory(ctx.userId, undefined),
+        // v1.30 coverage review (G5/C4) — the metric-status-only set
+        // (wrist temperature, cardio recovery, sleep score, breathing
+        // disturbances, strain/load, …) is resolvable via `compare_metric` /
+        // `get_metric_baseline` but sits off the Coach snapshot inventory, so
+        // it never advertised itself here. Appended as supplement rows
+        // rather than folded into `buildCoachDataInventory` (Coach-owned)
+        // to keep the addition MCP-side, mirroring how the `search` probe
+        // already surfaces the sibling v1.25 clinical-signal set.
+        metricStatusDiscoveryRows(ctx.userId),
+      ]);
       annotate({
         action: { name: "mcp.tool.invoked" },
         meta: { tool: "list_metrics", present: true },
@@ -774,7 +1004,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         window: inventory.window,
         restMode: inventory.restMode,
         cycleEnabled: inventory.cycleEnabled,
-        metrics: inventory.entries,
+        metrics: [...inventory.entries, ...statusDiscoveryRows],
       };
     },
   },
@@ -1320,6 +1550,178 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         meta: { tool: "get_preventive_care", present: true },
       });
       return { present: true, checkups };
+    },
+  },
+  // ── v1.30 coverage review (G1) — the nutrients pipeline ─────────────
+  {
+    name: "get_nutrients",
+    title: "Get nutrient intake",
+    description:
+      "Fetch the user's synced micronutrient intake — water, caffeine, and the 24 tracked vitamins/minerals — as day totals summed across sources (e.g. an Apple Health sync AND a manual water entry on the same day). Omit `nutrient` for a presence overview across every logged code (latest logged day, latest day's total, days with data). Pass a catalog code or display name (e.g. 'water', 'magnesium', 'vitamin_d') for that nutrient's per-day series over a trailing window, plus its EFSA dietary reference resolved against the user's own profile sex — omitted, never guessed, when sex is not on file. Gated on the opt-in `nutrients` module. Returns { present: false, reason: \"module_disabled\" } when the module is off, or { present: false } when nothing matches.",
+    inputShape: {
+      nutrient: z
+        .string()
+        .min(1)
+        .max(40)
+        .optional()
+        .describe(
+          "A catalog code (e.g. 'water', 'caffeine', 'vitamin_d', 'magnesium') or its display name. Omit for a presence overview across all logged nutrients.",
+        ),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(365)
+        .optional()
+        .describe(
+          "Trailing window in days. Overview mode (no `nutrient`) defaults to 14, capped at 365. Per-nutrient mode defaults to 30, capped at 90.",
+        ),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getNutrientsOutput,
+    async run(ctx, args) {
+      const result = await getNutrients(ctx.userId, {
+        nutrient: typeof args.nutrient === "string" ? args.nutrient : undefined,
+        days: typeof args.days === "number" ? args.days : undefined,
+      });
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: { tool: "get_nutrients", present: result.present },
+      });
+      return result;
+    },
+  },
+  // ── v1.30 coverage review (G2) — the intraday pulse / "shape of the day" ──
+  {
+    name: "get_intraday_pulse",
+    title: "Get the intraday pulse shape",
+    description:
+      "Fetch the user's own 10-minute heart-rate shape for ONE local day — 'what happened this afternoon?', 'was I tense during the meeting?'. When every confidence gate holds, also carries a single cautious elevated-at-rest ('tension') window: a DESCRIPTIVE pattern only, NEVER a stress diagnosis. Falls back to an hourly-grain shape for a day outside the dense-retention window — see the `resolution` field ('tenMin' vs 'hourly'); `tension` is only ever computed at the dense grain. Gated on the `insights` module. Returns { present: false, reason: \"module_disabled\" } when the module is off, or { present: false } when the day has no pulse data.",
+    inputShape: {
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe(
+          "YYYY-MM-DD in the user's own timezone. Defaults to the user's local today.",
+        ),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getIntradayPulseOutput,
+    async run(ctx, args) {
+      const enabled = await isModuleEnabled(ctx.userId, "insights");
+      if (!enabled) {
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "get_intraday_pulse", present: false },
+        });
+        return { present: false, reason: "module_disabled" };
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { timezone: true },
+      });
+      const timezone = user?.timezone || DEFAULT_TIMEZONE;
+      const dateKey =
+        typeof args.date === "string" && args.date
+          ? args.date
+          : userDayKey(new Date(), timezone);
+
+      const result = await loadIntradayPulse(ctx.userId, timezone, dateKey);
+      const present = result.series.length > 0;
+
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: { tool: "get_intraday_pulse", present },
+      });
+      return {
+        present,
+        ...(present ? {} : { reason: "no_data" }),
+        dateKey: result.dateKey,
+        timezone: result.timezone,
+        bucketMinutes: result.bucketMinutes,
+        resolution: result.resolution,
+        series: result.series,
+        baseline: result.baseline,
+        baselineSource: result.baselineSource,
+        tension: result.tension,
+      };
+    },
+  },
+  // ── v1.30 coverage review (G3) — ECG recording metadata ─────────────
+  {
+    name: "get_ecg_recordings",
+    title: "Get ECG recordings",
+    description:
+      "Fetch METADATA for the user's own ECG recordings — recorded time, duration, sampling rate, sample count, average heart rate, lead, and the DEVICE's own rhythm classification. NEVER reads or returns the waveform (that stays app-only). Non-diagnostic: this reflects ONLY the classification result the recording device's own certified on-device algorithm produced — HealthLog never re-classifies an ECG and never forms a diagnosis from it; `classificationSource` is always the fixed literal 'device'. Gated on the `insights` module. Returns { present: false, reason: \"module_disabled\" } when the module (or the assistant surface) is off, or { present: false } when no recordings exist.",
+    inputShape: {},
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getEcgRecordingsOutput,
+    async run(ctx) {
+      const moduleEnabled = await isModuleEnabled(ctx.userId, "insights");
+      const insightStatusEnabled = moduleEnabled
+        ? (await getAssistantFlags()).insightStatus
+        : false;
+      if (!moduleEnabled || !insightStatusEnabled) {
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "get_ecg_recordings", present: false },
+        });
+        return { present: false, reason: "module_disabled" };
+      }
+
+      const rows = await prisma.ecgRecording.findMany({
+        where: { userId: ctx.userId },
+        // Everything EXCEPT `waveformEncrypted` — mirrors `GET
+        // /api/insights/ecg`'s own select exactly; no decrypt ever happens
+        // on this path.
+        select: {
+          id: true,
+          recordedAt: true,
+          durationSeconds: true,
+          samplingFrequency: true,
+          sampleCount: true,
+          averageHeartRate: true,
+          lead: true,
+          rhythmClassification: true,
+          source: true,
+        },
+        orderBy: { recordedAt: "desc" },
+        take: MAX_ECG_RECORDINGS,
+      });
+
+      if (rows.length === 0) {
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "get_ecg_recordings", present: false },
+        });
+        return { present: false, reason: "no_data" };
+      }
+
+      const recordings = rows.map((r) => ({
+        id: r.id,
+        recordedAt: r.recordedAt.toISOString(),
+        durationSeconds: r.durationSeconds,
+        samplingFrequency: r.samplingFrequency,
+        sampleCount: r.sampleCount,
+        averageHeartRate: r.averageHeartRate,
+        lead: r.lead,
+        classification: r.rhythmClassification,
+        source: r.source,
+        // A `ts-` fallback event carries a verdict but no signal to fetch.
+        hasWaveform: r.sampleCount > 0,
+      }));
+
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: { tool: "get_ecg_recordings", present: true },
+      });
+      return {
+        present: true,
+        classificationSource: "device" as const,
+        recordings,
+      };
     },
   },
   ...searchAndFetchTools(),

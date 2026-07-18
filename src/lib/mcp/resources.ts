@@ -34,6 +34,10 @@ import {
   BIOMARKER_PANELS,
 } from "@/lib/labs/biomarker-catalog";
 import { collectDoctorReportData } from "@/lib/doctor-report-data";
+import { isModuleEnabled } from "@/lib/modules/gate";
+import { NUTRIENT_CODES, type NutrientCode } from "@/lib/nutrients/catalog";
+import { getNutrients, NUTRIENT_LABELS } from "@/lib/mcp/nutrients-read";
+import { metricStatusDiscoveryRows } from "@/lib/mcp/rich-reads";
 import { summariseForVisit } from "./doctor-visit-summary";
 import type { McpAuthContext } from "./auth";
 
@@ -238,7 +242,12 @@ export const MCP_RESOURCES: McpResourceDefinition[] = [
       "What health data the user has and which tool retrieves each domain — one row per domain with presence + approximate sample count. The same manifest list_metrics returns; read this first to discover what is available before fetching figures.",
     mimeType: "application/json",
     async read(ctx) {
-      const inventory = await buildCoachDataInventory(ctx.userId, undefined);
+      const [inventory, statusDiscoveryRows] = await Promise.all([
+        buildCoachDataInventory(ctx.userId, undefined),
+        // v1.30 coverage review (G5/C4) — mirrors the same supplement rows
+        // `list_metrics` appends, so the two discovery surfaces stay in sync.
+        metricStatusDiscoveryRows(ctx.userId),
+      ]);
       annotate({
         action: { name: "mcp.resource.read" },
         meta: { resource: "measurements-inventory", present: true },
@@ -248,7 +257,7 @@ export const MCP_RESOURCES: McpResourceDefinition[] = [
         window: inventory.window,
         restMode: inventory.restMode,
         cycleEnabled: inventory.cycleEnabled,
-        metrics: inventory.entries,
+        metrics: [...inventory.entries, ...statusDiscoveryRows],
       };
     },
   },
@@ -329,6 +338,32 @@ async function completeAnalyte(
 ): Promise<string[]> {
   const v = value.toLowerCase();
   return (await userAnalytes(ctx)).filter((a) => a.toLowerCase().includes(v));
+}
+
+/**
+ * The user's own logged nutrient codes (v1.30 coverage review G1). Gated on
+ * the opt-in `nutrients` module exactly like `get_nutrients` — an account
+ * with the module off sees an empty template, never a leaked code list.
+ */
+async function userNutrientCodes(ctx: McpAuthContext): Promise<NutrientCode[]> {
+  const enabled = await isModuleEnabled(ctx.userId, "nutrients");
+  if (!enabled) return [];
+  const rows = await prisma.nutrientIntakeDay.groupBy({
+    by: ["nutrient"],
+    where: { userId: ctx.userId },
+  });
+  const logged = new Set(rows.map((r) => r.nutrient));
+  return NUTRIENT_CODES.filter((code) => logged.has(code));
+}
+
+async function completeNutrient(
+  ctx: McpAuthContext,
+  value: string,
+): Promise<string[]> {
+  const v = value.toLowerCase();
+  return (await userNutrientCodes(ctx)).filter((code) =>
+    code.toLowerCase().includes(v),
+  );
 }
 
 export const MCP_RESOURCE_TEMPLATES: McpResourceTemplateDefinition[] = [
@@ -467,6 +502,32 @@ export const MCP_RESOURCE_TEMPLATES: McpResourceTemplateDefinition[] = [
           scheduleType: s.scheduleType,
         })),
       };
+    },
+  },
+  {
+    name: "nutrient",
+    uriTemplate: "healthlog://nutrient/{code}",
+    title: "Nutrient intake",
+    description:
+      "One tracked nutrient's per-day summed intake series (e.g. healthlog://nutrient/water) over the default 30-day window, plus its EFSA dietary reference resolved against the user's own profile sex. Same read get_nutrients serves. Gated on the opt-in nutrients module. Returns { present: false } when the module is off or nothing is logged for that code.",
+    mimeType: "application/json",
+    complete: { code: completeNutrient },
+    async list(ctx) {
+      const codes = await userNutrientCodes(ctx);
+      return codes.map((code) => ({
+        uri: `healthlog://nutrient/${code}`,
+        name: code,
+        title: `Nutrient: ${NUTRIENT_LABELS[code]}`,
+      }));
+    },
+    async read(ctx, variables) {
+      const code = firstVar(variables.code);
+      const result = await getNutrients(ctx.userId, { nutrient: code });
+      annotate({
+        action: { name: "mcp.resource.read" },
+        meta: { resource: "nutrient", present: result.present },
+      });
+      return result;
     },
   },
   {

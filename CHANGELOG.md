@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.30.4] — 2026-07-18
+
+The read-only assistant connector now reaches the full record.
+
+- **More of your data is readable.** The connector gained direct reads for nutrition and vitamins, the intraday pulse curve, and stored ECG recordings, plus discovery for a set of device metrics that were collected but not advertised — wrist temperature, cardio recovery and load, day and workout strain, sleep score, breathing disturbances, fall count, the six-minute-walk distance, stair speeds, and energy expenditure. They can now be compared and baselined by name.
+- **Correctness.** Heart-rate variability resolves whether the source records the SDNN or the RMSSD flavour, so a ring- or strap-only account is no longer reported as having none. A workout logged by two devices is counted once, matching the workouts list — this also corrects the figure the coach sees.
+- **Exposure stays deliberate.** The mental-health screeners and the environmental signals remain off the connector by construction; a metric is only readable once it has been named for it.
+
+No migration. No breaking changes.
+
 ## [1.30.3] — 2026-07-18
 
 Follow-up fixes from a full quality re-check of the app.

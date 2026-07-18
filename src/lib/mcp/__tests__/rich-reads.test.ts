@@ -15,10 +15,13 @@ vi.mock("@/lib/rollups/measurement-read-wmy", async (importOriginal) => {
     await importOriginal<typeof import("@/lib/rollups/measurement-read-wmy")>();
   return { ...actual, readBestGranularityRollups: vi.fn() };
 });
-const { labResult } = vi.hoisted(() => ({
+const { labResult, measurement } = vi.hoisted(() => ({
   labResult: { findMany: vi.fn() },
+  // `withHrvFallback`'s presence probe (`count`) + the discovery presence
+  // query (`groupBy`). Unused by metrics that don't exercise them.
+  measurement: { count: vi.fn(), groupBy: vi.fn(async () => []) },
 }));
-vi.mock("@/lib/db", () => ({ prisma: { labResult } }));
+vi.mock("@/lib/db", () => ({ prisma: { labResult, measurement } }));
 
 import {
   getCorrelation,
@@ -27,6 +30,8 @@ import {
   detectChangepoints,
   getLabHistory,
   resolveRichMetric,
+  MCP_METRIC_STATUS_DISCOVERY,
+  metricStatusDiscoveryRows,
 } from "../rich-reads";
 import { readCoachCorrelations } from "@/lib/ai/coach/tools/correlations-read";
 import { buildCoachReadStrip } from "@/lib/insights/derived/coach-read";
@@ -123,6 +128,47 @@ describe("resolveRichMetric", () => {
     ]) {
       expect(resolveRichMetric(off)).toBeNull();
     }
+  });
+
+  // v1.30.4 (C2) — the signal registry's `surfaces.mcp` flag is documented as
+  // the SINGLE source of truth for MCP exposure, but `resolveRichMetric`'s
+  // metric-status-registry path (exact id / display-name match) used to
+  // resolve an id regardless of that flag. `AVERAGE_HEART_RATE` /
+  // `MAX_HEART_RATE` are valid `METRIC_STATUS_IDS` entries but carry
+  // `mcp:false` in the signal registry AND are NOT on the reviewed
+  // metric-status discovery allowlist — pin that they stay unreachable,
+  // closing the contract gap (no PHI actually leaked through it, but a future
+  // `mcp:false` signal without this guard would). The reviewed discovery ids
+  // (`CARDIO_RECOVERY` / `WRIST_TEMPERATURE` / `SLEEP_SCORE` / …) are the one
+  // deliberate exemption and stay resolvable — asserted below.
+  it("honours the signal registry's mcp:false as a hard veto over a metric-status hit", () => {
+    expect(resolveRichMetric("AVERAGE_HEART_RATE")).toBeNull();
+    expect(resolveRichMetric("MAX_HEART_RATE")).toBeNull();
+    expect(resolveRichMetric("max heart rate")).toBeNull();
+  });
+
+  // v1.30.4 (coverage review) — the reviewed metric-status discovery allowlist
+  // is a deliberate MCP exposure, co-equal to a signal `mcp:true`. A
+  // `mcp:false` on the same signal must NOT strip these ids' resolvability, or
+  // `compare_metric` / `get_metric_baseline` would advertise a metric in
+  // discovery that then refuses to resolve.
+  it("exempts the reviewed metric-status discovery allowlist from the mcp:false veto", () => {
+    expect(resolveRichMetric("CARDIO_RECOVERY")?.measurementType).toBe(
+      "CARDIO_RECOVERY",
+    );
+    expect(resolveRichMetric("WRIST_TEMPERATURE")?.measurementType).toBe(
+      "WRIST_TEMPERATURE",
+    );
+    expect(resolveRichMetric("SLEEP_SCORE")?.measurementType).toBe(
+      "SLEEP_SCORE",
+    );
+  });
+
+  it("still resolves a metric-status id the signal registry does NOT mark mcp:false", () => {
+    // VO2 max also has a signal-registry entry, but it's `mcp: true` there —
+    // the C2 guard only vetoes an EXPLICIT `mcp:false`, so this stays
+    // resolvable exactly as before.
+    expect(resolveRichMetric("vo2_max")?.measurementType).toBe("VO2_MAX");
   });
 });
 
@@ -320,6 +366,57 @@ describe("get_metric_baseline", () => {
     const res = await getMetricBaseline(USER, { metric: "bananas" });
     expect(res.present).toBe(false);
     expect(res.reason).toBe("unknown_metric");
+  });
+
+  // v1.30.4 (G4/HRV union) — Oura / Polar / WHOOP write nightly HRV as RMSSD
+  // (`HRV_RMSSD`) only, never SDNN (`HEART_RATE_VARIABILITY`). Before this
+  // fix `resolveRichMetric("hrv")` always read SDNN, so a ring/strap-only
+  // account got a false `{present:false}` even though the app's HRV
+  // sub-page charts the RMSSD rows. Pin the RMSSD-only path resolving.
+  it("resolves hrv from HRV_RMSSD rows when the user has zero SDNN rows", async () => {
+    measurement.count.mockImplementation(
+      async ({ where }: { where: { type: string } }) =>
+        where.type === "HEART_RATE_VARIABILITY" ? 0 : 6,
+    );
+    vi.mocked(buildCoachReadStrip).mockResolvedValue({
+      baseline: {
+        low: 30,
+        high: 45,
+        latest: 38,
+        placement: "within",
+        sampleDays: 30,
+      },
+      learning: false,
+      driver: null,
+    });
+
+    const res = await getMetricBaseline(USER, { metric: "hrv" });
+
+    expect(res.present).toBe(true);
+    expect(buildCoachReadStrip).toHaveBeenCalledWith(USER, "HRV_RMSSD");
+  });
+
+  it("stays on SDNN when the user has any HEART_RATE_VARIABILITY rows", async () => {
+    measurement.count.mockResolvedValue(3); // primary count > 0, short-circuits
+    vi.mocked(buildCoachReadStrip).mockResolvedValue({
+      baseline: {
+        low: 55,
+        high: 65,
+        latest: 60,
+        placement: "within",
+        sampleDays: 30,
+      },
+      learning: false,
+      driver: null,
+    });
+
+    const res = await getMetricBaseline(USER, { metric: "hrv" });
+
+    expect(res.present).toBe(true);
+    expect(buildCoachReadStrip).toHaveBeenCalledWith(
+      USER,
+      "HEART_RATE_VARIABILITY",
+    );
   });
 });
 
@@ -523,5 +620,68 @@ describe("get_lab_history", () => {
     const res = await getLabHistory(USER, { analyte: "ferritin" });
     expect(res.present).toBe(false);
     expect(res.reason).toBe("analyte_not_found");
+  });
+});
+
+// ── v1.30 coverage review (G5/C4) — metric-status-only discovery ────────
+describe("MCP_METRIC_STATUS_DISCOVERY", () => {
+  it("carries the reviewed metric-status-only allowlist with resolved units/labels", () => {
+    const keys = MCP_METRIC_STATUS_DISCOVERY.map((s) => s.key).sort();
+    expect(keys).toEqual(
+      [
+        "WRIST_TEMPERATURE",
+        "CARDIO_RECOVERY",
+        "SLEEP_SCORE",
+        "BREATHING_DISTURBANCES",
+        "ANS_CHARGE",
+        "DAY_STRAIN",
+        "WORKOUT_STRAIN",
+        "CARDIO_LOAD",
+        "FALL_COUNT",
+        "SIX_MINUTE_WALK_DISTANCE",
+        "STAIR_ASCENT_SPEED",
+        "STAIR_DESCENT_SPEED",
+        "ENERGY_EXPENDITURE_KJ",
+      ].sort(),
+    );
+    const wristTemp = MCP_METRIC_STATUS_DISCOVERY.find(
+      (s) => s.key === "WRIST_TEMPERATURE",
+    );
+    expect(wristTemp?.measurementType).toBe("WRIST_TEMPERATURE");
+    expect(wristTemp?.label).toBe("Wrist temperature");
+  });
+
+  it("every discovery id is ALSO resolvable via resolveRichMetric (compare_metric/baseline stay reachable)", () => {
+    for (const sig of MCP_METRIC_STATUS_DISCOVERY) {
+      expect(resolveRichMetric(sig.key)?.measurementType).toBe(
+        sig.measurementType,
+      );
+    }
+  });
+});
+
+describe("metricStatusDiscoveryRows", () => {
+  it("reports present:true + count for a logged id, present:false for the rest", async () => {
+    measurement.groupBy.mockResolvedValue([
+      { type: "WRIST_TEMPERATURE", _count: { _all: 7 } },
+    ] as never);
+    const rows = await metricStatusDiscoveryRows(USER);
+    expect(rows).toHaveLength(MCP_METRIC_STATUS_DISCOVERY.length);
+    const wristTemp = rows.find((r) => r.metric === "WRIST_TEMPERATURE");
+    expect(wristTemp).toMatchObject({
+      tool: "compare_metric",
+      domain: "Wrist temperature",
+      present: true,
+      count: 7,
+    });
+    const untouched = rows.find((r) => r.metric === "DAY_STRAIN");
+    expect(untouched).toMatchObject({ present: false });
+    expect(untouched).not.toHaveProperty("count");
+  });
+
+  it("reports present:false for every id when nothing is logged", async () => {
+    measurement.groupBy.mockResolvedValue([]);
+    const rows = await metricStatusDiscoveryRows(USER);
+    expect(rows.every((r) => r.present === false)).toBe(true);
   });
 });

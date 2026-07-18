@@ -10,10 +10,20 @@ vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
 vi.mock("@/lib/doctor-report-data", () => ({
   collectDoctorReportData: vi.fn(),
 }));
+vi.mock("@/lib/ai/coach/tools/inventory", () => ({
+  buildCoachDataInventory: vi.fn(),
+}));
+// v1.30 (G5/C4) — `measurements-inventory` appends the metric-status-only
+// discovery rows; stub the engine so this file never reaches a real DB read.
+vi.mock("@/lib/mcp/rich-reads", () => ({
+  metricStatusDiscoveryRows: vi.fn(async () => []),
+}));
 
 import { MCP_RESOURCES, MCP_RESOURCE_URIS } from "../resources";
 import { prisma } from "@/lib/db";
 import { collectDoctorReportData } from "@/lib/doctor-report-data";
+import { buildCoachDataInventory } from "@/lib/ai/coach/tools/inventory";
+import { metricStatusDiscoveryRows } from "@/lib/mcp/rich-reads";
 import type { McpAuthContext } from "../auth";
 
 const CTX: McpAuthContext = {
@@ -136,6 +146,45 @@ describe("healthlog://medications", () => {
     };
     expect(result.present).toBe(false);
     expect(result.count).toBe(0);
+  });
+});
+
+describe("healthlog://measurements/inventory", () => {
+  it("merges the Coach inventory with the metric-status-only discovery rows (G5/C4)", async () => {
+    vi.mocked(buildCoachDataInventory).mockResolvedValue({
+      entries: [
+        {
+          tool: "get_metric_series",
+          metric: "weight",
+          domain: "weight",
+          present: true,
+          count: 5,
+        },
+      ],
+      restMode: false,
+      cycleEnabled: false,
+      window: "last30days",
+      probeScope: { sources: [] },
+    } as never);
+    vi.mocked(metricStatusDiscoveryRows).mockResolvedValue([
+      {
+        tool: "compare_metric",
+        domain: "Wrist temperature",
+        present: false,
+        metric: "WRIST_TEMPERATURE",
+      },
+    ] as never);
+
+    const result = (await resource("healthlog://measurements/inventory").read(
+      CTX,
+    )) as { present: boolean; metrics: Array<Record<string, unknown>> };
+
+    expect(metricStatusDiscoveryRows).toHaveBeenCalledWith("user-1");
+    expect(result.present).toBe(true);
+    expect(result.metrics).toHaveLength(2);
+    expect(
+      result.metrics.find((m) => m.metric === "WRIST_TEMPERATURE"),
+    ).toMatchObject({ present: false });
   });
 });
 

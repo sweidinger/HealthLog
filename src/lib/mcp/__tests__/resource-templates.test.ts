@@ -4,6 +4,12 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     medication: { findMany: vi.fn(), findFirst: vi.fn() },
     labResult: { findMany: vi.fn() },
+    // v1.30 (G1) — the nutrients pipeline.
+    nutrientIntakeDay: {
+      findMany: vi.fn(async () => []),
+      groupBy: vi.fn(async () => []),
+    },
+    user: { findUnique: vi.fn() },
   },
 }));
 vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
@@ -16,6 +22,11 @@ vi.mock("@/lib/ai/coach/tools/inventory", () => ({
 vi.mock("@/lib/doctor-report-data", () => ({
   collectDoctorReportData: vi.fn(),
 }));
+// v1.30 — the nutrients module is opt-in; default this suite's tenant to
+// having it enabled unless a test overrides it.
+vi.mock("@/lib/modules/gate", () => ({
+  isModuleEnabled: vi.fn(async () => true),
+}));
 
 import {
   MCP_RESOURCE_TEMPLATES,
@@ -27,6 +38,7 @@ import { prisma } from "@/lib/db";
 import { executeCoachTool } from "@/lib/ai/coach/tools/executor";
 import { buildCoachDataInventory } from "@/lib/ai/coach/tools/inventory";
 import { collectDoctorReportData } from "@/lib/doctor-report-data";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import type { McpAuthContext } from "../auth";
 
 const CTX: McpAuthContext = {
@@ -88,6 +100,7 @@ describe("MCP resource-template surface", () => {
       "healthlog://medication/{id}",
       "healthlog://metric/{type}",
       "healthlog://metric/{type}/{window}",
+      "healthlog://nutrient/{code}",
       "healthlog://report/doctor-visit/{window}",
     ]);
     const fixedUris = MCP_RESOURCES.map((r) => r.uri).sort();
@@ -288,6 +301,58 @@ describe("argument completion (user-scoped, doubles as discovery)", () => {
     expect((await complete(CTX, "")).sort()).toEqual(
       [...MCP_WINDOW_VALUES].sort(),
     );
+  });
+});
+
+describe("healthlog://nutrient/{code} (v1.30 coverage review G1)", () => {
+  it("resolves a nutrient via the get_nutrients read, scoped to the session user", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      timezone: "UTC",
+      gender: null,
+    } as never);
+    vi.mocked(prisma.nutrientIntakeDay.findMany).mockResolvedValue([
+      { day: "2026-07-10", amount: 1800 },
+    ] as never);
+
+    const result = (await template("nutrient").read(CTX, {
+      code: "water",
+    })) as Record<string, unknown>;
+
+    expect(result.present).toBe(true);
+    expect(result.nutrient).toBe("water");
+  });
+
+  it("returns { present: false } when the opt-in nutrients module is off", async () => {
+    vi.mocked(isModuleEnabled).mockResolvedValueOnce(false);
+    const result = (await template("nutrient").read(CTX, {
+      code: "water",
+    })) as { present: boolean };
+    expect(result.present).toBe(false);
+  });
+
+  it("completes + lists ONLY the user's own logged nutrient codes", async () => {
+    vi.mocked(prisma.nutrientIntakeDay.groupBy).mockResolvedValue([
+      { nutrient: "water" },
+      { nutrient: "vitamin_d" },
+    ] as never);
+
+    const list = await template("nutrient").list!(CTX);
+    expect(list.map((r) => r.uri).sort()).toEqual([
+      "healthlog://nutrient/vitamin_d",
+      "healthlog://nutrient/water",
+    ]);
+
+    const complete = template("nutrient").complete!.code;
+    expect(await complete(CTX, "vit")).toEqual(["vitamin_d"]);
+  });
+
+  it("lists nothing when the opt-in module is off (no leaked code list)", async () => {
+    vi.mocked(isModuleEnabled).mockResolvedValueOnce(false);
+    vi.mocked(prisma.nutrientIntakeDay.groupBy).mockResolvedValue([
+      { nutrient: "water" },
+    ] as never);
+    const list = await template("nutrient").list!(CTX);
+    expect(list).toEqual([]);
   });
 });
 

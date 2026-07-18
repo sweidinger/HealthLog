@@ -42,6 +42,7 @@ import {
 import {
   getMetricStatusMeta,
   METRIC_STATUS_IDS,
+  type MetricStatusMetricId,
 } from "@/lib/insights/metric-status-registry";
 import { allSignals, getSignal } from "@/lib/signals/registry";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
@@ -96,6 +97,28 @@ const WINDOW_DAYS: Record<CoachScopeWindow, number> = {
   allTime: 365,
 };
 
+// v1.30.4 (C3, documented not fixed) — the trailing windows above resolve to
+// `since = now − N·86400_000ms` (`readBestGranularityRollups`,
+// `measurement-read-wmy.ts`), a raw-instant cutoff with no timezone
+// awareness. The Coach snapshot path (`get_metric_series`) builds its
+// timelines on user-tz day keys (`tzDayKey(userTz)`, the v1.30.3 pattern also
+// used by `metric-status.ts`'s cache rollover / `bp-in-target.ts`'s same-day
+// pairing); these rich reads (`compare_metric` / `detect_changepoints` /
+// `get_metric_baseline`) do not, so a user far from UTC can see a ±1-day edge
+// wobble vs. the app for a window boundary that lands mid-day in their own
+// tz. This is INTENTIONALLY left as a raw-instant cutoff rather than patched
+// with a tz-shifted `since` here: the underlying `MeasurementRollup` DAY /
+// WEEK / MONTH / YEAR buckets themselves are written on UTC calendar
+// boundaries (`measurement-rollups.ts` buckets on `Date.UTC(...)` /
+// `getUTCDay()`), not the user's own tz, so shifting only the outer window
+// boundary would not eliminate the wobble — it would just move which
+// UTC-anchored bucket sits at the edge, trading one one-sided inconsistency
+// for another. A real fix needs the rollup tier itself to bucket per-user-tz,
+// which is a write-side change (affecting every rollup consumer, not just
+// the rich MCP reads) — out of scope here. Practical impact stays small: the
+// exposed windows are all ≥7-day means, so a single boundary day shifts the
+// mean by well under its own noise floor.
+
 function windowToDays(window: CoachScopeWindow | undefined): number {
   return WINDOW_DAYS[window ?? "last30days"];
 }
@@ -117,6 +140,17 @@ export interface RichMetric {
   unit: string;
   /** Population reference band, or `null` when no universal band exists. */
   band: { low: number; high: number } | null;
+  /**
+   * v1.30.4 (G4/HRV union) — a secondary `MeasurementType` to read instead of
+   * `measurementType` when the user has ZERO rows of the primary type. HRV is
+   * the only metric that carries one today: Apple Health / Fitbit write SDNN
+   * (`HEART_RATE_VARIABILITY`); Oura / Polar / WHOOP write nightly RMSSD
+   * (`HRV_RMSSD`) only. Mirrors the app's HRV sub-page fallback
+   * (`HealthKitMetricPage`'s `fallbackMeasurementType` prop) so a ring/strap
+   * -only account resolves over MCP the same data it sees in the app instead
+   * of a false `{ present: false }`.
+   */
+  fallbackMeasurementType?: MeasurementType;
 }
 
 /** Headline specialised metrics the status registry does not carry. */
@@ -168,7 +202,34 @@ const ALIASES: Record<string, string> = {
 function fromRegistry(id: string): RichMetric | null {
   const meta = getMetricStatusMeta(id);
   if (!meta) return null;
-  return {
+  // v1.30.4 (C2) — the signal registry's `surfaces.mcp` flag is documented as
+  // the SINGLE source of truth for MCP exposure, but the metric-status
+  // registry (this function's own source) carries no `surfaces` facet of its
+  // own, so an id the signal registry marks `mcp:false` (e.g.
+  // `CARDIO_RECOVERY`, `WRIST_TEMPERATURE`, `SLEEP_SCORE`, `DAY_STRAIN`, the
+  // stair speeds, …) still resolved here — the two registries disagreeing
+  // about the exposure contract, not a live leak (none of those ids are
+  // actually sensitive) but a future signal added `mcp:false` + a
+  // metric-status entry would leak silently. Treat an EXPLICIT `mcp:false` on
+  // the SAME id in the signal registry as a hard veto over a metric-status
+  // hit; an id absent from the signal registry (most of `METRIC_STATUS_IDS`)
+  // is unaffected — metric-status stays authoritative when the two don't
+  // disagree. The one exemption is the reviewed metric-status discovery
+  // allowlist (`REVIEWED_DISCOVERY_IDS`): those ids are a deliberate,
+  // human-named MCP exposure — co-equal to a signal `mcp:true` — so a
+  // `mcp:false` on the same signal must NOT strip their resolvability, or
+  // `compare_metric` / `get_metric_baseline` would advertise a metric in
+  // discovery that then refuses to resolve.
+  const sig = getSignal(id);
+  if (
+    sig &&
+    sig.kind === "measurement" &&
+    sig.surfaces.mcp === false &&
+    !REVIEWED_DISCOVERY_IDS.has(id)
+  ) {
+    return null;
+  }
+  const metric: RichMetric = {
     measurementType: meta.measurementType,
     label: meta.displayName,
     unit: meta.unit,
@@ -176,6 +237,38 @@ function fromRegistry(id: string): RichMetric | null {
       ? { low: meta.normalRange.low, high: meta.normalRange.high }
       : null,
   };
+  // v1.30.4 (G4/HRV union) — single choke point every registry-backed
+  // resolution path (alias / exact id / display-name match) flows through,
+  // so the RMSSD fallback attaches uniformly regardless of how the caller
+  // phrased the metric.
+  if (metric.measurementType === "HEART_RATE_VARIABILITY") {
+    return { ...metric, fallbackMeasurementType: "HRV_RMSSD" };
+  }
+  return metric;
+}
+
+/**
+ * v1.30.4 (G4/HRV union) — swap `metric` to its `fallbackMeasurementType`
+ * when the user has zero rows of the primary type but has rows of the
+ * fallback. Same primary-then-fallback rule the HRV sub-page applies
+ * (`usingFallback = primaryCount === 0 && fallbackCount > 0`); a no-op for
+ * every metric that doesn't carry a fallback (i.e. everything but HRV
+ * today), and for an HRV account that has SDNN data at all.
+ */
+async function withHrvFallback(
+  userId: string,
+  metric: RichMetric,
+): Promise<RichMetric> {
+  if (!metric.fallbackMeasurementType) return metric;
+  const primaryCount = await prisma.measurement.count({
+    where: { userId, type: metric.measurementType, deletedAt: null },
+  });
+  if (primaryCount > 0) return metric;
+  const fallbackCount = await prisma.measurement.count({
+    where: { userId, type: metric.fallbackMeasurementType, deletedAt: null },
+  });
+  if (fallbackCount === 0) return metric;
+  return { ...metric, measurementType: metric.fallbackMeasurementType };
 }
 
 // ── v1.25 clinical signals (registry-grounded, MCP-owned exposure) ────
@@ -283,6 +376,118 @@ function resolveClinicalSignal(key: string): RichMetric | null {
     }
   }
   return null;
+}
+
+// ── v1.30 coverage review (G5/C4) — metric-status-only discovery ─────
+//
+// `resolveRichMetric` already resolves any `metric-status-registry` id via an
+// exact-id or display-name match (steps 3–4 above), so `compare_metric` /
+// `get_metric_baseline` / `detect_changepoints` CAN serve these metrics today.
+// But none of them is in the Coach data inventory (`list_metrics`, the
+// `measurements-inventory` resource) or the `search` probe, so a
+// discover-before-fetch assistant — which the server's own instructions
+// direct — never learns they exist. The v1.28.52 dashboard-tile wave
+// surfaced several of these ("collected but unsurfaced") in the app; the MCP
+// wire still had that gap.
+//
+// Deliberately a fixed, reviewed allowlist (not derived from `surfaces.mcp` —
+// reconciling that flag against this resolution path is a separate follow-up)
+// so no metric becomes discoverable here without a human having named it.
+
+const METRIC_STATUS_DISCOVERY_IDS = [
+  "WRIST_TEMPERATURE",
+  "CARDIO_RECOVERY",
+  "SLEEP_SCORE",
+  "BREATHING_DISTURBANCES",
+  "ANS_CHARGE",
+  "DAY_STRAIN",
+  "WORKOUT_STRAIN",
+  "CARDIO_LOAD",
+  "FALL_COUNT",
+  "SIX_MINUTE_WALK_DISTANCE",
+  "STAIR_ASCENT_SPEED",
+  "STAIR_DESCENT_SPEED",
+  "ENERGY_EXPENDITURE_KJ",
+] as const satisfies readonly MetricStatusMetricId[];
+
+/**
+ * The reviewed metric-status discovery allowlist as a membership Set. Each
+ * member is a DELIBERATE, human-named MCP exposure (v1.30.4 coverage review) —
+ * co-equal to a signal-registry `mcp:true`, just carried in the metric-status
+ * layer instead of the signal layer. `fromRegistry`'s `mcp:false` veto exempts
+ * these ids so a reviewed metric stays resolvable (`compare_metric` /
+ * `get_metric_baseline` / `detect_changepoints`); the veto still fires for any
+ * UNREVIEWED `mcp:false` signal that happens to carry a metric-status entry
+ * (the two mental-health screeners and every `ENV_*` signal are absent from
+ * this list and have no metric-status entry, so they stay unreachable).
+ */
+const REVIEWED_DISCOVERY_IDS: ReadonlySet<string> = new Set(
+  METRIC_STATUS_DISCOVERY_IDS,
+);
+
+/**
+ * The metric-status-only ids `list_metrics` / the inventory resource /
+ * `search` can now discover: the registry id (also the `metric:` id `fetch`
+ * resolves), the backing `MeasurementType` (the presence probe), and the
+ * display label. Mirrors the shape of `MCP_CLINICAL_SIGNALS`.
+ */
+export const MCP_METRIC_STATUS_DISCOVERY: ReadonlyArray<{
+  key: MetricStatusMetricId;
+  measurementType: MeasurementType;
+  label: string;
+}> = METRIC_STATUS_DISCOVERY_IDS.map((id) => {
+  const meta = getMetricStatusMeta(id);
+  if (!meta) {
+    // Would only trip if the registry ever dropped one of these ids — fail
+    // loudly at module load rather than silently under-advertising.
+    throw new Error(`metric-status registry is missing discovery id ${id}`);
+  }
+  return {
+    key: id,
+    measurementType: meta.measurementType,
+    label: meta.displayName,
+  };
+});
+
+/**
+ * Presence + approximate sample count for the metric-status-only discovery
+ * set, in the `list_metrics` inventory-row shape — `tool` fixed to
+ * `compare_metric` (a resolver-closed metric with no Coach-snapshot series
+ * fetches through `compare_metric` / `get_metric_baseline`, never
+ * `get_metric_series`). One grouped presence query, mirroring the
+ * `MCP_CLINICAL_SIGNALS` `search` probe. `list_metrics` and the
+ * `measurements-inventory` resource both append these rows to their own
+ * inventory so a discover-before-fetch assistant can find a metric that IS
+ * resolvable but sits off the Coach snapshot.
+ */
+export async function metricStatusDiscoveryRows(userId: string): Promise<
+  Array<{
+    tool: string;
+    domain: string;
+    present: boolean;
+    count?: number;
+    metric: string;
+  }>
+> {
+  const rows = await prisma.measurement.groupBy({
+    by: ["type"],
+    where: {
+      userId,
+      type: { in: MCP_METRIC_STATUS_DISCOVERY.map((s) => s.measurementType) },
+    },
+    _count: { _all: true },
+  });
+  const countByType = new Map(rows.map((r) => [r.type, r._count._all]));
+  return MCP_METRIC_STATUS_DISCOVERY.map((sig) => {
+    const count = countByType.get(sig.measurementType);
+    return {
+      tool: "compare_metric",
+      domain: sig.label,
+      present: count !== undefined,
+      ...(count !== undefined ? { count } : {}),
+      metric: sig.key,
+    };
+  });
 }
 
 /**
@@ -577,10 +782,11 @@ export async function compareMetric(
     rangeB?: DateRange;
   },
 ): Promise<CompareMetricResult> {
-  const metricA = resolveRichMetric(args.metric);
-  if (!metricA) {
+  const resolvedA = resolveRichMetric(args.metric);
+  if (!resolvedA) {
     return { present: false, reason: "unknown_metric" };
   }
+  const metricA = await withHrvFallback(userId, resolvedA);
   const sideA: SideSpec = { window: args.window, range: args.range };
 
   const annotateMiss = () =>
@@ -601,7 +807,7 @@ export async function compareMetric(
     }
     // Both metrics share side A's horizon (window or range).
     mode = "metric_vs_metric";
-    metricB = resolvedB;
+    metricB = await withHrvFallback(userId, resolvedB);
     sideB = sideA;
   } else if (args.rangeB || args.windowB) {
     mode = "window_vs_window";
@@ -675,10 +881,11 @@ export async function getMetricBaseline(
   userId: string,
   args: { metric: string },
 ): Promise<MetricBaselineResult> {
-  const metric = resolveRichMetric(args.metric);
-  if (!metric) {
+  const resolved = resolveRichMetric(args.metric);
+  if (!resolved) {
     return { present: false, reason: "unknown_metric" };
   }
+  const metric = await withHrvFallback(userId, resolved);
 
   const strip = await buildCoachReadStrip(userId, metric.measurementType);
 
@@ -819,10 +1026,11 @@ export async function detectChangepoints(
   userId: string,
   args: { metric: string; window?: CoachScopeWindow; range?: DateRange },
 ): Promise<ChangepointsResult> {
-  const metric = resolveRichMetric(args.metric);
-  if (!metric) {
+  const resolved = resolveRichMetric(args.metric);
+  if (!resolved) {
     return { present: false, reason: "unknown_metric" };
   }
+  const metric = await withHrvFallback(userId, resolved);
 
   // Either an explicit `{from,to}` range (reach-back + filter) or one of the
   // five fixed trailing windows — both land on the same rollup reader.
