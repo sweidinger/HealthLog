@@ -434,7 +434,20 @@ export async function runDenseIntradayRetention(
     const cached = nativeRestingByUser.get(userId);
     if (cached !== undefined) return cached;
     const native = await prismaClient.measurement.findFirst({
-      where: { userId, type: "RESTING_HEART_RATE", deletedAt: null },
+      // `source` MUST be excluded here. The mint below writes its derived row
+      // as `RESTING_HEART_RATE` / `COMPUTED`, so a probe that matched every
+      // source found its own output on the next nightly run, concluded the
+      // user had native resting data, and stopped minting — while the fold
+      // kept tombstoning the raw readings those figures are derived from.
+      // Every run after the first then destroyed a day's resting history for
+      // good. Only a genuinely native row (device- or user-supplied) may
+      // suppress the mint.
+      where: {
+        userId,
+        type: "RESTING_HEART_RATE",
+        deletedAt: null,
+        source: { not: "COMPUTED" },
+      },
       select: { id: true },
     });
     const has = native !== null;
