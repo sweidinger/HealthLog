@@ -1,73 +1,103 @@
-"use client";
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from "@tanstack/react-query";
 
-import { Activity, Loader2 } from "lucide-react";
+import { getSession } from "@/lib/auth/session";
+import { readWorkoutsListCached } from "@/lib/workouts/list-read";
+import { resolveModuleMap } from "@/lib/modules/gate";
+import { queryKeys } from "@/lib/query-keys";
 
-import { useTranslations } from "@/lib/i18n/context";
-import { useWorkouts } from "@/hooks/use-workouts";
-import { useModulePageGuard } from "@/hooks/use-module-page-guard";
-import { MetricEmptyState } from "@/components/insights/metric-empty-state";
-import { SubPageShell } from "@/components/insights/sub-page-shell";
-import { WorkoutList } from "@/components/insights/workout-list";
-import { Skeleton } from "@/components/ui/skeleton";
+import InsightsWorkoutsPageClient from "./page-client";
 
 /**
- * v1.4.32 — `/insights/workouts`.
+ * Thin RSC wrapper around the (client) workouts list page.
  *
- * Workouts list sub-page. Pairs with the iOS HKWorkout ingest path
- * (`POST /api/workouts/batch`) and the v1.4.30 cross-source picker so
- * twin workouts from Apple Watch + Withings ScanWatch collapse to a
- * single row. The page is the user-visible surface for the workout
- * data the iOS client already syncs.
+ * `/insights/workouts` is the workouts surface. Its above-the-fold content —
+ * the workout rows — waited for the client `useWorkouts({ limit: 100 })` cell
+ * to fetch `/api/workouts?limit=100` after hydrate, so the first paint flashed
+ * the loading skeleton before the list filled in. This wrapper runs the SAME
+ * cached read the API route uses (`readWorkoutsListCached`, the shared
+ * `caches.workouts` projection cell) during SSR and hands it to TanStack
+ * through `HydrationBoundary`, so the mounted list cell starts warm instead of
+ * skeleton-first.
  *
- * Renders three states:
- *   - loading shell while the workouts query resolves,
- *   - empty state when the user has no workouts yet (CTA points at
- *     the iOS / Apple Health onboarding cue — there is no manual
- *     workout-entry form today),
- *   - the deduped list otherwise. Each row links to
- *     `/insights/workouts/[id]` for the detail surface.
+ * Contract notes (the v1.30.9 dashboard / v1.30.13 medications template):
+ *  - The query key comes ONLY from the central factory. The client cell keys on
+ *    `queryKeys.workoutsRecentList({ limit: 100, offset, since, sportType })`
+ *    with `offset` / `since` / `sportType` all `undefined`, so this seeded key
+ *    is built from the same factory call with the same argument shape — the
+ *    server-seeded key equals the client's `useQuery` key by construction.
+ *  - The projection filter matches the route's too: all-null filter params hash
+ *    to the same `userId|||` projection cache slot a `?limit=100` request
+ *    builds, so the prefetch and the API path share one dedup pass.
+ *  - The dehydrated VALUE is JSON-round-tripped so the hydrated shape is exactly
+ *    what the client `queryFn` produces from the wire ((await res.json()).data —
+ *    Prisma `Date`s as ISO strings), never a Date-carrying sibling that would
+ *    poison the cell.
+ *  - Module-gate parity: the client page bounces a workouts-off account
+ *    (`useModulePageGuard`), and the API route refuses it server-side; skip the
+ *    prefetch when the module is off so a disabled page never seeds a cache it
+ *    will not read.
+ *  - The client cell keeps its own fetch (`staleTime: 60s`): the prefetch seeds
+ *    fresh data, so the mounted cell paints immediately and only refetches once
+ *    the TTL lapses — the "empty then fills" flash is gone without dropping the
+ *    freshness path.
+ *  - Fail-soft: no session, a module lookup hiccup, or a DB blip renders the
+ *    page exactly as before this wrapper existed — the client cell owns the
+ *    fetch. The prefetch is an accelerator, never a gate.
  */
-export default function InsightsWorkoutsPage() {
-  const { t } = useTranslations();
-  const { ready } = useModulePageGuard("workouts");
-  const { data, isLoading, isEmpty } = useWorkouts({ limit: 100 });
-
-  // v1.18.0 B1 — bounce a direct URL hit on a disabled-workouts account.
-  if (!ready) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
-      </div>
-    );
+export default async function InsightsWorkoutsPage() {
+  // Global SSR-prefetch kill-switch shared with the dashboard wrapper. The e2e
+  // server sets `DASHBOARD_SSR_PREFETCH=false` so Playwright route mocks —
+  // which only see CLIENT fetches — keep governing what every prefetched page
+  // paints.
+  if (process.env.DASHBOARD_SSR_PREFETCH === "false") {
+    return <InsightsWorkoutsPageClient />;
   }
 
+  let dehydratedState = null;
+  try {
+    const session = await getSession();
+    if (session) {
+      const { user } = session;
+      const modules = await resolveModuleMap(user.id);
+      // Mirror the client guard (`user?.modules?.workouts !== false`): an
+      // absent key reads as enabled; only an explicit `false` disables.
+      if (modules.workouts !== false) {
+        const list = await readWorkoutsListCached(user.id, {
+          limit: 100,
+          offset: 0,
+          since: null,
+          until: null,
+          sportType: null,
+        });
+        const queryClient = new QueryClient();
+        // Match the client cell's key + wire shape exactly (JSON semantics, ISO
+        // date strings) — same-key-different-shape is silent cache poison.
+        queryClient.setQueryData(
+          queryKeys.workoutsRecentList({
+            limit: 100,
+            offset: undefined,
+            since: undefined,
+            sportType: undefined,
+          }),
+          JSON.parse(JSON.stringify(list)),
+        );
+        dehydratedState = dehydrate(queryClient);
+      }
+    }
+  } catch {
+    // Prefetch is an accelerator, never a gate — the client path stands.
+  }
+
+  if (dehydratedState === null) {
+    return <InsightsWorkoutsPageClient />;
+  }
   return (
-    <SubPageShell
-      title={t("insights.workouts.title")}
-      description={t("insights.workouts.description")}
-      explainerMetric="workouts"
-      coachLaunch
-    >
-      {/* No `<MetricRangeControls>` here: workouts are session records, not a
-          MeasurementType series, so the period-over-period range read has
-          nothing to aggregate. */}
-      {isLoading ? (
-        <div data-slot="workouts-loading" className="space-y-2">
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <Skeleton className="h-14 w-full rounded-lg" />
-        </div>
-      ) : isEmpty ? (
-        <MetricEmptyState
-          icon={<Activity className="size-6" />}
-          title={t("insights.workouts.emptyState.title")}
-          description={t("insights.workouts.emptyState.description")}
-          cta={null}
-          coachPrefill="I haven't logged any workouts yet — why does tracking them matter, and what should I focus on first?"
-        />
-      ) : data ? (
-        <WorkoutList workouts={data.workouts} />
-      ) : null}
-    </SubPageShell>
+    <HydrationBoundary state={dehydratedState}>
+      <InsightsWorkoutsPageClient />
+    </HydrationBoundary>
   );
 }

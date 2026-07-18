@@ -30,21 +30,21 @@ const batchEntrySchema = z
       .number()
       .finite()
       .describe(
-        "Raw HealthKit reading in Apple's native unit; the server applies any canonical scaling at ingest. For an hourly heart-rate bucket (see `externalId`) this is the hour's AVERAGE bpm; the hour's spread rides `valueMin` / `valueMax`.",
+        "Raw HealthKit reading in Apple's native unit; the server applies any canonical scaling at ingest. For a 10-minute heart-rate bucket (see `externalId`) this is the bucket's AVERAGE bpm; the bucket's spread rides `valueMin` / `valueMax`.",
       ),
     valueMin: z
       .number()
       .finite()
       .optional()
       .describe(
-        "v1.19.2 (iOS #34 extension) — the hour's MINIMUM bpm for an hourly heart-rate bucket (see `externalId`). Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row; ignored (stored null) on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract.",
+        "v1.19.2 (iOS #34 extension) — the bucket's MINIMUM bpm for a 10-minute heart-rate bucket (see `externalId`). Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start>` row; ignored (stored null) on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract.",
       ),
     valueMax: z
       .number()
       .finite()
       .optional()
       .describe(
-        "v1.19.2 (iOS #34 extension) — the hour's MAXIMUM bpm for an hourly heart-rate bucket (see `externalId`). Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<hour>` row; ignored (stored null) on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract.",
+        "v1.19.2 (iOS #34 extension) — the bucket's MAXIMUM bpm for a 10-minute heart-rate bucket (see `externalId`). Persisted ONLY on a well-formed `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start>` row; ignored (stored null) on every other entry. Omit on a pre-v1.19.2 client — the bucket keeps the avg-only contract.",
       ),
     unit: z.string().min(1).max(60),
     startDate: z.iso.datetime({ offset: true }),
@@ -75,7 +75,7 @@ const batchEntrySchema = z
         "Dedup key for the `(userId, type, source, externalId)` composite index. Three shapes:\n" +
           "• `HKSample.uuid` — a per-sample reading. First-write-wins: a re-post returns `duplicate` and the stored row is immutable.\n" +
           "• `stats:<HKQuantityTypeIdentifier>:<YYYY-MM-DD>` — a per-day cumulative total (Steps, Active Energy, Sleep Duration, Walking/Running Distance, Flights Climbed). A re-post OVERWRITES the row and returns `updated`.\n" +
-          "• `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start-hour>` — v1.19.0 (iOS #34) hourly heart-rate bucket carrying the hour's AVERAGE bpm as one PULSE row. `<bucket-start-hour>` is the ISO-8601 UTC hour boundary with zeroed minutes/seconds/millis and a trailing `Z` (e.g. `2026-06-21T14:00:00.000Z`). A re-post within the hour OVERWRITES the row and returns `updated`, so iOS uploads ~24 rows/day instead of one per raw HR sample. A row that targets this prefix with a malformed hour suffix is `skipped` with reason `malformed_hr_bucket_id`.",
+          "• `stats:HKQuantityTypeIdentifierHeartRate:<bucket-start>` — v1.19.0 (iOS #34), refined to 10-minute granularity in v1.30.7, heart-rate bucket carrying the bucket's AVERAGE bpm as one PULSE row. `<bucket-start>` is the ISO-8601 UTC 10-minute boundary — zeroed seconds/millis, minutes ∈ {00,10,20,30,40,50}, trailing `Z` (e.g. `2026-06-21T14:10:00.000Z`). A re-post OVERWRITES the row and returns `updated`, so iOS uploads ~144 rows/day instead of one per raw HR sample. A row that targets this prefix with a malformed bucket-start suffix is `skipped` with reason `malformed_hr_bucket_id`.",
       ),
     externalSourceVersion: z.string().min(1).max(120).optional(),
     // v1.8.6 W6 — optional per-entry source tag. Defaults to

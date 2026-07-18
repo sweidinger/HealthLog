@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.30.14] — 2026-07-18
+
+The workouts page joins the pages that paint on first load.
+
+- **The workouts list opens with the sessions already there.** It was the last high-traffic surface still fetching its rows after the page mounted, so it showed a loading skeleton first and filled in a moment later. The list is now read on the server and handed to the page populated, the same way the dashboard, insights, medications, and coach pages already work. The list logic moved into a shared read so the page and the API endpoint go through one cached, deduplicated pass instead of two.
+- **API docs: the heart-rate bucket example matches what the server accepts.** The aggregated heart-rate `externalId` was documented with an hourly example from its first version; the contract has been 10-minute buckets since v1.30.7. The description, the example timestamp, and the min/max field notes now describe the shipped contract.
+
+No breaking changes.
+
 ## [1.30.13] — 2026-07-18
 
 More pages that paint on first load.
