@@ -119,7 +119,7 @@ function setDisabledModules(disabled: string[]): void {
 }
 
 async function emittedKinds(): Promise<string[]> {
-  const res = await GET(new Request("http://localhost/api/dashboard/summary"));
+  const res = await GET();
   expect(res.status).toBe(200);
   const body = (await res.json()) as {
     data: { metrics: Array<{ kind: string }> };
