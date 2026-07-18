@@ -27,6 +27,7 @@ import {
   coachScopeSourceSchema,
   coachScopeWindowSchema,
 } from "@/lib/ai/coach/types";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import { resolveBaseOrigin } from "@/lib/mcp/oauth/config";
 import {
   getCorrelation,
@@ -38,6 +39,13 @@ import {
   MCP_CLINICAL_SIGNALS,
   type DateRange,
 } from "@/lib/mcp/rich-reads";
+import {
+  getNutrients,
+  resolveNutrientCode,
+  NUTRIENT_LABELS,
+  type NutrientsDailyResult,
+} from "@/lib/mcp/nutrients-read";
+import { NUTRIENT_CODES } from "@/lib/nutrients/catalog";
 import { encodeOffsetCursor, decodeOffsetCursor } from "@/lib/mcp/pagination";
 import {
   computeDisplayDue,
@@ -238,6 +246,42 @@ function plainClinicalText(
 }
 
 /**
+ * Render a `fetch` result for a nutrient code as a plain-text citation
+ * sentence: the most recent non-zero day's total plus the resolved EFSA
+ * reference (target vs upper-guidance ceiling), quoting only values the
+ * result carried. Never fabricates a figure.
+ */
+function plainNutrientText(
+  label: string,
+  result: NutrientsDailyResult,
+): string {
+  if (!result.present) {
+    return result.reason === "module_disabled"
+      ? `${label}: nutrient tracking is turned off for this account.`
+      : `No recent ${label.toLowerCase()} data is on file.`;
+  }
+  const unit = result.unit ? ` ${result.unit}` : "";
+  const latestDay = [...(result.days ?? [])]
+    .reverse()
+    .find((d) => d.amount > 0);
+  const parts: string[] = [];
+  if (latestDay) {
+    parts.push(
+      `most recent logged day ${latestDay.day}: ${round1(latestDay.amount)}${unit}`,
+    );
+  }
+  const ref = result.reference;
+  if (ref) {
+    const verb =
+      ref.direction === "upperGuidance" ? "guidance ceiling" : "target";
+    parts.push(`EFSA ${verb} ${round1(ref.value)}${unit}`);
+  }
+  return parts.length > 0
+    ? `${label}: ${parts.join(", ")}.`
+    : `${label}: data is on file for the recent window.`;
+}
+
+/**
  * The `search` + `fetch` pair — the de-facto two-tool retrieval convention and,
  * critically, the ONLY tools ChatGPT can call in its default (non-Developer)
  * mode. Without them HealthLog is invisible in default ChatGPT. The exact wire
@@ -361,6 +405,35 @@ function searchAndFetchTools(): McpToolDefinition[] {
           });
         }
 
+        // v1.30 (G1) — nutrients (water/caffeine/24 micronutrients) presence
+        // probe, gated on the opt-in `nutrients` module exactly like the
+        // ingest/read routes: an account that never turned the module on gets
+        // no rows here, mirroring the module's own dark-by-default posture.
+        // One grouped presence query over the closed catalog, mirroring the
+        // clinical-signal probe above. Without this, `search("water")` /
+        // `search("magnesium")` returned `[]` even for a daily logger — a
+        // truthfulness bug under the server's own absence contract.
+        if (await isModuleEnabled(ctx.userId, "nutrients")) {
+          const nutrientPresent = await prisma.nutrientIntakeDay.groupBy({
+            by: ["nutrient"],
+            where: { userId: ctx.userId },
+          });
+          const loggedNutrients = new Set(
+            nutrientPresent.map((r) => r.nutrient),
+          );
+          for (const code of NUTRIENT_CODES) {
+            if (!loggedNutrients.has(code)) continue;
+            const label = NUTRIENT_LABELS[code];
+            const hay = `${label} ${code} nutrient nutrients`.toLowerCase();
+            if (query && !hay.includes(query)) continue;
+            results.push({
+              id: `nutrient:${code}`,
+              title: label,
+              url: `${origin}/insights/nutrients`,
+            });
+          }
+        }
+
         // Cursor pagination over the assembled result set (was a silent
         // slice(0,50)). The set is rebuilt deterministically each call (stable
         // ordering: metrics → medications → labs), so an opaque offset cursor
@@ -437,6 +510,30 @@ function searchAndFetchTools(): McpToolDefinition[] {
             // The metric page deep-link; the insights surface renders the series.
             url: `${origin}/insights?metric=${encodeURIComponent(rid)}`,
             metadata: { type: "metric", metric: rid },
+          };
+        }
+
+        if (kind === "nutrient" && rid) {
+          const code = resolveNutrientCode(rid);
+          if (!code) {
+            return {
+              id,
+              title: "Not found",
+              text: `No nutrient matches "${rid}".`,
+              url: `${origin}/insights/nutrients`,
+              metadata: { type: "nutrient" },
+            };
+          }
+          const result = (await getNutrients(ctx.userId, {
+            nutrient: code,
+          })) as NutrientsDailyResult;
+          const label = NUTRIENT_LABELS[code];
+          return {
+            id,
+            title: label,
+            text: plainNutrientText(label, result),
+            url: `${origin}/insights/nutrients`,
+            metadata: { type: "nutrient", nutrient: code },
           };
         }
 
@@ -751,6 +848,44 @@ const getPreventiveCareOutput: z.ZodRawShape = {
         lastSatisfiedAt: z.string().nullable(),
       }),
     )
+    .optional(),
+};
+
+/**
+ * Output schema for `get_nutrients` — either the presence overview (no
+ * `nutrient` arg) or one nutrient's per-day series + reference. Every field
+ * beyond `present` is optional so both shapes validate against one schema.
+ */
+const getNutrientsOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  windowDays: z.number().optional(),
+  // Overview mode.
+  nutrients: z
+    .array(
+      z.object({
+        nutrient: z.string(),
+        label: z.string(),
+        unit: z.string(),
+        latestDay: z.string(),
+        latestAmount: z.number(),
+        daysWithData: z.number(),
+      }),
+    )
+    .optional(),
+  // Per-nutrient mode.
+  nutrient: z.string().optional(),
+  label: z.string().optional(),
+  unit: z.string().optional(),
+  days: z.array(z.object({ day: z.string(), amount: z.number() })).optional(),
+  reference: z
+    .object({
+      kind: z.enum(["PRI", "AI", "safeLevel"]),
+      direction: z.enum(["target", "upperGuidance"]),
+      value: z.number(),
+      source: z.string(),
+    })
+    .nullable()
     .optional(),
 };
 
@@ -1320,6 +1455,45 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         meta: { tool: "get_preventive_care", present: true },
       });
       return { present: true, checkups };
+    },
+  },
+  // ── v1.30 coverage review (G1) — the nutrients pipeline ─────────────
+  {
+    name: "get_nutrients",
+    title: "Get nutrient intake",
+    description:
+      "Fetch the user's synced micronutrient intake — water, caffeine, and the 24 tracked vitamins/minerals — as day totals summed across sources (e.g. an Apple Health sync AND a manual water entry on the same day). Omit `nutrient` for a presence overview across every logged code (latest logged day, latest day's total, days with data). Pass a catalog code or display name (e.g. 'water', 'magnesium', 'vitamin_d') for that nutrient's per-day series over a trailing window, plus its EFSA dietary reference resolved against the user's own profile sex — omitted, never guessed, when sex is not on file. Gated on the opt-in `nutrients` module. Returns { present: false, reason: \"module_disabled\" } when the module is off, or { present: false } when nothing matches.",
+    inputShape: {
+      nutrient: z
+        .string()
+        .min(1)
+        .max(40)
+        .optional()
+        .describe(
+          "A catalog code (e.g. 'water', 'caffeine', 'vitamin_d', 'magnesium') or its display name. Omit for a presence overview across all logged nutrients.",
+        ),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(365)
+        .optional()
+        .describe(
+          "Trailing window in days. Overview mode (no `nutrient`) defaults to 14, capped at 365. Per-nutrient mode defaults to 30, capped at 90.",
+        ),
+    },
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getNutrientsOutput,
+    async run(ctx, args) {
+      const result = await getNutrients(ctx.userId, {
+        nutrient: typeof args.nutrient === "string" ? args.nutrient : undefined,
+        days: typeof args.days === "number" ? args.days : undefined,
+      });
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: { tool: "get_nutrients", present: result.present },
+      });
+      return result;
     },
   },
   ...searchAndFetchTools(),

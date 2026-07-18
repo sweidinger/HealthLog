@@ -10,6 +10,12 @@ vi.mock("@/lib/ai/coach/tools/inventory", () => ({
 vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
+// v1.30 — nutrients gate; default enabled so the existing suite's assertions
+// (predating the nutrients tool) keep exercising the real read path. Tests
+// that need the gated-off shape override this per-test.
+vi.mock("@/lib/modules/gate", () => ({
+  isModuleEnabled: vi.fn(async () => true),
+}));
 // v1.22.0 — `search` reads the record directly via Prisma; stub it so the
 // registry-wide loops never reach a DB.
 vi.mock("@/lib/db", () => ({
@@ -30,6 +36,11 @@ vi.mock("@/lib/db", () => ({
     medicationScheduleRevision: { groupBy: vi.fn(async () => []) },
     integrationStatus: { findMany: vi.fn(async () => []) },
     measurementReminder: { findMany: vi.fn(async () => []) },
+    // v1.30 (G1) — the nutrients pipeline.
+    nutrientIntakeDay: {
+      findMany: vi.fn(async () => []),
+      groupBy: vi.fn(async () => []),
+    },
   },
 }));
 // v1.24 — the operational reads delegate to existing server-authoritative
@@ -48,6 +59,15 @@ vi.mock("@/lib/integrations/status", () => ({
 vi.mock("@/lib/measurement-reminders/dto", () => ({
   toMeasurementReminderDto: vi.fn((r) => r),
 }));
+// v1.30 (G1) — `get_nutrients` delegates to the nutrients-read engine; stub
+// only the DB-touching entry point so the tool-wiring tests below never reach
+// a real engine. `NUTRIENT_LABELS` / `resolveNutrientCode` stay real (pure,
+// no DB) so the search/fetch id + label wiring is exercised for real; the
+// engine's own gating + fold logic is covered in `nutrients-read.test.ts`.
+vi.mock("@/lib/mcp/nutrients-read", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../nutrients-read")>();
+  return { ...actual, getNutrients: vi.fn(async () => ({ present: true })) };
+});
 // Phase 4 — the deep-value reads delegate to the rich-reads engines; stub them
 // so the registry-wide loops (surface / annotation / no-verdict) never reach a
 // real engine. Their own logic is covered in `rich-reads.test.ts`.
@@ -76,6 +96,8 @@ import { prisma } from "@/lib/db";
 import { computeDisplayDue } from "@/lib/medications/scheduling/next-due";
 import { getIntegrationStatus } from "@/lib/integrations/status";
 import { toMeasurementReminderDto } from "@/lib/measurement-reminders/dto";
+import { isModuleEnabled } from "@/lib/modules/gate";
+import { getNutrients } from "@/lib/mcp/nutrients-read";
 import type { McpAuthContext } from "../auth";
 
 const CTX: McpAuthContext = {
@@ -126,6 +148,8 @@ describe("MCP tool registry — surface", () => {
         "get_medication_schedule",
         "get_integration_status",
         "get_preventive_care",
+        // v1.30 coverage review (G1) — the nutrients pipeline.
+        "get_nutrients",
       ].sort(),
     );
   });
@@ -639,5 +663,144 @@ describe("v1.25 clinical signals on the MCP surface", () => {
     expect(result.text as string).not.toContain("{");
     expect(result.text as string).toContain("34");
     expect(result.text as string).toContain("16–60");
+  });
+});
+
+describe("get_nutrients — v1.30 coverage review (G1)", () => {
+  it("forwards the optional nutrient + days args to the engine and returns its result verbatim", async () => {
+    vi.mocked(getNutrients).mockResolvedValue({
+      present: true,
+      nutrient: "water",
+      unit: "ml",
+      windowDays: 30,
+      days: [{ day: "2026-07-01", amount: 1800 }],
+      reference: {
+        kind: "AI",
+        direction: "target",
+        value: 2000,
+        source: "EFSA DRV 2010",
+      },
+    } as never);
+
+    const result = (await tool("get_nutrients").run(CTX, {
+      nutrient: "water",
+      days: 30,
+    })) as { present: boolean; nutrient?: string };
+
+    expect(getNutrients).toHaveBeenCalledWith("user-1", {
+      nutrient: "water",
+      days: 30,
+    });
+    expect(result.present).toBe(true);
+    expect(result.nutrient).toBe("water");
+  });
+
+  it("omits args entirely when the caller passes neither (overview mode)", async () => {
+    vi.mocked(getNutrients).mockResolvedValue({
+      present: false,
+      reason: "no_data",
+    } as never);
+
+    await tool("get_nutrients").run(CTX, {});
+    expect(getNutrients).toHaveBeenCalledWith("user-1", {
+      nutrient: undefined,
+      days: undefined,
+    });
+  });
+
+  it("passes through a module-disabled miss unchanged", async () => {
+    vi.mocked(getNutrients).mockResolvedValue({
+      present: false,
+      reason: "module_disabled",
+    } as never);
+    const result = (await tool("get_nutrients").run(CTX, {})) as {
+      present: boolean;
+      reason?: string;
+    };
+    expect(result).toEqual({ present: false, reason: "module_disabled" });
+  });
+});
+
+describe("nutrients on search / fetch (v1.30 coverage review G1)", () => {
+  beforeEach(() => {
+    vi.mocked(buildCoachDataInventory).mockResolvedValue({
+      entries: [],
+      restMode: false,
+      cycleEnabled: false,
+      window: "last30days",
+      probeScope: { sources: [] },
+    } as never);
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.labResult.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
+  });
+
+  it("search resolves 'water' to nutrient:water when the user has logged it", async () => {
+    vi.mocked(prisma.nutrientIntakeDay.groupBy).mockResolvedValue([
+      { nutrient: "water" },
+    ] as never);
+    const result = (await tool("search").run(CTX, { query: "water" })) as {
+      results: Array<{ id: string; title: string; url: string }>;
+    };
+    const hit = result.results.find((r) => r.id === "nutrient:water");
+    expect(hit).toBeDefined();
+    expect(hit?.title).toBe("Water");
+  });
+
+  it("search resolves a free-text 'vitamin' query against a logged vitamin code", async () => {
+    vi.mocked(prisma.nutrientIntakeDay.groupBy).mockResolvedValue([
+      { nutrient: "vitamin_d" },
+    ] as never);
+    const result = (await tool("search").run(CTX, { query: "vitamin" })) as {
+      results: Array<{ id: string }>;
+    };
+    expect(result.results.some((r) => r.id === "nutrient:vitamin_d")).toBe(
+      true,
+    );
+  });
+
+  it("search never surfaces a nutrient when the opt-in module is off", async () => {
+    vi.mocked(isModuleEnabled).mockResolvedValueOnce(false);
+    vi.mocked(prisma.nutrientIntakeDay.groupBy).mockResolvedValue([
+      { nutrient: "water" },
+    ] as never);
+    const result = (await tool("search").run(CTX, { query: "water" })) as {
+      results: Array<{ id: string }>;
+    };
+    expect(result.results.some((r) => r.id.startsWith("nutrient:"))).toBe(
+      false,
+    );
+  });
+
+  it("fetch hydrates a nutrient id via the nutrients engine", async () => {
+    vi.mocked(prisma.nutrientIntakeDay.groupBy).mockResolvedValue([] as never);
+    vi.mocked(getNutrients).mockResolvedValue({
+      present: true,
+      nutrient: "water",
+      unit: "ml",
+      days: [{ day: "2026-07-01", amount: 1800 }],
+      reference: {
+        kind: "AI",
+        direction: "target",
+        value: 2000,
+        source: "EFSA DRV 2010",
+      },
+    } as never);
+
+    const result = (await tool("fetch").run(CTX, {
+      id: "nutrient:water",
+    })) as Record<string, unknown>;
+
+    expect(getNutrients).toHaveBeenCalledWith("user-1", { nutrient: "water" });
+    expect(result.title).toBe("Water");
+    expect(result.text as string).not.toContain("{");
+    expect(result.text as string).toContain("1800");
+  });
+
+  it("fetch returns a not-found shape for an unresolvable nutrient id", async () => {
+    const result = (await tool("fetch").run(CTX, {
+      id: "nutrient:not-a-real-code",
+    })) as Record<string, unknown>;
+    expect(result.title).toBe("Not found");
   });
 });

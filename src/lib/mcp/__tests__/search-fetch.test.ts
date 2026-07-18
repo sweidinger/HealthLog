@@ -15,12 +15,23 @@ vi.mock("@/lib/ai/coach/tools/inventory", () => ({
   buildCoachDataInventory: vi.fn(),
 }));
 vi.mock("@/lib/ai/coach/tools/executor", () => ({ executeCoachTool: vi.fn() }));
+// v1.30 — the nutrients module is opt-in; default this suite's tenant to
+// having it enabled so the pre-existing search/fetch assertions (which
+// predate the nutrients probe) are unaffected.
+vi.mock("@/lib/modules/gate", () => ({
+  isModuleEnabled: vi.fn(async () => true),
+}));
 vi.mock("@/lib/db", () => ({
   prisma: {
     medication: { findMany: vi.fn(), findFirst: vi.fn() },
     labResult: { findMany: vi.fn() },
     // v1.25 — `search` probes the clinical-signal measurement types.
     measurement: { groupBy: vi.fn(async () => []) },
+    // v1.30 (G1) — the nutrients pipeline.
+    nutrientIntakeDay: {
+      findMany: vi.fn(async () => []),
+      groupBy: vi.fn(async () => []),
+    },
   },
 }));
 

@@ -1,0 +1,286 @@
+/**
+ * `get_nutrients` — MCP read for the `NutrientIntakeDay` pipeline (v1.30
+ * coverage review G1).
+ *
+ * Thin façade over the SAME two reads `GET /api/nutrients` (presence
+ * overview) and `GET /api/nutrients/daily` (per-day summed series + the
+ * resolved EFSA reference) run: the same tz-anchored day-key math
+ * (`userDayKey` / `shiftDateKey` against the caller's own local "today"),
+ * the same sum-across-sources fold (a day can carry an APPLE_HEALTH row AND
+ * a MANUAL row since migration 0249), and the same sex-aware
+ * `resolveNutrientReference` — omit, never guess, when the profile has no
+ * sex on file. No new analytics.
+ *
+ * Gated on the opt-in `nutrients` module (`isModuleEnabled`) exactly like
+ * both backing routes: the module ships dark, so an assistant against an
+ * account that never turned it on gets an honest
+ * `{ present: false, reason: "module_disabled" }` rather than reading as
+ * "nothing logged". `userId` is the session-narrowed id the caller passes;
+ * never a tool argument.
+ */
+import { prisma } from "@/lib/db";
+import { isModuleEnabled } from "@/lib/modules/gate";
+import {
+  NUTRIENT_CATALOG,
+  NUTRIENT_CODES,
+  isNutrientCode,
+  resolveNutrientReference,
+  type NutrientCode,
+  type ResolvedNutrientReference,
+} from "@/lib/nutrients/catalog";
+import { DEFAULT_TIMEZONE, shiftDateKey, userDayKey } from "@/lib/tz/format";
+
+/**
+ * English display labels for the closed nutrient catalog. MCP text is
+ * protocol-level, not rendered to a localised UI (see `MCP_SERVER_INSTRUCTIONS`'s
+ * own docblock) — hardcoded here exactly like the `SUPPLEMENT` labels in
+ * `rich-reads.ts` (Weight / Pulse / Body-mass index). Mirrors
+ * `messages/en.json`'s `nutrients.names.*` bundle so the wording matches the
+ * app's own settings card.
+ */
+export const NUTRIENT_LABELS: Readonly<Record<NutrientCode, string>> = {
+  vitamin_a: "Vitamin A",
+  thiamin: "Thiamin (B1)",
+  riboflavin: "Riboflavin (B2)",
+  niacin: "Niacin (B3)",
+  pantothenic_acid: "Pantothenic acid (B5)",
+  vitamin_b6: "Vitamin B6",
+  biotin: "Biotin (B7)",
+  folate: "Folate (B9)",
+  vitamin_b12: "Vitamin B12",
+  vitamin_c: "Vitamin C",
+  vitamin_d: "Vitamin D",
+  vitamin_e: "Vitamin E",
+  vitamin_k: "Vitamin K",
+  calcium: "Calcium",
+  iron: "Iron",
+  magnesium: "Magnesium",
+  phosphorus: "Phosphorus",
+  zinc: "Zinc",
+  copper: "Copper",
+  manganese: "Manganese",
+  selenium: "Selenium",
+  chromium: "Chromium",
+  molybdenum: "Molybdenum",
+  iodine: "Iodine",
+  water: "Water",
+  caffeine: "Caffeine",
+};
+
+/** Overview mode (no `nutrient` arg) mirrors `GET /api/nutrients`'s bounds. */
+const OVERVIEW_DEFAULT_DAYS = 14;
+const OVERVIEW_MAX_DAYS = 365;
+/** Per-nutrient mode mirrors `GET /api/nutrients/daily`'s bounds. */
+const DAILY_DEFAULT_DAYS = 30;
+const DAILY_MAX_DAYS = 90;
+
+export interface NutrientsOverviewResult {
+  present: boolean;
+  reason?: string;
+  windowDays?: number;
+  nutrients?: Array<{
+    nutrient: NutrientCode;
+    label: string;
+    unit: string;
+    latestDay: string;
+    latestAmount: number;
+    daysWithData: number;
+  }>;
+}
+
+export interface NutrientsDailyResult {
+  present: boolean;
+  reason?: string;
+  nutrient?: NutrientCode;
+  label?: string;
+  unit?: string;
+  windowDays?: number;
+  days?: Array<{ day: string; amount: number }>;
+  reference?: ResolvedNutrientReference | null;
+}
+
+/**
+ * Resolve a free-text nutrient name to a catalog code, or `null`. Forgiving
+ * for an NL assistant (exact code, spaces/hyphens folded to underscores, or a
+ * display-label match e.g. "Vitamin D") but closed to the 26-code catalog —
+ * an unresolved name reports `{ present: false, reason: "unknown_nutrient" }`
+ * rather than inventing a series.
+ */
+export function resolveNutrientCode(input: string): NutrientCode | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  const key = raw.toLowerCase().replace(/[\s-]+/g, "_");
+  if (isNutrientCode(key)) return key;
+  for (const code of NUTRIENT_CODES) {
+    const folded = NUTRIENT_LABELS[code]
+      .toLowerCase()
+      .replace(/[\s()-]+/g, "_")
+      .replace(/_+$/, "");
+    if (folded === key) return code;
+  }
+  return null;
+}
+
+/** Presence overview across every logged code — mirrors `GET /api/nutrients`. */
+async function readOverview(
+  userId: string,
+  userTz: string,
+  days: number,
+): Promise<NutrientsOverviewResult> {
+  const todayKey = userDayKey(new Date(), userTz);
+  const since = shiftDateKey(todayKey, -(days - 1));
+
+  const rows = await prisma.nutrientIntakeDay.findMany({
+    where: { userId, day: { gte: since } },
+    orderBy: [{ nutrient: "asc" }, { day: "desc" }],
+    select: { nutrient: true, unit: true, day: true, amount: true },
+  });
+
+  // v1.29 — `source` joined the PK (migration 0249): a day can carry an
+  // APPLE_HEALTH row AND a MANUAL row. Rows arrive day-DESC inside each
+  // nutrient, so the first day seen per code is the latest; a second row for
+  // that same day (the other source) adds to the running total. `daysSeen` is
+  // a per-nutrient SET of distinct day keys so a repeated day (any number of
+  // source rows) counts exactly once — the same fold `GET /api/nutrients`
+  // applies (see that route's docblock).
+  const byCode = new Map<
+    string,
+    {
+      unit: string;
+      latestDay: string;
+      latestAmount: number;
+      daysSeen: Set<string>;
+    }
+  >();
+  for (const row of rows) {
+    const existing = byCode.get(row.nutrient);
+    if (!existing) {
+      byCode.set(row.nutrient, {
+        unit: row.unit,
+        latestDay: row.day,
+        latestAmount: row.amount,
+        daysSeen: new Set([row.day]),
+      });
+      continue;
+    }
+    existing.daysSeen.add(row.day);
+    if (row.day === existing.latestDay) {
+      existing.latestAmount += row.amount;
+    }
+  }
+
+  const nutrients = NUTRIENT_CODES.filter(
+    (code) => isNutrientCode(code) && byCode.has(code),
+  ).map((code) => {
+    const summary = byCode.get(code)!;
+    return {
+      nutrient: code,
+      label: NUTRIENT_LABELS[code],
+      unit: summary.unit,
+      latestDay: summary.latestDay,
+      latestAmount: summary.latestAmount,
+      daysWithData: summary.daysSeen.size,
+    };
+  });
+
+  return {
+    present: nutrients.length > 0,
+    ...(nutrients.length === 0 ? { reason: "no_data" } : {}),
+    windowDays: days,
+    nutrients,
+  };
+}
+
+/** One nutrient's per-day series + reference — mirrors `GET /api/nutrients/daily`. */
+async function readDaily(
+  userId: string,
+  userTz: string,
+  sex: "MALE" | "FEMALE" | null,
+  nutrient: NutrientCode,
+  days: number,
+): Promise<NutrientsDailyResult> {
+  const definition = NUTRIENT_CATALOG[nutrient];
+  const todayKey = userDayKey(new Date(), userTz);
+  const sinceKey = shiftDateKey(todayKey, -(days - 1));
+
+  const rows = await prisma.nutrientIntakeDay.findMany({
+    where: { userId, nutrient, day: { gte: sinceKey } },
+    select: { day: true, amount: true },
+  });
+
+  // Sum across sources within a day BEFORE bucketing — the same fold `GET
+  // /api/nutrients/daily` applies.
+  const sumByDay = new Map<string, number>();
+  for (const row of rows) {
+    sumByDay.set(row.day, (sumByDay.get(row.day) ?? 0) + row.amount);
+  }
+
+  const daySeries: Array<{ day: string; amount: number }> = [];
+  for (let i = 0; i < days; i++) {
+    const key = shiftDateKey(sinceKey, i);
+    daySeries.push({ day: key, amount: sumByDay.get(key) ?? 0 });
+  }
+
+  const reference = resolveNutrientReference(nutrient, sex);
+
+  return {
+    present: rows.length > 0,
+    ...(rows.length === 0 ? { reason: "no_data" } : {}),
+    nutrient,
+    label: NUTRIENT_LABELS[nutrient],
+    unit: definition.unit,
+    windowDays: days,
+    days: daySeries,
+    reference,
+  };
+}
+
+function clampDays(
+  value: number | undefined,
+  fallback: number,
+  max: number,
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 1) {
+    return fallback;
+  }
+  return Math.min(Math.floor(value), max);
+}
+
+/**
+ * `get_nutrients` entry point. No `nutrient` → the presence overview
+ * (latest day / latest total / days-with-data per logged code). A named
+ * `nutrient` → that code's per-day summed series over a trailing window plus
+ * its resolved EFSA reference. `{ present: false, reason: "module_disabled" }`
+ * when the opt-in `nutrients` module is off — checked before any other read,
+ * mirroring both backing routes.
+ */
+export async function getNutrients(
+  userId: string,
+  args: { nutrient?: string; days?: number },
+): Promise<NutrientsOverviewResult | NutrientsDailyResult> {
+  const enabled = await isModuleEnabled(userId, "nutrients");
+  if (!enabled) {
+    return { present: false, reason: "module_disabled" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { timezone: true, gender: true },
+  });
+  const userTz = user?.timezone || DEFAULT_TIMEZONE;
+  const genderValue = user?.gender ?? null;
+  const sex =
+    genderValue === "MALE" || genderValue === "FEMALE" ? genderValue : null;
+
+  if (!args.nutrient) {
+    const days = clampDays(args.days, OVERVIEW_DEFAULT_DAYS, OVERVIEW_MAX_DAYS);
+    return readOverview(userId, userTz, days);
+  }
+
+  const code = resolveNutrientCode(args.nutrient);
+  if (!code) {
+    return { present: false, reason: "unknown_nutrient" };
+  }
+  const days = clampDays(args.days, DAILY_DEFAULT_DAYS, DAILY_MAX_DAYS);
+  return readDaily(userId, userTz, sex, code, days);
+}
