@@ -270,7 +270,7 @@ function formatIsoWithOffset(date: Date, tz: string): string {
  * `Intl.DateTimeFormat` does — we reconstruct the offset from the
  * difference between the wall-clock parts and the UTC parts.
  */
-function tzOffsetMinutes(date: Date, tz: string): number {
+export function tzOffsetMinutes(date: Date, tz: string): number {
   const fmt = getDateTimeFormat("en-CA", tz, WALL_CLOCK_PARTS_OPTIONS);
   const parts = fmt.formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes): number =>
