@@ -68,6 +68,18 @@ vi.mock("@/lib/auth/oidc", () => ({
   deriveUniqueUsername: vi.fn(async (email: string) => email.split("@")[0]),
 }));
 
+// The handoff lib is unit-tested separately; here we assert the callback
+// branches into it and redirects to the custom scheme (real
+// `buildNativeCallbackUrl`, mocked `mintNativeHandoff`).
+vi.mock("@/lib/auth/oidc-native-handoff", () => ({
+  buildNativeCallbackUrl: (params: Record<string, string>) =>
+    `healthlog://oidc-callback?${new URLSearchParams(params).toString()}`,
+  mintNativeHandoff: vi.fn(async () => ({
+    code: "hlh_test_code",
+    handoffId: "ho-1",
+  })),
+}));
+
 import { GET } from "../route";
 import { checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
@@ -80,6 +92,7 @@ import {
   exchangeCodeForTokens,
   verifyIdToken,
 } from "@/lib/auth/oidc";
+import { mintNativeHandoff } from "@/lib/auth/oidc-native-handoff";
 
 const CONFIG = {
   issuerUrl: "https://idp.example.com",
@@ -575,5 +588,129 @@ describe("GET /api/auth/oidc/callback", () => {
       .getSetCookie()
       .find((c) => c.startsWith("oidc_auth_state="))!;
     expect(successCookie.toLowerCase()).toContain("path=/api/auth/oidc");
+  });
+});
+
+describe("GET /api/auth/oidc/callback — native branch", () => {
+  beforeEach(() => {
+    vi.mocked(checkAuthSurfaceRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 20,
+      reset: 0,
+      ip: "1.2.3.4",
+    } as never);
+    vi.mocked(getOidcConfig).mockReturnValue(CONFIG);
+    vi.mocked(discoverOidcMetadata).mockResolvedValue(METADATA);
+    vi.mocked(prisma.webauthnMfaCredential.count).mockResolvedValue(0);
+    vi.mocked(mintNativeHandoff).mockResolvedValue({
+      code: "hlh_test_code",
+      handoffId: "ho-1",
+    });
+  });
+
+  function nativeStateCookie(overrides: Record<string, unknown> = {}): string {
+    return stateCookie({
+      state: "STATE",
+      nonce: "nonce-1",
+      codeVerifier: "verifier-1",
+      next: "/",
+      native: true,
+      appCodeChallenge: "app-challenge-123",
+      ...overrides,
+    });
+  }
+
+  function nativeRequest(): NextRequest {
+    return makeRequest({
+      query: "?code=abc&state=STATE",
+      cookie: nativeStateCookie(),
+    });
+  }
+
+  it("mints a handoff code and 302s to the custom scheme — no session", async () => {
+    mockIdentity();
+    mockUserLookups({
+      byIdentity: userRow({ oidcIssuer: METADATA.issuer, oidcSub: "sub-1" }),
+    });
+
+    const res = await GET(nativeRequest());
+    const location = res.headers.get("location")!;
+    expect(location.startsWith("healthlog://oidc-callback?code=")).toBe(true);
+    expect(location).toContain("code=hlh_test_code");
+    // The app's challenge (from the tamper-authenticated blob) is bound at mint.
+    expect(mintNativeHandoff).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        appCodeChallenge: "app-challenge-123",
+      }),
+    );
+    // No web session is minted on the native branch.
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("hands the MFA ticket to the custom scheme (no session, no MFA cookie)", async () => {
+    mockIdentity();
+    mockUserLookups({
+      byIdentity: userRow({
+        oidcIssuer: METADATA.issuer,
+        oidcSub: "sub-1",
+        totpConfirmedAt: new Date(),
+      }),
+    });
+
+    const res = await GET(nativeRequest());
+    const location = res.headers.get("location")!;
+    expect(location.startsWith("healthlog://oidc-callback?")).toBe(true);
+    expect(location).toContain("mfa_ticket=mfa-ticket-1");
+    expect(location).toContain("methods=totp%2Crecovery");
+    // No handoff code on the MFA branch, and no session.
+    expect(location).not.toContain("code=hlh_");
+    expect(mintNativeHandoff).not.toHaveBeenCalled();
+    expect(createSession).not.toHaveBeenCalled();
+    // The web-only MFA handoff cookie is never set on the native branch.
+    const mfaCookie = res.headers
+      .getSetCookie()
+      .find((c) => c.startsWith("oidc_mfa_handoff="));
+    expect(mfaCookie).toBeUndefined();
+  });
+
+  it("delivers a post-identity error to the custom scheme, not a web page", async () => {
+    mockIdentity();
+    // An account already pinned to a different IdP identity → identity_conflict.
+    mockUserLookups({
+      byIdentity: null,
+      byEmail: userRow({ oidcIssuer: "https://other.example", oidcSub: "x" }),
+    });
+
+    const res = await GET(nativeRequest());
+    const location = res.headers.get("location")!;
+    expect(location).toBe(
+      "healthlog://oidc-callback?error=oidc_identity_conflict",
+    );
+  });
+
+  it("delivers an IdP denial to the custom scheme", async () => {
+    const res = await GET(
+      makeRequest({
+        query: "?error=access_denied&state=STATE",
+        cookie: nativeStateCookie(),
+      }),
+    );
+    expect(res.headers.get("location")).toBe(
+      "healthlog://oidc-callback?error=oidc_denied",
+    );
+  });
+
+  it("falls back to the WEB oidc_state page on a CSRF mismatch (broken flow)", async () => {
+    const res = await GET(
+      makeRequest({
+        query: "?code=abc&state=WRONG",
+        cookie: nativeStateCookie(),
+      }),
+    );
+    // A tampered/broken round-trip never hands the app a scheme redirect.
+    expect(res.headers.get("location")).toContain(
+      "/auth/login?error=oidc_state",
+    );
   });
 });
