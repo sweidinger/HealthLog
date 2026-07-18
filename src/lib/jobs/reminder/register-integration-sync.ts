@@ -86,6 +86,8 @@ import {
   handleWithingsOAuthStateCleanup,
   WhoopOAuthStateCleanupPayload,
   handleWhoopOAuthStateCleanup,
+  OidcNativeHandoffCleanupPayload,
+  handleOidcNativeHandoffCleanup,
 } from "./cleanup-handlers";
 import { NightscoutSyncPayload, handleNightscoutSync } from "./nightscout-sync";
 import { PolarSyncPayload, handlePolarSync } from "./polar-sync";
@@ -219,6 +221,14 @@ const OURA_SYNC_CRON = "15 * * * *"; // every hour at :15
 // schedule silently no-ops (the v1.4.37 dead-queue class).
 const STRAVA_SYNC_QUEUE = "strava-sync";
 const STRAVA_SYNC_CRON = "17 * * * *"; // every hour at :17
+// v1.30.x — daily sweep for the native OIDC handoff ledger. Handoff codes are
+// single-use + 90s-lived and expiry is enforced at read, so this is pure
+// hygiene: it reaps rows the app never came back to exchange. Slots at 03:28,
+// next to the Google Health OAuth-state sweep (03:26), inside the maintenance
+// window. The queue MUST be registered in `allQueues` below or pg-boss never
+// provisions it and the schedule silently no-ops (the v1.4.37 dead-queue class).
+const OIDC_NATIVE_HANDOFF_CLEANUP_QUEUE = "oidc-native-handoff-cleanup";
+const OIDC_NATIVE_HANDOFF_CLEANUP_CRON = "28 3 * * *";
 
 // pg-boss v12 requires explicit queue creation before scheduling. Every queue
 // MUST be registered here or pg-boss never provisions it and both the webhook
@@ -273,6 +283,8 @@ const allQueues = [
   // v1.28.x — Strava OAuth poll sync + self-converging boot backfill.
   STRAVA_SYNC_QUEUE,
   STRAVA_BACKFILL_QUEUE,
+  // v1.30.x — daily sweep for the native OIDC handoff ledger.
+  OIDC_NATIVE_HANDOFF_CLEANUP_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -310,6 +322,8 @@ const schedules: ScheduleEntry[] = [
   [OURA_SYNC_QUEUE, OURA_SYNC_CRON],
   // v1.28.x — hourly Strava (:17) OAuth poll.
   [STRAVA_SYNC_QUEUE, STRAVA_SYNC_CRON],
+  // v1.30.x — daily 03:28 Europe/Berlin prune for expired native OIDC handoffs.
+  [OIDC_NATIVE_HANDOFF_CLEANUP_QUEUE, OIDC_NATIVE_HANDOFF_CLEANUP_CRON],
 ];
 
 /**
@@ -385,6 +399,12 @@ export async function registerIntegrationSyncQueues(
     WHOOP_OAUTH_STATE_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleWhoopOAuthStateCleanup,
+  );
+  // v1.30.x — daily sweep for the native OIDC handoff ledger.
+  await boss.work<OidcNativeHandoffCleanupPayload>(
+    OIDC_NATIVE_HANDOFF_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleOidcNativeHandoffCleanup,
   );
   // v1.12.0 — Fitbit poll-sync (cron full-iteration; no webhook). Serial
   // concurrency so a backfill-heavy tick never crowds the request pool.

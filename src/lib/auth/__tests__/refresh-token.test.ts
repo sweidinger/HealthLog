@@ -133,6 +133,7 @@ import {
   issueAccessAndRefresh,
   rotateRefreshToken,
   revokeRefreshToken,
+  revokeRefreshTokenByHash,
   revokeBearerAccessToken,
 } from "../refresh-token";
 import type { TokenPolicyDecision } from "../native-client";
@@ -459,5 +460,44 @@ describe("revokeBearerAccessToken (M-2 logout bearer revoke)", () => {
   it("returns false when no live ApiToken matches the token", async () => {
     const ok = await revokeBearerAccessToken("hlk_unknown_token");
     expect(ok).toBe(false);
+  });
+});
+
+describe("revokeRefreshTokenByHash (native OIDC handoff replay containment)", () => {
+  it("revokes the refresh row + its paired access token by stored hash", async () => {
+    const bundle = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.oidc.native",
+      deviceId: "dev-1",
+    });
+    const refreshHash = `hash:${bundle.refreshToken}`;
+    const accessHash = `hash:${bundle.accessToken}`;
+
+    // The handoff row only ever stored the HASH of the refresh token, never
+    // the raw secret — so replay containment must revoke by hash.
+    const ok = await revokeRefreshTokenByHash(refreshHash);
+    expect(ok).toBe(true);
+
+    expect(
+      dbState.refreshTokens.find((r) => r.tokenHash === refreshHash)?.revokedAt,
+    ).not.toBeNull();
+    expect(
+      dbState.apiTokens.find((a) => a.tokenHash === accessHash)?.revoked,
+    ).toBe(true);
+  });
+
+  it("returns false for an unknown or already-revoked hash", async () => {
+    expect(await revokeRefreshTokenByHash("hash:hlr_unknown")).toBe(false);
+
+    const bundle = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.oidc.native",
+    });
+    const refreshHash = `hash:${bundle.refreshToken}`;
+    await revokeRefreshTokenByHash(refreshHash);
+    // Second call is a no-op (idempotent containment).
+    expect(await revokeRefreshTokenByHash(refreshHash)).toBe(false);
   });
 });

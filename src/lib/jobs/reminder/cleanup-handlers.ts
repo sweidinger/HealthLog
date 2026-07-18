@@ -15,6 +15,7 @@ import { cleanupExpiredMcpTokens } from "@/lib/jobs/mcp-token-cleanup";
 import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
 import { cleanupOldCoachMessages } from "@/lib/jobs/coach-message-cleanup";
 import { cleanupExpiredWithingsOAuthStates } from "@/lib/jobs/withings-oauth-state-cleanup";
+import { cleanupExpiredOidcNativeHandoffs } from "@/lib/jobs/oidc-handoff-cleanup";
 import {
   cleanupExpiredMeasurementTombstones,
   cleanupExpiredMoodTombstones,
@@ -261,6 +262,27 @@ export async function handleWithingsOAuthStateCleanup(
       // The OAuth flow tolerates a stale row sticking around for an
       // extra day — log + carry on so the boss queue doesn't retry-loop.
       evt.addWarning(`withings-oauth-state-cleanup failed: ${err}`);
+    }
+  });
+}
+
+export interface OidcNativeHandoffCleanupPayload {
+  triggeredAt?: string;
+}
+
+export async function handleOidcNativeHandoffCleanup(
+  jobs: Job<OidcNativeHandoffCleanupPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.oidc_native_handoff_cleanup", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const deleted = await cleanupExpiredOidcNativeHandoffs(p);
+      evt.addMeta("oidc_native_handoff_cleanup_deleted", deleted);
+    } catch (err) {
+      // The handoff flow tolerates a stale row for an extra day (expiry is
+      // enforced at read) — log + carry on so the boss queue doesn't retry-loop.
+      evt.addWarning(`oidc-native-handoff-cleanup failed: ${err}`);
     }
   });
 }

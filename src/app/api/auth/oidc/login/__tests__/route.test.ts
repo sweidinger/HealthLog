@@ -150,4 +150,67 @@ describe("GET /api/auth/oidc/login", () => {
     const res = await GET(makeRequest());
     expect(res.headers.get("location")).toContain("error=oidc_failed");
   });
+
+  describe("native SSO start", () => {
+    const CONFIG = {
+      issuerUrl: "https://idp.example.com",
+      clientId: "client-1",
+      clientSecret: "secret-1",
+      scopes: "openid email profile",
+      buttonLabel: "SSO",
+    };
+    const CHALLENGE = "a".repeat(43); // valid S256 length
+
+    function storedFromCookie(res: Awaited<ReturnType<typeof GET>>) {
+      const cookie = res.cookies.get("oidc_auth_state");
+      return JSON.parse(cookie!.value.replace(/^enc\(/, "").replace(/\)$/, ""));
+    }
+
+    it("rejects a native start with a missing challenge to the custom scheme", async () => {
+      vi.mocked(getOidcConfig).mockReturnValue(CONFIG);
+      const res = await GET(makeRequest("/api/auth/oidc/login?client=native"));
+      expect(res.headers.get("location")).toBe(
+        "healthlog://oidc-callback?error=oidc_invalid_request",
+      );
+    });
+
+    it("routes native login errors (disabled) to the custom scheme", async () => {
+      vi.mocked(getOidcConfig).mockReturnValue(null);
+      const res = await GET(
+        makeRequest(
+          `/api/auth/oidc/login?client=native&code_challenge=${CHALLENGE}`,
+        ),
+      );
+      expect(res.headers.get("location")).toBe(
+        "healthlog://oidc-callback?error=oidc_disabled",
+      );
+    });
+
+    it("folds native:true + appCodeChallenge into the state blob and pins next to /", async () => {
+      vi.mocked(getOidcConfig).mockReturnValue(CONFIG);
+      vi.mocked(discoverOidcMetadata).mockResolvedValue({
+        issuer: "https://idp.example.com",
+        authorization_endpoint: "https://idp.example.com/authorize",
+        token_endpoint: "https://idp.example.com/token",
+        jwks_uri: "https://idp.example.com/jwks",
+      });
+
+      const res = await GET(
+        makeRequest(
+          `/api/auth/oidc/login?client=native&code_challenge=${CHALLENGE}&next=/dashboard`,
+        ),
+      );
+      // Still a normal redirect to the IdP — the native fact rides the blob.
+      expect(res.headers.get("location")).toBe(
+        "https://idp.example.com/authorize?x=1",
+      );
+      const stored = storedFromCookie(res);
+      expect(stored.native).toBe(true);
+      expect(stored.appCodeChallenge).toBe(CHALLENGE);
+      // `next` is meaningless to the app — pinned to "/".
+      expect(stored.next).toBe("/");
+      // The server↔IdP verifier stays independent and present.
+      expect(typeof stored.codeVerifier).toBe("string");
+    });
+  });
 });
