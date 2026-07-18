@@ -31,6 +31,10 @@ import {
 } from "@/lib/query-keys";
 import { ApiError, apiPost } from "@/lib/api/api-fetch";
 import { MEASUREMENT_NOTES_MAX_LENGTH } from "@/lib/validations/measurement";
+import {
+  getLastUsedMeasurementType,
+  setLastUsedMeasurementType,
+} from "@/lib/measurements/last-used-type";
 
 const MAX_COMMENT_LENGTH = MEASUREMENT_NOTES_MAX_LENGTH;
 
@@ -234,7 +238,16 @@ export function MeasurementForm({
       ? "BLOOD_PRESSURE"
       : defaultType;
 
-  const [type, setType] = useState(normalizedDefault || "BLOOD_PRESSURE");
+  // v1.30.1 M3 — an explicit deep-link default always wins; absent one,
+  // seed from the last type the user actually saved rather than always
+  // landing on BLOOD_PRESSURE. Lazy initializer so the localStorage read
+  // happens once, at mount, not on every render.
+  const [type, setType] = useState(
+    () =>
+      normalizedDefault ||
+      getLastUsedMeasurementType(MEASUREMENT_FORM_TYPE_VALUES) ||
+      "BLOOD_PRESSURE",
+  );
   const [value, setValue] = useState("");
   const [sysBp, setSysBp] = useState("");
   const [diaBp, setDiaBp] = useState("");
@@ -322,6 +335,10 @@ export function MeasurementForm({
           ...(isGlucoseMode ? { glucoseContext } : {}),
         });
       }
+
+      // v1.30.1 M3 — remember this type as the next mount's smart
+      // default (deep links still override it).
+      setLastUsedMeasurementType(type);
 
       // Reset form
       setValue("");
