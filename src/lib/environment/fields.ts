@@ -117,15 +117,3 @@ export const ENVIRONMENT_FIELDS: readonly EnvironmentField[] = [
 ] as const;
 
 /** The correlation channel keys, in declaration order. */
-export const ENVIRONMENT_CHANNEL_KEYS: readonly string[] =
-  ENVIRONMENT_FIELDS.map((f) => f.key);
-
-/** True for a registered environmental channel key. */
-export function isEnvironmentChannelKey(key: string): boolean {
-  return ENVIRONMENT_CHANNEL_KEYS.includes(key);
-}
-
-/** Resolve a field by its key, or null when unregistered. */
-export function getEnvironmentField(key: string): EnvironmentField | null {
-  return ENVIRONMENT_FIELDS.find((f) => f.key === key) ?? null;
-}

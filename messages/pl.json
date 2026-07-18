@@ -1979,6 +1979,61 @@
     "notAvailableForCompliance": "Porównanie niedostępne dla przestrzegania"
   },
   "insights": {
+    "correlation": {
+      "direction": {
+        "higher": "wzrostu",
+        "lower": "spadku"
+      },
+      "weekdayDirection": {
+        "above": "powyżej",
+        "below": "poniżej"
+      },
+      "channelFactor": "ocena czynnika {factor}",
+      "channel": {
+        "WEIGHT": "waga",
+        "BLOOD_GLUCOSE": "poziom cukru we krwi",
+        "BLOOD_PRESSURE_SYS": "ciśnienie skurczowe",
+        "BLOOD_PRESSURE_DIA": "ciśnienie rozkurczowe",
+        "ACTIVITY_STEPS": "dzienna liczba kroków",
+        "SLEEP_DURATION": "długość snu",
+        "HEART_RATE_VARIABILITY": "zmienność rytmu serca",
+        "RESTING_HEART_RATE": "spoczynkowe tętno",
+        "TIME_IN_DAYLIGHT": "czas w świetle dziennym",
+        "MOOD": "nastrój",
+        "PULSE": "tętno spoczynkowe",
+        "MEDICATION_COMPLIANCE": "przyjmowanie leków",
+        "SYMPTOM_SEVERITY": "nasilenie objawów",
+        "ENV_TEMP_MEAN": "temperatura dobowa",
+        "ENV_TEMP_MIN": "nocna temperatura minimalna",
+        "ENV_SUNSHINE": "nasłonecznienie",
+        "ENV_DAYLIGHT": "światło dzienne",
+        "ENV_PRECIP": "opady",
+        "ENV_PRESSURE_MEAN": "ciśnienie atmosferyczne",
+        "ENV_PRESSURE_DELTA": "dobowa zmiana ciśnienia"
+      },
+      "daily": {
+        "high": "Gdy {behaviour} rośnie, {outcome} następnego dnia zwykle wykazuje tendencję do {direction} w Twoich danych — wzorzec wart obserwacji, nie przyczyna.",
+        "moderate": "Gdy {behaviour} rośnie, {outcome} następnego dnia wydaje się wykazywać tendencję do {direction}, na podstawie dostępnych danych — wzorzec wart obserwacji, nie przyczyna.",
+        "faint": "Gdy {behaviour} rośnie, w Twoich danych pojawia się co najwyżej słaba wskazówka, że {outcome} następnego dnia wykazuje tendencję do {direction} — zbyt słaba, by na niej polegać, nigdy przyczyna."
+      },
+      "lab": {
+        "default": "Wyższe wartości {lab} idą w parze z tym, że {outcome} wykazuje tendencję do {direction} w tych samych okresach w Twoich danych — zależność, którą warto obserwować z lekarzem, nigdy przyczyna.",
+        "faint": "Wyższe wartości {lab} co najwyżej słabo sugerują, że {outcome} wykazuje tendencję do {direction} w tych samych okresach w Twoich danych — zbyt słabo, by na tym polegać, zależność do omówienia z lekarzem, nigdy przyczyna."
+      },
+      "hypothesis": {
+        "bpCompliance": {
+          "support": "Lepsze przyjmowanie leków idzie w parze z niższymi wartościami skurczowymi — wzorzec wart obserwacji.",
+          "surprising": "Przyjmowanie leków i ciśnienie skurczowe zmieniają się razem w Twoich danych — zaskakujące; skonsultuj się z lekarzem, zanim coś zmienisz.",
+          "none": "Przyjmowanie leków i ciśnienie skurczowe nie zmieniają się wyraźnie razem w tym okresie."
+        },
+        "moodPulse": {
+          "support": "Dni z gorszym nastrojem idą w parze z wyższym tętnem spoczynkowym — wzorzec wart obserwacji.",
+          "surprising": "Dni z lepszym nastrojem idą w parze z wyższym tętnem spoczynkowym w Twoich danych — zaskakujące.",
+          "none": "Nastrój i tętno spoczynkowe nie zmieniają się wyraźnie razem w tym okresie."
+        },
+        "weightWeekday": "Waga w {weekday} jest {delta} kg {direction} Twojej średniej z pozostałych dni — wzorzec wart obserwacji."
+      }
+    },
     "noAnalysisYet": "Brak oceny.",
     "assessmentPreparing": "Przygotowywanie oceny…",
     "emptyTitle": "Jeszcze za mało danych",
@@ -2934,7 +2989,24 @@
         "hrChartTitle": "Tętno",
         "hrChartUnavailable": "Próbki tętna co sekundę nie są zapisywane dla tego treningu.",
         "notFound": "Nie znaleziono treningu.",
-        "loading": "Wczytywanie treningu…"
+        "loading": "Wczytywanie treningu…",
+        "hrFromPulse": "Na podstawie Twoich danych tętna z okolic tej sesji",
+        "hrAxisMinutes": "min",
+        "sportAverageLabel": "Twoja ostatnia średnia:",
+        "zonesTitle": "Strefy wysiłku",
+        "zonesCaption": "Jak Twój wysiłek rozłożył się na strefy tętna.",
+        "zonesCaptionDevice": "Czas w strefach według Twojego urządzenia.",
+        "exportGpx": "Eksportuj GPX",
+        "elevationTitle": "Wznios",
+        "splitsTitle": "Międzyczasy",
+        "splitsKm": "km",
+        "splitsTime": "Czas",
+        "splitsPace": "Tempo",
+        "thatDayTitle": "Tego dnia",
+        "dayPulse": "Tętno",
+        "daySleep": "Sen",
+        "dayMood": "Nastrój",
+        "insightTitle": "Analiza aktywności"
       },
       "sport": {
         "walking": "Marsz",

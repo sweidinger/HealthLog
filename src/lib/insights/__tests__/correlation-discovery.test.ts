@@ -365,6 +365,53 @@ describe("D2-2 — effect-size floor on discovered drivers", () => {
     expect(pair!.interpretation).not.toMatch(/tends to go with/);
     expect(pair!.interpretation).toMatch(/never a cause/);
   });
+
+  // ── i18n regression guard (v1.30.10) ─────────────────────────────────
+  //
+  // The generated-insight narrative layer built its user-facing sentences by
+  // TypeScript string interpolation and never routed through the i18n bundle,
+  // so a German UI rendered an English sentence spliced into German text. This
+  // pins the fix: with `locale: "de"` the interpretation is the German template
+  // (localised metric label + correctly-negated "keine Ursache"), NOT English.
+  it("narrates in the reader's locale — German, never the English string", () => {
+    const n = 90;
+    const behaviour = Array.from({ length: n }, (_, i) => i + (i % 4));
+    const outcome = [0, ...behaviour.slice(0, n - 1).map((v) => v * 2 + 5)];
+    const seriesInput: NamedSeries[] = [
+      {
+        key: "TIME_IN_DAYLIGHT",
+        role: "behaviour",
+        points: longSeries(behaviour),
+      },
+      { key: "SLEEP_DURATION", role: "outcome", points: longSeries(outcome) },
+    ];
+    const find = (r: ReturnType<typeof discoverCorrelations>) =>
+      r.discovered.find(
+        (p) =>
+          p.behaviour === "TIME_IN_DAYLIGHT" && p.outcome === "SLEEP_DURATION",
+      );
+
+    const de = find(discoverCorrelations(seriesInput, { locale: "de" }));
+    const en = find(discoverCorrelations(seriesInput, { locale: "en" }));
+    expect(de).toBeDefined();
+    expect(en).toBeDefined();
+
+    // German narration: localised metric labels + the German "high" template.
+    expect(de!.interpretation).toContain("die Zeit im Tageslicht");
+    expect(de!.interpretation).toContain("die Schlafdauer");
+    // The load-bearing, correctly-negated "not a cause" survives in German.
+    expect(de!.interpretation).toMatch(/keine Ursache/);
+    // And it is NOT the English leak the maintainer saw.
+    expect(de!.interpretation).not.toMatch(/tends to go with/);
+    expect(de!.interpretation).not.toMatch(
+      /a pattern worth watching, not a cause/,
+    );
+    expect(de!.interpretation).not.toEqual(en!.interpretation);
+
+    // English default stays exactly the established wording.
+    expect(en!.interpretation).toMatch(/tends to go with/);
+    expect(en!.interpretation).toMatch(/not a cause/);
+  });
 });
 
 // ── FDREXTEND — medication compliance + symptom severity channels ─────

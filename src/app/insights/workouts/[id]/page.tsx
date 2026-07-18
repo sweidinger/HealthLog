@@ -11,22 +11,34 @@ import { BackLink } from "@/components/ui/back-link";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import {
   WorkoutDetailHeader,
-  WorkoutDetailHRChart,
-  WorkoutDetailRoute,
   WorkoutDetailStats,
+  WorkoutDetailHrSection,
+  WorkoutDetailZones,
+  WorkoutDetailRoute,
+  WorkoutDetailSplits,
+  WorkoutDetailDayLinks,
+  WorkoutInsightCard,
 } from "@/components/insights/workout-detail";
 
 /**
- * v1.4.32 — `/insights/workouts/[id]`.
+ * `/insights/workouts/[id]` — workout detail surface.
  *
- * Workout detail surface. Mounts the header + stats + optional GPS
- * route + heart-rate chart slot. The route data flows from
- * `GET /api/workouts/{id}` (v1.4.32) and includes the cross-source
- * canonical-id pointer so a deep-link into a non-canonical twin
- * surfaces a graceful redirect cue (handled inline on the header for
- * v1.4.32; iOS-side redirect arrives in v1.5).
+ * Layout, top to bottom (mobile-first single column):
+ *   hero header → reserved Activity-Insight seam (renders nothing today)
+ *   → stats grid + sport-average line → HR curve → effort zones → GPS
+ *   route → per-km splits → "that day" cross-links → coach launch.
+ *
+ * Every data-less section returns `null` (hide, don't render empty), so
+ * an aggregates-only workout (a Strava ride with no wearable, a manual
+ * entry) reads as hero + stats + "that day" + coach — compact but
+ * honest, no empty shells.
+ *
+ * Data flows from `GET /api/workouts/{id}?compact=1` (v1.4.32 + the #67
+ * enrichment fields). The `canonicalId` pointer still resolves a
+ * deep-link into a non-canonical twin; the header carries the source.
  */
 export default function InsightsWorkoutDetailPage({
   params,
@@ -36,7 +48,7 @@ export default function InsightsWorkoutDetailPage({
   const { t } = useTranslations();
   const { id } = use(params);
   const { ready } = useModulePageGuard("workouts");
-  const { data, isLoading, error } = useWorkoutDetail(id);
+  const { data, isLoading, error, refetch } = useWorkoutDetail(id);
 
   // v1.18.0 B1 — bounce a direct URL hit on a disabled-workouts account.
   if (!ready) {
@@ -63,9 +75,13 @@ export default function InsightsWorkoutDetailPage({
         <div data-slot="workout-detail-loading" className="space-y-3">
           <Skeleton className="h-20 w-full rounded-lg" />
           <Skeleton className="h-40 w-full rounded-lg" />
+          <Skeleton className="h-56 w-full rounded-lg" />
           <Skeleton className="h-60 w-full rounded-lg" />
         </div>
-      ) : error || !data ? (
+      ) : error ? (
+        // A failed query must never read as "no data" (UI-STANDARDS §6).
+        <QueryErrorCard onRetry={() => refetch()} />
+      ) : !data ? (
         <p
           data-slot="workout-detail-error"
           className="text-muted-foreground text-sm"
@@ -75,13 +91,20 @@ export default function InsightsWorkoutDetailPage({
       ) : (
         <>
           <WorkoutDetailHeader workout={data} />
+          {/* Reserved Activity-Insight seam — `aiInsight` is always null
+              today, so this renders nothing. When the Phase-2 job
+              populates it, the card mounts here with zero layout rework. */}
+          {data.aiInsight ? (
+            <WorkoutInsightCard insight={data.aiInsight} />
+          ) : null}
           <WorkoutDetailStats workout={data} />
+          <WorkoutDetailHrSection workout={data} />
+          <WorkoutDetailZones workout={data} />
           <WorkoutDetailRoute workout={data} />
-          <WorkoutDetailHRChart workout={data} />
-          {/* 2026-07-17 UX-flows audit F6-1 — the button used to open an
-              unscoped chat; the user had to restate which session they
-              meant. `workouts` narrows the snapshot the first turn reads
-              (pairs with the coach-scope param added for F4-1). */}
+          <WorkoutDetailSplits workout={data} />
+          <WorkoutDetailDayLinks workout={data} />
+          {/* 2026-07-17 UX-flows audit F6-1 — `workouts` narrows the
+              snapshot the first coach turn reads. */}
           <CoachLaunchButton scope={{ metric: "workouts" }} />
         </>
       )}

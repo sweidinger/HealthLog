@@ -56,6 +56,9 @@ const workoutListEntry = z
     maxHr: z.number().int().nullable(),
     source: measurementSourceEnum,
     externalId: z.string().nullable(),
+    // #67 list glyphs — flags which sessions open into a rich detail.
+    hasRoute: z.boolean(),
+    hasHrSeries: z.boolean(),
   })
   .meta({ id: "WorkoutListEntry" });
 
@@ -89,6 +92,61 @@ const workoutHrSeries = z
   })
   .meta({ id: "WorkoutHrSeries" });
 
+// #67 — per-workout HR curve, one DTO with explicit provenance. Stored
+// `WorkoutSamples` series first, raw PULSE-window reconstruction second.
+const workoutHrCurve = z
+  .object({
+    source: z.enum(["workout_series", "pulse_window"]),
+    bucketSec: z.number().int().positive(),
+    points: z.array(
+      z.object({
+        tSec: z.number().int().nonnegative(),
+        mean: z.number().int(),
+        min: z.number().int(),
+        max: z.number().int(),
+      }),
+    ),
+    envelope: z.boolean(),
+  })
+  .meta({ id: "WorkoutHrCurve" });
+
+// #67 — effort-zone distribution. WHOOP device durations win; else a
+// %HRmax fold from the HR curve when profile age exists.
+const workoutZones = z
+  .object({
+    model: z.enum(["whoop", "tanaka"]),
+    hrMax: z.number().int().nullable(),
+    zones: z.array(
+      z.object({
+        zone: z.number().int().min(1).max(5),
+        lowBpm: z.number().int().nullable(),
+        highBpm: z.number().int().nullable(),
+        seconds: z.number().int().nonnegative(),
+      }),
+    ),
+  })
+  .meta({ id: "WorkoutZones" });
+
+// #67 — per-kilometre splits, derived server-side from geometry +
+// timestamps so the raw timestamp blob can be dropped under `compact=1`.
+const workoutSplit = z
+  .object({
+    km: z.number().int().positive(),
+    durationSec: z.number().int().nonnegative(),
+    paceSecPerKm: z.number().int().nonnegative(),
+  })
+  .meta({ id: "WorkoutSplit" });
+
+// #67 — own-history average for the sport (comparison line).
+const workoutSportContext = z
+  .object({
+    count: z.number().int().nonnegative(),
+    avgDurationSec: z.number().int().nonnegative(),
+    avgDistanceM: z.number().nullable(),
+    avgAvgHr: z.number().int().nullable(),
+  })
+  .meta({ id: "WorkoutSportContext" });
+
 const workoutDetailResponse = z
   .object({
     id: z.string(),
@@ -109,6 +167,15 @@ const workoutDetailResponse = z
     metadata: z.unknown().nullable(),
     route: workoutRouteGeometry.nullable(),
     samples: workoutHrSeries.nullable(),
+    // #67 enrichment — additive; absent from a pre-enrichment client's
+    // expectations, opt-in `compact=1` only trims the raw blobs above.
+    hrSeries: workoutHrCurve.nullable(),
+    zones: workoutZones.nullable(),
+    splits: z.array(workoutSplit).nullable(),
+    sportContext: workoutSportContext.nullable(),
+    // Reserved Activity-Insight seam — always null until the Phase-2 job
+    // populates it. Typed here so the wire contract is stable in advance.
+    aiInsight: z.null(),
     canonicalId: z.string(),
   })
   .meta({ id: "WorkoutDetailResponse" });
@@ -147,9 +214,12 @@ export const workoutPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Measurements"],
       summary: "Workout detail (v1.4.32)",
       description:
-        "Single-workout envelope. Owns the optional `WorkoutRoute` GeoJSON geometry + `canonicalId` pointer that resolves to the cluster winner so deep-links into non-canonical twin rows can redirect cleanly. Cross-user rows surface as 404 (existence channel sealed).",
+        "Single-workout envelope. Owns the optional `WorkoutRoute` GeoJSON geometry + `canonicalId` pointer that resolves to the cluster winner so deep-links into non-canonical twin rows can redirect cleanly. Additive enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`, reserved `aiInsight`) are computed server-side. `compact=1` (sent by the web client) drops the raw `samples.samples` HR blob and `route.sampleTimestamps` array from the response; without it the payload is byte-identical to the v1.4.32 contract. Cross-user rows surface as 404 (existence channel sealed).",
       requestParams: {
         path: z.object({ id: z.string() }),
+        query: z.object({
+          compact: z.enum(["1"]).optional(),
+        }),
       },
       responses: {
         "200": {

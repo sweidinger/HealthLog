@@ -1979,6 +1979,61 @@
     "notAvailableForCompliance": "Vergleich für Therapietreue nicht verfügbar"
   },
   "insights": {
+    "correlation": {
+      "direction": {
+        "higher": "höher",
+        "lower": "niedriger"
+      },
+      "weekdayDirection": {
+        "above": "über",
+        "below": "unter"
+      },
+      "channelFactor": "die Bewertung von {factor}",
+      "channel": {
+        "WEIGHT": "das Gewicht",
+        "BLOOD_GLUCOSE": "der Blutzucker",
+        "BLOOD_PRESSURE_SYS": "der systolische Blutdruck",
+        "BLOOD_PRESSURE_DIA": "der diastolische Blutdruck",
+        "ACTIVITY_STEPS": "die tägliche Schrittzahl",
+        "SLEEP_DURATION": "die Schlafdauer",
+        "HEART_RATE_VARIABILITY": "die Herzratenvariabilität",
+        "RESTING_HEART_RATE": "die Ruheherzfrequenz",
+        "TIME_IN_DAYLIGHT": "die Zeit im Tageslicht",
+        "MOOD": "die Stimmung",
+        "PULSE": "der Ruhepuls",
+        "MEDICATION_COMPLIANCE": "die Medikamententreue",
+        "SYMPTOM_SEVERITY": "die Symptomstärke",
+        "ENV_TEMP_MEAN": "die Tagestemperatur",
+        "ENV_TEMP_MIN": "die nächtliche Tiefsttemperatur",
+        "ENV_SUNSHINE": "der Sonnenschein",
+        "ENV_DAYLIGHT": "das Tageslicht",
+        "ENV_PRECIP": "der Niederschlag",
+        "ENV_PRESSURE_MEAN": "der Luftdruck",
+        "ENV_PRESSURE_DELTA": "die Luftdruckschwankung am Tag"
+      },
+      "daily": {
+        "high": "Wenn {behaviour} höher liegt, fällt {outcome} am Folgetag in deinen Daten tendenziell {direction} aus — ein Muster, das Beachtung verdient, keine Ursache.",
+        "moderate": "Wenn {behaviour} höher liegt, scheint {outcome} am Folgetag nach bisheriger Datenlage eher {direction} auszufallen — ein Muster, das Beachtung verdient, keine Ursache.",
+        "faint": "Wenn {behaviour} höher liegt, gibt es in deinen Daten allenfalls einen schwachen Hinweis darauf, dass {outcome} am Folgetag {direction} ausfällt — zu gering, um sich darauf zu verlassen, niemals eine Ursache."
+      },
+      "lab": {
+        "default": "Höhere {lab}-Werte gehen in deinen Daten damit einher, dass {outcome} im selben Zeitraum {direction} ausfällt — ein Zusammenhang, den du ärztlich im Blick behalten solltest, niemals eine Ursache.",
+        "faint": "Höhere {lab}-Werte deuten in deinen Daten allenfalls schwach darauf hin, dass {outcome} im selben Zeitraum {direction} ausfällt — zu gering, um sich darauf zu verlassen, ein Zusammenhang, den du ärztlich abklären lassen solltest, niemals eine Ursache."
+      },
+      "hypothesis": {
+        "bpCompliance": {
+          "support": "Höhere Medikamententreue geht mit niedrigeren systolischen Werten einher — ein Muster, das Beachtung verdient.",
+          "surprising": "Medikamententreue und systolischer Wert bewegen sich in deinen Daten gemeinsam — überraschend; sprich mit deiner Ärztin oder deinem Arzt, bevor du etwas änderst.",
+          "none": "Medikamententreue und systolischer Wert bewegen sich in diesem Zeitraum nicht deutlich gemeinsam."
+        },
+        "moodPulse": {
+          "support": "Tage mit schlechterer Stimmung gehen mit höherem Ruhepuls einher — ein Muster, das Beachtung verdient.",
+          "surprising": "Tage mit besserer Stimmung gehen in deinen Daten mit höherem Ruhepuls einher — überraschend.",
+          "none": "Stimmung und Ruhepuls bewegen sich in diesem Zeitraum nicht deutlich gemeinsam."
+        },
+        "weightWeekday": "Das Gewicht am {weekday} liegt {delta} kg {direction} deinem Durchschnitt der übrigen Tage — ein Muster, das Beachtung verdient."
+      }
+    },
     "emptyTitle": "Noch nicht genug Daten",
     "emptyDescription": "Insights erscheinen, sobald du ein paar Messwerte erfasst hast. Beginne mit Gewicht oder Blutdruck.",
     "emptyAddMeasurement": "Messwert erfassen",
@@ -2934,7 +2989,24 @@
         "hrChartTitle": "Herzfrequenz",
         "hrChartUnavailable": "Sekundengenaue Herzfrequenz-Werte werden für dieses Workout nicht gespeichert.",
         "notFound": "Workout nicht gefunden.",
-        "loading": "Workout wird geladen…"
+        "loading": "Workout wird geladen…",
+        "hrFromPulse": "Aus deinen Herzfrequenzdaten rund um diese Einheit",
+        "hrAxisMinutes": "Min.",
+        "sportAverageLabel": "Dein aktueller Durchschnitt:",
+        "zonesTitle": "Belastungszonen",
+        "zonesCaption": "Wie sich deine Belastung auf die Herzfrequenzzonen verteilt hat.",
+        "zonesCaptionDevice": "Zeit pro Zone laut deinem Gerät.",
+        "exportGpx": "GPX exportieren",
+        "elevationTitle": "Höhe",
+        "splitsTitle": "Kilometerzeiten",
+        "splitsKm": "km",
+        "splitsTime": "Zeit",
+        "splitsPace": "Tempo",
+        "thatDayTitle": "An diesem Tag",
+        "dayPulse": "Puls",
+        "daySleep": "Schlaf",
+        "dayMood": "Stimmung",
+        "insightTitle": "Aktivitäts-Einblick"
       },
       "sport": {
         "walking": "Gehen",

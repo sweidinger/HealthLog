@@ -30,13 +30,31 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { pickCanonicalWorkoutRows } from "@/lib/measurements/pick-canonical-workout-rows";
 import { requireModuleEnabled } from "@/lib/modules/gate";
+import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
+import { buildWorkoutHrSeries } from "@/lib/workouts/hr-series";
+import {
+  computeZones,
+  hrMaxFromAge,
+  parseWhoopZoneDurations,
+} from "@/lib/workouts/zones";
+import { computeSplits } from "@/lib/workouts/splits";
+import type { RouteCoordinate } from "@/lib/workouts/route-svg";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+/** Own-history lookback for the sport-average comparison line. */
+const SPORT_CONTEXT_LOOKBACK_DAYS = 180;
+/** Slim-row cap for the sport-average read. */
+const SPORT_CONTEXT_MAX_ROWS = 500;
+
 export const GET = apiHandler(
-  async (_request: NextRequest, { params }: RouteParams) => {
+  async (request: NextRequest, { params }: RouteParams) => {
     const { user } = await requireAuth();
     const { id } = await params;
+    // Web always sends `compact=1` to drop the raw 30k-sample / route
+    // timestamp blobs. Absent the param the response is byte-identical to
+    // the v1.4.32 contract → iOS is untouched, no coordination ticket.
+    const compact = request.nextUrl.searchParams.get("compact") === "1";
 
     annotate({ action: { name: "workouts.detail" }, meta: { workoutId: id } });
 
@@ -98,7 +116,7 @@ export const GET = apiHandler(
 
     const userRow = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { sourcePriorityJson: true },
+      select: { sourcePriorityJson: true, dateOfBirth: true },
     });
     const canonicalCluster = pickCanonicalWorkoutRows(
       clusterRows,
@@ -112,20 +130,82 @@ export const GET = apiHandler(
       canonicalCluster[0] ??
       null;
 
+    // ── Enrichment reads (all over existing tables — no migration) ────
+
+    // Heart-rate curve: stored series first, pulse-window fallback
+    // second, hide third. One server path, one DTO with provenance.
+    const hrSeries = await buildWorkoutHrSeries({
+      userId: user.id,
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
+      durationSec: row.durationSec,
+      storedSamples: row.samples?.samples ?? null,
+    });
+    annotate({
+      action: { name: "workouts.detail.hr_series" },
+      meta: {
+        source: hrSeries?.source ?? "none",
+        points: hrSeries?.points.length ?? 0,
+      },
+    });
+
+    // Effort zones: WHOOP device durations win; else %HRmax fold from
+    // the series when profile age exists; else null.
+    const ageYears = getAgeFromDateOfBirth(userRow?.dateOfBirth ?? null);
+    const zones = computeZones({
+      hrMax: hrMaxFromAge(ageYears),
+      series: hrSeries?.points ?? [],
+      bucketSec: hrSeries?.bucketSec ?? 0,
+      whoopZoneDurations: parseWhoopZoneDurations(row.metadata),
+    });
+
+    // Per-km splits computed server-side from the geometry + timestamps
+    // so the web client keeps dropping the raw timestamp blob under
+    // `compact=1` while still rendering splits (server-authoritative
+    // parity — iOS gets the same resolved figures).
+    const geometryCoords =
+      row.route &&
+      row.route.geometry &&
+      typeof row.route.geometry === "object" &&
+      Array.isArray(
+        (row.route.geometry as { coordinates?: unknown }).coordinates,
+      )
+        ? (row.route.geometry as { coordinates: RouteCoordinate[] }).coordinates
+        : null;
+    const splits =
+      geometryCoords && Array.isArray(row.route?.sampleTimestamps)
+        ? computeSplits(geometryCoords, row.route.sampleTimestamps as string[])
+        : null;
+
+    // Sport context: the user's own last-180-days average for this
+    // sport, cross-source-collapsed so twins don't double-count.
+    const sportContext = await buildSportContext(
+      user.id,
+      row.sportType,
+      userRow?.sourcePriorityJson ?? null,
+    );
+
     const route = row.route
       ? {
           geometry: row.route.geometry,
-          sampleTimestamps: row.route.sampleTimestamps ?? null,
+          // `compact=1` drops the (up to 20k-entry) timestamp array; the
+          // SVG needs geometry, not the per-sample timestamps, and the
+          // splits above are already derived from them server-side.
+          sampleTimestamps: compact
+            ? null
+            : (row.route.sampleTimestamps ?? null),
         }
       : null;
 
     // v1.10.0 — route-independent per-workout HR series. Present for
     // both indoor (no route) and outdoor workouts that shipped a
-    // `samples` array on ingest; null otherwise.
+    // `samples` array on ingest; null otherwise. `compact=1` keeps the
+    // denormalised count but drops the raw sample blob (the web curve
+    // reads `hrSeries` instead).
     const samples = row.samples
       ? {
           sampleCount: row.samples.sampleCount,
-          samples: row.samples.samples,
+          samples: compact ? null : row.samples.samples,
         }
       : null;
 
@@ -148,6 +228,17 @@ export const GET = apiHandler(
       metadata: row.metadata,
       route,
       samples,
+      // #67 enrichment — all additive, all over existing tables.
+      hrSeries,
+      zones,
+      splits,
+      sportContext,
+      // Reserved Activity-Insight seam (strategic-concept Wave C, bet 5):
+      // always null today. The Phase-2 pg-boss job writes a cached
+      // paragraph onto the workout row and maps it here — the detail page
+      // already composes `{aiInsight ? <card/> : null}`, so the card
+      // mounts with zero layout rework.
+      aiInsight: null,
       // v1.4.32 — when the requested id is a non-canonical twin the
       // caller can redirect to `canonicalId` to land on the cluster
       // winner. `canonicalId === id` when the requested row already
@@ -156,3 +247,64 @@ export const GET = apiHandler(
     });
   },
 );
+
+/**
+ * The user's own recent average for a sport — rendered as one muted
+ * comparison line. Cross-source twins are collapsed through
+ * `pickCanonicalWorkoutRows()` first so a run recorded by two paired
+ * watches counts once. Comparisons are to the user's own history only
+ * (non-diagnostic standard).
+ */
+async function buildSportContext(
+  userId: string,
+  sportType: string,
+  sourcePriorityJson: unknown,
+): Promise<{
+  count: number;
+  avgDurationSec: number;
+  avgDistanceM: number | null;
+  avgAvgHr: number | null;
+} | null> {
+  const since = new Date(
+    Date.now() - SPORT_CONTEXT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const rows = await prisma.workout.findMany({
+    where: { userId, sportType, startedAt: { gte: since } },
+    orderBy: [{ startedAt: "asc" }, { id: "asc" }],
+    take: SPORT_CONTEXT_MAX_ROWS,
+    select: {
+      id: true,
+      source: true,
+      startedAt: true,
+      sportType: true,
+      durationSec: true,
+      totalDistanceM: true,
+      avgHeartRate: true,
+    },
+  });
+  const canonical = pickCanonicalWorkoutRows(rows, sourcePriorityJson);
+  if (canonical.length === 0) return null;
+
+  let durationSum = 0;
+  let distanceSum = 0;
+  let distanceCount = 0;
+  let hrSum = 0;
+  let hrCount = 0;
+  for (const r of canonical) {
+    durationSum += r.durationSec;
+    if (r.totalDistanceM != null) {
+      distanceSum += r.totalDistanceM;
+      distanceCount += 1;
+    }
+    if (r.avgHeartRate != null) {
+      hrSum += r.avgHeartRate;
+      hrCount += 1;
+    }
+  }
+  return {
+    count: canonical.length,
+    avgDurationSec: Math.round(durationSum / canonical.length),
+    avgDistanceM: distanceCount > 0 ? distanceSum / distanceCount : null,
+    avgAvgHr: hrCount > 0 ? Math.round(hrSum / hrCount) : null,
+  };
+}

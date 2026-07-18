@@ -1979,6 +1979,61 @@
     "notAvailableForCompliance": "Comparación no disponible para el cumplimiento"
   },
   "insights": {
+    "correlation": {
+      "direction": {
+        "higher": "subir",
+        "lower": "bajar"
+      },
+      "weekdayDirection": {
+        "above": "por encima de",
+        "below": "por debajo de"
+      },
+      "channelFactor": "la valoración de {factor}",
+      "channel": {
+        "WEIGHT": "el peso",
+        "BLOOD_GLUCOSE": "la glucosa en sangre",
+        "BLOOD_PRESSURE_SYS": "la presión sistólica",
+        "BLOOD_PRESSURE_DIA": "la presión diastólica",
+        "ACTIVITY_STEPS": "los pasos diarios",
+        "SLEEP_DURATION": "la duración del sueño",
+        "HEART_RATE_VARIABILITY": "la variabilidad de la frecuencia cardíaca",
+        "RESTING_HEART_RATE": "la frecuencia cardíaca en reposo",
+        "TIME_IN_DAYLIGHT": "el tiempo con luz natural",
+        "MOOD": "el estado de ánimo",
+        "PULSE": "el pulso en reposo",
+        "MEDICATION_COMPLIANCE": "la adherencia a la medicación",
+        "SYMPTOM_SEVERITY": "la intensidad de los síntomas",
+        "ENV_TEMP_MEAN": "la temperatura diaria",
+        "ENV_TEMP_MIN": "la temperatura mínima nocturna",
+        "ENV_SUNSHINE": "las horas de sol",
+        "ENV_DAYLIGHT": "la luz natural",
+        "ENV_PRECIP": "las precipitaciones",
+        "ENV_PRESSURE_MEAN": "la presión atmosférica",
+        "ENV_PRESSURE_DELTA": "la variación de presión del día"
+      },
+      "daily": {
+        "high": "Cuando {behaviour} es mayor, {outcome} del día siguiente tiende a {direction} en tus datos — un patrón que conviene observar, no una causa.",
+        "moderate": "Cuando {behaviour} es mayor, {outcome} del día siguiente parece tender a {direction}, según los datos disponibles — un patrón que conviene observar, no una causa.",
+        "faint": "Cuando {behaviour} es mayor, apenas se insinúa —si acaso— que {outcome} del día siguiente tienda a {direction} en tus datos — demasiado leve para fiarse, nunca una causa."
+      },
+      "lab": {
+        "default": "Unos valores de {lab} más altos coinciden con que {outcome} tienda a {direction} en los mismos periodos de tus datos — una asociación que conviene vigilar con tu médico, nunca una causa.",
+        "faint": "Unos valores de {lab} más altos apenas insinúan —si acaso— que {outcome} tienda a {direction} en los mismos periodos de tus datos — demasiado leve para fiarse, una asociación que conviene comentar con tu médico, nunca una causa."
+      },
+      "hypothesis": {
+        "bpCompliance": {
+          "support": "Una mayor adherencia a la medicación coincide con valores sistólicos más bajos — un patrón que conviene observar.",
+          "surprising": "La adherencia y la sistólica se mueven juntas en tus datos — sorprendente; consulta con tu médico antes de cambiar nada.",
+          "none": "La adherencia y la sistólica no se mueven juntas de forma marcada en este periodo."
+        },
+        "moodPulse": {
+          "support": "Los días de peor ánimo coinciden con un pulso en reposo más alto — un patrón que conviene observar.",
+          "surprising": "Los días de mejor ánimo coinciden con un pulso en reposo más alto en tus datos — sorprendente.",
+          "none": "El ánimo y el pulso en reposo no se mueven juntos de forma marcada en este periodo."
+        },
+        "weightWeekday": "El peso de los {weekday} está {delta} kg {direction} tu media de los demás días — un patrón que conviene observar."
+      }
+    },
     "noAnalysisYet": "Aún no hay valoración.",
     "assessmentPreparing": "Preparando tu valoración…",
     "emptyTitle": "Aún no hay datos suficientes",
@@ -2934,7 +2989,24 @@
         "hrChartTitle": "Frecuencia cardíaca",
         "hrChartUnavailable": "Las muestras de frecuencia cardíaca por segundo no se almacenan para este entrenamiento.",
         "notFound": "Entrenamiento no encontrado.",
-        "loading": "Cargando entrenamiento…"
+        "loading": "Cargando entrenamiento…",
+        "hrFromPulse": "A partir de tus datos de frecuencia cardíaca en torno a esta sesión",
+        "hrAxisMinutes": "min",
+        "sportAverageLabel": "Tu promedio reciente:",
+        "zonesTitle": "Zonas de esfuerzo",
+        "zonesCaption": "Cómo se distribuyó tu esfuerzo entre las zonas de frecuencia cardíaca.",
+        "zonesCaptionDevice": "Tiempo por zona según tu dispositivo.",
+        "exportGpx": "Exportar GPX",
+        "elevationTitle": "Altitud",
+        "splitsTitle": "Parciales",
+        "splitsKm": "km",
+        "splitsTime": "Tiempo",
+        "splitsPace": "Ritmo",
+        "thatDayTitle": "Ese día",
+        "dayPulse": "Pulso",
+        "daySleep": "Sueño",
+        "dayMood": "Ánimo",
+        "insightTitle": "Análisis de la actividad"
       },
       "sport": {
         "walking": "Caminar",

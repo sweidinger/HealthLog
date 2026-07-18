@@ -109,6 +109,8 @@ const eslintConfig = defineConfig([
       "src/components/medications/dose-strength-curve.tsx",
       "src/components/medications/drug-level-chart.tsx",
       "src/components/mental-health/assessment-history-chart.tsx",
+      "src/components/charts/workout-hr-chart.tsx",
+      "src/components/charts/workout-elevation-chart.tsx",
     ],
     rules: {
       "no-restricted-imports": [

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.30.9
+  version: 1.30.10
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -2668,14 +2668,23 @@ paths:
         - Measurements
       summary: Workout detail (v1.4.32)
       description: Single-workout envelope. Owns the optional `WorkoutRoute` GeoJSON geometry + `canonicalId` pointer that
-        resolves to the cluster winner so deep-links into non-canonical twin rows can redirect cleanly. Cross-user rows
-        surface as 404 (existence channel sealed).
+        resolves to the cluster winner so deep-links into non-canonical twin rows can redirect cleanly. Additive
+        enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`, reserved `aiInsight`) are computed
+        server-side. `compact=1` (sent by the web client) drops the raw `samples.samples` HR blob and
+        `route.sampleTimestamps` array from the response; without it the payload is byte-identical to the v1.4.32
+        contract. Cross-user rows surface as 404 (existence channel sealed).
       parameters:
         - in: path
           name: id
           schema:
             type: string
           required: true
+        - in: query
+          name: compact
+          schema:
+            type: string
+            enum:
+              - "1"
       responses:
         "200":
           description: Workout detail.
@@ -17429,6 +17438,10 @@ components:
           anyOf:
             - type: string
             - type: "null"
+        hasRoute:
+          type: boolean
+        hasHrSeries:
+          type: boolean
       required:
         - id
         - sportType
@@ -17441,6 +17454,8 @@ components:
         - maxHr
         - source
         - externalId
+        - hasRoute
+        - hasHrSeries
       additionalProperties: false
     GetWorkoutResponse:
       type: object
@@ -17553,6 +17568,26 @@ components:
           anyOf:
             - $ref: "#/components/schemas/WorkoutHrSeries"
             - type: "null"
+        hrSeries:
+          anyOf:
+            - $ref: "#/components/schemas/WorkoutHrCurve"
+            - type: "null"
+        zones:
+          anyOf:
+            - $ref: "#/components/schemas/WorkoutZones"
+            - type: "null"
+        splits:
+          anyOf:
+            - type: array
+              items:
+                $ref: "#/components/schemas/WorkoutSplit"
+            - type: "null"
+        sportContext:
+          anyOf:
+            - $ref: "#/components/schemas/WorkoutSportContext"
+            - type: "null"
+        aiInsight:
+          type: "null"
         canonicalId:
           type: string
       required:
@@ -17574,6 +17609,11 @@ components:
         - metadata
         - route
         - samples
+        - hrSeries
+        - zones
+        - splits
+        - sportContext
+        - aiInsight
         - canonicalId
       additionalProperties: false
     WorkoutRouteGeometry:
@@ -17601,6 +17641,150 @@ components:
       required:
         - sampleCount
         - samples
+      additionalProperties: false
+    WorkoutHrCurve:
+      type: object
+      properties:
+        source:
+          type: string
+          enum:
+            - workout_series
+            - pulse_window
+        bucketSec:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+        points:
+          type: array
+          items:
+            type: object
+            properties:
+              tSec:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              mean:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              min:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              max:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+            required:
+              - tSec
+              - mean
+              - min
+              - max
+            additionalProperties: false
+        envelope:
+          type: boolean
+      required:
+        - source
+        - bucketSec
+        - points
+        - envelope
+      additionalProperties: false
+    WorkoutZones:
+      type: object
+      properties:
+        model:
+          type: string
+          enum:
+            - whoop
+            - tanaka
+        hrMax:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        zones:
+          type: array
+          items:
+            type: object
+            properties:
+              zone:
+                type: integer
+                minimum: 1
+                maximum: 5
+              lowBpm:
+                anyOf:
+                  - type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  - type: "null"
+              highBpm:
+                anyOf:
+                  - type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  - type: "null"
+              seconds:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+            required:
+              - zone
+              - lowBpm
+              - highBpm
+              - seconds
+            additionalProperties: false
+      required:
+        - model
+        - hrMax
+        - zones
+      additionalProperties: false
+    WorkoutSplit:
+      type: object
+      properties:
+        km:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+        durationSec:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        paceSecPerKm:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - km
+        - durationSec
+        - paceSecPerKm
+      additionalProperties: false
+    WorkoutSportContext:
+      type: object
+      properties:
+        count:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        avgDurationSec:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        avgDistanceM:
+          anyOf:
+            - type: number
+            - type: "null"
+        avgAvgHr:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+      required:
+        - count
+        - avgDurationSec
+        - avgDistanceM
+        - avgAvgHr
       additionalProperties: false
     BatchWorkoutsResponse:
       type: object

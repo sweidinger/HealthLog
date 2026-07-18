@@ -34,6 +34,14 @@ export interface WorkoutListEntry {
   maxHr: number | null;
   source: string;
   externalId: string | null;
+  /**
+   * #67 list glyphs — whether the workout opens into a rich detail with
+   * a map / HR curve. Optional so pre-#67 fixtures (and the dashboard
+   * recent-tile) still satisfy the type; the list endpoint always sends
+   * them.
+   */
+  hasRoute?: boolean;
+  hasHrSeries?: boolean;
 }
 
 export interface WorkoutListMeta {
@@ -118,6 +126,55 @@ export function useWorkouts(opts: UseWorkoutsOptions = {}): UseWorkoutsResult {
   };
 }
 
+export interface WorkoutHrSeriesPoint {
+  tSec: number;
+  mean: number;
+  min: number;
+  max: number;
+}
+
+export interface WorkoutHrSeriesDto {
+  source: "workout_series" | "pulse_window";
+  bucketSec: number;
+  points: WorkoutHrSeriesPoint[];
+  envelope: boolean;
+}
+
+export interface WorkoutZoneBandDto {
+  zone: number;
+  lowBpm: number | null;
+  highBpm: number | null;
+  seconds: number;
+}
+
+export interface WorkoutZonesDto {
+  model: "whoop" | "tanaka";
+  hrMax: number | null;
+  zones: WorkoutZoneBandDto[];
+}
+
+export interface WorkoutSplitDto {
+  km: number;
+  durationSec: number;
+  paceSecPerKm: number;
+}
+
+export interface WorkoutSportContextDto {
+  count: number;
+  avgDurationSec: number;
+  avgDistanceM: number | null;
+  avgAvgHr: number | null;
+}
+
+/**
+ * Reserved Activity-Insight payload (strategic-concept Wave C, bet 5).
+ * The wire field is `null` today; the Phase-2 job will populate it and
+ * the detail page's seam mounts a card with zero rework. Declared here
+ * so the type is stable in advance — widen the union (never change the
+ * seam shape) when the job ships.
+ */
+export type WorkoutActivityInsight = null;
+
 export interface WorkoutDetailPayload extends WorkoutListEntry {
   minHr: number | null;
   stepCount: number | null;
@@ -128,12 +185,25 @@ export interface WorkoutDetailPayload extends WorkoutListEntry {
     geometry: unknown;
     sampleTimestamps: string[] | null;
   } | null;
+  /**
+   * Raw per-workout HR sample envelope. `samples.samples` is dropped
+   * (null) under `compact=1` — the web curve reads `hrSeries` instead —
+   * but `sampleCount` is retained. Finally declared as of #67.
+   */
+  samples: { sampleCount: number; samples: unknown } | null;
+  hrSeries: WorkoutHrSeriesDto | null;
+  zones: WorkoutZonesDto | null;
+  splits: WorkoutSplitDto[] | null;
+  sportContext: WorkoutSportContextDto | null;
+  aiInsight: WorkoutActivityInsight;
   canonicalId: string;
 }
 
 async function fetchWorkoutDetail(id: string): Promise<WorkoutDetailPayload> {
+  // Web always sends `compact=1`: the SVG needs geometry, not the raw
+  // 30k-sample / route-timestamp blobs (those ride the iOS path only).
   return apiGet<WorkoutDetailPayload>(
-    `/api/workouts/${encodeURIComponent(id)}`,
+    `/api/workouts/${encodeURIComponent(id)}?compact=1`,
   );
 }
 
@@ -141,6 +211,8 @@ export interface UseWorkoutDetailResult {
   data: WorkoutDetailPayload | undefined;
   isLoading: boolean;
   error: Error | null;
+  /** Re-runs the query — the retry action for the detail error card. */
+  refetch: () => void;
 }
 
 export function useWorkoutDetail(id: string): UseWorkoutDetailResult {
@@ -155,5 +227,6 @@ export function useWorkoutDetail(id: string): UseWorkoutDetailResult {
     data: query.data,
     isLoading: query.isLoading,
     error: query.error as Error | null,
+    refetch: () => void query.refetch(),
   };
 }

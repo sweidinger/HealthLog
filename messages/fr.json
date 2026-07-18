@@ -1979,6 +1979,61 @@
     "notAvailableForCompliance": "Comparaison indisponible pour l’observance"
   },
   "insights": {
+    "correlation": {
+      "direction": {
+        "higher": "augmenter",
+        "lower": "diminuer"
+      },
+      "weekdayDirection": {
+        "above": "au-dessus de",
+        "below": "en dessous de"
+      },
+      "channelFactor": "l'évaluation de {factor}",
+      "channel": {
+        "WEIGHT": "le poids",
+        "BLOOD_GLUCOSE": "la glycémie",
+        "BLOOD_PRESSURE_SYS": "la pression systolique",
+        "BLOOD_PRESSURE_DIA": "la pression diastolique",
+        "ACTIVITY_STEPS": "le nombre de pas quotidien",
+        "SLEEP_DURATION": "la durée de sommeil",
+        "HEART_RATE_VARIABILITY": "la variabilité de la fréquence cardiaque",
+        "RESTING_HEART_RATE": "la fréquence cardiaque au repos",
+        "TIME_IN_DAYLIGHT": "le temps passé à la lumière du jour",
+        "MOOD": "l'humeur",
+        "PULSE": "le pouls au repos",
+        "MEDICATION_COMPLIANCE": "l'observance des médicaments",
+        "SYMPTOM_SEVERITY": "la sévérité des symptômes",
+        "ENV_TEMP_MEAN": "la température quotidienne",
+        "ENV_TEMP_MIN": "la température minimale nocturne",
+        "ENV_SUNSHINE": "l'ensoleillement",
+        "ENV_DAYLIGHT": "la lumière du jour",
+        "ENV_PRECIP": "les précipitations",
+        "ENV_PRESSURE_MEAN": "la pression atmosphérique",
+        "ENV_PRESSURE_DELTA": "la variation de pression sur la journée"
+      },
+      "daily": {
+        "high": "Quand {behaviour} monte, {outcome} du lendemain tend à {direction} dans tes données — une tendance à surveiller, pas une cause.",
+        "moderate": "Quand {behaviour} monte, {outcome} du lendemain semble avoir tendance à {direction}, au vu des données actuelles — une tendance à surveiller, pas une cause.",
+        "faint": "Quand {behaviour} monte, tout au plus se dessine un faible indice que {outcome} du lendemain tende à {direction} dans tes données — trop ténu pour s'y fier, jamais une cause."
+      },
+      "lab": {
+        "default": "Des valeurs de {lab} plus élevées vont de pair avec {outcome} qui tend à {direction} sur les mêmes périodes dans tes données — une association à surveiller avec ton médecin, jamais une cause.",
+        "faint": "Des valeurs de {lab} plus élevées laissent tout au plus entrevoir que {outcome} tende à {direction} sur les mêmes périodes dans tes données — trop ténu pour s'y fier, une association à évoquer avec ton médecin, jamais une cause."
+      },
+      "hypothesis": {
+        "bpCompliance": {
+          "support": "Une meilleure observance des médicaments va de pair avec des valeurs systoliques plus basses — une tendance à surveiller.",
+          "surprising": "L'observance et la systolique évoluent ensemble dans tes données — surprenant ; parles-en à ton médecin avant de changer quoi que ce soit.",
+          "none": "L'observance et la systolique n'évoluent pas nettement ensemble sur cette période."
+        },
+        "moodPulse": {
+          "support": "Les jours de moral plus bas vont de pair avec un pouls au repos plus élevé — une tendance à surveiller.",
+          "surprising": "Les jours de meilleur moral vont de pair avec un pouls au repos plus élevé dans tes données — surprenant.",
+          "none": "L'humeur et le pouls au repos n'évoluent pas nettement ensemble sur cette période."
+        },
+        "weightWeekday": "Le poids du {weekday} est {delta} kg {direction} ta moyenne des autres jours — une tendance à surveiller."
+      }
+    },
     "noAnalysisYet": "Pas encore d’évaluation.",
     "assessmentPreparing": "Préparation de votre évaluation…",
     "emptyTitle": "Pas encore assez de données",
@@ -2934,7 +2989,24 @@
         "hrChartTitle": "Fréquence cardiaque",
         "hrChartUnavailable": "Les échantillons de fréquence cardiaque à la seconde ne sont pas stockés pour cet entraînement.",
         "notFound": "Entraînement introuvable.",
-        "loading": "Chargement de l'entraînement…"
+        "loading": "Chargement de l'entraînement…",
+        "hrFromPulse": "À partir de vos données de fréquence cardiaque autour de cette séance",
+        "hrAxisMinutes": "min",
+        "sportAverageLabel": "Votre moyenne récente :",
+        "zonesTitle": "Zones d'effort",
+        "zonesCaption": "Répartition de votre effort entre les zones de fréquence cardiaque.",
+        "zonesCaptionDevice": "Temps par zone indiqué par votre appareil.",
+        "exportGpx": "Exporter le GPX",
+        "elevationTitle": "Dénivelé",
+        "splitsTitle": "Temps par kilomètre",
+        "splitsKm": "km",
+        "splitsTime": "Temps",
+        "splitsPace": "Allure",
+        "thatDayTitle": "Ce jour-là",
+        "dayPulse": "Pouls",
+        "daySleep": "Sommeil",
+        "dayMood": "Humeur",
+        "insightTitle": "Analyse de l'activité"
       },
       "sport": {
         "walking": "Marche",
