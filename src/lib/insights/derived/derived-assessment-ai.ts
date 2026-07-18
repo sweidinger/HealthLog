@@ -31,7 +31,6 @@ import {
   normalizeSummaryText,
   parseSummaryFromContent,
   persistStatusInsight,
-  type SupportedLocale,
 } from "@/lib/insights/status-shared";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {

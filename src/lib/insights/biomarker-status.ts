@@ -32,7 +32,6 @@ import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
-  type SupportedLocale,
   normalizeLocale,
   normalizeSummaryText,
   parseSummaryFromContent,
