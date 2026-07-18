@@ -48,7 +48,10 @@ import { apiGet } from "@/lib/api/api-fetch";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 
-const CURVE_COLOR = "var(--dracula-purple)";
+// --chart-1 is the light/dark-aware alias for this hue (dracula-purple in
+// dark mode); raw --dracula-purple has no light-theme override and mis-
+// renders on the light card.
+const CURVE_COLOR = "var(--chart-1)";
 
 interface DoseChange {
   id: string;

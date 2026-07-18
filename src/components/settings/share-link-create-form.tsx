@@ -320,7 +320,7 @@ export function ShareLinkCreateForm({
                   setRangeDays(Math.max(1, Number(e.target.value) || 1))
                 }
               />
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-xs">
                 {t("settings.sharing.rangeHint")}
               </p>
             </div>
@@ -338,7 +338,7 @@ export function ShareLinkCreateForm({
               }
               aria-invalid={expiryDays < 1 || expiryDays > MAX_DAYS}
             />
-            <p className="text-muted-foreground text-[11px]">
+            <p className="text-muted-foreground text-xs">
               {t("settings.sharing.expiryHint", { max: MAX_DAYS })}
             </p>
           </div>
@@ -353,7 +353,7 @@ export function ShareLinkCreateForm({
               <Label htmlFor="share-fhir" className="text-sm font-medium">
                 {t("settings.sharing.fhirApi")}
               </Label>
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-xs">
                 {t("settings.sharing.fhirApiHint")}
               </p>
             </div>
@@ -396,7 +396,7 @@ export function ShareLinkCreateForm({
               <Label className="text-sm font-medium">
                 {t("settings.sharing.attachTitle")}
               </Label>
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-xs">
                 {t("settings.sharing.attachCount", {
                   count: selectedDocs.length,
                   max: MAX_DOCUMENTS,
@@ -445,11 +445,11 @@ export function ShareLinkCreateForm({
             </ul>
           ) : null}
 
-          <p className="text-muted-foreground text-[11px]">
+          <p className="text-muted-foreground text-xs">
             {t("settings.sharing.attachFrozen")}
           </p>
           {selectedDocs.length > 0 ? (
-            <p className="text-muted-foreground text-[11px]">
+            <p className="text-muted-foreground text-xs">
               {t("settings.sharing.exifNote")}
             </p>
           ) : null}
@@ -499,7 +499,7 @@ export function ShareLinkCreateForm({
               })}
             </p>
           )}
-          <p className="text-muted-foreground text-[11px]">
+          <p className="text-muted-foreground text-xs">
             {t("settings.sharing.shownOnce")}
           </p>
 
@@ -537,7 +537,7 @@ export function ShareLinkCreateForm({
 
           {/* The link (no passphrase). On its own it cannot open the record. */}
           <div className="space-y-1">
-            <p className="text-foreground text-[11px] font-medium">
+            <p className="text-foreground text-xs font-medium">
               {t("settings.sharing.linkLabel")}
             </p>
             <div className="flex items-center gap-2">
@@ -556,7 +556,7 @@ export function ShareLinkCreateForm({
               </Button>
             </div>
             {copied === "link" && (
-              <p className="text-success text-[11px]">
+              <p className="text-success text-xs">
                 {t("settings.sharing.copied")}
               </p>
             )}
@@ -565,7 +565,7 @@ export function ShareLinkCreateForm({
           {/* The passphrase — the second factor. Shown once; only its hash is
               stored, so it cannot be recovered. */}
           <div className="space-y-1">
-            <p className="text-foreground text-[11px] font-medium">
+            <p className="text-foreground text-xs font-medium">
               {t("settings.sharing.passphraseLabel")}
             </p>
             <div className="flex items-center gap-2">
@@ -587,11 +587,11 @@ export function ShareLinkCreateForm({
               </Button>
             </div>
             {copied === "passphrase" && (
-              <p className="text-success text-[11px]">
+              <p className="text-success text-xs">
                 {t("settings.sharing.copied")}
               </p>
             )}
-            <p className="text-muted-foreground text-[11px]">
+            <p className="text-muted-foreground text-xs">
               {t("settings.sharing.passphraseHint")}
             </p>
           </div>

@@ -177,7 +177,7 @@ function CoachConversationsBody() {
       <div
         data-slot="coach-conversations-list"
         className={cn(
-          "-mx-1 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1",
+          "-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1",
           COACH_SCROLLBAR,
         )}
       >

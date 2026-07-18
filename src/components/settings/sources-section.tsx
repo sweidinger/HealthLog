@@ -42,6 +42,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { NutrientIntakeCard } from "@/components/settings/nutrient-intake-card";
@@ -412,9 +413,11 @@ export function SourcesSection() {
                   {t("settings.sections.sources.perMetricHelp")}
                 </p>
                 {overriddenMetrics.length === 0 ? (
-                  <p className="text-muted-foreground text-xs italic">
-                    {t("settings.sections.sources.perMetricEmpty")}
-                  </p>
+                  <EmptyState
+                    variant="plain"
+                    size="compact"
+                    title={t("settings.sections.sources.perMetricEmpty")}
+                  />
                 ) : (
                   <ul className="space-y-2">
                     {overriddenMetrics.map((metric) => (

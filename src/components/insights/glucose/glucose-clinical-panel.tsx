@@ -147,7 +147,7 @@ export function GlucoseClinicalPanel() {
           </span>
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-4">
         {/* Time in range */}
         {dist ? (
           <section className="space-y-2" data-slot="glucose-tir-section">

@@ -34,6 +34,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateOrRelative } from "@/lib/format";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
@@ -211,14 +212,14 @@ export function CoachMemorySection({
       )}
 
       {!query.isError && facts.length === 0 ? (
-        <p
+        <EmptyState
           data-testid="settings-coach-memory-empty"
-          className="text-muted-foreground text-sm"
-        >
-          {t("settings.ai.coachMemory.empty")}
-        </p>
+          variant="plain"
+          size="compact"
+          title={t("settings.ai.coachMemory.empty")}
+        />
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {grouped.map((group) => (
             <div key={group.category} className="space-y-2">
               <h3

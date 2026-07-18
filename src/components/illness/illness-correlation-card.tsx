@@ -77,7 +77,7 @@ function CorrelationBody({ value }: { value: IllnessCorrelationValue }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {value.redFlags.length > 0 ? (
         <div className="border-border bg-muted/40 rounded-lg border p-3">
           <p className="text-foreground text-sm font-medium">

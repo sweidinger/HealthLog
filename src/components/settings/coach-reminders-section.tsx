@@ -21,6 +21,7 @@ import { useMemo } from "react";
 import { BellRing, Check, Loader2, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateOrRelative } from "@/lib/format";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
@@ -177,14 +178,14 @@ export function CoachRemindersSection({
       )}
 
       {!query.isError && reminders.length === 0 ? (
-        <p
+        <EmptyState
           data-testid="settings-coach-reminders-empty"
-          className="text-muted-foreground text-sm"
-        >
-          {t("settings.ai.coachReminders.empty")}
-        </p>
+          variant="plain"
+          size="compact"
+          title={t("settings.ai.coachReminders.empty")}
+        />
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {due.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">

@@ -128,13 +128,13 @@ function McpConnectionsCard() {
                     {t("settings.mcp.connectionConnected")}
                   </Badge>
                 </div>
-                <p className="text-muted-foreground text-[11px]">
+                <p className="text-muted-foreground text-xs">
                   <span className="font-medium">
                     {t("settings.tokenTablePermissions")}:
                   </span>{" "}
                   {conn.scope}
                 </p>
-                <p className="text-muted-foreground text-[11px]">
+                <p className="text-muted-foreground text-xs">
                   <span className="font-medium">
                     {t("settings.mcp.connectionLastUsed")}:
                   </span>{" "}
@@ -353,7 +353,7 @@ function McpTokensCard() {
               aria-label={t("settings.mcp.writeScopeToggleLabel")}
             />
           </div>
-          <p className="text-muted-foreground text-[11px] leading-relaxed">
+          <p className="text-muted-foreground text-xs leading-relaxed">
             {t("settings.mcp.writeScopeNote")}
           </p>
         </div>
@@ -447,19 +447,19 @@ function McpTokensCard() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-muted-foreground text-[11px]">
+                    <p className="text-muted-foreground text-xs">
                       <span className="font-medium">
                         {t("settings.tokenTablePermissions")}:
                       </span>{" "}
                       {tok.permissions.join(", ")}
                     </p>
-                    <p className="text-muted-foreground text-[11px]">
+                    <p className="text-muted-foreground text-xs">
                       <span className="font-medium">
                         {t("settings.tokenTableCreated")}:
                       </span>{" "}
                       {formatDate(tok.createdAt)}
                     </p>
-                    <p className="text-muted-foreground text-[11px]">
+                    <p className="text-muted-foreground text-xs">
                       <span className="font-medium">
                         {t("settings.tokenTableLastUsed")}:
                       </span>{" "}

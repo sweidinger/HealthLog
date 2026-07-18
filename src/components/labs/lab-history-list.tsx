@@ -356,7 +356,7 @@ export function LabHistoryList({ readings }: { readings: LabResultDto[] }) {
         title={t("labs.editTitle")}
         description={t("labs.editDescription")}
       >
-        <form onSubmit={submitEdit} className="space-y-5">
+        <form onSubmit={submitEdit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="lab-edit-value">

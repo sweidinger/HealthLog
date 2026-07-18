@@ -116,7 +116,7 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
       {isLoading ? (
         <div
           data-slot="coach-prefs-skeleton"
-          className="mt-4 flex flex-col gap-5 pl-7"
+          className="mt-4 flex flex-col gap-4 pl-7"
         >
           <div className="flex flex-col gap-2">
             <Skeleton className="h-3 w-20" />
@@ -133,8 +133,8 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
           </div>
         </div>
       ) : (
-        <div className="mt-4 flex flex-col gap-5 pl-7">
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="mt-4 flex flex-col gap-4 pl-7">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Tone */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="coach-prefs-tone" className="text-xs font-medium">
@@ -212,7 +212,7 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
               them. */}
           <p
             data-slot="coach-prefs-sources-pointer"
-            className="text-muted-foreground border-border/60 rounded-md border border-dashed px-3 py-2 text-[11px] leading-relaxed"
+            className="text-muted-foreground border-border/60 rounded-md border border-dashed px-3 py-2 text-xs leading-relaxed"
           >
             {t("insights.coach.settingsSourcesPointer")}{" "}
             <Link
@@ -228,7 +228,7 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
             <Label className="text-xs font-medium">
               {t("insights.coach.settingsExcludeLabel")}
             </Label>
-            <p className="text-muted-foreground text-[11px] leading-relaxed">
+            <p className="text-muted-foreground text-xs leading-relaxed">
               {t("insights.coach.settingsExcludeHint")}
             </p>
             <ul
@@ -265,7 +265,7 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
             <Label className="text-xs font-medium">
               {t("insights.coach.settingsContextLabel")}
             </Label>
-            <p className="text-muted-foreground text-[11px] leading-relaxed">
+            <p className="text-muted-foreground text-xs leading-relaxed">
               {t("insights.coach.settingsContextHint")}
             </p>
             <ul
@@ -307,7 +307,7 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
               >
                 {t("coach.settings.reminderSuggestionsLabel")}
               </Label>
-              <p className="text-muted-foreground text-[11px] leading-relaxed">
+              <p className="text-muted-foreground text-xs leading-relaxed">
                 {t("coach.settings.reminderSuggestionsDescription")}
               </p>
             </div>

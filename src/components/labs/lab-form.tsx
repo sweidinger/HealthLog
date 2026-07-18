@@ -282,7 +282,7 @@ export function LabForm({
 
   return (
     <>
-      <form id={formId} onSubmit={handleSubmit} className="space-y-5">
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="lab-biomarker">{t("labs.form.biomarker")}</Label>
           <Select

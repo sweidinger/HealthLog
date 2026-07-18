@@ -75,7 +75,7 @@ export function SuggestedPrompts({
     >
       <span
         data-slot="insights-suggested-prompts-label"
-        className="text-muted-foreground mr-1 text-[11px] font-medium tracking-wide uppercase"
+        className="text-muted-foreground mr-1 text-xs font-medium tracking-wide uppercase"
       >
         {t("insights.suggestedPrompts.label")}
       </span>

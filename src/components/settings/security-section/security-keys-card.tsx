@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
@@ -138,9 +139,11 @@ export function SecurityKeysCard({ keys }: { keys: WebauthnKeyInfo[] }) {
 
       <div className="mt-4">
         {keys.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("settings.security.keys.empty")}
-          </p>
+          <EmptyState
+            variant="plain"
+            size="compact"
+            title={t("settings.security.keys.empty")}
+          />
         ) : (
           <ul className="space-y-2" data-testid="security-keys-list">
             {keys.map((key) => (

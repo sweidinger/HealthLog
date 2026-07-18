@@ -99,7 +99,7 @@ export default async function OnboardingStepPage({ params }: PageProps) {
         {completed ? (
           <section
             aria-labelledby="onboarding-welcomeback-title"
-            className="space-y-5"
+            className="space-y-4"
           >
             <h1
               id="onboarding-welcomeback-title"

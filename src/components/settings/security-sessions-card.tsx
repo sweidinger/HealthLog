@@ -15,6 +15,7 @@ import { ChevronDown, Loader2, MonitorSmartphone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SettingsCard } from "@/components/settings/settings-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet, apiDelete } from "@/lib/api/api-fetch";
@@ -126,9 +127,11 @@ export function SecuritySessionsCard({
         )}
 
         {!isLoading && !isError && sessions.length === 0 && (
-          <p className="text-muted-foreground text-sm">
-            {t("settings.security.sessionsEmpty")}
-          </p>
+          <EmptyState
+            variant="plain"
+            size="compact"
+            title={t("settings.security.sessionsEmpty")}
+          />
         )}
 
         {sessions.length > 0 && (

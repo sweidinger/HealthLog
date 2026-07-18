@@ -716,7 +716,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           {/* v1.4.47 W4 — column header spacer additionally reserves the
               width of the new drag-handle icon (w-7) so Tile / Chart
               alignment with the row switches below stays pixel-perfect. */}
-          <div className="text-muted-foreground flex items-center gap-2 px-3 pb-1 text-[10px] font-medium tracking-wide uppercase">
+          <div className="text-muted-foreground flex items-center gap-2 px-3 pb-1 text-xs font-medium tracking-wide uppercase">
             <span className="w-7" aria-hidden="true" />
             <span className="flex-1" aria-hidden="true" />
             <span className="w-12 text-center">

@@ -360,7 +360,7 @@ function TimelineRow({
   children: React.ReactNode;
 }) {
   return (
-    <li className="relative pb-4 pl-5 last:pb-0" data-slot={dataSlot}>
+    <li className="relative pb-4 pl-6 last:pb-0" data-slot={dataSlot}>
       <span
         aria-hidden="true"
         className={cn(

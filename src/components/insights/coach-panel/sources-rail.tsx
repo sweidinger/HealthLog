@@ -157,7 +157,7 @@ export function SourcesRail({ className, activeScopeLabel }: SourcesRailProps) {
       <div data-slot="coach-sources-window" className="flex flex-col gap-1">
         <label
           htmlFor="coach-sources-window-select"
-          className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase"
+          className="text-muted-foreground text-xs font-medium tracking-wide uppercase"
         >
           {t("insights.coach.windowLabel")}
         </label>
@@ -215,7 +215,7 @@ export function SourcesRail({ className, activeScopeLabel }: SourcesRailProps) {
                 >
                   {t(`insights.coach.cluster.${cluster}.label`)}
                 </label>
-                <span className="text-muted-foreground text-[11px] leading-snug">
+                <span className="text-muted-foreground text-xs leading-snug">
                   {t("insights.coach.sourcesMemberCount", {
                     count: memberCount,
                   })}

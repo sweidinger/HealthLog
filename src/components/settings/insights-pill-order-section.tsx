@@ -43,6 +43,7 @@ import {
 } from "@/lib/insights/sub-page-metric";
 import { SUB_PAGE_TABS } from "@/components/insights/insights-tab-strip";
 import { apiPut } from "@/lib/api/api-fetch";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 
@@ -240,12 +241,12 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
           <Loader2 className="mr-2 inline h-3.5 w-3.5 animate-spin align-text-bottom motion-reduce:animate-none" />
         </p>
       ) : tilesByGroup.length === 0 ? (
-        <p
-          className="text-muted-foreground text-sm"
+        <EmptyState
+          variant="plain"
+          size="compact"
           data-slot="insights-pill-order-empty"
-        >
-          {t("insights.pillOrder.empty")}
-        </p>
+          title={t("insights.pillOrder.empty")}
+        />
       ) : (
         <div className="max-h-[60vh] space-y-3 overflow-y-auto overscroll-contain">
           {tilesByGroup.map(({ group, rows }) => (
@@ -254,7 +255,7 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
               data-slot="insights-pill-order-group"
               data-group={group}
             >
-              <p className="text-muted-foreground px-1 py-1 text-[11px] font-semibold tracking-wide uppercase">
+              <p className="text-muted-foreground px-1 py-1 text-xs font-semibold tracking-wide uppercase">
                 {t(MANAGER_GROUP_HEADER_KEYS[group])}
               </p>
               <DndContext

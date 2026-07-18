@@ -343,7 +343,7 @@ export function HealthScoreCard({
             {isProvisional && (
               <span
                 data-slot="health-score-card-provisional-badge"
-                className="border-muted-foreground/30 text-muted-foreground inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-medium tracking-wide uppercase"
+                className="border-muted-foreground/30 text-muted-foreground inline-flex items-center rounded-full border px-1.5 py-0.5 text-xs font-medium tracking-wide uppercase"
                 title={t("insights.healthScore.provenance.provisional", {
                   count: presentCount,
                   total: totalCount,

@@ -123,7 +123,7 @@ export function CheckInWizard({
 
   return (
     <section
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-4"
       data-slot="mental-health-check-in"
       aria-busy={isPending || undefined}
     >
@@ -161,7 +161,7 @@ export function CheckInWizard({
       </header>
 
       <Card className="gap-0 p-0">
-        <CardContent className="flex flex-col gap-5 p-4 sm:p-6">
+        <CardContent className="flex flex-col gap-4 p-4 md:p-6">
           <div className="flex flex-col gap-4">
             <p className="text-muted-foreground text-xs">
               {t("mentalHealth.progress", {
@@ -224,7 +224,7 @@ export function CheckInWizard({
           </div>
         </CardContent>
 
-        <div className="border-border/70 flex items-center justify-between gap-2 border-t p-4 sm:p-6">
+        <div className="border-border/70 flex items-center justify-between gap-2 border-t p-4 md:p-6">
           <Button
             type="button"
             variant="ghost"
