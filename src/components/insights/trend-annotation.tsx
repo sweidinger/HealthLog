@@ -194,7 +194,7 @@ export function TrendAnnotation({
         <Badge
           data-slot="trend-annotation-confidence"
           variant="outline"
-          className={cn("text-[10px]", CONFIDENCE_BADGE_CLASS[confidence])}
+          className={cn("text-xs", CONFIDENCE_BADGE_CLASS[confidence])}
         >
           {t(CONFIDENCE_LABEL_KEY[confidence])}
         </Badge>

@@ -125,13 +125,13 @@ function ShareLinksCard() {
                     {link.label}
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge className="bg-success/15 text-success text-[10px]">
+                    <Badge className="bg-success/15 text-success text-xs">
                       {t("settings.sharing.statusActive")}
                     </Badge>
                     {link.protected && (
                       <Badge
                         variant="outline"
-                        className="gap-1 text-[10px]"
+                        className="gap-1 text-xs"
                         data-testid="share-protected-badge"
                       >
                         <KeyRound className="h-2.5 w-2.5" />
@@ -141,7 +141,7 @@ function ShareLinksCard() {
                     {link.documentCount > 0 && (
                       <Badge
                         variant="outline"
-                        className="gap-1 text-[10px]"
+                        className="gap-1 text-xs"
                         data-testid="share-doc-count-badge"
                         aria-label={t("settings.sharing.documentCount", {
                           count: link.documentCount,
@@ -152,7 +152,7 @@ function ShareLinksCard() {
                       </Badge>
                     )}
                     {link.allowFhirApi && (
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-xs">
                         FHIR
                       </Badge>
                     )}
@@ -240,7 +240,7 @@ function ShareLinksCard() {
                     <p className="min-w-0 flex-1 text-sm font-medium break-words">
                       {link.label}
                     </p>
-                    <Badge variant="secondary" className="text-[10px]">
+                    <Badge variant="secondary" className="text-xs">
                       {link.revokedAt
                         ? t("settings.sharing.statusRevoked")
                         : t("settings.sharing.statusExpired")}

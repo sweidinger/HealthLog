@@ -492,7 +492,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
                     <span aria-hidden className="block text-sm">
                       {value}
                     </span>
-                    <span className="block text-[10px] opacity-80">
+                    <span className="block text-xs opacity-80">
                       {t(`medications.sideEffects.severity.${label}`)}
                     </span>
                   </button>
@@ -517,7 +517,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
               // px-3 py-2 is too tall inside the side-effect modal.
               className="px-2 py-1.5"
             />
-            <p className="text-muted-foreground text-right text-[10px]">
+            <p className="text-muted-foreground text-right text-xs">
               {notes.length} / {NOTES_MAX}
             </p>
           </div>

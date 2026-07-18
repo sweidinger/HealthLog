@@ -411,7 +411,7 @@ export function UserManagementSection() {
                             variant={
                               u.role === "ADMIN" ? "default" : "secondary"
                             }
-                            className="text-[10px]"
+                            className="text-xs"
                           >
                             {u.role}
                           </Badge>
@@ -419,7 +419,7 @@ export function UserManagementSection() {
                         <p className="text-muted-foreground truncate text-xs">
                           {u.email || "—"}
                         </p>
-                        <p className="text-muted-foreground text-[11px]">
+                        <p className="text-muted-foreground text-xs">
                           {t("admin.userPasskeys")}: {u.passkeyCount} ·{" "}
                           {formatDate(u.createdAt)}
                         </p>

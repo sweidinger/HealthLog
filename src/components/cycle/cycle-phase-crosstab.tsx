@@ -187,7 +187,7 @@ export function CyclePhaseCrosstab({
                 </span>
                 <span
                   className={cn(
-                    "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                    "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
                     CONFIDENCE_CLASS[row.confidence],
                   )}
                 >

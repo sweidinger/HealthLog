@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.30.6] — 2026-07-18
+
+Accessibility pass.
+
+- **Heatmaps read to a screen reader.** The mood and medication-compliance grids now expose each recorded day — its date and value — through a hidden day list, so the per-day figures are no longer reachable by pointer only. The chart looks exactly the same.
+- **Small labels meet the minimum size.** Muted meta text across settings, admin, the coach panel, and the insights cards is lifted off the sub-`text-xs` sizes; tabular figures and chart chrome are unchanged.
+- **A couple of section headings.** Two metric-page sections became proper headings, so heading navigation lands where it should.
+
+No migration. No breaking changes.
+
 ## [1.30.5] — 2026-07-18
 
 Making a shipped feature findable, and a sync-status fix.

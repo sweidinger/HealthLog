@@ -216,7 +216,7 @@ export function CoachDrawer({
             </SheetTitle>
           )}
           renderDescription={(tagline) => (
-            <SheetDescription className="text-muted-foreground truncate text-[11px]">
+            <SheetDescription className="text-muted-foreground truncate text-xs">
               {tagline}
             </SheetDescription>
           )}

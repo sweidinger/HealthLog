@@ -43,4 +43,15 @@ describe("<DashboardHeader> — greeting", () => {
     // The title itself stays.
     expect(html).toContain("Dashboard");
   });
+
+  // 2026-07-17 a11y audit (M4) — the dashboard is the app's landing surface
+  // and must expose a page-level `<h1>`. It comes from the shared
+  // `PageHeader` the header renders, so a screen-reader user navigating by
+  // heading lands on a real page anchor (not the Today hero's muted `<h2>`
+  // micro-label). No separate sr-only heading is added — that would double
+  // the `h1`.
+  it("renders a real page-level h1 with the dashboard title", () => {
+    const html = renderSSR(<DashboardHeader onQuickEntry={() => undefined} />);
+    expect(html).toMatch(/<h1[^>]*>Dashboard<\/h1>/);
+  });
 });

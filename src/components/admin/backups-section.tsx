@@ -578,11 +578,11 @@ export function BackupsSection() {
                 <li>
                   <div className="flex items-center gap-2">
                     <span className="truncate font-medium">{row.username}</span>
-                    <Badge variant="secondary" className="text-[10px]">
+                    <Badge variant="secondary" className="text-xs">
                       {formatBackupType(row.type, t)}
                     </Badge>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">
+                  <p className="text-muted-foreground text-xs">
                     {t("admin.section.backups.colSize")}:{" "}
                     {formatBytes(row.sizeBytes, fmt)} ·{" "}
                     {fmt.dateTime(row.createdAt)}

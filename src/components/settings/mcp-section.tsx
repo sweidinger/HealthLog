@@ -124,7 +124,7 @@ function McpConnectionsCard() {
                   <p className="min-w-0 flex-1 text-sm font-medium break-all">
                     {conn.clientName}
                   </p>
-                  <Badge className="bg-success/15 text-success text-[10px]">
+                  <Badge className="bg-success/15 text-success text-xs">
                     {t("settings.mcp.connectionConnected")}
                   </Badge>
                 </div>
@@ -438,11 +438,11 @@ function McpTokensCard() {
                         {tok.name}
                       </p>
                       {isExpired ? (
-                        <Badge variant="destructive" className="text-[10px]">
+                        <Badge variant="destructive" className="text-xs">
                           {t("settings.tokenExpired")}
                         </Badge>
                       ) : (
-                        <Badge className="bg-success/15 text-success text-[10px]">
+                        <Badge className="bg-success/15 text-success text-xs">
                           {t("settings.tokenActive")}
                         </Badge>
                       )}

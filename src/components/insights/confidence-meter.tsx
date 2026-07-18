@@ -76,7 +76,7 @@ function DraftPill({ ariaLabel }: { ariaLabel: string }) {
       data-confidence-band="draft"
       role="img"
       aria-label={ariaLabel}
-      className="bg-destructive/10 text-destructive border-destructive/25 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+      className="bg-destructive/10 text-destructive border-destructive/25 inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium tracking-wide uppercase"
     >
       {t("insights.recommendation.confidenceDraft")}
     </span>

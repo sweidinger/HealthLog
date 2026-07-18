@@ -201,7 +201,7 @@ export function ScheduleHistoryTimeline({
                         : t("medications.detail.zeitplan.history.noTimes")}
                       {revision.source === "MANUAL" && (
                         <span
-                          className="border-primary/30 bg-primary/10 text-primary ml-2 inline-flex rounded-full border px-2 py-px align-middle text-[11px] font-medium"
+                          className="border-primary/30 bg-primary/10 text-primary ml-2 inline-flex rounded-full border px-2 py-px align-middle text-xs font-medium"
                           data-slot="zeitplan-history-manual-chip"
                         >
                           {t("medications.detail.zeitplan.history.manualChip")}

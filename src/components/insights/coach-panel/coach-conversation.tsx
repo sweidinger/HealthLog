@@ -1040,11 +1040,11 @@ export function CoachConversation({
           <span className="truncate">{docScopeText}</span>
         </span>
       </div>
-      <p className="text-muted-foreground text-[11px] leading-snug">
+      <p className="text-muted-foreground text-xs leading-snug">
         {t("insights.coach.attach.fencedHint")}
       </p>
       {anyPendingUnindexed ? (
-        <p className="text-muted-foreground text-[11px] leading-snug">
+        <p className="text-muted-foreground text-xs leading-snug">
           {t("insights.coach.attach.indexingHint")}
         </p>
       ) : null}
@@ -1143,9 +1143,7 @@ export function CoachConversation({
           {renderDescription ? (
             renderDescription(tagline)
           ) : (
-            <p className="text-muted-foreground truncate text-[11px]">
-              {tagline}
-            </p>
+            <p className="text-muted-foreground truncate text-xs">{tagline}</p>
           )}
         </div>
         <Button

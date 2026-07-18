@@ -226,6 +226,22 @@ export function MoodHeatmap({
   const svgWidth = labelWidth + weeks * cellSize + Math.max(0, weeks - 1) * GAP;
   const svgHeight = headerHeight + 7 * cellSize + 6 * GAP;
 
+  // Per-day text alternative, shared by the pointer tooltip and the
+  // visually-hidden day list below the grid (M2). One source of truth so
+  // the sr-only list never drifts from what a pointer user reads.
+  const describeCell = (cell: (typeof cells)[number]): string => {
+    if (!cell.cell) {
+      return `${formatDay(cell.dateKey)}: ${t("insights.mood.heatmapNoEntry")}`;
+    }
+    const labelKey = moodLabelKeyForScore(Math.round(cell.cell.score));
+    const moodLabel = labelKey ? t(labelKey) : "";
+    return `${formatDay(cell.dateKey)}: ${cell.cell.score.toFixed(1)}${moodLabel ? ` · ${moodLabel}` : ""}`;
+  };
+  // Only the logged days go into the sr-only list; the empty-tinted cells
+  // are already covered by the aggregate summary on the SVG, so a rotor
+  // user hears the days that carry a value rather than a wall of "no entry".
+  const loggedCells = cells.filter((cell) => cell.cell !== null);
+
   return (
     <div className={`relative ${stretch ? "w-full" : ""}`} ref={containerRef}>
       <div
@@ -278,16 +294,7 @@ export function MoodHeatmap({
             )}
 
           {cells.map((cell) => {
-            const buildText = (): string => {
-              if (!cell.cell) {
-                return `${formatDay(cell.dateKey)}: ${t("insights.mood.heatmapNoEntry")}`;
-              }
-              const labelKey = moodLabelKeyForScore(
-                Math.round(cell.cell.score),
-              );
-              const moodLabel = labelKey ? t(labelKey) : "";
-              return `${formatDay(cell.dateKey)}: ${cell.cell.score.toFixed(1)}${moodLabel ? ` · ${moodLabel}` : ""}`;
-            };
+            const buildText = (): string => describeCell(cell);
             return (
               <rect
                 key={cell.dateKey}
@@ -301,14 +308,13 @@ export function MoodHeatmap({
                 // mood band reads clearly; only the no-entry cells stay the
                 // quiet `--secondary` empty-state tint.
                 fillOpacity={1}
-                className="cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ring)]"
-                // 2026-07-17 a11y audit (M2) — the aggregate `role="img"` on
-                // the whole SVG summarises the window; each cell also gets
-                // its own per-day label so a screen-reader / keyboard user
-                // can reach the same value the pointer-only tooltip shows.
-                tabIndex={0}
-                role="img"
-                aria-label={buildText()}
+                className="cursor-pointer"
+                // 2026-07-17 a11y audit (M2) — the per-day values reach
+                // assistive tech through the visually-hidden day list below
+                // the grid, not through the rects: a cell subtree nested
+                // under the SVG's `role="img"` is pruned from the a11y tree,
+                // and per-cell tab stops would flood the keyboard order on a
+                // year-long grid. The rects stay a pure pointer affordance.
                 onPointerEnter={(e) => {
                   if (e.pointerType === "touch") return;
                   setTooltip({
@@ -330,22 +336,23 @@ export function MoodHeatmap({
                     pinned: true,
                   });
                 }}
-                onFocus={(e) => {
-                  const box = e.currentTarget.getBoundingClientRect();
-                  setTooltip({
-                    x: box.left + box.width / 2,
-                    y: box.top,
-                    text: buildText(),
-                  });
-                }}
-                onBlur={() => {
-                  setTooltip((prev) => (prev?.pinned ? prev : null));
-                }}
               />
             );
           })}
         </svg>
       </div>
+
+      {/* 2026-07-17 a11y audit (M2) — visually-hidden per-day list. The SVG
+          carries an aggregate `role="img"` summary; this list is the
+          keyboard/screen-reader path to the same granular values the pointer
+          tooltip shows, without adding a tab stop per cell. */}
+      {loggedCells.length > 0 && (
+        <ul className="sr-only" data-slot="mood-heatmap-day-list">
+          {loggedCells.map((cell) => (
+            <li key={cell.dateKey}>{describeCell(cell)}</li>
+          ))}
+        </ul>
+      )}
 
       {tooltip && (
         <div

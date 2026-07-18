@@ -153,14 +153,14 @@ describe("ApiTokenOverviewSection — responsive", () => {
     const html = render();
     const mobileMatch = html.match(/<ul[^>]*md:hidden[^>]*>([\s\S]*?)<\/ul>/);
     expect(mobileMatch).not.toBeNull();
-    // The Last-used + Created lines use <p class="text-[11px]…"> — no
-    // whitespace-nowrap so a long German date+time can flow onto a
+    // The Last-used + Created lines are muted <p class="…text-xs"> meta —
+    // no whitespace-nowrap so a long German date+time can flow onto a
     // second line within the card. The shadcn `<Badge>` primitive
     // does carry `whitespace-nowrap`, which is fine for the short
     // permission strings we render — those are scoped to a flex-wrap
     // container that line-breaks at the badge boundary.
     expect(mobileMatch![1]).toMatch(
-      /<p[^>]*text-\[11px\][^>]*>(?![^<]*whitespace-nowrap)/,
+      /<p[^>]*text-muted-foreground[^>]*text-xs[^>]*>(?![^<]*whitespace-nowrap)/,
     );
   });
 });
