@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.30.2] — 2026-07-18
+
+More audit-backlog fixes.
+
+- **Coach history is fully reachable.** The conversation list pages through your whole history and search runs on the server (by title), instead of only the first ~20 loaded chats.
+- **Navigation and flows.** A document links to the lab values it produced; the two "Recovery" pages are named distinctly and cross-linked; mood, mental wellbeing, and mood insights link to each other; the nutrients card moved out of "Source priority"; the onboarding checklist and tour no longer point at dead ends; asking the coach from a metric or a plan carries that context in.
+- **Correctness.** Correlations, the intraday chart, achievements, and the nutrients overview now bucket days by your own timezone and lead with the most recent data; a multi-source day is no longer counted twice.
+- **Performance.** The workouts list caches its de-duplication per filter, so paging through a long history is quick.
+
+No migration. No breaking changes.
+
 ## [1.30.1] — 2026-07-18
 
 Polish and small fixes.
