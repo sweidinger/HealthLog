@@ -245,6 +245,41 @@ export async function revokeBearerAccessToken(
   return apiResult.count > 0;
 }
 
+/**
+ * Revoke a refresh token identified by its stored hash (not the raw secret).
+ *
+ * Replay-containment reach-back for the native OIDC handoff: the handoff row
+ * records only `hashToken(refreshToken)` of the pair it issued, never the raw
+ * token, so a replay must revoke by hash. Same effect as `revokeRefreshToken`
+ * — flip the refresh row and its paired access token — keyed by the hash the
+ * caller already holds.
+ *
+ * Returns true when a live refresh row was revoked.
+ */
+export async function revokeRefreshTokenByHash(
+  refreshTokenHash: string,
+): Promise<boolean> {
+  const row = await prisma.refreshToken.findUnique({
+    where: { tokenHash: refreshTokenHash },
+    select: { accessTokenHash: true, revokedAt: true },
+  });
+  if (!row || row.revokedAt) return false;
+
+  const result = await prisma.refreshToken.updateMany({
+    where: { tokenHash: refreshTokenHash, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  if (result.count === 0) return false;
+
+  if (row.accessTokenHash) {
+    await prisma.apiToken.updateMany({
+      where: { tokenHash: row.accessTokenHash, revoked: false },
+      data: { revoked: true },
+    });
+  }
+  return true;
+}
+
 /** Revoke a specific refresh token (logout-on-device).
  *  Also revokes the paired access token so a leaked access token cannot
  *  outlive the refresh-token sibling that the user just killed. */

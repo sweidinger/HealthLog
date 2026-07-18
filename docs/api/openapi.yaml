@@ -1562,6 +1562,38 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/auth/oidc/native/token:
+    post:
+      tags:
+        - Auth
+      summary: Exchange a native OIDC handoff code for the token bundle
+      description: >-
+        The cookie-less native leg of the OIDC SSO flow. The iOS app opens `GET
+        /api/auth/oidc/login?client=native&code_challenge=<S256>` inside an `ASWebAuthenticationSession`; the callback
+        returns a one-time handoff code on `healthlog://oidc-callback?code=hlh_…` (or an `mfa_ticket` when the account
+        has a second factor, completed at /api/auth/mfa/verify). This endpoint exchanges the code + its PKCE
+        `codeVerifier` for the SAME native bundle password login issues.
+
+
+        Requires the native transport (no cookie, non-browser UA) — a browser is rejected. The code is single-use and
+        expires in ~90 seconds; a replay of a consumed code revokes the pair the first exchange issued. A single generic
+        401 covers every invalid/expired/used/PKCE-mismatch case.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OidcNativeTokenRequest"
+      responses:
+        "200":
+          description: Handoff accepted — native access + refresh bundle.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OidcNativeTokenResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/auth/me/mfa/totp/setup:
     post:
       tags:
@@ -11015,6 +11047,21 @@ components:
         - mfaTicket
         - code
       description: Complete a second-factor login challenge and receive the same token bundle the password path issues.
+    OidcNativeTokenRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: ^hlh_[A-Za-z0-9_-]{43}$
+          description: One-time handoff code from the healthlog://oidc-callback?code= redirect.
+        codeVerifier:
+          type: string
+          pattern: ^[A-Za-z0-9\-._~]{43,128}$
+          description: The app's PKCE code_verifier (RFC 7636).
+      required:
+        - code
+        - codeVerifier
+      description: Exchange a one-time native OIDC handoff code (+ its PKCE verifier) for the standard native token bundle.
     MfaDisableRequest:
       type: object
       properties:
@@ -14858,6 +14905,23 @@ components:
       description: Password accepted but a second factor is required. Not an error and not a session — no token is issued
         until /api/auth/mfa/verify succeeds.
     MfaVerifyResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AccessRefreshBundle"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    OidcNativeTokenResponse:
       type: object
       properties:
         data:

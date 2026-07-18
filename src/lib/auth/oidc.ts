@@ -47,12 +47,15 @@ export function isOidcConfigured(): boolean {
  * Enforced server-side on every password/passkey auth route (`/api/auth/
  * login`, `/api/auth/register`, `/api/auth/passkey/{login-options,
  * login-verify}`) — the login page hiding those buttons is not the
- * boundary. There is currently no OIDC-compatible login flow for the
- * native iOS client (it authenticates via password/passkey only, see
- * `src/lib/auth/native-client.ts`), so turning this on locks the iOS app
- * out of authentication entirely until a native SSO flow exists. Documented
- * in `.env.production.example`; check before recommending this to an
- * operator running the iOS app.
+ * boundary. The native iOS client signs in via the native OIDC SSO handoff
+ * (`GET /api/auth/oidc/login?client=native` → `healthlog://oidc-callback` →
+ * `POST /api/auth/oidc/native/token`, see
+ * `src/lib/auth/oidc-native-handoff.ts`); the MFA-verify and refresh routes
+ * that complete / rotate that login are deliberately NOT OIDC-only-blocked.
+ * `OIDC_ONLY` therefore requires the iOS build that ships this flow — an older
+ * password/passkey-only client is locked out. Documented in
+ * `.env.production.example`; check the app version before recommending this to
+ * an operator running the iOS app.
  */
 export function isOidcOnly(): boolean {
   return isOidcConfigured() && envOrEmpty("OIDC_ONLY").toLowerCase() === "true";

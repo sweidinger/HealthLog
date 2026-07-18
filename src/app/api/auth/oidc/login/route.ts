@@ -5,7 +5,8 @@ import { annotate, getEvent } from "@/lib/logging/context";
 import { checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
 import { encrypt } from "@/lib/crypto";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
-import { s256Challenge } from "@/lib/mcp/oauth/pkce";
+import { s256Challenge, isValidChallenge } from "@/lib/mcp/oauth/pkce";
+import { buildNativeCallbackUrl } from "@/lib/auth/oidc-native-handoff";
 import {
   buildAuthorizationUrl,
   discoverOidcMetadata,
@@ -29,9 +30,28 @@ import {
 export const GET = apiHandler(async (req: NextRequest) => {
   annotate({ action: { name: "auth.oidc.login" } });
 
+  // v1.30.x — native SSO. The iOS app opens this URL inside an
+  // `ASWebAuthenticationSession` with `client=native` and its own PKCE
+  // `code_challenge`. Both are query params here only; they are validated and
+  // folded into the AES-256-GCM state blob so nothing native-specific rides the
+  // IdP round-trip as a URL parameter. The `client` param is attacker-flippable
+  // at this route, but routing THIS request's error to the custom scheme leaks
+  // nothing — an error redirect carries no code, ticket, or session (spec §1).
+  const isNative = req.nextUrl.searchParams.get("client") === "native";
+  const appCodeChallenge = req.nextUrl.searchParams.get("code_challenge");
+
+  // Native-aware error redirect: the scheme for a native start, the web login
+  // page otherwise. Machine-readable `error=<reason>` in both.
+  const loginError = (reason: string): NextResponse => {
+    if (isNative) {
+      return NextResponse.redirect(buildNativeCallbackUrl({ error: reason }));
+    }
+    return NextResponse.redirect(oidcAppUrl(`/auth/login?error=${reason}`));
+  };
+
   const config = getOidcConfig();
   if (!config) {
-    return NextResponse.redirect(oidcAppUrl("/auth/login?error=oidc_disabled"));
+    return loginError("oidc_disabled");
   }
 
   const rl = await checkAuthSurfaceRateLimit(
@@ -41,9 +61,14 @@ export const GET = apiHandler(async (req: NextRequest) => {
     15 * 60 * 1000,
   );
   if (!rl.allowed) {
-    return NextResponse.redirect(
-      oidcAppUrl("/auth/login?error=oidc_rate_limited"),
-    );
+    return loginError("oidc_rate_limited");
+  }
+
+  // A native start MUST carry a valid S256 challenge (43–128 chars). `plain` is
+  // structurally unsupported — the exchange only ever verifies S256.
+  if (isNative && !isValidChallenge(appCodeChallenge)) {
+    annotate({ meta: { reason: "invalid_native_request" } });
+    return loginError("oidc_invalid_request");
   }
 
   let metadata;
@@ -51,7 +76,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
     metadata = await discoverOidcMetadata(config);
   } catch (err) {
     getEvent()?.setError(err);
-    return NextResponse.redirect(oidcAppUrl("/auth/login?error=oidc_failed"));
+    return loginError("oidc_failed");
   }
 
   const state = randomBytes(32).toString("base64url");
@@ -59,10 +84,11 @@ export const GET = apiHandler(async (req: NextRequest) => {
   const codeVerifier = randomBytes(64).toString("base64url");
   const codeChallenge = s256Challenge(codeVerifier);
 
-  const safeNext = sanitizeOidcNextPath(
-    req.nextUrl.searchParams.get("next"),
-    req.url,
-  );
+  // `next` is a post-login WEB path, meaningless to the app — pin it to "/" on
+  // the native branch (one less input to sanitize).
+  const safeNext = isNative
+    ? "/"
+    : sanitizeOidcNextPath(req.nextUrl.searchParams.get("next"), req.url);
 
   const redirectUri = getOidcRedirectUri();
   const authorizationUrl = buildAuthorizationUrl({
@@ -75,8 +101,20 @@ export const GET = apiHandler(async (req: NextRequest) => {
   });
 
   const response = NextResponse.redirect(authorizationUrl);
+  // The server↔IdP PKCE (`codeVerifier`) stays independent of the app↔server
+  // PKCE (`appCodeChallenge`). The native flag + challenge live ONLY inside the
+  // AES-256-GCM blob, so the callback branches on tamper-authenticated state a
+  // network attacker or the IdP cannot flip.
   const cookiePayload = encrypt(
-    JSON.stringify({ state, nonce, codeVerifier, next: safeNext }),
+    JSON.stringify({
+      state,
+      nonce,
+      codeVerifier,
+      next: safeNext,
+      ...(isNative
+        ? { native: true as const, appCodeChallenge: appCodeChallenge! }
+        : {}),
+    }),
   );
   response.cookies.set(OIDC_STATE_COOKIE, cookiePayload, {
     httpOnly: true,

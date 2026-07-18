@@ -17,6 +17,7 @@ import {
   mfaWebauthnLoginOptionsSchema,
   mfaWebauthnLoginVerifySchema,
 } from "@/lib/validations/mfa";
+import { oidcNativeTokenSchema } from "@/lib/validations/oidc-native";
 import { dataEnvelope, stdResponses, errorEnvelope } from "./shared";
 
 // ── Sub-schemas owned here (route-specific shapes) ───────────────────
@@ -347,6 +348,33 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           content: {
             "application/json": {
               schema: dataEnvelope(accessRefreshBundle, "MfaVerifyResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/oidc/native/token": {
+    post: {
+      tags: ["Auth"],
+      summary: "Exchange a native OIDC handoff code for the token bundle",
+      description:
+        "The cookie-less native leg of the OIDC SSO flow. The iOS app opens `GET /api/auth/oidc/login?client=native&code_challenge=<S256>` inside an `ASWebAuthenticationSession`; the callback returns a one-time handoff code on `healthlog://oidc-callback?code=hlh_…` (or an `mfa_ticket` when the account has a second factor, completed at /api/auth/mfa/verify). This endpoint exchanges the code + its PKCE `codeVerifier` for the SAME native bundle password login issues.\n\n" +
+        "Requires the native transport (no cookie, non-browser UA) — a browser is rejected. The code is single-use and expires in ~90 seconds; a replay of a consumed code revokes the pair the first exchange issued. A single generic 401 covers every invalid/expired/used/PKCE-mismatch case.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: oidcNativeTokenSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Handoff accepted — native access + refresh bundle.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                accessRefreshBundle,
+                "OidcNativeTokenResponse",
+              ),
             },
           },
         },

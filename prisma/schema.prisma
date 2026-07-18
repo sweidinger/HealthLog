@@ -667,6 +667,9 @@ model User {
   // authorization for an MCP client, audience-bound to health:read/health:write.
   mcpOAuthConnections         McpOAuthConnection[]
   refreshTokens               RefreshToken[]
+  // v1.30.x — one-time native OIDC SSO handoff codes. Each row bridges the
+  // browser-context OIDC callback to the cookie-less native token exchange.
+  oidcNativeHandoffs          OidcNativeHandoff[]
   auditLogs                   AuditLog[]
   withingsConnection          WithingsConnection?
   // v1.4.47 W6 — short-lived `(nonce → userId)` ledger backing the
@@ -3212,6 +3215,37 @@ model RefreshToken {
   @@index([userId, deviceId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+// v1.30.x — one-time native OIDC handoff code. Bridges the browser-context
+// OIDC callback to the cookie-less native token exchange. The raw value
+// `hlh_<…>` rides ONLY the custom-scheme redirect (healthlog://oidc-callback);
+// only its HMAC-SHA256 hash (hashToken, keyed by API_TOKEN_HMAC_KEY) is stored,
+// so a database dump reconstructs nothing. Single-use via the guarded consume
+// (`WHERE consumed_at IS NULL`); a second presentation after consumption revokes
+// the token pair the first exchange issued (refresh-token reuse-detection
+// posture). 90-second TTL enforced at read; a daily sweep prunes stale rows.
+model OidcNativeHandoff {
+  id        String @id @default(cuid())
+  userId    String @map("user_id")
+  codeHash  String @unique @map("code_hash") // hashToken(hlh_<…>)
+  /// The app's S256 PKCE challenge, bound at mint; the exchange verifies
+  /// s256(code_verifier) against it (constant-time) before consuming.
+  codeChallenge          String    @map("code_challenge")
+  expiresAt              DateTime  @map("expires_at")
+  consumedAt             DateTime? @map("consumed_at")
+  /// hashToken of the refresh token issued at exchange — replay containment
+  /// revokes exactly this family member (+ its paired access token).
+  issuedRefreshTokenHash String?   @map("issued_refresh_token_hash")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  ipAddress             String?   @map("ip_address")
+  userAgent             String?   @map("user_agent")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("oidc_native_handoffs")
 }
 
 // ─── Withings ──────────────────────────────────────────────

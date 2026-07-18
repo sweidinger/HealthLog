@@ -29,6 +29,10 @@ import { createMfaChallenge } from "@/lib/auth/mfa/challenge";
 import { syncMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
 import { resolveServerDefaultTimezone } from "@/lib/tz/resolver";
+import {
+  buildNativeCallbackUrl,
+  mintNativeHandoff,
+} from "@/lib/auth/oidc-native-handoff";
 
 const LOGIN_ERROR_URL = "/auth/login";
 
@@ -82,17 +86,38 @@ interface StoredOidcState {
   nonce: string;
   codeVerifier: string;
   next: string;
+  /**
+   * v1.30.x — set only when the login GET carried `client=native`. When true
+   * the callback mints a handoff code (or MFA ticket) and redirects to the
+   * custom scheme instead of minting a session. Both fields live ONLY inside
+   * the AES-256-GCM blob, so they are tamper-authenticated: a network attacker
+   * or the IdP cannot flip a web login into a native one or swap the app
+   * challenge.
+   */
+  native?: boolean;
+  /** The app's S256 PKCE challenge, bound at login; verified at the exchange. */
+  appCodeChallenge?: string;
 }
 
 function isStoredOidcState(value: unknown): value is StoredOidcState {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as Record<string, unknown>).state === "string" &&
-    typeof (value as Record<string, unknown>).nonce === "string" &&
-    typeof (value as Record<string, unknown>).codeVerifier === "string" &&
-    typeof (value as Record<string, unknown>).next === "string"
-  );
+  const v = value as Record<string, unknown>;
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    typeof v.state !== "string" ||
+    typeof v.nonce !== "string" ||
+    typeof v.codeVerifier !== "string" ||
+    typeof v.next !== "string"
+  ) {
+    return false;
+  }
+  // Optional native fields: when present they must be the right shape, and a
+  // native start MUST carry the challenge the exchange verifies against.
+  if (v.native !== undefined) {
+    if (v.native !== true) return false;
+    if (typeof v.appCodeChallenge !== "string") return false;
+  }
+  return true;
 }
 
 /**
@@ -106,34 +131,12 @@ function isStoredOidcState(value: unknown): value is StoredOidcState {
 export const GET = apiHandler(async (req: NextRequest) => {
   annotate({ action: { name: "auth.oidc.callback" } });
 
-  const config = getOidcConfig();
-  if (!config) return errorRedirect("oidc_disabled");
-
-  const rl = await checkAuthSurfaceRateLimit(
-    req,
-    "auth:oidc:callback",
-    20,
-    15 * 60 * 1000,
-  );
-  const ip = rl.ip ?? "unknown";
-  if (!rl.allowed) return errorRedirect("oidc_rate_limited");
-
-  const { searchParams } = req.nextUrl;
-  const idpError = searchParams.get("error");
-  if (idpError) {
-    annotate({
-      meta: {
-        reason: "idp_denied",
-        idpError: KNOWN_IDP_ERROR_CODES.has(idpError) ? idpError : "other",
-      },
-    });
-    return errorRedirect("oidc_denied");
-  }
-
-  const code = searchParams.get("code");
-  const state = searchParams.get("state");
-  if (!code || !state) return errorRedirect("oidc_state");
-
+  // Decrypt the single-use state blob FIRST. The `native` flag lives inside the
+  // AES-256-GCM payload (tamper-authenticated), so decrypting it up front lets
+  // every post-decrypt error branch redirect to the custom scheme instead of
+  // the web login page — the app parses `?error=<reason>` and never lands on a
+  // dead web page. A missing/undecryptable blob leaves `stored` null (isNative
+  // false) and those branches fall back to the web redirect by construction.
   const rawCookie = req.cookies.get(OIDC_STATE_COOKIE)?.value;
   let stored: StoredOidcState | null = null;
   if (rawCookie) {
@@ -144,6 +147,54 @@ export const GET = apiHandler(async (req: NextRequest) => {
       stored = null;
     }
   }
+  const isNative = stored?.native === true;
+
+  // Native-aware error redirect: the custom scheme for a decrypted native flow,
+  // the web login page otherwise. Deletes the single-use state cookie either
+  // way. An error redirect carries no code, ticket, or session, so routing it
+  // to the scheme leaks nothing (spec §1).
+  const failRedirect = (reason: string): NextResponse => {
+    if (isNative) {
+      const response = NextResponse.redirect(
+        buildNativeCallbackUrl({ error: reason }),
+      );
+      deleteStateCookie(response);
+      return response;
+    }
+    return errorRedirect(reason);
+  };
+
+  const config = getOidcConfig();
+  if (!config) return failRedirect("oidc_disabled");
+
+  const rl = await checkAuthSurfaceRateLimit(
+    req,
+    "auth:oidc:callback",
+    20,
+    15 * 60 * 1000,
+  );
+  const ip = rl.ip ?? "unknown";
+  if (!rl.allowed) return failRedirect("oidc_rate_limited");
+
+  const { searchParams } = req.nextUrl;
+  const idpError = searchParams.get("error");
+  if (idpError) {
+    annotate({
+      meta: {
+        reason: "idp_denied",
+        idpError: KNOWN_IDP_ERROR_CODES.has(idpError) ? idpError : "other",
+      },
+    });
+    return failRedirect("oidc_denied");
+  }
+
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+  // Broken round-trip / missing-or-unreadable state blob / CSRF mismatch all
+  // resolve to the web `oidc_state` fallback: the flow is fundamentally broken
+  // and there is nothing safe to hand the app (spec §1 web-fallback).
+  if (!code || !state) return errorRedirect("oidc_state");
+
   if (!stored) return errorRedirect("oidc_state");
 
   // CSRF check — timing-safe, byte-for-byte, mirroring the Withings callback.
@@ -166,7 +217,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
       codeVerifier: stored.codeVerifier,
       redirectUri,
     });
-    if (!tokens.id_token) return errorRedirect("oidc_failed");
+    if (!tokens.id_token) return failRedirect("oidc_failed");
 
     const identity = await verifyIdToken({
       metadata,
@@ -229,11 +280,11 @@ export const GET = apiHandler(async (req: NextRequest) => {
       // health record.
       if (!email) {
         annotate({ meta: { reason: "no_email" } });
-        return errorRedirect("oidc_no_email");
+        return failRedirect("oidc_no_email");
       }
       if (emailVerified !== true) {
         annotate({ meta: { reason: "email_unverified" } });
-        return errorRedirect("oidc_email_unverified");
+        return failRedirect("oidc_email_unverified");
       }
 
       const byEmail = await prisma.user.findFirst({
@@ -251,7 +302,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
             ipAddress: ip,
           });
           annotate({ meta: { reason: "identity_conflict" } });
-          return errorRedirect("oidc_identity_conflict");
+          return failRedirect("oidc_identity_conflict");
         }
         user = await prisma.user.update({
           where: { id: byEmail.id },
@@ -277,7 +328,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
         }
         if (!registrationEnabled) {
           annotate({ meta: { reason: "registration_disabled" } });
-          return errorRedirect("oidc_registration_disabled");
+          return failRedirect("oidc_registration_disabled");
         }
 
         const username = await deriveUniqueUsername(email, (candidate) =>
@@ -337,11 +388,11 @@ export const GET = apiHandler(async (req: NextRequest) => {
     // second factor. An account with a confirmed TOTP secret or a
     // registered security key gets the same MFA challenge step password
     // login gets — no session is minted here; the single-use ticket rides
-    // the handoff cookie to the login page, which renders the same
-    // challenge UI and completes at `/api/auth/mfa/verify`. (The
-    // trusted-device skip cannot apply on this path: its cookie is
-    // SameSite=Strict, which the browser withholds on an IdP-initiated
-    // redirect chain.)
+    // the handoff cookie to the login page (web) or the custom scheme
+    // (native), which render the same challenge UI and complete at
+    // `/api/auth/mfa/verify`. (The trusted-device skip cannot apply on this
+    // path: its cookie is SameSite=Strict, which the browser withholds on an
+    // IdP-initiated redirect chain.)
     const hasTotp = Boolean(user.totpConfirmedAt);
     const webauthnKeyCount = await prisma.webauthnMfaCredential.count({
       where: { userId: user.id },
@@ -356,12 +407,31 @@ export const GET = apiHandler(async (req: NextRequest) => {
       await auditLog("auth.mfa.challenge", {
         userId: user.id,
         ipAddress: ip,
-        details: { source: "login.oidc" },
+        details: { source: isNative ? "login.oidc.native" : "login.oidc" },
       });
       annotate({
         action: { name: "auth.mfa.challenge" },
         meta: { mfa_required: true },
       });
+
+      // Native: hand the app the SAME single-use ticket via the custom scheme.
+      // No `OIDC_MFA_COOKIE` (it exists only to ferry the ticket to the web
+      // login page's script) and no session — the app completes at the
+      // existing native-capable `/api/auth/mfa/verify{,/webauthn}` endpoints,
+      // which end in `finishLogin` and return the native bundle directly. The
+      // ticket alone is inert: single-use, hashed at rest, 5-minute TTL,
+      // 5-attempt cap, factor-gated.
+      if (isNative) {
+        const response = NextResponse.redirect(
+          buildNativeCallbackUrl({
+            mfa_ticket: challenge.ticket,
+            methods: methods.join(","),
+          }),
+        );
+        deleteStateCookie(response);
+        return response;
+      }
+
       const loginUrl = oidcAppUrl(LOGIN_ERROR_URL);
       if (stored.next !== "/") {
         loginUrl.searchParams.set("next", stored.next);
@@ -384,6 +454,33 @@ export const GET = apiHandler(async (req: NextRequest) => {
     }
 
     const ua = req.headers.get("user-agent");
+
+    // Native, no MFA: mint a one-time handoff code and hand it to the app via
+    // the custom scheme. NO session and NO cookie are minted here — the app
+    // exchanges the code at `POST /api/auth/oidc/native/token` for the native
+    // bundle. `userId` is the resolved identity; the app's S256 challenge
+    // (bound at login, tamper-authenticated in the state blob) locks the code
+    // to the app instance that started the flow. The session/device are
+    // recorded at the exchange via `finishLogin`, not here.
+    if (isNative) {
+      const { code: handoffCode } = await mintNativeHandoff({
+        userId: user.id,
+        // Guaranteed present by `isStoredOidcState` when `native === true`.
+        appCodeChallenge: stored.appCodeChallenge as string,
+        ipAddress: ip,
+        userAgent: ua,
+      });
+      await auditLog("auth.oidc.native.handoff_minted", {
+        userId: user.id,
+        ipAddress: ip,
+      });
+      annotate({ action: { name: "auth.oidc.native.handoff_minted" } });
+      const response = NextResponse.redirect(
+        buildNativeCallbackUrl({ code: handoffCode }),
+      );
+      deleteStateCookie(response);
+      return response;
+    }
 
     // v1.23 parity with password login — the admin-enforced-MFA hint cookie
     // sends a single-factor account into forced enrollment after sign-in.
@@ -414,6 +511,6 @@ export const GET = apiHandler(async (req: NextRequest) => {
   } catch (err) {
     getEvent()?.setError(err);
     annotate({ meta: { reason: "exchange_or_verify_failed" } });
-    return errorRedirect("oidc_failed");
+    return failRedirect("oidc_failed");
   }
 });
