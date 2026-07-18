@@ -60,6 +60,7 @@ import {
   listConversations,
 } from "@/lib/ai/coach/persistence";
 import { enqueueCoachMemoryRefresh } from "@/lib/ai/coach/coach-memory-shared";
+import { instructionLocale } from "@/lib/ai/prompts/output-language";
 import { storeDeterministicFacts } from "@/lib/ai/coach/facts";
 import {
   buildDateKey,
@@ -485,9 +486,12 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
     void enqueueCoachMemoryRefresh({
       conversationId: workingConversationId,
       userId,
-      // Coach memory prose is composed in de/en only (the snapshot's
-      // coachLocale); collapse the wider UI locale union here.
-      locale: locale === "en" ? "en" : "de",
+      // Coach memory prose is composed in de/en only — it is MODEL-FACING
+      // context (a rolling conversation summary + extracted durable facts),
+      // not user-facing prose, so English is the correct target for every
+      // locale without a reviewed body. The former `=== "en" ? "en" : "de"`
+      // binary composed and keyed a French account's memory in German.
+      locale: instructionLocale(locale),
     });
   }
   // v1.19.1 (C4) — token efficiency. The full SNAPSHOT (now incl. labs,

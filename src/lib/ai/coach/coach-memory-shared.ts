@@ -22,7 +22,7 @@ export const COACH_MEMORY_REFRESH_QUEUE = "coach-memory-refresh";
 export interface CoachMemoryRefreshPayload {
   conversationId: string;
   userId: string;
-  /** Locale to compose the summary / facts prose in; defaults to "de". */
+  /** Locale to compose the summary / facts prose in; defaults to "en". */
   locale?: "de" | "en";
 }
 

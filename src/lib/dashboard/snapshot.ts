@@ -1046,10 +1046,12 @@ function localisedMeasurementLabel(
   return resolved === key ? type.replace(/_/g, " ").toLowerCase() : resolved;
 }
 
-/** Narrow a 6-locale `Locale` to the de/en the narrative pipeline generates. */
-function narrativeLocale(locale: Locale): "de" | "en" {
-  return locale === "de" ? "de" : "en";
-}
+/**
+ * The narrative row is keyed by the full six-locale union — the pipeline
+ * generates and stores a row per UI locale — so the briefing memory recall
+ * reads the caller's locale directly. This used to narrow to de/en, which
+ * would now read a row a fr/es/it/pl account never has.
+ */
 
 /**
  * Assemble the full snapshot in ONE `Promise.all`. Every sub-read is
@@ -1079,8 +1081,8 @@ export async function buildDashboardSnapshot(
     /**
      * v1.21.2 — active locale for the A4 briefing memory prose. Defaults to
      * English; the route resolves it from the request (cookie / header / user
-     * preference). The recall headline is read locale-specific; non-de locales
-     * fall back to the English narrative read inside `buildCoachMemoryBlock`.
+     * preference). The recall headline is read locale-specific: the narrative
+     * row `buildCoachMemoryBlock` reads is keyed by this exact locale.
      */
     locale?: Locale;
     /**
@@ -1269,7 +1271,7 @@ export async function buildDashboardSnapshot(
             user.id,
             narrativeProfile,
             now,
-            narrativeLocale(locale),
+            locale,
           ),
         ).catch(() => null)
       : Promise.resolve(null),
