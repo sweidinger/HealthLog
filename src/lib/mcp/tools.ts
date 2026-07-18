@@ -28,6 +28,7 @@ import {
   coachScopeWindowSchema,
 } from "@/lib/ai/coach/types";
 import { isModuleEnabled } from "@/lib/modules/gate";
+import { getAssistantFlags } from "@/lib/feature-flags";
 import { resolveBaseOrigin } from "@/lib/mcp/oauth/config";
 import {
   getCorrelation,
@@ -929,6 +930,38 @@ const getIntradayPulseOutput: z.ZodRawShape = {
     .optional(),
 };
 
+/** Defensive cap, mirrors `GET /api/insights/ecg`'s `MAX_RECORDINGS`. */
+const MAX_ECG_RECORDINGS = 200;
+
+/**
+ * Output schema for `get_ecg_recordings` — METADATA only. `waveformEncrypted`
+ * is never selected by the underlying query, let alone shaped here.
+ * `classification` is the device's own verbatim verdict; `classificationSource`
+ * is a fixed literal so a caller can never mistake it for a HealthLog-derived
+ * read.
+ */
+const getEcgRecordingsOutput: z.ZodRawShape = {
+  present: z.boolean(),
+  reason: z.string().optional(),
+  classificationSource: z.literal("device").optional(),
+  recordings: z
+    .array(
+      z.object({
+        id: z.string(),
+        recordedAt: z.string(),
+        durationSeconds: z.number().nullable(),
+        samplingFrequency: z.number(),
+        sampleCount: z.number(),
+        averageHeartRate: z.number().nullable(),
+        lead: z.string().nullable(),
+        classification: z.string().nullable(),
+        source: z.string(),
+        hasWaveform: z.boolean(),
+      }),
+    )
+    .optional(),
+};
+
 export const MCP_TOOLS: McpToolDefinition[] = [
   {
     name: "list_metrics",
@@ -1591,6 +1624,81 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         baseline: result.baseline,
         baselineSource: result.baselineSource,
         tension: result.tension,
+      };
+    },
+  },
+  // ── v1.30 coverage review (G3) — ECG recording metadata ─────────────
+  {
+    name: "get_ecg_recordings",
+    title: "Get ECG recordings",
+    description:
+      "Fetch METADATA for the user's own ECG recordings — recorded time, duration, sampling rate, sample count, average heart rate, lead, and the DEVICE's own rhythm classification. NEVER reads or returns the waveform (that stays app-only). Non-diagnostic: this reflects ONLY the classification result the recording device's own certified on-device algorithm produced — HealthLog never re-classifies an ECG and never forms a diagnosis from it; `classificationSource` is always the fixed literal 'device'. Gated on the `insights` module. Returns { present: false, reason: \"module_disabled\" } when the module (or the assistant surface) is off, or { present: false } when no recordings exist.",
+    inputShape: {},
+    annotations: READ_ONLY_ANNOTATIONS,
+    outputShape: getEcgRecordingsOutput,
+    async run(ctx) {
+      const moduleEnabled = await isModuleEnabled(ctx.userId, "insights");
+      const insightStatusEnabled = moduleEnabled
+        ? (await getAssistantFlags()).insightStatus
+        : false;
+      if (!moduleEnabled || !insightStatusEnabled) {
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "get_ecg_recordings", present: false },
+        });
+        return { present: false, reason: "module_disabled" };
+      }
+
+      const rows = await prisma.ecgRecording.findMany({
+        where: { userId: ctx.userId },
+        // Everything EXCEPT `waveformEncrypted` — mirrors `GET
+        // /api/insights/ecg`'s own select exactly; no decrypt ever happens
+        // on this path.
+        select: {
+          id: true,
+          recordedAt: true,
+          durationSeconds: true,
+          samplingFrequency: true,
+          sampleCount: true,
+          averageHeartRate: true,
+          lead: true,
+          rhythmClassification: true,
+          source: true,
+        },
+        orderBy: { recordedAt: "desc" },
+        take: MAX_ECG_RECORDINGS,
+      });
+
+      if (rows.length === 0) {
+        annotate({
+          action: { name: "mcp.tool.invoked" },
+          meta: { tool: "get_ecg_recordings", present: false },
+        });
+        return { present: false, reason: "no_data" };
+      }
+
+      const recordings = rows.map((r) => ({
+        id: r.id,
+        recordedAt: r.recordedAt.toISOString(),
+        durationSeconds: r.durationSeconds,
+        samplingFrequency: r.samplingFrequency,
+        sampleCount: r.sampleCount,
+        averageHeartRate: r.averageHeartRate,
+        lead: r.lead,
+        classification: r.rhythmClassification,
+        source: r.source,
+        // A `ts-` fallback event carries a verdict but no signal to fetch.
+        hasWaveform: r.sampleCount > 0,
+      }));
+
+      annotate({
+        action: { name: "mcp.tool.invoked" },
+        meta: { tool: "get_ecg_recordings", present: true },
+      });
+      return {
+        present: true,
+        classificationSource: "device" as const,
+        recordings,
       };
     },
   },

@@ -16,6 +16,18 @@ vi.mock("@/lib/logging/context", () => ({
 vi.mock("@/lib/modules/gate", () => ({
   isModuleEnabled: vi.fn(async () => true),
 }));
+// v1.30 (G3) — the operator-level assistant surface gate `get_ecg_recordings`
+// consults on top of the module gate.
+vi.mock("@/lib/feature-flags", () => ({
+  getAssistantFlags: vi.fn(async () => ({
+    enabled: true,
+    coach: true,
+    briefing: true,
+    insightStatus: true,
+    correlations: true,
+    healthScoreExplainer: true,
+  })),
+}));
 // v1.22.0 — `search` reads the record directly via Prisma; stub it so the
 // registry-wide loops never reach a DB.
 vi.mock("@/lib/db", () => ({
@@ -41,6 +53,8 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn(async () => []),
       groupBy: vi.fn(async () => []),
     },
+    // v1.30 (G3) — ECG recording metadata.
+    ecgRecording: { findMany: vi.fn(async () => []) },
   },
 }));
 // v1.24 — the operational reads delegate to existing server-authoritative
@@ -112,6 +126,7 @@ import { computeDisplayDue } from "@/lib/medications/scheduling/next-due";
 import { getIntegrationStatus } from "@/lib/integrations/status";
 import { toMeasurementReminderDto } from "@/lib/measurement-reminders/dto";
 import { isModuleEnabled } from "@/lib/modules/gate";
+import { getAssistantFlags } from "@/lib/feature-flags";
 import { getNutrients } from "@/lib/mcp/nutrients-read";
 import { loadIntradayPulse } from "@/lib/analytics/intraday-pulse-io";
 import type { McpAuthContext } from "../auth";
@@ -168,6 +183,8 @@ describe("MCP tool registry — surface", () => {
         "get_nutrients",
         // v1.30 coverage review (G2) — the intraday pulse / shape of the day.
         "get_intraday_pulse",
+        // v1.30 coverage review (G3) — ECG recording metadata.
+        "get_ecg_recordings",
       ].sort(),
     );
   });
@@ -883,5 +900,85 @@ describe("get_intraday_pulse — v1.30 coverage review (G2)", () => {
     };
     expect(result).toEqual({ present: false, reason: "module_disabled" });
     expect(loadIntradayPulse).not.toHaveBeenCalled();
+  });
+});
+
+describe("get_ecg_recordings — v1.30 coverage review (G3)", () => {
+  it("returns metadata-only recordings with the device classification verbatim", async () => {
+    vi.mocked(prisma.ecgRecording.findMany).mockResolvedValue([
+      {
+        id: "ecg-1",
+        recordedAt: new Date("2026-07-01T08:00:00Z"),
+        durationSeconds: 30,
+        samplingFrequency: 512,
+        sampleCount: 15360,
+        averageHeartRate: 72,
+        lead: "LEAD_I",
+        rhythmClassification: "NOT_DETECTED",
+        source: "APPLE_HEALTH",
+      },
+    ] as never);
+
+    const result = (await tool("get_ecg_recordings").run(CTX, {})) as {
+      present: boolean;
+      classificationSource?: string;
+      recordings?: Array<Record<string, unknown>>;
+    };
+
+    // Mirrors the app route's own select exactly — never `waveformEncrypted`.
+    const call = vi.mocked(prisma.ecgRecording.findMany).mock.calls[0][0] as {
+      select: Record<string, unknown>;
+    };
+    expect(call.select).not.toHaveProperty("waveformEncrypted");
+    expect(call.select).toMatchObject({
+      id: true,
+      recordedAt: true,
+      rhythmClassification: true,
+    });
+
+    expect(result.present).toBe(true);
+    expect(result.classificationSource).toBe("device");
+    expect(result.recordings).toHaveLength(1);
+    expect(result.recordings?.[0]).toMatchObject({
+      id: "ecg-1",
+      classification: "NOT_DETECTED",
+      hasWaveform: true,
+    });
+  });
+
+  it("returns { present: false } when no recordings exist", async () => {
+    vi.mocked(prisma.ecgRecording.findMany).mockResolvedValue([] as never);
+    const result = (await tool("get_ecg_recordings").run(CTX, {})) as {
+      present: boolean;
+      reason?: string;
+    };
+    expect(result).toEqual({ present: false, reason: "no_data" });
+  });
+
+  it("returns { present: false, reason: module_disabled } when the `insights` module is off", async () => {
+    vi.mocked(isModuleEnabled).mockResolvedValueOnce(false);
+    const result = (await tool("get_ecg_recordings").run(CTX, {})) as {
+      present: boolean;
+      reason?: string;
+    };
+    expect(result).toEqual({ present: false, reason: "module_disabled" });
+    expect(prisma.ecgRecording.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns { present: false, reason: module_disabled } when the operator-level insightStatus surface is off", async () => {
+    vi.mocked(getAssistantFlags).mockResolvedValueOnce({
+      enabled: true,
+      coach: true,
+      briefing: true,
+      insightStatus: false,
+      correlations: true,
+      healthScoreExplainer: true,
+    } as never);
+    const result = (await tool("get_ecg_recordings").run(CTX, {})) as {
+      present: boolean;
+      reason?: string;
+    };
+    expect(result).toEqual({ present: false, reason: "module_disabled" });
+    expect(prisma.ecgRecording.findMany).not.toHaveBeenCalled();
   });
 });
