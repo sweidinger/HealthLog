@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/config";
 import { getBaseSystemPrompt } from "./base-system";
+import { instructionLocale } from "./output-language";
 
 const WEIGHT_SECTION_DE = `METRIK — GEWICHT:
 - Der Snapshot trägt weight.signal (der fertige Vergleich) + weight.summary + weight.series (graded). weight.latestDayFocus zeigt den jüngsten Tageswert, den Schritt zum vorherigen Messtag und ggf. den Blutdruck desselben Tages.
@@ -24,7 +25,10 @@ const WEIGHT_SECTION_EN = `METRIC — WEIGHT:
 - One message: close with ONE doable step that fits the direction ONLY when the finding implies one (e.g. on a plateau, weigh at the same time of day to see the real trend rather than the daily noise). When the trend is steady and there is nothing useful to do, affirm it honestly and name one thing worth keeping an eye on instead of manufacturing a step.`;
 
 export function getWeightSystemPrompt(locale: Locale): string {
-  const section = locale === "en" ? WEIGHT_SECTION_EN : WEIGHT_SECTION_DE;
+  // fr/es/it/pl compose the ENGLISH body (the base prompt names their
+  // language and appends their own directive); only de takes the German one.
+  const section =
+    instructionLocale(locale) === "en" ? WEIGHT_SECTION_EN : WEIGHT_SECTION_DE;
   return `${getBaseSystemPrompt(locale)}
 
 ${section}`;
@@ -52,7 +56,7 @@ export function getWeightUserPrompt(
     openerHint && openerHint.trim().length > 0
       ? `\nOPENER HINT: ${openerHint}`
       : "";
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `Date: ${todayKey} (Europe/Berlin)${openerLine}
 Write one short assessment of this person's weight. Open with what the trend MEANS in plain words — the direction and momentum, not the number (e.g. "easing down steadily", "holding right where it's settled") — then bring in ONE concrete number from the snapshot right after as support, read as a continuous trend and pace against their own weekly/monthly baseline (kg/week, plateau, milestone — not the single value, and not the WHO band, which the BMI card covers); never lead with the value. Close with one doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 

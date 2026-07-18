@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/config";
 import { getBaseSystemPrompt } from "./base-system";
+import { instructionLocale } from "./output-language";
 
 const GENERAL_SECTION_DE = `METRIK — GESAMTBEWERTUNG:
 - Der Snapshot trägt measurementSeries (eine Map je Metriktyp mit summary + graded series), medicationAdherence (summary + series), bloodPressureTargets (falls vorhanden) und moodContext (falls ≥ 3 Tage). dataCoverage.avgDaysBetweenMeasurements zeigt die Messdichte.
@@ -20,7 +21,12 @@ const GENERAL_SECTION_EN = `METRIC — OVERALL ASSESSMENT:
 - One message: even across all metrics, close with EXACTLY ONE most-important, doable suggestion ("one thing") ONLY when the overall picture implies one. When everything is steady and there is nothing useful to do, say so honestly and name one thing worth keeping an eye on instead of forcing a recommendation.`;
 
 export function getGeneralStatusSystemPrompt(locale: Locale): string {
-  const section = locale === "en" ? GENERAL_SECTION_EN : GENERAL_SECTION_DE;
+  // fr/es/it/pl compose the ENGLISH body (the base prompt names their
+  // language and appends their own directive); only de takes the German one.
+  const section =
+    instructionLocale(locale) === "en"
+      ? GENERAL_SECTION_EN
+      : GENERAL_SECTION_DE;
   return `${getBaseSystemPrompt(locale)}
 
 ${section}`;
@@ -52,7 +58,7 @@ export function getGeneralStatusUserPrompt(
     openerHint && openerHint.trim().length > 0
       ? `\nOPENER HINT: ${openerHint}`
       : "";
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `Date: ${todayKey} (Europe/Berlin)${openerLine}
 Write one short overall assessment across the available health metrics. Open with the overall read in plain words — how things are looking taken together, not a number (e.g. "a steady stretch across the board", "one thing standing out this week") — then bring in the one or two metrics that stand out as support, each placed against the person's own weekly/monthly baseline; never lead with a value. Close with the single most important doable step only when the overall picture genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count, density and recency.${ctxBlock}${extraBlock}
 

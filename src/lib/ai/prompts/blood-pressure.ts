@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/config";
 import { getBaseSystemPrompt } from "./base-system";
+import { instructionLocale } from "./output-language";
 
 const BP_SECTION_DE = `METRIK — BLUTDRUCK:
 - Der Snapshot trägt systolisch (bloodPressure.systolic) und diastolisch (bloodPressure.diastolic) jeweils mit signal (der fertige Vergleich) + summary + graded series; beurteile beide Komponenten GEMEINSAM, nie isoliert.
@@ -26,7 +27,10 @@ const BP_SECTION_EN = `METRIC — BLOOD PRESSURE:
 - One message: if the values sit above the person's baseline, close with ONE doable step ONLY when the finding implies one (e.g. take a few readings at the same time of day for a few days, or — when adherence is patchy — make the medication routine more reliable). When values are stable and in target, say so honestly and name one thing worth keeping an eye on instead of manufacturing a step.`;
 
 export function getBloodPressureSystemPrompt(locale: Locale): string {
-  const section = locale === "en" ? BP_SECTION_EN : BP_SECTION_DE;
+  // fr/es/it/pl compose the ENGLISH body (the base prompt names their
+  // language and appends their own directive); only de takes the German one.
+  const section =
+    instructionLocale(locale) === "en" ? BP_SECTION_EN : BP_SECTION_DE;
   return `${getBaseSystemPrompt(locale)}
 
 ${section}`;
@@ -59,7 +63,7 @@ export function getBloodPressureUserPrompt(
     openerHint && openerHint.trim().length > 0
       ? `\nOPENER HINT: ${openerHint}`
       : "";
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `Date: ${todayKey} (Europe/Berlin)${openerLine}
 Write one short assessment of this person's blood pressure. Open with what the reading MEANS in plain words — the overall read, not the number (e.g. "calm and right where you want it", "running a touch higher than your usual this week") — then bring in the systolic/diastolic figures right after as support, judged as ONE pair and placed against their own weekly/monthly baseline; never lead with the numbers. Close with one doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 

@@ -19,6 +19,7 @@
  */
 import type { Locale } from "@/lib/i18n/config";
 import { getBaseSystemPrompt } from "./base-system";
+import { instructionLocale } from "./output-language";
 
 /**
  * The stable per-metric output keys the batch envelope uses. The InsightStatus
@@ -58,7 +59,7 @@ Include a key ONLY if its snapshot block is present below (keys present: ${keyLi
 AUSGABEFORMAT: Antworte ausschließlich mit validem JSON in genau diesem Schema. "perMetric" enthält je vorhandenem Key eine kurze Einschätzung (je 2-4 Sätze, derselbe Vertrag wie eine Einzelkarte):
 { "perMetric": { ${presentKeys.map((k) => `"${k}": "..."`).join(", ")} } }
 Nimm einen Key NUR auf, wenn sein Snapshot-Block unten vorhanden ist (vorhandene Keys: ${keyList}). Lass jede Metrik ohne Block weg — erfinde niemals eine.`;
-  return `${base}\n\n${locale === "en" ? en : de}`;
+  return `${base}\n\n${instructionLocale(locale) === "en" ? en : de}`;
 }
 
 /**

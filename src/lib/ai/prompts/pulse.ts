@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/config";
 import { getBaseSystemPrompt } from "./base-system";
+import { instructionLocale } from "./output-language";
 
 const PULSE_SECTION_DE = `METRIK — PULS / HERZFREQUENZ:
 - Der Snapshot trägt pulse.signal (der fertige Vergleich), pulse.summary + pulse.series (graded) und pulse.target (greenMin/greenMax/orangeMin/orangeMax, inTargetPctLast30DailyPoints). pulse.latestDayFocus zeigt den jüngsten Tageswert und den Schritt zum Vortag.
@@ -18,7 +19,10 @@ const PULSE_SECTION_EN = `METRIC — PULSE / HEART RATE:
 - One message: if the resting pulse sits above the person's baseline, close with ONE doable step ONLY when the finding implies one (e.g. take readings on waking for a few days to get a clean resting baseline). If it is improving or steady, acknowledge that honestly and name one thing worth keeping an eye on instead of manufacturing a step.`;
 
 export function getPulseSystemPrompt(locale: Locale): string {
-  const section = locale === "en" ? PULSE_SECTION_EN : PULSE_SECTION_DE;
+  // fr/es/it/pl compose the ENGLISH body (the base prompt names their
+  // language and appends their own directive); only de takes the German one.
+  const section =
+    instructionLocale(locale) === "en" ? PULSE_SECTION_EN : PULSE_SECTION_DE;
   return `${getBaseSystemPrompt(locale)}
 
 ${section}`;
@@ -46,7 +50,7 @@ export function getPulseUserPrompt(
     openerHint && openerHint.trim().length > 0
       ? `\nOPENER HINT: ${openerHint}`
       : "";
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `Date: ${todayKey} (Europe/Berlin)${openerLine}
 Write one short assessment of this person's resting pulse. Open with what it MEANS in plain words — the read, not the number (e.g. "running a little calmer than usual", "steady, right where it's been") — then bring in ONE concrete number from the snapshot right after as support, placed against their own weekly/monthly baseline; never lead with the value. Close with one doable step only when the finding genuinely implies one; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 

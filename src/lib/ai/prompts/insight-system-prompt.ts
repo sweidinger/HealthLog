@@ -2,6 +2,7 @@
  * System prompt and output formatting for OpenAI insights.
  */
 import type { Locale } from "@/lib/i18n/config";
+import { instructionLocale } from "./output-language";
 import type { ComparisonBaseline } from "@/lib/dashboard-layout";
 
 /**
@@ -50,7 +51,7 @@ export function buildUserPrompt(
     ? buildComparisonBlock(locale, comparison)
     : "";
 
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     const modeLabel =
       privacyMode === "raw"
         ? "Aggregated data + raw values (entire available period, anonymised)"
@@ -92,7 +93,7 @@ export function buildComparisonBlock(
   snapshot: ComparisonSnapshot,
 ): string {
   const baselineLabel =
-    locale === "en"
+    instructionLocale(locale) === "en"
       ? snapshot.baseline === "lastMonth"
         ? "the same window 30 days ago"
         : "the same window 365 days ago"
@@ -122,7 +123,7 @@ export function buildComparisonBlock(
   };
 
   if (snapshot.metrics.length === 0) {
-    return locale === "en"
+    return instructionLocale(locale) === "en"
       ? `
 
 SYSTEM CONTEXT — COMPARISON MODE ACTIVE
@@ -133,7 +134,7 @@ SYSTEM CONTEXT — VERGLEICHSMODUS AKTIV
 Der Nutzer hat den Vergleichsmodus gegen ${baselineLabel} aktiviert, aber für keine Metrik liegen ausreichend Daten aus der Vergleichsperiode vor. Erwähne das explizit im ersten Satz der Zusammenfassung.`;
   }
 
-  if (locale === "en") {
+  if (instructionLocale(locale) === "en") {
     return `
 
 SYSTEM CONTEXT — COMPARISON MODE ACTIVE

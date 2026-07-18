@@ -13,6 +13,7 @@
  * assessment then stays personal-relative, exactly as before this landed).
  */
 import type { Locale } from "@/lib/i18n/config";
+import { instructionLocale } from "./output-language";
 import {
   classifyBandPosition,
   resolveInterpretation,
@@ -136,7 +137,7 @@ export function buildInterpretationBlock(args: {
   const resolved = resolveInterpretation(args.metricKey, args.sex ?? null);
   if (!resolved) return undefined;
 
-  const loc: "en" | "de" = args.locale === "en" ? "en" : "de";
+  const loc: "en" | "de" = instructionLocale(args.locale);
   const pos = classifyBandPosition(args.value, resolved.bands);
 
   const rows = resolved.bands
