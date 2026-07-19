@@ -66,6 +66,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
+import { groupRowsByArrivalKind } from "@/lib/arrivals/measurement-kind";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
@@ -176,6 +178,39 @@ type BatchEntry = z.infer<typeof batchEntrySchema>;
  * Apple introduced a new identifier the server doesn't know about yet.
  */
 type EntryStatus = "inserted" | "updated" | "duplicate" | "skipped";
+
+/**
+ * v1.31.0 — the rows this write actually INSERTED, in the shape the arrival
+ * kind grouper takes.
+ *
+ * Restricting to `status === "inserted"` is what keeps a re-sync silent: an
+ * `updated` row is the `stats:` overwrite contract re-stating a value the
+ * record already had, and a `duplicate` row landed nothing. The per-entry
+ * statuses are reconciled against the insert race upstream, so the count is
+ * accurate; in a rare concurrent-write tie it can be off on WHICH row, which
+ * cannot change the outcome because the day-scoped singleton key collapses the
+ * result either way.
+ */
+function insertedArrivalRows(
+  prepared: ReadonlyArray<{
+    index: number;
+    row: Prisma.MeasurementCreateManyInput;
+  }>,
+  results: ReadonlyArray<{ status: EntryStatus } | undefined>,
+): Array<{ type: MeasurementType; measuredAt: Date }> {
+  const rows: Array<{ type: MeasurementType; measuredAt: Date }> = [];
+  for (const p of prepared) {
+    if (results[p.index]?.status !== "inserted") continue;
+    rows.push({
+      type: p.row.type as MeasurementType,
+      measuredAt:
+        p.row.measuredAt instanceof Date
+          ? p.row.measuredAt
+          : new Date(p.row.measuredAt as string),
+    });
+  }
+  return rows;
+}
 
 // v1.5.0 issue #213 — `stats:*` externalIds carry per-day cumulative
 // totals that the iOS HealthKit observer re-posts as the day progresses.
@@ -828,6 +863,35 @@ async function postBatch(request: NextRequest): Promise<Response> {
             : new Date(p.row.measuredAt as string),
         ),
     ).catch(() => {});
+
+    // v1.31.0 — the measurement arm of the data-arrival spine.
+    //
+    // ONE emit per kind per request, never one per row. The batch route is the
+    // Apple-Health / iOS ingest path, so it is also the single biggest backfill
+    // path in the product: a ten-year export arrives here in 500-row batches.
+    // Emitting per row would put thousands of classifier calls (and thousands
+    // of dropped-event annotations) on the hot path for no gain, since the
+    // day-scoped singleton key collapses them to one job anyway.
+    //
+    // Blood pressure is deliberately one arrival, not two: it is stored as two
+    // rows (SYS + DIA) sharing a `measuredAt`, and a reader cares about the
+    // reading, not the arms.
+    //
+    // Only rows the write actually INSERTED count — `updatedCount` rows are the
+    // `stats:` overwrite contract re-stating a value the record already had,
+    // which is not news. If nothing was inserted the classifier returns `noop`
+    // and nothing is enqueued.
+    for (const [kind, group] of groupRowsByArrivalKind(
+      insertedArrivalRows(prepared, results),
+    )) {
+      void emitDataArrival({
+        userId: user.id,
+        kind,
+        newestSampleAt: group.newestAt,
+        insertedCount: group.count,
+        source: "batch",
+      }).catch(() => {});
+    }
   }
 
   return apiSuccess({

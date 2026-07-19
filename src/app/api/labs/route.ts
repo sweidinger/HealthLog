@@ -14,6 +14,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { withIdempotency } from "@/lib/idempotency";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
 import { resolveOrMintBiomarker } from "@/lib/labs/biomarker-store";
 import {
   type ResolvedBiomarker,
@@ -275,6 +276,19 @@ async function postLabResult(request: NextRequest) {
   fireAndForget(enqueueReminderSatisfy(user.id), {
     action: "reminder.satisfy.enqueue",
   });
+
+  // v1.31.0 — the labs arm of the data-arrival spine. A "panel" has no
+  // first-class entity in the schema (it is a nullable label plus a `takenAt`),
+  // so the day-scoped singleton key IS the panel grouping: pasting twelve
+  // markers from one draw fires twelve emits that collapse into one arrival.
+  void emitDataArrival({
+    userId: user.id,
+    kind: "labs_panel",
+    newestSampleAt: created.takenAt,
+    insertedCount: 1,
+    refId: created.panel ?? undefined,
+    source: "manual",
+  }).catch(() => {});
 
   return apiSuccess(serialiseLabResult(created, biomarker), 201);
 }

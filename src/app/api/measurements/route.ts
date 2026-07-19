@@ -32,6 +32,11 @@ import {
 import { withIdempotency } from "@/lib/idempotency";
 import { encryptNote, shapeMeasurementNotes } from "@/lib/crypto/note-cipher";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
+import {
+  ARRIVAL_MEASUREMENT_KIND,
+  groupRowsByArrivalKind,
+} from "@/lib/arrivals/measurement-kind";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { runSafetyFloorCheck } from "@/lib/illness/safety-floor-check";
@@ -846,6 +851,21 @@ async function postMeasurement(request: NextRequest) {
       action: "reminder.satisfy.enqueue",
     });
 
+    // v1.31.0 — the interactive arm of the data-arrival spine. This route is
+    // the combined BP + pulse form, so it lands both BP arms in one
+    // transaction; they are one reading and produce one arrival, which the
+    // kind map already collapses. Every row here is a real insert (the
+    // transaction throws rather than de-duplicating), so the count is exact.
+    for (const [kind, group] of groupRowsByArrivalKind(results)) {
+      void emitDataArrival({
+        userId: user.id,
+        kind,
+        newestSampleAt: group.newestAt,
+        insertedCount: group.count,
+        source: "manual",
+      }).catch(() => {});
+    }
+
     // v1.18.6 — absolute clinical safety-floor check on the just-written
     // readings (confirm-gated, module-gated, never diagnoses). The combined
     // BP form lands both arms here, so the BP floor sees a whole reading.
@@ -997,6 +1017,22 @@ async function postMeasurement(request: NextRequest) {
   fireAndForget(enqueueReminderSatisfy(user.id), {
     action: "reminder.satisfy.enqueue",
   });
+
+  // v1.31.0 — the single-entry arm of the data-arrival spine. One row, so at
+  // most one kind; a type the spine does not track maps to null and emits
+  // nothing.
+  {
+    const kind = ARRIVAL_MEASUREMENT_KIND[measurement.type];
+    if (kind) {
+      void emitDataArrival({
+        userId: user.id,
+        kind,
+        newestSampleAt: measurement.measuredAt,
+        insertedCount: 1,
+        source: "manual",
+      }).catch(() => {});
+    }
+  }
 
   // v1.18.6 — absolute clinical safety-floor check (confirm-gated,
   // module-gated, never diagnoses). A single-entry POST carries only one arm

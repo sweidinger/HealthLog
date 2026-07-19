@@ -524,7 +524,19 @@ describe("POST /api/workouts/batch — user source-priority (v1.4.43 W9)", () =>
       }),
     );
     expect(res.status).toBe(200);
-    expect(prisma.user.findUnique).toHaveBeenCalledTimes(1);
+    // Counted by SELECT shape rather than by raw call count: the route also
+    // resolves the user's timezone and module map through the arrival seam,
+    // which are separate cached lookups. The guard here is that the
+    // source-priority blob is read ONCE PER BATCH and never once per workout —
+    // two workouts must still produce exactly one read.
+    const sourcePriorityReads = vi
+      .mocked(prisma.user.findUnique)
+      .mock.calls.filter(
+        (call) =>
+          (call[0] as { select?: Record<string, unknown> })?.select
+            ?.sourcePriorityJson === true,
+      );
+    expect(sourcePriorityReads).toHaveLength(1);
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
       where: { id: "user-1" },
       select: { sourcePriorityJson: true },

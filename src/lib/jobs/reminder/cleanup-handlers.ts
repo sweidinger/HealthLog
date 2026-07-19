@@ -131,6 +131,40 @@ export async function handlePushAttemptCleanup(
   });
 }
 
+// v1.31.0 — daily prune for the data-arrival spine's reaction markers.
+//
+// Fourteen days rather than the ledgers' 90: a reaction marker is a
+// same-day surface ("just in", today's one generated line), so a row stops
+// being read the moment its local day rolls over. Two weeks is purely a
+// debugging margin — long enough to reconstruct what the spine reacted to
+// across a reported incident, short enough that a chatty account's markers
+// never accumulate. The `created_at` index makes the trailing-edge scan
+// cheap, exactly as it does for the push-attempt ledger above.
+const ARRIVAL_REACTION_RETENTION_DAYS = 14;
+
+export interface ArrivalReactionCleanupPayload {
+  triggeredAt: string;
+}
+
+export async function handleArrivalReactionCleanup(
+  jobs: Job<ArrivalReactionCleanupPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.arrival_reaction_cleanup", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const cutoff = new Date();
+      cutoff.setUTCDate(cutoff.getUTCDate() - ARRIVAL_REACTION_RETENTION_DAYS);
+      const deleted = await p.arrivalReaction.deleteMany({
+        where: { createdAt: { lt: cutoff } },
+      });
+      evt.addMeta("arrival_reaction_cleanup_deleted", deleted.count);
+    } catch (err) {
+      evt.addWarning(`arrival-reaction-cleanup failed: ${err}`);
+    }
+  });
+}
+
 export interface MeasurementTombstoneCleanupPayload {
   triggeredAt: string;
 }

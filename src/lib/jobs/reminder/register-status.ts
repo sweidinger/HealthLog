@@ -29,6 +29,8 @@ import {
   runMorningDigestRefresh,
   type MorningDigestRefreshPayload,
 } from "@/lib/jobs/morning-digest-refresh";
+import { DATA_ARRIVAL_QUEUE, handleDataArrival } from "@/lib/jobs/data-arrival";
+import type { DataArrival } from "@/lib/arrivals/types";
 import {
   DAILY_BRIEFING_QUEUE,
   DAILY_BRIEFING_CRON,
@@ -171,6 +173,12 @@ const allQueues = [
   // send-only queue driven by sleep ingest; without this entry pg-boss never
   // provisions the queue and every enqueue silently drops.
   MORNING_DIGEST_REFRESH_QUEUE,
+  // v1.31.0 — the data-arrival spine. Every salient ingest emits here; the
+  // worker claims the day's reaction marker and fans out to the reaction
+  // surfaces. No cron schedule — a send-only queue driven by ingest; without
+  // this entry pg-boss never provisions the queue and every emit silently
+  // drops (the v1.4.37 dead-queue class).
+  DATA_ARRIVAL_QUEUE,
   // v1.10.0 — computed scores (WX-C / WX-E). Nightly Recovery / Stress /
   // Strain compute + store. The queue MUST be registered here or pg-boss
   // never provisions it and the nightly schedule silently never fires.
@@ -275,9 +283,30 @@ const schedules: ScheduleEntry[] = [
  * differently-shaped constraint over a working one for no gain, so they are
  * left alone.
  *
- * That leaves exactly one queue here whose key is inert today.
+ * That leaves exactly two queues here whose keys would otherwise be inert.
  */
 const queuePolicies: QueuePolicyTable = {
+  // v1.31.0 — the arrival spine's day-scoped keys
+  // (`arrival:<user>:<kind>:<localDate>`) carry the SAME requirement as the
+  // morning refresh below, for the same reason: a user's local date cannot be
+  // expressed as a wall-clock `singletonSeconds` window, so the date lives in
+  // the key and the policy has to honour it. Under `standard` the key
+  // coalesces nothing at all, and a device posting a batch per minute would
+  // queue a job per batch instead of one per day.
+  //
+  // `exclusive` rather than `short` because the handler is self-converging:
+  // it claims a durable unique row, so a second run while the first is active
+  // is pure duplicated work, and the next ingest re-emits anyway.
+  //
+  // The `workout` kind is the deliberate exception — it is keyed per workout
+  // id and DOES pass `singletonSeconds`, so it is constrained by pg-boss's
+  // `job_i4` index regardless of this policy. Both shapes coexist on one
+  // queue safely: they populate different columns.
+  [DATA_ARRIVAL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Day-scoped arrival keys carry the user's local date; under standard they coalesce nothing and a chatty ingest queues a job per batch. The worker claims a durable unique row, so a concurrent second run is pure duplicated work.",
+  },
   // The sleep-arrival trigger has seven write seams that can each enqueue for
   // the same user and the same local date. The key is
   // `morning-refresh:<user>:<localDate>`, and `exclusive` turns that into a
@@ -493,6 +522,15 @@ export async function registerStatusQueues(
         }
       });
     },
+  );
+  // v1.31.0 — the data-arrival spine. Single-flight: the worker's whole job is
+  // to claim a durable unique row, so two slots would only race each other for
+  // a claim exactly one of them can win. It makes no provider call — a
+  // module-graph test pins that — so one slot costs nothing in throughput.
+  await boss.work<DataArrival>(
+    DATA_ARRIVAL_QUEUE,
+    { localConcurrency: 1 },
+    handleDataArrival,
   );
   // S5 — daily-briefing fallback slot. Single-flight; the `push_attempts`
   // frequency cap makes an overlapping tick a no-op (a second same-day attempt

@@ -792,6 +792,10 @@ model User {
   // v1.11.0 W3 — one durable period-narrative row per (period, locale).
   // Delete/regenerate-clean; the generated prose is AES-256-GCM at rest.
   insightNarratives           InsightNarrative[]
+  // v1.31.0 — the data-arrival spine's durable per-day reaction marker. One
+  // row per (kind, local day); the unique index IS the once-per-kind-per-day
+  // claim every reaction surface reads. Retained 14 days.
+  arrivalReactions            ArrivalReaction[]
   // v1.17.1 — preventive-care / measurement (Vorsorge) reminders. One row
   // per user-created reminder ("BP every 7 days", "annual blood panel").
   // Server computes the canonical `nextDueAt`; the cron fires through the
@@ -5268,6 +5272,49 @@ model InsightNarrative {
   @@unique([userId, period, locale])
   @@index([userId, updatedAt(sort: Desc)])
   @@map("insight_narratives")
+}
+
+// ─── Data-arrival spine (v1.31.0) ─────────────────────────────
+//
+// One row per (user, arrival kind, local day). The row is written by the
+// `data-arrival` worker after a SALIENT ingest — never by a backfill, which
+// the seam classifier drops before anything is enqueued.
+//
+// The unique index is load-bearing three times over: it is the "just in"
+// marker the reaction surfaces read, it is the at-most-one-generated-line
+// per kind per day claim (inserted with ON CONFLICT DO NOTHING, so a lost
+// race means another worker already owns today's line), and it is the audit
+// trail for what the spine actually reacted to.
+model ArrivalReaction {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  /// One of `ARRIVAL_KINDS` (`@/lib/arrivals/types`).
+  kind          String
+  /// The user's PROFILE-timezone YYYY-MM-DD this reaction is filed under.
+  localDate     String    @map("local_date")
+  /// Timestamp of the newest sample that triggered it.
+  occurredAt    DateTime  @map("occurred_at")
+  /// Kind-scoped referent: the workout id for `workout`, the panel day for labs.
+  refId         String?   @map("ref_id")
+  /// AES-256-GCM ciphertext of the generated reaction line. Null until — and
+  /// unless — a line is generated: the marker is the feature, the sentence is
+  /// garnish, and a provider-less install never fills this in. Follows the
+  /// `InsightNarrative.encryptedContent` precedent, NOT the plaintext pattern
+  /// the status cards use. Registered in `scripts/rotate-encryption-key.ts`.
+  lineEncrypted Bytes?    @map("line_encrypted")
+  generatedAt   DateTime? @map("generated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The once-per-kind-per-local-day claim. Do not relax this to include
+  // `refId` — the day scope is the throttle.
+  @@unique([userId, kind, localDate])
+  // The reaction surfaces read "today's rows for this user".
+  @@index([userId, localDate])
+  // The nightly retention sweep deletes by age.
+  @@index([createdAt])
+  @@map("arrival_reactions")
 }
 
 // ─── Cycle Tracking (v1.15.0) ─────────────────────────────────

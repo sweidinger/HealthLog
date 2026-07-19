@@ -28,6 +28,7 @@ import {
   type FitbitResourceSyncOptions,
 } from "./sync";
 import { prisma } from "@/lib/db";
+import { emitWorkoutArrivalIfCreated } from "@/lib/arrivals/workout-emit";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 
@@ -76,7 +77,7 @@ export async function syncUserWorkout(
     if (!w) continue; // no usable time span — not a workout
 
     try {
-      await prisma.workout.upsert({
+      const saved = await prisma.workout.upsert({
         where: {
           userId_source_externalId: {
             userId,
@@ -109,7 +110,16 @@ export async function syncUserWorkout(
           maxHeartRate: w.maxHeartRate,
           minHeartRate: w.minHeartRate,
         },
+        select: {
+          id: true,
+          startedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
+      // v1.31.0 — data-arrival spine. Only a genuinely NEW workout reacts; a
+      // re-sync of an already-stored session is not news.
+      void emitWorkoutArrivalIfCreated(userId, saved, "fitbit").catch(() => {});
       imported++;
     } catch (err) {
       getEvent()?.addWarning(`fitbit: failed to upsert workout: ${err}`);
