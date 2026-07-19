@@ -76,6 +76,23 @@ describe("TodayHero — the just-in chip", () => {
     expect(html).toContain("Just in");
   });
 
+  it("renders for a bare account when the arrival has no generated line", () => {
+    const html = render(
+      <TodayHero
+        digest={digest({
+          score: null,
+          briefingLead: null,
+          worthALook: [],
+          reactionLine: null,
+          justIn: { kind: "sleep_night", at: ARRIVED_AT },
+        })}
+      />,
+    );
+
+    expect(html).toContain('data-slot="today-hero"');
+    expect(html).toContain('data-slot="today-hero-just-in"');
+  });
+
   it("emits NO formatted time and no raw ISO instant on the server pass", () => {
     const html = render(
       <TodayHero

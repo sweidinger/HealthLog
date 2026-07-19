@@ -126,15 +126,20 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
   const justInTime = digest.justIn ? formatJustInTime(digest.justIn.at) : null;
 
   // Calm degrade (plan §3): a genuinely empty account — no score, no rail
-  // items, and no cached briefing lead — surfaces nothing here. The tile
-  // strip below carries its own "add your first reading" empty state, so a
-  // second alarming empty card on the hero would be noise. The all-clear
-  // state (score present, nothing needs attention) is handled inline below.
-  // A freshly-generated reaction line counts as content in its own right: an
-  // otherwise-bare account whose first reading just landed has something
-  // honest to say, and swallowing it here would hide the one moment this
-  // surface exists for.
-  if (!hasScore && !hasItems && !digest.briefingLead && !digest.reactionLine) {
+  // items, no cached briefing lead, and no fresh arrival — surfaces nothing
+  // here. The tile strip below carries its own "add your first reading" empty
+  // state, so a second alarming empty card on the hero would be noise. The
+  // all-clear state (score present, nothing needs attention) is handled inline
+  // below. A fresh marker counts as content even when line generation was
+  // unavailable: the deterministic digest line still gives the hero an honest
+  // lead, and hiding the marker would lose the arrival moment entirely.
+  if (
+    !hasScore &&
+    !hasItems &&
+    !digest.briefingLead &&
+    !digest.reactionLine &&
+    !digest.justIn
+  ) {
     return null;
   }
 

@@ -23,9 +23,14 @@
  * classifier's return value. Testing the classifier alone would prove the
  * predicate correct while saying nothing about whether the seam consults it.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
-const sendMock = vi.fn(async () => "job-id");
+// Typed explicitly (rather than via named implementation params) so
+// `.mock.calls[N][idx]` below keeps its three-argument shape without any
+// parameter sitting unused in the implementation itself.
+const sendMock: Mock<
+  (queue: string, payload: unknown, opts: unknown) => Promise<string>
+> = vi.fn(async () => "job-id");
 const annotateMock = vi.fn();
 let moduleMap: Record<string, boolean> = {};
 let timezone = "Europe/Berlin";

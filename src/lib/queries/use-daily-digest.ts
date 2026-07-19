@@ -35,12 +35,14 @@ export function useDailyDigest(enabled = true) {
     queryFn: () => apiGet<DailyDigest>("/api/daily/digest"),
     enabled,
     // Match the dashboard snapshot's freshness so the hero and the tile
-    // strip below it share one refresh cadence: a warm remount inside the
-    // minute is free; a background sync surfaces on focus; an open tab
-    // polls in the foreground only.
+    // strip share one refresh cadence. Every real window-focus transition
+    // refetches even inside the minute freshness window: arrival markers are
+    // written out-of-band by sync workers, so the browser has no mutation it
+    // could use to invalidate this cache. The 120 s foreground poll remains the
+    // fallback while the tab stays open.
     staleTime: 60_000,
     refetchOnMount: false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: "always",
     refetchInterval: DASHBOARD_REFETCH_INTERVAL_MS,
     refetchIntervalInBackground: false,
     // One retry on transient network / 5xx (never 401/403) so a single

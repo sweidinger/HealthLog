@@ -11,8 +11,10 @@ instead of waiting for a daily rollup to notice.
   first weigh-in of the day — the home screen now carries a calm "just in"
   note for a few hours after each one, and at most one written line a day per
   kind, grounded in your own numbers. Nothing changes if you run without an
-  AI provider: the note is the garnish, not the feature. The underlying
-  change that makes this possible without new polling or a flood of
+  AI provider: the sentence is the garnish, not the feature — the arrival
+  itself still appears, including on an otherwise-empty record, and an open
+  dashboard refreshes it as soon as the tab becomes visible again. The
+  underlying change that makes this possible without new polling or a flood of
   background work: every write path that can produce a genuinely new reading
   now emits a single typed event, day-scoped and de-duplicated, that a mass
   import or a provider re-sync produces none of — a ten-year import or a

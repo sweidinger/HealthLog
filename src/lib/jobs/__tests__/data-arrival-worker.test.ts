@@ -12,7 +12,7 @@
  *     job, and retrying against a ceiling that will not move until the local
  *     day rolls over is a loop.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
 vi.mock("@/lib/logging/background", () => ({
@@ -35,8 +35,15 @@ vi.mock("@/lib/jobs/workout-insight-generate-shared", () => ({
   enqueueWorkoutInsight: vi.fn(async () => ({ enqueued: true })),
 }));
 
-const createMany = vi.fn(async () => ({ count: 1 }));
-const updateMany = vi.fn(async () => ({ count: 1 }));
+// Typed explicitly (rather than via a named implementation param) so
+// `.mock.calls[N][0]` below keeps its one-argument shape without a param
+// sitting unused in the implementation itself.
+const createMany: Mock<(args: unknown) => Promise<{ count: number }>> = vi.fn(
+  async () => ({ count: 1 }),
+);
+const updateMany: Mock<(args: unknown) => Promise<{ count: number }>> = vi.fn(
+  async () => ({ count: 1 }),
+);
 const fakePrisma = { arrivalReaction: { createMany, updateMany } };
 
 const { runDataArrival } = await import("../data-arrival");

@@ -15,11 +15,11 @@ import { E2E_USER, STORAGE_STATE_PATH } from "./setup/global-setup";
  *   1. load the dashboard with nothing fresh — no chip, day is provisional;
  *   2. land last night's sleep through the REAL batch endpoint, and the
  *      arrival marker the spine's worker would have written;
- *   3. bring the tab back to focus — which is one of the three refetch
- *      triggers the digest hook ALREADY declares (`refetchOnWindowFocus`,
- *      alongside `staleTime` and the 120 s foreground poll). Using the focus
- *      trigger keeps the test inside the real cadence while staying well
- *      under the poll interval, which no test timeout would survive;
+ *   3. surface the tab's real visibility-change signal — the browser event
+ *      TanStack Query's focus manager consumes for
+ *      `refetchOnWindowFocus: "always"` (alongside the 120 s foreground poll);
+ *      using that existing trigger keeps the test inside the real cadence
+ *      while staying well under the poll interval;
  *   4. assert the chip appeared and the phase flipped — in place, no reload.
  *
  * The marker is seeded directly rather than waited for from pg-boss: whether
@@ -71,29 +71,33 @@ test("a fresh arrival surfaces the just-in chip and flips the day in place", asy
     );
 
     // ── BEFORE ────────────────────────────────────────────────────────────
+    // The globally-seeded account is intentionally empty. Wait until the
+    // digest settles, then prove there is no stale hero or arrival chip.
     await page.goto("/");
-    const hero = page.locator('[data-slot="today-hero"]');
-    await expect(hero).toBeVisible({ timeout: 20_000 });
-    await expect(hero.locator('[data-slot="today-hero-just-in"]')).toHaveCount(
+    await expect(page.locator('[data-slot="today-hero-skeleton"]')).toHaveCount(
       0,
     );
+    const hero = page.locator('[data-slot="today-hero"]');
+    await expect(hero).toHaveCount(0);
 
     // ── NEW DATA LANDS ────────────────────────────────────────────────────
     // Last night's sleep through the real ingest route, on the session the
     // storage state already carries.
     const now = new Date();
     const wokeAt = new Date(now.getTime() - 60 * 60_000);
+    const fellAsleepAt = new Date(wokeAt.getTime() - 7 * 60 * 60_000);
 
     const batch = await page.request.post("/api/measurements/batch", {
       data: {
-        measurements: [
+        entries: [
           {
-            type: "SLEEP_DURATION",
-            value: 7,
-            unit: "h",
-            measuredAt: wokeAt.toISOString(),
+            hkIdentifier: "HKCategoryTypeIdentifierSleepAnalysis",
+            value: 420,
+            unit: "min",
+            startDate: fellAsleepAt.toISOString(),
+            endDate: wokeAt.toISOString(),
             externalId: `e2e-just-in-${now.getTime()}`,
-            source: "manual",
+            sleepStage: 3,
           },
         ],
       },
@@ -120,10 +124,11 @@ test("a fresh arrival surfaces the just-in chip and flips the day in place", asy
       [userId, localDate],
     );
 
-    // ── THE MOMENT ────────────────────────────────────────────────────────
-    // The tab regains focus — one of the digest hook's existing refetch
-    // triggers. Nothing new is introduced here and the page never reloads.
-    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    // The tab becomes visible — the browser signal TanStack Query's focus
+    // manager consumes. The digest refetches in place; the page never reloads.
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("visibilitychange")),
+    );
 
     await expect(hero.locator('[data-slot="today-hero-just-in"]')).toBeVisible({
       timeout: 20_000,
