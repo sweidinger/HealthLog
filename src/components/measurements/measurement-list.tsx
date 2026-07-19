@@ -100,6 +100,7 @@ import {
   INSIGHTS_OVERVIEW_PATH,
   subPageSlugForType,
 } from "@/lib/insights/sub-page-metric";
+import { formatDurationMinutes } from "@/lib/i18n/duration";
 
 /**
  * v1.4.37 W7c — cumulative HK types whose list view collapses to one
@@ -138,19 +139,6 @@ interface Measurement {
   napCount?: number;
   napAsleepMinutes?: number;
   awakenings?: number;
-}
-
-/**
- * v1.11.5 — format a minutes total as an "8h 12m" / "8 Std. 12 Min."
- * sleep headline.
- */
-function formatSleepMinutes(total: number, locale: string): string {
-  const hours = Math.floor(total / 60);
-  const mins = Math.round(total - hours * 60);
-  if (locale === "de") {
-    return hours > 0 ? `${hours} Std. ${mins} Min.` : `${mins} Min.`;
-  }
-  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 }
 
 /** v1.11.5 — i18n labels for the sleep stages shown in the drill-down. */
@@ -287,7 +275,7 @@ export function MeasurementList({
   lockedType,
   initialType,
 }: MeasurementListProps) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   // v1.28.42 (H3) — the desktop table and the mobile card list used to BOTH
@@ -1023,7 +1011,7 @@ export function MeasurementList({
                                 TIME ASLEEP as "8h 12m" + a nap caption. */}
                               {isSleep ? (
                                 <>
-                                  {formatSleepMinutes(m.value, locale)}
+                                  {formatDurationMinutes(m.value, t)}
                                   <SleepNightCaption m={m} />
                                 </>
                               ) : (
@@ -1228,7 +1216,7 @@ export function MeasurementList({
                                 "78.4 kg" no longer truncates to "78".
                                 v1.11.5 — sleep rows render TIME ASLEEP. */}
                               {isSleep ? (
-                                formatSleepMinutes(m.value, locale)
+                                formatDurationMinutes(m.value, t)
                               ) : (
                                 <>
                                   {isGrouped
@@ -1590,7 +1578,7 @@ function DayDrillDown({
   unit: string;
   layout: "desktop" | "mobile";
 }) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.measurementDrilldown(type, dayKey),
@@ -1652,7 +1640,7 @@ function DayDrillDown({
             </span>
             <span className="font-medium tabular-nums">
               {isSleep
-                ? formatSleepMinutes(s.value, locale)
+                ? formatDurationMinutes(s.value, t)
                 : `${s.value} ${unit}`}
             </span>
           </div>
@@ -1673,9 +1661,7 @@ function DayDrillDown({
               : formatDateTime(s.measuredAt)}
           </span>
           <span className="font-medium tabular-nums">
-            {isSleep
-              ? formatSleepMinutes(s.value, locale)
-              : `${s.value} ${unit}`}
+            {isSleep ? formatDurationMinutes(s.value, t) : `${s.value} ${unit}`}
           </span>
         </div>
       ))}

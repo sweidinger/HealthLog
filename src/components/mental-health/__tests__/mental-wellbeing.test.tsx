@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { I18nProvider } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 import en from "../../../../messages/en.json";
 
 /**
@@ -34,6 +35,15 @@ const mh = en.mentalHealth;
 function withProviders(node: React.ReactNode): string {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
+  });
+  // The landing now distinguishes loading from an empty record: while the
+  // history read is in flight it paints skeletons rather than the instrument
+  // cards' "not taken yet" copy, since that copy is a claim about the user's
+  // record. These tests exercise the LOADED landing, so seed the read as a
+  // settled empty result. The failed and in-flight states are covered in
+  // `failed-read-never-empty.test.tsx`.
+  queryClient.setQueryData(queryKeys.mentalHealthAssessments(), {
+    assessments: [],
   });
   return renderToStaticMarkup(
     <QueryClientProvider client={queryClient}>

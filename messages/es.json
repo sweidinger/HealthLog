@@ -42,7 +42,9 @@
     "hidePassword": "Ocultar contraseña",
     "learnMore": "Más información",
     "dismiss": "Descartar",
-    "moreInfo": "Más información"
+    "moreInfo": "Más información",
+    "durationHoursMinutes": "{hours} h {minutes} min",
+    "durationMinutes": "{minutes} min"
   },
   "doctorReport": {
     "title": "Informe de salud",
@@ -400,8 +402,10 @@
     "staleHint": "Último valor hace {count} d",
     "staleHintWeeksOne": "Último valor hace 1 semana",
     "staleHintWeeksOther": "Último valor hace {count} semanas",
+    "staleHintWeeksFew": "Último valor hace {count} semanas",
     "staleHintMonthsOne": "Último valor hace 1 mes",
     "staleHintMonthsOther": "Último valor hace {count} meses",
+    "staleHintMonthsFew": "Último valor hace {count} meses",
     "recentWorkouts": {
       "title": "Entrenamientos recientes",
       "viewAll": "Ver todos",
@@ -2558,10 +2562,13 @@
     "relativeJustNow": "ahora mismo",
     "relativeMinutesAgoOne": "hace {count} minuto",
     "relativeMinutesAgoOther": "hace {count} minutos",
+    "relativeMinutesAgoFew": "hace {count} minutos",
     "relativeHoursAgoOne": "hace {count} hora",
     "relativeHoursAgoOther": "hace {count} horas",
+    "relativeHoursAgoFew": "hace {count} horas",
     "relativeDaysAgoOne": "hace {count} día",
     "relativeDaysAgoOther": "hace {count} días",
+    "relativeDaysAgoFew": "hace {count} días",
     "navOverview": "Resumen",
     "navCatalog": "Todas las métricas",
     "navBloodPressure": "Presión arterial",
@@ -3029,7 +3036,8 @@
         "crossTraining": "Entreno cruzado",
         "mixedCardio": "Cardio mixto",
         "other": "Otro"
-      }
+      },
+      "loadError": "No se pudieron cargar tus entrenamientos"
     },
     "bloodGlucose": {
       "title": "Glucosa en sangre",
@@ -8015,6 +8023,11 @@
         "review_due": "Revisión pendiente",
         "reviewed": "Revisado"
       }
+    },
+    "refusal": {
+      "outOfScope": "Solo puedo ayudarte con los datos de salud de tu registro: mediciones, medicamentos, estado de ánimo, tendencias. No puedo responder preguntas fuera de ese ámbito.",
+      "promptInjection": "He detectado instrucciones que intentan anular mis directrices. Soy el Coach de HealthLog y solo resumo tus propios datos de salud; reformula tu pregunta en esos términos, por favor.",
+      "conversationPoisoned": "Un mensaje anterior de esta conversación contiene instrucciones que intentan anular mis directrices. Empieza una conversación nueva, por favor."
     }
   },
   "safety": {
@@ -8267,7 +8280,9 @@
         "finally": "Finally …"
       }
     },
-    "openDetail": "Ver detalles"
+    "openDetail": "Ver detalles",
+    "historyLoadError": "No se pudo cargar tu historial de evaluaciones",
+    "historyLoadErrorHint": "Esto no significa que no tengas resultados: no se pudo obtener la lista. Vuelve a intentarlo."
   },
   "records": {
     "disclaimer": "Son tus propios registros, no un diagnóstico médico. HealthLog no diagnostica, no trata ni los interpreta.",
@@ -8728,7 +8743,8 @@
       "rowMeta": "{days} de {window} días · ref. {value} {unit} (EFSA)",
       "rowMetaNoRef": "{days} de {window} días",
       "footer": "{tracked} de {total} micronutrientes registrados tienen datos en este periodo.",
-      "emptyTitle": "Aún no hay datos de micronutrientes sincronizados"
+      "emptyTitle": "Aún no hay datos de micronutrientes sincronizados",
+      "loadError": "No se pudieron cargar tus datos de nutrientes"
     },
     "sparseNote": "Un valor bajo aquí suele significar un registro escaso, no una deficiencia: los totales diarios de Apple Health reflejan lo que registraron tus apps, no la ingesta dietética total."
   },

@@ -54,20 +54,15 @@ import {
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
-import { defaultLocale, locales } from "@/lib/i18n/config";
+import {
+  defaultLocale,
+  locales,
+  localeLanguageNames as LANGUAGE_NAMES,
+} from "@/lib/i18n/config";
 import { annotate } from "@/lib/logging/context";
 
 /** Token ceiling for the single-shot questions completion. */
 const QUESTIONS_MAX_TOKENS = 300;
-
-const LANGUAGE_NAMES: Record<Locale, string> = {
-  de: "German",
-  en: "English",
-  es: "Spanish",
-  fr: "French",
-  it: "Italian",
-  pl: "Polish",
-};
 
 function resolveLocale(locale: string | null | undefined): Locale {
   return locales.includes(locale as Locale)

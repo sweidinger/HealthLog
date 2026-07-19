@@ -53,7 +53,7 @@ import {
   buildSystemPromptWithReferences,
   buildBriefingPersonalisationBlock,
 } from "@/lib/ai/prompts/insight-generator";
-import { buildRetryCorrectionMessage } from "@/lib/ai/generate-insight";
+import { buildRetryCorrectionMessage } from "@/lib/ai/retry-correction";
 import {
   buildAboutMeInsightBlock,
   getSelfContextTextForUser,
@@ -1088,8 +1088,8 @@ export async function generateComprehensiveInsight(
 
   // Citation coverage. This annotation is what the admin AI-quality dashboard
   // slices to track how many normative recommendations carry a curated
-  // medical-reference id. It used to hang off `generateInsight()`, which has no
-  // production caller, so the dashboard was reading a metric nothing emitted.
+  // medical-reference id. It used to hang off a wrapper that had no production
+  // caller, so the dashboard was reading a metric nothing emitted.
   // Observational only — an uncited normative rec is a logged warning, never a
   // reason to fail the generation.
   if (insights && typeof insights === "object") {

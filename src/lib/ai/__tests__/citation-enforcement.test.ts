@@ -1,14 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   aiInsightResponseSchema,
-  findUncitedRecommendations,
   metricSourceSchema,
   aiRecommendationSchema,
   type AIInsightResponse,
 } from "../schema";
-import { generateInsight } from "../generate-insight";
-import { MockAIProvider } from "../mock-client";
-import { singleUserTurn } from "../types";
 
 /**
  * Phase C1 — citation-from-data hard requirement.
@@ -23,14 +19,11 @@ import { singleUserTurn } from "../types";
  *      Empty / missing → schema parse fails. The model cannot
  *      fabricate a recommendation that points at "nothing".
  *
- *   2. Every recommendation's `metricSource` MUST be backed by an
- *      entry in `citations[]` (matching `type` + `timeRange`).
- *      Cross-check enforced by `findUncitedRecommendations` and run
- *      by the wrapper after schema parse.
- *
- *   3. Two separate failure modes (missing metricSource vs. missing
- *      citation) both surface as zod / wrapper errors so the route
- *      can return 422 in either case.
+ * Point 2 of the original contract — every recommendation's
+ * `metricSource` must also appear in `citations[]` — was a cross-check
+ * run by a wrapper that had no production caller. Both the wrapper and
+ * the cross-check are gone; what remains here is the schema-level half,
+ * which is a real definition and is exercised below.
  */
 
 const baseMetricSource = {
@@ -146,150 +139,5 @@ describe("citation-from-data — schema-level enforcement", () => {
   it("well-formed citation gets through", () => {
     const result = aiInsightResponseSchema.safeParse(baseValid);
     expect(result.success).toBe(true);
-  });
-});
-
-describe("citation-from-data — cross-check enforcement", () => {
-  it("recommendation citing a (type, timeRange) absent from citations[] is flagged", () => {
-    const orphan: AIInsightResponse = {
-      ...baseValid,
-      recommendations: [
-        {
-          id: "rec-orphan",
-          text: "Cut sodium.",
-          severity: "suggestion",
-          metricSource: {
-            type: "diet",
-            timeRange: "last7days",
-            summary: "no diet logging available",
-          },
-          rationale: {
-            dataWindow: "last7days",
-            comparedTo: "general DGE intake guideline",
-            deviation: "n/a — no salt tracking present",
-          },
-        },
-      ],
-      citations: [baseCitation], // diet citation missing
-    };
-    const missing = findUncitedRecommendations(orphan);
-    expect(missing).toHaveLength(1);
-    expect(missing[0].recommendationId).toBe("rec-orphan");
-    expect(missing[0].missing).toEqual({
-      type: "diet",
-      timeRange: "last7days",
-    });
-  });
-
-  it("partial-key match on type alone is NOT enough — timeRange must also match", () => {
-    const orphan: AIInsightResponse = {
-      ...baseValid,
-      recommendations: [
-        {
-          id: "rec-mismatch",
-          text: "X",
-          severity: "info",
-          metricSource: {
-            type: "bloodPressure",
-            timeRange: "last30days", // citation only covers last7days
-            summary: "avg over 30 days",
-          },
-          rationale: {
-            dataWindow: "last30days",
-            comparedTo: "your 90-day median",
-            deviation: "+2 mmHg over 30-day window",
-          },
-        },
-      ],
-      citations: [baseCitation],
-    };
-    const missing = findUncitedRecommendations(orphan);
-    expect(missing).toHaveLength(1);
-  });
-
-  it("multiple recommendations sharing the same citation pass once that one citation is present", () => {
-    const ok: AIInsightResponse = {
-      ...baseValid,
-      recommendations: [
-        baseValid.recommendations[0],
-        {
-          id: "rec-2",
-          text: "Continue daily logging.",
-          severity: "info",
-          metricSource: { ...baseMetricSource },
-          rationale: baseRationale,
-        },
-      ],
-      citations: [baseCitation],
-    };
-    const missing = findUncitedRecommendations(ok);
-    expect(missing).toEqual([]);
-  });
-});
-
-describe("citation-from-data — wrapper end-to-end", () => {
-  it("uncited recommendation triggers retry; second try with proper citation passes", async () => {
-    const orphan = {
-      ...baseValid,
-      recommendations: [
-        {
-          id: "rec-orphan",
-          text: "Cut sodium.",
-          severity: "suggestion",
-          metricSource: {
-            type: "diet",
-            timeRange: "last7days",
-            summary: "no diet logging available",
-          },
-        },
-      ],
-      citations: [],
-    };
-    const provider = new MockAIProvider({
-      responses: [JSON.stringify(orphan), JSON.stringify(baseValid)],
-    });
-    const outcome = await generateInsight(
-      provider,
-      singleUserTurn({ system: "system", user: "user" }),
-    );
-    expect(outcome.retried).toBe(true);
-    expect(outcome.parsed.recommendations[0].id).toBe("rec-1");
-  });
-
-  it("retry-attempt that drops the recommendation rather than fixing the citation also passes", async () => {
-    const orphan = {
-      ...baseValid,
-      recommendations: [
-        {
-          id: "rec-orphan",
-          text: "Cut sodium.",
-          severity: "suggestion",
-          metricSource: {
-            type: "diet",
-            timeRange: "last7days",
-            summary: "no diet logging available",
-          },
-        },
-      ],
-      citations: [],
-    };
-    // Second attempt — model decides to drop the unsupported recommendation
-    // entirely. This is the explicitly-allowed "OMIT it" path from the
-    // retry-correction message.
-    const droppedRecs = {
-      summary: "Insufficient data for actionable recommendations.",
-      recommendations: [],
-      citations: [],
-      warnings: [],
-    };
-    const provider = new MockAIProvider({
-      responses: [JSON.stringify(orphan), JSON.stringify(droppedRecs)],
-    });
-    const outcome = await generateInsight(
-      provider,
-      singleUserTurn({ system: "system", user: "user" }),
-    );
-    expect(outcome.retried).toBe(true);
-    expect(outcome.parsed.recommendations).toHaveLength(0);
   });
 });

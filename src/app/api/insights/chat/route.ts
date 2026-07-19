@@ -9,8 +9,9 @@
  * Behaviour:
  *   1. requireAuth() — cookie session OR bearer token (iOS app).
  *   2. Validate body with `coachChatRequestSchema`.
- *   3. enforceBudget() — 429 with `coach.budget.exceeded` when the
- *      user has already burned the day's token cap.
+ *   3. reserveBudget(resolveDailyCap(chain)) — 429 with
+ *      `coach.budget.exceeded` when the day's token cap for the
+ *      credential that would pay for the call is already burned.
  *   4. detectRefusal() — pattern-based prompt-injection +
  *      off-topic guard. Refusal emits a single `token` frame with
  *      the localised refusal copy and a `done` frame; never hits a
@@ -39,6 +40,8 @@ import { requireAssistantSurface } from "@/lib/feature-flags";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
+import { localeLanguageNames as LANGUAGE_NAMES } from "@/lib/i18n/config";
 import {
   AllProvidersFailedError,
   runStreamingRawCompletionWithFallback,
@@ -386,9 +389,7 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
         message,
         refusalText:
           replayed.message ??
-          (locale === "de"
-            ? "Eine frühere Nachricht in dieser Unterhaltung enthält Anweisungen, die meine Vorgaben überschreiben sollen. Beginne bitte eine neue Unterhaltung."
-            : "An earlier message in this conversation contains wording that overrides my instructions. Please start a new conversation."),
+          getServerTranslator(locale).t("coach.refusal.conversationPoisoned"),
       });
     }
   } else {
@@ -622,7 +623,7 @@ ${groundingBlock}`
 CONVERSATION
 ${transcript}
 
-Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
+Reply now as the assistant, in ${LANGUAGE_NAMES[locale]}.`;
 
   // v1.18.7 (SENIOR-DEV HIGH) — atomically RESERVE the day's budget before
   // the provider call. The reservation increments the day's total by the
@@ -727,7 +728,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
 CONVERSATION
 ${transcript}
 
-Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch any figures you cite with the tools first.`,
+Reply now as the assistant, in ${LANGUAGE_NAMES[locale]}. Fetch any figures you cite with the tools first.`,
           },
         ];
         const loop = await runCoachToolLoop({

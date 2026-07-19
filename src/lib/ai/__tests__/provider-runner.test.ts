@@ -33,7 +33,6 @@ import {
   isHardProviderFailure,
   runRawCompletionWithFallback,
   runStreamingRawCompletionWithFallback,
-  runWithFallback,
 } from "../provider-runner";
 import {
   AUTH_FAILURE_COOLDOWN_MS,
@@ -129,15 +128,6 @@ describe("isHardProviderFailure", () => {
     expect(isHardProviderFailure(err(404))).toBe(true);
   });
 
-  it("does NOT flag an InsightSchemaError as hard — the strict JSON 422 surface still bubbles", async () => {
-    const { InsightSchemaError } = await import("../schema");
-    expect(
-      isHardProviderFailure(
-        new InsightSchemaError("bad json", { attempts: 2 }),
-      ),
-    ).toBe(false);
-  });
-
   it("flags network errors (no httpStatus) as hard", () => {
     expect(isHardProviderFailure(new Error("ECONNRESET"))).toBe(true);
   });
@@ -151,140 +141,7 @@ describe("isHardProviderFailure", () => {
   });
 });
 
-describe("runWithFallback — happy path", () => {
-  it("returns the parsed response from the first working provider", async () => {
-    const codex = new ScriptedProvider({
-      type: "codex",
-      script: [{ ok: true }],
-    });
-    const result = await runWithFallback({
-      userId: "u1",
-      providers: [{ providerType: "codex", instance: codex }],
-      params: singleUserTurn({ system: "s", user: "u" }),
-    });
-    expect(result.parsed.summary).toBe("ok");
-    expect(result.raw.providerType).toBe("codex");
-    expect(result.fallbackHops).toEqual([]);
-    expect(codex.callCount).toBe(1);
-  });
-
-  it("attaches the provider type to the outcome for B5e feedback attribution", async () => {
-    const openai = new ScriptedProvider({
-      type: "admin-key",
-      script: [{ ok: true }],
-    });
-    const result = await runWithFallback({
-      userId: "u1",
-      providers: [{ providerType: "openai", instance: openai }],
-      params: singleUserTurn({ system: "s", user: "u" }),
-    });
-    expect(result.workingProvider.providerType).toBe("openai");
-    expect(result.raw.providerType).toBe("admin-key");
-  });
-});
-
-describe("runWithFallback — primary fails 401, secondary succeeds", () => {
-  it("falls through to the secondary and surfaces the failure reason in the hop log", async () => {
-    const codex = new ScriptedProvider({
-      type: "codex",
-      script: [{ ok: false, error: err(401, "OAuth expired") }],
-    });
-    const openai = new ScriptedProvider({
-      type: "admin-key",
-      script: [{ ok: true }],
-    });
-    const result = await runWithFallback({
-      userId: "u1",
-      providers: [
-        { providerType: "codex", instance: codex },
-        { providerType: "openai", instance: openai },
-      ],
-      params: singleUserTurn({ system: "s", user: "u" }),
-    });
-    expect(result.parsed.summary).toBe("ok");
-    expect(result.workingProvider.providerType).toBe("openai");
-    expect(result.fallbackHops).toHaveLength(1);
-    expect(result.fallbackHops[0]).toMatchObject({
-      providerType: "codex",
-      attempt: 1,
-    });
-    expect(result.fallbackHops[0].failureReason).toMatch(/401/);
-  });
-});
-
-describe("runWithFallback — all-fail cascade", () => {
-  it("throws AllProvidersFailedError when every chain entry fails hard", async () => {
-    const codex = new ScriptedProvider({
-      type: "codex",
-      script: [{ ok: false, error: err(0, "ECONNRESET") }],
-    });
-    const openai = new ScriptedProvider({
-      type: "admin-key",
-      script: [{ ok: false, error: err(503, "upstream down") }],
-    });
-    let caught: unknown;
-    try {
-      await runWithFallback({
-        userId: "u1",
-        providers: [
-          { providerType: "codex", instance: codex },
-          { providerType: "openai", instance: openai },
-        ],
-        params: singleUserTurn({ system: "s", user: "u" }),
-      });
-    } catch (e) {
-      caught = e;
-    }
-    expect(caught).toBeInstanceOf(AllProvidersFailedError);
-    const e = caught as AllProvidersFailedError;
-    expect(e.httpStatus).toBe(503);
-    expect(e.attempts).toHaveLength(2);
-    expect(e.attempts.map((a) => a.providerType)).toEqual(["codex", "openai"]);
-  });
-});
-
-describe("runWithFallback — non-hard errors bubble unchanged", () => {
-  it("re-throws a 422 schema error from the first provider rather than walking", async () => {
-    // schema-mismatch is the wrapper's job, not the runner's. The runner
-    // only walks on transport / auth / 5xx — bad JSON from the first
-    // provider must still propagate as the wrapper's
-    // InsightSchemaError so the user gets the existing 422 surface.
-    const breaking = new ScriptedProvider({
-      type: "codex",
-      // Both wrapper attempts return invalid JSON → wrapper raises
-      // InsightSchemaError(422). The runner does not walk to provider
-      // 2 because that error is not a "hard provider failure".
-      script: [
-        { ok: true, content: "not-json" },
-        { ok: true, content: "still-not-json" },
-      ],
-    });
-    const openai = new ScriptedProvider({
-      type: "admin-key",
-      script: [{ ok: true }],
-    });
-    let caught: unknown;
-    try {
-      await runWithFallback({
-        userId: "u1",
-        providers: [
-          { providerType: "codex", instance: breaking },
-          { providerType: "openai", instance: openai },
-        ],
-        params: singleUserTurn({ system: "s", user: "u" }),
-      });
-    } catch (e) {
-      caught = e;
-    }
-    // Wrapper threw — fallback runner should NOT have escalated to
-    // openai because schema-mismatch is not a hard provider failure.
-    expect(caught).toBeDefined();
-    expect((caught as Error).name).toBe("InsightSchemaError");
-    expect(openai.callCount).toBe(0);
-  });
-});
-
-describe("runWithFallback — last-working cache", () => {
+describe("runRawCompletionWithFallback — last-working cache", () => {
   it("caches the working provider so the next call starts there", async () => {
     const codex = new ScriptedProvider({
       type: "codex",
@@ -296,7 +153,7 @@ describe("runWithFallback — last-working cache", () => {
     });
 
     // First call: codex fails, openai succeeds.
-    await runWithFallback({
+    await runRawCompletionWithFallback({
       userId: "u-cache",
       providers: [
         { providerType: "codex", instance: codex },
@@ -309,7 +166,7 @@ describe("runWithFallback — last-working cache", () => {
 
     // Second call: cache reorders so openai is tried first; codex is
     // never re-invoked even though it appears first in the input chain.
-    await runWithFallback({
+    await runRawCompletionWithFallback({
       userId: "u-cache",
       providers: [
         { providerType: "codex", instance: codex },
@@ -339,7 +196,7 @@ describe("runWithFallback — last-working cache", () => {
     });
 
     // First call: codex fails, openai succeeds, cache = openai.
-    await runWithFallback({
+    await runRawCompletionWithFallback({
       userId: "u-ttl",
       providers: [
         { providerType: "codex", instance: codex },
@@ -355,7 +212,7 @@ describe("runWithFallback — last-working cache", () => {
 
     // Next call walks the original priority order again (codex first,
     // and this time codex's second scripted entry succeeds).
-    await runWithFallback({
+    await runRawCompletionWithFallback({
       userId: "u-ttl",
       providers: [
         { providerType: "codex", instance: codex },
@@ -371,7 +228,7 @@ describe("runWithFallback — last-working cache", () => {
       type: "admin-key",
       script: [{ ok: true }],
     });
-    await runWithFallback({
+    await runRawCompletionWithFallback({
       userId: "u-clear",
       providers: [{ providerType: "openai", instance: ok }],
       params: singleUserTurn({ system: "s", user: "u" }),
@@ -502,11 +359,11 @@ describe("runRawCompletionWithFallback — legacy route shim", () => {
   });
 });
 
-describe("runWithFallback — empty input", () => {
+describe("runRawCompletionWithFallback — empty input", () => {
   it("throws AllProvidersFailedError with httpStatus 422 when zero providers configured", async () => {
     let caught: unknown;
     try {
-      await runWithFallback({
+      await runRawCompletionWithFallback({
         userId: "u-empty",
         providers: [],
         params: singleUserTurn({ system: "s", user: "u" }),

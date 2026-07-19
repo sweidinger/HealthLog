@@ -42,7 +42,9 @@
     "hidePassword": "Ukryj hasło",
     "learnMore": "Dowiedz się więcej",
     "dismiss": "Odrzuć",
-    "moreInfo": "Więcej informacji"
+    "moreInfo": "Więcej informacji",
+    "durationHoursMinutes": "{hours} godz. {minutes} min",
+    "durationMinutes": "{minutes} min"
   },
   "doctorReport": {
     "title": "Raport zdrowotny",
@@ -400,8 +402,10 @@
     "staleHint": "Ostatni odczyt {count} d temu",
     "staleHintWeeksOne": "Ostatni odczyt 1 tydzień temu",
     "staleHintWeeksOther": "Ostatni odczyt {count} tygodni temu",
+    "staleHintWeeksFew": "Ostatni odczyt {count} tygodnie temu",
     "staleHintMonthsOne": "Ostatni odczyt 1 miesiąc temu",
     "staleHintMonthsOther": "Ostatni odczyt {count} miesięcy temu",
+    "staleHintMonthsFew": "Ostatni odczyt {count} miesiące temu",
     "recentWorkouts": {
       "title": "Ostatnie treningi",
       "viewAll": "Zobacz wszystkie",
@@ -2558,10 +2562,13 @@
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",
     "relativeMinutesAgoOther": "{count} minut temu",
+    "relativeMinutesAgoFew": "{count} minuty temu",
     "relativeHoursAgoOne": "{count} godzinę temu",
     "relativeHoursAgoOther": "{count} godzin temu",
+    "relativeHoursAgoFew": "{count} godziny temu",
     "relativeDaysAgoOne": "{count} dzień temu",
     "relativeDaysAgoOther": "{count} dni temu",
+    "relativeDaysAgoFew": "{count} dni temu",
     "navOverview": "Przegląd",
     "navCatalog": "Wszystkie metryki",
     "navBloodPressure": "Ciśnienie krwi",
@@ -3029,7 +3036,8 @@
         "crossTraining": "Cross-trening",
         "mixedCardio": "Cardio mieszane",
         "other": "Inne"
-      }
+      },
+      "loadError": "Nie udało się wczytać treningów"
     },
     "bloodGlucose": {
       "title": "Poziom glukozy",
@@ -8015,6 +8023,11 @@
         "review_due": "Przegląd do zrobienia",
         "reviewed": "Oceniony"
       }
+    },
+    "refusal": {
+      "outOfScope": "Mogę pomóc wyłącznie z danymi zdrowotnymi z Twojego dziennika: pomiarami, lekami, nastrojem, trendami. Na pytania spoza tego zakresu nie odpowiadam.",
+      "promptInjection": "Zauważyłem polecenia, które próbują obejść moje wytyczne. Jestem Coachem HealthLog i podsumowuję wyłącznie Twoje własne dane zdrowotne — sformułuj pytanie w tych ramach.",
+      "conversationPoisoned": "Wcześniejsza wiadomość w tej rozmowie zawiera polecenia, które próbują obejść moje wytyczne. Rozpocznij nową rozmowę."
     }
   },
   "safety": {
@@ -8267,7 +8280,9 @@
         "finally": "Finally …"
       }
     },
-    "openDetail": "Pokaż szczegóły"
+    "openDetail": "Pokaż szczegóły",
+    "historyLoadError": "Nie udało się wczytać historii testów",
+    "historyLoadErrorHint": "To nie znaczy, że nie masz wyników — nie udało się pobrać listy. Spróbuj ponownie."
   },
   "records": {
     "disclaimer": "To Twoje własne wpisy, a nie diagnoza lekarska. HealthLog nie diagnozuje, nie leczy i ich nie interpretuje.",
@@ -8728,7 +8743,8 @@
       "rowMeta": "{days} z {window} dni · zalecane {value} {unit} (EFSA)",
       "rowMetaNoRef": "{days} z {window} dni",
       "footer": "{tracked} z {total} śledzonych mikroskładników ma dane w tym okresie.",
-      "emptyTitle": "Brak jeszcze zsynchronizowanych danych o mikroskładnikach"
+      "emptyTitle": "Brak jeszcze zsynchronizowanych danych o mikroskładnikach",
+      "loadError": "Nie udało się wczytać danych o składnikach odżywczych"
     },
     "sparseNote": "Niska wartość zwykle oznacza tu rzadkie zapisywanie, a nie niedobór — dzienne sumy z Apple Health odzwierciedlają to, co zapisały twoje aplikacje, a nie całkowite spożycie w diecie."
   },

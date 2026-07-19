@@ -22,7 +22,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
 import { BackLink } from "@/components/ui/back-link";
-import { Card } from "@/components/ui/card";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import {
   MedicationDetailTabs,
   type MedicationDetailSnapshot,
@@ -49,6 +49,7 @@ export default function MedicationDetailPage({
     data: medication,
     isLoading,
     isError,
+    refetch,
   } = useQuery<MedicationDetailSnapshot>({
     queryKey: queryKeys.medicationDetail(id),
     queryFn: async () => {
@@ -71,20 +72,21 @@ export default function MedicationDetailPage({
     return <PageAuthGate label={t("common.loading")} />;
   }
 
+  // `retry: false` above stays: a deleted medication 404s here and automatic
+  // backoff against a row that no longer exists is pure waste. But that flag
+  // also stranded the page on a single transient failure, with no way forward
+  // short of navigating away and back. A user-initiated retry is the right
+  // granularity — it costs one request per click and cannot storm.
   if (isError || !medication) {
     return (
       <div className="space-y-6">
         <BackLink href="/medications" label={t("medications.back")} />
-        <Card
-          className="p-6"
-          role="alert"
-          aria-live="polite"
-          data-slot="medication-detail-error-card"
-        >
-          <p className="text-destructive text-sm">
-            {t("medications.detail.shell.loadFailed")}
-          </p>
-        </Card>
+        <div data-slot="medication-detail-error-card">
+          <QueryErrorCard
+            description={t("medications.detail.shell.loadFailed")}
+            onRetry={() => void refetch()}
+          />
+        </div>
       </div>
     );
   }

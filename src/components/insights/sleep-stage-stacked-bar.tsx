@@ -16,6 +16,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslations } from "@/lib/i18n/context";
+import { formatDurationMinutes } from "@/lib/i18n/duration";
+import { resolveIntlLocale } from "@/lib/format-locale";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
  * v1.4.25 W4c → W3f — sleep-stage composition chart.
@@ -97,15 +100,6 @@ export const STAGE_COLORS: Record<string, string> = {
   IN_BED: "var(--chart-inbed)", // muted blue-grey — pre-asleep
 };
 
-function formatMinutes(total: number, locale: string): string {
-  const hours = Math.floor(total / 60);
-  const mins = Math.round(total - hours * 60);
-  if (locale === "de") {
-    return hours > 0 ? `${hours} Std. ${mins} Min.` : `${mins} Min.`;
-  }
-  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-}
-
 /**
  * Format a Berlin-tz day key (YYYY-MM-DD) as a short x-axis tick.
  * 7-day window → "Mon" / "Tue" / …; 14-day → "M 10" / "T 11" / …;
@@ -123,13 +117,13 @@ function formatMinutes(total: number, locale: string): string {
 function formatDayTick(
   dayKey: string,
   window: WindowSize,
-  locale: string,
+  locale: Locale,
 ): string {
   const [y, m, d] = dayKey.split("-").map(Number);
   if (!y || !m || !d) return dayKey;
   const date = new Date(Date.UTC(y, m - 1, d));
   if (window === 7) {
-    return date.toLocaleDateString(locale === "de" ? "de-DE" : "en-US", {
+    return date.toLocaleDateString(resolveIntlLocale(locale), {
       timeZone: "UTC",
       weekday: "short",
     });
@@ -137,7 +131,7 @@ function formatDayTick(
   if (window === 14) {
     return `${date.getUTCDate()}.`;
   }
-  return date.toLocaleDateString(locale === "de" ? "de-DE" : "en-US", {
+  return date.toLocaleDateString(resolveIntlLocale(locale), {
     timeZone: "UTC",
     month: "short",
     day: "numeric",
@@ -322,7 +316,7 @@ export function SleepStageStackedBar({ breakdown }: SleepStageStackedBarProps) {
                                 {stageLabels[stage] ?? stage}
                               </span>
                               <span className="text-muted-foreground">
-                                {formatMinutes(minutes, locale)} · {pct}%
+                                {formatDurationMinutes(minutes, t)} · {pct}%
                               </span>
                             </div>
                           );
@@ -330,7 +324,7 @@ export function SleepStageStackedBar({ breakdown }: SleepStageStackedBarProps) {
                         {totalNight > 0 && (
                           <div className="border-border mt-1 flex items-center justify-between gap-3 border-t pt-1 font-medium">
                             <span>{t("insights.sleep.headlineTitle")}</span>
-                            <span>{formatMinutes(totalNight, locale)}</span>
+                            <span>{formatDurationMinutes(totalNight, t)}</span>
                           </div>
                         )}
                       </div>

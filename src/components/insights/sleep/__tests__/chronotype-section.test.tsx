@@ -65,14 +65,18 @@ beforeEach(() => {
 });
 
 describe("<ChronotypeSection>", () => {
-  it("renders the quiet inline notice on a query error", () => {
+  it("renders nothing on a query error — the page owns the one notice", () => {
+    // All three rhythm cards resolve the same query, so a per-card notice
+    // printed the identical sentence three times. /insights/sleep now renders
+    // a single QueryErrorCard with a retry in place of the row. The card must
+    // still not fall through to its skeleton, which would spin forever.
     rhythmMock.mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: true,
     });
     const html = render(<ChronotypeSection enabled />);
-    expect(html).toContain('data-slot="chronotype-error"');
+    expect(html).toBe("");
     expect(html).not.toContain('data-slot="chronotype-loading"');
   });
 

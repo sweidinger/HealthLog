@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
+import { resolveIntlLocale } from "@/lib/format-locale";
+import type { Locale } from "@/lib/i18n/config";
 import type { CalendarDay } from "./types";
 import {
   FERTILE_HUE,
@@ -30,9 +32,17 @@ import {
  * grid is never colour-only. WCAG 2.5.5 — each cell is ≥ 40 px.
  */
 
-/** Monday-first short weekday labels, localized via Intl (no i18n key). */
-function shortWeekdays(): string[] {
-  const fmt = new Intl.DateTimeFormat(undefined, { weekday: "short" });
+/**
+ * Monday-first short weekday labels, localized via Intl (no i18n key).
+ *
+ * Takes the APP locale explicitly. It used to pass `undefined`, which resolves
+ * to the browser's locale — invisible whenever the two agree, and wrong for
+ * every user who reads the app in a language their browser is not set to.
+ */
+function shortWeekdays(locale: Locale): string[] {
+  const fmt = new Intl.DateTimeFormat(resolveIntlLocale(locale), {
+    weekday: "short",
+  });
   // 2024-01-01 is a Monday — walk 7 days for a Monday-first header row.
   return Array.from({ length: 7 }, (_, i) =>
     fmt.format(new Date(2024, 0, 1 + i)),
@@ -71,8 +81,8 @@ export function CycleCalendar({
   onSelectDay,
   className,
 }: CycleCalendarProps) {
-  const { t } = useTranslations();
-  const weekdays = useMemo(() => shortWeekdays(), []);
+  const { t, locale } = useTranslations();
+  const weekdays = useMemo(() => shortWeekdays(locale), [locale]);
   const byDate = useMemo(() => new Map(days.map((d) => [d.date, d])), [days]);
 
   // Anchor the visible month on today's month.
@@ -104,7 +114,7 @@ export function CycleCalendar({
     return cells;
   }, [monthAnchor]);
 
-  const monthLabel = monthAnchor.toLocaleDateString(undefined, {
+  const monthLabel = monthAnchor.toLocaleDateString(resolveIntlLocale(locale), {
     month: "long",
     year: "numeric",
   });

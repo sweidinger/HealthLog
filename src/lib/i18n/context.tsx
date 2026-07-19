@@ -23,6 +23,7 @@ import { readStoredTimeFormat, subscribeTimeFormat } from "../time-format";
 import { readStoredDateFormat, subscribeDateFormat } from "../date-format";
 import { readStoredTimezone, subscribeTimezone } from "../timezone-mirror";
 import { resolveKey } from "./resolve-key";
+import { pluralKey } from "./plural";
 import {
   getCachedMessages,
   getFallbackMessages,
@@ -42,6 +43,22 @@ interface I18nContextValue {
    */
   pendingLocale: Locale | null;
   t: (key: string, params?: Record<string, string | number>) => string;
+  /**
+   * Plural-aware `t`. Resolves `<baseKey><One|Few|Other>` under the active
+   * locale's CLDR rules and passes `count` through as a parameter.
+   *
+   * Lives on the context rather than as a standalone helper each component
+   * imports: `pluralTier` is tiny, but a new module edge from a
+   * widely-instantiated component (the dashboard trend tile) gets duplicated
+   * into every chunk that contains it, which measured ~78 KB gz across the
+   * route chunks. The provider is already in every chunk, so routing through
+   * it is free.
+   */
+  tCount: (
+    baseKey: string,
+    count: number,
+    params?: Record<string, string | number>,
+  ) => string;
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -281,9 +298,18 @@ export function I18nProvider({
     [locale, messages],
   );
 
+  const tCount = useCallback(
+    (
+      baseKey: string,
+      count: number,
+      params?: Record<string, string | number>,
+    ): string => t(pluralKey(baseKey, count, locale), { count, ...params }),
+    [t, locale],
+  );
+
   const value = useMemo(
-    () => ({ locale, setLocale, pendingLocale, t }),
-    [locale, setLocale, pendingLocale, t],
+    () => ({ locale, setLocale, pendingLocale, t, tCount }),
+    [locale, setLocale, pendingLocale, t, tCount],
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

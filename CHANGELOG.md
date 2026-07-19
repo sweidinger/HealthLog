@@ -31,6 +31,24 @@
 
 One migration (0254). No breaking changes.
 
+## [1.30.30] — 2026-07-19
+
+Four languages get their own words; a failed read stops claiming you have no data.
+
+- **Reminder notifications, the assistant's reply language, chart and calendar labels, and durations were English or German for French, Spanish, Italian and Polish.** The translations existed; the code that picked between them only knew two languages. It now uses the account's own.
+- **Polish counts correctly.** Polish has a third plural form that a two-form scheme cannot express, so counted phrases read wrong. The other five languages resolve exactly as before.
+- **A screening history that failed to load said "not taken yet".** On a mental-health surface that is a false statement about your own record — you could reasonably conclude you never completed something you did complete. That surface, and a nutrient card with the same flaw, now say the reading failed and offer to try again. Nothing retries silently: a failure you cannot see is worse than one you can.
+- Three sleep-rhythm cards that share one reading each printed the same failure notice; the page now shows it once.
+
+## [1.30.29] — 2026-07-19
+
+- **A connector token that may only read is now refused at the write itself**, not only by never being offered the write. The protection was real but rested entirely on how the connection is assembled, so a future change to that assembly could have opened writing with no test noticing. Any write added later inherits the check.
+- **Names and text read out of your records now carry an explicit boundary when handed to a connected assistant**, matching what the app already does for its own assistant.
+- **Reading a medication list from a photo measured its cost against the server-wide limit even when you use your own key.** It now uses your own limit. The older way of counting that caused this — the third surface to have it — is removed entirely rather than fixed in place, so nothing can reach for it again.
+- Removed a module that read as a check on generated recommendations but had not run for some time. It could not simply be switched on: it required fields the current format does not have, so enabling it would have rejected nearly every generation. The measurement it fed is unaffected and still runs.
+
+No breaking changes.
+
 ## [1.30.28] — 2026-07-19
 
 - **Daily briefings count against the AI budget.** They were the one
