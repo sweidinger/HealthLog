@@ -24,6 +24,16 @@ import type { PrismaClient } from "@/generated/prisma/client";
 process.env.ENCRYPTION_KEY ??=
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
+// v1.30.32 — session cookies now carry a CSPRNG secret whose HMAC is what
+// lands in `sessions.token_hash`, so `createSession` needs this key exactly
+// like token issuance already did. It is a Core-required variable in
+// `scripts/env-manifest.json` (the app refuses to boot without it), so
+// defaulting it here matches production rather than papering over a gap.
+// Same `??=` treatment as the encryption key above: files that set their own
+// still win.
+process.env.API_TOKEN_HMAC_KEY ??=
+  "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+
 /**
  * The application's Prisma singleton. Tests use this so any code
  * imported via `await import("@/lib/...")` shares the exact same client

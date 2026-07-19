@@ -18,7 +18,7 @@ import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { getClientIp } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
-import { destroyOtherSessions } from "@/lib/auth/session";
+import { destroyOtherSessions, sessionHandle } from "@/lib/auth/session";
 import { lookupIpLocation } from "@/lib/geo";
 import { coarseDeviceLabel, maskIp } from "@/lib/auth/device-fingerprint";
 
@@ -68,7 +68,7 @@ export const GET = apiHandler(async () => {
   );
 
   const result: SessionDTO[] = sessions.map((s) => ({
-    id: s.id,
+    id: sessionHandle(s.id),
     device: coarseDeviceLabel(s.userAgent),
     ipMasked: maskIp(s.ipAddress),
     location: s.ipAddress ? (locationByIp.get(s.ipAddress) ?? null) : null,

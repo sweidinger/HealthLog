@@ -1,6 +1,8 @@
+import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
 import type { User } from "@/generated/prisma/client";
+import { hashToken } from "@/lib/auth/hmac";
 import { ensureDbCompatibility } from "@/lib/db-compat";
 import { getEvent } from "@/lib/logging/context";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
@@ -10,6 +12,77 @@ import { LOCALE_COOKIE, setLocaleCookie } from "@/lib/i18n/locale-cookie";
 
 const SESSION_COOKIE = "healthlog_session";
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+/**
+ * Marks a cookie value as a v1.30.32 session secret. Doubles as the branch
+ * between the two resolution paths below, so a cookie is only ever looked up
+ * one way and a raw cuid can never be tried as a secret (or vice versa).
+ */
+const SESSION_TOKEN_PREFIX = "hls_";
+const SESSION_SECRET_BYTES = 32;
+
+/**
+ * Mint a session cookie secret: 32 CSPRNG bytes, hex-encoded.
+ *
+ * This exists because the cookie used to carry `Session.id` — a `cuid()`.
+ * cuid targets collision-resistant identity across distributed writers, not
+ * unguessability: it encodes a millisecond timestamp and a process-local
+ * counter and never touches a CSPRNG. That is a fine primary key and an unfit
+ * bearer credential. Only `hashToken(secret)` reaches the database, so a
+ * leaked table dump yields no usable cookie — the same posture ApiToken and
+ * RefreshToken already hold.
+ */
+function mintSessionSecret(): string {
+  return `${SESSION_TOKEN_PREFIX}${randomBytes(SESSION_SECRET_BYTES).toString("hex")}`;
+}
+
+/**
+ * Resolve the session row a cookie value refers to, or null.
+ *
+ * COMPATIBILITY DECISION (v1.30.32). Two paths, and the transition is
+ * deliberately passive:
+ *
+ *   1. `hls_…` — the modern secret. Looked up by `hashToken(value)`.
+ *   2. anything else — a pre-upgrade cookie carrying the row's cuid. Accepted
+ *      ONLY while that row's `tokenHash` is still NULL.
+ *
+ * A migration-time backfill cannot work: the cookie already in the user's
+ * browser is the cuid, and no token we generate server-side can be pushed into
+ * it. Backfilling would sign out every logged-in user at deploy — the one
+ * outcome this change must not cause.
+ *
+ * Upgrading a legacy row in place on next use was the other candidate and was
+ * rejected as unsafe. A browser fires several requests in parallel, all
+ * carrying the same legacy cookie; each would mint its own secret and race to
+ * claim the row. Exactly one write can win, and the losers cannot learn the
+ * winner's secret to re-emit it — the row stores only a hash. Whichever
+ * response reached the browser last would decide the cookie, and if that was a
+ * loser's, the user is signed out. A guarded update narrows the write but not
+ * the outcome: a loser that declines to re-cookie leaves the browser holding a
+ * legacy id the row no longer honours. The race has no correct resolution, and
+ * its failure mode is precisely the forced logout we are avoiding.
+ *
+ * So legacy rows are left alone and simply live out the expiry they already
+ * have — `getSession` withholds the sliding-expiry extension from them (see
+ * there). That bounds the id-as-credential path to the 30-day session lifetime
+ * from the deploy, self-draining, with no operator step and no backfill. Every
+ * login from the deploy onward is on a secret immediately.
+ */
+async function findSessionByCookie(cookieValue: string) {
+  if (cookieValue.startsWith(SESSION_TOKEN_PREFIX)) {
+    return prisma.session.findUnique({
+      where: { tokenHash: hashToken(cookieValue) },
+      include: { user: true },
+    });
+  }
+
+  const legacy = await prisma.session.findUnique({
+    where: { id: cookieValue },
+    include: { user: true },
+  });
+  // A row that already holds a secret has retired its id as a credential.
+  return legacy && legacy.tokenHash === null ? legacy : null;
+}
 
 // v1.23 — throttle window for the user-facing active-session list's "last
 // seen" stamp. A write only happens when the prior stamp is older than this,
@@ -73,9 +146,13 @@ export async function createSession(
   // "single-factor session" and never satisfies step-up.
   mfaVerifiedAt?: Date | null,
 ): Promise<string> {
+  // The secret is the cookie; the row id stays an internal identifier and is
+  // never handed to the client.
+  const secret = mintSessionSecret();
   const session = await prisma.session.create({
     data: {
       userId,
+      tokenHash: hashToken(secret),
       expiresAt: new Date(Date.now() + SESSION_MAX_AGE_MS),
       ipAddress: ipAddress ?? null,
       userAgent: userAgent ?? null,
@@ -84,7 +161,7 @@ export async function createSession(
   });
 
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, session.id, {
+  cookieStore.set(SESSION_COOKIE, secret, {
     httpOnly: true,
     secure: shouldEmitSecureCookie(),
     // OAuth callbacks (e.g. Withings) arrive via top-level cross-site redirect.
@@ -117,18 +194,15 @@ export async function getSession(): Promise<{
   }
 
   const cookieStore = await cookies();
-  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!sessionId) return null;
+  const cookieValue = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!cookieValue) return null;
 
-  const session = await prisma.session.findUnique({
-    where: { id: sessionId },
-    include: { user: true },
-  });
+  const session = await findSessionByCookie(cookieValue);
 
   if (!session || session.expiresAt < new Date()) {
     if (session) {
       await prisma.session
-        .deleteMany({ where: { id: sessionId } })
+        .deleteMany({ where: { id: session.id } })
         .catch(() => {});
     }
     cookieStore.delete(SESSION_COOKIE);
@@ -136,18 +210,26 @@ export async function getSession(): Promise<{
     return null;
   }
 
-  // Sliding expiry: refresh if more than 1 day old
+  // Sliding expiry: refresh if more than 1 day old.
+  //
+  // Withheld from legacy (`tokenHash === null`) rows on purpose. Extending
+  // those would let a cuid-as-credential session renew itself indefinitely for
+  // an active user, and the whole point of the passive transition is that the
+  // id-resolvable path drains on its own. Capping them at the expiry they
+  // already carry bounds it to at most 30 days past the deploy; the user then
+  // logs in once and lands on a secret. Re-emitting the cookie is likewise
+  // pointless for a legacy row — its value cannot be improved in place.
   const oneDayMs = 24 * 60 * 60 * 1000;
   if (
-    session.expiresAt.getTime() - Date.now() <
-    SESSION_MAX_AGE_MS - oneDayMs
+    session.tokenHash !== null &&
+    session.expiresAt.getTime() - Date.now() < SESSION_MAX_AGE_MS - oneDayMs
   ) {
     const newExpiry = new Date(Date.now() + SESSION_MAX_AGE_MS);
     await prisma.session.update({
       where: { id: session.id },
       data: { expiresAt: newExpiry },
     });
-    cookieStore.set(SESSION_COOKIE, session.id, {
+    cookieStore.set(SESSION_COOKIE, cookieValue, {
       httpOnly: true,
       secure: shouldEmitSecureCookie(),
       sameSite: "lax",
@@ -211,33 +293,43 @@ export async function getSession(): Promise<{
  */
 export async function getSessionUserLocale(): Promise<string | null> {
   const cookieStore = await cookies();
-  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!sessionId) return null;
+  const cookieValue = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!cookieValue) return null;
 
-  const session = await prisma.session.findUnique({
-    where: { id: sessionId },
-    select: { expiresAt: true, user: { select: { locale: true } } },
-  });
+  // Same two-path resolution as `getSession`, read-only: this runs in the root
+  // layout where the cookie store cannot be written, so there is nothing to
+  // refresh or clear here.
+  const session = await findSessionByCookie(cookieValue);
   if (!session || session.expiresAt < new Date()) return null;
   return session.user.locale;
 }
 
 export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
-  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
-  if (sessionId) {
+  const cookieValue = cookieStore.get(SESSION_COOKIE)?.value;
+  if (cookieValue) {
+    // Resolve the cookie to its row before deleting — the cookie is a secret,
+    // not the primary key, so `delete({ where: { id: cookieValue } })` would
+    // silently no-op on every modern session and leave the row alive after a
+    // logout.
+    //
     // Logout is idempotent: a session row that no longer exists (P2025) is a
     // no-op. Any other failure is a real delete error — record it on the wide
     // event rather than swallowing it silently, but never block the cookie
     // clear below: a transient DB fault must not leave the client logged in
     // with the cookie intact.
-    await prisma.session.delete({ where: { id: sessionId } }).catch((err) => {
-      if (!isP2025(err)) {
-        getEvent()?.addWarning(
-          `destroySession delete failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    });
+    const session = await findSessionByCookie(cookieValue).catch(() => null);
+    if (session) {
+      await prisma.session
+        .delete({ where: { id: session.id } })
+        .catch((err) => {
+          if (!isP2025(err)) {
+            getEvent()?.addWarning(
+              `destroySession delete failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        });
+    }
   }
   cookieStore.delete(SESSION_COOKIE);
   cookieStore.delete(ONBOARDING_COOKIE);
@@ -309,16 +401,48 @@ export async function destroyOtherSessions(
 }
 
 /**
- * v1.23 — revoke a single web session by id, scoped to the owning user so a
- * caller can never delete another user's session row. Returns whether a row
- * was actually removed (false → not found or not owned).
+ * The public handle for a session row, used by the session-management list
+ * and its revoke route.
+ *
+ * The list needs a per-row identifier the client can send back to revoke one
+ * device. It used to send the row id — which, for every session created
+ * before the secret cookie landed, IS that session's cookie value. The list
+ * was therefore handing the client live credentials for all of the account's
+ * other devices, and anything that captured one response body (an error
+ * reporter, a proxy log, a screenshot of devtools) captured usable logins.
+ *
+ * The handle is an HMAC of the row id: stable within a deployment so the
+ * client can round-trip it, and structurally useless as a cookie because the
+ * legacy lookup matches a cuid primary key and a 64-char hex digest is not
+ * one. Nothing is stored — the handle is recomputed per request, so this
+ * needs no column and no migration.
+ */
+export function sessionHandle(sessionId: string): string {
+  return hashToken(sessionId);
+}
+
+/**
+ * v1.23 — revoke a single web session, scoped to the owning user so a caller
+ * can never delete another user's session row. Returns whether a row was
+ * actually removed (false → not found or not owned).
+ *
+ * Takes the public handle rather than the row id. The account's own rows are
+ * a handful, so resolving the handle by walking them costs one indexed read
+ * and a few HMACs — cheaper than a column, and it keeps the id server-side.
  */
 export async function destroySessionById(
   userId: string,
-  sessionId: string,
+  handle: string,
 ): Promise<boolean> {
+  const own = await prisma.session.findMany({
+    where: { userId },
+    select: { id: true },
+  });
+  const match = own.find((s) => sessionHandle(s.id) === handle);
+  if (!match) return false;
+
   const result = await prisma.session.deleteMany({
-    where: { id: sessionId, userId },
+    where: { id: match.id, userId },
   });
   return result.count > 0;
 }

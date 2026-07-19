@@ -132,6 +132,138 @@ describe("session lifecycle (real Postgres)", () => {
     expect(cookieJar.get("hl_onboarding")).toBeUndefined();
   });
 
+  /**
+   * v1.30.32 — the cookie carries a CSPRNG secret, not the row's cuid.
+   * These run against real Postgres because the thing under test is the
+   * migration plus the unique index plus the two lookup paths; a mocked
+   * client can assert the shape but not that the column and constraint
+   * actually exist on a migrated database.
+   */
+  describe("session cookie secret (migration 0255)", () => {
+    it("issues a secret cookie and stores only its hash", async () => {
+      const { createSession } = await import("@/lib/auth/session");
+      const { hashToken } = await import("@/lib/auth/hmac");
+
+      const user = await getPrismaClient().user.create({
+        data: { username: "secret-cookie", email: "secret@example.test" },
+      });
+      const sessionId = await createSession(user.id, false);
+
+      const cookie = cookieJar.get("healthlog_session")!;
+      expect(cookie).toMatch(/^hls_[0-9a-f]{64}$/);
+      expect(cookie).not.toBe(sessionId);
+
+      const row = await getPrismaClient().session.findUnique({
+        where: { id: sessionId },
+      });
+      // The raw secret is nowhere on the row.
+      expect(row?.tokenHash).toBe(hashToken(cookie));
+      expect(row?.tokenHash).not.toBe(cookie);
+    });
+
+    it("authenticates by the secret and refuses the row id", async () => {
+      const { createSession, getSession } = await import("@/lib/auth/session");
+
+      const user = await getPrismaClient().user.create({
+        data: { username: "id-retired", email: "retired@example.test" },
+      });
+      const sessionId = await createSession(user.id, false);
+
+      // The secret works.
+      expect((await getSession())?.session.id).toBe(sessionId);
+
+      // The primary key does not. This is the whole point: knowing or
+      // guessing a cuid must no longer authenticate anything.
+      cookieJar.set("healthlog_session", sessionId);
+      expect(await getSession()).toBeNull();
+    });
+
+    it("keeps a pre-upgrade session alive on its row id", async () => {
+      // The compatibility contract. This row is exactly what the migration
+      // leaves behind: a real session with a NULL token_hash whose cookie in
+      // the user's browser is the cuid. The deploy must not sign them out.
+      const { getSession } = await import("@/lib/auth/session");
+
+      const user = await getPrismaClient().user.create({
+        data: { username: "legacy-session", email: "legacy@example.test" },
+      });
+      const legacy = await getPrismaClient().session.create({
+        data: {
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
+        },
+      });
+      expect(legacy.tokenHash).toBeNull();
+
+      cookieJar.set("healthlog_session", legacy.id);
+      const result = await getSession();
+
+      expect(result).not.toBeNull();
+      expect(result?.session.id).toBe(legacy.id);
+      expect(result?.user.id).toBe(user.id);
+    });
+
+    it("does not extend a pre-upgrade session's expiry", async () => {
+      // Withholding the sliding refresh is what bounds the transition: the
+      // id-resolvable path drains within the session lifetime instead of
+      // renewing forever under an active user.
+      const { getSession } = await import("@/lib/auth/session");
+
+      const user = await getPrismaClient().user.create({
+        data: { username: "legacy-drain", email: "drain@example.test" },
+      });
+      const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      const legacy = await getPrismaClient().session.create({
+        data: { userId: user.id, expiresAt },
+      });
+
+      cookieJar.set("healthlog_session", legacy.id);
+      expect(await getSession()).not.toBeNull();
+
+      const after = await getPrismaClient().session.findUnique({
+        where: { id: legacy.id },
+      });
+      expect(after?.expiresAt.getTime()).toBe(expiresAt.getTime());
+    });
+
+    it("gives concurrent sessions distinct secrets under the unique index", async () => {
+      const { createSession } = await import("@/lib/auth/session");
+
+      const user = await getPrismaClient().user.create({
+        data: { username: "many-secrets", email: "many@example.test" },
+      });
+      await createSession(user.id, false);
+      const first = cookieJar.get("healthlog_session")!;
+      await createSession(user.id, false);
+      const second = cookieJar.get("healthlog_session")!;
+
+      expect(first).not.toBe(second);
+      const rows = await getPrismaClient().session.findMany({
+        where: { userId: user.id },
+      });
+      expect(rows).toHaveLength(2);
+      expect(new Set(rows.map((r) => r.tokenHash)).size).toBe(2);
+    });
+
+    it("logs out by resolving the secret to its row", async () => {
+      const { createSession, destroySession } =
+        await import("@/lib/auth/session");
+
+      const user = await getPrismaClient().user.create({
+        data: { username: "secret-logout", email: "logout@example.test" },
+      });
+      const sessionId = await createSession(user.id, false);
+
+      await destroySession();
+
+      // A logout that deleted by cookie value would leave this row behind.
+      const row = await getPrismaClient().session.findUnique({
+        where: { id: sessionId },
+      });
+      expect(row).toBeNull();
+    });
+  });
+
   it("destroySession clears the hl_onboarding cookie alongside the session cookie", async () => {
     const { createSession, destroySession } =
       await import("@/lib/auth/session");

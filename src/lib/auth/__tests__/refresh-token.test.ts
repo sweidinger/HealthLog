@@ -394,21 +394,95 @@ describe("rotateRefreshToken", () => {
     expect(liveDev1).toHaveLength(0);
   });
 
-  it("rejects expired refresh tokens", async () => {
-    await issueAccessAndRefresh({
+  it("rejects an expired refresh token by its own secret", async () => {
+    // The token presented here is the REAL one, so the row is found and the
+    // expiry branch is what refuses it. Presenting an unknown string instead
+    // would pass on `not_found` and prove nothing about expiry at all.
+    const initial = await issueAccessAndRefresh({
       userId: "u1",
       policy: NATIVE_POLICY,
       source: "login.password",
     });
-    // Manually expire
     dbState.refreshTokens[0].expiresAt = new Date(Date.now() - 1000);
+
     const result = await rotateRefreshToken({
-      refreshToken: "hlr_doesnt_matter",
+      refreshToken: initial.refreshToken,
       policy: NATIVE_POLICY,
     });
+
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason).toBe("not_found");
+    expect(result.reason).toBe("expired");
+    // An expired token must not mint a replacement pair.
+    expect(dbState.refreshTokens).toHaveLength(1);
+  });
+
+  it("accepts the same token one millisecond before it expires", async () => {
+    // Boundary companion: proves the expiry refusal above is driven by the
+    // clock and not by the rotation path refusing everything.
+    const initial = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+    });
+    dbState.refreshTokens[0].expiresAt = new Date(Date.now() + 60_000);
+
+    const result = await rotateRefreshToken({
+      refreshToken: initial.refreshToken,
+      policy: NATIVE_POLICY,
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("refuses a live token presented under a different device id", async () => {
+    // Device A's token replayed from device B. The token is valid and unused,
+    // so only the device binding can refuse it.
+    const dev1 = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-1",
+    });
+
+    const result = await rotateRefreshToken({
+      refreshToken: dev1.refreshToken,
+      policy: NATIVE_POLICY,
+      deviceId: "dev-2",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("device_mismatch");
+    // Refused, not consumed: the legitimate device can still rotate it.
+    expect(dbState.refreshTokens[0].usedAt).toBeNull();
+    expect(dbState.refreshTokens).toHaveLength(1);
+
+    const legitimate = await rotateRefreshToken({
+      refreshToken: dev1.refreshToken,
+      policy: NATIVE_POLICY,
+      deviceId: "dev-1",
+    });
+    expect(legitimate.ok).toBe(true);
+  });
+
+  it("still rotates when the caller sends no device id at all", async () => {
+    // An older client that never sends `X-Device-Id` must not be locked out
+    // by the device binding — a presented null is unattributable, not a
+    // mismatch.
+    const dev1 = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-1",
+    });
+
+    const result = await rotateRefreshToken({
+      refreshToken: dev1.refreshToken,
+      policy: NATIVE_POLICY,
+    });
+
+    expect(result.ok).toBe(true);
   });
 
   it("rejects revoked refresh tokens", async () => {
