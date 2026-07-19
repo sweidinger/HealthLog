@@ -177,6 +177,11 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   // install's rows rotate as a clean no-op.
   { model: "ArrivalReaction", field: "lineEncrypted", kind: "bytes" },
 
+  // ───── v1.31.0 per-workout Activity Insight (Bytes column) ─────
+  // NOT nullable: a row exists only once a paragraph was actually generated,
+  // so every row here carries ciphertext and every one must rotate.
+  { model: "WorkoutInsight", field: "paragraphEncrypted", kind: "bytes" },
+
   // ───── v1.18.1 clinical-spine notes (Bytes columns) ─────
   { model: "LabResult", field: "noteEncrypted", kind: "bytes" },
   { model: "Biomarker", field: "contextEncrypted", kind: "bytes" },

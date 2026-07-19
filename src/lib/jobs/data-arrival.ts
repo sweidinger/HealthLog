@@ -38,6 +38,10 @@ import { withBackgroundEvent } from "@/lib/logging/background";
 import { DATA_ARRIVAL_QUEUE } from "@/lib/arrivals/emit-shared";
 import { enqueueReactionLine } from "@/lib/arrivals/reaction-line-shared";
 import { isArrivalKind, type DataArrival } from "@/lib/arrivals/types";
+// Generator-free by construction — see that module's header. Importing the
+// worker instead would make its provider clients reachable from this file and
+// break the spine's structural zero-spend guard.
+import { enqueueWorkoutInsight } from "@/lib/jobs/workout-insight-generate-shared";
 
 import { getWorkerPrisma, workerLog } from "./reminder/shared";
 
@@ -125,13 +129,24 @@ export async function runDataArrival(
       break;
 
     case "workout":
-      // DISPATCH POINT — the per-workout Activity Insight consumes this.
-      // It is deliberately NOT gated on `claimed`: two workouts in one day are
-      // two events and both deserve a paragraph, whereas the day-scoped marker
-      // can only be claimed once. Its own once-per-workout key, duration
-      // floor, hard daily cap, input hash and token-ledger reservation bound
-      // the spend — none of which belong in the spine.
-      actions.push("workout_pending_insight");
+      // The per-workout Activity Insight. Deliberately NOT gated on `claimed`:
+      // two workouts in one day are two events and both deserve a paragraph,
+      // whereas the day-scoped marker can only be claimed once. Its own
+      // once-per-workout key, duration floor, hard daily cap, input hash and
+      // token-ledger reservation bound the spend — none of which belong in the
+      // spine, which is why only the generator-free enqueue is imported here.
+      if (arrival.refId) {
+        await enqueueWorkoutInsight({
+          userId: arrival.userId,
+          workoutId: arrival.refId,
+        });
+        actions.push("workout_insight_enqueued");
+      } else {
+        // A workout arrival with no referent cannot address a paragraph. The
+        // seams always carry one; annotating rather than guessing keeps a
+        // future seam that forgets it visible.
+        actions.push("workout_no_ref");
+      }
       break;
 
     case "weight":

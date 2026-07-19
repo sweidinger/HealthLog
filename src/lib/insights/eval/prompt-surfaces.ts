@@ -45,6 +45,10 @@ import {
   getWeightSystemPrompt,
   getWeightUserPrompt,
 } from "@/lib/ai/prompts/weight";
+import {
+  getWorkoutInsightSystemPrompt,
+  getWorkoutInsightUserPrompt,
+} from "@/lib/ai/prompts/workout-insight";
 import type { MetricStatusMeta } from "@/lib/insights/metric-status-registry";
 
 /** Inert snapshot placeholder — the rules never read it. */
@@ -169,5 +173,13 @@ export const ASSESSMENT_SURFACES: readonly AssessmentSurface[] = [
     name: "biomarker",
     system: (l) => getBiomarkerSystemPrompt("Marker", l),
     user: (l) => getBiomarkerUserPrompt(SNAPSHOT, TODAY, l, OPENER_HINT),
+  },
+  {
+    // Describes one recorded session rather than a metric's trajectory, but it
+    // composes the same base body and owes the same opening contract — so it
+    // is graded here rather than given its own dialect.
+    name: "workout-insight",
+    system: getWorkoutInsightSystemPrompt,
+    user: (l) => getWorkoutInsightUserPrompt(SNAPSHOT, TODAY, l, OPENER_HINT),
   },
 ];

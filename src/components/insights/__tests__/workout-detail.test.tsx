@@ -11,6 +11,7 @@ import {
   WorkoutDetailSplits,
   WorkoutDetailDayLinks,
 } from "../workout-detail";
+import { WorkoutInsightCard } from "../workout-detail/insight-slot";
 import type { WorkoutDetailPayload } from "@/hooks/use-workouts";
 import type { RouteCoordinate } from "@/lib/workouts/route-svg";
 
@@ -260,5 +261,44 @@ describe("<WorkoutDetailDayLinks>", () => {
     expect(html).toContain('href="/insights/pulse"');
     expect(html).toContain('href="/insights/sleep"');
     expect(html).toContain('href="/insights/mood"');
+  });
+});
+
+/**
+ * The Activity Insight card.
+ *
+ * Two contracts worth pinning at the render layer: the paragraph is shown
+ * verbatim, and it is shown as TEXT. Model output rendered as markup is an XSS
+ * surface, and this project ships no markdown library precisely so that the
+ * question never arises — a test is what keeps someone from "improving" that.
+ */
+describe("<WorkoutInsightCard>", () => {
+  it("renders the paragraph under the card's title", () => {
+    const html = render(
+      <WorkoutInsightCard
+        insight={{
+          paragraph: "A steady, aerobic-leaning ride.",
+          generatedAt: "2026-05-15T07:35:00Z",
+        }}
+      />,
+    );
+    expect(html).toContain("A steady, aerobic-leaning ride.");
+    expect(html).toContain('data-slot="workout-detail-insight"');
+  });
+
+  it("escapes markup rather than rendering it", () => {
+    const html = render(
+      <WorkoutInsightCard
+        insight={{
+          paragraph: '<img src=x onerror="alert(1)"> **bold**',
+          generatedAt: "2026-05-15T07:35:00Z",
+        }}
+      />,
+    );
+    // The tag is escaped, not emitted, and the asterisks stay literal — there
+    // is no markdown renderer in the path and there must not be one.
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img");
+    expect(html).toContain("**bold**");
   });
 });
