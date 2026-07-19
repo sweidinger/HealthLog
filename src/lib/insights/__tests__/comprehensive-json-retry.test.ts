@@ -18,6 +18,12 @@ const extractFeatures = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // The briefing path now reserves against the day's token ledger before
+    // egress and reconciles after (`reserveBudget` / `reconcileSpend`), both
+    // over raw SQL. A zero prior total keeps every generation under the cap,
+    // so these suites keep testing what they were written to test.
+    $queryRaw: vi.fn(async () => [{ total_tokens: 0 }]),
+    $executeRaw: vi.fn(async () => 0),
     user: {
       findUnique: (...a: unknown[]) => findUnique(...a),
       update: (...a: unknown[]) => userUpdate(...a),

@@ -41,11 +41,7 @@ import {
 } from "@/lib/ai/coach/about-me";
 import { metricsFromPresentSections } from "@/lib/ai/medical-references";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
-import {
-  insightResultSchema,
-  singleUserTurn,
-  type InsightResult,
-} from "@/lib/ai/types";
+import { insightResultSchema, type InsightResult } from "@/lib/ai/types";
 import { AI_BUDGETS, resolveInsightsMaxTokens } from "@/lib/ai/ai-budgets";
 import { resolveEffectiveTimeoutMs } from "@/lib/ai/effective-timeout";
 import {
@@ -53,10 +49,11 @@ import {
   readBriefingFailure,
 } from "@/lib/insights/briefing-failure-marker";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
+import { AllProvidersFailedError } from "@/lib/ai/provider-runner";
 import {
-  AllProvidersFailedError,
-  runRawCompletionWithFallback,
-} from "@/lib/ai/provider-runner";
+  BriefingBudgetExceededError,
+  runBriefingCompletion,
+} from "@/lib/insights/briefing-provider";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
 import { screenInsightPayloadProse } from "@/lib/ai/safety/insight-payload-screen";
 import {
@@ -650,42 +647,50 @@ export const POST = apiHandler((request: NextRequest) =>
     let workingProviderType: string;
     let fallbackHopCount = 0;
     try {
-      const fallback = await runRawCompletionWithFallback({
+      const fallback = await runBriefingCompletion({
         userId,
-        providers: chain,
-        params: singleUserTurn({
-          // The strict prompt (PROMPT_VERSION 4.20.x) carries GROUND RULE 8
-          // — emit a top-level `dailyBriefing` block when the snapshot has
-          // analysable signal — plus the trendAnnotations and
-          // storyboardAnnotations rules. The legacy `getInsightsSystemPrompt`
-          // returned the v1.4.5 `{changed, stable, drivers, …}` shape and
-          // never asked the model for dailyBriefing, so the hero strip's
-          // "Re-run analysis" button kept producing a payload with no
-          // briefing block (Issue 1, v1.4.20 post-deploy). The route already
-          // tolerates the strict shape via `insightResultSchema.safeParse`'s
-          // soft fallback to `parsed` and `passthrough()` on the strict
-          // schema, so switching the prompt does not break legacy callers.
-          system: buildSystemPromptWithReferences(locale, referenceMetrics),
-          user: userPrompt,
-          temperature: 0.3,
-          // v1.28.28 (#470) — env-tunable output ceiling (INSIGHTS_MAX_TOKENS,
-          // default 2500). The old fixed 1500 truncated verbose models'
-          // briefing JSON mid-string → generic invalid-JSON 422.
-          maxTokens: resolveInsightsMaxTokens(),
-          // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
-          // generation is not aborted at the client's 60 s default on large
-          // accounts (which returned an empty briefing + trend narrative).
-          // v1.25 — honours the per-user response-timeout setting.
-          timeoutMs: effectiveTimeoutMs,
-          // The reply is parsed with `JSON.parse` below, so opt the OpenAI /
-          // Codex chains into their strict JSON mode (gated on this flag).
-          responseFormat: "json",
-        }),
+        chain,
+        // The strict prompt (PROMPT_VERSION 4.20.x) carries GROUND RULE 8
+        // — emit a top-level `dailyBriefing` block when the snapshot has
+        // analysable signal — plus the trendAnnotations and
+        // storyboardAnnotations rules. The legacy `getInsightsSystemPrompt`
+        // returned the v1.4.5 `{changed, stable, drivers, …}` shape and
+        // never asked the model for dailyBriefing, so the hero strip's
+        // "Re-run analysis" button kept producing a payload with no
+        // briefing block (Issue 1, v1.4.20 post-deploy). The route already
+        // tolerates the strict shape via `insightResultSchema.safeParse`'s
+        // soft fallback to `parsed` and `passthrough()` on the strict
+        // schema, so switching the prompt does not break legacy callers.
+        systemPrompt: buildSystemPromptWithReferences(locale, referenceMetrics),
+        userPrompt,
+        temperature: 0.3,
+        // v1.28.28 (#470) — env-tunable output ceiling (INSIGHTS_MAX_TOKENS,
+        // default 2500). The old fixed 1500 truncated verbose models'
+        // briefing JSON mid-string → generic invalid-JSON 422.
+        maxTokens: resolveInsightsMaxTokens(),
+        // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
+        // generation is not aborted at the client's 60 s default on large
+        // accounts (which returned an empty briefing + trend narrative).
+        // v1.25 — honours the per-user response-timeout setting.
+        timeoutMs: effectiveTimeoutMs,
+        stage: "generate",
       });
       result = fallback.result;
       workingProviderType = fallback.workingProvider.providerType;
       fallbackHopCount = fallback.fallbackHops.length;
     } catch (e) {
+      // The day's token ceiling refused the reservation — no provider was
+      // contacted, so this is NOT a provider failure and must not record a
+      // briefing-failure marker (which would make the read path claim the
+      // refresh broke). The hourly rate limit bounds request frequency; this
+      // bounds cost. 429 with a distinct code so the client can say so.
+      if (e instanceof BriefingBudgetExceededError) {
+        return apiError(
+          "Daily AI token budget reached — insights will be available again tomorrow.",
+          429,
+          { errorCode: "insights.generate.budgetExceeded" },
+        );
+      }
       // v1.25 — record a dated failure marker (no cache row is written on this
       // path, so the last good briefing stays intact). The read path pairs the
       // preserved text with a discreet "couldn't refresh" hint, or shows a
@@ -849,21 +854,21 @@ export const POST = apiHandler((request: NextRequest) =>
           meta: { ungroundedCount: ungrounded.length },
         });
         try {
-          const retry = await runRawCompletionWithFallback({
+          const retry = await runBriefingCompletion({
             userId,
-            providers: chain,
-            params: singleUserTurn({
-              system: buildSystemPromptWithReferences(locale, referenceMetrics),
-              user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
-              temperature: 0.3,
-              // v1.28.28 (#470) — same env-tunable ceiling as the first call.
-              maxTokens: resolveInsightsMaxTokens(),
-              // v1.21.5 — wider upstream budget; see the first generation call.
-              // v1.25 — honours the per-user response-timeout setting.
-              timeoutMs: effectiveTimeoutMs,
-              // Parsed with `JSON.parse` below — opt OpenAI / Codex into JSON mode.
-              responseFormat: "json",
-            }),
+            chain,
+            systemPrompt: buildSystemPromptWithReferences(
+              locale,
+              referenceMetrics,
+            ),
+            userPrompt: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
+            temperature: 0.3,
+            // v1.28.28 (#470) — same env-tunable ceiling as the first call.
+            maxTokens: resolveInsightsMaxTokens(),
+            // v1.21.5 — wider upstream budget; see the first generation call.
+            // v1.25 — honours the per-user response-timeout setting.
+            timeoutMs: effectiveTimeoutMs,
+            stage: "grounding-retry",
           });
           const parsedRetry = JSON.parse(retry.result.content);
           const validatedRetry = insightResultSchema.safeParse(parsedRetry);
@@ -881,7 +886,9 @@ export const POST = apiHandler((request: NextRequest) =>
             workingProviderType = retry.workingProvider.providerType;
           }
         } catch {
-          // Retry failed to produce parseable JSON — fall through to the strip.
+          // Retry failed to produce parseable JSON, or the day's ceiling
+          // refused the correction pass — either way fall through to the
+          // strip. An ungrounded figure is never persisted.
         }
       }
       // Still ungrounded after the retry: strip the briefing rather than ship a
