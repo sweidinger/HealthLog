@@ -148,6 +148,7 @@ describe("tone harness — deterministic fallbacks", () => {
       direction: "higher-better",
       n: 21,
       newestDaysAgo: 0,
+      ...over,
     } as unknown as MetricSignal;
   }
 

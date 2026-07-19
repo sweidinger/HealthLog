@@ -60,8 +60,15 @@ const OUTPUT_LANGUAGE_TOKEN = "{{OUTPUT_LANGUAGE}}";
  * prose. They now compose the English body with their language named in the
  * output clause and the locale's own reply-language directive appended last.
  * The German and English prompts are byte-identical to 6.1.0 (test-pinned).
+ * 6.3.0 — the biomarker card joins this prompt. It was the last surface in the
+ * family composing its own inline scaffold, so it carried none of the contracts
+ * below and instructed the model to state the value first. The base sections
+ * are unchanged; the bump exists to re-fingerprint the cached assessments that
+ * were generated under the old inline prompt, since the per-card input hash
+ * folds this constant in. The regeneration is one-time and rides the nightly
+ * warm's existing per-user pacing.
  */
-export const PROMPT_VERSION = "6.2.0" as const;
+export const PROMPT_VERSION = "6.3.0" as const;
 
 /**
  * Base system prompt for the per-metric Insights *assessment* cards.
