@@ -11,9 +11,24 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sendNotificationMock, findManyMock, deleteManyMock } = vi.hoisted(
+// safeFetch's requirePublicHost path drives undici's OWN fetch (version-locked
+// with its dispatcher). Delegate it to the global fetch these tests stub so the
+// existing interception still applies.
+vi.mock("undici", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("undici")>();
+  return {
+    ...actual,
+    fetch: (input: unknown, init?: unknown) =>
+      (globalThis.fetch as unknown as (i: unknown, n?: unknown) => unknown)(
+        input,
+        init,
+      ),
+  };
+});
+
+const { generateRequestDetailsMock, findManyMock, deleteManyMock } = vi.hoisted(
   () => ({
-    sendNotificationMock: vi.fn(),
+    generateRequestDetailsMock: vi.fn(),
     findManyMock: vi.fn(),
     deleteManyMock: vi.fn(),
   }),
@@ -61,7 +76,17 @@ vi.mock("@/lib/validations/notifications", () => ({
 
 vi.mock("web-push", () => ({
   setVapidDetails: vi.fn(),
-  sendNotification: (...args: unknown[]) => sendNotificationMock(...args),
+  // The sender signs + encrypts here and dials through `safeFetch`; the
+  // payload assertions below read the same second argument as before.
+  generateRequestDetails: (...args: unknown[]) => {
+    generateRequestDetailsMock(...args);
+    return {
+      endpoint: "https://push.example.com/x",
+      method: "POST",
+      headers: {},
+      body: null,
+    };
+  },
 }));
 
 import { sendViaWebPush } from "../senders/web-push";
@@ -76,7 +101,7 @@ const SUB = {
 };
 
 beforeEach(() => {
-  sendNotificationMock.mockReset();
+  generateRequestDetailsMock.mockReset();
   findManyMock.mockReset();
   deleteManyMock.mockReset();
   deleteManyMock.mockResolvedValue({ count: 0 });
@@ -96,7 +121,9 @@ describe("medicationDoseTag", () => {
 describe("web-push reminder push — stable tag + badge", () => {
   it("uses metadata.webPushTag as the notification tag and carries the badge", async () => {
     findManyMock.mockResolvedValue([SUB]);
-    sendNotificationMock.mockResolvedValue(undefined);
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(null, { status: 201 }),
+    );
 
     const tag = medicationDoseTag("med-1", "2026-06-18T07:00:00.000Z");
     const res = await sendViaWebPush("user-1", {
@@ -108,7 +135,9 @@ describe("web-push reminder push — stable tag + badge", () => {
     });
 
     expect(res.ok).toBe(true);
-    const body = JSON.parse(sendNotificationMock.mock.calls[0][1] as string);
+    const body = JSON.parse(
+      generateRequestDetailsMock.mock.calls[0][1] as string,
+    );
     expect(body.tag).toBe(tag);
     expect(body.badge).toBe(2);
     expect(body.url).toBe("/medications/med-1");
@@ -116,7 +145,9 @@ describe("web-push reminder push — stable tag + badge", () => {
 
   it("discreet mode still wins over a stable tag (no event name leak)", async () => {
     findManyMock.mockResolvedValue([SUB]);
-    sendNotificationMock.mockResolvedValue(undefined);
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(null, { status: 201 }),
+    );
 
     await sendViaWebPush("user-1", {
       eventType: "CYCLE_PERIOD_SOON",
@@ -127,7 +158,9 @@ describe("web-push reminder push — stable tag + badge", () => {
       metadata: { webPushTag: "med:should-not-leak" },
     });
 
-    const body = JSON.parse(sendNotificationMock.mock.calls[0][1] as string);
+    const body = JSON.parse(
+      generateRequestDetailsMock.mock.calls[0][1] as string,
+    );
     expect(body.tag).toBe("REMINDER");
   });
 });
@@ -135,7 +168,9 @@ describe("web-push reminder push — stable tag + badge", () => {
 describe("clear-on-taken push", () => {
   it("emits type:clear with the SAME slot tag as the reminder + badge", async () => {
     findManyMock.mockResolvedValue([SUB]);
-    sendNotificationMock.mockResolvedValue(undefined);
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(null, { status: 201 }),
+    );
 
     await dispatchMedicationIntakeWebClear({
       userId: "user-1",
@@ -144,8 +179,10 @@ describe("clear-on-taken push", () => {
       badgeCount: 1,
     });
 
-    expect(sendNotificationMock).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(sendNotificationMock.mock.calls[0][1] as string);
+    expect(generateRequestDetailsMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      generateRequestDetailsMock.mock.calls[0][1] as string,
+    );
     expect(body.type).toBe("clear");
     expect(body.tag).toBe(
       medicationDoseTag("med-1", "2026-06-18T07:00:00.000Z"),
@@ -155,7 +192,9 @@ describe("clear-on-taken push", () => {
 
   it("a count of 0 clears the badge (badge:0 on the wire)", async () => {
     findManyMock.mockResolvedValue([SUB]);
-    sendNotificationMock.mockResolvedValue(undefined);
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(null, { status: 201 }),
+    );
 
     await dispatchMedicationIntakeWebClear({
       userId: "user-1",
@@ -164,7 +203,9 @@ describe("clear-on-taken push", () => {
       badgeCount: 0,
     });
 
-    const body = JSON.parse(sendNotificationMock.mock.calls[0][1] as string);
+    const body = JSON.parse(
+      generateRequestDetailsMock.mock.calls[0][1] as string,
+    );
     expect(body.badge).toBe(0);
   });
 
@@ -177,12 +218,14 @@ describe("clear-on-taken push", () => {
         scheduledFor: "2026-06-18T07:00:00.000Z",
       }),
     ).resolves.toBeUndefined();
-    expect(sendNotificationMock).not.toHaveBeenCalled();
+    expect(generateRequestDetailsMock).not.toHaveBeenCalled();
   });
 
   it("reaps expired (410) subscriptions", async () => {
     findManyMock.mockResolvedValue([SUB]);
-    sendNotificationMock.mockRejectedValue({ statusCode: 410 });
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(null, { status: 410 }),
+    );
 
     await dispatchMedicationIntakeWebClear({
       userId: "user-1",
