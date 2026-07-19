@@ -8491,7 +8491,12 @@
       "title": "Dettagli del documento",
       "summary": {
         "title": "Riepilogo",
-        "pending": "Il riepilogo è in preparazione."
+        "pending": "Il riepilogo è in preparazione.",
+        "none": "Non è ancora stato generato alcun riepilogo per questo documento.",
+        "withheld": "Un riepilogo è stato generato ma non ha superato il controllo di sicurezza, quindi non viene mostrato. Puoi riprovare o leggere il documento stesso.",
+        "unavailable": "Non è stato possibile generare un riepilogo per questo documento.",
+        "generate": "Genera riepilogo",
+        "generating": "Generazione…"
       },
       "loadError": "Impossibile caricare questo documento.",
       "saveError": "Impossibile salvare la modifica.",
@@ -8573,7 +8578,6 @@
       "close": "Nascondi"
     },
     "ai": {
-      "statusAiRead": "Letto dall’IA",
       "readDone": "L’IA ha letto il tuo documento.",
       "read": "Leggi con l’IA",
       "reread": "Leggi di nuovo",
@@ -8756,8 +8760,11 @@
     "item": {
       "doseWindow": {
         "title": "Farmaco da assumere",
-        "body": "Oggi è prevista una dose.",
-        "bodyNamed": "{name} è previsto oggi."
+        "body": "Una dose è prevista a breve.",
+        "bodyNamed": "{name} è previsto a breve.",
+        "overdueTitle": "Farmaco in ritardo",
+        "overdueBody": "Una dose è in ritardo.",
+        "overdueBodyNamed": "{name} è in ritardo."
       },
       "preventiveCare": {
         "title": "Controllo da fare",
@@ -8811,7 +8818,6 @@
       "deltaVsBaseline": "{delta} rispetto al tuo valore di riferimento",
       "deltaFlat": "In linea con il tuo valore di riferimento",
       "sleepPending": "Il sonno di stanotte non è ancora arrivato: la lettura di oggi è provvisoria.",
-      "readFullBriefing": "Leggi il briefing completo",
       "worthALook": "Da tenere d'occhio",
       "allClear": "Oggi nulla richiede la tua attenzione.",
       "ringLink": "Apri i dettagli di {metric}"

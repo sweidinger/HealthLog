@@ -6080,6 +6080,31 @@ enum InboundDocumentStatus {
   @@map("inbound_document_status")
 }
 
+/// Outcome of a document's plain-language summary. Recorded so the detail view
+/// states what happened rather than claiming generation is in progress for a
+/// job that was never enqueued.
+///
+/// WITHHELD deserves a note: the outbound safety screen tripped, so the model's
+/// prose is discarded and NEVER shown. Only the fact of the refusal is kept, and
+/// it is deliberately not terminal — the user can ask again, which is the whole
+/// reason this is a state and not a stored refusal string.
+enum DocumentSummaryState {
+  /// Never attempted — the opt-in was off at upload, or the document predates
+  /// the feature. The default, so every existing row is correct.
+  NONE
+  /// Enqueued or running.
+  PENDING
+  /// A summary was produced and is stored in `summaryEncrypted`.
+  READY
+  /// Produced, then blocked by the outbound safety screen. Text discarded.
+  WITHHELD
+  /// Attempted and could not produce one — no vision provider, spent budget,
+  /// withdrawn consent, an unreadable file, or a provider error.
+  UNAVAILABLE
+
+  @@map("document_summary_state")
+}
+
 /// The FHIR resource an extracted fact maps to (STATED status only): a
 /// diagnosis → Condition, a measured value → Observation, a medication the
 /// patient is/was taking → MedicationStatement.
@@ -6166,6 +6191,13 @@ model InboundDocument {
   /// When the background summary was generated (null until it runs). Surfaced
   /// as meta beside the summary in the document detail view.
   summaryGeneratedAt DateTime?             @map("summary_generated_at")
+  /// What actually happened to this document's summary, so the detail view can
+  /// tell the four outcomes apart instead of reading a null column as "still
+  /// generating". `summaryEncrypted` alone cannot: a document nobody ever
+  /// enqueued, one whose provider is missing, one the safety screen withheld,
+  /// and one mid-flight all leave it null. NONE is the default, which keeps
+  /// every pre-existing row correct — none of them were ever attempted.
+  summaryState       DocumentSummaryState  @default(NONE) @map("summary_state")
 
   facts           ExtractedFact[]
   conditionLinks  DocumentConditionLink[]

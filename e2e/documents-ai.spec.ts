@@ -351,24 +351,24 @@ test.describe("document vault — AI assist + content search", () => {
     expect(indexHadJsonBody).toBe(false);
   });
 
-  // ── (h) Provenance: a provider-read document is marked "Read by AI" ──────
+  // ── (h) The detail view does not label how the text was extracted ────────
 
-  test("a vision-indexed document surfaces the AI-read provenance", async ({
+  test("a vision-indexed document carries no extraction-provenance line", async ({
     page,
   }) => {
-    // CONTENT_DOC_ID is seeded with source "vision" (an AI provider read it).
-    // No mocks: the real detail GET threads the provenance through. v1.28.38 —
-    // the vault card no longer carries the AI-read glyph (it looked wrong on
-    // the card face); the provenance now lives as a calm muted meta line in the
-    // document DETAIL view. Deep-link straight to the document so the sheet
-    // opens deterministically (the vault grid is virtualized).
+    // CONTENT_DOC_ID is seeded with source "vision". The detail view used to
+    // print a "Read by AI" meta line under the summary; it told the reader
+    // nothing they could act on — how the text came out of the page is our
+    // plumbing, not their business — so it is gone. This test keeps it gone:
+    // the sheet still opens on the deep link, and the line stays absent.
     await page.goto(`/documents?doc=${CONTENT_DOC_ID}`);
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
 
-    const marker = sheet.locator('[data-slot="document-detail-ai-read"]');
-    await expect(marker).toBeVisible();
-    await expect(marker).toHaveText("Read by AI");
+    await expect(
+      sheet.locator('[data-slot="document-detail-ai-read"]'),
+    ).toHaveCount(0);
+    await expect(sheet.getByText("Read by AI")).toHaveCount(0);
   });
 
   // ── (f) Text-mode refuses a non-image before any OCR/upload ──────────────

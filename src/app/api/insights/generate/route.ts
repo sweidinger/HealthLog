@@ -847,6 +847,7 @@ export const POST = apiHandler((request: NextRequest) =>
         readBriefingBlock(insights),
         signals,
         features,
+        comparisonSnapshot,
       );
       if (ungrounded.length > 0) {
         annotate({
@@ -879,6 +880,7 @@ export const POST = apiHandler((request: NextRequest) =>
             readBriefingBlock(retryInsights),
             signals,
             features,
+            comparisonSnapshot,
           );
           if (ungrounded.length === 0) {
             insights = retryInsights;
@@ -891,14 +893,40 @@ export const POST = apiHandler((request: NextRequest) =>
           // strip. An ungrounded figure is never persisted.
         }
       }
-      // Still ungrounded after the retry: strip the briefing rather than ship a
-      // fabricated figure. The structured recommendations/citations stay.
+      // Still ungrounded after the retry: the freshly generated briefing is
+      // discarded rather than shipped — the anti-fabrication guarantee is
+      // absolute here too. But rather than leave a hole, stand the PREVIOUS
+      // cached briefing in its place: it passed this identical gate when it
+      // was written, so it carries no fabricated figure, and a day-old
+      // grounded briefing beats a vanished one. This mirrors the background
+      // generator, which is the path that writes the same cached payload;
+      // the two must not disagree on disposal.
+      //
+      // `briefingOmittedReason` is set ONLY when no previous briefing exists
+      // to stand in, so the card's honest "a figure couldn't be verified"
+      // state still fires exactly when the user really has no briefing.
       if (ungrounded.length > 0 && insights && typeof insights === "object") {
-        (insights as Record<string, unknown>).dailyBriefing = null;
-        briefingOmittedReason = "ungrounded";
+        let fallbackBriefing: unknown = null;
+        if (dbUser?.insightsCachedText) {
+          try {
+            const prev = JSON.parse(dbUser.insightsCachedText) as Record<
+              string,
+              unknown
+            >;
+            fallbackBriefing = prev.dailyBriefing ?? null;
+          } catch {
+            // Unparseable previous payload — nothing safe to stand in.
+          }
+        }
+        (insights as Record<string, unknown>).dailyBriefing = fallbackBriefing;
+        briefingOmittedReason = fallbackBriefing == null ? "ungrounded" : null;
         annotate({
           action: { name: "insights.generate.briefing_grounding_stripped" },
-          meta: { ungroundedCount: ungrounded.length },
+          meta: {
+            ungroundedCount: ungrounded.length,
+            briefing_fallback:
+              fallbackBriefing != null ? "previous-cached" : "stripped",
+          },
         });
       }
     }

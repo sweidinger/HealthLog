@@ -1,0 +1,141 @@
+import { describe, expect, it } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { I18nProvider } from "@/lib/i18n/context";
+import type { DocumentSummaryStateValue } from "@/lib/validations/inbound-documents";
+import { DocumentSummaryBlock } from "../document-summary-block";
+
+/**
+ * The detail view used to read a null summary as "being generated" and say so
+ * forever — for a document nobody ever enqueued as readily as for one actually
+ * in flight. These pin the states apart: only PENDING may claim generation is
+ * running, a stored summary comes from storage, and every dead end offers a way
+ * out.
+ */
+
+function render(node: React.ReactNode) {
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale="en">{node}</I18nProvider>,
+  );
+}
+
+const noop = () => {};
+
+function base(
+  overrides: Partial<React.ComponentProps<typeof DocumentSummaryBlock>> = {},
+) {
+  const props: React.ComponentProps<typeof DocumentSummaryBlock> = {
+    summary: null,
+    summaryState: "NONE",
+    generatedAtLabel: null,
+    aiEnabled: true,
+    isGenerating: false,
+    actionsDisabled: false,
+    onGenerate: noop,
+    ...overrides,
+  };
+  return render(<DocumentSummaryBlock {...props} />);
+}
+
+/** Every state that has no summary to show. */
+const ABSENT_STATES: DocumentSummaryStateValue[] = [
+  "NONE",
+  "WITHHELD",
+  "UNAVAILABLE",
+];
+
+describe("DocumentSummaryBlock — a stored summary", () => {
+  it("renders the stored summary from storage, with its date", () => {
+    const html = base({
+      summary: "A discharge letter from a city hospital.",
+      summaryState: "READY",
+      generatedAtLabel: "14 Feb 2026",
+    });
+
+    expect(html).toContain("A discharge letter from a city hospital.");
+    expect(html).toContain("14 Feb 2026");
+    expect(html).toContain('data-slot="document-detail-summary"');
+    // Nothing claims it is being made — it already exists.
+    expect(html).not.toContain("being prepared");
+    expect(html).not.toContain("document-detail-summary-generate");
+  });
+
+  it("shows a stored summary even if the state disagrees", () => {
+    // The bytes are the truth. A stale state must never hide a real summary.
+    const html = base({ summary: "Stored prose.", summaryState: "PENDING" });
+
+    expect(html).toContain("Stored prose.");
+    expect(html).not.toContain("being prepared");
+  });
+});
+
+describe("DocumentSummaryBlock — honest absent states", () => {
+  it("claims generation is running ONLY for PENDING", () => {
+    const pending = base({ summaryState: "PENDING" });
+
+    expect(pending).toContain("being prepared");
+    expect(pending).toContain('data-slot="document-detail-summary-pending"');
+    // A job is running; offering a second one would double-spend.
+    expect(pending).not.toContain("document-detail-summary-generate");
+  });
+
+  it.each(ABSENT_STATES)(
+    "never says 'being generated' for %s",
+    (summaryState) => {
+      const html = base({ summaryState });
+
+      expect(html).not.toContain("being prepared");
+      expect(html).toContain('data-slot="document-detail-summary-absent"');
+    },
+  );
+
+  it("says a summary was never generated for NONE", () => {
+    expect(base({ summaryState: "NONE" })).toContain(
+      "No summary has been generated for this document yet.",
+    );
+  });
+
+  it("says the summary was withheld, and never shows blocked prose", () => {
+    const html = base({ summaryState: "WITHHELD" });
+
+    expect(html).toContain("did not pass the safety check");
+    // The withheld state carries no summary text — that is the whole contract.
+    expect(html).not.toContain("document-detail-summary&quot;");
+  });
+
+  it("says none could be produced for UNAVAILABLE", () => {
+    expect(base({ summaryState: "UNAVAILABLE" })).toContain(
+      "No summary could be generated for this document.",
+    );
+  });
+
+  it.each(ABSENT_STATES)("offers a way out of %s", (summaryState) => {
+    const html = base({ summaryState });
+
+    expect(html).toContain('data-slot="document-detail-summary-generate"');
+    expect(html).toContain("Generate summary");
+  });
+});
+
+describe("DocumentSummaryBlock — the action", () => {
+  it("states the outcome but offers no action without a provider", () => {
+    const html = base({ summaryState: "UNAVAILABLE", aiEnabled: false });
+
+    // The state is still honest; only the button that would 422 is gone.
+    expect(html).toContain("No summary could be generated for this document.");
+    expect(html).not.toContain("document-detail-summary-generate");
+  });
+
+  it("disables the action while generating, and says so", () => {
+    const html = base({ summaryState: "NONE", isGenerating: true });
+
+    expect(html).toContain("disabled");
+    expect(html).toContain("Generating");
+  });
+
+  it("disables the action while the capability probe resolves", () => {
+    expect(base({ summaryState: "NONE", actionsDisabled: true })).toContain(
+      "disabled",
+    );
+  });
+});

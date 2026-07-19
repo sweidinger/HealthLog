@@ -66,13 +66,13 @@ import { invalidateKeys, queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import {
   INBOUND_DOCUMENT_KINDS,
-  isAiReadSource,
   type DocumentSuggestionDto,
   type DocumentSummaryMode,
   type InboundDocumentDetailDto,
   type InboundDocumentKindValue,
 } from "@/lib/validations/inbound-documents";
 import { DocumentAiSection } from "./document-ai-section";
+import { DocumentSummaryBlock } from "./document-summary-block";
 import type { DocumentAiTarget } from "./document-ai-transport";
 import { DocumentShareSheet } from "./document-share-sheet";
 import { DOCUMENT_KIND_ICONS } from "./document-kind-meta";
@@ -399,6 +399,26 @@ export function DocumentDetailSheet({
     summary.mutate({ mode: aiMode, target: aiTarget, output });
   };
 
+  // Generate the STORED summary from the detail block. Same endpoint as the
+  // action row, but the result is not routed into the transient panel: the
+  // route persists a screened-clean summary, so refetching the document shows
+  // it in place. This runs only on a click — nothing here generates on open.
+  const generateStoredSummary = () => {
+    if (!aiTarget || !documentId) return;
+    summary.reset();
+    summary.mutate(
+      { mode: aiMode, target: aiTarget, output: "summary" },
+      {
+        onSuccess: () => {
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.inboundDocument(documentId),
+          });
+        },
+        onError: (error) => toast.error(t(documentAiErrorKey(error))),
+      },
+    );
+  };
+
   const runIndex = () => {
     if (!aiTarget) return;
     indexDoc.mutate(
@@ -440,12 +460,6 @@ export function DocumentDetailSheet({
   const title = doc?.title ?? doc?.filename ?? t("documents.card.untitled");
   const Icon = doc ? DOCUMENT_KIND_ICONS[doc.kind] : null;
   const originalHref = doc ? `/api/documents/inbound/${doc.id}/original` : "#";
-  // AI-read provenance — surfaced here (the detail view) as calm muted meta
-  // since v1.28.38 dropped the vault-card glyph. Same condition the AI section
-  // uses: a content index exists AND its source is a provider vision/text read.
-  const aiRead = doc
-    ? doc.hasContentIndex && isAiReadSource(doc.contentIndexSource)
-    : false;
 
   return (
     <>
@@ -588,34 +602,19 @@ export function DocumentDetailSheet({
               </div>
             )}
 
-            {doc.summary ? (
-              // Persisted background summary — generated once at upload when the
-              // auto-read opt-in is on. AI narrative body → foreground content;
-              // the generation date is muted meta (UI-STANDARDS §3).
-              <section
-                className="space-y-1.5"
-                data-slot="document-detail-summary"
-              >
-                <p className="text-sm leading-none font-medium">
-                  {t("documents.detail.summary.title")}
-                </p>
-                <p className="text-foreground text-sm">{doc.summary}</p>
-                {doc.summaryGeneratedAt ? (
-                  <p className="text-muted-foreground text-xs">
-                    {format.date(doc.summaryGeneratedAt)}
-                  </p>
-                ) : null}
-              </section>
-            ) : autoReadEnabled ? (
-              // Auto-read is on but no summary yet (still generating, or the
-              // provider could not read this file) — one calm muted hint.
-              <p
-                className="text-muted-foreground text-xs"
-                data-slot="document-detail-summary-pending"
-              >
-                {t("documents.detail.summary.pending")}
-              </p>
-            ) : null}
+            <DocumentSummaryBlock
+              summary={doc.summary}
+              summaryState={doc.summaryState}
+              generatedAtLabel={
+                doc.summaryGeneratedAt
+                  ? format.date(doc.summaryGeneratedAt)
+                  : null
+              }
+              aiEnabled={aiEnabled}
+              isGenerating={summary.isPending}
+              actionsDisabled={capability.isPending}
+              onGenerate={generateStoredSummary}
+            />
 
             <DocumentAiSection
               aiEnabled={aiEnabled}
@@ -829,15 +828,6 @@ export function DocumentDetailSheet({
                 })}
                 {doc.filename ? ` · ${doc.filename}` : ""}
               </p>
-
-              {aiRead ? (
-                <p
-                  data-slot="document-detail-ai-read"
-                  className="text-muted-foreground text-xs"
-                >
-                  {t("documents.ai.statusAiRead")}
-                </p>
-              ) : null}
             </div>
           </div>
         ) : null}

@@ -182,16 +182,58 @@ describe("runDocumentSummaryJob — gating", () => {
 
     expect(reserveBudget).not.toHaveBeenCalled();
     expect(runDocumentSummary).not.toHaveBeenCalled();
-    expect(prisma.inboundDocument.updateMany).not.toHaveBeenCalled();
+    // No summary is written — but the attempt is RECORDED. Leaving the row
+    // untouched is what made the detail view claim "being generated" forever.
+    expect(prisma.inboundDocument.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { summaryState: "UNAVAILABLE" } }),
+    );
   });
 
-  it("refunds the budget and persists nothing when the provider call throws", async () => {
+  it("refunds the budget and records UNAVAILABLE when the provider call throws", async () => {
     vi.mocked(runDocumentSummary).mockRejectedValueOnce(new Error("boom"));
 
     await runDocumentSummaryJob({ userId: "user-1", documentId: "doc-1" });
 
-    // Reservation refunded to zero spend; no write.
+    // Reservation refunded to zero spend; no summary written, state recorded.
     expect(reconcileSpend).toHaveBeenCalledWith("user-1", 5, 0, "2026-07-17");
-    expect(prisma.inboundDocument.updateMany).not.toHaveBeenCalled();
+    expect(prisma.inboundDocument.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { summaryState: "UNAVAILABLE" } }),
+    );
+  });
+
+  it("records WITHHELD — not silence — when the safety screen blocks the summary", async () => {
+    vi.mocked(runDocumentSummary).mockResolvedValueOnce({
+      summary: "",
+      blocked: "dose_directive",
+    } as never);
+
+    await runDocumentSummaryJob({ userId: "user-1", documentId: "doc-1" });
+
+    // The blocked prose NEVER lands. Only the state does, and it is not
+    // terminal — the guard refuses to overwrite READY, nothing else.
+    expect(prisma.inboundDocument.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "doc-1",
+        userId: "user-1",
+        deletedAt: null,
+        summaryState: { not: "READY" },
+      },
+      data: { summaryState: "WITHHELD" },
+    });
+    const calls = vi.mocked(prisma.inboundDocument.updateMany).mock.calls;
+    for (const [arg] of calls) {
+      expect(arg.data).not.toHaveProperty("summaryEncrypted");
+    }
+  });
+
+  it("marks a stored summary READY so the view serves it from storage", async () => {
+    await runDocumentSummaryJob({ userId: "user-1", documentId: "doc-1" });
+
+    expect(prisma.inboundDocument.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ summaryEncrypted: null }),
+        data: expect.objectContaining({ summaryState: "READY" }),
+      }),
+    );
   });
 });

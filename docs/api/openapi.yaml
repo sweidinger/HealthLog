@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.30.30
+  version: 1.30.31
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -29359,6 +29359,14 @@ components:
           anyOf:
             - type: string
             - type: "null"
+        summaryState:
+          type: string
+          enum:
+            - NONE
+            - PENDING
+            - READY
+            - WITHHELD
+            - UNAVAILABLE
       required:
         - id
         - kind
@@ -29383,12 +29391,18 @@ components:
         - facts
         - summary
         - summaryGeneratedAt
+        - summaryState
       additionalProperties: false
-      description: A stored document plus its staged facts. `summary` is a short (3-4 sentence) plain-language description of
-        WHAT the document is, generated once in the background right after upload when the `documentsAutoAiRead` opt-in
-        is ON (that flag is also the standing AI-egress consent); it is descriptive only, never a diagnosis, and is null
-        when auto-read is OFF, no provider is configured, or the background summary has not run yet.
-        `summaryGeneratedAt` is when it was generated (null until then).
+      description: 'A stored document plus its staged facts. `summary` is a short (3-4 sentence) plain-language description of
+        WHAT the document is, generated once and then served from storage; it is descriptive only, never a diagnosis.
+        `summaryGeneratedAt` is when it was generated (null until then). `summaryState` says what became of it, because
+        a null `summary` on its own is ambiguous: NONE = never attempted (the `documentsAutoAiRead` opt-in was off at
+        upload, or the document predates it — no backfill reaches these), PENDING = a job is enqueued or running, READY
+        = stored and returned in `summary`, WITHHELD = generated but blocked by the outbound safety screen and therefore
+        never returned as text, UNAVAILABLE = attempted and could not produce one (no vision provider, spent budget,
+        withdrawn consent, unreadable file, provider error). Only PENDING may be presented as "being generated";
+        WITHHELD and UNAVAILABLE are both re-attemptable via POST `/api/documents/inbound/{id}/summary`. Treat an
+        unknown value as UNAVAILABLE when decoding.'
     ExtractedFact:
       type: object
       properties:

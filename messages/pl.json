@@ -8491,7 +8491,12 @@
       "title": "Szczegóły dokumentu",
       "summary": {
         "title": "Podsumowanie",
-        "pending": "Podsumowanie jest przygotowywane."
+        "pending": "Podsumowanie jest przygotowywane.",
+        "none": "Dla tego dokumentu nie wygenerowano jeszcze podsumowania.",
+        "withheld": "Podsumowanie zostało wygenerowane, ale nie przeszło kontroli bezpieczeństwa, więc nie jest wyświetlane. Możesz spróbować ponownie lub przeczytać sam dokument.",
+        "unavailable": "Nie udało się wygenerować podsumowania dla tego dokumentu.",
+        "generate": "Wygeneruj podsumowanie",
+        "generating": "Generowanie…"
       },
       "loadError": "Nie udało się wczytać tego dokumentu.",
       "saveError": "Nie udało się zapisać zmiany.",
@@ -8573,7 +8578,6 @@
       "close": "Ukryj"
     },
     "ai": {
-      "statusAiRead": "Odczytane przez AI",
       "readDone": "AI odczytało Twój dokument.",
       "read": "Odczytaj z AI",
       "reread": "Odczytaj ponownie",
@@ -8756,8 +8760,11 @@
     "item": {
       "doseWindow": {
         "title": "Lek do przyjęcia",
-        "body": "Dziś przypada dawka.",
-        "bodyNamed": "{name} przypada dziś."
+        "body": "Dawka wkrótce do przyjęcia.",
+        "bodyNamed": "{name} wkrótce do przyjęcia.",
+        "overdueTitle": "Lek zaległy",
+        "overdueBody": "Dawka jest zaległa.",
+        "overdueBodyNamed": "{name} jest zaległy."
       },
       "preventiveCare": {
         "title": "Badanie do wykonania",
@@ -8811,7 +8818,6 @@
       "deltaVsBaseline": "{delta} wzgl. Twojej wartości bazowej",
       "deltaFlat": "Zgodnie z Twoją wartością bazową",
       "sleepPending": "Sen z ostatniej nocy jeszcze nie dotarł — dzisiejszy odczyt jest wstępny.",
-      "readFullBriefing": "Przeczytaj pełny briefing",
       "worthALook": "Warto sprawdzić",
       "allClear": "Dziś nic nie wymaga Twojej uwagi.",
       "ringLink": "Otwórz szczegóły: {metric}"

@@ -43,6 +43,7 @@ import {
   COACH_CHECKIN_LETGO_INTENT,
   COACH_CHECKIN_ADJUST_INTENT,
 } from "@/lib/daily/coach-checkin-intents";
+import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
 
 /** At most three rail items — a glance, never a wall (§2.5, never padded). */
 export const MAX_WORTH_A_LOOK = 3;
@@ -247,37 +248,91 @@ function integrationLabel(token: string): string {
 }
 
 /**
- * Dose-window item — fires when an active-medication dose is open and overdue.
+ * How far ahead of its anchor a not-yet-overdue dose reaches the Today card.
+ *
+ * DERIVED, not picked: `dailyOnTimeMinutes` opens a slot's on-time window
+ * ahead of the target instant, and `earlyGraceMinutes` grants a bounded take
+ * before that window still credits the slot. Their sum is therefore exactly
+ * the moment a dose becomes TAKEABLE — the moment the card's one action
+ * ("Log dose") starts landing on the slot it names. Surfacing earlier would
+ * offer an action that does not yet credit anything; surfacing later would
+ * hide a dose the user could already take. A dose further out than this is a
+ * scheduled event, not today's pending business, and stays off the rail.
+ */
+export const DOSE_DUE_LOOKAHEAD_MS =
+  (DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes +
+    DOSE_WINDOW_DEFAULTS.earlyGraceMinutes) *
+  60_000;
+
+/**
+ * Dose-window item — the day's medication action, in two distinct faces.
+ *
+ * OVERDUE: an open slot whose anchor has passed. `warning` status, past-due
+ * wording — the one genuinely time-critical daily action.
+ *
+ * DUE: a slot the user can already take (within `DOSE_DUE_LOOKAHEAD_MS`) but
+ * that is not yet late. `info` status, "due soon" wording — present on the
+ * card because Today is a surface the user OPENS to see what the day asks of
+ * them, not a notification that arrives uninvited. The no-nagging rule governs
+ * PUSH (the reminder cron still fires only on overdue); a deliberately-opened
+ * card that stays silent about a dose the user can take right now is simply
+ * withholding the answer the surface exists to give.
+ *
+ * Neither face is manufactured on a settled day: once every scheduled dose is
+ * resolved, the next display-due slot lies beyond the lookahead and nothing is
+ * emitted. A `nextDueAt` in the PAST with `nextDueOverdue: false` is the
+ * documented cached-block shape (`MedsTodayBlock`) — the anchor passed after
+ * the block was built — and renders as neither face until a fresh block lands.
+ *
  * Gated on the `medications` module; carries a single log-dose action.
  */
 function buildDoseWindowItem(
   meds: MedsTodayBlock,
   modules: DigestModuleMap,
+  now: Date,
   t: Translate,
 ): PriorityItem | null {
   if (!moduleEnabled(modules, "medications")) return null;
-  if (!meds.nextDueOverdue) return null;
+
   const name = meds.nextDueMedicationName;
   const id = meds.nextDueMedicationId;
+  const action = {
+    labelKey: "daily.action.logDose",
+    intent: "dose.log",
+    // Deep-link straight to the due medication's card so the tap lands on the
+    // right one instead of a generic list the user then has to scan (the id is
+    // known server-side whenever the name is). The bare list stays the honest
+    // fallback for an older cached block that predates the id field.
+    href: id ? `/medications?highlight=${id}` : "/medications",
+  };
+
+  if (meds.nextDueOverdue) {
+    return {
+      kind: "dose_window",
+      title: t("daily.item.doseWindow.overdueTitle"),
+      body: name
+        ? t("daily.item.doseWindow.overdueBodyNamed", { name })
+        : t("daily.item.doseWindow.overdueBody"),
+      status: "warning",
+      actions: [action],
+      moduleKey: "medications",
+    };
+  }
+
+  if (!meds.nextDueAt) return null;
+  const dueAt = Date.parse(meds.nextDueAt);
+  if (!Number.isFinite(dueAt)) return null;
+  const lead = dueAt - now.getTime();
+  if (lead < 0 || lead > DOSE_DUE_LOOKAHEAD_MS) return null;
+
   return {
     kind: "dose_window",
     title: t("daily.item.doseWindow.title"),
     body: name
       ? t("daily.item.doseWindow.bodyNamed", { name })
       : t("daily.item.doseWindow.body"),
-    status: "warning",
-    actions: [
-      {
-        labelKey: "daily.action.logDose",
-        intent: "dose.log",
-        // Deep-link straight to the overdue medication's card so the tap
-        // lands on the right one instead of a generic list the user then
-        // has to scan (the id is known server-side whenever the name is).
-        // The bare list stays the honest fallback for an older cached
-        // block that predates the id field.
-        href: id ? `/medications?highlight=${id}` : "/medications",
-      },
-    ],
+    status: "info",
+    actions: [action],
     moduleKey: "medications",
   };
 }
@@ -592,12 +647,17 @@ export function buildDailyDigest(
   const topSignal = input.briefing?.signalsOfDay?.[0] ?? null;
   const briefingLead = firstSentence(input.briefing?.paragraph);
 
-  // Priority order: an overdue dose is the most time-sensitive daily action, a
-  // broken sync next, then the calm coach check-in, a preventive check-up
-  // least urgent. Bounded to 3 — a check-in the cap crowds out resurfaces on a
-  // following day (within its window), never lost.
+  // Priority order: a due or overdue dose is the most time-sensitive daily
+  // action, a broken sync next, then the calm coach check-in, a preventive
+  // check-up least urgent. Bounded to 3 — a check-in the cap crowds out
+  // resurfaces on a following day (within its window), never lost.
   const worthALook: PriorityItem[] = [];
-  const dose = buildDoseWindowItem(input.medsToday, input.modules, t);
+  const dose = buildDoseWindowItem(
+    input.medsToday,
+    input.modules,
+    input.now,
+    t,
+  );
   if (dose) worthALook.push(dose);
   // A freshly-reached milestone is rare and one-per-day — surface it ahead of
   // the ambient sync / check-in items so the calm reward is not buried, but

@@ -23,6 +23,7 @@ import {
   documentUpdateSchema,
   inboundConfirmSchema,
   inboundFactEditSchema,
+  DOCUMENT_SUMMARY_STATES,
   INBOUND_DOCUMENT_KINDS,
   INBOUND_DOCUMENT_STATUSES,
 } from "@/lib/validations/inbound-documents";
@@ -165,11 +166,12 @@ const inboundDocumentDetail = inboundDocument
     facts: z.array(extractedFact),
     summary: z.string().nullable(),
     summaryGeneratedAt: z.string().nullable(),
+    summaryState: z.enum(DOCUMENT_SUMMARY_STATES),
   })
   .meta({
     id: "InboundDocumentDetail",
     description:
-      "A stored document plus its staged facts. `summary` is a short (3-4 sentence) plain-language description of WHAT the document is, generated once in the background right after upload when the `documentsAutoAiRead` opt-in is ON (that flag is also the standing AI-egress consent); it is descriptive only, never a diagnosis, and is null when auto-read is OFF, no provider is configured, or the background summary has not run yet. `summaryGeneratedAt` is when it was generated (null until then).",
+      'A stored document plus its staged facts. `summary` is a short (3-4 sentence) plain-language description of WHAT the document is, generated once and then served from storage; it is descriptive only, never a diagnosis. `summaryGeneratedAt` is when it was generated (null until then). `summaryState` says what became of it, because a null `summary` on its own is ambiguous: NONE = never attempted (the `documentsAutoAiRead` opt-in was off at upload, or the document predates it — no backfill reaches these), PENDING = a job is enqueued or running, READY = stored and returned in `summary`, WITHHELD = generated but blocked by the outbound safety screen and therefore never returned as text, UNAVAILABLE = attempted and could not produce one (no vision provider, spent budget, withdrawn consent, unreadable file, provider error). Only PENDING may be presented as "being generated"; WITHHELD and UNAVAILABLE are both re-attemptable via POST `/api/documents/inbound/{id}/summary`. Treat an unknown value as UNAVAILABLE when decoding.',
   });
 
 const listResponse = z

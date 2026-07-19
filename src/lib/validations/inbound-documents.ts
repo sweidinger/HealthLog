@@ -98,6 +98,22 @@ export function toContentIndexSource(
     : null;
 }
 
+/**
+ * What became of a document's plain-language summary. Mirrors the Prisma
+ * `DocumentSummaryState` enum. The detail view branches on this rather than on
+ * a null summary, which cannot tell "never attempted" from "in flight" from
+ * "withheld" from "could not produce".
+ */
+export const DOCUMENT_SUMMARY_STATES = [
+  "NONE",
+  "PENDING",
+  "READY",
+  "WITHHELD",
+  "UNAVAILABLE",
+] as const;
+export type DocumentSummaryStateValue =
+  (typeof DOCUMENT_SUMMARY_STATES)[number];
+
 /** The document lifecycle states. STORED is the library default. */
 export const INBOUND_DOCUMENT_STATUSES = [
   "STORED",
@@ -301,6 +317,13 @@ export interface InboundDocumentDetailDto extends InboundDocumentDto {
   summary: string | null;
   /** When the background summary was generated (ISO 8601), or null. */
   summaryGeneratedAt: string | null;
+  /**
+   * What became of the summary. A null `summary` is ambiguous on its own —
+   * never attempted, mid-flight, withheld by the safety screen and could-not-
+   * produce all look identical — so the view reads this instead of guessing
+   * "still generating".
+   */
+  summaryState: DocumentSummaryStateValue;
 }
 
 // ─── Edit (correction before approval) ─────────────────────────────────────

@@ -176,6 +176,12 @@ async function rerollBriefingParagraph(args: {
    */
   features?: AggregatedFeatures | null;
   /**
+   * The comparison snapshot the SAME `userPrompt` carries as its own section.
+   * The gate walks it for authoritative figures too, so a rerolled paragraph
+   * may narrate the comparison the prompt asked it to narrate.
+   */
+  comparison?: unknown;
+  /**
    * The upstream provider timeout for this re-roll, resolved from the user's
    * response-timeout setting (falling back to the comprehensive budget). The
    * caller resolves it once and threads it in so the re-roll honours the same
@@ -255,6 +261,7 @@ async function rerollBriefingParagraph(args: {
     { paragraph: freshParagraph },
     args.signals,
     args.features,
+    args.comparison,
   );
   if (rerollUngrounded.length > 0) {
     return null;
@@ -777,6 +784,7 @@ export async function generateComprehensiveInsight(
         locale,
         signals: features.signalsOfDay ?? null,
         features,
+        comparison: comparisonSnapshot,
         effectiveTimeoutMs,
       });
       if (rerolled) {
@@ -993,6 +1001,7 @@ export async function generateComprehensiveInsight(
       readBriefingBlock(insights),
       signals,
       features,
+      comparisonSnapshot,
     );
     if (ungrounded.length > 0) {
       annotate({
@@ -1017,6 +1026,7 @@ export async function generateComprehensiveInsight(
           readBriefingBlock(retryInsights),
           signals,
           features,
+          comparisonSnapshot,
         );
         if (retryInsights !== null && retryUngrounded.length === 0) {
           insights = retryInsights;
@@ -1027,24 +1037,30 @@ export async function generateComprehensiveInsight(
           ungrounded = retryUngrounded;
         }
       } catch {
-        // Retry failed on TRANSPORT (provider outage / timeout), not on
-        // content — the model never got its correction chance. A
-        // `BriefingBudgetExceededError` lands here too and is treated the same
-        // way on purpose: the model never got its correction chance either, so
-        // preferring the previously-cached (already-grounded) briefing over a
-        // hole is the right call. The ungrounded text is still never persisted.
+        // Retry failed on TRANSPORT (provider outage / timeout) or on the
+        // day's budget ceiling, rather than on content. Recorded for the
+        // annotation only — the disposal below no longer forks on it.
         retryTransportFailed = true;
       }
     }
     if (ungrounded.length > 0 && insights && typeof insights === "object") {
-      // A content-failed retry (the model repeated ungrounded numbers)
-      // still strips hard — a fabricated figure must never persist. But
-      // when the corrective retry died on transport, prefer the previous
-      // payload's briefing (it passed this same gate when it was written)
-      // over a hole: a day-old briefing beats a vanished one, and the next
-      // successful run replaces it.
+      // The freshly generated briefing is DISCARDED either way — that is the
+      // anti-fabrication guarantee and it is absolute. The only question left
+      // is what stands in its place, and the answer does not depend on WHY the
+      // retry failed.
+      //
+      // This used to fall back to the previous payload's briefing on a
+      // transport failure but leave a hole on a content failure. The asymmetry
+      // had no justification: the previous briefing passed this identical gate
+      // when it was written, so it carries no fabricated figure in either
+      // case, and the user never sees the rejected text either way. All the
+      // hole did was cost the reader their paragraph, signals-of-day, key
+      // findings and recommendations over one unverifiable number — while the
+      // "briefing withheld" notice told them something had gone wrong without
+      // giving them anything usable. A day-old grounded briefing beats a
+      // vanished one on both paths, and the next successful run replaces it.
       let fallbackBriefing: unknown = null;
-      if (retryTransportFailed && dbUser?.insightsCachedText) {
+      if (dbUser?.insightsCachedText) {
         try {
           const prev = JSON.parse(dbUser.insightsCachedText) as Record<
             string,
@@ -1052,7 +1068,7 @@ export async function generateComprehensiveInsight(
           >;
           fallbackBriefing = prev.dailyBriefing ?? null;
         } catch {
-          // Unparseable previous payload — keep the hard strip.
+          // Unparseable previous payload — nothing safe to stand in.
         }
       }
       (insights as Record<string, unknown>).dailyBriefing = fallbackBriefing;
@@ -1062,6 +1078,7 @@ export async function generateComprehensiveInsight(
         meta: {
           locale,
           ungroundedCount: ungrounded.length,
+          retryFailure: retryTransportFailed ? "transport" : "content",
           briefing_fallback:
             fallbackBriefing != null ? "previous-cached" : "stripped",
         },

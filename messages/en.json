@@ -8491,7 +8491,12 @@
       "title": "Document details",
       "summary": {
         "title": "Summary",
-        "pending": "The summary is being prepared."
+        "pending": "The summary is being prepared.",
+        "none": "No summary has been generated for this document yet.",
+        "withheld": "A summary was generated but did not pass the safety check, so it is not shown. You can try again, or read the document itself.",
+        "unavailable": "No summary could be generated for this document.",
+        "generate": "Generate summary",
+        "generating": "Generating…"
       },
       "loadError": "Couldn't load this document.",
       "saveError": "Couldn't save the change.",
@@ -8573,7 +8578,6 @@
       "close": "Hide"
     },
     "ai": {
-      "statusAiRead": "Read by AI",
       "readDone": "The AI read your document.",
       "read": "Read with AI",
       "reread": "Read again",
@@ -8756,8 +8760,11 @@
     "item": {
       "doseWindow": {
         "title": "Medication due",
-        "body": "A dose is due today.",
-        "bodyNamed": "{name} is due today."
+        "body": "A dose is due soon.",
+        "bodyNamed": "{name} is due soon.",
+        "overdueTitle": "Medication overdue",
+        "overdueBody": "A dose is past due.",
+        "overdueBodyNamed": "{name} is past due."
       },
       "preventiveCare": {
         "title": "Check-up due",
@@ -8811,7 +8818,6 @@
       "deltaVsBaseline": "{delta} vs your baseline",
       "deltaFlat": "In line with your baseline",
       "sleepPending": "Last night's sleep isn't in yet — today's read is provisional.",
-      "readFullBriefing": "Read the full briefing",
       "worthALook": "Worth a look",
       "allClear": "Nothing needs your attention today.",
       "ringLink": "Open {metric} details"
