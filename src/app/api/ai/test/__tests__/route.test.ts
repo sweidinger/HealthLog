@@ -289,3 +289,72 @@ describe("POST /api/ai/test — dropdown-aware override", () => {
     expect(body.error).toBe("Anthropic API key not configured");
   });
 });
+
+/**
+ * Cost ceiling. The 5/min bucket bounded burst rate but nothing cumulative —
+ * sustained, it permits ~7 200 probes a day, and with an empty body this route
+ * resolves the SAME provider chain generation uses, which can be the
+ * operator's own credential. So the surface could reach the operator's key
+ * indefinitely with no daily ceiling and no ledger entry at all.
+ */
+describe("POST /api/ai/test — daily ceiling + ledger", () => {
+  function okProvider() {
+    vi.mocked(resolveProviderForTest).mockResolvedValue({
+      type: "anthropic",
+      generateCompletion: vi.fn(async () => ({
+        content: '{"ok":true}',
+        providerType: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        tokensUsed: 5,
+      })),
+    } as never);
+  }
+
+  it("refuses once the per-user daily probe limit is spent", async () => {
+    const { checkRateLimit } = await import("@/lib/rate-limit");
+    okProvider();
+    // Burst bucket fine, cumulative daily bucket exhausted.
+    vi.mocked(checkRateLimit)
+      .mockResolvedValueOnce({ allowed: true } as never)
+      .mockResolvedValueOnce({ allowed: false } as never);
+
+    const response = await POST(emptyRequest() as never);
+
+    expect(response.status).toBe(429);
+    // Refused before any provider egress.
+    expect(resolveProviderForTest).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the day's token budget is already exhausted", async () => {
+    const { reserveBudget } = await import("@/lib/ai/coach/budget");
+    const generateCompletion = vi.fn();
+    vi.mocked(resolveProviderForTest).mockResolvedValue({
+      type: "admin-key",
+      generateCompletion,
+    } as never);
+    vi.mocked(reserveBudget).mockResolvedValueOnce({
+      allowed: false,
+      reserved: 32,
+      totalAfter: 200_000,
+    } as never);
+
+    const response = await POST(emptyRequest() as never);
+
+    expect(response.status).toBe(429);
+    expect(generateCompletion).not.toHaveBeenCalled();
+  });
+
+  it("records a successful probe on the ledger", async () => {
+    const { reconcileSpend } = await import("@/lib/ai/coach/budget");
+    okProvider();
+
+    await POST(emptyRequest() as never);
+
+    expect(reconcileSpend).toHaveBeenCalledWith(
+      "u-1",
+      32,
+      expect.any(Number),
+      "2026-01-01",
+    );
+  });
+});
