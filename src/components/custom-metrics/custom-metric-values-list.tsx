@@ -6,6 +6,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -41,6 +42,7 @@ export function CustomMetricValuesList({
     data: list,
     isLoading,
     isError,
+    refetch,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -68,11 +70,15 @@ export function CustomMetricValuesList({
   );
   const total = list?.pages[0]?.meta.total ?? 0;
 
+  // The error state was honest but a dead end: one red sentence, no way to try
+  // again short of navigating away and back. QueryErrorCard carries the same
+  // message with a retry, matching the sibling custom-metric list.
   if (isError) {
     return (
-      <p className="text-destructive py-8 text-center text-sm">
-        {t("customMetrics.loadError")}
-      </p>
+      <QueryErrorCard
+        description={t("customMetrics.loadError")}
+        onRetry={() => void refetch()}
+      />
     );
   }
 

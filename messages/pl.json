@@ -3036,7 +3036,8 @@
         "crossTraining": "Cross-trening",
         "mixedCardio": "Cardio mieszane",
         "other": "Inne"
-      }
+      },
+      "loadError": "Nie udało się wczytać treningów"
     },
     "bloodGlucose": {
       "title": "Poziom glukozy",
@@ -8279,7 +8280,9 @@
         "finally": "Finally …"
       }
     },
-    "openDetail": "Pokaż szczegóły"
+    "openDetail": "Pokaż szczegóły",
+    "historyLoadError": "Nie udało się wczytać historii testów",
+    "historyLoadErrorHint": "To nie znaczy, że nie masz wyników — nie udało się pobrać listy. Spróbuj ponownie."
   },
   "records": {
     "disclaimer": "To Twoje własne wpisy, a nie diagnoza lekarska. HealthLog nie diagnozuje, nie leczy i ich nie interpretuje.",
@@ -8736,7 +8739,8 @@
       "rowMeta": "{days} z {window} dni · zalecane {value} {unit} (EFSA)",
       "rowMetaNoRef": "{days} z {window} dni",
       "footer": "{tracked} z {total} śledzonych mikroskładników ma dane w tym okresie.",
-      "emptyTitle": "Brak jeszcze zsynchronizowanych danych o mikroskładnikach"
+      "emptyTitle": "Brak jeszcze zsynchronizowanych danych o mikroskładnikach",
+      "loadError": "Nie udało się wczytać danych o składnikach odżywczych"
     },
     "sparseNote": "Niska wartość zwykle oznacza tu rzadkie zapisywanie, a nie niedobór — dzienne sumy z Apple Health odzwierciedlają to, co zapisały twoje aplikacje, a nie całkowite spożycie w diecie."
   },

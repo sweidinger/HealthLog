@@ -3036,7 +3036,8 @@
         "crossTraining": "Entreno cruzado",
         "mixedCardio": "Cardio mixto",
         "other": "Otro"
-      }
+      },
+      "loadError": "No se pudieron cargar tus entrenamientos"
     },
     "bloodGlucose": {
       "title": "Glucosa en sangre",
@@ -8279,7 +8280,9 @@
         "finally": "Finally …"
       }
     },
-    "openDetail": "Ver detalles"
+    "openDetail": "Ver detalles",
+    "historyLoadError": "No se pudo cargar tu historial de evaluaciones",
+    "historyLoadErrorHint": "Esto no significa que no tengas resultados: no se pudo obtener la lista. Vuelve a intentarlo."
   },
   "records": {
     "disclaimer": "Son tus propios registros, no un diagnóstico médico. HealthLog no diagnostica, no trata ni los interpreta.",
@@ -8736,7 +8739,8 @@
       "rowMeta": "{days} de {window} días · ref. {value} {unit} (EFSA)",
       "rowMetaNoRef": "{days} de {window} días",
       "footer": "{tracked} de {total} micronutrientes registrados tienen datos en este periodo.",
-      "emptyTitle": "Aún no hay datos de micronutrientes sincronizados"
+      "emptyTitle": "Aún no hay datos de micronutrientes sincronizados",
+      "loadError": "No se pudieron cargar tus datos de nutrientes"
     },
     "sparseNote": "Un valor bajo aquí suele significar un registro escaso, no una deficiencia: los totales diarios de Apple Health reflejan lo que registraron tus apps, no la ingesta dietética total."
   },

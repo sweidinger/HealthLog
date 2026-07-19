@@ -3036,7 +3036,8 @@
         "crossTraining": "Cross-training",
         "mixedCardio": "Cardio mixte",
         "other": "Autre"
-      }
+      },
+      "loadError": "Tes séances n'ont pas pu être chargées"
     },
     "bloodGlucose": {
       "title": "Glycémie",
@@ -8279,7 +8280,9 @@
         "finally": "Finally …"
       }
     },
-    "openDetail": "Voir les détails"
+    "openDetail": "Voir les détails",
+    "historyLoadError": "Ton historique d'évaluations n'a pas pu être chargé",
+    "historyLoadErrorHint": "Cela ne veut pas dire que tu n'as aucun résultat : la liste n'a pas pu être récupérée. Réessaie."
   },
   "records": {
     "disclaimer": "Ce sont vos propres informations, pas un diagnostic médical. HealthLog ne diagnostique pas, ne traite pas et ne les interprète pas.",
@@ -8736,7 +8739,8 @@
       "rowMeta": "{days} sur {window} jours · réf. {value} {unit} (EFSA)",
       "rowMetaNoRef": "{days} sur {window} jours",
       "footer": "{tracked} des {total} micronutriments suivis ont des données sur cette période.",
-      "emptyTitle": "Aucune donnée de micronutriments synchronisée pour l'instant"
+      "emptyTitle": "Aucune donnée de micronutriments synchronisée pour l'instant",
+      "loadError": "Tes données de nutriments n'ont pas pu être chargées"
     },
     "sparseNote": "Une valeur basse ici signifie généralement un suivi partiel, pas une carence — les totaux journaliers Apple Health reflètent ce que vos applis ont enregistré, pas l'apport alimentaire total."
   },

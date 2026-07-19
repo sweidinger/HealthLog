@@ -3036,7 +3036,8 @@
         "crossTraining": "Cross-Training",
         "mixedCardio": "Mixed Cardio",
         "other": "Sonstiges"
-      }
+      },
+      "loadError": "Deine Workouts konnten nicht geladen werden"
     },
     "bloodGlucose": {
       "title": "Blutzucker",
@@ -8279,7 +8280,9 @@
         "finally": "Finally …"
       }
     },
-    "openDetail": "Details anzeigen"
+    "openDetail": "Details anzeigen",
+    "historyLoadError": "Dein Testverlauf konnte nicht geladen werden",
+    "historyLoadErrorHint": "Das heißt nicht, dass keine Ergebnisse vorliegen — die Liste konnte nicht abgerufen werden. Versuche es erneut."
   },
   "records": {
     "disclaimer": "Das sind deine eigenen Angaben, keine ärztliche Diagnose. HealthLog stellt keine Diagnose, behandelt nicht und deutet nichts.",
@@ -8736,7 +8739,8 @@
       "rowMeta": "{days} von {window} Tagen · Richtwert {value} {unit} (EFSA)",
       "rowMetaNoRef": "{days} von {window} Tagen",
       "footer": "{tracked} von {total} erfassten Mikronährstoffen haben Daten in diesem Zeitraum.",
-      "emptyTitle": "Noch keine Mikronährstoffdaten synchronisiert"
+      "emptyTitle": "Noch keine Mikronährstoffdaten synchronisiert",
+      "loadError": "Deine Nährstoffdaten konnten nicht geladen werden"
     },
     "sparseNote": "Ein niedriger Wert bedeutet hier meist lückenhafte Erfassung, keinen Mangel — die Tagessummen aus Apple Health spiegeln wider, was deine Apps erfasst haben, nicht die gesamte Nahrungsaufnahme."
   },
