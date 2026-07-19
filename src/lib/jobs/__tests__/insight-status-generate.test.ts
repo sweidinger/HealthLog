@@ -108,7 +108,7 @@ describe("enqueueStatusGeneration", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("sends with a per-(user,metric,locale) singletonKey when boss exists", async () => {
+  it("sends with a per-(user,metric) singletonKey when boss exists", async () => {
     const send = vi.fn().mockResolvedValue("job-id");
     getGlobalBoss.mockReturnValue({ send });
     await enqueueStatusGeneration({
@@ -119,8 +119,32 @@ describe("enqueueStatusGeneration", () => {
     expect(send).toHaveBeenCalledWith(
       INSIGHT_STATUS_GENERATE_QUEUE,
       { userId: "u1", metric: "mood", locale: "en" },
-      expect.objectContaining({ singletonKey: "u1:mood:en" }),
+      expect.objectContaining({ singletonKey: "u1:mood" }),
     );
+  });
+
+  /**
+   * Cost guard. The locale on a status read is client-chosen (`?locale=`, or
+   * the `healthlog-locale` cookie), so when it was part of the singleton key
+   * each of the six supported locales opened its own de-dupe slot and one
+   * legitimate generation pass could be multiplied into six. The key must
+   * collapse them: same user, same metric, one queued generation regardless of
+   * how many locales ask.
+   */
+  it("collapses every locale for one metric onto a single singletonKey", async () => {
+    const send = vi.fn().mockResolvedValue("job-id");
+    getGlobalBoss.mockReturnValue({ send });
+
+    for (const locale of ["de", "en", "fr", "es", "it", "pl"] as const) {
+      await enqueueStatusGeneration({ userId: "u1", metric: "mood", locale });
+    }
+
+    const keys = new Set(
+      send.mock.calls.map(
+        (call) => (call[2] as { singletonKey: string }).singletonKey,
+      ),
+    );
+    expect(keys).toEqual(new Set(["u1:mood"]));
   });
 
   it("swallows a boss.send rejection (best-effort enqueue)", async () => {

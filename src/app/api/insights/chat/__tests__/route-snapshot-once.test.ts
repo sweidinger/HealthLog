@@ -220,3 +220,92 @@ describe("coach chat — snapshot sent once per conversation (C4)", () => {
     expect(prompt).toContain("Your BP looks stable.");
   });
 });
+
+/**
+ * The erosion guard.
+ *
+ * The re-ground condition used to be the open-ended `allTurns.length >
+ * TURN_CAP`, which is true for EVERY turn past the history cap — not just the
+ * one that crosses it. So a conversation that ran long re-shipped the full
+ * ~15k-token snapshot on turn 21, 22, 23, … permanently, reinstating exactly
+ * the per-turn cost the snapshot-once design removes, and paying it on the
+ * longest (most expensive) conversations. The intent was always to re-ground
+ * ONCE, at the boundary where the original snapshot scrolls out of the
+ * verbatim window.
+ */
+describe("coach chat — snapshot re-grounds at the elision boundary only", () => {
+  const TURN_CAP = 20;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    runStreamingRawCompletionWithFallback.mockResolvedValue({
+      result: { content: "Your BP looks stable.", tokensUsed: 42, model: "m" },
+      workingProvider: { providerType: "admin-openai" },
+    });
+  });
+
+  /** Drive one turn against a conversation that already has `n` turns on disk. */
+  async function turnWithPriorCount(n: number): Promise<string> {
+    fetchConversationWithMessages.mockResolvedValue({
+      id: "c1",
+      summary: "earlier summary",
+      messages: Array.from({ length: n }, (_, i) => ({
+        role: i % 2 === 0 ? "user" : "assistant",
+        content: `turn ${i}`,
+      })),
+    });
+    await postAndDrain({ conversationId: "c1", message: "next?" });
+    return lastUserPrompt();
+  }
+
+  it("re-grounds on the turn that crosses the cap", async () => {
+    expect(await turnWithPriorCount(TURN_CAP)).toContain(SNAPSHOT_JSON);
+  });
+
+  it("does NOT re-ship the snapshot on every turn past the cap", async () => {
+    // Well past the boundary — these are the turns that used to pay the full
+    // snapshot cost forever.
+    for (const prior of [TURN_CAP + 2, TURN_CAP + 6, TURN_CAP + 20, 58]) {
+      expect(await turnWithPriorCount(prior)).not.toContain(SNAPSHOT_JSON);
+    }
+  });
+
+  it("ships the full snapshot only twice across a 60-turn conversation", async () => {
+    let shipped = 0;
+    const shippedAt: number[] = [];
+
+    // Turn 1 starts a fresh conversation (no prior turns on disk); every later
+    // turn loads the growing history. A successful turn persists both the user
+    // and the assistant message, so the count advances by 2.
+    fetchConversationWithMessages.mockResolvedValue(null);
+    await postAndDrain({ message: "How is my BP?" });
+    if (lastUserPrompt().includes(SNAPSHOT_JSON)) {
+      shipped++;
+      shippedAt.push(0);
+    }
+
+    for (let prior = 2; prior <= 60; prior += 2) {
+      if ((await turnWithPriorCount(prior)).includes(SNAPSHOT_JSON)) {
+        shipped++;
+        shippedAt.push(prior);
+      }
+    }
+
+    // Turn 1 (grounding) + the single crossing at the cap. Under the old
+    // predicate this was 1 + every turn from 20 to 60 — 21 full snapshots.
+    expect(shippedAt).toEqual([0, TURN_CAP]);
+    expect(shipped).toBe(2);
+  });
+
+  /**
+   * The turn count does not advance in fixed steps: the user message is
+   * persisted before the provider call, the assistant message only on success,
+   * so a turn that lost its reply advances the count by 1 instead of 2. An
+   * exact `=== TURN_CAP` equality would be stepped straight over by such a
+   * conversation and would then never re-ground at all. The window must catch
+   * the crossing from either parity.
+   */
+  it("still re-grounds when a lost reply shifts the turn parity", async () => {
+    expect(await turnWithPriorCount(TURN_CAP + 1)).toContain(SNAPSHOT_JSON);
+  });
+});
