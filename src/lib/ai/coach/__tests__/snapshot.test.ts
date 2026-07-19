@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, normalize, resolve } from "node:path";
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -789,14 +789,83 @@ describe("buildCoachSnapshot", () => {
 // the heuristic because the field-name allow-list is the only trigger).
 //
 // Adding a new free-text field name to the heuristic is a one-row edit.
+//
+// v1.30.25 — the file list is DERIVED from the import graph, not hardcoded.
+// The hardcoded list had rotted into uselessness: of its four entries, three
+// (`blood-pressure-status`, `medication-compliance-status`, `glp1-plateau`)
+// were no longer reachable from `snapshot.ts` at all, and the one that was
+// covered a single file out of the dozen that actually emit free text. That is
+// why an un-sanitised lab analyte name reached the prompt for several releases
+// without this guard noticing — `labs-snapshot.ts` was never on the list, and
+// no one had reason to add it.
+//
+// A list nobody updates is worse than no list, because it reads as coverage.
+// So walk the real graph: start at `snapshot.ts`, follow every internal import
+// transitively, and keep the files under the Coach / insights trees. A new
+// snapshot block is covered the moment it is imported.
 // ────────────────────────────────────────────────────────────────────
 
-const SNAPSHOT_BUILDER_FILES = [
-  "src/lib/ai/coach/glp1-snapshot.ts",
-  "src/lib/insights/blood-pressure-status.ts",
-  "src/lib/insights/medication-compliance-status.ts",
-  "src/lib/insights/glp1-plateau.ts",
-];
+/** Resolve a `@/…` or relative import specifier onto a repo-relative .ts path. */
+function resolveImport(fromFile: string, spec: string): string | null {
+  let base: string;
+  if (spec.startsWith("@/")) {
+    base = `src/${spec.slice(2)}`;
+  } else if (spec.startsWith(".")) {
+    const dir = dirname(fromFile);
+    base = normalize(join(dir, spec));
+  } else {
+    // A bare package specifier — not our source.
+    return null;
+  }
+  for (const candidate of [`${base}.ts`, `${base}/index.ts`, base]) {
+    if (
+      candidate.endsWith(".ts") &&
+      existsSync(resolve(process.cwd(), candidate))
+    ) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * Every internal source file reachable from `snapshot.ts`, bounded to the
+ * Coach + insights trees (the snapshot-builder surface). Generated Prisma
+ * types and node_modules are excluded by construction — neither resolves to a
+ * `src/lib/{ai/coach,insights}` path.
+ */
+function snapshotBuilderFiles(): string[] {
+  const ENTRY = "src/lib/ai/coach/snapshot.ts";
+  const IMPORT_RE =
+    /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+["']([^"']+)["']/g;
+  const seen = new Set<string>();
+  const queue = [ENTRY];
+
+  while (queue.length > 0) {
+    const file = queue.pop() as string;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const source = readFileSync(resolve(process.cwd(), file), "utf-8");
+    for (const match of source.matchAll(IMPORT_RE)) {
+      const target = resolveImport(file, match[1]);
+      if (!target) continue;
+      // `@/generated/**` is the Prisma client — never open it, and it carries
+      // no prompt text.
+      if (target.startsWith("src/generated/")) continue;
+      if (!seen.has(target)) queue.push(target);
+    }
+  }
+
+  return [...seen]
+    .filter(
+      (f) =>
+        f.startsWith("src/lib/ai/coach/") || f.startsWith("src/lib/insights/"),
+    )
+    .filter((f) => !f.includes("__tests__"))
+    .sort();
+}
+
+const SNAPSHOT_BUILDER_FILES = snapshotBuilderFiles();
 
 /**
  * Field names that consistently mean "free-text the user typed". This
@@ -907,6 +976,29 @@ describe("Coach snapshot — free-text fields wrap through sanitizeForPrompt (L-
       expect(violations).toEqual([]);
     });
   }
+
+  // A DERIVED list can fail open in a way a hardcoded one cannot: if the
+  // import resolver ever stops matching (a path-alias change, a move to
+  // `import type`, a bundler rewrite), it silently yields [] and every
+  // assertion above vanishes with the suite still green. Pin the floor.
+  it("the derived file list actually resolves the snapshot graph", () => {
+    expect(SNAPSHOT_BUILDER_FILES.length).toBeGreaterThan(20);
+    // Named anchors: the blocks that carry user-controlled or
+    // document-sourced free text. If any of these drops out of the graph,
+    // the guard has stopped covering the surface it exists to cover.
+    for (const required of [
+      "src/lib/ai/coach/labs-snapshot.ts",
+      "src/lib/ai/coach/illness-snapshot.ts",
+      "src/lib/ai/coach/glp1-snapshot.ts",
+      "src/lib/ai/coach/memory-snapshot.ts",
+      "src/lib/ai/coach/plans.ts",
+      "src/lib/ai/coach/facts.ts",
+      "src/lib/insights/features.ts",
+      "src/lib/insights/derived/adherence-storyline.ts",
+    ]) {
+      expect(SNAPSHOT_BUILDER_FILES).toContain(required);
+    }
+  });
 
   it("the guard itself trips on an obvious leak (sanity check)", () => {
     // Sanity check — the heuristic must flag a synthetic snapshot
