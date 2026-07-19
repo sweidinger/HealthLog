@@ -8740,8 +8740,11 @@
     "item": {
       "doseWindow": {
         "title": "Medicación pendiente",
-        "body": "Hoy toca una dosis.",
-        "bodyNamed": "{name} toca hoy."
+        "body": "Pronto toca una dosis.",
+        "bodyNamed": "Pronto toca {name}.",
+        "overdueTitle": "Medicación atrasada",
+        "overdueBody": "Una dosis está atrasada.",
+        "overdueBodyNamed": "{name} está atrasado."
       },
       "preventiveCare": {
         "title": "Revisión pendiente",

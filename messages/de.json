@@ -8740,8 +8740,11 @@
     "item": {
       "doseWindow": {
         "title": "Medikament fällig",
-        "body": "Heute ist eine Dosis fällig.",
-        "bodyNamed": "{name} ist heute fällig."
+        "body": "Eine Dosis ist bald fällig.",
+        "bodyNamed": "{name} ist bald fällig.",
+        "overdueTitle": "Medikament überfällig",
+        "overdueBody": "Eine Dosis ist überfällig.",
+        "overdueBodyNamed": "{name} ist überfällig."
       },
       "preventiveCare": {
         "title": "Vorsorge fällig",

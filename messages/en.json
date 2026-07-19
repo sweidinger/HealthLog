@@ -8740,8 +8740,11 @@
     "item": {
       "doseWindow": {
         "title": "Medication due",
-        "body": "A dose is due today.",
-        "bodyNamed": "{name} is due today."
+        "body": "A dose is due soon.",
+        "bodyNamed": "{name} is due soon.",
+        "overdueTitle": "Medication overdue",
+        "overdueBody": "A dose is past due.",
+        "overdueBodyNamed": "{name} is past due."
       },
       "preventiveCare": {
         "title": "Check-up due",

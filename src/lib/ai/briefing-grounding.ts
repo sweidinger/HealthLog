@@ -12,11 +12,15 @@
  *
  * This module closes that gap the same way the recommendations gate does:
  * extract every number the briefing prose asserts, and reject the payload when
- * one of them cannot be matched (within a rounding tolerance) to a value the
- * deterministic `features.signalsOfDay` block already holds — `latest`,
- * `avg7`, `avg30`, `deltaVs7`, `deltaVs30`, `spread30`, or a recent-anomaly
- * value. The caller turns a non-empty finding list into the existing
- * corrective-retry → 422 machinery.
+ * one of them cannot be matched (within a rounding tolerance) to a figure the
+ * server itself pre-computed and handed to the model. The caller turns a
+ * non-empty finding list into the existing corrective-retry machinery.
+ *
+ * The authoritative set is derived by WALKING the prompt payload — the whole
+ * aggregated-features object plus any extra section the prompt carries — not
+ * by re-listing its blocks by hand. That is the same guarantee stated exactly:
+ * a number is grounded iff the server gave it to the model. See
+ * `authoritativeValues` for why the previous hand-maintained list had to go.
  *
  * Scope + posture:
  *  - The check only fires when `features.signalsOfDay` is present. When the
@@ -93,6 +97,40 @@ export function extractNumbers(
 }
 
 /**
+ * Depth ceiling for the payload walk. The aggregated-features object is a
+ * shallow JSON tree (block → field, occasionally block → array → row), so this
+ * is pure defence: a malformed or unexpectedly deep shape cannot spin the walk.
+ */
+const WALK_MAX_DEPTH = 8;
+
+/**
+ * Push every finite number reachable inside a JSON-shaped value. Strings are
+ * NOT mined for embedded digits — only real numeric fields count as figures the
+ * server computed, so a user-supplied label ("Vitamin D3 1000") can never widen
+ * the allow-set.
+ */
+function walkNumbers(
+  value: unknown,
+  push: (n: number) => void,
+  depth = 0,
+): void {
+  if (depth > WALK_MAX_DEPTH) return;
+  if (typeof value === "number") {
+    if (Number.isFinite(value)) push(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) walkNumbers(entry, push, depth + 1);
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const entry of Object.values(value)) {
+      walkNumbers(entry, push, depth + 1);
+    }
+  }
+}
+
+/**
  * The set of authoritative magnitudes one signal exposes. We grade against
  * absolute magnitudes so a "+1.2" delta matches a `deltaVs7` of `-1.2` only
  * when the model also flipped the sign in prose — but because briefings phrase
@@ -103,6 +141,7 @@ export function extractNumbers(
 function authoritativeValues(
   signals: readonly SignalOfDay[],
   features?: AggregatedFeatures | null,
+  extra?: unknown,
 ): number[] {
   const values: number[] = [];
   const push = (n: number | null | undefined) => {
@@ -121,177 +160,29 @@ function authoritativeValues(
     if (s.recentAnomaly) push(s.recentAnomaly.value);
   }
 
-  // v1.22 (W6, W8 seam) — W8 wired four real aggregate blocks into the briefing
-  // (glucose / labs / preventive-care / workouts) but the gate only graded
-  // `signalsOfDay`, so the model was steered to drop any number from them. Add
-  // those REAL figures to the allow-set so the prose may cite them — without
-  // opening the gate to ungrounded values (only numbers the server actually
-  // pre-computed are admitted).
-  if (features) {
-    const g = features.glucose;
-    if (g) {
-      push(g.avg7);
-      push(g.avg30);
-      push(g.avg90);
-      push(g.latest);
-      push(g.slope30);
-    }
-    for (const m of features.labs?.flagged ?? []) push(m.value);
-    if (features.labs) push(features.labs.flaggedCount);
-    for (const o of features.preventiveCare?.overdue ?? []) push(o.daysOverdue);
-    for (const d of features.preventiveCare?.due ?? []) push(d.daysUntil);
-    const w = features.workouts;
-    if (w) {
-      for (const win of [w.last7, w.last30]) {
-        push(win.count);
-        push(win.totalDurationMin);
-        push(win.totalDistanceKm);
-      }
-      if (w.latest) {
-        push(w.latest.durationMin);
-        push(w.latest.distanceKm);
-        push(w.latest.daysAgo);
-      }
-    }
-    // S10 — ECG device-verdict descriptor. Admit the pre-computed counts + the
-    // latest recording's device-reported HR / recency so a briefing that
-    // references the recordings ("your device logged 2 ECG recordings this
-    // month") stays grounded. Only server-computed figures are added; the
-    // waveform never reaches the payload, so no trace-derived number exists.
-    const ecg = features.ecg;
-    if (ecg) {
-      push(ecg.recordingCount);
-      push(ecg.deviceVerdicts.irregular);
-      push(ecg.deviceVerdicts.notDetected);
-      push(ecg.deviceVerdicts.inconclusive);
-      push(ecg.latestRecordedDaysAgo);
-      push(ecg.latestAverageHeartRate);
-    }
-    // v1.25.1 — clinical-depth aggregate blocks (grip / waist / pain) wired
-    // into the briefing. Admit their pre-computed figures so the prose may cite
-    // them, same posture as the glucose / labs / workout blocks above.
-    const grip = features.gripStrength;
-    if (grip) {
-      push(grip.latest);
-      push(grip.avg30);
-      push(grip.slope30);
-    }
-    const waist = features.waist;
-    if (waist) {
-      push(waist.latest);
-      push(waist.avg30);
-      push(waist.slope30);
-      push(waist.whtrLatest);
-    }
-    const pain = features.pain;
-    if (pain) {
-      push(pain.latest);
-      push(pain.avg7);
-      push(pain.avg30);
-      push(pain.slope30);
-    }
-
-    // v1.25.13 — the core vitals blocks (weight, blood pressure, pulse, body
-    // fat, mood, sleep, activity, RPP, seasonal, historical) are ALL fed to the
-    // briefing prompt, but the allow-set only admitted signalsOfDay + the W8/
-    // clinical aggregates — so a verdict-first briefing that restated a blood-
-    // pressure average or a resting pulse (values every BP-tracking user has)
-    // tripped the gate and got the WHOLE dailyBriefing stripped to null while
-    // the rest of the insight refreshed. Admit every figure the server actually
-    // pre-computed for these blocks; the anti-fabrication guarantee is intact
-    // (only server-computed numbers are ever added to the set).
-    const weight = features.weight;
-    if (weight) {
-      push(weight.latest);
-      push(weight.avg7);
-      push(weight.avg30);
-      push(weight.avg90);
-      push(weight.allTimeAvg);
-      push(weight.allTimeMin);
-      push(weight.allTimeMax);
-      push(weight.slope30);
-      push(weight.bmi);
-    }
-    const bp = features.bloodPressure;
-    if (bp) {
-      push(bp.avgSys30);
-      push(bp.avgDia30);
-      push(bp.avgSys90);
-      push(bp.avgDia90);
-      push(bp.allTimeAvgSys);
-      push(bp.allTimeAvgDia);
-      push(bp.allTimeMinSys);
-      push(bp.allTimeMaxSys);
-      push(bp.allTimeMinDia);
-      push(bp.allTimeMaxDia);
-      push(bp.slopeSys30);
-      push(bp.slopeDia30);
-      push(bp.sdSys30);
-      push(bp.sdDia30);
-      push(bp.pulsePressure30);
-      push(bp.pctInTarget);
-    }
-    const pulse = features.pulse;
-    if (pulse) {
-      push(pulse.avg7);
-      push(pulse.avg30);
-      push(pulse.avg90);
-      push(pulse.allTimeAvg);
-      push(pulse.allTimeMin);
-      push(pulse.allTimeMax);
-      push(pulse.slope30);
-    }
-    const bodyFat = features.bodyFat;
-    if (bodyFat) {
-      push(bodyFat.latest);
-      push(bodyFat.avg30);
-      push(bodyFat.slope30);
-    }
-    const mood = features.mood;
-    if (mood) {
-      push(mood.avg7);
-      push(mood.avg30);
-      push(mood.latest);
-    }
-    const sleep = features.sleep;
-    if (sleep) {
-      push(sleep.avg7);
-      push(sleep.avg30);
-      push(sleep.latest);
-    }
-    const activity = features.activity;
-    if (activity) {
-      push(activity.avg7);
-      push(activity.avg30);
-      push(activity.latest);
-    }
-    const rpp = features.ratePressureProduct;
-    if (rpp) {
-      push(rpp.rpp7);
-      push(rpp.rpp30);
-    }
-    const seasonal = features.seasonalVariation;
-    if (seasonal) {
-      push(seasonal.winterAvgSys);
-      push(seasonal.summerAvgSys);
-      push(seasonal.delta);
-    }
-    const hist = features.historicalComparison;
-    if (hist) {
-      for (const block of [
-        hist.weight,
-        hist.systolic,
-        hist.diastolic,
-        hist.pulse,
-      ]) {
-        if (block) {
-          push(block.current7dAvg);
-          push(block.previous30dAvg);
-          push(block.change);
-        }
-      }
-    }
-  }
+  // The allow-set is now derived by WALKING the payload rather than by
+  // re-listing its blocks by hand. `buildUserPrompt` serialises the WHOLE
+  // aggregated-features object into the prompt, so "a number the server gave
+  // the model" is precisely "a number that appears somewhere in that object" —
+  // and every value in it is server-computed, so the anti-fabrication
+  // guarantee is unchanged: a figure the model invented still matches nothing.
+  //
+  // The hand-maintained list this replaces drifted from the prompt three times
+  // (v1.22 wired in the glucose / labs / preventive / workout blocks, v1.25.1
+  // the clinical-depth blocks, v1.25.13 the core vitals), and each drift
+  // presented as the whole briefing vanishing for users whose prose happened
+  // to cite the newest block. The blocks the list still omitted — medication
+  // compliance rates and streaks, the `context` counters, the correlation
+  // coefficients, and every block's `coverage` object — are all fed to the
+  // model and were all ungradeable, so a briefing that cited an adherence rate
+  // was discarded for quoting a figure the server itself computed. Walking the
+  // object removes that whole failure class instead of adding a fourth block.
+  walkNumbers(features, push);
+  // The comparison snapshot is handed to the model as its own prompt section
+  // (`buildComparisonBlock`) with explicit current / baseline / delta figures,
+  // and the system prompt asks the model to narrate them — so its numbers are
+  // authoritative on exactly the same footing.
+  walkNumbers(extra, push);
 
   return values;
 }
@@ -341,11 +232,21 @@ export function findUngroundedBriefingNumbers(
   briefing: BriefingForGrounding | null | undefined,
   signals: readonly SignalOfDay[] | null | undefined,
   features?: AggregatedFeatures | null,
+  /**
+   * Any further server-computed payload the prompt hands the model alongside
+   * the features — today the comparison snapshot. Walked for numbers exactly
+   * like `features`; pass nothing when the prompt carried no extra section.
+   */
+  extraPromptPayload?: unknown,
 ): UngroundedBriefingNumber[] {
   if (!briefing) return [];
   if (!signals || signals.length === 0) return [];
 
-  const authoritative = authoritativeValues(signals, features);
+  const authoritative = authoritativeValues(
+    signals,
+    features,
+    extraPromptPayload,
+  );
   // No usable authoritative figures (every field null) — nothing to grade.
   if (authoritative.length === 0) return [];
 

@@ -8740,8 +8740,11 @@
     "item": {
       "doseWindow": {
         "title": "Lek do przyjęcia",
-        "body": "Dziś przypada dawka.",
-        "bodyNamed": "{name} przypada dziś."
+        "body": "Dawka wkrótce do przyjęcia.",
+        "bodyNamed": "{name} wkrótce do przyjęcia.",
+        "overdueTitle": "Lek zaległy",
+        "overdueBody": "Dawka jest zaległa.",
+        "overdueBodyNamed": "{name} jest zaległy."
       },
       "preventiveCare": {
         "title": "Badanie do wykonania",

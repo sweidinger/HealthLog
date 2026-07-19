@@ -8740,8 +8740,11 @@
     "item": {
       "doseWindow": {
         "title": "Médicament à prendre",
-        "body": "Une dose est prévue aujourd'hui.",
-        "bodyNamed": "{name} est prévu aujourd'hui."
+        "body": "Une dose est bientôt à prendre.",
+        "bodyNamed": "{name} est bientôt à prendre.",
+        "overdueTitle": "Médicament en retard",
+        "overdueBody": "Une dose est en retard.",
+        "overdueBodyNamed": "{name} est en retard."
       },
       "preventiveCare": {
         "title": "Examen à faire",
