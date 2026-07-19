@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.30.27] — 2026-07-19
+
+Three quiet miscounts.
+
+- **The resting heart-rate series stopped at the point where older readings get condensed.** Once a day's raw readings are condensed, its resting figure is kept as a derived value — but the reading side treated the presence of any such value as "this account reports resting directly" and stopped estimating for the recent days that have not been condensed yet. The series now uses the stored value for days that have one and the estimate for days that do not. Where any part is estimated it is still labelled as an estimate: a partly-estimated series called "resting heart rate" would be wrong about those days, while calling a partly-stored one an estimate is merely cautious.
+- **Recomputing summaries from a point in the middle of a day or month replaced the whole period with a partial figure.** The recompute now starts at the beginning of the period it touches. Existing summaries recompute when that day is written to again or on the next scheduled pass.
+- **Two entries for the same daily total in one upload silently kept the older one.** The newer value now wins, matching how a repeat upload behaves.
+
+No breaking changes.
+
 ## [1.30.26] — 2026-07-19
 
 Text that comes out of your documents is treated as data, not as instructions.

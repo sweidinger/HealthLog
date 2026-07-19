@@ -190,12 +190,32 @@ export async function recomputeUserRollups(
   let rowsUpserted = 0;
 
   for (const granularity of granularities) {
+    // Snap the window out to whole buckets before aggregating. The
+    // aggregate filters rows by `measured_at` but GROUPS by
+    // `date_trunc(<granularity>, measured_at)`, and `persistRollupRows`
+    // then deletes every rollup row in the [min, max] bucket range it is
+    // about to write. A `from` that lands mid-bucket therefore replaced a
+    // COMPLETE bucket with an aggregate computed only from the readings
+    // after that instant — and because the callers pass a moving instant
+    // (`Date.now() - 90d` on the read-path refresh, an arbitrary
+    // client-supplied instant on the coverage fallback, `now - 5y` on the
+    // boot backfill and the restore path), a different oldest day was
+    // corrupted on every invocation and nothing ever repaired it. Same
+    // hazard on the `to` edge for any row measured later in the closing
+    // bucket. `bucketSpan` is the canonical truncator — its own contract
+    // note already required every recompute to cover whole spans; this is
+    // the caller that did not.
+    const alignedFrom = bucketSpan(from, granularity).from;
+    const alignedTo =
+      to > alignedFrom
+        ? bucketSpan(new Date(to.getTime() - 1), granularity).to
+        : bucketSpan(from, granularity).to;
     const rows = await runRollupAggregate({
       userId,
       types: opts.types,
       granularity,
-      from,
-      to,
+      from: alignedFrom,
+      to: alignedTo,
     });
     if (rows.length === 0) continue;
 

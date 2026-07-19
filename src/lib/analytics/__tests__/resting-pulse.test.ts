@@ -187,6 +187,79 @@ describe("resolveRestingPulseSeries", () => {
       resolveRestingPulseSeries({ restingSamples: [], pulseSamples: [] }),
     ).toEqual({ series: [], which: "none" });
   });
+
+  /**
+   * The shape a proxy account actually has once the retention fold has run
+   * for a while: derived RESTING_HEART_RATE rows for the OLD days the fold
+   * has already processed, and nothing but raw PULSE for the RECENT days it
+   * has not reached yet. The all-or-nothing resolver saw the derived rows,
+   * took the resting branch, and dropped the proxy — so the series the user
+   * saw stopped dead at the fold horizon.
+   */
+  it("carries the series past the fold horizon — derived rows for old days, PULSE for recent ones", () => {
+    // Days 01-05: folded, one derived resting row each. No PULSE left —
+    // the fold tombstoned the raw readings it derived them from.
+    const restingSamples: PulseSample[] = [
+      day("2026-06-01T04:00:00", 61),
+      day("2026-06-02T04:00:00", 62),
+      day("2026-06-03T04:00:00", 63),
+      day("2026-06-04T04:00:00", 64),
+      day("2026-06-05T04:00:00", 65),
+    ];
+    // Days 06-08: not yet folded. Raw PULSE only, no resting row at all.
+    const pulseSamples: PulseSample[] = [];
+    for (const d of ["06", "07", "08"]) {
+      pulseSamples.push(
+        day(`2026-06-${d}T07:00:00`, 66),
+        day(`2026-06-${d}T07:10:00`, 68),
+        day(`2026-06-${d}T07:20:00`, 70),
+        day(`2026-06-${d}T18:00:00`, 155), // workout burst, must not win
+      );
+    }
+
+    const { series, which } = resolveRestingPulseSeries({
+      restingSamples,
+      pulseSamples,
+    });
+
+    // Five folded days + three proxy days — the recent days MUST appear.
+    expect(series).toHaveLength(8);
+    const days = series.map((p) =>
+      p.measuredAt.toLocaleDateString("en-CA", { timeZone: PROXY_DAY_ZONE }),
+    );
+    expect(days).toEqual([
+      "2026-06-01",
+      "2026-06-02",
+      "2026-06-03",
+      "2026-06-04",
+      "2026-06-05",
+      "2026-06-06",
+      "2026-06-07",
+      "2026-06-08",
+    ]);
+    // The proxy days track the resting floor, not the workout burst.
+    for (const point of series.slice(5)) {
+      expect(point.value).toBeLessThan(100);
+    }
+    // Mixed series — hedge the label rather than call an estimate native.
+    expect(which).toBe("proxy");
+  });
+
+  it("keeps the resting row on a day that has both a resting row and PULSE", () => {
+    // A native day must not be second-guessed by the proxy, and a native
+    // account with no gap days keeps the honest 'resting' label.
+    const { series, which } = resolveRestingPulseSeries({
+      restingSamples: [day("2026-06-01T04:00:00", 58)],
+      pulseSamples: [
+        day("2026-06-01T07:00:00", 80),
+        day("2026-06-01T07:10:00", 82),
+        day("2026-06-01T07:20:00", 84),
+      ],
+    });
+    expect(series).toHaveLength(1);
+    expect(series[0].value).toBe(58);
+    expect(which).toBe("resting");
+  });
 });
 
 describe("deriveRestingProxyFromPulse — the day bucket is the PROFILE day", () => {

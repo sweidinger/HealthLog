@@ -19,10 +19,12 @@
  *
  * The fix: judge a RESTING band against a RESTING series.
  *
- *   1. **Prefer `RESTING_HEART_RATE`** when the user has it (Apple
+ *   1. **Prefer `RESTING_HEART_RATE`** on every day that has one (Apple
  *      already separated the clean signal for us).
- *   2. **Fallback proxy from `PULSE`** when no `RESTING_HEART_RATE`
- *      exists (manual-only users, older imports): take a robust
+ *   2. **Fallback proxy from `PULSE`** on the days that have no
+ *      `RESTING_HEART_RATE` (manual-only users, older imports, and the
+ *      recent days of an account whose derived rows only reach as far
+ *      as the retention fold has run): take a robust
  *      low-percentile of each calendar day's PULSE samples — the resting
  *      heart rate is the floor of the day, not its average, so the daily
  *      20th percentile estimates resting while excluding the workout
@@ -112,11 +114,27 @@ export function deriveRestingProxyFromPulse(
 
 /**
  * Resolve the resting-pulse series a resting-target surface should
- * score. Prefers the clean `RESTING_HEART_RATE` rows; falls back to the
- * low-percentile PULSE proxy when the user has no resting rows.
+ * score. Merges PER DAY: a day that has a `RESTING_HEART_RATE` row is
+ * represented by that row; a day that has none falls back to the
+ * low-percentile PULSE proxy.
  *
- * `which` reports the branch taken so callers can annotate / label
- * honestly ("resting heart rate" vs "estimated from heart rate").
+ * v1.30.16 made the dense-intraday retention fold mint derived
+ * `RESTING_HEART_RATE` rows (source `COMPUTED`) for the days it folds.
+ * A proxy account therefore now carries derived rows for OLD folded
+ * days and nothing but raw `PULSE` for RECENT not-yet-folded days. The
+ * previous all-or-nothing shape returned the resting branch the moment
+ * a single resting row existed and never consulted the proxy again, so
+ * the visible series stopped dead at the fold horizon. Merging per day
+ * keeps the clean signal where it exists and carries the series
+ * forward across the days that only have the proxy.
+ *
+ * `which` reports how to LABEL the series, and it is deliberately
+ * conservative: `"resting"` only when EVERY point came from a real
+ * resting row, `"proxy"` as soon as one point is proxy-derived. The two
+ * error directions are not symmetric — calling a partly-estimated
+ * series "resting heart rate" is a false statement about the estimated
+ * days, whereas calling a partly-native series "estimated from heart
+ * rate" merely hedges. A labelling signal should hedge, never lie.
  */
 export function resolveRestingPulseSeries(input: {
   restingSamples: ReadonlyArray<PulseSample>;
@@ -124,13 +142,24 @@ export function resolveRestingPulseSeries(input: {
   /** Optional day-key for the proxy buckets (defaults to Berlin-day). */
   dayKeyOf?: (d: Date) => string;
 }): { series: PulseSample[]; which: "resting" | "proxy" | "none" } {
-  if (input.restingSamples.length > 0) {
-    const series = [...input.restingSamples].sort(
-      (a, b) => a.measuredAt.getTime() - b.measuredAt.getTime(),
-    );
-    return { series, which: "resting" };
+  const dayKeyOf = input.dayKeyOf ?? toBerlinDayKey;
+  const byTime = (a: PulseSample, b: PulseSample) =>
+    a.measuredAt.getTime() - b.measuredAt.getTime();
+
+  const resting = [...input.restingSamples].sort(byTime);
+  // Days already covered by a real resting row — the proxy must not
+  // second-guess them.
+  const restingDays = new Set(resting.map((s) => dayKeyOf(s.measuredAt)));
+  const proxy = deriveRestingProxyFromPulse(
+    input.pulseSamples,
+    dayKeyOf,
+  ).filter((p) => !restingDays.has(dayKeyOf(p.measuredAt)));
+
+  if (resting.length === 0) {
+    return proxy.length > 0
+      ? { series: proxy, which: "proxy" }
+      : { series: [], which: "none" };
   }
-  const proxy = deriveRestingProxyFromPulse(input.pulseSamples, input.dayKeyOf);
-  if (proxy.length > 0) return { series: proxy, which: "proxy" };
-  return { series: [], which: "none" };
+  if (proxy.length === 0) return { series: resting, which: "resting" };
+  return { series: [...resting, ...proxy].sort(byTime), which: "proxy" };
 }
