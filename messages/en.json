@@ -4672,7 +4672,9 @@
           "description": "Add a place and a date range — a trip, or a stretch of earlier history. The period overrides your home for the days it covers, so weather matches where you actually were. This is how you correct the past.",
           "none": "No location periods yet.",
           "add": "Add {label}",
-          "remove": "Remove location period"
+          "remove": "Remove location period",
+          "removeConfirmTitle": "Remove this trip?",
+          "removeConfirmBody": "Readings taken during it stay in your record; only the trip entry goes."
         },
         "backfill": {
           "title": "Backfill past days",
@@ -4953,7 +4955,10 @@
           "surfaced": "Surfaced",
           "done": "Done",
           "dismissed": "Dismissed"
-        }
+        },
+        "deleteConfirmTitle": "Delete this reminder?",
+        "deleteConfirmBody": "It stops being raised. Anything you have already recorded is untouched.",
+        "deleteConfirmAction": "Delete"
       },
       "aboutMe": {
         "title": "About me",
@@ -5628,8 +5633,16 @@
         "revokeAllDone": "Forgot {count} trusted device(s).",
         "unnamed": "Unknown device",
         "current": "This device",
-        "expires": "Trusted until {date}"
-      }
+        "expires": "Trusted until {date}",
+        "revokeConfirmTitle": "Stop trusting this device?",
+        "revokeConfirmBody": "It will ask for your second factor again the next time you sign in from it.",
+        "revokeAllConfirmTitle": "Stop trusting every device?",
+        "revokeAllConfirmBody": "Every device will ask for your second factor again the next time you sign in from it, including this one."
+      },
+      "revokeSessionConfirmTitle": "Sign this device out?",
+      "revokeSessionConfirmBody": "{device} will need to sign in again. Nothing recorded on it is affected.",
+      "signOutEverywhereConfirmTitle": "Sign out every other device?",
+      "signOutEverywhereConfirmBody": "Every device except this one will need to sign in again. This device stays signed in. Nothing you have recorded is affected."
     },
     "privacy": {
       "intro": {

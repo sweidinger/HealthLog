@@ -4672,7 +4672,9 @@
           "description": "Aggiungi un luogo e un intervallo di date: un viaggio o un tratto della tua cronologia passata. Il periodo prevale sulla tua residenza nei giorni che copre, così il meteo corrisponde a dove ti trovavi davvero. È così che correggi il passato.",
           "none": "Nessun periodo di posizione.",
           "add": "Aggiungi {label}",
-          "remove": "Rimuovi periodo di posizione"
+          "remove": "Rimuovi periodo di posizione",
+          "removeConfirmTitle": "Rimuovere questo viaggio?",
+          "removeConfirmBody": "Le misurazioni di quel periodo restano nel tuo archivio; sparisce solo la voce del viaggio."
         },
         "backfill": {
           "title": "Recupera i giorni passati",
@@ -4953,7 +4955,10 @@
           "surfaced": "Mostrato",
           "done": "Fatto",
           "dismissed": "Ignorato"
-        }
+        },
+        "deleteConfirmTitle": "Eliminare questo promemoria?",
+        "deleteConfirmBody": "Non verrà più mostrato. Quanto hai già registrato resta invariato.",
+        "deleteConfirmAction": "Elimina"
       },
       "aboutMe": {
         "title": "Su di me",
@@ -5628,8 +5633,16 @@
         "revokeAllDone": "Dimenticati {count} dispositivo/i attendibile/i.",
         "unnamed": "Dispositivo sconosciuto",
         "current": "Questo dispositivo",
-        "expires": "Attendibile fino al {date}"
-      }
+        "expires": "Attendibile fino al {date}",
+        "revokeConfirmTitle": "Non fidarsi più di questo dispositivo?",
+        "revokeConfirmBody": "Al prossimo accesso da questo dispositivo chiederà di nuovo il secondo fattore.",
+        "revokeAllConfirmTitle": "Non fidarsi più di alcun dispositivo?",
+        "revokeAllConfirmBody": "Ogni dispositivo chiederà di nuovo il secondo fattore al prossimo accesso, questo compreso."
+      },
+      "revokeSessionConfirmTitle": "Disconnettere questo dispositivo?",
+      "revokeSessionConfirmBody": "{device} dovrà accedere di nuovo. Quanto registrato su di esso non viene toccato.",
+      "signOutEverywhereConfirmTitle": "Disconnettere tutti gli altri dispositivi?",
+      "signOutEverywhereConfirmBody": "Ogni dispositivo tranne questo dovrà accedere di nuovo. Questo resta connesso. Nulla di ciò che hai registrato viene toccato."
     },
     "privacy": {
       "intro": {

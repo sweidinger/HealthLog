@@ -4672,7 +4672,9 @@
           "description": "Ajoutez un lieu et une plage de dates : un voyage ou une portion de votre historique passé. La période remplace votre domicile pour les jours qu'elle couvre, afin que la météo corresponde à l'endroit où vous étiez réellement. C'est ainsi que vous corrigez le passé.",
           "none": "Aucune période de localisation pour l'instant.",
           "add": "Ajouter {label}",
-          "remove": "Supprimer la période de localisation"
+          "remove": "Supprimer la période de localisation",
+          "removeConfirmTitle": "Retirer ce voyage ?",
+          "removeConfirmBody": "Les mesures de cette période restent dans ton dossier ; seule l'entrée du voyage disparaît."
         },
         "backfill": {
           "title": "Récupérer les jours passés",
@@ -4953,7 +4955,10 @@
           "surfaced": "Affiché",
           "done": "Terminé",
           "dismissed": "Ignoré"
-        }
+        },
+        "deleteConfirmTitle": "Supprimer ce rappel ?",
+        "deleteConfirmBody": "Il ne se déclenchera plus. Ce que tu as déjà enregistré reste intact.",
+        "deleteConfirmAction": "Supprimer"
       },
       "aboutMe": {
         "title": "À propos de moi",
@@ -5628,8 +5633,16 @@
         "revokeAllDone": "{count} appareil(s) de confiance oublié(s).",
         "unnamed": "Appareil inconnu",
         "current": "Cet appareil",
-        "expires": "De confiance jusqu'au {date}"
-      }
+        "expires": "De confiance jusqu'au {date}",
+        "revokeConfirmTitle": "Ne plus faire confiance à cet appareil ?",
+        "revokeConfirmBody": "Il redemandera ton deuxième facteur à la prochaine connexion depuis cet appareil.",
+        "revokeAllConfirmTitle": "Ne plus faire confiance à aucun appareil ?",
+        "revokeAllConfirmBody": "Chaque appareil redemandera ton deuxième facteur à la prochaine connexion, celui-ci compris."
+      },
+      "revokeSessionConfirmTitle": "Déconnecter cet appareil ?",
+      "revokeSessionConfirmBody": "{device} devra se reconnecter. Ce qui y est enregistré n'est pas affecté.",
+      "signOutEverywhereConfirmTitle": "Déconnecter tous les autres appareils ?",
+      "signOutEverywhereConfirmBody": "Chaque appareil sauf celui-ci devra se reconnecter. Celui-ci reste connecté. Rien de ce que tu as enregistré n'est affecté."
     },
     "privacy": {
       "intro": {

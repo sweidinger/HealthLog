@@ -4672,7 +4672,9 @@
           "description": "Füge einen Ort und einen Zeitraum hinzu – eine Reise oder einen früheren Abschnitt deiner Verlaufsdaten. Der Zeitraum überschreibt für seine Tage deinen Wohnort, damit das Wetter zu deinem tatsächlichen Aufenthalt passt. So korrigierst du die Vergangenheit.",
           "none": "Noch keine Ortszeiträume.",
           "add": "{label} hinzufügen",
-          "remove": "Ortszeitraum entfernen"
+          "remove": "Ortszeitraum entfernen",
+          "removeConfirmTitle": "Diese Reise entfernen?",
+          "removeConfirmBody": "Messwerte aus diesem Zeitraum bleiben erhalten; nur der Reise-Eintrag verschwindet."
         },
         "backfill": {
           "title": "Vergangene Tage nacherfassen",
@@ -4953,7 +4955,10 @@
           "surfaced": "Angezeigt",
           "done": "Erledigt",
           "dismissed": "Verworfen"
-        }
+        },
+        "deleteConfirmTitle": "Diese Erinnerung löschen?",
+        "deleteConfirmBody": "Sie wird nicht mehr ausgelöst. An bereits erfassten Daten ändert sich nichts.",
+        "deleteConfirmAction": "Löschen"
       },
       "aboutMe": {
         "title": "Über mich",
@@ -5628,8 +5633,16 @@
         "revokeAllDone": "{count} vertrauenswürdige(s) Gerät(e) entfernt.",
         "unnamed": "Unbekanntes Gerät",
         "current": "Dieses Gerät",
-        "expires": "Vertraut bis {date}"
-      }
+        "expires": "Vertraut bis {date}",
+        "revokeConfirmTitle": "Diesem Gerät nicht mehr vertrauen?",
+        "revokeConfirmBody": "Es fragt beim nächsten Anmelden wieder nach deinem zweiten Faktor.",
+        "revokeAllConfirmTitle": "Keinem Gerät mehr vertrauen?",
+        "revokeAllConfirmBody": "Jedes Gerät fragt beim nächsten Anmelden wieder nach deinem zweiten Faktor, auch dieses."
+      },
+      "revokeSessionConfirmTitle": "Dieses Gerät abmelden?",
+      "revokeSessionConfirmBody": "{device} muss sich neu anmelden. An den dort erfassten Daten ändert sich nichts.",
+      "signOutEverywhereConfirmTitle": "Alle anderen Geräte abmelden?",
+      "signOutEverywhereConfirmBody": "Jedes Gerät außer diesem muss sich neu anmelden. Dieses Gerät bleibt angemeldet. An deinen erfassten Daten ändert sich nichts."
     },
     "privacy": {
       "intro": {

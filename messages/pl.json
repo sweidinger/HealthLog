@@ -4672,7 +4672,9 @@
           "description": "Dodaj miejsce i zakres dat: podróż lub fragment wcześniejszej historii. Okres zastępuje Twój dom w dniach, które obejmuje, aby pogoda odpowiadała miejscu, w którym naprawdę byłeś. W ten sposób korygujesz przeszłość.",
           "none": "Brak okresów lokalizacji.",
           "add": "Dodaj {label}",
-          "remove": "Usuń okres lokalizacji"
+          "remove": "Usuń okres lokalizacji",
+          "removeConfirmTitle": "Usunąć tę podróż?",
+          "removeConfirmBody": "Pomiary z tego okresu pozostają w historii; znika tylko wpis podróży."
         },
         "backfill": {
           "title": "Uzupełnij minione dni",
@@ -4953,7 +4955,10 @@
           "surfaced": "Wyświetlone",
           "done": "Gotowe",
           "dismissed": "Odrzucone"
-        }
+        },
+        "deleteConfirmTitle": "Usunąć to przypomnienie?",
+        "deleteConfirmBody": "Przestanie się pojawiać. Zapisane wcześniej dane pozostają bez zmian.",
+        "deleteConfirmAction": "Usuń"
       },
       "aboutMe": {
         "title": "O mnie",
@@ -5628,8 +5633,16 @@
         "revokeAllDone": "Zapomniano {count} zaufane urządzenie/a.",
         "unnamed": "Nieznane urządzenie",
         "current": "To urządzenie",
-        "expires": "Zaufane do {date}"
-      }
+        "expires": "Zaufane do {date}",
+        "revokeConfirmTitle": "Przestać ufać temu urządzeniu?",
+        "revokeConfirmBody": "Przy następnym logowaniu z tego urządzenia ponownie poprosi o drugi składnik.",
+        "revokeAllConfirmTitle": "Przestać ufać wszystkim urządzeniom?",
+        "revokeAllConfirmBody": "Każde urządzenie przy następnym logowaniu ponownie poprosi o drugi składnik, łącznie z tym."
+      },
+      "revokeSessionConfirmTitle": "Wylogować to urządzenie?",
+      "revokeSessionConfirmBody": "{device} będzie musiało zalogować się ponownie. Zapisane na nim dane pozostają bez zmian.",
+      "signOutEverywhereConfirmTitle": "Wylogować wszystkie pozostałe urządzenia?",
+      "signOutEverywhereConfirmBody": "Każde urządzenie poza tym będzie musiało zalogować się ponownie. To urządzenie pozostaje zalogowane. Zapisane dane pozostają bez zmian."
     },
     "privacy": {
       "intro": {
