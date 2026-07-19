@@ -1,7 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { writeFileSync, mkdtempSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+
+vi.mock("@/lib/arrivals/measurement-emit", () => ({
+  emitInsertedMeasurementArrivals: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/daily/morning-refresh-trigger", () => ({
+  maybeEnqueueMorningRefresh: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/arrivals/emit-shared", () => ({
+  emitDataArrival: vi.fn().mockResolvedValue(undefined),
+}));
 
 import { Prisma } from "@/generated/prisma/client";
 import {
@@ -12,6 +24,13 @@ import {
   APPLE_HEALTH_SLEEP_STAGE_MAP,
   type ImportJobProgress,
 } from "../import-apple-health-export";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 /**
  * Build a minimal hand-authored `export.xml` covering the surface area
@@ -93,10 +112,21 @@ function tinyExportXml(): string {
  * and `workout` model methods documented on `StreamParseInput.prisma`;
  * we mimic just those.
  */
-function makeFakePrisma() {
+function makeFakePrisma(
+  options: {
+    measurementRaceExternalIds?: string[];
+    workoutRaceExternalIds?: string[];
+  } = {},
+) {
   type Row = Record<string, unknown>;
   const measurements: Row[] = [];
   const workouts: Row[] = [];
+  const measurementRaceExternalIds = new Set(
+    options.measurementRaceExternalIds ?? [],
+  );
+  const workoutRaceExternalIds = new Set(options.workoutRaceExternalIds ?? []);
+  const injectedMeasurementRaces = new Set<string>();
+  const injectedWorkoutRaces = new Set<string>();
   let nextId = 1;
 
   // The real `measurements` table carries a SECOND full unique index — the
@@ -119,10 +149,62 @@ function makeFakePrisma() {
     sameMeasuredAt(m.measuredAt, r.measuredAt) &&
     sameStage(m.sleepStage, r.sleepStage);
 
+  const injectMeasurementRace = (create: Row): void => {
+    const externalId = String(create.externalId);
+    if (
+      !measurementRaceExternalIds.has(externalId) ||
+      injectedMeasurementRaces.has(externalId)
+    ) {
+      return;
+    }
+    injectedMeasurementRaces.add(externalId);
+    measurements.push({ id: `m${nextId++}`, ...create });
+  };
+
+  const injectWorkoutRace = (create: Row): void => {
+    const externalId = String(create.externalId);
+    if (
+      !workoutRaceExternalIds.has(externalId) ||
+      injectedWorkoutRaces.has(externalId)
+    ) {
+      return;
+    }
+    injectedWorkoutRaces.add(externalId);
+    workouts.push({ id: `w${nextId++}`, ...create });
+  };
+
   return {
     _measurements: measurements,
     _workouts: workouts,
     measurement: {
+      createManyAndReturn: async ({ data }: { data: Row[] }) => {
+        const returned: Row[] = [];
+        for (const create of data) {
+          injectMeasurementRace(create);
+          const externalKeyTaken = measurements.some(
+            (m) =>
+              m.userId === create.userId &&
+              m.type === create.type &&
+              m.source === create.source &&
+              m.externalId === create.externalId,
+          );
+          if (
+            externalKeyTaken ||
+            measurements.some((m) => naturalKeyMatch(m, create))
+          ) {
+            continue;
+          }
+          const row: Row = { id: `m${nextId++}`, ...create };
+          measurements.push(row);
+          returned.push({
+            id: row.id,
+            type: row.type,
+            measuredAt: row.measuredAt,
+            externalId: row.externalId,
+          });
+        }
+        return returned;
+      },
       findMany: async ({
         where,
       }: {
@@ -169,11 +251,31 @@ function makeFakePrisma() {
         where,
         data,
       }: {
-        where: { id: unknown };
+        where: {
+          id?: unknown;
+          userId_type_source_externalId?: Record<string, unknown>;
+        };
         data: Row;
       }) => {
-        const idx = measurements.findIndex((m) => m.id === where.id);
-        if (idx < 0) throw new Error(`no row with id ${String(where.id)}`);
+        const idx =
+          where.id !== undefined
+            ? measurements.findIndex((m) => m.id === where.id)
+            : measurements.findIndex((m) => {
+                const key = where.userId_type_source_externalId;
+                return (
+                  key !== undefined &&
+                  m.userId === key.userId &&
+                  m.type === key.type &&
+                  m.source === key.source &&
+                  m.externalId === key.externalId
+                );
+              });
+        if (idx < 0) {
+          throw new Prisma.PrismaClientKnownRequestError(
+            "Record to update not found",
+            { code: "P2025", clientVersion: "test" },
+          );
+        }
         measurements[idx] = { ...measurements[idx], ...data };
         return measurements[idx];
       },
@@ -187,6 +289,7 @@ function makeFakePrisma() {
         update: Row;
       }) => {
         const key = where.userId_type_source_externalId;
+        injectMeasurementRace(create);
         const idx = measurements.findIndex(
           (m) =>
             m.userId === key.userId &&
@@ -212,6 +315,48 @@ function makeFakePrisma() {
       },
     },
     workout: {
+      createManyAndReturn: async ({ data }: { data: Row[] }) => {
+        const returned: Row[] = [];
+        for (const create of data) {
+          injectWorkoutRace(create);
+          if (
+            workouts.some(
+              (w) =>
+                w.userId === create.userId &&
+                w.source === create.source &&
+                w.externalId === create.externalId,
+            )
+          ) {
+            continue;
+          }
+          const row: Row = { id: `w${nextId++}`, ...create };
+          workouts.push(row);
+          returned.push({
+            id: row.id,
+            startedAt: row.startedAt,
+            externalId: row.externalId,
+          });
+        }
+        return returned;
+      },
+      update: async ({
+        where,
+        data,
+      }: {
+        where: { userId_source_externalId: Record<string, unknown> };
+        data: Row;
+      }) => {
+        const key = where.userId_source_externalId;
+        const idx = workouts.findIndex(
+          (w) =>
+            w.userId === key.userId &&
+            w.source === key.source &&
+            w.externalId === key.externalId,
+        );
+        if (idx < 0) throw new Error("workout row not found");
+        workouts[idx] = { ...workouts[idx], ...data };
+        return workouts[idx];
+      },
       findMany: async ({
         where,
       }: {
@@ -236,6 +381,7 @@ function makeFakePrisma() {
         update: Row;
       }) => {
         const key = where.userId_source_externalId;
+        injectWorkoutRace(create);
         const idx = workouts.findIndex(
           (w) =>
             w.userId === key.userId &&
@@ -246,8 +392,9 @@ function makeFakePrisma() {
           workouts[idx] = { ...workouts[idx], ...update };
           return workouts[idx];
         }
-        workouts.push(create);
-        return create;
+        const row = { id: `w${nextId++}`, ...create };
+        workouts.push(row);
+        return row;
       },
     },
   };
@@ -444,6 +591,162 @@ describe("streamParseExportXml — end-to-end", () => {
     expect(secondRun.perType.ACTIVITY_STEPS?.updated).toBe(1);
     expect(secondRun.workouts.inserted).toBe(0);
     expect(secondRun.workouts.updated).toBe(1);
+  });
+});
+describe("streamParseExportXml — statement-level insertion identity", () => {
+  it("passes only rows returned by measurement INSERT to arrivals and morning refresh", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "healthlog-parser-test-"));
+    const xmlPath = join(tmp, "export.xml");
+    writeFileSync(xmlPath, tinyExportXml());
+    const weightExternalId = hashSampleKey(
+      "HKQuantityTypeIdentifierBodyMass",
+      "78.4",
+      "2026-05-14 08:13:00 +0200",
+      "2026-05-14 08:14:00 +0200",
+    );
+    const prisma = makeFakePrisma({
+      measurementRaceExternalIds: [
+        weightExternalId,
+        "stats:HKQuantityTypeIdentifierStepCount:2026-05-14",
+      ],
+    });
+
+    const result = await streamParseExportXml({
+      xmlPath,
+      userId: "user-1",
+      userTimezone: "Europe/Berlin",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+      spotBatchSize: 10,
+    });
+
+    expect(result.perType.WEIGHT).toMatchObject({ inserted: 0, updated: 1 });
+    expect(result.perType.SLEEP_DURATION).toMatchObject({
+      inserted: 1,
+      updated: 0,
+    });
+    expect(result.perType.ACTIVITY_STEPS).toMatchObject({
+      inserted: 0,
+      updated: 1,
+    });
+
+    const arrivalRows = vi.mocked(emitInsertedMeasurementArrivals).mock
+      .calls[0]?.[1];
+    expect(arrivalRows).toHaveLength(1);
+    expect(arrivalRows?.[0]).toMatchObject({ type: "SLEEP_DURATION" });
+    expect(maybeEnqueueMorningRefresh).toHaveBeenCalledWith("user-1", [
+      arrivalRows?.[0]?.measuredAt,
+    ]);
+  });
+
+  it("emits only the workout returned by a short batched INSERT result", async () => {
+    const first = {
+      activity: "HKWorkoutActivityTypeRunning",
+      duration: "30.0",
+      start: "2026-05-14 08:00:00 +0200",
+      end: "2026-05-14 08:30:00 +0200",
+    };
+    const second = {
+      activity: "HKWorkoutActivityTypeCycling",
+      duration: "45.0",
+      start: "2026-05-14 10:00:00 +0200",
+      end: "2026-05-14 10:45:00 +0200",
+    };
+    const xmlPath = join(
+      mkdtempSync(join(tmpdir(), "healthlog-parser-test-")),
+      "export.xml",
+    );
+    writeFileSync(
+      xmlPath,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<HealthData locale="en_US">
+  <Workout workoutActivityType="${first.activity}" duration="${first.duration}" durationUnit="min" startDate="${first.start}" endDate="${first.end}"/>
+  <Workout workoutActivityType="${second.activity}" duration="${second.duration}" durationUnit="min" startDate="${second.start}" endDate="${second.end}"/>
+</HealthData>`,
+    );
+    const racedExternalId = hashSampleKey(
+      first.activity,
+      first.duration,
+      first.start,
+      first.end,
+    );
+    const insertedExternalId = hashSampleKey(
+      second.activity,
+      second.duration,
+      second.start,
+      second.end,
+    );
+    const prisma = makeFakePrisma({
+      workoutRaceExternalIds: [racedExternalId],
+    });
+
+    const result = await streamParseExportXml({
+      xmlPath,
+      userId: "user-1",
+      userTimezone: "Europe/Berlin",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+      workoutBatchSize: 2,
+    });
+
+    expect(result.workouts).toMatchObject({ inserted: 1, updated: 1 });
+    const insertedWorkout = prisma._workouts.find(
+      (row) => row.externalId === insertedExternalId,
+    );
+    expect(emitDataArrival).toHaveBeenCalledTimes(1);
+    expect(emitDataArrival).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        kind: "workout",
+        refId: insertedWorkout?.id,
+        insertedCount: 1,
+        source: "apple_export",
+      }),
+    );
+  });
+  it("emits arrivals for committed batches before a later batch fails", async () => {
+    const xmlPath = join(
+      mkdtempSync(join(tmpdir(), "healthlog-parser-test-")),
+      "export.xml",
+    );
+    writeFileSync(
+      xmlPath,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<HealthData locale="en_US">
+  <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="30.0" durationUnit="min" startDate="2026-05-14 08:00:00 +0200" endDate="2026-05-14 08:30:00 +0200"/>
+${" ".repeat(70_000)}
+  <Workout workoutActivityType="HKWorkoutActivityTypeCycling" duration="45.0" durationUnit="min" startDate="2026-05-14 10:00:00 +0200" endDate="2026-05-14 10:45:00 +0200"/>
+</HealthData>`,
+    );
+    const prisma = makeFakePrisma();
+    const createManyAndReturn = prisma.workout.createManyAndReturn;
+    let flushCount = 0;
+    prisma.workout.createManyAndReturn = async (args) => {
+      flushCount += 1;
+      if (flushCount === 2) throw new Error("later batch failed");
+      return createManyAndReturn(args);
+    };
+
+    await expect(
+      streamParseExportXml({
+        xmlPath,
+        userId: "user-1",
+        userTimezone: "Europe/Berlin",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        prisma: prisma as any,
+        workoutBatchSize: 1,
+      }),
+    ).rejects.toThrow("later batch failed");
+
+    expect(emitDataArrival).toHaveBeenCalledTimes(1);
+    expect(emitDataArrival).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        kind: "workout",
+        insertedCount: 1,
+        source: "apple_export",
+      }),
+    );
   });
 });
 

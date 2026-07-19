@@ -797,6 +797,7 @@ model User {
   // claim every reaction surface reads. Retained 14 days.
   arrivalReactions            ArrivalReaction[]
   workoutInsights             WorkoutInsight[]
+  workoutInsightGenerationClaims WorkoutInsightGenerationClaim[]
   // v1.17.1 — preventive-care / measurement (Vorsorge) reminders. One row
   // per user-created reminder ("BP every 7 days", "annual blood panel").
   // Server computes the canonical `nextDueAt`; the cron fires through the
@@ -1941,6 +1942,7 @@ model Workout {
   route   WorkoutRoute?
   samples WorkoutSamples?
   insight WorkoutInsight?
+  insightGenerationClaim WorkoutInsightGenerationClaim?
 
   /// Ingest dedup. NULL externalId is distinct so two manual
   /// entries on the same day never collide here.
@@ -2046,6 +2048,7 @@ model WorkoutSamples {
 // ever creates one: a workout with no row renders no card, and that includes
 // every workout that predates this model.
 model WorkoutInsight {
+
   id                 String   @id @default(cuid())
   userId             String   @map("user_id")
   workoutId          String   @unique @map("workout_id")
@@ -2074,6 +2077,29 @@ model WorkoutInsight {
   /// window.
   @@index([userId, generatedAt])
   @@map("workout_insights")
+}
+
+// Durable ownership and local-day capacity reservation for workout insight
+// generation. The row is created before expensive evidence work. A live
+// `claimId` owns the pre-provider lease; `providerInvokedAt` is the terminal
+// boundary after which retries must never spend again.
+model WorkoutInsightGenerationClaim {
+  id                String    @id @default(cuid())
+  userId            String    @map("user_id")
+  workoutId         String    @unique @map("workout_id")
+  localDate         String    @map("local_date")
+  claimId           String?   @unique @map("claim_id")
+  claimedAt         DateTime? @map("claimed_at")
+  providerInvokedAt DateTime? @map("provider_invoked_at")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@index([userId, localDate])
+  @@map("workout_insight_generation_claims")
 }
 
 // ─── Strain personal anchor cache (v1.10.3) ─────────────────
@@ -5341,6 +5367,9 @@ model ArrivalReaction {
   localDate     String    @map("local_date")
   /// Timestamp of the newest sample that triggered it.
   occurredAt    DateTime  @map("occurred_at")
+  /// When the newest sample actually reached HealthLog. Unlike `createdAt`,
+  /// this advances when a later same-kind arrival refreshes the daily marker.
+  arrivedAt      DateTime  @default(now()) @map("arrived_at")
   /// Kind-scoped referent: the workout id for `workout`, the panel day for labs.
   refId         String?   @map("ref_id")
   /// AES-256-GCM ciphertext of the generated reaction line. Null until — and
@@ -5350,6 +5379,17 @@ model ArrivalReaction {
   /// the status cards use. Registered in `scripts/rotate-encryption-key.ts`.
   lineEncrypted Bytes?    @map("line_encrypted")
   generatedAt   DateTime? @map("generated_at")
+  /// Opaque owner token and lease for pre-provider setup. A stale worker may
+  /// reclaim only while `generationProviderInvokedAt` is null.
+  generationClaimId              String?   @map("generation_claim_id")
+  generationClaimedAt            DateTime? @map("generation_claimed_at")
+  /// The token reservation is written in the same transaction as the
+  /// `coach_usage` increment. A reclaimed pre-provider attempt reuses it.
+  generationReservedTokens       Int?      @map("generation_reserved_tokens")
+  generationBudgetDateKey        String?   @map("generation_budget_date_key")
+  /// Durable provider boundary. Once set, this marker is terminal unless the
+  /// encrypted line is committed; no retry may invoke a provider again.
+  generationProviderInvokedAt    DateTime? @map("generation_provider_invoked_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

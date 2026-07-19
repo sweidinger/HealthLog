@@ -50,7 +50,7 @@ export interface DataArrival {
   kind: ArrivalKind;
   /** Deterministic, computed at the emit seam. Non-salient is never enqueued. */
   salience: ArrivalSalience;
-  /** User-profile-tz day key of the NEWEST sample (YYYY-MM-DD). */
+  /** User-profile-tz reaction day at the emit seam (YYYY-MM-DD). */
   localDate: string;
   /** ISO timestamp of the newest sample in the batch. */
   occurredAt: string;

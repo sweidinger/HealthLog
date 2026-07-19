@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.31.1] — 2026-07-19
+
+- **Arrival events now follow committed inserts across every writer.** Provider
+  re-sync updates stay silent, partial Apple Health imports retain arrivals
+  from earlier committed batches, all newly inserted workouts emit, and sleep
+  refreshes distinguish new stages from updates. Web-only processes now retry
+  their bounded send-only queue connection instead of permanently losing
+  arrival jobs after one transient startup failure.
+- **Reaction and workout generation are single-spend operations.** Durable
+  database claims close worker races and provider-retry gaps, daily token
+  reservations are atomic and reconciled on every terminal path, and both
+  generation and display honor the user's Insights and Workouts module choices
+  plus server-managed consent.
+- **AI context is narrower and more accurate.** Arrival reactions use the
+  record that actually landed, completed sleep uses the reconstructed night
+  rather than one stage segment, user-authored lab fields are fenced as data,
+  workout comparisons use canonical sessions and dates, and every metric and
+  derived-score coach entry carries its exact supported scope.
+- **Dashboard state survives old and partial clients.** Saved comparison range
+  points and newly supported metric widgets are preserved, while Today
+  freshness remains aligned across local-day boundaries, DST, tab focus, and
+  split web/worker deployments.
+
+Three migrations (0260, 0261, 0262). No breaking changes.
+
 ## [1.31.0] — "The record that reacts" — 2026-07-19
 
 A milestone release: the record now visibly responds when something lands,

@@ -14,7 +14,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { findManyMock, createManyMock, updateMock, addWarningMock } = vi.hoisted(
   () => ({
     findManyMock: vi.fn(async () => [] as unknown[]),
-    createManyMock: vi.fn(async () => ({ count: 0 })),
+    createManyMock: vi.fn<
+      () => Promise<
+        Array<{ id: string; type: "DAILY_STEPS"; measuredAt: Date }>
+      >
+    >(async () => []),
     updateMock: vi.fn(async () => ({})),
     addWarningMock: vi.fn(),
   }),
@@ -24,7 +28,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: {
       findMany: findManyMock,
-      createMany: createManyMock,
+      createManyAndReturn: createManyMock,
       update: updateMock,
     },
   },
@@ -67,7 +71,7 @@ const STEPS_READING = {
 
 beforeEach(() => {
   findManyMock.mockReset().mockResolvedValue([]);
-  createManyMock.mockReset().mockResolvedValue({ count: 0 });
+  createManyMock.mockReset().mockResolvedValue([]);
   updateMock.mockReset().mockResolvedValue({});
   addWarningMock.mockReset();
 });
@@ -118,7 +122,9 @@ describe("upsertFitbitMeasurements — tombstones resurrect", () => {
   });
 
   it("still creates a genuinely fresh key", async () => {
-    createManyMock.mockResolvedValue({ count: 1 });
+    createManyMock.mockResolvedValue([
+      { id: "inserted-1", type: "DAILY_STEPS", measuredAt: new Date() },
+    ]);
     const { imported } = await upsertFitbitMeasurements(
       "user-1",
       [STEPS_READING],
@@ -218,7 +224,9 @@ describe("upsertFitbitMeasurements — natural-key migration rescue", () => {
 
   it("creates normally when no natural-key twin exists", async () => {
     findManyMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
-    createManyMock.mockResolvedValue({ count: 1 });
+    createManyMock.mockResolvedValue([
+      { id: "inserted-1", type: "DAILY_STEPS", measuredAt: new Date() },
+    ]);
     const { imported } = await upsertFitbitMeasurements(
       "user-1",
       [STEPS_READING],
@@ -236,7 +244,9 @@ describe("upsertFitbitMeasurements — natural-key migration rescue", () => {
     findManyMock
       .mockResolvedValueOnce([]) // externalId probe
       .mockRejectedValueOnce(new Error("db down")); // natural-key rescue probe
-    createManyMock.mockResolvedValue({ count: 1 });
+    createManyMock.mockResolvedValue([
+      { id: "inserted-1", type: "DAILY_STEPS", measuredAt: new Date() },
+    ]);
 
     const { imported } = await upsertFitbitMeasurements(
       "user-1",

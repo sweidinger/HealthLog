@@ -37,8 +37,12 @@ vi.mock("@/lib/api-handler", () => ({
   },
 }));
 
+const { isModuleEnabled } = vi.hoisted(() => ({
+  isModuleEnabled: vi.fn(async () => true),
+}));
 vi.mock("@/lib/modules/gate", () => ({
   requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
+  isModuleEnabled,
 }));
 vi.mock("@/lib/feature-flags", () => ({
   requireAssistantSurface: vi.fn(async () => undefined),
@@ -281,9 +285,19 @@ beforeEach(() => {
     },
     workingProvider: { providerType: "admin-openai" },
   });
+  isModuleEnabled.mockResolvedValue(true);
 });
 
 describe("coach chat — workout scope, first turn", () => {
+  it("does not read workout evidence when the workouts module is disabled", async () => {
+    isModuleEnabled.mockResolvedValueOnce(false);
+    withPriorTurns(0);
+    await postAndDrain({ message: "Why was that hard?", workoutId: "w1" });
+
+    expect(workoutFindFirst).not.toHaveBeenCalled();
+    expect(lastUserPrompt()).not.toContain("thisWorkout");
+  });
+
   it("pins the workout's own numbers as a snapshot section", async () => {
     withPriorTurns(0);
     await postAndDrain({ message: "Why was that hard?", workoutId: "w1" });

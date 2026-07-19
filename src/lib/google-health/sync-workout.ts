@@ -27,7 +27,7 @@ import {
   type GoogleHealthResourceSyncOptions,
 } from "./sync";
 import { prisma } from "@/lib/db";
-import { emitWorkoutArrivalIfCreated } from "@/lib/arrivals/workout-emit";
+import { emitInsertedWorkoutArrival } from "@/lib/arrivals/workout-emit";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 
@@ -66,52 +66,46 @@ export async function syncUserWorkout(
     const w: GoogleHealthMappedWorkout | null = mapWorkout(point, tz);
     if (!w) continue; // no usable time span — not a workout
 
+    const data = {
+      sportType: w.sportType,
+      startedAt: w.startedAt,
+      endedAt: w.endedAt,
+      durationSec: w.durationSec,
+      totalEnergyKcal: w.totalEnergyKcal,
+      totalDistanceM: w.totalDistanceM,
+      avgHeartRate: w.avgHeartRate,
+      maxHeartRate: w.maxHeartRate,
+      minHeartRate: w.minHeartRate,
+    };
     try {
-      const saved = await prisma.workout.upsert({
-        where: {
-          userId_source_externalId: {
-            userId,
-            source: "GOOGLE_HEALTH",
-            externalId: w.externalId,
-          },
-        },
-        create: {
+      const [inserted] = await prisma.workout.createManyAndReturn({
+        data: {
           userId,
           source: "GOOGLE_HEALTH",
           externalId: w.externalId,
-          sportType: w.sportType,
-          startedAt: w.startedAt,
-          endedAt: w.endedAt,
-          durationSec: w.durationSec,
-          totalEnergyKcal: w.totalEnergyKcal,
-          totalDistanceM: w.totalDistanceM,
-          avgHeartRate: w.avgHeartRate,
-          maxHeartRate: w.maxHeartRate,
-          minHeartRate: w.minHeartRate,
+          ...data,
         },
-        update: {
-          sportType: w.sportType,
-          startedAt: w.startedAt,
-          endedAt: w.endedAt,
-          durationSec: w.durationSec,
-          totalEnergyKcal: w.totalEnergyKcal,
-          totalDistanceM: w.totalDistanceM,
-          avgHeartRate: w.avgHeartRate,
-          maxHeartRate: w.maxHeartRate,
-          minHeartRate: w.minHeartRate,
-        },
-        select: {
-          id: true,
-          startedAt: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        skipDuplicates: true,
+        select: { id: true, startedAt: true },
       });
-      // v1.31.0 — data-arrival spine. Only a genuinely NEW workout reacts; a
-      // re-sync of an already-stored session is not news.
-      void emitWorkoutArrivalIfCreated(userId, saved, "google-health").catch(
-        () => {},
-      );
+      if (inserted) {
+        void emitInsertedWorkoutArrival(
+          userId,
+          inserted,
+          "google-health",
+        ).catch(() => {});
+      } else {
+        await prisma.workout.update({
+          where: {
+            userId_source_externalId: {
+              userId,
+              source: "GOOGLE_HEALTH",
+              externalId: w.externalId,
+            },
+          },
+          data,
+        });
+      }
       imported++;
     } catch (err) {
       getEvent()?.addWarning(`google-health: failed to upsert workout: ${err}`);

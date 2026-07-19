@@ -256,6 +256,7 @@ function resolveLocale(locale: string | null | undefined): Locale {
 function toDigestArrival(row: {
   kind: string;
   occurredAt: Date;
+  arrivedAt: Date;
   lineEncrypted: Uint8Array | null;
   generatedAt: Date | null;
 }): DailyDigestArrival | null {
@@ -274,7 +275,12 @@ function toDigestArrival(row: {
     }
   }
 
-  return { kind: row.kind, occurredAt: row.occurredAt, line };
+  return {
+    kind: row.kind,
+    occurredAt: row.occurredAt,
+    arrivedAt: row.arrivedAt,
+    line,
+  };
 }
 
 export async function loadDailyDigest(
@@ -354,6 +360,7 @@ export async function loadDailyDigest(
       select: {
         kind: true,
         occurredAt: true,
+        arrivedAt: true,
         lineEncrypted: true,
         generatedAt: true,
       },

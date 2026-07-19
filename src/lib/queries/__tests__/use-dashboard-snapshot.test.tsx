@@ -8,11 +8,10 @@
  * the warm 60 s server cache and never touches the LLM surfaces.
  *
  * The hook keeps its warm-cache options (`staleTime: 60_000`,
- * `refetchOnMount: false`) so a return-to-dashboard within a minute
- * stays a free cache hit, and the queryKey stays the centralised factory
- * entry. v1.18.9 (#38) flips `refetchOnWindowFocus` to `true` so a
- * background sync — which fires no client mutation event — surfaces on
- * return-to-tab; the `staleTime` gate keeps rapid focus toggles free.
+ * `refetchOnMount: false`) for remounts. v1.31.0 makes
+ * `refetchOnWindowFocus` unconditional so an out-of-band background sync
+ * surfaces even when the prior snapshot was fetched less than a minute ago;
+ * the Today digest uses the same focus contract, keeping both cells aligned.
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
 
@@ -82,10 +81,10 @@ describe("useDashboardSnapshot — auto-refresh on an open page", () => {
     expect(opts.refetchOnMount).toBe(false);
   });
 
-  it("refetches on window focus so a background sync surfaces on return", () => {
+  it("always refetches on focus so freshness is not suppressed by staleTime", () => {
     useDashboardSnapshot();
     const opts = lastOpts();
-    expect(opts.refetchOnWindowFocus).toBe(true);
+    expect(opts.refetchOnWindowFocus).toBe("always");
   });
 
   it("routes the queryKey through the centralised factory, keyed by locale", () => {

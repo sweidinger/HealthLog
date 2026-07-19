@@ -18,6 +18,7 @@ import { createHash } from "node:crypto";
 
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
 import { auditLog } from "@/lib/auth/audit";
 import { encryptNote, readNote } from "@/lib/crypto/note-cipher";
 import { annotate, getEvent } from "@/lib/logging/context";
@@ -233,7 +234,7 @@ export async function logMcpMeasurement(input: {
   }
 
   // No mass assignment — every column is set explicitly from validated input.
-  await prisma.measurement.create({
+  const created = await prisma.measurement.create({
     data: {
       userId: input.userId,
       type: input.type,
@@ -243,7 +244,12 @@ export async function logMcpMeasurement(input: {
       measuredAt,
       externalId,
     },
+    select: { id: true, type: true, measuredAt: true },
   });
+
+  void emitInsertedMeasurementArrivals(input.userId, [created], "mcp").catch(
+    () => {},
+  );
 
   invalidateUserMeasurements(input.userId, { evict: true });
 
@@ -380,7 +386,7 @@ export async function logMcpBloodPressure(input: {
 
   // Both rows in one transaction so a partial BP pair can never persist. No
   // mass assignment — every column is set explicitly from validated input.
-  await prisma.$transaction([
+  const created = await prisma.$transaction([
     prisma.measurement.create({
       data: {
         userId: input.userId,
@@ -391,6 +397,7 @@ export async function logMcpBloodPressure(input: {
         measuredAt,
         externalId,
       },
+      select: { id: true, type: true, measuredAt: true },
     }),
     prisma.measurement.create({
       data: {
@@ -402,8 +409,13 @@ export async function logMcpBloodPressure(input: {
         measuredAt,
         externalId,
       },
+      select: { id: true, type: true, measuredAt: true },
     }),
   ]);
+
+  void emitInsertedMeasurementArrivals(input.userId, created, "mcp").catch(
+    () => {},
+  );
 
   invalidateUserMeasurements(input.userId, { evict: true });
 

@@ -14,6 +14,7 @@ import {
 import { getUserWithingsCredentials } from "./credentials";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { isP2002 } from "@/lib/prisma-errors";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
 import {
   isReauthRequired,
   recordSyncFailure,
@@ -213,6 +214,11 @@ export async function syncUserMeasurements(
   // than N per-row hooks. Best-effort: a populator hiccup never fails
   // the user's sync.
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
+  const insertedArrivals: Array<{
+    id: string;
+    type: MeasurementType;
+    measuredAt: Date;
+  }> = [];
 
   // v1.28.39 — hold-watermark-on-hard-failure (mirrors google-health /
   // fitbit's `hardFailStorage` verdict). A per-row write that HARD-fails
@@ -255,7 +261,7 @@ export async function syncUserMeasurements(
           data: { value: m.value, deletedAt: null },
         });
       } else {
-        await prisma.measurement.create({
+        const created = await prisma.measurement.create({
           data: {
             userId,
             type: measType,
@@ -264,7 +270,9 @@ export async function syncUserMeasurements(
             measuredAt: m.measuredAt,
             source: "WITHINGS",
           },
+          select: { id: true, type: true, measuredAt: true },
         });
+        insertedArrivals.push(created);
       }
       touched.push({ type: measType, measuredAt: m.measuredAt });
       imported++;
@@ -287,6 +295,12 @@ export async function syncUserMeasurements(
       }
     }
   }
+
+  void emitInsertedMeasurementArrivals(
+    userId,
+    insertedArrivals,
+    "withings",
+  ).catch(() => {});
 
   // v1.4.39.1 — refresh the persistent rollup table for every distinct
   // (type, day) the sync touched. The chart-data + analytics read paths

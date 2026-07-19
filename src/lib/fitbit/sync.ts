@@ -23,6 +23,7 @@ import { prisma } from "@/lib/db";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { annotate, getEvent } from "@/lib/logging/context";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
 import {
   isReauthRequired,
   recordSyncFailure,
@@ -415,8 +416,13 @@ export async function upsertFitbitMeasurements(
 ): Promise<{
   imported: number;
   touched: Array<{ type: MeasurementType; measuredAt: Date }>;
+  inserted: Array<{
+    id: string;
+    type: MeasurementType;
+    measuredAt: Date;
+  }>;
 }> {
-  if (readings.length === 0) return { imported: 0, touched: [] };
+  if (readings.length === 0) return { imported: 0, touched: [], inserted: [] };
 
   // Probe EVERY existing row (live AND tombstoned) for the batch's externalIds
   // in a single query. The full unique index guarantees at most one row per
@@ -591,6 +597,11 @@ export async function upsertFitbitMeasurements(
   }
 
   let imported = 0;
+  const insertedRows: Array<{
+    id: string;
+    type: MeasurementType;
+    measuredAt: Date;
+  }> = [];
 
   // Fresh inserts: chunked `createMany` (server-owned rows, field-by-field).
   // `skipDuplicates` guards the partial-unique index in the rare race where a
@@ -598,7 +609,7 @@ export async function upsertFitbitMeasurements(
   for (let i = 0; i < toCreate.length; i += FITBIT_CREATE_CHUNK) {
     const chunk = toCreate.slice(i, i + FITBIT_CREATE_CHUNK);
     try {
-      const res = await prisma.measurement.createMany({
+      const inserted = await prisma.measurement.createManyAndReturn({
         data: chunk.map((c) => ({
           userId,
           type: c.type,
@@ -610,8 +621,13 @@ export async function upsertFitbitMeasurements(
           sleepStage: c.sleepStage,
         })),
         skipDuplicates: true,
+        select: { id: true, type: true, measuredAt: true },
       });
-      imported += res.count;
+      imported += inserted.length;
+      insertedRows.push(...inserted);
+      void emitInsertedMeasurementArrivals(userId, inserted, "fitbit").catch(
+        () => {},
+      );
       for (const c of chunk) {
         touched.push({ type: c.type, measuredAt: c.measuredAt });
       }
@@ -666,7 +682,7 @@ export async function upsertFitbitMeasurements(
     if (tracker) {
       for (const t of touched) tracker.keys.push(t);
     }
-    return { imported, touched };
+    return { imported, touched, inserted: insertedRows };
   }
 
   try {
@@ -688,7 +704,7 @@ export async function upsertFitbitMeasurements(
     );
   }
 
-  return { imported, touched };
+  return { imported, touched, inserted: insertedRows };
 }
 
 /**

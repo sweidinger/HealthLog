@@ -28,7 +28,7 @@ import {
   type FitbitResourceSyncOptions,
 } from "./sync";
 import { prisma } from "@/lib/db";
-import { emitWorkoutArrivalIfCreated } from "@/lib/arrivals/workout-emit";
+import { emitInsertedWorkoutArrival } from "@/lib/arrivals/workout-emit";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 
@@ -76,50 +76,44 @@ export async function syncUserWorkout(
     const w: FitbitMappedWorkout | null = mapWorkout(entry, tz);
     if (!w) continue; // no usable time span — not a workout
 
+    const data = {
+      sportType: w.sportType,
+      startedAt: w.startedAt,
+      endedAt: w.endedAt,
+      durationSec: w.durationSec,
+      totalEnergyKcal: w.totalEnergyKcal,
+      totalDistanceM: w.totalDistanceM,
+      avgHeartRate: w.avgHeartRate,
+      maxHeartRate: w.maxHeartRate,
+      minHeartRate: w.minHeartRate,
+    };
     try {
-      const saved = await prisma.workout.upsert({
-        where: {
-          userId_source_externalId: {
-            userId,
-            source: "FITBIT",
-            externalId: w.externalId,
-          },
-        },
-        create: {
+      const [inserted] = await prisma.workout.createManyAndReturn({
+        data: {
           userId,
           source: "FITBIT",
           externalId: w.externalId,
-          sportType: w.sportType,
-          startedAt: w.startedAt,
-          endedAt: w.endedAt,
-          durationSec: w.durationSec,
-          totalEnergyKcal: w.totalEnergyKcal,
-          totalDistanceM: w.totalDistanceM,
-          avgHeartRate: w.avgHeartRate,
-          maxHeartRate: w.maxHeartRate,
-          minHeartRate: w.minHeartRate,
+          ...data,
         },
-        update: {
-          sportType: w.sportType,
-          startedAt: w.startedAt,
-          endedAt: w.endedAt,
-          durationSec: w.durationSec,
-          totalEnergyKcal: w.totalEnergyKcal,
-          totalDistanceM: w.totalDistanceM,
-          avgHeartRate: w.avgHeartRate,
-          maxHeartRate: w.maxHeartRate,
-          minHeartRate: w.minHeartRate,
-        },
-        select: {
-          id: true,
-          startedAt: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        skipDuplicates: true,
+        select: { id: true, startedAt: true },
       });
-      // v1.31.0 — data-arrival spine. Only a genuinely NEW workout reacts; a
-      // re-sync of an already-stored session is not news.
-      void emitWorkoutArrivalIfCreated(userId, saved, "fitbit").catch(() => {});
+      if (inserted) {
+        void emitInsertedWorkoutArrival(userId, inserted, "fitbit").catch(
+          () => {},
+        );
+      } else {
+        await prisma.workout.update({
+          where: {
+            userId_source_externalId: {
+              userId,
+              source: "FITBIT",
+              externalId: w.externalId,
+            },
+          },
+          data,
+        });
+      }
       imported++;
     } catch (err) {
       getEvent()?.addWarning(`fitbit: failed to upsert workout: ${err}`);

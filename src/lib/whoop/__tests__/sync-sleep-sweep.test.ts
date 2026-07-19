@@ -11,7 +11,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { updateManyMock, upsertMeasurementsMock } = vi.hoisted(() => ({
   updateManyMock: vi.fn(async () => ({ count: 0 })),
-  upsertMeasurementsMock: vi.fn(async () => 1),
+  upsertMeasurementsMock: vi.fn(
+    async (
+      _userId: string,
+      readings: Array<{ type: string; measuredAt: Date }>,
+      opts?: {
+        onInserted?: (
+          rows: Array<{ id: string; type: string; measuredAt: Date }>,
+        ) => void;
+      },
+    ) => {
+      opts?.onInserted?.(
+        readings.map((row, index) => ({ ...row, id: `inserted-${index}` })),
+      );
+      return 1;
+    },
+  ),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -75,7 +90,7 @@ const NIGHT: WhoopSleep = {
 
 beforeEach(() => {
   updateManyMock.mockClear().mockResolvedValue({ count: 0 });
-  upsertMeasurementsMock.mockClear().mockResolvedValue(1);
+  upsertMeasurementsMock.mockClear();
   fetchSleepsMock.mockReset();
 });
 

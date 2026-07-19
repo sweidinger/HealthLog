@@ -42,6 +42,7 @@ import { workoutSportTypeEnum } from "@/lib/validations/workout";
 import type { HrSeriesPoint } from "@/lib/workouts/hr-series";
 import type { WorkoutZones } from "@/lib/workouts/zones";
 import type { WorkoutSportContext } from "@/lib/workouts/sport-context";
+import { userDayKey } from "@/lib/tz/format";
 
 /**
  * Fold an arbitrary stored sport string onto the closed union.
@@ -61,6 +62,7 @@ export interface WorkoutEvidenceInput {
   sportType: string;
   source: string;
   startedAt: Date;
+  timezone: string;
   durationSec: number;
   totalEnergyKcal: number | null;
   totalDistanceM: number | null;
@@ -193,9 +195,9 @@ export function buildWorkoutEvidence(
   const shape = deriveHrShape(input.hrPoints);
 
   const evidence: Record<string, unknown> = {
-    // Day granularity only — the exact clock time adds nothing to the
-    // narrative and the ISO day key is a deterministic server projection.
-    date: input.startedAt.toISOString().slice(0, 10),
+    // Day granularity in the user's timezone. UTC slicing can move late-evening
+    // workouts onto the following profile day.
+    date: userDayKey(input.startedAt, input.timezone),
     sport,
     recordedBy: source,
     durationSec: input.durationSec,

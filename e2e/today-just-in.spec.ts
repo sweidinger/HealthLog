@@ -113,10 +113,11 @@ test("a fresh arrival surfaces the just-in chip and flips the day in place", asy
     const localDate = localDayKey(now, timezone);
     await pool.query(
       `INSERT INTO arrival_reactions
-         (id, user_id, kind, local_date, occurred_at, created_at)
-       VALUES ($1, $2, 'sleep_night', $3, $4, NOW())
+         (id, user_id, kind, local_date, occurred_at, arrived_at, created_at)
+       VALUES ($1, $2, 'sleep_night', $3, $4, NOW(), NOW())
        ON CONFLICT (user_id, kind, local_date) DO UPDATE
-         SET occurred_at = EXCLUDED.occurred_at`,
+         SET occurred_at = EXCLUDED.occurred_at,
+             arrived_at = NOW()`,
       [`c${now.getTime()}justin000000`, userId, localDate, wokeAt],
     );
     await pool.query(

@@ -23,8 +23,28 @@ export async function register() {
     startEventLoopLagMonitor();
 
     const { shouldRunWorker } = await import("@/lib/process-type");
-    // Web-only container — the dedicated worker service runs the queues.
-    if (!shouldRunWorker()) return;
+    if (!shouldRunWorker()) {
+      // Split deployment: web requests still produce queue jobs, but this
+      // process owns no schedules, supervision, or consumers.
+      try {
+        const { startGlobalBossProducer } =
+          await import("@/lib/jobs/boss-instance");
+        const boss = await startGlobalBossProducer(process.env.DATABASE_URL);
+        if (boss) {
+          const { registerShutdownHandlers } =
+            await import("@/lib/jobs/reminder/worker-lifecycle");
+          registerShutdownHandlers(boss);
+        }
+      } catch (err) {
+        // Queue-backed garnishes degrade independently; never make the web
+        // server unavailable because its producer connection failed.
+        console.error(
+          "[instrumentation] Failed to start pg-boss producer:",
+          err,
+        );
+      }
+      return;
+    }
 
     const { WideEventBuilder } = await import("@/lib/logging/event-builder");
     const { emitIfSampled } = await import("@/lib/logging/transports");

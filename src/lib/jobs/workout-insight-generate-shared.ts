@@ -35,9 +35,10 @@ export interface WorkoutInsightGeneratePayload {
  * refuse a second generation, so a lost singleton race costs one cheap read,
  * never a second provider call.
  *
- * Fire-and-forget in the strictest sense: no boss, or a failed send, is a
- * no-op. A workout with no paragraph renders no card, which is the surface's
- * honest empty state rather than an error condition.
+ * A missing producer or failed send returns `{ enqueued: false }`. The arrival
+ * worker treats that as a transient fan-out failure so pg-boss retries the
+ * source event; callers outside that worker may still choose an honest no-card
+ * fallback.
  */
 export async function enqueueWorkoutInsight(
   payload: WorkoutInsightGeneratePayload,

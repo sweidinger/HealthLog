@@ -276,6 +276,9 @@ export function CoachConversation({
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(initialConversationId ?? null);
+  const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(
+    initialWorkoutId ?? null,
+  );
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
   const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
@@ -641,7 +644,7 @@ export function CoachConversation({
     // Same first-turn gate as `scope` — see `initialWorkoutId`.
     const workoutId =
       currentConversationId === null
-        ? (initialWorkoutId ?? undefined)
+        ? (activeWorkoutId ?? undefined)
         : undefined;
     const wasFreshFenced = currentConversationId === null && fenced;
     const resolvedId = await send.send({
@@ -725,7 +728,7 @@ export function CoachConversation({
       workoutId:
         fenced || currentConversationId !== null
           ? undefined
-          : (initialWorkoutId ?? undefined),
+          : (activeWorkoutId ?? undefined),
       fenced,
       pendingAttachmentIds:
         currentConversationId === null ? pendingAttachmentIds : undefined,
@@ -739,6 +742,7 @@ export function CoachConversation({
     // v1.29.x (S7) — a new chat is always a health thread; drop any staged
     // attachments so a fenced scope can never leak onto a fresh health thread.
     setPendingAttachmentIds([]);
+    setActiveWorkoutId(null);
     dispatchGuided({ type: "RESET" });
     send.reset();
   }

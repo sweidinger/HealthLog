@@ -32,11 +32,8 @@ import {
 import { withIdempotency } from "@/lib/idempotency";
 import { encryptNote, shapeMeasurementNotes } from "@/lib/crypto/note-cipher";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
-import { emitDataArrival } from "@/lib/arrivals/emit-shared";
-import {
-  ARRIVAL_MEASUREMENT_KIND,
-  groupRowsByArrivalKind,
-} from "@/lib/arrivals/measurement-kind";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { runSafetyFloorCheck } from "@/lib/illness/safety-floor-check";
@@ -851,19 +848,20 @@ async function postMeasurement(request: NextRequest) {
       action: "reminder.satisfy.enqueue",
     });
 
-    // v1.31.0 — the interactive arm of the data-arrival spine. This route is
-    // the combined BP + pulse form, so it lands both BP arms in one
-    // transaction; they are one reading and produce one arrival, which the
-    // kind map already collapses. Every row here is a real insert (the
-    // transaction throws rather than de-duplicating), so the count is exact.
-    for (const [kind, group] of groupRowsByArrivalKind(results)) {
-      void emitDataArrival({
-        userId: user.id,
-        kind,
-        newestSampleAt: group.newestAt,
-        insertedCount: group.count,
-        source: "manual",
-      }).catch(() => {});
+    // v1.31.0 — feed the shared arrival seams only the rows returned by the
+    // create-only transaction. Both callbacks are best-effort: arrival or
+    // morning-refresh infrastructure can never turn a committed write into an
+    // error response.
+    void emitInsertedMeasurementArrivals(user.id, results, "manual").catch(
+      () => {},
+    );
+    const sleepMeasuredAts = results
+      .filter((row) => row.type === "SLEEP_DURATION")
+      .map((row) => row.measuredAt);
+    if (sleepMeasuredAts.length > 0) {
+      void maybeEnqueueMorningRefresh(user.id, sleepMeasuredAts).catch(
+        () => {},
+      );
     }
 
     // v1.18.6 — absolute clinical safety-floor check on the just-written
@@ -1018,20 +1016,15 @@ async function postMeasurement(request: NextRequest) {
     action: "reminder.satisfy.enqueue",
   });
 
-  // v1.31.0 — the single-entry arm of the data-arrival spine. One row, so at
-  // most one kind; a type the spine does not track maps to null and emits
-  // nothing.
-  {
-    const kind = ARRIVAL_MEASUREMENT_KIND[measurement.type];
-    if (kind) {
-      void emitDataArrival({
-        userId: user.id,
-        kind,
-        newestSampleAt: measurement.measuredAt,
-        insertedCount: 1,
-        source: "manual",
-      }).catch(() => {});
-    }
+  // v1.31.0 — `measurement` is the exact successful create result. A P2002
+  // duplicate returns above and never reaches either best-effort callback.
+  void emitInsertedMeasurementArrivals(user.id, [measurement], "manual").catch(
+    () => {},
+  );
+  if (measurement.type === "SLEEP_DURATION") {
+    void maybeEnqueueMorningRefresh(user.id, [measurement.measuredAt]).catch(
+      () => {},
+    );
   }
 
   // v1.18.6 — absolute clinical safety-floor check (confirm-gated,

@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: {
       findMany: vi.fn(),
-      createMany: vi.fn(),
+      createManyAndReturn: vi.fn(),
     },
     $transaction: vi.fn(async (fn: unknown) => {
       if (typeof fn === "function") {
@@ -83,7 +83,7 @@ function validStepEntry(externalId: string) {
 }
 
 beforeEach(() => {
-  vi.resetAllMocks();
+  vi.clearAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
@@ -91,12 +91,25 @@ beforeEach(() => {
     resetAt: Date.now() + 60_000,
   });
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 0 });
+  vi.mocked(prisma.measurement.createManyAndReturn).mockImplementation((async (
+    args: unknown,
+  ) => {
+    const { data } = args as {
+      data:
+        | { type: unknown; source: string; externalId: string | null }
+        | Array<{ type: unknown; source: string; externalId: string | null }>;
+    };
+    const rows = Array.isArray(data) ? data : [data];
+    return rows.map(({ type, source, externalId }) => ({
+      type,
+      source,
+      externalId,
+    }));
+  }) as never);
 });
 
 describe("POST /api/measurements/batch — PR detection enqueue (v1.4.25 W16c)", () => {
   it("enqueues with silent=false for a small healthy batch", async () => {
-    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
     const res = await POST(makeRequest({ entries: [validStepEntry("ext-a")] }));
     expect(res.status).toBe(200);
     expect(enqueuePrDetection).toHaveBeenCalledTimes(1);
@@ -109,7 +122,6 @@ describe("POST /api/measurements/batch — PR detection enqueue (v1.4.25 W16c)",
     const big = Array.from({ length: 51 }, (_, i) =>
       validStepEntry(`ext-${i}`),
     );
-    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 51 });
     const res = await POST(makeRequest({ entries: big }));
     expect(res.status).toBe(200);
     expect(enqueuePrDetection).toHaveBeenCalledWith("user-1", {

@@ -53,7 +53,7 @@ function input(over: Partial<DailyDigestInput> = {}): DailyDigestInput {
   };
 }
 
-/** An arrival `agoMs` before NOW. */
+/** An arrival that landed `agoMs` before NOW. */
 function arrival(
   agoMs: number,
   over: Partial<DailyDigestArrival> = {},
@@ -61,6 +61,7 @@ function arrival(
   return {
     kind: "sleep_night",
     occurredAt: new Date(NOW.getTime() - agoMs),
+    arrivedAt: new Date(NOW.getTime() - agoMs),
     line: null,
     ...over,
   };
@@ -84,6 +85,23 @@ describe("buildDailyDigest — justIn", () => {
     // The wire value must stay machine-readable. A server-formatted wall clock
     // here is the React #418 bug in its exact original shape.
     expect(digest.justIn?.at).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
+  });
+
+  it("uses landing time when an older sample syncs later", () => {
+    const digest = buildDailyDigest(
+      input({
+        arrivals: [
+          arrival(60_000, {
+            occurredAt: new Date(NOW.getTime() - 8 * 60 * 60_000),
+          }),
+        ],
+      }),
+      t,
+    );
+
+    expect(digest.justIn?.at).toBe(
+      new Date(NOW.getTime() - 60_000).toISOString(),
+    );
   });
 
   it("shows the chip inside the window and drops it after", () => {
@@ -134,6 +152,29 @@ describe("buildDailyDigest — justIn", () => {
 
     expect(digest.justIn?.kind).toBe("workout");
     expect(digest.reactionLine).toBe("newer");
+  });
+
+  it("picks the latest landing rather than the newest sample timestamp", () => {
+    const digest = buildDailyDigest(
+      input({
+        arrivals: [
+          arrival(10 * 60_000, {
+            kind: "workout",
+            occurredAt: new Date(NOW.getTime() - 4 * 60 * 60_000),
+            line: "landed later",
+          }),
+          arrival(60 * 60_000, {
+            kind: "weight",
+            occurredAt: new Date(NOW.getTime() - 60_000),
+            line: "newer sample",
+          }),
+        ],
+      }),
+      t,
+    );
+
+    expect(digest.justIn?.kind).toBe("workout");
+    expect(digest.reactionLine).toBe("landed later");
   });
 
   it("treats a blank generated line as absent rather than shipping an empty lead", () => {

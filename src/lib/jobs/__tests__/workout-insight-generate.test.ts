@@ -21,8 +21,18 @@ vi.mock("@/lib/logging/background", () => ({
 }));
 vi.mock("@/lib/db", () => ({
   prisma: {
+    $executeRaw: vi.fn(),
+    $queryRaw: vi.fn(),
+    $transaction: vi.fn(),
     workout: { findFirst: vi.fn(), findMany: vi.fn() },
     workoutInsight: { count: vi.fn(), findFirst: vi.fn(), upsert: vi.fn() },
+    workoutInsightGenerationClaim: {
+      findUnique: vi.fn(),
+      count: vi.fn(),
+      create: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     user: { findUnique: vi.fn() },
   },
 }));
@@ -85,6 +95,26 @@ function arrangeHappyPath() {
   vi.mocked(prisma.workoutInsight.count).mockResolvedValue(0 as never);
   vi.mocked(prisma.workoutInsight.findFirst).mockResolvedValue(null as never);
   vi.mocked(prisma.workoutInsight.upsert).mockResolvedValue({} as never);
+  vi.mocked(prisma.$executeRaw).mockResolvedValue(0 as never);
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
+  vi.mocked(prisma.$transaction).mockImplementation(
+    async (callback) => callback(prisma as never) as never,
+  );
+  vi.mocked(prisma.workoutInsightGenerationClaim.findUnique).mockResolvedValue(
+    null as never,
+  );
+  vi.mocked(prisma.workoutInsightGenerationClaim.count).mockResolvedValue(
+    0 as never,
+  );
+  vi.mocked(prisma.workoutInsightGenerationClaim.create).mockResolvedValue({
+    id: "claim-row-1",
+  } as never);
+  vi.mocked(prisma.workoutInsightGenerationClaim.updateMany).mockResolvedValue({
+    count: 1,
+  } as never);
+  vi.mocked(prisma.workoutInsightGenerationClaim.deleteMany).mockResolvedValue({
+    count: 1,
+  } as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     dateOfBirth: new Date("1985-01-01T00:00:00.000Z"),
     locale: "en",
@@ -337,6 +367,136 @@ describe("Activity Insight — the gate stack", () => {
     const where = vi.mocked(prisma.workout.findFirst).mock.calls[0][0]?.where;
     expect(where).toEqual({ id: WORKOUT, userId: USER });
   });
+});
+describe("Activity Insight — durable generation ownership", () => {
+  it("allows only one provider call for concurrent jobs for the same workout", async () => {
+    let storedClaim: Record<string, unknown> | null = null;
+    let transactionTail = Promise.resolve();
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+      const previous = transactionTail;
+      let release!: () => void;
+      transactionTail = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await previous;
+      try {
+        vi.mocked(
+          prisma.workoutInsightGenerationClaim.findUnique,
+        ).mockImplementation((async () => storedClaim) as never);
+        vi.mocked(
+          prisma.workoutInsightGenerationClaim.create,
+        ).mockImplementation((async ({
+          data,
+        }: {
+          data: Record<string, unknown>;
+        }) => {
+          storedClaim = { id: "claim-row-1", ...data };
+          return storedClaim;
+        }) as never);
+        return (await callback(prisma as never)) as never;
+      } finally {
+        release();
+      }
+    });
+
+    const outcomes = await Promise.all([
+      runWorkoutInsightGenerate({ userId: USER, workoutId: WORKOUT }, NOW),
+      runWorkoutInsightGenerate({ userId: USER, workoutId: WORKOUT }, NOW),
+    ]);
+
+    expect(runStatusCompletion).toHaveBeenCalledTimes(1);
+    expect(
+      outcomes.filter((outcome) => outcome.status === "generated"),
+    ).toHaveLength(1);
+    expect(outcomes).toContainEqual({
+      status: "skipped",
+      reason: "already_claimed",
+    });
+  });
+
+  it("releases ownership when evidence loading fails before provider invocation", async () => {
+    vi.mocked(buildWorkoutHrSeries).mockRejectedValueOnce(
+      new Error("transient database failure"),
+    );
+
+    await expect(
+      runWorkoutInsightGenerate({ userId: USER, workoutId: WORKOUT }, NOW),
+    ).rejects.toThrow("transient database failure");
+
+    expect(runStatusCompletion).not.toHaveBeenCalled();
+    expect(
+      prisma.workoutInsightGenerationClaim.deleteMany,
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it("makes provider uncertainty terminal so a retry cannot spend twice", async () => {
+    vi.mocked(runStatusCompletion).mockRejectedValueOnce(
+      new Error("connection dropped after send"),
+    );
+
+    const first = await runWorkoutInsightGenerate(
+      { userId: USER, workoutId: WORKOUT },
+      NOW,
+    );
+    expect(first).toEqual({
+      status: "skipped",
+      reason: "provider_uncertain",
+    });
+
+    const invokedWrite = vi
+      .mocked(prisma.workoutInsightGenerationClaim.updateMany)
+      .mock.calls.find(
+        ([args]) =>
+          args.data &&
+          "providerInvokedAt" in args.data &&
+          args.data.providerInvokedAt instanceof Date,
+      );
+    expect(invokedWrite).toBeDefined();
+
+    vi.clearAllMocks();
+    arrangeHappyPath();
+    vi.mocked(
+      prisma.workoutInsightGenerationClaim.findUnique,
+    ).mockResolvedValue({
+      id: "claim-row-1",
+      userId: USER,
+      workoutId: WORKOUT,
+      localDate: "2026-07-18",
+      claimId: null,
+      claimedAt: null,
+      providerInvokedAt: NOW,
+      completedAt: null,
+    } as never);
+
+    const retry = await runWorkoutInsightGenerate(
+      { userId: USER, workoutId: WORKOUT },
+      NOW,
+    );
+
+    expect(retry).toEqual({
+      status: "skipped",
+      reason: "already_attempted",
+    });
+    expect(runStatusCompletion).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { kind: "none" as const },
+    { kind: "timeout" as const },
+    { kind: "error" as const },
+  ])(
+    "uses the reserve/provider/reconcile chokepoint exactly once for $kind",
+    async (providerOutcome) => {
+      vi.mocked(runStatusCompletion).mockResolvedValue(providerOutcome);
+
+      await runWorkoutInsightGenerate(
+        { userId: USER, workoutId: WORKOUT },
+        NOW,
+      );
+
+      expect(runStatusCompletion).toHaveBeenCalledTimes(1);
+    },
+  );
 });
 
 describe("Activity Insight — what reaches the prompt", () => {

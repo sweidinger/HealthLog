@@ -17,6 +17,7 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn(),
       createMany: vi.fn(),
       findFirst: vi.fn(),
+      createManyAndReturn: vi.fn(),
     },
     workoutRoute: {
       createMany: vi.fn(),
@@ -59,6 +60,10 @@ vi.mock("@/lib/jobs/pr-detection", () => ({
   enqueuePrDetection: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/arrivals/emit-shared", () => ({
+  emitDataArrival: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
   cookies: vi.fn(async () => ({
@@ -73,6 +78,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -127,6 +133,32 @@ beforeEach(() => {
   });
   vi.mocked(prisma.workout.findMany).mockResolvedValue([]);
   vi.mocked(prisma.workout.createMany).mockResolvedValue({ count: 0 });
+  vi.mocked(prisma.workout.createManyAndReturn).mockImplementation(
+    (async (args: {
+      data: Record<string, unknown> | Array<Record<string, unknown>>;
+      skipDuplicates?: boolean;
+    }) => {
+      const data = Array.isArray(args.data) ? args.data : [args.data];
+      const result = await prisma.workout.createMany({
+        data: args.data,
+        skipDuplicates: args.skipDuplicates,
+      } as never);
+      const lookedUp = await prisma.workout.findMany({
+        select: { id: true, source: true, externalId: true },
+      } as never);
+      const returned = lookedUp.filter(
+        (row): row is typeof row & { id: string } =>
+          typeof (row as { id?: unknown }).id === "string",
+      );
+      if (returned.length >= result.count) {
+        return returned.slice(0, result.count);
+      }
+      return data.slice(0, result.count).map((row, index) => ({
+        ...row,
+        id: `inserted-${index}`,
+      }));
+    }) as never,
+  );
   vi.mocked(prisma.workout.findFirst).mockResolvedValue(null);
   vi.mocked(prisma.workoutRoute.createMany).mockResolvedValue({ count: 0 });
   vi.mocked(prisma.workoutSamples.createMany).mockResolvedValue({ count: 0 });
@@ -345,6 +377,101 @@ describe("POST /api/workouts/batch — per-entry status envelope", () => {
     expect(duplicateEntries).toBe(body.data.duplicates);
     expect(body.data.inserted).toBe(1);
     expect(body.data.duplicates).toBe(1);
+  });
+
+  it("marks the exact row returned by the insert as the race winner", async () => {
+    vi.mocked(prisma.workout.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.workout.createMany).mockResolvedValue({ count: 1 });
+    vi.mocked(prisma.workout.createManyAndReturn).mockResolvedValue([
+      {
+        id: "winner-1",
+        source: "APPLE_HEALTH",
+        externalId: "uuid-race-1",
+        startedAt: new Date("2026-05-14T06:30:00.000Z"),
+        sportType: "running",
+        createdAt: new Date("2026-05-14T10:00:00.000Z"),
+      },
+    ] as never);
+
+    const res = await POST(
+      makeRequest({
+        workouts: [
+          validWorkout("uuid-race-1"),
+          validWorkout("uuid-race-2", {
+            startedAt: "2026-05-14T08:30:00.000Z",
+            endedAt: "2026-05-14T09:15:00.000Z",
+          }),
+        ],
+      }),
+    );
+    const body = (await res.json()) as {
+      data: { entries: Array<{ index: number; status: string }> };
+    };
+
+    expect(body.data.entries).toEqual([
+      { index: 0, status: "inserted" },
+      { index: 1, status: "duplicate" },
+    ]);
+  });
+
+  it("keeps same external ids from different sources mapped to their own workout", async () => {
+    vi.mocked(prisma.workout.createMany).mockResolvedValue({ count: 2 });
+    vi.mocked(prisma.workout.createManyAndReturn).mockResolvedValue([
+      {
+        id: "apple-id",
+        source: "APPLE_HEALTH",
+        externalId: "shared-external-id",
+        startedAt: new Date("2026-05-14T06:30:00.000Z"),
+        sportType: "running",
+        createdAt: new Date("2026-05-14T10:00:00.000Z"),
+      },
+      {
+        id: "manual-id",
+        source: "MANUAL",
+        externalId: "shared-external-id",
+        startedAt: new Date("2026-05-14T08:30:00.000Z"),
+        sportType: "strength",
+        createdAt: new Date("2026-05-14T10:00:01.000Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.workout.findMany).mockImplementation((async (args: {
+      select?: Record<string, unknown>;
+    }) => {
+      if (args.select?.id) {
+        return [
+          {
+            id: "apple-id",
+            source: "APPLE_HEALTH",
+            externalId: "shared-external-id",
+          },
+          {
+            id: "manual-id",
+            source: "MANUAL",
+            externalId: "shared-external-id",
+          },
+        ];
+      }
+      return [];
+    }) as never);
+
+    const res = await POST(
+      makeRequest({
+        workouts: [
+          validWorkout("shared-external-id"),
+          validWorkout("shared-external-id", {
+            source: "MANUAL",
+            sportType: "strength",
+            startedAt: "2026-05-14T08:30:00.000Z",
+            endedAt: "2026-05-14T09:15:00.000Z",
+          }),
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    await vi.waitFor(() => expect(emitDataArrival).toHaveBeenCalledTimes(2));
+    expect(
+      vi.mocked(emitDataArrival).mock.calls.map(([call]) => call.refId),
+    ).toEqual(["apple-id", "manual-id"]);
   });
 });
 

@@ -402,6 +402,7 @@ export async function syncUserSleep(
   // persistent rollup tier can be re-folded at the end. See sync.ts for
   // the full rationale.
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
+  const insertedSleepMeasuredAts: Date[] = [];
   // Fresh segment externalIds per session id, driving the session-scoped
   // sweep below. Segments without a session id can't be bounded to one night
   // and are excluded (their `no-id` prefix would span every id-less night in
@@ -521,6 +522,7 @@ export async function syncUserSleep(
               externalId,
             },
           });
+          insertedSleepMeasuredAts.push(measuredAt);
         }
       }
       touched.push({ type: SLEEP_TYPE, measuredAt });
@@ -641,10 +643,9 @@ export async function syncUserSleep(
   // morning refresh so the digest/score finalise with the current sleep. The
   // trigger judges "last night" in the user's profile tz and no-ops on a
   // backfill; fire-and-forget so a freshness enqueue never fails the sync.
-  void maybeEnqueueMorningRefresh(
-    userId,
-    touched.filter((tt) => tt.type === SLEEP_TYPE).map((tt) => tt.measuredAt),
-  ).catch(() => {});
+  void maybeEnqueueMorningRefresh(userId, insertedSleepMeasuredAts).catch(
+    () => {},
+  );
 
   await recordSyncSuccess(userId, "withings");
   return imported;

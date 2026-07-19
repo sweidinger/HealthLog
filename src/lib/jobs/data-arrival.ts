@@ -85,9 +85,9 @@ async function claimReaction(
   if (inserted.count > 0) return { claimed: true };
 
   // Lost the claim — another arrival of this kind already landed today. Keep
-  // the marker's timestamp moving forward so the "just in" surface shows the
-  // NEWEST arrival rather than the first one, but never move it backwards (a
-  // slightly-out-of-order sync must not rewind the chip).
+  // the marker's timestamp and referent moving together so the "just in"
+  // surface and reaction evidence both describe the NEWEST arrival, but never
+  // move either backwards on a slightly-out-of-order sync.
   await prisma.arrivalReaction.updateMany({
     where: {
       userId: arrival.userId,
@@ -95,7 +95,7 @@ async function claimReaction(
       localDate: arrival.localDate,
       occurredAt: { lt: occurredAt },
     },
-    data: { occurredAt },
+    data: { occurredAt, arrivedAt: new Date(), refId: arrival.refId ?? null },
   });
 
   return { claimed: false };
@@ -136,10 +136,13 @@ export async function runDataArrival(
       // token-ledger reservation bound the spend — none of which belong in the
       // spine, which is why only the generator-free enqueue is imported here.
       if (arrival.refId) {
-        await enqueueWorkoutInsight({
+        const insight = await enqueueWorkoutInsight({
           userId: arrival.userId,
           workoutId: arrival.refId,
         });
+        if (!insight.enqueued) {
+          throw new Error("Workout insight enqueue failed");
+        }
         actions.push("workout_insight_enqueued");
       } else {
         // A workout arrival with no referent cannot address a paragraph. The

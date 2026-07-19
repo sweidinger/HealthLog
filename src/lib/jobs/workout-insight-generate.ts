@@ -31,6 +31,8 @@
  * is an unbounded loop. Only a genuine transient fault escapes to earn its
  * backed-off retries.
  */
+import { randomUUID } from "node:crypto";
+
 import type { Job } from "pg-boss";
 
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
@@ -79,6 +81,115 @@ export { WORKOUT_INSIGHT_GENERATE_CONCURRENCY, WORKOUT_INSIGHT_GENERATE_QUEUE };
 export type { WorkoutInsightGeneratePayload };
 
 const MS_PER_DAY = 86_400_000;
+const WORKOUT_INSIGHT_CLAIM_LEASE_MS = 10 * 60_000;
+
+type WorkoutInsightClaimResult =
+  | { status: "claimed"; claimId: string; claimRowId: string }
+  | {
+      status: "skipped";
+      reason: "already_claimed" | "already_attempted" | "daily_cap";
+    };
+
+type ClaimWorkoutInsightGenerationArgs = {
+  userId: string;
+  workoutId: string;
+  localDate: string;
+  dayStart: Date;
+  now: Date;
+};
+
+/**
+ * Serialize the local-day capacity check with the durable claim insert.
+ * PostgreSQL advisory transaction locks keep the count and write atomic across
+ * every worker process; the unique workout key independently protects a
+ * same-workout race that crosses a local-day boundary.
+ */
+export async function claimWorkoutInsightGeneration({
+  userId,
+  workoutId,
+  localDate,
+  dayStart,
+  now,
+}: ClaimWorkoutInsightGenerationArgs): Promise<WorkoutInsightClaimResult> {
+  const claimId = randomUUID();
+  const staleBefore = new Date(now.getTime() - WORKOUT_INSIGHT_CLAIM_LEASE_MS);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT pg_advisory_xact_lock(
+        hashtext('workout-insight-workout'),
+        hashtext(${workoutId})
+      )::text AS locked
+    `;
+    await tx.$queryRaw`
+      SELECT pg_advisory_xact_lock(
+        hashtext(${userId}),
+        hashtext(${localDate})
+      )::text AS locked
+    `;
+
+    const existing = await tx.workoutInsightGenerationClaim.findUnique({
+      where: { workoutId },
+      select: {
+        id: true,
+        claimId: true,
+        claimedAt: true,
+        providerInvokedAt: true,
+        completedAt: true,
+      },
+    });
+    if (existing?.providerInvokedAt != null || existing?.completedAt != null) {
+      return { status: "skipped", reason: "already_attempted" };
+    }
+    if (
+      existing?.claimId != null &&
+      existing.claimedAt != null &&
+      existing.claimedAt >= staleBefore
+    ) {
+      return { status: "skipped", reason: "already_claimed" };
+    }
+
+    const [generatedToday, claimedToday] = await Promise.all([
+      tx.workoutInsight.count({
+        where: { userId, generatedAt: { gte: dayStart } },
+      }),
+      tx.workoutInsightGenerationClaim.count({
+        where: {
+          userId,
+          localDate,
+          completedAt: null,
+          ...(existing ? { workoutId: { not: workoutId } } : {}),
+        },
+      }),
+    ]);
+    if (generatedToday + claimedToday >= MAX_INSIGHTS_PER_DAY) {
+      return { status: "skipped", reason: "daily_cap" };
+    }
+
+    if (existing) {
+      const reclaimed = await tx.workoutInsightGenerationClaim.updateMany({
+        where: {
+          id: existing.id,
+          userId,
+          workoutId,
+          providerInvokedAt: null,
+          completedAt: null,
+        },
+        data: { localDate, claimId, claimedAt: now },
+      });
+      if (reclaimed.count !== 1) {
+        return { status: "skipped", reason: "already_claimed" };
+      }
+      return { status: "claimed", claimId, claimRowId: existing.id };
+    }
+
+    const created = await tx.workoutInsightGenerationClaim.create({
+      data: { userId, workoutId, localDate, claimId, claimedAt: now },
+      select: { id: true },
+    });
+    return { status: "claimed", claimId, claimRowId: created.id };
+  });
+}
 
 /**
  * What one run did. `skipped` is a SUCCESS — the distinction is observability.
@@ -145,111 +256,143 @@ export async function runWorkoutInsightGenerate(
 
   const tz = await resolveUserTimezone(userId);
 
-  // ── Gate 3: hard daily cap ───────────────────────────────────────────────
-  // A COUNT, not a rate limit. It holds even if the queue key, the unique row
-  // and the hash all fail at once — which is exactly what a hard cap is for.
-  // The window is the USER's local day, so "four a day" means what a user
-  // would mean by it, not what UTC would.
+  // ── Gate 3: atomic ownership and hard daily cap ──────────────────────────
+  // The capacity check and durable claim write are one serialized PostgreSQL
+  // transaction. A count performed before the write would let concurrent
+  // workouts all observe the same free slot and exceed the cap.
   const dayStart = startOfUserDay(now, tz);
-  const generatedToday = await prisma.workoutInsight.count({
-    where: { userId, generatedAt: { gte: dayStart } },
-  });
-  if (generatedToday >= MAX_INSIGHTS_PER_DAY) {
-    annotate({
-      action: { name: "workouts.insight.skipped" },
-      meta: { workoutId, reason: "daily_cap", generatedToday },
-    });
-    return { status: "skipped", reason: "daily_cap" };
-  }
-
-  // ── Evidence: deterministic, numbers-only, no free text ──────────────────
-  const profile = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { dateOfBirth: true, locale: true, sourcePriorityJson: true },
-  });
-
-  // The SAME builder the detail route serves `hrSeries` from — not the
-  // day-scoped intraday read, which would answer a question about the day
-  // rather than about the session.
-  const hrSeries = await buildWorkoutHrSeries({
+  const localDate = userDayKey(now, tz);
+  const claim = await claimWorkoutInsightGeneration({
     userId,
-    startedAt: row.startedAt,
-    endedAt: row.endedAt,
-    durationSec: row.durationSec,
-    storedSamples: row.samples?.samples ?? null,
+    workoutId,
+    localDate,
+    dayStart,
     now,
   });
+  if (claim.status === "skipped") {
+    annotate({
+      action: { name: "workouts.insight.skipped" },
+      meta: { workoutId, reason: claim.reason },
+    });
+    return { status: "skipped", reason: claim.reason };
+  }
 
-  const zones = computeZones({
-    hrMax: hrMaxFromAge(getAgeFromDateOfBirth(profile?.dateOfBirth ?? null)),
-    series: hrSeries?.points ?? [],
-    bucketSec: hrSeries?.bucketSec ?? 0,
-    whoopZoneDurations: parseWhoopZoneDurations(row.metadata),
-  });
-
-  // Own-history rows for the comparison. `sportType` is the RAW column here on
-  // purpose — this is a database equality filter, not prompt input, so it must
-  // match what is stored; the value is narrowed to the closed enum later, at
-  // the projection boundary.
-  const historyRows = await prisma.workout.findMany({
-    where: {
-      userId,
-      sportType: row.sportType,
-      id: { not: row.id },
-      startedAt: {
-        gte: new Date(
-          row.startedAt.getTime() - OWN_HISTORY_LOOKBACK_DAYS * MS_PER_DAY,
-        ),
-        lt: row.startedAt,
+  const releaseClaim = async () => {
+    await prisma.workoutInsightGenerationClaim.deleteMany({
+      where: {
+        id: claim.claimRowId,
+        userId,
+        workoutId,
+        claimId: claim.claimId,
+        providerInvokedAt: null,
+        completedAt: null,
       },
-    },
-    orderBy: { startedAt: "desc" },
-    take: OWN_HISTORY_MAX_ROWS,
-    select: {
-      id: true,
-      source: true,
-      startedAt: true,
-      sportType: true,
-      durationSec: true,
-      avgHeartRate: true,
-      totalDistanceM: true,
-      totalEnergyKcal: true,
-    },
+    });
+  };
+  const finishTerminalAttempt = async () => {
+    await prisma.workoutInsightGenerationClaim.updateMany({
+      where: {
+        id: claim.claimRowId,
+        userId,
+        workoutId,
+        claimId: claim.claimId,
+        providerInvokedAt: { not: null },
+      },
+      data: { claimId: null, claimedAt: null },
+    });
+  };
+
+  const prepared = await (async () => {
+    // ── Evidence: deterministic, numbers-only, no free text ────────────────
+    const profile = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { dateOfBirth: true, locale: true, sourcePriorityJson: true },
+    });
+
+    const hrSeries = await buildWorkoutHrSeries({
+      userId,
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
+      durationSec: row.durationSec,
+      storedSamples: row.samples?.samples ?? null,
+      now,
+    });
+
+    const zones = computeZones({
+      hrMax: hrMaxFromAge(getAgeFromDateOfBirth(profile?.dateOfBirth ?? null)),
+      series: hrSeries?.points ?? [],
+      bucketSec: hrSeries?.bucketSec ?? 0,
+      whoopZoneDurations: parseWhoopZoneDurations(row.metadata),
+    });
+
+    // The current workout is excluded in SQL before canonicalization. The
+    // canonical picker then collapses cross-source twins before any median or
+    // prompt is built.
+    const historyRows = await prisma.workout.findMany({
+      where: {
+        userId,
+        sportType: row.sportType,
+        id: { not: row.id },
+        startedAt: {
+          gte: new Date(
+            row.startedAt.getTime() - OWN_HISTORY_LOOKBACK_DAYS * MS_PER_DAY,
+          ),
+          lt: row.startedAt,
+        },
+      },
+      orderBy: { startedAt: "desc" },
+      take: OWN_HISTORY_MAX_ROWS,
+      select: {
+        id: true,
+        source: true,
+        startedAt: true,
+        sportType: true,
+        durationSec: true,
+        avgHeartRate: true,
+        totalDistanceM: true,
+        totalEnergyKcal: true,
+      },
+    });
+    const history = pickCanonicalWorkoutRows(
+      historyRows,
+      profile?.sourcePriorityJson ?? null,
+    );
+
+    const evidence = buildWorkoutInsightEvidence({
+      row,
+      tz,
+      hrSeries,
+      zones,
+      routeGeometry: row.route?.geometry ?? null,
+      history,
+    });
+    const inputHash = workoutInsightInputHash(
+      evidence,
+      WORKOUT_INSIGHT_PROMPT_VERSION,
+    );
+    const existing = await prisma.workoutInsight.findFirst({
+      where: { workoutId, userId },
+      select: { id: true, inputHash: true },
+    });
+    if (existing && existing.inputHash === inputHash) {
+      return { status: "unchanged" as const };
+    }
+
+    const locale: Locale = (locales as readonly string[]).includes(
+      profile?.locale ?? "",
+    )
+      ? (profile?.locale as Locale)
+      : defaultLocale;
+    return { status: "ready" as const, evidence, inputHash, locale };
+  })().catch(async (err) => {
+    // Nothing could have reached a provider. Delete the reservation so a
+    // backed-off retry can safely reclaim both ownership and daily capacity.
+    await releaseClaim().catch(() => {});
+    throw err;
   });
 
-  // Collapse cross-source twins BEFORE the medians, the same way the detail
-  // page's sport-context read does. A session recorded by two paired devices
-  // (an Apple Watch and a Withings ScanWatch) is one session; counting it twice
-  // inflates the sample size and biases every median the paragraph quotes.
-  const history = pickCanonicalWorkoutRows(
-    historyRows,
-    profile?.sourcePriorityJson ?? null,
-  );
-
-  const evidence = buildWorkoutInsightEvidence({
-    row,
-    tz,
-    hrSeries,
-    zones,
-    // `metadata` is NOT passed. The projection reads closed numeric fields
-    // only; device bundle ids and event markers never reach a prompt.
-    routeGeometry: row.route?.geometry ?? null,
-    history,
-  });
-
-  // ── Gate 4: input hash ───────────────────────────────────────────────────
-  // The cheapest real gate and the one that makes a re-sync free. It runs
-  // BEFORE any provider is resolved, so an unchanged session costs one indexed
-  // read and nothing else.
-  const inputHash = workoutInsightInputHash(
-    evidence,
-    WORKOUT_INSIGHT_PROMPT_VERSION,
-  );
-  const existing = await prisma.workoutInsight.findFirst({
-    where: { workoutId, userId },
-    select: { id: true, inputHash: true },
-  });
-  if (existing && existing.inputHash === inputHash) {
+  if (prepared.status === "unchanged") {
+    await releaseClaim().catch(() => {});
     annotate({
       action: { name: "workouts.insight.skipped" },
       meta: { workoutId, reason: "unchanged" },
@@ -257,39 +400,54 @@ export async function runWorkoutInsightGenerate(
     return { status: "skipped", reason: "unchanged" };
   }
 
-  // ── Generation ───────────────────────────────────────────────────────────
-  // The reader's stored preference is the source: this job has no request. The
-  // paragraph is written once, in that language, and a later language switch
-  // does NOT regenerate — a read path may never trigger a provider call.
-  const locale: Locale = (locales as readonly string[]).includes(
-    profile?.locale ?? "",
-  )
-    ? (profile?.locale as Locale)
-    : defaultLocale;
-
-  // ── Gate 5: the token ledger ─────────────────────────────────────────────
-  // `runStatusCompletion` is the chokepoint that owns reserve → provider →
-  // reconcile for the whole status family, including the refund on a timeout
-  // or an error. Reserving separately here would double-charge the day.
-  const outcome = await runStatusCompletion({
-    userId,
-    cacheAction: "insights.workout-insight",
-    consentSurface: "insights",
-    systemPrompt: getWorkoutInsightSystemPrompt(locale),
-    userPrompt: getWorkoutInsightUserPrompt(
-      JSON.stringify(evidence),
-      userDayKey(now, tz),
-      locale,
-      openerArchetypeHint(`${userId}:workout:${workoutId}`, locale),
-    ),
-    temperature: AI_BUDGETS.workoutInsight.temperature,
-    maxTokens: AI_BUDGETS.workoutInsight.maxTokens,
+  // This is the last durable boundary before the accounting/provider
+  // chokepoint. Once written, a crash or an ambiguous persistence failure is
+  // terminal: the provider may have received the request, so retrying could
+  // spend twice.
+  const providerClaim = await prisma.workoutInsightGenerationClaim.updateMany({
+    where: {
+      id: claim.claimRowId,
+      userId,
+      workoutId,
+      claimId: claim.claimId,
+      providerInvokedAt: null,
+      completedAt: null,
+      claimedAt: {
+        gte: new Date(now.getTime() - WORKOUT_INSIGHT_CLAIM_LEASE_MS),
+      },
+    },
+    data: { providerInvokedAt: now, claimedAt: now },
   });
+  if (providerClaim.count !== 1) {
+    return { status: "skipped", reason: "claim_lost" };
+  }
+
+  // The existing status chokepoint owns reserve → provider → reconcile. It is
+  // called exactly once for the durable attempt; this worker never reserves or
+  // reconciles separately.
+  let outcome;
+  try {
+    outcome = await runStatusCompletion({
+      userId,
+      cacheAction: "insights.workout-insight",
+      consentSurface: "insights",
+      systemPrompt: getWorkoutInsightSystemPrompt(prepared.locale),
+      userPrompt: getWorkoutInsightUserPrompt(
+        JSON.stringify(prepared.evidence),
+        localDate,
+        prepared.locale,
+        openerArchetypeHint(`${userId}:workout:${workoutId}`, prepared.locale),
+      ),
+      temperature: AI_BUDGETS.workoutInsight.temperature,
+      maxTokens: AI_BUDGETS.workoutInsight.maxTokens,
+    });
+  } catch {
+    await finishTerminalAttempt().catch(() => {});
+    return { status: "skipped", reason: "provider_uncertain" };
+  }
 
   if (outcome.kind !== "ok") {
-    // No provider, no consent, budget spent, timeout, provider error — all the
-    // same to this surface: no row, no card, no retry loop. The stats the page
-    // already renders are the floor and they never needed AI.
+    await finishTerminalAttempt().catch(() => {});
     annotate({
       action: { name: "workouts.insight.skipped" },
       meta: { workoutId, reason: outcome.kind },
@@ -297,10 +455,9 @@ export async function runWorkoutInsightGenerate(
     return { status: "skipped", reason: outcome.kind };
   }
 
-  // The outbound safety screen every generated assessment passes through.
-  // WITHHOLD: a paragraph that tripped it is never shown as if it were fine.
-  const screened = finalizeStatusSummary(outcome.content, locale);
+  const screened = finalizeStatusSummary(outcome.content, prepared.locale);
   if (!screened.ok || !screened.text) {
+    await finishTerminalAttempt().catch(() => {});
     annotate({
       action: { name: "workouts.insight.outbound_blocked" },
       meta: { workoutId, reason: screened.ok ? "empty" : screened.reason },
@@ -310,28 +467,50 @@ export async function runWorkoutInsightGenerate(
 
   const data = {
     paragraphEncrypted: encryptToBytes(screened.text),
-    inputHash,
+    inputHash: prepared.inputHash,
     promptVersion: WORKOUT_INSIGHT_PROMPT_VERSION,
     providerType: outcome.providerType,
-    locale,
+    locale: prepared.locale,
     generatedAt: now,
   };
 
-  // Upsert on the unique workout id. The constraint is the durable half of the
-  // double-post defence: if two workers did somehow both reach here, one write
-  // wins and the other updates it in place rather than creating a twin.
-  await prisma.workoutInsight.upsert({
-    where: { workoutId },
-    create: { userId, workoutId, ...data },
-    update: data,
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.workoutInsight.upsert({
+        where: { workoutId },
+        create: { userId, workoutId, ...data },
+        update: data,
+      });
+      const completed = await tx.workoutInsightGenerationClaim.updateMany({
+        where: {
+          id: claim.claimRowId,
+          userId,
+          workoutId,
+          claimId: claim.claimId,
+          providerInvokedAt: now,
+          completedAt: null,
+        },
+        data: {
+          completedAt: now,
+          claimId: null,
+          claimedAt: null,
+        },
+      });
+      if (completed.count !== 1) {
+        throw new Error("Workout insight generation claim was lost");
+      }
+    });
+  } catch {
+    await finishTerminalAttempt().catch(() => {});
+    return { status: "skipped", reason: "persistence_uncertain" };
+  }
 
   annotate({
     action: { name: "workouts.insight.generated" },
     meta: {
       workoutId,
       providerType: outcome.providerType,
-      sportType: evidence.sportType,
+      sportType: prepared.evidence.sportType,
       length: screened.text.length,
     },
   });

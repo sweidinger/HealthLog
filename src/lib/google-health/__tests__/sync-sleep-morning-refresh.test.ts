@@ -73,7 +73,20 @@ beforeEach(() => {
     windowStart: new Date("2026-06-01T22:00:00.000Z"),
     windowEnd: sleepMeasuredAt,
   });
-  upsertMock.mockResolvedValue({ imported: 1 });
+  upsertMock.mockImplementation(
+    async (
+      _userId: string,
+      readings: Array<{ type: string; measuredAt: Date }>,
+    ) => ({
+      imported: readings.length,
+      touched: readings,
+      inserted: readings.map((row, index) => ({
+        id: `inserted-${index}`,
+        type: row.type,
+        measuredAt: row.measuredAt,
+      })),
+    }),
+  );
 });
 
 describe("google-health syncUserSleep — S4 morning-refresh trigger", () => {
@@ -84,6 +97,18 @@ describe("google-health syncUserSleep — S4 morning-refresh trigger", () => {
     expect(maybeEnqueueMorningRefreshMock).toHaveBeenCalledWith("user-1", [
       sleepMeasuredAt,
     ]);
+  });
+
+  it("does not refresh for an existing sleep row updated in place", async () => {
+    upsertMock.mockResolvedValue({
+      imported: 1,
+      touched: [{ type: "SLEEP_DURATION", measuredAt: sleepMeasuredAt }],
+      inserted: [],
+    });
+
+    await syncUserSleep("user-1");
+
+    expect(maybeEnqueueMorningRefreshMock).toHaveBeenCalledWith("user-1", []);
   });
 
   it("passes no sleep timestamps when the night carried no SLEEP_DURATION rows", async () => {

@@ -37,7 +37,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requireAssistantSurface } from "@/lib/feature-flags";
-import { requireModuleEnabled } from "@/lib/modules/gate";
+import { isModuleEnabled, requireModuleEnabled } from "@/lib/modules/gate";
 
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
@@ -547,18 +547,13 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
     priorTurns.length >= TURN_CAP && priorTurns.length <= TURN_CAP + 1;
   const includeFullSnapshot = isFirstTurn || historyElisionCrossing;
 
-  // v1.31.0 — a conversation launched from one workout pins ONE additional,
-  // bounded evidence section onto its snapshot.
-  //
-  // SNAPSHOT-ONCE. The read is gated on `isFirstTurn`, so it happens exactly
-  // once per conversation no matter how long the thread grows. The block then
-  // rides the same `includeFullSnapshot` prefix every other section does — the
-  // model composes its first reply against it, and that reply stays in the
-  // transcript on every later turn, so the figures remain in context without
-  // being re-paid for. Per-turn work is therefore CONSTANT in conversation
-  // length, which is the whole point of the ~99 % token cut.
+  // A workout launch is an optional narrowing of Coach, not permission to
+  // bypass the workouts module. Disabled modules contribute no read and no
+  // provider payload; the generic conversation still proceeds.
+  const workoutsEnabled =
+    !workoutId || (await isModuleEnabled(userId, "workouts"));
   const workoutEvidence =
-    isFirstTurn && workoutId
+    isFirstTurn && workoutId && workoutsEnabled
       ? await buildWorkoutEvidenceSection(userId, workoutId)
       : null;
   if (workoutId) {
@@ -769,15 +764,22 @@ Reply now as the assistant, in ${LANGUAGE_NAMES[locale]}.`;
         // equivalent of that narrowing). Empty string on a generic open.
         const focusHint = renderFocusHint(effectiveScope?.sources);
         const focusBlock = focusHint ? `${focusHint}\n\n` : "";
+        const workoutDataBlock =
+          workoutEvidence === null
+            ? ""
+            : `SELECTED WORKOUT DATA
+${fenceHealthData(JSON.stringify({ thisWorkout: workoutEvidence }))}
+
+`;
         const messages: AiMessage[] = [
           {
             role: "user",
-            content: `${focusBlock}${renderDataInventory(inventory)}${guidedBlock}
+            content: `${focusBlock}${workoutDataBlock}${renderDataInventory(inventory)}${guidedBlock}
 
 CONVERSATION
 ${transcript}
 
-Reply now as the assistant, in ${LANGUAGE_NAMES[locale]}. Fetch any figures you cite with the tools first.`,
+Reply now as the assistant, in ${LANGUAGE_NAMES[locale]}. The selected-workout block is already authoritative; fetch any other figures you cite with the tools first.`,
           },
         ];
         const loop = await runCoachToolLoop({
@@ -803,7 +805,10 @@ Reply now as the assistant, in ${LANGUAGE_NAMES[locale]}. Fetch any figures you 
         result = loop.result;
         workingProviderType = loop.workingProviderType;
         toolTrace = loop.toolTrace;
-        toolResultPayloads = (loop.toolResults ?? []).map((r) => r.data);
+        toolResultPayloads = [
+          ...(workoutEvidence === null ? [] : [workoutEvidence]),
+          ...(loop.toolResults ?? []).map((r) => r.data),
+        ];
         totalTokensSpent = loop.totalTokens;
         cachedTokensSpent = loop.cachedTokens;
       } else {
@@ -852,7 +857,10 @@ Reply now as the assistant, in ${LANGUAGE_NAMES[locale]}. Fetch any figures you 
         // grade. When figures WERE delivered, the authoritative set is the
         // structured snapshot record (incl. the correlations block).
         if (includeFullSnapshot) {
-          noToolsSnapshotPayloads = [snapshot.sections];
+          noToolsSnapshotPayloads = [
+            snapshot.sections,
+            ...(workoutEvidence === null ? [] : [workoutEvidence]),
+          ];
         }
       }
     } catch (err) {
@@ -1656,7 +1664,11 @@ async function buildWorkoutEvidenceSection(
 
     const profile = await prisma.user.findUnique({
       where: { id: userId },
-      select: { sourcePriorityJson: true, dateOfBirth: true },
+      select: {
+        sourcePriorityJson: true,
+        dateOfBirth: true,
+        timezone: true,
+      },
     });
 
     // The SAME series the detail route serves as `hrSeries` — one builder,
@@ -1680,12 +1692,14 @@ async function buildWorkoutEvidenceSection(
       userId,
       row.sportType,
       profile?.sourcePriorityJson ?? null,
+      workoutId,
     );
 
     return buildWorkoutEvidence({
       sportType: row.sportType,
       source: row.source,
       startedAt: row.startedAt,
+      timezone: profile?.timezone ?? "Europe/Berlin",
       durationSec: row.durationSec,
       totalEnergyKcal: row.totalEnergyKcal,
       totalDistanceM: row.totalDistanceM,

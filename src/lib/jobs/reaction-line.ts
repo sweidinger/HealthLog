@@ -5,32 +5,30 @@
  * This is the ONE provider call the arrival spine can cause, and the whole
  * design of the surface is arranged so that call is bounded before it is made:
  *
- *   - The THROTTLE is a durable unique row, not a timer. The spine enqueues
- *     this only on the pass that freshly INSERTED today's `ArrivalReaction`
- *     for the kind (`data-arrival.ts`, the `claimed` branch), and this worker
- *     re-checks `generatedAt` before spending anything. Both ends of that
- *     claim are the same `@@unique([userId, kind, localDate])` constraint, so
- *     there is no code path to a second call for a kind on a day — not a
- *     racing spine job, not a retry, not a hand-sent job.
- *   - The SPEND is reserved before the call and reconciled on EVERY exit,
- *     including each failure path. A provider that times out still burned
- *     upstream tokens; a reservation that is never reconciled is a silent
- *     over-charge against the user's own daily ceiling.
+ *   - The THROTTLE is a durable unique row plus a provider-attempt timestamp.
+ *     The worker conditionally owns a lease, then writes
+ *     `generationProviderInvokedAt` immediately before egress. A crash,
+ *     timeout, racing spine job, retry, or hand-sent job therefore cannot
+ *     produce a second provider call for the same kind and local day.
+ *   - The SPEND reservation and its marker linkage commit in one PostgreSQL
+ *     transaction. A pre-provider retry reuses that reservation. Reported
+ *     usage is reconciled before ciphertext commits; unknown usage retains the
+ *     conservative reservation.
  *   - The FLOOR is complete without any of this. No provider, no consent, an
  *     exhausted budget, a refused output, a dead network — every one of them
  *     leaves the row line-less, and a line-less row still drives the "just in"
  *     chip and the provisional→final flip. The reaction is a state change; the
  *     sentence is garnish. `reaction-line-degradation.test.ts` holds that line.
  *
- * The grounding is deliberately the digest itself: it is already cached,
- * already deterministic, already the thing the surface will render the line
- * next to, and reading it costs no new query path. A line grounded in a
- * DIFFERENT snapshot than the one on screen is how a surface starts
- * contradicting itself.
+ * The prompt starts with the exact owned row referenced by the arrival marker
+ * (or its exact occurrence timestamp), projected to bounded numeric fields.
+ * The deterministic digest adds only the same computed context rendered next
+ * to the reaction.
  */
 import type { Job } from "pg-boss";
 
 import { prisma } from "@/lib/db";
+import { randomUUID } from "node:crypto";
 import { annotate } from "@/lib/logging/context";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { resolveProviderChain } from "@/lib/ai/provider";
@@ -38,19 +36,25 @@ import {
   chainRequiresServerManagedConsent,
   hasActiveConsentForSurface,
 } from "@/lib/ai/consent-guard";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import {
   buildDateKey,
   reconcileSpend,
-  reserveBudget,
   resolveDailyCap,
 } from "@/lib/ai/coach/budget";
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
-import { singleUserTurn } from "@/lib/ai/types";
 import { screenCoachReply } from "@/lib/ai/coach/outbound-guard";
 import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
+import { fenceUserText } from "@/lib/ai/coach/data-fence";
+import { singleUserTurn, type CompletionResult } from "@/lib/ai/types";
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
 import { loadDailyDigest } from "@/lib/daily/load-digest";
+import type { DailyDigest } from "@/lib/daily/digest";
+import {
+  pickMainNightAndNaps,
+  reconstructSleepSessions,
+} from "@/lib/analytics/sleep-night";
 import {
   getArrivalReactionSystemPrompt,
   getArrivalReactionUserPrompt,
@@ -84,6 +88,9 @@ export const REACTION_LINE_MAX_CHARS = 240;
  * afterwards, but the CAP check happens at reservation time.
  */
 export const ARRIVAL_REACTION_RESERVE_TOKENS = 1_400;
+
+/** A dead worker's claim becomes recoverable well beyond the 13s call timeout. */
+export const REACTION_LINE_CLAIM_LEASE_MS = 2 * 60_000;
 
 export type ReactionLineOutcome =
   { status: "skipped"; reason: string } | { status: "generated" };
@@ -120,16 +127,158 @@ export function sanitiseReactionLine(
 }
 
 /**
- * The deterministic evidence block. Built from the ALREADY-COMPUTED digest —
- * no figure here is derived in this module, which is what keeps the line
- * grounded in the same numbers the surface is rendering.
+ * Ground the reaction in the row that actually triggered this marker. This is
+ * intentionally a narrow, labels-and-numbers-only projection: no notes or
+ * other free text can enter the provider prompt through this path.
  */
-function buildEvidence(digest: {
-  score: { value: number; band: string; delta: number | null } | null;
-  topSignal: { headline: string; delta: string | null } | null;
-  briefingLead: string | null;
-}): string {
-  const parts: string[] = [];
+async function loadArrivalEvidence(
+  job: ReactionLineJob,
+  row: { occurredAt: Date; refId: string | null },
+  user: { timezone: string; sourcePriorityJson: unknown },
+): Promise<string> {
+  if (job.kind === "weight" || job.kind === "blood_pressure") {
+    const types =
+      job.kind === "weight"
+        ? (["WEIGHT"] as const)
+        : (["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"] as const);
+    const readings = await prisma.measurement.findMany({
+      where: {
+        userId: job.userId,
+        type: { in: [...types] },
+        measuredAt: row.occurredAt,
+        deletedAt: null,
+      },
+      select: { type: true, value: true, unit: true },
+      orderBy: { type: "asc" },
+    });
+    if (readings.length > 0) {
+      return readings
+        .map(
+          (reading) =>
+            `- Newly arrived reading: ${reading.type} ${reading.value} ${reading.unit}.`,
+        )
+        .join("\n");
+    }
+  }
+
+  if (job.kind === "sleep_night") {
+    const sleepWindowBeforeMs = 18 * 60 * 60 * 1_000;
+    const sleepWindowAfterMs = 6 * 60 * 60 * 1_000;
+    const readings = await prisma.measurement.findMany({
+      where: {
+        userId: job.userId,
+        type: "SLEEP_DURATION",
+        measuredAt: {
+          gte: new Date(row.occurredAt.getTime() - sleepWindowBeforeMs),
+          lte: new Date(row.occurredAt.getTime() + sleepWindowAfterMs),
+        },
+        deletedAt: null,
+      },
+      select: {
+        value: true,
+        measuredAt: true,
+        sleepStage: true,
+        source: true,
+        deviceType: true,
+      },
+      orderBy: { measuredAt: "asc" },
+    });
+    const sessions = reconstructSleepSessions(
+      readings,
+      user.timezone,
+      user.sourcePriorityJson,
+    );
+    const occurredAtMs = row.occurredAt.getTime();
+    const anchor = sessions
+      .filter(
+        (session) =>
+          session.start.getTime() <= occurredAtMs &&
+          session.end.getTime() >= occurredAtMs,
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(a.end.getTime() - occurredAtMs) -
+          Math.abs(b.end.getTime() - occurredAtMs),
+      )
+      .at(0);
+    if (anchor) {
+      const { main } = pickMainNightAndNaps(
+        sessions.filter((session) => session.night === anchor.night),
+      );
+      if (main) {
+        const details = [
+          `${Math.round(main.asleepMinutes)} minutes asleep`,
+          main.awakeMinutes === null
+            ? null
+            : `${Math.round(main.awakeMinutes)} minutes awake`,
+          main.inBedMinutes === null
+            ? null
+            : `${Math.round(main.inBedMinutes)} minutes in bed`,
+        ].filter((detail): detail is string => detail !== null);
+        return `- Last night's completed sleep: ${details.join("; ")}.`;
+      }
+    }
+  }
+
+  if (job.kind === "workout" && row.refId) {
+    const workout = await prisma.workout.findFirst({
+      where: { id: row.refId, userId: job.userId },
+      select: {
+        sportType: true,
+        durationSec: true,
+        totalDistanceM: true,
+        totalEnergyKcal: true,
+        avgHeartRate: true,
+      },
+    });
+    if (workout) {
+      return `- Newly arrived workout: ${workout.sportType}; duration ${workout.durationSec} seconds; distance ${workout.totalDistanceM ?? "not reported"} metres; energy ${workout.totalEnergyKcal ?? "not reported"} kcal; average heart rate ${workout.avgHeartRate ?? "not reported"} bpm.`;
+    }
+  }
+
+  if (job.kind === "labs_panel") {
+    const labs = await prisma.labResult.findMany({
+      where: {
+        userId: job.userId,
+        takenAt: row.occurredAt,
+        deletedAt: null,
+        ...(row.refId ? { panel: row.refId } : {}),
+      },
+      select: { analyte: true, value: true, valueText: true, unit: true },
+      orderBy: { analyte: "asc" },
+      take: 8,
+    });
+    if (labs.length > 0) {
+      return labs
+        .map((lab) => {
+          const value =
+            lab.value === null
+              ? fenceUserText(lab.valueText ?? "not reported")
+              : String(lab.value);
+          const unit = lab.unit ? ` ${fenceUserText(lab.unit)}` : "";
+          return `- Newly arrived lab result: ${fenceUserText(lab.analyte)} ${value}${unit}.`;
+        })
+        .join("\n");
+    }
+  }
+
+  return "- The arrival marker was written, but its exact value is unavailable.";
+}
+
+/**
+ * The deterministic evidence block. The first section is the exact new datum;
+ * the remaining context comes from the already-computed digest the line will
+ * sit inside.
+ */
+function buildEvidence(
+  arrived: string,
+  digest: {
+    score: { value: number; band: string; delta: number | null } | null;
+    topSignal: { headline: string; delta: string | null } | null;
+    briefingLead: string | null;
+  },
+): string {
+  const parts: string[] = [arrived];
   if (digest.score) {
     const delta =
       digest.score.delta === null
@@ -149,9 +298,93 @@ function buildEvidence(digest: {
   if (digest.briefingLead) {
     parts.push(`- The day's standing read: ${digest.briefingLead}`);
   }
-  return parts.length > 0
-    ? parts.join("\n")
-    : "- (No computed comparison is available for this person yet.)";
+  return parts.join("\n");
+}
+
+type ReactionReservation = {
+  allowed: boolean;
+  reserved: number;
+  dateKey: string;
+};
+
+class ReactionClaimLostError extends Error {
+  constructor() {
+    super("Arrival reaction generation claim was lost");
+  }
+}
+
+/**
+ * Atomically reserve the token ceiling and link that reservation to the
+ * claimed marker. If either write fails, PostgreSQL rolls both back; a stale
+ * claimant can therefore never reserve twice after crashing between them.
+ */
+async function reserveClaimBudget(
+  rowId: string,
+  generationClaimId: string,
+  userId: string,
+  dateKey: string,
+  cap: number,
+): Promise<ReactionReservation> {
+  return prisma.$transaction(async (tx) => {
+    const stillOwned = await tx.arrivalReaction.updateMany({
+      where: {
+        id: rowId,
+        userId,
+        generatedAt: null,
+        generationClaimId,
+        generationProviderInvokedAt: null,
+        generationReservedTokens: null,
+        generationBudgetDateKey: null,
+      },
+      data: { generationClaimedAt: new Date() },
+    });
+    if (stillOwned.count !== 1) throw new ReactionClaimLostError();
+
+    const reserved = ARRIVAL_REACTION_RESERVE_TOKENS;
+    const rows = await tx.$queryRaw<{ total_tokens: number }[]>`
+      INSERT INTO coach_usage (id, user_id, date_key, total_tokens, message_count, created_at, updated_at)
+      VALUES (gen_random_uuid()::text, ${userId}, ${dateKey}, ${reserved}, 1, NOW(), NOW())
+      ON CONFLICT (user_id, date_key) DO UPDATE SET
+        total_tokens = coach_usage.total_tokens + ${reserved},
+        message_count = coach_usage.message_count + 1,
+        updated_at = NOW()
+      RETURNING total_tokens
+    `;
+    const totalAfter = Number(rows[0]?.total_tokens ?? reserved);
+    if (totalAfter - reserved >= cap) {
+      await tx.$executeRaw`
+        UPDATE coach_usage
+        SET total_tokens = GREATEST(0, total_tokens - ${reserved}),
+            message_count = GREATEST(0, message_count - 1),
+            updated_at = NOW()
+        WHERE user_id = ${userId} AND date_key = ${dateKey}
+      `;
+      await tx.arrivalReaction.updateMany({
+        where: { id: rowId, userId, generationClaimId },
+        data: { generationClaimId: null, generationClaimedAt: null },
+      });
+      return { allowed: false, reserved, dateKey };
+    }
+
+    const linked = await tx.arrivalReaction.updateMany({
+      where: {
+        id: rowId,
+        userId,
+        generatedAt: null,
+        generationClaimId,
+        generationProviderInvokedAt: null,
+        generationReservedTokens: null,
+        generationBudgetDateKey: null,
+      },
+      data: {
+        generationReservedTokens: reserved,
+        generationBudgetDateKey: dateKey,
+      },
+    });
+    if (linked.count !== 1) throw new ReactionClaimLostError();
+
+    return { allowed: true, reserved, dateKey };
+  });
 }
 
 /**
@@ -172,33 +405,40 @@ export async function runReactionLine(
         localDate: job.localDate,
       },
     },
-    select: { id: true, generatedAt: true },
+    select: {
+      id: true,
+      generatedAt: true,
+      generationClaimId: true,
+      generationClaimedAt: true,
+      generationReservedTokens: true,
+      generationBudgetDateKey: true,
+      generationProviderInvokedAt: true,
+      occurredAt: true,
+      refId: true,
+    },
   });
 
-  // The marker is gone (retention swept it, or the account was deleted) or a
-  // line already committed. Either way there is nothing left to write, and the
-  // unique row having a `generatedAt` IS the once-per-kind-per-day claim.
   if (!row) return { status: "skipped", reason: "no_marker" };
   if (row.generatedAt !== null) {
     return { status: "skipped", reason: "already_generated" };
   }
+  // This timestamp is written immediately before provider invocation. Even if
+  // every subsequent database write failed, a retry cannot spend again.
+  if (row.generationProviderInvokedAt != null) {
+    return { status: "skipped", reason: "already_attempted" };
+  }
 
-  // The whole row: the locale decides the prompt, and `loadDailyDigest` takes
-  // a `User` (it reads the timezone and the morning-refresh marker off it), so
-  // one read serves both rather than two.
+  if (!(await isModuleEnabled(job.userId, "insights"))) {
+    return { status: "skipped", reason: "module_disabled" };
+  }
+
   const user = await prisma.user.findUnique({ where: { id: job.userId } });
   if (!user) return { status: "skipped", reason: "no_user" };
 
   const locale = resolveLocale(user.locale);
-
   const chain = await resolveProviderChain(job.userId);
-  // A provider-less install is the DEFAULT self-hosted shape, not an error.
   if (chain.length === 0) return { status: "skipped", reason: "no_provider" };
 
-  // Consent gate before the reservation, so a user without a receipt never
-  // spends a token. This tick is unattended, so it carries the same receipt
-  // requirement as the interactive surfaces. BYOK / local / ChatGPT-OAuth
-  // chains are the user's own egress and stay ungated.
   if (
     chainRequiresServerManagedConsent(chain) &&
     !(await hasActiveConsentForSurface(job.userId, "insights"))
@@ -206,36 +446,140 @@ export async function runReactionLine(
     return { status: "skipped", reason: "consent_required" };
   }
 
-  const budget = AI_BUDGETS.arrivalReaction;
-  const maxTokens = budget.maxTokens ?? 220;
-  const dateKey = buildDateKey();
-  const reservation = await reserveBudget(
-    job.userId,
-    // Reserve the documented ceiling for this surface, not the output cap
-    // alone: the reservation has to cover the prompt the call actually sends,
-    // or a day of these under-reports its own spend against the user's cap.
-    ARRIVAL_REACTION_RESERVE_TOKENS,
-    dateKey,
-    resolveDailyCap(chain),
-  );
+  const generationClaimId = randomUUID();
+  const claimedAt = new Date();
+  const claimed = await prisma.arrivalReaction.updateMany({
+    where: {
+      id: row.id,
+      userId: job.userId,
+      generatedAt: null,
+      generationProviderInvokedAt: null,
+      OR: [
+        { generationClaimId: null },
+        {
+          generationClaimedAt: {
+            lt: new Date(claimedAt.getTime() - REACTION_LINE_CLAIM_LEASE_MS),
+          },
+        },
+      ],
+    },
+    data: { generationClaimId, generationClaimedAt: claimedAt },
+  });
+  if (claimed.count !== 1) {
+    return { status: "skipped", reason: "already_claimed" };
+  }
+
+  const releaseClaim = async () => {
+    await prisma.arrivalReaction.updateMany({
+      where: {
+        id: row.id,
+        userId: job.userId,
+        generationClaimId,
+        generationProviderInvokedAt: null,
+      },
+      data: { generationClaimId: null, generationClaimedAt: null },
+    });
+  };
+  const finishTerminalAttempt = async () => {
+    await prisma.arrivalReaction.updateMany({
+      where: {
+        id: row.id,
+        userId: job.userId,
+        generationClaimId,
+        generationProviderInvokedAt: { not: null },
+      },
+      data: { generationClaimId: null, generationClaimedAt: null },
+    });
+  };
+
+  const hasReservedTokens = row.generationReservedTokens != null;
+  const hasReservationDate = row.generationBudgetDateKey != null;
+  if (hasReservedTokens !== hasReservationDate) {
+    await releaseClaim().catch(() => {});
+    return { status: "skipped", reason: "invalid_reservation_state" };
+  }
+
+  let reservation: ReactionReservation;
+  if (hasReservedTokens && hasReservationDate) {
+    reservation = {
+      allowed: true,
+      reserved: row.generationReservedTokens!,
+      dateKey: row.generationBudgetDateKey!,
+    };
+  } else {
+    try {
+      reservation = await reserveClaimBudget(
+        row.id,
+        generationClaimId,
+        job.userId,
+        buildDateKey(),
+        resolveDailyCap(chain),
+      );
+    } catch (err) {
+      if (err instanceof ReactionClaimLostError) {
+        return { status: "skipped", reason: "claim_lost" };
+      }
+      await releaseClaim().catch(() => {});
+      throw err;
+    }
+  }
   if (!reservation.allowed) {
     return { status: "skipped", reason: "budget_exceeded" };
   }
 
-  // From here every exit MUST reconcile — the reservation is already on the
-  // user's ledger.
-  let line: string | null = null;
+  const budget = AI_BUDGETS.arrivalReaction;
+  const maxTokens = budget.maxTokens ?? 220;
+  let digest: DailyDigest;
+  let arrived: string;
   try {
-    // The digest is the grounding AND the thing the line will sit inside.
-    const digest = await loadDailyDigest(user);
+    [digest, arrived] = await Promise.all([
+      loadDailyDigest(user),
+      loadArrivalEvidence(job, row, user),
+    ]);
+  } catch (err) {
+    // No provider was touched, so releasing ownership is retry-safe. The
+    // durable reservation remains attached and is reused by the retry.
+    await releaseClaim().catch(() => {});
+    throw err;
+  }
 
-    const result = await chain[0].instance.generateCompletion(
+  // Revalidate the exact owner and a live lease at the last durable boundary
+  // before spend. Setting `generationProviderInvokedAt` first is conservative:
+  // a crash on the following instruction may lose the garnish, never money.
+  const providerInvokedAt = new Date();
+  const providerClaim = await prisma.arrivalReaction.updateMany({
+    where: {
+      id: row.id,
+      userId: job.userId,
+      generatedAt: null,
+      generationClaimId,
+      generationProviderInvokedAt: null,
+      generationReservedTokens: reservation.reserved,
+      generationBudgetDateKey: reservation.dateKey,
+      generationClaimedAt: {
+        gte: new Date(
+          providerInvokedAt.getTime() - REACTION_LINE_CLAIM_LEASE_MS,
+        ),
+      },
+    },
+    data: {
+      generationProviderInvokedAt: providerInvokedAt,
+      generationClaimedAt: providerInvokedAt,
+    },
+  });
+  if (providerClaim.count !== 1) {
+    return { status: "skipped", reason: "claim_lost" };
+  }
+
+  let result: CompletionResult;
+  try {
+    result = await chain[0].instance.generateCompletion(
       singleUserTurn({
         system: getArrivalReactionSystemPrompt(locale),
         user: getArrivalReactionUserPrompt(
           {
             kind: job.kind,
-            evidence: buildEvidence(digest),
+            evidence: buildEvidence(arrived, digest),
             openerHint: openerArchetypeHint(
               `${job.userId}:reaction:${job.kind}:${job.localDate}`,
               locale,
@@ -249,35 +593,60 @@ export async function runReactionLine(
         signal: AbortSignal.timeout(REACTION_LINE_TIMEOUT_MS + 1_000),
       }),
     );
-
+  } catch (err) {
+    // Invocation is durable and terminal. A provider error may still have
+    // burned tokens, so retain the conservative reservation and never retry.
     await reconcileSpend(
       job.userId,
       reservation.reserved,
-      result.tokensUsed ?? 0,
-      dateKey,
-      result.cachedInputTokens ?? 0,
+      reservation.reserved,
+      reservation.dateKey,
     ).catch(() => {});
-
-    line = sanitiseReactionLine(result.content, locale);
-  } catch (err) {
-    // Timeout / network / provider / grounding failure. Reconcile against a
-    // zero actual so the unspent reservation is returned, then degrade.
-    await reconcileSpend(job.userId, reservation.reserved, 0, dateKey).catch(
-      () => {},
-    );
+    await finishTerminalAttempt().catch(() => {});
     workerLog("error", "[reaction-line] generation failed", err);
     return { status: "skipped", reason: "provider_failed" };
   }
 
-  if (!line) return { status: "skipped", reason: "unusable_output" };
+  try {
+    await reconcileSpend(
+      job.userId,
+      reservation.reserved,
+      result.tokensUsed ?? reservation.reserved,
+      reservation.dateKey,
+      result.cachedInputTokens ?? 0,
+    );
+  } catch (err) {
+    // Do not publish a line whose spend was not durably reconciled. The
+    // invocation timestamp remains terminal, preventing a second provider call.
+    await finishTerminalAttempt().catch(() => {});
+    workerLog("error", "[reaction-line] spend reconciliation failed", err);
+    return { status: "skipped", reason: "spend_reconciliation_failed" };
+  }
 
-  // Commit. `generatedAt` and the ciphertext land together and are read
-  // together (`load-digest.ts` requires both), so a half-written row can never
-  // surface a line.
-  await prisma.arrivalReaction.update({
-    where: { id: row.id },
-    data: { lineEncrypted: encryptToBytes(line), generatedAt: new Date() },
+  const line = sanitiseReactionLine(result.content, locale);
+  if (!line) {
+    await finishTerminalAttempt().catch(() => {});
+    return { status: "skipped", reason: "unusable_output" };
+  }
+
+  const committed = await prisma.arrivalReaction.updateMany({
+    where: {
+      id: row.id,
+      userId: job.userId,
+      generationClaimId,
+      generationProviderInvokedAt: providerInvokedAt,
+      generatedAt: null,
+    },
+    data: {
+      lineEncrypted: encryptToBytes(line),
+      generatedAt: new Date(),
+      generationClaimId: null,
+      generationClaimedAt: null,
+    },
   });
+  if (committed.count !== 1) {
+    return { status: "skipped", reason: "claim_lost" };
+  }
 
   return { status: "generated" };
 }
@@ -305,9 +674,9 @@ export async function handleReactionLine(
         });
         evt.addMeta("reaction_line", "generated");
       } catch (err) {
-        // Only a genuine transient fault reaches here — every business refusal
-        // returned a status. Let the queue's single retry apply; the
-        // `generatedAt` check makes the retry idempotent.
+        // Only a pre-provider transient fault reaches here. The durable
+        // reservation is reused on retry; a provider-invoked marker returns a
+        // terminal skipped outcome instead of spending twice.
         workerLog("error", "[reaction-line] pass failed", err);
         throw err;
       }
