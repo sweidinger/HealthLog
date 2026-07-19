@@ -37,10 +37,18 @@ export interface MorningDigestRefreshPayload {
  * pre-checked in the trigger) stops any later sample from re-running it — the
  * pair is at-most-once per user per local morning.
  *
+ * The key alone does NOT buy that: pg-boss only constrains `singleton_key`
+ * when the queue carries a policy that indexes it, and under the default
+ * `standard` policy no such index exists, so this key coalesced nothing at all
+ * until the queue was given `exclusive` in `reminder/register-status.ts`. If
+ * that entry is ever removed, this debounce silently disappears again — the two
+ * belong together.
+ *
  * No `singletonSeconds`: a time-slot throttle would let a second morning's
- * refresh be swallowed if it fell inside the window; the local-date-scoped key
- * is already unique per morning, so the plain active-job constraint is exactly
- * the debounce we want. No-ops cleanly when no global boss instance is
+ * refresh be swallowed if it fell inside the window, and its wall-clock
+ * `floor()` bucketing cannot express a user's local date anyway; the
+ * local-date-scoped key plus the `exclusive` policy is exactly the debounce we
+ * want. No-ops cleanly when no global boss instance is
  * available (a web process without an embedded worker) — the next sleep
  * landing, and the nightly cron, remain the catch-net.
  */

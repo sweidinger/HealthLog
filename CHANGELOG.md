@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.30.22] — 2026-07-19
+
+Background work stops piling up on itself.
+
+- **Duplicate background jobs are now actually suppressed.** Jobs were queued with a de-duplication key, but the queues were configured in a way that made that key have no effect — so the key looked right in the code and did nothing at run time. A large sync could fan out thousands of identical recompute jobs where tens were intended; a restart during a long history import could append another full import per restart; and the once-per-morning refresh had no debounce, so several paths could each trigger their own run. Each queue now carries an explicit policy chosen for what that queue does, recorded with its reason.
+- Existing installations are migrated on the next start — the setting could not be changed after a queue was created, so setting it at creation alone would have fixed nothing on any running instance. The first start after this release logs one line per migrated queue, which is how you can confirm it took effect.
+- One queue is deliberately left as it was: the explicit-range environment backfill sends without a key on purpose, and any de-duplication there would merge two different requested date ranges into one.
+
+No breaking changes.
+
 ## [1.30.21] — 2026-07-19
 
 Dose reminders land on the right hour across a clock change.
