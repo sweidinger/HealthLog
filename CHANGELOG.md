@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.30.31] — 2026-07-19
+
+Today shows a dose before it is late, and the briefing stops disappearing over a number it was given.
+
+- **A dose that is due but not yet late now appears on Today.** The card only ever showed a dose once it was already overdue, so it could say nothing needs your attention while a dose was due. A due dose reads calmly and an overdue one as a warning; a day where everything is taken still shows the all-clear. Reminder notifications are unchanged — they still only fire once a dose is late.
+- **The briefing was being discarded for quoting figures the server itself had given it.** The check that verifies every number against your own data compared against a hand-maintained list of places to look, while the model receives the complete set. Medication adherence rates, comparison changes — the very figures the briefing is asked to describe — were not on that list, so a correct briefing was withheld. The check now derives its list from exactly what was handed to the model, so it means what it says: a number is accepted only if it came from your data.
+- **A briefing that genuinely cannot be verified no longer takes the previous one down with it.** It falls back to the last good briefing instead of showing nothing, the way it already did when the provider was unreachable. A figure that cannot be verified is still never shown.
+
+No breaking changes.
+
 ## [1.30.28] — 2026-07-19
 
 The daily briefing counts its spend too.
