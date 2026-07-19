@@ -62,8 +62,7 @@ import {
 import {
   type SupportedLocale,
   normalizeLocale,
-  normalizeSummaryText,
-  parseSummaryFromContent,
+  finalizeStatusSummary,
   persistStatusInsight,
   summarizeSeries,
 } from "@/lib/insights/status-shared";
@@ -537,7 +536,22 @@ export async function generateMetricStatus(args: {
     });
   }
 
-  const text = normalizeSummaryText(parseSummaryFromContent(outcome.content));
+  // Outbound safety screen — WITHHOLD policy for a background-generated card.
+  const screened = finalizeStatusSummary(outcome.content, locale);
+  if (!screened.ok) {
+    annotate({
+      action: { name: "insights.status.outbound_blocked" },
+      meta: { cacheAction, reason: screened.reason },
+    });
+    return returnTimeoutFallback({
+      cacheAction,
+      reason: "screened",
+      userId: args.userId,
+      todayKey,
+      stubText: getNoKeyMetricStatusText(locale, signal),
+    });
+  }
+  const text = screened.text;
   if (!text) {
     throw new Error(`Metric-status summary was empty for ${meta.id}`);
   }

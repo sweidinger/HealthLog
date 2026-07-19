@@ -43,6 +43,7 @@ import {
 import {
   DocumentDescribeError,
   runDocumentSummary,
+  documentSummaryBlockedCopy,
   transcribeDocument,
   type DescribeInput,
 } from "@/lib/documents/describe";
@@ -59,6 +60,9 @@ import {
   inboundTextExtractSchema,
   type DocumentSummaryMode,
 } from "@/lib/validations/inbound-documents";
+
+import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import type { Locale } from "@/lib/i18n/config";
 
 export const dynamic = "force-dynamic";
 
@@ -85,10 +89,14 @@ function resolveMode(request: NextRequest): DocumentSummaryMode {
 async function describe(
   mode: DocumentSummaryMode,
   input: DescribeInput,
+  locale: Locale,
 ): Promise<{ summary: string } | { text: string }> {
-  return mode === "text"
-    ? transcribeDocument(input)
-    : runDocumentSummary(input);
+  if (mode === "text") return transcribeDocument(input);
+  // REPLACE policy: the user clicked "summarise" and is waiting, so a screened
+  // summary becomes a short honest statement rather than an empty panel. The
+  // document itself and the extracted text remain reachable and unaltered.
+  const { summary, blocked } = await runDocumentSummary({ ...input, locale });
+  return { summary: blocked ? documentSummaryBlockedCopy(locale) : summary };
 }
 
 /** The budget the requested mode charges. */
@@ -114,11 +122,17 @@ export const POST = apiHandler(
     }
 
     const mode = resolveMode(request);
+    // The outbound screen on the summary needs the reader's locale to pick its
+    // pattern banks; resolve it once here and thread it into both describe legs.
+    const locale = await resolveServerLocale({
+      request,
+      userLocale: user.locale ?? null,
+    });
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
-      return handleTextSummary(request, user.id, document, mode);
+      return handleTextSummary(request, user.id, document, mode, locale);
     }
-    return handleVisionSummary(request, user.id, document, mode);
+    return handleVisionSummary(request, user.id, document, mode, locale);
   },
 );
 
@@ -148,6 +162,7 @@ async function handleTextSummary(
   userId: string,
   document: LoadedDocument,
   mode: DocumentSummaryMode,
+  locale: Locale,
 ): Promise<Response> {
   const row = await prisma.user.findUnique({
     where: { id: userId },
@@ -214,11 +229,15 @@ async function handleTextSummary(
   }
 
   try {
-    const result = await describe(mode, {
-      provider: pick.entry.instance,
-      providerType: pick.providerType,
-      ocrText: parsed.data.text,
-    });
+    const result = await describe(
+      mode,
+      {
+        provider: pick.entry.instance,
+        providerType: pick.providerType,
+        ocrText: parsed.data.text,
+      },
+      locale,
+    );
     await reconcileSpend(
       userId,
       reservation.reserved,
@@ -238,6 +257,7 @@ async function handleVisionSummary(
   userId: string,
   document: LoadedDocument,
   mode: DocumentSummaryMode,
+  locale: Locale,
 ): Promise<Response> {
   const { pick } = await resolveDocumentVisionProvider(userId);
   if (!pick) {
@@ -293,12 +313,16 @@ async function handleVisionSummary(
   }
 
   try {
-    const result = await describe(mode, {
-      provider: pick.entry.instance,
-      providerType: pick.providerType,
-      images: vision.images,
-      documents: vision.documents,
-    });
+    const result = await describe(
+      mode,
+      {
+        provider: pick.entry.instance,
+        providerType: pick.providerType,
+        images: vision.images,
+        documents: vision.documents,
+      },
+      locale,
+    );
     await reconcileSpend(
       userId,
       reservation.reserved,

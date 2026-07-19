@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.30.24] — 2026-07-19
+
+The safety check on generated text now covers every surface and every language.
+
+- **The check that stops a generated text from suggesting a dose change or naming a risk score ran on three surfaces out of roughly forty.** The same sentence the assistant refuses to send in chat could be written onto a metric card and shown for a day, or returned as a document summary. Every place a generated text reaches you now goes through one check.
+- **It could not see your language.** The check took the text alone, so its wording lists were English and German only — for French, Spanish, Italian and Polish the rule existed in the prompt and was enforced nowhere. The reader's language is now part of the check, and the lists cover all six alongside English, because a provider may answer in English regardless of what it was asked.
+- **The rule against stating that one thing caused another is now enforced, not just written.** It shipped in all six languages and only one surface checked it.
+- What happens on a violation depends on the surface: something you asked for right now is replaced with an honest short text; something generated in the background is withheld and the plain non-generated version is kept instead. A document transcription is deliberately never filtered — it reproduces your own document, and a letter from your prescriber saying to increase a dose is a record, not advice from us.
+- A check on whether generated recommendations cite the data they rest on had been unreachable for some time and is now wired into the nightly run.
+
+No breaking changes.
+
 ## [1.30.23] — 2026-07-19
 
 Switching a module off holds on the connector wire too.

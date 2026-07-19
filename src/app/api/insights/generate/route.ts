@@ -58,6 +58,7 @@ import {
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
+import { screenInsightPayloadProse } from "@/lib/ai/safety/insight-payload-screen";
 import {
   findUngroundedBriefingNumbers,
   readBriefingBlock,
@@ -893,6 +894,26 @@ export const POST = apiHandler((request: NextRequest) =>
           meta: { ungroundedCount: ungrounded.length },
         });
       }
+    }
+
+    // Outbound safety screen over the whole prose surface, before the persist.
+    //
+    // This route is user-initiated but writes the SAME cached payload the
+    // background generator writes, so a violation must not be persisted here
+    // either. The user is waiting, so unlike the background path they get an
+    // explicit error rather than silence -- and because nothing was written,
+    // the previous cached insight is still what the app renders.
+    const screened = screenInsightPayloadProse(insights, locale);
+    if (screened) {
+      annotate({
+        action: { name: "insights.generate.outbound_blocked" },
+        meta: { locale, reason: screened },
+      });
+      return apiError(
+        "The generated insight did not pass the safety check and was discarded. Try regenerating.",
+        502,
+        { errorCode: "insights.generate.outboundScreened" },
+      );
     }
 
     await prisma.user.update({

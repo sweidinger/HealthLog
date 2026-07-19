@@ -25,6 +25,19 @@ import { annotate } from "@/lib/logging/context";
  * so a transient stall can't hide the real assessment for the day.
  */
 
+/**
+ * Why the deterministic fallback is being served instead of model prose.
+ *
+ * `screened` is the outbound-safety case: the model produced a usable string
+ * but it tripped a safety contract (see `@/lib/ai/safety/outbound-screen`).
+ * It rides the same envelope as a stall on purpose — the surface policy for a
+ * background-generated cached card is WITHHOLD, and this path already means
+ * exactly "serve the deterministic line, persist no model text". The 5-minute
+ * negative stub gives the next generation a fresh attempt rather than blanking
+ * the card until midnight.
+ */
+export type StatusFallbackReason = "timeout" | "error" | "screened";
+
 /** Short retry window after a provider stall before a re-enqueue is allowed. */
 export const TIMEOUT_NEGATIVE_CACHE_MS = 5 * 60 * 1000;
 
@@ -37,7 +50,7 @@ export async function persistTimeoutNegativeStub(args: {
   userId: string;
   cacheAction: string;
   todayKey: string;
-  reason: "timeout" | "error";
+  reason: StatusFallbackReason;
 }): Promise<void> {
   try {
     await prisma.auditLog.create({
@@ -78,7 +91,7 @@ export async function persistTimeoutNegativeStub(args: {
  */
 export function returnTimeoutFallback(input: {
   cacheAction: string;
-  reason: "timeout" | "error";
+  reason: StatusFallbackReason;
   stubText: string;
   userId?: string;
   todayKey?: string;

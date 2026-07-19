@@ -37,6 +37,7 @@ import {
   prepareVisionInput,
 } from "@/lib/documents/ai-route-support";
 import { runDocumentSummary } from "@/lib/documents/describe";
+import { locales, defaultLocale, type Locale } from "@/lib/i18n/config";
 import { documentAutoReadEnabled } from "@/lib/documents/document-settings";
 import { resolveDocumentVisionProvider } from "@/lib/documents/provider-order";
 import { encryptDocumentSummary } from "@/lib/documents/store";
@@ -157,12 +158,26 @@ export async function runDocumentSummaryJob(
     return;
   }
 
+  // The screen picks its pattern banks by locale; this job has no request, so
+  // the reader's stored preference is the source. An unset/unknown value falls
+  // back to English, never to a silent no-locale path.
+  const owner = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { locale: true },
+  });
+  const locale: Locale = (locales as readonly string[]).includes(
+    owner?.locale ?? "",
+  )
+    ? (owner?.locale as Locale)
+    : defaultLocale;
+
   try {
-    const { summary } = await runDocumentSummary({
+    const { summary, blocked } = await runDocumentSummary({
       provider: pick.entry.instance,
       providerType: pick.providerType,
       images: vision.images,
       documents: vision.documents,
+      locale,
     });
     await reconcileSpend(
       userId,
@@ -170,6 +185,18 @@ export async function runDocumentSummaryJob(
       reservation.reserved,
       dateKey,
     );
+    // WITHHOLD policy. Persisting the refusal copy would be worse than no
+    // summary: `updateMany` below is guarded on `summaryEncrypted: null`, so
+    // the first write wins and a stored refusal would stamp the document
+    // permanently with no path to regenerate. Leaving the column null keeps the
+    // on-demand route as the manual fallback, exactly as a provider miss does.
+    if (blocked) {
+      annotate({
+        action: { name: "documents.summary.outbound_blocked" },
+        meta: { documentId, reason: blocked, providerType: pick.providerType },
+      });
+      return;
+    }
     // Persist ENCRYPTED. `updateMany` scoped to `summaryEncrypted: null` so a
     // racing writer (a re-enqueue) never overwrites an existing summary — the
     // first write wins and a second run is a no-op.

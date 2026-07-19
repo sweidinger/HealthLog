@@ -925,7 +925,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}. Fetch 
     // the system-prompt GLP-1/grounding contracts. On a trip the turn is
     // replaced with a calm, grounded fallback and any reminder suggestion /
     // key-value provenance is dropped — the user never sees the unsafe text.
-    const outbound = screenCoachReply(replyText);
+    const outbound = screenCoachReply(replyText, locale);
     if (outbound.block && outbound.reason) {
       replyText = coachOutboundFallback(outbound.reason, locale);
       annotate({
