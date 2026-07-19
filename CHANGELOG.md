@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.30.28] — 2026-07-19
+
+The daily briefing counts its spend too.
+
+- **Generating the daily briefing did not count against any budget.** It is the one remaining path that a sync can set off on its own: new sleep data arriving in the morning triggers a fresh briefing, and each attempt — including its correction passes — could reach a provider without being recorded. All of them now reserve before and settle after, against the same ceiling as everything else, so a self-hoster on their own key is measured against their own limit.
+- Reaching the ceiling now skips the run rather than reporting a failure, because a failure schedules a retry — and retrying against a limit that does not move until the next day would loop.
+
+No breaking changes.
+
 ## [1.30.26] — 2026-07-19
 
 Text that comes out of your documents is treated as data, not as instructions.
