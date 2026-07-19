@@ -1535,6 +1535,13 @@ paths:
                   - $ref: "#/components/schemas/LoginResponse"
                   - $ref: "#/components/schemas/MfaRequiredResponse"
         "401": *a1
+        "403":
+          description: Password login is disabled — the operator runs `OIDC_ONLY=true`. `meta.errorCode` = `oidc_only`; sign in
+            through SSO instead.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/auth/mfa/verify:
@@ -1609,6 +1616,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/TotpSetupEnvelope"
         "401": *a1
+        "409":
+          description: A second factor is already active on this account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/auth/me/mfa/totp/confirm:
@@ -1638,6 +1651,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/TotpConfirmEnvelope"
         "401": *a1
+        "409":
+          description: A second factor is already active, or enrollment was never started (no pending secret to confirm).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/auth/me/mfa/disable:
@@ -1733,6 +1752,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MfaWebauthnRegisterVerifyEnvelope"
+        "400":
+          description: Security key verification failed (bad attestation).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -1741,6 +1766,12 @@ paths:
       tags:
         - Auth
       summary: Rename a registered security key
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
       requestBody:
         required: true
         content:
@@ -1755,6 +1786,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/MfaWebauthnRenameEnvelope"
         "401": *a1
+        "404":
+          description: No such security key for this account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
     delete:
@@ -1762,6 +1799,12 @@ paths:
         - Auth
       summary: Remove a registered security key (step-up gated)
       description: Requires a fresh second-factor step-up (cookie session). Bearer can never satisfy the gate.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
       responses:
         "200":
           description: Security key removed.
@@ -1770,6 +1813,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/MfaWebauthnRemoveEnvelope"
         "401": *a1
+        "404":
+          description: No such security key for this account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/auth/mfa/webauthn/verify/options:
@@ -1793,6 +1842,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/MfaWebauthnLoginOptionsEnvelope"
         "401": *a1
+        "409":
+          description: No security key is registered on the account — fall back to the TOTP / recovery-code challenge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/auth/mfa/webauthn/verify:
@@ -1838,6 +1893,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/PasskeyLoginVerifyResponse"
         "401": *a1
+        "403":
+          description: Passkey login is disabled — the operator runs `OIDC_ONLY=true`. `meta.errorCode` = `oidc_only`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: The assertion resolved to a user row that no longer exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/auth/refresh:
@@ -1863,11 +1930,14 @@ paths:
               $ref: "#/components/schemas/RefreshTokenRequest"
       responses:
         "200":
-          description: Rotation succeeded — new pair issued.
+          description: "Rotation succeeded — new pair issued. When the request carried `revoke: true` the body is `{ revoked }`
+            instead: the token family is invalidated and no new pair is minted."
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RefreshResponse"
+                anyOf:
+                  - $ref: "#/components/schemas/RefreshResponse"
+                  - $ref: "#/components/schemas/RefreshRevokeResponse"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -1912,6 +1982,12 @@ paths:
       summary: Revoke a single web session
       description: v1.23 — revokes one session by id, scoped to the authenticated user (a foreign id returns 404, never
         another user's row).
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
       responses:
         "200":
           description: Session revoked.
@@ -1966,6 +2042,12 @@ paths:
         - Auth
       summary: Revoke a single trusted device
       description: v1.23 — revokes one trusted device by id, scoped to the authenticated user (a foreign id returns 404).
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
       responses:
         "200":
           description: Trusted device revoked.
@@ -1990,6 +2072,15 @@ paths:
       description: "v1.23 — the SHARED security-activity feed: the caller's recent auth + export + deletion audit events with
         timestamp, resolved location, and a host-masked IP. `limit` query param caps at 100 (default 50). Reuses the
         AuditLog store; no event detail bodies are surfaced."
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            description: Page size; defaults to 50, clamped to 100.
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Page size; defaults to 50, clamped to 100.
       responses:
         "200":
           description: Recent security events for the caller.
@@ -2354,8 +2445,308 @@ paths:
     post:
       tags:
         - Measurements
-      summary: Create one measurement
-      description: Single ingest. Use `/api/measurements/batch` for Apple Health upload streams.
+      summary: Create one measurement (or a small array)
+      description: Single ingest. The body may also be a bare ARRAY of the same objects — the mode the iOS client uses for a
+        combined blood-pressure + pulse or dual-value glucose write — in which case `data` is the array of created rows
+        in request order. Use `/api/measurements/batch` for Apple Health upload streams.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - type: object
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - WEIGHT
+                        - BLOOD_PRESSURE_SYS
+                        - BLOOD_PRESSURE_DIA
+                        - PULSE
+                        - BODY_FAT
+                        - SLEEP_DURATION
+                        - ACTIVITY_STEPS
+                        - BLOOD_GLUCOSE
+                        - TOTAL_BODY_WATER
+                        - BONE_MASS
+                        - OXYGEN_SATURATION
+                        - HEART_RATE_VARIABILITY
+                        - RESTING_HEART_RATE
+                        - ACTIVE_ENERGY_BURNED
+                        - FLIGHTS_CLIMBED
+                        - WALKING_RUNNING_DISTANCE
+                        - VO2_MAX
+                        - BODY_TEMPERATURE
+                        - FAT_FREE_MASS
+                        - FAT_MASS
+                        - MUSCLE_MASS
+                        - SKIN_TEMPERATURE
+                        - PULSE_WAVE_VELOCITY
+                        - VASCULAR_AGE
+                        - VISCERAL_FAT
+                        - AUDIO_EXPOSURE_ENV
+                        - AUDIO_EXPOSURE_HEADPHONE
+                        - TIME_IN_DAYLIGHT
+                        - WALKING_STEADINESS
+                        - AUDIO_EXPOSURE_EVENT
+                        - RESPIRATORY_RATE
+                        - BODY_MASS_INDEX
+                        - LEAN_BODY_MASS
+                        - WALKING_HEART_RATE_AVERAGE
+                        - WALKING_ASYMMETRY
+                        - WALKING_DOUBLE_SUPPORT
+                        - WALKING_STEP_LENGTH
+                        - WALKING_SPEED
+                        - CARDIO_RECOVERY
+                        - WRIST_TEMPERATURE
+                        - FALL_COUNT
+                        - SIX_MINUTE_WALK_DISTANCE
+                        - STAIR_ASCENT_SPEED
+                        - STAIR_DESCENT_SPEED
+                        - BREATHING_DISTURBANCES
+                        - IRREGULAR_RHYTHM_NOTIFICATION
+                        - HIGH_HEART_RATE_EVENT
+                        - LOW_HEART_RATE_EVENT
+                        - WALKING_STEADINESS_EVENT
+                        - BREATHING_DISTURBANCE_EVENT
+                        - RECOVERY_SCORE
+                        - STRESS_SCORE
+                        - STRAIN_SCORE
+                        - HRV_RMSSD
+                        - DAY_STRAIN
+                        - WORKOUT_STRAIN
+                        - SLEEP_PERFORMANCE
+                        - SLEEP_EFFICIENCY
+                        - SLEEP_CONSISTENCY
+                        - SLEEP_NEED
+                        - ENERGY_EXPENDITURE_KJ
+                        - AVERAGE_HEART_RATE
+                        - MAX_HEART_RATE
+                        - SLEEP_DISTURBANCE_COUNT
+                        - ANS_CHARGE
+                        - CARDIO_LOAD
+                        - SLEEP_SCORE
+                        - BODY_TEMPERATURE_DEVIATION
+                        - RESILIENCE
+                        - PHQ9_SCORE
+                        - GAD7_SCORE
+                        - GRIP_STRENGTH
+                        - PAIN_NRS
+                        - WAIST_CIRCUMFERENCE
+                        - WAIST_TO_HEIGHT
+                        - WHO5_SCORE
+                        - SCI_SCORE
+                    value:
+                      type: number
+                    measuredAt:
+                      type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    notes:
+                      type: string
+                      maxLength: 200
+                    source:
+                      default: MANUAL
+                      type: string
+                      enum:
+                        - MANUAL
+                        - APPLE_HEALTH
+                    glucoseContext:
+                      type: string
+                      enum:
+                        - FASTING
+                        - POSTPRANDIAL
+                        - RANDOM
+                        - BEDTIME
+                    deviceType:
+                      anyOf:
+                        - type: string
+                          minLength: 1
+                          maxLength: 32
+                        - type: "null"
+                    symptomsPresent:
+                      type: boolean
+                  required:
+                    - type
+                    - value
+                    - measuredAt
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - WEIGHT
+                          - BLOOD_PRESSURE_SYS
+                          - BLOOD_PRESSURE_DIA
+                          - PULSE
+                          - BODY_FAT
+                          - SLEEP_DURATION
+                          - ACTIVITY_STEPS
+                          - BLOOD_GLUCOSE
+                          - TOTAL_BODY_WATER
+                          - BONE_MASS
+                          - OXYGEN_SATURATION
+                          - HEART_RATE_VARIABILITY
+                          - RESTING_HEART_RATE
+                          - ACTIVE_ENERGY_BURNED
+                          - FLIGHTS_CLIMBED
+                          - WALKING_RUNNING_DISTANCE
+                          - VO2_MAX
+                          - BODY_TEMPERATURE
+                          - FAT_FREE_MASS
+                          - FAT_MASS
+                          - MUSCLE_MASS
+                          - SKIN_TEMPERATURE
+                          - PULSE_WAVE_VELOCITY
+                          - VASCULAR_AGE
+                          - VISCERAL_FAT
+                          - AUDIO_EXPOSURE_ENV
+                          - AUDIO_EXPOSURE_HEADPHONE
+                          - TIME_IN_DAYLIGHT
+                          - WALKING_STEADINESS
+                          - AUDIO_EXPOSURE_EVENT
+                          - RESPIRATORY_RATE
+                          - BODY_MASS_INDEX
+                          - LEAN_BODY_MASS
+                          - WALKING_HEART_RATE_AVERAGE
+                          - WALKING_ASYMMETRY
+                          - WALKING_DOUBLE_SUPPORT
+                          - WALKING_STEP_LENGTH
+                          - WALKING_SPEED
+                          - CARDIO_RECOVERY
+                          - WRIST_TEMPERATURE
+                          - FALL_COUNT
+                          - SIX_MINUTE_WALK_DISTANCE
+                          - STAIR_ASCENT_SPEED
+                          - STAIR_DESCENT_SPEED
+                          - BREATHING_DISTURBANCES
+                          - IRREGULAR_RHYTHM_NOTIFICATION
+                          - HIGH_HEART_RATE_EVENT
+                          - LOW_HEART_RATE_EVENT
+                          - WALKING_STEADINESS_EVENT
+                          - BREATHING_DISTURBANCE_EVENT
+                          - RECOVERY_SCORE
+                          - STRESS_SCORE
+                          - STRAIN_SCORE
+                          - HRV_RMSSD
+                          - DAY_STRAIN
+                          - WORKOUT_STRAIN
+                          - SLEEP_PERFORMANCE
+                          - SLEEP_EFFICIENCY
+                          - SLEEP_CONSISTENCY
+                          - SLEEP_NEED
+                          - ENERGY_EXPENDITURE_KJ
+                          - AVERAGE_HEART_RATE
+                          - MAX_HEART_RATE
+                          - SLEEP_DISTURBANCE_COUNT
+                          - ANS_CHARGE
+                          - CARDIO_LOAD
+                          - SLEEP_SCORE
+                          - BODY_TEMPERATURE_DEVIATION
+                          - RESILIENCE
+                          - PHQ9_SCORE
+                          - GAD7_SCORE
+                          - GRIP_STRENGTH
+                          - PAIN_NRS
+                          - WAIST_CIRCUMFERENCE
+                          - WAIST_TO_HEIGHT
+                          - WHO5_SCORE
+                          - SCI_SCORE
+                      value:
+                        type: number
+                      measuredAt:
+                        type: string
+                        format: date-time
+                        pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                      notes:
+                        type: string
+                        maxLength: 200
+                      source:
+                        default: MANUAL
+                        type: string
+                        enum:
+                          - MANUAL
+                          - APPLE_HEALTH
+                      glucoseContext:
+                        type: string
+                        enum:
+                          - FASTING
+                          - POSTPRANDIAL
+                          - RANDOM
+                          - BEDTIME
+                      deviceType:
+                        anyOf:
+                          - type: string
+                            minLength: 1
+                            maxLength: 32
+                          - type: "null"
+                      symptomsPresent:
+                        type: boolean
+                    required:
+                      - type
+                      - value
+                      - measuredAt
+      responses:
+        "201":
+          description: Created. A single resource for the object body; an array of resources, in request order, for the array body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMeasurementResponse"
+        "401": *a1
+        "409":
+          description: A measurement with this data already exists — the `(userId, type, source, externalId)` dedup index rejected
+            the write.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/measurements/{id}:
+    get:
+      tags:
+        - Measurements
+      summary: Measurement detail
+      description: Single stored row, scoped to the caller. A row owned by another user surfaces as 404 (existence channel sealed).
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Measurement.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMeasurementResponse"
+        "401": *a1
+        "404":
+          description: Measurement not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    put:
+      tags:
+        - Measurements
+      summary: Update a measurement
+      description: Edits a manually entered row. Rows owned by a connected source are refused with 409
+        `measurement.update.server_owned_source`; a timestamp collision with an existing row is refused with 409
+        `measurement.duplicate_timestamp`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
       requestBody:
         required: true
         content:
@@ -2363,86 +2754,6 @@ paths:
             schema:
               type: object
               properties:
-                type:
-                  type: string
-                  enum:
-                    - WEIGHT
-                    - BLOOD_PRESSURE_SYS
-                    - BLOOD_PRESSURE_DIA
-                    - PULSE
-                    - BODY_FAT
-                    - SLEEP_DURATION
-                    - ACTIVITY_STEPS
-                    - BLOOD_GLUCOSE
-                    - TOTAL_BODY_WATER
-                    - BONE_MASS
-                    - OXYGEN_SATURATION
-                    - HEART_RATE_VARIABILITY
-                    - RESTING_HEART_RATE
-                    - ACTIVE_ENERGY_BURNED
-                    - FLIGHTS_CLIMBED
-                    - WALKING_RUNNING_DISTANCE
-                    - VO2_MAX
-                    - BODY_TEMPERATURE
-                    - FAT_FREE_MASS
-                    - FAT_MASS
-                    - MUSCLE_MASS
-                    - SKIN_TEMPERATURE
-                    - PULSE_WAVE_VELOCITY
-                    - VASCULAR_AGE
-                    - VISCERAL_FAT
-                    - AUDIO_EXPOSURE_ENV
-                    - AUDIO_EXPOSURE_HEADPHONE
-                    - TIME_IN_DAYLIGHT
-                    - WALKING_STEADINESS
-                    - AUDIO_EXPOSURE_EVENT
-                    - RESPIRATORY_RATE
-                    - BODY_MASS_INDEX
-                    - LEAN_BODY_MASS
-                    - WALKING_HEART_RATE_AVERAGE
-                    - WALKING_ASYMMETRY
-                    - WALKING_DOUBLE_SUPPORT
-                    - WALKING_STEP_LENGTH
-                    - WALKING_SPEED
-                    - CARDIO_RECOVERY
-                    - WRIST_TEMPERATURE
-                    - FALL_COUNT
-                    - SIX_MINUTE_WALK_DISTANCE
-                    - STAIR_ASCENT_SPEED
-                    - STAIR_DESCENT_SPEED
-                    - BREATHING_DISTURBANCES
-                    - IRREGULAR_RHYTHM_NOTIFICATION
-                    - HIGH_HEART_RATE_EVENT
-                    - LOW_HEART_RATE_EVENT
-                    - WALKING_STEADINESS_EVENT
-                    - BREATHING_DISTURBANCE_EVENT
-                    - RECOVERY_SCORE
-                    - STRESS_SCORE
-                    - STRAIN_SCORE
-                    - HRV_RMSSD
-                    - DAY_STRAIN
-                    - WORKOUT_STRAIN
-                    - SLEEP_PERFORMANCE
-                    - SLEEP_EFFICIENCY
-                    - SLEEP_CONSISTENCY
-                    - SLEEP_NEED
-                    - ENERGY_EXPENDITURE_KJ
-                    - AVERAGE_HEART_RATE
-                    - MAX_HEART_RATE
-                    - SLEEP_DISTURBANCE_COUNT
-                    - ANS_CHARGE
-                    - CARDIO_LOAD
-                    - SLEEP_SCORE
-                    - BODY_TEMPERATURE_DEVIATION
-                    - RESILIENCE
-                    - PHQ9_SCORE
-                    - GAD7_SCORE
-                    - GRIP_STRENGTH
-                    - PAIN_NRS
-                    - WAIST_CIRCUMFERENCE
-                    - WAIST_TO_HEIGHT
-                    - WHO5_SCORE
-                    - SCI_SCORE
                 value:
                   type: number
                 measuredAt:
@@ -2450,41 +2761,59 @@ paths:
                   format: date-time
                   pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
                 notes:
-                  type: string
-                  maxLength: 200
-                source:
-                  default: MANUAL
-                  type: string
-                  enum:
-                    - MANUAL
-                    - APPLE_HEALTH
-                glucoseContext:
-                  type: string
-                  enum:
-                    - FASTING
-                    - POSTPRANDIAL
-                    - RANDOM
-                    - BEDTIME
-                deviceType:
                   anyOf:
                     - type: string
-                      minLength: 1
-                      maxLength: 32
+                      maxLength: 200
                     - type: "null"
-                symptomsPresent:
-                  type: boolean
-              required:
-                - type
-                - value
-                - measuredAt
       responses:
-        "201":
-          description: Created.
+        "200":
+          description: Updated measurement.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateMeasurementResponse"
+                $ref: "#/components/schemas/UpdateMeasurementResponse"
         "401": *a1
+        "404":
+          description: Measurement not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: "Refused: the row comes from a connected source (`meta.errorCode` =
+            `measurement.update.server_owned_source`), or another row already carries this timestamp
+            (`measurement.duplicate_timestamp`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Measurements
+      summary: Delete a measurement
+      description: Soft-deletes the row (tombstone) so paired clients can reconcile the deletion.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteMeasurementResponse"
+        "401": *a1
+        "404":
+          description: Measurement not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/measurements/batch:
@@ -2692,6 +3021,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListWorkoutsResponse"
         "401": *a1
+        "403": *a5
         "422": *a3
         "429": *a4
   /api/workouts/{id}:
@@ -2725,6 +3055,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/GetWorkoutResponse"
         "401": *a1
+        "403": *a5
         "404":
           description: Workout not found (or owned by another user).
           content:
@@ -14850,8 +15181,9 @@ components:
             - username
           additionalProperties: false
         token:
+          description: Access token (`hlk_<64hex>`); only present for native-policy callers. A browser caller gets the session
+            cookie instead.
           type: string
-          description: Access token (`hlk_<64hex>`).
         tokenExpiresAt:
           type: string
           format: date-time
@@ -14864,8 +15196,7 @@ components:
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
       required:
-        - token
-        - tokenExpiresAt
+        - user
       additionalProperties: false
       description: Native-client token bundle returned by login + refresh. Web cookie-only callers see only `user`.
     MfaRequiredResponse:
@@ -15262,6 +15593,29 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/AccessRefreshBundle"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    RefreshRevokeResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            revoked:
+              type: boolean
+          required:
+            - revoked
+          additionalProperties: false
         error:
           type: "null"
         meta:
@@ -15786,6 +16140,8 @@ components:
       properties:
         id:
           type: string
+          description: Stored row id, or a synthetic key (`day:<type>:<dayKey>`, `sleep-seg:<dayKey>:<n>`) on the collapsed list
+            modes.
         type:
           type: string
           enum:
@@ -15895,20 +16251,76 @@ components:
           anyOf:
             - type: string
             - type: "null"
+        userId:
+          type: string
+        valueMin:
+          description: Bucket MINIMUM — set only on an hourly heart-rate `stats:` row.
+          anyOf:
+            - type: number
+            - type: "null"
+        valueMax:
+          description: Bucket MAXIMUM — set only on an hourly heart-rate `stats:` row.
+          anyOf:
+            - type: number
+            - type: "null"
         externalId:
           anyOf:
             - type: string
             - type: "null"
           description: Cross-device dedup key (UUID string or `stats:<id>:<date>`).
+        externalSourceVersion:
+          anyOf:
+            - type: string
+            - type: "null"
+        glucoseContext:
+          description: Set only on BLOOD_GLUCOSE rows.
+          anyOf:
+            - type: string
+            - type: "null"
+        sleepStage:
+          description: Set only on SLEEP_DURATION rows.
+          anyOf:
+            - type: string
+            - type: "null"
+        rhythmClassification:
+          description: Device classification verdict; set only on EVENT rows.
+          anyOf:
+            - type: string
+            - type: "null"
+        deviceType:
+          description: "`watch | band | ring | phone | scale | other | unknown`."
+          anyOf:
+            - type: string
+            - type: "null"
         syncVersion:
           type: integer
           exclusiveMinimum: 0
           maximum: 9007199254740991
           description: LWW reconciliation counter; echo to keep the mirror monotonic.
+        deletedAt:
+          description: Soft-delete tombstone; null on a live row.
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
         updatedAt:
           type: string
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        dayKey:
+          type: string
+        sampleCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        partial:
+          description: True on the one bucket whose day was cut off by the read cap, so its sum understates the real total.
+          type: boolean
       required:
         - id
         - type
@@ -16518,14 +16930,14 @@ components:
             measurements:
               type: array
               items:
-                $ref: "#/components/schemas/MeasurementResource"
-            total:
-              type: integer
-              minimum: 0
-              maximum: 9007199254740991
+                anyOf:
+                  - $ref: "#/components/schemas/MeasurementResource"
+                  - $ref: "#/components/schemas/AggregatedMeasurementBucket"
+            meta:
+              $ref: "#/components/schemas/ListMeasurementsMeta"
           required:
             - measurements
-            - total
+            - meta
           additionalProperties: false
         error:
           type: "null"
@@ -16544,6 +16956,8 @@ components:
       properties:
         id:
           type: string
+          description: Stored row id, or a synthetic key (`day:<type>:<dayKey>`, `sleep-seg:<dayKey>:<n>`) on the collapsed list
+            modes.
         type:
           type: string
           enum:
@@ -16653,6 +17067,76 @@ components:
           anyOf:
             - type: string
             - type: "null"
+        userId:
+          type: string
+        valueMin:
+          description: Bucket MINIMUM — set only on an hourly heart-rate `stats:` row.
+          anyOf:
+            - type: number
+            - type: "null"
+        valueMax:
+          description: Bucket MAXIMUM — set only on an hourly heart-rate `stats:` row.
+          anyOf:
+            - type: number
+            - type: "null"
+        externalId:
+          description: External-system dedup key; null for manual entries.
+          anyOf:
+            - type: string
+            - type: "null"
+        externalSourceVersion:
+          anyOf:
+            - type: string
+            - type: "null"
+        glucoseContext:
+          description: Set only on BLOOD_GLUCOSE rows.
+          anyOf:
+            - type: string
+            - type: "null"
+        sleepStage:
+          description: Set only on SLEEP_DURATION rows.
+          anyOf:
+            - type: string
+            - type: "null"
+        rhythmClassification:
+          description: Device classification verdict; set only on EVENT rows.
+          anyOf:
+            - type: string
+            - type: "null"
+        deviceType:
+          description: "`watch | band | ring | phone | scale | other | unknown`."
+          anyOf:
+            - type: string
+            - type: "null"
+        syncVersion:
+          description: Bumped on every server-side mutation; the last-writer-wins input for cross-device reconciliation.
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        deletedAt:
+          description: Soft-delete tombstone; null on a live row.
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        dayKey:
+          type: string
+        sampleCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        partial:
+          description: True on the one bucket whose day was cut off by the read cap, so its sum understates the real total.
+          type: boolean
       required:
         - id
         - type
@@ -16661,12 +17145,216 @@ components:
         - measuredAt
         - source
       additionalProperties: false
-      description: Server-shaped measurement row returned by GET endpoints.
+      description: Server-shaped measurement row. GET endpoints return the whole stored row with the decrypted note on `notes`
+        and the `notesEncrypted` ciphertext stripped; the collapsed list modes synthesise rows carrying the display
+        fields plus `dayKey` / `sampleCount`.
+    AggregatedMeasurementBucket:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - WEIGHT
+            - BLOOD_PRESSURE_SYS
+            - BLOOD_PRESSURE_DIA
+            - PULSE
+            - BODY_FAT
+            - SLEEP_DURATION
+            - ACTIVITY_STEPS
+            - BLOOD_GLUCOSE
+            - TOTAL_BODY_WATER
+            - BONE_MASS
+            - OXYGEN_SATURATION
+            - HEART_RATE_VARIABILITY
+            - RESTING_HEART_RATE
+            - ACTIVE_ENERGY_BURNED
+            - FLIGHTS_CLIMBED
+            - WALKING_RUNNING_DISTANCE
+            - VO2_MAX
+            - BODY_TEMPERATURE
+            - FAT_FREE_MASS
+            - FAT_MASS
+            - MUSCLE_MASS
+            - SKIN_TEMPERATURE
+            - PULSE_WAVE_VELOCITY
+            - VASCULAR_AGE
+            - VISCERAL_FAT
+            - AUDIO_EXPOSURE_ENV
+            - AUDIO_EXPOSURE_HEADPHONE
+            - TIME_IN_DAYLIGHT
+            - WALKING_STEADINESS
+            - AUDIO_EXPOSURE_EVENT
+            - RESPIRATORY_RATE
+            - BODY_MASS_INDEX
+            - LEAN_BODY_MASS
+            - WALKING_HEART_RATE_AVERAGE
+            - WALKING_ASYMMETRY
+            - WALKING_DOUBLE_SUPPORT
+            - WALKING_STEP_LENGTH
+            - WALKING_SPEED
+            - CARDIO_RECOVERY
+            - WRIST_TEMPERATURE
+            - FALL_COUNT
+            - SIX_MINUTE_WALK_DISTANCE
+            - STAIR_ASCENT_SPEED
+            - STAIR_DESCENT_SPEED
+            - BREATHING_DISTURBANCES
+            - IRREGULAR_RHYTHM_NOTIFICATION
+            - HIGH_HEART_RATE_EVENT
+            - LOW_HEART_RATE_EVENT
+            - WALKING_STEADINESS_EVENT
+            - BREATHING_DISTURBANCE_EVENT
+            - RECOVERY_SCORE
+            - STRESS_SCORE
+            - STRAIN_SCORE
+            - HRV_RMSSD
+            - DAY_STRAIN
+            - WORKOUT_STRAIN
+            - SLEEP_PERFORMANCE
+            - SLEEP_EFFICIENCY
+            - SLEEP_CONSISTENCY
+            - SLEEP_NEED
+            - ENERGY_EXPENDITURE_KJ
+            - AVERAGE_HEART_RATE
+            - MAX_HEART_RATE
+            - SLEEP_DISTURBANCE_COUNT
+            - ANS_CHARGE
+            - CARDIO_LOAD
+            - SLEEP_SCORE
+            - BODY_TEMPERATURE_DEVIATION
+            - RESILIENCE
+            - PHQ9_SCORE
+            - GAD7_SCORE
+            - GRIP_STRENGTH
+            - PAIN_NRS
+            - WAIST_CIRCUMFERENCE
+            - WAIST_TO_HEIGHT
+            - WHO5_SCORE
+            - SCI_SCORE
+        value:
+          type: number
+          description: The bucket's aggregated value.
+        measuredAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: Bucket start.
+        count:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        unit:
+          type: string
+      required:
+        - type
+        - value
+        - measuredAt
+      additionalProperties: false
+      description: Pre-folded bucket returned by the `aggregate=` list modes instead of a stored row.
+    ListMeasurementsMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        limit:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        offset:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        dayKey:
+          description: Echoed on the per-sample drill-down modes.
+          type: string
+        groupBy:
+          description: Set on the collapsed day-sum / per-night modes.
+          type: string
+          enum:
+            - day
+            - night
+        aggregate:
+          description: Set on the aggregate modes — the requested grain.
+          type: string
+        droppedDuplicates:
+          description: Rows discarded by the cross-source canonical picker on the day-collapse mode.
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - total
+        - limit
+        - offset
+      additionalProperties: false
     CreateMeasurementResponse:
       type: object
       properties:
         data:
+          anyOf:
+            - $ref: "#/components/schemas/MeasurementResource"
+            - type: array
+              items:
+                $ref: "#/components/schemas/MeasurementResource"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetMeasurementResponse:
+      type: object
+      properties:
+        data:
           $ref: "#/components/schemas/MeasurementResource"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateMeasurementResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementResource"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteMeasurementResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+              const: true
+          required:
+            - deleted
+          additionalProperties: false
         error:
           type: "null"
         meta:
@@ -18134,17 +18822,8 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
-          description: "v1.7.0 server-computed next due instant across all the medication's schedules (earliest
-            `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot
-            (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). v1.16.4 — when an unresolved slot's
-            anchor has passed but the catch-up band is still open (`anchor < now <= overdueEnd`, current schedule era),
-            this carries THAT slot (a past instant) with `nextDueOverdue: true` instead of jumping to the next future
-            slot. The list GET is cached 60 s, so a 60 s staleness is accepted."
         nextDueOverdue:
           type: boolean
-          description: "v1.16.4 — true when `nextDueAt` is an OPEN overdue slot: its anchor has passed, `now` is still inside the
-            slot's catch-up band, and no taken / skipped / auto-missed row resolves it. False for a regular future
-            next-due (and when `nextDueAt` is null). Read-only — computed, not stored."
         startsOn:
           anyOf:
             - type: string
@@ -18201,9 +18880,7 @@ components:
             against the passed-dose count, and a pending mint must not read as covered."
         stockUnitsRemaining:
           anyOf:
-            - type: integer
-              minimum: -9007199254740991
-              maximum: 9007199254740991
+            - type: number
             - type: "null"
           description: v1.16.10 — usable inventory units left across the medication's containers (sum of `unitsRemaining` over
             ACTIVE / IN_USE items with units left). NULL = inventory tracking off (no items ever registered); 0 =
@@ -18357,22 +19034,24 @@ components:
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
         nextDueAt:
+          description: "Present on the READ paths only — the list and single GET compute it; the create / update responses return
+            the stored row and omit it. v1.7.0 server-computed next due instant across all the medication's schedules
+            (earliest `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming
+            slot (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). v1.16.4 — when an unresolved
+            slot's anchor has passed but the catch-up band is still open (`anchor < now <= overdueEnd`, current schedule
+            era), this carries THAT slot (a past instant) with `nextDueOverdue: true` instead of jumping to the next
+            future slot. The list GET is cached 60 s, so a 60 s staleness is accepted."
           anyOf:
             - type: string
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
-          description: "v1.7.0 server-computed next due instant across all the medication's schedules (earliest
-            `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot
-            (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). v1.16.4 — when an unresolved slot's
-            anchor has passed but the catch-up band is still open (`anchor < now <= overdueEnd`, current schedule era),
-            this carries THAT slot (a past instant) with `nextDueOverdue: true` instead of jumping to the next future
-            slot. The list GET is cached 60 s, so a 60 s staleness is accepted."
         nextDueOverdue:
+          description: "Present on the READ paths only, alongside `nextDueAt`. v1.16.4 — true when `nextDueAt` is an OPEN overdue
+            slot: its anchor has passed, `now` is still inside the slot's catch-up band, and no taken / skipped /
+            auto-missed row resolves it. False for a regular future next-due (and when `nextDueAt` is null). Read-only —
+            computed, not stored."
           type: boolean
-          description: "v1.16.4 — true when `nextDueAt` is an OPEN overdue slot: its anchor has passed, `now` is still inside the
-            slot's catch-up band, and no taken / skipped / auto-missed row resolves it. False for a regular future
-            next-due (and when `nextDueAt` is null). Read-only — computed, not stored."
         startsOn:
           anyOf:
             - type: string
@@ -18428,8 +19107,6 @@ components:
         - rxNormCode
         - pausedAt
         - snoozedUntil
-        - nextDueAt
-        - nextDueOverdue
         - startsOn
         - endsOn
         - oneShot
@@ -18594,6 +19271,7 @@ components:
             - API
             - REMINDER
             - IMPORT
+            - APPLE_HEALTH
         idempotencyKey:
           anyOf:
             - type: string
@@ -19032,26 +19710,40 @@ components:
       type: object
       properties:
         adherenceRate:
-          type: number
-        streakDays:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: 0-100, taken / (taken + missed). Skipped doses are excluded from the denominator — a deliberate decision,
+            not a compliance failure. NULL when no dose was expected in the window (brand-new medication, paused).
+        currentStreak:
           type: integer
           minimum: 0
           maximum: 9007199254740991
-        expectedSlots:
+          description: Consecutive days ending at `asOf` where every expected dose was taken or skipped. Days with no expected
+            dose advance the streak; missed days break it.
+        longestStreak:
           type: integer
           minimum: 0
           maximum: 9007199254740991
-        actualDoses:
+          description: Longest all-taken-or-skipped run anywhere in the window.
+        missedLast30:
           type: integer
           minimum: 0
           maximum: 9007199254740991
+          description: Count of missed doses inside the window.
+        windowDays:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          description: Window size used — mirrors the input for the chart legend.
       required:
         - adherenceRate
-        - streakDays
-        - expectedSlots
-        - actualDoses
+        - currentStreak
+        - longestStreak
+        - missedLast30
+        - windowDays
       additionalProperties: false
-      description: Four compliance summary values for the medication detail page chip row.
+      description: Compliance summary values for the medication detail page chip row.
     MedicationCadenceTimelinePoint:
       type: object
       properties:
@@ -31149,22 +31841,24 @@ components:
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
         nextDueAt:
+          description: "Present on the READ paths only — the list and single GET compute it; the create / update responses return
+            the stored row and omit it. v1.7.0 server-computed next due instant across all the medication's schedules
+            (earliest `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming
+            slot (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). v1.16.4 — when an unresolved
+            slot's anchor has passed but the catch-up band is still open (`anchor < now <= overdueEnd`, current schedule
+            era), this carries THAT slot (a past instant) with `nextDueOverdue: true` instead of jumping to the next
+            future slot. The list GET is cached 60 s, so a 60 s staleness is accepted."
           anyOf:
             - type: string
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
-          description: "v1.7.0 server-computed next due instant across all the medication's schedules (earliest
-            `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot
-            (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). v1.16.4 — when an unresolved slot's
-            anchor has passed but the catch-up band is still open (`anchor < now <= overdueEnd`, current schedule era),
-            this carries THAT slot (a past instant) with `nextDueOverdue: true` instead of jumping to the next future
-            slot. The list GET is cached 60 s, so a 60 s staleness is accepted."
         nextDueOverdue:
+          description: "Present on the READ paths only, alongside `nextDueAt`. v1.16.4 — true when `nextDueAt` is an OPEN overdue
+            slot: its anchor has passed, `now` is still inside the slot's catch-up band, and no taken / skipped /
+            auto-missed row resolves it. False for a regular future next-due (and when `nextDueAt` is null). Read-only —
+            computed, not stored."
           type: boolean
-          description: "v1.16.4 — true when `nextDueAt` is an OPEN overdue slot: its anchor has passed, `now` is still inside the
-            slot's catch-up band, and no taken / skipped / auto-missed row resolves it. False for a regular future
-            next-due (and when `nextDueAt` is null). Read-only — computed, not stored."
         startsOn:
           anyOf:
             - type: string
@@ -31218,8 +31912,6 @@ components:
         - rxNormCode
         - pausedAt
         - snoozedUntil
-        - nextDueAt
-        - nextDueOverdue
         - startsOn
         - endsOn
         - oneShot

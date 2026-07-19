@@ -245,7 +245,11 @@ export function proxy(request: NextRequest) {
   const isApiRoute = pathname.startsWith("/api/");
   const isStaticFile = /\.\w+$/.test(pathname);
   const isPublic = isPublicPath(pathname);
-  if (!isApiRoute && !isStaticFile && !isPublic) {
+  // Every page behind the session gate. The same predicate drives the
+  // auth redirect below and the `no-store` header further down, so a page
+  // can never be session-gated without also being uncacheable.
+  const isSessionGatedPage = !isApiRoute && !isStaticFile && !isPublic;
+  if (isSessionGatedPage) {
     const hasSession = request.cookies.has("healthlog_session");
     if (!hasSession) {
       return NextResponse.redirect(new URL("/auth/login", request.url));
@@ -334,6 +338,27 @@ export function proxy(request: NextRequest) {
 
   // Both serve routes take the narrow, document-only header posture.
   const isServeRoute = isDocumentServeRoute || isShareDocumentServeRoute;
+
+  // Session-gated pages carry one account's health record in the document
+  // itself. Several of them server-prefetch their data and serialise it into
+  // the HTML through a TanStack `HydrationBoundary` — the dashboard, Insights,
+  // the workouts list, the medications list, the Coach. Those pages are
+  // dynamic today only as a side effect of reading the session cookie, which
+  // is a property of the page code, not a guarantee: a stray `revalidate`
+  // export, a `force-static` segment, or a caching proxy in front of the app
+  // would be enough to retain one account's record and hand it to the next
+  // caller. Pin the guarantee at the edge instead, where no page-level change
+  // can weaken it.
+  //
+  // `private` bars shared caches (CDN, reverse proxy) outright; `no-store`
+  // additionally stops the browser's own disk cache and the bfcache snapshot,
+  // so a back-navigation after logout cannot repaint the record. The public
+  // surfaces (`/auth/*`, `/privacy`, `/about`, `/i18n/*`) are excluded by the
+  // same predicate that governs the auth redirect, so the statically
+  // rendered marketing/legal pages stay cacheable.
+  if (isSessionGatedPage) {
+    response.headers.set("Cache-Control", "private, no-store");
+  }
 
   // Security headers
   response.headers.set("X-Content-Type-Options", "nosniff");

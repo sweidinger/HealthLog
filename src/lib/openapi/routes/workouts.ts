@@ -9,7 +9,12 @@ import { z } from "zod/v4";
 import type { ZodOpenApiObject } from "zod-openapi";
 import { measurementSourceEnum } from "@/lib/validations/measurement";
 import { createBatchWorkoutSchema } from "@/lib/validations/workout";
-import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
+import {
+  dataEnvelope,
+  errorEnvelope,
+  moduleDisabledResponse,
+  stdResponses,
+} from "./shared";
 
 // v1.4.25 W16b — typed workout batch ingest response envelope. Mirrors
 // the measurements batch shape but reports the `workouts` count rather
@@ -205,6 +210,7 @@ export const workoutPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
           },
         },
+        ...moduleDisabledResponse,
         ...stdResponses,
       },
     },
@@ -234,6 +240,7 @@ export const workoutPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description: "Workout not found (or owned by another user).",
           content: { "application/json": { schema: errorEnvelope } },
         },
+        ...moduleDisabledResponse,
         ...stdResponses,
       },
     },
