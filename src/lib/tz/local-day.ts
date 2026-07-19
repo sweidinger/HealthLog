@@ -8,7 +8,7 @@
  * user's local calendar day — today's bounds for database queries,
  * the local weekday, and the UTC instant of a local `hh:mm`.
  */
-import { wallClockInTz } from "./wall-clock";
+import { wallClockInTz, zonedWallClockToUtc } from "./wall-clock";
 
 /**
  * Get the start (midnight) and end (23:59:59.999) of "today" in the user's
@@ -103,11 +103,29 @@ export function getDayOfWeekInTz(now: Date, tz: string): number {
 
 /**
  * Compute the UTC instant of local `hh:mm` on the local calendar day
- * implied by `now` in `tz`. DST-safe — `todayStart.getTime() + h * 3.6e6`
- * drifts by an hour on spring-forward / fall-back days because raw UTC
- * arithmetic ignores the DST jump between local midnight and local
- * `hh:mm`. This helper re-derives the offset at the target local time
- * so the returned instant always represents local `hh:mm`.
+ * implied by `now` in `tz`.
+ *
+ * Two steps, both zone-aware: resolve which local calendar day `now`
+ * falls on via {@link wallClockInTz}, then convert that day's `hh:mm`
+ * wall clock to its UTC instant via `zonedWallClockToUtc`.
+ *
+ * The offset is therefore settled AT THE TARGET local time, not at the
+ * reference instant. The previous implementation sampled the offset at
+ * `now` and applied it to the target, so on a DST-transition day the
+ * answer depended on which side of the transition the reference sat:
+ * a 20:00 slot resolved to 19:00 local when the caller ticked before the
+ * Berlin autumn change and correctly when it ticked after. That broke
+ * two contracts at once — the projector, the reminder worker and the
+ * intake write path key on the byte-identical slot instant, and they
+ * pass different reference instants for the same slot, so a duplicate
+ * pending row became reachable on that day.
+ *
+ * `zonedWallClockToUtc` runs the same two-pass converge as
+ * {@link startOfLocalDayInTz}, so `localHmAsUtc(x, tz, 0, 0)` now equals
+ * `startOfLocalDayInTz(x, tz)` BY CONSTRUCTION rather than by
+ * coincidence — the two used to disagree by an hour on transition days,
+ * which opened the one-shot on-time band an hour into the previous
+ * local day.
  */
 export function localHmAsUtc(
   now: Date,
@@ -116,20 +134,15 @@ export function localHmAsUtc(
   minute: number,
 ): Date {
   const parts = wallClockInTz(now, tz);
-  const localAtTargetAsUtc = new Date(
-    Date.UTC(parts.year, parts.month - 1, parts.day, hour, minute, 0, 0),
+  return zonedWallClockToUtc(
+    {
+      year: parts.year,
+      month: parts.month,
+      day: parts.day,
+      hour,
+      minute,
+      second: 0,
+    },
+    tz,
   );
-  const localNowAsUtc = new Date(
-    Date.UTC(
-      parts.year,
-      parts.month - 1,
-      parts.day,
-      parts.hour,
-      parts.minute,
-      parts.second,
-    ),
-  );
-  const offsetMs =
-    Math.round((localNowAsUtc.getTime() - now.getTime()) / 60000) * 60000;
-  return new Date(localAtTargetAsUtc.getTime() - offsetMs);
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getUserTodayBounds, startOfLocalDayInTz } from "@/lib/tz/local-day";
+import {
+  getUserTodayBounds,
+  localHmAsUtc,
+  startOfLocalDayInTz,
+} from "@/lib/tz/local-day";
 import { wallClockInTz, zonedWallClockToUtc } from "@/lib/tz/wall-clock";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -149,5 +153,96 @@ describe("getUserTodayBounds — DST-safe local-day window", () => {
     expect(start.toISOString()).toBe("2026-06-15T07:00:00.000Z");
     expect(end.getTime() - start.getTime()).toBe(24 * HOUR_MS - 1);
     expect(wallClockInTz(start, "America/Los_Angeles").day).toBe(15);
+  });
+});
+
+describe("localHmAsUtc — DST transition days", () => {
+  const TZ = "Europe/Berlin";
+  // Berlin 2026 transitions: spring forward Mar 29 (02:00 CET → 03:00 CEST),
+  // autumn back Oct 25 (03:00 CEST → 02:00 CET).
+
+  /** The wall clock an observer in `tz` reads at `instant`, as "HH:mm". */
+  function localHm(instant: Date, tz: string): string {
+    const p = wallClockInTz(instant, tz);
+    return `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`;
+  }
+
+  it("resolves a 20:00 slot to 20:00 local from a PRE-transition reference (autumn back)", () => {
+    // 02:30 CEST — before the 03:00 fall-back. The old implementation
+    // sampled the +02:00 offset here and applied it to the 20:00 target,
+    // which by then sits at +01:00, yielding 19:00 local.
+    const ref = new Date("2026-10-25T00:30:00.000Z");
+    const slot = localHmAsUtc(ref, TZ, 20, 0);
+    expect(localHm(slot, TZ)).toBe("20:00");
+    expect(slot.toISOString()).toBe("2026-10-25T19:00:00.000Z");
+  });
+
+  it("resolves a 20:00 slot to 20:00 local from a POST-transition reference (autumn back)", () => {
+    const ref = new Date("2026-10-25T05:00:00.000Z"); // 06:00 CET
+    const slot = localHmAsUtc(ref, TZ, 20, 0);
+    expect(localHm(slot, TZ)).toBe("20:00");
+    expect(slot.toISOString()).toBe("2026-10-25T19:00:00.000Z");
+  });
+
+  it("keys the SAME instant for one slot regardless of reference side (autumn back)", () => {
+    // The dedupe contract: projector, reminder worker and intake write path
+    // each pass their own reference instant for the same slot. They must
+    // agree byte-for-byte or a duplicate pending row becomes reachable.
+    const pre = new Date("2026-10-25T00:30:00.000Z");
+    const mid = new Date("2026-10-25T01:30:00.000Z");
+    const post = new Date("2026-10-25T05:00:00.000Z");
+    const slots = [pre, mid, post].map((r) =>
+      localHmAsUtc(r, TZ, 20, 0).getTime(),
+    );
+    expect(new Set(slots).size).toBe(1);
+  });
+
+  it("keys the SAME instant for one slot regardless of reference side (spring forward)", () => {
+    const pre = new Date("2026-03-29T00:30:00.000Z"); // 01:30 CET
+    const post = new Date("2026-03-29T09:00:00.000Z"); // 11:00 CEST
+    expect(localHmAsUtc(pre, TZ, 20, 0).getTime()).toBe(
+      localHmAsUtc(post, TZ, 20, 0).getTime(),
+    );
+    expect(localHm(localHmAsUtc(pre, TZ, 20, 0), TZ)).toBe("20:00");
+  });
+
+  it("agrees with startOfLocalDayInTz at 00:00 on BOTH transition days", () => {
+    // By construction now — both route through the same two-pass converge.
+    // They used to disagree by an hour here, which opened the one-shot
+    // on-time band an hour into the previous local day.
+    for (const iso of [
+      "2026-03-29T00:30:00.000Z", // spring forward, pre
+      "2026-03-29T09:00:00.000Z", // spring forward, post
+      "2026-10-25T00:30:00.000Z", // autumn back, pre
+      "2026-10-25T05:00:00.000Z", // autumn back, post
+    ]) {
+      const ref = new Date(iso);
+      expect(localHmAsUtc(ref, TZ, 0, 0).getTime()).toBe(
+        startOfLocalDayInTz(ref, TZ).getTime(),
+      );
+    }
+  });
+
+  it("resolves an early-morning slot on the spring-forward day", () => {
+    // 01:30 local exists (CET, +01:00) on the spring-forward day; 03:30
+    // exists (CEST, +02:00). Both must round-trip to their own wall clock.
+    const ref = new Date("2026-03-29T12:00:00.000Z");
+    expect(localHmAsUtc(ref, TZ, 1, 30).toISOString()).toBe(
+      "2026-03-29T00:30:00.000Z",
+    );
+    expect(localHmAsUtc(ref, TZ, 3, 30).toISOString()).toBe(
+      "2026-03-29T01:30:00.000Z",
+    );
+  });
+
+  it("resolves slots in a southern-hemisphere zone whose transitions invert", () => {
+    // Australia/Sydney falls back 2026-04-05 03:00 AEDT → 02:00 AEST.
+    const sydney = "Australia/Sydney";
+    const pre = new Date("2026-04-04T14:30:00.000Z"); // 01:30 AEDT (+11), Apr 5
+    const post = new Date("2026-04-05T09:00:00.000Z"); // 19:00 AEST (+10), Apr 5
+    const a = localHmAsUtc(pre, sydney, 20, 0);
+    const b = localHmAsUtc(post, sydney, 20, 0);
+    expect(a.getTime()).toBe(b.getTime());
+    expect(localHm(a, sydney)).toBe("20:00");
   });
 });

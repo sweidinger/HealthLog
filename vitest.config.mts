@@ -9,6 +9,15 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // Pin the host timezone. CI runs UTC; without this a contributor in any
+    // other zone sees a different suite than the gate does — verified: a
+    // UTC+14 host fails five tests on an otherwise green tree. Pinning makes
+    // local and CI agree, and makes "which zone does this test mean?" an
+    // explicit choice the fixture has to state rather than a property of the
+    // machine it runs on. Tests that need a different HOST zone set
+    // `process.env.TZ` themselves and restore it afterwards (see
+    // `next-due-day-label.test.ts`).
+    env: { TZ: "UTC" },
     // Primes the i18n locale cache so provider mounts resolve every
     // locale synchronously (production gets the active bundle as an RSC
     // prop instead — see src/lib/i18n/load-locale.ts).
