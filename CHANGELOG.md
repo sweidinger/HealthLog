@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.30.30] — 2026-07-19
+
+Four languages get their own words; a failed read stops claiming you have no data.
+
+- **Reminder notifications, the assistant's reply language, chart and calendar labels, and durations were English or German for French, Spanish, Italian and Polish.** The translations existed; the code that picked between them only knew two languages. It now uses the account's own.
+- **Polish counts correctly.** Polish has a third plural form that a two-form scheme cannot express, so counted phrases read wrong. The other five languages resolve exactly as before.
+- **A screening history that failed to load said "not taken yet".** On a mental-health surface that is a false statement about your own record — you could reasonably conclude you never completed something you did complete. That surface, and a nutrient card with the same flaw, now say the reading failed and offer to try again. Nothing retries silently: a failure you cannot see is worse than one you can.
+- Three sleep-rhythm cards that share one reading each printed the same failure notice; the page now shows it once.
+
+No breaking changes.
+
 ## [1.30.28] — 2026-07-19
 
 The daily briefing counts its spend too.
