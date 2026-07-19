@@ -471,3 +471,62 @@ describe("POST /api/medications/[id]/inventory — 422 multi-issue (v1.4.43 W6)"
     expect(body.details.issues.length).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("POST /api/medications/[id]/inventory — carton labelling", () => {
+  it("persists manufacturer + doseStrength when the client sends them", async () => {
+    // The native pen list uses these two as its headline and subhead. With
+    // nowhere on the server to hold them, a container registered on the web
+    // could not be rendered there at all.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue(MED_OK as never);
+    vi.mocked(prisma.medicationInventoryItem.create).mockResolvedValue({
+      id: "inv-new",
+      state: "ACTIVE",
+    } as never);
+
+    const res = await POST(
+      jsonReq("http://localhost/api/medications/med-1/inventory", {
+        unitsTotal: 4,
+        containerType: "PEN",
+        manufacturer: "Example Pharma",
+        doseStrength: "5 mg/0.5 ml",
+      }),
+      { params: Promise.resolve({ id: "med-1" }) },
+    );
+
+    expect(res.status).toBe(201);
+    expect(prisma.medicationInventoryItem.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        manufacturer: "Example Pharma",
+        doseStrength: "5 mg/0.5 ml",
+      }),
+    });
+  });
+
+  it("stores null for both when the client omits them", async () => {
+    // A plain supply row (blister, bottle) carries no carton labelling, and
+    // every row that predates the columns is truthfully null.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue(MED_OK as never);
+    vi.mocked(prisma.medicationInventoryItem.create).mockResolvedValue({
+      id: "inv-new",
+      state: "ACTIVE",
+    } as never);
+
+    const res = await POST(
+      jsonReq("http://localhost/api/medications/med-1/inventory", {
+        unitsTotal: 30,
+        containerType: "BLISTER",
+      }),
+      { params: Promise.resolve({ id: "med-1" }) },
+    );
+
+    expect(res.status).toBe(201);
+    expect(prisma.medicationInventoryItem.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        manufacturer: null,
+        doseStrength: null,
+      }),
+    });
+  });
+});

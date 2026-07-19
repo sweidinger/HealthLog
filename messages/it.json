@@ -1687,7 +1687,10 @@
         "packagingDefaultPackLabel": "Dimensione confezione predefinita (unità)",
         "packagingDefaultPackHelper": "Precompila la quantità quando registri nuove confezioni (1–1000). Lascia vuoto se non applicabile.",
         "packagingSuccess": "Dati confezione salvati",
-        "packagingFailed": "Salvataggio non riuscito"
+        "packagingFailed": "Salvataggio non riuscito",
+        "addManufacturerLabel": "Produttore",
+        "addDoseStrengthLabel": "Dosaggio",
+        "addDoseStrengthHint": "Come stampato sul contenitore, ad es. 5 mg/0,5 ml."
       },
       "erweitert": {
         "group": {

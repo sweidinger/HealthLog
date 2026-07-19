@@ -1687,7 +1687,10 @@
         "packagingDefaultPackLabel": "Default pack size (units)",
         "packagingDefaultPackHelper": "Prefills the quantity when registering new packs (1–1000). Leave empty if none applies.",
         "packagingSuccess": "Packaging details saved",
-        "packagingFailed": "Saving failed"
+        "packagingFailed": "Saving failed",
+        "addManufacturerLabel": "Manufacturer",
+        "addDoseStrengthLabel": "Strength",
+        "addDoseStrengthHint": "As printed on the container, e.g. 5 mg/0.5 ml."
       },
       "erweitert": {
         "group": {

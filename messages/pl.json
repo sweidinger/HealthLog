@@ -1687,7 +1687,10 @@
         "packagingDefaultPackLabel": "Domyślny rozmiar opakowania (jednostki)",
         "packagingDefaultPackHelper": "Wstępnie wypełnia ilość przy dodawaniu nowych opakowań (1–1000). Zostaw puste, jeśli nie dotyczy.",
         "packagingSuccess": "Zapisano dane opakowania",
-        "packagingFailed": "Zapis nie powiódł się"
+        "packagingFailed": "Zapis nie powiódł się",
+        "addManufacturerLabel": "Producent",
+        "addDoseStrengthLabel": "Moc",
+        "addDoseStrengthHint": "Zgodnie z nadrukiem na opakowaniu, np. 5 mg/0,5 ml."
       },
       "erweitert": {
         "group": {

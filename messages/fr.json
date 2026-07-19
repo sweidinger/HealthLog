@@ -1687,7 +1687,10 @@
         "packagingDefaultPackLabel": "Taille de boîte par défaut (unités)",
         "packagingDefaultPackHelper": "Préremplit la quantité lors de l’enregistrement de nouvelles boîtes (1–1000). Laisse vide si aucune ne s’applique.",
         "packagingSuccess": "Conditionnement enregistré",
-        "packagingFailed": "Échec de l’enregistrement"
+        "packagingFailed": "Échec de l’enregistrement",
+        "addManufacturerLabel": "Fabricant",
+        "addDoseStrengthLabel": "Dosage",
+        "addDoseStrengthHint": "Tel qu'imprimé sur le contenant, par ex. 5 mg/0,5 ml."
       },
       "erweitert": {
         "group": {
