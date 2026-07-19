@@ -43,6 +43,7 @@ describe("validateNarrativeText — causal language", () => {
     const out = validateNarrativeText(
       "Your weight fell because you slept more.",
       ctx(),
+      "en",
     );
     expect(out.some((f) => f.reason === "causal_language")).toBe(true);
   });
@@ -50,6 +51,7 @@ describe("validateNarrativeText — causal language", () => {
     const out = validateNarrativeText(
       "Dein Gewicht sank wegen des Schlafs.",
       ctx(),
+      "de",
     );
     expect(out.some((f) => f.reason === "causal_language")).toBe(true);
   });
@@ -57,6 +59,7 @@ describe("validateNarrativeText — causal language", () => {
     const out = validateNarrativeText(
       "Stress is the likely culprit here.",
       ctx(),
+      "en",
     );
     expect(out.some((f) => f.reason === "causal_language")).toBe(true);
   });
@@ -64,6 +67,7 @@ describe("validateNarrativeText — causal language", () => {
     const out = validateNarrativeText(
       "Your weight of 82 kg moved with your sleep this week, associated with a 2 kg drop.",
       ctx(),
+      "en",
     );
     expect(out).toEqual([]);
   });
@@ -74,6 +78,7 @@ describe("validateNarrativeText — number grounding", () => {
     const out = validateNarrativeText(
       "Your weight is 82 kg, down 2 kg (about -2.4%) from the prior week.",
       ctx(),
+      "en",
     );
     expect(out).toEqual([]);
   });
@@ -81,6 +86,7 @@ describe("validateNarrativeText — number grounding", () => {
     const out = validateNarrativeText(
       "Your weight dropped 9 kg this week.",
       ctx(),
+      "en",
     );
     expect(
       out.some((f) => f.reason === "ungrounded_number" && f.source === "9"),
@@ -90,6 +96,7 @@ describe("validateNarrativeText — number grounding", () => {
     const out = validateNarrativeText(
       "Over the last 7 days your weight held at 82 kg.",
       ctx(),
+      "en",
     );
     expect(out).toEqual([]);
   });

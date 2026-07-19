@@ -437,7 +437,7 @@ export async function generatePeriodNarrative(
   // number absent from the context; on a trip, retry ONCE with a corrective
   // suffix, then fall back to writing NOTHING (last good row stays) rather than
   // persisting an ungrounded or causal story.
-  let findings = validateNarrativeText(text, context);
+  let findings = validateNarrativeText(text, context, locale);
   if (findings.length > 0) {
     annotate({
       action: { name: "insights.narrative.grounding_retry" },
@@ -465,7 +465,7 @@ export async function generatePeriodNarrative(
     });
     if (retry.kind === "ok") {
       const retryText = retry.content.trim();
-      const retryFindings = validateNarrativeText(retryText, context);
+      const retryFindings = validateNarrativeText(retryText, context, locale);
       if (retryText.length > 0 && retryFindings.length === 0) {
         text = retryText;
         findings = [];
