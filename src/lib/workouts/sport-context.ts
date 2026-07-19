@@ -31,13 +31,20 @@ export async function buildSportContext(
   userId: string,
   sportType: string,
   sourcePriorityJson: unknown,
+  excludeWorkoutId?: string,
 ): Promise<WorkoutSportContext | null> {
   const since = new Date(
     Date.now() - SPORT_CONTEXT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
   );
   const rows = await prisma.workout.findMany({
-    // `userId` stays in the where clause — the universal tenancy narrow.
-    where: { userId, sportType, startedAt: { gte: since } },
+    // `userId` stays in the where clause — the universal tenancy narrow. The
+    // selected workout is not part of the baseline it is compared against.
+    where: {
+      userId,
+      sportType,
+      startedAt: { gte: since },
+      ...(excludeWorkoutId ? { id: { not: excludeWorkoutId } } : {}),
+    },
     orderBy: [{ startedAt: "asc" }, { id: "asc" }],
     take: SPORT_CONTEXT_MAX_ROWS,
     select: {

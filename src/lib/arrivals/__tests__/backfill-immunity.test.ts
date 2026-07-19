@@ -269,6 +269,26 @@ describe("arrival spine — heavy backfill fixtures emit nothing", () => {
   });
 });
 
+describe("arrival spine — calendar-day recency across DST", () => {
+  it("keeps the previous local day salient after the spring-forward day", async () => {
+    timezone = "Europe/Berlin";
+    await emitDataArrival({
+      userId: USER,
+      kind: "workout",
+      // Sunday after the clock jumped from 02:00 to 03:00.
+      newestSampleAt: new Date("2026-03-29T12:00:00.000Z"),
+      insertedCount: 1,
+      refId: "dst-spring-workout",
+      source: "test",
+      // Monday 00:30 CEST. Subtracting a fixed 24 h lands on Saturday
+      // locally; calendar arithmetic must identify Sunday as yesterday.
+      now: new Date("2026-03-29T22:30:00.000Z"),
+    });
+
+    expect(sendMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("arrival spine — genuinely fresh data emits exactly one event", () => {
   it("a fresh sleep night emits exactly one", async () => {
     await emitDataArrival({

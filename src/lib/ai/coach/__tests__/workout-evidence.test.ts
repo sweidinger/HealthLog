@@ -23,6 +23,7 @@ const BASE: WorkoutEvidenceInput = {
   sportType: "running",
   source: "APPLE_HEALTH",
   startedAt: new Date("2026-07-01T06:00:00Z"),
+  timezone: "UTC",
   durationSec: 2400,
   totalEnergyKcal: 410,
   totalDistanceM: 7200,
@@ -112,6 +113,15 @@ describe("workout evidence — the numbers-only closure", () => {
     expect(Object.keys(evidence)).not.toContain("externalId");
     expect(Object.keys(evidence)).not.toContain("route");
   });
+});
+
+it("projects the workout date in the user's timezone", () => {
+  const evidence = buildWorkoutEvidence({
+    ...BASE,
+    startedAt: new Date("2026-07-01T00:30:00Z"),
+    timezone: "America/Los_Angeles",
+  });
+  expect(evidence.date).toBe("2026-06-30");
 });
 
 describe("workout evidence — deterministic HR shape", () => {

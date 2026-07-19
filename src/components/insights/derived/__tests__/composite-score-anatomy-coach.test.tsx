@@ -115,23 +115,37 @@ describe("derived-score sheets — every sheet has an outbound coach edge", () =
     );
   });
 
-  it("anchors the sleep sheet on sleep and the strain sheet on workouts", () => {
-    expect(
-      (renderSheet("SLEEP_SCORE").coachScope as { metric: string }).metric,
-    ).toBe("sleep");
-    expect(
-      (renderSheet("STRAIN_SCORE").coachScope as { metric: string }).metric,
-    ).toBe("workouts");
-  });
-
-  it("widens recovery-style sheets to the inputs that drive them", () => {
-    // Recovery is a synthesis of HRV + resting HR + sleep; narrowing to one
-    // of the three would hide the reason the score moved.
-    const scope = renderSheet("RECOVERY_SCORE").coachScope as {
-      metric: string;
-      also?: string[];
-    };
-    expect(scope.metric).toBe("hrv");
-    expect(scope.also).toEqual(expect.arrayContaining(["resting_hr", "sleep"]));
-  });
+  it.each([
+    ["SLEEP_SCORE", { metric: "sleep" }],
+    [
+      "READINESS",
+      {
+        metric: "hrv",
+        also: ["resting_hr", "sleep", "respiratory_rate", "mood"],
+        window: "last7days",
+      },
+    ],
+    [
+      "RECOVERY_SCORE",
+      {
+        metric: "hrv",
+        also: ["resting_hr", "sleep", "respiratory_rate", "mood"],
+        window: "last7days",
+      },
+    ],
+    ["STRESS_SCORE", { metric: "hrv", window: "last7days" }],
+    [
+      "STRAIN_SCORE",
+      {
+        metric: "workouts",
+        also: ["active_energy", "resting_hr"],
+        window: "last7days",
+      },
+    ],
+  ] satisfies ReadonlyArray<[AnatomyMetricId, Record<string, unknown>]>)(
+    "%s carries exactly its engine contributor domains",
+    (metric, expectedScope) => {
+      expect(renderSheet(metric).coachScope).toEqual(expectedScope);
+    },
+  );
 });

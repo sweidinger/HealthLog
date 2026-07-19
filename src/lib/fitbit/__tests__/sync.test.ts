@@ -20,11 +20,11 @@ const { prismaMock, refreshAccessTokenMock, recordSyncFailure } = vi.hoisted(
         findMany: vi.fn<(arg: Record<string, unknown>) => Promise<unknown[]>>(
           async () => [],
         ),
-        createMany: vi.fn<
-          (arg: Record<string, unknown>) => Promise<{ count: number }>
-        >(async (arg) => ({
-          count: (arg.data as unknown[]).length,
-        })),
+        createManyAndReturn: vi.fn(async (arg: Record<string, unknown>) =>
+          (arg.data as Array<{ type: string; measuredAt: Date }>).map(
+            (row, index) => ({ ...row, id: `inserted-${index}` }),
+          ),
+        ),
         update: vi.fn<(arg: Record<string, unknown>) => Promise<unknown>>(
           async () => ({}),
         ),
@@ -267,7 +267,8 @@ describe("upsertFitbitMeasurements — batched write, tombstones resurrect", () 
     });
     expect(probeArg.where).not.toHaveProperty("deletedAt");
 
-    const createArg = prismaMock.measurement.createMany.mock.calls[0]![0] as {
+    const createArg = prismaMock.measurement.createManyAndReturn.mock
+      .calls[0]![0] as {
       data: Record<string, unknown>[];
       skipDuplicates: boolean;
     };
@@ -301,7 +302,7 @@ describe("upsertFitbitMeasurements — batched write, tombstones resurrect", () 
 
     expect(imported).toBe(1);
     // No fresh insert — the live row was overwritten in place.
-    expect(prismaMock.measurement.createMany).not.toHaveBeenCalled();
+    expect(prismaMock.measurement.createManyAndReturn).not.toHaveBeenCalled();
     const updateArg = prismaMock.measurement.update.mock.calls[0]![0] as {
       where: { id: string };
       data: { value: number; syncVersion: unknown };
@@ -331,7 +332,7 @@ describe("upsertFitbitMeasurements — batched write, tombstones resurrect", () 
     ]);
 
     expect(imported).toBe(1);
-    expect(prismaMock.measurement.createMany).not.toHaveBeenCalled();
+    expect(prismaMock.measurement.createManyAndReturn).not.toHaveBeenCalled();
     const updateArg = prismaMock.measurement.update.mock.calls[0]![0] as {
       where: { id: string };
       data: Record<string, unknown>;
@@ -368,7 +369,8 @@ describe("upsertFitbitMeasurements — batched write, tombstones resurrect", () 
     expect(prismaMock.measurement.update.mock.calls[0]![0]).toMatchObject({
       where: { id: "m-live" },
     });
-    const createArg = prismaMock.measurement.createMany.mock.calls[0]![0] as {
+    const createArg = prismaMock.measurement.createManyAndReturn.mock
+      .calls[0]![0] as {
       data: Record<string, unknown>[];
     };
     expect(createArg.data).toHaveLength(1);
@@ -384,7 +386,8 @@ describe("upsertFitbitMeasurements — batched write, tombstones resurrect", () 
       { type: "WEIGHT", value: 9, unit: "kg", measuredAt, externalId: "dup" },
     ]);
 
-    const createArg = prismaMock.measurement.createMany.mock.calls[0]![0] as {
+    const createArg = prismaMock.measurement.createManyAndReturn.mock
+      .calls[0]![0] as {
       data: Record<string, unknown>[];
     };
     expect(createArg.data).toHaveLength(1);
@@ -422,7 +425,7 @@ describe("upsertFitbitMeasurements — batched write, tombstones resurrect", () 
     const { imported } = await upsertFitbitMeasurements("user1", []);
     expect(imported).toBe(0);
     expect(prismaMock.measurement.findMany).not.toHaveBeenCalled();
-    expect(prismaMock.measurement.createMany).not.toHaveBeenCalled();
+    expect(prismaMock.measurement.createManyAndReturn).not.toHaveBeenCalled();
     expect(prismaMock.measurement.update).not.toHaveBeenCalled();
   });
 });

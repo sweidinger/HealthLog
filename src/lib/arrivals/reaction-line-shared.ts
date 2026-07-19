@@ -60,9 +60,9 @@ export async function enqueueReactionLine(job: ReactionLineJob): Promise<void> {
 
     await boss.send(REACTION_LINE_QUEUE, job, {
       singletonKey: `reaction-line:${job.userId}:${job.kind}:${job.localDate}`,
-      // The LLM retry policy, not the spine's: a provider hiccup is worth one
-      // patient retry, and a second failure leaves the row line-less — which
-      // is a first-class state, not an error to keep chasing.
+      // Only failures before a provider invocation are retryable. Once the
+      // durable worker state records that spend may have happened, the attempt
+      // is terminal even if the provider or final persistence fails.
       retryLimit: 1,
       retryDelay: 120,
       retryBackoff: true,

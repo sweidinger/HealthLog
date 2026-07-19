@@ -24,7 +24,7 @@
  * cron tick resumes from the cursor.
  */
 import { prisma } from "@/lib/db";
-import { emitWorkoutArrivalIfCreated } from "@/lib/arrivals/workout-emit";
+import { emitInsertedWorkoutArrival } from "@/lib/arrivals/workout-emit";
 import { annotate, getEvent } from "@/lib/logging/context";
 import {
   recordSyncFailure,
@@ -263,31 +263,32 @@ export async function upsertStravaWorkouts(
       metadata: r.metadata,
     };
     try {
-      const saved = await prisma.workout.upsert({
-        where: {
-          userId_source_externalId: {
-            userId,
-            source: "STRAVA",
-            externalId: r.externalId,
-          },
-        },
-        create: {
+      const [inserted] = await prisma.workout.createManyAndReturn({
+        data: {
           userId,
           source: "STRAVA",
           externalId: r.externalId,
           ...data,
         },
-        update: data,
-        select: {
-          id: true,
-          startedAt: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        skipDuplicates: true,
+        select: { id: true, startedAt: true },
       });
-      // v1.31.0 — data-arrival spine. Only a genuinely NEW workout reacts; a
-      // re-sync of an already-stored session is not news.
-      void emitWorkoutArrivalIfCreated(userId, saved, "strava").catch(() => {});
+      if (inserted) {
+        void emitInsertedWorkoutArrival(userId, inserted, "strava").catch(
+          () => {},
+        );
+      } else {
+        await prisma.workout.update({
+          where: {
+            userId_source_externalId: {
+              userId,
+              source: "STRAVA",
+              externalId: r.externalId,
+            },
+          },
+          data,
+        });
+      }
       imported += 1;
     } catch (err) {
       getEvent()?.addWarning(`strava: failed to upsert workout: ${err}`);

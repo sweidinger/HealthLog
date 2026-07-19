@@ -10,7 +10,13 @@ vi.mock("@/lib/api-handler", () => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    measurement: { create: vi.fn(), upsert: vi.fn() },
+    measurement: {
+      create: vi.fn(),
+      createManyAndReturn: vi.fn(),
+      update: vi.fn(),
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+    },
     moodEntry: { create: vi.fn(), upsert: vi.fn() },
   },
 }));
@@ -27,6 +33,13 @@ vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
 
+vi.mock("@/lib/arrivals/measurement-emit", () => ({
+  emitInsertedMeasurementArrivals: vi.fn(),
+}));
+
+vi.mock("@/lib/daily/morning-refresh-trigger", () => ({
+  maybeEnqueueMorningRefresh: vi.fn(),
+}));
 // v1.4.39.1 — surface the rollup hook so the new regression test can
 // assert that the import path now folds the persistent rollup tier
 // for each touched (type, day). Mood rollup mock stays no-op because
@@ -50,9 +63,14 @@ import { POST } from "../route";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(prisma.measurement.findUnique).mockResolvedValue(null);
+  vi.mocked(emitInsertedMeasurementArrivals).mockResolvedValue(undefined);
+  vi.mocked(maybeEnqueueMorningRefresh).mockResolvedValue(undefined);
 });
 
 interface ApiErrorEnvelope {
@@ -242,6 +260,173 @@ describe("POST /api/import — measurement rollup hook (v1.4.39.1)", () => {
   });
 });
 
+describe("POST /api/import — arrival wiring", () => {
+  beforeEach(() => {
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      resetAt: new Date(Date.now() + 1000),
+    } as never);
+  });
+
+  it("emits and refreshes only a newly inserted sleep row", async () => {
+    const measuredAt = new Date("2026-05-14T06:00:00.000Z");
+    const created = {
+      id: "sleep-new",
+      type: "SLEEP_DURATION" as const,
+      measuredAt,
+    };
+    vi.mocked(prisma.measurement.create).mockResolvedValue(created as never);
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [
+            {
+              type: "SLEEP_DURATION",
+              value: 480,
+              unit: "min",
+              measuredAt: measuredAt.toISOString(),
+            },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBeLessThan(400);
+    expect(emitInsertedMeasurementArrivals).toHaveBeenCalledWith(
+      "u-1",
+      [created],
+      "json_import",
+    );
+    expect(maybeEnqueueMorningRefresh).toHaveBeenCalledWith("u-1", [
+      measuredAt,
+    ]);
+  });
+
+  it("emits and refreshes an external-id row only when INSERT returns it", async () => {
+    const measuredAt = new Date("2026-05-14T06:00:00.000Z");
+    const inserted = {
+      id: "sleep-inserted",
+      type: "SLEEP_DURATION" as const,
+      measuredAt,
+    };
+    vi.mocked(prisma.measurement.createManyAndReturn).mockResolvedValue([
+      inserted,
+    ] as never);
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [
+            {
+              type: "SLEEP_DURATION",
+              value: 480,
+              unit: "min",
+              measuredAt: measuredAt.toISOString(),
+              externalId: "sleep-new",
+            },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBeLessThan(400);
+    expect(emitInsertedMeasurementArrivals).toHaveBeenCalledWith(
+      "u-1",
+      [inserted],
+      "json_import",
+    );
+    expect(maybeEnqueueMorningRefresh).toHaveBeenCalledWith("u-1", [
+      measuredAt,
+    ]);
+  });
+
+  it("does not emit or refresh when INSERT loses a race and returns no row", async () => {
+    vi.mocked(prisma.measurement.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.measurement.createManyAndReturn).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.measurement.update).mockResolvedValue({
+      id: "raced-winner",
+      type: "SLEEP_DURATION",
+      measuredAt: new Date("2026-05-14T06:00:00.000Z"),
+    } as never);
+    vi.mocked(prisma.measurement.upsert).mockResolvedValue({
+      id: "raced-winner",
+      type: "SLEEP_DURATION",
+      measuredAt: new Date("2026-05-14T06:00:00.000Z"),
+    } as never);
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [
+            {
+              type: "SLEEP_DURATION",
+              value: 480,
+              unit: "min",
+              measuredAt: "2026-05-14T06:00:00.000Z",
+              externalId: "sleep-raced",
+            },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBeLessThan(400);
+    expect(emitInsertedMeasurementArrivals).toHaveBeenCalledWith(
+      "u-1",
+      [],
+      "json_import",
+    );
+    expect(maybeEnqueueMorningRefresh).toHaveBeenCalledWith("u-1", []);
+  });
+
+  it("does not emit or refresh an existing external-id update", async () => {
+    vi.mocked(prisma.measurement.findUnique).mockResolvedValue({
+      id: "existing",
+    } as never);
+    vi.mocked(prisma.measurement.upsert).mockResolvedValue({
+      id: "existing",
+      type: "SLEEP_DURATION",
+      measuredAt: new Date("2026-05-14T06:00:00.000Z"),
+    } as never);
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [
+            {
+              type: "SLEEP_DURATION",
+              value: 480,
+              unit: "min",
+              measuredAt: "2026-05-14T06:00:00.000Z",
+              externalId: "sleep-existing",
+            },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBeLessThan(400);
+    expect(emitInsertedMeasurementArrivals).toHaveBeenCalledWith(
+      "u-1",
+      [],
+      "json_import",
+    );
+    expect(maybeEnqueueMorningRefresh).toHaveBeenCalledWith("u-1", []);
+  });
+});
+
 // v1.17.1 — two real bugs the data-portability audit found in the JSON
 // import. Regression guards so a future refactor can't silently re-open
 // them.
@@ -323,8 +508,11 @@ describe("POST /api/import — measurement externalId dedup (v1.17.1)", () => {
     } as never);
   });
 
-  it("upserts (not creates) when a measurement carries an externalId", async () => {
-    vi.mocked(prisma.measurement.upsert).mockResolvedValue({} as never);
+  it("updates in place when an external-id INSERT returns no row", async () => {
+    vi.mocked(prisma.measurement.createManyAndReturn).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.measurement.update).mockResolvedValue({} as never);
 
     const response = await POST(
       new NextRequest("http://localhost/api/import", {
@@ -345,9 +533,11 @@ describe("POST /api/import — measurement externalId dedup (v1.17.1)", () => {
     );
 
     expect(response.status).toBeLessThan(400);
-    expect(vi.mocked(prisma.measurement.upsert)).toHaveBeenCalledTimes(1);
+    expect(
+      vi.mocked(prisma.measurement.createManyAndReturn),
+    ).toHaveBeenCalledTimes(1);
     expect(vi.mocked(prisma.measurement.create)).not.toHaveBeenCalled();
-    const arg = vi.mocked(prisma.measurement.upsert).mock.calls[0][0];
+    const arg = vi.mocked(prisma.measurement.update).mock.calls[0][0];
     expect(arg.where).toEqual({
       userId_type_source_externalId: {
         userId: "u-1",

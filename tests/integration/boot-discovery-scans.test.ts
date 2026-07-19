@@ -27,11 +27,7 @@ import { getPrismaClient, truncateAllTables } from "./setup";
 function makeCapturingBoss() {
   const sent: { queue: string; userId: string }[] = [];
   const boss = {
-    send: async (
-      queue: string,
-      payload: { userId?: string },
-      _opts?: unknown,
-    ) => {
+    send: async (queue: string, payload: { userId?: string }) => {
       if (payload.userId) sent.push({ queue, userId: payload.userId });
       return `job-${sent.length}`;
     },

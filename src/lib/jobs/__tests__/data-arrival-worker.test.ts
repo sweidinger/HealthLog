@@ -114,6 +114,17 @@ describe("data-arrival worker", () => {
     });
   });
 
+  it("retries the arrival when workout insight enqueueing fails", async () => {
+    vi.mocked(enqueueWorkoutInsight).mockResolvedValueOnce({ enqueued: false });
+
+    await expect(
+      runDataArrival(
+        fakePrisma as never,
+        arrival({ kind: "workout", refId: "w-1" }),
+      ),
+    ).rejects.toThrow("Workout insight enqueue failed");
+  });
+
   it("does not dispatch a workout arrival that carries no referent", async () => {
     // A paragraph is addressed by workout id. A seam that forgot to carry one
     // must be visible rather than silently generating against nothing.
@@ -133,13 +144,22 @@ describe("data-arrival worker", () => {
     expect(enqueueWorkoutInsight).not.toHaveBeenCalled();
   });
 
-  it("moves the marker forward on a later arrival, never backwards", async () => {
+  it("moves the marker and referent forward together, never backwards", async () => {
     createMany.mockResolvedValue({ count: 0 });
-    await runDataArrival(fakePrisma as never, arrival());
-    const where = updateMany.mock.calls[0][0] as {
+    await runDataArrival(
+      fakePrisma as never,
+      arrival({ kind: "workout", refId: "w-new" }),
+    );
+    const update = updateMany.mock.calls[0][0] as {
       where: { occurredAt?: { lt?: Date } };
+      data: { occurredAt?: Date; arrivedAt?: Date; refId?: string | null };
     };
-    expect(where.where.occurredAt?.lt).toBeInstanceOf(Date);
+    expect(update.where.occurredAt?.lt).toBeInstanceOf(Date);
+    expect(update.data).toMatchObject({
+      occurredAt: expect.any(Date),
+      arrivedAt: expect.any(Date),
+      refId: "w-new",
+    });
   });
 
   it("refuses an unknown kind as SKIPPED, not FAILED", async () => {

@@ -57,13 +57,14 @@ vi.mock("@/lib/modules/gate", async (importOriginal) => {
     ...actual,
     resolveModuleMap: vi.fn(async () => ({})),
     requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
+    isModuleEnabled: vi.fn(async () => true),
   };
 });
 
 import { GET } from "../[id]/route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
-import { requireModuleEnabled } from "@/lib/modules/gate";
+import { isModuleEnabled, requireModuleEnabled } from "@/lib/modules/gate";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -123,6 +124,7 @@ describe("GET /api/workouts/{id}", () => {
     vi.mocked(requireModuleEnabled).mockResolvedValue({
       enabled: true,
     } as never);
+    vi.mocked(isModuleEnabled).mockResolvedValue(true);
   });
 
   it("returns the workout with iOS-contract field names", async () => {
@@ -397,6 +399,25 @@ describe("GET /api/workouts/{id} — aiInsight", () => {
       paragraph: "A steady, aerobic-leaning run.",
       generatedAt: generatedAt.toISOString(),
     });
+  });
+
+  it("does not read or expose the stored paragraph when Insights is disabled", async () => {
+    vi.mocked(isModuleEnabled).mockResolvedValueOnce(false);
+    vi.mocked(prisma.workout.findUnique).mockResolvedValue({
+      ...BASE_ROW,
+      insight: {
+        paragraphEncrypted: new Uint8Array([1, 2, 3]),
+        generatedAt: new Date("2026-05-15T07:35:00Z"),
+      },
+    } as never);
+
+    const body = await (await get()).json();
+    expect(body.data.aiInsight).toBeNull();
+    expect(prisma.workout.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({ insight: false }),
+      }),
+    );
   });
 
   it("degrades to no card rather than failing the page on an undecryptable row", async () => {

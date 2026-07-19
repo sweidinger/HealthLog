@@ -26,6 +26,7 @@ import {
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
 import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 import { getEvent } from "@/lib/logging/context";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
 
 /**
  * The single-value measurement types a numeric Telegram reply can capture.
@@ -136,7 +137,7 @@ export async function logTelegramMeasurement(input: {
     return { status: "ok" };
   }
 
-  await prisma.measurement.create({
+  const created = await prisma.measurement.create({
     data: {
       userId: input.userId,
       type: input.type,
@@ -146,7 +147,14 @@ export async function logTelegramMeasurement(input: {
       measuredAt,
       externalId: input.externalId,
     },
+    select: { id: true, type: true, measuredAt: true },
   });
+
+  void emitInsertedMeasurementArrivals(
+    input.userId,
+    [created],
+    "telegram",
+  ).catch(() => {});
 
   invalidateUserMeasurements(input.userId, { evict: true });
 

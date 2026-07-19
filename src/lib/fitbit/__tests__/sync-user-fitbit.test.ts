@@ -44,9 +44,12 @@ vi.mock("@/lib/db", () => ({
     fitbitConnection: { findUnique, update },
     measurement: {
       findMany: vi.fn(async () => []),
-      createMany: vi.fn(async (arg: { data: unknown[] }) => ({
-        count: arg.data.length,
-      })),
+      createManyAndReturn: vi.fn(async (arg: { data: unknown[] }) =>
+        arg.data.map((row, index) => ({
+          ...(row as Record<string, unknown>),
+          id: `inserted-${index}`,
+        })),
+      ),
       update: vi.fn(async () => ({})),
     },
   },

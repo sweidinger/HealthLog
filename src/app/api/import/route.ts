@@ -25,6 +25,8 @@ import {
   recomputeBucketsForMeasurement,
 } from "@/lib/rollups/measurement-rollups";
 import type { MeasurementType } from "@/generated/prisma/client";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 
 // Derived from canonical enum so round-trip export → import covers every
 // type. Previous hardcoded subset silently dropped 4 of 11 types
@@ -122,48 +124,67 @@ export const POST = apiHandler(async (request: NextRequest) => {
     type: MeasurementType;
     measuredAt: Date;
   }> = [];
+  const insertedMeasurements: Array<{
+    id: string;
+    type: MeasurementType;
+    measuredAt: Date;
+  }> = [];
   if (data.measurements?.length) {
     for (const m of data.measurements) {
       try {
         // `measuredAt` is already a `Date` (validateEntryInstant transform).
         const measuredAt = m.measuredAt;
         if (m.externalId) {
-          // v1.17.1 — idempotent re-import keyed on the source-stable id, so
-          // re-uploading the same export updates in place rather than minting
-          // a duplicate. Mirrors the mood path. The unique key already exists
-          // (`userId_type_source_externalId`, schema.prisma:942).
-          await prisma.measurement.upsert({
-            where: {
-              userId_type_source_externalId: {
+          const notesEncrypted = encryptNote(m.notes || null);
+          // INSERT ... RETURNING is the only insertion proof. A concurrent
+          // importer can win this key after any existence probe, so attempt
+          // the insert first and update only when the statement returns no row.
+          const created = await prisma.measurement.createManyAndReturn({
+            data: [
+              {
                 userId,
                 type: m.type,
+                value: m.value,
+                unit: m.unit,
                 source: "IMPORT",
                 externalId: m.externalId,
+                measuredAt,
+                notes: null,
+                notesEncrypted,
+                glucoseContext: m.glucoseContext ?? null,
               },
-            },
-            update: {
-              value: m.value,
-              unit: m.unit,
-              measuredAt,
-              notes: null,
-              notesEncrypted: encryptNote(m.notes || null),
-              glucoseContext: m.glucoseContext ?? null,
-            },
-            create: {
-              userId,
-              type: m.type,
-              value: m.value,
-              unit: m.unit,
-              source: "IMPORT",
-              externalId: m.externalId,
-              measuredAt,
-              notes: null,
-              notesEncrypted: encryptNote(m.notes || null),
-              glucoseContext: m.glucoseContext ?? null,
-            },
+            ],
+            skipDuplicates: true,
+            select: { id: true, type: true, measuredAt: true },
           });
+          const inserted = created[0];
+          if (inserted) {
+            insertedMeasurements.push(inserted);
+          } else {
+            // A pre-existing row or a raced insert owns the key. Preserve
+            // idempotent re-import semantics without classifying this update
+            // as an arrival.
+            await prisma.measurement.update({
+              where: {
+                userId_type_source_externalId: {
+                  userId,
+                  type: m.type,
+                  source: "IMPORT",
+                  externalId: m.externalId,
+                },
+              },
+              data: {
+                value: m.value,
+                unit: m.unit,
+                measuredAt,
+                notes: null,
+                notesEncrypted,
+                glucoseContext: m.glucoseContext ?? null,
+              },
+            });
+          }
         } else {
-          await prisma.measurement.create({
+          const inserted = await prisma.measurement.create({
             data: {
               userId,
               type: m.type,
@@ -175,7 +196,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
               notesEncrypted: encryptNote(m.notes || null),
               glucoseContext: m.glucoseContext ?? null,
             },
+            select: { id: true, type: true, measuredAt: true },
           });
+          insertedMeasurements.push(inserted);
         }
         touchedMeasurements.push({
           type: m.type as MeasurementType,
@@ -188,6 +211,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
       }
     }
   }
+
+  void emitInsertedMeasurementArrivals(
+    userId,
+    insertedMeasurements,
+    "json_import",
+  ).catch(() => {});
+  void maybeEnqueueMorningRefresh(
+    userId,
+    insertedMeasurements
+      .filter((row) => row.type === "SLEEP_DURATION")
+      .map((row) => row.measuredAt),
+  ).catch(() => {});
 
   // Import mood entries
   if (data.moodEntries?.length) {

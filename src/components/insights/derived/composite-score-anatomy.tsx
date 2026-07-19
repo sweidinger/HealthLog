@@ -65,29 +65,34 @@ export interface CompositeScoreAnatomyProps {
 /**
  * v1.31.0 — the Coach scope each derived-score sheet hands off to.
  *
- * The score sheets were the one assessment surface with NO outbound edge: they
- * render the same `<InsightStatusCard>` as every metric page but passed
- * neither an opener nor a scope, so the card painted no action at all and the
- * sheet read one-way. A composite has no snapshot block of its own — it is a
- * synthesis — so each maps to the INPUTS that drive it, the same way the
- * recovery metric page already anchors on HRV + resting HR + sleep.
+ * Every list below mirrors the score engine's real contributor domains:
+ * Sleep Score reads only sleep-stage rows; Readiness blends RHR, HRV, sleep,
+ * respiratory rate, and mood; Stress is derived only from HRV; and Strain uses
+ * workout HR series plus active energy and the separately loaded resting HR.
+ *
+ * Recovery is source-dependent. A COMPUTED row is the Readiness blend
+ * verbatim, while a canonical native WHOOP / Oura / Polar row is the vendor's
+ * already-computed score and exposes no reconstructable input domain through
+ * the launch DTO. Its static scope is therefore the conservative union of the
+ * actual reconstructable contributors: the five Readiness domains, with no
+ * guessed native-only sources.
  */
 const METRIC_COACH_SCOPE: Record<AnatomyMetricId, CoachLaunchScope> = {
-  SLEEP_SCORE: { metric: "sleep", also: ["hrv", "resting_hr"] },
+  SLEEP_SCORE: { metric: "sleep" },
   READINESS: {
     metric: "hrv",
-    also: ["resting_hr", "sleep"],
+    also: ["resting_hr", "sleep", "respiratory_rate", "mood"],
     window: "last7days",
   },
   RECOVERY_SCORE: {
     metric: "hrv",
-    also: ["resting_hr", "sleep"],
+    also: ["resting_hr", "sleep", "respiratory_rate", "mood"],
     window: "last7days",
   },
-  STRESS_SCORE: { metric: "hrv", also: ["resting_hr"], window: "last7days" },
+  STRESS_SCORE: { metric: "hrv", window: "last7days" },
   STRAIN_SCORE: {
     metric: "workouts",
-    also: ["active_energy", "pulse"],
+    also: ["active_energy", "resting_hr"],
     window: "last7days",
   },
 };

@@ -13,12 +13,9 @@
  *   and the toast surfaced "Layout konnte nicht gespeichert werden".
  *
  * The fix switched to `z.partialRecord(...)` so partial maps round-trip
- * cleanly. We exercise:
- *   1. Full layout with a single `chartOverlayPrefs` entry persists.
- *   2. Per-chart `comparisonBaseline` survives a Settings save (the
- *      previous schema silently stripped it).
- *   3. Empty `chartOverlayPrefs` still persists (parity with fresh
- *      accounts that have never opened a chart popover).
+ * cleanly. Coverage also pins the newer nested `rangePoints` contract:
+ * omission preserves the stored choice, valid overrides win, and values
+ * outside the closed range-point set are rejected.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -219,6 +216,146 @@ describe("PUT /api/dashboard/widgets — Save persists full layouts", () => {
     };
     expect(getBody.data.chartOverlayPrefs?.bp?.comparisonBaseline).toBe(
       "lastMonth",
+    );
+  });
+
+  it("preserves a stored per-chart rangePoints value when the full-layout payload omits it", async () => {
+    const { userId } = await seedUser();
+    const { PUT, GET } = await import("@/app/api/dashboard/widgets/route");
+
+    await getPrismaClient().user.update({
+      where: { id: userId },
+      data: {
+        dashboardWidgetsJson: {
+          ...DEFAULT_DASHBOARD_LAYOUT,
+          chartOverlayPrefs: {
+            bp: {
+              showTrendIndicator: false,
+              showTrendArrow: false,
+              showTargetRange: false,
+              comparisonBaseline: "none",
+              rangePoints: 90,
+            },
+          },
+        } as never,
+      },
+    });
+
+    const putRes = await (PUT as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/dashboard/widgets", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildClientPayload({
+            chartOverlayPrefs: {
+              bp: {
+                showTrendIndicator: true,
+                showTrendArrow: false,
+                showTargetRange: false,
+                comparisonBaseline: "lastMonth",
+              },
+            },
+          }),
+        ),
+      }),
+    );
+    expect(putRes.status).toBe(200);
+
+    const getRes = await (GET as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/dashboard/widgets"),
+    );
+    const getBody = (await getRes.json()) as {
+      data: {
+        chartOverlayPrefs?: Record<string, { rangePoints?: number }>;
+      };
+    };
+    expect(getBody.data.chartOverlayPrefs?.bp?.rangePoints).toBe(90);
+  });
+
+  it("honors an explicit valid per-chart rangePoints override", async () => {
+    const { userId } = await seedUser();
+    const { PUT, GET } = await import("@/app/api/dashboard/widgets/route");
+
+    await getPrismaClient().user.update({
+      where: { id: userId },
+      data: {
+        dashboardWidgetsJson: {
+          ...DEFAULT_DASHBOARD_LAYOUT,
+          chartOverlayPrefs: {
+            bp: {
+              showTrendIndicator: false,
+              showTrendArrow: false,
+              showTargetRange: false,
+              comparisonBaseline: "none",
+              rangePoints: 90,
+            },
+          },
+        } as never,
+      },
+    });
+
+    const putRes = await (PUT as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/dashboard/widgets", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildClientPayload({
+            chartOverlayPrefs: {
+              bp: {
+                showTrendIndicator: false,
+                showTrendArrow: false,
+                showTargetRange: false,
+                comparisonBaseline: "none",
+                rangePoints: 7,
+              },
+            },
+          }),
+        ),
+      }),
+    );
+    expect(putRes.status).toBe(200);
+
+    const getRes = await (GET as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/dashboard/widgets"),
+    );
+    const getBody = (await getRes.json()) as {
+      data: {
+        chartOverlayPrefs?: Record<string, { rangePoints?: number }>;
+      };
+    };
+    expect(getBody.data.chartOverlayPrefs?.bp?.rangePoints).toBe(7);
+  });
+
+  it("rejects an invalid per-chart rangePoints value", async () => {
+    await seedUser();
+    const { PUT } = await import("@/app/api/dashboard/widgets/route");
+
+    const res = await (PUT as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/dashboard/widgets", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          buildClientPayload({
+            chartOverlayPrefs: {
+              bp: {
+                showTrendIndicator: false,
+                showTrendArrow: false,
+                showTargetRange: false,
+                comparisonBaseline: "none",
+                rangePoints: 14,
+              },
+            },
+          }),
+        ),
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      details: { issues: Array<{ path: string }> };
+    };
+    expect(body.details.issues.map((issue) => issue.path)).toContain(
+      "chartOverlayPrefs.bp.rangePoints",
     );
   });
 

@@ -28,6 +28,8 @@ import { getPrismaClient, truncateAllTables } from "./setup";
 // only the first call's process state is exercised here.
 process.env.API_TOKEN_HMAC_KEY ??=
   "test-hmac-key-workout-batch-integration-32-bytes-min-1234567890";
+process.env.ENCRYPTION_KEY =
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 const { hashToken } = await import("@/lib/auth/hmac");
 

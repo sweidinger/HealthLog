@@ -16,9 +16,8 @@
  * so the timezone-boundary cases are unit-testable directly.
  */
 import { userDayKey } from "@/lib/tz/format";
+import { addDays } from "@/lib/cycle/day-math";
 import type { ArrivalKind } from "./types";
-
-const MS_PER_DAY = 86_400_000;
 
 /**
  * What the seam decided about a candidate arrival.
@@ -82,7 +81,7 @@ export function classifyArrival(
   if (newestSampleAt.getTime() > now.getTime()) return "backfill";
 
   const todayKey = userDayKey(now, tz);
-  const yesterdayKey = userDayKey(new Date(now.getTime() - MS_PER_DAY), tz);
+  const yesterdayKey = addDays(todayKey, -1);
   const sampleKey = userDayKey(newestSampleAt, tz);
 
   if (sampleKey !== todayKey && sampleKey !== yesterdayKey) return "backfill";

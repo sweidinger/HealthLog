@@ -15,6 +15,7 @@ const {
   recordSyncFailure,
   recordSyncSuccess,
   isReauthRequired,
+  emitArrivalMock,
 } = vi.hoisted(() => ({
   prismaMock: {
     whoopConnection: {
@@ -24,7 +25,9 @@ const {
       findMany: vi.fn(),
     },
     measurement: {
-      upsert: vi.fn(),
+      createManyAndReturn: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn(),
     },
     $executeRaw: vi.fn(),
   },
@@ -35,6 +38,7 @@ const {
   isReauthRequired: vi.fn<(...a: unknown[]) => Promise<boolean>>(
     async () => false,
   ),
+  emitArrivalMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }));
@@ -76,6 +80,10 @@ vi.mock("@/lib/insights/comprehensive-generate", () => ({
   invalidateStatusInsightsForTypes: vi.fn(async () => {}),
 }));
 
+vi.mock("@/lib/arrivals/measurement-emit", () => ({
+  emitInsertedMeasurementArrivals: emitArrivalMock,
+}));
+
 vi.mock("@/lib/logging/context", () => ({
   getEvent: () => null,
   annotate: () => {},
@@ -98,6 +106,7 @@ import { syncUserRecovery } from "../sync-recovery";
 beforeEach(() => {
   vi.clearAllMocks();
   isReauthRequired.mockResolvedValue(false);
+  emitArrivalMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -336,61 +345,87 @@ describe("markResourceSynced — atomic, independent cursor advance", () => {
   });
 });
 
-describe("upsertWhoopMeasurements — idempotent upsert", () => {
-  it("routes each reading through the (userId,type,source,externalId) key", async () => {
-    prismaMock.measurement.upsert.mockResolvedValue({});
-
-    const n = await upsertWhoopMeasurements("user1", [
-      {
-        type: "RECOVERY_SCORE",
-        value: 71,
-        unit: "score",
-        measuredAt: new Date("2026-06-01T08:00:00Z"),
-        externalId: "sleep-uuid:recovery",
-      },
-      {
-        type: "HRV_RMSSD",
-        value: 64,
-        unit: "ms",
-        measuredAt: new Date("2026-06-01T08:00:00Z"),
-        externalId: "sleep-uuid:hrv_rmssd",
-      },
-    ]);
-
-    expect(n).toBe(2);
-    const firstWhere =
-      prismaMock.measurement.upsert.mock.calls[0]![0].where
-        .userId_type_source_externalId;
-    expect(firstWhere).toEqual({
-      userId: "user1",
-      type: "RECOVERY_SCORE",
-      source: "WHOOP",
+describe("upsertWhoopMeasurements — exact insertion results", () => {
+  const measuredAt = new Date("2026-06-01T08:00:00.000Z");
+  const readings = [
+    {
+      type: "RECOVERY_SCORE" as const,
+      value: 71,
+      unit: "score",
+      measuredAt,
       externalId: "sleep-uuid:recovery",
+    },
+    {
+      type: "HRV_RMSSD" as const,
+      value: 64,
+      unit: "ms",
+      measuredAt,
+      externalId: "sleep-uuid:hrv_rmssd",
+    },
+  ];
+
+  it("emits only rows returned by the insert statement and updates a raced duplicate", async () => {
+    const inserted = {
+      id: "new-1",
+      type: "RECOVERY_SCORE",
+      measuredAt,
+      externalId: readings[0].externalId,
+    };
+    prismaMock.measurement.createManyAndReturn.mockResolvedValue([inserted]);
+    prismaMock.measurement.update.mockResolvedValue({});
+    const onInserted = vi.fn();
+
+    expect(
+      await upsertWhoopMeasurements("user1", readings, { onInserted }),
+    ).toBe(2);
+
+    expect(onInserted).toHaveBeenCalledWith([inserted]);
+    expect(emitArrivalMock).toHaveBeenCalledWith("user1", [inserted], "whoop");
+    expect(prismaMock.measurement.update).toHaveBeenCalledTimes(1);
+    expect(
+      prismaMock.measurement.update.mock.calls[0]![0].where
+        .userId_type_source_externalId,
+    ).toEqual({
+      userId: "user1",
+      type: "HRV_RMSSD",
+      source: "WHOOP",
+      externalId: readings[1].externalId,
     });
   });
 
-  it("a re-post with the same externalId is one upsert, not two rows", async () => {
-    prismaMock.measurement.upsert.mockResolvedValue({});
-    const reading = {
+  it("does not pre-probe and still emits a genuine insert", async () => {
+    prismaMock.measurement.findMany.mockRejectedValue(
+      new Error("probe unavailable"),
+    );
+    const inserted = {
+      id: "new-1",
       type: "RECOVERY_SCORE",
-      value: 60,
-      unit: "score",
-      measuredAt: new Date("2026-06-01T08:00:00Z"),
-      externalId: "sleep-uuid:recovery",
+      measuredAt,
+      externalId: readings[0].externalId,
     };
+    prismaMock.measurement.createManyAndReturn.mockResolvedValue([inserted]);
 
-    await upsertWhoopMeasurements("user1", [reading]);
-    await upsertWhoopMeasurements("user1", [{ ...reading, value: 75 }]);
+    await upsertWhoopMeasurements("user1", [readings[0]]);
 
-    // Two upsert calls, both against the SAME key — the DB collapses them.
-    expect(prismaMock.measurement.upsert).toHaveBeenCalledTimes(2);
-    const a =
-      prismaMock.measurement.upsert.mock.calls[0]![0].where
-        .userId_type_source_externalId;
-    const b =
-      prismaMock.measurement.upsert.mock.calls[1]![0].where
-        .userId_type_source_externalId;
-    expect(a).toEqual(b);
+    expect(prismaMock.measurement.findMany).not.toHaveBeenCalled();
+    expect(emitArrivalMock).toHaveBeenCalledWith("user1", [inserted], "whoop");
+  });
+
+  it("updates a re-post in place without reporting another insert", async () => {
+    prismaMock.measurement.createManyAndReturn.mockResolvedValue([]);
+    prismaMock.measurement.update.mockResolvedValue({});
+
+    expect(await upsertWhoopMeasurements("user1", [readings[0]])).toBe(1);
+
+    expect(emitArrivalMock).toHaveBeenCalledWith("user1", [], "whoop");
+    expect(prismaMock.measurement.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          value: 71,
+          syncVersion: { increment: 1 },
+        }),
+      }),
+    );
   });
 });
 

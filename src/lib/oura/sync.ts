@@ -46,6 +46,10 @@ import {
   collapseToTypeDayKeys,
   recomputeBucketsForMeasurement,
 } from "@/lib/rollups/measurement-rollups";
+import {
+  emitInsertedMeasurementArrivals,
+  type InsertedMeasurementArrivalRow,
+} from "@/lib/arrivals/measurement-emit";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 import {
@@ -369,7 +373,14 @@ export async function syncUserOura(
 
   // Import everything the healthy collections returned regardless of whether a
   // sibling collection failed — one bad collection must not blank the source.
-  const imported = await upsertOuraMeasurements(userId, result.readings);
+  let insertedSleepMeasuredAts: Date[] = [];
+  const imported = await upsertOuraMeasurements(userId, result.readings, {
+    onInserted: (rows) => {
+      insertedSleepMeasuredAts = rows
+        .filter((row) => row.type === "SLEEP_DURATION")
+        .map((row) => row.measuredAt);
+    },
+  });
 
   // v1.29.x — best-effort Cycle Insights import. Fully isolated from the
   // measurement sync's status ledger on purpose: `daily_cycle_phases` sits
@@ -396,12 +407,9 @@ export async function syncUserOura(
   // S4 — trigger the debounced morning refresh on a last-night segment landing
   // (mirrors the Withings / WHOOP / Apple seams). Fires whether or not a
   // sibling collection failed, since the sleep readings were still imported.
-  void maybeEnqueueMorningRefresh(
-    userId,
-    result.readings
-      .filter((r) => r.type === "SLEEP_DURATION")
-      .map((r) => r.measuredAt),
-  ).catch(() => {});
+  void maybeEnqueueMorningRefresh(userId, insertedSleepMeasuredAts).catch(
+    () => {},
+  );
 
   if (result.failures.length > 0) {
     // Partial failure: keep the cycle honest. Record the failure and do NOT
@@ -437,16 +445,63 @@ export async function syncUserOura(
 export async function upsertOuraMeasurements(
   userId: string,
   readings: OuraMeasurementUpsert[],
+  opts: {
+    onInserted?: (rows: InsertedMeasurementArrivalRow[]) => void;
+  } = {},
 ): Promise<number> {
   if (readings.length === 0) return 0;
 
   let imported = 0;
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
+  let insertedRows: Array<
+    InsertedMeasurementArrivalRow & { externalId: string | null }
+  > = [];
+
+  try {
+    insertedRows = await prisma.measurement.createManyAndReturn({
+      data: readings.map((r) => ({
+        userId,
+        type: r.type as MeasurementType,
+        source: "OURA" as const,
+        value: r.value,
+        unit: r.unit,
+        measuredAt: r.measuredAt,
+        externalId: r.externalId,
+        sleepStage: r.sleepStage ?? null,
+      })),
+      skipDuplicates: true,
+      select: {
+        id: true,
+        type: true,
+        measuredAt: true,
+        externalId: true,
+      },
+    });
+    imported += insertedRows.length;
+    for (const row of insertedRows) {
+      touched.push({ type: row.type, measuredAt: row.measuredAt });
+    }
+  } catch (err) {
+    getEvent()?.addWarning(`oura: failed to create measurements: ${err}`);
+  }
+
+  const insertedIdentityCounts = new Map<string, number>();
+  for (const row of insertedRows) {
+    const key = `${row.type}:${row.externalId ?? ""}`;
+    insertedIdentityCounts.set(key, (insertedIdentityCounts.get(key) ?? 0) + 1);
+  }
 
   for (const r of readings) {
     const type = r.type as MeasurementType;
+    const key = `${type}:${r.externalId}`;
+    const insertedCount = insertedIdentityCounts.get(key) ?? 0;
+    if (insertedCount > 0) {
+      insertedIdentityCounts.set(key, insertedCount - 1);
+      continue;
+    }
+
     try {
-      await prisma.measurement.upsert({
+      await prisma.measurement.update({
         where: {
           userId_type_source_externalId: {
             userId,
@@ -455,24 +510,11 @@ export async function upsertOuraMeasurements(
             externalId: r.externalId,
           },
         },
-        create: {
-          userId,
-          type,
-          source: "OURA",
-          value: r.value,
-          unit: r.unit,
-          measuredAt: r.measuredAt,
-          externalId: r.externalId,
-          sleepStage: r.sleepStage ?? null,
-        },
-        update: {
+        data: {
           value: r.value,
           unit: r.unit,
           measuredAt: r.measuredAt,
           sleepStage: r.sleepStage ?? null,
-          // No-op on a live row, a deliberate RESURRECTION on a tombstoned
-          // one — Oura is the source of truth for its own rows, so a
-          // re-fetched reading brings the row back (mirrors Google / Fitbit).
           deletedAt: null,
           syncVersion: { increment: 1 },
         },
@@ -480,10 +522,14 @@ export async function upsertOuraMeasurements(
       touched.push({ type, measuredAt: r.measuredAt });
       imported++;
     } catch (err) {
-      getEvent()?.addWarning(`oura: failed to upsert measurement: ${err}`);
+      getEvent()?.addWarning(`oura: failed to update measurement: ${err}`);
     }
   }
 
+  opts.onInserted?.(insertedRows);
+  void emitInsertedMeasurementArrivals(userId, insertedRows, "oura").catch(
+    () => {},
+  );
   try {
     const keys = collapseToTypeDayKeys(touched);
     for (const k of keys) {

@@ -35,7 +35,7 @@ import {
 } from "./sync";
 import { mapWhoopSportType } from "./sport-map";
 import { prisma } from "@/lib/db";
-import { emitWorkoutArrivalIfCreated } from "@/lib/arrivals/workout-emit";
+import { emitInsertedWorkoutArrival } from "@/lib/arrivals/workout-emit";
 import { getEvent } from "@/lib/logging/context";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -163,31 +163,32 @@ export async function upsertWhoopWorkout(
   };
 
   try {
-    const saved = await prisma.workout.upsert({
-      where: {
-        userId_source_externalId: {
-          userId,
-          source: "WHOOP",
-          externalId: w.id,
-        },
-      },
-      create: {
+    const [inserted] = await prisma.workout.createManyAndReturn({
+      data: {
         userId,
         source: "WHOOP",
         externalId: w.id,
         ...row,
       },
-      update: row,
-      select: {
-        id: true,
-        startedAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      skipDuplicates: true,
+      select: { id: true, startedAt: true },
     });
-    // v1.31.0 — data-arrival spine. Only a genuinely NEW workout reacts;
-    // WHOOP re-posts recent workouts on every poll and an update is not news.
-    void emitWorkoutArrivalIfCreated(userId, saved, "whoop").catch(() => {});
+    if (inserted) {
+      void emitInsertedWorkoutArrival(userId, inserted, "whoop").catch(
+        () => {},
+      );
+    } else {
+      await prisma.workout.update({
+        where: {
+          userId_source_externalId: {
+            userId,
+            source: "WHOOP",
+            externalId: w.id,
+          },
+        },
+        data: row,
+      });
+    }
     return 1;
   } catch (err) {
     getEvent()?.addWarning(`WHOOP: failed to upsert workout: ${err}`);

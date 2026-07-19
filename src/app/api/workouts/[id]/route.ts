@@ -29,7 +29,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { pickCanonicalWorkoutRows } from "@/lib/measurements/pick-canonical-workout-rows";
-import { requireModuleEnabled } from "@/lib/modules/gate";
+import { isModuleEnabled, requireModuleEnabled } from "@/lib/modules/gate";
 import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { buildWorkoutHrSeries } from "@/lib/workouts/hr-series";
@@ -58,6 +58,7 @@ export const GET = apiHandler(
     // v1.18.0 B1 — gate the detail surface behind the workouts module.
     const gate = await requireModuleEnabled(user.id, "workouts");
     if (!gate.enabled) return gate.response;
+    const insightsEnabled = await isModuleEnabled(user.id, "insights");
 
     const row = await prisma.workout.findUnique({
       where: { id },
@@ -76,9 +77,11 @@ export const GET = apiHandler(
             sampleCount: true,
           },
         },
-        insight: {
-          select: { paragraphEncrypted: true, generatedAt: true },
-        },
+        insight: insightsEnabled
+          ? {
+              select: { paragraphEncrypted: true, generatedAt: true },
+            }
+          : false,
       },
     });
 
@@ -183,6 +186,7 @@ export const GET = apiHandler(
       user.id,
       row.sportType,
       userRow?.sourcePriorityJson ?? null,
+      row.id,
     );
 
     const route = row.route
@@ -215,7 +219,7 @@ export const GET = apiHandler(
     // undecryptable paragraph degrades to no card, exactly like a workout that
     // never had one.
     let aiInsight: { paragraph: string; generatedAt: string } | null = null;
-    if (row.insight) {
+    if (insightsEnabled && row.insight) {
       try {
         aiInsight = {
           paragraph: decryptFromBytes(row.insight.paragraphEncrypted),

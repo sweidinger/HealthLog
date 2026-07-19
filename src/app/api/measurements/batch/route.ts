@@ -179,39 +179,6 @@ type BatchEntry = z.infer<typeof batchEntrySchema>;
  */
 type EntryStatus = "inserted" | "updated" | "duplicate" | "skipped";
 
-/**
- * v1.31.0 — the rows this write actually INSERTED, in the shape the arrival
- * kind grouper takes.
- *
- * Restricting to `status === "inserted"` is what keeps a re-sync silent: an
- * `updated` row is the `stats:` overwrite contract re-stating a value the
- * record already had, and a `duplicate` row landed nothing. The per-entry
- * statuses are reconciled against the insert race upstream, so the count is
- * accurate; in a rare concurrent-write tie it can be off on WHICH row, which
- * cannot change the outcome because the day-scoped singleton key collapses the
- * result either way.
- */
-function insertedArrivalRows(
-  prepared: ReadonlyArray<{
-    index: number;
-    row: Prisma.MeasurementCreateManyInput;
-  }>,
-  results: ReadonlyArray<{ status: EntryStatus } | undefined>,
-): Array<{ type: MeasurementType; measuredAt: Date }> {
-  const rows: Array<{ type: MeasurementType; measuredAt: Date }> = [];
-  for (const p of prepared) {
-    if (results[p.index]?.status !== "inserted") continue;
-    rows.push({
-      type: p.row.type as MeasurementType,
-      measuredAt:
-        p.row.measuredAt instanceof Date
-          ? p.row.measuredAt
-          : new Date(p.row.measuredAt as string),
-    });
-  }
-  return rows;
-}
-
 // v1.5.0 issue #213 — `stats:*` externalIds carry per-day cumulative
 // totals that the iOS HealthKit observer re-posts as the day progresses.
 // Treating those as immutable duplicates freezes the day's tile at the
@@ -410,12 +377,15 @@ async function postBatch(request: NextRequest): Promise<Response> {
   // composite-key duplicate). Surfaced as a dedicated wide-event count so
   // an operator can see how often the standalone-pair mirror collapses.
   let crossSourceMergedCount = 0;
+  // Exact prepared rows returned by INSERT ... RETURNING. This is the only
+  // source for post-write arrival and sleep side effects: preflight checks can
+  // lose a unique-key race after they run.
+  const insertedPrepared: Prepared[] = [];
 
   if (prepared.length > 0) {
-    // Pre-flight duplicate detection so we can return per-entry status
-    // (createMany with skipDuplicates does the dedup but doesn't tell
-    // us *which* rows it skipped). We look up existing rows under the
-    // composite unique key first, then createMany the survivors.
+    // Pre-flight duplicate detection classifies rows already present before
+    // this request. The later INSERT ... RETURNING remains authoritative when
+    // a competing request wins the unique-key race after this probe.
     // v1.8.6 W6 — `source` is now part of the dedup key, so the lookup
     // matches on (type, source, externalId) per incoming row rather than
     // a single hardcoded `APPLE_HEALTH`. A `MANUAL` row and an
@@ -538,7 +508,8 @@ async function postBatch(request: NextRequest): Promise<Response> {
       );
     }
 
-    const toInsert: Prisma.MeasurementCreateManyInput[] = [];
+    const toInsert: Prepared[] = [];
+    const insertKeys = new Set<string>();
     const toOverwrite: Prepared[] = [];
     for (const p of prepared) {
       const key = `${p.row.type}::${p.row.source}::${p.row.externalId}`;
@@ -554,7 +525,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
         duplicateCount += 1;
         continue;
       }
-      if (existingSet.has(key)) {
+      if (existingSet.has(key) || insertKeys.has(key)) {
         // v1.5.0 issue #213 — per-day cumulative `stats:*` rows are
         // intentionally overwritten on a re-post so today's tile reflects
         // the latest HealthKit total instead of freezing at the
@@ -584,7 +555,8 @@ async function postBatch(request: NextRequest): Promise<Response> {
         crossSourceMergedCount += 1;
       } else {
         results[p.index] = { index: p.index, status: "inserted" };
-        toInsert.push(p.row);
+        toInsert.push(p);
+        insertKeys.add(key);
         // Track this row so a same-reading sibling later in the SAME
         // batch collapses against it.
         if (isMergeableSource(p.row.source as string)) {
@@ -643,63 +615,57 @@ async function postBatch(request: NextRequest): Promise<Response> {
     }
 
     if (toInsert.length > 0) {
-      // Chunk to keep individual SQL statements bounded — 200 rows per
-      // chunk leaves headroom under Postgres' 65k-parameter cap even
-      // with 9-column inserts. `skipDuplicates: true` guards against
-      // races where two batch retries land in the same tick — the
-      // composite unique index does the actual dedup; skipDuplicates
-      // turns the duplicate-PG error into a no-op insert.
+      // PostgreSQL RETURNING identifies the exact winner when another request
+      // races the same composite unique key. An aggregate insert count can say
+      // how many rows landed but not which prepared rows won, which would make
+      // arrival and morning-refresh side effects attach to arbitrary rows.
       const CHUNK = 200;
-      const chunks: Prisma.MeasurementCreateManyInput[][] = [];
-      for (let i = 0; i < toInsert.length; i += CHUNK) {
-        chunks.push(toInsert.slice(i, i + CHUNK));
-      }
+      const insertedIndexes = new Set<number>();
       await prisma.$transaction(async (tx) => {
-        for (const chunk of chunks) {
-          const result = await tx.measurement.createMany({
-            data: chunk,
+        for (let i = 0; i < toInsert.length; i += CHUNK) {
+          const chunk = toInsert.slice(i, i + CHUNK);
+          const pendingByKey = new Map<string, Prepared>();
+          for (const p of chunk) {
+            pendingByKey.set(
+              `${p.row.type}::${p.row.source}::${p.row.externalId}`,
+              p,
+            );
+          }
+
+          const inserted = await tx.measurement.createManyAndReturn({
+            data: chunk.map((p) => p.row),
             skipDuplicates: true,
+            select: { type: true, source: true, externalId: true },
           });
-          insertedCount += result.count;
+          // Count only returned identities that map to an attempted row, so
+          // aggregate counts and per-entry statuses share one source of truth.
+          for (const row of inserted) {
+            const preparedRow = pendingByKey.get(
+              `${row.type}::${row.source}::${row.externalId}`,
+            );
+            if (!preparedRow) continue;
+            insertedIndexes.add(preparedRow.index);
+            insertedCount += 1;
+            insertedPrepared.push(preparedRow);
+          }
         }
       });
 
-      // v1.4.25 W10 reconcile (senior-dev H-1): the previous "stored
-      // vs not-stored" check was an effective no-op. Under standard
-      // Postgres semantics, `skipDuplicates` absorbs duplicate-key
-      // conflicts but the row is STILL present in the table (written
-      // by the other batch that won the race). So every row we
-      // attempted is in the DB after the call, and the
-      // `!stored.has(...)` branch never fired — leaving the aggregate
-      // `inserted` / `duplicate` counts inconsistent with the per-
-      // entry statuses under contention.
-      //
-      // Pragmatic fix: trust the `createMany` return count. The DB
-      // round-trip cannot distinguish a row this request wrote from
-      // a row the racing request wrote (the unique index sees both
-      // as the same key), so we cannot identify the SPECIFIC raced
-      // rows. What we CAN do is preserve count integrity for the
-      // iOS sync cursor: `insertedCount` is already the truth (it
-      // came from `createMany.count`); we only need to downgrade
-      // enough per-entry "inserted" statuses to "duplicate" so the
-      // per-entry envelope sums match. Order doesn't matter — the
-      // client checkpoints past both statuses, and the DB state for
-      // either outcome is identical (the row is now stored,
-      // single-copy).
-      const racedDuplicates = toInsert.length - insertedCount;
-      if (racedDuplicates > 0) {
-        let downgraded = 0;
-        for (const p of prepared) {
-          if (downgraded >= racedDuplicates) break;
-          if (results[p.index]?.status === "inserted") {
-            results[p.index] = { index: p.index, status: "duplicate" };
-            duplicateCount += 1;
-            downgraded += 1;
-          }
-        }
+      for (const p of toInsert) {
+        if (insertedIndexes.has(p.index)) continue;
+        results[p.index] = { index: p.index, status: "duplicate" };
+        duplicateCount += 1;
       }
     }
   }
+
+  const freshlyInsertedRows = insertedPrepared.map((p) => ({
+    type: p.row.type as MeasurementType,
+    measuredAt:
+      p.row.measuredAt instanceof Date
+        ? p.row.measuredAt
+        : new Date(p.row.measuredAt as string),
+  }));
 
   const skipped = results
     .filter((r) => r.status === "skipped")
@@ -813,13 +779,10 @@ async function postBatch(request: NextRequest): Promise<Response> {
     invalidateUserMeasurements(user.id, { evict: true });
 
     // v1.5.0 — refresh the persistent rollup table for every distinct
-    // (type, day) the batch touched. We use the `prepared` rows
-    // because `createMany` does not return the inserted rows; the
-    // (type, measuredAt) tuples on `prepared` are exactly the row
-    // shape we need. Collapsed by day so a 500-row Apple Health
-    // batch fires N recomputes (typically <30, one per type-day
-    // pair) instead of one per row. Best-effort — a populator hiccup
-    // never fails the user's ingest.
+    // (type, day) the batch touched. Updates must participate as well as
+    // inserts, so this deliberately retains the prepared-row scope. Collapsed
+    // by day so a 500-row Apple Health batch fires only one recompute per
+    // type/day pair. Best-effort — a populator hiccup never fails ingest.
     try {
       const insertedKeys = collapseToTypeDayKeys(
         prepared.map((p) => ({
@@ -855,13 +818,9 @@ async function postBatch(request: NextRequest): Promise<Response> {
     // months of nights never re-triggers for an old night. Fire-and-forget.
     void maybeEnqueueMorningRefresh(
       user.id,
-      prepared
-        .filter((p) => p.row.type === "SLEEP_DURATION")
-        .map((p) =>
-          p.row.measuredAt instanceof Date
-            ? p.row.measuredAt
-            : new Date(p.row.measuredAt as string),
-        ),
+      freshlyInsertedRows
+        .filter((row) => row.type === "SLEEP_DURATION")
+        .map((row) => row.measuredAt),
     ).catch(() => {});
 
     // v1.31.0 — the measurement arm of the data-arrival spine.
@@ -881,9 +840,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
     // `stats:` overwrite contract re-stating a value the record already had,
     // which is not news. If nothing was inserted the classifier returns `noop`
     // and nothing is enqueued.
-    for (const [kind, group] of groupRowsByArrivalKind(
-      insertedArrivalRows(prepared, results),
-    )) {
+    for (const [kind, group] of groupRowsByArrivalKind(freshlyInsertedRows)) {
       void emitDataArrival({
         userId: user.id,
         kind,

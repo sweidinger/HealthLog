@@ -164,6 +164,8 @@ export interface DailyDigestArrival {
   kind: ArrivalKind;
   /** Timestamp of the newest sample that triggered this arrival. */
   occurredAt: Date;
+  /** Timestamp when this sample actually reached HealthLog. */
+  arrivedAt: Date;
   /** Decrypted reaction line, or null when none was ever generated. */
   line: string | null;
 }
@@ -700,27 +702,28 @@ export function buildDailyDigest(
   const topSignal = input.briefing?.signalsOfDay?.[0] ?? null;
   const briefingLead = firstSentence(input.briefing?.paragraph);
 
-  // The day's newest arrival drives both reaction fields, but on two different
-  // clocks: the chip expires with the news, the sentence stands for the day.
-  // Reducing rather than sorting keeps the composer allocation-free and total
-  // over an empty list.
+  // The day's most recently LANDED arrival drives both reaction fields. The
+  // sample timestamp may be hours old (sleep synced after waking, an offline
+  // workout uploaded later), so it cannot define whether the arrival is still
+  // news or which marker landed last. Reducing rather than sorting keeps the
+  // composer allocation-free and total over an empty list.
   const newestArrival = (
     input.arrivals ?? []
   ).reduce<DailyDigestArrival | null>(
     (newest, candidate) =>
-      newest === null || candidate.occurredAt > newest.occurredAt
+      newest === null || candidate.arrivedAt > newest.arrivedAt
         ? candidate
         : newest,
     null,
   );
   const arrivalAgeMs = newestArrival
-    ? input.now.getTime() - newestArrival.occurredAt.getTime()
+    ? input.now.getTime() - newestArrival.arrivedAt.getTime()
     : null;
   const justIn =
     newestArrival && arrivalAgeMs !== null && arrivalAgeMs < JUST_IN_WINDOW_MS
       ? {
           kind: newestArrival.kind,
-          at: newestArrival.occurredAt.toISOString(),
+          at: newestArrival.arrivedAt.toISOString(),
         }
       : null;
   // An empty or whitespace-only line is treated as absent rather than shipped

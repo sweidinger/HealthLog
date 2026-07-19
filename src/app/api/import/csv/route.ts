@@ -21,6 +21,8 @@ import type {
 } from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
 import type { NormalisedMeasurementRow } from "@/lib/import/csv-measurements";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 
 /**
  * CSV measurement import (v1.17.1).
@@ -231,22 +233,29 @@ export const POST = apiHandler(async (request: NextRequest) => {
       }
     }
 
-    // Bulk write: createMany the survivors (chunked under the PG parameter
-    // cap, skipDuplicates to absorb a concurrent double-submit race), then
-    // grouped updateMany for the pre-existing externalId rows.
+    // Bulk write: createManyAndReturn the survivors (chunked under the PG
+    // parameter cap, skipDuplicates to absorb a concurrent double-submit
+    // race), then grouped updateMany for pre-existing externalId rows.
     const toCreate: Prisma.MeasurementCreateManyInput[] = [
       ...[...extInserts.values()].map(buildCreateData),
       ...plainInserts.map(buildCreateData),
     ];
     const CREATE_CHUNK = 200;
     let createdCount = 0;
+    const createdRows: Array<{
+      id: string;
+      type: MeasurementType;
+      measuredAt: Date;
+    }> = [];
     await prisma.$transaction(async (tx) => {
       for (let i = 0; i < toCreate.length; i += CREATE_CHUNK) {
-        const res = await tx.measurement.createMany({
+        const rows = await tx.measurement.createManyAndReturn({
           data: toCreate.slice(i, i + CREATE_CHUNK),
           skipDuplicates: true,
+          select: { id: true, type: true, measuredAt: true },
         });
-        createdCount += res.count;
+        createdRows.push(...rows);
+        createdCount += rows.length;
       }
       for (const m of extUpdates.values()) {
         await tx.measurement.updateMany({
@@ -273,6 +282,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
         });
       }
     });
+
+    void emitInsertedMeasurementArrivals(
+      userId,
+      createdRows,
+      "csv_import",
+    ).catch(() => {});
+    void maybeEnqueueMorningRefresh(
+      userId,
+      createdRows
+        .filter((row) => row.type === "SLEEP_DURATION")
+        .map((row) => row.measuredAt),
+    ).catch(() => {});
 
     // Reconcile `inserted` against what `createMany` actually wrote
     // (mirrors the batch route's raced-duplicate downgrade). Under

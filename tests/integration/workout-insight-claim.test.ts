@@ -20,6 +20,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { getPrismaClient, truncateAllTables } from "./setup";
+import { claimWorkoutInsightGeneration } from "@/lib/jobs/workout-insight-generate";
 
 beforeEach(async () => {
   await truncateAllTables(getPrismaClient());
@@ -243,5 +244,134 @@ describe("WorkoutInsight — the daily-cap count", () => {
     // Not 4 (yesterday's is outside the window) and not 5 (the other user's is
     // outside the tenancy narrow).
     expect(count).toBe(3);
+  });
+});
+
+describe("WorkoutInsightGenerationClaim — concurrent ownership and cap", () => {
+  const now = new Date("2026-07-18T15:00:00.000Z");
+  const dayStart = new Date("2026-07-17T22:00:00.000Z");
+  const localDate = "2026-07-18";
+
+  it("atomically grants at most four different workouts for one user-local day", async () => {
+    const prisma = getPrismaClient();
+    const user = await createUser("wi-claim-cap");
+    const workouts = await Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        createWorkout(
+          user.id,
+          new Date(now.getTime() - (index + 1) * 3_600_000),
+          `ext-concurrent-${index}`,
+        ),
+      ),
+    );
+
+    const outcomes = await Promise.all(
+      workouts.map((workout) =>
+        claimWorkoutInsightGeneration({
+          userId: user.id,
+          workoutId: workout.id,
+          localDate,
+          dayStart,
+          now,
+        }),
+      ),
+    );
+
+    expect(
+      outcomes.filter((outcome) => outcome.status === "claimed"),
+    ).toHaveLength(4);
+    expect(
+      outcomes.filter(
+        (outcome) =>
+          outcome.status === "skipped" && outcome.reason === "daily_cap",
+      ),
+    ).toHaveLength(4);
+    expect(
+      await prisma.workoutInsightGenerationClaim.count({
+        where: { userId: user.id, localDate },
+      }),
+    ).toBe(4);
+  });
+
+  it("reclaims a stale pre-provider claim without creating a second row", async () => {
+    const prisma = getPrismaClient();
+    const user = await createUser("wi-stale-claim");
+    const workout = await createWorkout(
+      user.id,
+      new Date("2026-07-18T13:00:00.000Z"),
+      "ext-stale",
+    );
+    await prisma.workoutInsightGenerationClaim.create({
+      data: {
+        userId: user.id,
+        workoutId: workout.id,
+        localDate,
+        claimId: "dead-worker",
+        claimedAt: new Date("2026-07-18T14:00:00.000Z"),
+      },
+    });
+
+    const outcome = await claimWorkoutInsightGeneration({
+      userId: user.id,
+      workoutId: workout.id,
+      localDate,
+      dayStart,
+      now,
+    });
+
+    expect(outcome.status).toBe("claimed");
+    if (outcome.status !== "claimed") throw new Error("claim not recovered");
+    expect(outcome.claimId).not.toBe("dead-worker");
+    const rows = await prisma.workoutInsightGenerationClaim.findMany({
+      where: { workoutId: workout.id },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.claimId).toBe(outcome.claimId);
+  });
+
+  it("counts a pre-migration insight row against the local-day cap", async () => {
+    const prisma = getPrismaClient();
+    const user = await createUser("wi-legacy-cap");
+    const legacyWorkout = await createWorkout(
+      user.id,
+      new Date("2026-07-18T07:00:00.000Z"),
+      "ext-legacy",
+    );
+    await prisma.workoutInsight.create({
+      data: insightData(
+        user.id,
+        legacyWorkout.id,
+        new Date("2026-07-18T08:00:00.000Z"),
+      ),
+    });
+    const candidates = await Promise.all(
+      Array.from({ length: 4 }, (_, index) =>
+        createWorkout(
+          user.id,
+          new Date(`2026-07-18T${10 + index}:00:00.000Z`),
+          `ext-new-${index}`,
+        ),
+      ),
+    );
+
+    const outcomes = await Promise.all(
+      candidates.map((workout) =>
+        claimWorkoutInsightGeneration({
+          userId: user.id,
+          workoutId: workout.id,
+          localDate,
+          dayStart,
+          now,
+        }),
+      ),
+    );
+
+    expect(
+      outcomes.filter((outcome) => outcome.status === "claimed"),
+    ).toHaveLength(3);
+    expect(outcomes).toContainEqual({
+      status: "skipped",
+      reason: "daily_cap",
+    });
   });
 });

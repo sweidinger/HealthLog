@@ -105,13 +105,11 @@ const layoutSchema = z.object({
   // Partial-record matches the original intent — overlay prefs are
   // per-chart opt-in, the resolver fills in defaults for missing keys.
   //
-  // The inner object also documents `comparisonBaseline` so the
-  // per-chart `<ChartOverlayControls>` popover (which calls
+  // The inner object also documents `comparisonBaseline` and `rangePoints`
+  // so the per-chart `<ChartOverlayControls>` popover (which calls
   // `/api/dashboard/chart-overlay-prefs`) and a full-layout PUT from
-  // Settings → Dashboard can both round-trip the field. Without it Zod
-  // would silently strip the per-chart `comparisonBaseline` on every
-  // Save click in Settings, wiping any per-chart toggle the user had
-  // set via the chart-card popover.
+  // Settings → Dashboard can round-trip both fields. Without them Zod would
+  // silently strip either per-chart choice on every Save click.
   chartOverlayPrefs: z
     .partialRecord(
       z.enum(CHART_OVERLAY_KEYS),
@@ -121,6 +119,9 @@ const layoutSchema = z.object({
         showTargetRange: z.boolean(),
         comparisonBaseline: z
           .enum(["none", "lastMonth", "lastYear"])
+          .optional(),
+        rangePoints: z
+          .union([z.literal(0), z.literal(7), z.literal(30), z.literal(90)])
           .optional(),
       }),
     )
@@ -291,14 +292,23 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   // every field of `DashboardLayout`. Adding a layout field without a
   // disposition fails typecheck, so the next field cannot silently miss this
   // merge the way `comparisonBaseline` did. One stored-layout read covers
-  // every fallback, and the read is skipped entirely when the client sent
-  // the full set.
+  // every fallback, and the read is skipped only when the client sent every
+  // preserved top-level field and every supplied chart pref has rangePoints.
   // The Zod shape leaves the per-chart `comparisonBaseline` optional while
   // `ChartOverlayPrefs` requires it; `coerceChartOverlayPrefsMap` inside the
   // serializer fills the gap, so the assertion is safe here exactly as it was
   // on the previous per-field cast.
   let toSerialize = parsed.data as Partial<DashboardLayout>;
-  if (layoutNeedsPreserveRead(toSerialize)) {
+  const incomingChartOverlayPrefs = toSerialize.chartOverlayPrefs;
+  const needsRangePointsPreserve =
+    incomingChartOverlayPrefs !== undefined &&
+    CHART_OVERLAY_KEYS.some((chartKey) => {
+      const prefs = incomingChartOverlayPrefs[chartKey];
+      return prefs !== undefined && prefs.rangePoints === undefined;
+    });
+  const needsPreserveRead =
+    layoutNeedsPreserveRead(toSerialize) || needsRangePointsPreserve;
+  if (needsPreserveRead) {
     const existing = await prisma.user.findUnique({
       where: { id: user.id },
       select: { dashboardWidgetsJson: true },
@@ -307,6 +317,32 @@ export const PUT = apiHandler(async (request: NextRequest) => {
       existing?.dashboardWidgetsJson,
     );
     toSerialize = mergePreservedLayoutFields(toSerialize, existingLayout);
+
+    if (needsRangePointsPreserve && toSerialize.chartOverlayPrefs) {
+      let mergedChartOverlayPrefs = toSerialize.chartOverlayPrefs;
+      for (const chartKey of CHART_OVERLAY_KEYS) {
+        const incomingPrefs = toSerialize.chartOverlayPrefs[chartKey];
+        const storedRangePoints =
+          existingLayout.chartOverlayPrefs?.[chartKey]?.rangePoints;
+        if (
+          incomingPrefs !== undefined &&
+          incomingPrefs.rangePoints === undefined &&
+          storedRangePoints !== undefined
+        ) {
+          if (mergedChartOverlayPrefs === toSerialize.chartOverlayPrefs) {
+            mergedChartOverlayPrefs = { ...toSerialize.chartOverlayPrefs };
+          }
+          mergedChartOverlayPrefs[chartKey] = {
+            ...incomingPrefs,
+            rangePoints: storedRangePoints,
+          };
+        }
+      }
+      toSerialize = {
+        ...toSerialize,
+        chartOverlayPrefs: mergedChartOverlayPrefs,
+      };
+    }
   }
   const normalized = serializeDashboardLayout(toSerialize as DashboardLayout);
 
