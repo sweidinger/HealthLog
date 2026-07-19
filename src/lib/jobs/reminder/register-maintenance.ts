@@ -115,7 +115,11 @@ import {
 } from "@/lib/jobs/environment-fetch";
 import { recordError } from "@/lib/jobs/worker-status";
 import { workerLog, BOOT_BACKFILL_STAGGER_SECONDS } from "./shared";
-import { createAndSchedule, type ScheduleEntry } from "./registrar-shared";
+import {
+  createAndSchedule,
+  type QueuePolicyTable,
+  type ScheduleEntry,
+} from "./registrar-shared";
 import {
   DataBackupPayload,
   OffhostBackupPayload,
@@ -426,13 +430,93 @@ const schedules: ScheduleEntry[] = [
 ];
 
 /**
+ * De-duplication policy per maintenance queue.
+ *
+ * Every retention / cleanup cron here (rate-limit, idempotency, audit-log,
+ * push-attempt, tombstone, coach-message, MCP-token, document-purge, …) is a
+ * keyless tick with no `singletonKey` on any send, so a policy would only
+ * constrain the empty key. Those are deliberately absent from this table.
+ *
+ * Two deliberate omissions worth naming, because both look like candidates:
+ *
+ *   - ENVIRONMENT_FETCH_QUEUE is LEFT ALONE. It is genuinely ambiguous: the
+ *     lookback refresh sends a per-user key, but an explicit-range backfill
+ *     sends with NO options at all, deliberately, so that "it always runs".
+ *     Any policy would collapse every keyless explicit-range backfill onto the
+ *     shared empty key, so two different requested date ranges would silently
+ *     become one. That is exactly the class of silent work-dropping a policy is
+ *     supposed to prevent, so the queue keeps `standard` until the enqueue side
+ *     gives the explicit-range variant a key of its own.
+ *   - APPLE_HEALTH_IMPORT_QUEUE, DATA_BACKUP_QUEUE and PR_DETECTION_QUEUE send
+ *     keylessly by design (each import / backup / detection run is a distinct
+ *     unit of work). A policy would coalesce independent runs.
+ */
+const queuePolicies: QueuePolicyTable = {
+  // Per-user, boot- and cron-discovery driven, self-converging one-shots. The
+  // discovery predicate re-offers the job while the work is outstanding, so
+  // suppressing a duplicate of a queued OR active pass cannot lose work.
+  [INTAKE_SLOT_DEDUP_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user duplicate-slot cleanup; discovery drops the user once no colliding intake pair remains.",
+  },
+  [NOTE_ENCRYPTION_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user note-encryption backfill; discovery drops the user once no plaintext note remains.",
+  },
+  [MED_NOTES_ENCRYPTION_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user medication-note encryption backfill; discovery drops the user once no plaintext note remains.",
+  },
+  [DOCUMENT_THUMBNAIL_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user thumbnail backfill; discovery drops the user once every thumbnailable document has a preview.",
+  },
+  [CONTENT_INDEX_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user index-all run, triggered from the documents surface. Idempotent (it indexes only not-yet-indexed documents), so a second press while one runs is correctly a no-op.",
+  },
+  [ENCRYPTION_KEY_ROTATE_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Fixed singleton key, admin-triggered. Two concurrent corpus rotations must never overlap; the route already reports a suppressed send back as alreadyQueued.",
+  },
+
+  // Per-document, enqueued on upload. `short`, NOT `exclusive`: each handler
+  // re-reads the document when it starts, so collapsing sends that arrive while
+  // an identical job is still queued is safe. `exclusive` would additionally
+  // suppress a re-process requested after the current job had already read the
+  // old bytes, leaving a stale summary/thumbnail/index behind with no discovery
+  // pass to re-offer it — these queues have no cron to re-converge.
+  [DOCUMENT_INDEX_QUEUE]: {
+    policy: "short",
+    reason:
+      "Per-document, no re-converging discovery pass. Collapse queued duplicates only, so a re-index after a content change is never dropped.",
+  },
+  [DOCUMENT_THUMBNAIL_QUEUE]: {
+    policy: "short",
+    reason:
+      "Per-document, no re-converging discovery pass. Collapse queued duplicates only.",
+  },
+  [DOCUMENT_SUMMARY_QUEUE]: {
+    policy: "short",
+    reason:
+      "Per-document, no re-converging discovery pass. Collapse queued duplicates only.",
+  },
+};
+
+/**
  * Register every maintenance / ops / cleanup queue. Returns the queue names
  * created (for the boot-level aggregate assertion).
  */
 export async function registerMaintenanceQueues(
   boss: PgBoss,
 ): Promise<readonly string[]> {
-  await createAndSchedule(boss, allQueues, schedules);
+  await createAndSchedule(boss, allQueues, schedules, queuePolicies);
 
   await boss.work<DataBackupPayload>(
     DATA_BACKUP_QUEUE,
