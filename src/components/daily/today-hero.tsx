@@ -145,17 +145,6 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
                 ) : null}
               </p>
             ) : null}
-            {/* Read-the-full-briefing affordance — only when a briefing
-                actually backs the lead. Routes to the Insights overview. */}
-            {digest.briefingLead ? (
-              <Link
-                href="/insights"
-                data-slot="today-hero-briefing-link"
-                className="text-primary hover:text-primary/80 inline-flex min-h-9 items-center text-sm font-medium transition-colors"
-              >
-                {t("daily.today.readFullBriefing")}
-              </Link>
-            ) : null}
           </div>
 
           {/* Health score ring — `flat` (no sweep/bloom), server-computed

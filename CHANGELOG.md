@@ -4,152 +4,181 @@
 
 ## [1.30.31] — 2026-07-19
 
-Today shows a dose before it is late, and the briefing stops disappearing over a number it was given.
-
-- **A dose that is due but not yet late now appears on Today.** The card only ever showed a dose once it was already overdue, so it could say nothing needs your attention while a dose was due. A due dose reads calmly and an overdue one as a warning; a day where everything is taken still shows the all-clear. Reminder notifications are unchanged — they still only fire once a dose is late.
-- **The briefing was being discarded for quoting figures the server itself had given it.** The check that verifies every number against your own data compared against a hand-maintained list of places to look, while the model receives the complete set. Medication adherence rates, comparison changes — the very figures the briefing is asked to describe — were not on that list, so a correct briefing was withheld. The check now derives its list from exactly what was handed to the model, so it means what it says: a number is accepted only if it came from your data.
-- **A briefing that genuinely cannot be verified no longer takes the previous one down with it.** It falls back to the last good briefing instead of showing nothing, the way it already did when the provider was unreachable. A figure that cannot be verified is still never shown.
+- **Today shows a dose before it is late.** The card only surfaced a
+  medication once it was already overdue, so it could report nothing
+  needing attention while a dose was due. A due dose now reads as a calm
+  note, an overdue one as a warning, and a day with everything taken
+  still shows the all-clear. Reminders are unchanged — they still only
+  fire once a dose is late.
+- **The daily briefing stops disappearing.** The check that verifies
+  every figure against your own data was looking in fewer places than the
+  briefing draws from, so a briefing quoting your medication adherence or
+  a change since last month was thrown away as unverifiable. It now
+  checks against everything the briefing is built from. And when a figure
+  genuinely cannot be verified, yesterday's briefing stays up instead of
+  the section going blank.
+- **The "read the full briefing" link is gone from Today.** Tapping the
+  health-score ring already opens the same page.
+- **The close button on a document sits flush with the edge again.**
 
 No breaking changes.
 
 ## [1.30.28] — 2026-07-19
 
-The daily briefing counts its spend too.
-
-- **Generating the daily briefing did not count against any budget.** It is the one remaining path that a sync can set off on its own: new sleep data arriving in the morning triggers a fresh briefing, and each attempt — including its correction passes — could reach a provider without being recorded. All of them now reserve before and settle after, against the same ceiling as everything else, so a self-hoster on their own key is measured against their own limit.
-- Reaching the ceiling now skips the run rather than reporting a failure, because a failure schedules a retry — and retrying against a limit that does not move until the next day would loop.
+- **Daily briefings count against the AI budget.** They were the one
+  remaining kind of generated text that did not, so a morning's briefings
+  could run past the limit you set. On your own key they count against
+  your limit, not the server's.
 
 ## [1.30.27] — 2026-07-19
 
-Three quiet miscounts.
-
-- **The resting heart-rate series stopped at the point where older readings get condensed.** Once a day's raw readings are condensed, its resting figure is kept as a derived value — but the reading side treated the presence of any such value as "this account reports resting directly" and stopped estimating for the recent days that have not been condensed yet. The series now uses the stored value for days that have one and the estimate for days that do not. Where any part is estimated it is still labelled as an estimate: a partly-estimated series called "resting heart rate" would be wrong about those days, while calling a partly-stored one an estimate is merely cautious.
-- **Recomputing summaries from a point in the middle of a day or month replaced the whole period with a partial figure.** The recompute now starts at the beginning of the period it touches. Existing summaries recompute when that day is written to again or on the next scheduled pass.
-- **Two entries for the same daily total in one upload silently kept the older one.** The newer value now wins, matching how a repeat upload behaves.
+- **The resting heart-rate chart no longer stops partway.** Older
+  readings get condensed after a while, and the chart treated the
+  condensed days as the whole story — so recent days went missing. It now
+  shows both, and says when a day is an estimate.
+- **Summaries recompute for the whole day or month.** Recomputing from a
+  point in the middle replaced the full period with a partial figure.
+  Affected summaries correct themselves the next time that day is written
+  to, or on the next nightly pass.
+- **A repeated daily total in one upload keeps the newer value.** It kept
+  the older one.
 
 No breaking changes.
 
 ## [1.30.26] — 2026-07-19
 
-Text that comes out of your documents is treated as data, not as instructions.
-
-- **Names read out of an uploaded document went into the assistant's context unchecked.** A lab result's analyte, panel and unit names were passed through raw, so a document whose field labels were written to read like instructions became part of the assistant's context on every turn once the result was confirmed. Those names are now cleaned, and the whole block carries an explicit boundary marking it as your data rather than something addressed to the assistant. The same boundary now wraps the text read out of a scanned document.
-- **The cleaning step had a flaw that helped the very thing it was meant to stop.** It removed line breaks instead of replacing them, which glued neighbouring words together and broke the word boundaries its own checks rely on — so a payload written the most natural way, on its own line, slipped through. It now replaces them.
-- **A reminder the assistant captured from its own reply was saved as active.** It is now saved as proposed, so it appears for you to confirm — the same way the assistant's other suggestions already work — and does not feed back into its context before you do. Reminders captured before this release keep working unchanged; only new ones need a confirmation.
-- The test that was supposed to guarantee this class of coverage listed four files, three of which no longer took part at all. It is now derived from the actual code, with a floor so it cannot quietly pass by covering nothing.
+- **Text read out of your documents is treated as data.** Lab field
+  names were passed to the assistant unchecked, so a document whose
+  labels were written to look like instructions could influence later
+  answers. Those names are cleaned now, and document text is marked as
+  yours rather than as something addressed to the assistant.
+- **A reminder the assistant picks up from a chat is proposed, not
+  active.** It waits for you to confirm it, like its other suggestions.
+  Reminders from before this release keep working unchanged.
 
 No breaking changes.
 
 ## [1.30.25] — 2026-07-19
 
-Generated cards now count against a budget, and long conversations get cheaper again.
-
-- **The tier that generates the metric cards, biomarker cards, derived scores and the period narrative did not count its spend at all.** Nine families of generated text ran through one place that recorded nothing — while a comment elsewhere stated the opposite, so the gap was invisible to anyone checking. All of them now reserve before and settle after, against the right ceiling: a self-hoster on their own key is measured against their own limit, never the operator's.
-- **A client could multiply generations by asking for a different language.** The de-duplication that collapses repeated polls included the language, so the same card in six languages was six separate generations — with no limit and no record. It no longer does. Switching language still regenerates the card; only the duplication is gone.
-- **A long assistant conversation started re-sending the full context on every turn** once it passed the point where older turns get summarised, instead of once at that point. A sixty-turn conversation sent it twenty-one times; it now sends it twice.
-- **The provider test button could reach the server-wide key without a daily limit.** It now has one, and a failed test is refunded so a misconfigured provider does not consume it.
+- **Generated cards count against the AI budget.** Metric cards,
+  biomarker cards, scores and the period narrative were not counted at
+  all. On your own key they count against your limit, not the server's.
+- **Switching language no longer regenerates everything twice.** The same
+  card in six languages counted as six separate jobs.
+- **Long assistant conversations get cheaper again.** Past a certain
+  length the full context was re-sent on every turn instead of once.
 
 No breaking changes.
 
 ## [1.30.24] — 2026-07-19
 
-The safety check on generated text now covers every surface and every language.
-
-- **The check that stops a generated text from suggesting a dose change or naming a risk score ran on three surfaces out of roughly forty.** The same sentence the assistant refuses to send in chat could be written onto a metric card and shown for a day, or returned as a document summary. Every place a generated text reaches you now goes through one check.
-- **It could not see your language.** The check took the text alone, so its wording lists were English and German only — for French, Spanish, Italian and Polish the rule existed in the prompt and was enforced nowhere. The reader's language is now part of the check, and the lists cover all six alongside English, because a provider may answer in English regardless of what it was asked.
-- **The rule against stating that one thing caused another is now enforced, not just written.** It shipped in all six languages and only one surface checked it.
-- What happens on a violation depends on the surface: something you asked for right now is replaced with an honest short text; something generated in the background is withheld and the plain non-generated version is kept instead. A document transcription is deliberately never filtered — it reproduces your own document, and a letter from your prescriber saying to increase a dose is a record, not advice from us.
-- A check on whether generated recommendations cite the data they rest on had been unreachable for some time and is now wired into the nightly run.
+- **The safety check on generated text covers every card, in every
+  language.** It ran on the assistant's replies but not on the metric
+  cards, biomarker cards or document summaries — so a sentence the
+  assistant would refuse to send could still appear on a card. It also
+  only knew English and German wording, leaving four languages
+  unprotected. Both are fixed.
+- A document transcription is deliberately never filtered: it reproduces
+  your own document, and a letter from your prescriber is a record, not
+  advice from us.
 
 No breaking changes.
 
 ## [1.30.23] — 2026-07-19
 
-Switching a module off holds on the connector wire too.
-
-- **Assistant connectors honour your module switches.** Three read paths reached the data directly instead of through the gated builder, so with a module off a connected assistant could still read the whole-record doctor summary, and could still get baselines, comparisons and level-shift detection for a metric whose own series correctly reported no data. Correlations were reachable the same way — and through the in-app assistant as well, which had the identical gap. All of them now check first.
-- **A shared clinician link served the whole-record summary without checking that module** — the same aggregate, reachable by someone who is not signed in at all. It now degrades to the documents-only view instead.
-- **The function that assembles that summary now refuses on its own** when the module is off, rather than trusting each of its five callers to remember. Three of them had not.
-- **The confirmation that background queues were migrated is now visible.** The previous release reported it at a log level that is deliberately discarded, so there was no way to tell from the outside whether it had taken effect. It is now a boot entry that appears on every start, including one where nothing needed migrating.
+- **Switching a module off now also applies to connected assistants.**
+  With a module off, a connected assistant could still read that data —
+  including the full doctor summary — and so could a shared clinician
+  link. Both now honour the switch.
 
 No breaking changes.
 
 ## [1.30.22] — 2026-07-19
 
-Background work stops piling up on itself.
-
-- **Duplicate background jobs are now actually suppressed.** Jobs were queued with a de-duplication key, but the queues were configured in a way that made that key have no effect — so the key looked right in the code and did nothing at run time. A large sync could fan out thousands of identical recompute jobs where tens were intended; a restart during a long history import could append another full import per restart; and the once-per-morning refresh had no debounce, so several paths could each trigger their own run. Each queue now carries an explicit policy chosen for what that queue does, recorded with its reason.
-- Existing installations are migrated on the next start — the setting could not be changed after a queue was created, so setting it at creation alone would have fixed nothing on any running instance. The first start after this release logs one line per migrated queue, which is how you can confirm it took effect.
-- One queue is deliberately left as it was: the explicit-range environment backfill sends without a key on purpose, and any de-duplication there would merge two different requested date ranges into one.
+- **Background jobs stop piling up on themselves.** Duplicate jobs were
+  meant to be collapsed but were not, so a large sync could queue
+  thousands of identical recomputations and a restart could re-queue a
+  running history import. Existing installations are updated on the next
+  start.
 
 No breaking changes.
 
 ## [1.30.21] — 2026-07-19
 
-Dose reminders land on the right hour across a clock change.
-
-- **A reminder on a clock-change day now fires at the time you set.** The conversion from your local time to a real instant read the timezone offset at the moment the scheduler happened to run, not at the time the dose was actually due. On the autumn change in a timezone that observes one, a 20:00 dose could resolve to 19:00 when the scheduler ticked before the change. Two days a year, and only in timezones that change their clocks — but a dose reminder should never be an hour off. Nothing stored changed; the same schedule now produces the correct instant.
-- **A duplicate pending dose was possible on those same days.** The reminder projector, the worker and the intake write derived the instant separately and could disagree on the change day, which broke the matching that keeps them on one row.
-- **The next-dose day label could show the wrong day** when your device timezone differs from the one in your profile, because the offset was applied twice. The two copies of that label — in the card and in the table — are now one.
-- The tests could not have caught any of this: they used times with no timezone attached, so the day boundary could not be distinguished from a UTC one, and the suite ran only in one host timezone. They now state their timezone explicitly, cover both clock changes, and the suite is pinned to match the build.
+- **Dose reminders land on the right hour across a clock change.** On the
+  day the clocks change, a reminder could resolve an hour off, and the
+  same dose could end up recorded twice. Nothing stored changed.
+- **The next-dose day label was wrong** when your phone's timezone
+  differed from the one in your profile.
 
 No breaking changes.
 
 ## [1.30.20] — 2026-07-19
 
-- **A restore now refuses when the backup file names a different account than the backup record.** The restore target was read from inside the encrypted file rather than from the record the operator selected, so a file claiming a different account would have been written into that account instead — while the audit entry recorded the one the operator picked. Both values were already available at that point; they are now compared, and a mismatch is refused and recorded with both.
+- **A restore refuses when the backup file names a different account**
+  than the backup you selected.
 
 No breaking changes.
 
 ## [1.30.19] — 2026-07-19
 
-Switching a module off now holds everywhere.
+- **Switching a module off now holds everywhere.** The sync feed still
+  sent cycle data, the FHIR export still returned the full record, and
+  the dashboard summary still built glucose and sleep cards regardless of
+  the switch. Nothing is deleted — turning a module back on finds the
+  history complete.
+- **Two assistant features sent data out without checking your consent
+  first.** Both now check, and fall back to their plain text when consent
+  is absent.
 
-- **Three surfaces ignored your module switches.** The per-topic endpoints have always honoured them, but the sync feed still sent cycle data, the FHIR export still returned the full record including the insurance number, and the dashboard summary still built glucose and sleep cards — all regardless of whether those modules were on. Each now honours the switch: the sync feed leaves the cycle rows out, the FHIR export refuses the same way the health-record export already did, and the summary omits the cards. Nothing is deleted — turning a module back on finds the history complete, and the sync feed picks up where it left off rather than skipping what changed while it was hidden.
-- **Two assistant features reached a provider without a consent record.** The follow-up questions after saving your profile, and the assistant's own nudges, both sent data to a provider without checking whether consent was on file — and could fall back to the server-wide key. Both now check first and fall back to their non-generated text when consent is absent. The follow-up questions also moved to the same reservation-based spend accounting everything else uses; a self-hoster on their own key is no longer measured against the operator's daily ceiling.
-- The check that was supposed to catch the module gaps accepted a helper being imported as proof that a gate existed. It now pins which module each surface must check and names the tests that exercise a disabled one.
-
-No breaking changes to the web app. The native client may see a 403 from the FHIR endpoints and absent cards where a module is off — see the coordination note.
+No breaking changes. The native app may see a 403 from the FHIR
+endpoints where a module is off.
 
 ## [1.30.18] — 2026-07-19
 
-Health data and credentials no longer reach the logs or the backups.
+- **Health data no longer reaches the logs or the backups.** Cached
+  responses are encrypted at rest — they echo what was just saved, so
+  cycle notes and mood text sat unencrypted in every backup for a day.
+  Diagnostic log entries are now scrubbed where they are written, and a
+  failed AI request no longer records what came back with it.
 
-- **Cached responses are encrypted at rest.** A write endpoint's response is kept for 24 hours so a retried request cannot run twice. Those responses echo what was just saved — cycle notes, mood text, allergy reactions — and were stored unencrypted, in a column that lands in every backup. They are now encrypted like every other stored health field. If encryption is unavailable the response is simply not cached, rather than being written in the clear.
-- **Diagnostic log entries are scrubbed at the point they are written.** Two of the places that build a log entry did not run the redaction the others did, so an outbound request that timed out could put a notification bot's credential into the logs verbatim.
-- **A failed AI request no longer quotes what the provider sent back.** Some providers echo the request they rejected, which on this path contains the prompt and the health figures in it. The log entry now names the kind of rejection instead of quoting the response, which answers the same diagnostic question without carrying the content.
-
-Operator note: no action required, and no configuration change. Log lines and backups written before this release may contain the values described above.
-
-No breaking changes.
+Log lines and backups written before this release may still contain those
+values. No breaking changes.
 
 ## [1.30.17] — 2026-07-19
 
-API tokens now enforce their scope.
+- **API tokens enforce their scope.** A token issued for medication
+  intake reached every endpoint, including the full backup export. Routes
+  that accept a narrow token now have to say so.
+- **Revoke and re-issue any token you gave to a third party.** Treat it
+  as having had that reach for its whole lifetime.
+- **The generic "create API token" button is gone.** The token it made
+  never worked for the medication intake it advertised, while reaching
+  everything else. Tokens are issued per medication from that
+  medication's own toggle. Existing tokens stay listed and revocable.
 
-- **A token minted for medication intake is refused outside the ingest endpoint.** Previously any valid token reached every authenticated route regardless of the scope it carried, so a token handed to a third-party automation could read the full-account backup export, lab results, measurements and the assistant. A route that accepts a narrow-scope token now has to name that scope; a route that names none accepts browser sessions and the app's own full-access tokens only. Tokens issued to the web session, the native client and the MCP connector are unaffected.
-- **Revoke and re-issue any token you handed to a third party.** A token that could reach the backup export should be treated as having had that reach for its whole lifetime, not only from the moment it was noticed.
-- **The generic "create API token" button is gone from settings.** The token it minted never worked for the medication intake it advertised — the ingest endpoint also requires a per-medication grant that this button never issued — while reaching everything else. Tokens are issued per medication from the medication's own API-endpoint toggle, which grants exactly that one medication. Existing tokens stay listed and revocable.
-- **MCP connector tokens are now bound to the MCP endpoint alone.** They previously also passed on read-only REST requests. No connector flow used that.
-
-No breaking changes to the web session, the native client, or the MCP connector.
+No breaking changes to the web app, the native client or the MCP
+connector.
 
 ## [1.30.16] — 2026-07-19
 
-Stops an ongoing loss of resting heart-rate history.
-
-- **Resting heart rate is preserved again for accounts without a device-supplied resting figure.** Older heart-rate readings are condensed on a schedule to keep the database small, and a resting value is derived and stored before the raw readings go. The check that decides whether an account already has its own resting data was matching the derived values it had written itself, so from the second run onward it concluded the data was already there and stopped deriving — while the raw readings it derives from were still being cleared. Each run lost another day's resting figure permanently. The check now looks only at readings the account actually supplied.
-- Days already affected cannot be reconstructed; from this release forward, nothing further is lost.
+- **Resting heart rate stops being lost.** Older heart-rate readings are
+  condensed on a schedule, and a resting value is derived before the raw
+  readings go. A faulty check stopped that derivation after the first
+  run while the raw readings were still cleared, so each run lost another
+  day's resting figure for good. Days already affected cannot be
+  recovered; from here nothing further is lost.
 
 No breaking changes.
 
 ## [1.30.15] — 2026-07-18
 
-Generated health texts now come in the language you set.
-
-- **French, Spanish, Italian and Polish accounts get their assessments in their own language.** Every locale other than English previously fell back to the German instruction set, so those four either read German text or — where the pipeline narrowed them earlier — English text. Insight cards, the per-metric assessments, derived scores, the biomarker card, the period narrative and the assistant's tone settings all now follow the account's own language, with the wording rules that were already translated for each of the six languages. German and English output is unchanged, character for character.
-- **The language instruction is the last thing the model reads**, rather than being buried before the metric-specific section that follows it.
-- Under the hood: one shared resolver replaces the scattered English-or-else-German branches, and the locale now survives the whole generation path instead of being narrowed on the way in. Stored texts for the four languages regenerate on their next scheduled run; German and English keep reading exactly the rows they already had.
+- **Assessments come in the language you set.** French, Spanish, Italian
+  and Polish accounts got German or English text instead of their own.
+  Insight cards, the per-metric assessments, scores, the biomarker card
+  and the period narrative now follow your language. German and English
+  are unchanged. Stored texts in the four languages refresh on their next
+  nightly run.
 
 No breaking changes.
 

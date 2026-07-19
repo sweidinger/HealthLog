@@ -174,7 +174,19 @@ export function ResponsiveSheet({
                 // the `p-4` right edge instead of being pushed in by an empty
                 // reserved gutter.
                 showCloseButton && "pr-12",
-                headerAction && "flex-row items-start justify-between gap-3",
+                // Optical alignment for a consumer-rendered trailing control.
+                // An icon button carries its own inner inset (a 20px glyph
+                // centred in a 44px tap target sits 12px in), so at the plain
+                // `p-4` right edge the GLYPH lands ~28px from the frame while
+                // the title starts at 16px — visibly not flush. Trim the right
+                // padding by that inset so the glyph aligns with the title's
+                // edge; the tap target still reaches the frame.
+                headerAction &&
+                  !showCloseButton &&
+                  "flex-row items-start justify-between gap-3 pr-1 sm:pr-2",
+                headerAction &&
+                  showCloseButton &&
+                  "flex-row items-start justify-between gap-3",
               )}
             >
               {headerAction ? (

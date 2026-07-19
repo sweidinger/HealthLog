@@ -95,9 +95,10 @@ describe("<TodayHero>", () => {
     // link to the existing surface — S2 invents no new backend action.
     expect(html).toContain('href="/medications"');
     expect(html).toContain('href="/settings/integrations"');
-    // The read-the-full-briefing affordance routes to Insights.
-    expect(html).toContain('data-slot="today-hero-briefing-link"');
+    // The score ring is the one door to Insights — the separate
+    // read-the-full-briefing link was redundant with it and is gone.
     expect(html).toContain('href="/insights"');
+    expect(html).not.toContain('data-slot="today-hero-briefing-link"');
   });
 
   it("shows the honest sleep-pending note and provisional score", () => {
@@ -118,7 +119,7 @@ describe("<TodayHero>", () => {
     expect(html).toContain("Last night");
     // Null score → the ring's provisional face, never a zero.
     expect(html).toContain('data-provisional="true"');
-    // No briefing lead → no full-briefing link.
+    // The score ring stays the only route to Insights.
     expect(html).not.toContain('data-slot="today-hero-briefing-link"');
   });
 

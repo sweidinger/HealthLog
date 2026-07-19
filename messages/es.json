@@ -8798,7 +8798,6 @@
       "deltaVsBaseline": "{delta} frente a tu valor de referencia",
       "deltaFlat": "En línea con tu valor de referencia",
       "sleepPending": "El sueño de anoche aún no ha llegado; la lectura de hoy es provisional.",
-      "readFullBriefing": "Leer el informe completo",
       "worthALook": "Merece un vistazo",
       "allClear": "Hoy nada necesita tu atención.",
       "ringLink": "Abrir detalles de {metric}"
