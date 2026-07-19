@@ -37,6 +37,9 @@ vi.mock("@/lib/insights/status-provider", () => ({
 vi.mock("@/lib/ai/coach/bytes-codec", () => ({
   encryptToBytes: vi.fn(() => new Uint8Array([1, 2, 3])),
 }));
+vi.mock("@/lib/measurements/pick-canonical-workout-rows", () => ({
+  pickCanonicalWorkoutRows: vi.fn((rows) => rows),
+}));
 
 import { runWorkoutInsightGenerate } from "../workout-insight-generate";
 import { prisma } from "@/lib/db";
@@ -85,6 +88,7 @@ function arrangeHappyPath() {
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     dateOfBirth: new Date("1985-01-01T00:00:00.000Z"),
     locale: "en",
+    sourcePriorityJson: null,
   } as never);
   vi.mocked(buildWorkoutHrSeries).mockResolvedValue(null);
   vi.mocked(runStatusCompletion).mockResolvedValue({
@@ -201,7 +205,7 @@ describe("Activity Insight — the gate stack", () => {
     );
 
     const where = vi.mocked(prisma.workoutInsight.count).mock.calls[0][0]
-      .where as { generatedAt: { gte: Date } };
+      ?.where as { generatedAt: { gte: Date } };
     // Midnight Berlin on the 19th == 22:00 UTC on the 18th.
     expect(where.generatedAt.gte.toISOString()).toBe(
       "2026-07-18T22:00:00.000Z",
@@ -330,7 +334,7 @@ describe("Activity Insight — the gate stack", () => {
 
     expect(outcome).toEqual({ status: "skipped", reason: "not_found" });
     expect(runStatusCompletion).not.toHaveBeenCalled();
-    const where = vi.mocked(prisma.workout.findFirst).mock.calls[0][0].where;
+    const where = vi.mocked(prisma.workout.findFirst).mock.calls[0][0]?.where;
     expect(where).toEqual({ id: WORKOUT, userId: USER });
   });
 });
@@ -382,6 +386,7 @@ describe("Activity Insight — locale", () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValue({
         dateOfBirth: null,
         locale,
+        sourcePriorityJson: null,
       } as never);
 
       await runWorkoutInsightGenerate(
@@ -400,6 +405,7 @@ describe("Activity Insight — locale", () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValue({
         dateOfBirth: null,
         locale,
+        sourcePriorityJson: null,
       } as never);
 
       await runWorkoutInsightGenerate(
@@ -419,4 +425,46 @@ describe("Activity Insight — locale", () => {
       expect(call.systemPrompt).not.toContain("AUSGABEFORMAT");
     },
   );
+});
+
+/**
+ * The own-history comparison collapses cross-source twins.
+ *
+ * A session recorded by two paired devices is ONE session. Counting it twice
+ * inflates the sample size and biases every median the paragraph quotes — and
+ * the workout-detail card, which computes its own comparison, already collapses
+ * them. Two surfaces quoting different own-history figures for one sport is the
+ * drift this shares a picker to avoid.
+ */
+describe("Activity Insight — own-history comparison", () => {
+  it("routes the history rows through the canonical picker", async () => {
+    const { pickCanonicalWorkoutRows } =
+      await import("@/lib/measurements/pick-canonical-workout-rows");
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dateOfBirth: null,
+      locale: "en",
+      sourcePriorityJson: { ladder: ["APPLE_HEALTH"] },
+    } as never);
+    vi.mocked(prisma.workout.findMany).mockResolvedValue([
+      { id: "a", source: "APPLE_HEALTH", durationSec: 1800 },
+      { id: "b", source: "WITHINGS", durationSec: 1800 },
+    ] as never);
+
+    await runWorkoutInsightGenerate({ userId: USER, workoutId: WORKOUT }, NOW);
+
+    expect(pickCanonicalWorkoutRows).toHaveBeenCalledTimes(1);
+    // The user's own source ladder decides the winner, not a default.
+    expect(vi.mocked(pickCanonicalWorkoutRows).mock.calls[0][1]).toEqual({
+      ladder: ["APPLE_HEALTH"],
+    });
+  });
+
+  it("excludes the workout being described from its own baseline", async () => {
+    await runWorkoutInsightGenerate({ userId: USER, workoutId: WORKOUT }, NOW);
+
+    const where = vi.mocked(prisma.workout.findMany).mock.calls[0][0]
+      ?.where as { userId: string; id: { not: string } };
+    expect(where.userId).toBe(USER);
+    expect(where.id).toEqual({ not: WORKOUT });
+  });
 });

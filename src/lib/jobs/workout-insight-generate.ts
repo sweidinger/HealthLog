@@ -42,6 +42,7 @@ import {
   WORKOUT_INSIGHT_PROMPT_VERSION,
 } from "@/lib/ai/prompts/workout-insight";
 import { prisma } from "@/lib/db";
+import { pickCanonicalWorkoutRows } from "@/lib/measurements/pick-canonical-workout-rows";
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { finalizeStatusSummary } from "@/lib/insights/status-shared";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
@@ -164,7 +165,7 @@ export async function runWorkoutInsightGenerate(
   // ── Evidence: deterministic, numbers-only, no free text ──────────────────
   const profile = await prisma.user.findUnique({
     where: { id: userId },
-    select: { dateOfBirth: true, locale: true },
+    select: { dateOfBirth: true, locale: true, sourcePriorityJson: true },
   });
 
   // The SAME builder the detail route serves `hrSeries` from — not the
@@ -186,7 +187,11 @@ export async function runWorkoutInsightGenerate(
     whoopZoneDurations: parseWhoopZoneDurations(row.metadata),
   });
 
-  const history = await prisma.workout.findMany({
+  // Own-history rows for the comparison. `sportType` is the RAW column here on
+  // purpose — this is a database equality filter, not prompt input, so it must
+  // match what is stored; the value is narrowed to the closed enum later, at
+  // the projection boundary.
+  const historyRows = await prisma.workout.findMany({
     where: {
       userId,
       sportType: row.sportType,
@@ -201,12 +206,25 @@ export async function runWorkoutInsightGenerate(
     orderBy: { startedAt: "desc" },
     take: OWN_HISTORY_MAX_ROWS,
     select: {
+      id: true,
+      source: true,
+      startedAt: true,
+      sportType: true,
       durationSec: true,
       avgHeartRate: true,
       totalDistanceM: true,
       totalEnergyKcal: true,
     },
   });
+
+  // Collapse cross-source twins BEFORE the medians, the same way the detail
+  // page's sport-context read does. A session recorded by two paired devices
+  // (an Apple Watch and a Withings ScanWatch) is one session; counting it twice
+  // inflates the sample size and biases every median the paragraph quotes.
+  const history = pickCanonicalWorkoutRows(
+    historyRows,
+    profile?.sourcePriorityJson ?? null,
+  );
 
   const evidence = buildWorkoutInsightEvidence({
     row,

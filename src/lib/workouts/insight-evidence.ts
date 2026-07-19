@@ -3,17 +3,30 @@
  *
  * Everything the model is ever told about a session is built here, and the
  * shape of this module is the security boundary of the whole feature: it is a
- * NUMBERS-ONLY projection over closed fields. `Workout.metadata` is a JSON blob
- * carrying device bundle ids, HKWorkoutEvent markers and per-vendor extras —
- * free text the user never wrote and we never reviewed. None of it reaches a
- * prompt. The one non-numeric field that survives, `sportType`, is narrowed
- * against the closed `workoutSportTypeEnum` first, so even a hand-inserted row
- * with a crafted sport string projects as `"other"`.
+ * NUMBERS-ONLY projection over closed fields.
  *
- * The consequence worth stating plainly: there is no injection surface here to
- * defend, because there is no attacker-controlled text in the payload at all.
- * That is a property of this file, and it is why the workout coach launch does
- * not need the fenced endpoint the document surfaces use.
+ * What is excluded, and why each one matters:
+ *
+ *   - `metadata` — a JSON blob of device bundle ids, HKWorkoutEvent markers and
+ *     per-vendor extras. Never passed in at all; the only thing taken from it
+ *     anywhere on this path is the numeric WHOOP zone-duration array, and that
+ *     goes through `parseWhoopZoneDurations` before it gets near here.
+ *   - `externalId` — a vendor-supplied opaque string. Never selected.
+ *   - route geometry — consumed to derive ONE number (metres climbed) and then
+ *     dropped. It is location history, not a figure, and it may not ride a
+ *     prompt.
+ *   - `sportType` — a TEXT column. The API write path constrains it to
+ *     `workoutSportTypeEnum`, but the BACKUP RESTORE path accepts
+ *     `z.string().min(1)`, so a restored row can carry arbitrary
+ *     attacker-chosen text. It is therefore re-asserted against the enum HERE,
+ *     at projection time, and anything unrecognised folds to `"other"`. The
+ *     enum is imported from the schema module rather than copied, because a
+ *     hand-copied vocabulary drifts.
+ *
+ * And the claim is enforced by `assertNumericLeaves`, not by this comment: the
+ * projection is walked before it is returned and ANY non-numeric leaf at any
+ * depth throws. A future field that quietly admits a string fails loudly at the
+ * seam instead of arriving in a prompt.
  *
  * Determinism is the second contract. The same session always projects to the
  * same numbers, which is what makes the input hash a real no-op gate: a WHOOP
@@ -40,7 +53,6 @@ export const OWN_HISTORY_MAX_ROWS = 400;
  * workout-window series is the richer of the two anyway.
  */
 export interface WorkoutHrShape {
-  source: WorkoutHrSeries["source"];
   bucketSec: number;
   buckets: number;
   /** Mean bpm across the first half of the session's buckets. */
@@ -195,7 +207,10 @@ export function summariseHrShape(
   }
 
   return {
-    source: series.source,
+    // `series.source` ("workout_series" | "pulse_window") is deliberately not
+    // carried: it is provenance for the chart, it is a string, and the
+    // paragraph has nothing to say about it. Dropping it keeps the projection
+    // numeric without an allowlist exception.
     bucketSec: series.bucketSec,
     buckets: series.points.length,
     firstHalfMeanBpm,
@@ -249,6 +264,28 @@ export interface OwnHistoryRow {
  * far enough that the paragraph's comparison would be wrong in the ordinary
  * case. Returns null below three comparable sessions: two sessions do not make
  * a baseline, and the copy contract says so plainly instead.
+ *
+ * CONVERGENCE NOTE — read before editing.
+ *
+ * `src/lib/workouts/sport-context.ts` computes an own-history comparison for
+ * the SAME sport, for the workout-detail card and the coach's evidence block.
+ * The two are not interchangeable today and the differences are deliberate on
+ * this side, but they should become one function:
+ *
+ *   | this                        | sport-context.ts            |
+ *   |-----------------------------|-----------------------------|
+ *   | 90-day lookback             | 180-day lookback            |
+ *   | medians                     | means                       |
+ *   | null below 3 sessions       | any non-empty result        |
+ *
+ * Medians and the three-session floor are the ones worth keeping: a paragraph
+ * that says "right at your usual" must not be moved by one outlier or built on
+ * a single prior session. The lookback is arbitrary on both sides.
+ *
+ * The caller MUST collapse cross-source twins through `pickCanonicalWorkoutRows`
+ * before calling this, exactly as `sport-context.ts` does — a session recorded
+ * by two paired watches is one session, and counting it twice inflates the
+ * sample size and biases every median.
  */
 export function summariseOwnHistory(
   rows: readonly OwnHistoryRow[],
@@ -300,13 +337,77 @@ export interface BuildEvidenceInput {
 }
 
 /**
+ * The only two string-valued leaves the projection is allowed to carry, each
+ * with the shape that makes it safe.
+ *
+ * `sportType` is a member of the closed enum; `localDate` is a derived day key.
+ * Neither can carry attacker text once these hold. Everything else must be a
+ * number, a boolean, or null.
+ */
+const ALLOWED_STRING_LEAVES: Record<string, RegExp> = {
+  sportType: new RegExp(`^(?:${workoutSportTypeEnum.options.join("|")})$`),
+  localDate: /^\d{4}-\d{2}-\d{2}$/,
+};
+
+/**
+ * Walk the finished projection and throw on anything that is not a number.
+ *
+ * This is the enforcement behind the module's headline claim. A comment saying
+ * "numbers only" is worth nothing the day someone adds a field: it stays true
+ * in the docblock and false in the payload. Walking every leaf means the claim
+ * fails at the seam, in the worker, before a provider is resolved — and the
+ * worker treats a throw as a transient fault, so the paragraph is simply not
+ * written rather than written from unvetted input.
+ *
+ * `hrSource` is deliberately NOT on the allowlist: the HR shape's `source` is a
+ * two-value internal literal, and it is dropped from the projection entirely
+ * rather than argued about.
+ */
+export function assertNumericLeaves(value: unknown, path = "evidence"): void {
+  if (
+    value === null ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    if (typeof value === "number" && !Number.isFinite(value)) {
+      throw new Error(`workout evidence: non-finite number at ${path}`);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry, i) => assertNumericLeaves(entry, `${path}[${i}]`));
+    return;
+  }
+  if (typeof value === "object") {
+    for (const [key, leaf] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      const allowed = ALLOWED_STRING_LEAVES[key];
+      if (allowed) {
+        if (typeof leaf !== "string" || !allowed.test(leaf)) {
+          throw new Error(
+            `workout evidence: ${path}.${key} is not a permitted ${key} value`,
+          );
+        }
+        continue;
+      }
+      assertNumericLeaves(leaf, `${path}.${key}`);
+    }
+    return;
+  }
+  throw new Error(
+    `workout evidence: non-numeric leaf at ${path} (${typeof value})`,
+  );
+}
+
+/**
  * Compose the evidence block. Pure — every read has already happened.
  */
 export function buildWorkoutInsightEvidence(
   input: BuildEvidenceInput,
 ): WorkoutInsightEvidence {
   const { row } = input;
-  return {
+  const evidence: WorkoutInsightEvidence = {
     sportType: narrowSportType(row.sportType),
     localDate: userDayKey(row.startedAt, input.tz),
     durationSec: row.durationSec,
@@ -322,4 +423,6 @@ export function buildWorkoutInsightEvidence(
     hr: summariseHrShape(input.hrSeries),
     history: summariseOwnHistory(input.history),
   };
+  assertNumericLeaves(evidence);
+  return evidence;
 }
