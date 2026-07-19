@@ -79,6 +79,8 @@ export const PATCH = apiHandler(
       markAsUsedUp,
       printedExpiry,
       unitsRemaining,
+      manufacturer,
+      doseStrength,
       notes,
     } = parsed.data;
 
@@ -151,6 +153,16 @@ export const PATCH = apiHandler(
         ? {}
         : { notesEncrypted: encryptNote(notes), notes: null };
 
+    // Carton labelling follows the same absent-means-untouched rule as
+    // `notes`: an omitted field must not blank a value the other client
+    // populated. Built field by field, never spread from the parsed body.
+    const labellingData: {
+      manufacturer?: string | null;
+      doseStrength?: string | null;
+    } = {};
+    if (manufacturer !== undefined) labellingData.manufacturer = manufacturer;
+    if (doseStrength !== undefined) labellingData.doseStrength = doseStrength;
+
     const updated = await prisma.medicationInventoryItem.update({
       where: { id: itemId },
       data: {
@@ -159,6 +171,7 @@ export const PATCH = apiHandler(
         unitsRemaining: nextUnitsRemaining,
         printedExpiry: nextPrintedExpiry,
         expiresAt: nextExpiresAt,
+        ...labellingData,
         ...notesData,
       },
     });

@@ -68,6 +68,19 @@ vi.mock("@/lib/rollups/measurement-read", () => ({
   loadUserSourcePriority: vi.fn(async () => null),
 }));
 
+// The mood card reads the canonical daily series; its own aggregation is
+// covered by `src/lib/analytics/__tests__/mood-series.test.ts`. Pinned to an
+// empty series by default so the legacy assertions keep their "no mood"
+// expectation, and overridden per test below.
+vi.mock("@/lib/analytics/mood-series", () => ({
+  buildMoodDailySeries: vi.fn(async () => ({
+    entries: [],
+    summary: null,
+    entryCount: 0,
+    source: "live" as const,
+  })),
+}));
+
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
@@ -85,6 +98,7 @@ import { GET } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
+import { buildMoodDailySeries } from "@/lib/analytics/mood-series";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -1063,5 +1077,98 @@ describe("GET /api/dashboard/summary", () => {
     };
     expect(body.data.compliance.scheduledToday).toBe(2);
     expect(body.data.compliance.takenToday).toBe(1);
+  });
+});
+
+/**
+ * Mood + BMI cards.
+ *
+ * Both metrics existed in the record but the summary payload emitted
+ * neither, so the native home screen could not render those two tiles while
+ * every other tile worked. Both are resolved server-side from the canonical
+ * source — `buildMoodDailySeries` for mood, `computeBmi` for BMI — so the
+ * client consumes a finished figure instead of re-deriving one.
+ */
+describe("GET /api/dashboard/summary — mood + BMI cards", () => {
+  function cardsOf(body: unknown): Array<Record<string, unknown>> {
+    return (body as { data: { metrics: Array<Record<string, unknown>> } }).data
+      .metrics;
+  }
+
+  it("emits a mood card from the canonical daily series", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(buildMoodDailySeries).mockResolvedValue({
+      entries: [
+        { date: "2026-07-01", score: 2, samples: 1 },
+        { date: "2026-07-02", score: 3, samples: 2 },
+        { date: "2026-07-03", score: 4.5, samples: 1 },
+      ],
+      summary: null,
+      entryCount: 3,
+      source: "rollup",
+    } as never);
+
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(200);
+    const mood = cardsOf(await res.json()).find((c) => c.kind === "mood");
+
+    expect(mood).toBeDefined();
+    // Headline is the newest day's score, verbatim from the series — the
+    // route must not re-average or re-round what the helper resolved.
+    expect(mood?.latestValue).toBe(4.5);
+    expect(mood?.sparkline).toEqual([2, 3, 4.5]);
+    expect(mood?.trend).toBe("up");
+    expect(mood?.allTimeCount).toBe(3);
+    expect(mood?.titleKey).toBe("dashboard.metric.title.mood");
+    expect(mood?.unitKey).toBe("dashboard.metric.unit.mood");
+    expect(mood?.lastSeenAt).toBe("2026-07-03T00:00:00.000Z");
+  });
+
+  it("omits the mood card when the account has never logged a mood", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(200);
+    expect(cardsOf(await res.json()).find((c) => c.kind === "mood")).toBe(
+      undefined,
+    );
+  });
+
+  it("emits a BMI card computed from the profile height and latest weight", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // 180 cm profile.
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dateOfBirth: new Date("1986-01-01"),
+      gender: null,
+      heightCm: 180,
+    } as never);
+    // `computeBmi` reads recent weight rows through `measurement.findMany`.
+    // 81 kg at 1.80 m => 25.0.
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { value: 81, measuredAt: new Date("2026-07-03T08:00:00.000Z") },
+    ] as never);
+
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(200);
+    const bmi = cardsOf(await res.json()).find((c) => c.kind === "bmi");
+
+    expect(bmi).toBeDefined();
+    // The canonical helper's rounding (1 dp), not a second formula.
+    expect(bmi?.latestValue).toBe(25);
+    expect(bmi?.titleKey).toBe("dashboard.metric.title.bmi");
+    expect(bmi?.unitKey).toBe("dashboard.metric.unit.bmi");
+  });
+
+  it("omits the BMI card when the profile carries no height", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // Default profile has `heightCm: null`; weight alone cannot yield a BMI.
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { value: 81, measuredAt: new Date("2026-07-03T08:00:00.000Z") },
+    ] as never);
+
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(200);
+    expect(cardsOf(await res.json()).find((c) => c.kind === "bmi")).toBe(
+      undefined,
+    );
   });
 });

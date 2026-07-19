@@ -12425,6 +12425,19 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
+        manufacturer:
+          description: Marketing-authorisation holder / maker as printed on the carton. Free text, max 120 chars.
+          anyOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        doseStrength:
+          description: Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, max 60 chars — deliberately not split
+            into a number + unit because pens state strength per dose, per ml, or per cartridge.
+          anyOf:
+            - type: string
+              maxLength: 60
+            - type: "null"
         notes:
           anyOf:
             - type: string
@@ -12458,6 +12471,19 @@ components:
           type: number
           minimum: 0
           maximum: 1000
+        manufacturer:
+          description: Marketing-authorisation holder / maker as printed on the carton. Free text, max 120 chars.
+          anyOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        doseStrength:
+          description: Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, max 60 chars — deliberately not split
+            into a number + unit because pens state strength per dose, per ml, or per cartridge.
+          anyOf:
+            - type: string
+              maxLength: 60
+            - type: "null"
         notes:
           anyOf:
             - type: string
@@ -19421,6 +19447,18 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
+        manufacturer:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Marketing-authorisation holder / maker as printed on the carton. NULL for a container registered before the
+            field existed, and for plain supply rows that never carried one.
+        doseStrength:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, not split into a number + unit — pens
+            state strength per dose, per ml, or per cartridge. NULL when unknown.
         notes:
           anyOf:
             - type: string
@@ -19445,6 +19483,8 @@ components:
         - expiresAt
         - printedExpiry
         - purchasedAt
+        - manufacturer
+        - doseStrength
         - notes
         - createdAt
         - updatedAt

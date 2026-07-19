@@ -144,6 +144,8 @@ export function buildCreateInventoryInput(input: {
   containerType: MedicationContainerType;
   printedExpiry: Date | null;
   purchasedAt: Date | null;
+  manufacturer: string | null;
+  doseStrength: string | null;
   notes: string | null;
 }) {
   return {
@@ -157,6 +159,8 @@ export function buildCreateInventoryInput(input: {
     printedExpiry: input.printedExpiry,
     purchasedAt: input.purchasedAt,
     expiresAt: computeExpiresAt(null, input.printedExpiry),
+    manufacturer: input.manufacturer,
+    doseStrength: input.doseStrength,
     // Encrypt the free-text note at rest; the plaintext column stays null.
     notesEncrypted: encryptNote(input.notes),
     notes: null,

@@ -425,7 +425,9 @@
         "steps": "Schritte",
         "totalBodyWater": "Gesamtkörperwasser",
         "boneMass": "Knochenmasse",
-        "oxygenSaturation": "Sauerstoffsättigung"
+        "oxygenSaturation": "Sauerstoffsättigung",
+        "mood": "Stimmung",
+        "bmi": "BMI"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +439,9 @@
         "steps": "Schritte",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "/5",
+        "bmi": "kg/m²"
       }
     }
   },
@@ -1683,7 +1687,10 @@
         "packagingDefaultPackLabel": "Standard-Packungsgröße (Einheiten)",
         "packagingDefaultPackHelper": "Vorbefüllung beim Erfassen neuer Packungen (1–1000). Leer lassen, wenn keine üblich ist.",
         "packagingSuccess": "Packungsangaben gespeichert",
-        "packagingFailed": "Speichern fehlgeschlagen"
+        "packagingFailed": "Speichern fehlgeschlagen",
+        "addManufacturerLabel": "Hersteller",
+        "addDoseStrengthLabel": "Wirkstärke",
+        "addDoseStrengthHint": "Wie auf dem Behälter aufgedruckt, z. B. 5 mg/0,5 ml."
       },
       "erweitert": {
         "group": {

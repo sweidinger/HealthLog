@@ -425,7 +425,9 @@
         "steps": "Pasos",
         "totalBodyWater": "Agua corporal total",
         "boneMass": "Masa ósea",
-        "oxygenSaturation": "Saturación de oxígeno"
+        "oxygenSaturation": "Saturación de oxígeno",
+        "mood": "Estado de ánimo",
+        "bmi": "IMC"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +439,9 @@
         "steps": "pasos",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "/5",
+        "bmi": "kg/m²"
       }
     }
   },
@@ -1683,7 +1687,10 @@
         "packagingDefaultPackLabel": "Tamaño de envase predeterminado (unidades)",
         "packagingDefaultPackHelper": "Rellena la cantidad al registrar envases nuevos (1–1000). Déjalo vacío si no aplica.",
         "packagingSuccess": "Datos del envase guardados",
-        "packagingFailed": "Error al guardar"
+        "packagingFailed": "Error al guardar",
+        "addManufacturerLabel": "Fabricante",
+        "addDoseStrengthLabel": "Concentración",
+        "addDoseStrengthHint": "Tal como aparece impreso en el envase, p. ej. 5 mg/0,5 ml."
       },
       "erweitert": {
         "group": {
