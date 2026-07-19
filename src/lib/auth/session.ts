@@ -401,16 +401,48 @@ export async function destroyOtherSessions(
 }
 
 /**
- * v1.23 — revoke a single web session by id, scoped to the owning user so a
- * caller can never delete another user's session row. Returns whether a row
- * was actually removed (false → not found or not owned).
+ * The public handle for a session row, used by the session-management list
+ * and its revoke route.
+ *
+ * The list needs a per-row identifier the client can send back to revoke one
+ * device. It used to send the row id — which, for every session created
+ * before the secret cookie landed, IS that session's cookie value. The list
+ * was therefore handing the client live credentials for all of the account's
+ * other devices, and anything that captured one response body (an error
+ * reporter, a proxy log, a screenshot of devtools) captured usable logins.
+ *
+ * The handle is an HMAC of the row id: stable within a deployment so the
+ * client can round-trip it, and structurally useless as a cookie because the
+ * legacy lookup matches a cuid primary key and a 64-char hex digest is not
+ * one. Nothing is stored — the handle is recomputed per request, so this
+ * needs no column and no migration.
+ */
+export function sessionHandle(sessionId: string): string {
+  return hashToken(sessionId);
+}
+
+/**
+ * v1.23 — revoke a single web session, scoped to the owning user so a caller
+ * can never delete another user's session row. Returns whether a row was
+ * actually removed (false → not found or not owned).
+ *
+ * Takes the public handle rather than the row id. The account's own rows are
+ * a handful, so resolving the handle by walking them costs one indexed read
+ * and a few HMACs — cheaper than a column, and it keeps the id server-side.
  */
 export async function destroySessionById(
   userId: string,
-  sessionId: string,
+  handle: string,
 ): Promise<boolean> {
+  const own = await prisma.session.findMany({
+    where: { userId },
+    select: { id: true },
+  });
+  const match = own.find((s) => sessionHandle(s.id) === handle);
+  if (!match) return false;
+
   const result = await prisma.session.deleteMany({
-    where: { id: sessionId, userId },
+    where: { id: match.id, userId },
   });
   return result.count > 0;
 }

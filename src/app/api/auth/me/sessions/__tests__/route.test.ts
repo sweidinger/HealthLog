@@ -1,15 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+// The handle is an HMAC, so the route needs the key the real helper reads.
+process.env.API_TOKEN_HMAC_KEY ??= "a".repeat(64);
+
 vi.mock("@/lib/db", () => ({
   prisma: { session: { findMany: vi.fn() } },
 }));
 
-vi.mock("@/lib/auth/session", () => ({
-  getSession: vi.fn(),
-  destroyOtherSessions: vi.fn(),
-  destroySessionById: vi.fn(),
-}));
+// `sessionHandle` stays REAL: the point of the handle test is that the route
+// emits the actual derivation, and a stubbed one would let the route return
+// row ids while the assertion still passed.
+vi.mock("@/lib/auth/session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth/session")>();
+  return {
+    getSession: vi.fn(),
+    destroyOtherSessions: vi.fn(),
+    destroySessionById: vi.fn(),
+    sessionHandle: actual.sessionHandle,
+  };
+});
 
 vi.mock("@/lib/geo", () => ({
   lookupIpLocation: vi.fn(async () => "Berlin, DE"),
@@ -39,6 +49,7 @@ import {
   getSession,
   destroyOtherSessions,
   destroySessionById,
+  sessionHandle,
 } from "@/lib/auth/session";
 
 const SESSION_OK = {
@@ -90,7 +101,6 @@ describe("GET /api/auth/me/sessions", () => {
     const list = body.data.sessions;
     expect(list).toHaveLength(2);
     expect(list[0]).toMatchObject({
-      id: "sess-current",
       device: "Firefox on macOS",
       ipMasked: "203.0.x.x",
       location: "Berlin, DE",
@@ -99,6 +109,42 @@ describe("GET /api/auth/me/sessions", () => {
     expect(list[1].isCurrent).toBe(false);
     // The full IP never appears in the response body.
     expect(JSON.stringify(body)).not.toContain("203.0.113.7");
+  });
+
+  it("never puts a session row id in the response body", async () => {
+    // A row id created before the secret cookie landed IS that session's
+    // cookie value, so listing it hands the client working logins for the
+    // account's other devices. The list carries an opaque handle instead;
+    // it is what the revoke route accepts.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.session.findMany).mockResolvedValue([
+      {
+        id: "sess-current",
+        ipAddress: "203.0.113.7",
+        userAgent: "Mozilla/5.0 (Macintosh) Firefox/120.0",
+        lastActiveAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: "sess-other",
+        ipAddress: "198.51.100.4",
+        userAgent: "Mozilla/5.0 (Windows NT 10.0) Chrome/119.0.0.0",
+        lastActiveAt: null,
+        createdAt: new Date(),
+      },
+    ] as never);
+
+    const res = await GET();
+    const body = await res.json();
+    const serialised = JSON.stringify(body);
+
+    expect(serialised).not.toContain("sess-current");
+    expect(serialised).not.toContain("sess-other");
+    // Still identified well enough to act on: distinct, stable handles.
+    const [a, b] = body.data.sessions.map((s: { id: string }) => s.id);
+    expect(a).toBeTruthy();
+    expect(a).not.toBe(b);
+    expect(a).toBe(sessionHandle("sess-current"));
   });
 });
 

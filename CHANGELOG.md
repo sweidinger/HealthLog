@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+## [1.30.33] — 2026-07-19
+
+Security release. It ships on its own because it changes how a browser
+session is recognised.
+
+- **The session cookie is a purpose-generated secret.** It used to be the
+  session record's own database key — an identifier built to avoid
+  collisions, not to be unguessable, and one that appears wherever that
+  record is referenced. The cookie now carries 32 bytes from the system's
+  random source, and only its hash is stored, so the value in your
+  browser exists nowhere on the server.
+- **You are not signed out by this.** Sessions from before the change
+  keep working and are simply not renewed, so they run out their normal
+  30 days and disappear. Every sign-in from this release onward is on the
+  new scheme.
+- **The device list no longer hands out working credentials.** It
+  identified each device by that same record key — which, for a session
+  predating this release, is that device's cookie. It now shows an opaque
+  handle that is useless as a login, and the same handle is what signs a
+  device out.
+- **A refresh token cannot be rotated from a different device**, and an
+  expired one is refused. The test that was supposed to prove the expiry
+  passed a token that had never been issued, so it proved nothing: with
+  the expiry check deleted, the suite still went green. It is a real test
+  now.
+- **A Nightscout address is checked when you save it**, not only when it
+  happens to be probed first. The check itself already refused private,
+  loopback and cloud-metadata addresses.
+
+Operators: rotating `API_TOKEN_HMAC_KEY` now also signs out every browser
+session, not just API tokens. One migration (0255), additive.
+
 ## [1.30.32] — 2026-07-19
 
 - **A withdrawn AI consent stays withdrawn.** Opening the AI settings
