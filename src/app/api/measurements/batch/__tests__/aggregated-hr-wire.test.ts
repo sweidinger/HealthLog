@@ -409,3 +409,89 @@ describe("POST /api/measurements/batch — stats tombstone resurrection", () => 
     expect(prisma.measurement.createMany).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Two entries carrying the SAME `stats:` key inside ONE batch. Neither is in
+ * the DB yet, so before the fix both missed the existing-row probe, both
+ * landed in the bulk insert, and `skipDuplicates` kept whichever the unique
+ * index saw first — the OLDER snapshot won and the newer, larger figure was
+ * dropped silently while both entries still reported `inserted`.
+ *
+ * `stats:` rows are overwrite-by-contract, so the LAST entry for a key wins.
+ */
+describe("POST /api/measurements/batch — intra-batch `stats:` supersession", () => {
+  it("keeps only the LAST entry when one batch carries the same stats: key twice", async () => {
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
+
+    const res = await POST(
+      makeRequest({
+        entries: [
+          hrBucketEntry(HR_BUCKET_ID, 70), // earlier snapshot of a filling bucket
+          hrBucketEntry(HR_BUCKET_ID, 78), // later, authoritative snapshot
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+
+    // Exactly ONE row reaches the insert, carrying the NEWER value.
+    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
+    const rows = (createArg as { data: { value: number }[] }).data;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].value).toBe(78);
+
+    // The superseded entry is reported honestly, not as a phantom insert.
+    expect(data.entries[0].status).toBe("duplicate");
+    expect(data.entries[0].reason).toBe("superseded_in_batch");
+    expect(data.entries[1].status).toBe("inserted");
+    expect(data.inserted).toBe(1);
+    expect(data.duplicates).toBe(1);
+  });
+
+  it("overwrites an existing row exactly once, with the LAST value in the batch", async () => {
+    // The key is already stored, so both entries take the overwrite branch.
+    // Only the authoritative last snapshot may reach the DB.
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { type: "PULSE", source: "APPLE_HEALTH", externalId: HR_BUCKET_ID },
+    ] as never);
+
+    const res = await POST(
+      makeRequest({
+        entries: [
+          hrBucketEntry(HR_BUCKET_ID, 70),
+          hrBucketEntry(HR_BUCKET_ID, 78),
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+
+    expect(prisma.measurement.updateMany).toHaveBeenCalledTimes(1);
+    const updateArg = vi.mocked(prisma.measurement.updateMany).mock.calls[0][0];
+    expect((updateArg as { data: { value: number } }).data.value).toBe(78);
+
+    expect(data.entries[0].status).toBe("duplicate");
+    expect(data.entries[0].reason).toBe("superseded_in_batch");
+    expect(data.entries[1].status).toBe("updated");
+    expect(data.updated).toBe(1);
+  });
+
+  it("leaves DISTINCT stats: keys in one batch untouched", async () => {
+    const OTHER =
+      "stats:HKQuantityTypeIdentifierHeartRate:2026-06-21T14:10:00.000Z";
+    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 2 });
+
+    const res = await POST(
+      makeRequest({
+        entries: [hrBucketEntry(HR_BUCKET_ID, 70), hrBucketEntry(OTHER, 78)],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const { data } = await readJson(res);
+
+    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
+    expect((createArg as { data: unknown[] }).data).toHaveLength(2);
+    expect(data.inserted).toBe(2);
+    expect(data.duplicates).toBe(0);
+  });
+});

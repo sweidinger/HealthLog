@@ -487,6 +487,70 @@ describe("persistRollupRows — large path (via recomputeUserRollups)", () => {
     expect(deleteMany).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * The aggregate filters measurements by `measured_at` but GROUPS them by
+   * `date_trunc`, and `persistRollupRows` then deletes every rollup row in
+   * the bucket range it writes. A `from` that lands mid-bucket therefore
+   * replaced a COMPLETE bucket with an aggregate built only from the
+   * readings after that instant — and because every caller passes a moving
+   * instant, a different oldest bucket was corrupted on each run and nothing
+   * repaired it. The window must be snapped out to whole buckets first.
+   */
+  describe("bucket alignment of the recompute window", () => {
+    it("snaps a mid-day `from` down to the start of its DAY bucket", async () => {
+      queryRawUnsafe.mockResolvedValueOnce(syntheticRows(1));
+      txExecuteRawUnsafe.mockResolvedValueOnce(1);
+
+      // 14:37:12Z on 2024-03-10 — squarely inside a day bucket.
+      const midDay = new Date(Date.UTC(2024, 2, 10, 14, 37, 12, 500));
+      await recomputeUserRollups("user-1", {
+        granularities: ["DAY"],
+        from: midDay,
+        to: new Date(Date.UTC(2024, 2, 20, 9, 5, 0)),
+      });
+
+      // runRollupAggregate → $queryRawUnsafe(sql, userId, from, to)
+      const [, userId, fromArg, toArg] = queryRawUnsafe.mock.calls[0];
+      expect(userId).toBe("user-1");
+      // Whole-bucket lower edge — the morning of the 10th must be included.
+      expect((fromArg as Date).toISOString()).toBe("2024-03-10T00:00:00.000Z");
+      // Upper edge snaps out to the end of the closing bucket.
+      expect((toArg as Date).toISOString()).toBe("2024-03-21T00:00:00.000Z");
+    });
+
+    it("snaps a mid-month `from` back to the 1st for MONTH granularity", async () => {
+      queryRawUnsafe.mockResolvedValueOnce(syntheticRows(1));
+      txExecuteRawUnsafe.mockResolvedValueOnce(1);
+
+      await recomputeUserRollups("user-1", {
+        granularities: ["MONTH"],
+        from: new Date(Date.UTC(2024, 4, 17, 8, 0, 0)),
+        to: new Date(Date.UTC(2024, 6, 3, 0, 0, 0)),
+      });
+
+      const [, , fromArg, toArg] = queryRawUnsafe.mock.calls[0];
+      expect((fromArg as Date).toISOString()).toBe("2024-05-01T00:00:00.000Z");
+      expect((toArg as Date).toISOString()).toBe("2024-08-01T00:00:00.000Z");
+    });
+
+    it("leaves an already-aligned window untouched", async () => {
+      queryRawUnsafe.mockResolvedValueOnce(syntheticRows(1));
+      txExecuteRawUnsafe.mockResolvedValueOnce(1);
+
+      const from = new Date(Date.UTC(2024, 2, 10));
+      const to = new Date(Date.UTC(2024, 2, 20));
+      await recomputeUserRollups("user-1", {
+        granularities: ["DAY"],
+        from,
+        to,
+      });
+
+      const [, , fromArg, toArg] = queryRawUnsafe.mock.calls[0];
+      expect((fromArg as Date).getTime()).toBe(from.getTime());
+      expect((toArg as Date).getTime()).toBe(to.getTime());
+    });
+  });
+
   it("the ≤500-row path runs through the same interactive upsert transaction", async () => {
     queryRawUnsafe.mockResolvedValueOnce(syntheticRows(2));
     txExecuteRawUnsafe.mockResolvedValueOnce(2);

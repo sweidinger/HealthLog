@@ -9,6 +9,14 @@ The daily briefing counts its spend too.
 - **Generating the daily briefing did not count against any budget.** It is the one remaining path that a sync can set off on its own: new sleep data arriving in the morning triggers a fresh briefing, and each attempt — including its correction passes — could reach a provider without being recorded. All of them now reserve before and settle after, against the same ceiling as everything else, so a self-hoster on their own key is measured against their own limit.
 - Reaching the ceiling now skips the run rather than reporting a failure, because a failure schedules a retry — and retrying against a limit that does not move until the next day would loop.
 
+## [1.30.27] — 2026-07-19
+
+Three quiet miscounts.
+
+- **The resting heart-rate series stopped at the point where older readings get condensed.** Once a day's raw readings are condensed, its resting figure is kept as a derived value — but the reading side treated the presence of any such value as "this account reports resting directly" and stopped estimating for the recent days that have not been condensed yet. The series now uses the stored value for days that have one and the estimate for days that do not. Where any part is estimated it is still labelled as an estimate: a partly-estimated series called "resting heart rate" would be wrong about those days, while calling a partly-stored one an estimate is merely cautious.
+- **Recomputing summaries from a point in the middle of a day or month replaced the whole period with a partial figure.** The recompute now starts at the beginning of the period it touches. Existing summaries recompute when that day is written to again or on the next scheduled pass.
+- **Two entries for the same daily total in one upload silently kept the older one.** The newer value now wins, matching how a repeat upload behaves.
+
 No breaking changes.
 
 ## [1.30.26] — 2026-07-19

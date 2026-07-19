@@ -124,9 +124,18 @@ describe("generatePulseStatusForUser — A2 resting-target in-target %", () => {
         measuredAt: new Date(now.getTime() - (i % 30) * dayMs),
       });
     }
-    // Clean resting series, comfortably inside a 60-100 band.
+    // Clean resting series, comfortably inside a 60-100 band, covering the
+    // SAME 30-day span as the PULSE above. The span has to match for the
+    // fixture to mean what the test name claims: the resolver merges per
+    // day, so a day with no resting row of its own is estimated from that
+    // day's PULSE rather than dropped. Leaving ten of the thirty days
+    // resting-free made this assert the merge's gap-fill behaviour by
+    // accident — on days whose only readings are a 150 bpm workout, the
+    // honest estimate IS out of band. Gap-day behaviour is pinned directly
+    // in `resting-pulse.test.ts`; this case is about preferring the clean
+    // signal over workout HR where both exist.
     const restingRecords: Array<{ value: number; measuredAt: Date }> = [];
-    for (let d = 0; d < 20; d++) {
+    for (let d = 0; d < 30; d++) {
       restingRecords.push({
         value: 72,
         measuredAt: new Date(now.getTime() - d * dayMs),
