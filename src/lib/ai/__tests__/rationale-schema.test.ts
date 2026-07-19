@@ -28,10 +28,10 @@ import {
  *      bundle when present — defence in depth on top of the rec-level
  *      `referenceId`.
  *
- * `findRecommendationsMissingRationale()` flags legacy (pre-B5c)
- * payloads where the rationale object is absent. Used by the legacy-
- * payload migration path so the UI can show a "regenerate for new
- * explainability features" CTA without auto-regenerating.
+ * A companion helper once flagged legacy (pre-B5c) payloads with an
+ * absent rationale object, for a regenerate CTA. It ran only inside a
+ * wrapper that had no production caller and has been removed; the
+ * schema-level requirement asserted below is the live part.
  */
 
 const baseRationale = {

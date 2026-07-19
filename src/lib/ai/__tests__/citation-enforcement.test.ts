@@ -19,14 +19,11 @@ import {
  *      Empty / missing → schema parse fails. The model cannot
  *      fabricate a recommendation that points at "nothing".
  *
- *   2. Every recommendation's `metricSource` MUST be backed by an
- *      entry in `citations[]` (matching `type` + `timeRange`).
- *      Cross-check enforced by `findUncitedRecommendations` and run
- *      by the wrapper after schema parse.
- *
- *   3. Two separate failure modes (missing metricSource vs. missing
- *      citation) both surface as zod / wrapper errors so the route
- *      can return 422 in either case.
+ * Point 2 of the original contract — every recommendation's
+ * `metricSource` must also appear in `citations[]` — was a cross-check
+ * run by a wrapper that had no production caller. Both the wrapper and
+ * the cross-check are gone; what remains here is the schema-level half,
+ * which is a real definition and is exercised below.
  */
 
 const baseMetricSource = {
