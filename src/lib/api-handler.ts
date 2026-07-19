@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import type { User } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { WideEventBuilder } from "./logging/event-builder";
-import { eventStorage, getEvent } from "./logging/context";
+import { annotate, eventStorage, getEvent } from "./logging/context";
 import { emitIfSampled } from "./logging/transports";
 import { redactOptional, redactSecrets } from "./logging/redact";
 import { getSession } from "./auth/session";
@@ -13,6 +13,10 @@ import {
   BearerAuthError,
   type ScopeRequirement,
 } from "./auth/bearer";
+import {
+  redeemStepUpElevation,
+  STEP_UP_ELEVATION_TTL_SECONDS,
+} from "./auth/step-up";
 import { AssistantDisabledError } from "./feature-flags";
 import { ConsentRequiredError } from "./ai/consent-guard";
 import { SCOPE_HEALTH_READ, SCOPE_HEALTH_WRITE } from "./mcp/oauth/config";
@@ -617,6 +621,150 @@ export async function requireFreshMfaIfEnrolled(
   if (enrolled) {
     await requireFreshMfa(maxAgeSeconds);
   }
+  return auth;
+}
+
+/**
+ * v1.30.34 — resolve a caller by Bearer token ONLY, refusing a cookie session.
+ *
+ * The mirror image of `requireCookieAuth`, and it exists for one surface: the
+ * step-up mint endpoints, which are the Bearer transport's own re-authentication
+ * flow and have no meaning for a browser (a browser re-proves a factor at login
+ * and carries the result on its session row). Refusing the cookie keeps the mint
+ * surface entirely outside the cookie's blast radius — no ambient credential can
+ * reach it, so the class of attack where a browser is induced to fire a request
+ * on the user's behalf simply does not apply.
+ *
+ * Scope handling is the standard fail-closed default: no declared scope, so only
+ * a cookie-equivalent (`["*"]`) token is admitted. A narrow token — an MCP grant,
+ * a medication-ingest grant — is refused 403 by the resolver.
+ */
+export async function requireBearerAuth(): Promise<AuthContext> {
+  let authHeader: string | null = null;
+  try {
+    const headerList = await headers();
+    authHeader = headerList.get("authorization");
+  } catch {
+    authHeader = null;
+  }
+  if (!authHeader?.startsWith("Bearer ")) {
+    throw new HttpError(401, "Not authenticated");
+  }
+  return await authenticateBearer(authHeader.slice(7), undefined);
+}
+
+/**
+ * Header carrying a step-up elevation on the Bearer path. Never logged — the
+ * wide event captures no request headers at all, and `redactSecrets` carries an
+ * `hle_` rule as a second line of defence.
+ */
+export const STEP_UP_ELEVATION_HEADER = "x-step-up";
+
+/**
+ * v1.30.34 — the single gate for second-factor management.
+ *
+ * Every MFA-management route goes through here and nothing else does. The set
+ * is frozen by `src/__tests__/step-up-elevation-guard.test.ts`, so a future
+ * route cannot quietly join it: widening the reach of an elevation has to be a
+ * visible edit to that allowlist.
+ *
+ * Two accepted proofs, and they are equals rather than a primary and a fallback:
+ *
+ *   COOKIE — unchanged, byte for byte. A cookie session delegates to
+ *   `requireCookieAuth` / `requireFreshMfa` exactly as before this function
+ *   existed. The web flow cannot regress here because there is no new code on
+ *   its path; the elevation branch is only reached when there is no session at
+ *   all.
+ *
+ *   BEARER + ELEVATION — a token that resolves cleanly AND presents a valid,
+ *   unconsumed elevation minted for that same token against a re-proved factor.
+ *   The token alone is never enough: with no header, or a header that does not
+ *   redeem, the caller gets the same `auth.stepup.required` a stale cookie
+ *   session gets.
+ *
+ * `requireAdmin` is untouched and stays cookie-only. An elevation cannot reach
+ * it — not because a check refuses one, but because `requireAdmin` resolves
+ * through `getSession()` and never consults this function or the header.
+ *
+ * @param options.freshFactor mirrors the cookie path's `requireFreshMfa`: the
+ *   account must actually have a second factor enrolled. Set by the destructive
+ *   routes (disable, recovery-code rotation, security-key removal).
+ */
+export async function requireMfaManagementAuth(
+  options: { freshFactor?: boolean } = {},
+): Promise<AuthContext> {
+  // Cookie first, and via the original helpers — the web path runs the same
+  // code it always did.
+  const sessionData = await getSession();
+  if (sessionData) {
+    return options.freshFactor
+      ? await requireFreshMfa(MFA_STEP_UP_MAX_AGE_SECONDS)
+      : await requireCookieAuth();
+  }
+
+  // Bearer path. Resolution first: an unknown, revoked, expired, or narrow-scope
+  // token is refused here and never gets as far as presenting an elevation.
+  const auth = await requireBearerAuth();
+  const apiTokenId = auth.session.id;
+
+  let raw: string | null = null;
+  try {
+    const headerList = await headers();
+    raw = headerList.get(STEP_UP_ELEVATION_HEADER);
+  } catch {
+    raw = null;
+  }
+
+  if (!raw) {
+    annotate({
+      action: { name: "auth.stepup.elevation.missing" },
+      meta: { maxAgeSeconds: STEP_UP_ELEVATION_TTL_SECONDS },
+    });
+    throw new StepUpRequiredError();
+  }
+
+  const redeemed = await redeemStepUpElevation({
+    rawToken: raw,
+    userId: auth.user.id,
+    apiTokenId,
+  });
+
+  if (!redeemed.ok) {
+    // One audit row with the machine reason, one generic refusal on the wire.
+    // A prober learns only "not accepted" — never whether the elevation was
+    // unknown, already spent, expired, or minted for a different token.
+    auditLog("auth.stepup.elevation.rejected", {
+      userId: auth.user.id,
+      details: { reason: redeemed.reason },
+    }).catch(() => {});
+    annotate({
+      action: { name: "auth.stepup.elevation.rejected" },
+      meta: { reason: redeemed.reason },
+    });
+    throw new StepUpRequiredError();
+  }
+
+  // Parity with the cookie path: `requireFreshMfa` refuses an account with no
+  // second factor enrolled, because a step-up-gated action is meaningless there.
+  // The Bearer path holds the same line rather than becoming the softer route.
+  if (options.freshFactor) {
+    let enrolled = Boolean(auth.user.totpConfirmedAt);
+    if (!enrolled) {
+      const keys = await prisma.webauthnMfaCredential.count({
+        where: { userId: auth.user.id },
+      });
+      enrolled = keys > 0;
+    }
+    if (!enrolled) {
+      throw new StepUpRequiredError("auth.stepup.mfa_not_enrolled");
+    }
+  }
+
+  annotate({
+    action: { name: "auth.stepup.elevation.accepted" },
+    meta: { method: redeemed.method },
+  });
+
   return auth;
 }
 

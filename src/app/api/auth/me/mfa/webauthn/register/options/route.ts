@@ -1,11 +1,12 @@
 /**
  * POST /api/auth/me/mfa/webauthn/register/options
  *
- * Begin registering a WebAuthn security key as a second factor. Cookie-only —
- * an API token can never enrol MFA. Returns the SimpleWebAuthn creation
- * options + the server-issued challenge id to present back at /register/verify.
+ * Begin registering a WebAuthn security key as a second factor. Takes a cookie
+ * session or a Bearer token presenting a single-use step-up elevation; a token
+ * on its own can never enrol MFA. Returns the SimpleWebAuthn creation options +
+ * the server-issued challenge id to present back at /register/verify.
  */
-import { apiHandler, requireCookieAuth } from "@/lib/api-handler";
+import { apiHandler, requireMfaManagementAuth } from "@/lib/api-handler";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
@@ -14,7 +15,7 @@ import { createMfaRegistrationOptions } from "@/lib/auth/mfa/webauthn";
 export const dynamic = "force-dynamic";
 
 export const POST = apiHandler(async () => {
-  const { user } = await requireCookieAuth();
+  const { user } = await requireMfaManagementAuth();
 
   const rl = await checkRateLimit(
     `mfa:webauthn:register:${user.id}`,

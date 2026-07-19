@@ -3,11 +3,12 @@
  *
  * Second-factor status for the security settings hub: whether TOTP is active,
  * how many recovery codes remain, and the registered WebAuthn security keys.
- * Cookie-only (`requireCookieAuth`) — managing MFA is never a Bearer surface.
+ * Gated by `requireMfaManagementAuth`: a cookie session, or a Bearer token
+ * presenting a single-use step-up elevation. A token alone is not enough.
  *
  * Returns only metadata: no secret, no recovery-code plaintext, no public key.
  */
-import { apiHandler, requireCookieAuth } from "@/lib/api-handler";
+import { apiHandler, requireMfaManagementAuth } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
@@ -16,7 +17,7 @@ import { countRemainingRecoveryCodes } from "@/lib/auth/mfa/recovery-codes";
 export const dynamic = "force-dynamic";
 
 export const GET = apiHandler(async () => {
-  const { user } = await requireCookieAuth();
+  const { user } = await requireMfaManagementAuth();
 
   const [recoveryCodesRemaining, webauthn] = await Promise.all([
     countRemainingRecoveryCodes(user.id),

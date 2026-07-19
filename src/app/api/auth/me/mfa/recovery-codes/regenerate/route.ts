@@ -2,15 +2,15 @@
  * POST /api/auth/me/mfa/recovery-codes/regenerate
  *
  * Issue a fresh recovery-code batch, invalidating the entire prior set in one
- * transaction. Step-up gated (`requireFreshMfa`) — a recovery-code rotation is
- * a sensitive action; Bearer can never satisfy the gate. The new codes are
- * returned **once**.
+ * transaction. Step-up gated (`requireMfaManagementAuth({ freshFactor: true })`)
+ * — a recovery-code rotation is sensitive, so it takes either a freshly
+ * second-factor-verified cookie session or a single-use step-up elevation minted
+ * by the calling token. The new codes are returned **once**.
  */
 import {
   apiHandler,
-  requireFreshMfa,
+  requireMfaManagementAuth,
   HttpError,
-  MFA_STEP_UP_MAX_AGE_SECONDS,
 } from "@/lib/api-handler";
 import { apiError, apiSuccess, getClientIp } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
@@ -24,7 +24,7 @@ const REGEN_RATE_LIMIT = 5;
 const REGEN_WINDOW_MS = 15 * 60 * 1000;
 
 export const POST = apiHandler(async (req: Request) => {
-  const { user } = await requireFreshMfa(MFA_STEP_UP_MAX_AGE_SECONDS);
+  const { user } = await requireMfaManagementAuth({ freshFactor: true });
 
   // Defence in depth — regeneration only makes sense for an active factor.
   if (!user.totpConfirmedAt) {

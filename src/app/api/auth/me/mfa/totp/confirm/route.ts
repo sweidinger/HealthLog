@@ -6,13 +6,21 @@
  * the accepted time-step (replay guard), generates + persists the Argon2id-
  * hashed recovery codes, and returns the codes **once** for the user to save.
  *
- * The completing session is also stamped `mfaVerifiedAt = now()` so the user
- * can immediately manage the freshly-enabled factor (disable / regenerate
- * codes) without an extra step-up round-trip.
+ * On the cookie path the completing session is stamped `mfaVerifiedAt = now()`
+ * so the user can immediately manage the freshly-enabled factor (disable /
+ * regenerate codes) without an extra step-up round-trip. A Bearer caller has no
+ * session row to stamp — the stamping `updateMany` simply matches nothing — and
+ * mints a fresh elevation per action instead.
  *
- * Cookie-only (`requireCookieAuth`): an API token can never enrol MFA.
+ * Gated by `requireMfaManagementAuth`: a cookie session, or a Bearer token
+ * presenting a single-use step-up elevation. A token on its own can still never
+ * enrol MFA.
  */
-import { apiHandler, requireCookieAuth, HttpError } from "@/lib/api-handler";
+import {
+  apiHandler,
+  requireMfaManagementAuth,
+  HttpError,
+} from "@/lib/api-handler";
 import {
   apiError,
   apiSuccess,
@@ -38,7 +46,7 @@ const CONFIRM_RATE_LIMIT = 10;
 const CONFIRM_WINDOW_MS = 15 * 60 * 1000;
 
 export const POST = apiHandler(async (req: Request) => {
-  const { user, session } = await requireCookieAuth();
+  const { user, session } = await requireMfaManagementAuth();
 
   const rl = await checkRateLimit(
     `mfa:confirm:${user.id}`,

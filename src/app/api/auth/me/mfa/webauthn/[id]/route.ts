@@ -2,17 +2,14 @@
  * PATCH  /api/auth/me/mfa/webauthn/[id]  — rename a registered security key.
  * DELETE /api/auth/me/mfa/webauthn/[id]  — remove one (step-up gated).
  *
- * Rename is cookie-authenticated (non-destructive). Removal is a sensitive
- * action: it is gated on a fresh second-factor step-up (`requireFreshMfa`,
- * cookie-only — a Bearer token can never satisfy it).
+ * Both go through `requireMfaManagementAuth`: a cookie session, or a Bearer
+ * token presenting a single-use step-up elevation. Removal additionally demands
+ * the fresh-factor arm (`freshFactor: true`) — on the cookie path a session that
+ * completed a second factor inside the step-up window, on the Bearer path an
+ * elevation minted against a re-proved factor.
  */
 import { NextRequest } from "next/server";
-import {
-  apiHandler,
-  requireCookieAuth,
-  requireFreshMfa,
-  MFA_STEP_UP_MAX_AGE_SECONDS,
-} from "@/lib/api-handler";
+import { apiHandler, requireMfaManagementAuth } from "@/lib/api-handler";
 import {
   apiError,
   apiSuccess,
@@ -31,7 +28,7 @@ export const PATCH = apiHandler(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
   ) => {
-    const { user } = await requireCookieAuth();
+    const { user } = await requireMfaManagementAuth();
     const { id } = await params;
 
     const { data: body, error: jsonError } = await safeJson(request, {
@@ -70,7 +67,7 @@ export const DELETE = apiHandler(
   ) => {
     // Step-up gate first — throws StepUpRequiredError (401 + errorCode) if the
     // session is not freshly second-factor-verified.
-    const { user } = await requireFreshMfa(MFA_STEP_UP_MAX_AGE_SECONDS);
+    const { user } = await requireMfaManagementAuth({ freshFactor: true });
     const { id } = await params;
 
     const existing = await prisma.webauthnMfaCredential.findUnique({

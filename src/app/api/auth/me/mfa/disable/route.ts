@@ -2,8 +2,9 @@
  * POST /api/auth/me/mfa/disable
  *
  * Tear down the second factor. Double-gated:
- *  1. `requireFreshMfa` — a cookie session that completed a second factor
- *     within the step-up window (Bearer can never satisfy this).
+ *  1. `requireMfaManagementAuth({ freshFactor: true })` — a cookie session that
+ *     completed a second factor within the step-up window, OR a Bearer token
+ *     presenting a single-use elevation it minted by re-proving a factor.
  *  2. A current TOTP or recovery code in the body — proves live possession at
  *     the moment of the destructive action, not just a stale fresh-session.
  *
@@ -12,9 +13,8 @@
  */
 import {
   apiHandler,
-  requireFreshMfa,
+  requireMfaManagementAuth,
   HttpError,
-  MFA_STEP_UP_MAX_AGE_SECONDS,
 } from "@/lib/api-handler";
 import {
   apiError,
@@ -38,7 +38,9 @@ const DISABLE_WINDOW_MS = 15 * 60 * 1000;
 export const POST = apiHandler(async (req: Request) => {
   // Step-up gate first — throws StepUpRequiredError (401 + errorCode) if the
   // session is not freshly second-factor-verified.
-  const { user, session } = await requireFreshMfa(MFA_STEP_UP_MAX_AGE_SECONDS);
+  const { user, session } = await requireMfaManagementAuth({
+    freshFactor: true,
+  });
 
   const rl = await checkRateLimit(
     `mfa:disable:${user.id}`,
