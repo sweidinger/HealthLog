@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.30.25] — 2026-07-19
+
+Generated cards now count against a budget, and long conversations get cheaper again.
+
+- **The tier that generates the metric cards, biomarker cards, derived scores and the period narrative did not count its spend at all.** Nine families of generated text ran through one place that recorded nothing — while a comment elsewhere stated the opposite, so the gap was invisible to anyone checking. All of them now reserve before and settle after, against the right ceiling: a self-hoster on their own key is measured against their own limit, never the operator's.
+- **A client could multiply generations by asking for a different language.** The de-duplication that collapses repeated polls included the language, so the same card in six languages was six separate generations — with no limit and no record. It no longer does. Switching language still regenerates the card; only the duplication is gone.
+- **A long assistant conversation started re-sending the full context on every turn** once it passed the point where older turns get summarised, instead of once at that point. A sixty-turn conversation sent it twenty-one times; it now sends it twice.
+- **The provider test button could reach the server-wide key without a daily limit.** It now has one, and a failed test is refunded so a misconfigured provider does not consume it.
+
+No breaking changes.
+
 ## [1.30.24] — 2026-07-19
 
 The safety check on generated text now covers every surface and every language.

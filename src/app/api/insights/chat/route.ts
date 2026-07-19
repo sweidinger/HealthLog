@@ -503,15 +503,33 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // figures stay in-context without re-paying for them. We therefore include
   // the full block only when:
   //   - this is the first turn (no prior turns on disk), OR
-  //   - the history window has begun eliding turns (`allTurns.length > TURN_CAP`)
-  //     — once the oldest turns are folded into the rolling summary the original
-  //     snapshot may have scrolled out of the verbatim window, so we re-ground.
+  //   - the history window has JUST begun eliding turns — once the oldest turns
+  //     are folded into the rolling summary the original snapshot may have
+  //     scrolled out of the verbatim window, so we re-ground exactly once at
+  //     that boundary.
   // On the cheap path (a follow-up inside the verbatim window) we send a short
   // pointer instead of the figures, preserving grounding + cross-metric
   // correlation quality at a fraction of the wire cost.
+  //
+  // The elision test is a narrow WINDOW, not the open-ended `allTurns.length >
+  // TURN_CAP` it replaced. That predicate is true for every turn past the cap,
+  // not just the one that crosses it, so a long conversation re-shipped the
+  // whole ~15k-token snapshot on turn 21, 22, 23 … — reinstating the exact
+  // per-turn cost this design removed, and paying it on the LONGEST
+  // conversations. A 60-turn conversation paid it ~40 times instead of twice.
+  //
+  // Width 2 rather than an exact `=== TURN_CAP` equality, because the turn
+  // count does not advance in fixed steps: the user turn is persisted before
+  // the provider call, the assistant turn only on success, so a failed turn
+  // advances the count by 1 and a successful one by 2. An exact-equality check
+  // would be stepped straight over by a conversation that ever lost a reply,
+  // and would then NEVER re-ground. A width-2 window cannot be stepped over by
+  // steps of 1 or 2, so the crossing is always caught, and it can match at most
+  // twice — bounded either way.
   const isFirstTurn = priorTurns.length === 0;
-  const historyEliding = allTurns.length > TURN_CAP;
-  const includeFullSnapshot = isFirstTurn || historyEliding;
+  const historyElisionCrossing =
+    priorTurns.length >= TURN_CAP && priorTurns.length <= TURN_CAP + 1;
+  const includeFullSnapshot = isFirstTurn || historyElisionCrossing;
   const transcript = window
     .map((t) => `${t.role.toUpperCase()}: ${t.content}`)
     .join("\n\n");

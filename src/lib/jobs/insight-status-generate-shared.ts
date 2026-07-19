@@ -95,12 +95,29 @@ export interface InsightStatusGeneratePayload {
 
 /**
  * Fire-and-forget enqueue used by the read-only status route on a cache
- * miss. A `singletonKey` per `(user, metric, locale)` collapses repeated
- * polls into one queued job, so a client polling every few seconds while
- * the provider works can't pile up duplicate generations. No-ops cleanly
- * when the global boss instance is not available (e.g. the web process
- * runs without an embedded worker) — the nightly pre-generate cron and
- * the daily status crons remain the catch-net.
+ * miss. A `singletonKey` per `(user, metric)` collapses repeated polls into
+ * one queued job, so a client polling every few seconds while the provider
+ * works can't pile up duplicate generations. No-ops cleanly when the global
+ * boss instance is not available (e.g. the web process runs without an
+ * embedded worker) — the nightly pre-generate cron and the daily status
+ * crons remain the catch-net.
+ *
+ * The key deliberately EXCLUDES `locale`. It used to be
+ * `(user, metric, locale)`, and the locale on a status read is client-chosen
+ * — the `?locale=` query param, or the `healthlog-locale` cookie, both of
+ * which a caller sets freely. Each distinct locale therefore opened its own
+ * singleton slot, so walking the metric registry across the six supported
+ * locales multiplied one legitimate generation pass into six, none of which
+ * the de-dupe could collapse. Keying on `(user, metric)` makes the locale a
+ * property of the queued payload instead of part of its identity: one
+ * generation per metric per window, whichever locale asked first.
+ *
+ * A legitimate language switch still works. The cache stays keyed by
+ * `(user, metric, locale)`, so the new locale is a genuine cache miss and
+ * enqueues normally; the only change is that a switch made WHILE a generation
+ * for the same metric is already in flight waits out the 120 s window instead
+ * of racing a second one. The next poll re-enqueues and the card converges to
+ * the requested language.
  */
 export async function enqueueStatusGeneration(
   payload: InsightStatusGeneratePayload,
@@ -115,7 +132,7 @@ export async function enqueueStatusGeneration(
   }
   try {
     await boss.send(INSIGHT_STATUS_GENERATE_QUEUE, payload, {
-      singletonKey: `${payload.userId}:${payload.metric}:${payload.locale}`,
+      singletonKey: `${payload.userId}:${payload.metric}`,
       // De-dupe within a short window so a polling client doesn't enqueue
       // a fresh job on every tick while a generation is already running.
       singletonSeconds: 120,
