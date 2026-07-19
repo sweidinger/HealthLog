@@ -752,11 +752,11 @@ describe("buildDashboardSnapshot — layoutCatalogue (35-id round-trip)", () => 
     isFullyCovered.mockReturnValue(false);
   });
 
-  it("emits all 38 catalogue ids with visibility + order", async () => {
+  it("emits all 42 catalogue ids with visibility + order", async () => {
     const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
-    expect(snap.layoutCatalogue).toHaveLength(38);
+    expect(snap.layoutCatalogue).toHaveLength(42);
     const ids = new Set(snap.layoutCatalogue.map((w) => w.id));
-    expect(ids.size).toBe(38);
+    expect(ids.size).toBe(42);
     // iOS-only ids appended default-invisible.
     const walkingSpeed = snap.layoutCatalogue.find(
       (w) => w.id === "walkingSpeed",

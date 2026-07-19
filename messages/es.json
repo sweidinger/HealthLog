@@ -440,7 +440,7 @@
         "totalBodyWater": "kg",
         "boneMass": "kg",
         "oxygenSaturation": "%",
-        "mood": "",
+        "mood": "/5",
         "bmi": "kg/m²"
       }
     }

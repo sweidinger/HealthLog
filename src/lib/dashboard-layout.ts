@@ -605,8 +605,6 @@ export const LAYOUT_FIELD_MERGE_DISPOSITION = {
   heroRingOrder: "preserve",
 } as const satisfies Record<keyof DashboardLayout, "replace" | "preserve">;
 
-export type LayoutFieldMergeDisposition = typeof LAYOUT_FIELD_MERGE_DISPOSITION;
-
 /**
  * The top-level layout fields the widgets PUT carries forward from the stored
  * layout when the request omits them. Derived from
