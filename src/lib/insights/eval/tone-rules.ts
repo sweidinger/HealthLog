@@ -253,6 +253,20 @@ const CLINICAL_VERDICT =
 const VALUE_LED_OPENER =
   /^(Your|Dein|Deine|Ihr|Ihre)\s+\S+(\s+\S+)?\s+(is|ist|liegt)\s+\d/i;
 
+/**
+ * The OTHER way a deterministic line stops leading with meaning: it opens on a
+ * bare order.
+ *
+ * This is what the no-signal floors were — "Measure blood pressure at rest and
+ * under comparable conditions", "Bewerte Gewicht vor allem im Verlauf". Not a
+ * value-led opener, so the number rules never saw it, but it is the same
+ * failure: the surface tells the reader what to do before it says anything
+ * about what it can and cannot see. A pointer is fine LATER in the line; it
+ * may not be the opening move.
+ */
+const IMPERATIVE_OPENER =
+  /^(Measure|Track|Evaluate|Monitor|Check|Watch|Log|React|Use|Keep|Pay|Consider|Make sure)\b|^(Miss|Bewerte|Beobachte|Achte|Nutze|Halte|Reagiere|Prüfe|Vergleiche|Erfasse)\b/;
+
 function firstSentence(text: string): string {
   const m = /^[^.!?]*[.!?]/.exec(text.trim());
   return (m ? m[0] : text.trim()).trim();
@@ -286,6 +300,14 @@ export function checkFallbackTone(input: {
         rule: "fallback-leads-with-meaning",
         detail:
           "the opening sentence carries a figure — the deterministic line opens on a value instead of the read",
+        excerpt: opener,
+      });
+    }
+    if (IMPERATIVE_OPENER.test(opener)) {
+      violations.push({
+        rule: "fallback-no-imperative-opener",
+        detail:
+          "the line opens on an order rather than on what the surface can honestly say",
         excerpt: opener,
       });
     }
