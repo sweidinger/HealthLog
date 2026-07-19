@@ -28,6 +28,7 @@ import { resolveModuleMap } from "@/lib/modules/gate";
 import { userDayKey } from "@/lib/tz/format";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { enqueueMorningDigestRefresh } from "@/lib/jobs/morning-digest-refresh-shared";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
 
 const MS_PER_DAY = 86_400_000;
 
@@ -143,6 +144,31 @@ export async function maybeEnqueueMorningRefresh(
         sleep_samples: sleepMeasuredAts.length,
       },
     });
+
+    // v1.31.0 — the sleep arm of the data-arrival spine.
+    //
+    // Sleep gets exactly ONE seam for all seven transports, right here, because
+    // the four gates above ARE the sleep salience rules: module off, no rows,
+    // not-last-night (the same tz-honest recency predicate the spine's
+    // classifier generalises), already-refreshed. Reaching this line means the
+    // arrival is salient by construction, so the seven sleep-write call sites
+    // inherit the spine untouched and nothing is duplicated.
+    //
+    // It still routes through `emitDataArrival` rather than enqueuing directly:
+    // the classifier agreeing a second time is free, and the uniform
+    // `arrival.*` annotations are what make trigger volume comparable across
+    // kinds.
+    const newestSleepAt = sleepMeasuredAts.reduce((a, b) =>
+      b.getTime() > a.getTime() ? b : a,
+    );
+    void emitDataArrival({
+      userId,
+      kind: "sleep_night",
+      newestSampleAt: newestSleepAt,
+      insertedCount: sleepMeasuredAts.length,
+      source: "sleep",
+      now,
+    }).catch(() => {});
   } catch {
     // Never let a freshness trigger fail an ingest. The next sleep landing and
     // the nightly cron are the catch-net; the digest stays honestly

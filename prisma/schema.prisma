@@ -792,6 +792,10 @@ model User {
   // v1.11.0 W3 — one durable period-narrative row per (period, locale).
   // Delete/regenerate-clean; the generated prose is AES-256-GCM at rest.
   insightNarratives           InsightNarrative[]
+  // v1.31.0 — the data-arrival spine's durable per-day reaction marker. One
+  // row per (kind, local day); the unique index IS the once-per-kind-per-day
+  // claim every reaction surface reads. Retained 14 days.
+  arrivalReactions            ArrivalReaction[]
   // v1.17.1 — preventive-care / measurement (Vorsorge) reminders. One row
   // per user-created reminder ("BP every 7 days", "annual blood panel").
   // Server computes the canonical `nextDueAt`; the cron fires through the
@@ -3242,9 +3246,9 @@ model RefreshToken {
 // the token pair the first exchange issued (refresh-token reuse-detection
 // posture). 90-second TTL enforced at read; a daily sweep prunes stale rows.
 model OidcNativeHandoff {
-  id        String @id @default(cuid())
-  userId    String @map("user_id")
-  codeHash  String @unique @map("code_hash") // hashToken(hlh_<…>)
+  id                     String    @id @default(cuid())
+  userId                 String    @map("user_id")
+  codeHash               String    @unique @map("code_hash") // hashToken(hlh_<…>)
   /// The app's S256 PKCE challenge, bound at mint; the exchange verifies
   /// s256(code_verifier) against it (constant-time) before consuming.
   codeChallenge          String    @map("code_challenge")
@@ -3254,8 +3258,8 @@ model OidcNativeHandoff {
   /// revokes exactly this family member (+ its paired access token).
   issuedRefreshTokenHash String?   @map("issued_refresh_token_hash")
   createdAt              DateTime  @default(now()) @map("created_at")
-  ipAddress             String?   @map("ip_address")
-  userAgent             String?   @map("user_agent")
+  ipAddress              String?   @map("ip_address")
+  userAgent              String?   @map("user_agent")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -5258,6 +5262,49 @@ model InsightNarrative {
   @@map("insight_narratives")
 }
 
+// ─── Data-arrival spine (v1.31.0) ─────────────────────────────
+//
+// One row per (user, arrival kind, local day). The row is written by the
+// `data-arrival` worker after a SALIENT ingest — never by a backfill, which
+// the seam classifier drops before anything is enqueued.
+//
+// The unique index is load-bearing three times over: it is the "just in"
+// marker the reaction surfaces read, it is the at-most-one-generated-line
+// per kind per day claim (inserted with ON CONFLICT DO NOTHING, so a lost
+// race means another worker already owns today's line), and it is the audit
+// trail for what the spine actually reacted to.
+model ArrivalReaction {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  /// One of `ARRIVAL_KINDS` (`@/lib/arrivals/types`).
+  kind          String
+  /// The user's PROFILE-timezone YYYY-MM-DD this reaction is filed under.
+  localDate     String    @map("local_date")
+  /// Timestamp of the newest sample that triggered it.
+  occurredAt    DateTime  @map("occurred_at")
+  /// Kind-scoped referent: the workout id for `workout`, the panel day for labs.
+  refId         String?   @map("ref_id")
+  /// AES-256-GCM ciphertext of the generated reaction line. Null until — and
+  /// unless — a line is generated: the marker is the feature, the sentence is
+  /// garnish, and a provider-less install never fills this in. Follows the
+  /// `InsightNarrative.encryptedContent` precedent, NOT the plaintext pattern
+  /// the status cards use. Registered in `scripts/rotate-encryption-key.ts`.
+  lineEncrypted Bytes?    @map("line_encrypted")
+  generatedAt   DateTime? @map("generated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The once-per-kind-per-local-day claim. Do not relax this to include
+  // `refId` — the day scope is the throttle.
+  @@unique([userId, kind, localDate])
+  // The reaction surfaces read "today's rows for this user".
+  @@index([userId, localDate])
+  // The nightly retention sweep deletes by age.
+  @@index([createdAt])
+  @@map("arrival_reactions")
+}
+
 // ─── Cycle Tracking (v1.15.0) ─────────────────────────────────
 //
 // Self-hosted reproductive-health tracking: period + flow, symptom
@@ -6334,14 +6381,14 @@ model DocumentConditionLink {
 /// versioned key (no schema column), and key rotation re-tokenises from the
 /// decrypted `textEncrypted`.
 model DocumentContentIndex {
-  id               String   @id @default(cuid())
-  documentId       String   @unique @map("document_id")
-  userId           String   @map("user_id")
+  id                    String   @id @default(cuid())
+  documentId            String   @unique @map("document_id")
+  userId                String   @map("user_id")
   /// AES-256-GCM ciphertext of the normalised extracted text (capped, first
   /// ~64 KiB), stored as the `encrypt()`-string-as-UTF-8 Bytes shape shared
   /// with the Coach columns. The plaintext is recoverable server-side so
   /// rotation can re-tokenise; the list query never selects it.
-  textEncrypted    Bytes    @map("text_encrypted")
+  textEncrypted         Bytes    @map("text_encrypted")
   /// v1.27.33 (Document vault P4 — chat about a document) — AES-256-GCM
   /// ciphertext of the VERBATIM extracted text (byte-capped, NOT lowercased or
   /// de-accented), stored additionally alongside `textEncrypted` so a document
@@ -6350,22 +6397,22 @@ model DocumentContentIndex {
   /// UTF-8 Bytes shape as every other PHI column. Nullable: rows indexed before
   /// P4 carry NULL until re-indexed, and the chat route falls back to the
   /// normalised `textEncrypted` when it is absent. The list query never selects it.
-  verbatimTextEncrypted Bytes? @map("verbatim_text_encrypted")
+  verbatimTextEncrypted Bytes?   @map("verbatim_text_encrypted")
   /// Deduped HMAC-SHA256 (truncated hex) of the normalised tokens — the blind
   /// index. One-way: opaque without the server-held index subkey. GIN-indexed
   /// (raw SQL in the migration; Prisma cannot express a GIN index).
-  searchTokens     String[] @default([]) @map("search_tokens")
+  searchTokens          String[] @default([]) @map("search_tokens")
   /// Provenance of the indexed text: "vision" (provider transcription of the
   /// stored original), "text-ocr" (browser-OCR text posted by the client),
   /// "local-pdf" (server-side text-layer extraction, no provider) or "local-ocr"
   /// (server-side OCR of a scanned document — deferred follow-up). Free String;
   /// adding a source value needs no migration.
-  source           String
+  source                String
   /// Provider type that produced the text (diagnostic only), or null on the
   /// text-ocr path.
-  providerType     String?  @map("provider_type")
+  providerType          String?  @map("provider_type")
   /// Tokeniser algorithm version — bump to force a re-index on a scheme change.
-  tokenizerVersion String   @map("tokenizer_version")
+  tokenizerVersion      String   @map("tokenizer_version")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -6386,23 +6433,23 @@ model DocumentContentIndex {
 /// source, so the preview is metadata-free by construction. Owner-scoped
 /// serve route only; cascades on delete.
 model DocumentThumbnail {
-  id                 String   @id @default(cuid())
-  documentId         String   @unique @map("document_id")
-  userId             String   @map("user_id")
+  id                 String @id @default(cuid())
+  documentId         String @unique @map("document_id")
+  userId             String @map("user_id")
   /// AES-256-GCM ciphertext of the JPEG preview, stored as the
   /// `encrypt()`-string-as-UTF-8 Bytes shape (base64 of the JPEG), the same
   /// codec `DocumentContentIndex.textEncrypted` uses so the standard
   /// key-rotation walk covers it. A scanned medical preview is PHI — never
   /// stored in the clear or logged. The list query never selects it.
-  thumbnailEncrypted Bytes    @map("thumbnail_encrypted")
+  thumbnailEncrypted Bytes  @map("thumbnail_encrypted")
   /// Decoded thumbnail dimensions (px) — diagnostic + lets a future consumer
   /// size the tile without decoding the blob.
   width              Int
   height             Int
   /// Plaintext byte length of the JPEG (pre-encryption), for `Content-Length`.
-  byteSize           Int      @map("byte_size")
+  byteSize           Int    @map("byte_size")
   /// Source MIME the preview was rendered from (diagnostic only).
-  sourceMime         String   @map("source_mime")
+  sourceMime         String @map("source_mime")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

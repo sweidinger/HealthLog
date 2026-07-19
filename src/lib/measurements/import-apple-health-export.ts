@@ -40,6 +40,7 @@ import {
   canonicalDailyTimestamp,
 } from "@/lib/measurements/drain-per-sample-cumulative";
 import { resolveHkWorkoutSportType } from "@/lib/measurements/hk-workout-activity-type-map";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
 import { validateMeasurementRange } from "@/lib/validations/measurement";
 import {
   CycleImportAccumulator,
@@ -496,10 +497,18 @@ export async function streamParseExportXml(
     });
     const existingKey = new Set(existingRows.map((r) => r.externalId));
 
+    // v1.31.0 — data-arrival spine. An export is the archetypal backfill, so
+    // this tracks only the NEWEST row the chunk CREATED and emits once per
+    // flushed chunk rather than once per row. A ten-year export therefore
+    // costs a handful of classifier calls that all resolve to `backfill`,
+    // instead of thousands. A genuinely fresh export still reacts, because a
+    // same-day workout is by definition the newest one it created.
+    let newestCreated: { id: string; startedAt: Date } | null = null;
+
     for (const row of chunk) {
       const rowStart = Date.now();
       const exists = existingKey.has(row.externalId);
-      await prisma.workout.upsert({
+      const saved = await prisma.workout.upsert({
         where: {
           userId_source_externalId: {
             userId,
@@ -530,11 +539,32 @@ export async function streamParseExportXml(
           externalSourceVersion: row.externalSourceVersion,
           metadata: row.metadata ?? undefined,
         },
+        select: { id: true, startedAt: true },
       });
       workouts.durationMs += Date.now() - rowStart;
-      if (exists) workouts.updated += 1;
-      else workouts.inserted += 1;
+      if (exists) {
+        workouts.updated += 1;
+      } else {
+        workouts.inserted += 1;
+        if (
+          !newestCreated ||
+          saved.startedAt.getTime() > newestCreated.startedAt.getTime()
+        ) {
+          newestCreated = saved;
+        }
+      }
       rowsUpserted += 1;
+    }
+
+    if (newestCreated) {
+      void emitDataArrival({
+        userId,
+        kind: "workout",
+        newestSampleAt: newestCreated.startedAt,
+        insertedCount: 1,
+        refId: newestCreated.id,
+        source: "apple_export",
+      }).catch(() => {});
     }
   };
 

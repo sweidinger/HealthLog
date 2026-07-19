@@ -140,6 +140,8 @@ import {
   handleMoodReminderCleanup,
   PushAttemptCleanupPayload,
   handlePushAttemptCleanup,
+  ArrivalReactionCleanupPayload,
+  handleArrivalReactionCleanup,
   MeasurementTombstoneCleanupPayload,
   handleMeasurementTombstoneCleanup,
   handleRateLimitCleanup,
@@ -231,6 +233,13 @@ const PUSH_ATTEMPT_CLEANUP_QUEUE = "push-attempt-cleanup";
 
 const PUSH_ATTEMPT_CLEANUP_CRON = "35 3 * * *";
 
+// v1.31.0 — daily prune for the data-arrival spine's reaction markers.
+// Slots at 04:10, after the 03:xx retention block and the 04:00 MCP-token
+// prune, so the maintenance window stays in a readable order.
+const ARRIVAL_REACTION_CLEANUP_QUEUE = "arrival-reaction-cleanup";
+
+const ARRIVAL_REACTION_CLEANUP_CRON = "10 4 * * *";
+
 const MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE = "measurement-tombstone-cleanup";
 
 const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
@@ -307,6 +316,9 @@ const allQueues = [
   // v1.4.49 — push-attempt ledger cleanup. The daily schedule below would
   // silently no-op without this entry.
   PUSH_ATTEMPT_CLEANUP_QUEUE,
+  // v1.31.0 — data-arrival reaction-marker prune. Without this entry the
+  // daily schedule silently no-ops and the markers accumulate forever.
+  ARRIVAL_REACTION_CLEANUP_QUEUE,
   // v1.7.0 — soft-deleted measurement tombstone prune. Without this entry
   // the daily schedule silently no-ops and pruned-past-retention tombstones
   // pile up forever.
@@ -419,6 +431,8 @@ const schedules: ScheduleEntry[] = [
   [INTAKE_SLOT_DEDUP_QUEUE, INTAKE_SLOT_DEDUP_CRON],
   // v1.4.49 — daily 03:35 Europe/Berlin prune for push_attempts.
   [PUSH_ATTEMPT_CLEANUP_QUEUE, PUSH_ATTEMPT_CLEANUP_CRON],
+  // v1.31.0 — daily 04:10 Europe/Berlin prune for arrival_reactions.
+  [ARRIVAL_REACTION_CLEANUP_QUEUE, ARRIVAL_REACTION_CLEANUP_CRON],
   // v1.7.0 — daily 03:40 Europe/Berlin prune for expired measurement
   // tombstones.
   [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
@@ -596,6 +610,14 @@ export async function registerMaintenanceQueues(
     PUSH_ATTEMPT_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handlePushAttemptCleanup,
+  );
+  // v1.31.0 — daily prune of the data-arrival reaction markers. Single-flight
+  // like every other cleanup queue: two ticks racing the same DELETE is
+  // wasted work.
+  await boss.work<ArrivalReactionCleanupPayload>(
+    ARRIVAL_REACTION_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleArrivalReactionCleanup,
   );
   // v1.7.0 — daily prune of expired measurement tombstones. Single-flight
   // like every other cleanup queue.

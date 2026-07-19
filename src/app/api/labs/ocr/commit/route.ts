@@ -25,6 +25,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { withIdempotency } from "@/lib/idempotency";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
 import { resolveOrMintBiomarker } from "@/lib/labs/biomarker-store";
 import { serialiseLabResult } from "@/lib/labs/serialise";
 import {
@@ -214,6 +215,24 @@ async function commitOcrRows(request: NextRequest) {
     fireAndForget(enqueueReminderSatisfy(user.id), {
       action: "reminder.satisfy.enqueue",
     });
+
+    // v1.31.0 — the labs arm of the data-arrival spine. This seam DOES know
+    // its whole panel (the commit builds a per-row `linkable` list), so it
+    // emits once with the newest draw date and the true inserted count rather
+    // than leaning on the singleton key to collapse per-row emits.
+    const newestTakenAt = linkable.reduce<Date | null>(
+      (acc, r) => (!acc || r.takenAt > acc ? r.takenAt : acc),
+      null,
+    );
+    if (newestTakenAt) {
+      void emitDataArrival({
+        userId: user.id,
+        kind: "labs_panel",
+        newestSampleAt: newestTakenAt,
+        insertedCount: inserted.length,
+        source: "ocr",
+      }).catch(() => {});
+    }
   }
 
   return apiSuccess({ inserted, skipped });
