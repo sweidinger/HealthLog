@@ -40,6 +40,7 @@ vi.mock("@/lib/jobs/workout-insight-generate-shared", async (orig) => {
 });
 
 import { emitWorkoutArrivalIfCreated } from "@/lib/arrivals/workout-emit";
+import { DATA_ARRIVAL_QUEUE } from "@/lib/arrivals/emit-shared";
 import { runDataArrival } from "../data-arrival";
 import { enqueueWorkoutInsight } from "@/lib/jobs/workout-insight-generate-shared";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
@@ -206,9 +207,15 @@ describe("Activity Insight — a backfill spends nothing", () => {
     }
 
     expect(rows).toHaveLength(791);
-    expect(sent).toHaveLength(1);
+    const arrivalJobs = sent.filter(
+      ({ queue }) => queue === DATA_ARRIVAL_QUEUE,
+    );
+    expect(arrivalJobs).toHaveLength(1);
 
-    for (const job of sent) {
+    // Snapshot only the spine jobs. Processing one appends downstream
+    // reaction-line work to `sent`; iterating that live, growing array would
+    // feed a different queue's payload back into this worker forever.
+    for (const job of arrivalJobs) {
       await runDataArrival(claimingPrisma(), job.payload);
     }
     expect(enqueueWorkoutInsight).toHaveBeenCalledTimes(1);
