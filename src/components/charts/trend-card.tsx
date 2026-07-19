@@ -10,7 +10,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
-import { pluralKey } from "@/lib/i18n/plural";
 import type { ComparisonBaseline } from "@/lib/dashboard-layout";
 import {
   getTrendSentiment,
@@ -131,7 +130,7 @@ export function TrendCard({
   emptyHint = null,
   valueAdornment = null,
 }: TrendCardProps) {
-  const { t, locale } = useTranslations();
+  const { t, tCount } = useTranslations();
   const fmt = useFormatters();
 
   // v1.4.33 F5 — pick a single signal to drive both the arrow and the
@@ -371,14 +370,10 @@ export function TrendCard({
               }
               if (staleDays <= 60) {
                 const weeks = Math.floor(staleDays / 7);
-                return t(pluralKey("dashboard.staleHintWeeks", weeks, locale), {
-                  count: weeks,
-                });
+                return tCount("dashboard.staleHintWeeks", weeks);
               }
               const months = Math.floor(staleDays / 30);
-              return t(pluralKey("dashboard.staleHintMonths", months, locale), {
-                count: months,
-              });
+              return tCount("dashboard.staleHintMonths", months);
             })()}
           </span>
         )}
