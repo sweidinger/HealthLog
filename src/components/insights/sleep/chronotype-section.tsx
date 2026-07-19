@@ -25,9 +25,17 @@ import { ChronotypeCard } from "./chronotype-card";
  */
 export function ChronotypeSection({ enabled }: { enabled: boolean }) {
   const { isAuthenticated } = useAuth();
-  const { data, isLoading } = useSleepRhythm(isAuthenticated && enabled);
+  const { data, isLoading, isError } = useSleepRhythm(
+    isAuthenticated && enabled,
+  );
 
   if (!enabled) return null;
+
+  // The page owns the single error notice for this shared read (all three
+  // cards resolve the same query, so a per-card notice printed it three
+  // times). Bail out here rather than falling through to the skeleton below,
+  // which would otherwise spin forever on a failed read.
+  if (isError) return null;
 
   if (isLoading || !data) {
     return (
