@@ -42,7 +42,9 @@
     "hidePassword": "Hide password",
     "learnMore": "Learn more",
     "dismiss": "Dismiss",
-    "moreInfo": "More information"
+    "moreInfo": "More information",
+    "durationHoursMinutes": "{hours}h {minutes}m",
+    "durationMinutes": "{minutes}m"
   },
   "doctorReport": {
     "title": "Health Report",
@@ -400,8 +402,10 @@
     "staleHint": "Last reading {count} d ago",
     "staleHintWeeksOne": "Last reading 1 week ago",
     "staleHintWeeksOther": "Last reading {count} weeks ago",
+    "staleHintWeeksFew": "Last reading {count} weeks ago",
     "staleHintMonthsOne": "Last reading 1 month ago",
     "staleHintMonthsOther": "Last reading {count} months ago",
+    "staleHintMonthsFew": "Last reading {count} months ago",
     "recentWorkouts": {
       "title": "Recent workouts",
       "viewAll": "View all",
@@ -2558,10 +2562,13 @@
     "relativeJustNow": "just now",
     "relativeMinutesAgoOne": "{count} minute ago",
     "relativeMinutesAgoOther": "{count} minutes ago",
+    "relativeMinutesAgoFew": "{count} minutes ago",
     "relativeHoursAgoOne": "{count} hour ago",
     "relativeHoursAgoOther": "{count} hours ago",
+    "relativeHoursAgoFew": "{count} hours ago",
     "relativeDaysAgoOne": "{count} day ago",
     "relativeDaysAgoOther": "{count} days ago",
+    "relativeDaysAgoFew": "{count} days ago",
     "navOverview": "Overview",
     "navCatalog": "All metrics",
     "navBloodPressure": "Blood Pressure",
@@ -8015,6 +8022,11 @@
         "review_due": "Check-in due",
         "reviewed": "Reviewed"
       }
+    },
+    "refusal": {
+      "outOfScope": "I can only help with the health metrics in your log — measurements, medications, mood, trends. I cannot answer questions outside that scope.",
+      "promptInjection": "I noticed wording that tries to override my instructions. I am the HealthLog Coach and only summarise your own health data — please rephrase your question in those terms.",
+      "conversationPoisoned": "An earlier message in this conversation contains wording that overrides my instructions. Please start a new conversation."
     }
   },
   "safety": {

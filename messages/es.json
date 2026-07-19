@@ -42,7 +42,9 @@
     "hidePassword": "Ocultar contraseña",
     "learnMore": "Más información",
     "dismiss": "Descartar",
-    "moreInfo": "Más información"
+    "moreInfo": "Más información",
+    "durationHoursMinutes": "{hours} h {minutes} min",
+    "durationMinutes": "{minutes} min"
   },
   "doctorReport": {
     "title": "Informe de salud",
@@ -400,8 +402,10 @@
     "staleHint": "Último valor hace {count} d",
     "staleHintWeeksOne": "Último valor hace 1 semana",
     "staleHintWeeksOther": "Último valor hace {count} semanas",
+    "staleHintWeeksFew": "Último valor hace {count} semanas",
     "staleHintMonthsOne": "Último valor hace 1 mes",
     "staleHintMonthsOther": "Último valor hace {count} meses",
+    "staleHintMonthsFew": "Último valor hace {count} meses",
     "recentWorkouts": {
       "title": "Entrenamientos recientes",
       "viewAll": "Ver todos",
@@ -2558,10 +2562,13 @@
     "relativeJustNow": "ahora mismo",
     "relativeMinutesAgoOne": "hace {count} minuto",
     "relativeMinutesAgoOther": "hace {count} minutos",
+    "relativeMinutesAgoFew": "hace {count} minutos",
     "relativeHoursAgoOne": "hace {count} hora",
     "relativeHoursAgoOther": "hace {count} horas",
+    "relativeHoursAgoFew": "hace {count} horas",
     "relativeDaysAgoOne": "hace {count} día",
     "relativeDaysAgoOther": "hace {count} días",
+    "relativeDaysAgoFew": "hace {count} días",
     "navOverview": "Resumen",
     "navCatalog": "Todas las métricas",
     "navBloodPressure": "Presión arterial",
@@ -8015,6 +8022,11 @@
         "review_due": "Revisión pendiente",
         "reviewed": "Revisado"
       }
+    },
+    "refusal": {
+      "outOfScope": "Solo puedo ayudarte con los datos de salud de tu registro: mediciones, medicamentos, estado de ánimo, tendencias. No puedo responder preguntas fuera de ese ámbito.",
+      "promptInjection": "He detectado instrucciones que intentan anular mis directrices. Soy el Coach de HealthLog y solo resumo tus propios datos de salud; reformula tu pregunta en esos términos, por favor.",
+      "conversationPoisoned": "Un mensaje anterior de esta conversación contiene instrucciones que intentan anular mis directrices. Empieza una conversación nueva, por favor."
     }
   },
   "safety": {

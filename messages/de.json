@@ -42,7 +42,9 @@
     "hidePassword": "Passwort verbergen",
     "learnMore": "Mehr erfahren",
     "dismiss": "Schließen",
-    "moreInfo": "Mehr Informationen"
+    "moreInfo": "Mehr Informationen",
+    "durationHoursMinutes": "{hours} Std. {minutes} Min.",
+    "durationMinutes": "{minutes} Min."
   },
   "doctorReport": {
     "title": "Gesundheitsbericht",
@@ -400,8 +402,10 @@
     "staleHint": "Letzter Wert vor {count} T.",
     "staleHintWeeksOne": "Letzter Wert vor 1 Woche",
     "staleHintWeeksOther": "Letzter Wert vor {count} Wochen",
+    "staleHintWeeksFew": "Letzter Wert vor {count} Wochen",
     "staleHintMonthsOne": "Letzter Wert vor 1 Monat",
     "staleHintMonthsOther": "Letzter Wert vor {count} Monaten",
+    "staleHintMonthsFew": "Letzter Wert vor {count} Monaten",
     "recentWorkouts": {
       "title": "Letzte Workouts",
       "viewAll": "Alle anzeigen",
@@ -2558,10 +2562,13 @@
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",
     "relativeMinutesAgoOther": "vor {count} Minuten",
+    "relativeMinutesAgoFew": "vor {count} Minuten",
     "relativeHoursAgoOne": "vor {count} Stunde",
     "relativeHoursAgoOther": "vor {count} Stunden",
+    "relativeHoursAgoFew": "vor {count} Stunden",
     "relativeDaysAgoOne": "vor {count} Tag",
     "relativeDaysAgoOther": "vor {count} Tagen",
+    "relativeDaysAgoFew": "vor {count} Tagen",
     "navOverview": "Übersicht",
     "navCatalog": "Alle Messwerte",
     "navBloodPressure": "Blutdruck",
@@ -8015,6 +8022,11 @@
         "review_due": "Check-in fällig",
         "reviewed": "Ausgewertet"
       }
+    },
+    "refusal": {
+      "outOfScope": "Ich kann nur bei den Gesundheitsdaten in deinem Log helfen — Messwerte, Medikamente, Stimmung, Trends. Fragen außerhalb dieses Themas beantworte ich nicht.",
+      "promptInjection": "In deiner Nachricht stehen Anweisungen, die meine Vorgaben überschreiben sollen. Ich bin der HealthLog-Coach und fasse ausschließlich deine eigenen Gesundheitsdaten zusammen — formuliere deine Frage bitte in diesem Rahmen neu.",
+      "conversationPoisoned": "Eine frühere Nachricht in dieser Unterhaltung enthält Anweisungen, die meine Vorgaben überschreiben sollen. Beginne bitte eine neue Unterhaltung."
     }
   },
   "safety": {

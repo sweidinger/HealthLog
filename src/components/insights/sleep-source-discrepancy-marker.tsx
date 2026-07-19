@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTranslations } from "@/lib/i18n/context";
+import { formatDurationMinutes } from "@/lib/i18n/duration";
 
 /**
  * v1.28.x — the discreet "sources disagree" marker, extracted from
@@ -27,15 +28,6 @@ export interface SleepSourceDiscrepancyDto {
     deviceType: string | null;
     asleepMinutes: number;
   }[];
-}
-
-export function formatMinutes(total: number, locale: string): string {
-  const hours = Math.floor(total / 60);
-  const mins = Math.round(total - hours * 60);
-  if (locale === "de") {
-    return hours > 0 ? `${hours} Std. ${mins} Min.` : `${mins} Min.`;
-  }
-  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 }
 
 /**
@@ -110,7 +102,7 @@ export function SleepSourceDiscrepancyMarker({
   discrepancy,
   align = "start",
 }: SleepSourceDiscrepancyMarkerProps) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   if (!discrepancy) return null;
   return (
     <TooltipProvider delayDuration={150}>
@@ -137,7 +129,7 @@ export function SleepSourceDiscrepancyMarker({
             {discrepancy.sources
               .map(
                 (b) =>
-                  `${sourceDisplayName(b.source, b.deviceType, t)} ${formatMinutes(b.asleepMinutes, locale)}`,
+                  `${sourceDisplayName(b.source, b.deviceType, t)} ${formatDurationMinutes(b.asleepMinutes, t)}`,
               )
               .join(" · ")}
           </p>

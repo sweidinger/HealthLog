@@ -42,7 +42,9 @@
     "hidePassword": "Ukryj hasło",
     "learnMore": "Dowiedz się więcej",
     "dismiss": "Odrzuć",
-    "moreInfo": "Więcej informacji"
+    "moreInfo": "Więcej informacji",
+    "durationHoursMinutes": "{hours} godz. {minutes} min",
+    "durationMinutes": "{minutes} min"
   },
   "doctorReport": {
     "title": "Raport zdrowotny",
@@ -400,8 +402,10 @@
     "staleHint": "Ostatni odczyt {count} d temu",
     "staleHintWeeksOne": "Ostatni odczyt 1 tydzień temu",
     "staleHintWeeksOther": "Ostatni odczyt {count} tygodni temu",
+    "staleHintWeeksFew": "Ostatni odczyt {count} tygodnie temu",
     "staleHintMonthsOne": "Ostatni odczyt 1 miesiąc temu",
     "staleHintMonthsOther": "Ostatni odczyt {count} miesięcy temu",
+    "staleHintMonthsFew": "Ostatni odczyt {count} miesiące temu",
     "recentWorkouts": {
       "title": "Ostatnie treningi",
       "viewAll": "Zobacz wszystkie",
@@ -2558,10 +2562,13 @@
     "relativeJustNow": "przed chwilą",
     "relativeMinutesAgoOne": "{count} minutę temu",
     "relativeMinutesAgoOther": "{count} minut temu",
+    "relativeMinutesAgoFew": "{count} minuty temu",
     "relativeHoursAgoOne": "{count} godzinę temu",
     "relativeHoursAgoOther": "{count} godzin temu",
+    "relativeHoursAgoFew": "{count} godziny temu",
     "relativeDaysAgoOne": "{count} dzień temu",
     "relativeDaysAgoOther": "{count} dni temu",
+    "relativeDaysAgoFew": "{count} dni temu",
     "navOverview": "Przegląd",
     "navCatalog": "Wszystkie metryki",
     "navBloodPressure": "Ciśnienie krwi",
@@ -8015,6 +8022,11 @@
         "review_due": "Przegląd do zrobienia",
         "reviewed": "Oceniony"
       }
+    },
+    "refusal": {
+      "outOfScope": "Mogę pomóc wyłącznie z danymi zdrowotnymi z Twojego dziennika: pomiarami, lekami, nastrojem, trendami. Na pytania spoza tego zakresu nie odpowiadam.",
+      "promptInjection": "Zauważyłem polecenia, które próbują obejść moje wytyczne. Jestem Coachem HealthLog i podsumowuję wyłącznie Twoje własne dane zdrowotne — sformułuj pytanie w tych ramach.",
+      "conversationPoisoned": "Wcześniejsza wiadomość w tej rozmowie zawiera polecenia, które próbują obejść moje wytyczne. Rozpocznij nową rozmowę."
     }
   },
   "safety": {
