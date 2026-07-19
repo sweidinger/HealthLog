@@ -1600,7 +1600,9 @@ function safeParseSnapshotJson(json: string): Record<string, unknown> {
   if (!json) return {};
   try {
     const parsed: unknown = JSON.parse(json);
-    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+    return parsed !== null &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)
       : {};
   } catch {

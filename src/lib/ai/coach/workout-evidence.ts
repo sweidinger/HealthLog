@@ -148,7 +148,11 @@ export function assertNumbersOnly(
   allowedStrings: ReadonlySet<string>,
   path = "$",
 ): void {
-  if (value === null || typeof value === "number" || typeof value === "boolean") {
+  if (
+    value === null ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
     if (typeof value === "number" && !Number.isFinite(value)) {
       throw new Error(`workout evidence: non-finite number at ${path}`);
     }
@@ -163,7 +167,9 @@ export function assertNumbersOnly(
     return;
   }
   if (Array.isArray(value)) {
-    value.forEach((v, i) => assertNumbersOnly(v, allowedStrings, `${path}[${i}]`));
+    value.forEach((v, i) =>
+      assertNumbersOnly(v, allowedStrings, `${path}[${i}]`),
+    );
     return;
   }
   if (typeof value === "object") {

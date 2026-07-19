@@ -16,9 +16,9 @@ import { prisma } from "@/lib/db";
 import { pickCanonicalWorkoutRows } from "@/lib/measurements/pick-canonical-workout-rows";
 
 /** Own-history lookback for the sport-average comparison line. */
-export const SPORT_CONTEXT_LOOKBACK_DAYS = 180;
+const SPORT_CONTEXT_LOOKBACK_DAYS = 180;
 /** Slim-row cap for the sport-average read. */
-export const SPORT_CONTEXT_MAX_ROWS = 500;
+const SPORT_CONTEXT_MAX_ROWS = 500;
 
 export interface WorkoutSportContext {
   count: number;

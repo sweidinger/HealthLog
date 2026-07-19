@@ -94,6 +94,9 @@ describe("resolveLaunchState", () => {
       prefill: null,
       scope: null,
       documentId: "doc-123",
+      // v1.31.0 — a document launch never carries a workout scope; the two
+      // are set by different call sites and never together.
+      workoutId: null,
       autoSend: false,
     });
   });

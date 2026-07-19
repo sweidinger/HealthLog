@@ -640,7 +640,9 @@ export function CoachConversation({
     // brand-new conversation (first-turn attach).
     // Same first-turn gate as `scope` — see `initialWorkoutId`.
     const workoutId =
-      currentConversationId === null ? (initialWorkoutId ?? undefined) : undefined;
+      currentConversationId === null
+        ? (initialWorkoutId ?? undefined)
+        : undefined;
     const wasFreshFenced = currentConversationId === null && fenced;
     const resolvedId = await send.send({
       conversationId: currentConversationId ?? undefined,
