@@ -35,8 +35,8 @@ vi.mock("@/lib/jobs/workout-insight-generate-shared", () => ({
   enqueueWorkoutInsight: vi.fn(async () => ({ enqueued: true })),
 }));
 
-const createMany = vi.fn(async (_args: unknown) => ({ count: 1 }));
-const updateMany = vi.fn(async (_args: unknown) => ({ count: 1 }));
+const createMany = vi.fn(async () => ({ count: 1 }));
+const updateMany = vi.fn(async () => ({ count: 1 }));
 const fakePrisma = { arrivalReaction: { createMany, updateMany } };
 
 const { runDataArrival } = await import("../data-arrival");

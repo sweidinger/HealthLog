@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+## [1.31.0] — "The record that reacts" — 2026-07-19
+
+A milestone release: the record now visibly responds when something lands,
+instead of waiting for a daily rollup to notice.
+
+- **Today shows what just came in.** A completed night's sleep, a workout, a
+  first weigh-in of the day — the home screen now carries a calm "just in"
+  note for a few hours after each one, and at most one written line a day per
+  kind, grounded in your own numbers. Nothing changes if you run without an
+  AI provider: the note is the garnish, not the feature. The underlying
+  change that makes this possible without new polling or a flood of
+  background work: every write path that can produce a genuinely new reading
+  now emits a single typed event, day-scoped and de-duplicated, that a mass
+  import or a provider re-sync produces none of — a ten-year import or a
+  month of catch-up sync stays silent, by construction, not by luck.
+- **A finished workout gets its own paragraph.** Opening a recent session now
+  shows a short, grounded read of that one activity — duration, effort,
+  where it sits against your own recent sessions for the sport — with no
+  training advice and no target zones. It is generated once, the first time
+  you open a fresh session, never on re-sync and never for older workouts
+  already in your record.
+- **"Ask why" reaches every read-only card.** Every per-metric status card,
+  every derived-score page, and a finished workout now carries a way straight
+  into the coach, pre-loaded with just that card's own data so the
+  conversation starts already grounded — not with a blank prompt.
+- **The lab-marker card and the offline metric texts speak with the same
+  voice as everything else** — meaning first, in your own language across
+  all six locales, checked by an automated tone pass that now runs on every
+  change to these surfaces so this kind of drift gets caught before it ships
+  again.
+- **The dashboard layout stops discarding a comparison choice on save,** and
+  four clinical widgets stop disappearing from a saved layout — both from a
+  save made by a client that does not know those particular fields yet.
+- **Mood and BMI reach the app's home screen**, and a medication pen can now
+  carry the maker and printed strength that show up in the native pen list.
+- **Every new AI call this release can cause is metered and bounded**: a
+  daily cap per kind, a duplicate-content check that makes a re-post free,
+  and a token reservation that is always reconciled, including on every
+  failure path — the same discipline the rest of the AI surface already
+  holds to.
+
+One migration this release (0257); an additional dashboard-widget migration
+carried over from the prior line. No breaking changes.
+
 ## [1.30.35] — 2026-07-19
 
 - **The metric texts you see without an AI provider now speak your

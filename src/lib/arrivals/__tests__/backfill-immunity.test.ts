@@ -25,9 +25,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const sendMock = vi.fn(
-  async (_queue: string, _payload: unknown, _opts: unknown) => "job-id",
-);
+const sendMock = vi.fn(async () => "job-id");
 const annotateMock = vi.fn();
 let moduleMap: Record<string, boolean> = {};
 let timezone = "Europe/Berlin";
