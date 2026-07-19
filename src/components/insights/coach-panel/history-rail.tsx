@@ -64,7 +64,7 @@ export function HistoryRail({
   className,
   hideHeading = false,
 }: HistoryRailProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const [filter, setFilter] = useState<string>("");
   // v1.30.2 (QoL H1) — the search box now drives a SERVER-side query
   // (title-only substring, see the route doc comment), so debounce the
@@ -242,7 +242,7 @@ export function HistoryRail({
                     <span className="truncate">{c.title}</span>
                   </span>
                   <span className="text-muted-foreground block text-xs">
-                    {formatRelativeTime(c.updatedAt, t)}
+                    {formatRelativeTime(c.updatedAt, t, locale)}
                   </span>
                 </button>
                 {/* v1.4.27 R3d MB2 — drop the hover-only `opacity-0`

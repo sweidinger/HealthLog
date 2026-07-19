@@ -18,6 +18,8 @@ import { ChronotypeSection } from "@/components/insights/sleep/chronotype-sectio
 import { AverageSleepSection } from "@/components/insights/sleep/average-sleep-section";
 import { SleepQualitySection } from "@/components/insights/sleep/sleep-quality-section";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
+import { useSleepRhythm } from "@/components/insights/sleep/use-sleep-rhythm";
 
 /**
  * v1.4.25 W4c — `/insights/sleep`.
@@ -41,6 +43,13 @@ export default function InsightsSchlafPage() {
   const { ready } = useModulePageGuard("sleep");
 
   const { isEmpty } = useInsightsAnalytics("SLEEP_DURATION");
+  // The three rhythm cards share one `["sleep-rhythm"]` read, so a failure used
+  // to paint the same sentence three times, none of them offering a way out.
+  // The page owns the shared state and renders one notice with a retry; the
+  // cards no longer carry their own copy of it.
+  const { isError: rhythmError, refetch: refetchRhythm } = useSleepRhythm(
+    Boolean(user) && !isEmpty,
+  );
 
   // v1.18.0 B1 — bounce a direct URL hit on a disabled-sleep account to
   // /insights instead of half-rendering the sleep surface.
@@ -127,11 +136,18 @@ export default function InsightsSchlafPage() {
         viewports and sit side-by-side from `sm` up; each card keeps its own
         internals (the debt headline and the chronotype band treatment).
       */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SleepRhythmSection enabled={!isEmpty} />
-        <AverageSleepSection enabled={!isEmpty} />
-        <ChronotypeSection enabled={!isEmpty} />
-      </div>
+      {rhythmError ? (
+        <QueryErrorCard
+          description={t("insights.sleep.rhythm.loadError")}
+          onRetry={() => void refetchRhythm()}
+        />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <SleepRhythmSection enabled={!isEmpty} />
+          <AverageSleepSection enabled={!isEmpty} />
+          <ChronotypeSection enabled={!isEmpty} />
+        </div>
+      )}
 
       {/*
         v1.17.1 — "Sleep quality" block. Surfaces the WHOOP / Oura nightly

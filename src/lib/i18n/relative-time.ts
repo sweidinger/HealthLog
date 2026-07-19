@@ -8,12 +8,19 @@
  *
  * Buckets: <1m → just-now, <1h → minutes, <24h → hours, else days.
  *
- * v1.4.43 H6 — pluralisation. Each bucket now branches on `count === 1`
- * to read the *One key (singular) or *Other key (plural), matching the
- * dashboard.staleHintWeeksOne / Other pattern already in the bundle.
- * Eliminates the "vor 1 Minuten" grammar bug a German user spotted.
+ * v1.4.43 H6 — pluralisation. Each bucket reads a *One (singular) or
+ * *Other (plural) key, matching the dashboard.staleHintWeeksOne / Other
+ * pattern already in the bundle. Eliminates the "vor 1 Minuten" grammar
+ * bug a German user spotted.
+ *
+ * The tier now comes from `pluralKey`, which adds the *Few form Polish
+ * needs for 2–4. Locales whose rules have no "few" category resolve to the
+ * same two keys as before. `locale` defaults to the app default so a caller
+ * without one in hand keeps the previous behaviour rather than throwing.
  */
 import { DEFAULT_TIMEZONE, isValidTimezone } from "@/lib/tz/format";
+import { pluralKey } from "./plural";
+import { defaultLocale, type Locale } from "./config";
 
 /**
  * Resolve the day-boundary zone for the calendar-bucketed labels below.
@@ -32,6 +39,7 @@ function resolveBoundaryZone(timeZone: string | undefined): string {
 export function formatRelativeTime(
   iso: string,
   t: (key: string, params?: Record<string, string | number>) => string,
+  locale: Locale = defaultLocale,
 ): string {
   const target = new Date(iso).getTime();
   if (Number.isNaN(target)) return "";
@@ -39,29 +47,20 @@ export function formatRelativeTime(
   if (diffMs < 60_000) return t("insights.relativeJustNow");
   const minutes = Math.floor(diffMs / 60_000);
   if (minutes < 60) {
-    return t(
-      minutes === 1
-        ? "insights.relativeMinutesAgoOne"
-        : "insights.relativeMinutesAgoOther",
-      { count: minutes },
-    );
+    return t(pluralKey("insights.relativeMinutesAgo", minutes, locale), {
+      count: minutes,
+    });
   }
   const hours = Math.floor(minutes / 60);
   if (hours < 24) {
-    return t(
-      hours === 1
-        ? "insights.relativeHoursAgoOne"
-        : "insights.relativeHoursAgoOther",
-      { count: hours },
-    );
+    return t(pluralKey("insights.relativeHoursAgo", hours, locale), {
+      count: hours,
+    });
   }
   const days = Math.floor(hours / 24);
-  return t(
-    days === 1
-      ? "insights.relativeDaysAgoOne"
-      : "insights.relativeDaysAgoOther",
-    { count: days },
-  );
+  return t(pluralKey("insights.relativeDaysAgo", days, locale), {
+    count: days,
+  });
 }
 
 /**

@@ -108,6 +108,19 @@ function collectReferences(
     /(?<![a-zA-Z0-9_])t\(\s*["']([a-zA-Z][a-zA-Z0-9_.-]+)["']/g;
   for (const m of allText.matchAll(literalKeyRe)) literalKeys.add(m[1]);
 
+  // Plural-tier composition: `tCount("dashboard.staleHintWeeks", n)` and the
+  // underlying `pluralKey("…", n, locale)` both resolve to `<base>One` /
+  // `<base>Few` / `<base>Other` at runtime, so the base literal accounts for
+  // exactly those three leaves and no others. Kept as an explicit tier list
+  // rather than a prefix match so a stray sibling key under the same base still
+  // reports as an orphan.
+  const pluralKeyRe =
+    /(?:pluralKey|tCount)\(\s*["']([a-zA-Z][a-zA-Z0-9_.-]+)["']/g;
+  for (const m of allText.matchAll(pluralKeyRe)) {
+    for (const tier of ["One", "Few", "Other"])
+      literalKeys.add(`${m[1]}${tier}`);
+  }
+
   const dottedBases = new Set<string>();
   const concatPrefixes = new Set<string>();
   const dynamicSuffixes = new Set<string>();

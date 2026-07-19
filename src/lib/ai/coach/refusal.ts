@@ -23,25 +23,53 @@
  * route can choose its bias.
  */
 import type { Locale } from "@/lib/i18n/config";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
 
 /**
- * Refusal copy for the streaming response. Plain English / German
- * sentences — UI-rendered as `token` SSE frames followed by `done`.
- * Keys live in `messages/{en,de}.json` under `coach.refusal.*`; this
- * module also exports the constants so server-only code (tests, logs)
- * can pin the exact wording without a translator round-trip.
+ * Refusal copy for the streaming response — UI-rendered as `token` SSE frames
+ * followed by `done`.
+ *
+ * The copy now lives in the bundles under `coach.refusal.*` for every shipped
+ * locale. It used to be a de/en constant pair selected by `locale === "de"`,
+ * which answered a French, Spanish, Italian or Polish user in English at the
+ * one moment the Coach is declining to help — the worst turn to switch
+ * language on someone.
+ *
+ * The EN / DE constants stay exported, now derived from the bundles rather
+ * than duplicating them, so server-only code (tests, logs) can still pin the
+ * exact wording without a translator round-trip and cannot drift from what the
+ * user is actually shown.
  */
-export const COACH_REFUSAL_OUT_OF_SCOPE_EN =
-  "I can only help with the health metrics in your log — measurements, medications, mood, trends. I cannot answer questions outside that scope.";
+export function coachRefusalCopy(
+  reason: CoachRefusalReason,
+  locale: Locale,
+): string {
+  return getServerTranslator(locale).t(
+    reason === "prompt_injection"
+      ? "coach.refusal.promptInjection"
+      : "coach.refusal.outOfScope",
+  );
+}
 
-export const COACH_REFUSAL_OUT_OF_SCOPE_DE =
-  "Ich kann nur bei den Gesundheitsdaten in deinem Log helfen — Messwerte, Medikamente, Stimmung, Trends. Fragen außerhalb dieses Themas beantworte ich nicht.";
+export const COACH_REFUSAL_OUT_OF_SCOPE_EN = coachRefusalCopy(
+  "out_of_scope",
+  "en",
+);
 
-export const COACH_REFUSAL_INJECTION_EN =
-  "I noticed wording that tries to override my instructions. I am the HealthLog Coach and only summarise your own health data — please rephrase your question in those terms.";
+export const COACH_REFUSAL_OUT_OF_SCOPE_DE = coachRefusalCopy(
+  "out_of_scope",
+  "de",
+);
 
-export const COACH_REFUSAL_INJECTION_DE =
-  "In deiner Nachricht stehen Anweisungen, die meine Vorgaben überschreiben sollen. Ich bin der HealthLog-Coach und fasse ausschließlich deine eigenen Gesundheitsdaten zusammen — formuliere deine Frage bitte in diesem Rahmen neu.";
+export const COACH_REFUSAL_INJECTION_EN = coachRefusalCopy(
+  "prompt_injection",
+  "en",
+);
+
+export const COACH_REFUSAL_INJECTION_DE = coachRefusalCopy(
+  "prompt_injection",
+  "de",
+);
 
 /**
  * Categorisation of a refusal hit, so the route can annotate the
@@ -157,10 +185,7 @@ export function detectRefusal(
       return {
         refuse: true,
         reason: "prompt_injection",
-        message:
-          locale === "de"
-            ? COACH_REFUSAL_INJECTION_DE
-            : COACH_REFUSAL_INJECTION_EN,
+        message: coachRefusalCopy("prompt_injection", locale),
       };
     }
   }
@@ -172,10 +197,7 @@ export function detectRefusal(
     return {
       refuse: true,
       reason: "out_of_scope",
-      message:
-        locale === "de"
-          ? COACH_REFUSAL_OUT_OF_SCOPE_DE
-          : COACH_REFUSAL_OUT_OF_SCOPE_EN,
+      message: coachRefusalCopy("out_of_scope", locale),
     };
   }
 
@@ -183,10 +205,7 @@ export function detectRefusal(
     return {
       refuse: true,
       reason: "out_of_scope",
-      message:
-        locale === "de"
-          ? COACH_REFUSAL_OUT_OF_SCOPE_DE
-          : COACH_REFUSAL_OUT_OF_SCOPE_EN,
+      message: coachRefusalCopy("out_of_scope", locale),
     };
   }
 

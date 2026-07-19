@@ -38,6 +38,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { INSTRUMENTS, INSTRUMENT_ORDER } from "@/lib/mental-health/instruments";
 import { PageHeader } from "@/components/ui/page-header";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { AssessmentResult } from "./assessment-result";
 import { CheckInWizard } from "./check-in-wizard";
@@ -63,7 +65,20 @@ export function MentalWellbeing() {
     null,
   );
 
-  const { data: history } = useQuery({
+  // The three states are kept apart deliberately. This read carries the user's
+  // screening history; when it fails, `history` is undefined and every
+  // downstream consumer (`lastByInstrument`, the detail sheet's `rows`) sees an
+  // empty array — which used to render the instrument cards' "not taken yet"
+  // copy. On a mental-health surface that is not a missing error message, it is
+  // a false statement about the user's record: someone with months of
+  // assessments was told the assessments do not exist. Error is now rendered as
+  // error, loading as loading, and only a genuinely empty result as empty.
+  const {
+    data: history,
+    isPending: historyPending,
+    isError: historyError,
+    refetch: refetchHistory,
+  } = useQuery({
     queryKey: queryKeys.mentalHealthAssessments(),
     queryFn: () =>
       apiGet<{ assessments: AssessmentRow[] }>(
@@ -131,18 +146,37 @@ export function MentalWellbeing() {
 
           <section aria-label={t("mentalHealth.choosePrompt")}>
             <h2 className="sr-only">{t("mentalHealth.choosePrompt")}</h2>
-            <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">
-              {INSTRUMENT_ORDER.map((id) => (
-                <li key={id} className="contents">
-                  <InstrumentCard
-                    instrument={id}
-                    last={lastByInstrument.get(id)}
-                    onStart={() => begin(id)}
-                    onOpenDetail={() => setDetailInstrument(id)}
-                  />
-                </li>
-              ))}
-            </ul>
+            {historyError ? (
+              <QueryErrorCard
+                title={t("mentalHealth.historyLoadError")}
+                description={t("mentalHealth.historyLoadErrorHint")}
+                onRetry={() => void refetchHistory()}
+              />
+            ) : historyPending ? (
+              <ul
+                className="grid list-none gap-4 p-0 sm:grid-cols-2"
+                aria-busy="true"
+              >
+                {INSTRUMENT_ORDER.map((id) => (
+                  <li key={id} className="contents">
+                    <Skeleton className="h-44 w-full rounded-xl" />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul className="grid list-none gap-4 p-0 sm:grid-cols-2">
+                {INSTRUMENT_ORDER.map((id) => (
+                  <li key={id} className="contents">
+                    <InstrumentCard
+                      instrument={id}
+                      last={lastByInstrument.get(id)}
+                      onStart={() => begin(id)}
+                      onOpenDetail={() => setDetailInstrument(id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           {/* 2026-07-17 UX/IA audit M9 — mood tracking, this screener surface,

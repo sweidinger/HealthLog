@@ -4,7 +4,7 @@
  * current time relative to the schedule window end.
  */
 
-import { defaultLocale, type Locale } from "@/lib/i18n/config";
+import { coerceLocale, type Locale } from "@/lib/i18n/config";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 
 export type ReminderPhase = "GREEN" | "YELLOW" | "ORANGE" | "RED";
@@ -118,9 +118,13 @@ export function determinePhase(
   return null; // Not in any phase yet
 }
 
-function resolveLocale(locale: Locale | string | null | undefined): Locale {
-  return locale === "en" || locale === "de" ? locale : defaultLocale;
-}
+/**
+ * The reminder templates and the Telegram inline-keyboard labels are
+ * translated in every shipped bundle, so the resolver admits every shipped
+ * locale. It used to admit only de / en, which pushed a French, Spanish,
+ * Italian or Polish account an English reminder on every channel.
+ */
+const resolveLocale = coerceLocale;
 
 /**
  * Get the message template for a phase, localised to the recipient

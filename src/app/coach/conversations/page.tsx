@@ -108,7 +108,7 @@ function groupByRecency(conversations: CoachConversationDTO[]): RecencyGroup[] {
 }
 
 function CoachConversationsBody() {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const router = useRouter();
   const [filter, setFilter] = useState<string>("");
   // v1.30.2 (QoL H1) — search now drives the server-side title query;
@@ -290,7 +290,7 @@ function CoachConversationsBody() {
                           <span className="truncate">{c.title}</span>
                         </span>
                         <span className="text-muted-foreground block text-xs">
-                          {formatRelativeTime(c.updatedAt, t)}
+                          {formatRelativeTime(c.updatedAt, t, locale)}
                         </span>
                       </button>
                       <Button

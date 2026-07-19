@@ -73,16 +73,17 @@ beforeEach(() => {
 });
 
 describe("<SleepRhythmSection>", () => {
-  it("renders the quiet inline notice on a query error, not an infinite skeleton", () => {
+  it("renders nothing on a query error, and never an infinite skeleton", () => {
+    // The shared-read notice moved to /insights/sleep so one failure prints
+    // one message instead of three. The card must still bail rather than
+    // fall through to a skeleton that can never resolve.
     rhythmMock.mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: true,
     });
     const html = render(<SleepRhythmSection enabled />);
-    expect(html).toContain('data-slot="sleep-rhythm-error"');
-    expect(html).toContain("Your sleep rhythm");
-    // No skeletons while errored.
+    expect(html).toBe("");
     expect(html).not.toContain('data-slot="sleep-rhythm-loading"');
   });
 
