@@ -1,0 +1,171 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * The auto-read catch-up pass.
+ *
+ * Documents are summarised by a job enqueued at UPLOAD time that no-ops while
+ * the `documentsAutoAiRead` opt-in is OFF, so a vault filled before the flip was
+ * never read and the toggle appeared to do nothing. These tests pin the catch-up
+ * that closes that hole, and the three properties it must not lose: it stays
+ * bounded, it stays idempotent, and it grants no consent or budget of its own.
+ */
+
+vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
+vi.mock("@/lib/db", () => ({
+  prisma: { inboundDocument: { findMany: vi.fn() } },
+}));
+vi.mock("@/lib/jobs/boss-instance", () => ({ getGlobalBoss: vi.fn() }));
+vi.mock("@/lib/documents/document-settings", () => ({
+  documentAutoReadEnabled: vi.fn(),
+}));
+vi.mock("@/lib/jobs/document-summary", () => ({
+  enqueueDocumentSummary: vi.fn(),
+}));
+
+import {
+  enqueueSummaryCatchUp,
+  runSummaryCatchUpForUser,
+  MAX_ENQUEUES_PER_RUN,
+  DOCUMENT_SUMMARY_CATCHUP_QUEUE,
+} from "../document-summary-catchup";
+import { prisma } from "@/lib/db";
+import { getGlobalBoss } from "@/lib/jobs/boss-instance";
+import { documentAutoReadEnabled } from "@/lib/documents/document-settings";
+import { enqueueDocumentSummary } from "@/lib/jobs/document-summary";
+import { annotate } from "@/lib/logging/context";
+
+const findMany = vi.mocked(prisma.inboundDocument.findMany);
+const mockEnqueueSummary = vi.mocked(enqueueDocumentSummary);
+const mockAutoRead = vi.mocked(documentAutoReadEnabled);
+
+/** Serve `total` document ids across the job's id-cursor paged walk. */
+function serveDocuments(total: number) {
+  const ids = Array.from({ length: total }, (_, i) => ({
+    id: `doc-${String(i).padStart(5, "0")}`,
+  }));
+  findMany.mockImplementation((async (args: {
+    take: number;
+    cursor?: { id: string };
+  }) => {
+    const start = args.cursor
+      ? ids.findIndex((d) => d.id === args.cursor!.id) + 1
+      : 0;
+    return ids.slice(start, start + args.take);
+  }) as unknown as typeof findMany);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockAutoRead.mockResolvedValue(true);
+  mockEnqueueSummary.mockResolvedValue({ enqueued: true });
+});
+
+describe("runSummaryCatchUpForUser", () => {
+  it("enqueues a summary for every already-stored un-summarised document", async () => {
+    serveDocuments(3);
+
+    const result = await runSummaryCatchUpForUser("user-1");
+
+    expect(result).toEqual({ enqueued: 3, capped: false });
+    expect(mockEnqueueSummary).toHaveBeenCalledTimes(3);
+    expect(mockEnqueueSummary).toHaveBeenCalledWith("user-1", "doc-00000");
+    expect(mockEnqueueSummary).toHaveBeenCalledWith("user-1", "doc-00002");
+  });
+
+  it("only considers documents that have no summary yet", async () => {
+    // Idempotency floor: a re-run cannot redo finished work because a
+    // summarised document is not in the candidate set at all.
+    serveDocuments(1);
+
+    await runSummaryCatchUpForUser("user-1");
+
+    const where = findMany.mock.calls[0]![0]!.where;
+    expect(where).toMatchObject({
+      userId: "user-1",
+      deletedAt: null,
+      summaryEncrypted: null,
+    });
+  });
+
+  it("stops at the documented cap instead of queueing a whole vault", async () => {
+    serveDocuments(MAX_ENQUEUES_PER_RUN + 50);
+
+    const result = await runSummaryCatchUpForUser("user-1");
+
+    expect(result.enqueued).toBe(MAX_ENQUEUES_PER_RUN);
+    expect(result.capped).toBe(true);
+    expect(mockEnqueueSummary).toHaveBeenCalledTimes(MAX_ENQUEUES_PER_RUN);
+  });
+
+  it("re-reads the opt-in and does nothing when it was flipped back OFF", async () => {
+    // Consent race: the PATCH that scheduled the pass is not authority enough.
+    serveDocuments(5);
+    mockAutoRead.mockResolvedValue(false);
+
+    const result = await runSummaryCatchUpForUser("user-1");
+
+    expect(result).toEqual({ enqueued: 0, capped: false });
+    expect(mockEnqueueSummary).not.toHaveBeenCalled();
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("routes work through the ordinary summary job, granting nothing itself", async () => {
+    // The per-document job is what re-asserts egress consent and reserves the
+    // daily budget. The catch-up must not have its own provider or budget path.
+    serveDocuments(2);
+
+    await runSummaryCatchUpForUser("user-1");
+
+    expect(mockEnqueueSummary).toHaveBeenCalledTimes(2);
+    for (const call of mockEnqueueSummary.mock.calls) {
+      expect(call[0]).toBe("user-1");
+    }
+  });
+
+  it("emits the catch-up wide event", async () => {
+    serveDocuments(2);
+
+    await runSummaryCatchUpForUser("user-1");
+
+    expect(annotate).toHaveBeenCalledWith({
+      action: { name: "documents.autoRead.catchUp" },
+      meta: { enqueued: 2, capped: false },
+    });
+  });
+});
+
+describe("enqueueSummaryCatchUp", () => {
+  it("coalesces a double toggle onto one per-user singleton key", async () => {
+    const send = vi.fn().mockResolvedValue("job-1");
+    vi.mocked(getGlobalBoss).mockReturnValue({
+      send,
+    } as unknown as ReturnType<typeof getGlobalBoss>);
+
+    await enqueueSummaryCatchUp("user-1");
+    await enqueueSummaryCatchUp("user-1");
+
+    expect(send).toHaveBeenCalledTimes(2);
+    for (const call of send.mock.calls) {
+      expect(call[0]).toBe(DOCUMENT_SUMMARY_CATCHUP_QUEUE);
+      expect(call[2]).toMatchObject({
+        singletonKey: "document-summary-catchup|user-1",
+      });
+    }
+  });
+
+  it("is a no-op without a boss and never throws on a send failure", async () => {
+    vi.mocked(getGlobalBoss).mockReturnValue(
+      null as unknown as ReturnType<typeof getGlobalBoss>,
+    );
+    await expect(enqueueSummaryCatchUp("user-1")).resolves.toEqual({
+      enqueued: false,
+    });
+
+    vi.mocked(getGlobalBoss).mockReturnValue({
+      send: vi.fn().mockRejectedValue(new Error("down")),
+    } as unknown as ReturnType<typeof getGlobalBoss>);
+    await expect(enqueueSummaryCatchUp("user-1")).resolves.toEqual({
+      enqueued: false,
+    });
+  });
+});

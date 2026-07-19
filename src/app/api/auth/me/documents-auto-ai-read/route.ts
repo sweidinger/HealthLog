@@ -12,7 +12,10 @@
  * Flipping it ON is itself the standing consent act, so the write also mints an
  * append-only `ai_full` consent receipt (`ensureWebAiConsentReceipt`) — the
  * durable audit record that sits alongside the runtime short-circuit the
- * document consent gate reads. Mirrors `auth/me/labs-local-ocr`: 60/min rate
+ * document consent gate reads. An OFF→ON flip additionally schedules a bounded
+ * catch-up over the documents already stored (`enqueueSummaryCatchUp`), because
+ * the summary job is enqueued at upload time and would otherwise never revisit
+ * a vault filled before the opt-in. Mirrors `auth/me/labs-local-ocr`: 60/min rate
  * limit, Zod `safeParse` → 422 via `returnAllZodIssues`, audit-log row,
  * field-by-field write (no mass assignment). Idempotent — always returns the
  * resolved next state so the client can hard-set the optimistic update.
@@ -31,6 +34,7 @@ import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { ensureWebAiConsentReceipt } from "@/lib/consent/web-grant";
 import { prisma } from "@/lib/db";
+import { enqueueSummaryCatchUp } from "@/lib/jobs/document-summary-catchup";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 const patchBodySchema = z.object({
@@ -108,6 +112,17 @@ export const PATCH = apiHandler(async (req: Request) => {
   // addition to the runtime short-circuit the document consent gate reads.
   if (next) {
     await ensureWebAiConsentReceipt(user.id);
+  }
+
+  // A genuine OFF→ON flip schedules a catch-up over the documents already in
+  // the vault. Without it the switch only ever applied to FUTURE uploads: the
+  // summary job is enqueued at upload time and no-ops while the flag is OFF, so
+  // a user who uploaded first and opted in later saw the toggle do nothing.
+  // Fire-and-forget and bounded; the pass only enqueues, and every consent and
+  // budget gate still runs per document inside the summary job itself.
+  const wasEnabled = previous?.documentsAutoAiRead ?? false;
+  if (next && !wasEnabled) {
+    void enqueueSummaryCatchUp(user.id);
   }
 
   await auditLog("user.documentsAutoAiRead.update", {

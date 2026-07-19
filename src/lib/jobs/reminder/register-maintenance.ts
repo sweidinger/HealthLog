@@ -94,6 +94,12 @@ import {
   type DocumentSummaryPayload,
 } from "@/lib/jobs/document-summary";
 import {
+  DOCUMENT_SUMMARY_CATCHUP_QUEUE,
+  DOCUMENT_SUMMARY_CATCHUP_CONCURRENCY,
+  runSummaryCatchUpForUser,
+  type SummaryCatchUpPayload,
+} from "@/lib/jobs/document-summary-catchup";
+import {
   DOCUMENT_THUMBNAIL_BACKFILL_QUEUE,
   DOCUMENT_THUMBNAIL_BACKFILL_CONCURRENCY,
   runThumbnailBackfillForUser,
@@ -359,6 +365,11 @@ const allQueues = [
   // egress consent + budget; persists the summary encrypted. Without this entry
   // pg-boss never provisions the queue and every upload enqueue silently no-ops.
   DOCUMENT_SUMMARY_QUEUE,
+  // v1.30.31 — auto-read catch-up. Scheduled on a genuine OFF→ON flip of the
+  // `documentsAutoAiRead` opt-in; fans out summary jobs for documents that were
+  // uploaded while the flag was still OFF. Without this entry pg-boss never
+  // provisions the queue and the catch-up enqueue silently no-ops.
+  DOCUMENT_SUMMARY_CATCHUP_QUEUE,
 ];
 
 const schedules: ScheduleEntry[] = [
@@ -506,6 +517,11 @@ const queuePolicies: QueuePolicyTable = {
     policy: "short",
     reason:
       "Per-document, no re-converging discovery pass. Collapse queued duplicates only.",
+  },
+  [DOCUMENT_SUMMARY_CATCHUP_QUEUE]: {
+    policy: "short",
+    reason:
+      "Per-user, keyed on the opt-in flip. Collapse a double toggle into one pass; the pass re-reads its candidate set when it starts.",
   },
 };
 
@@ -882,6 +898,34 @@ export async function registerMaintenanceQueues(
           workerLog(
             "error",
             `[document-summary] user=${userId} document=${documentId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
+  // Document AI — auto-read catch-up worker. A genuine OFF→ON flip of the
+  // `documentsAutoAiRead` opt-in sends one per-user job; this handler fans out
+  // per-document summary jobs for that user's already-stored, un-summarised
+  // documents (the upload-time enqueue no-opped while the flag was OFF). It
+  // only enqueues — the opt-in, egress consent and budget gates all still run
+  // per document inside the summary job. Serial concurrency.
+  await boss.work<SummaryCatchUpPayload>(
+    DOCUMENT_SUMMARY_CATCHUP_QUEUE,
+    { localConcurrency: DOCUMENT_SUMMARY_CATCHUP_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        if (!userId) continue;
+        try {
+          await runSummaryCatchUpForUser(userId);
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[document-summary-catchup] user=${userId} failed`,
             err,
           );
           throw err;
