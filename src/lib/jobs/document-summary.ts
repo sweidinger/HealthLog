@@ -44,8 +44,30 @@ import { encryptDocumentSummary } from "@/lib/documents/store";
 import { prisma } from "@/lib/db";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
+import type { DocumentSummaryState } from "@/generated/prisma/client";
 
 export const DOCUMENT_SUMMARY_QUEUE = "document-summary";
+
+/**
+ * Record what became of this document's summary. Never touches a READY row —
+ * a stored summary is the terminal state and a later run must not downgrade it.
+ * Owner-scoped like every other write here.
+ */
+async function markSummaryState(
+  userId: string,
+  documentId: string,
+  state: Exclude<DocumentSummaryState, "READY">,
+): Promise<void> {
+  await prisma.inboundDocument.updateMany({
+    where: {
+      id: documentId,
+      userId,
+      deletedAt: null,
+      summaryState: { not: "READY" },
+    },
+    data: { summaryState: state },
+  });
+}
 
 /** Serial concurrency — provider calls, kept off the request pool. */
 export const DOCUMENT_SUMMARY_CONCURRENCY = 1;
@@ -87,6 +109,8 @@ export async function runDocumentSummaryJob(
   // on-demand route stays the only way to summarise). Fail-closed on a missing
   // row.
   if (!(await documentAutoReadEnabled(userId))) {
+    // Opting out is not a failed attempt — leave the state alone so the view
+    // keeps offering the manual action rather than claiming we tried.
     annotate({
       action: { name: "documents.summary.autoSkipped" },
       meta: { documentId, reason: "opt-out" },
@@ -99,6 +123,7 @@ export async function runDocumentSummaryJob(
   // there is no local text-layer fallback for a descriptive summary).
   const { pick } = await resolveDocumentVisionProvider(userId);
   if (!pick) {
+    await markSummaryState(userId, documentId, "UNAVAILABLE");
     annotate({
       action: { name: "documents.summary.autoSkipped" },
       meta: { documentId, reason: "no-provider" },
@@ -117,6 +142,7 @@ export async function runDocumentSummaryJob(
       surface: "insights",
     });
   } catch (err) {
+    await markSummaryState(userId, documentId, "UNAVAILABLE");
     annotate({
       action: { name: "documents.summary.autoSkipped" },
       meta: {
@@ -135,6 +161,7 @@ export async function runDocumentSummaryJob(
   if (!vision.ok) {
     // Cannot read this file with the picked provider (decrypt miss, unsupported
     // type, or a PDF needing an Anthropic provider). Graceful no-op.
+    await markSummaryState(userId, documentId, "UNAVAILABLE");
     annotate({
       action: { name: "documents.summary.autoSkipped" },
       meta: { documentId, reason: vision.reason },
@@ -151,6 +178,7 @@ export async function runDocumentSummaryJob(
   );
   // Budget exhausted → skip (no local fallback for a summary).
   if (!reservation.allowed) {
+    await markSummaryState(userId, documentId, "UNAVAILABLE");
     annotate({
       action: { name: "documents.summary.autoSkipped" },
       meta: { documentId, reason: "budget" },
@@ -185,12 +213,19 @@ export async function runDocumentSummaryJob(
       reservation.reserved,
       dateKey,
     );
-    // WITHHOLD policy. Persisting the refusal copy would be worse than no
-    // summary: `updateMany` below is guarded on `summaryEncrypted: null`, so
-    // the first write wins and a stored refusal would stamp the document
-    // permanently with no path to regenerate. Leaving the column null keeps the
-    // on-demand route as the manual fallback, exactly as a provider miss does.
+    // WITHHOLD policy, v1.30.31. The model's prose still never lands — a
+    // summary that tripped the outbound screen must never be shown as if it
+    // were fine, and that rule is unchanged.
+    //
+    // What changed is the consequence. Withholding was chosen so a refusal
+    // could not stamp the document permanently, but leaving the column null
+    // achieved exactly that anyway: the detail view read null as "still
+    // generating" and said so forever, with no signal and no way out. The fact
+    // of the refusal is now recorded as a STATE (never the text), the view says
+    // so honestly, and WITHHELD is not terminal — `markSummaryState` only
+    // refuses to overwrite READY, so asking again re-runs the whole gauntlet.
     if (blocked) {
+      await markSummaryState(userId, documentId, "WITHHELD");
       annotate({
         action: { name: "documents.summary.outbound_blocked" },
         meta: { documentId, reason: blocked, providerType: pick.providerType },
@@ -210,6 +245,7 @@ export async function runDocumentSummaryJob(
       data: {
         summaryEncrypted: encryptDocumentSummary(summary),
         summaryGeneratedAt: new Date(),
+        summaryState: "READY",
       },
     });
     annotate({
@@ -226,6 +262,7 @@ export async function runDocumentSummaryJob(
     // (the on-demand route remains the manual fallback). Never rethrow — a
     // transient provider error must not retry-loop or fail the queue.
     await reconcileSpend(userId, reservation.reserved, 0, dateKey);
+    await markSummaryState(userId, documentId, "UNAVAILABLE");
     annotate({
       action: { name: "documents.summary.autoFailed" },
       meta: { documentId, reason: "provider_error" },
@@ -259,6 +296,11 @@ export async function enqueueDocumentSummary(
       retryBackoff: true,
       singletonKey: `document-summary|${documentId}`,
     });
+    // PENDING is claimed only once a job genuinely exists. That is the whole
+    // point: the detail view may say "being generated" for this state, so
+    // nothing may set it speculatively — a dropped send (no boss, DB hiccup)
+    // leaves the state alone and the view offers the manual action instead.
+    if (jobId) await markSummaryState(userId, documentId, "PENDING");
     return { enqueued: Boolean(jobId) };
   } catch (err) {
     annotate({

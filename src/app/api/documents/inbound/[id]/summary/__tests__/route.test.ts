@@ -2,14 +2,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 /**
- * On-demand summary / extracted text (Document vault P2). Pins P2-D4 / A3:
- * session-only — the ONLY persistent side effects are the AI-budget ledger and
- * the audit log; no row, index, or fact is written or mutated.
+ * On-demand summary / extracted text (Document vault P2).
+ *
+ * `mode=text` stays session-only (P2-D4 / A3): the only persistent side effects
+ * are the AI-budget ledger and the audit log. `mode=summary` additionally stores
+ * the summary on the document since v1.30.31 — the user asked for it, and it is
+ * the repair path for documents the background job never ran for. Nothing else
+ * (index, facts, rows) is ever written, and a WITHHELD summary is never stored
+ * as text.
  */
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    inboundDocument: { findFirst: vi.fn(), update: vi.fn() },
+    inboundDocument: {
+      findFirst: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
     extractedFact: { create: vi.fn(), deleteMany: vi.fn() },
     documentContentIndex: { upsert: vi.fn() },
     user: { findUnique: vi.fn() },
@@ -18,6 +27,9 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/documents/store", () => ({
   decryptDocumentContent: vi.fn(() => Buffer.from([1, 2, 3])),
+  encryptDocumentSummary: vi.fn((text: string) =>
+    new TextEncoder().encode(`enc:${text}`),
+  ),
 }));
 vi.mock("@/lib/labs/ocr-upload", () => ({
   detectOcrMimeType: vi.fn(() => "image/png"),
@@ -25,6 +37,7 @@ vi.mock("@/lib/labs/ocr-upload", () => ({
 vi.mock("@/lib/documents/describe", () => ({
   runDocumentSummary: vi.fn(),
   transcribeDocument: vi.fn(),
+  documentSummaryBlockedCopy: () => "The summary was withheld.",
   DocumentDescribeError: class DocumentDescribeError extends Error {},
 }));
 vi.mock("@/lib/documents/provider-order", () => ({
@@ -88,6 +101,11 @@ const req = (id: string, mode?: string) =>
     { method: "POST" },
   );
 
+/**
+ * Nothing beyond the summary column may be written. `mode=summary` DOES persist
+ * onto the document since v1.30.31 (see the route header) — that leg is asserted
+ * explicitly below; everything else stays session-only.
+ */
 function assertNoPersistence(): void {
   expect(prisma.inboundDocument.update).not.toHaveBeenCalled();
   expect(prisma.documentContentIndex.upsert).not.toHaveBeenCalled();
@@ -117,9 +135,10 @@ beforeEach(() => {
 });
 
 describe("POST /api/documents/inbound/[id]/summary", () => {
-  it("mode=summary returns { summary } and persists only budget + audit", async () => {
+  it("mode=summary returns { summary } and STORES it, so a second open is free", async () => {
     vi.mocked(runDocumentSummary).mockResolvedValue({
       summary: "A blood panel from a lab.",
+      blocked: null,
     } as never);
 
     const res = await POST(
@@ -133,7 +152,74 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
       "documents.inbound.summary",
       expect.anything(),
     );
+
+    // Persisted READY, owner-scoped, and only onto a document without one —
+    // an explicit re-run must not replace a summary already on screen.
+    expect(prisma.inboundDocument.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "doc-1",
+        userId: "user-1",
+        deletedAt: null,
+        summaryEncrypted: null,
+      },
+      data: expect.objectContaining({ summaryState: "READY" }),
+    });
     assertNoPersistence();
+  });
+
+  it("records WITHHELD without ever storing the blocked prose", async () => {
+    vi.mocked(runDocumentSummary).mockResolvedValue({
+      summary: "raise the dose to 10 mg",
+      blocked: "dose_directive",
+    } as never);
+
+    const res = await POST(
+      req("doc-1", "summary") as never,
+      ctx("doc-1") as never,
+    );
+    expect(res.status).toBe(200);
+
+    // The user gets the honest statement, never the blocked text.
+    const body = await res.json();
+    expect(body.data.summary).toBe("The summary was withheld.");
+    expect(body.data.summary).not.toContain("10 mg");
+
+    // Only the state lands. No ciphertext column is touched on this path.
+    expect(prisma.inboundDocument.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "doc-1",
+        userId: "user-1",
+        deletedAt: null,
+        summaryState: { not: "READY" },
+      },
+      data: { summaryState: "WITHHELD" },
+    });
+    const calls = vi.mocked(prisma.inboundDocument.updateMany).mock.calls;
+    for (const [arg] of calls) {
+      expect(arg.data).not.toHaveProperty("summaryEncrypted");
+    }
+    assertNoPersistence();
+  });
+
+  it("still answers when the summary write fails", async () => {
+    vi.mocked(runDocumentSummary).mockResolvedValue({
+      summary: "A blood panel from a lab.",
+      blocked: null,
+    } as never);
+    vi.mocked(prisma.inboundDocument.updateMany).mockRejectedValueOnce(
+      new Error("db down"),
+    );
+
+    // The user is waiting on a summary they can already read; a failed write
+    // must not turn that into an error.
+    const res = await POST(
+      req("doc-1", "summary") as never,
+      ctx("doc-1") as never,
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toEqual({
+      summary: "A blood panel from a lab.",
+    });
   });
 
   it("mode=text returns { text } session-only", async () => {

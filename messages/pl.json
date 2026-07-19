@@ -8476,7 +8476,12 @@
       "title": "Szczegóły dokumentu",
       "summary": {
         "title": "Podsumowanie",
-        "pending": "Podsumowanie jest przygotowywane."
+        "pending": "Podsumowanie jest przygotowywane.",
+        "none": "Dla tego dokumentu nie wygenerowano jeszcze podsumowania.",
+        "withheld": "Podsumowanie zostało wygenerowane, ale nie przeszło kontroli bezpieczeństwa, więc nie jest wyświetlane. Możesz spróbować ponownie lub przeczytać sam dokument.",
+        "unavailable": "Nie udało się wygenerować podsumowania dla tego dokumentu.",
+        "generate": "Wygeneruj podsumowanie",
+        "generating": "Generowanie…"
       },
       "loadError": "Nie udało się wczytać tego dokumentu.",
       "saveError": "Nie udało się zapisać zmiany.",
@@ -8558,7 +8563,6 @@
       "close": "Ukryj"
     },
     "ai": {
-      "statusAiRead": "Odczytane przez AI",
       "readDone": "AI odczytało Twój dokument.",
       "read": "Odczytaj z AI",
       "reread": "Odczytaj ponownie",

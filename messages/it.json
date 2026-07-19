@@ -8476,7 +8476,12 @@
       "title": "Dettagli del documento",
       "summary": {
         "title": "Riepilogo",
-        "pending": "Il riepilogo è in preparazione."
+        "pending": "Il riepilogo è in preparazione.",
+        "none": "Non è ancora stato generato alcun riepilogo per questo documento.",
+        "withheld": "Un riepilogo è stato generato ma non ha superato il controllo di sicurezza, quindi non viene mostrato. Puoi riprovare o leggere il documento stesso.",
+        "unavailable": "Non è stato possibile generare un riepilogo per questo documento.",
+        "generate": "Genera riepilogo",
+        "generating": "Generazione…"
       },
       "loadError": "Impossibile caricare questo documento.",
       "saveError": "Impossibile salvare la modifica.",
@@ -8558,7 +8563,6 @@
       "close": "Nascondi"
     },
     "ai": {
-      "statusAiRead": "Letto dall’IA",
       "readDone": "L’IA ha letto il tuo documento.",
       "read": "Leggi con l’IA",
       "reread": "Leggi di nuovo",

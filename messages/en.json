@@ -8476,7 +8476,12 @@
       "title": "Document details",
       "summary": {
         "title": "Summary",
-        "pending": "The summary is being prepared."
+        "pending": "The summary is being prepared.",
+        "none": "No summary has been generated for this document yet.",
+        "withheld": "A summary was generated but did not pass the safety check, so it is not shown. You can try again, or read the document itself.",
+        "unavailable": "No summary could be generated for this document.",
+        "generate": "Generate summary",
+        "generating": "Generating…"
       },
       "loadError": "Couldn't load this document.",
       "saveError": "Couldn't save the change.",
@@ -8558,7 +8563,6 @@
       "close": "Hide"
     },
     "ai": {
-      "statusAiRead": "Read by AI",
       "readDone": "The AI read your document.",
       "read": "Read with AI",
       "reread": "Read again",
