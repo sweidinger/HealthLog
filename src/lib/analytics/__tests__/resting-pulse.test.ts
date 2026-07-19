@@ -12,11 +12,45 @@ import {
   resolveRestingPulseSeries,
   type PulseSample,
 } from "../resting-pulse";
+import { zonedWallClockToUtc } from "@/lib/tz/wall-clock";
 
-const day = (iso: string, value: number): PulseSample => ({
-  measuredAt: new Date(iso),
-  value,
-});
+/**
+ * The zone `deriveRestingProxyFromPulse` buckets in by default
+ * (`toBerlinDayKey`). Naming it here is the point: the fixtures used to
+ * pass offset-less ISO literals, which `new Date(...)` reads as HOST-local.
+ * That made every expectation mean something different on every developer
+ * machine, and — because a Berlin day and a UTC day coincide for samples in
+ * the middle of the day — swapping the implementation's day-key zone left
+ * the whole file green. Building each instant explicitly in Berlin lets the
+ * assertions actually pin the bucketing.
+ */
+const PROXY_DAY_ZONE = "Europe/Berlin";
+
+/**
+ * A pulse sample at the given `YYYY-MM-DDTHH:MM:SS` wall clock **in
+ * Berlin**, expressed as the UTC instant it denotes.
+ */
+const day = (wallClock: string, value: number): PulseSample => {
+  const m = wallClock.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/,
+  );
+  if (!m) throw new Error(`fixture wall clock must be local, got ${wallClock}`);
+  const [, y, mo, d, h, mi, sec] = m;
+  return {
+    measuredAt: zonedWallClockToUtc(
+      {
+        year: Number(y),
+        month: Number(mo),
+        day: Number(d),
+        hour: Number(h),
+        minute: Number(mi),
+        second: Number(sec),
+      },
+      PROXY_DAY_ZONE,
+    ),
+    value,
+  };
+};
 
 describe("deriveRestingProxyFromPulse", () => {
   it("excludes a workout burst — the daily proxy tracks the resting floor", () => {
@@ -152,5 +186,57 @@ describe("resolveRestingPulseSeries", () => {
     expect(
       resolveRestingPulseSeries({ restingSamples: [], pulseSamples: [] }),
     ).toEqual({ series: [], which: "none" });
+  });
+});
+
+describe("deriveRestingProxyFromPulse — the day bucket is the PROFILE day", () => {
+  it("keeps after-midnight local samples on their own local day, not the UTC one", () => {
+    // Berlin is UTC+2 in June, so 00:20–01:00 local on 2026-06-02 is
+    // 22:20–23:00 UTC on 2026-06-01 — a DIFFERENT UTC calendar day. All
+    // six samples belong to one Berlin day and must produce ONE bucket.
+    // Under a UTC day-key they split 3/3 and produce two.
+    const samples = [
+      day("2026-06-02T00:20:00", 60),
+      day("2026-06-02T00:40:00", 62),
+      day("2026-06-02T01:00:00", 64),
+      day("2026-06-02T09:00:00", 66),
+      day("2026-06-02T15:00:00", 68),
+      day("2026-06-02T21:00:00", 70),
+    ];
+    const proxy = deriveRestingProxyFromPulse(samples);
+    expect(proxy).toHaveLength(1);
+  });
+
+  it("splits two local days that a UTC key would merge", () => {
+    // 23:10–23:50 Berlin on 2026-06-01 is 21:10–21:50 UTC the same day,
+    // while 00:10–00:50 Berlin on 2026-06-02 is 22:10–22:50 UTC on
+    // 2026-06-01. A UTC key merges all six into one bucket; the Berlin key
+    // must see two days.
+    const samples = [
+      day("2026-06-01T23:10:00", 60),
+      day("2026-06-01T23:30:00", 62),
+      day("2026-06-01T23:50:00", 64),
+      day("2026-06-02T00:10:00", 80),
+      day("2026-06-02T00:30:00", 82),
+      day("2026-06-02T00:50:00", 84),
+    ];
+    const proxy = deriveRestingProxyFromPulse(samples);
+    expect(proxy).toHaveLength(2);
+  });
+
+  it("honours an injected day-key function over the Berlin default", () => {
+    // The targets route threads `userDayKey(d, userTz)`. Same samples,
+    // different zone → a different bucketing. This is the seam the default
+    // hides, so it gets its own pin.
+    const samples = [
+      day("2026-06-02T00:20:00", 60),
+      day("2026-06-02T00:40:00", 62),
+      day("2026-06-02T01:00:00", 64),
+    ];
+    const utcKey = (d: Date) => d.toISOString().slice(0, 10);
+    // In UTC these three are 2026-06-01 22:20/22:40/23:00 → one UTC day.
+    expect(deriveRestingProxyFromPulse(samples, utcKey)).toHaveLength(1);
+    // And that UTC day is 06-01, whereas the Berlin bucket is 06-02.
+    expect(utcKey(samples[0].measuredAt)).toBe("2026-06-01");
   });
 });

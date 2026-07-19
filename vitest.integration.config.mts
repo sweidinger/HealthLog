@@ -13,6 +13,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // Same host-timezone pin as the unit config — CI runs UTC, so the
+    // integration contracts must be read against the same clock.
+    env: { TZ: "UTC" },
     include: ["tests/integration/**/*.test.ts"],
     // Container boot + migration apply is slow; give each test a generous
     // budget and beforeAll/afterAll twice that.
