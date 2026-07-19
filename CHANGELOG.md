@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.30.26] — 2026-07-19
+
+Text that comes out of your documents is treated as data, not as instructions.
+
+- **Names read out of an uploaded document went into the assistant's context unchecked.** A lab result's analyte, panel and unit names were passed through raw, so a document whose field labels were written to read like instructions became part of the assistant's context on every turn once the result was confirmed. Those names are now cleaned, and the whole block carries an explicit boundary marking it as your data rather than something addressed to the assistant. The same boundary now wraps the text read out of a scanned document.
+- **The cleaning step had a flaw that helped the very thing it was meant to stop.** It removed line breaks instead of replacing them, which glued neighbouring words together and broke the word boundaries its own checks rely on — so a payload written the most natural way, on its own line, slipped through. It now replaces them.
+- **A reminder the assistant captured from its own reply was saved as active.** It is now saved as proposed, so it appears for you to confirm — the same way the assistant's other suggestions already work — and does not feed back into its context before you do. Reminders captured before this release keep working unchanged; only new ones need a confirmation.
+- The test that was supposed to guarantee this class of coverage listed four files, three of which no longer took part at all. It is now derived from the actual code, with a floor so it cannot quietly pass by covering nothing.
+
+No breaking changes.
+
 ## [1.30.25] — 2026-07-19
 
 Generated cards now count against a budget, and long conversations get cheaper again.

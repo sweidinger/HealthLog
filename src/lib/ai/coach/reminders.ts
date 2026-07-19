@@ -236,7 +236,7 @@ note: <kurz, in der Formulierung der Person, worum es geht>
 when: <optional: ISO-Datum JJJJ-MM-TT | relativ +Nd / +Nw | ein Kontext-Cue: NEXT_BP_LOGGED, NEXT_WEIGHT_LOGGED, NEXT_SLEEP_LOGGED, NEXT_APP_OPEN>
 metric: <optional, z. B. SLEEP, BLOOD_PRESSURE>
 ---END---
-Erfinde NIEMALS eine Erinnerung, um die die Person nicht ausdrücklich gebeten hat. Bestätige kurz im Fließtext ("Notiert — ich komme darauf zurück."). Lass "when" weg, wenn keine Zeit genannt wurde.`;
+Erfinde NIEMALS eine Erinnerung, um die die Person nicht ausdrücklich gebeten hat. Bestätige kurz im Fließtext, dass die Erinnerung zur Bestätigung vorgemerkt ist ("Vorgemerkt — bestätige sie in den Einstellungen, dann melde ich mich."). Lass "when" weg, wenn keine Zeit genannt wurde.`;
   }
   return `WHEN the user asks you to remember something or remind them later, append EXACTLY ONE block at the end of your reply:
 ---REMEMBER---
@@ -244,16 +244,18 @@ note: <short, in the user's own framing, what to bring back>
 when: <optional: ISO date YYYY-MM-DD | relative +Nd / +Nw | a context cue: NEXT_BP_LOGGED, NEXT_WEIGHT_LOGGED, NEXT_SLEEP_LOGGED, NEXT_APP_OPEN>
 metric: <optional, e.g. SLEEP, BLOOD_PRESSURE>
 ---END---
-NEVER invent a reminder the user did not explicitly ask for. Acknowledge briefly in prose ("Got it — I'll bring that up again."). Omit "when" if no time was stated.`;
+NEVER invent a reminder the user did not explicitly ask for. Acknowledge briefly in prose that the reminder is queued for their confirmation ("Noted — confirm it in settings and I'll bring it back."). Omit "when" if no time was stated.`;
 }
 
 type PrismaLike = Pick<typeof prisma, "coachReminder">;
 
 /**
  * Persist a sentinel-captured reminder field-by-field (no mass assignment),
- * always `status: "active"` (the user explicitly asked — no confirm gate). The
- * per-user cap refuses a write once the non-terminal set is full. Best-effort:
- * a failure never breaks the chat turn (the caller fires it fire-and-forget).
+ * always `status: "proposed"` — the user promotes it to `active` through the
+ * settings confirm control (`PATCH /api/coach/reminders/[id]`), exactly like a
+ * Coach-extracted plan. The per-user cap refuses a write once the non-terminal
+ * set is full. Best-effort: a failure never breaks the chat turn (the caller
+ * fires it fire-and-forget).
  *
  * Returns the created id, or `null` when the cap displaced it / a write failed.
  */
@@ -290,7 +292,19 @@ export async function captureReminderFromSentinel(args: {
       triggerKind: parsed.trigger?.triggerKind ?? "date",
       dueAt: parsed.trigger?.dueAt ?? null,
       contextCue: parsed.trigger?.contextCue ?? null,
-      status: "active",
+      // v1.30.25 — captured as `proposed`, not `active`. This was the only
+      // model-driven write that persisted straight from model output with no
+      // confirm step; its sibling extractors (`plans.ts`, `suggest-action.ts`)
+      // have always written `proposed` and let the user-facing PATCH promote.
+      // The gap mattered because a `---REMEMBER---` block is emitted by the
+      // model, and the model reads a prompt containing document-sourced text —
+      // so a hostile lab document could induce a reminder, and the reminder
+      // recall block would then feed that text back into every later turn
+      // independently of the row that seeded it. `proposed` breaks that loop
+      // for free: `buildCoachRemindersBlock` already selects only
+      // due / surfaced / active, so a proposed reminder never re-enters the
+      // prompt, and the daily sweep never fires it, until the user confirms.
+      status: "proposed",
       source: "sentinel",
       sourceConversationId: conversationId,
     },

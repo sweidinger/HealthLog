@@ -26,6 +26,7 @@ import {
   type CorrelationResult,
 } from "@/lib/analytics/correlations";
 import { getMedicationCategories } from "@/lib/medication-category";
+import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import {
   ensureUserMoodRollupsFresh,
   readMoodDayRollups,
@@ -50,6 +51,10 @@ import type { RollupGranularity } from "@/generated/prisma/client";
 // importing from here.
 export * from "@/lib/insights/feature-blocks";
 export * from "@/lib/insights/signals-of-day";
+
+/** Max chars of the free-text medication name / dose that may enter the Coach prompt. */
+const MED_NAME_MAX_CHARS = 60;
+const MED_DOSE_MAX_CHARS = 40;
 
 interface DataCoverage {
   count: number;
@@ -1293,8 +1298,13 @@ export async function extractFeatures(
       );
 
       return {
-        name: med.name,
-        dose: med.dose,
+        // v1.30.25 — `name` / `dose` are free text and this struct lands in
+        // the Coach SNAPSHOT as `medications`. The category is resolved from
+        // `med.id` above, so sanitising the label cannot change any
+        // classification. Found by the snapshot free-text guard once its file
+        // list was derived from the import graph instead of hardcoded.
+        name: sanitizeForPrompt(med.name, MED_NAME_MAX_CHARS),
+        dose: sanitizeForPrompt(med.dose, MED_DOSE_MAX_CHARS),
         category: categoryMap[med.id] ?? "OTHER",
         compliance7: c7.rate,
         compliance30: c30.rate,
