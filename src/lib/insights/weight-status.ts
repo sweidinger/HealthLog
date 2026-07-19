@@ -34,9 +34,7 @@ import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import {
   type SupportedLocale,
   normalizeLocale,
-  normalizeSummaryText,
   finalizeStatusSummary,
-  parseSummaryFromContent,
   persistStatusInsight,
   round,
   summarizeSeries,

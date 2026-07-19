@@ -24,9 +24,7 @@ import {
 } from "@/lib/insights/graded-series";
 import {
   normalizeLocale,
-  normalizeSummaryText,
   finalizeStatusSummary,
-  parseSummaryFromContent,
   persistStatusInsight,
   round,
   summarizeSeries,

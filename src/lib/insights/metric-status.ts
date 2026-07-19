@@ -62,9 +62,7 @@ import {
 import {
   type SupportedLocale,
   normalizeLocale,
-  normalizeSummaryText,
   finalizeStatusSummary,
-  parseSummaryFromContent,
   persistStatusInsight,
   summarizeSeries,
 } from "@/lib/insights/status-shared";

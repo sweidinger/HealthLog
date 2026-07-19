@@ -33,9 +33,7 @@ import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   normalizeLocale,
-  normalizeSummaryText,
   finalizeStatusSummary,
-  parseSummaryFromContent,
   persistStatusInsight,
   summarizeSeries,
 } from "@/lib/insights/status-shared";
