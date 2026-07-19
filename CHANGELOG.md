@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.30.20] — 2026-07-19
+
+- **A restore now refuses when the backup file names a different account than the backup record.** The restore target was read from inside the encrypted file rather than from the record the operator selected, so a file claiming a different account would have been written into that account instead — while the audit entry recorded the one the operator picked. Both values were already available at that point; they are now compared, and a mismatch is refused and recorded with both.
+
+No breaking changes.
+
 ## [1.30.19] — 2026-07-19
 
 Switching a module off now holds everywhere.

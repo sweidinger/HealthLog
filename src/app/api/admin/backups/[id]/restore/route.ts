@@ -195,6 +195,29 @@ const handler = apiHandler(
       return apiError("Backup payload failed schema validation", 500);
     }
 
+    // The payload declares its own owner, and the backup ROW records who the
+    // backup was taken for. Those must agree. Taking the owner from the
+    // payload alone means the restored-into account is whatever the blob
+    // claims — so an admin who selects one user's backup could write into a
+    // different account without the interface ever showing it. Both values are
+    // already in hand here; refuse on mismatch rather than trusting the blob.
+    if (payload.userId !== backup.userId) {
+      await auditLog("admin.backups.restore.failed", {
+        userId: admin.id,
+        ipAddress: getClientIp(request),
+        details: {
+          backupId: id,
+          ownerId: backup.userId,
+          reason: "owner_mismatch",
+          declaredOwnerId: payload.userId,
+        },
+      });
+      return apiError(
+        "Backup payload declares a different owner than the backup record",
+        409,
+      );
+    }
+
     // The target of the restore is whoever the backup is for, NOT the
     // admin running the operation. Make sure that user still exists —
     // an upload referencing a since-deleted user would otherwise leave
