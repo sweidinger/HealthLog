@@ -5,7 +5,7 @@ import { aiInsightResponseSchema, aiRecommendationSchema } from "../schema";
  * v1.4.16 phase B5d — `recommendation.confidence` schema field.
  *
  * The wrapper overrides the model's confidence with a deterministic
- * server-computed value (`computeConfidence()`), but the schema needs
+ * value the model emits, but the schema needs
  * to ACCEPT a model-supplied number so payloads round-trip cleanly.
  * The field is `.optional()` because:
  *   - The wrapper fills it post-validation regardless.

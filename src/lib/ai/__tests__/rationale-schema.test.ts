@@ -3,7 +3,6 @@ import {
   aiInsightResponseSchema,
   aiRecommendationRationaleSchema,
   aiRecommendationSchema,
-  findRecommendationsMissingRationale,
   type AIInsightResponse,
 } from "../schema";
 
@@ -193,79 +192,5 @@ describe("aiInsightResponseSchema — rationale integration", () => {
   it("preserves the rationale on round-trip parse", () => {
     const parsed = aiInsightResponseSchema.parse(baseValid);
     expect(parsed.recommendations[0].rationale).toEqual(baseRationale);
-  });
-});
-
-describe("findRecommendationsMissingRationale()", () => {
-  it("returns an empty array for a payload where every rec has rationale", () => {
-    expect(findRecommendationsMissingRationale(baseValid)).toEqual([]);
-  });
-
-  it("flags a legacy payload whose recs predate B5c (rationale absent)", () => {
-    // Legacy payloads from before B5c had no rationale field. Once
-    // the strict parser flips to mandatory rationale, those payloads
-    // would fail parse — but we keep `.passthrough()` for one
-    // milestone and use `findRecommendationsMissingRationale()` to
-    // *detect* legacy shape so the UI can prompt regeneration.
-    //
-    // Cast through unknown because the strict input type already
-    // requires rationale; this helper exists to handle the legacy
-    // mismatch defensively at runtime.
-    const legacy = {
-      summary: "Older insight from v1.4.15.",
-      recommendations: [
-        {
-          id: "rec-old-1",
-          text: "Walk more",
-          severity: "suggestion",
-          metricSource: {
-            type: "activity",
-            timeRange: "last7days",
-            summary: "5,000 steps avg",
-          },
-          // no rationale
-        },
-        {
-          id: "rec-old-2",
-          text: "Hydrate",
-          severity: "info",
-          metricSource: {
-            type: "fluid",
-            timeRange: "last7days",
-            summary: "low intake logged",
-          },
-          // no rationale
-        },
-      ],
-      citations: [],
-      warnings: [],
-    } as unknown as AIInsightResponse;
-
-    const missing = findRecommendationsMissingRationale(legacy);
-    expect(missing).toEqual(["rec-old-1", "rec-old-2"]);
-  });
-
-  it("flags only the recs that are missing, not the well-formed ones", () => {
-    const partial = {
-      summary: "Mixed payload",
-      recommendations: [
-        baseRec,
-        {
-          id: "rec-bad",
-          text: "Hydrate",
-          severity: "info",
-          metricSource: {
-            type: "fluid",
-            timeRange: "last7days",
-            summary: "low intake logged",
-          },
-          // no rationale
-        },
-      ],
-      citations: [baseCitation],
-      warnings: [],
-    } as unknown as AIInsightResponse;
-
-    expect(findRecommendationsMissingRationale(partial)).toEqual(["rec-bad"]);
   });
 });

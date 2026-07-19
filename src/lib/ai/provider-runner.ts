@@ -1,9 +1,4 @@
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
-import {
-  generateInsight,
-  type GenerateInsightOutcome,
-} from "./generate-insight";
-import { InsightSchemaError } from "./schema";
 import type { ProviderChainType } from "./provider-chain";
 import {
   postgresProviderHealthLedger,
@@ -25,19 +20,17 @@ const NEVER_SKIP: ReadonlySet<ProviderChainType> = new Set(["local"]);
 /**
  * v1.4.16 phase B5b — multi-provider redundancy runner.
  *
- * The chain runner wraps `generateInsight()` with a hard-failure
+ * The chain runner wraps a provider completion with a hard-failure
  * walkthrough across an ordered list of providers. The motivation is
  * the maintainer's "ein Provider-Ausfall darf die Insights nicht zerschiessen"
  * mandate: a 401 from Codex (OAuth expired), a 503 from OpenAI
  * (upstream brown-out), or a network reset MUST cascade to the next
  * configured provider rather than 422-ing the whole request.
  *
- * Hard failures (`isHardProviderFailure`) cascade. Schema failures
- * (the existing 422 surface) do NOT cascade — they bubble through
- * `InsightSchemaError` so the user still sees the helpful "the model
- * returned malformed JSON" diagnostic. Walking on schema errors would
- * mask provider-specific prompt-following issues that the v1.4.15
- * citation-enforcement guard exists to surface.
+ * Hard failures (`isHardProviderFailure`) cascade. A malformed-JSON
+ * reply is NOT a hard failure — it is a prompt-following issue, so it
+ * bubbles to the caller's own validator rather than masking itself as
+ * provider unavailability and walking the chain.
  *
  * Cross-feature coupling:
  *   - B5a's `MEDICAL_REFERENCES` is shared via the system prompt; each
@@ -120,9 +113,9 @@ function rememberWorkingProvider(
  *   - Network errors (no `httpStatus`) — DNS, ECONNRESET, timeout.
  *
  * No:
- *   - `InsightSchemaError` — surfaces the wrapper's existing 422 so the
- *     user sees "model JSON malformed" rather than getting silent
- *     provider drift. This is the ONLY non-hard class.
+ *   - Anything with a non-error status. Callers that parse a structured
+ *     reply raise their own validation error, which carries no
+ *     `httpStatus` from a provider wire and is theirs to surface.
  *
  * v1.21.3 — a 4xx that the PROVIDER WIRE returned (tagged `upstream`,
  * e.g. a Codex `400` rejecting the tool-call / structured request shape)
@@ -132,12 +125,9 @@ function rememberWorkingProvider(
  * provider error rethrew as an HTTP 500. Treating every upstream 4xx as
  * hard means it cascades to the next provider and, on exhaustion, is
  * wrapped in `AllProvidersFailedError` so the route surfaces a graceful
- * `coach.provider.*` frame instead of a 500. `InsightSchemaError`
- * (no `upstream` tag) is still excluded, so the strict JSON surface keeps
- * its 422 "model JSON malformed" diagnostic.
+ * `coach.provider.*` frame instead of a 500.
  */
 export function isHardProviderFailure(error: unknown): boolean {
-  if (error instanceof InsightSchemaError) return false;
   const err = error as { httpStatus?: number; name?: string } | null;
   const status = err?.httpStatus;
   if (typeof status !== "number" || status <= 0) {
@@ -167,28 +157,6 @@ export interface FallbackHop {
   attempt: number;
   failureReason: string;
   httpStatus: number | null;
-}
-
-export interface RunWithFallbackParams {
-  userId: string;
-  providers: ProviderChainResolved[];
-  params: CompletionParams;
-  /**
-   * v1.11.0 W1 — durable provider-health ledger. Defaults to the
-   * Postgres-backed implementation in production; unit tests of the pure
-   * chain pass an in-memory / no-op ledger to avoid standing up a DB.
-   * The ledger is read-through (skip-hint reorder) + write-through
-   * (record outcome); it never gates generation — a ledger error always
-   * fails open to today's behaviour.
-   */
-  ledger?: ProviderHealthLedger;
-}
-
-export interface RunWithFallbackResult extends GenerateInsightOutcome {
-  /** Provider that actually produced the parsed response. */
-  workingProvider: ProviderChainResolved;
-  /** Hops that failed before the working provider succeeded. */
-  fallbackHops: FallbackHop[];
 }
 
 /**
@@ -393,78 +361,6 @@ export function classifyErrorBody(body: unknown): string | null {
 }
 
 /**
- * Run an insight generation across an ordered chain of providers,
- * walking past hard provider failures. Schema-class failures (422)
- * bubble unchanged from the underlying wrapper.
- */
-export async function runWithFallback(
-  args: RunWithFallbackParams,
-): Promise<RunWithFallbackResult> {
-  const { userId, providers, params } = args;
-  const ledger = args.ledger ?? postgresProviderHealthLedger;
-
-  if (providers.length === 0) {
-    throw new AllProvidersFailedError([]);
-  }
-
-  const ordered = await resolveChainOrder(userId, providers, ledger);
-  const hops: FallbackHop[] = [];
-
-  for (let i = 0; i < ordered.length; i += 1) {
-    const candidate = ordered[i];
-    try {
-      const outcome = await generateInsight(candidate.instance, params);
-      rememberWorkingProvider(userId, candidate.providerType);
-      void ledger.recordSuccess(userId, candidate.providerType);
-      annotate({
-        meta: {
-          ai_chain_working_provider: candidate.providerType,
-          ai_chain_fallback_count: hops.length,
-        },
-      });
-      return {
-        ...outcome,
-        workingProvider: candidate,
-        fallbackHops: hops,
-      };
-    } catch (error) {
-      if (!isHardProviderFailure(error)) {
-        // Schema/validation error — bubble immediately. NOT recorded in
-        // the health ledger: a malformed-JSON reply is a prompt-following
-        // issue, not a provider-availability failure.
-        throw error;
-      }
-      const summary = summariseError(error);
-      void ledger.recordFailure(userId, candidate.providerType, summary.status);
-      const hop: FallbackHop = {
-        providerType: candidate.providerType,
-        attempt: i + 1,
-        failureReason: summary.reason,
-        httpStatus: summary.status,
-      };
-      hops.push(hop);
-      annotate({
-        meta: {
-          [`ai_chain_hop_${i + 1}_provider`]: candidate.providerType,
-          [`ai_chain_hop_${i + 1}_status`]: summary.status,
-          [`ai_chain_hop_${i + 1}_reason`]: summary.reason.slice(0, 240),
-          [`ai_chain_hop_${i + 1}_body`]: summary.bodyExcerpt,
-        },
-      });
-    }
-  }
-
-  // Every chain entry hard-failed.
-  annotate({
-    meta: {
-      ai_chain_outcome: "all-failed",
-      ai_chain_fallback_count: hops.length,
-    },
-  });
-  throw new AllProvidersFailedError(hops);
-}
-
-/**
  * Shared chain walker for the two RAW runners (streaming + buffered). Owns the
  * one set of chain / fallback / health-ledger semantics — empty-chain guard,
  * health-ledger + last-working reorder, hard-failure cascade with per-hop
@@ -593,14 +489,15 @@ export interface RunRawWithFallbackResult {
 }
 
 /**
- * Sibling of `runWithFallback()` that calls `provider.generateCompletion`
- * directly (no strict-schema wrapper). Used by the legacy route at
- * `/api/insights/generate` which still consumes the rich legacy shape.
+ * Buffered runner: calls `provider.generateCompletion` directly and hands the
+ * raw reply back for the caller to validate. This is the ONLY buffered chain
+ * runner — a strict-schema sibling (`runWithFallback`) once sat beside it but
+ * had no production caller and was removed.
  *
- * Fallback policy is identical: hard provider failures cascade,
- * everything else (e.g. a 4xx-but-non-auth from a custom provider)
- * bubbles to the caller. The cache + structured logging are shared
- * with the strict variant.
+ * Fallback policy: hard provider failures cascade, everything else (e.g. a
+ * 4xx-but-non-auth from a custom provider) bubbles to the caller. The
+ * last-working cache + structured logging are shared with the streaming
+ * sibling via `runRawChain`.
  */
 export async function runRawCompletionWithFallback(args: {
   userId: string;
