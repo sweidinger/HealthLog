@@ -140,6 +140,63 @@ describe("POST /api/nightscout/connect", () => {
     expect(userUpdate).not.toHaveBeenCalled();
   });
 
+  // Input-time SSRF floor. Every case below leaves the default happy-path
+  // `fetchSgvEntries` mock in place — it RESOLVES — so the only thing that
+  // can produce a 422 is the check that runs before the probe. Asserting the
+  // probe was never called is what separates this from the fetch-time guard:
+  // a URL that never reaches the egress layer cannot have been refused by it.
+  describe("refuses private / non-public hosts before the probe runs", () => {
+    const cases: Array<[string, string]> = [
+      ["loopback", "http://127.0.0.1:1337"],
+      ["loopback by name", "http://localhost:1337"],
+      ["link-local", "http://169.254.1.1"],
+      ["cloud metadata endpoint", "http://169.254.169.254/latest/meta-data/"],
+      ["RFC1918 class A", "http://10.0.0.5"],
+      ["RFC1918 class C", "http://192.168.1.5"],
+      ["CGNAT", "http://100.64.0.1"],
+      ["IPv4-mapped IPv6 loopback", "http://[::ffff:127.0.0.1]"],
+      ["IPv6 loopback", "http://[::1]:1337"],
+      ["IPv6 unique-local", "http://[fd00::1]"],
+      ["octal IPv4 loopback", "http://0177.0.0.1"],
+      ["hex IPv4 loopback", "http://0x7f000001"],
+      ["decimal IPv4 loopback", "http://2130706433"],
+      [".internal suffix", "http://cgm.internal"],
+      [".local suffix", "http://cgm.local"],
+    ];
+
+    it.each(cases)("refuses %s", async (_label, url) => {
+      const res = await post(req({ url, token: "tok" }));
+
+      expect(res.status).toBe(422);
+      expect(String(res.error)).toMatch(/private network/i);
+      expect(fetchSgvEntriesMock).not.toHaveBeenCalled();
+      expect(userUpdate).not.toHaveBeenCalled();
+    });
+
+    it("still lets the explicit self-hoster opt-in through to the probe", async () => {
+      // The floor is gated, not absolute: a LAN instance stays reachable for
+      // the operator who asked for it. Without this the opt-in is dead code.
+      const res = await post(
+        req({
+          url: "http://192.168.1.5:1337",
+          token: "tok",
+          allowPrivateHost: true,
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(fetchSgvEntriesMock).toHaveBeenCalledTimes(1);
+      expect(userUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it("lets an ordinary public instance through", async () => {
+      const res = await post(req({ url: "https://ns.example.com" }));
+
+      expect(res.status).toBe(200);
+      expect(fetchSgvEntriesMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("rate-limits the connect surface", async () => {
     rateLimitMock.mockResolvedValue({
       allowed: false,

@@ -47,11 +47,11 @@ echo "ENCRYPTION_KEY=$(openssl rand -hex 32)"       >> .env
 echo "API_TOKEN_HMAC_KEY=$(openssl rand -hex 32)"   >> .env
 ```
 
-| Variable             | Purpose                                                                                | Rotation cost                                          |
-| -------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `POSTGRES_PASSWORD`  | Bundled Postgres password — used by both the `db` service and `DATABASE_URL`           | Database restart + connection-string update            |
-| `ENCRYPTION_KEY`     | AES-256-GCM key for at-rest secrets (Withings tokens, AI provider keys, VAPID secrets) | Coordinated; see `docs/ops/encryption-key-rotation.md` |
-| `API_TOKEN_HMAC_KEY` | HMAC-SHA256 key for hashing Bearer API tokens before storage                           | Invalidates every issued `hlk_*` token                 |
+| Variable             | Purpose                                                                                | Rotation cost                                                              |
+| -------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `POSTGRES_PASSWORD`  | Bundled Postgres password — used by both the `db` service and `DATABASE_URL`           | Database restart + connection-string update                                |
+| `ENCRYPTION_KEY`     | AES-256-GCM key for at-rest secrets (Withings tokens, AI provider keys, VAPID secrets) | Coordinated; see `docs/ops/encryption-key-rotation.md`                     |
+| `API_TOKEN_HMAC_KEY` | HMAC-SHA256 key for hashing Bearer API tokens and web session cookies before storage   | Invalidates every issued `hlk_*` token and signs out every browser session |
 
 You do **not** edit `DATABASE_URL` on the bundled `docker-compose.yml`
 stack: compose constructs the connection string inside the `app`

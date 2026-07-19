@@ -31,7 +31,7 @@
         },
         {
           "name": "API_TOKEN_HMAC_KEY",
-          "purpose": "HMAC-SHA256 key for hashing external Bearer tokens. 64 hex chars."
+          "purpose": "HMAC-SHA256 key for hashing external Bearer tokens AND web session cookies. 64 hex chars. Rotating it signs every browser session out on top of invalidating every issued token."
         }
       ]
     },
