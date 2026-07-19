@@ -405,6 +405,17 @@ async function main() {
     ),
   );
 
+  // ───── v1.31.0 WorkoutInsight."paragraphEncrypted" (Bytes) ─────
+  // The per-workout Activity Insight paragraph. Not nullable — a row exists
+  // only where a paragraph was generated — so every scanned row rotates.
+  results.push(
+    await rotateBytesColumn(
+      "WorkoutInsight",
+      "paragraphEncrypted",
+      prisma.workoutInsight,
+    ),
+  );
+
   // ───── v1.18.1 clinical-spine notes (Bytes columns) ─────
   // "noteEncrypted" (LabResult / IllnessEpisode / IllnessDayLog) +
   // "contextEncrypted" (Biomarker). Mirror the CoachFact.factEncrypted block.
