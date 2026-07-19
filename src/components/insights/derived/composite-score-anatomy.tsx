@@ -16,6 +16,7 @@ import {
   type AnatomyContributor,
 } from "./score-anatomy-view";
 import type { RingHue } from "./ring-hues";
+import type { CoachLaunchScope } from "@/lib/insights/coach-launch-context";
 import { METRIC_PROVENANCE } from "./standards";
 
 /**
@@ -61,6 +62,36 @@ export interface CompositeScoreAnatomyProps {
  * leans the same colour (continuity from the tile tap). Mirrors the per-metric
  * `hue` the wellness strip passes its `RingTile`s.
  */
+/**
+ * v1.31.0 — the Coach scope each derived-score sheet hands off to.
+ *
+ * The score sheets were the one assessment surface with NO outbound edge: they
+ * render the same `<InsightStatusCard>` as every metric page but passed
+ * neither an opener nor a scope, so the card painted no action at all and the
+ * sheet read one-way. A composite has no snapshot block of its own — it is a
+ * synthesis — so each maps to the INPUTS that drive it, the same way the
+ * recovery metric page already anchors on HRV + resting HR + sleep.
+ */
+const METRIC_COACH_SCOPE: Record<AnatomyMetricId, CoachLaunchScope> = {
+  SLEEP_SCORE: { metric: "sleep", also: ["hrv", "resting_hr"] },
+  READINESS: {
+    metric: "hrv",
+    also: ["resting_hr", "sleep"],
+    window: "last7days",
+  },
+  RECOVERY_SCORE: {
+    metric: "hrv",
+    also: ["resting_hr", "sleep"],
+    window: "last7days",
+  },
+  STRESS_SCORE: { metric: "hrv", also: ["resting_hr"], window: "last7days" },
+  STRAIN_SCORE: {
+    metric: "workouts",
+    also: ["active_energy", "pulse"],
+    window: "last7days",
+  },
+};
+
 const METRIC_HUE: Record<AnatomyMetricId, RingHue> = {
   SLEEP_SCORE: "sleep",
   READINESS: "readiness",
@@ -241,6 +272,14 @@ export function CompositeScoreAnatomy({
           text={assessment.text}
           hasProvider
           updatedAt={assessment.updatedAt}
+          // The outbound edge. Same shared opener + auto-send hand-off the
+          // metric pages use, so the answer lands directly instead of only
+          // seeding the composer.
+          coachQuestion={t("insights.coach.assessmentPrompt", {
+            metric: title,
+          })}
+          coachScope={METRIC_COACH_SCOPE[metric]}
+          coachAutoSend
         />
       ) : null}
     </div>

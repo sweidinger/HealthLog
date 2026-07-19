@@ -39,6 +39,19 @@ export interface CoachLaunchButtonProps {
    * argument (mirrors every other ambient-scope call site).
    */
   scope?: CoachLaunchScope;
+  /**
+   * v1.31.0 — optional workout scope. When set, the opened conversation's
+   * FIRST turn carries one bounded, numbers-only evidence section about that
+   * session, so "Ask why" on a workout answers about THAT workout rather than
+   * about the user's training in general.
+   */
+  workoutId?: string;
+  /**
+   * v1.31.0 — auto-send the prefill as the conversation's first turn instead
+   * of only seeding the composer, so the answer lands directly. Mirrors
+   * `<AskCoachAction>`'s flag; defaults to false (seed-only).
+   */
+  autoSend?: boolean;
   /** Optional className passthrough for inline overrides. */
   className?: string;
   /**
@@ -58,6 +71,8 @@ export function CoachLaunchButton({
   label,
   prefill,
   scope,
+  workoutId,
+  autoSend,
   className,
   variant = "inline",
 }: CoachLaunchButtonProps) {
@@ -92,7 +107,9 @@ export function CoachLaunchButton({
         data-slot="coach-launch-icon"
         aria-label={accessibleLabel}
         title={accessibleLabel}
-        onClick={() => launch.askCoach(prefill ?? null, scope)}
+        onClick={() =>
+          launch.askCoach(prefill ?? null, scope, autoSend, null, workoutId)
+        }
         className={cn("text-muted-foreground hover:text-foreground", className)}
       >
         <Sparkles className="size-4" aria-hidden="true" />
@@ -110,7 +127,9 @@ export function CoachLaunchButton({
       variant="outline"
       size="sm"
       data-slot="coach-launch-inline"
-      onClick={() => launch.askCoach(prefill ?? null, scope)}
+      onClick={() =>
+        launch.askCoach(prefill ?? null, scope, autoSend, null, workoutId)
+      }
       className={cn("inline-flex h-10 gap-2 self-end", className)}
     >
       <Sparkles className="size-4" aria-hidden="true" />

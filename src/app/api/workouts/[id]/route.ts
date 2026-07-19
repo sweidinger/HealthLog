@@ -38,14 +38,10 @@ import {
   parseWhoopZoneDurations,
 } from "@/lib/workouts/zones";
 import { computeSplits } from "@/lib/workouts/splits";
+import { buildSportContext } from "@/lib/workouts/sport-context";
 import type { RouteCoordinate } from "@/lib/workouts/route-svg";
 
 type RouteParams = { params: Promise<{ id: string }> };
-
-/** Own-history lookback for the sport-average comparison line. */
-const SPORT_CONTEXT_LOOKBACK_DAYS = 180;
-/** Slim-row cap for the sport-average read. */
-const SPORT_CONTEXT_MAX_ROWS = 500;
 
 export const GET = apiHandler(
   async (request: NextRequest, { params }: RouteParams) => {
@@ -247,64 +243,3 @@ export const GET = apiHandler(
     });
   },
 );
-
-/**
- * The user's own recent average for a sport — rendered as one muted
- * comparison line. Cross-source twins are collapsed through
- * `pickCanonicalWorkoutRows()` first so a run recorded by two paired
- * watches counts once. Comparisons are to the user's own history only
- * (non-diagnostic standard).
- */
-async function buildSportContext(
-  userId: string,
-  sportType: string,
-  sourcePriorityJson: unknown,
-): Promise<{
-  count: number;
-  avgDurationSec: number;
-  avgDistanceM: number | null;
-  avgAvgHr: number | null;
-} | null> {
-  const since = new Date(
-    Date.now() - SPORT_CONTEXT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
-  );
-  const rows = await prisma.workout.findMany({
-    where: { userId, sportType, startedAt: { gte: since } },
-    orderBy: [{ startedAt: "asc" }, { id: "asc" }],
-    take: SPORT_CONTEXT_MAX_ROWS,
-    select: {
-      id: true,
-      source: true,
-      startedAt: true,
-      sportType: true,
-      durationSec: true,
-      totalDistanceM: true,
-      avgHeartRate: true,
-    },
-  });
-  const canonical = pickCanonicalWorkoutRows(rows, sourcePriorityJson);
-  if (canonical.length === 0) return null;
-
-  let durationSum = 0;
-  let distanceSum = 0;
-  let distanceCount = 0;
-  let hrSum = 0;
-  let hrCount = 0;
-  for (const r of canonical) {
-    durationSum += r.durationSec;
-    if (r.totalDistanceM != null) {
-      distanceSum += r.totalDistanceM;
-      distanceCount += 1;
-    }
-    if (r.avgHeartRate != null) {
-      hrSum += r.avgHeartRate;
-      hrCount += 1;
-    }
-  }
-  return {
-    count: canonical.length,
-    avgDurationSec: Math.round(durationSum / canonical.length),
-    avgDistanceM: distanceCount > 0 ? distanceSum / distanceCount : null,
-    avgAvgHr: hrCount > 0 ? Math.round(hrSum / hrCount) : null,
-  };
-}

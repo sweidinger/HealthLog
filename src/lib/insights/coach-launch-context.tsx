@@ -91,16 +91,28 @@ interface CoachLaunchValue {
    */
   documentId: string | null;
   /**
+   * v1.31.0 — the workout a fresh conversation is scoped to, or null. Set by
+   * `askCoach(..., workoutId)` from the workout-detail "Ask why" action so the
+   * first turn carries ONE bounded, numbers-only evidence section about that
+   * session. Unlike `documentId` this does NOT route through the hardened
+   * fenced endpoint: a workout row is the user's own structured sensor record,
+   * and the server projection admits no free text (see `workout-evidence.ts`).
+   * Cleared on close alongside `prefill` / `scope` / `documentId`.
+   */
+  workoutId: string | null;
+  /**
    * Open the drawer with an optional prefill + scope hint. When `autoSend`
    * is true the prefill is dispatched as the conversation's first turn
    * automatically (used by the assessment hand-off). `documentId` scopes the
-   * opened conversation to a stored document (vault "Ask the Coach").
+   * opened conversation to a stored document (vault "Ask the Coach");
+   * `workoutId` scopes it to one workout (workout-detail "Ask why").
    */
   askCoach: (
     prefill?: string | null,
     scope?: CoachLaunchScope,
     autoSend?: boolean,
     documentId?: string | null,
+    workoutId?: string | null,
   ) => void;
   /**
    * v1.21.0 (C4 H1) — register the metric surface the user is currently
@@ -137,6 +149,7 @@ export interface ResolvedLaunchState {
   prefill: string | null;
   scope: CoachLaunchScope | null;
   documentId: string | null;
+  workoutId: string | null;
   autoSend: boolean;
 }
 
@@ -145,6 +158,7 @@ export function resolveLaunchState(input: {
   nextScope?: CoachLaunchScope;
   nextAutoSend?: boolean;
   nextDocumentId?: string | null;
+  nextWorkoutId?: string | null;
   ambientScope: CoachLaunchScope | null;
   ambientPrefill: string | null;
 }): ResolvedLaunchState {
@@ -164,6 +178,9 @@ export function resolveLaunchState(input: {
     // A document scope is always explicit (the vault "Ask the Coach" action);
     // it is never inherited from ambient page state.
     documentId: input.nextDocumentId ?? null,
+    // Same rule for the workout scope — explicit only, never ambient. A metric
+    // page's ambient scope must not silently pin an unrelated workout.
+    workoutId: input.nextWorkoutId ?? null,
   };
 }
 
@@ -182,6 +199,8 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
   const [scope, setScope] = useState<CoachLaunchScope | null>(null);
   // Stored-document scope of the open conversation. `null` → health chat.
   const [documentId, setDocumentId] = useState<string | null>(null);
+  // Workout scope of the open conversation. `null` → no workout section.
+  const [workoutId, setWorkoutId] = useState<string | null>(null);
   // Ambient scope + seed opener of the metric surface currently on screen.
   // The FAB's `askCoach()` (no args) falls back to these so opening the
   // Coach from a metric page still lands a pre-scoped, pre-seeded
@@ -196,6 +215,7 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
       nextScope?: CoachLaunchScope,
       nextAutoSend?: boolean,
       nextDocumentId?: string | null,
+      nextWorkoutId?: string | null,
     ) => {
       // v1.21.0 (C4 H1/H4) — scope is live; v1.28.52 — document scope threads
       // through so the vault "Ask the Coach" action opens the drawer scoped to
@@ -206,6 +226,7 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
         nextScope,
         nextAutoSend,
         nextDocumentId,
+        nextWorkoutId,
         ambientScope: ambientScopeRef.current,
         ambientPrefill: ambientPrefillRef.current,
       });
@@ -213,6 +234,7 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
       setPrefill(resolved.prefill);
       setAutoSend(resolved.autoSend);
       setDocumentId(resolved.documentId);
+      setWorkoutId(resolved.workoutId);
       setOpen(true);
     },
     [],
@@ -238,12 +260,13 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
   const handleSetOpen = useCallback((next: boolean) => {
     setOpen(next);
     if (!next) {
-      // Drop the prefill + scope + document + auto-send on close so the next
-      // open starts clean.
+      // Drop the prefill + scope + document + workout + auto-send on close so
+      // the next open starts clean.
       setPrefill(null);
       setScope(null);
       setAutoSend(false);
       setDocumentId(null);
+      setWorkoutId(null);
     }
   }, []);
 
@@ -254,6 +277,7 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
       autoSend,
       scope,
       documentId,
+      workoutId,
       askCoach,
       registerScope,
       setOpen: handleSetOpen,
@@ -264,6 +288,7 @@ export function CoachLaunchProvider({ children }: CoachLaunchProviderProps) {
       autoSend,
       scope,
       documentId,
+      workoutId,
       askCoach,
       registerScope,
       handleSetOpen,

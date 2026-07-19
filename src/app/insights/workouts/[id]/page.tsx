@@ -104,8 +104,17 @@ export default function InsightsWorkoutDetailPage({
           <WorkoutDetailSplits workout={data} />
           <WorkoutDetailDayLinks workout={data} />
           {/* 2026-07-17 UX-flows audit F6-1 — `workouts` narrows the
-              snapshot the first coach turn reads. */}
-          <CoachLaunchButton scope={{ metric: "workouts" }} />
+              snapshot the first coach turn reads. v1.31.0 — `workoutId` pins
+              THIS session's own numbers as one additional snapshot section, so
+              the answer is about this workout rather than about training in
+              general, and the opener auto-sends so it lands directly. */}
+          <CoachLaunchButton
+            scope={{ metric: "workouts" }}
+            workoutId={data.id}
+            label={t("insights.workouts.askWhy")}
+            prefill={t("insights.workouts.askWhyPrompt")}
+            autoSend
+          />
         </>
       )}
     </SubPageShell>

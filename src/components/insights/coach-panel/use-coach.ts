@@ -495,6 +495,14 @@ export interface SendCoachMessageParams {
    * `POST /api/insights/chat/{id}/attachments`.
    */
   pendingAttachmentIds?: string[];
+  /**
+   * v1.31.0 — the workout a FRESH conversation is scoped to. Travels ONLY on
+   * the first turn (the caller gates on a null conversation id) and never on
+   * the fenced path, which has no snapshot to pin a section onto. The server
+   * ignores it on any later turn regardless, so snapshot-once holds even if a
+   * client re-sent it.
+   */
+  workoutId?: string;
 }
 
 /**
@@ -541,6 +549,7 @@ export function resolveCoachSendTarget(params: SendCoachMessageParams): {
       locale: params.locale,
       scope: params.scope,
       guidedQuestion: params.guidedQuestion,
+      workoutId: params.workoutId,
     }),
   };
 }
