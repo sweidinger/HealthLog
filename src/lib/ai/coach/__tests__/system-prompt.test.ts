@@ -202,7 +202,7 @@ describe("getCoachSystemPrompt — DE", () => {
     // German coach can cite glucose + duration values with a valid token.
     expect(prompt).toMatch(/mg\/dL/);
     expect(prompt).toMatch(/mmol\/L/);
-    expect(prompt).toMatch(/min[\s\S]*\(Schlafdefizit/);
+    expect(prompt).toMatch(/min[\s\S]*\(Schlafschuld/);
   });
 
   it("carries the v1.21.2 narrative-presence clauses (A4/A5/A6/A7)", () => {

@@ -157,7 +157,7 @@ interface SleepRhythmBlockContext {
  * ── v1.17.0 sleep-rhythm block (sleep-debt + chronotype) ──────────
  *
  * The two server-authoritative timing signals the Sleep page + the
- * dashboard summary render — cumulative sleep debt and the MCTQ
+ * dashboard summary render — the outstanding sleep-debt balance and the MCTQ
  * chronotype band + social jetlag. Built from the SAME assembler the
  * dashboard route uses (`reconstructNights` → `computeSleepRhythmFromNights`),
  * over the rhythm's OWN fixed trailing-42-day rows, so the coach quotes the

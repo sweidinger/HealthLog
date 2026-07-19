@@ -578,7 +578,7 @@
     "bulkDeleteSuccess": "{count} misurazioni eliminate",
     "bulkDeleteError": "Errore durante l'eliminazione delle misurazioni selezionate",
     "bulkDeleteConfirmTitle": "Eliminare {count} misurazioni?",
-    "bulkDeleteConfirmBody": "Le {count} misurazioni selezionate verranno eliminate definitivamente.",
+    "bulkDeleteConfirmBody": "Le {count} misurazioni selezionate verranno eliminate. Subito dopo potrai annullare l’operazione per un breve momento.",
     "typePhq9Score": "Punteggio PHQ-9",
     "typeGad7Score": "Punteggio GAD-7",
     "typeGripStrength": "Forza di presa",
@@ -726,7 +726,7 @@
     "bulkDeleteSuccess": "{count} voci eliminate",
     "bulkDeleteError": "Errore durante l'eliminazione delle voci selezionate",
     "bulkDeleteConfirmTitle": "Eliminare {count} voci?",
-    "bulkDeleteConfirmBody": "Le {count} voci dell'umore selezionate verranno eliminate definitivamente.",
+    "bulkDeleteConfirmBody": "Le {count} voci dell'umore selezionate verranno eliminate. Subito dopo potrai annullare l’operazione per un breve momento.",
     "customize": "Personalizza i tag dell’umore",
     "addTagInline": "Aggiungi tag",
     "manage": {
@@ -2862,9 +2862,9 @@
       "debt": {
         "title": "Debito di sonno",
         "value": "{hours} h {minutes} min in meno",
-        "caption": "Deficit cumulato nelle ultime {nights} notti",
+        "caption": "Bilancio in sospeso nelle ultime {nights} notti",
         "clearValue": "In pari",
-        "clearCaption": "Nessun deficit accumulato nelle ultime {nights} notti",
+        "clearCaption": "Niente in sospeso nelle ultime {nights} notti",
         "learning": "Stiamo ancora misurando il tuo sonno — {counted} notti finora, ne mancano {remaining} per un bilancio affidabile.",
         "computedInfo": "Questa è la stima propria di HealthLog: un bilancio mobile tra fabbisogno e sonno delle ultime notti, che il sonno di recupero riduce. Può differire dal dato di debito di sonno nativo di un dispositivo indossabile, che usa un proprio modello di fabbisogno."
       },
@@ -5733,6 +5733,14 @@
       "title": "Garmin",
       "body": "Garmin non ha una connessione diretta qui. Collegalo tramite Apple Health (iOS) o Google Health Connect (Android). I punteggi proprietari di Garmin — Body Battery, Training Load, stato HRV, VO₂ max — non vengono condivisi da Garmin con nessuna delle due piattaforme.",
       "docsLink": "Leggi la guida"
+    },
+    "glucoseReference": {
+      "title": "Banda di riferimento della glicemia",
+      "description": "La banda con cui vengono valutati i tuoi valori glicemici.",
+      "enable": "Usa la banda obiettivo per il diabete",
+      "explainer": "Disattivato, i valori vengono valutati con la banda di riferimento generale non diabetica. Attivato, vengono valutati con la banda obiettivo glicemica più stretta degli ADA Standards of Care, e il Coach fonda su quella banda le sue osservazioni sulla glicemia. I tuoi valori obiettivo personalizzati qui sotto hanno comunque la precedenza.",
+      "disclaimer": "Questo seleziona una banda di riferimento. Non è una diagnosi, non viene mai dedotto da una misurazione e l'app non agisce clinicamente di conseguenza. Quali obiettivi valgano per te è una domanda per il tuo medico.",
+      "error": "Non è stato possibile salvare l'impostazione."
     }
   },
   "admin": {
@@ -7471,7 +7479,7 @@
     "referenceLabel": "Riferimento",
     "readingsCount": "{count} misurazioni",
     "deleteConfirmTitle": "Eliminare il risultato di laboratorio?",
-    "deleteConfirmDescription": "Questo risultato di laboratorio verrà eliminato definitivamente.",
+    "deleteConfirmDescription": "Questo risultato di laboratorio verrà eliminato. Subito dopo potrai annullare l’operazione per un breve momento.",
     "deletedToast": "Risultato eliminato",
     "deleteError": "Impossibile eliminare il risultato",
     "loadError": "Impossibile caricare i risultati",
@@ -7950,7 +7958,7 @@
     },
     "deleteConfirm": {
       "title": "Eliminare questo episodio?",
-      "body": "«{label}» e tutti i relativi registri giornalieri verranno rimossi. L'operazione non può essere annullata."
+      "body": "«{label}» e tutti i relativi registri giornalieri verranno rimossi. Subito dopo potrai annullare l’operazione per un breve momento."
     },
     "vital": {
       "RESTING_HEART_RATE": "Frequenza cardiaca a riposo",

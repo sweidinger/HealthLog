@@ -22,8 +22,11 @@ function hoursMinutes(totalMinutes: number): {
 /**
  * v1.17.0 — sleep-debt headline.
  *
- * The cumulative shortfall between sleep need and sleep obtained over the
- * rolling window. Under the night threshold it shows the calm `partial`
+ * The outstanding balance between sleep need and sleep obtained over the
+ * rolling window — a night below need adds to it, a night above need pays it
+ * down (v1.19.0 replaced the summed shortfall with this running balance; the
+ * copy follows the arithmetic). Under the night threshold it shows the calm
+ * `partial`
  * state ("still learning — N more nights") and never asserts a total off thin
  * data. Mobile-first: a single readable figure + one line of grounded context.
  */

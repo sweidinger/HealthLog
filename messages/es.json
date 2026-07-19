@@ -578,7 +578,7 @@
     "bulkDeleteSuccess": "{count} mediciones eliminadas",
     "bulkDeleteError": "Error al eliminar las mediciones seleccionadas",
     "bulkDeleteConfirmTitle": "¿Eliminar {count} mediciones?",
-    "bulkDeleteConfirmBody": "Las {count} mediciones seleccionadas se eliminarán de forma permanente.",
+    "bulkDeleteConfirmBody": "Las {count} mediciones seleccionadas se eliminarán. Justo después podrás deshacerlo durante un breve momento.",
     "typePhq9Score": "Puntuación PHQ-9",
     "typeGad7Score": "Puntuación GAD-7",
     "typeGripStrength": "Fuerza de agarre",
@@ -726,7 +726,7 @@
     "bulkDeleteSuccess": "{count} entradas eliminadas",
     "bulkDeleteError": "Error al eliminar las entradas seleccionadas",
     "bulkDeleteConfirmTitle": "¿Eliminar {count} entradas?",
-    "bulkDeleteConfirmBody": "Las {count} entradas de estado de ánimo seleccionadas se eliminarán de forma permanente.",
+    "bulkDeleteConfirmBody": "Las {count} entradas de estado de ánimo seleccionadas se eliminarán. Justo después podrás deshacerlo durante un breve momento.",
     "customize": "Personalizar etiquetas de ánimo",
     "addTagInline": "Añadir etiqueta",
     "manage": {
@@ -2862,9 +2862,9 @@
       "debt": {
         "title": "Deuda de sueño",
         "value": "{hours} h {minutes} min de déficit",
-        "caption": "Déficit acumulado de las últimas {nights} noches",
+        "caption": "Balance pendiente de las últimas {nights} noches",
         "clearValue": "Al día",
-        "clearCaption": "Sin déficit acumulado en las últimas {nights} noches",
+        "clearCaption": "Nada pendiente en las últimas {nights} noches",
         "learning": "Aún estamos midiendo tu sueño — {counted} noches hasta ahora, faltan {remaining} para un balance fiable.",
         "computedInfo": "Esta es la estimación propia de HealthLog: un balance móvil de la necesidad menos el sueño de las últimas noches, que el sueño de recuperación va reduciendo. Puede diferir de la cifra de deuda de sueño nativa de un wearable, que usa su propio modelo de necesidad."
       },
@@ -5733,6 +5733,14 @@
       "title": "Garmin",
       "body": "Garmin no tiene conexión directa aquí. Conéctalo a través de Apple Health (iOS) o Google Health Connect (Android). Las métricas propias de Garmin — Body Battery, Training Load, estado de HRV, VO₂ máx.— no las comparte Garmin con ninguna de las dos plataformas.",
       "docsLink": "Leer la guía"
+    },
+    "glucoseReference": {
+      "title": "Banda de referencia de glucosa",
+      "description": "Con qué banda se evalúan tus valores de glucosa en sangre.",
+      "enable": "Usar la banda objetivo para diabetes",
+      "explainer": "Desactivado, los valores se evalúan con la banda de referencia general no diabética. Activado, se evalúan con la banda objetivo glucémica más estrecha de los ADA Standards of Care, y el Coach fundamenta sus comentarios sobre glucosa en esa banda. Tus propios valores objetivo personalizados de abajo siguen teniendo prioridad.",
+      "disclaimer": "Esto selecciona una banda de referencia. No es un diagnóstico, nunca se deduce de una medición y la aplicación no actúa clínicamente en consecuencia. Qué objetivos se aplican a ti es una pregunta para tu profesional sanitario.",
+      "error": "No se pudo guardar el ajuste."
     }
   },
   "admin": {
@@ -7471,7 +7479,7 @@
     "referenceLabel": "Referencia",
     "readingsCount": "{count} mediciones",
     "deleteConfirmTitle": "¿Eliminar resultado de laboratorio?",
-    "deleteConfirmDescription": "Este resultado de laboratorio se eliminará de forma permanente.",
+    "deleteConfirmDescription": "Este resultado de laboratorio se eliminará. Justo después podrás deshacerlo durante un breve momento.",
     "deletedToast": "Resultado eliminado",
     "deleteError": "No se pudo eliminar el resultado",
     "loadError": "No se pudieron cargar los resultados",
@@ -7950,7 +7958,7 @@
     },
     "deleteConfirm": {
       "title": "¿Eliminar este episodio?",
-      "body": "«{label}» y todos sus registros diarios se eliminarán. Esta acción no se puede deshacer."
+      "body": "«{label}» y todos sus registros diarios se eliminarán. Justo después podrás deshacerlo durante un breve momento."
     },
     "vital": {
       "RESTING_HEART_RATE": "Frecuencia cardíaca en reposo",

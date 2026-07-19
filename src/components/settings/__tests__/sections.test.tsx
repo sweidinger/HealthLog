@@ -267,6 +267,21 @@ describe("settings sections — SSR smoke", () => {
     expect(html).not.toContain("settings.sections.thresholds.");
   });
 
+  it("<ThresholdsSection> carries the glucose reference band control", () => {
+    // The declared diabetes opt-in (`PATCH /api/auth/me/diabetes`) selects the
+    // tighter glucose band and grounds the Coach, but shipped with no web
+    // control at all — a web-only account could never reach it. It belongs on
+    // Targets: same question ("which range judges my reading") as the editor
+    // below it, and the copy must stay honest about being a reference band
+    // rather than a diagnosis.
+    const html = renderFramed("thresholds", <ThresholdsSection />);
+    expect(html).toContain("Glucose reference band");
+    expect(html).toContain("Use the diabetes goal band");
+    expect(html).toContain("not a diagnosis");
+    expect(html).toContain('data-slot="glucose-reference-disclaimer"');
+    expect(html).not.toContain("settings.glucoseReference.");
+  });
+
   it("<ThresholdsSection> resolves the German title", () => {
     const html = renderFramed("thresholds", <ThresholdsSection />, "de");
     // v1.8.7.1 — German title is "Zielwerte" (Targets only).

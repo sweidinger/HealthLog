@@ -578,7 +578,7 @@
     "bulkDeleteSuccess": "{count} measurements deleted",
     "bulkDeleteError": "Error deleting the selected measurements",
     "bulkDeleteConfirmTitle": "Delete {count} measurements?",
-    "bulkDeleteConfirmBody": "The {count} selected measurements will be permanently deleted.",
+    "bulkDeleteConfirmBody": "The {count} selected measurements will be deleted. You can undo this for a short moment afterwards.",
     "typePhq9Score": "PHQ-9 score",
     "typeGad7Score": "GAD-7 score",
     "typeGripStrength": "Grip strength",
@@ -726,7 +726,7 @@
     "bulkDeleteSuccess": "{count} entries deleted",
     "bulkDeleteError": "Error deleting the selected entries",
     "bulkDeleteConfirmTitle": "Delete {count} entries?",
-    "bulkDeleteConfirmBody": "The {count} selected mood entries will be permanently deleted.",
+    "bulkDeleteConfirmBody": "The {count} selected mood entries will be deleted. You can undo this for a short moment afterwards.",
     "customize": "Customize mood tags",
     "addTagInline": "Add tag",
     "manage": {
@@ -2862,9 +2862,9 @@
       "debt": {
         "title": "Sleep debt",
         "value": "{hours}h {minutes}m short",
-        "caption": "Cumulative shortfall over the last {nights} nights",
+        "caption": "Outstanding balance over the last {nights} nights",
         "clearValue": "All caught up",
-        "clearCaption": "No accumulated shortfall over the last {nights} nights",
+        "clearCaption": "Nothing outstanding over the last {nights} nights",
         "learning": "Still learning your sleep — {counted} nights so far, {remaining} more to read a reliable balance.",
         "computedInfo": "This is HealthLog's own estimate: a rolling balance of need minus sleep over recent nights, with catch-up sleep paying it down. It can differ from a wearable's native sleep-debt figure, which uses its own need model."
       },
@@ -5733,6 +5733,14 @@
       "title": "Garmin",
       "body": "Garmin has no direct connection here. Connect via Apple Health (iOS) or Google Health Connect (Android). Garmin's proprietary scores — Body Battery, Training Load, HRV Status, VO₂ max — are not shared by Garmin to either platform.",
       "docsLink": "Read the guide"
+    },
+    "glucoseReference": {
+      "title": "Glucose reference band",
+      "description": "Which band your blood-glucose readings are judged against.",
+      "enable": "Use the diabetes goal band",
+      "explainer": "Off, readings are judged against the general non-diabetic reference band. On, they are judged against the tighter glycaemic goal band from the ADA Standards of Care, and the Coach grounds its glucose remarks on that band instead. Your own target overrides below still take precedence.",
+      "disclaimer": "This selects a reference band. It is not a diagnosis, it is never inferred from a reading, and the app takes no clinical action on it. Which targets apply to you is a question for your clinician.",
+      "error": "Could not save the setting."
     }
   },
   "admin": {
@@ -7471,7 +7479,7 @@
     "referenceLabel": "Reference",
     "readingsCount": "{count} readings",
     "deleteConfirmTitle": "Delete lab result?",
-    "deleteConfirmDescription": "This lab result will be permanently deleted.",
+    "deleteConfirmDescription": "This lab result will be deleted. You can undo this for a short moment afterwards.",
     "deletedToast": "Result deleted",
     "deleteError": "Could not delete the result",
     "loadError": "Could not load lab results",
@@ -7950,7 +7958,7 @@
     },
     "deleteConfirm": {
       "title": "Delete this episode?",
-      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+      "body": "“{label}” and all its day-logs will be removed. You can undo this for a short moment afterwards."
     },
     "vital": {
       "RESTING_HEART_RATE": "Resting heart rate",

@@ -22,6 +22,14 @@ export const settingsKeys = {
   injectionSitePrefs: () => ["settings", "injection-site-prefs"] as const,
 
   /**
+   * The declared diabetes opt-in behind `GET/PATCH /api/auth/me/diabetes`.
+   * Selects which reference band glucose readings are judged against, so the
+   * toggle also invalidates `insightsTargets()` — the resolved band rides
+   * on that payload.
+   */
+  diabetesPref: () => ["settings", "diabetes"] as const,
+
+  /**
    * v1.18.0 — the per-user module enable/disable map behind
    * `GET/PATCH /api/auth/me/modules`. Used as the Module-hub mutation key;
    * the resolved map itself rides on `authMe()` (the `/auth/me` payload),
