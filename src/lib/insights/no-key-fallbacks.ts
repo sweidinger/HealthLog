@@ -285,14 +285,65 @@ export function getNoKeyMetricStatusText(
   return grounded ?? getNoKeyGeneralStatusText(locale);
 }
 
+/**
+ * The no-signal floor's opening move.
+ *
+ * Every floor below runs when there is no usable signal to ground against —
+ * so the honest thing to lead with is not a clinical instruction ("Measure
+ * blood pressure at rest…") but the situation itself: no assessment is
+ * available right now. That IS the meaning-first opening for this case. It
+ * claims nothing about the person's numbers, which is exactly the point — the
+ * floor must never imply a read the data does not support, and a warm-sounding
+ * verdict here would be manufactured.
+ *
+ * What follows the lead is what makes the metric readable, phrased as how the
+ * measure behaves rather than as an order to the reader.
+ */
+function noReadLead(locale: InsightLocale): string {
+  return locale === "de"
+    ? "Für diese Karte liegt gerade keine Einschätzung vor."
+    : "No assessment on this one right now.";
+}
+
+function floor(locale: InsightLocale, de: string, en: string): string {
+  return `${noReadLead(locale)} ${getLocalizedText(locale, de, en)}`;
+}
+
 export function getNoKeyGeneralStatusText(locale: InsightLocale): string {
   // The overview spans many metrics with no single headline value to ground
   // against, so it keeps the honest, generic multi-metric pointer.
-  return getLocalizedText(
+  return floor(
     locale,
-    "Beobachte Entwicklungen über mehrere Wochen statt einzelne Tageswerte isoliert zu bewerten. Achte auf konsistente Messzeitpunkte, damit Trends belastbar vergleichbar bleiben. Reagiere früh, wenn sich mehrere Kennzahlen gleichzeitig in eine ungünstige Richtung bewegen.",
-    "Track developments over several weeks instead of judging single daily values in isolation. Keep measurement timing consistent so trends remain comparable and reliable. React early when multiple metrics move in an unfavorable direction at the same time.",
+    "Aussagekräftig werden diese Zahlen über mehrere Wochen, nicht über einzelne Tage — und zu konstanten Zeitpunkten erfasst, damit sie vergleichbar bleiben. Das Signal, das zählt, ist mehrere Kennzahlen, die sich gleichzeitig in dieselbe ungünstige Richtung bewegen, nicht ein Wert an einem Tag.",
+    "These numbers become readable across several weeks rather than single days, and taken at consistent times so they stay comparable. The signal that counts is several metrics drifting the same unfavourable way at once, not one value on one day.",
   );
+}
+
+/**
+ * Single lab-marker floor. The biomarker card used to fall back to the
+ * multi-metric overview tip — text about watching several metrics at once, on
+ * a card showing exactly one lab value. This says something true about a lab
+ * marker instead.
+ */
+export function getNoKeyBiomarkerStatusText(
+  locale: InsightLocale,
+  markerName?: string | null,
+): string {
+  const named =
+    markerName && markerName.trim().length > 0
+      ? locale === "de"
+        ? ` zu „${markerName.trim()}"`
+        : ` for "${markerName.trim()}"`
+      : "";
+  const lead =
+    locale === "de"
+      ? `Für diesen Laborwert${named} liegt gerade keine Einschätzung vor.`
+      : `No assessment${named} right now.`;
+  return `${lead} ${getLocalizedText(
+    locale,
+    "Ein Laborwert liest sich zuerst gegen die eigenen vorherigen Abnahmen — ein Referenzbereich ist ein grober Anker, kein Urteil. Ein Wert, der sich über mehrere Abnahmen kaum bewegt, erzählt etwas anderes als einer, der gerade gesprungen ist. Die nächste ärztliche Kontrolle ist der richtige Ort, ihn einzuordnen.",
+    "A lab value reads first against your own previous draws — a reference range is a coarse anchor, not a verdict. One that has barely moved across several draws tells a different story from one that has just stepped. Your next check-up is the right place to put it in context.",
+  )}`;
 }
 
 export function getNoKeyBloodPressureStatusText(
@@ -301,10 +352,10 @@ export function getNoKeyBloodPressureStatusText(
 ): string {
   return (
     composeGroundedFallback(signal, BLOOD_PRESSURE_COPY, locale) ??
-    getLocalizedText(
+    floor(
       locale,
-      "Miss den Blutdruck möglichst in Ruhe und unter vergleichbaren Bedingungen. Entscheidend ist die Tendenz über mehrere Tage, nicht ein einzelner Ausreißer. Beurteile systolische und diastolische Werte immer gemeinsam im zeitlichen Verlauf.",
-      "Measure blood pressure at rest and under comparable conditions whenever possible. The multi-day trend matters more than a single outlier. Always evaluate systolic and diastolic values together over time.",
+      "Blutdruck wird lesbar über eine Reihe ruhiger Messungen unter vergleichbaren Bedingungen — die Richtung über mehrere Tage sagt weit mehr als ein einzelner Ausreißer, und systolisch und diastolisch gehören dabei zusammen gelesen.",
+      "Blood pressure becomes readable over a run of calm readings under similar conditions — the direction across several days says far more than any single outlier, and systolic and diastolic are read together rather than one at a time.",
     )
   );
 }
@@ -315,10 +366,10 @@ export function getNoKeyWeightStatusText(
 ): string {
   return (
     composeGroundedFallback(signal, WEIGHT_COPY, locale) ??
-    getLocalizedText(
+    floor(
       locale,
-      "Bewerte Gewicht vor allem im Verlauf und nicht anhand einzelner Tage. Nutze möglichst konstante Messbedingungen, um normale Schwankungen besser einzuordnen. Wichtig ist die langfristige Richtung im Zusammenspiel mit Blutdruck und BMI.",
-      "Evaluate weight mainly as a trend rather than by isolated daily readings. Use consistent measurement conditions to interpret normal fluctuations more reliably. What matters most is the long-term direction together with blood pressure and BMI.",
+      "Gewicht liest sich als Verlauf, nicht als Tageszahl — unter konstanten Bedingungen gewogen, pendelt sich die normale Tagesschwankung von selbst ein. Die Richtung über Wochen, zusammen mit Blutdruck und BMI gelesen, ist das, was trägt.",
+      "Weight reads as a trend rather than a daily number — weighed under consistent conditions, the normal day-to-day swing settles out on its own. The direction over weeks, read alongside blood pressure and BMI, is what carries.",
     )
   );
 }
@@ -329,10 +380,10 @@ export function getNoKeyPulseStatusText(
 ): string {
   return (
     composeGroundedFallback(signal, PULSE_COPY, locale) ??
-    getLocalizedText(
+    floor(
       locale,
-      "Miss den Ruhepuls in einer entspannten Situation und möglichst zur gleichen Tageszeit. Kurzfristige Ausschläge sind normal, wichtiger ist die Entwicklung über mehrere Tage. Achte auf wiederkehrende Abweichungen vom persönlichen Zielbereich.",
-      "Measure resting pulse in a relaxed state and ideally at the same time of day. Short-term spikes are normal, while the multi-day pattern is more important. Watch for repeated deviations from your personal target range.",
+      "Der Ruhepuls liest sich am besten entspannt und zur gleichen Tageszeit gemessen. Kurze Ausschläge sind gewöhnlich; was auffällt, ist ein Muster, das über mehrere Tage hält, oder wiederholtes Abdriften vom eigenen üblichen Bereich.",
+      "Resting pulse reads best taken relaxed and at the same time of day. Short spikes are ordinary; what stands out is a pattern holding across several days, or repeated drift away from your usual range.",
     )
   );
 }
@@ -343,10 +394,10 @@ export function getNoKeyBmiStatusText(
 ): string {
   return (
     composeGroundedFallback(signal, BMI_COPY, locale) ??
-    getLocalizedText(
+    floor(
       locale,
-      "Der BMI ist eine Orientierungsgröße und sollte immer zusammen mit Gewichtstrend und Körperfett betrachtet werden. Einzelwerte sind weniger wichtig als die Entwicklung über Wochen. Aussagekräftig sind vor allem stabile Verbesserungen oder dauerhafte Abweichungen.",
-      "BMI is a directional metric and should always be viewed together with weight trend and body-fat context. Single values are less important than changes across weeks. The most meaningful signals are sustained improvements or persistent deviations.",
+      "Der BMI ist eine grobe Orientierung, kein Urteil, und bedeutet am meisten zusammen mit Gewichtstrend und Körperzusammensetzung gelesen. Eine anhaltende Bewegung über Wochen trägt, wo ein Einzelwert es nicht tut.",
+      "BMI is a rough orientation rather than a verdict, and it means most read alongside your weight trend and body composition. Sustained movement over weeks carries where a single value does not.",
     )
   );
 }
@@ -357,10 +408,10 @@ export function getNoKeyMedicationComplianceStatusText(
 ): string {
   return (
     composeGroundedFallback(signal, ADHERENCE_COPY, locale) ??
-    getLocalizedText(
+    floor(
       locale,
-      "Konstanz bei der Einnahme ist wichtiger als einzelne perfekte Tage. Beurteile die Treue pro Medikament und zusätzlich im Gesamtbild über mehrere Wochen. Achte besonders auf wiederkehrende Auslassungen und stabilisiere dafür feste Zeitfenster-Routinen.",
-      "Consistency in intake matters more than isolated perfect days. Evaluate adherence per medication and also in the overall multi-week picture. Pay special attention to repeated misses and stabilize fixed time-window routines.",
+      "Einnahmetreue liest sich als Konstanz über Wochen, nicht als eine Reihe perfekter Tage — je Medikament und im Gesamtbild. Wiederkehrende Auslassungen zur selben Tageszeit sind das Muster, auf das es ankommt, und eine feste Routine fängt sie am ehesten ab.",
+      "Adherence reads as consistency over weeks rather than a run of perfect days — per medication and in the overall picture. Repeated misses at the same time of day are the pattern that counts, and a fixed routine is what usually catches them.",
     )
   );
 }
@@ -371,10 +422,10 @@ export function getNoKeyMoodStatusText(
 ): string {
   return (
     composeGroundedFallback(signal, MOOD_COPY, locale) ??
-    getLocalizedText(
+    floor(
       locale,
-      "Bewerte die Stimmung im Verlauf über mehrere Wochen statt einzelne Tage isoliert zu betrachten. Achte auf wiederkehrende Muster und Zusammenhänge mit anderen Gesundheitswerten. Anhaltende Phasen niedriger Stimmung verdienen besondere Aufmerksamkeit.",
-      "Evaluate mood trends over several weeks rather than isolated daily readings. Watch for recurring patterns and correlations with other health metrics. Sustained periods of low mood deserve special attention.",
+      "Stimmung liest sich über Wochen, nicht über einzelne Tage — wiederkehrende Muster und wie sie zu den anderen Werten passen, sind das, was trägt. Eine anhaltende Phase niedriger Stimmung ist die, die Aufmerksamkeit verdient.",
+      "Mood reads over weeks rather than single days — recurring patterns, and how they line up with your other metrics, are what carry. A sustained low stretch is the one that deserves attention.",
     )
   );
 }
