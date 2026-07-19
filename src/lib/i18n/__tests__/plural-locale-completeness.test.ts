@@ -8,8 +8,11 @@
  * these paths fails here rather than in a user's notification.
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { pluralTier, pluralKey } from "../plural";
 import { formatRelativeTime } from "../relative-time";
+import { formatDurationMinutes } from "../duration";
 import { getServerTranslator } from "../server-translator";
 import { locales, localeLanguageNames, coerceLocale } from "../config";
 import { getPhaseMessage } from "@/lib/jobs/reminder-phases";
@@ -178,6 +181,55 @@ describe("coach refusal copy", () => {
       );
     }
   });
+});
+
+describe("duration abbreviations", () => {
+  it("gives each locale its own abbreviations", () => {
+    const rendered = new Map<string, string>();
+    for (const locale of locales) {
+      const label = formatDurationMinutes(492, getServerTranslator(locale).t);
+      expect(label).toContain("8");
+      expect(label).toContain("12");
+      rendered.set(locale, label);
+    }
+    // The regression: three components hardcoded German-or-English, so es / fr
+    // / it / pl all read "8h 12m".
+    expect(rendered.get("de")).toBe("8 Std. 12 Min.");
+    expect(rendered.get("en")).toBe("8h 12m");
+    expect(rendered.get("pl")).toBe("8 godz. 12 min");
+    expect(rendered.get("fr")).not.toBe(rendered.get("en"));
+    expect(rendered.get("pl")).not.toBe(rendered.get("en"));
+  });
+
+  it("drops the hours part below an hour", () => {
+    expect(formatDurationMinutes(42, getServerTranslator("de").t)).toBe(
+      "42 Min.",
+    );
+  });
+});
+
+describe("formatters follow the app locale, not the browser", () => {
+  // `Intl.DateTimeFormat(undefined, …)` and `toLocaleString(undefined, …)`
+  // resolve to the BROWSER locale. That is invisible whenever the two agree and
+  // wrong for everyone reading the app in a language their browser is not set
+  // to, so these surfaces must pass a resolved app locale.
+  const surfaces = [
+    "src/components/cycle/cycle-calendar.tsx",
+    "src/components/insights/device-score-tile.tsx",
+    "src/components/insights/sleep-stage-stacked-bar.tsx",
+  ] as const;
+
+  for (const rel of surfaces) {
+    it(`${rel} passes a resolved locale to Intl`, () => {
+      const source = readFileSync(join(process.cwd(), rel), "utf8");
+      expect(source).toContain("resolveIntlLocale");
+      expect(source).not.toMatch(/Intl\.DateTimeFormat\(\s*undefined/);
+      expect(source).not.toMatch(/toLocaleDateString\(\s*undefined/);
+      expect(source).not.toMatch(/toLocaleString\(\s*undefined/);
+      // The de/en axis binary that sent four locales an en-US axis.
+      expect(source).not.toMatch(/locale === "de" \? "de-DE" : "en-US"/);
+    });
+  }
 });
 
 describe("locale plumbing", () => {
