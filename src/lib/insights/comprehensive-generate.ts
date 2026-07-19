@@ -32,6 +32,7 @@ import {
   readBriefingBlock,
   buildBriefingGroundingCorrection,
 } from "@/lib/ai/briefing-grounding";
+import { screenInsightPayloadProse } from "@/lib/ai/safety/insight-payload-screen";
 import { applyInsightsExcludeFilter } from "@/lib/insights/exclude-filter";
 import { getCachedFeatures } from "@/lib/insights/feature-cache";
 import {
@@ -1036,6 +1037,27 @@ export async function generateComprehensiveInsight(
         },
       });
     }
+  }
+
+  // Outbound safety screen over the WHOLE prose surface.
+  //
+  // SURFACE POLICY — WITHHOLD. This payload is generated in the background and
+  // persisted as the cached insight; nobody is waiting on the turn. Unlike the
+  // number-grounding gate above, a safety violation cannot be surgically
+  // stripped: a dose imperative may sit in `recommendations[]`, in `summary`,
+  // or in the briefing, and deleting an arbitrary field would leave a payload
+  // whose remaining prose still refers to it. So the whole generation fails and
+  // persists NOTHING -- the previous cached payload stays, exactly as a
+  // provider outage or an unparseable response already behaves. The next run
+  // regenerates from scratch.
+  const screened = screenInsightPayloadProse(insights, locale);
+  if (screened) {
+    annotate({
+      action: { name: "insights.generate.outbound_blocked" },
+      meta: { locale, reason: screened },
+    });
+    void recordBriefingFailure({ userId, reason: "outbound-screened", locale });
+    return { status: "failed", reason: "outbound-screened" };
   }
 
   // v1.9.0 — the caller abandoned this generation (its bounded timeout
