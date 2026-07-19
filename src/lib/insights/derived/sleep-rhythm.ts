@@ -4,7 +4,8 @@
  * The one place that turns a user's raw `SLEEP_DURATION` rows into the two
  * timing signals the Sleep page + the iOS client + the dashboard render:
  *
- *   - cumulative SLEEP DEBT over the rolling window (`computeSleepDebt`), and
+ *   - the outstanding SLEEP DEBT balance over the rolling window
+ *     (`computeSleepDebt`; surplus sleep pays it down), and
  *   - MCTQ CHRONOTYPE + social jetlag (`computeChronotype`).
  *
  * ONE ENGINE, NO DUPLICATION

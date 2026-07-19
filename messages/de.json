@@ -578,7 +578,7 @@
     "bulkDeleteSuccess": "{count} Messungen gelöscht",
     "bulkDeleteError": "Fehler beim Löschen der ausgewählten Messungen",
     "bulkDeleteConfirmTitle": "{count} Messungen löschen?",
-    "bulkDeleteConfirmBody": "Die {count} ausgewählten Messungen werden endgültig gelöscht.",
+    "bulkDeleteConfirmBody": "Die {count} ausgewählten Messungen werden gelöscht. Direkt danach kannst du das kurz rückgängig machen.",
     "typePhq9Score": "PHQ-9-Wert",
     "typeGad7Score": "GAD-7-Wert",
     "typeGripStrength": "Griffstärke",
@@ -726,7 +726,7 @@
     "bulkDeleteSuccess": "{count} Einträge gelöscht",
     "bulkDeleteError": "Fehler beim Löschen der ausgewählten Einträge",
     "bulkDeleteConfirmTitle": "{count} Einträge löschen?",
-    "bulkDeleteConfirmBody": "Die {count} ausgewählten Stimmungseinträge werden endgültig gelöscht.",
+    "bulkDeleteConfirmBody": "Die {count} ausgewählten Stimmungseinträge werden gelöscht. Direkt danach kannst du das kurz rückgängig machen.",
     "customize": "Stimmungs-Tags anpassen",
     "addTagInline": "Tag hinzufügen",
     "manage": {
@@ -2862,9 +2862,9 @@
       "debt": {
         "title": "Schlafschuld",
         "value": "{hours} Std. {minutes} Min. zu wenig",
-        "caption": "Kumuliertes Defizit der letzten {nights} Nächte",
+        "caption": "Offene Bilanz der letzten {nights} Nächte",
         "clearValue": "Ausgeglichen",
-        "clearCaption": "Kein aufgelaufenes Defizit über die letzten {nights} Nächte",
+        "clearCaption": "Nichts offen über die letzten {nights} Nächte",
         "learning": "Dein Schlaf wird noch erfasst — {counted} Nächte bisher, noch {remaining} für eine verlässliche Bilanz.",
         "computedInfo": "Das ist HealthLogs eigene Schätzung: eine gleitende Bilanz aus Bedarf minus Schlaf über die letzten Nächte, die Aufholschlaf wieder abbaut. Sie kann vom nativen Schlafdefizit eines Wearables abweichen, das ein eigenes Bedarfsmodell nutzt."
       },
@@ -5746,6 +5746,14 @@
       "title": "Garmin",
       "body": "Garmin hat hier keine direkte Verbindung. Verbinde über Apple Health (iOS) oder Google Health Connect (Android). Garmins proprietäre Werte — Body Battery, Training Load, HRV-Status, VO₂max — werden von Garmin an keine der beiden Plattformen weitergegeben.",
       "docsLink": "Zur Anleitung"
+    },
+    "glucoseReference": {
+      "title": "Glukose-Referenzband",
+      "description": "Gegen welches Band deine Blutzuckerwerte bewertet werden.",
+      "enable": "Diabetes-Zielband verwenden",
+      "explainer": "Aus werden Werte gegen das allgemeine nicht-diabetische Referenzband bewertet. An werden sie gegen das engere glykämische Zielband der ADA Standards of Care bewertet, und der Coach begründet seine Glukose-Aussagen auf diesem Band. Deine eigenen Zielwert-Überschreibungen unten haben weiterhin Vorrang.",
+      "disclaimer": "Das wählt ein Referenzband aus. Es ist keine Diagnose, wird nie aus einem Messwert abgeleitet, und die App handelt klinisch nicht danach. Welche Zielwerte für dich gelten, klärst du mit deiner Ärztin oder deinem Arzt.",
+      "error": "Die Einstellung konnte nicht gespeichert werden."
     }
   },
   "admin": {
@@ -7484,7 +7492,7 @@
     "referenceLabel": "Referenz",
     "readingsCount": "{count} Messungen",
     "deleteConfirmTitle": "Laborwert löschen?",
-    "deleteConfirmDescription": "Dieser Laborwert wird dauerhaft gelöscht.",
+    "deleteConfirmDescription": "Dieser Laborwert wird gelöscht. Direkt danach kannst du das kurz rückgängig machen.",
     "deletedToast": "Wert gelöscht",
     "deleteError": "Wert konnte nicht gelöscht werden",
     "loadError": "Laborwerte konnten nicht geladen werden",
@@ -7963,7 +7971,7 @@
     },
     "deleteConfirm": {
       "title": "Diese Episode löschen?",
-      "body": "„{label}“ und alle zugehörigen Tageseinträge werden entfernt. Dies kann nicht rückgängig gemacht werden."
+      "body": "„{label}“ und alle zugehörigen Tageseinträge werden entfernt. Direkt danach kannst du das kurz rückgängig machen."
     },
     "vital": {
       "RESTING_HEART_RATE": "Ruheherzfrequenz",

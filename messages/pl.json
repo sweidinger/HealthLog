@@ -578,7 +578,7 @@
     "bulkDeleteSuccess": "Usunięto pomiary: {count}",
     "bulkDeleteError": "Błąd podczas usuwania wybranych pomiarów",
     "bulkDeleteConfirmTitle": "Usunąć pomiary ({count})?",
-    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte.",
+    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną usunięte. Zaraz po usunięciu możesz to przez chwilę cofnąć.",
     "typePhq9Score": "Wynik PHQ-9",
     "typeGad7Score": "Wynik GAD-7",
     "typeGripStrength": "Siła chwytu",
@@ -726,7 +726,7 @@
     "bulkDeleteSuccess": "Usunięto wpisy: {count}",
     "bulkDeleteError": "Błąd podczas usuwania wybranych wpisów",
     "bulkDeleteConfirmTitle": "Usunąć wpisy ({count})?",
-    "bulkDeleteConfirmBody": "Wybrane wpisy nastroju ({count}) zostaną trwale usunięte.",
+    "bulkDeleteConfirmBody": "Wybrane wpisy nastroju ({count}) zostaną usunięte. Zaraz po usunięciu możesz to przez chwilę cofnąć.",
     "customize": "Dostosuj tagi nastroju",
     "addTagInline": "Dodaj tag",
     "manage": {
@@ -2862,9 +2862,9 @@
       "debt": {
         "title": "Dług snu",
         "value": "{hours} godz. {minutes} min niedoboru",
-        "caption": "Skumulowany niedobór z ostatnich {nights} nocy",
+        "caption": "Pozostały bilans z ostatnich {nights} nocy",
         "clearValue": "Na bieżąco",
-        "clearCaption": "Brak skumulowanego niedoboru w ostatnich {nights} nocach",
+        "clearCaption": "Nic do nadrobienia w ostatnich {nights} nocach",
         "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodny bilans.",
         "computedInfo": "To własne oszacowanie HealthLog: ruchomy bilans potrzeby snu minus sen z ostatnich nocy, który sen nadrabiający zmniejsza. Może różnić się od natywnego wskaźnika długu snu z urządzenia, które korzysta z własnego modelu zapotrzebowania."
       },
@@ -5746,6 +5746,14 @@
       "title": "Garmin",
       "body": "Garmin nie ma tutaj bezpośredniego połączenia. Połącz przez Apple Health (iOS) lub Google Health Connect (Android). Zastrzeżone wskaźniki Garmina — Body Battery, Training Load, status HRV, VO₂ max — nie są udostępniane przez Garmina żadnej z tych platform.",
       "docsLink": "Przeczytaj przewodnik"
+    },
+    "glucoseReference": {
+      "title": "Zakres referencyjny glukozy",
+      "description": "Do jakiego zakresu porównywane są twoje wyniki glukozy we krwi.",
+      "enable": "Użyj zakresu docelowego dla cukrzycy",
+      "explainer": "Wyłączone — wyniki są oceniane względem ogólnego zakresu referencyjnego dla osób bez cukrzycy. Włączone — są oceniane względem węższego zakresu docelowego glikemii z ADA Standards of Care, a Coach opiera na nim swoje uwagi o glukozie. Twoje własne wartości docelowe poniżej nadal mają pierwszeństwo.",
+      "disclaimer": "To wybiera zakres referencyjny. Nie jest to diagnoza, nigdy nie jest wywnioskowane z pomiaru, a aplikacja nie podejmuje na tej podstawie działań klinicznych. O to, jakie cele dotyczą ciebie, zapytaj swojego lekarza.",
+      "error": "Nie udało się zapisać ustawienia."
     }
   },
   "admin": {
@@ -7484,7 +7492,7 @@
     "referenceLabel": "Norma",
     "readingsCount": "{count} pomiarów",
     "deleteConfirmTitle": "Usunąć wynik laboratoryjny?",
-    "deleteConfirmDescription": "Ten wynik laboratoryjny zostanie trwale usunięty.",
+    "deleteConfirmDescription": "Ten wynik laboratoryjny zostanie usunięty. Zaraz po usunięciu możesz to przez chwilę cofnąć.",
     "deletedToast": "Wynik usunięty",
     "deleteError": "Nie udało się usunąć wyniku",
     "loadError": "Nie udało się wczytać wyników",
@@ -7963,7 +7971,7 @@
     },
     "deleteConfirm": {
       "title": "Usunąć ten epizod?",
-      "body": "„{label}” oraz wszystkie powiązane wpisy dzienne zostaną usunięte. Tej operacji nie można cofnąć."
+      "body": "„{label}” oraz wszystkie powiązane wpisy dzienne zostaną usunięte. Zaraz po usunięciu możesz to przez chwilę cofnąć."
     },
     "vital": {
       "RESTING_HEART_RATE": "Spoczynkowe tętno",
