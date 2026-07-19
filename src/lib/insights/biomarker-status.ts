@@ -34,6 +34,7 @@ import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   normalizeLocale,
   normalizeSummaryText,
+  finalizeStatusSummary,
   parseSummaryFromContent,
   persistStatusInsight,
   summarizeSeries,
@@ -366,7 +367,22 @@ export async function generateBiomarkerStatus(args: {
     });
   }
 
-  const text = normalizeSummaryText(parseSummaryFromContent(outcome.content));
+  // Outbound safety screen — WITHHOLD policy for a background-generated card.
+  const screened = finalizeStatusSummary(outcome.content, locale);
+  if (!screened.ok) {
+    annotate({
+      action: { name: "insights.status.outbound_blocked" },
+      meta: { cacheAction, reason: screened.reason },
+    });
+    return returnTimeoutFallback({
+      cacheAction,
+      reason: "screened",
+      userId: args.userId,
+      todayKey,
+      stubText: getNoKeyGeneralStatusText(locale),
+    });
+  }
+  const text = screened.text;
   if (!text) {
     throw new Error(`Biomarker-status summary was empty for ${marker.id}`);
   }

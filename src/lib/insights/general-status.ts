@@ -25,6 +25,7 @@ import {
 import {
   normalizeLocale,
   normalizeSummaryText,
+  finalizeStatusSummary,
   parseSummaryFromContent,
   persistStatusInsight,
   round,
@@ -507,9 +508,26 @@ export async function prepareGeneralStatusForUser(
         stubText: getNoKeyGeneralStatusText(locale),
       }),
     finalize: async (outcome): Promise<StatusCardResult> => {
-      const summary = normalizeSummaryText(
-        parseSummaryFromContent(outcome.content),
-      );
+      // Outbound safety screen. The only transform here used to be
+      // whitespace-normalisation, so a dose-change imperative or a fabricated
+      // clinical risk score persisted as the day's cached assessment. Policy
+      // for a background-generated card is WITHHOLD: serve the deterministic
+      // stub and persist no model text (see `finalizeStatusSummary`).
+      const screened = finalizeStatusSummary(outcome.content, locale);
+      if (!screened.ok) {
+        annotate({
+          action: { name: "insights.status.outbound_blocked" },
+          meta: { cacheAction, reason: screened.reason },
+        });
+        return returnTimeoutFallback({
+          cacheAction,
+          reason: "screened",
+          userId: userId,
+          todayKey: todayKey,
+          stubText: getNoKeyGeneralStatusText(locale),
+        });
+      }
+      const summary = screened.text;
       if (!summary) {
         throw new Error("General-status summary was empty after normalization");
       }

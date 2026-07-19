@@ -205,5 +205,5 @@ export function runInbound(testCase: RedTeamCase) {
 
 /** Run the outbound screen for a case. */
 export function runOutbound(testCase: RedTeamCase) {
-  return screenCoachReply(testCase.input);
+  return screenCoachReply(testCase.input, "en");
 }

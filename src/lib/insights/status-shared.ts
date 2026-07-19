@@ -22,6 +22,11 @@
 import { prisma } from "@/lib/db";
 import { locales, type Locale } from "@/lib/i18n/config";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
+import {
+  screenModelOutput,
+  INSIGHTS_CONTRACTS,
+  type OutboundReason,
+} from "@/lib/ai/safety/outbound-screen";
 
 /**
  * The locales the assessment pipeline carries end-to-end — all six the UI
@@ -217,4 +222,52 @@ export async function persistStatusInsight(args: {
     select: { createdAt: true },
   });
   return created.createdAt.toISOString();
+}
+
+/**
+ * Outcome of turning one status-card completion into a shippable assessment.
+ * `blocked` carries the tripped contract so the caller can annotate before it
+ * withholds.
+ */
+export type StatusSummaryOutcome =
+  { ok: true; text: string } | { ok: false; reason: OutboundReason };
+
+/**
+ * The single finalize step every per-metric / biomarker / derived-score status
+ * generator runs on its completion: parse the `{ summary }` envelope, scrub
+ * chart tokens and whitespace, then SCREEN the prose against the insights
+ * safety contracts.
+ *
+ * Why the screen belongs here. Before this existed, the only transform between
+ * a provider and a persisted status assessment was `normalizeSummaryText`,
+ * which is whitespace-only — so a dose-change imperative or a fabricated
+ * clinical risk score written onto a metric card persisted as that day's cached
+ * assessment while the identical sentence in the Coach was caught and replaced.
+ * Every generator shares this chokepoint, so a card cannot be added that
+ * silently skips the screen.
+ *
+ * SURFACE POLICY — WITHHOLD. Unlike the Coach, a status card is generated in
+ * the background and read from cache; nobody is waiting on the turn. Persisting
+ * a refusal is wrong (it would pin "I can't advise on doses" to the user's
+ * Weight card for the day, which is noise on a surface they did not ask a
+ * question on) and persisting the screened prose is obviously wrong. So the
+ * caller serves its existing deterministic stub — the same signal-grounded line
+ * the card shows when no provider is configured — and persists no model text.
+ * The card degrades to a state the UI already renders honestly, and the short
+ * negative-cache window lets the next run try again.
+ *
+ * The contracts include `causal` here: GROUND RULE 12 declares surface
+ * `insights`, and these cards are that surface.
+ */
+export function finalizeStatusSummary(
+  content: string,
+  locale: SupportedLocale,
+): StatusSummaryOutcome {
+  const text = normalizeSummaryText(parseSummaryFromContent(content));
+  if (!text) return { ok: true, text: "" };
+  const decision = screenModelOutput(text, locale, INSIGHTS_CONTRACTS);
+  if (decision.block && decision.reason) {
+    return { ok: false, reason: decision.reason };
+  }
+  return { ok: true, text };
 }
