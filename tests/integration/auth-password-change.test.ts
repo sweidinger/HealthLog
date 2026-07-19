@@ -21,6 +21,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cookieJar, headerJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
+import { hashToken } from "@/lib/auth/hmac";
 
 vi.mock("next/headers", async () => {
   const { cookieJar, headerJar } = await import("./mock-next-headers");
@@ -140,7 +141,14 @@ describe("POST /api/auth/password (real Postgres)", () => {
     expect(remainingSessions).toHaveLength(1);
     expect(remainingSessions[0].id).not.toBe(sessionId);
     expect(remainingSessions[0].id).not.toBe(siblingSession.id);
-    expect(cookieJar.get("healthlog_session")).toBe(remainingSessions[0].id);
+
+    // v1.30.32 — the cookie carries the session secret, not the row id, so
+    // bind them through the stored hash instead. Strictly stronger than the
+    // old identity check: it proves the cookie actually authenticates the
+    // surviving row, and that the row id never leaves the server.
+    const rotatedCookie = cookieJar.get("healthlog_session")!;
+    expect(rotatedCookie).not.toBe(remainingSessions[0].id);
+    expect(remainingSessions[0].tokenHash).toBe(hashToken(rotatedCookie));
 
     // The API token is flipped to revoked rather than deleted so the
     // audit trail survives.
