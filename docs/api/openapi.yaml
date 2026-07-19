@@ -3031,10 +3031,12 @@ paths:
       summary: Workout detail (v1.4.32)
       description: Single-workout envelope. Owns the optional `WorkoutRoute` GeoJSON geometry + `canonicalId` pointer that
         resolves to the cluster winner so deep-links into non-canonical twin rows can redirect cleanly. Additive
-        enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`, reserved `aiInsight`) are computed
-        server-side. `compact=1` (sent by the web client) drops the raw `samples.samples` HR blob and
-        `route.sampleTimestamps` array from the response; without it the payload is byte-identical to the v1.4.32
-        contract. Cross-user rows surface as 404 (existence channel sealed).
+        enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`) are computed server-side. `aiInsight` is a
+        pure read of a per-workout paragraph written by a background job when the workout landed; it is null for every
+        workout that predates the feature or was re-synced, and reading this endpoint never generates one. `compact=1`
+        (sent by the web client) drops the raw `samples.samples` HR blob and `route.sampleTimestamps` array from the
+        response; without it the payload is byte-identical to the v1.4.32 contract. Cross-user rows surface as 404
+        (existence channel sealed).
       parameters:
         - in: path
           name: id
@@ -18341,7 +18343,9 @@ components:
             - $ref: "#/components/schemas/WorkoutSportContext"
             - type: "null"
         aiInsight:
-          type: "null"
+          anyOf:
+            - $ref: "#/components/schemas/WorkoutActivityInsight"
+            - type: "null"
         canonicalId:
           type: string
       required:
@@ -18539,6 +18543,19 @@ components:
         - avgDurationSec
         - avgDistanceM
         - avgAvgHr
+      additionalProperties: false
+    WorkoutActivityInsight:
+      type: object
+      properties:
+        paragraph:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      required:
+        - paragraph
+        - generatedAt
       additionalProperties: false
     BatchWorkoutsResponse:
       type: object

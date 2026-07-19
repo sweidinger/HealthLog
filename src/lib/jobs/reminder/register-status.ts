@@ -30,6 +30,12 @@ import {
   type MorningDigestRefreshPayload,
 } from "@/lib/jobs/morning-digest-refresh";
 import { DATA_ARRIVAL_QUEUE, handleDataArrival } from "@/lib/jobs/data-arrival";
+import {
+  handleWorkoutInsightGenerate,
+  WORKOUT_INSIGHT_GENERATE_CONCURRENCY,
+  WORKOUT_INSIGHT_GENERATE_QUEUE,
+  type WorkoutInsightGeneratePayload,
+} from "@/lib/jobs/workout-insight-generate";
 import type { DataArrival } from "@/lib/arrivals/types";
 import {
   DAILY_BRIEFING_QUEUE,
@@ -179,6 +185,10 @@ const allQueues = [
   // this entry pg-boss never provisions the queue and every emit silently
   // drops (the v1.4.37 dead-queue class).
   DATA_ARRIVAL_QUEUE,
+  // v1.31.0 — the per-workout Activity Insight, dispatched by the spine when a
+  // workout lands. No cron schedule — nothing warms it and no read path
+  // triggers it, so this entry is the only thing that provisions the queue.
+  WORKOUT_INSIGHT_GENERATE_QUEUE,
   // v1.10.0 — computed scores (WX-C / WX-E). Nightly Recovery / Stress /
   // Strain compute + store. The queue MUST be registered here or pg-boss
   // never provisions it and the nightly schedule silently never fires.
@@ -531,6 +541,15 @@ export async function registerStatusQueues(
     DATA_ARRIVAL_QUEUE,
     { localConcurrency: 1 },
     handleDataArrival,
+  );
+  // v1.31.0 — the per-workout Activity Insight. Serial: this IS the provider
+  // path the spine deliberately does not walk, so it stays off the request pool
+  // and cannot fan out concurrent completions when several workouts land in one
+  // sync.
+  await boss.work<WorkoutInsightGeneratePayload>(
+    WORKOUT_INSIGHT_GENERATE_QUEUE,
+    { localConcurrency: WORKOUT_INSIGHT_GENERATE_CONCURRENCY },
+    handleWorkoutInsightGenerate,
   );
   // S5 — daily-briefing fallback slot. Single-flight; the `push_attempts`
   // frequency cap makes an overlapping tick a no-op (a second same-day attempt

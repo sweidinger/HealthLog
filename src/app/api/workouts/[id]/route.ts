@@ -31,6 +31,7 @@ import { annotate } from "@/lib/logging/context";
 import { pickCanonicalWorkoutRows } from "@/lib/measurements/pick-canonical-workout-rows";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
+import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { buildWorkoutHrSeries } from "@/lib/workouts/hr-series";
 import {
   computeZones,
@@ -78,6 +79,9 @@ export const GET = apiHandler(
             samples: true,
             sampleCount: true,
           },
+        },
+        insight: {
+          select: { paragraphEncrypted: true, generatedAt: true },
         },
       },
     });
@@ -209,6 +213,26 @@ export const GET = apiHandler(
         }
       : null;
 
+    // Decrypt the stored paragraph. Fail-SOFT here and only here: `decrypt` is
+    // fail-closed by design, so a rotated-away key would otherwise turn the
+    // whole workout-detail page into a 500 over a garnish field. An
+    // undecryptable paragraph degrades to no card, exactly like a workout that
+    // never had one.
+    let aiInsight: { paragraph: string; generatedAt: string } | null = null;
+    if (row.insight) {
+      try {
+        aiInsight = {
+          paragraph: decryptFromBytes(row.insight.paragraphEncrypted),
+          generatedAt: row.insight.generatedAt.toISOString(),
+        };
+      } catch {
+        annotate({
+          action: { name: "workouts.detail.insight_undecryptable" },
+          meta: { workoutId: row.id },
+        });
+      }
+    }
+
     return apiSuccess({
       id: row.id,
       sportType: row.sportType,
@@ -233,12 +257,13 @@ export const GET = apiHandler(
       zones,
       splits,
       sportContext,
-      // Reserved Activity-Insight seam (strategic-concept Wave C, bet 5):
-      // always null today. The Phase-2 pg-boss job writes a cached
-      // paragraph onto the workout row and maps it here — the detail page
-      // already composes `{aiInsight ? <card/> : null}`, so the card
-      // mounts with zero layout rework.
-      aiInsight: null,
+      // The per-workout Activity Insight. A pure READ of a row the
+      // `workout-insight-generate` worker wrote when this workout landed —
+      // this route never generates, never enqueues, and never falls back to
+      // a provider. A workout with no row (every historical one, every
+      // re-synced one, every one on a provider-less install) serves null and
+      // the page's `{aiInsight ? <card/> : null}` renders nothing.
+      aiInsight,
       // v1.4.32 — when the requested id is a non-canonical twin the
       // caller can redirect to `canonicalId` to land on the cluster
       // winner. `canonicalId === id` when the requested row already

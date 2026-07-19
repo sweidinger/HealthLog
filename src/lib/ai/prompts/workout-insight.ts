@@ -57,7 +57,9 @@ export function getWorkoutInsightSystemPrompt(locale: Locale): string {
   // the German one. Never the `locale === "en" ? "en" : "de"` binary that sent
   // four locales a German prompt.
   const section =
-    instructionLocale(locale) === "en" ? WORKOUT_SECTION_EN : WORKOUT_SECTION_DE;
+    instructionLocale(locale) === "en"
+      ? WORKOUT_SECTION_EN
+      : WORKOUT_SECTION_DE;
   return withOutputLanguage(
     `${getBaseSystemPromptBody(locale)}
 
