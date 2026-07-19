@@ -32,6 +32,8 @@ import type { MeasurementType } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
+import { isModuleEnabled } from "@/lib/modules/gate";
+import { moduleForMeasurementType } from "@/lib/modules/measurement-scope";
 import { readCoachCorrelations } from "@/lib/ai/coach/tools/correlations-read";
 import { buildCoachReadStrip } from "@/lib/insights/derived/coach-read";
 import {
@@ -478,7 +480,23 @@ export async function metricStatusDiscoveryRows(userId: string): Promise<
     _count: { _all: true },
   });
   const countByType = new Map(rows.map((r) => [r.type, r._count._all]));
-  return MCP_METRIC_STATUS_DISCOVERY.map((sig) => {
+
+  // v1.30.22 — drop a metric whose owning module the account has off (or the
+  // operator switched off server-wide). Discovery is the assistant's map of
+  // what exists; advertising a metric that `compare_metric` will then refuse
+  // both leaks the fact that the domain is tracked and sends the assistant
+  // down a dead end. Gating here keeps discovery and fetch telling the same
+  // story. Metrics no module owns are unaffected.
+  const gated = await Promise.all(
+    MCP_METRIC_STATUS_DISCOVERY.map(async (sig) => {
+      const owner = moduleForMeasurementType(sig.measurementType);
+      if (owner && !(await isModuleEnabled(userId, owner))) return null;
+      return sig;
+    }),
+  );
+
+  return gated.flatMap((sig) => {
+    if (!sig) return [];
     const count = countByType.get(sig.measurementType);
     return {
       tool: "compare_metric",
@@ -535,6 +553,65 @@ export function resolveRichMetric(input: string): RichMetric | null {
   }
   return null;
 }
+
+/**
+ * v1.30.22 — the module-gated resolver every rich read must use.
+ *
+ * `resolveRichMetric` answers "does this name resolve to a series?"; it says
+ * nothing about whether the account is allowed to read that series. The three
+ * rollup-backed reads (`compare_metric` / `get_metric_baseline` /
+ * `detect_changepoints`) deliberately bypass `buildCoachSnapshot`, which is
+ * where the module narrowing lives for the Coach-routed reads — so they
+ * inherited no gate at all. `get_metric_series` honestly reported
+ * `{ present: false }` for a glucose-disabled account while
+ * `get_metric_baseline` handed back the median, the MAD band and today's
+ * placement for the same metric. That defeats the user toggle AND the
+ * operator availability switch `resolveModuleMap` ANDs above it — on the one
+ * surface that egresses to a third-party assistant.
+ *
+ * Gating at the RESOLVER rather than per tool is the point: a new read that
+ * takes a free-text metric name has to resolve it, and resolving it gates it.
+ *
+ * OMIT rather than refuse. These are per-domain reads whose contract already
+ * carries `{ present: false, reason }` for absence, matching what
+ * `get_metric_series` / `get_nutrients` / `get_intraday_pulse` already do for
+ * a disabled module. The `module_disabled` reason is distinct from `no_data`
+ * so the assistant is told the domain is switched off rather than inferring
+ * the user has no readings.
+ *
+ * A metric no module owns (`moduleForMeasurementType` → `null`) resolves
+ * ungated — see `UNSCOPED_REVIEWED_TYPES` for the reviewed set that answers
+ * null and why gating them would be wrong.
+ */
+async function resolveRichMetricForUser(
+  userId: string,
+  input: string,
+): Promise<
+  { ok: true; metric: RichMetric } | { ok: false; reason: RichMissReason }
+> {
+  const resolved = resolveRichMetric(input);
+  if (!resolved) return { ok: false, reason: "unknown_metric" };
+
+  const owner = moduleForMeasurementType(resolved.measurementType);
+  if (owner && !(await isModuleEnabled(userId, owner))) {
+    return { ok: false, reason: "module_disabled" };
+  }
+
+  // The HRV union may swap the metric to its RMSSD fallback. Both types are
+  // owned by `recovery`, but gate the RESULT too so a future fallback pair
+  // that crosses a module boundary cannot smuggle a gated type through.
+  const metric = await withHrvFallback(userId, resolved);
+  if (metric.measurementType !== resolved.measurementType) {
+    const fallbackOwner = moduleForMeasurementType(metric.measurementType);
+    if (fallbackOwner && !(await isModuleEnabled(userId, fallbackOwner))) {
+      return { ok: false, reason: "module_disabled" };
+    }
+  }
+  return { ok: true, metric };
+}
+
+/** The miss reasons the module-gated resolver can produce. */
+type RichMissReason = "unknown_metric" | "module_disabled";
 
 // ── 1. get_correlation ───────────────────────────────────────────────
 
@@ -782,11 +859,11 @@ export async function compareMetric(
     rangeB?: DateRange;
   },
 ): Promise<CompareMetricResult> {
-  const resolvedA = resolveRichMetric(args.metric);
-  if (!resolvedA) {
-    return { present: false, reason: "unknown_metric" };
+  const resolvedA = await resolveRichMetricForUser(userId, args.metric);
+  if (!resolvedA.ok) {
+    return { present: false, reason: resolvedA.reason };
   }
-  const metricA = await withHrvFallback(userId, resolvedA);
+  const metricA = resolvedA.metric;
   const sideA: SideSpec = { window: args.window, range: args.range };
 
   const annotateMiss = () =>
@@ -800,14 +877,23 @@ export async function compareMetric(
   let sideB: SideSpec;
 
   if (args.metricB) {
-    const resolvedB = resolveRichMetric(args.metricB);
-    if (!resolvedB) {
+    const resolvedB = await resolveRichMetricForUser(userId, args.metricB);
+    if (!resolvedB.ok) {
       annotateMiss();
-      return { present: false, reason: "unknown_metric_b" };
+      // Side B carries its own suffixed miss reasons so the assistant can tell
+      // which half of the comparison failed. A gated side B refuses the whole
+      // comparison rather than silently degrading to a one-sided answer.
+      return {
+        present: false,
+        reason:
+          resolvedB.reason === "module_disabled"
+            ? "module_disabled_b"
+            : "unknown_metric_b",
+      };
     }
     // Both metrics share side A's horizon (window or range).
     mode = "metric_vs_metric";
-    metricB = await withHrvFallback(userId, resolvedB);
+    metricB = resolvedB.metric;
     sideB = sideA;
   } else if (args.rangeB || args.windowB) {
     mode = "window_vs_window";
@@ -881,11 +967,11 @@ export async function getMetricBaseline(
   userId: string,
   args: { metric: string },
 ): Promise<MetricBaselineResult> {
-  const resolved = resolveRichMetric(args.metric);
-  if (!resolved) {
-    return { present: false, reason: "unknown_metric" };
+  const resolved = await resolveRichMetricForUser(userId, args.metric);
+  if (!resolved.ok) {
+    return { present: false, reason: resolved.reason };
   }
-  const metric = await withHrvFallback(userId, resolved);
+  const metric = resolved.metric;
 
   const strip = await buildCoachReadStrip(userId, metric.measurementType);
 
@@ -1026,11 +1112,11 @@ export async function detectChangepoints(
   userId: string,
   args: { metric: string; window?: CoachScopeWindow; range?: DateRange },
 ): Promise<ChangepointsResult> {
-  const resolved = resolveRichMetric(args.metric);
-  if (!resolved) {
-    return { present: false, reason: "unknown_metric" };
+  const resolved = await resolveRichMetricForUser(userId, args.metric);
+  if (!resolved.ok) {
+    return { present: false, reason: resolved.reason };
   }
-  const metric = await withHrvFallback(userId, resolved);
+  const metric = resolved.metric;
 
   // Either an explicit `{from,to}` range (reach-back + filter) or one of the
   // five fixed trailing windows — both land on the same rollup reader.

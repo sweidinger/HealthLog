@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("@/lib/modules/gate", () => ({
+  isModuleEnabled: vi.fn(async () => true),
+}));
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn() },

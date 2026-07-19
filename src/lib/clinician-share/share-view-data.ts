@@ -18,6 +18,7 @@ import {
   type DoctorReportData,
   type DoctorReportRange,
 } from "@/lib/doctor-report-data";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import { servingClassFor } from "@/lib/documents/upload-policy";
 import type { DocumentServingClass } from "@/lib/documents/upload-policy";
 import {
@@ -109,7 +110,27 @@ export async function loadShareViewData(
   // the column can only pin — never widen — this is strictly safer than the
   // derived check alone: a future report section can never re-open a link the
   // owner froze as documents-only.
-  const documentOnly = context.documentOnly || !hasAnyReportSection(sections);
+  // v1.30.22 — the owner's `doctorReport` module gates the aggregate here too.
+  // This surface serves the doctor-report payload to an unauthenticated third
+  // party over a link, and it never consulted the module key; an owner (or an
+  // operator, via the availability switch ANDed above the user toggle) who
+  // turns the module off would still have had the full record served. Found
+  // while closing the same gap on the MCP surface.
+  //
+  // Degrade to the share's OWN documents-only state rather than throwing:
+  // `documentOnly` is an existing, load-bearing privacy mode on this surface
+  // (report `null`, aggregator never called), so a disabled module collapses
+  // the link to exactly the documents the owner attached. That is fail-closed
+  // for the health record while keeping a public link from 500-ing. The
+  // documents themselves are a separate module and keep their own gate.
+  const reportModuleEnabled = await isModuleEnabled(
+    context.ownerUserId,
+    "doctorReport",
+  );
+  const documentOnly =
+    context.documentOnly ||
+    !hasAnyReportSection(sections) ||
+    !reportModuleEnabled;
 
   const [report, documents] = await Promise.all([
     documentOnly
