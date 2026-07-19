@@ -56,7 +56,7 @@ describe("ensureWebAiConsentReceipt", () => {
     vi.mocked(prisma.consentReceipt.create).mockResolvedValue(row() as never);
 
     const now = new Date("2026-06-14T10:00:00.000Z");
-    const result = await ensureWebAiConsentReceipt("user-1", now);
+    const result = await ensureWebAiConsentReceipt("user-1", "heal", now);
 
     expect(result.minted).toBe(true);
     // Reads the active master grant first (fast-path + in-tx re-check both
@@ -82,7 +82,7 @@ describe("ensureWebAiConsentReceipt", () => {
       row() as never,
     );
 
-    const result = await ensureWebAiConsentReceipt("user-1");
+    const result = await ensureWebAiConsentReceipt("user-1", "heal");
 
     expect(result.minted).toBe(false);
     expect(prisma.consentReceipt.create).not.toHaveBeenCalled();
@@ -98,7 +98,7 @@ describe("ensureWebAiConsentReceipt", () => {
       .mockResolvedValueOnce(null) // fast path
       .mockResolvedValueOnce(row() as never); // in-tx re-check
 
-    const result = await ensureWebAiConsentReceipt("user-1");
+    const result = await ensureWebAiConsentReceipt("user-1", "heal");
 
     expect(result.minted).toBe(false);
     expect(prisma.consentReceipt.create).not.toHaveBeenCalled();
@@ -113,7 +113,7 @@ describe("ensureWebAiConsentReceipt", () => {
       code: "P2002",
     } as never);
 
-    const result = await ensureWebAiConsentReceipt("user-1");
+    const result = await ensureWebAiConsentReceipt("user-1", "heal");
 
     expect(result.minted).toBe(false);
   });
@@ -124,7 +124,7 @@ describe("ensureWebAiConsentReceipt", () => {
       new Error("connection reset") as never,
     );
 
-    await expect(ensureWebAiConsentReceipt("user-1")).rejects.toThrow(
+    await expect(ensureWebAiConsentReceipt("user-1", "heal")).rejects.toThrow(
       "connection reset",
     );
   });
@@ -157,13 +157,92 @@ describe("ensureWebAiConsentReceipt — two concurrent grants", () => {
     });
 
     const [a, b] = await Promise.all([
-      ensureWebAiConsentReceipt("user-1"),
-      ensureWebAiConsentReceipt("user-1"),
+      ensureWebAiConsentReceipt("user-1", "heal"),
+      ensureWebAiConsentReceipt("user-1", "heal"),
     ]);
 
     // Exactly one mint, exactly one row inserted.
     const mintedCount = [a, b].filter((r) => r.minted).length;
     expect(mintedCount).toBe(1);
     expect(prisma.consentReceipt.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ensureWebAiConsentReceipt — a revocation is a standing decision", () => {
+  // The mount heal and the revocation check share one `findFirst` mock, so
+  // route by predicate: `revokedAt: null` is the active-grant lookup,
+  // `revokedAt: { not: null }` is the revocation-history lookup.
+  function arrange({ hasRevoked }: { hasRevoked: boolean }) {
+    vi.mocked(prisma.consentReceipt.findFirst).mockImplementation(
+      (async (args: { where: { revokedAt?: unknown } }) => {
+        const wantsRevoked =
+          args.where.revokedAt !== null && args.where.revokedAt !== undefined;
+        if (wantsRevoked)
+          return hasRevoked
+            ? (row({
+                revokedAt: new Date("2026-07-01T09:00:00.000Z"),
+              }) as never)
+            : null;
+        return null;
+      }) as never,
+    );
+    vi.mocked(prisma.consentReceipt.create).mockResolvedValue(row() as never);
+  }
+
+  it("does not re-grant on the settings mount after the user revoked", async () => {
+    arrange({ hasRevoked: true });
+
+    const result = await ensureWebAiConsentReceipt("user-1", "heal");
+
+    expect(result).toEqual({ minted: false, reason: "previously_revoked" });
+    expect(prisma.consentReceipt.create).not.toHaveBeenCalled();
+    // No transaction is opened — the decision is settled on the read.
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("still heals an account that never had a receipt at all", async () => {
+    arrange({ hasRevoked: false });
+
+    const result = await ensureWebAiConsentReceipt("user-1", "heal");
+
+    expect(result.minted).toBe(true);
+    expect(prisma.consentReceipt.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the user grant again through an affirmative act", async () => {
+    arrange({ hasRevoked: true });
+
+    const result = await ensureWebAiConsentReceipt("user-1", "affirmative");
+
+    expect(result.minted).toBe(true);
+    expect(prisma.consentReceipt.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds the line when the revocation lands mid-transaction", async () => {
+    // The fast-path reads see a clean history; the revocation appears only
+    // once the transaction is open. Without the in-transaction re-check the
+    // mint would overwrite a decision made a moment earlier.
+    let inTransaction = false;
+    $transaction.mockImplementation((fn: TxFn) => {
+      inTransaction = true;
+      return fn({ consentReceipt: prisma.consentReceipt });
+    });
+    vi.mocked(prisma.consentReceipt.findFirst).mockImplementation(
+      (async (args: { where: { revokedAt?: unknown } }) => {
+        const wantsRevoked =
+          args.where.revokedAt !== null && args.where.revokedAt !== undefined;
+        if (wantsRevoked && inTransaction)
+          return row({
+            revokedAt: new Date("2026-07-01T09:00:00.000Z"),
+          }) as never;
+        return null;
+      }) as never,
+    );
+    vi.mocked(prisma.consentReceipt.create).mockResolvedValue(row() as never);
+
+    const result = await ensureWebAiConsentReceipt("user-1", "heal");
+
+    expect(result).toEqual({ minted: false, reason: "previously_revoked" });
+    expect(prisma.consentReceipt.create).not.toHaveBeenCalled();
   });
 });

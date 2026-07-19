@@ -11,11 +11,17 @@ import {
   createMeasurementSchema,
   listMeasurementsSchema,
   measurementTypeEnum,
+  updateMeasurementSchema,
   measurementSourceEnum,
 } from "@/lib/validations/measurement";
 import { seriesBatchQuerySchema } from "@/lib/validations/series-batch";
 import { deviceTypeEnum } from "@/lib/validations/source-priority";
-import { dataEnvelope, moduleDisabledResponse, stdResponses } from "./shared";
+import {
+  dataEnvelope,
+  errorEnvelope,
+  moduleDisabledResponse,
+  stdResponses,
+} from "./shared";
 
 const batchEntrySchema = z
   .object({
@@ -196,18 +202,139 @@ const restoreMeasurementsResponse = z
 
 export const measurementResource = z
   .object({
-    id: z.string(),
+    id: z
+      .string()
+      .describe(
+        "Stored row id, or a synthetic key (`day:<type>:<dayKey>`, `sleep-seg:<dayKey>:<n>`) on the collapsed list modes.",
+      ),
     type: measurementTypeEnum,
     value: z.number(),
     unit: z.string(),
     measuredAt: z.iso.datetime({ offset: true }),
     source: measurementSourceEnum,
     notes: z.string().nullable().optional(),
+    // The list / detail reads hand back the whole stored row minus the
+    // `notesEncrypted` ciphertext, so every remaining scalar column is on the
+    // wire. Optional rather than required because the collapsed list modes
+    // (day-sum, sleep-segment) synthesise rows that carry only the display
+    // fields above.
+    userId: z.string().optional(),
+    valueMin: z
+      .number()
+      .nullable()
+      .optional()
+      .describe(
+        "Bucket MINIMUM — set only on an hourly heart-rate `stats:` row.",
+      ),
+    valueMax: z
+      .number()
+      .nullable()
+      .optional()
+      .describe(
+        "Bucket MAXIMUM — set only on an hourly heart-rate `stats:` row.",
+      ),
+    externalId: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("External-system dedup key; null for manual entries."),
+    externalSourceVersion: z.string().nullable().optional(),
+    glucoseContext: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Set only on BLOOD_GLUCOSE rows."),
+    sleepStage: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Set only on SLEEP_DURATION rows."),
+    rhythmClassification: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Device classification verdict; set only on EVENT rows."),
+    deviceType: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("`watch | band | ring | phone | scale | other | unknown`."),
+    syncVersion: z
+      .number()
+      .int()
+      .optional()
+      .describe(
+        "Bumped on every server-side mutation; the last-writer-wins input for cross-device reconciliation.",
+      ),
+    deletedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .optional()
+      .describe("Soft-delete tombstone; null on a live row."),
+    createdAt: z.iso.datetime({ offset: true }).optional(),
+    updatedAt: z.iso.datetime({ offset: true }).optional(),
+    // Synthesised-row extras — present only on the collapsed day-sum mode.
+    dayKey: z.string().optional(),
+    sampleCount: z.number().int().optional(),
+    partial: z
+      .boolean()
+      .optional()
+      .describe(
+        "True on the one bucket whose day was cut off by the read cap, so its sum understates the real total.",
+      ),
   })
   .meta({
     id: "MeasurementResource",
-    description: "Server-shaped measurement row returned by GET endpoints.",
+    description:
+      "Server-shaped measurement row. GET endpoints return the whole stored row with the decrypted note on `notes` and the `notesEncrypted` ciphertext stripped; the collapsed list modes synthesise rows carrying the display fields plus `dayKey` / `sampleCount`.",
   });
+
+/**
+ * The aggregate list modes (`aggregate=daily` and the coarser grains) return
+ * pre-folded buckets, not stored rows — no `id`, `unit` or `source`.
+ */
+const aggregatedMeasurementBucket = z
+  .object({
+    type: measurementTypeEnum,
+    value: z.number().describe("The bucket's aggregated value."),
+    measuredAt: z.iso.datetime({ offset: true }).describe("Bucket start."),
+    count: z.number().int().nonnegative().optional(),
+    unit: z.string().optional(),
+  })
+  .meta({
+    id: "AggregatedMeasurementBucket",
+    description:
+      "Pre-folded bucket returned by the `aggregate=` list modes instead of a stored row.",
+  });
+
+/** `meta` on every `GET /api/measurements` response mode. */
+const listMeasurementsMeta = z
+  .object({
+    total: z.number().int().nonnegative(),
+    limit: z.number().int().nonnegative(),
+    offset: z.number().int().nonnegative(),
+    dayKey: z
+      .string()
+      .optional()
+      .describe("Echoed on the per-sample drill-down modes."),
+    groupBy: z
+      .enum(["day", "night"])
+      .optional()
+      .describe("Set on the collapsed day-sum / per-night modes."),
+    aggregate: z
+      .string()
+      .optional()
+      .describe("Set on the aggregate modes — the requested grain."),
+    droppedDuplicates: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe(
+        "Rows discarded by the cross-source canonical picker on the day-collapse mode.",
+      ),
+  })
+  .meta({ id: "ListMeasurementsMeta" });
 
 // ── Sleep night (v1.11.5 hypnogram source) ──────────────────────────
 
@@ -597,8 +724,10 @@ export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             "application/json": {
               schema: dataEnvelope(
                 z.object({
-                  measurements: z.array(measurementResource),
-                  total: z.number().int().nonnegative(),
+                  measurements: z.array(
+                    z.union([measurementResource, aggregatedMeasurementBucket]),
+                  ),
+                  meta: listMeasurementsMeta,
                 }),
                 "ListMeasurementsResponse",
               ),
@@ -610,24 +739,123 @@ export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
     },
     post: {
       tags: ["Measurements"],
-      summary: "Create one measurement",
+      summary: "Create one measurement (or a small array)",
       description:
-        "Single ingest. Use `/api/measurements/batch` for Apple Health upload streams.",
+        "Single ingest. The body may also be a bare ARRAY of the same objects — the mode the iOS client uses for a combined blood-pressure + pulse or dual-value glucose write — in which case `data` is the array of created rows in request order. Use `/api/measurements/batch` for Apple Health upload streams.",
       requestBody: {
         required: true,
-        content: { "application/json": { schema: createMeasurementSchema } },
+        content: {
+          "application/json": {
+            schema: z.union([
+              createMeasurementSchema,
+              z.array(createMeasurementSchema),
+            ]),
+          },
+        },
       },
       responses: {
         "201": {
-          description: "Created.",
+          description:
+            "Created. A single resource for the object body; an array of resources, in request order, for the array body.",
           content: {
             "application/json": {
               schema: dataEnvelope(
-                measurementResource,
+                z.union([measurementResource, z.array(measurementResource)]),
                 "CreateMeasurementResponse",
               ),
             },
           },
+        },
+        "409": {
+          description:
+            "A measurement with this data already exists — the `(userId, type, source, externalId)` dedup index rejected the write.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/measurements/{id}": {
+    get: {
+      tags: ["Measurements"],
+      summary: "Measurement detail",
+      description:
+        "Single stored row, scoped to the caller. A row owned by another user surfaces as 404 (existence channel sealed).",
+      requestParams: { path: z.object({ id: z.string() }) },
+      responses: {
+        "200": {
+          description: "Measurement.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                measurementResource,
+                "GetMeasurementResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Measurement not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    put: {
+      tags: ["Measurements"],
+      summary: "Update a measurement",
+      description:
+        "Edits a manually entered row. Rows owned by a connected source are refused with 409 `measurement.update.server_owned_source`; a timestamp collision with an existing row is refused with 409 `measurement.duplicate_timestamp`.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: updateMeasurementSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Updated measurement.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                measurementResource,
+                "UpdateMeasurementResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Measurement not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "409": {
+          description:
+            "Refused: the row comes from a connected source (`meta.errorCode` = `measurement.update.server_owned_source`), or another row already carries this timestamp (`measurement.duplicate_timestamp`).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Measurements"],
+      summary: "Delete a measurement",
+      description:
+        "Soft-deletes the row (tombstone) so paired clients can reconcile the deletion.",
+      requestParams: { path: z.object({ id: z.string() }) },
+      responses: {
+        "200": {
+          description: "Deleted.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ deleted: z.literal(true) }),
+                "DeleteMeasurementResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Measurement not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
       },

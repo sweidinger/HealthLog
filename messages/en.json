@@ -4999,6 +4999,16 @@
         "honesty": "The shared access is a single signed-in AI account the operator connected for everyone on this server — not your own key. Requests you make on it are trained on by the provider by default and no data-processing agreement covers them, the account's hourly and weekly limits are shared with every other user who opted in, and your own configured providers are still tried first. Turn it on only if you accept this trade.",
         "confirm": "I understand — use the shared connection",
         "cancel": "Cancel"
+      },
+      "consent": {
+        "title": "AI consent",
+        "activeSince": "Given on {date}. Your health data may be sent to the configured provider for the AI features.",
+        "withdrawn": "Withdrawn. No health data is sent to an AI provider; the AI features stay switched off.",
+        "withdraw": "Withdraw consent",
+        "confirmBody": "The AI features stop working straight away. Nothing already recorded is deleted — use Data & privacy to export or erase your record.",
+        "confirmWithdraw": "Withdraw",
+        "regrantHint": "To use the AI features again, switch on automatic document reading or grant consent from the app.",
+        "error": "The withdrawal could not be saved. Please try again."
       }
     },
     "dashboard": {

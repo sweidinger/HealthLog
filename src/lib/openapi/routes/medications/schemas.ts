@@ -177,13 +177,15 @@ export const medicationResource = z
     nextDueAt: z.iso
       .datetime({ offset: true })
       .nullable()
+      .optional()
       .describe(
-        "v1.7.0 server-computed next due instant across all the medication's schedules (earliest `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). v1.16.4 — when an unresolved slot's anchor has passed but the catch-up band is still open (`anchor < now <= overdueEnd`, current schedule era), this carries THAT slot (a past instant) with `nextDueOverdue: true` instead of jumping to the next future slot. The list GET is cached 60 s, so a 60 s staleness is accepted.",
+        "Present on the READ paths only — the list and single GET compute it; the create / update responses return the stored row and omit it. v1.7.0 server-computed next due instant across all the medication's schedules (earliest `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). v1.16.4 — when an unresolved slot's anchor has passed but the catch-up band is still open (`anchor < now <= overdueEnd`, current schedule era), this carries THAT slot (a past instant) with `nextDueOverdue: true` instead of jumping to the next future slot. The list GET is cached 60 s, so a 60 s staleness is accepted.",
       ),
     nextDueOverdue: z
       .boolean()
+      .optional()
       .describe(
-        "v1.16.4 — true when `nextDueAt` is an OPEN overdue slot: its anchor has passed, `now` is still inside the slot's catch-up band, and no taken / skipped / auto-missed row resolves it. False for a regular future next-due (and when `nextDueAt` is null). Read-only — computed, not stored.",
+        "Present on the READ paths only, alongside `nextDueAt`. v1.16.4 — true when `nextDueAt` is an OPEN overdue slot: its anchor has passed, `now` is still inside the slot's catch-up band, and no taken / skipped / auto-missed row resolves it. False for a regular future next-due (and when `nextDueAt` is null). Read-only — computed, not stored.",
       ),
     startsOn: z.iso
       .datetime({ offset: true })
@@ -220,6 +222,10 @@ export const medicationResource = z
 export const medicationListEntry = medicationResource
   .extend({
     category: medicationCategoryEnum,
+    // The list read always computes these two, so they are required here
+    // even though the shared base leaves them optional for the write paths.
+    nextDueAt: z.iso.datetime({ offset: true }).nullable(),
+    nextDueOverdue: z.boolean(),
     lastTakenAt: z.iso
       .datetime({ offset: true })
       .nullable()
@@ -235,7 +241,6 @@ export const medicationListEntry = medicationResource
       ),
     stockUnitsRemaining: z
       .number()
-      .int()
       .nullable()
       .describe(
         "v1.16.10 — usable inventory units left across the medication's containers (sum of `unitsRemaining` over ACTIVE / IN_USE items with units left). NULL = inventory tracking off (no items ever registered); 0 = tracking on, supply ran out. Read-only — aggregated, not stored.",
@@ -362,7 +367,7 @@ export const medicationIntakeEventResource = z
     scheduledFor: z.iso.datetime({ offset: true }),
     takenAt: z.iso.datetime({ offset: true }).nullable(),
     skipped: z.boolean(),
-    source: z.enum(["WEB", "API", "REMINDER", "IMPORT"]),
+    source: z.enum(["WEB", "API", "REMINDER", "IMPORT", "APPLE_HEALTH"]),
     idempotencyKey: z.string().nullable(),
     createdAt: z.iso.datetime({ offset: true }),
   })
@@ -388,15 +393,39 @@ export const medicationCadenceTimelinePoint = z
 
 export const medicationCadenceChips = z
   .object({
-    adherenceRate: z.number(),
-    streakDays: z.number().int().nonnegative(),
-    expectedSlots: z.number().int().nonnegative(),
-    actualDoses: z.number().int().nonnegative(),
+    adherenceRate: z
+      .number()
+      .nullable()
+      .describe(
+        "0-100, taken / (taken + missed). Skipped doses are excluded from the denominator — a deliberate decision, not a compliance failure. NULL when no dose was expected in the window (brand-new medication, paused).",
+      ),
+    currentStreak: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Consecutive days ending at `asOf` where every expected dose was taken or skipped. Days with no expected dose advance the streak; missed days break it.",
+      ),
+    longestStreak: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("Longest all-taken-or-skipped run anywhere in the window."),
+    missedLast30: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("Count of missed doses inside the window."),
+    windowDays: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("Window size used — mirrors the input for the chart legend."),
   })
   .meta({
     id: "MedicationCadenceChips",
     description:
-      "Four compliance summary values for the medication detail page chip row.",
+      "Compliance summary values for the medication detail page chip row.",
   });
 
 export const medicationCadenceResponse = z

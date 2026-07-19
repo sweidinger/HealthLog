@@ -66,9 +66,14 @@ const refreshRequest = z
 
 const accessRefreshBundle = z
   .object({
-    user: z.object({ id: z.string(), username: z.string() }).optional(),
-    token: z.string().describe("Access token (`hlk_<64hex>`)."),
-    tokenExpiresAt: z.iso.datetime({ offset: true }),
+    user: z.object({ id: z.string(), username: z.string() }),
+    token: z
+      .string()
+      .optional()
+      .describe(
+        "Access token (`hlk_<64hex>`); only present for native-policy callers. A browser caller gets the session cookie instead.",
+      ),
+    tokenExpiresAt: z.iso.datetime({ offset: true }).optional(),
     refreshToken: z
       .string()
       .optional()
@@ -327,6 +332,11 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
           },
         },
+        "403": {
+          description:
+            "Password login is disabled — the operator runs `OIDC_ONLY=true`. `meta.errorCode` = `oidc_only`; sign in through SSO instead.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
         ...stdResponses,
       },
     },
@@ -397,6 +407,10 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
           },
         },
+        "409": {
+          description: "A second factor is already active on this account.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
         ...stdResponses,
       },
     },
@@ -422,6 +436,11 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               ),
             },
           },
+        },
+        "409": {
+          description:
+            "A second factor is already active, or enrollment was never started (no pending secret to confirm).",
+          content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
       },
@@ -537,6 +556,10 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
           },
         },
+        "400": {
+          description: "Security key verification failed (bad attestation).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
         ...stdResponses,
       },
     },
@@ -545,6 +568,7 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
     patch: {
       tags: ["Auth"],
       summary: "Rename a registered security key",
+      requestParams: { path: z.object({ id: z.string() }) },
       requestBody: {
         required: true,
         content: { "application/json": { schema: mfaWebauthnRenameSchema } },
@@ -561,6 +585,10 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
           },
         },
+        "404": {
+          description: "No such security key for this account.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
         ...stdResponses,
       },
     },
@@ -569,6 +597,7 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       summary: "Remove a registered security key (step-up gated)",
       description:
         "Requires a fresh second-factor step-up (cookie session). Bearer can never satisfy the gate.",
+      requestParams: { path: z.object({ id: z.string() }) },
       responses: {
         "200": {
           description: "Security key removed.",
@@ -580,6 +609,10 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               ),
             },
           },
+        },
+        "404": {
+          description: "No such security key for this account.",
+          content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
       },
@@ -608,6 +641,11 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               ),
             },
           },
+        },
+        "409": {
+          description:
+            "No security key is registered on the account — fall back to the TOTP / recovery-code challenge.",
+          content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
       },
@@ -662,6 +700,16 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             },
           },
         },
+        "403": {
+          description:
+            "Passkey login is disabled — the operator runs `OIDC_ONLY=true`. `meta.errorCode` = `oidc_only`.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "404": {
+          description:
+            "The assertion resolved to a user row that no longer exists.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
         ...stdResponses,
       },
     },
@@ -679,10 +727,17 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       },
       responses: {
         "200": {
-          description: "Rotation succeeded — new pair issued.",
+          description:
+            "Rotation succeeded — new pair issued. When the request carried `revoke: true` the body is `{ revoked }` instead: the token family is invalidated and no new pair is minted.",
           content: {
             "application/json": {
-              schema: dataEnvelope(accessRefreshBundle, "RefreshResponse"),
+              schema: z.union([
+                dataEnvelope(accessRefreshBundle, "RefreshResponse"),
+                dataEnvelope(
+                  z.object({ revoked: z.boolean() }),
+                  "RefreshRevokeResponse",
+                ),
+              ]),
             },
           },
         },
@@ -735,6 +790,7 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       summary: "Revoke a single web session",
       description:
         "v1.23 — revokes one session by id, scoped to the authenticated user (a foreign id returns 404, never another user's row).",
+      requestParams: { path: z.object({ id: z.string() }) },
       responses: {
         "200": {
           description: "Session revoked.",
@@ -803,6 +859,7 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       summary: "Revoke a single trusted device",
       description:
         "v1.23 — revokes one trusted device by id, scoped to the authenticated user (a foreign id returns 404).",
+      requestParams: { path: z.object({ id: z.string() }) },
       responses: {
         "200": {
           description: "Trusted device revoked.",
@@ -829,6 +886,17 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       summary: "List recent account-security activity",
       description:
         "v1.23 — the SHARED security-activity feed: the caller's recent auth + export + deletion audit events with timestamp, resolved location, and a host-masked IP. `limit` query param caps at 100 (default 50). Reuses the AuditLog store; no event detail bodies are surfaced.",
+      requestParams: {
+        query: z.object({
+          limit: z.coerce
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .describe("Page size; defaults to 50, clamped to 100."),
+        }),
+      },
       responses: {
         "200": {
           description: "Recent security events for the caller.",

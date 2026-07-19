@@ -4999,6 +4999,16 @@
         "honesty": "L'accès partagé est un unique compte IA connecté que l'opérateur a relié pour tout le monde sur ce serveur, et non votre propre clé. Les requêtes que vous y faites servent par défaut à entraîner les modèles du fournisseur et aucun accord de traitement des données ne les couvre, les limites horaires et hebdomadaires du compte sont partagées avec tous les autres qui ont accepté, et vos propres fournisseurs sont essayés en premier. Ne l'activez que si vous acceptez ce compromis.",
         "confirm": "J'ai compris — utiliser la connexion partagée",
         "cancel": "Annuler"
+      },
+      "consent": {
+        "title": "Consentement IA",
+        "activeSince": "Donné le {date}. Tes données de santé peuvent être transmises au fournisseur configuré pour les fonctions IA.",
+        "withdrawn": "Retiré. Aucune donnée de santé n'est transmise à un fournisseur IA ; les fonctions IA restent désactivées.",
+        "withdraw": "Retirer le consentement",
+        "confirmBody": "Les fonctions IA s'arrêtent immédiatement. Rien de ce qui est déjà enregistré n'est supprimé — utilise Données et confidentialité pour exporter ou effacer ton dossier.",
+        "confirmWithdraw": "Retirer",
+        "regrantHint": "Pour réutiliser les fonctions IA, active la lecture automatique des documents ou donne ton consentement depuis l'application.",
+        "error": "Le retrait n'a pas pu être enregistré. Réessaie."
       }
     },
     "dashboard": {

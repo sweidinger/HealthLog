@@ -145,6 +145,95 @@ describe("runInboundExtraction — stated-status-only mapping", () => {
     expect(med.statusStated).toBe("ongoing");
   });
 
+  it("stores the document's real span, not the model's echo of it", async () => {
+    // The OCR text says "Hämoglobin    14.2 g/dL"; the model echoes a tidied
+    // rendering of it. The stored provenance must be the document's characters.
+    const ocrText = "Labor 2026-01-02\nHämoglobin    14.2 g/dL   (13.5-17.5)";
+    const provider = fakeProvider(
+      JSON.stringify({
+        facts: [
+          {
+            type: "OBSERVATION",
+            label: "Hämoglobin",
+            value: 14.2,
+            unit: "g/dL",
+            confidence: 0.9,
+            sourceText: "Hämoglobin 14.2 g/dL (13.5-17.5)",
+          },
+        ],
+      }),
+    );
+
+    const result = await runInboundExtraction({
+      provider,
+      providerType: "mock",
+      ocrText,
+    });
+    const { provenance } = result.facts[0]!;
+    expect(provenance.anchored).toBe(true);
+    expect(provenance.sourceText).toBe("Hämoglobin    14.2 g/dL   (13.5-17.5)");
+    expect(
+      ocrText.slice(
+        provenance.sourceOffset!,
+        provenance.sourceOffset! + provenance.sourceText.length,
+      ),
+    ).toBe(provenance.sourceText);
+  });
+
+  it("marks a fact unanchored rather than storing a quote it cannot locate", async () => {
+    const ocrText = "Labor 2026-01-02\nHämoglobin 14.2 g/dL";
+    const provider = fakeProvider(
+      JSON.stringify({
+        facts: [
+          {
+            type: "OBSERVATION",
+            label: "Hämoglobin",
+            value: 14.2,
+            unit: "g/dL",
+            confidence: 0.9,
+            // A quote the document never carried.
+            sourceText: "Haemoglobin was measured at 14.2 and is normal",
+          },
+        ],
+      }),
+    );
+
+    const result = await runInboundExtraction({
+      provider,
+      providerType: "mock",
+      ocrText,
+    });
+    const { provenance } = result.facts[0]!;
+    expect(provenance.anchored).toBe(false);
+    expect(provenance.sourceText).toBe("");
+    expect(provenance.sourceOffset).toBeNull();
+    // The fact itself still stages — only its provenance claim is withheld.
+    expect(result.facts).toHaveLength(1);
+  });
+
+  it("marks vision-mode facts unanchored — there is no extracted text to verify", async () => {
+    const provider = fakeProvider(
+      JSON.stringify({
+        facts: [
+          {
+            type: "CONDITION",
+            label: "Type 2 diabetes mellitus",
+            confidence: 0.9,
+            sourceText: "Dx: Type 2 diabetes mellitus",
+          },
+        ],
+      }),
+    );
+
+    const result = await runInboundExtraction({
+      provider,
+      providerType: "mock",
+    });
+    const { provenance } = result.facts[0]!;
+    expect(provenance.anchored).toBe(false);
+    expect(provenance.sourceText).toBe("");
+  });
+
   it("throws InboundExtractError on unparseable provider output", async () => {
     const provider = fakeProvider("not json at all");
     await expect(

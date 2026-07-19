@@ -97,6 +97,8 @@ documentBulkSchema.meta({
 
 const factProvenance = z.object({
   sourceText: z.string(),
+  anchored: z.boolean(),
+  sourceOffset: z.number().nullable(),
   page: z.number().nullable(),
   confidence: z.number(),
 });

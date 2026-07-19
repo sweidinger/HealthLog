@@ -37,7 +37,7 @@ export const POST = apiHandler(async () => {
     });
   }
 
-  const result = await ensureWebAiConsentReceipt(user.id);
+  const result = await ensureWebAiConsentReceipt(user.id, "heal");
 
   if (result.minted) {
     // Audit trail parity with the iOS-driven POST /api/consent/ai grant so

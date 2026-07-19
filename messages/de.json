@@ -4999,6 +4999,16 @@
         "honesty": "Der gemeinsame Zugang ist ein einzelnes angemeldetes KI-Konto, das der Betreiber für alle auf diesem Server verbunden hat — nicht dein eigener Schlüssel. Anfragen darüber werden vom Anbieter standardmäßig zum Training genutzt und von keiner Auftragsverarbeitungsvereinbarung gedeckt, die Stunden- und Wochenlimits des Kontos teilst du dir mit allen anderen, die zugestimmt haben, und deine eigenen Anbieter werden weiterhin zuerst versucht. Aktiviere es nur, wenn du diesen Kompromiss akzeptierst.",
         "confirm": "Verstanden — gemeinsame Verbindung nutzen",
         "cancel": "Abbrechen"
+      },
+      "consent": {
+        "title": "KI-Einwilligung",
+        "activeSince": "Erteilt am {date}. Deine Gesundheitsdaten dürfen für die KI-Funktionen an den eingestellten Anbieter gesendet werden.",
+        "withdrawn": "Widerrufen. Es werden keine Gesundheitsdaten an einen KI-Anbieter gesendet; die KI-Funktionen bleiben aus.",
+        "withdraw": "Einwilligung widerrufen",
+        "confirmBody": "Die KI-Funktionen sind sofort abgeschaltet. Bereits erfasste Daten werden nicht gelöscht — dafür gibt es Daten & Privatsphäre.",
+        "confirmWithdraw": "Widerrufen",
+        "regrantHint": "Um die KI-Funktionen wieder zu nutzen, schalte das automatische Lesen von Dokumenten ein oder erteile die Einwilligung in der App.",
+        "error": "Der Widerruf konnte nicht gespeichert werden. Bitte versuche es erneut."
       }
     },
     "dashboard": {
