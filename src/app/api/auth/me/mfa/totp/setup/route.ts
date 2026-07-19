@@ -33,7 +33,8 @@ const SETUP_RATE_LIMIT = 5;
 const SETUP_WINDOW_MS = 15 * 60 * 1000;
 
 export const POST = apiHandler(async (req: Request) => {
-  const { user } = await requireMfaManagementAuth();
+  const auth = await requireMfaManagementAuth();
+  const { user } = auth;
 
   const rl = await checkRateLimit(
     `mfa:setup:${user.id}`,
@@ -55,6 +56,9 @@ export const POST = apiHandler(async (req: Request) => {
     annotate({ action: { name: "auth.mfa.totp.setup.already_active" } });
     throw new HttpError(409, "A second factor is already active");
   }
+
+  // Rate limit and the already-active check have passed; the write is next.
+  await auth.commitElevation();
 
   const secret = generateTotpSecret();
   const account = user.email ?? user.username;

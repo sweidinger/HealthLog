@@ -4,6 +4,15 @@
  * Re-prove a factor and receive a single-use, token-bound step-up elevation for
  * one second-factor-management call.
  *
+ * WHICH factor is re-proved decides WHAT the elevation reaches. `password`
+ * reaches exactly what a plain cookie session reaches. `totp`, `webauthn`, and
+ * `passkey` additionally satisfy the fresh-factor routes — disable, recovery-code
+ * rotation, security-key removal — and that set is precisely the set of
+ * ceremonies for which the web stamps a session second-factor-verified. If a
+ * password-proved elevation opened those routes, a stolen token plus the account
+ * password would rotate the recovery codes (which take no factor in the body)
+ * and then spend one of them to disable the second factor outright.
+ *
  * This is the whole point of the mechanism, so it is worth being blunt about
  * what it is not: it is NOT a way to turn a token into a stronger credential.
  * Presenting the token gets you as far as this endpoint and no further — the
@@ -37,8 +46,11 @@ import {
 } from "@/lib/rate-limit";
 import { verifyPassword } from "@/lib/auth/password";
 import { verifyAuthentication } from "@/lib/auth/passkey";
+import { verifyMfaAuthentication } from "@/lib/auth/mfa/webauthn";
+import { verifyMfaFactor } from "@/lib/auth/mfa/verify-factor";
 import {
   mintStepUpElevation,
+  isFreshFactorMethod,
   STEP_UP_ELEVATION_TTL_SECONDS,
   type StepUpMethod,
 } from "@/lib/auth/step-up";
@@ -103,32 +115,62 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Invalid request", 422);
   }
 
+  const method: StepUpMethod = parsed.data.method;
   let proved = false;
-  let method: StepUpMethod = parsed.data.method;
   // Audit-only detail. Never reaches the response — see the file header.
   let failure = "invalid";
+
+  /**
+   * Resolve a WebAuthn challenge and confirm it belongs to THIS account before
+   * any verification runs. Both ceremony helpers resolve a challenge by id
+   * alone, so without this a challenge minted for another account could be
+   * carried into the ceremony.
+   */
+  const challengeBelongsToCaller = async (id: string): Promise<boolean> => {
+    const row = await prisma.authChallenge.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+    return Boolean(row && row.userId === user.id);
+  };
 
   if (parsed.data.method === "password") {
     if (!user.passwordHash) {
       // An SSO-provisioned account has no password to re-prove. Same refusal as
       // a wrong one: the account's credential shape is not a token holder's to
       // enumerate. `/api/auth/step-up/options` is the honest discovery path —
-      // it 409s when there is no passkey either.
+      // it 409s when there is no credential of the requested kind either.
       failure = "no_password";
     } else {
       proved = await verifyPassword(user.passwordHash, parsed.data.password);
       if (!proved) failure = "bad_password";
     }
+  } else if (parsed.data.method === "totp") {
+    // The shared factor verifier, so the replay guard and the accepted-step
+    // burn behave exactly as they do at login and at MFA-disable. A code spent
+    // here cannot be replayed there.
+    const result = await verifyMfaFactor(user, "totp", parsed.data.code);
+    proved = result.ok;
+    if (!proved) failure = result.replay ? "totp_replay" : "bad_totp";
+  } else if (parsed.data.method === "webauthn") {
+    if (!(await challengeBelongsToCaller(parsed.data.challengeId))) {
+      failure = "foreign_challenge";
+    } else {
+      try {
+        // Scoped to the caller's own second-factor credentials by the verifier.
+        proved = await verifyMfaAuthentication(
+          parsed.data.challengeId,
+          user.id,
+          parsed.data.credential,
+        );
+        if (!proved) failure = "bad_assertion";
+      } catch {
+        // A malformed / expired challenge is a failed attempt, not a 500.
+        failure = "bad_assertion";
+      }
+    }
   } else {
-    method = "passkey";
-    // Bind the challenge to the caller BEFORE verifying. `verifyAuthentication`
-    // resolves a challenge by id alone; pinning ownership here means a challenge
-    // minted for another account cannot be carried into this ceremony.
-    const challenge = await prisma.authChallenge.findUnique({
-      where: { id: parsed.data.challengeId },
-      select: { userId: true },
-    });
-    if (!challenge || challenge.userId !== user.id) {
+    if (!(await challengeBelongsToCaller(parsed.data.challengeId))) {
       failure = "foreign_challenge";
     } else {
       try {
@@ -142,7 +184,6 @@ export const POST = apiHandler(async (request: NextRequest) => {
           result.verification.verified && result.passkey.userId === user.id;
         if (!proved) failure = "bad_assertion";
       } catch {
-        // A malformed / expired challenge is a failed attempt, not a 500.
         failure = "bad_assertion";
       }
     }
@@ -184,5 +225,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
     elevation: token,
     expiresAt: expiresAt.toISOString(),
     expiresInSeconds: STEP_UP_ELEVATION_TTL_SECONDS,
+    method,
+    // Whether this elevation reaches the fresh-factor routes (disable,
+    // recovery-code rotation, security-key removal). A password-proved
+    // elevation does not, exactly as a password login does not on the web.
+    // Surfaced so the client can pick the right ceremony up front instead of
+    // discovering the refusal after spending a proof.
+    satisfiesFreshFactor: isFreshFactorMethod(method),
   });
 });

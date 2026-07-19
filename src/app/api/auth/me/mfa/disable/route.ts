@@ -38,9 +38,8 @@ const DISABLE_WINDOW_MS = 15 * 60 * 1000;
 export const POST = apiHandler(async (req: Request) => {
   // Step-up gate first — throws StepUpRequiredError (401 + errorCode) if the
   // session is not freshly second-factor-verified.
-  const { user, session } = await requireMfaManagementAuth({
-    freshFactor: true,
-  });
+  const auth = await requireMfaManagementAuth({ freshFactor: true });
+  const { user } = auth;
 
   const rl = await checkRateLimit(
     `mfa:disable:${user.id}`,
@@ -85,6 +84,11 @@ export const POST = apiHandler(async (req: Request) => {
     throw new HttpError(401, "Invalid code");
   }
 
+  // Every cheap check has passed and the teardown is next, so spend the
+  // elevation now. Placing it here rather than at the gate means a wrong code or
+  // a 429 above costs the caller nothing.
+  await auth.commitElevation();
+
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
@@ -102,7 +106,12 @@ export const POST = apiHandler(async (req: Request) => {
   // every "remember this device" trusted device (all handled by
   // destroyOtherSessions), keeping only the caller's current session. A stale
   // session or a trusted-device cookie must not survive the factor's removal.
-  await destroyOtherSessions(user.id, session.id);
+  await destroyOtherSessions(
+    user.id,
+    auth.transport === "cookie"
+      ? { kind: "session", sessionId: auth.session.id }
+      : { kind: "accessToken", accessTokenHash: auth.accessTokenHash },
+  );
 
   await auditLog("auth.mfa.disabled", {
     userId: user.id,

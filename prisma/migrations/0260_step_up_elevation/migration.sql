@@ -19,6 +19,14 @@ CREATE TABLE "step_up_elevations" (
 );
 
 CREATE UNIQUE INDEX "step_up_elevations_token_hash_key" ON "step_up_elevations"("token_hash");
+
+-- At most ONE redeemable elevation per token, enforced by the database rather
+-- than by the mint's delete-then-create ordering. Without it two concurrent
+-- mints can interleave so that both rows survive, or the second mint's delete
+-- strands the value the first mint already handed to the client.
+CREATE UNIQUE INDEX "step_up_elevations_live_per_token_key"
+    ON "step_up_elevations"("api_token_id") WHERE "consumed_at" IS NULL;
+
 CREATE INDEX "step_up_elevations_user_id_idx" ON "step_up_elevations"("user_id");
 CREATE INDEX "step_up_elevations_api_token_id_idx" ON "step_up_elevations"("api_token_id");
 CREATE INDEX "step_up_elevations_expires_at_idx" ON "step_up_elevations"("expires_at");

@@ -28,7 +28,8 @@ export const PATCH = apiHandler(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
   ) => {
-    const { user } = await requireMfaManagementAuth();
+    const auth = await requireMfaManagementAuth();
+    const { user } = auth;
     const { id } = await params;
 
     const { data: body, error: jsonError } = await safeJson(request, {
@@ -49,6 +50,8 @@ export const PATCH = apiHandler(
       return apiError("Security key not found", 404);
     }
 
+    await auth.commitElevation();
+
     const updated = await prisma.webauthnMfaCredential.update({
       where: { id },
       data: { name: parsed.data.name },
@@ -67,7 +70,8 @@ export const DELETE = apiHandler(
   ) => {
     // Step-up gate first — throws StepUpRequiredError (401 + errorCode) if the
     // session is not freshly second-factor-verified.
-    const { user } = await requireMfaManagementAuth({ freshFactor: true });
+    const auth = await requireMfaManagementAuth({ freshFactor: true });
+    const { user } = auth;
     const { id } = await params;
 
     const existing = await prisma.webauthnMfaCredential.findUnique({
@@ -77,6 +81,10 @@ export const DELETE = apiHandler(
     if (!existing || existing.userId !== user.id) {
       return apiError("Security key not found", 404);
     }
+
+    // Ownership resolved and the row is about to go — spend the elevation now,
+    // so a 404 for someone else's key id does not burn it.
+    await auth.commitElevation();
 
     await prisma.webauthnMfaCredential.delete({ where: { id } });
 

@@ -15,6 +15,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import * as OTPAuth from "otpauth";
 
 import { cookieJar, headerJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
@@ -118,15 +119,79 @@ function req(path: string, method = "GET", body?: unknown): NextRequest {
   return new NextRequest(`https://health.example${path}`, init as never);
 }
 
+/** Drive the mint endpoint with an arbitrary proof body. */
+async function mintWith(
+  body: Record<string, unknown>,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const { POST } = await import("@/app/api/auth/step-up/route");
+  const res = await POST(req("/api/auth/step-up", "POST", body));
+  return { status: res.status, body: (await res.json()) as never };
+}
+
 /** Drive the mint endpoint with a password proof. */
 async function mintElevation(
   password: string,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  const { POST } = await import("@/app/api/auth/step-up/route");
-  const res = await POST(
-    req("/api/auth/step-up", "POST", { method: "password", password }),
-  );
-  return { status: res.status, body: (await res.json()) as never };
+  return mintWith({ method: "password", password });
+}
+
+/**
+ * Mint a TOTP-proved elevation the way a real client would: enrol a secret,
+ * then present a live code for it. This is the only fresh-factor arm reachable
+ * without a WebAuthn authenticator, so it carries the fresh-factor coverage.
+ */
+async function enrolTotp(): Promise<string> {
+  const { generateTotpSecret } = await import("@/lib/auth/mfa/totp");
+  const { encrypt } = await import("@/lib/crypto");
+  const secret = generateTotpSecret();
+  await getPrismaClient().user.update({
+    where: { id: USER_ID },
+    data: {
+      totpSecretEncrypted: encrypt(secret),
+      totpConfirmedAt: new Date(),
+      totpLastStep: null,
+    },
+  });
+  return secret;
+}
+
+/** Mirrors the server's TOTP parameters — there is no code generator to import. */
+function currentTotpCode(secretBase32: string): string {
+  const totp = new OTPAuth.TOTP({
+    issuer: "HealthLog",
+    label: "HealthLog",
+    algorithm: "SHA1",
+    digits: 6,
+    period: 30,
+    secret: OTPAuth.Secret.fromBase32(secretBase32),
+  });
+  return totp.generate({ timestamp: Date.now() });
+}
+
+async function mintTotpElevation(
+  secret: string,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  return mintWith({ method: "totp", code: currentTotpCode(secret) });
+}
+
+/**
+ * Seed a known recovery-code batch and return the plaintext.
+ *
+ * The disable route wants a live factor in its BODY on top of the step-up. A
+ * TOTP code spent minting the elevation cannot be reused there — the shared
+ * verifier burns its time-step, by design — so within one 30-second window the
+ * body factor has to be something else. That is exactly how the web behaves
+ * too.
+ */
+async function seedRecoveryCodes(): Promise<string[]> {
+  const { regenerateRecoveryCodes } =
+    await import("@/lib/auth/mfa/recovery-codes");
+  return regenerateRecoveryCodes(USER_ID);
+}
+
+/** Pull the raw elevation out of a successful mint. */
+function elevationOf(result: { body: Record<string, unknown> }): string {
+  return (result.body.data as { elevation: string }).elevation;
 }
 
 /**
@@ -136,7 +201,19 @@ async function mintElevation(
  */
 type RouteFn = (request: NextRequest) => Promise<Response>;
 
-/** GET /api/auth/me/mfa — the cheapest route in the elevation-accepting set. */
+/**
+ * POST /api/auth/me/mfa/totp/setup — the cheapest MUTATION in the
+ * elevation-accepting set, and the probe every redemption case drives.
+ *
+ * NOT `GET /api/auth/me/mfa`: that read is plain `requireAuth()` now, so using
+ * it here would have quietly stopped exercising the elevation path at all.
+ */
+async function callMfaSetup(): Promise<Response> {
+  const { POST } = await import("@/app/api/auth/me/mfa/totp/setup/route");
+  return await POST(req("/api/auth/me/mfa/totp/setup", "POST"));
+}
+
+/** The status read — plain Bearer, no elevation. */
 async function callMfaStatus(): Promise<Response> {
   const { GET } = await import("@/app/api/auth/me/mfa/route");
   return await (GET as unknown as RouteFn)(req("/api/auth/me/mfa"));
@@ -160,7 +237,7 @@ describe("E1 — the token alone is not a step-up proof", () => {
     useToken(raw);
     useElevation(null);
 
-    const res = await callMfaStatus();
+    const res = await callMfaSetup();
 
     // 401 with the machine code the client branches on to launch a re-proof —
     // not a 200, and not the 403 an unauthorised token would get.
@@ -183,7 +260,7 @@ describe("E1 — the token alone is not a step-up proof", () => {
     useToken(raw);
     useElevation(`hle_${"f".repeat(64)}`);
 
-    expect((await callMfaStatus()).status).toBe(401);
+    expect((await callMfaSetup()).status).toBe(401);
     await new Promise((r) => setTimeout(r, 100));
     expect(await auditReasons("auth.stepup.elevation.rejected")).toContain(
       "unknown",
@@ -207,7 +284,7 @@ describe("E2 — an elevation is not portable between tokens", () => {
     // thing standing between these two, which is exactly the point.
     useToken(b.raw);
     useElevation(elevation);
-    const res = await callMfaStatus();
+    const res = await callMfaSetup();
 
     expect(res.status).toBe(401);
     await new Promise((r) => setTimeout(r, 100));
@@ -221,7 +298,7 @@ describe("E2 — an elevation is not portable between tokens", () => {
 
     useToken(a.raw);
     useElevation(elevation);
-    expect((await callMfaStatus()).status).toBe(200);
+    expect((await callMfaSetup()).status).toBe(200);
   });
 
   it("refuses redemption by another user's token", async () => {
@@ -236,7 +313,7 @@ describe("E2 — an elevation is not portable between tokens", () => {
     useToken(theirs.raw);
     useElevation(elevation);
 
-    expect((await callMfaStatus()).status).toBe(401);
+    expect((await callMfaSetup()).status).toBe(401);
   });
 });
 
@@ -251,8 +328,8 @@ describe("E3 — an elevation is consumed exactly once", () => {
     ).elevation;
 
     useElevation(elevation);
-    expect((await callMfaStatus()).status).toBe(200);
-    expect((await callMfaStatus()).status).toBe(401);
+    expect((await callMfaSetup()).status).toBe(200);
+    expect((await callMfaSetup()).status).toBe(401);
 
     await new Promise((r) => setTimeout(r, 100));
     expect(await auditReasons("auth.stepup.elevation.rejected")).toContain(
@@ -271,15 +348,16 @@ describe("E3 — an elevation is consumed exactly once", () => {
     // conditional UPDATEs on one row rather than between two HTTP handlers that
     // happen to interleave. A check-then-update implementation passes the
     // sequential case above and fails here.
-    const { redeemStepUpElevation } = await import("@/lib/auth/step-up");
+    const { claimStepUpElevation } = await import("@/lib/auth/step-up");
     const attempt = () =>
-      redeemStepUpElevation({
+      claimStepUpElevation({
         rawToken: elevation,
         userId: USER_ID,
         apiTokenId: id,
+        requireFreshFactor: false,
       });
 
-    const results = await Promise.all([
+    const results: Awaited<ReturnType<typeof attempt>>[] = await Promise.all([
       attempt(),
       attempt(),
       attempt(),
@@ -309,7 +387,7 @@ describe("E4 — an expired elevation is refused", () => {
     });
 
     useElevation(elevation);
-    expect((await callMfaStatus()).status).toBe(401);
+    expect((await callMfaSetup()).status).toBe(401);
 
     await new Promise((r) => setTimeout(r, 100));
     expect(await auditReasons("auth.stepup.elevation.rejected")).toContain(
@@ -434,9 +512,9 @@ describe("E7 — the cookie flow is unchanged", () => {
     return session.id;
   }
 
-  it("serves an MFA-management read on a plain cookie session", async () => {
+  it("serves an MFA-management mutation on a plain cookie session", async () => {
     await useCookieSession();
-    expect((await callMfaStatus()).status).toBe(200);
+    expect((await callMfaSetup()).status).toBe(200);
   });
 
   it("still refuses a step-up-gated route on a cookie with no fresh factor", async () => {
@@ -479,7 +557,7 @@ describe("E7 — the cookie flow is unchanged", () => {
 
     await useCookieSession();
     useElevation(elevation);
-    expect((await callMfaStatus()).status).toBe(200);
+    expect((await callMfaSetup()).status).toBe(200);
 
     const row = await getPrismaClient().stepUpElevation.findFirst({
       where: { apiTokenId: id },
@@ -491,14 +569,85 @@ describe("E7 — the cookie flow is unchanged", () => {
 // ── E8 — invalidation on credential rotation ─────────────────────────
 
 describe("E8 — an elevation does not outlive its anchor", () => {
-  it("is dropped when the account password changes", async () => {
+  it("is dropped by a real password change, through the route", async () => {
+    // Driven through POST /api/auth/password rather than by calling the
+    // revocation helper. Calling the helper directly proved only that the helper
+    // deletes rows — deleting the call from BOTH password routes left the old
+    // version of this test green, so the invalidation story was uncovered.
     const { raw } = await mintToken("e8a");
+    useToken(raw);
+    const elevation = elevationOf(await mintElevation(PASSWORD));
+    expect(await getPrismaClient().stepUpElevation.count()).toBe(1);
+
+    const NEW_PASSWORD = "Zt7#qvbLm2xR!e9Wd4Kp";
+    const { POST } = await import("@/app/api/auth/password/route");
+    const res = await POST(
+      req("/api/auth/password", "POST", {
+        currentPassword: PASSWORD,
+        newPassword: NEW_PASSWORD,
+        confirmPassword: NEW_PASSWORD,
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    expect(await getPrismaClient().stepUpElevation.count()).toBe(0);
+
+    // And the value the client still holds is dead. The password route mints a
+    // replacement cookie session, which the shared jar would otherwise pick up
+    // and satisfy the gate on the cookie arm — clear it so this probes the
+    // Bearer arm, which is the one under test.
+    cookieJar.clear();
+    useElevation(elevation);
+    expect((await callMfaSetup()).status).toBe(401);
+  });
+
+  it("is dropped by an operator-forced reset, through the admin route", async () => {
+    const { raw } = await mintToken("e8a2");
     useToken(raw);
     await mintElevation(PASSWORD);
     expect(await getPrismaClient().stepUpElevation.count()).toBe(1);
 
-    const { revokeStepUpElevations } = await import("@/lib/auth/step-up");
-    await revokeStepUpElevations(USER_ID);
+    // The admin route is cookie-only, so the reset arrives on an ADMIN session
+    // while the elevation belongs to the target's token.
+    await getPrismaClient().user.update({
+      where: { id: OTHER_USER_ID },
+      data: { role: "ADMIN" },
+    });
+    const adminSession = await getPrismaClient().session.create({
+      data: {
+        userId: OTHER_USER_ID,
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
+    cookieJar.set("healthlog_session", adminSession.id);
+    headerJar.delete("authorization");
+
+    const { POST } =
+      await import("@/app/api/admin/users/[id]/reset-password/route");
+    const res = await POST(
+      req(`/api/admin/users/${USER_ID}/reset-password`, "POST", {
+        password: "operator chosen long passphrase 77",
+      }),
+      { params: Promise.resolve({ id: USER_ID }) },
+    );
+    expect(res.status).toBe(200);
+
+    expect(await getPrismaClient().stepUpElevation.count()).toBe(0);
+  });
+
+  it("is dropped by sign-out-everywhere", async () => {
+    const { raw } = await mintToken("e8a3");
+    useToken(raw);
+    await mintElevation(PASSWORD);
+
+    const session = await getPrismaClient().session.create({
+      data: { userId: USER_ID, expiresAt: new Date(Date.now() + 3_600_000) },
+    });
+    const { destroyOtherSessions } = await import("@/lib/auth/session");
+    await destroyOtherSessions(USER_ID, {
+      kind: "session",
+      sessionId: session.id,
+    });
 
     expect(await getPrismaClient().stepUpElevation.count()).toBe(0);
   });
@@ -518,7 +667,7 @@ describe("E8 — an elevation does not outlive its anchor", () => {
     useElevation(elevation);
     // Refused at Bearer resolution, before the elevation is even looked at —
     // which is why no code in the revoke path needs to know about elevations.
-    expect((await callMfaStatus()).status).toBe(401);
+    expect((await callMfaSetup()).status).toBe(401);
 
     const row = await getPrismaClient().stepUpElevation.findFirst();
     expect(row?.consumedAt).toBeNull();
@@ -563,7 +712,7 @@ describe("E9 — a native client can manage its second factor", () => {
     });
     expect(user?.totpSecretEncrypted).toBeTruthy();
     expect(user?.totpConfirmedAt).toBeNull();
-    expect((await callMfaStatus()).status).toBe(401);
+    expect((await callMfaSetup()).status).toBe(401);
   });
 
   it("refuses the mint surface to a cookie session", async () => {
@@ -583,5 +732,363 @@ describe("E9 — a native client can manage its second factor", () => {
 
     expect(res.status).toBe(401);
     expect(await getPrismaClient().stepUpElevation.count()).toBe(0);
+  });
+});
+
+// ── E10 — the fresh-factor rule (B1) ─────────────────────────────────
+
+describe("E10 — a password proof cannot reach the destructive routes", () => {
+  /**
+   * The attack this closes, in the order it ran before the fix:
+   *   1. mint an elevation with the account password (a stolen token plus a
+   *      known password is the whole prerequisite);
+   *   2. POST recovery-codes/regenerate — which takes NO factor in its body —
+   *      and receive ten plaintext recovery codes;
+   *   3. POST disable with one of them, satisfying the body check.
+   * The second factor is gone. On the web that chain is impossible because a
+   * password login never stamps `mfaVerifiedAt`.
+   */
+  async function regenerate(): Promise<Response> {
+    const { POST } =
+      await import("@/app/api/auth/me/mfa/recovery-codes/regenerate/route");
+    return POST(req("/api/auth/me/mfa/recovery-codes/regenerate", "POST"));
+  }
+
+  async function disable(code: string, method = "recovery"): Promise<Response> {
+    const { POST } = await import("@/app/api/auth/me/mfa/disable/route");
+    return POST(req("/api/auth/me/mfa/disable", "POST", { code, method }));
+  }
+
+  async function removeKey(id: string): Promise<Response> {
+    const { DELETE } =
+      await import("@/app/api/auth/me/mfa/webauthn/[id]/route");
+    return DELETE(req(`/api/auth/me/mfa/webauthn/${id}`, "DELETE"), {
+      params: Promise.resolve({ id }),
+    });
+  }
+
+  it("refuses recovery-code regeneration on a password-proved elevation", async () => {
+    await enrolTotp();
+    const { raw } = await mintToken("e10a");
+    useToken(raw);
+    useElevation(elevationOf(await mintElevation(PASSWORD)));
+
+    const res = await regenerate();
+
+    expect(res.status).toBe(401);
+    // No codes were minted, so step 2 of the chain yields nothing.
+    expect(await getPrismaClient().mfaRecoveryCode.count()).toBe(0);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(await auditReasons("auth.stepup.elevation.rejected")).toContain(
+      "insufficient_factor",
+    );
+  });
+
+  it("refuses disable on a password-proved elevation", async () => {
+    const secret = await enrolTotp();
+    const { raw } = await mintToken("e10b");
+    useToken(raw);
+    useElevation(elevationOf(await mintElevation(PASSWORD)));
+
+    const res = await disable(currentTotpCode(secret), "totp");
+
+    expect(res.status).toBe(401);
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: USER_ID },
+    });
+    expect(user?.totpConfirmedAt).not.toBeNull();
+  });
+
+  it("refuses security-key removal on a password-proved elevation", async () => {
+    const key = await getPrismaClient().webauthnMfaCredential.create({
+      data: {
+        userId: USER_ID,
+        name: "key",
+        credentialId: "cred-e10c",
+        credentialPublicKey: Buffer.from([1, 2, 3]),
+        transports: ["internal"],
+      },
+    });
+    const { raw } = await mintToken("e10c");
+    useToken(raw);
+    useElevation(elevationOf(await mintElevation(PASSWORD)));
+
+    expect((await removeKey(key.id)).status).toBe(401);
+    expect(await getPrismaClient().webauthnMfaCredential.count()).toBe(1);
+  });
+
+  it("does NOT burn the elevation when the factor is too weak", async () => {
+    // The refusal is about reach, not validity. The same elevation must still
+    // work on the routes it was always entitled to.
+    await enrolTotp();
+    const { raw } = await mintToken("e10d");
+    useToken(raw);
+    const elevation = elevationOf(await mintElevation(PASSWORD));
+
+    useElevation(elevation);
+    expect((await regenerate()).status).toBe(401);
+
+    const row = await getPrismaClient().stepUpElevation.findFirst();
+    expect(row?.consumedAt).toBeNull();
+  });
+
+  it("admits the SAME routes a plain cookie session reaches", async () => {
+    // The password arm is not useless — it is exactly cookie-equivalent.
+    const { raw } = await mintToken("e10e");
+    useToken(raw);
+    useElevation(elevationOf(await mintElevation(PASSWORD)));
+
+    expect((await callMfaSetup()).status).toBe(200);
+  });
+
+  it("admits the destructive routes on a TOTP-proved elevation", async () => {
+    const secret = await enrolTotp();
+    const { raw } = await mintToken("e10f");
+    useToken(raw);
+
+    const minted = await mintTotpElevation(secret);
+    expect(minted.status).toBe(200);
+    expect(
+      (minted.body.data as { satisfiesFreshFactor: boolean })
+        .satisfiesFreshFactor,
+    ).toBe(true);
+
+    useElevation(elevationOf(minted));
+    const res = await regenerate();
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { recoveryCodes: string[] };
+    };
+    expect(body.data.recoveryCodes.length).toBeGreaterThan(0);
+  });
+
+  it("marks a password-proved elevation as not fresh-factor in the mint response", async () => {
+    const { raw } = await mintToken("e10g");
+    useToken(raw);
+    const minted = await mintElevation(PASSWORD);
+    const data = minted.body.data as {
+      method: string;
+      satisfiesFreshFactor: boolean;
+    };
+    expect(data.method).toBe("password");
+    expect(data.satisfiesFreshFactor).toBe(false);
+  });
+
+  it("refuses a stale TOTP code and does not mint", async () => {
+    const secret = await enrolTotp();
+    const { raw } = await mintToken("e10h");
+    useToken(raw);
+
+    // Spend the code through the shared verifier first; the replay guard must
+    // then refuse the same code here, exactly as it does at login.
+    const code = currentTotpCode(secret);
+    const { verifyMfaFactor } = await import("@/lib/auth/mfa/verify-factor");
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: USER_ID },
+    });
+    await verifyMfaFactor(user!, "totp", code);
+
+    const res = await mintWith({ method: "totp", code });
+
+    expect(res.status).toBe(401);
+    expect(await getPrismaClient().stepUpElevation.count()).toBe(0);
+  });
+});
+
+// ── E11 — the disable route keeps the caller signed in (B2) ──────────
+
+describe("E11 — disabling MFA over Bearer spares the calling device", () => {
+  it("revokes every OTHER refresh token but not the caller's own", async () => {
+    const secret = await enrolTotp();
+    const { raw, id } = await mintToken("e11a");
+
+    const { hashToken } = await import("@/lib/auth/hmac");
+    // The caller's own device login: the RefreshToken row cross-referencing the
+    // access token being presented.
+    const mine = await getPrismaClient().refreshToken.create({
+      data: {
+        userId: USER_ID,
+        tokenHash: hashToken(`hlr_mine${"0".repeat(56)}`),
+        accessTokenHash: hashToken(raw),
+        expiresAt: new Date(Date.now() + 30 * 24 * 3_600_000),
+      },
+    });
+    // Another device.
+    const theirs = await getPrismaClient().refreshToken.create({
+      data: {
+        userId: USER_ID,
+        tokenHash: hashToken(`hlr_theirs${"0".repeat(54)}`),
+        accessTokenHash: hashToken(`hlk_other${"0".repeat(55)}`),
+        expiresAt: new Date(Date.now() + 30 * 24 * 3_600_000),
+      },
+    });
+    // And a browser session, which has no "current" on the Bearer path.
+    const webSession = await getPrismaClient().session.create({
+      data: { userId: USER_ID, expiresAt: new Date(Date.now() + 3_600_000) },
+    });
+
+    const codes = await seedRecoveryCodes();
+    useToken(raw);
+    useElevation(elevationOf(await mintTotpElevation(secret)));
+
+    const { POST } = await import("@/app/api/auth/me/mfa/disable/route");
+    const res = await POST(
+      req("/api/auth/me/mfa/disable", "POST", {
+        code: codes[0],
+        method: "recovery",
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    // The defect: passing the ApiToken id where a Session id was expected made
+    // the "keep the current one" exclusion match nothing, so the caller's own
+    // refresh token was revoked and the app logged itself out at next rotation.
+    const mineAfter = await getPrismaClient().refreshToken.findUnique({
+      where: { id: mine.id },
+    });
+    const theirsAfter = await getPrismaClient().refreshToken.findUnique({
+      where: { id: theirs.id },
+    });
+    expect(mineAfter?.revokedAt).toBeNull();
+    expect(theirsAfter?.revokedAt).not.toBeNull();
+
+    // Web sessions all go — none of them is the caller.
+    expect(
+      await getPrismaClient().session.findUnique({
+        where: { id: webSession.id },
+      }),
+    ).toBeNull();
+
+    // And the calling token itself is untouched, so the next request works.
+    const token = await getPrismaClient().apiToken.findUnique({
+      where: { id },
+    });
+    expect(token?.revoked).toBe(false);
+  });
+
+  it("keeps the caller's own session on the cookie path, as before", async () => {
+    const secret = await enrolTotp();
+    const current = await getPrismaClient().session.create({
+      data: {
+        userId: USER_ID,
+        expiresAt: new Date(Date.now() + 3_600_000),
+        mfaVerifiedAt: new Date(),
+      },
+    });
+    const other = await getPrismaClient().session.create({
+      data: { userId: USER_ID, expiresAt: new Date(Date.now() + 3_600_000) },
+    });
+    cookieJar.set("healthlog_session", current.id);
+    headerJar.delete("authorization");
+
+    const { POST } = await import("@/app/api/auth/me/mfa/disable/route");
+    const res = await POST(
+      req("/api/auth/me/mfa/disable", "POST", {
+        code: currentTotpCode(secret),
+        method: "totp",
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    expect(
+      await getPrismaClient().session.findUnique({ where: { id: current.id } }),
+    ).not.toBeNull();
+    expect(
+      await getPrismaClient().session.findUnique({ where: { id: other.id } }),
+    ).toBeNull();
+  });
+});
+
+// ── E12 — validation failures do not burn the proof ──────────────────
+
+describe("E12 — a rejected request keeps the elevation spendable", () => {
+  it("survives a wrong TOTP code on disable", async () => {
+    const secret = await enrolTotp();
+    const codes = await seedRecoveryCodes();
+    const { raw } = await mintToken("e12a");
+    useToken(raw);
+    const elevation = elevationOf(await mintTotpElevation(secret));
+
+    useElevation(elevation);
+    const { POST } = await import("@/app/api/auth/me/mfa/disable/route");
+    const bad = await POST(
+      req("/api/auth/me/mfa/disable", "POST", {
+        code: "000000",
+        method: "totp",
+      }),
+    );
+    expect(bad.status).toBe(401);
+
+    // Unspent — otherwise five fat-fingered codes would exhaust the 5-per-15-min
+    // mint ceiling and lock the user out of their own security settings.
+    const row = await getPrismaClient().stepUpElevation.findFirst();
+    expect(row?.consumedAt).toBeNull();
+
+    // And the retry goes through on the SAME elevation.
+    const good = await POST(
+      req("/api/auth/me/mfa/disable", "POST", {
+        code: codes[0],
+        method: "recovery",
+      }),
+    );
+    expect(good.status).toBe(200);
+  });
+
+  it("survives a malformed body", async () => {
+    const { raw } = await mintToken("e12b");
+    useToken(raw);
+    useElevation(elevationOf(await mintElevation(PASSWORD)));
+
+    const { POST } =
+      await import("@/app/api/auth/me/mfa/webauthn/register/verify/route");
+    const res = await POST(
+      req("/api/auth/me/mfa/webauthn/register/verify", "POST", { nope: 1 }),
+    );
+    expect(res.status).toBe(422);
+
+    const row = await getPrismaClient().stepUpElevation.findFirst();
+    expect(row?.consumedAt).toBeNull();
+  });
+});
+
+// ── E13 — the status read is plain Bearer ────────────────────────────
+
+describe("E13 — the second-factor status read needs no elevation", () => {
+  it("serves a token with no elevation header at all", async () => {
+    const { raw } = await mintToken("e13a");
+    useToken(raw);
+    useElevation(null);
+
+    const res = await callMfaStatus();
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { totp: { enabled: boolean }; webauthn: unknown[] };
+    };
+    expect(body.data.totp).toBeDefined();
+    expect(Array.isArray(body.data.webauthn)).toBe(true);
+  });
+
+  it("carries no credential material", async () => {
+    await getPrismaClient().webauthnMfaCredential.create({
+      data: {
+        userId: USER_ID,
+        name: "key",
+        credentialId: "cred-e13b-secret",
+        credentialPublicKey: Buffer.from([9, 9, 9]),
+        transports: ["internal"],
+      },
+    });
+    const { raw } = await mintToken("e13b");
+    useToken(raw);
+
+    const text = await (await callMfaStatus()).text();
+
+    // The justification for relaxing this route is that the payload is inert.
+    // Pin it: no credential id, no public key, no codes.
+    expect(text).not.toContain("cred-e13b-secret");
+    expect(text).not.toContain("credentialPublicKey");
+    expect(text).not.toContain("credentialId");
   });
 });

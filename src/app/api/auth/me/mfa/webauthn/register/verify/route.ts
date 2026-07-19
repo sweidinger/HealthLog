@@ -24,7 +24,8 @@ import { setMfaEnrollCookie } from "@/lib/auth/mfa-enrollment";
 export const dynamic = "force-dynamic";
 
 export const POST = apiHandler(async (request: NextRequest) => {
-  const { user } = await requireMfaManagementAuth();
+  const auth = await requireMfaManagementAuth();
+  const { user } = auth;
 
   const { data: body, error: jsonError } = await safeJson(request, {
     maxBytes: 64 * 1024,
@@ -45,6 +46,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (!verification.verified || !verification.registrationInfo) {
     return apiError("Security key verification failed", 400);
   }
+
+  // The attestation verified and the credential is about to be stored — a
+  // failed ceremony above must not have cost the caller their elevation.
+  await auth.commitElevation();
 
   const { registrationInfo } = verification;
   const created = await prisma.webauthnMfaCredential.create({

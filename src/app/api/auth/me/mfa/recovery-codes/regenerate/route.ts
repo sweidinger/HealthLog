@@ -24,7 +24,8 @@ const REGEN_RATE_LIMIT = 5;
 const REGEN_WINDOW_MS = 15 * 60 * 1000;
 
 export const POST = apiHandler(async (req: Request) => {
-  const { user } = await requireMfaManagementAuth({ freshFactor: true });
+  const auth = await requireMfaManagementAuth({ freshFactor: true });
+  const { user } = auth;
 
   // Defence in depth — regeneration only makes sense for an active factor.
   if (!user.totpConfirmedAt) {
@@ -43,6 +44,8 @@ export const POST = apiHandler(async (req: Request) => {
     }
     return res;
   }
+
+  await auth.commitElevation();
 
   const recoveryCodes = await regenerateRecoveryCodes(user.id);
 

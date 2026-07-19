@@ -15,7 +15,8 @@ import { createMfaRegistrationOptions } from "@/lib/auth/mfa/webauthn";
 export const dynamic = "force-dynamic";
 
 export const POST = apiHandler(async () => {
-  const { user } = await requireMfaManagementAuth();
+  const auth = await requireMfaManagementAuth();
+  const { user } = auth;
 
   const rl = await checkRateLimit(
     `mfa:webauthn:register:${user.id}`,
@@ -29,6 +30,8 @@ export const POST = apiHandler(async () => {
     }
     return res;
   }
+
+  await auth.commitElevation();
 
   const { options, challengeId } = await createMfaRegistrationOptions(
     user.id,

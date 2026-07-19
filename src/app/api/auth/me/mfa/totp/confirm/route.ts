@@ -46,7 +46,8 @@ const CONFIRM_RATE_LIMIT = 10;
 const CONFIRM_WINDOW_MS = 15 * 60 * 1000;
 
 export const POST = apiHandler(async (req: Request) => {
-  const { user, session } = await requireMfaManagementAuth();
+  const auth = await requireMfaManagementAuth();
+  const { user } = auth;
 
   const rl = await checkRateLimit(
     `mfa:confirm:${user.id}`,
@@ -103,6 +104,10 @@ export const POST = apiHandler(async (req: Request) => {
 
   const recoveryCodes = generateRecoveryCodes();
 
+  // The code verified and the activation is next — spend the elevation here so
+  // a wrong code above costs the caller nothing.
+  await auth.commitElevation();
+
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
@@ -115,11 +120,14 @@ export const POST = apiHandler(async (req: Request) => {
     await tx.mfaRecoveryCode.deleteMany({ where: { userId: user.id } });
     await persistRecoveryCodes(tx, user.id, recoveryCodes);
     // Stamp the completing session so the user can immediately manage the
-    // factor under step-up without re-verifying.
-    await tx.session.updateMany({
-      where: { id: session.id },
-      data: { mfaVerifiedAt: new Date() },
-    });
+    // factor under step-up without re-verifying. Cookie transport only — a
+    // Bearer caller has no session row, and mints a fresh elevation per action.
+    if (auth.transport === "cookie") {
+      await tx.session.updateMany({
+        where: { id: auth.session.id },
+        data: { mfaVerifiedAt: new Date() },
+      });
+    }
   });
 
   // v1.23 — the account now has an active second factor, so any

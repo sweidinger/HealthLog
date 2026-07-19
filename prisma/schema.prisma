@@ -3159,6 +3159,13 @@ model StepUpElevation {
   @@index([userId])
   @@index([apiTokenId])
   @@index([expiresAt])
+  // NOTE: migration 0260 additionally creates a PARTIAL unique index —
+  // `(api_token_id) WHERE consumed_at IS NULL` — so at most one elevation per
+  // token is ever redeemable. Prisma cannot express a partial index, and a
+  // plain `@@unique([apiTokenId])` would be wrong: it would also forbid minting
+  // a second elevation after the first was legitimately consumed. The
+  // constraint therefore lives only in the migration, and the mint below
+  // handles its unique violation explicitly.
   @@map("step_up_elevations")
 }
 
