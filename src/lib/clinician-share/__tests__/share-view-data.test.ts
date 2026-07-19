@@ -10,6 +10,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("@/lib/modules/gate", () => ({
+  isModuleEnabled: vi.fn(async () => true),
+}));
 vi.mock("@/lib/doctor-report-data", () => ({
   collectDoctorReportData: vi.fn(),
 }));
@@ -23,6 +26,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { loadShareViewData } from "../share-view-data";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import { collectDoctorReportData } from "@/lib/doctor-report-data";
 import { EMPTY_DOCTOR_REPORT_PREFS } from "@/lib/validations/doctor-report-prefs";
 import { prisma } from "@/lib/db";
@@ -348,5 +352,81 @@ describe("loadShareViewData — grouped sections are folded, not silently defaul
     expect(opts.sections.mood).toBe(true);
     // Unspecified flat keys fall back to the documented defaults.
     expect(opts.sections.weight).toBe(true);
+  });
+});
+
+/**
+ * v1.30.22 — the owner's `doctorReport` module gates this surface too.
+ *
+ * Found while tracing every caller of the whole-record aggregate for the MCP
+ * fix: this link serves that same payload to an unauthenticated third party
+ * and never consulted the module key, so an owner (or an operator, via the
+ * availability switch ANDed above the user toggle) who turned the module off
+ * still had the full record served.
+ *
+ * Degrades to the share's OWN documents-only state rather than throwing:
+ * `documentOnly` is an existing, load-bearing privacy mode here (report
+ * `null`, aggregator never called), so a disabled module collapses the link to
+ * exactly the documents the owner attached — fail-closed for the health record
+ * without 500-ing a public link.
+ */
+describe("clinician share — owner doctorReport module gate", () => {
+  beforeEach(() => {
+    // Sibling of the suite above, so the outer reset does not reach here.
+    vi.clearAllMocks();
+    vi.mocked(isModuleEnabled).mockImplementation(async () => true);
+    collect.mockResolvedValue({ patient: { displayName: "Shared record" } });
+  });
+
+  it("aggregates normally with the module on", async () => {
+    collect.mockResolvedValue({ patient: { displayName: "Shared record" } });
+    findDocs.mockResolvedValue([]);
+
+    const res = await loadShareViewData(
+      ctx({ sectionsJson: { bp: true }, documentOnly: false }),
+    );
+
+    expect(res.documentOnly).toBe(false);
+    expect(res.report).not.toBeNull();
+    expect(collect).toHaveBeenCalled();
+  });
+
+  it("collapses to documents-only with the module off", async () => {
+    vi.mocked(isModuleEnabled).mockImplementation(async () => false);
+    findDocs.mockResolvedValue([]);
+
+    const res = await loadShareViewData(
+      ctx({ sectionsJson: { bp: true }, documentOnly: false }),
+    );
+
+    expect(res.documentOnly).toBe(true);
+    expect(res.report).toBeNull();
+    // Load-bearing: the aggregator is never called, so no health data leaves
+    // the DB at all — not built-then-withheld.
+    expect(collect).not.toHaveBeenCalled();
+  });
+
+  it("gates on the OWNER's module state, not a viewer's", async () => {
+    // The link is public; there is no viewer session. The owner id must come
+    // from the frozen share context.
+    findDocs.mockResolvedValue([]);
+    await loadShareViewData(
+      ctx({ sectionsJson: { bp: true }, documentOnly: false }),
+    );
+    expect(isModuleEnabled).toHaveBeenCalledWith("owner-1", "doctorReport");
+  });
+
+  it("closes the operator kill-switch path too", async () => {
+    vi.mocked(isModuleEnabled).mockImplementation(
+      async (_u: string, key: string) => key !== "doctorReport",
+    );
+    findDocs.mockResolvedValue([]);
+
+    const res = await loadShareViewData(
+      ctx({ sectionsJson: { bp: true }, documentOnly: false }),
+    );
+
+    expect(res.documentOnly).toBe(true);
+    expect(collect).not.toHaveBeenCalled();
   });
 });

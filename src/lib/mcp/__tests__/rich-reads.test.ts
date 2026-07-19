@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // --- Engine mocks hoisted before importing the module under test. ---
+vi.mock("@/lib/modules/gate", () => ({
+  isModuleEnabled: vi.fn(async () => true),
+}));
 vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
 vi.mock("@/lib/ai/coach/tools/correlations-read", () => ({
   readCoachCorrelations: vi.fn(),

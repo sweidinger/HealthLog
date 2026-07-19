@@ -13,6 +13,9 @@ const intakeEventFindMany = vi.fn();
 const illnessEpisodeFindMany = vi.fn();
 const illnessDayLogFindMany = vi.fn();
 const labResultFindMany = vi.fn();
+vi.mock("@/lib/modules/gate", () => ({
+  isModuleEnabled: vi.fn(async () => true),
+}));
 vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: { findMany: (a: unknown) => measurementFindMany(a) },

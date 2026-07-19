@@ -101,14 +101,38 @@ const METRIC_STATUS_MODULE_OWNERS: Partial<Record<MeasurementType, ModuleKey>> =
     CARDIO_LOAD: "workouts",
     ANS_CHARGE: "recovery",
     CARDIO_RECOVERY: "recovery",
+    // The HRV fallback type. `resolveRichMetricForUser` swaps HRV to its RMSSD
+    // fallback for an account that only has ring/strap nightly RMSSD rows, so
+    // leaving this unowned would have let the fallback path serve exactly the
+    // recovery data the primary type refuses. Caught by the structural test.
+    HRV_RMSSD: "recovery",
   };
 
 /**
  * Measurement types that resolve over the rich reads but that NO module owns —
- * reviewed and deliberately ungated. They are core clinical / mobility figures
- * that exist independently of any toggleable module (weight, pulse, blood
- * pressure, BMI, body composition, gait, fall count, the walk-test metrics),
- * so gating them would hide data the user never opted out of.
+ * reviewed and deliberately ungated.
+ *
+ * These are not an oversight and not a backlog: they are the domains the
+ * module model has never claimed. The Coach snapshot does not narrow any of
+ * them either (none of their scope tokens appears in
+ * {@link MODULE_SCOPED_SOURCES}), so gating them here would make the MCP wire
+ * STRICTER than the app and the Coach — hiding data behind a toggle the user
+ * never associated with it. Grouped by why:
+ *
+ *   - Core clinical figures every account carries: weight, pulse, blood
+ *     pressure, BMI, body temperature.
+ *   - Body composition: fat / lean / muscle / bone / water / visceral.
+ *   - Activity volume: steps, distance, flights, active energy. Owned by no
+ *     module — `workouts` gates workout SESSIONS, not ambient movement.
+ *   - Gait and mobility, incl. the fall / walk-test / stair metrics.
+ *   - Cardio-vascular readings with no module home: SpO2, respiratory rate,
+ *     walking HR, pulse-wave velocity, vascular age, avg/max HR.
+ *   - v1.25 clinical signals: grip strength, pain NRS, waist measures.
+ *   - WRIST_TEMPERATURE and ENERGY_EXPENDITURE_KJ: plausible arguments exist
+ *     for `sleep` and `workouts` respectively, but neither module claims them
+ *     anywhere else in the tree, and guessing an owner would hide a metric
+ *     behind an unrelated toggle. Left unowned deliberately rather than
+ *     assigned on a hunch.
  *
  * This set exists so the structural test can distinguish "reviewed as
  * unscoped" from "nobody has looked at this yet" — a new resolvable metric
@@ -116,20 +140,53 @@ const METRIC_STATUS_MODULE_OWNERS: Partial<Record<MeasurementType, ModuleKey>> =
  */
 export const UNSCOPED_REVIEWED_TYPES: ReadonlySet<MeasurementType> =
   new Set<MeasurementType>([
+    // Core clinical.
     "WEIGHT",
     "PULSE",
     "BODY_MASS_INDEX",
     "BLOOD_PRESSURE_SYS",
     "BLOOD_PRESSURE_DIA",
+    "BODY_TEMPERATURE",
+    // Body composition.
     "BODY_FAT",
-    "WRIST_TEMPERATURE",
+    "FAT_MASS",
+    "FAT_FREE_MASS",
+    "LEAN_BODY_MASS",
+    "MUSCLE_MASS",
+    "BONE_MASS",
+    "TOTAL_BODY_WATER",
+    "VISCERAL_FAT",
+    // Ambient activity volume (not workout sessions).
+    "ACTIVITY_STEPS",
+    "WALKING_RUNNING_DISTANCE",
+    "FLIGHTS_CLIMBED",
+    "ACTIVE_ENERGY_BURNED",
     "ENERGY_EXPENDITURE_KJ",
+    // Gait / mobility.
+    "WALKING_SPEED",
+    "WALKING_STEADINESS",
+    "WALKING_ASYMMETRY",
+    "WALKING_DOUBLE_SUPPORT",
+    "WALKING_STEP_LENGTH",
     "FALL_COUNT",
     "SIX_MINUTE_WALK_DISTANCE",
     "STAIR_ASCENT_SPEED",
     "STAIR_DESCENT_SPEED",
+    // Cardio-vascular with no module home.
+    "OXYGEN_SATURATION",
+    "RESPIRATORY_RATE",
+    "WALKING_HEART_RATE_AVERAGE",
+    "PULSE_WAVE_VELOCITY",
+    "VASCULAR_AGE",
     "AVERAGE_HEART_RATE",
     "MAX_HEART_RATE",
+    // v1.25 clinical signals.
+    "GRIP_STRENGTH",
+    "PAIN_NRS",
+    "WAIST_CIRCUMFERENCE",
+    "WAIST_TO_HEIGHT",
+    // Temperature with a plausible but unclaimed owner.
+    "WRIST_TEMPERATURE",
   ]);
 
 /**
